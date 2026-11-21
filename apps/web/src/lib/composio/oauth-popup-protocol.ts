@@ -25,15 +25,18 @@ export const COMPOSIO_OWNER_VERIFICATION_PARAM =
  */
 export const COMPOSIO_MANAGED_RETURN_PATH = "/seo/connections/callback";
 /**
- * Preprod's Web host, and Web's Preprod pull-request previews. Preprod can
- * return there, so a preview can finish a connection. A preview runs the code
- * of its branch, so this trusts every branch that gets a Preprod preview; no
- * other network does. The host is named, not read from the environment: this
- * page is built one time, and an unset variable must not open Mainnet.
+ * Each canonical Web origin returns consent only to its own network's Web
+ * branch previews. This trusts branches deployed as previews on that network,
+ * including Mainnet. It never permits a cross-network credential handoff.
+ * The origins are fixed, not read from the environment: an unset variable
+ * must not expand the credential boundary.
  */
-const PREPROD_WEB_HOST = "preprod.sokosumi.com";
+const PREPROD_WEB_ORIGIN = "https://preprod.sokosumi.com";
 const PREPROD_PREVIEW_HOST =
   /^sokosumi-app-preprod-git-[a-z0-9-]+\.preview\.sokosumi\.com$/;
+const MAINNET_WEB_ORIGIN = "https://app.sokosumi.com";
+const MAINNET_PREVIEW_HOST =
+  /^sokosumi-app-mainnet-git-[a-z0-9-]+\.preview\.sokosumi\.com$/;
 const SOKOSUMI_HOST = /(^|\.)sokosumi\.com$/;
 
 /**
@@ -152,6 +155,10 @@ export interface ComposioOAuthCallbackPayload {
   status: ComposioOAuthCallbackStatus;
   connectionId: string | null;
   sessionUri: string | null;
+  callbackProof?: string;
+  /** A LinkedIn sign-in that waits for its account: Zernio's handles on it. */
+  pendingDataToken?: string;
+  connectToken?: string;
   errorMessage: string | null;
   nonce: string;
 }
@@ -182,27 +189,13 @@ export function isComposioOAuthCallbackPayload(
  * Same-tab bot connections have no popup nonce and use the signed-in verifier.
  */
 export function buildComposioCallbackInlineScript(): string {
-  const channel = COMPOSIO_OAUTH_BROADCAST_CHANNEL;
-  const storageKey = COMPOSIO_OAUTH_NONCE_STORAGE_KEY;
-  const popupNamePrefix = COMPOSIO_OAUTH_POPUP_NAME_PREFIX;
   const messageType = COMPOSIO_OAUTH_MESSAGE_TYPE;
-  const ackType = COMPOSIO_OAUTH_ACK_TYPE;
   const botVerifierPath = COMPOSIO_BOT_VERIFIER_PATH;
   const botIdKey = COMPOSIO_BOT_ID_STORAGE_KEY;
   const returnUrlValidator = isFirstPartyReturnUrl.toString();
   const allowLocalReturn = process.env.NODE_ENV === "development";
 
-  return `(function(){
-try{
-var p=new URLSearchParams(window.location.search);
-var popupName=typeof window.name==="string"?window.name:"";
-var namedNonce=popupName.indexOf(${JSON.stringify(popupNamePrefix)})===0?popupName.slice(${JSON.stringify(popupNamePrefix)}.length):"";
-var nonce="";
-try{
-nonce=window.sessionStorage.getItem(${JSON.stringify(storageKey)})||"";
-window.sessionStorage.removeItem(${JSON.stringify(storageKey)});
-}catch(e){}
-var sessionUri=p.get("session_uri")||p.get("sessionUri");
+  return buildPopupScript(`var sessionUri=p.get("session_uri")||p.get("sessionUri");
 var connectionId=p.get("connectedAccountId")||p.get("connected_account_id")||p.get("connectionId")||p.get("id");
 if(!nonce){
 var handoff=null;
@@ -218,7 +211,7 @@ var validPopupNonce=handoff&&(handoff.popupNonce===null||handoff.popupNonce===un
 if(handoff&&typeof handoff.returnUrl==="string"&&typeof handoff.at==="number"&&Number.isFinite(handoff.at)&&handoff.at<=now&&now-handoff.at<${COMPOSIO_HANDOFF_TTL_MS}&&validConnection&&validPopupNonce&&(!namedNonce||handoff.popupNonce===namedNonce)){
 var candidate=new URL(handoff.returnUrl);
 var here=candidate.origin===window.location.origin;
-var preview=window.location.hostname===${JSON.stringify(PREPROD_WEB_HOST)}&&candidate.port===""&&new RegExp(${JSON.stringify(PREPROD_PREVIEW_HOST.source)}).test(candidate.hostname);
+var preview=candidate.port===""&&((window.location.origin===${JSON.stringify(PREPROD_WEB_ORIGIN)}&&new RegExp(${JSON.stringify(PREPROD_PREVIEW_HOST.source)}).test(candidate.hostname))||(window.location.origin===${JSON.stringify(MAINNET_WEB_ORIGIN)}&&new RegExp(${JSON.stringify(MAINNET_PREVIEW_HOST.source)}).test(candidate.hostname)));
 var redeems=candidate.pathname===${JSON.stringify(COMPOSIO_MANAGED_RETURN_PATH)}&&(here||preview);
 var sokosumi=new RegExp(${JSON.stringify(SOKOSUMI_HOST.source)}).test(candidate.hostname);
 if((${returnUrlValidator})(candidate,${allowLocalReturn})&&(!sokosumi||redeems))back=candidate;
@@ -253,7 +246,41 @@ var rawStatus=(p.get("status")||"").toLowerCase();
 var errorMessage=p.get("error")||p.get("error_description");
 var failed=rawStatus==="failed"||rawStatus==="error"||rawStatus==="expired"||rawStatus==="inactive"||!!errorMessage;
 var status=failed?"error":(rawStatus==="success"||rawStatus==="active"||connectionId||sessionUri?"success":"error");
-var payload={type:${JSON.stringify(messageType)},status:status,connectionId:connectionId,sessionUri:sessionUri,errorMessage:errorMessage,nonce:nonce};
+var payload={type:${JSON.stringify(messageType)},status:status,connectionId:connectionId,sessionUri:sessionUri,errorMessage:errorMessage,nonce:nonce};`);
+}
+
+export function buildZernioCallbackInlineScript(): string {
+  return buildPopupScript(`
+nonce=nonce||namedNonce;
+if(!nonce)return;
+var connectionId=p.get("connection");
+var proof=p.get("proof");
+var profileId=p.get("profileId");
+var pendingDataToken=p.get("pendingDataToken");
+var connectToken=p.get("connect_token");
+var kept=(p.get("connected")==="tiktok"||p.get("connected")==="linkedin")&&p.get("accountId");
+var waiting=p.get("platform")==="linkedin"&&pendingDataToken&&connectToken;
+var success=!p.has("error")&&!p.has("error_description")&&(kept||waiting)
+  &&proof&&profileId&&connectionId==="zernio:"+profileId;
+var payload={type:${JSON.stringify(COMPOSIO_OAUTH_MESSAGE_TYPE)},status:success?"success":"error",connectionId:connectionId,callbackProof:success?proof:undefined,pendingDataToken:success&&waiting?pendingDataToken:undefined,connectToken:success&&waiting?connectToken:undefined,sessionUri:null,errorMessage:null,nonce:nonce};`);
+}
+
+function buildPopupScript(readPayload: string): string {
+  const channel = COMPOSIO_OAUTH_BROADCAST_CHANNEL;
+  const storageKey = COMPOSIO_OAUTH_NONCE_STORAGE_KEY;
+  const popupNamePrefix = COMPOSIO_OAUTH_POPUP_NAME_PREFIX;
+  const ackType = COMPOSIO_OAUTH_ACK_TYPE;
+  return `(function(){
+try{
+var p=new URLSearchParams(window.location.search);
+var popupName=typeof window.name==="string"?window.name:"";
+var namedNonce=popupName.indexOf(${JSON.stringify(popupNamePrefix)})===0?popupName.slice(${JSON.stringify(popupNamePrefix)}.length):"";
+var nonce="";
+try{
+nonce=window.sessionStorage.getItem(${JSON.stringify(storageKey)})||"";
+window.sessionStorage.removeItem(${JSON.stringify(storageKey)});
+}catch(e){}
+${readPayload}
 var origin=window.location.origin;
 function closePopup(){try{window.close()}catch(e){}}
 window.addEventListener("message",function onAck(ev){

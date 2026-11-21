@@ -16,7 +16,7 @@ describe("notificationEmailLink", () => {
         kind: NotificationKind.TASK,
         referenceId: "task 1",
         messageKey: "Notifications.Task.completed",
-        metadata: null,
+        metadata: { seoResult: false },
       }),
     ).toBe(`${BASE}/tasks/task%201`);
   });

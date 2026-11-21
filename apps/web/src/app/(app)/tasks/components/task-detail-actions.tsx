@@ -1,22 +1,6 @@
 "use client";
 
-import type {
-  ChatRoom,
-  MemberWithOrganization,
-  TaskShare,
-} from "@sokosumi/core-client";
-import {
-  type TaskLink,
-  TaskLinkRelation,
-  TaskStatus,
-} from "@sokosumi/core-client";
-import {
-  CORE_API_ERROR_KINDS,
-  isTaskArchivableStatus,
-  isTaskEditableStatus,
-  type TaskAssigneeKind,
-  userTaskStatusTransitionRequiresComment,
-} from "@sokosumi/utils";
+import { TaskLinkRelation, TaskStatus } from "@sokosumi/core-client";
 import type { LucideIcon } from "lucide-react";
 import {
   Archive,
@@ -31,34 +15,13 @@ import {
   Loader2,
   LucideSquareMousePointer,
   MessageSquareShare,
-  OctagonMinus,
   Pencil,
   Repeat,
   RotateCcw,
-  SquareArrowRightExit,
-  SquareMinus,
-  SquareMousePointer,
-  SquarePlus,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
-import { useMemo, useRef, useState, useTransition } from "react";
-import { toast } from "sonner";
-import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
-import { loadTaskScheduleDialogOptions } from "@/app/tasks/actions";
-import {
-  markTaskArchived,
-  unmarkTaskArchived,
-} from "@/app/tasks/utils/archived-task-ids";
-import { chatRoomsForTask } from "@/app/tasks/utils/task-chat-share";
-import { taskHref } from "@/app/tasks/utils/task-href";
-import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
 import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
-import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
-import { listOrganizationChatRoomsAction } from "@/components/chat/organization-chat-list.actions";
-import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -70,543 +33,110 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useIsMobile } from "@/hooks/use-mobile";
-import {
-  createTaskAndLink,
-  createTaskLink,
-  deleteTaskLink,
-  setTaskStatusFromDrag,
-} from "@/lib/actions/task/action";
-import { viewerIsOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
-import { taskClientService } from "@/lib/services/task.client";
-import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
-import type { TaskMutationErrorKind } from "@/lib/utils/task-mutation-error-kinds";
 import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";
-import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
-import {
-  TaskForm,
-  type TaskFormInitialDesignMdAttachment,
-  type TaskFormLabels,
-} from "./task-form";
-import { TaskFormModal } from "./task-form-modal";
+import { TaskCreateRelatedModal } from "./task-create-related-modal";
 import { getTaskLinkRelationIcon } from "./task-link-relation-icon";
-import {
-  type TaskLinkActionOption,
-  TaskLinkTaskPickerDialog,
-} from "./task-link-task-picker-dialog";
+import { TaskLinkTaskPickerDialog } from "./task-link-task-picker-dialog";
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
-import {
-  type TaskScheduleBlueprintPrefill,
-  TaskScheduleDialog,
-} from "./task-schedule-dialog";
+import { TaskScheduleDialog } from "./task-schedule-dialog";
 import { TaskSendToChatDialog } from "./task-send-to-chat-dialog";
 import { TaskShareButton } from "./task-share-button";
-import { getWorkspaceMoveTargetCount } from "./workspace-move-targets";
+import {
+  TaskSubtaskMenuDialogs,
+  TaskSubtaskMenuItems,
+} from "./task-subtask-menu";
+import {
+  type TaskDetailActionsProps,
+  useTaskDetailActions,
+} from "./use-task-detail-actions";
+import { useTaskSubtaskActions } from "./use-task-subtask-actions";
 
-interface TaskDetailActionsLabels {
-  edit: string;
-  archive: string;
-  archiveError: string;
-  reopenToReady: string;
-  reopenToReadyTitle: string;
-  reopenToReadyDescription: string;
-  reopenToReadyCommentLabel: string;
-  reopenToReadyCommentPlaceholder: string;
-  reopenToReadyCommentRequired: string;
-  reopenToReadyConfirm: string;
-  cancel: string;
-  share: string;
-  startWorking: string;
-  pauseToReady: string;
-  waitExternal: string;
-  resumeRunning: string;
-  resumeReady: string;
-  markComplete: string;
-}
+const NO_ANCESTORS: readonly string[] = [];
 
-interface TaskStatusAction {
-  label: string;
-  target: TaskStatus;
-  requiresComment?: boolean;
-}
-
-interface TaskDetailActionsProps {
-  taskId: string;
-  share: TaskShare | null;
-  status: TaskStatus;
-  /** When PRIVATE, public share controls are hidden. */
-  taskVisibility?: "PUBLIC" | "PRIVATE";
-  jobsCount: number;
-  taskLinks: TaskLink[];
-  coworkerOptions: CoworkerOption[];
-  agentNameById: Map<string, string>;
-  defaultAssigneeId?: string | null;
-  assigneeKind?: TaskAssigneeKind;
-  /** Resolved DESIGN.md for create-related flow (same picker as new task). */
-  initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
-  actionsMenuLabel: string;
-  labels: TaskDetailActionsLabels;
-  currentOrganizationId?: string | null;
-  organizations?: MemberWithOrganization[];
-  hasPersonalWorkspace?: boolean;
-  personalWorkspaceLabel: string;
-  isReadOnly?: boolean;
-  canCancel?: boolean;
-  forceReadOnly?: boolean;
-  isTaskOwner?: boolean;
-  /** Null when the Task has no Owner. Archive and move then need an org owner or admin. */
-  taskOwnerId: string | null;
-  hasAssignedSeat?: boolean;
-  /**
-   * The Task as a reusable brief, for "Repeat" (a Task Schedule) and
-   * "Duplicate" (a new Draft). Omitted where the viewer cannot create either;
-   * the Task itself is never changed.
-   */
-  taskBlueprint?: TaskScheduleBlueprintPrefill;
-  /**
-   * "Send to chat": post the Task's link into a chat room. Omitted for
-   * private Tasks and read-only views; Core re-checks both at send time and
-   * the link never grants access.
-   */
-  sendToChat?: { currentUserId: string };
-}
-
-export function TaskDetailActions({
-  taskId,
-  share,
-  status,
-  taskVisibility = "PUBLIC",
-  jobsCount,
-  taskLinks,
-  coworkerOptions,
-  agentNameById,
-  defaultAssigneeId,
-  assigneeKind,
-  initialDesignMdAttachment = null,
-  actionsMenuLabel,
-  labels,
-  currentOrganizationId,
-  organizations,
-  hasPersonalWorkspace = false,
-  personalWorkspaceLabel,
-  isReadOnly = false,
-  canCancel = false,
-  forceReadOnly = false,
-  isTaskOwner = false,
-  taskOwnerId,
-  hasAssignedSeat = false,
-  taskBlueprint,
-  sendToChat,
-}: TaskDetailActionsProps) {
-  const tApp = useTranslations("App");
-  const tDetailActions = useTranslations("App.Tasks.Detail.actions");
-  const tNewTask = useTranslations("App.Tasks.NewTask");
-  const tTasks = useTranslations("App.Tasks");
-  const router = useRouter();
-  const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
-  const isMobile = useIsMobile();
-  const [isStatusPending, startStatusTransition] = useTransition();
-  const [isLinkPending, startLinkTransition] = useTransition();
-  const [isParentRemovalPending, startParentRemovalTransition] =
-    useTransition();
-  const [isRemoveRelatedPending, startRemoveRelatedTransition] =
-    useTransition();
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const menuTriggerRef = useRef<HTMLButtonElement>(null);
-  const [isMoveOpen, setIsMoveOpen] = useState(false);
-  const [isTaskPickerOpen, setIsTaskPickerOpen] = useState(false);
-  const [isMarkAsSectionOpen, setIsMarkAsSectionOpen] = useState(false);
-  const [isCreateRelatedSectionOpen, setIsCreateRelatedSectionOpen] =
-    useState(false);
-  const [isRemoveRelatedSectionOpen, setIsRemoveRelatedSectionOpen] =
-    useState(false);
-  const [selectedTaskPickerOption, setSelectedTaskPickerOption] =
-    useState<TaskLinkActionOption | null>(null);
-  const [selectedCreateRelatedOption, setSelectedCreateRelatedOption] =
-    useState<TaskLinkActionOption | null>(null);
-  const [isCreateRelatedOpen, setIsCreateRelatedOpen] = useState(false);
-  const [isCreateRelatedDismissDisabled, setIsCreateRelatedDismissDisabled] =
-    useState(false);
-  const [pendingStatusTarget, setPendingStatusTarget] =
-    useState<TaskStatus | null>(null);
-  const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
-  const [reopenComment, setReopenComment] = useState("");
-  const [pendingLinkTaskId, setPendingLinkTaskId] = useState<string | null>(
-    null,
-  );
-  const [pendingRemoveLinkId, setPendingRemoveLinkId] = useState<string | null>(
-    null,
-  );
-  const [repeatOptions, setRepeatOptions] = useState<{
-    coworkerOptions: CoworkerOption[];
-    projectOptions: ProjectFilterOption[];
-  } | null>(null);
-  const [isRepeatLoading, startRepeatTransition] = useTransition();
-  const [chatRooms, setChatRooms] = useState<ChatRoom[] | null>(null);
-  const [isChatRoomsLoading, startChatRoomsTransition] = useTransition();
-
-  const newTaskWizard = useOptionalNewTaskWizard();
-  // A copy carries the brief, assignee and tags only: no Run at, due date,
-  // jobs, payments, schedule, relations or priority. It opens in the New Task form
-  // as a Draft, so nothing runs until the viewer reviews and saves it.
-  const handleDuplicate = () => {
-    if (!taskBlueprint || !newTaskWizard) return;
-    newTaskWizard.openNewTaskWizard({
-      prompt: taskBlueprint.description ?? null,
-      projectId: taskBlueprint.projectId ?? null,
-      copy: {
-        taskId,
-        name: taskBlueprint.name ?? "",
-        visibility: taskBlueprint.visibility ?? "PUBLIC",
-        assigneeId: taskBlueprint.assigneeId ?? null,
-        assigneeSokoBotId: taskBlueprint.assigneeSokoBotId ?? null,
-        assigneeUserId: taskBlueprint.assigneeUserId ?? null,
-      },
-    });
-  };
-
-  const handleRepeat = () => {
-    startRepeatTransition(async () => {
-      try {
-        setRepeatOptions(await loadTaskScheduleDialogOptions());
-      } catch (error) {
-        console.error("Failed to load Task Schedule options", error);
-        toast.error(tDetailActions("repeatError"));
-      }
-    });
-  };
-
-  const handleSendToChat = () => {
-    if (!sendToChat) return;
-    startChatRoomsTransition(async () => {
-      const result = await listOrganizationChatRoomsAction();
-      if (!result.ok) {
-        toast.error(tDetailActions("sendToChat.loadError"));
-        return;
-      }
-      setChatRooms(
-        chatRoomsForTask(result.value.rooms, currentOrganizationId ?? null),
-      );
-    });
-  };
-
-  const canMutateTask = !isReadOnly;
-  const availableStatusActions = getTaskStatusActions(status, labels, {
-    assigneeKind: assigneeKind ?? (defaultAssigneeId ? "coworker" : "unset"),
+export function TaskDetailActions(props: TaskDetailActionsProps) {
+  const model = useTaskDetailActions(props);
+  const subtaskActions = useTaskSubtaskActions({
+    taskId: props.taskId,
+    parentTaskId: props.parentTaskId ?? null,
+    ancestorIds: props.ancestorIds ?? NO_ANCESTORS,
+    canManageRelations: model.canManageRelations,
   });
-  const statusActions = canMutateTask
-    ? availableStatusActions
-    : canCancel
-      ? availableStatusActions.filter(
-          (action) => action.target === TaskStatus.CANCELED,
-        )
-      : [];
-
-  const canEdit = canMutateTask && isTaskEditableStatus(status);
-  // A Task with an Owner keeps the old gates. One without an Owner can be
-  // archived or moved only by an organization owner or admin, and never into
-  // a personal workspace (ADR 0057).
-  const canManageUnowned =
-    taskOwnerId === null &&
-    viewerIsOrganizationOwnerOrAdmin(currentOrganizationId, organizations);
-  const canArchiveUnowned = taskOwnerId !== null || canManageUnowned;
-  const canArchiveParked =
-    canArchiveUnowned &&
-    canArchiveParkedTaskForViewer({
-      forceReadOnly,
-      taskStatus: status,
-      isTaskOwner,
-      isOrganizationTask: currentOrganizationId != null,
-      hasAssignedSeat,
-    });
-  const canArchiveTask =
-    canArchiveParked ||
-    (canArchiveUnowned &&
-      isTaskArchivableStatus(status) &&
-      !isReadOnly &&
-      !forceReadOnly);
-  const isFinalized =
-    status === TaskStatus.COMPLETED ||
-    status === TaskStatus.FAILED ||
-    status === TaskStatus.CANCELED;
-  const canManageRelations = canMutateTask && !isFinalized;
-  const personalMoveAllowed = taskOwnerId !== null && hasPersonalWorkspace;
-  const canMove =
-    canMutateTask &&
-    (isTaskOwner || canManageUnowned) &&
-    !isFinalized &&
-    getWorkspaceMoveTargetCount(
-      currentOrganizationId,
-      organizations,
-      personalMoveAllowed,
-    ) > 0;
-  const parentLinks = useMemo(
-    () => taskLinks.filter((link) => link.relation === TaskLinkRelation.CHILD),
-    [taskLinks],
-  );
-  const removableTaskLinks = useMemo(
-    () =>
-      taskLinks.filter(
-        (link) =>
-          link.peerTask.archivedAt === null &&
-          link.relation !== TaskLinkRelation.CHILD,
-      ),
-    [taskLinks],
-  );
-  const canRemoveRelated = canManageRelations && removableTaskLinks.length > 0;
-  const canRemoveParent = canManageRelations && parentLinks.length > 0;
-  const hasOverflowMenuActions =
-    taskBlueprint !== undefined ||
-    sendToChat !== undefined ||
-    statusActions.length > 0 ||
-    canEdit ||
-    canManageRelations ||
-    canMove ||
-    canArchiveTask;
-  const taskPickerOptions = useMemo(
-    () => buildTaskPickerOptions(tDetailActions),
-    [tDetailActions],
-  );
-  const createRelatedOptions = useMemo(
-    () => buildCreateRelatedOptions(tDetailActions),
-    [tDetailActions],
-  );
-  const createTaskLabels: TaskFormLabels = {
-    details: tNewTask("details"),
-    detailsDescription: tNewTask("detailsDescription"),
-    name: tNewTask("name"),
-    namePlaceholder: tNewTask("namePlaceholder"),
-    descriptionPlaceholder: tNewTask("descriptionPlaceholder"),
-    projectLabel: tNewTask("projectLabel"),
-    projectNone: tNewTask("projectNone"),
-    projectSearchPlaceholder: tNewTask("projectSearchPlaceholder"),
-    projectEmptyResults: tNewTask("projectEmptyResults"),
-    coworker: tNewTask("coworker"),
-    unassigned: tNewTask("unassigned"),
-    unavailableAssignee: tNewTask("unavailableAssignee"),
-    changeCoworker: tNewTask("changeCoworker"),
-    noCoworkerMatches: tNewTask("noCoworkerMatches"),
-    status: tNewTask("status"),
-    statusDescription: tNewTask("statusDescription"),
-    statusDraft: tNewTask("statusDraft"),
-    changeStatus: tNewTask("changeStatus"),
-    noStatusMatches: tNewTask("noStatusMatches"),
-    statusQueued: tNewTask("statusQueued"),
-    statusReady: tNewTask("statusReady"),
-    untitledTask: tNewTask("untitledTask"),
-    saveError: tNewTask("saveError"),
-    back: tNewTask("back"),
-    uploadFile: tNewTask("uploadFile"),
-    uploadFileError: tNewTask("uploadFileError"),
-    uploadingFile: getTaskAttachmentUploadLabelTemplate(
-      tNewTask,
-      "uploadingFile",
-    ),
-    uploadingFiles: getTaskAttachmentUploadLabelTemplate(
-      tNewTask,
-      "uploadingFiles",
-    ),
-    removeAttachment: tNewTask("removeAttachment"),
-    submit: tNewTask("createTask"),
-    createTask: tNewTask("createTask"),
-    scheduleTask: tNewTask("scheduleTask"),
-    openRunAt: tNewTask("openRunAt"),
-    cancel: tNewTask("cancel"),
-    ctrl: tNewTask("ctrl"),
-    privateLabel: tNewTask("privateLabel"),
-    privateDescription: tNewTask("privateDescription"),
+  const {
+    taskId,
+    share,
+    taskVisibility,
+    actionsMenuLabel,
+    labels,
+    currentOrganizationId,
+    organizations,
+    personalWorkspaceLabel,
+    taskBlueprint,
+    sendToChat,
+    assigneeName,
+    tDetailActions,
+    router,
+    isMobile,
+    isStatusPending,
+    isLinkPending,
+    isRemoveRelatedPending,
+    isDropdownOpen,
+    menuTriggerRef,
+    isMoveOpen,
+    setIsMoveOpen,
+    isTaskPickerOpen,
+    setIsTaskPickerOpen,
+    isLinkToTaskSectionOpen,
+    setIsLinkToTaskSectionOpen,
+    isCreateRelatedSectionOpen,
+    setIsCreateRelatedSectionOpen,
+    isRemoveRelatedSectionOpen,
+    setIsRemoveRelatedSectionOpen,
+    selectedTaskPickerOption,
+    setSelectedTaskPickerOption,
+    pendingStatusTarget,
+    isReopenDialogOpen,
+    setIsReopenDialogOpen,
+    reopenComment,
+    setReopenComment,
+    pendingRemoveLinkId,
+    repeatOptions,
+    setRepeatOptions,
+    isRepeatLoading,
+    chatRooms,
+    setChatRooms,
+    isChatRoomsLoading,
+    newTaskWizard,
+    handleDuplicate,
+    handleRepeat,
+    handleSendToChat,
+    canMutateTask,
+    statusActions,
+    canEdit,
+    canArchiveTask,
+    canManageRelations,
+    personalMoveAllowed,
+    canMove,
+    removableTaskLinks,
+    canRemoveRelated,
+    hasOverflowMenuActions,
+    taskPickerOptions,
+    createRelatedOptions,
+    handleStatusToggle,
+    handleReopenConfirm,
+    handleArchive,
+    handleDropdownOpenChange,
+    handleOpenTaskPicker,
+    handleOpenCreateRelated,
+    handleSelectLinkableTask,
+    handleRemoveRelated,
+  } = model;
+  const actionsDisabled = model.actionsDisabled || subtaskActions.isPending;
+  const returnFocusToMenu = (event: Event) => {
+    event.preventDefault();
+    menuTriggerRef.current?.focus();
   };
-
-  /**
-   * A rejected status write is a state, not a crash: a stale status list gets
-   * the status error, and only a stale client gets the reload modal.
-   */
-  const reportStatusRejection = (kind: TaskMutationErrorKind) => {
-    if (kind === CORE_API_ERROR_KINDS.STATUS_NOT_SELECTABLE) {
-      toast.error(tTasks("Errors.updateStatus"));
-      router.refresh();
-      return;
-    }
-    showCalendarClientUpgradeModal();
-  };
-
-  const handleStatusToggle = (action: TaskStatusAction) => {
-    if (
-      action.requiresComment ||
-      userTaskStatusTransitionRequiresComment(status, action.target)
-    ) {
-      setReopenComment("");
-      setIsReopenDialogOpen(true);
-      return;
-    }
-
-    setPendingStatusTarget(action.target);
-
-    startStatusTransition(async () => {
-      try {
-        const result = await setTaskStatusFromDrag({
-          taskId,
-          desiredStatus: action.target,
-        });
-        if (!result.ok) {
-          reportStatusRejection(result.error.kind);
-          return;
-        }
-        router.refresh();
-        toast.success(tDetailActions("updateStatusSuccess"));
-      } catch (error) {
-        console.error("Failed to update task status", error);
-        toast.error(tTasks("Errors.updateStatus"));
-      } finally {
-        setPendingStatusTarget(null);
-      }
-    });
-  };
-
-  const handleReopenConfirm = () => {
-    const trimmedComment = reopenComment.trim();
-    if (!trimmedComment) {
-      toast.error(labels.reopenToReadyCommentRequired);
-      return;
-    }
-
-    setPendingStatusTarget(TaskStatus.READY);
-
-    startStatusTransition(async () => {
-      try {
-        const result = await setTaskStatusFromDrag({
-          taskId,
-          desiredStatus: TaskStatus.READY,
-          comment: trimmedComment,
-        });
-        if (!result.ok) {
-          reportStatusRejection(result.error.kind);
-          return;
-        }
-        setIsReopenDialogOpen(false);
-        setReopenComment("");
-        router.refresh();
-        toast.success(tDetailActions("updateStatusSuccess"));
-      } catch (error) {
-        console.error("Failed to reopen task", error);
-        toast.error(tTasks("Errors.updateStatus"));
-      } finally {
-        setPendingStatusTarget(null);
-      }
-    });
-  };
-
-  // Leaves for the board at once and archives in the background: the board
-  // already hides the task, and shows it again if the archive fails.
-  const handleArchive = () => {
-    markTaskArchived(taskId);
-    router.push("/tasks");
-    taskClientService.archive(taskId).catch((error: unknown) => {
-      console.error("Failed to archive task", error);
-      unmarkTaskArchived(taskId);
-      toast.error(labels.archiveError);
-      router.refresh();
-    });
-  };
-
-  const resetMobileSections = () => {
-    setIsMarkAsSectionOpen(false);
-    setIsCreateRelatedSectionOpen(false);
-    setIsRemoveRelatedSectionOpen(false);
-  };
-
-  const handleDropdownOpenChange = (open: boolean) => {
-    setIsDropdownOpen(open);
-
-    if (!open) {
-      resetMobileSections();
-    }
-  };
-
-  const handleOpenTaskPicker = (option: TaskLinkActionOption) => {
-    setSelectedTaskPickerOption(option);
-    setIsTaskPickerOpen(true);
-  };
-
-  const handleOpenCreateRelated = (option: TaskLinkActionOption) => {
-    setSelectedCreateRelatedOption(option);
-    setIsCreateRelatedOpen(true);
-  };
-
-  const handleSelectLinkableTask = (
-    option: TaskLinkActionOption,
-    relatedTaskId: string,
-  ) => {
-    setPendingLinkTaskId(relatedTaskId);
-
-    startLinkTransition(async () => {
-      try {
-        await createTaskLink({
-          taskId,
-          relatedTaskId,
-          relation: option.relation,
-        });
-        setIsTaskPickerOpen(false);
-        setSelectedTaskPickerOption(null);
-        router.refresh();
-        toast.success(tDetailActions("linkTaskSuccess"));
-      } catch (error) {
-        console.error("Failed to create task link", error);
-        toast.error(tDetailActions("linkTaskError"));
-      } finally {
-        setPendingLinkTaskId(null);
-      }
-    });
-  };
-
-  const handleRemoveParent = () => {
-    if (parentLinks.length === 0) return;
-
-    startParentRemovalTransition(async () => {
-      try {
-        for (const link of parentLinks) {
-          await deleteTaskLink({
-            taskId,
-            linkId: link.id,
-          });
-        }
-        router.refresh();
-        toast.success(tDetailActions("removeParentSuccess"));
-      } catch (error) {
-        console.error("Failed to remove parent task link", error);
-        toast.error(tDetailActions("removeParentError"));
-      }
-    });
-  };
-
-  const handleRemoveRelated = (link: TaskLink) => {
-    setPendingRemoveLinkId(link.id);
-
-    startRemoveRelatedTransition(async () => {
-      try {
-        await deleteTaskLink({
-          taskId,
-          linkId: link.id,
-        });
-        router.refresh();
-        toast.success(tDetailActions("removeRelatedSuccess"));
-      } catch (error) {
-        console.error("Failed to remove related task link", error);
-        toast.error(tDetailActions("removeRelatedError"));
-      } finally {
-        setPendingRemoveLinkId(null);
-      }
-    });
-  };
-
-  const actionsDisabled =
-    isStatusPending ||
-    isLinkPending ||
-    isParentRemovalPending ||
-    isRemoveRelatedPending;
-
   return (
     <div className="flex items-center gap-2">
       {canArchiveTask ? (
@@ -641,7 +171,7 @@ export function TaskDetailActions({
             <Button
               ref={menuTriggerRef}
               type="button"
-              variant="outline"
+              variant="ghost"
               size="icon"
               className="size-10 md:size-8 shrink-0"
               aria-label={actionsMenuLabel}
@@ -741,6 +271,10 @@ export function TaskDetailActions({
 
             {canManageRelations ? (
               <>
+                <TaskSubtaskMenuItems
+                  model={subtaskActions}
+                  disabled={actionsDisabled}
+                />
                 {isMobile ? (
                   <>
                     <DropdownMenuItem
@@ -748,23 +282,23 @@ export function TaskDetailActions({
                       disabled={actionsDisabled}
                       onSelect={(event) => {
                         event.preventDefault();
-                        setIsMarkAsSectionOpen((previous) => !previous);
+                        setIsLinkToTaskSectionOpen((previous) => !previous);
                       }}
                     >
                       <FlagTriangleRight
                         className="size-4 text-muted-foreground"
                         aria-hidden
                       />
-                      <span>{tDetailActions("markAs")}</span>
+                      <span>{tDetailActions("linkToTask")}</span>
                       <ChevronDown
                         className={cn(
                           "ml-auto size-4 text-muted-foreground transition-transform",
-                          isMarkAsSectionOpen ? "rotate-180" : "",
+                          isLinkToTaskSectionOpen ? "rotate-180" : "",
                         )}
                         aria-hidden
                       />
                     </DropdownMenuItem>
-                    {isMarkAsSectionOpen
+                    {isLinkToTaskSectionOpen
                       ? taskPickerOptions.map((option) => (
                           <DropdownMenuItem
                             key={option.id}
@@ -823,7 +357,7 @@ export function TaskDetailActions({
                           className="size-4 text-muted-foreground"
                           aria-hidden
                         />
-                        {tDetailActions("markAs")}
+                        {tDetailActions("linkToTask")}
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="w-56">
                         {taskPickerOptions.map((option) => (
@@ -983,22 +517,6 @@ export function TaskDetailActions({
                     </DropdownMenuSub>
                   )
                 ) : null}
-                {canRemoveParent ? (
-                  <DropdownMenuItem
-                    disabled={actionsDisabled}
-                    onSelect={handleRemoveParent}
-                  >
-                    {isParentRemovalPending ? (
-                      <Loader2
-                        className="size-4 animate-spin motion-reduce:animate-pulse"
-                        aria-hidden
-                      />
-                    ) : (
-                      <SquareArrowRightExit className="size-4" aria-hidden />
-                    )}
-                    {tDetailActions("removeParent")}
-                  </DropdownMenuItem>
-                ) : null}
               </>
             ) : null}
 
@@ -1046,18 +564,15 @@ export function TaskDetailActions({
             setReopenComment("");
           }
         }}
-        labels={{
-          title: labels.reopenToReadyTitle,
-          description: labels.reopenToReadyDescription,
-          commentLabel: labels.reopenToReadyCommentLabel,
-          commentPlaceholder: labels.reopenToReadyCommentPlaceholder,
-          confirm: labels.reopenToReadyConfirm,
-          cancel: tApp("cancel"),
-        }}
+        assigneeName={assigneeName ?? ""}
         comment={reopenComment}
         onCommentChange={setReopenComment}
-        onConfirm={handleReopenConfirm}
-        isPending={isStatusPending && pendingStatusTarget === TaskStatus.READY}
+        onConfirm={() => handleReopenConfirm(TaskStatus.READY)}
+        onReopenAsDraft={() => handleReopenConfirm(TaskStatus.DRAFT)}
+        isPending={isStatusPending && pendingStatusTarget !== null}
+        isDraftPending={
+          isStatusPending && pendingStatusTarget === TaskStatus.DRAFT
+        }
       />
 
       {canMove ? (
@@ -1080,10 +595,7 @@ export function TaskDetailActions({
           onClose={() => setChatRooms(null)}
           // The dialog opens from a menu item, which is gone by then; return
           // to the Actions button the user opened it from.
-          onCloseAutoFocus={(event) => {
-            event.preventDefault();
-            menuTriggerRef.current?.focus();
-          }}
+          onCloseAutoFocus={returnFocusToMenu}
         />
       ) : null}
 
@@ -1104,104 +616,24 @@ export function TaskDetailActions({
         onOpenChange={(open) => {
           setIsTaskPickerOpen(open);
           if (!open) {
-            setPendingLinkTaskId(null);
             setSelectedTaskPickerOption(null);
           }
         }}
         selectedOption={selectedTaskPickerOption}
         isLinkPending={isLinkPending}
-        pendingLinkTaskId={pendingLinkTaskId}
         onSelectTask={handleSelectLinkableTask}
       />
 
-      {selectedCreateRelatedOption ? (
-        <TaskFormModal
-          open={isCreateRelatedOpen}
-          onOpenChange={(open) => {
-            setIsCreateRelatedOpen(open);
-            if (!open) {
-              setSelectedCreateRelatedOption(null);
-            }
-          }}
-          title={tDetailActions("createRelatedDialogTitle", {
-            relation: selectedCreateRelatedOption.label,
-          })}
-          cancelLabel={createTaskLabels.cancel}
-          isDismissDisabled={isCreateRelatedDismissDisabled}
-        >
-          <TaskForm
-            mode="create"
-            showCancel={false}
-            labels={createTaskLabels}
-            coworkerOptions={coworkerOptions}
-            agentNameById={agentNameById}
-            initialDesignMdAttachment={initialDesignMdAttachment}
-            initialValues={
-              defaultAssigneeId
-                ? assigneeKind === "human"
-                  ? { assigneeUserId: defaultAssigneeId }
-                  : { assigneeId: defaultAssigneeId }
-                : undefined
-            }
-            onCreateTask={async ({
-              description,
-              name,
-              tagSuggestionReceipt,
-              assigneeId,
-              assigneeSokoBotId,
-              assigneeUserId,
-              projectId,
-              status,
-              runAt,
-              context,
-              visibility,
-            }) => {
-              const result = await createTaskAndLink({
-                taskId,
-                description,
-                name,
-                tagSuggestionReceipt,
-                assigneeId,
-                assigneeSokoBotId,
-                assigneeUserId: assigneeUserId ?? null,
-                projectId,
-                status,
-                runAt,
-                context,
-                visibility,
-                relation: selectedCreateRelatedOption.relation,
-              });
-
-              if (!result.ok) {
-                return result;
-              }
-
-              return {
-                ok: true,
-                value: {
-                  taskId: result.value.createdTaskId,
-                  name: result.value.name,
-                  identifier: result.value.identifier,
-                },
-              };
-            }}
-            onSubmittingChange={setIsCreateRelatedDismissDisabled}
-            onCancel={() => {
-              setIsCreateRelatedOpen(false);
-              setSelectedCreateRelatedOption(null);
-            }}
-            onCreated={() => {
-              router.refresh();
-              toast.success(tDetailActions("createRelatedSuccess"));
-            }}
-            onSuccess={(createdTask) => {
-              setIsCreateRelatedOpen(false);
-              setSelectedCreateRelatedOption(null);
-              router.push(taskHref(createdTask));
-            }}
-          />
-        </TaskFormModal>
+      {canManageRelations ? (
+        <TaskSubtaskMenuDialogs
+          model={subtaskActions}
+          taskId={taskId}
+          assigneeOptions={model.coworkerOptions}
+          onCloseAutoFocus={returnFocusToMenu}
+        />
       ) : null}
+
+      <TaskCreateRelatedModal model={model} />
     </div>
   );
 }
@@ -1218,144 +650,4 @@ function getStatusActionMenuIcon(target: TaskStatus): LucideIcon {
     default:
       return CheckCircle2;
   }
-}
-
-function getTaskStatusActions(
-  status: TaskStatus,
-  labels: TaskDetailActionsLabels,
-  options: {
-    assigneeKind?: TaskAssigneeKind;
-  },
-): TaskStatusAction[] {
-  const isHuman =
-    options.assigneeKind === "human" || options.assigneeKind === "unset";
-
-  if (status === TaskStatus.DRAFT) {
-    return [];
-  }
-
-  if (status === TaskStatus.READY) {
-    if (isHuman) {
-      return [{ label: labels.startWorking, target: TaskStatus.RUNNING }];
-    }
-    return [];
-  }
-
-  if (status === TaskStatus.RUNNING && isHuman) {
-    return [
-      { label: labels.markComplete, target: TaskStatus.COMPLETED },
-      { label: labels.waitExternal, target: TaskStatus.AWAITING_EXTERNAL },
-      { label: labels.pauseToReady, target: TaskStatus.READY },
-      { label: labels.cancel, target: TaskStatus.CANCELED },
-    ];
-  }
-
-  if (status === TaskStatus.AWAITING_EXTERNAL && isHuman) {
-    return [
-      { label: labels.resumeRunning, target: TaskStatus.RUNNING },
-      { label: labels.markComplete, target: TaskStatus.COMPLETED },
-      { label: labels.resumeReady, target: TaskStatus.READY },
-      { label: labels.cancel, target: TaskStatus.CANCELED },
-    ];
-  }
-
-  if (
-    status === TaskStatus.QUEUED ||
-    status === TaskStatus.INPUT_REQUIRED ||
-    status === TaskStatus.APPROVAL_REQUIRED ||
-    status === TaskStatus.AUTHENTICATION_REQUIRED ||
-    status === TaskStatus.OUT_OF_CREDITS ||
-    status === TaskStatus.CREDITS_TOPPED_UP ||
-    status === TaskStatus.RUNNING ||
-    status === TaskStatus.AWAITING_EXTERNAL
-  ) {
-    return [
-      {
-        label: labels.cancel,
-        target: TaskStatus.CANCELED,
-      },
-    ];
-  }
-
-  // Unset Ready is valid (SOK-868); terminal tasks reopen to Ready with a
-  // comment whether an agent, a human, or nobody is assigned.
-  if (status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED) {
-    return [
-      {
-        label: labels.reopenToReady,
-        target: TaskStatus.READY,
-        requiresComment: true,
-      },
-    ];
-  }
-
-  return [];
-}
-
-function buildTaskPickerOptions(
-  tDetailActions: ReturnType<typeof useTranslations>,
-): TaskLinkActionOption[] {
-  return [
-    {
-      id: "related",
-      label: tDetailActions("relations.related"),
-      relation: TaskLinkRelation.RELATED,
-      icon: getTaskLinkRelationIcon(TaskLinkRelation.RELATED),
-    },
-    {
-      id: "subtask",
-      label: tDetailActions("relations.subtask"),
-      relation: TaskLinkRelation.CHILD,
-      icon: getTaskLinkRelationIcon(TaskLinkRelation.PARENT),
-    },
-    {
-      id: "blocks",
-      label: tDetailActions("relations.blocks"),
-      relation: TaskLinkRelation.BLOCKS,
-      icon: getTaskLinkRelationIcon(TaskLinkRelation.BLOCKS),
-    },
-    {
-      id: "blocked-by",
-      label: tDetailActions("relations.blockedBy"),
-      relation: TaskLinkRelation.BLOCKED_BY,
-      icon: getTaskLinkRelationIcon(TaskLinkRelation.BLOCKED_BY),
-    },
-    {
-      id: "duplicate",
-      label: tDetailActions("relations.duplicate"),
-      relation: TaskLinkRelation.DUPLICATE,
-      icon: getTaskLinkRelationIcon(TaskLinkRelation.DUPLICATE),
-    },
-  ];
-}
-
-function buildCreateRelatedOptions(
-  tDetailActions: ReturnType<typeof useTranslations>,
-): TaskLinkActionOption[] {
-  return [
-    {
-      id: "related",
-      label: tDetailActions("relations.related"),
-      relation: TaskLinkRelation.RELATED,
-      icon: SquareMousePointer,
-    },
-    {
-      id: "add-subtask",
-      label: tDetailActions("relations.addSubtask"),
-      relation: TaskLinkRelation.PARENT,
-      icon: SquarePlus,
-    },
-    {
-      id: "blocks",
-      label: tDetailActions("relations.blocks"),
-      relation: TaskLinkRelation.BLOCKS,
-      icon: OctagonMinus,
-    },
-    {
-      id: "blocked-by",
-      label: tDetailActions("relations.blockedBy"),
-      relation: TaskLinkRelation.BLOCKED_BY,
-      icon: SquareMinus,
-    },
-  ];
 }

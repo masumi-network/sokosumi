@@ -4,7 +4,7 @@ import {
   allocateVocabularySlots,
   SUGGESTION_KIND_FLOOR,
   SUGGESTION_VOCABULARY_MAX,
-} from "./file-suggestions.service";
+} from "./file-vocabulary-allocation";
 
 /**
  * Neither kind of label may starve the other.

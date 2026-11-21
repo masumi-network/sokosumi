@@ -37,6 +37,7 @@ const {
   listThreadMessagesAction,
   markThreadReadAction,
   pinRoomMessageAction,
+  removeRoomMessageUnfurlAction,
   retryRoomMentionAction,
   sendRoomMessageAction,
   setMessageReactionAction,
@@ -77,6 +78,7 @@ const {
     })) as Mock,
     markThreadReadAction: vi.fn() as Mock,
     pinRoomMessageAction: vi.fn() as Mock,
+    removeRoomMessageUnfurlAction: vi.fn() as Mock,
     retryRoomMentionAction: vi.fn() as Mock,
     sendRoomMessageAction: vi.fn() as Mock,
     setMessageReactionAction: vi.fn() as Mock,
@@ -113,6 +115,7 @@ export {
   mockSearchParams,
   mockStreamMessages,
   pinRoomMessageAction,
+  removeRoomMessageUnfurlAction,
   retryRoomMentionAction,
   sendRoomMessageAction,
   sendStreamMessage,
@@ -153,7 +156,7 @@ vi.mock("@/hooks/use-is-apple-platform", () => ({
   default: () => false,
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/effects/use-mobile", () => ({
   MOBILE_BREAKPOINT: 768,
   useIsMobileMedia: () => mockIsMobileMedia(),
 }));
@@ -170,15 +173,16 @@ vi.mock("@/lib/ably/use-chat-room-realtime", () => ({
   useChatRoomRealtime: useChatRoomRealtimeMock,
 }));
 
-vi.mock("@/lib/ably/use-room-typing", () => ({
-  useRoomTyping: () => ({
-    typistIds: [],
-    handleComposerChange: () => {},
-    handleStopTyping: () => {},
-  }),
-}));
+vi.mock("@/hooks/effects/use-room-typing", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/hooks/effects/use-room-typing")>();
+  return {
+    ...actual,
+    useRoomTypingSync: () => undefined,
+  };
+});
 
-vi.mock("@/lib/ably/use-selected-room-channel-health", () => ({
+vi.mock("@/hooks/effects/use-selected-room-channel-health", () => ({
   useSelectedRoomChannelHealth: () => undefined,
 }));
 
@@ -198,7 +202,6 @@ vi.mock("@/app/chat/hooks/use-coworker-direct-room-stream", () => ({
     isStreaming: false,
     activeStreamParentMessageId: null,
     sendStreamMessage,
-    consumePendingStreamMessage: vi.fn(),
   }),
 }));
 
@@ -215,6 +218,7 @@ vi.mock("@/app/chat/actions", () => ({
   listThreadMessagesAction,
   markThreadReadAction,
   pinRoomMessageAction,
+  removeRoomMessageUnfurlAction,
   retryRoomMentionAction,
   sendRoomMessageAction,
   setMessageReactionAction,

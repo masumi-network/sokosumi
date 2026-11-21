@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
-import { STUDIO_TEMPLATES } from "./studio-templates";
+import { STUDIO_TEMPLATES, unfilledTemplateSlots } from "./studio-templates";
 import { requestStudioWebsiteDraftOnOpen } from "./studio-website-intent";
 import type { StudioAsset } from "./types";
 
@@ -23,6 +23,9 @@ import type { StudioAsset } from "./types";
  * and where the caret ended up. Asserting on `STUDIO_TEMPLATES` would prove
  * only that the list exists.
  */
+
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
@@ -55,6 +58,7 @@ const mocks = vi.hoisted(() => ({
   prepareWebsiteDraft: vi.fn(),
   loadProducts: vi.fn(),
   saveProducts: vi.fn(),
+  enqueue: vi.fn(),
 }));
 
 vi.mock("@/lib/actions/image-studio/brand-kit", () => ({
@@ -99,7 +103,7 @@ vi.mock("./use-generation-queue", () => ({
   useGenerationQueue: () => ({
     failed: [],
     queued: [],
-    enqueue: vi.fn(),
+    enqueue: mocks.enqueue,
     waitingForSlot: false,
   }),
 }));
@@ -127,6 +131,30 @@ const STORY_AD = STUDIO_TEMPLATES.find(
 ) as (typeof STUDIO_TEMPLATES)[number];
 
 describe("starting from a template", () => {
+  it("sends the selected template and clears it for a fresh brief", () => {
+    mocks.enqueue.mockClear();
+    mount();
+    pickTemplate("social-post");
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    // Fill the template slots first; generate refuses a brief that still has them.
+    fireEvent.change(prompt, {
+      target: {
+        value:
+          "Create a lifestyle feed ad for iced oat latte aimed at home cooks. Show the product being used in a morning kitchen with warm natural daylight. Make a calm start to the day clear through the scene. Leave a quiet area for the headline and use only approved claims.",
+      },
+    });
+    fireEvent.keyDown(prompt, { key: "Enter", ctrlKey: true });
+
+    expect(mocks.enqueue.mock.calls[0][0]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ templateId: "social-post" }),
+      ]),
+    );
+    fireEvent.change(prompt, { target: { value: "A fresh campaign brief" } });
+    fireEvent.keyDown(prompt, { key: "Enter", ctrlKey: true });
+    expect(mocks.enqueue.mock.calls[1][0][0].templateId).toBeUndefined();
+  });
+
   it("offers every template, in the order they are declared", () => {
     mount();
 
@@ -221,6 +249,9 @@ describe("starting from a template", () => {
     mount();
     fireEvent.click(screen.getByRole("button", { name: "brandKit" }));
     const tone = await screen.findByLabelText("BrandKit.tone");
+    // The kit commits before the load transition ends. Until then the form
+    // is disabled and Save Look returns early.
+    await waitFor(() => expect(tone).toBeEnabled());
     fireEvent.change(tone, { target: { value: "Clear and warm" } });
     fireEvent.click(screen.getByRole("button", { name: "BrandKit.editLook" }));
     const colors = screen.getByLabelText("BrandKit.colors");
@@ -236,7 +267,11 @@ describe("starting from a template", () => {
     expect(screen.getByText("#23453c")).toBeInTheDocument();
     expect(screen.getByText("Georgia")).toBeInTheDocument();
     expect(tone).toHaveValue("Clear and warm");
-    fireEvent.click(screen.getByRole("button", { name: "BrandKit.resetLook" }));
+    // The saved text commits before the look transition ends, and a busy
+    // button drops the click: wait for Reset to go idle first.
+    const reset = screen.getByRole("button", { name: "BrandKit.resetLook" });
+    await waitFor(() => expect(reset).not.toHaveAttribute("aria-busy"));
+    fireEvent.click(reset);
     await screen.findByText("BrandKit.lookReset");
     expect(screen.getByText("#a33421")).toBeInTheDocument();
     expect(tone).toHaveValue("Clear and warm");
@@ -374,7 +409,7 @@ describe("starting from a template", () => {
     requestStudioWebsiteDraftOnOpen("p");
 
     const studio = mount("https://ceramics.example");
-    expect(await screen.findByText("preparing")).toBeInTheDocument();
+    expect(await screen.findByText("preparing")).not.toHaveClass("sr-only");
     expect(mocks.prepareWebsiteDraft).toHaveBeenCalledExactlyOnceWith({
       projectId: "p",
     });
@@ -400,11 +435,23 @@ describe("starting from a template", () => {
     expect(
       screen.getByRole("button", { name: "reviewImportedProducts" }),
     ).toBeInTheDocument();
+    // The review buttons already say it; the ready line is for screen readers.
+    expect(screen.getByText("ready")).toHaveClass("sr-only");
     expect(mocks.saveBrandCopy).not.toHaveBeenCalled();
     expect(mocks.saveProducts).not.toHaveBeenCalled();
     studio.unmount();
     mount("https://ceramics.example");
     expect(mocks.prepareWebsiteDraft).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the website status visible when only some details could be read", async () => {
+    mocks.prepareWebsiteDraft.mockResolvedValueOnce({
+      brandCopy: { summary: "A ceramics studio", lines: [] },
+      products: null,
+    });
+    mount("https://ceramics.example");
+    fireEvent.click(screen.getByRole("button", { name: "prepare" }));
+    expect(await screen.findByText("partial")).not.toHaveClass("sr-only");
   });
 
   it("prepares website copy and products together for independent review", async () => {
@@ -452,9 +499,12 @@ describe("starting from a template", () => {
     const brandReview = await screen.findByRole("button", {
       name: "WebsiteDraft.reviewCopy",
     });
-    expect(mocks.prepareWebsiteDraft).toHaveBeenCalledExactlyOnceWith({
-      projectId: "p",
-    });
+    // The review button shows while the draft is still being asked for.
+    await waitFor(() =>
+      expect(mocks.prepareWebsiteDraft).toHaveBeenCalledExactlyOnceWith({
+        projectId: "p",
+      }),
+    );
     await waitFor(() => expect(brandReview).toBeEnabled());
     fireEvent.click(brandReview);
     expect(
@@ -475,24 +525,22 @@ describe("starting from a template", () => {
     await waitFor(() => expect(close).toBeEnabled());
     fireEvent.click(close);
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: "reviewImportedProducts" }),
-    );
-    expect(await screen.findByLabelText("name")).toHaveValue("Travel mug");
-    expect(mocks.saveProducts).not.toHaveBeenCalled();
-    const save = screen.getByRole("button", { name: "save" });
-    await waitFor(() => expect(save).toBeEnabled());
-    fireEvent.click(save);
-    await waitFor(() =>
-      expect(mocks.saveProducts).toHaveBeenCalledExactlyOnceWith({
-        projectId: "p",
-        catalog: { revision: 4, products: [product, secondProduct] },
-      }),
-    );
-    const stage = await screen.findByRole("button", {
-      name: "addImportedToBatch",
+    const reviewProducts = screen.getByRole("button", {
+      name: "reviewImportedProducts",
     });
-    await waitFor(() => expect(stage).toBeEnabled());
+    await act(async () => fireEvent.click(reviewProducts));
+    expect(screen.getByLabelText("name")).toHaveValue("Travel mug");
+    expect(mocks.saveProducts).not.toHaveBeenCalled();
+
+    const save = screen.getByRole("button", { name: "save", busy: false });
+    expect(save).toBeEnabled();
+    await act(async () => fireEvent.click(save));
+    expect(mocks.saveProducts).toHaveBeenCalledExactlyOnceWith({
+      projectId: "p",
+      catalog: { revision: 4, products: [product, secondProduct] },
+    });
+    const stage = screen.getByRole("button", { name: "addImportedToBatch" });
+    expect(stage).toBeEnabled();
     fireEvent.click(stage);
     fireEvent.click(screen.getByRole("button", { name: "useBatch" }));
     expect(screen.getByText("Travel mug")).toBeInTheDocument();
@@ -681,13 +729,14 @@ describe("starting from a template", () => {
 
     // The default target is 1:1 (see `defaultModel` and the initial settings),
     // and only one selected model supports the story frame of 9:16.
+    // Auto now picks that one model, so the result keeps one consistent frame.
     expect(screen.getByText("1:1 · 1K · png")).toBeInTheDocument();
 
     pickTemplate("story-ad");
 
     const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     expect(prompt).toHaveValue(STORY_AD.prompt);
-    expect(screen.getByText("mixedSettings")).toBeInTheDocument();
+    expect(screen.getByText("9:16 · 1K · png")).toBeInTheDocument();
   });
 
   it("does not submit, and leaves the caret in the prompt", () => {
@@ -752,6 +801,30 @@ describe("starting from a template", () => {
     expect(
       screen.queryByRole("button", { name: "undoTemplate" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("refuses to generate while the brief still has template slots", () => {
+    mocks.enqueue.mockClear();
+    mount();
+    pickTemplate("ad");
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    fireEvent.keyDown(prompt, { key: "Enter", ctrlKey: true });
+    expect(screen.getByText("templateSlotsUnfilled")).toBeInTheDocument();
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+    expect(prompt).toHaveFocus();
+
+    fireEvent.change(prompt, { target: { value: "Iced oat latte, square" } });
+    fireEvent.keyDown(prompt, { key: "Enter", ctrlKey: true });
+    expect(mocks.enqueue).toHaveBeenCalled();
+  });
+
+  it("names each unfilled slot once, in order", () => {
+    expect(
+      unfilledTemplateSlots(
+        "Ad for [product] aimed at [audience]. Show [product], add [call to action].",
+      ),
+    ).toEqual(["[product]", "[audience]", "[call to action]"]);
+    expect(unfilledTemplateSlots("Iced oat latte at 4.20")).toEqual([]);
   });
 
   it("keeps the original typed brief through several template choices", () => {

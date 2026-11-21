@@ -1,4 +1,8 @@
-import type { GetProjectsData } from "@sokosumi/core-client";
+import type {
+  GetProjectsData,
+  ProjectCloseStatus,
+  ProjectListItem,
+} from "@sokosumi/core-client";
 
 export const PROJECTS_PAGE_LIMIT = 20;
 
@@ -16,6 +20,17 @@ export const PROJECTS_LIST_STATES = [
   NonNullable<NonNullable<GetProjectsData["query"]>["state"]>
 >;
 export type ProjectsListState = (typeof PROJECTS_LIST_STATES)[number];
+
+/**
+ * A list card's project. A closing project (`closingAt`, no `closedAt`) also
+ * carries what its close still owes; null when that read failed.
+ */
+export type ProjectsListProject = ProjectListItem & {
+  closeStatus?: Pick<
+    ProjectCloseStatus,
+    "state" | "owedOccurrenceCount"
+  > | null;
+};
 
 /**
  * Pinned projects lead the Open view. A Closed card has no Pin to sort by,
@@ -50,10 +65,13 @@ export const PROJECTS_WORKSPACE_SHELL_CLASS = "w-full min-w-0";
 export const PROJECTS_LIST_CARD_MIN_H_CLASS = "min-h-[320px]";
 
 /**
- * Toolbar shared by the Projects index and its loading shell: search takes
- * what the Open/Closed control and New project leave.
+ * Toolbar shared by the Projects index and its loading shell: the state control leads
+ * and search comes immediately before New project in the trailing group.
+ * On narrow pages that group wraps below the view switcher. The
+ * loading shell reserves the same width before the list data arrives.
  */
-export const PROJECTS_BROWSE_HEADER_ROW_CLASS = "flex items-center gap-3";
+export const PROJECTS_BROWSE_HEADER_ROW_CLASS =
+  "@container/page-toolbar flex flex-wrap items-center gap-3";
 
 /**
  * Card around the browse grid. Shared by live list and Instant skeleton.

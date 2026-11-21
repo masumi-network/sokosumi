@@ -56,6 +56,7 @@ vi.mock("./cmo-actions", async (importOriginal) => ({
 }));
 
 const { default: HomePage } = await import("./page");
+const { Home } = await import("./home");
 
 type Page = ReactElement<{
   websiteUrl?: string;
@@ -64,7 +65,10 @@ type Page = ReactElement<{
   mayHire?: boolean;
   inviteOnly?: boolean;
   cusoPicker?: boolean;
+  manyCusos?: boolean;
   overview?: { projectId: string };
+  adsError?: string | null;
+  measureError?: string | null;
 }>;
 
 function render(error?: string | string[]): Promise<Page> {
@@ -88,7 +92,11 @@ function cuso(projectId: string) {
     createdAt: new Date(),
   };
 }
-const hired = (projectId: string) => ({ projectId, onboardingStep: "done" });
+const hired = (projectId: string) => ({
+  projectId,
+  onboardingStep: "done",
+  billing: { tier: null, viewerCanManage: false },
+});
 
 function userAnswer(firstName: string | null, lastName: string | null) {
   return {
@@ -133,8 +141,7 @@ describe("CMO home page", () => {
     vi.restoreAllMocks();
   });
 
-  // Without a session the proxy serves the waitlist site; what reaches the
-  // page (an error, a stale cookie) goes to the unlinked /login.
+  // Without a session the home page goes to /login, which goes on to sign in.
   it("sends a visitor without a session to /login, without asking Core", async () => {
     getSession.mockResolvedValue(null);
 
@@ -152,7 +159,9 @@ describe("CMO home page", () => {
     expect(page.type).toBe(CmoApp);
     expect(page.props.overview?.projectId).toBe("project-2");
     expect(loadOverview).toHaveBeenCalledExactlyOnceWith("project-2");
-    expect(loadCusos).not.toHaveBeenCalled();
+    // Only for the sidebar's "Your Cusos", never to pick the Cuso.
+    expect(loadCusos).toHaveBeenCalledTimes(1);
+    expect(page.props.manyCusos).toBe(false);
   });
 
   it("opens the Cuso last opened on this device", async () => {
@@ -165,7 +174,7 @@ describe("CMO home page", () => {
     const page = await render();
 
     expect(page.props.overview?.projectId).toBe("project-1");
-    expect(loadCusos).not.toHaveBeenCalled();
+    expect(page.props.manyCusos).toBe(true);
   });
 
   it("opens the only Cuso directly, by an address this device remembers", async () => {
@@ -399,4 +408,38 @@ describe("CMO home page", () => {
       );
     },
   );
+
+  it.each([
+    ["failed", "That ad connection didn't finish. Try again."],
+    [
+      "none",
+      "That login has no ad account. Create one in Google Ads or Meta, then connect again.",
+    ],
+  ])(
+    "parses /channels?ads=%s on the server and passes adsError to CmoApp",
+    async (ads, expectedError) => {
+      const page = (await Home({
+        searchParams: Promise.resolve({ project: "project-1", ads }),
+        view: "channels",
+      })) as Page;
+
+      expect(page.type).toBe(CmoApp);
+      expect(page.props.adsError).toBe(expectedError);
+    },
+  );
+
+  it("parses /results?measure=failed on the server and passes measureError to CmoApp", async () => {
+    const page = (await Home({
+      searchParams: Promise.resolve({
+        project: "project-1",
+        measure: "failed",
+      }),
+      view: "results",
+    })) as Page;
+
+    expect(page.type).toBe(CmoApp);
+    expect(page.props.measureError).toBe(
+      "That connection didn't finish. Try again.",
+    );
+  });
 });

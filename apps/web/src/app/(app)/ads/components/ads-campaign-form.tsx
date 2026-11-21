@@ -16,6 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { ActionResultDto } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
@@ -157,7 +158,7 @@ export function RefusalAlert({
 }) {
   const tCampaigns = useTranslations("App.Ads.campaigns");
   const ref = useRef<HTMLDivElement>(null);
-  useMountEffect(() => ref.current?.focus());
+  useFocusWhen(ref, true);
 
   const { title, description } = {
     failed: { title: failedTitle, description: null },

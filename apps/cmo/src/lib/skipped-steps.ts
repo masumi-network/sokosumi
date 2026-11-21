@@ -26,7 +26,10 @@ export function readSkippedSteps(value: string | undefined): SkippedStep[] {
 
 /**
  * Core's step, read from the data, moved past the accounts the person
- * skipped. Skipped questions only change CMO's own screens.
+ * finished without a connection (a plan with no network to connect): done,
+ * since Core only reaches the accounts once Cuso is paid for or holds Tester
+ * credits (ADR 0068), and nothing skips the checkout. Skipped questions only
+ * change CMO's own screens.
  */
 export function withSkippedSteps(
   overview: CmoOverview,

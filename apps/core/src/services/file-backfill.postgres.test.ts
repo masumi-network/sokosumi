@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 
 import { FileSourceKind, FileSourceScope } from "@sokosumi/database";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-
 import prisma from "@/lib/db/prisma";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 /**
  * Backfill has to *record* that it finished, or it never finishes.
@@ -232,7 +232,14 @@ describe.skipIf(!enabled)("Drive store backfill", () => {
     };
 
     listMock.mockRejectedValue(new Error("Blob store unavailable"));
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Could not adopt the Drive store; the search served the catalog",
+      [
+        "Listing or recording the Drive store failed",
+        "Listing or recording the Drive store failed",
+      ],
+    );
 
     // Does not throw — that is the whole point.
     await expect(adoptDriveStoreIfPending(store)).resolves.toEqual({
@@ -241,8 +248,15 @@ describe.skipIf(!enabled)("Drive store backfill", () => {
     });
 
     // And it says why, rather than degrading silently.
-    expect(warn).toHaveBeenCalled();
-    warn.mockRestore();
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "files_drive_store_adoption",
+      workspace: { id: space.id },
+      driveStore: { scope: "user" },
+      failure: { errorName: "Error" },
+    });
+    // The error can quote file pathnames, so it is never the cause.
+    expect(warnings[0]?.cause).toBeUndefined();
 
     // The store is still pending, correctly: nothing was adopted, so
     // claiming completion would be a lie that outlives the outage. The

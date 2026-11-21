@@ -5,6 +5,8 @@ import { NotificationNeedsYouRequests } from "@/app/components/notification-need
 import { NotificationCenterList } from "@/components/notifications/notification-center-list";
 import { NotificationCenterViewFilter } from "@/components/notifications/notification-center-view-filter";
 import { useMarkAllRead } from "@/components/notifications/use-mark-all-read";
+import { PageSearchActions } from "@/components/page-search-actions";
+import { SearchablePageContent } from "@/components/searchable-page-content";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
@@ -30,45 +32,53 @@ export function NotificationsPageContent() {
           button outlives the last unread row, and a row of its own would
           collapse under the reader's pointer the moment that row was
           read. */}
-      <div
-        data-testid="notifications-page-header"
-        className="flex flex-wrap items-start justify-between gap-3"
-      >
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {t("pageTitle")}
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm text-pretty">
-            {t("pageDescription")}
-          </p>
-        </div>
-        {/* Outline, not filled: a filled button marks the one primary action
-            of a view, and clearing state in bulk is not it. */}
-        {unreadCount > 0 ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={handleMarkAllRead}
-            loading={isMarkingAllRead}
+      <SearchablePageContent
+        renderHeader={(search) => (
+          <div
+            data-testid="notifications-page-header"
+            className="@container/page-toolbar flex flex-wrap items-start justify-between gap-3"
           >
-            {t("markAllRead")}
-          </Button>
-        ) : null}
-      </div>
-      {/* The strip is the card's top edge, so it reads as this card's own
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">
+                {t("pageTitle")}
+              </h1>
+              <p className="text-muted-foreground mt-1 text-sm text-pretty">
+                {t("pageDescription")}
+              </p>
+            </div>
+            <PageSearchActions>
+              {search}
+              {/* Outline, not filled: a filled button marks the one primary action
+            of a view, and clearing state in bulk is not it. */}
+              {unreadCount > 0 ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleMarkAllRead}
+                  loading={isMarkingAllRead}
+                >
+                  {t("markAllRead")}
+                </Button>
+              ) : null}
+            </PageSearchActions>
+          </div>
+        )}
+      >
+        {/* The strip is the card's top edge, so it reads as this card's own
           control and not as page navigation. */}
-      <div className={HOLDER_CLASS}>
-        <div
-          data-notification-frame=""
-          className={cn(HOLDER_ITEM_CLASS, "overflow-hidden")}
-        >
-          <NotificationCenterViewFilter>
-            <NotificationNeedsYouRequests variant="page" />
-            <NotificationCenterList />
-          </NotificationCenterViewFilter>
+        <div className={HOLDER_CLASS}>
+          <div
+            data-notification-frame=""
+            className={cn(HOLDER_ITEM_CLASS, "overflow-hidden")}
+          >
+            <NotificationCenterViewFilter>
+              <NotificationNeedsYouRequests variant="page" />
+              <NotificationCenterList />
+            </NotificationCenterViewFilter>
+          </div>
         </div>
-      </div>
+      </SearchablePageContent>
     </div>
   );
 }

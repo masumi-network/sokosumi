@@ -29,6 +29,15 @@ const mocks = vi.hoisted(() => ({
   judgeRoleInboxes: vi.fn(),
   judgeListMemberships: vi.fn(),
   generateText: vi.fn(),
+  judgeWorkspaceImportance: vi.fn(),
+}));
+// Importance is judged by Jev after capture, through the AI Gateway; this
+// suite covers capture, and `contact-scores.service.test.ts` the judging.
+vi.mock("@/services/contact-scores.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/contact-scores.service")
+  >()),
+  judgeWorkspaceImportance: mocks.judgeWorkspaceImportance,
 }));
 vi.mock("@/lib/contacts/list-judge", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/contacts/list-judge")>()),
@@ -40,8 +49,16 @@ vi.mock("@/services/soko-bot-integrations.service", async (importOriginal) => ({
   >()),
   fetchInboxPage: mocks.fetchInboxPage,
   fetchCalendarPage: mocks.fetchCalendarPage,
-  runIntegrationTool: mocks.runIntegrationTool,
 }));
+vi.mock(
+  "@/services/composio-integration-tools.service",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/services/composio-integration-tools.service")
+    >()),
+    runIntegrationTool: mocks.runIntegrationTool,
+  }),
+);
 vi.mock("@/lib/contacts/capture-judge", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/contacts/capture-judge")>()),
   judgeRoleInboxes: mocks.judgeRoleInboxes,
@@ -52,6 +69,7 @@ vi.mock("ai", async (importOriginal) => ({
 }));
 
 import prisma from "@/lib/db/prisma";
+import { coreLogEvents, expectCoreLog } from "@/test/core-log";
 import {
   ContactCaptureService,
   scheduleContactCapture,
@@ -461,6 +479,10 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
   });
 
   it("resumes an interrupted backfill on the page it did not finish, and completes it once", async () => {
+    const sourceErrors = expectCoreLog(
+      "error",
+      "Could not read a contact capture source",
+    );
     const bot = await addBot(backfillWorkspaceId, ["gmail"]);
     const sentCalls: string[] = [];
     let failOnCall = 3;
@@ -506,6 +528,16 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
     expect(cursor["mail.sent"]?.backfillUntil).not.toBeNull();
     expect(afterFailure.lastError).toMatch(/Composio timeout/);
     expect(afterFailure.backfillCompletedAt).toBeNull();
+    // The provider's error can quote a mail: the log carries only its name.
+    expect(sourceErrors[0]).toMatchObject({
+      why: "Reading the source from its provider failed",
+    });
+    expect(sourceErrors[0]?.cause).toBeUndefined();
+    expect(sourceErrors[0]?.event).toMatchObject({
+      contactCaptureSource: { provider: "gmail", source: "mail.sent" },
+      failure: { errorName: "Error" },
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("Composio timeout");
     expect(
       await prisma.contactInteraction.count({
         where: { workspaceId: backfillWorkspaceId },
@@ -838,8 +870,10 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       expect((lists as { id: string }[]).map((list) => list.id)).not.toContain(
         smart.id,
       );
+    const praxisId = ids.get("Praxis");
+    if (!praxisId) throw new Error("Missing Praxis fixture");
     const praxis = await prisma.contact.findUniqueOrThrow({
-      where: { id: ids.get("Praxis") },
+      where: { id: praxisId },
       include: { activities: true },
     });
     expect(praxis).toMatchObject({
@@ -856,10 +890,12 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       name: { before: "Praxis", after: "Praxis Weber" },
       kind: { before: "PERSON", after: "ORGANIZATION" },
     });
+    const omarId = ids.get("Omar Haddad");
+    if (!omarId) throw new Error("Missing Omar Haddad fixture");
     expect(
       (
         await prisma.contact.findUniqueOrThrow({
-          where: { id: ids.get("Omar Haddad") },
+          where: { id: omarId },
         })
       ).stage,
     ).toBe("INVESTOR");
@@ -900,6 +936,7 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
   });
 
   it("leaves contacts queued when the model fails or the money is spent", async () => {
+    const modelWarnings = expectCoreLog("warn", "Could not classify a contact");
     const actor: ContactActor = {
       workspaceId: mergeWorkspaceId,
       userId: bob,
@@ -921,6 +958,9 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       shouldContinue: () => true,
     });
     expect(stats.modelFailures).toBe(1);
+    expect(modelWarnings[0]).toMatchObject({
+      why: "The enrichment model call failed",
+    });
     expect(
       (
         await prisma.contact.findUniqueOrThrow({
@@ -1237,6 +1277,104 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       mocks.runIntegrationTool.mockClear();
       await service().captureWorkspace(xWorkspaceId, () => true);
       expect(mocks.runIntegrationTool).not.toHaveBeenCalled();
+    });
+
+    it("reads followers a page a day, and after one full walk stops at the first page with nothing new", async () => {
+      const pagedOrganizationId = randomUUID();
+      const pagedWorkspaceId = randomUUID();
+      await prisma.organization.create({
+        data: {
+          id: pagedOrganizationId,
+          name: "Capture X pages",
+          slug: `capture-x-pages-${pagedOrganizationId}`,
+          members: { create: { userId: alice, role: "member" } },
+        },
+      });
+      await prisma.workspace.create({
+        data: { id: pagedWorkspaceId, organizationId: pagedOrganizationId },
+      });
+      await addBot(pagedWorkspaceId, ["twitter"]);
+      const ada = person("1001", "Ada Byron", "adab", "Writes code");
+      const bo = person("1002", "Bo Chen", "boc", "Designs things");
+      const cy = person("1004", "Cy Dorn", "cyd", "Teaches maths");
+      // Newest first, as X lists them.
+      let pages: Record<string, { people: unknown[]; next: string | null }> = {
+        first: { people: [ada], next: "p2" },
+        p2: { people: [bo], next: "p3" },
+        p3: { people: [cy], next: null },
+      };
+      const followerCalls: (string | null)[] = [];
+      mocks.runIntegrationTool.mockImplementation(
+        async (...args: unknown[]) => {
+          const tool = args[1] as string;
+          if (tool === "TWITTER_USER_LOOKUP_ME")
+            return { data: user("100", "Alice Owner", "alice") };
+          if (tool === "TWITTER_GET_RECENT_DM_EVENTS")
+            return { data: [], meta: { result_count: 0 } };
+          if (tool !== "TWITTER_FOLLOWERS_BY_USER_ID")
+            throw new Error(`unexpected tool ${tool}`);
+          const token =
+            (args[2] as { pagination_token?: string }).pagination_token ?? null;
+          followerCalls.push(token);
+          const page = pages[token ?? "first"];
+          return {
+            data: page.people,
+            ...(page.next ? { meta: { next_token: page.next } } : {}),
+          };
+        },
+      );
+      // Contact channels are stamped by the database clock, so this one runs
+      // on real time.
+      const start = Date.now();
+      const day = 24 * 60 * 60 * 1000;
+      let clock = new Date(start);
+      const capture = (xFollowPages = 1) =>
+        new ContactCaptureService({
+          now: () => clock,
+          sleep: async () => undefined,
+          limits: {
+            backfillDays: 30,
+            pagesPerIntegration: 20,
+            enrichmentWorkspaces: 0,
+            embeddingsPerWorkspace: 0,
+            companiesPerWorkspace: 0,
+            xFollowPages,
+          },
+        }).captureWorkspace(pagedWorkspaceId, () => true);
+
+      await capture();
+      expect(followerCalls).toEqual([null]);
+      // Later the same day: the unfinished walk waits for tomorrow.
+      clock = new Date(start + 15 * 60 * 1000);
+      await capture();
+      expect(followerCalls).toEqual([null]);
+      clock = new Date(start + day);
+      await capture();
+      clock = new Date(start + 2 * day);
+      await capture();
+      expect(followerCalls).toEqual([null, "p2", "p3"]);
+
+      // The walk is complete. Kim followed since: the first page holds her and
+      // Ada, the second only Bo, known before this walk; the third is not read.
+      pages = {
+        ...pages,
+        first: {
+          people: [person("1003", "Kim Park", "kimp", "Runs a studio"), ada],
+          next: "p2",
+        },
+      };
+      clock = new Date(start + 3 * day);
+      await capture(3);
+      expect(followerCalls).toEqual([null, "p2", "p3", null, "p2"]);
+      const names = (await contactsOf(pagedWorkspaceId)).map(
+        (contact) => contact.name,
+      );
+      expect(names.sort()).toEqual([
+        "Ada Byron",
+        "Bo Chen",
+        "Cy Dorn",
+        "Kim Park",
+      ]);
     });
   });
 

@@ -1,8 +1,9 @@
 /*
- * First run, four steps. Follows design-system.md: white page, gray panel,
- * outlined cards; a 1px ink line on what you act on, one hard shadow on the
- * primary action and the focused card, Iris for now. Tokens only; they come
- * from globals.css.
+ * First run, four steps. Each is one centred column that Cuso leads: him,
+ * what he says, the one thing to do, then the details folded into rows.
+ * Follows design-system.md: a thick ink line on what you act on, hard
+ * shadows under buttons and the card in focus, Iris for now. Tokens only;
+ * they come from globals.css.
  */
 body:has(.ob) .site-header {
   display: none;
@@ -10,6 +11,11 @@ body:has(.ob) .site-header {
 
 .ob {
   --ob-ease: cubic-bezier(0.25, 1, 0.5, 1);
+  /* A critically damped settle, and one with a little overshoot for Cuso. */
+  --ob-settle: cubic-bezier(0.22, 1, 0.36, 1);
+  --ob-pop: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ob-col: 640px;
+  --ob-wide: min(1120px, 100vw - 64px);
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -28,13 +34,13 @@ body:has(.ob) .site-header {
   align-items: center;
   gap: 16px;
   padding: 14px 32px;
+  border-bottom: var(--line-width) solid var(--line);
   background: var(--background);
-  border-bottom: 1px solid var(--border);
 }
 
 .ob-steps {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -47,20 +53,26 @@ body:has(.ob) .site-header {
   gap: 6px;
   height: 32px;
   padding: 0 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
+  border: var(--line-width-small) solid var(--clear);
+  border-radius: var(--radius-pill);
   background: none;
   color: var(--muted);
   font: inherit;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
 }
 
+/* A step to go back to is a link among labels: its name underlined, no
+   line and no shadow. A shadowed pill beside the current step read as a
+   second, heavier "current", and its shadow ran under its neighbour. */
 .ob-step > button {
   cursor: pointer;
-  transition:
-    background-color 150ms,
-    border-color 150ms;
+  transition: background-color 150ms;
+}
+
+.ob-step > button .ob-step-label {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .ob-step > button:hover {
@@ -72,9 +84,10 @@ body:has(.ob) .site-header {
   outline-offset: 2px;
 }
 
+/* Done and to come are the same plain label: a tick and the text colour,
+   or a number and the muted one. Only the current step is filled. */
 .ob-step.done > span,
 .ob-step.done > button {
-  border-color: var(--line);
   color: var(--foreground);
 }
 
@@ -98,14 +111,15 @@ body:has(.ob) .site-header {
   gap: 8px;
   min-width: 0;
   height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  background: none;
+  padding: 0 12px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  box-shadow: var(--shadow);
   color: var(--foreground);
   font: inherit;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -127,19 +141,10 @@ body:has(.ob) .site-header {
   z-index: 20;
   min-width: 180px;
   padding: 4px;
-  border: 1px solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--card);
-}
-
-.who .ob-who {
-  flex-shrink: 0;
-  margin-left: auto;
-}
-
-.who .ob-who-menu {
-  top: auto;
-  bottom: 100%;
+  box-shadow: var(--shadow);
 }
 
 .ob-who-item {
@@ -176,42 +181,369 @@ body:has(.ob) .site-header {
 .ob-main {
   flex: 1;
   width: 100%;
-  max-width: 1280px;
+  padding: 16px 32px 32px;
+  /* The hire labels hang over the stage; a phone cuts them at its edge. */
+  overflow-x: clip;
+}
+
+/* One column. Each piece settles in after the one above it. */
+.ob-main > * {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  width: 100%;
+  max-width: var(--ob-col);
   margin: 0 auto;
-  padding: 32px 32px 64px;
 }
 
-.ob-main:has(> .ob-brand) {
-  max-width: 1376px;
+.ob-main > .ob-hire {
+  --ob-col: 820px;
 }
 
-.ob-main:has(> .ob-launch) {
-  max-width: 760px;
+/* The hire screen's one button is the hero's call to action: the big shadow. */
+.ob-hire-row .button {
+  box-shadow: var(--shadow-big);
 }
 
-.ob-main:has(> .ob-launch-done) {
-  max-width: 1080px;
+.ob-hire-row .button:active:not(:disabled) {
+  transform: translate(var(--offset-big), var(--offset-big));
+  box-shadow: none;
+}
+
+.ob-main > .ob-launch-done {
+  --ob-col: 960px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ob-main > * > * {
+    animation: ob-settle 450ms var(--ob-settle) backwards;
+  }
+
+  .ob-main > * > :nth-child(2) {
+    animation-delay: 60ms;
+  }
+
+  .ob-main > * > :nth-child(3) {
+    animation-delay: 120ms;
+  }
+
+  .ob-main > * > :nth-child(n + 4) {
+    animation-delay: 180ms;
+  }
+
+  /* The bar is pinned to the screen's edge; only its colour arrives. */
+  .ob-main > * > .ob-bar {
+    animation-name: ob-fade;
+  }
+}
+
+@keyframes ob-settle {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@keyframes ob-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ── Cuso leads every step: him, large, then what he says ── */
+.ob-lead {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.ob-lead h1,
+.ob-lead p {
+  margin: 0;
+  text-wrap: balance;
+}
+
+.ob-lead .cuso-avatar,
+.ob-scene {
+  margin-bottom: 12px;
+}
+
+/* A step's scene, framed like the hire hero. */
+.ob-scene {
+  position: relative;
+  width: 220px;
+  height: 280px;
+}
+
+/* What he is doing now, over the panel's lower edge. */
+.ob-scene-now {
+  bottom: 32px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.875rem;
+  transform: translateX(-50%) rotate(-2deg);
+}
+
+.ob-scene-now .ob-box-dot {
+  flex: none;
+}
+
+/* A long label ends in an ellipsis; the flex row itself cannot show one. */
+.ob-scene-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A label on the stage: he stands above it, so it never covers him. */
+.ob-scene:has(.ob-scene-now) .ob-stage-art {
+  padding-bottom: 72px;
+}
+
+/* He needs the owner: the label calls out on Iris. */
+.ob-scene-call {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* The wait: a short ink run along a card track, over and over. */
+.ob-scene-bar {
+  position: absolute;
+  right: 16px;
+  bottom: 12px;
+  left: 16px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-mark);
+  background: var(--card);
+}
+
+.ob-scene-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  border-radius: inherit;
+  background: var(--foreground);
+}
+
+.ob-lead .ob-checklist {
+  margin-top: 8px;
+  text-align: left;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* He pops in, then keeps breathing, so the screen never sits still. */
+  .ob-lead .cuso-avatar {
+    animation:
+      ob-cuso-in 600ms var(--ob-pop) backwards,
+      ob-cuso-idle 3.2s ease-in-out 600ms infinite alternate;
+  }
+
+  /* The scene's clip moves on its own; the panel only pops in. */
+  .ob-scene {
+    animation: ob-cuso-in 600ms var(--ob-pop) backwards;
+  }
+
+  .ob-scene-now {
+    animation: ob-now-in 400ms var(--ob-pop) backwards;
+  }
+
+  .ob-scene-now .ob-box-dot {
+    animation: ob-working 1.2s ease-in-out infinite alternate;
+  }
+
+  .ob-scene-bar::after {
+    animation: ob-scene-run 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes ob-now-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(12px) rotate(-2deg) scale(0.6);
+  }
+}
+
+@keyframes ob-scene-run {
+  from {
+    translate: -100% 0;
+  }
+
+  to {
+    translate: 250% 0;
+  }
+}
+
+@keyframes ob-cuso-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6) rotate(-8deg);
+  }
+}
+
+@keyframes ob-cuso-idle {
+  to {
+    transform: translateY(-6px) rotate(1.5deg);
+  }
+}
+
+/* A fold: one row that opens to its details. */
+.ob-fold {
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.ob-fold > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 0 20px;
+  border-radius: var(--radius-card);
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.ob-fold > summary:hover h2 {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ob-fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ob-fold > summary h2 {
+  flex: 1;
+  margin: 0;
+  color: var(--foreground);
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+}
+
+/* The chevron: a corner that turns down when the fold opens. */
+.ob-fold > summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 1px solid var(--foreground);
+  border-bottom: 1px solid var(--foreground);
+  transform: rotate(-45deg);
+  transition: transform 250ms var(--ob-settle);
+}
+
+.ob-fold[open] > summary::after {
+  transform: rotate(45deg);
+}
+
+.ob-fold > summary:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.ob-fold > :not(summary) {
+  margin: 0 20px 20px;
+}
+
+/* The step's action, always in reach at the bottom of the screen. */
+.ob-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 0;
+}
+
+/* Its ground runs edge to edge, so wide content never shows beside it. */
+.ob-main .ob-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0 -100vw;
+  z-index: -1;
+  background: var(--strip);
+}
+
+/* The bar is a strip: its words and its buttons' lines take the strip's ink. */
+.ob-main .ob-bar,
+.ob-main .ob-bar :is(.note, .button-ghost) {
+  color: var(--strip-foreground);
+}
+
+.ob-main .ob-bar > .button:not(.button-ghost, :disabled) {
+  border-color: var(--strip-foreground);
+  box-shadow: var(--shadow-on-strip);
+}
+
+/* A second choice on the strip stands on Iris, so its edge shows. */
+.ob-main .ob-bar > .button-secondary:not(.button-ghost, :disabled) {
+  box-shadow: var(--shadow-iris);
+}
+
+.ob-main .ob-bar > .button:active:not(:disabled) {
+  box-shadow: none;
+}
+
+/* A button that waits is quiet on the strip: no fill, only its line and words. */
+.ob-main .ob-bar > .button:disabled:not(.button-ghost) {
+  border-color: var(--muted);
+  background: transparent;
+  color: var(--strip-foreground);
+}
+
+.ob-bar > p {
+  flex: 1 1 100%;
+  margin: 0;
+  text-align: center;
+}
+
+.ob-bar > .button {
+  flex: 1;
+  max-width: 320px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ob-fold > summary::after {
+    transition: none;
+  }
 }
 
 .ob-foot {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   padding: 0 32px 32px;
+  text-align: center;
 }
 
 /* ── Type ── */
 .ob-display {
-  font-size: 4.5rem;
-  line-height: 4.25rem;
-  font-weight: 800;
-  letter-spacing: -0.045em;
+  font-size: clamp(2.25rem, 6vw, 4.5rem);
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: var(--tracking-heading);
+  text-wrap: balance;
 }
 
 .ob-h1 {
   font-size: 2.25rem;
   line-height: 2.375rem;
-  font-weight: 800;
-  letter-spacing: -0.035em;
+  font-weight: 600;
+  letter-spacing: var(--tracking-heading);
 }
 
 .ob-statement {
@@ -269,16 +601,25 @@ body:has(.ob) .site-header {
 .ob-says {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: 16px;
-  padding: 24px;
+  margin: 0;
+  text-align: center;
+}
+
+.ob-says > .button:not(.button-small) {
+  min-width: 240px;
+}
+
+.ob-says .ob-textarea {
+  text-align: left;
 }
 
 .ob-textarea {
   width: 100%;
   min-height: 44px;
   padding: 10px 14px;
-  border: 1px solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-control);
   background: var(--card);
   color: var(--foreground);
@@ -312,8 +653,10 @@ body:has(.ob) .site-header {
   list-style: none;
 }
 
+/* Row even when working: the chat's `.working` stacks its children. */
 .ob-checklist li {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 10px;
   color: var(--muted);
@@ -328,9 +671,9 @@ body:has(.ob) .site-header {
   display: inline-grid;
   flex: none;
   place-items: center;
-  width: 18px;
-  height: 18px;
-  border: 1px solid var(--border);
+  width: 20px;
+  height: 20px;
+  border: var(--line-width-small) solid var(--border);
   border-radius: var(--radius-mark);
   color: var(--primary-foreground);
 }
@@ -341,7 +684,7 @@ body:has(.ob) .site-header {
 }
 
 .working > .ob-box {
-  border: 1px dashed var(--line);
+  border: var(--line-width-small) dashed var(--line);
 }
 
 .ob-box-dot {
@@ -384,8 +727,14 @@ body:has(.ob) .site-header {
   display: grid;
   gap: 2px;
   padding: 10px 12px;
-  border: 1px solid var(--border);
   border-radius: var(--radius-control);
+  background: var(--card);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ob-found-list li {
+    animation: ob-settle 450ms var(--ob-settle) backwards;
+  }
 }
 
 .ob-found-list b {
@@ -422,35 +771,6 @@ body:has(.ob) .site-header {
   width: 60%;
 }
 
-.ob-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 24px;
-  margin: 0;
-  padding: 0;
-}
-
-.ob-stats > div {
-  display: grid;
-  align-content: start;
-  gap: 4px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-
-.ob-stats dt {
-  font-size: 1.5rem;
-  line-height: 1.75rem;
-  font-weight: 300;
-}
-
-.ob-stats dd {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.75rem;
-  line-height: 1rem;
-}
-
 /* The goal: an ink block that inverts again in dark. */
 .ob-goal {
   display: grid;
@@ -459,6 +779,39 @@ body:has(.ob) .site-header {
   border-radius: var(--radius-card);
   background: var(--foreground);
   color: var(--background);
+}
+
+/* While hiring the goal is the screen's headline, set on the page itself. */
+.ob-plan .ob-goal {
+  justify-items: center;
+  padding: 0;
+  background: none;
+  color: var(--foreground);
+  text-align: center;
+}
+
+.ob-plan .ob-goal-label {
+  color: var(--muted);
+}
+
+.ob-plan .ob-goal-statement {
+  color: var(--muted);
+  font-weight: 400;
+  text-wrap: balance;
+}
+
+/* Facts to read, not rows to open: no box and no fill, only a hairline. */
+.ob-plan .ob-goal-facts {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  width: 100%;
+  gap: 16px 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  text-align: left;
+}
+
+.ob-plan .ob-goal-facts dt {
+  color: var(--muted);
 }
 
 .ob-goal-label {
@@ -489,23 +842,25 @@ body:has(.ob) .site-header {
   margin: 2px 0 0;
 }
 
-/* Tiles: one idea each; the open one takes an Iris shadow. */
+/* Tiles: one idea a row, in one group; the row opens its sheet. */
 .ob-tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 12px;
+  gap: 1px;
+  overflow: hidden;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--border);
 }
 
-/* The whole tile is a button: it opens the tile's side panel. */
 .ob-tile {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 12px;
   width: 100%;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--card);
+  padding: 14px 20px;
+  border: 0;
+  background: var(--surface);
   color: var(--foreground);
   font: inherit;
   text-align: left;
@@ -513,51 +868,43 @@ body:has(.ob) .site-header {
   transition: background-color 150ms;
 }
 
-/* Hover: one fill step and the border to the text colour, visible in both themes. */
-.ob-tile:hover {
-  border-color: var(--foreground);
-  background: var(--surface);
+.ob-tile:hover,
+.ob-tile.open {
+  background: var(--card);
+}
+
+/* Pressed, the row answers before the sheet does. */
+.ob-tile:active {
+  background: var(--border);
 }
 
 .ob-tile:focus-visible {
   outline: 2px solid var(--foreground);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 .ob-tile > span {
-  display: block;
+  grid-column: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+/* The label and the chevron share the first line; the chevron sits right. */
 .ob-tile > .ob-tile-head {
-  display: flex;
+  display: contents;
 }
 
 .ob-tile-go {
-  flex: none;
+  grid-column: 2;
+  grid-row: 1 / span 3;
   color: var(--muted);
-}
-
-.ob-tile:hover .ob-tile-go,
-.ob-tile.open .ob-tile-go {
-  color: var(--foreground);
-}
-
-.ob-tile.open {
-  border-color: var(--line);
-  box-shadow: var(--shadow-iris);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .ob-tile {
     transition: none;
   }
-}
-
-.ob-tile-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
 }
 
 .ob-tile-label {
@@ -567,42 +914,57 @@ body:has(.ob) .site-header {
 }
 
 .ob-tile-value {
-  font-size: 1.5rem;
-  line-height: 1.75rem;
-  font-weight: 300;
-  letter-spacing: -0.005em;
-  overflow-wrap: anywhere;
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 500;
 }
 
 .ob-tile-detail {
+  color: var(--muted);
   font-size: 0.75rem;
   line-height: 1rem;
 }
 
+/* The source is one tap away, in the row's sheet. */
+.ob-tile > .ob-tile-source {
+  display: none;
+}
+
 .ob-tile-source {
-  margin-top: auto;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
   color: var(--muted);
   font-size: 0.6875rem;
   line-height: 0.875rem;
 }
 
-/* Side panel: a card beside the grid; a bottom sheet under 768px. */
+/* Side panel: a sheet that rises from the bottom of the screen. */
 .ob-side {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 16px;
+  width: 100%;
+  max-width: calc(var(--ob-col) + 48px);
+  max-height: 70dvh;
+  margin: 0 auto;
+  padding: 20px;
   overflow-y: auto;
-  position: sticky;
-  top: 80px;
-  max-height: calc(100dvh - 96px);
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ob-side {
+    animation: ob-rise 400ms var(--ob-settle) backwards;
+  }
+}
+
+@keyframes ob-rise {
+  from {
+    transform: translateY(100%);
+  }
 }
 
 .ob-side-head {
@@ -625,9 +987,10 @@ body:has(.ob) .site-header {
   place-items: center;
   width: 32px;
   height: 32px;
-  border: 1px solid var(--border);
+  border: var(--line-width-small) solid var(--line);
   border-radius: var(--radius-control);
   background: var(--card);
+  box-shadow: var(--shadow);
   color: var(--foreground);
   cursor: pointer;
 }
@@ -643,8 +1006,8 @@ body:has(.ob) .site-header {
 
 /* Plan wait: the live plan as Cuso saves idea, channels and pillars. */
 .ob-feed {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-panel);
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
   background: var(--surface);
   padding: 6px;
   width: 100%;
@@ -738,9 +1101,20 @@ body:has(.ob) .site-header {
 .ob-chip {
   display: grid;
   gap: 8px;
-  padding: 10px 12px;
-  border-radius: var(--radius-control);
+  padding: 14px 20px;
   background: var(--surface);
+}
+
+/* A no the strategy does not show yet: what to do, beside the checks. */
+.ob-checks > .ob-unfitted {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 14px 20px;
+  background: var(--warn);
+  color: var(--primary-foreground);
 }
 
 .ob-chip-row {
@@ -758,7 +1132,7 @@ body:has(.ob) .site-header {
 .ob-chip-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .ob-chip .ob-note-form {
@@ -777,7 +1151,7 @@ body:has(.ob) .site-header {
   min-width: 0;
   min-height: 44px;
   padding: 0 16px;
-  border: 1px solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-control);
   background: var(--card);
   color: var(--foreground);
@@ -825,9 +1199,9 @@ body:has(.ob) .site-header {
 
 .ob-progress li {
   flex: 1;
-  height: 6px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-mark);
+  height: 10px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-pill);
 }
 
 .ob-progress li.done {
@@ -848,8 +1222,9 @@ body:has(.ob) .site-header {
 .ob-question-text {
   font-size: 1.5rem;
   line-height: 1.75rem;
-  font-weight: 300;
-  letter-spacing: -0.005em;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
 }
 
 .ob-answers {
@@ -862,29 +1237,48 @@ body:has(.ob) .site-header {
   color: var(--muted);
 }
 
-.ob-skip {
-  align-self: flex-start;
+.ob-question-more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ob-question-details {
+  min-height: 44px;
+  padding: 0 16px;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.ob-question-details:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
 }
 
 /* ── Step 1: Site ── */
 .ob-hire {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
-  gap: 32px;
-  align-items: stretch;
+  justify-items: center;
+  text-align: center;
 }
 
-.ob-hire-copy {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 24px;
+.ob-hire > * {
+  margin: 0;
 }
 
-.ob-intro {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.ob-hire .field,
+.ob-hire .ob-where {
+  width: 100%;
+  max-width: var(--ob-col, 640px);
+  text-align: left;
+}
+
+.ob-hire .field,
+.ob-hire .ob-where {
+  max-width: 520px;
 }
 
 .ob-hire-row {
@@ -897,20 +1291,12 @@ body:has(.ob) .site-header {
   flex: 1 1 220px;
 }
 
-.ob-hire-stage {
-  display: flex;
-}
-
-/* The art is painted on light Iris, so it fills the stage in both themes. */
+/* Cuso on his Iris stage; the labels hang over its edges. */
 .ob-stage {
   position: relative;
-  flex: 1;
-  /* The canvas Site board's height; phones drop to 320px below. */
-  min-height: 560px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--primary-hover);
+  width: 260px;
+  height: 320px;
+  margin: 8px 0;
 }
 
 .ob-stage-art {
@@ -918,17 +1304,20 @@ body:has(.ob) .site-header {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 20px 16px 16px;
+  background: var(--primary-hover);
+  object-fit: contain;
   object-position: 50% 100%;
 }
 
 .ob-tilt {
   position: absolute;
   padding: 6px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-pill);
   background: var(--card);
-  box-shadow: var(--shadow-hard);
   color: var(--foreground);
   font-size: 1rem;
   font-weight: 600;
@@ -942,99 +1331,55 @@ body:has(.ob) .site-header {
 
 .ob-tilt-a {
   top: 24px;
-  left: 16px;
+  right: 82%;
   transform: rotate(-4deg);
 }
 
 .ob-tilt-b {
-  right: 16px;
-  top: 45%;
+  left: 80%;
+  top: 40%;
   transform: rotate(3deg);
 }
 
 .ob-tilt-c {
-  bottom: 24px;
-  left: 24px;
+  bottom: 28px;
+  right: 76%;
   transform: rotate(-2deg);
 }
 
 /*
- * Cuso announces the labels: once the hero plays, each pops out of his
- * megaphone while he shouts (onboarding.tsx aims them). The one entrance
- * longer than 150ms; transform only, and none under reduced motion.
+ * The hire labels pop in one after another: the one entrance longer than
+ * 150ms; transform only, and none under reduced motion.
  */
 @media (prefers-reduced-motion: no-preference) {
   .ob-stage .ob-tilt {
-    animation: ob-announce 500ms cubic-bezier(0.45, 0, 0.3, 1.3) backwards
-      paused;
+    animation: ob-announce 500ms cubic-bezier(0.45, 0, 0.3, 1.3) backwards;
   }
 
   .ob-stage .ob-tilt-a {
-    animation-delay: 2.4s;
+    animation-delay: 0.3s;
   }
 
   .ob-stage .ob-tilt-b {
-    animation-delay: 2.9s;
+    animation-delay: 0.6s;
   }
 
   .ob-stage .ob-tilt-c {
-    animation-delay: 3.4s;
-  }
-
-  .ob-stage-live .ob-tilt {
-    animation-play-state: running;
+    animation-delay: 0.9s;
   }
 }
 
 @keyframes ob-announce {
   from {
-    translate: var(--from-x, 0) var(--from-y, 0);
     scale: 0;
   }
 }
 
-/* Reading and asking: the read on the left, the question on the right. */
-.ob-site {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
-  align-items: start;
+/* Reading and asking: the read, then the one question, then what he found. */
+.ob-question {
+  text-align: left;
 }
 
-.ob-site-left,
-.ob-site-right {
-  display: grid;
-  gap: 12px;
-}
-
-.ob-reading {
-  display: grid;
-  justify-items: start;
-  gap: 16px;
-  padding: 24px;
-}
-
-.ob-reading :is(img, video) {
-  width: 168px;
-  height: 168px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  object-fit: cover;
-}
-
-.ob-found {
-  display: grid;
-  gap: 12px;
-  padding: 16px;
-}
-
-.ob-found-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-}
-
-.ob-found h2,
-.ob-noticed h2,
 .ob-promise h2,
 .ob-checks h2,
 .ob-changed h2,
@@ -1046,46 +1391,20 @@ body:has(.ob) .site-header {
 }
 
 /* ── Step 2: Brand ── */
-.ob-title-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.ob-title-copy {
-  display: grid;
-  flex: 1;
-  gap: 4px;
-  min-width: 260px;
-}
-
-.ob-title-action {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-}
-
-.ob-brand-panel {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-items: start;
-}
-
-.ob-brand-panel:has(.ob-side) {
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
-}
-
 .ob-brand-main {
   display: grid;
-  gap: 12px;
+  gap: 24px;
   min-width: 0;
 }
 
+.ob-brand .ob-hero-row .card,
+.ob-plan .ob-checks {
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: none;
+}
+
 .ob-promise,
-.ob-noticed,
 .ob-left {
   display: grid;
   gap: 12px;
@@ -1117,7 +1436,6 @@ body:has(.ob) .site-header {
 .ob-noticed ol {
   display: grid;
   gap: 12px;
-  margin: 0;
   padding-left: 18px;
 }
 
@@ -1127,23 +1445,105 @@ body:has(.ob) .site-header {
 }
 
 /* ── Step 3: Plan ── */
-/* The waiting card fills its panel, like every other card on the page. */
-.ob-wait {
-  display: grid;
+.ob-wait .ob-feed {
+  margin-top: 12px;
 }
 
 .ob-plan-body {
   display: grid;
-  gap: 12px;
-  padding: 12px;
+  /* One column no wider than the page, however wide a child's content is. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
 }
 
 .ob-plan-body[hidden] {
   display: none;
 }
 
-.ob-plan > .panel {
-  margin-bottom: 12px;
+/* The full plan: a row that grows into the plan, as wide as its calendar. */
+.ob-fullplan-head {
+  margin: 0;
+}
+
+.ob-fullplan-head button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 0 20px;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* The hint gives way on a narrow screen; the title never wraps. */
+.ob-fullplan-head button > .ob-small {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ob-fullplan-head button > :first-child {
+  flex: none;
+  white-space: nowrap;
+  color: var(--foreground);
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+}
+
+.ob-fullplan-head button::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 1px solid var(--foreground);
+  border-bottom: 1px solid var(--foreground);
+  transform: rotate(45deg);
+  transition: transform 300ms var(--ob-settle);
+}
+
+.ob-fullplan-head button[aria-expanded="true"]::after {
+  transform: rotate(-135deg);
+}
+
+.ob-fullplan-head button:active {
+  background: var(--border);
+}
+
+.ob-fullplan-head button:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.ob-fullplan-body {
+  display: grid;
+  gap: 16px;
+  width: var(--ob-wide);
+  margin-inline: calc((100% - var(--ob-wide)) / 2);
+  overflow: clip;
+}
+
+.ob-fullplan-body > .ob-tabs {
+  justify-content: center;
+  padding-top: 16px;
+}
+
+.ob-fullplan-hide {
+  justify-self: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ob-fullplan-head button::after {
+    transition: none;
+  }
 }
 
 .ob-change {
@@ -1178,6 +1578,9 @@ body:has(.ob) .site-header {
   justify-items: center;
   gap: 8px;
   padding: 32px 16px;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
   text-align: center;
 }
 
@@ -1187,18 +1590,31 @@ body:has(.ob) .site-header {
   padding: 16px;
 }
 
+/* One group: his questions, the pace and the budget, a hairline between. */
 .ob-checks {
   display: grid;
-  gap: 8px;
-  padding: 16px;
+  gap: 1px;
+  overflow: hidden;
+  border: var(--line-width) solid var(--line);
+  background: var(--border);
+}
+
+.ob-checks > * {
+  background: var(--surface);
+}
+
+.ob-checks h2 {
+  margin: 0;
+  padding: 16px 20px 8px;
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
 }
 
 .ob-budget {
   display: grid;
   gap: 12px;
-  padding: 12px 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
+  padding: 14px 20px;
 }
 
 .ob-budget-row {
@@ -1210,22 +1626,21 @@ body:has(.ob) .site-header {
 
 .ob-approved {
   display: grid;
-  gap: 8px;
   margin: 0;
-  padding: 0;
+  padding: 0 20px 8px;
   list-style: none;
 }
 
 .ob-approved li {
-  padding: 10px 12px;
-  border-radius: var(--radius-control);
-  background: var(--surface);
+  padding: 10px 0;
+}
+
+.ob-approved li + li {
+  border-top: 1px solid var(--border);
 }
 
 .ob-pace {
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
+  padding: 14px 20px;
 }
 
 .ob-tabs {
@@ -1236,25 +1651,35 @@ body:has(.ob) .site-header {
 
 .ob-tabs button {
   height: 32px;
-  padding: 0 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
+  padding: 0 14px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-pill);
   background: var(--card);
   color: var(--foreground);
   font: inherit;
+  box-shadow: var(--shadow);
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
+  transition:
+    background-color 150ms,
+    transform 150ms;
 }
 
 .ob-tabs button:hover {
   background: var(--surface);
 }
 
-.ob-tabs button[aria-selected="true"] {
-  border-color: var(--line);
-  background: var(--foreground);
-  color: var(--background);
+.ob-tabs button:active {
+  transform: translate(var(--offset), var(--offset));
+  box-shadow: none;
+}
+
+/* Every tab is a button and casts the shadow; the picked one is filled. */
+.ob-tabs button[aria-selected="true"],
+.ob-tabs button[aria-pressed="true"] {
+  background: var(--primary);
+  color: var(--primary-foreground);
 }
 
 .ob-tabs button:focus-visible {
@@ -1263,7 +1688,10 @@ body:has(.ob) .site-header {
 }
 
 .ob-tabpanel {
-  padding: 16px;
+  padding: 24px;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
 }
 
 /* Inside a tab panel the plan's sections are not cards: hairline dividers. */
@@ -1403,6 +1831,56 @@ body:has(.ob) .site-header {
   font-variant-numeric: tabular-nums;
 }
 
+/* Before approval a piece is a topic: a dashed outline until it is made. */
+.ob-entry.pending {
+  border-style: dashed;
+}
+
+.ob-entry-media {
+  margin-left: auto;
+  color: var(--foreground);
+}
+
+.ob-entry-pillar {
+  justify-self: start;
+  max-width: 100%;
+  overflow: hidden;
+  margin-top: 2px;
+  padding: 0 6px;
+  border-radius: var(--radius-mark);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.6875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ob-month-pending {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 4px 12px;
+  align-items: start;
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-card);
+  background: var(--card);
+}
+
+.ob-month-pending p {
+  margin: 0;
+}
+
+.ob-month-pending svg {
+  margin-top: 2px;
+}
+
+.ob-month-counts {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
 .ob-entry-title {
   display: -webkit-box;
   overflow: hidden;
@@ -1435,32 +1913,83 @@ body:has(.ob) .site-header {
   font-weight: 600;
 }
 
-.ob-rhythm {
+/* How it works: four steps on one line, joined by a hairline. */
+.ob-how {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
+  gap: 16px;
 }
 
-.ob-rhythm-card {
-  padding: 20px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
+.ob-rhythm {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ob-rhythm li {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+}
+
+/* The line from each step's icon to the next. */
+.ob-rhythm li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 18px;
+  right: -16px;
+  left: 44px;
+  height: 1px;
+  background: var(--border);
+}
+
+.ob-rhythm-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 8px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: 50%;
+  background: var(--card);
+}
+
+.ob-rhythm li:first-child .ob-rhythm-icon {
+  background: var(--primary);
 }
 
 .ob-rhythm-when {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 12px;
-  font-weight: 600;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
-.ob-rhythm-card ul {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding-left: 18px;
-  color: var(--muted);
+@media (max-width: 720px) {
+  .ob-rhythm {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ob-rhythm li {
+    padding-left: 52px;
+  }
+
+  .ob-rhythm-icon {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  .ob-rhythm li:not(:last-child)::after {
+    top: 44px;
+    right: auto;
+    bottom: -16px;
+    left: 18px;
+    width: 1px;
+    height: auto;
+  }
 }
 
 .ob-rules {
@@ -1482,18 +2011,149 @@ body:has(.ob) .site-header {
   color: var(--muted);
 }
 
-/* ── Step 4: Launch ── */
-.ob-launch {
+/* ── Step 4: Subscribe (the CMO plan checkout) ── */
+.ob-checkout {
   display: grid;
-  justify-items: start;
+  justify-items: center;
   gap: 16px;
 }
 
-.ob-launch .panel {
+.ob-checkout > .ob-plan-options,
+.ob-checkout > .ob-gets,
+.ob-checkout > .ob-wide {
   width: 100%;
 }
 
-.ob-celebration-panel {
+/* The plans side by side, so their prices compare at a glance. */
+.ob-checkout > .ob-plan-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+/* What the month holds, so the price reads against it. */
+.ob-gets {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 20px;
+  list-style: none;
+}
+
+.ob-gets li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.ob-gets svg {
+  margin-top: 4px;
+}
+
+/* Sits on the card's top edge, so the plans' names stay in line. */
+.ob-checkout .ob-plan-option {
+  position: relative;
+  overflow: visible;
+}
+
+.ob-plan-fit {
+  position: absolute;
+  top: -12px;
+  left: 16px;
+  padding: 2px 10px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* What lowers the risk of paying, in one quiet row. */
+.ob-trust {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  list-style: none;
+}
+
+.ob-trust li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ob-trust li::before {
+  content: "";
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.ob-plan-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ob-plan-option {
+  display: grid;
+  flex: 1 1 220px;
+  align-content: start;
+  gap: 8px;
+  padding: 20px;
+  color: var(--foreground);
+  font: inherit;
+  text-align: left;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+
+/* Every plan is a button and casts the shadow; the picked one is filled. */
+.ob-plan-option[aria-pressed="true"] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.ob-plan-option[aria-pressed="true"] .muted {
+  color: var(--primary-foreground);
+}
+
+/* On the picked plan the mark would vanish into the fill. */
+.ob-plan-option[aria-pressed="true"] .ob-plan-fit {
+  background: var(--card);
+  color: var(--foreground);
+}
+
+.ob-plan-option:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.ob-plan-name {
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+}
+
+.ob-confirming {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Step 5: Launch ── */
+.ob-launch {
+  justify-items: center;
+}
+
+.ob-launch > * {
   width: 100%;
 }
 
@@ -1547,7 +2207,7 @@ body:has(.ob) .site-header {
 }
 
 .ob-launch > .ob-small {
-  justify-self: center;
+  text-align: center;
 }
 
 .ob-launch-done {
@@ -1567,13 +2227,14 @@ body:has(.ob) .site-header {
   width: 100%;
   aspect-ratio: 1;
   border-color: var(--line);
+  background: var(--primary-hover);
 }
 
-.ob-celebration :is(img, video) {
+.ob-celebration img {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .ob-summary {
@@ -1615,6 +2276,22 @@ body:has(.ob) .site-header {
     justify-content: space-between;
   }
 
+  /* Without its underlined name, a step to go back to stands on the panel
+     fill, so it still reads as the one to tap. */
+  .ob-step > button {
+    background: var(--surface);
+  }
+
+  /* Five labels are wider than a phone; the other steps keep their number or tick. */
+  .ob-step:not(.now) .ob-step-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
   .ob-main {
     padding: 16px 16px 48px;
   }
@@ -1623,49 +2300,65 @@ body:has(.ob) .site-header {
     padding: 0 16px 24px;
   }
 
-  .ob-display {
-    font-size: 2.25rem;
-    line-height: 2.75rem;
+  .ob {
+    --ob-wide: 100%;
   }
 
+  /* The labels would hang off a phone; they stack over the stage's edge. */
   .ob-stage {
-    min-height: 320px;
+    width: 200px;
+    height: 250px;
   }
 
-  /* A screen's own buttons span the width on a phone; the primary leads. */
-  .ob-title-action {
-    width: 100%;
+  .ob-tilt {
+    font-size: 0.875rem;
   }
 
-  .ob-title-action > *,
+  .ob-tilt-a {
+    right: 58%;
+  }
+
+  /*
+   * Its right edge keeps the screen's 16px gutter, whatever the width, and
+   * it sits above Cuso's face rather than across it.
+   */
+  .ob-tilt-b {
+    top: 20%;
+    left: auto;
+    right: calc(16px - (100vw - 200px) / 2);
+  }
+
+  .ob-tilt-c {
+    right: 46%;
+  }
+
+  .ob-lead .cuso-avatar,
+  .ob-scene {
+    zoom: 0.75;
+  }
+
+  /* A screen's own buttons span the width on a phone. */
   .ob-main .button:not(.button-small):not(.button-ghost) {
     flex: 1 1 100%;
     width: 100%;
     justify-content: center;
   }
 
-  .ob-title-action > .button:not(.button-secondary) {
-    order: -1;
+  /* The bar keeps its two buttons side by side, so it stays one row high. */
+  .ob-main .ob-bar > .button {
+    flex: 1 1 0;
+    width: auto;
+    max-width: none;
+    padding: 0 12px;
   }
 
-  /* The action comes first: the question card, or the finished card. */
-  .ob-site-right {
-    order: -1;
+  .ob-bar {
+    flex-wrap: nowrap;
+    padding: 12px 0;
   }
 
-  .ob-brand-panel:has(.ob-side) {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ob-side {
-    position: fixed;
-    top: auto;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 30;
-    max-height: 70dvh;
-    border-radius: var(--radius-card) var(--radius-card) 0 0;
+  .ob-bar:has(> p) {
+    flex-wrap: wrap;
   }
 
   .ob-answers {
@@ -1741,8 +2434,8 @@ body:has(.ob) .site-header {
   overflow: hidden;
   font-size: 2.25rem;
   line-height: 2.375rem;
-  font-weight: 800;
-  letter-spacing: -0.035em;
+  font-weight: 600;
+  letter-spacing: var(--tracking-heading);
   -webkit-line-clamp: 2;
   line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -1761,14 +2454,21 @@ body:has(.ob) .site-header {
   gap: 12px;
 }
 
-.ob-hero-row.has-site {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+.ob-promise .ob-statement {
+  margin: 0;
 }
 
 .ob-sitecard {
   display: grid;
   gap: 12px;
   padding: 20px;
+}
+
+/* The site is a glance, not the screen: the rows below are the work. */
+.ob-sitecard .bm-show {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
 }
 
 .ob-sitecard h2 {
@@ -1778,11 +2478,160 @@ body:has(.ob) .site-header {
   font-weight: 600;
 }
 
-.ob-brandmark {
+.ob-promise > .business-mark {
+  justify-self: start;
+}
+
+/* Your look: the DESIGN.md colours with their codes, fonts, the file. */
+.ob-look {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+}
+
+.ob-look-colors {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ob-look-colors li {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+}
+
+.ob-look-colors span {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+
+.ob-look-fonts {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+/* The brand's colours in a row of the tile: discs, no codes. */
+.ob-look-dots {
+  display: inline-flex;
+  gap: 6px;
+  vertical-align: middle;
+}
+
+.ob-look-dots > span {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+
+/* The market map: Cuso's two axes, the business as the Iris dot. */
+.ob-map {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.ob-map-plot {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.ob-map-plot::before,
+.ob-map-plot::after {
+  content: "";
+  position: absolute;
+  background: var(--border);
+}
+
+.ob-map-plot::before {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+}
+
+.ob-map-plot::after {
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 1px;
+}
+
+.ob-map-axis {
+  position: absolute;
+  left: 12px;
+  color: var(--muted);
+  font-size: 0.6875rem;
+  white-space: nowrap;
+}
+
+.ob-map-axis.top {
+  top: 8px;
+}
+
+.ob-map-axis.bottom {
+  bottom: 8px;
+}
+
+.ob-map-x {
+  display: flex;
   justify-content: space-between;
   gap: 12px;
+  color: var(--muted);
+  font-size: 0.6875rem;
+}
+
+.ob-map-dot {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  translate: -6px 50%;
+  color: var(--foreground);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.ob-map-dot i {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--card);
+}
+
+.ob-map-dot.you {
+  z-index: 2;
+  font-weight: 600;
+  translate: -9px 50%;
+}
+
+.ob-map-dot.you i {
+  width: 18px;
+  height: 18px;
+  background: var(--primary);
+}
+
+/* Near the right edge the label sits left of its dot. */
+.ob-map-dot.flip {
+  flex-direction: row-reverse;
+  translate: calc(-100% + 6px) 50%;
+}
+
+.ob-map-dot.you.flip {
+  translate: calc(-100% + 9px) 50%;
 }
 
 .ob-swatches {
@@ -1931,4 +2780,23 @@ body:has(.ob) .site-header {
 .ob-where input:focus-visible {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
+}
+
+.ob-presenter {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 16px;
+}
+
+.ob-presenter-consent {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 0.875rem;
+  line-height: 1.125rem;
+}
+
+.ob-presenter-consent input {
+  margin-top: 2px;
 }

@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   clampToModel,
   defaultModel,
-  modelIdForRepeat,
+  defaultVideoModel,
+  imageRepeatRoute,
   resolveModel,
   settingsOf,
-  supportsVariation,
 } from "./catalog";
 import { TEST_CATALOG } from "./studio-fixtures";
 import type { StudioAsset, StudioCatalog, StudioJob } from "./types";
@@ -103,20 +103,6 @@ describe("settingsOf", () => {
   });
 });
 
-describe("modelIdForRepeat", () => {
-  it("repeats on the model that actually ran", () => {
-    expect(modelIdForRepeat(TEST_CATALOG, MODEL_B.editEndpoint)).toBe(
-      "model-b",
-    );
-  });
-
-  it("falls back to the default rather than refusing to repeat old work", () => {
-    expect(modelIdForRepeat(TEST_CATALOG, "fal-ai/retired-model")).toBe(
-      "model-a",
-    );
-  });
-});
-
 describe("defaultModel", () => {
   it("honours the catalog's own default", () => {
     expect(defaultModel(TEST_CATALOG)?.id).toBe("model-a");
@@ -131,30 +117,62 @@ describe("defaultModel", () => {
   });
 });
 
-describe("supportsVariation", () => {
-  it("allows the known original model through either endpoint", () => {
-    expect(supportsVariation(TEST_CATALOG, MODEL_A.generateEndpoint)).toBe(
-      true,
-    );
-    expect(supportsVariation(TEST_CATALOG, MODEL_A.editEndpoint)).toBe(true);
-  });
-
-  it("refuses an old endpoint instead of switching it to the default model", () => {
-    expect(supportsVariation(TEST_CATALOG, "vendor/retired")).toBe(false);
-    expect(supportsVariation(TEST_CATALOG, null)).toBe(false);
+describe("imageRepeatRoute", () => {
+  it("can vary an image from a retired endpoint on the automatic model", () => {
+    expect(
+      imageRepeatRoute(TEST_CATALOG, { model: "vendor/retired" }, 1),
+    ).toEqual({
+      model: MODEL_A,
+      letterExistingBackdrop: false,
+    });
   });
 
   it.each([
     { editEndpoint: null, maxReferences: 4 },
     { editEndpoint: "vendor/model-a/edit", maxReferences: 0 },
   ])(
-    "requires both an edit endpoint and room for the image: %o",
+    "requires the automatic model to accept the reference: %o",
     (capabilities) => {
-      const catalog: StudioCatalog = {
+      const catalog = {
         ...TEST_CATALOG,
-        models: [{ ...MODEL_A, ...capabilities }],
+        models: [{ ...MODEL_A, ...capabilities }, MODEL_B],
       };
-      expect(supportsVariation(catalog, MODEL_A.generateEndpoint)).toBe(false);
+      expect(
+        imageRepeatRoute(catalog, { model: MODEL_B.generateEndpoint }, 1),
+      ).toBeNull();
+      expect(
+        imageRepeatRoute(catalog, { model: MODEL_B.generateEndpoint }, 0)?.model
+          .id,
+      ).toBe(MODEL_A.id);
     },
   );
+});
+
+describe("automatic model selection", () => {
+  it("uses the Gemini Pro default from Core", () => {
+    const gemini = { ...MODEL_A, id: "gemini-pro" };
+    expect(
+      defaultModel({
+        ...TEST_CATALOG,
+        defaultModelId: "gemini-pro",
+        models: [...TEST_CATALOG.models, gemini],
+      })?.id,
+    ).toBe("gemini-pro");
+  });
+
+  it("uses H3 Max for both video inputs", () => {
+    const [text, image] = TEST_CATALOG.videoModels;
+    const catalog = {
+      ...TEST_CATALOG,
+      defaultAnimateModelId: "h3-max-animate",
+      defaultVideoModelId: "h3-max",
+      videoModels: [
+        ...TEST_CATALOG.videoModels,
+        { ...text!, id: "h3-max" },
+        { ...image!, id: "h3-max-animate" },
+      ],
+    };
+    expect(defaultVideoModel(catalog, "text")?.id).toBe("h3-max");
+    expect(defaultVideoModel(catalog, "image")?.id).toBe("h3-max-animate");
+  });
 });

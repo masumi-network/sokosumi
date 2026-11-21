@@ -24,7 +24,7 @@ vi.mock("@/hooks/use-is-apple-platform", () => ({
   default: () => platform.isApple,
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/effects/use-mobile", () => ({
   useIsMobile: () => platform.isMobile,
 }));
 
@@ -111,6 +111,24 @@ describe("RoomSearchPanel", () => {
 
     expect(screen.getByTestId("room-search-panel")).toBeInTheDocument();
     expect(await screen.findByTestId("room-search-result")).toBeInTheDocument();
+  });
+
+  it("shows a voice message hit as its transcript", async () => {
+    getChatRoomMessagesMock.mockResolvedValue({
+      data: [
+        message({
+          content:
+            "[Voice.m4a](https://blob.example/v.m4a)\n\n```transcript\nBudget is final\n```",
+        }),
+      ],
+    });
+    renderPanel();
+    openSearch();
+    typeQuery("budget");
+
+    const hit = await screen.findByTestId("room-search-result");
+    expect(hit).toHaveTextContent("Budget is final");
+    expect(hit).not.toHaveTextContent("blob.example");
   });
 
   describe("collapsed icon", () => {

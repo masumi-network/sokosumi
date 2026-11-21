@@ -316,6 +316,8 @@ export const sokoBotSchema = z
     schedules: z.array(sokoBotScheduleSchema).optional(),
     /** Picked Soko Bot avatar image; null → generative orb. */
     avatarImageUrl: z.string().nullable().optional(),
+    /** Feature code of the live SVG avatar; null until the bot has one. */
+    avatarCode: z.string().nullable().optional(),
     versionId: z.string().nullable().optional(),
     followWholeBoard: z.boolean().optional(),
     mailAutoRead: z.boolean().optional(),
@@ -340,6 +342,12 @@ export const sokoBotActivitySchema = z
     lastTurnAt: dateTimeSchema.nullable(),
     /** What "Active 5m ago" counts from; any activity, not only turns. */
     lastActivityAt: dateTimeSchema.nullable(),
+    /** The bot's face, so a surface can draw it without the full state. */
+    id: z.string(),
+    userId: z.string().nullable(),
+    avatarSeed: z.string().nullable(),
+    avatarImageUrl: z.string().nullable(),
+    avatarCode: z.string().nullable(),
   })
   .openapi("SokoBotActivity");
 
@@ -380,11 +388,41 @@ export const updateSokoBotScheduleRequestSchema = z
     timezone: z.string().trim().min(1).max(100).optional(),
     cronExpression: z.string().trim().min(1).max(120).optional(),
     prompt: z.string().trim().min(1).max(20_000).optional(),
+    run: z
+      .object({
+        originalAt: dateTimeSchema.openapi({
+          description:
+            "The cron time the run belongs to (the Calendar entry's originalAt)",
+        }),
+        expectedAt: dateTimeSchema.nullable().openapi({
+          description:
+            "Where the caller saw the run, or null when they saw it skipped. A run that changed since answers 409",
+        }),
+        action: z.enum(["skip", "move", "restore"]),
+        scheduledAt: dateTimeSchema.optional().openapi({
+          description:
+            "For move: the new time, in the future and within the next 90 days",
+        }),
+      })
+      .strict()
+      .refine(
+        (value) => (value.action === "move") === Boolean(value.scheduledAt),
+        "scheduledAt goes with move, and only with move",
+      )
+      .optional()
+      .openapi({
+        description:
+          "Skip, move or restore one run; the cron stays as it is. Sent alone.",
+      }),
   })
   .strict()
   .refine(
     (value) => Object.keys(value).length > 0,
     "At least one field is required",
+  )
+  .refine(
+    (value) => !value.run || Object.keys(value).length === 1,
+    "run is sent alone",
   )
   .openapi("UpdateSokoBotScheduleRequest");
 
@@ -1010,6 +1048,7 @@ export const sokoBotTeamSchema = z
             id: z.string().uuid(),
             name: z.string().nullable(),
             avatarImageUrl: z.string().nullable(),
+            avatarCode: z.string().nullable().optional(),
             avatarSeed: z.string().nullable(),
             status: sokoBotStatusSchema,
             lastActivityAt: dateTimeSchema.nullable(),
@@ -1164,6 +1203,8 @@ export const sokoBotDeletionResultSchema = z
       taskSchedules: z.number().int().nonnegative(),
       /** Jobs it hired; the creator FK restricts a hard delete. */
       jobs: z.number().int().nonnegative(),
+      /** Social posts it made; unpublished ones are canceled. */
+      socialPosts: z.number().int().nonnegative(),
     }),
   })
   .openapi("SokoBotDeletionResult");

@@ -3,10 +3,7 @@
 import type { ChatCatchUpSummary } from "@sokosumi/core-client";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import {
-  ChatCaughtUp,
-  ChatUnreadViewHeader,
-} from "@/app/chat/components/chat-unread-view-header";
+import { ChatUnreadViewHeader } from "@/app/chat/components/chat-unread-view-header";
 import { isCatchUpSummaryEmpty } from "@/components/chat/signals/catch-up-summary-body";
 import { fetchCatchUpSummary } from "@/components/chat/signals/fetch-catch-up-summary";
 import { useOtherWorkspaceRooms } from "@/components/chat/use-other-workspace-rooms";
@@ -20,10 +17,12 @@ import { cn } from "@/lib/utils";
 import {
   BriefingHeader,
   BriefingTopics,
+  CATCH_UP_SUMMARY_QUERY_KEY,
   OpenLoopsList,
   QuietRooms,
 } from "./catch-up-briefing";
 import { CatchUpElsewhereRooms } from "./catch-up-elsewhere-rooms";
+import { CatchUpEmpty } from "./catch-up-empty";
 
 interface CatchUpViewProps {
   currentUserId: string;
@@ -50,7 +49,7 @@ export function CatchUpView({
       enabled: true,
     });
   const { data, isError, refetch, isFetching } = useQuery({
-    queryKey: ["chat-catch-up-summary"],
+    queryKey: CATCH_UP_SUMMARY_QUERY_KEY,
     queryFn: (): Promise<ChatCatchUpSummary> => fetchCatchUpSummary(),
     refetchOnWindowFocus: false,
     retry: false,
@@ -103,14 +102,10 @@ export function CatchUpView({
         elsewhereRooms.length > 0 ? (
           elsewhere
         ) : (
-          <div className={HOLDER_CLASS}>
-            <div className={HOLDER_ITEM_CLASS}>
-              <ChatCaughtUp
-                title={t("caughtUpTitle")}
-                description={t("caughtUpDescription")}
-              />
-            </div>
-          </div>
+          <CatchUpEmpty
+            currentUserId={currentUserId}
+            organizationId={organizationId}
+          />
         )
       ) : (
         <>

@@ -7,7 +7,10 @@ import {
   taskStatusSchema,
   taskVisibilitySchema,
 } from "@/schemas/domain-enums.schema";
-import { socialPostProviderSchema } from "@/schemas/social-post.schema";
+import {
+  socialPostMediaRefSchema,
+  socialPostProviderSchema,
+} from "@/schemas/social-post.schema";
 import { sokoBotPendingDecisionSchema } from "@/schemas/soko-bot-pending-decision.schema";
 
 const localHref = z
@@ -22,6 +25,7 @@ const outputSchema = z
     openHref: localHref,
     previewHref: localHref.nullable(),
     downloadHref: localHref.nullable().default(null),
+    transformation: socialPostMediaRefSchema.shape.transformation,
   })
   .openapi("ChatResultOutput");
 
@@ -144,11 +148,25 @@ export const chatResultPreviewSchema = z
   ])
   .openapi("ChatResultPreview");
 
+/**
+ * A resource this turn removed. Reads try again, and stay unavailable while
+ * the row is archived or deleted.
+ */
+const chatResultRemovedRecordSchema = z.object({
+  id: z.string().uuid(),
+  state: z.literal("unavailable"),
+  capturedAt: dateTimeSchema,
+  kind: chatResultAvailableSchema.shape.kind,
+});
+
 /** Private persisted JSON. Only the protected result endpoints expose its data. */
 export const chatResultSnapshotSchema = z.object({
   workspaceId: z.string(),
   reference: chatResultReferenceSchema,
-  data: chatResultAvailableSchema,
+  data: z.discriminatedUnion("state", [
+    chatResultAvailableSchema,
+    chatResultRemovedRecordSchema,
+  ]),
 });
 
 export type ChatResultSnapshot = z.infer<typeof chatResultSnapshotSchema>;

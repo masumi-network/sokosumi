@@ -6,12 +6,12 @@ import {
   SOCIAL_POST_MEDIA_MAX,
   SOCIAL_POST_TEXT_LIMITS,
   SOCIAL_POST_TEXT_MAX,
+  SOCIAL_POST_THREAD_MAX_PARTS,
   type SocialPostProvider,
   socialPostTextLength,
   X_PREMIUM_TEXT_LIMIT,
 } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
-import { SOCIAL_POST_THREAD_MAX_PARTS } from "@/helpers/social-post-thread";
 import { driveFileRefShape } from "@/schemas/drive-file-ref.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
@@ -83,12 +83,35 @@ const socialPostFirstCommentSchema = z
       "Posted after publishing succeeds. For X threads, replies to the last thread part.",
   });
 
-export const socialPostMediaRefSchema = z
-  .object({
-    ...driveFileRefShape,
-    size: z.number().int().min(0).openapi({ example: 240000 }),
-    mimeType: z.string().min(1).openapi({ example: "image/png" }),
-    kind: z.enum(["image", "gif", "video"]).openapi({ example: "image" }),
+const socialPostMediaFileSchema = z.object({
+  ...driveFileRefShape,
+  aiGenerated: z.boolean().optional(),
+  size: z.number().int().min(0).openapi({ example: 240000 }),
+  mimeType: z.string().min(1).openapi({ example: "image/png" }),
+  kind: z.enum(["image", "gif", "video"]).openapi({ example: "image" }),
+});
+
+export const socialPostMediaRefSchema = socialPostMediaFileSchema
+  .extend({
+    transformation: z
+      .object({
+        provider: socialPostProviderSchema,
+        code: z.enum([
+          "pad_4_5",
+          "pad_1_91_1",
+          "resize",
+          "jpeg",
+          "srgb",
+          "smaller_file",
+        ]),
+        notice: z.string().min(1).max(500),
+        original: socialPostMediaFileSchema,
+      })
+      .optional()
+      .openapi({
+        description:
+          "Required provider adaptation, with the original source retained.",
+      }),
   })
   .openapi("SocialPostMediaRef");
 
@@ -97,7 +120,7 @@ const socialPostMediaRequestSchema = z
   .max(SOCIAL_POST_MEDIA_MAX)
   .openapi({
     description:
-      "Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.",
+      "Drive files to attach according to per-provider limits: up to 20 images on X, or one GIF or one video where supported. Never mixed.",
   });
 
 const socialPostThreadPartRequestSchema = z.object({
@@ -160,6 +183,7 @@ export const socialPostSocialConnectionSchema = z
     avatarUrl: projectSocialConnectionSchema.shape.avatarUrl,
     subscriptionType: projectSocialConnectionSchema.shape.subscriptionType,
     status: projectSocialConnectionSchema.shape.status,
+    personalProfile: projectSocialConnectionSchema.shape.personalProfile,
   })
   .openapi("SocialPostSocialConnection");
 
@@ -368,10 +392,23 @@ export const rejectSocialPostRequestSchema = z
   })
   .openapi("RejectSocialPostRequest");
 
+export const tikTokPostSettingsSchema = z
+  .object({
+    privacyLevel: z.enum(["SELF_ONLY", "PUBLIC_TO_EVERYONE"]),
+    allowComment: z.boolean(),
+    allowDuet: z.boolean(),
+    allowStitch: z.boolean(),
+    promotesOwnBrand: z.boolean(),
+    acceptedMusicUsage: z.literal(true),
+    previewConsent: z.literal(true).optional(),
+  })
+  .openapi("TikTokPostSettings");
+
 export const publishSocialPostRequestSchema = z
   .object({
     revision: socialPostRevisionSchema,
   })
+  .extend({ tikTokSettings: tikTokPostSettingsSchema.optional() })
   .openapi("PublishSocialPostRequest");
 
 export const resumeSocialPostThreadRequestSchema = z
@@ -440,3 +477,17 @@ export const listSocialPostsQuerySchema = cursorPaginationQuerySchema.extend({
       example: "DRAFT,SCHEDULED",
     }),
 });
+
+export const listWorkspaceSocialPostsQuerySchema =
+  listSocialPostsQuerySchema.pick({ cursor: true, limit: true, status: true });
+
+export const workspaceSocialPostSchema = z
+  .object({
+    post: socialPostSchema,
+    projectName: z.string(),
+    projectCmo: z.boolean().openapi({
+      description:
+        "The post's Project is a CMO Project, so its posts are read-only outside CMO (ADR 0066).",
+    }),
+  })
+  .openapi("WorkspaceSocialPost");

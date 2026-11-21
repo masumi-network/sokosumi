@@ -1,3 +1,9 @@
+import {
+  SOKO_BOT_SEO_CAPABILITIES,
+  SOKO_BOT_SEO_READ_CAPABILITIES,
+  SOKO_BOT_SEO_WRITE_CAPABILITIES,
+} from "./seo.js";
+
 export const SOKO_BOT_ROUTES = [
   "DIRECT_RESPONSE",
   "CLARIFY",
@@ -10,6 +16,7 @@ export const SOKO_BOT_ROUTES = [
 export type SokoBotRoute = (typeof SOKO_BOT_ROUTES)[number];
 
 export const SOKO_BOT_CAPABILITIES = [
+  ...SOKO_BOT_SEO_CAPABILITIES,
   "refresh_context",
   "find_coworkers",
   "create_task",
@@ -22,6 +29,9 @@ export const SOKO_BOT_CAPABILITIES = [
   "reply_to_task",
   "update_assigned_task",
   "link_tasks",
+  "set_task_parent",
+  "list_followed_tasks",
+  "stop_following_task",
   "find_agents",
   "get_agent_input_schema",
   "hire_agent",
@@ -54,6 +64,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "get_image",
   "generate_video",
   "get_video",
+  "generate_talking_video",
   "generate_voiceover",
   "list_skills",
   "install_skill",
@@ -89,6 +100,9 @@ export const SOKO_BOT_CAPABILITIES = [
   "list_integration_tools",
   "read_integration_tool",
   "run_integration_tool",
+  "list_mcp_tools",
+  "read_mcp_tool",
+  "run_mcp_tool",
   "list_project_social_accounts",
   "get_posting_instructions",
   "list_ad_accounts",
@@ -144,16 +158,49 @@ export const SOKO_BOT_CAPABILITIES = [
   "search_exa",
   "read_social_profile",
   "read_writing_skill",
+  "find_style_references",
+  "write_month_pieces",
   "list_social_comments",
   "handle_social_comment",
+  "read_seo",
+  "research_keywords",
+  "research_competitor_keywords",
+  "check_search_rankings",
+  "save_seo_suggestions",
+  "check_competitors",
+  "save_competitor_feed",
   "start_background_run",
   "list_background_runs",
   "stop_background_run",
   "wait_for",
   "workspace_import_file",
+  "list_announcements",
+  "save_announcement",
+  "publish_announcement",
 ] as const;
 
 export type SokoBotCapability = (typeof SOKO_BOT_CAPABILITIES)[number];
+
+/**
+ * The announcements every Sokosumi user sees, as a sidebar card and a popup.
+ * Core offers them only to the bots listed in SOKO_BOT_ANNOUNCEMENT_BOT_IDS
+ * and checks the list again on each call. Saving keeps a draft nobody sees;
+ * only publish_announcement, on the owner's word in chat or in their own
+ * schedule, shows or ends one.
+ */
+export const SOKO_BOT_ANNOUNCEMENT_CAPABILITIES = [
+  "list_announcements",
+  "save_announcement",
+  "publish_announcement",
+] as const satisfies readonly SokoBotCapability[];
+
+export function isSokoBotAnnouncementCapability(
+  value: string,
+): value is (typeof SOKO_BOT_ANNOUNCEMENT_CAPABILITIES)[number] {
+  return (SOKO_BOT_ANNOUNCEMENT_CAPABILITIES as readonly string[]).includes(
+    value,
+  );
+}
 
 /**
  * Tools only CMO (Cuso) bots carry. They write the bot's own marketing
@@ -168,13 +215,44 @@ export const SOKO_BOT_CMO_CAPABILITIES = [
   "read_social_profile",
   // How Cuso writes each kind of piece, read before he writes it.
   "read_writing_skill",
+  // Old ads, posters and labels a picture can take its look from.
+  "find_style_references",
+  // Core writes the month's pieces at once (cmo-v6's production run).
+  "write_month_pieces",
   // The daily reply round: comments on the Project's own posts.
   "list_social_comments",
   "handle_social_comment",
+  // The SEO tab: the weekly audit, Search Console, keyword research, the
+  // searches that name a competitor, the SEO specialist's position checks,
+  // and the articles and page changes.
+  "read_seo",
+  "research_keywords",
+  "research_competitor_keywords",
+  "check_search_rankings",
+  "save_seo_suggestions",
 ] as const satisfies readonly SokoBotCapability[];
 
 export function isSokoBotCmoCapability(value: string): boolean {
   return (SOKO_BOT_CMO_CAPABILITIES as readonly string[]).includes(value);
+}
+
+/**
+ * A Project's competitor monitoring: what Core's weekly check found, and
+ * the week's feed. Core offers them to a bot only while the weekly check is
+ * on for a Project it works in, and checks the Project again on each call.
+ * A CMO bot always carries them: its check runs while it is paid for.
+ */
+export const SOKO_BOT_COMPETITOR_CAPABILITIES = [
+  "check_competitors",
+  "save_competitor_feed",
+] as const satisfies readonly SokoBotCapability[];
+
+export function isSokoBotCompetitorCapability(
+  value: string,
+): value is (typeof SOKO_BOT_COMPETITOR_CAPABILITIES)[number] {
+  return (SOKO_BOT_COMPETITOR_CAPABILITIES as readonly string[]).includes(
+    value,
+  );
 }
 
 /**
@@ -237,112 +315,15 @@ export function isSokoBotSandboxCapability(
   return (SOKO_BOT_SANDBOX_CAPABILITIES as readonly string[]).includes(value);
 }
 
-/**
- * Tools whose effect leaves Sokosumi, reaches another person, or runs later
- * without the taint. Once a turn has read the open web or run a shell command,
- * Core refuses these and the bot has to ask the owner first: a fetched page
- * must not be able to send mail, brief a Coworker, or queue either for a
- * later, clean turn.
- */
-export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
-  "hire_agent",
-  // Mail leaves the owner's mailbox; a page the bot read must not send it.
-  "send_email_draft",
-  "update_emails",
-  // A skill is instructions the bot follows from then on; a page it read
-  // must not be able to install one.
-  "install_skill",
-  "provide_job_input",
-  "run_integration_tool",
-  "upload_file",
-  // Deleting is for good; a page the bot read must not pick what goes.
-  "delete_file",
-  // Spends credits, and its prompt is the kind of thing a page can inject.
-  "generate_image",
-  "newsletter_draft_issue",
-  "create_newsletter_issue",
-  "update_newsletter_issue",
-  "delete_newsletter_issue",
-  "submit_newsletter_issue",
-  "update_newsletter_settings",
-  // Subscribing emails people a confirmation; a page must not pick who.
-  "add_newsletter_subscriber",
-  "import_newsletter_subscribers",
-  "add_newsletter_subscribers_from_contacts",
-  "update_newsletter_subscriber",
-  "remove_newsletter_subscriber",
-  "generate_video",
-  // Spends the owner's money on words a page could have written.
-  "generate_voiceover",
-  "post_chat",
-  "open_direct_chat",
-  // The question is a prompt for a Coworker; a page must not write it.
-  "ask_coworker",
-  "reply_to_task",
-  "assign_task",
-  "update_assigned_task",
-  "create_schedule",
-  "update_schedule",
-  "manage_reminder",
-  "create_social_post",
-  "update_social_post",
-  "schedule_social_post",
-  "cancel_social_post",
-  "publish_social_post",
-  "create_ad_campaign",
-  "update_ad_campaign",
-  "edit_ad_campaign",
-  "delete_ad_campaign",
-  // A brief is a prompt for a turn with this one's tools; a page must not write it.
-  "start_background_run",
-  "wait_for",
-] as const satisfies readonly SokoBotCapability[];
-
-/**
- * The tainted tools that stay refused even on work the owner asked for: they
- * reach people or systems beyond the owner's own workspace. The rest — briefing
- * a Coworker, hiring, saving to Files — is what a chained job the owner set
- * out ("research, build the site, have it reviewed") is made of. Social posts
- * are neither: see SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES.
- */
-/**
- * The one Social tool a tainted turn may still use on work the owner asked
- * for: "research the launch, cut a video and schedule it" is one piece of
- * work, done as one new post carrying its words, media and time. The post
- * waits for a person's approval. Changing, rescheduling, cancelling or
- * publishing a post stay refused (see the outward list): a script in the
- * turn can call these tools too, and an approved post must not change
- * under it.
- */
-export const SOKO_BOT_TAINTED_OWN_POST_CAPABILITIES = [
-  "create_social_post",
-] as const satisfies readonly (typeof SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES)[number][];
-
-export const SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES = [
-  "run_integration_tool",
-  "post_chat",
-  "open_direct_chat",
-  "update_social_post",
-  "schedule_social_post",
-  "cancel_social_post",
-  "publish_social_post",
-  // Other people's newsletter subscriptions, and the emails that confirm them.
-  "add_newsletter_subscriber",
-  "import_newsletter_subscribers",
-  "add_newsletter_subscribers_from_contacts",
-  "update_newsletter_subscriber",
-  "remove_newsletter_subscriber",
-  "create_ad_campaign",
-  "update_ad_campaign",
-  "edit_ad_campaign",
-  "delete_ad_campaign",
-] as const satisfies readonly (typeof SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES)[number][];
+export * from "./policy-taint.js";
 
 const DIRECT_READ_CAPABILITIES = [
+  ...SOKO_BOT_SEO_READ_CAPABILITIES,
   "refresh_context",
   "get_task_status",
   "preview_result",
   "list_tasks",
+  "list_followed_tasks",
   "get_job_status",
   "read_memory",
   "list_schedules",
@@ -352,6 +333,7 @@ const DIRECT_READ_CAPABILITIES = [
   "read_file",
   "get_image",
   "get_video",
+  "list_announcements",
   "list_skills",
   "list_tables",
   "read_table",
@@ -372,6 +354,9 @@ const DIRECT_READ_CAPABILITIES = [
   "list_integration_tools",
   // Only tools Composio marks read-only; Core refuses the rest.
   "read_integration_tool",
+  // The owner's MCP servers; only tools the owner labelled as reading.
+  "list_mcp_tools",
+  "read_mcp_tool",
   "list_project_social_accounts",
   "get_posting_instructions",
   "list_ad_accounts",
@@ -493,6 +478,7 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   "save_email_attachment",
   "generate_image",
   "generate_video",
+  "generate_talking_video",
   "generate_voiceover",
   "create_table",
   "write_table_rows",
@@ -504,6 +490,11 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   // Runs a real tool on a connected account (send, create, update). It is a
   // write in every sense, so it belongs with the writes rather than the reads.
   "run_integration_tool",
+  // The same for a tool of the owner's MCP servers (ADR 0074).
+  "run_mcp_tool",
+  // A draft nobody sees; publishing it is Core-checked on the owner's word.
+  "save_announcement",
+  "publish_announcement",
 ] as const satisfies readonly SokoBotCapability[];
 
 /**
@@ -576,6 +567,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
   DIRECT_RESPONSE: [...OWNER_BASE_CAPABILITIES, "wait_for"],
   CLARIFY: [...OWNER_BASE_CAPABILITIES],
   DELEGATE_TASK: [
+    ...SOKO_BOT_SEO_WRITE_CAPABILITIES,
     ...OWNER_BASE_CAPABILITIES,
     ...BACKGROUND_RUN_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
@@ -590,6 +582,8 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     "reply_to_task",
     "update_assigned_task",
     "link_tasks",
+    "set_task_parent",
+    "stop_following_task",
   ],
   HIRE_AGENT: [
     ...OWNER_BASE_CAPABILITIES,
@@ -603,6 +597,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     "provide_job_input",
   ],
   MANAGE_WORK: [
+    ...SOKO_BOT_SEO_WRITE_CAPABILITIES,
     ...OWNER_BASE_CAPABILITIES,
     ...BACKGROUND_RUN_CAPABILITIES,
     ...SOCIAL_WRITE_CAPABILITIES,
@@ -617,6 +612,8 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     "reply_to_task",
     "update_assigned_task",
     "link_tasks",
+    "set_task_parent",
+    "stop_following_task",
     "find_coworkers",
     "create_task",
   ],
@@ -668,6 +665,7 @@ export function capabilitiesForClassification(
       "save_email_attachment",
       "generate_image",
       "generate_video",
+      "generate_talking_video",
       "generate_voiceover",
       "wait_for",
       "create_table",
@@ -677,6 +675,7 @@ export function capabilitiesForClassification(
     ],
     INTEGRATION: [
       "run_integration_tool",
+      "run_mcp_tool",
       "update_emails",
       "draft_email",
       "send_email_draft",

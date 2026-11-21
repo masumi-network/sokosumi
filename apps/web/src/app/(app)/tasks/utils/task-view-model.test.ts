@@ -7,6 +7,8 @@ import {
 import { describe, expect, it } from "vitest";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
 
+const TEST_WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
+
 function buildTask(
   status: TaskStatus,
   overrides?: Partial<TaskListItem>,
@@ -15,10 +17,13 @@ function buildTask(
     id: "task-1",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    workspaceId: TEST_WORKSPACE_ID,
+    statusSince: new Date("2026-01-01T00:00:00.000Z"),
     ownerId: "user-1",
     organizationId: null,
     projectId: null,
     project: null,
+    archivedAt: null,
     owner: { id: "user-1", name: "Test User", image: null },
     userId: "user-1",
     user: { id: "user-1", name: "Test User", image: null },
@@ -46,13 +51,16 @@ function buildTask(
     visibility: TaskVisibility.PUBLIC,
     runAt: null,
     dueOn: null,
+    parentTaskId: null,
+    position: null,
+    subtaskProgress: { completed: 0, total: 0 },
     scheduleId: null,
     commentsCount: 0,
     jobsCount: 0,
     grantResumeStatus: null,
     pendingVendorGrantId: null,
     workspace: {
-      id: "11111111-1111-7111-8111-111111111111",
+      id: TEST_WORKSPACE_ID,
       organizationId: null,
       organization: null,
     },
@@ -90,6 +98,43 @@ describe("mapTaskToTaskWithCoworker", () => {
       { id: "user-2", name: "Ada", image: "https://img/ada.png", kind: "user" },
       { id: "user-3", name: "Bea", image: null, kind: "user" },
     ]);
+  });
+
+  it("dates statusSince from the list item or the latest status event", () => {
+    const listItem = buildTask(TaskStatus.READY, {
+      statusSince: new Date("2026-01-05T00:00:00.000Z"),
+    });
+    expect(map(listItem).statusSince).toBe("2026-01-05T00:00:00.000Z");
+
+    const { statusSince: _statusSince, ...rest } = listItem;
+    const detail = {
+      ...rest,
+      events: [
+        {
+          status: TaskStatus.READY,
+          createdAt: new Date("2026-01-03T00:00:00.000Z"),
+        },
+        {
+          status: null,
+          comment: "Hi",
+          createdAt: new Date("2026-01-09T00:00:00.000Z"),
+        },
+      ],
+    } as unknown as Task;
+    expect(map(detail).statusSince).toBe("2026-01-03T00:00:00.000Z");
+  });
+
+  it("sends the full description only for a Task page, not for a list item", () => {
+    const listItem = buildTask(TaskStatus.READY, {
+      description: "Write the **copy**",
+    });
+    const mapped = map(listItem);
+    expect(mapped.description).toBeNull();
+    expect(mapped.descriptionPlain).toBe("Write the copy");
+
+    const { statusSince: _statusSince, ...rest } = listItem;
+    const detail = { ...rest, events: [] } as unknown as Task;
+    expect(map(detail).description).toBe("Write the **copy**");
   });
 
   it("maps queued tasks to backlog column", () => {
@@ -189,6 +234,7 @@ describe("mapTaskToTaskWithCoworker", () => {
       events: [],
       jobs: [],
       files: [],
+      followers: [],
       share: {
         id: "share-1",
         taskId: "task-1",
@@ -344,5 +390,14 @@ describe("mapTaskToTaskWithCoworker", () => {
     });
 
     expect(map(task).descriptionPlain).toBeNull();
+  });
+
+  it("previews an SEO Task's summary without its machine request line", () => {
+    const task = buildTask(TaskStatus.DRAFT, {
+      description:
+        'Full SEO audit of 1 page:\n\nseo_audit: {"version":1,"pageUrls":["https://example.com/"]}',
+    });
+
+    expect(map(task).descriptionPlain).toBe("Full SEO audit of 1 page:");
   });
 });

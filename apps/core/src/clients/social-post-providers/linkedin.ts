@@ -18,8 +18,12 @@ import type {
   SocialPostPublishContext,
   SocialPostPublishResult,
 } from "@/clients/social-post-providers/types";
-import { linkedInPersonUrn } from "@/helpers/linkedin-person";
+import { publishZernioPost } from "@/clients/social-post-providers/zernio-post";
+import { getZernioAccountId } from "@/clients/zernio.client";
+import { linkedInAuthorUrn } from "@/helpers/linkedin-person";
 import { downloadSocialPostMedia } from "@/helpers/social-post-media";
+import { recordCoreWarning } from "@/lib/evlog";
+import { knownKeyPaths } from "@/lib/known-key-paths";
 
 const LINKEDIN_CREATE_POST_TOOL_SLUG = "LINKEDIN_CREATE_LINKED_IN_POST";
 const LINKEDIN_REGISTER_IMAGE_TOOL_SLUG = "LINKEDIN_REGISTER_IMAGE_UPLOAD";
@@ -145,19 +149,16 @@ export function linkedInPostIdOf(data: unknown): string | null {
   );
 }
 
-/** Key paths (never values) of a response, to learn its shape from logs. */
-export function linkedInResponseKeyPaths(
-  value: unknown,
-  prefix = "",
-  depth = 0,
-): string[] {
-  const data = record(value);
-  if (!data || depth > LINKEDIN_SCAN_DEPTH) return [];
-  return Object.entries(data).flatMap(([key, nested]) => {
-    const path = prefix ? `${prefix}.${key}` : key;
-    return [path, ...linkedInResponseKeyPaths(nested, path, depth + 1)];
-  });
-}
+/** Keys a create post response may name in a log: the ones Core reads. */
+const LINKEDIN_RESPONSE_LOG_KEYS: ReadonlySet<string> = new Set([
+  ...LINKEDIN_POST_ID_KEYS,
+  ...LINKEDIN_SHARE_ID_KEYS,
+  ...LINKEDIN_NESTED_KEYS,
+  "status_code",
+  "message",
+  "successful",
+  "error",
+]);
 
 function urnOf(data: Record<string, unknown> | null): string | null {
   const candidates = [data?.asset_urn, data?.video_urn, data?.urn, data?.id];
@@ -208,6 +209,43 @@ async function registerLinkedInImage(input: {
   return assetUrn;
 }
 
+export const ZERNIO_LINKEDIN_CREATE_POST = "ZERNIO_LINKEDIN_CREATE_POST";
+
+/**
+ * Publishes as the Page or profile the owner picked at sign-in: the Zernio
+ * account is that one identity. LinkedIn takes one video or up to twenty images.
+ */
+async function publishZernioLinkedInPost(
+  context: SocialPostPublishContext,
+  accountId: string,
+): Promise<SocialPostPublishResult> {
+  const video = context.media.find((ref) => ref.kind === "video");
+  const media = video ? [video] : context.media;
+  const firstComment = context.firstComment?.trim();
+  const published = await publishZernioPost({
+    context,
+    accountId,
+    platform: "linkedin",
+    urlHost: /(^|\.)linkedin\.com$/i,
+    toolSlug: ZERNIO_LINKEDIN_CREATE_POST,
+    refused: "LinkedIn refused the post",
+    body: {
+      content: context.text,
+      ...(media.length > 0 && {
+        mediaItems: media.map((ref) => ({ type: ref.kind, url: ref.fileUrl })),
+      }),
+      platforms: [
+        {
+          platform: "linkedin",
+          accountId,
+          ...(firstComment && { platformSpecificData: { firstComment } }),
+        },
+      ],
+    },
+  });
+  return { ...published, firstCommentIncluded: Boolean(firstComment) };
+}
+
 /**
  * Publishes a LinkedIn post through a restricted tool-router session pinned to
  * the connected person. Images are registered and uploaded as assets; a video
@@ -217,6 +255,9 @@ export async function publishLinkedInPost(
   context: SocialPostPublishContext,
 ): Promise<SocialPostPublishResult> {
   const label = socialPostProviderLabel("linkedin");
+  const zernioAccountId = getZernioAccountId(context.connectedAccountId);
+  if (zernioAccountId)
+    return publishZernioLinkedInPost(context, zernioAccountId);
   const sessionId = await createComposioToolSession({
     toolkitSlug: "linkedin",
     connectedAccountId: context.connectedAccountId,
@@ -225,7 +266,7 @@ export async function publishLinkedInPost(
     context: "create Project LinkedIn publish session",
     signal: context.signal,
   });
-  const author = linkedInPersonUrn(context.externalAccountId);
+  const author = linkedInAuthorUrn(context.externalAccountId);
   try {
     const video = context.media.find((ref) => ref.kind === "video");
     let response: Record<string, unknown> | null;
@@ -316,10 +357,24 @@ export async function publishLinkedInPost(
     const externalId = linkedInPostIdOf(response);
     if (!externalId) {
       // The create call succeeded, so the post is live; only its id is missing.
-      console.warn("[linkedin] Published post returned no post id", {
-        toolSlug,
-        keyPaths: linkedInResponseKeyPaths(response).slice(0, 100),
-      });
+      // Known key paths only: the response's values and keys can quote the post.
+      recordCoreWarning(
+        { operation: "linkedin_publish_post" },
+        {
+          message: "LinkedIn published a post but returned no post id",
+          why: "The LinkedIn create post response held no post URN Core recognizes",
+          fix: "The post is live without a link. If it repeats, check keyPaths and otherKeys for where LinkedIn now puts the id.",
+        },
+        {
+          provider: "linkedin",
+          toolSlug,
+          ...knownKeyPaths(
+            response,
+            LINKEDIN_RESPONSE_LOG_KEYS,
+            LINKEDIN_SCAN_DEPTH,
+          ),
+        },
+      );
     }
     return {
       externalId,

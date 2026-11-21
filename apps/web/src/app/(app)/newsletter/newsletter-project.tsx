@@ -1,13 +1,21 @@
 import type { Project } from "@sokosumi/core-client";
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { createLoader, parseAsString, type SearchParams } from "nuqs/server";
 
 import { ProjectScopeRequired } from "@/app/components/project-scope/project-scope-required";
 import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
+import { SearchablePageContent } from "@/components/searchable-page-content";
 import { projectService } from "@/lib/services/project.service";
 import { isUuidString } from "@/lib/utils/uuid";
 
 import { NewsletterNoProjectBackdrop } from "./components/newsletter-no-project-backdrop";
+
+/** The browser tab's title on every newsletter page. */
+export async function generateNewsletterMetadata(): Promise<Metadata> {
+  const t = await getTranslations("App.Newsletter");
+  return { title: t("title") };
+}
 
 const loadScopeParams = createLoader({
   projectId: parseAsString,
@@ -41,8 +49,11 @@ export async function loadNewsletterProject(
  */
 export async function newsletterWorkspacePage({
   unavailable,
+  showSearch = false,
 }: {
   unavailable: boolean;
+  /** Routes with a collection field supply their own finder until a Project is chosen. */
+  showSearch?: boolean;
 }) {
   const t = await getTranslations("App.Newsletter");
   const preview = await getTranslations("App.Projects.Newsletter.Preview");
@@ -53,19 +64,26 @@ export async function newsletterWorkspacePage({
     subject: t(`backdrop.${key}.subject`),
   });
 
+  const prompt = (
+    <ProjectScopeRequired
+      body={unavailable ? t("pickUnavailable") : t("description")}
+      testId="newsletter-no-project"
+      title={t("pickProject")}
+    >
+      <NewsletterNoProjectBackdrop
+        button={preview("button")}
+        issues={[issue("launch"), issue("field"), issue("studio")]}
+        unsubscribe={preview("unsubscribe")}
+      />
+    </ProjectScopeRequired>
+  );
   return (
     <WorkspacePageShell title={t("title")}>
-      <ProjectScopeRequired
-        body={unavailable ? t("pickUnavailable") : t("description")}
-        testId="newsletter-no-project"
-        title={t("pickProject")}
-      >
-        <NewsletterNoProjectBackdrop
-          button={preview("button")}
-          issues={[issue("launch"), issue("field"), issue("studio")]}
-          unsubscribe={preview("unsubscribe")}
-        />
-      </ProjectScopeRequired>
+      {showSearch ? (
+        <SearchablePageContent>{prompt}</SearchablePageContent>
+      ) : (
+        prompt
+      )}
     </WorkspacePageShell>
   );
 }

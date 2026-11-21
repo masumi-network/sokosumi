@@ -229,8 +229,9 @@ describe("color tokens", () => {
   it("paints the primary on no text or edge", () => {
     // Iris Flower, the primary, measures 2.67:1 on white. The Masumi Family
     // guide allows it as a fill only, so text, borders, rings and thin marks
-    // take a foreground role. The tail rejects `[\w-]`, so fill-side
-    // label (`text-primary-foreground`) stays legal.
+    // take a foreground role. The one exception is the navigation progress
+    // bar, a `bg-primary` fill 3px high (DESIGN.md, Motion). The tail rejects
+    // `[\w-]`, so fill-side label (`text-primary-foreground`) stays legal.
     const violations = findColorViolations(
       PRIMARY_ON_TEXT_OR_EDGE,
       (rel) =>
@@ -708,6 +709,8 @@ const OVERLAY_LAYER = 50;
 const ABOVE_OVERLAY_ALLOWLIST = new Map([
   // Full-screen search takeover; it has to cover the `z-50` sticky header.
   ["app/(app)/components/header/header-mobile-search.client.tsx", 60],
+  // The workspace sweep covers the page, and the wizard dialog it closes.
+  ["lib/workspace-sweep.ts", 70],
   // Consent has to stay reachable over any dialog or sheet that is open.
   ["components/analytics/cookie-banner.tsx", 100],
 ]);
@@ -1715,6 +1718,8 @@ const SUSPENSE_WRAPPED = new Set([
   "(app)/schedules/[scheduleId]/page.tsx",
   "(app)/schedules/page.tsx",
   "(app)/tasks/(root)/page.tsx",
+  "(app)/tasks/archived/[taskId]/page.tsx",
+  "(app)/tasks/archived/page.tsx",
 ]);
 
 /**

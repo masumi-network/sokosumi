@@ -9,7 +9,9 @@ import {
 } from "@sokosumi/soko-bot";
 import { z } from "zod";
 
+import { notifyCusoLowCreditsAfterCharge } from "@/helpers/cuso-low-credit-notification";
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger } from "@/lib/evlog";
 import {
   evaluateWithJev,
   type JevAnswer,
@@ -21,6 +23,7 @@ import {
 } from "@/services/cmo-plan-review.service";
 import { isMarketingFilePiece } from "@/services/marketing-strategy.service";
 import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
+import { otherClaimArgued } from "@/services/social-posts.service";
 import { recordSokoBotCheckUsage } from "@/services/soko-bot-billing.service";
 
 /**
@@ -58,6 +61,8 @@ export const cmoMonthReviewSchema = z.object({
     .default({}),
   /** The rewrite run this review started, by its client turn id. */
   rewriteRunId: z.string().optional(),
+  /** How many of the month's styled pictures took each kind of print. */
+  pictureKinds: z.record(z.string(), z.number()).optional(),
 });
 export type CmoMonthReview = z.infer<typeof cmoMonthReviewSchema>;
 
@@ -272,7 +277,7 @@ export function cmoCountedProblems(
                   "120 to 155",
                 ),
                 /^# \S/m.test(text) ? null : "it has no # title",
-                field(text, "Link from")
+                namesLinkingPages(text)
                   ? null
                   : "it has no Link from: line naming the pages that should link to it",
               ]
@@ -298,6 +303,9 @@ async function madePieces(
   const made = calendar.filter(
     (entry) =>
       entry.status !== "skipped" &&
+      // A talking video is read once, on its own entry: its posts on other
+      // networks would count its pillar again.
+      !entry.videoOf &&
       (isMarketingFilePiece(entry)
         ? Boolean(entry.fileId)
         : Boolean(entry.draft)),
@@ -322,6 +330,73 @@ async function madePieces(
   return pieces.filter((piece) => piece !== null);
 }
 
+/**
+ * cmo-v8: each made piece whose words argue another piece's claim rather
+ * than its own gets that as a problem, so the rewrite run gives it its own
+ * point. A month without claims costs nothing.
+ */
+async function claimProblems(
+  made: CmoMadePiece[],
+  calendar: readonly CmoCalendarEntry[],
+): Promise<{ flagged: number; costUsd: number }> {
+  const claimOf = new Map(
+    calendar.flatMap((entry) =>
+      entry.claim?.trim() && entry.status !== "skipped"
+        ? [[entry.id, entry.claim.trim()] as const]
+        : [],
+    ),
+  );
+  const claims = [...claimOf.values()];
+  const claimed = made.filter((piece) => claimOf.has(piece.id));
+  let flagged = 0;
+  let costUsd = 0;
+  // A few at a time: a month of 171 pieces would otherwise wait on each.
+  for (let start = 0; start < claimed.length; start += CLAIM_BATCH) {
+    const batch = claimed.slice(start, start + CLAIM_BATCH);
+    const results = await Promise.all(
+      batch.map((piece) =>
+        otherClaimArgued(piece.text, claimOf.get(piece.id) ?? null, claims),
+      ),
+    );
+    batch.forEach((piece, index) => {
+      const argued = results[index];
+      costUsd += argued?.costUsd ?? 0;
+      if (!argued?.problem) return;
+      flagged += 1;
+      piece.problems = [
+        ...piece.problems,
+        argued.problem.replace(/^Rewrite the post: it /, ""),
+      ];
+    });
+  }
+  return { flagged, costUsd };
+}
+
+const CLAIM_BATCH = 10;
+
+/** How many styled pictures of the month took each kind of print. */
+export async function cmoPictureKindMix(
+  calendar: readonly CmoCalendarEntry[],
+): Promise<Record<string, number>> {
+  const ids = calendar.flatMap((entry) =>
+    entry.status !== "skipped" && entry.styleReferenceId
+      ? [entry.styleReferenceId]
+      : [],
+  );
+  if (ids.length === 0) return {};
+  const rows = await prisma.referenceImage.findMany({
+    where: { id: { in: [...new Set(ids)] } },
+    select: { id: true, kind: true },
+  });
+  const kindOf = new Map(rows.map((row) => [row.id, row.kind]));
+  const mix: Record<string, number> = {};
+  for (const id of ids) {
+    const kind = kindOf.get(id);
+    if (kind) mix[kind] = (mix[kind] ?? 0) + 1;
+  }
+  return mix;
+}
+
 function passes(
   answers: ReadonlyMap<string, JevAnswer>,
   key: string,
@@ -332,22 +407,48 @@ function passes(
     : null;
 }
 
-/** What the pieces' facts are checked against: what the business sells and has proven. */
+/**
+ * Whether an article names the pages that should link to it: after a
+ * "Link from:" label, on its line or as the block under it, up to the next
+ * heading.
+ */
+function namesLinkingPages(text: string): boolean {
+  const label = /^(?:#+ )?\**Link from\**:\**[ \t]*(.*)$/im.exec(text);
+  if (!label) return false;
+  const block = text.slice(label.index + label[0].length).split(/^#/m)[0];
+  return /[\p{L}\p{N}/]/u.test(`${label[1]}\n${block}`);
+}
+
+/**
+ * What the pieces' facts are checked against: what the business sells, charges
+ * and has proven, and the approved plan's offer, which its pieces state.
+ */
 export type CmoBrandFacts = Pick<
   BrandBrain,
   "summary" | "products" | "offers"
-> & {
-  customerQuotes: string[];
-  proof: NonNullable<BrandBrain["profile"]>["proof"];
-};
+> &
+  Pick<
+    NonNullable<BrandBrain["profile"]>,
+    "proof" | "pricing" | "customers" | "reputation"
+  > & {
+    customerQuotes: string[];
+    planOffer: MarketingStrategyPlan["offer"];
+  };
 
-export function cmoBrandFacts(brain: BrandBrain): CmoBrandFacts {
+export function cmoBrandFacts(
+  brain: BrandBrain,
+  planOffer: MarketingStrategyPlan["offer"],
+): CmoBrandFacts {
   return {
     summary: brain.summary,
     products: brain.products,
     offers: brain.offers,
     customerQuotes: (brain.voiceOfCustomer ?? []).map((quote) => quote.quote),
     proof: brain.profile?.proof,
+    pricing: brain.profile?.pricing,
+    customers: brain.profile?.customers,
+    reputation: brain.profile?.reputation,
+    planOffer,
   };
 }
 
@@ -498,14 +599,14 @@ export function cmoRewriteMessage(input: {
     : [];
   return [
     `Background run: rewrite pieces in ${input.businessName}'s month`,
-    "An evaluator read every piece you made. The pieces below miss their pillar, their network's writing skill or the brand's voice. Rewrite each one's words to fix what its line says, following your production skill and the writing skills below.",
+    "An evaluator read every piece you made. The pieces below miss their pillar, their network's writing skill or the brand's voice. Rewrite each one's words to fix what its line says, following your production skill and the writing skills below. Change only what a piece's line names: keep its other sentences, its facts from the Brand Brain and the strategy's offer, and its labelled lines as they are.",
     ...(off.length > 0
       ? [
           "",
-          "These pillars are off the plan:",
+          "These pillars are off the strategy:",
           ...off.map(
             (share) =>
-              `- ${share.name}: plan ${share.planned}%, made ${share.made}% (${share.pieces} pieces)`,
+              `- ${share.name}: planned ${share.planned}%, made ${share.made}% (${share.pieces} pieces)`,
           ),
           "A piece off its pillar must be plainly about its pillar from the first line.",
         ]
@@ -560,29 +661,41 @@ export async function advanceCmoMonthReview(input: {
   const round = before ? 2 : 1;
   const made = await madePieces(version, strategy.calendar);
   if (made.length === 0) return;
+  const argued = await claimProblems(made, strategy.calendar);
+  const pictureKinds = await cmoPictureKindMix(strategy.calendar);
   const read = await readCmoMonth({
     pillars: strategy.pillars,
     voice: input.voice,
     facts: input.facts,
     pieces: made,
   });
-  console.info("CMO month review", {
-    marketingStrategyId: version.id,
-    round,
-    made: made.length,
-    read: Object.keys(read.writing).length,
-    offSkill: Object.values(read.writing).filter(
-      (w) => !w.followsSkill || w.problems.length > 0,
-    ).length,
-    offVoice: Object.values(read.writing).filter((w) => !w.soundsLikeBrand)
-      .length,
-    costUsd: read.costUsd,
-  });
-  await recordSokoBotCheckUsage({
+  // Production runs in the cron or after a response, so its own event.
+  createCoreLogger({
+    operation: "cmo_month_review",
+    marketingStrategy: { id: version.id },
+    cmoMonthReview: {
+      round,
+      made: made.length,
+      read: Object.keys(read.writing).length,
+      offSkill: Object.values(read.writing).filter(
+        (w) => !w.followsSkill || w.problems.length > 0,
+      ).length,
+      offVoice: Object.values(read.writing).filter((w) => !w.soundsLikeBrand)
+        .length,
+      arguesAnotherClaim: argued.flagged,
+      pictureKinds,
+      costUsd: read.costUsd + argued.costUsd,
+    },
+  }).emit();
+  const charge = await recordSokoBotCheckUsage({
     sokoBotId: input.sokoBotId,
     key: `cmo-review:${version.id}:${round}`,
-    costUsd: read.costUsd,
+    costUsd: read.costUsd + argued.costUsd,
   });
+  // After the charge committed, like a turn's (SOKD-246).
+  if (charge.chargedCents > 0n && charge.cusoProjectId) {
+    await notifyCusoLowCreditsAfterCharge(charge.cusoProjectId);
+  }
   if (
     Object.keys(read.pieces).length === 0 &&
     Object.keys(read.writing).length === 0
@@ -594,6 +707,7 @@ export async function advanceCmoMonthReview(input: {
     pieces: read.pieces,
     writing: read.writing,
     ...(before?.rewriteRunId ? { rewriteRunId: before.rewriteRunId } : {}),
+    pictureKinds,
   };
   const rewrite = before ? [] : cmoPiecesToRewrite(strategy, review, now);
   const runId =

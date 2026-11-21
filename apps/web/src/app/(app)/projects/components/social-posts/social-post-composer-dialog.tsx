@@ -6,6 +6,7 @@ import type {
   SocialPost,
   SocialPostMediaRef,
   SocialQueueSlot,
+  TikTokPostSettings,
 } from "@sokosumi/core-client";
 import {
   SOCIAL_POST_FIRST_COMMENT_MAX,
@@ -51,7 +52,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/effects/use-mobile";
 import {
   type ActionError,
   toActionRejectionError,
@@ -118,7 +119,7 @@ export type SocialPostComposerMode =
       kind: "create";
       media?: SocialPostMediaRef[];
       text?: string;
-      source?: "studio";
+      source?: "studio" | "tiktok-studio";
       /** A local `yyyy-MM-ddTHH:mm` slot, from the calendar's day "+". */
       scheduledAt?: string;
     }
@@ -126,6 +127,7 @@ export type SocialPostComposerMode =
   | { kind: "schedule"; post: SocialPost };
 
 interface SocialPostComposerDialogProps {
+  /** Undefined when the posting queue is not open to this user. */
   queueSlots?: SocialQueueSlot[];
   connections: ProjectSocialConnection[];
   connectDisabled?: boolean;
@@ -164,7 +166,7 @@ function resolveTimezone(): string {
 
 export function SocialPostComposerDialog({
   connections: initialConnections,
-  queueSlots = [],
+  queueSlots,
   connectDisabled = false,
   mode,
   onConnectAccount,
@@ -348,9 +350,15 @@ export function SocialPostComposerDialog({
     });
   // A new post may go to several accounts at once, one post each; an existing
   // post belongs to one account.
-  const multiAccount = mode.kind === "create";
+  const multiAccount =
+    mode.kind === "create" && mode.source !== "tiktok-studio";
   const [connectionIds, setConnectionIds] = useState<string[]>(() => {
     if (mode.kind === "create") {
+      if (mode.source === "tiktok-studio") {
+        return enabledConnections.length === 1
+          ? [enabledConnections[0].id]
+          : [];
+      }
       if (fromStudio) return [];
       return initialCreateConnectionIds(
         connections,
@@ -408,7 +416,7 @@ export function SocialPostComposerDialog({
   const [scheduledAt, setScheduledAt] = useState<string | null>(() => {
     if (post?.scheduledAt) {
       if (
-        (post.status === "FAILED" || post.status === "MISSED") &&
+        post.status !== "SCHEDULED" &&
         post.scheduledAt.getTime() <=
           Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS
       ) {
@@ -471,6 +479,69 @@ export function SocialPostComposerDialog({
         ? { ...connection, subscriptionType: fresh.subscriptionType }
         : connection;
     });
+  const tikTok = selectedConnections.find(
+    (connection) => connection.provider === "tiktok",
+  );
+  const creator = useQuery({
+    queryKey: [
+      "tiktok-creator-info",
+      session?.user?.id,
+      organizationId,
+      projectId,
+      tikTok?.id,
+    ],
+    queryFn: async () =>
+      (
+        await coreClient.getProjectsByIdSocialConnectionsByConnectionIdTiktokCreator(
+          projectId,
+          tikTok!.id,
+        )
+      ).data,
+    enabled: open && Boolean(tikTok && session?.user?.id),
+    staleTime: 0,
+    retry: false,
+  });
+  const [audience, setAudience] = useState<{
+    connectionId: string;
+    level: TikTokPostSettings["privacyLevel"];
+  } | null>(null);
+  const [acceptMusic, setAcceptMusic] = useState(false);
+  const [disclose, setDisclose] = useState(false);
+  const [ownBrand, setOwnBrand] = useState(false);
+  const [allowComment, setAllowComment] = useState(false);
+  const [allowDuet, setAllowDuet] = useState(false);
+  const [allowStitch, setAllowStitch] = useState(false);
+  const [videoMetadata, setVideoMetadata] = useState<{
+    url: string;
+    duration: number;
+  } | null>(null);
+  const tikTokVideo = media.find((item) => item.kind === "video")?.fileUrl;
+  const durationValid =
+    !!creator.data &&
+    !!videoMetadata &&
+    videoMetadata.url === tikTokVideo &&
+    videoMetadata.duration > 0 &&
+    videoMetadata.duration <= creator.data.max_video_post_duration_sec;
+  const tikTokSettings: TikTokPostSettings | undefined =
+    tikTok &&
+    selectedConnections.length === 1 &&
+    audience?.connectionId === tikTok.id &&
+    acceptMusic &&
+    (!disclose || ownBrand) &&
+    durationValid &&
+    creator.data?.privacy_level_options.includes(audience.level) &&
+    !creator.isError &&
+    !creator.isFetching
+      ? {
+          privacyLevel: audience.level,
+          acceptedMusicUsage: true,
+          previewConsent: true,
+          allowComment,
+          allowDuet,
+          allowStitch,
+          promotesOwnBrand: ownBrand,
+        }
+      : undefined;
   const selectedAccountsConnected =
     selectedConnections.length > 0 &&
     selectedConnections.every((connection) => connection.status === "active");
@@ -660,6 +731,7 @@ export function SocialPostComposerDialog({
     !scheduledAtTooSoon &&
     !scheduledBeforeQuote;
   const canSchedule =
+    !tikTok &&
     textValid &&
     mediaValid &&
     selectedAccountsConnected &&
@@ -678,11 +750,18 @@ export function SocialPostComposerDialog({
         !post.scheduledAt ||
         post.scheduledAt.getTime() <= quoteTime.getTime())
     );
-  const hasQueueSlots = queueSlots.length > 0;
+  const queueAvailable = queueSlots !== undefined;
+  const hasQueueSlots = (queueSlots?.length ?? 0) > 0;
   const canQueue =
-    hasQueueSlots && textValid && mediaValid && connectionId !== "" && !isBusy;
+    !tikTok &&
+    hasQueueSlots &&
+    textValid &&
+    mediaValid &&
+    connectionId !== "" &&
+    !isBusy;
   // Posting now is for a new post: the fastest path is open, type, post.
   const canPublishNow =
+    (!tikTok || !!tikTokSettings) &&
     mode.kind === "create" &&
     scheduledAt === "" &&
     !quotePending &&
@@ -693,6 +772,13 @@ export function SocialPostComposerDialog({
   const isReschedule = post?.status === "SCHEDULED";
 
   function toggleConnection(id: string): void {
+    setAudience(null);
+    setAcceptMusic(false);
+    setOwnBrand(false);
+    setDisclose(false);
+    setAllowComment(false);
+    setAllowDuet(false);
+    setAllowStitch(false);
     if (!enabledConnections.some((connection) => connection.id === id)) return;
     setConnectionIds((current) => {
       if (!multiAccount) return [id];
@@ -703,7 +789,7 @@ export function SocialPostComposerDialog({
   }
 
   function rememberCreateAccounts(): void {
-    if (mode.kind !== "create") return;
+    if (mode.kind !== "create" || mode.source === "tiktok-studio") return;
     const ids = selectedConnections.map((connection) => connection.id);
     if (ids.length === 0) return;
     writeRememberedComposerAccounts(organizationId, projectId, ids);
@@ -956,6 +1042,7 @@ export function SocialPostComposerDialog({
           projectId,
           postId: created.value.id,
           revision: created.value.revision,
+          ...(connection.provider === "tiktok" ? { tikTokSettings } : {}),
         });
         done.push(connection.id);
         if (!result.ok) {
@@ -1051,6 +1138,13 @@ export function SocialPostComposerDialog({
     connections.length > 0 &&
     selectedConnections.length === 0;
 
+  // No account to schedule with: say that Save draft keeps the time.
+  const keepsTimeOnDraft =
+    !isScheduleOnly &&
+    primaryAction === "schedule" &&
+    scheduledAtValid &&
+    enabledConnections.length === 0;
+
   function runPrimary(): void {
     if (primaryAction === "schedule") void handleSchedule();
     else if (primaryAction === "publish") void handlePublishNow();
@@ -1059,6 +1153,13 @@ export function SocialPostComposerDialog({
 
   async function handleSaveDraft(): Promise<void> {
     if (!canSave) return;
+    // A draft keeps the time picked for it. Only Schedule makes it go out.
+    const keptTime =
+      scheduledAtValid &&
+      scheduledDate &&
+      (mode.kind === "create" || mode.post.status === "DRAFT")
+        ? { scheduledAt: scheduledDate.toISOString(), timezone: viewerTimezone }
+        : null;
     setPending("save");
     try {
       if (mode.kind === "edit") {
@@ -1071,6 +1172,7 @@ export function SocialPostComposerDialog({
           ...threadPayload,
           ...quotePayload,
           socialConnectionId: connectionIds[0] ?? null,
+          ...keptTime,
           revision: revisionRef.current,
         });
         if (!result.ok) {
@@ -1083,8 +1185,10 @@ export function SocialPostComposerDialog({
         return;
       }
 
-      const created = await createForEachAccount((socialConnectionId) =>
-        createProjectSocialPost({
+      const created = await createForEachAccount(async (socialConnectionId) => {
+        // A time on create schedules, so the draft is saved first and gets
+        // its time after, staying a draft.
+        const draft = await createProjectSocialPost({
           projectId,
           text: textFor(socialConnectionId).trim(),
           ...(trimmedFirstComment ? { firstComment: trimmedFirstComment } : {}),
@@ -1092,8 +1196,20 @@ export function SocialPostComposerDialog({
           ...threadPayload,
           ...quotePayload,
           socialConnectionId,
-        }),
-      );
+        });
+        if (!draft.ok || !keptTime) return draft;
+        const timed = await updateProjectSocialPost({
+          projectId,
+          postId: draft.value.id,
+          ...keptTime,
+          revision: draft.value.revision,
+        }).catch(() => null);
+        if (timed?.ok) return timed;
+        // The draft exists, so it counts as saved: Save draft again would
+        // make a second copy. Say the time is missing; Edit sets it again.
+        toast.error(t("toasts.draftTimeNotKept"));
+        return draft;
+      });
       if (created === 0) return;
       rememberCreateAccounts();
       toast.success(t("toasts.created", { count: created }));
@@ -1411,6 +1527,8 @@ export function SocialPostComposerDialog({
     <p className="text-destructive">{t("composer.scheduledAtTooSoon")}</p>
   ) : needsAccount ? (
     <p>{t("composer.pickAccount")}</p>
+  ) : keepsTimeOnDraft ? (
+    <p data-testid="social-post-kept-on-draft">{t("composer.keptOnDraft")}</p>
   ) : overFirstComment ? (
     <p
       className="text-destructive"
@@ -2040,6 +2158,176 @@ export function SocialPostComposerDialog({
                 </div>
               )}
 
+              {tikTok && (
+                <fieldset className="space-y-3 border-t px-6 py-5 md:px-8">
+                  <legend className="font-semibold">TikTok</legend>
+                  {selectedConnections.length > 1 ? (
+                    <p>{t("composer.ttSingle")}</p>
+                  ) : creator.isError ? (
+                    <p role="alert">{t("composer.ttError")}</p>
+                  ) : !creator.data ? (
+                    <p role="status">{t("composer.ttLoading")}</p>
+                  ) : (
+                    <>
+                      <p>
+                        {t("composer.ttCreator", {
+                          name: creator.data.creator_nickname,
+                        })}
+                      </p>
+                      {tikTokVideo && (
+                        <video
+                          key={tikTokVideo}
+                          controls
+                          playsInline
+                          preload="metadata"
+                          src={tikTokVideo}
+                          className="max-h-44 rounded-md"
+                          onLoadedMetadata={(event) =>
+                            setVideoMetadata({
+                              url: tikTokVideo,
+                              duration: event.currentTarget.duration,
+                            })
+                          }
+                        >
+                          <track kind="captions" />
+                        </video>
+                      )}
+                      <p>
+                        {t("composer.ttDuration", {
+                          seconds: creator.data.max_video_post_duration_sec,
+                        })}
+                      </p>
+                      <label className="grid gap-1">
+                        {t("composer.ttAudience")}
+                        <select
+                          className="rounded-md border bg-background p-2"
+                          value={
+                            audience?.connectionId === tikTok.id
+                              ? audience.level
+                              : ""
+                          }
+                          onChange={(event) => {
+                            const level = event.target.value;
+                            setAcceptMusic(false);
+                            setAudience(
+                              level === "SELF_ONLY" ||
+                                level === "PUBLIC_TO_EVERYONE"
+                                ? { connectionId: tikTok.id, level }
+                                : null,
+                            );
+                          }}
+                        >
+                          <option value="">{t("composer.ttSelect")}</option>
+                          {creator.data.privacy_level_options.includes(
+                            "SELF_ONLY",
+                          ) && (
+                            <option value="SELF_ONLY">
+                              {t("composer.ttOnlyMe")}
+                            </option>
+                          )}
+                          {creator.data.privacy_level_options.includes(
+                            "PUBLIC_TO_EVERYONE",
+                          ) && (
+                            <option value="PUBLIC_TO_EVERYONE">
+                              {t("composer.ttEveryone")}
+                            </option>
+                          )}
+                        </select>
+                      </label>
+                      <div className="grid gap-2">
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={
+                              allowComment && !creator.data.comment_disabled
+                            }
+                            disabled={creator.data.comment_disabled}
+                            onChange={(event) =>
+                              setAllowComment(event.target.checked)
+                            }
+                          />{" "}
+                          {t("composer.ttComment")}
+                        </label>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={allowDuet && !creator.data.duet_disabled}
+                            disabled={creator.data.duet_disabled}
+                            onChange={(event) =>
+                              setAllowDuet(event.target.checked)
+                            }
+                          />{" "}
+                          {t("composer.ttDuet")}
+                        </label>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={
+                              allowStitch && !creator.data.stitch_disabled
+                            }
+                            disabled={creator.data.stitch_disabled}
+                            onChange={(event) =>
+                              setAllowStitch(event.target.checked)
+                            }
+                          />{" "}
+                          {t("composer.ttStitch")}
+                        </label>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={disclose}
+                            onChange={(event) => {
+                              setDisclose(event.target.checked);
+                              setOwnBrand(false);
+                            }}
+                          />{" "}
+                          {t("composer.ttDisclosure")}
+                        </label>
+                        {disclose && (
+                          <div className="grid gap-2">
+                            <label>
+                              <input
+                                type="checkbox"
+                                checked={ownBrand}
+                                onChange={(event) =>
+                                  setOwnBrand(event.target.checked)
+                                }
+                              />{" "}
+                              {t("composer.ttBrand")}
+                            </label>
+                            <label>
+                              <input type="checkbox" disabled />{" "}
+                              {t("composer.ttPaid")}
+                            </label>
+                          </div>
+                        )}
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={acceptMusic}
+                            onChange={(event) =>
+                              setAcceptMusic(event.target.checked)
+                            }
+                          />{" "}
+                          {t.rich("composer.ttConsent", {
+                            music: (chunks) => (
+                              <a
+                                className="underline"
+                                href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en"
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                {chunks}
+                              </a>
+                            ),
+                          })}
+                        </label>
+                        <p>{t("composer.ttProcessing")}</p>
+                      </div>
+                    </>
+                  )}
+                </fieldset>
+              )}
               <section
                 aria-labelledby={scheduledAtId}
                 className="order-3 space-y-3 border-t px-6 py-5 md:order-none md:px-8"
@@ -2218,7 +2506,7 @@ export function SocialPostComposerDialog({
               className="text-muted-foreground min-w-0 flex-1 text-sm"
             >
               {footerMessage}
-              {!hasQueueSlots ? (
+              {queueAvailable && !hasQueueSlots ? (
                 <p>
                   <Link
                     className="underline underline-offset-4"
@@ -2238,17 +2526,19 @@ export function SocialPostComposerDialog({
               ) : null}
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!canQueue}
-                loading={pending === "queue"}
-                onClick={() => {
-                  void handleQueue();
-                }}
-              >
-                {t("composer.addToQueue")}
-              </Button>
+              {queueAvailable ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!canQueue}
+                  loading={pending === "queue"}
+                  onClick={() => {
+                    void handleQueue();
+                  }}
+                >
+                  {t("composer.addToQueue")}
+                </Button>
+              ) : null}
               {!isScheduleOnly && primaryAction !== "save" ? (
                 <>
                   <Tooltip>

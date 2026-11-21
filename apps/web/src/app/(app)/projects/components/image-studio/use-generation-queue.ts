@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { startImageGeneration } from "@/lib/actions/image-studio/action";
 
-import type { StudioSettings } from "./types";
+import type { StudioJob, StudioSettings } from "./types";
 
 /**
  * Bulk creation against a provider cap the browser does not get to raise.
@@ -40,7 +40,11 @@ export interface QueuedGeneration {
    */
   projectId: string;
   prompt: string;
+  templateId?: string;
+  creativeDirection?: string;
+  variationIndex?: number;
   modelId: string;
+  letterExistingBackdrop?: boolean;
   /** Shown while the request waits, so a batch is legible before it lands. */
   modelLabel: string;
   settings: StudioSettings;
@@ -50,6 +54,7 @@ export interface QueuedGeneration {
   product?: StudioProductIdentity;
   batchId?: string;
   exportHeadline?: string;
+  lettering?: StudioJob["lettering"];
   useProductCutout?: boolean;
   /** Fixed per request: a retry must return the first job, never buy a second. */
   idempotencyKey: string;
@@ -179,8 +184,17 @@ export function useGenerationQueue({
       try {
         const result = await startImageGeneration({
           projectId: next.projectId,
-          modelId: next.modelId,
+          ...(next.letterExistingBackdrop
+            ? { letterExistingBackdrop: true }
+            : {}),
           prompt: next.prompt,
+          ...(next.templateId ? { templateId: next.templateId } : {}),
+          ...(next.creativeDirection
+            ? { creativeDirection: next.creativeDirection }
+            : {}),
+          ...(next.variationIndex !== undefined
+            ? { variationIndex: next.variationIndex }
+            : {}),
           settings: next.settings,
           parentAssetId: next.parentAssetId,
           ...(next.product ? { product: next.product } : {}),
@@ -188,6 +202,7 @@ export function useGenerationQueue({
           ...(next.exportHeadline
             ? { exportHeadline: next.exportHeadline }
             : {}),
+          ...(next.lettering ? { lettering: next.lettering } : {}),
           ...(next.useProductCutout ? { useProductCutout: true } : {}),
           referenceAssetIds: next.referenceAssetIds,
           ...(next.referenceFileIds?.length

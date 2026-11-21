@@ -128,6 +128,7 @@ interface TransactionMock {
     updateMany: ReturnType<typeof vi.fn>;
   };
   task: {
+    count: ReturnType<typeof vi.fn>;
     findFirst: ReturnType<typeof vi.fn>;
     findUniqueOrThrow: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
@@ -167,11 +168,13 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
   };
   const organizationId =
     orgIdOverride !== undefined ? orgIdOverride : "org_current";
+  const workspaceId = "11111111-1111-4111-8111-111111111111";
 
   return {
     id: "tsk_123",
     createdAt: "2026-03-25T10:00:00.000Z",
     updatedAt: "2026-03-25T10:00:00.000Z",
+    workspaceId,
     ownerId: "user_123",
     organizationId,
     projectId: null,
@@ -227,7 +230,7 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     events: [],
     jobs: [],
     workspace: {
-      id: "11111111-1111-4111-8111-111111111111",
+      id: workspaceId,
       organizationId: "org_current",
       organization: {
         id: "org_current",
@@ -238,9 +241,14 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     share: null,
     links: [],
     files: [],
+    archivedAt: null,
     runAt: null,
     dueOn: null,
+    parentTaskId: null,
+    position: null,
+    subtaskProgress: { completed: 0, total: 0 },
     scheduleId: null,
+    followers: [],
     selectableStatuses: [],
     participants: [],
     ...restOverrides,
@@ -280,7 +288,10 @@ function createApp(
 
 function mockTransaction(tx: TransactionMock) {
   prismaTransactionMock.mockImplementation(async (callback) => {
-    return await callback(tx);
+    return await callback({
+      ...tx,
+      projectSeoAnalysis: { findUnique: async () => null },
+    });
   });
 }
 
@@ -359,6 +370,7 @@ describe("PUT /tasks/{id}/workspace", () => {
         updateMany: jobUpdateManyMock,
       },
       task: {
+        count: vi.fn().mockResolvedValue(0),
         findFirst: taskFindFirstMock,
         findUniqueOrThrow: taskFindUniqueOrThrowMock,
         update: taskUpdateMock,
@@ -889,6 +901,7 @@ describe("PUT /tasks/{id}/workspace", () => {
         updateMany: jobUpdateManyMock,
       },
       task: {
+        count: vi.fn().mockResolvedValue(0),
         findFirst: taskFindFirstMock,
         findUniqueOrThrow: taskFindUniqueOrThrowMock,
         update: taskUpdateMock,

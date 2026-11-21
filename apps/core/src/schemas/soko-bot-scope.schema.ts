@@ -14,8 +14,8 @@ export const createSokoBotRequestSchema = z
   .object({
     name: z.string().trim().min(1).max(80),
     avatarSeed: z.string().max(200).nullable().optional(),
-    /** Soko Bot avatar from the pool to claim for this bot. */
-    avatarId: z.string().uuid().nullable().optional(),
+    /** The look picked in the avatar studio; a random free one when absent or taken. */
+    avatarCode: z.string().max(120).nullable().optional(),
     personalityTone: z.number().int().min(0).max(100).nullable().optional(),
     personalityDetail: z.number().int().min(0).max(100).nullable().optional(),
     personalityStyle: z.number().int().min(0).max(100).nullable().optional(),
@@ -65,6 +65,8 @@ export const sharedSokoBotSummarySchema = z
     projectId: z.string().uuid().nullable(),
     avatarSeed: z.string().nullable(),
     avatarImageUrl: z.string().nullable(),
+    /** The bot's avatar code (its live SVG look); null until it has one. */
+    avatarCode: z.string().nullable().optional(),
     status: sokoBotStatusSchema,
     archivedAt: dateTimeSchema.nullable(),
     /** The room every member shares with this bot. */
@@ -82,5 +84,17 @@ export const sokoBotStateSchema = z
     sokoBot: z.object(sokoBotSchema.shape).nullable(),
     /** Project and workspace bots the viewer can reach. Absent for a Soko Bot's own key. */
     sharedBots: z.array(sharedSokoBotSummarySchema).optional(),
+    /**
+     * While your bot is in error: the failed reply of its last failed turn and
+     * its room, when that turn answered a chat you can still open. Both null
+     * for other work (a schedule, an event) or a room you cannot open.
+     */
+    lastFailure: z
+      .object({
+        roomId: z.string().uuid().nullable(),
+        messageId: z.string().uuid().nullable(),
+      })
+      .nullable()
+      .optional(),
   })
   .openapi("SokoBotState");

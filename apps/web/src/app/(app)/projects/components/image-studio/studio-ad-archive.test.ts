@@ -2,14 +2,23 @@ import JSZip from "jszip";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createStudioAdArchive } from "./studio-ad-download";
+import { renderStudioHeadline } from "./studio-ad-headline";
 import type { StudioAsset } from "./types";
 
 vi.mock("./studio-ad-headline", () => ({
-  renderStudioHeadline: async (image: Blob, headline: string) =>
-    new Blob([await image.text(), headline], { type: "image/png" }),
+  renderStudioHeadline: vi.fn(
+    async (image: Blob, headline: string) =>
+      new Blob([await image.text(), headline], { type: "image/png" }),
+  ),
 }));
 
 const ASSET: StudioAsset = {
+  myThumb: null,
+  myReasons: [],
+  myComment: null,
+  thumbsUp: 0,
+  thumbsDown: 0,
+  score: 0.5,
   id: "asset-a",
   projectId: "project-a",
   projectName: "Launch",
@@ -31,7 +40,28 @@ const ASSET: StudioAsset = {
 };
 
 describe("downloading selected Studio ads", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.clearAllMocks();
+  });
+
+  it("keeps Ideogram lettering bytes without adding another headline overlay", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce(new Response("Already lettered")),
+    );
+    const zip = await JSZip.loadAsync(
+      await createStudioAdArchive(
+        [{ ...ASSET, lettering: "ideogram" }],
+        undefined,
+        { "asset-a": "Made to last" },
+      ),
+    );
+    expect(await zip.file("ad-1-1080x1350.png")?.async("text")).toBe(
+      "Already lettered",
+    );
+    expect(zip.file("ad-1-1080x1350-headline.png")).toBeNull();
+  });
 
   it("keeps the original bytes and gives same-size images unique names", async () => {
     const fetchAsset = vi
@@ -53,9 +83,9 @@ describe("downloading selected Studio ads", () => {
     const zip = await JSZip.loadAsync(data);
 
     expect(fetchAsset.mock.calls.map(([url]) => url)).toEqual([
-      "/api/projects/project-a/image-studio/assets/asset-a/content",
-      "/api/projects/project-a/image-studio/assets/asset-b/content",
-      "/api/projects/project-a/image-studio/assets/asset-c/content",
+      "/api/projects/project-a/image-studio/assets/asset-a/content?download=true",
+      "/api/projects/project-a/image-studio/assets/asset-b/content?download=true",
+      "/api/projects/project-a/image-studio/assets/asset-c/content?download=true",
     ]);
     expect(await zip.file("ad-1-1080x1350.png")?.async("text")).toBe("one");
     expect(await zip.file("ad-2-1080x1350.png")?.async("text")).toBe("two");
@@ -75,7 +105,7 @@ describe("downloading selected Studio ads", () => {
       await createStudioAdArchive(
         [
           ASSET,
-          { ...ASSET, id: "asset-b" },
+          { ...ASSET, id: "asset-b", projectId: "project-b" },
           {
             ...ASSET,
             id: "asset-c",
@@ -85,6 +115,11 @@ describe("downloading selected Studio ads", () => {
         ],
         undefined,
         { "asset-a": "First claim", "asset-b": "Second claim" },
+        [],
+        {
+          "project-a": { colors: ["#A33421"], fonts: ["Playfair Display"] },
+          "project-b": { colors: ["#123456"], fonts: ["Inter"] },
+        },
       ),
     );
 
@@ -95,6 +130,20 @@ describe("downloading selected Studio ads", () => {
       "two Second claim",
     );
     expect(await zip.file("ad-3-1080x1350.webp")?.async("text")).toBe("three");
+    expect(renderStudioHeadline).toHaveBeenNthCalledWith(
+      1,
+      expect.any(Blob),
+      "First claim",
+      undefined,
+      { colors: ["#A33421"], fonts: ["Playfair Display"] },
+    );
+    expect(renderStudioHeadline).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Blob),
+      "Second claim",
+      undefined,
+      { colors: ["#123456"], fonts: ["Inter"] },
+    );
   });
 
   it("fails the entire export when a selected image is unavailable", async () => {
@@ -124,7 +173,7 @@ describe("downloading selected Studio ads", () => {
       ),
     );
     expect(fetchAsset).toHaveBeenCalledWith(
-      "/api/projects/project-a/image-studio/assets/asset-a/content?logo=bottom-right",
+      "/api/projects/project-a/image-studio/assets/asset-a/content?logo=bottom-right&download=true",
       expect.any(Object),
     );
     expect(await zip.file("ad-1-1080x1350-branded.png")?.async("text")).toBe(

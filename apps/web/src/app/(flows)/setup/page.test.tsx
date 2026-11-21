@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const readRouteSessionMock = vi.fn();
@@ -490,6 +491,7 @@ describe("WorkspaceGatePage", () => {
   });
 
   it("renders unavailable surface when workspace access throws (not identity onboarding)", async () => {
+    expectConsole("error", "Failed to load workspace access for gate page");
     getWorkspaceAccessMock.mockRejectedValue(new Error("Core down"));
 
     const { default: WorkspaceGatePage } = await import("./page");
@@ -516,6 +518,7 @@ describe("WorkspaceGatePage", () => {
   });
 
   it("renders unavailable when pending-invites list fetch fails and there is no join link", async () => {
+    expectConsole("error", "Failed to load pending organization invitations");
     getWorkspaceAccessMock.mockResolvedValue({
       gate: "pending-invites",
       hasPersonalWorkspace: false,
@@ -535,6 +538,7 @@ describe("WorkspaceGatePage", () => {
   });
 
   it("does not clear a join cookie when resolve throws", async () => {
+    expectConsole("error", "Failed to resolve pending organization join token");
     getWorkspaceAccessMock.mockResolvedValue({
       gate: "identity-onboarding",
       hasPersonalWorkspace: false,

@@ -161,6 +161,7 @@ export function assetFileExtension(
 export interface StudioAdRenderOptions {
   logo?: StudioLogoPosition;
   placement?: PlacementRatio;
+  download?: boolean;
 }
 
 export function assetContentUrl(
@@ -171,6 +172,7 @@ export function assetContentUrl(
   const query = new URLSearchParams();
   if (options?.logo) query.set("logo", options.logo);
   if (options?.placement) query.set("placement", options.placement);
+  if (options?.download) query.set("download", "true");
   return query.size ? `${path}?${query}` : path;
 }
 
@@ -183,10 +185,11 @@ export function assetContentUrl(
  * statement about the work.
  */
 export interface StudioTarget {
+  templateId?: string;
   creativeDirection?: StudioCreativeDirection;
   exportHeadlines?: { projectId: string; lines: string[] };
   useProductCutout?: boolean;
-  modelIds: string[];
+  letteringBackdropId?: string;
   placementRatios?: NonNullable<StudioSettings["aspectRatio"]>[];
   settings: StudioSettings;
 }
@@ -225,6 +228,7 @@ export interface StudioLabels {
   reroll: string;
   reusePrompt: string;
   download: string;
+  moreActions: string;
   compare: string;
   version: string;
   generating: string;
@@ -253,11 +257,6 @@ export interface StudioLabels {
   resolution: string;
   outputFormat: string;
   copies: string;
-  selectAllModels: string;
-  unselectAllModels: string;
-  searchModels: string;
-  noModelsMatch: string;
-  noModelSelected: string;
   generateOne: string;
   moreOptions: string;
   modelNotInCatalog: string;
@@ -311,6 +310,13 @@ export interface StudioLabels {
   creditsCharged: string;
   creditsUnderivable: string;
   creditsNoFigure: string;
+  /**
+   * Follows the model's name on a failed generation ("Model X failed").
+   *
+   * A word, not a sentence, so the notice stays one line: the model, this, and
+   * `failedNoCharge`. Why it failed sits behind the notice's disclosure.
+   */
+  failedAfterModel: string;
   /**
    * Said on a failed generation: it cost nothing.
    *

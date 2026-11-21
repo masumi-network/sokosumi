@@ -41,6 +41,8 @@ export const SETUP_ASSISTANT_MESSAGE_PATHS = [
   "App.SokoBot.Create",
   "App.SokoBot.Chat",
   "App.SokoBot.Avatar",
+  // The picture step's look designer; without it every control is a raw key.
+  "App.SokoBot.AvatarStudio",
   // The optional mail and calendar connect step reuses the chat card's copy.
   "App.Chat.SokoBot",
 ] as const;
@@ -59,6 +61,7 @@ export const APP_SHELL_MESSAGE_PATHS = [
   "WorkspaceGate",
   "App.Sidebar",
   "App.Header",
+  "App.PageSearch",
   "App.Error",
   "App.EmailVerificationNotice",
   "App.LowCreditsNotice",
@@ -67,6 +70,7 @@ export const APP_SHELL_MESSAGE_PATHS = [
   "App.TransactionHistory",
   // SOK-1202 project scope switcher lives in the sidebar and header.
   "App.ProjectScope",
+  "App.Projects.column.activity",
   "App.Metadata",
   "App.enabled",
   "App.disabled",
@@ -88,7 +92,11 @@ export const APP_SHELL_MESSAGE_PATHS = [
   "App.Tasks.Filters.statusOptions",
   "App.Tasks.Priority.levels",
   "App.Tasks.RunAt.badge",
+  "App.Tasks.StatusAge",
   "App.Tasks.Tags",
+  // Chat result cards name a Soko Bot follow-up's recurrence with the Task
+  // schedule labels, and Soko Bot routes render those cards too.
+  "App.Tasks.Schedule.option",
 ] as const;
 
 /** Default authenticated app bag — all App.* except SokoBot/Admin. */
@@ -121,6 +129,8 @@ export const SHARE_MESSAGE_PATHS = [
   "Components",
   "Library",
   "Auth",
+  // A shared Task's Files section offers Download all; its toasts are in Components.FilesArchive.
+  "App.Tasks.Detail.downloadAll",
 ] as const;
 
 export const PUBLIC_NEWSLETTER_MESSAGE_PATHS = [

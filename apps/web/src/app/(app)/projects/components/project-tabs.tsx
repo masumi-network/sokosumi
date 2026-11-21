@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
+import { type ReactNode, Suspense, use } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,11 @@ export interface ProjectTab {
    * Overview up on pages that are not it.
    */
   exact?: boolean;
+  /**
+   * Show the tab only once this resolves true. Only this tab waits: the
+   * others stay mounted, so focus and layout hold while it loads.
+   */
+  when?: Promise<boolean>;
 }
 
 /**
@@ -80,12 +86,12 @@ export function ProjectTabs({
       <ul className="-mb-px flex flex-wrap items-center gap-x-5 text-sm">
         {tabs.map((tab) => {
           const isActive = tab.id === activeId;
-          return (
+          const item = (
             <li key={tab.id}>
               <Link
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "-mb-px flex items-center gap-2 border-b-2 py-2.5 whitespace-nowrap transition-colors",
+                  "relative -mb-px flex items-center gap-2 border-b-2 py-2.5 whitespace-nowrap transition-colors",
                   // No radius: the corners belong to the indicator too, and a
                   // rounded 2px bar under a word reads as a pill rather than
                   // as an underline.
@@ -98,11 +104,48 @@ export function ProjectTabs({
               >
                 {tab.icon}
                 {tab.label}
+                <TabPendingUnderline />
               </Link>
             </li>
+          );
+          return tab.when ? (
+            <Suspense key={tab.id} fallback={null}>
+              <ShowWhen when={tab.when}>{item}</ShowWhen>
+            </Suspense>
+          ) : (
+            item
           );
         })}
       </ul>
     </nav>
+  );
+}
+
+function ShowWhen({
+  when,
+  children,
+}: {
+  when: Promise<boolean>;
+  children: ReactNode;
+}) {
+  return use(when) ? children : null;
+}
+
+/**
+ * A subpage renders on the server, so a click can sit for most of a second
+ * before the route changes. Until then the clicked tab's underline pulses in
+ * place; always rendered, so nothing shifts.
+ */
+function TabPendingUnderline() {
+  const { pending } = useLinkStatus();
+  return (
+    <span
+      aria-hidden
+      data-pending={pending || undefined}
+      className={cn(
+        "bg-muted-foreground pointer-events-none absolute inset-x-0 -bottom-0.5 h-0.5 opacity-0 transition-opacity",
+        pending && "opacity-100 motion-safe:animate-pulse",
+      )}
+    />
   );
 }

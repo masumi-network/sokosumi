@@ -1,4 +1,7 @@
-import { applyCatalogOverrides } from "./catalog-overrides";
+import {
+  applyCatalogOverrides,
+  RECRAFT_VECTOR_ENDPOINT,
+} from "./catalog-overrides";
 import { excludeUnpriceableModels } from "./fal-catalog-fetch";
 import snapshot from "./fal-catalog-snapshot.json";
 import {
@@ -109,10 +112,17 @@ export function setResolvedImageCatalog(
 }
 
 /** The one accessor. Everything else in the studio reads through this. */
-export function getImageCatalog(): ImageCatalog {
+export function getImageCatalog(
+  audience: "public" | "agent" = "public",
+): ImageCatalog {
   return {
     defaultModelId: defaultModelId(),
-    models: resolvedModels,
+    models:
+      audience === "agent"
+        ? resolvedModels
+        : resolvedModels.filter(
+            (model) => model.generateEndpoint !== RECRAFT_VECTOR_ENDPOINT,
+          ),
     snapshotDate: SNAPSHOT.generatedAt,
     refreshedAt,
   };
@@ -124,6 +134,13 @@ export function getImageCatalog(): ImageCatalog {
  * Falls through rather than throwing: if fal ever withdraws the studio's default,
  * the composer should open on the next curated model rather than fail to open.
  */
+export function studioImageModelId(): string {
+  return (
+    resolvedModels.find((model) => model.id === "gemini-pro")?.id ??
+    defaultModelId()
+  );
+}
+
 function defaultModelId(): string {
   const preferred = resolvedModels.find(
     (model) => model.id === DEFAULT_IMAGE_MODEL_ID,
@@ -154,7 +171,8 @@ export function findImageModelForEndpoint(endpoint: string): ImageModel | null {
     resolvedModels.find(
       (candidate) =>
         candidate.generateEndpoint === endpoint ||
-        candidate.editEndpoint === endpoint,
+        candidate.editEndpoint === endpoint ||
+        candidate.inpaintEndpoint === endpoint,
     ) ?? null
   );
 }

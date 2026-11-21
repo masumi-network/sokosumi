@@ -2,10 +2,10 @@ import { randomUUID } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import * as Sentry from "@sentry/node";
 import type { Prisma } from "@sokosumi/database";
-import { getEnv } from "@/config/env";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
+import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import {
   CHAT_SIGNAL_MODEL,
   CHAT_SIGNAL_VERSION,
@@ -20,7 +20,9 @@ import {
   resolveChatSignalDueAt,
 } from "@/lib/chat-signals/tags";
 import prisma from "@/lib/db/prisma";
-import { createCoreLogger } from "@/lib/evlog";
+import { createCoreLogger, emitCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { readBackgroundMessageContent } from "@/lib/soko-bot/background-failure";
 import type { SyncExecutionContext } from "@/routes/sync/handler";
 import {
   captureExternalRoomContacts,
@@ -82,7 +84,7 @@ export function chatSignalSkipReason(
 }
 
 function enabled(): boolean {
-  return Boolean(getEnv().AI_GATEWAY_API_KEY);
+  return Boolean(aiGatewayApiKey());
 }
 
 /**
@@ -131,7 +133,9 @@ export async function enqueueChatMessageSignal(
     }
     await flushRoomWhenQuiet(message.roomId);
   } catch (error) {
-    report(error, { messageId });
+    report("Could not queue a chat message for signal tagging", error, {
+      messageId,
+    });
   }
 }
 
@@ -160,7 +164,9 @@ export async function requeueEditedChatMessageSignal(
     });
     if (signal) await flushRoomWhenQuiet(signal.roomId);
   } catch (error) {
-    report(error, { messageId });
+    report("Could not queue an edited chat message for signal tagging", error, {
+      messageId,
+    });
   }
 }
 
@@ -382,7 +388,12 @@ export async function tagRoomChatSignals(
         : Promise.resolve(0),
     ]);
     for (const effect of effects)
-      if (effect.status === "rejected") report(effect.reason, { roomId });
+      if (effect.status === "rejected")
+        report(
+          "A follow-up step after tagging chat signals failed",
+          effect.reason,
+          { roomId },
+        );
     log.set({
       chatSignals: {
         notified: effects[0].status === "fulfilled" ? effects[0].value : 0,
@@ -394,7 +405,7 @@ export async function tagRoomChatSignals(
   } catch (error) {
     await releaseLease(lease).catch(() => undefined);
     log.set({ chatSignals: { outcome: "failed", reason: "database_error" } });
-    report(error, { roomId });
+    report("Could not tag a room's chat signals", error, { roomId });
     return outcome;
   } finally {
     if (outcome.claimed > 0) log.emit();
@@ -448,7 +459,14 @@ async function loadBatch(
             deletedAt: true,
             ...senderSelect,
             userMentionsAsSource: { select: { userId: true } },
-            parentMessage: { select: { content: true, deletedAt: true } },
+            parentMessage: {
+              select: {
+                content: true,
+                deletedAt: true,
+                metadata: true,
+                senderSokoBotId: true,
+              },
+            },
           },
         },
       },
@@ -477,7 +495,12 @@ async function loadBatch(
         },
         orderBy: { createdAt: "desc" },
         take: EARLIER_CONTEXT,
-        select: { content: true, ...senderSelect },
+        select: {
+          content: true,
+          metadata: true,
+          senderSokoBotId: true,
+          ...senderSelect,
+        },
       })
     : [];
 
@@ -494,7 +517,10 @@ async function loadBatch(
       people,
       earlier: earlier.reverse().map((message) => ({
         authorName: senderName(message),
-        text: readableChatSignalText(message.content, names),
+        text: readableChatSignalText(
+          readBackgroundMessageContent(message),
+          names,
+        ),
       })),
       messages: live.map(({ message }) => ({
         messageId: message.id,
@@ -503,7 +529,10 @@ async function loadBatch(
         text: readableChatSignalText(message.content, names),
         repliesTo:
           message.parentMessage && message.parentMessage.deletedAt === null
-            ? readableChatSignalText(message.parentMessage.content, names)
+            ? readableChatSignalText(
+                readBackgroundMessageContent(message.parentMessage),
+                names,
+              )
             : null,
         mentionedUserIds: message.userMentionsAsSource.map(
           (mention) => mention.userId,
@@ -534,7 +563,11 @@ async function announceTagged(
     userIds: members.map((member) => member.userId),
     collections: ["active"],
     roomId,
-  }).catch((error) => report(error, { roomId }));
+  }).catch((error) =>
+    report("Could not tell room members that chat signals changed", error, {
+      roomId,
+    }),
+  );
 }
 
 /**
@@ -591,8 +624,25 @@ export async function sweepChatMessageSignals(
   }
 }
 
-function report(error: unknown, extra: Record<string, string>): void {
-  console.error("Chat message signals failed", error);
+/** Runs after the response, so each failure is its own standalone event. */
+function report(
+  message: string,
+  error: unknown,
+  extra: { messageId?: string; roomId?: string },
+): void {
+  emitCoreError(
+    {
+      failure: messageSafeErrorFields(error),
+      operation: "chat_message_signals",
+      ...(extra.messageId ? { chatMessage: { id: extra.messageId } } : {}),
+      ...(extra.roomId ? { room: { id: extra.roomId } } : {}),
+    },
+    {
+      message,
+      why: "The chat signals step threw",
+      fix: "Signals are advisory and the chat itself is unaffected. If this repeats, look up the error name and code under failure.",
+    },
+  );
   Sentry.captureException(error, {
     tags: { context: "chat_message_signals" },
     extra,

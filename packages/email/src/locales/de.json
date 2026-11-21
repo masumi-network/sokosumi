@@ -28,10 +28,10 @@
       "footer": "Wenn du diese Einladung nicht angefordert hast, kannst du diese E-Mail ignorieren."
     },
     "emailCode": {
-      "subject": "Dein Sokosumi-Code: {code}",
-      "title": "Dein Sokosumi-Code",
+      "subject": "Dein {product}-Code: {code}",
+      "title": "Dein {product}-Code",
       "greeting": "Hallo",
-      "message": "Gib diesen Code in Sokosumi ein, um fortzufahren. Er läuft in {minutes} Minuten ab.",
+      "message": "Gib diesen Code in {product} ein, um fortzufahren. Er läuft in {minutes} Minuten ab.",
       "footer": "Wenn du diesen Code nicht angefordert hast, kannst du diese E-Mail ignorieren. Gib den Code niemals weiter."
     }
   },
@@ -136,6 +136,7 @@
           }
         },
         "completed": {
+          "seoButton": "SEO-Ergebnisse öffnen",
           "subject": "Sokosumi - {coworkerName} hat {taskName} abgeschlossen",
           "title": "Aufgabe abgeschlossen",
           "body": "{coworkerName} hat {taskName} abgeschlossen."
@@ -252,6 +253,14 @@
         "title": "Credits werden knapp",
         "body": "Deine Credits werden knapp. Es sind noch {credits} übrig. Die Arbeit stoppt, wenn sie aufgebraucht sind.",
         "button": "Credits aufladen"
+      },
+      "cusoLowCredits": {
+        "subject": "CMO - {cusoName} für {businessName} gehen die Credits aus",
+        "preview": "{cusoName} hat noch {credits} Credits.",
+        "title": "Credits werden knapp",
+        "body": "{cusoName} für {businessName} hat noch {credits} Credits. Er pausiert, wenn sie aufgebraucht sind.",
+        "nextGrant": "Seine nächsten Plan-Credits kommen am {date}.",
+        "button": "Aufladen oder Plan ändern"
       }
     }
   },

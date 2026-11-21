@@ -24,6 +24,7 @@ vi.mock("@/lib/clients/utils/core-api-base-url", () => ({
   getServerCoreApiBaseUrl: () => "http://localhost:8787/v1",
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { utmService } from "./utm.service";
 
 const CAPTURED_AT = "2026-02-20T08:00:00.000Z";
@@ -102,6 +103,7 @@ describe("utmService.handleUTMConversion", () => {
   });
 
   it("swallows core errors and still clears the cookie", async () => {
+    expectConsole("error", "Failed to create utm attribution");
     const { store, deleteMock } = createCookieStore(
       JSON.stringify(validUtmData()),
     );
@@ -114,6 +116,7 @@ describe("utmService.handleUTMConversion", () => {
   });
 
   it("does not call core when the cookie is malformed", async () => {
+    const errorCalls = expectConsole("error", "Failed to parse UTM cookie");
     const { store, deleteMock } = createCookieStore("not-json");
     cookiesMock.mockResolvedValue(store);
 
@@ -121,5 +124,9 @@ describe("utmService.handleUTMConversion", () => {
 
     expect(postUsersByIdUtmAttributionMock).not.toHaveBeenCalled();
     expect(deleteMock).toHaveBeenCalledWith(UTM_COOKIE_NAME);
+    expect(errorCalls[0]?.[1]).toBeInstanceOf(SyntaxError);
+    expect(errorCalls[0]?.[1]).toMatchObject({
+      message: expect.stringContaining('"not-json"'),
+    });
   });
 });

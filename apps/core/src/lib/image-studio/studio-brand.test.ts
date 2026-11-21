@@ -51,6 +51,7 @@ vi.mock("@sokosumi/net", async (importOriginal) => ({
 import { LIMITS } from "@/config/constants";
 import {
   applyStudioBrandPrompt,
+  buildStudioLetteringPrompt,
   loadStudioBrand,
   prepareStudioWebsiteDraft,
   readStudioBrandKit,
@@ -59,6 +60,20 @@ import {
 
 const DESIGN_MD_URL =
   "https://abc123.public.blob.vercel-storage.com/design-md/hash.md";
+
+describe("buildStudioLetteringPrompt", () => {
+  it("includes only the approved headline and effective palette and font direction", () => {
+    const prompt = buildStudioLetteringPrompt("Made for every day.", {
+      colors: ["#6400ff"],
+      fonts: ["Space Grotesk"],
+    });
+    expect(prompt).toContain('"Made for every day."');
+    expect(prompt).toContain("#6400ff");
+    expect(prompt).toContain("Space Grotesk");
+    expect(prompt).toContain("Preserve the product");
+    expect(prompt).not.toContain("Studio adds");
+  });
+});
 
 describe("applyStudioBrandPrompt", () => {
   it("includes approved lines alongside the generation brief", () => {
@@ -393,6 +408,7 @@ describe("loadStudioBrand", () => {
 
     const brand = await loadStudioBrand("project-1");
     expect(brand.designMd).toHaveLength(1600);
+    expect(brand.designColors).toEqual(["#a33421"]);
     const prompt = applyStudioBrandPrompt("Launch ad", brand);
     expect(prompt).toContain("Brand colors: #a33421\nBrand fonts: Inter");
     expect(prompt).toMatch(/Brief:\nLaunch ad$/);

@@ -11,7 +11,10 @@ describe("CMO channels", () => {
     expect(isCmoChannelFormat("instagram", "carousel")).toBe(true);
     expect(isCmoChannelFormat("facebook", "carousel")).toBe(false);
     expect(isCmoChannelFormat("x", "thread")).toBe(false);
-    expect(isCmoChannelFormat("tiktok", "video")).toBe(false);
+    // TikTok takes video only, through its own publisher.
+    expect(isCmoChannelFormat("tiktok", "video")).toBe(true);
+    expect(isCmoChannelFormat("tiktok", "talking_video")).toBe(true);
+    expect(isCmoChannelFormat("tiktok", "image")).toBe(false);
     // Videos come from Content Studio; YouTube takes only Shorts.
     expect(isCmoChannelFormat("youtube", "short")).toBe(true);
     expect(isCmoChannelFormat("instagram", "reel")).toBe(true);

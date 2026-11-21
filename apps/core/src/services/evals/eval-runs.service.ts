@@ -3,6 +3,8 @@ import {
   type EvalRunTrigger,
   Prisma,
 } from "@sokosumi/database";
+import { jsonInput } from "@/helpers/prisma-json";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import {
   countOutcomes,
@@ -17,6 +19,16 @@ import {
   evalEnvironment,
   prNumberFromCommitMessage,
 } from "@/lib/evals/eval-environment";
+import {
+  recordCoreError,
+  recordCoreWarning,
+  tryUseLiveLogger,
+} from "@/lib/evlog";
+import {
+  messageSafeErrorFields,
+  type SafeErrorFields,
+} from "@/lib/safe-error-fields";
+import { sokoBotTurnsSyncService } from "@/services/soko-bot-turns-sync.service";
 import {
   isRunnableSokoBotVersionId,
   resolveSokoBotVersion,
@@ -34,10 +46,12 @@ import {
   evalCase,
   selectEvalCases,
 } from "./eval-cases";
+import { stopPendingAfterBudgetError } from "./eval-infrastructure";
 import {
   defaultEvalVersions,
   EVAL_LANE_COUNT,
   ensureEvalLanes,
+  evalLaneBotIds,
   getEvalLane,
   pauseEvalLanes,
   prepareEvalLane,
@@ -130,19 +144,27 @@ export async function createEvalRun(input: CreateEvalRunInput) {
   });
 }
 
+/** Monday 00:00 UTC of the week `now` falls in. */
+export function evalWeekStart(now: Date): Date {
+  const start = new Date(now);
+  start.setUTCHours(0, 0, 0, 0);
+  start.setUTCDate(start.getUTCDate() - ((start.getUTCDay() + 6) % 7));
+  return start;
+}
+
 /**
- * The daily run, once per UTC day and one repeat: a second cron call the
- * same day does nothing. More repeats are for runs someone starts.
+ * The weekly run, once per UTC week (Monday to Sunday) and one repeat: a
+ * second cron call the same week does nothing. More repeats are for runs
+ * someone starts. Its trigger stays `DAILY`, the baseline every run is
+ * compared with.
  */
-export async function createDailyEvalRun() {
-  const dayStart = new Date();
-  dayStart.setUTCHours(0, 0, 0, 0);
-  const today = await prisma.evalRun.findFirst({
-    where: { trigger: "DAILY", createdAt: { gte: dayStart } },
+export async function createWeeklyEvalRun(now = new Date()) {
+  const thisWeek = await prisma.evalRun.findFirst({
+    where: { trigger: "DAILY", createdAt: { gte: evalWeekStart(now) } },
     select: { id: true },
   });
-  if (today) return null;
-  return createEvalRun({ trigger: "DAILY", label: "Daily", repeats: 1 });
+  if (thisWeek) return null;
+  return createEvalRun({ trigger: "DAILY", label: "Weekly", repeats: 1 });
 }
 
 const runModelsSchema = (value: unknown) => {
@@ -199,16 +221,22 @@ async function startNextRun() {
   });
 }
 
-function outcomeData(outcome: CaseOutcome, startedAt: Date | null) {
+function outcomeData(
+  outcome: CaseOutcome,
+  startedAt: Date | null,
+  finishedAt: Date,
+) {
   return {
     status: outcome.status,
-    finishedAt: new Date(),
-    checks: outcome.checks,
-    judge: outcome.judge ?? Prisma.DbNull,
+    finishedAt,
+    checks: jsonInput(outcome.checks),
+    judge: outcome.judge ? jsonInput(outcome.judge) : Prisma.DbNull,
     judgeModel: outcome.judgeModel ?? null,
-    output: outcome.output as Prisma.InputJsonValue,
+    output: jsonInput(outcome.output),
     error: outcome.error ?? null,
-    durationMs: startedAt ? Date.now() - startedAt.getTime() : null,
+    durationMs: startedAt
+      ? Math.max(0, finishedAt.getTime() - startedAt.getTime())
+      : null,
   };
 }
 
@@ -236,11 +264,12 @@ async function finish(
   outcome: CaseOutcome,
   startedAt: Date | null,
 ) {
+  const turnId = outcome.turnIds.at(0);
   await prisma.evalResult.update({
     where: { id: resultId },
     data: {
-      ...outcomeData(outcome, startedAt),
-      turnId: outcome.turnIds[0] ?? undefined,
+      ...outcomeData(outcome, startedAt, await databaseNow()),
+      ...(turnId !== undefined ? { turnId } : {}),
       costUsdMicros: await turnsCost(outcome.turnIds),
     },
   });
@@ -296,6 +325,7 @@ async function startNextCase(
   repeat: number,
   lane: Awaited<ReturnType<typeof getEvalLane>>,
 ): Promise<"none" | "busy" | "started" | "settled"> {
+  if (await stopPendingAfterBudgetError(runId, repeat)) return "none";
   const next = await prisma.evalResult.findFirst({
     where: { runId, repeat, status: "PENDING" },
     orderBy: { position: "asc" },
@@ -314,7 +344,7 @@ async function startNextCase(
       position: { lt: next.position },
     },
   });
-  const startedAt = new Date();
+  const startedAt = await databaseNow();
   const context = {
     resultId: next.id,
     firstOfSuite: earlier === 0,
@@ -339,21 +369,22 @@ async function startNextCase(
       status: "RUNNING",
       startedAt,
       turnId: started.turnId,
-      state: started.state as Prisma.InputJsonValue,
+      state: jsonInput(started.state),
     },
   });
   return "started";
 }
 
+/** Whether the run completed, and why its regression email failed if it did. */
 async function completeIfDone(run: {
   id: string;
   repeats: number;
   trigger: EvalRunTrigger;
-}) {
+}): Promise<{ completed: boolean; emailFailure?: SafeErrorFields }> {
   const open = await prisma.evalResult.count({
     where: { runId: run.id, status: { in: ["PENDING", "RUNNING"] } },
   });
-  if (open > 0) return false;
+  if (open > 0) return { completed: false };
   await prisma.evalRun.update({
     where: { id: run.id },
     data: { status: "COMPLETED", finishedAt: new Date() },
@@ -362,14 +393,58 @@ async function completeIfDone(run: {
   if (run.trigger === "DAILY") {
     // Loaded here: the email reads this module's report.
     const { sendEvalRegressionEmail } = await import("./eval-report-email");
-    await sendEvalRegressionEmail(run.id).catch((error: unknown) => {
-      console.error("Eval regression email failed", {
-        runId: run.id,
-        error: error instanceof Error ? error.message : "unknown",
-      });
-    });
+    try {
+      await sendEvalRegressionEmail(run.id);
+    } catch (error) {
+      // Only provider metadata: a mail error can quote the report.
+      return { completed: true, emailFailure: messageSafeErrorFields(error) };
+    }
   }
-  return true;
+  return { completed: true };
+}
+
+const REGRESSION_EMAIL_FIX =
+  "The run is complete; read its report in the admin evals page.";
+
+/**
+ * The tick's failures on one entry: on the admin tick's request event while
+ * it is live, else a standalone event (the cron). An error, unless an error
+ * thrown while completing the run is about to own the event (an event holds
+ * one error): then a warning, so neither replaces the other.
+ */
+function recordEvalTickFailures(
+  runId: string,
+  laneFailures: ({ lane: number } & SafeErrorFields)[],
+  emailFailure: SafeErrorFields | undefined,
+  level: "error" | "warn",
+) {
+  const record = level === "error" ? recordCoreError : recordCoreWarning;
+  const fields = {
+    evalRun: { id: runId },
+    ...(laneFailures.length > 0 ? { evalLaneFailures: laneFailures } : {}),
+    ...(emailFailure ? { evalRegressionEmailFailure: emailFailure } : {}),
+  };
+  if (laneFailures.length > 0) {
+    record(
+      { operation: "eval_tick" },
+      {
+        message: "Could not move an eval run's lanes on",
+        why: "A lane's step threw",
+        fix: `The next tick retries each lane. If one fails every tick, check evalLaneFailures[].errorName and status.${emailFailure ? ` The regression email failed too (evalRegressionEmailFailure). ${REGRESSION_EMAIL_FIX}` : ""}`,
+      },
+      fields,
+    );
+  } else if (emailFailure) {
+    record(
+      { operation: "eval_tick" },
+      {
+        message: "Could not send the daily eval regression email",
+        why: "Sending the report email failed",
+        fix: REGRESSION_EMAIL_FIX,
+      },
+      fields,
+    );
+  }
 }
 
 /**
@@ -382,21 +457,64 @@ export async function tickEvalRuns(
 ): Promise<{ runId: string | null; completed: boolean }> {
   const run = await startNextRun();
   if (!run) return { runId: null, completed: false };
+  const laneFailures: ({ lane: number } & SafeErrorFields)[] = [];
   await Promise.all(
     Array.from({ length: run.repeats }, (_, index) =>
       advanceLane(run.id, index + 1, shouldContinue).catch((error: unknown) => {
-        console.error("Eval lane step failed", {
-          runId: run.id,
+        // Only safe fields: a lane runs a Soko Bot turn, and its error can
+        // quote the prompt.
+        laneFailures.push({
           lane: index + 1,
-          error: error instanceof Error ? error.message : "unknown",
+          ...messageSafeErrorFields(error),
         });
       }),
     ),
   );
-  return {
-    runId: run.id,
-    completed: await completeIfDone(run),
-  };
+  let completion: Awaited<ReturnType<typeof completeIfDone>>;
+  try {
+    completion = await completeIfDone(run);
+  } catch (error) {
+    // In a live request the thrown error becomes its event's error, so the
+    // lanes' failures stay beside it as a warning. Elsewhere (the cron) they
+    // are their own standalone error.
+    recordEvalTickFailures(
+      run.id,
+      laneFailures,
+      undefined,
+      tryUseLiveLogger() ? "warn" : "error",
+    );
+    throw error;
+  }
+  recordEvalTickFailures(
+    run.id,
+    laneFailures,
+    completion.emailFailure,
+    "error",
+  );
+  return { runId: run.id, completed: completion.completed };
+}
+
+/** One invocation's worth: Vercel ends Core at 300 seconds. */
+const LANE_TURN_SYNC_MS = 240_000;
+
+/**
+ * Keeps reading the lanes' running turns until they settle, as the minute
+ * cron does on mainnet. Where there is no cron, the request that started a
+ * turn reads it for five minutes at most; a longer turn then never settled,
+ * so a month's production run stayed running and its case timed out.
+ */
+export async function syncEvalLaneTurns(runId: string): Promise<void> {
+  const run = await prisma.evalRun.findUnique({
+    where: { id: runId },
+    select: { repeats: true },
+  });
+  if (!run) return;
+  const abortSignal = AbortSignal.timeout(LANE_TURN_SYNC_MS);
+  await sokoBotTurnsSyncService.syncActiveTurns({
+    abortSignal,
+    shouldContinue: () => !abortSignal.aborted,
+    sokoBotIds: await evalLaneBotIds(run.repeats),
+  });
 }
 
 export async function cancelEvalRun(runId: string) {

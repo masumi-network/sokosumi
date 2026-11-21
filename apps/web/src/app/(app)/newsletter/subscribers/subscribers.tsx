@@ -10,17 +10,19 @@ import { Plus, Upload, Users } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
-import { type FormEvent, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { EmptyState } from "@/components/common/empty-state";
 import { createAppColumnHelper } from "@/components/data-table/create-data-table-hook";
 import DataTable from "@/components/data-table/data-table";
+import { pageSearchUrlUpdates } from "@/components/page-query-search-field";
+import { PageSearchActions } from "@/components/page-search-actions";
+import { PageSearchField } from "@/components/page-search-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -143,15 +145,6 @@ export function Subscribers({
     }),
   ]);
 
-  function handleSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const search = String(
-      new FormData(event.currentTarget).get("search") ?? "",
-    ).trim();
-    setPendingAction("search");
-    void setQuery({ search, cursor: null });
-  }
-
   const actions = readOnly ? null : (
     <div className="flex flex-wrap justify-center gap-2">
       <Button
@@ -183,8 +176,8 @@ export function Subscribers({
 
   return (
     <section aria-label={t("title")} className="min-w-0 space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
+      <div className="@container/page-toolbar flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 sm:flex-1">
           <h3 className="text-base font-semibold">{t("title")}</h3>
           {contactListId ? (
             <Link
@@ -195,7 +188,24 @@ export function Subscribers({
             </Link>
           ) : null}
         </div>
-        {total > 0 ? actions : null}
+        <PageSearchActions>
+          <PageSearchField
+            id="subscriber-search"
+            inHeader
+            value={query.search}
+            aria-label={t("search")}
+            placeholder={t("searchPlaceholder")}
+            maxLength={254}
+            onValueChange={(search) => {
+              setPendingAction("search");
+              void setQuery(
+                { search, cursor: null },
+                pageSearchUrlUpdates(search),
+              );
+            }}
+          />
+          {total > 0 ? actions : null}
+        </PageSearchActions>
       </div>
       <dl className={cn(HOLDER_CLASS, "grid grid-cols-2 gap-2 lg:grid-cols-4")}>
         {STATUSES.map((status) => (
@@ -212,6 +222,51 @@ export function Subscribers({
           </div>
         ))}
       </dl>
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-2">
+          <Label htmlFor="subscriber-status">{t("filterStatus")}</Label>
+          <Select
+            value={query.status ?? "all"}
+            disabled={pending}
+            onValueChange={(value) => {
+              setPendingAction("status");
+              void setQuery({
+                status: STATUSES.find((status) => status === value) ?? null,
+                cursor: null,
+              });
+            }}
+          >
+            <SelectTrigger
+              id="subscriber-status"
+              className="min-w-44"
+              aria-busy={pending && pendingAction === "status"}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("allStatuses")}</SelectItem>
+              {STATUSES.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {t(`statuses.${status}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {query.search.trim() || query.status ? (
+          <Button
+            variant="ghost"
+            disabled={pending}
+            loading={pending && pendingAction === "clear"}
+            onClick={() => {
+              setPendingAction("clear");
+              void setQuery({ search: "", status: null, cursor: null });
+            }}
+          >
+            {t("clearFilters")}
+          </Button>
+        ) : null}
+      </div>
       {total === 0 ? (
         <div className={HOLDER_CLASS}>
           <EmptyState
@@ -223,77 +278,6 @@ export function Subscribers({
         </div>
       ) : (
         <>
-          <div className="flex flex-wrap items-end gap-3">
-            <form
-              onSubmit={handleSearch}
-              className="flex min-w-0 flex-1 basis-full items-end gap-2 sm:basis-0"
-            >
-              <div className="min-w-0 flex-1 space-y-2">
-                <Label htmlFor="subscriber-search">{t("search")}</Label>
-                <Input
-                  key={query.search}
-                  id="subscriber-search"
-                  name="search"
-                  type="search"
-                  defaultValue={query.search}
-                  maxLength={254}
-                  placeholder={t("searchPlaceholder")}
-                  aria-label={t("search")}
-                />
-              </div>
-              <Button
-                type="submit"
-                variant="outline"
-                disabled={pending}
-                loading={pending && pendingAction === "search"}
-              >
-                {t("searchButton")}
-              </Button>
-            </form>
-            <div className="space-y-2">
-              <Label htmlFor="subscriber-status">{t("filterStatus")}</Label>
-              <Select
-                value={query.status ?? "all"}
-                disabled={pending}
-                onValueChange={(value) => {
-                  setPendingAction("status");
-                  void setQuery({
-                    status: STATUSES.find((status) => status === value) ?? null,
-                    cursor: null,
-                  });
-                }}
-              >
-                <SelectTrigger
-                  id="subscriber-status"
-                  className="min-w-44"
-                  aria-busy={pending && pendingAction === "status"}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t("allStatuses")}</SelectItem>
-                  {STATUSES.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {t(`statuses.${status}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {query.search || query.status ? (
-              <Button
-                variant="ghost"
-                disabled={pending}
-                loading={pending && pendingAction === "clear"}
-                onClick={() => {
-                  setPendingAction("clear");
-                  void setQuery({ search: "", status: null, cursor: null });
-                }}
-              >
-                {t("clearFilters")}
-              </Button>
-            ) : null}
-          </div>
           <div aria-busy={pending} className={cn(HOLDER_CLASS, "min-w-0")}>
             <ul
               aria-label={t("title")}

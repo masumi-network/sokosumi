@@ -3,12 +3,7 @@ import { createRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
-import {
-  carryVideoSettings,
-  StudioVideoComposer,
-  type StudioVideoDraft,
-  videoDraftFor,
-} from "./studio-video-composer";
+import { StudioVideoComposer, videoSettingsFor } from "./studio-video-composer";
 import type { StudioAsset } from "./types";
 
 vi.mock("next-intl", () => ({
@@ -38,23 +33,23 @@ const SOURCE = {
 
 function renderComposer(
   overrides: Partial<{
-    draft: StudioVideoDraft;
     prompt: string;
     source: StudioAsset | null;
     canGenerate: boolean;
   }> = {},
 ) {
   const onGenerate = vi.fn();
+  const model = overrides.source ? IMAGE_MODEL! : TEXT_MODEL!;
   render(
     <StudioVideoComposer
       busy={false}
       canGenerate={overrides.canGenerate ?? true}
-      catalog={TEST_CATALOG}
-      draft={overrides.draft ?? videoDraftFor(TEXT_MODEL!)}
+      model={model}
+      settings={videoSettingsFor(model)}
       labels={TEST_LABELS}
       modeSwitch={null}
       onClearSource={vi.fn()}
-      onDraftChange={vi.fn()}
+      onSettingsChange={vi.fn()}
       onGenerate={onGenerate}
       onPromptChange={vi.fn()}
       prompt={overrides.prompt ?? "A harbour at dawn"}
@@ -65,9 +60,9 @@ function renderComposer(
   return { onGenerate };
 }
 
-describe("videoDraftFor", () => {
+describe("videoSettingsFor", () => {
   it("opens on 9:16, five seconds and the model's first resolution", () => {
-    expect(videoDraftFor(TEXT_MODEL!).settings).toEqual({
+    expect(videoSettingsFor(TEXT_MODEL!)).toEqual({
       aspectRatio: "9:16",
       durationSeconds: 5,
       resolution: "768P",
@@ -75,12 +70,12 @@ describe("videoDraftFor", () => {
   });
 
   it("sends no frame for a model that follows its image", () => {
-    expect(videoDraftFor(IMAGE_MODEL!).settings.aspectRatio).toBe("");
+    expect(videoSettingsFor(IMAGE_MODEL!).aspectRatio).toBe("");
   });
 
   it("keeps a length both models offer and resets what the new one lacks", () => {
     expect(
-      carryVideoSettings(IMAGE_MODEL!, {
+      videoSettingsFor(IMAGE_MODEL!, {
         aspectRatio: "16:9",
         durationSeconds: 10,
         resolution: "768P",
@@ -117,11 +112,10 @@ describe("StudioVideoComposer", () => {
     expect(screen.getByText("videoNeedsProject")).toBeTruthy();
   });
 
-  it("names the image being animated and offers only image models", () => {
-    renderComposer({ draft: videoDraftFor(IMAGE_MODEL!), source: SOURCE });
+  it("names the image being animated and derives the frame from it", () => {
+    renderComposer({ source: SOURCE });
     expect(screen.getByText("animating")).toBeTruthy();
     expect(screen.getByText("v3")).toBeTruthy();
-    expect(screen.getAllByText("Animate A").length).toBeGreaterThan(0);
-    expect(screen.queryByText("Video A")).toBeNull();
+    expect(screen.getByText("videoFollowsImage")).toBeTruthy();
   });
 });

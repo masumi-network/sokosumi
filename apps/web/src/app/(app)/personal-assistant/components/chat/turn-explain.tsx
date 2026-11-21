@@ -1,8 +1,9 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, ListTree } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import Markdown from "@/components/markdown";
 import { formatTokens, formatUsd } from "@/components/soko-bot/format";
@@ -90,8 +91,6 @@ function prettyInput(input: string): string {
 }
 
 function summarizeResult(call: ChatToolCall): string | null {
-  if (call.errorKind)
-    return `${call.errorKind}${call.errorDetail ? `: ${call.errorDetail}` : ""}`;
   const result = call.result;
   if (result === null || result === undefined) return null;
   if (typeof result === "string") return result;
@@ -297,8 +296,9 @@ function Explanation({ turn }: { turn: ChatTurnDetail }) {
                   </ChainRow>
                 );
               }
-              const result = item.call ? summarizeResult(item.call) : null;
               const failed = item.call?.status === "FAILED";
+              const result =
+                item.call && !failed ? summarizeResult(item.call) : null;
               return (
                 <ChainRow key={item.key} label={t("called")} tone="accent">
                   <span className="font-medium">
@@ -309,7 +309,7 @@ function Explanation({ turn }: { turn: ChatTurnDetail }) {
                       {prettyInput(item.input)}
                     </pre>
                   ) : null}
-                  {result ? (
+                  {failed || result ? (
                     <p
                       className={cn(
                         "mt-1 text-xs",
@@ -318,24 +318,16 @@ function Explanation({ turn }: { turn: ChatTurnDetail }) {
                           : "text-muted-foreground",
                       )}
                     >
-                      {failed ? t("failed") : t("result")}: {result}
+                      {failed ? t("failed") : `${t("result")}: ${result}`}
                     </p>
                   ) : null}
                   <Raw
                     label={t("rawInput")}
                     value={item.call?.input ?? item.input}
                   />
-                  <Raw
-                    label={t("rawResult")}
-                    value={
-                      item.call?.errorDetail
-                        ? {
-                            errorKind: item.call.errorKind,
-                            errorDetail: item.call.errorDetail,
-                          }
-                        : item.call?.result
-                    }
-                  />
+                  {!failed ? (
+                    <Raw label={t("rawResult")} value={item.call?.result} />
+                  ) : null}
                 </ChainRow>
               );
             })}
@@ -390,32 +382,31 @@ export function TurnExplain({
 }) {
   const t = useTranslations("App.SokoBot.Chat.explain");
   const [open, setOpen] = useState(false);
-  const [detail, setDetail] = useState<ChatTurnDetail | null>(null);
-  const [error, setError] = useState(false);
   const botId = useSokoBotTargetId();
 
-  useEffect(() => {
-    if (!open || detail) return;
-    let cancelled = false;
-    fetch(
-      withBotIdParam(
-        `/api/personal-assistant/turns/${encodeURIComponent(turnId)}`,
-        botId,
-      ),
-      { credentials: "same-origin", cache: "no-store" },
-    )
-      .then(async (response) => {
-        if (!response.ok) throw new Error("unavailable");
-        const body = (await response.json()) as { turn: ChatTurnDetail };
-        if (!cancelled) setDetail(body.turn);
-      })
-      .catch(() => {
-        if (!cancelled) setError(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, detail, turnId, botId]);
+  const detailQuery = useQuery({
+    queryKey: ["personal-assistant", "turn-explain", turnId, botId ?? null],
+    enabled: open,
+    retry: false,
+    staleTime: Number.POSITIVE_INFINITY,
+    networkMode: "always",
+    refetchOnWindowFocus: false,
+    queryFn: async ({ signal }): Promise<ChatTurnDetail> => {
+      const response = await fetch(
+        withBotIdParam(
+          `/api/personal-assistant/turns/${encodeURIComponent(turnId)}`,
+          botId,
+        ),
+        { credentials: "same-origin", cache: "no-store", signal },
+      );
+      if (!response.ok) throw new Error("unavailable");
+      const body = (await response.json()) as { turn: ChatTurnDetail };
+      return body.turn;
+    },
+  });
+
+  const detail = detailQuery.data ?? null;
+  const error = detailQuery.isError;
 
   return (
     <div className="pr-10">

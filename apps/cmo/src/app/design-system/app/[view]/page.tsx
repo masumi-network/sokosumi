@@ -6,7 +6,10 @@ import { isView } from "../fixtures";
 
 interface AppViewPageProps {
   params: Promise<{ view: string }>;
-  searchParams: Promise<{ theme?: string | string[] }>;
+  searchParams: Promise<{
+    theme?: string | string[];
+    state?: string | string[];
+  }>;
 }
 
 /**
@@ -20,9 +23,21 @@ export default async function AppViewPage({
   previewOnly();
   const { view } = await params;
   if (!isView(view)) notFound();
+  const { state } = await searchParams;
   return (
     <FixtureFrame searchParams={searchParams}>
-      <FixtureApp view={view} />
+      <FixtureApp
+        view={view}
+        state={
+          state === "empty" ||
+          state === "loading" ||
+          state === "blocked" ||
+          state === "busy" ||
+          state === "quiet"
+            ? state
+            : undefined
+        }
+      />
     </FixtureFrame>
   );
 }

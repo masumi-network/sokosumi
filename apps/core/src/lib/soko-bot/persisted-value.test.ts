@@ -33,6 +33,21 @@ describe("persistedToolResult", () => {
     expect(citationsIn(stored)).toContain("example.com/report-24");
   });
 
+  it("keeps a long Task's name and status, so the reply can still show the read", () => {
+    const stored = persistedToolResult({
+      id: "task",
+      name: "App UX: home",
+      status: "COMPLETED",
+      events: [{ comment: "x".repeat(25_000) }],
+    });
+    expect(stored).toMatchObject({
+      truncated: true,
+      id: "task",
+      name: "App UX: home",
+      status: "COMPLETED",
+    });
+  });
+
   it("keeps a long Social post's projectId for result cards and post links", () => {
     const stored = persistedToolResult({
       id: "post",

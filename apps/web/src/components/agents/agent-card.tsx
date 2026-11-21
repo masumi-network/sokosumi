@@ -4,24 +4,18 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { ExternalLink } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { useTheme } from "next-themes";
-import { useMemo } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import useIsClient from "@/hooks/use-is-client";
 import type { CatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
 import {
   getAgentAuthorResolvedImage,
-  getAgentCategoryStyles,
   getAgentName,
   getAgentResolvedIcon,
   getShortAgentAuthorName,
 } from "@/lib/helpers/agent";
 import type { AgentRatingStats } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
-import { generateGradientBorder } from "@/lib/utils/gradient";
-import { getCategoryColor } from "@/lib/utils/theme";
 
 import { AgentDetailLink } from "./agent-detail-link";
 import { AgentIcon } from "./agent-icon";
@@ -164,36 +158,11 @@ function AgentCard({
 }: AgentCardProps & VariantProps<typeof agentCardVariants>) {
   const t = useTranslations("Components.Agents.AgentCard");
   const tKind = useTranslations("Components.Agents.Kind");
-  const { resolvedTheme } = useTheme();
-  const isClient = useIsClient();
 
   const authorImage = getAgentAuthorResolvedImage(agent);
   const summary = agent.summary ?? agent.description;
   const isDefault = !size || size === "md";
   const buttonSize = "sm";
-  const categoryStyles = getAgentCategoryStyles(agent);
-
-  const currentTheme = isClient && resolvedTheme === "dark" ? "dark" : "light";
-  const gradientBorder = useMemo(
-    () =>
-      isClient ? generateGradientBorder(categoryStyles, currentTheme) : null,
-    [isClient, categoryStyles, currentTheme],
-  );
-
-  const categoryColor = getCategoryColor(categoryStyles, currentTheme);
-
-  const borderStyle =
-    isClient && gradientBorder
-      ? {
-          // Whole pixels. 0.2px is a fifth of a device pixel even on a 2x
-          // display, so the browser rounds it to nothing or to a hairline
-          // depending on position. 1px is what it was already trying to be.
-          border: "1px solid transparent",
-          backgroundImage: `linear-gradient(var(--card-background), var(--card-background)), ${gradientBorder}`,
-          backgroundOrigin: "border-box",
-          backgroundClip: "padding-box, border-box",
-        }
-      : undefined;
 
   const kindLabel = agent.kind === "x402" ? tKind("x402") : tKind("cardano");
   const linksToDetail = agent.kind === "cardano";
@@ -245,10 +214,9 @@ function AgentCard({
         className,
         "md:agent-card-roll-up",
       )}
-      style={borderStyle}
     >
       <div className="mb-4 flex min-h-10 w-full items-center justify-between">
-        <div className="shrink-0" style={{ color: categoryColor }}>
+        <div className="shrink-0">
           <AgentIcon
             agent={{
               name: getAgentName(agent),
@@ -268,10 +236,7 @@ function AgentCard({
       <div className={cn(agentCardContentVariants({ size }))}>
         <div className="flex w-full flex-1 flex-col justify-between gap-3">
           <div className="flex flex-0 flex-col gap-3">
-            <h3
-              className={agentCardNameVariants({ size })}
-              style={{ color: categoryColor }}
-            >
+            <h3 className={agentCardNameVariants({ size })}>
               {getAgentName(agent)}
             </h3>
 

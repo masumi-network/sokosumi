@@ -45,6 +45,7 @@ export const dataTableService = {
     query: {
       cursor?: string;
       archived?: "true" | "false";
+      search?: string;
       projectId?: string;
     } = {},
   ) {

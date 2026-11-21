@@ -24,6 +24,25 @@ const IMAGE = ref("image", "image/jpeg");
 const VIDEO = ref("video", "video/mp4");
 
 describe("socialPostComposerIssue", () => {
+  it("accepts twenty X images and rejects a twenty-first image", () => {
+    expect(socialPostComposerIssue("x", "", Array(20).fill(IMAGE))).toBeNull();
+    expect(socialPostComposerIssue("x", "", Array(21).fill(IMAGE))).toBe(
+      "too_many_images",
+    );
+  });
+
+  it.each(["linkedin", "facebook"] as const)(
+    "keeps %s capped at four images",
+    (provider) => {
+      expect(
+        socialPostComposerIssue(provider, "Photos", Array(4).fill(IMAGE)),
+      ).toBeNull();
+      expect(
+        socialPostComposerIssue(provider, "Photos", Array(5).fill(IMAGE)),
+      ).toBe("too_many_images");
+    },
+  );
+
   it.each([
     ["x", "", [], "text_or_media_required"],
     ["x", "", [IMAGE], null],

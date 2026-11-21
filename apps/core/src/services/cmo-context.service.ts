@@ -19,6 +19,7 @@ import {
   calendarBounds,
   cmoWorkingStrategy,
 } from "@/services/cmo-strategy.service";
+import { recentCompetitorMoves } from "@/services/competitor-feed.service";
 import {
   approvedMarketingStrategy,
   newestMarketingStrategy,
@@ -59,13 +60,21 @@ export async function loadCmoMarketingContext(
   const [project, brandPictures] = await Promise.all([
     prisma.project.findUnique({
       where: { id: cuso.projectId },
-      select: { logo: true, designMdUrl: true },
+      select: {
+        logo: true,
+        designMdUrl: true,
+        presenterFileId: true,
+        presenterConsentAt: true,
+      },
     }),
     listCmoBrandPictures(cuso.projectId),
   ]);
   const designMd = await readDesignMdContent(project?.designMdUrl ?? null);
   // A month of reports covers the last four weekly reviews.
-  const reports = await listCmoReports(sokoBotId, REPORTS_READ);
+  const [reports, competitorMoves] = await Promise.all([
+    listCmoReports(sokoBotId, REPORTS_READ),
+    recentCompetitorMoves(cuso.projectId, now),
+  ]);
   const context: MarketingContext = {
     business: {
       name: cuso.businessName,
@@ -97,6 +106,13 @@ export async function loadCmoMarketingContext(
       ...picture,
       alt: picture.alt.slice(0, 80),
     })),
+    /**
+     * The owner gave their photo, with consent, to be the face of talking
+     * videos: presenter "owner" uses it.
+     */
+    ...(project?.presenterFileId && project.presenterConsentAt
+      ? { ownerPresenter: true }
+      : {}),
     /** How to write each kind of piece: read one in full with read_writing_skill. */
     writingSkills: WRITING_SKILLS.map((skill) => ({
       id: skill.id,
@@ -151,6 +167,9 @@ export async function loadCmoMarketingContext(
         learnings: report.learnings ?? [],
       })),
   };
+  if (competitorMoves.length > 0)
+    /** The competitor feed's moves of about the last month, newest first. */
+    context.competitorMoves = competitorMoves;
   return fitCmoMarketingContext(context, now);
 }
 
@@ -169,10 +188,46 @@ const CMO_DESIGN_MD_CHARS = 1_600;
  */
 export const CMO_CONTEXT_BUDGET_BYTES = 32 * 1_024;
 
+/** What a piece past two weeks keeps when the packet is tight. */
+const SHORT_ENTRY_KEYS = [
+  "id",
+  "date",
+  "channel",
+  "format",
+  "pillar",
+  "title",
+  "status",
+] as const;
+
 type MarketingContext = Record<string, unknown> & {
   brandBrain?: Record<string, unknown> | null;
   strategy?: (Record<string, unknown> & { calendar?: unknown[] }) | null;
 };
+
+/** The Brand Brain with each profile section cut to these keys. */
+function profileKeeping(
+  context: MarketingContext,
+  keys: readonly string[],
+): MarketingContext {
+  const brain = context.brandBrain;
+  if (!brain) return context;
+  const profile = (brain.profile ?? {}) as Record<
+    string,
+    Record<string, unknown>
+  >;
+  return {
+    ...context,
+    brandBrain: {
+      ...brain,
+      profile: Object.fromEntries(
+        Object.entries(profile).map(([name, section]) => [
+          name,
+          Object.fromEntries(keys.map((key) => [key, section[key]])),
+        ]),
+      ),
+    },
+  };
+}
 
 /**
  * Sheds detail, least needed first, until the context fits its budget.
@@ -192,6 +247,7 @@ export function fitCmoMarketingContext(
   const twoWeeks = new Date(now.getTime() + 14 * 86_400_000)
     .toISOString()
     .slice(0, 10);
+  const oneWeek = draftHorizon(now);
   const calendar = (
     current: MarketingContext,
     shed: (entry: Record<string, unknown>) => Record<string, unknown>,
@@ -215,13 +271,14 @@ export function fitCmoMarketingContext(
     keys: string[],
   ): MarketingContext => {
     const value = current[part];
-    if (!value) return current;
+    const shed = value ? keys.filter((key) => key in value) : [];
+    if (!value || shed.length === 0) return current;
     const kept = Object.fromEntries(
-      Object.entries(value).filter(([key]) => !keys.includes(key)),
+      Object.entries(value).filter(([key]) => !shed.includes(key)),
     );
     const stored = [
       ...((value.storedNotShown as string[] | undefined) ?? []),
-      ...keys,
+      ...shed,
     ];
     return { ...current, [part]: { ...kept, storedNotShown: stored } };
   };
@@ -246,26 +303,7 @@ export function fitCmoMarketingContext(
         ...entry,
         detailsStored: true,
       })),
-    (current) =>
-      current.brandBrain
-        ? {
-            ...current,
-            brandBrain: {
-              ...current.brandBrain,
-              profile: Object.fromEntries(
-                Object.entries(
-                  (current.brandBrain.profile ?? {}) as Record<
-                    string,
-                    Record<string, unknown>
-                  >,
-                ).map(([key, section]) => [
-                  key,
-                  { headline: section.headline, answer: section.answer },
-                ]),
-              ),
-            },
-          }
-        : current,
+    (current) => profileKeeping(current, ["headline", "answer"]),
     (current) =>
       without(current, "strategy", [
         "alternatives",
@@ -278,22 +316,50 @@ export function fitCmoMarketingContext(
       without(current, "brandBrain", ["reveal", "alternatives", "channels"]),
     (current) =>
       calendar(current, ({ pillar: _p, campaignId: _c, ...entry }) => entry),
-    // Last: the next two weeks only. A 60-piece month with its visuals once
-    // left no room in the packet, and every run failed to start.
+    // Before any piece past two weeks: what the Brand Brain still had to ask,
+    // then the profile's answers.
+    (current) => without(current, "brandBrain", ["questions"]),
+    (current) => profileKeeping(current, ["headline"]),
+    // Pieces past two weeks as one short line each, so a change can still
+    // name every entry it touches (cutting a channel, a new audience).
     (current) =>
       current.strategy
         ? {
             ...current,
             strategy: {
               ...current.strategy,
-              calendar: (current.strategy.calendar ?? []).filter(
-                (entry) =>
-                  (entry as { date?: string }).date === undefined ||
-                  (entry as { date: string }).date <= twoWeeks,
+              calendar: (current.strategy.calendar ?? []).map((entry) => {
+                const piece = entry as Record<string, unknown>;
+                return typeof piece.date === "string" && piece.date > twoWeeks
+                  ? shortEntry(piece)
+                  : entry;
+              }),
+            },
+          }
+        : current,
+    // The next two weeks only. A 60-piece month with its visuals once left
+    // no room in the packet, and every run failed to start.
+    (current) => calendarUntil(current, twoWeeks),
+    (current) =>
+      without(current, "strategy", ["patched", "start", "campaigns", "funnel"]),
+    (current) => without(current, "brandBrain", ["competitors"]),
+    // A top-volume month holds 80 pieces in two weeks; a turn that still
+    // cannot fit reads a piece with get_social_post.
+    (current) => calendarUntil(current, oneWeek),
+    (current) =>
+      current.strategy
+        ? {
+            ...current,
+            strategy: {
+              ...current.strategy,
+              calendar: (current.strategy.calendar ?? []).map((entry) =>
+                shortEntry(entry as Record<string, unknown>),
               ),
             },
           }
         : current,
+    (current) => calendarUntil(current, soon),
+    (current) => without(current, "strategy", ["calendar"]),
   ];
   let fitted = context;
   for (const step of steps) {
@@ -301,6 +367,34 @@ export function fitCmoMarketingContext(
     fitted = step(fitted);
   }
   return fitted;
+}
+
+function shortEntry(piece: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    SHORT_ENTRY_KEYS.filter((key) => key in piece).map((key) => [
+      key,
+      piece[key],
+    ]),
+  );
+}
+
+/** The calendar up to a day; the rest stays stored. */
+function calendarUntil(
+  current: MarketingContext,
+  lastDay: string,
+): MarketingContext {
+  if (!current.strategy) return current;
+  return {
+    ...current,
+    strategy: {
+      ...current.strategy,
+      calendar: (current.strategy.calendar ?? []).filter(
+        (entry) =>
+          (entry as { date?: string }).date === undefined ||
+          (entry as { date: string }).date <= lastDay,
+      ),
+    },
+  };
 }
 
 /** The last day a turn sees full drafts for. */

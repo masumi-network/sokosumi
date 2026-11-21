@@ -1,0 +1,86 @@
+"use client";
+
+import type { ReactNode } from "react";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+/** The id of a SeoField's help text, for the input's aria-describedby. */
+export function seoFieldHelpId(id: string) {
+  return `${id}-help`;
+}
+
+export function SeoField({
+  label,
+  id,
+  children,
+  help,
+}: {
+  label: string;
+  id: string;
+  children: ReactNode;
+  help?: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      {children}
+      {help ? (
+        <p id={seoFieldHelpId(id)} className="text-muted-foreground text-sm">
+          {help}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+export function SeoSelect({
+  id,
+  name,
+  value,
+  defaultValue,
+  onValueChange,
+  options,
+  placeholder,
+  required,
+  disabled,
+  lang,
+}: {
+  id: string;
+  name?: string;
+  value?: string;
+  defaultValue?: string;
+  onValueChange?: (value: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+  required?: boolean;
+  disabled?: boolean;
+  lang?: string;
+}) {
+  return (
+    <Select
+      name={name}
+      value={value}
+      defaultValue={defaultValue}
+      onValueChange={onValueChange}
+      required={required}
+      disabled={disabled}
+    >
+      <SelectTrigger id={id} lang={lang} className="w-full">
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent lang={lang}>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            <bdi>{option.label}</bdi>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}

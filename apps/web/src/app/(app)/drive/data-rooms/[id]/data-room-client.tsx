@@ -3,13 +3,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Check, Copy, LockKeyhole } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { Button } from "@/components/ui/button";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useClipboard } from "@/hooks/use-clipboard";
+import { useClipboard } from "@/hooks/effects/use-clipboard";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 import { fetchDataRoom } from "@/lib/utils/data-room.client";
@@ -17,16 +17,39 @@ import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client
 import type { FileStore } from "@/lib/utils/file-search.client";
 import { DataRoomActivity } from "./data-room-activity";
 import { DataRoomColleagues } from "./data-room-colleagues";
+import { DataRoomCompanyPanel } from "./data-room-company";
 import { DataRoomContents } from "./data-room-contents";
 import { DataRoomPeople } from "./data-room-people";
 import { DataRoomQuestions } from "./data-room-questions";
 import { DataRoomSettingsPanel } from "./data-room-settings";
 
+const ROOM_TABS = [
+  "people",
+  "activity",
+  "questions",
+  "contents",
+  "company",
+  "settings",
+] as const;
+
+/**
+ * The open tab and the question to answer live in the URL, so Needs you can
+ * open a room on its Questions tab at one question, and does the same when
+ * that room is already on screen and only the search changes.
+ */
+const roomUrlState = {
+  tab: parseAsStringLiteral(ROOM_TABS).withDefault("people"),
+  question: parseAsString,
+  // Set by "Make data room": the new room opens ready to invite.
+  invite: parseAsString,
+};
+
 export function DataRoomClient({ roomId }: { roomId: string }) {
   const t = useTranslations("App.Drive.DataRoom");
   const { data: session } = useSession();
-  // Set by "Make data room": the new room opens ready to invite.
-  const focusInvite = useSearchParams().has("invite");
+  const [{ tab, question: focusQuestionId, invite }, setUrlState] =
+    useQueryStates(roomUrlState);
+  const focusInvite = invite !== null;
   const store: FileStore = driveStoreForActiveWorkspace(
     session?.session?.activeOrganizationId ?? null,
   );
@@ -104,8 +127,17 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
         </Button>
       </header>
 
-      <Tabs defaultValue="people" className="gap-3">
-        {/* Five tabs are wider than a phone: scroll them, or Settings is cut off. */}
+      <Tabs
+        value={tab}
+        onValueChange={(next) => {
+          const picked = ROOM_TABS.find((value) => value === next);
+          // A tab chosen by hand lets go of the question Needs you pointed
+          // at, so the next click on that question focuses it again.
+          if (picked) void setUrlState({ tab: picked, question: null });
+        }}
+        className="gap-3"
+      >
+        {/* Six tabs are wider than a phone: scroll them, or Settings is cut off. */}
         <TabsList className="app-scrollbar max-w-full justify-start overflow-x-auto">
           <TabsTrigger value="people">
             {t("tabs.people", {
@@ -115,6 +147,7 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
           <TabsTrigger value="activity">{t("tabs.activity")}</TabsTrigger>
           <TabsTrigger value="questions">{t("tabs.questions")}</TabsTrigger>
           <TabsTrigger value="contents">{t("tabs.contents")}</TabsTrigger>
+          <TabsTrigger value="company">{t("tabs.company")}</TabsTrigger>
           <TabsTrigger value="settings">{t("tabs.settings")}</TabsTrigger>
         </TabsList>
         <div className={cn(HOLDER_CLASS, "grid gap-2")}>
@@ -148,12 +181,25 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
             />
           </TabsContent>
           <TabsContent value="questions">
-            <DataRoomQuestions store={store} roomId={room.id} rows={rows} />
+            <DataRoomQuestions
+              store={store}
+              roomId={room.id}
+              rows={rows}
+              focusQuestionId={focusQuestionId}
+            />
           </TabsContent>
           <TabsContent value="contents">
             <DataRoomContents
               store={store}
               roomId={room.id}
+              rows={rows}
+              onChanged={refresh}
+            />
+          </TabsContent>
+          <TabsContent value="company">
+            <DataRoomCompanyPanel
+              store={store}
+              room={room}
               rows={rows}
               onChanged={refresh}
             />

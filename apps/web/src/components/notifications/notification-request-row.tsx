@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { usePageListSearch } from "@/components/page-list-search";
 import { cn } from "@/lib/utils";
 
 /**
@@ -75,6 +76,11 @@ export function NotificationRequestRow({
   description,
   action,
 }: NotificationRequestRowProps) {
+  const matching = usePageListSearch([{ title, description }], (notice) => ({
+    primary: [notice.title],
+    secondary: [notice.description],
+  }));
+  if (!matching.length) return null;
   const styles = EMPHASIS_STYLES[emphasis];
 
   return (

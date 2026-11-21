@@ -1,7 +1,9 @@
 import {
   CMO_BRAND_SECTION_KEYS,
   CMO_BRAND_SECTIONS,
+  CMO_RESEARCH_GROUPS,
   CMO_SOKO_BOT_VERSION_ID,
+  getSokoBotVersion,
 } from "@sokosumi/soko-bot";
 import {
   buildOrganizationMetadataWithUrl,
@@ -10,23 +12,30 @@ import {
 } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import { getEnv } from "@/config/env";
+import { isOnEmailAllowlist } from "@/helpers/email-allowlist";
 import { getUserWorkspace } from "@/helpers/user-workspaces";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
+import {
+  emitCoreWarning,
+  recordCoreWarning,
+  runAsBackgroundWork,
+} from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
+import { cmoCapabilityLabel } from "@/lib/soko-bot/cmo-step-labels";
+import { safeReasoningSummary } from "@/lib/soko-bot/event-text";
+import type { TurnPart } from "@/lib/soko-bot/turn-parts";
 import {
   brandBrainSectionHeadlines,
   brandBrainSectionsSaved,
   type CmoSectionHeadline,
   parseBrandBrain,
 } from "@/services/brand-brain.service";
-import {
-  CMO_STARTER_CREDITS,
-  grantCmoStarterCredits,
-} from "@/services/cmo-billing.service";
+import { findUnpaidCusoHiredBy } from "@/services/cmo-billing.service";
 import { captureCmoHomepage } from "@/services/cmo-brand-media.service";
 import { learnCmoBrandVisual } from "@/services/cmo-brand-visual.service";
 import {
-  CMO_OUT_OF_CREDITS,
   CmoConflictError,
   CmoForbiddenError,
   type CmoLearningState,
@@ -34,12 +43,22 @@ import {
   type Cuso,
   type CusoTarget,
   cmoBusinessNameFromUrl,
+  cmoRunIsSlow,
   findCusoForBot,
   ONBOARDING_TURN_PREFIX,
   requireCuso,
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
-import { STRATEGY_TURN_PREFIX } from "@/services/marketing-strategy.service";
+import {
+  linkTestCopyConnections,
+  requireTestCopySource,
+  tearDownTestCopyFor,
+} from "@/services/cmo-test-copy.service";
+import {
+  cmoChangeKind,
+  STRATEGY_TURN_PREFIX,
+} from "@/services/marketing-strategy.service";
+import { isTestCopyProject } from "@/services/project-test-copy";
 import {
   settledTurnStatus,
   TURN_ROW_SELECT,
@@ -64,9 +83,17 @@ export function cmoProjectName(businessName: string): string {
  * A retry after a turn that saved sections but not the essentials: the
  * research is done, so Cuso only writes what is missing.
  */
-function finishBrandBrainMessage(input: { businessName: string }): string {
+function finishBrandBrainMessage(
+  input: { businessName: string },
+  inParts = false,
+): string {
   return [
     `Your research on ${input.businessName} stopped before the Brand Brain essentials were saved. The profile sections you saved are kept.`,
+    ...(inParts
+      ? [
+          "The groups still missing were researched again in parts before this message: their sections are saved, but your packet does not show them; their hand-overs below do.",
+        ]
+      : []),
     "",
     "Read the saved sections, then save the essentials with save_brand_brain (summary, voice, audience, products, offers, competitors, alternatives and channels), following your Brand Brain skill. Research again only what the essentials still need.",
     "Put what you could not confirm into the Brand Brain's yes/no questions, never into chat. End with one plain sentence on what stood out.",
@@ -88,21 +115,127 @@ function onboardingMessage(input: {
   ].join("\n");
 }
 
-export async function cmoLearningState(
-  cuso: Pick<Cuso, "sokoBotId" | "brandBrain">,
-  now: Date = new Date(),
-): Promise<CmoLearningState> {
-  if (parseBrandBrain(cuso.brandBrain)) return "done";
-  const turn = await prisma.sokoBotTurn.findFirst({
+/**
+ * A first read on a version that reads in parts: Core ran one part per
+ * research group before this message, so Cuso writes the essentials.
+ */
+function essentialsFromPartsMessage(input: {
+  businessName: string;
+  websiteUrl: string;
+}): string {
+  return [
+    `New CMO client: ${input.businessName} (${input.websiteUrl}).`,
+    "",
+    "Your research ran in parts, one per group of your Brand Brain skill, side by side; each part saved its sections. Their hand-overs follow this message.",
+    "Now save the essentials with save_brand_brain, with reveal, questions and marketingToday in the same call, following your Brand Brain skill. Draw them from the hand-overs; research again only what a hand-over left open, or a group whose part failed.",
+    "Do not plan yet: the owner reviews the Brand Brain first, then asks you for the strategy.",
+    "Put what you could not confirm into the Brand Brain's yes/no questions, never into chat. End with one plain sentence on what stood out.",
+    "The Brand Brain card is your report: do not call report_update, and never mention tools, tool limits or what you may not do this turn.",
+  ].join("\n");
+}
+
+/** The Brand Brain skill that reads in parts (SOKD-167). */
+const PARTS_SKILL = "cmo-brand-brain-groups";
+
+/** A research part reads the web and saves its sections; nothing else. */
+const RESEARCH_PART_TOOLS = [
+  "search_exa",
+  "web_search",
+  "web_fetch",
+  "read_social_profile",
+  "save_brand_brain",
+] as const;
+
+/** Whether a Cuso on this version reads the business in parts. */
+function readsInParts(versionId: string | null): boolean {
+  return (
+    versionId !== null &&
+    getSokoBotVersion(versionId).skills.includes(PARTS_SKILL)
+  );
+}
+
+function researchPartMessage(
+  cuso: Pick<Cuso, "businessName" | "websiteUrl">,
+  group: (typeof CMO_RESEARCH_GROUPS)[number],
+): string {
+  return [
+    `You are one part of your first read of ${cuso.businessName} (${cuso.websiteUrl}): the ${group.label} group, sections ${group.sections.join(", ")}. The other groups run at the same time.`,
+    "",
+    `Research it as "### ${group.label}" in your Brand Brain skill says, within its share of searches and page reads, running independent calls together in one step. Save these sections with save_brand_brain in sections as soon as you have researched them, never brandBrain, reveal, questions or marketingToday.`,
+    "End with your hand-over, as the skill describes. Do not post in chat or call report_update.",
+  ].join("\n");
+}
+
+/**
+ * The parts a research turn runs before its message: one per research group
+ * not yet saved, on a version that reads in parts, until the essentials
+ * exist. A retry runs only the groups still missing.
+ */
+export function cmoResearchParts(
+  versionId: string | null,
+  cuso: Pick<Cuso, "businessName" | "websiteUrl" | "brandBrain">,
+): TurnPart[] {
+  if (!readsInParts(versionId) || parseBrandBrain(cuso.brandBrain)) return [];
+  const saved = new Set(brandBrainSectionsSaved(cuso.brandBrain));
+  return CMO_RESEARCH_GROUPS.filter(
+    (group) => !group.sections.every((section) => saved.has(section)),
+  ).map((group) => ({
+    key: group.key,
+    title: group.label,
+    message: researchPartMessage(cuso, group),
+    tools: RESEARCH_PART_TOOLS,
+  }));
+}
+
+/** The parts of this turn, when it is a Cuso's research; none otherwise. */
+/**
+ * A first read in parts ends on the save that completes the essentials, with
+ * the reveal's position as Cuso's answer: no closing model step after it.
+ */
+export function cmoResearchEndAnswer(
+  turn: { clientTurnId: string | null; versionId: string | null },
+  brain: {
+    reveal?: { positioning: string } | null;
+    questions: readonly unknown[];
+    marketingToday?: unknown;
+  } | null,
+): string | undefined {
+  if (!turn.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX)) return undefined;
+  if (!readsInParts(turn.versionId)) return undefined;
+  if (!brain?.reveal || brain.questions.length === 0 || !brain.marketingToday)
+    return undefined;
+  return brain.reveal.positioning;
+}
+
+export async function cmoTurnParts(turnId: string): Promise<TurnPart[]> {
+  const turn = await prisma.sokoBotTurn.findUnique({
+    where: { id: turnId },
+    select: { sokoBotId: true, clientTurnId: true, versionId: true },
+  });
+  if (!turn?.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX)) return [];
+  if (!readsInParts(turn.versionId)) return [];
+  const cuso = await findCusoForBot(turn.sokoBotId);
+  return cuso ? cmoResearchParts(turn.versionId, cuso) : [];
+}
+
+function newestResearchTurn(sokoBotId: string) {
+  return prisma.sokoBotTurn.findFirst({
     where: {
-      sokoBotId: cuso.sokoBotId,
+      sokoBotId,
       clientTurnId: { startsWith: ONBOARDING_TURN_PREFIX },
     },
     orderBy: { createdAt: "desc" },
     select: TURN_ROW_SELECT,
   });
+}
+
+export async function cmoLearningState(
+  cuso: Pick<Cuso, "sokoBotId" | "brandBrain">,
+): Promise<CmoLearningState> {
+  if (parseBrandBrain(cuso.brandBrain)) return "done";
+  const turn = await newestResearchTurn(cuso.sokoBotId);
   // Cuso can finish without a Brand Brain on purpose: it asked questions.
-  return turn ? settledTurnStatus(turn, now) : "failed";
+  return turn ? settledTurnStatus(turn) : "failed";
 }
 
 /** One thing Cuso did while researching or planning, for the live feed. */
@@ -117,6 +250,8 @@ export interface CmoWorkStep {
 
 export interface CmoWork {
   kind: "research" | "strategy";
+  /** A strategy turn that fixes the Brand Brain or patches the plan; null for a whole plan. */
+  change: "fix" | "patch" | null;
   status: CmoLearningState;
   startedAt: Date;
   steps: CmoWorkStep[];
@@ -237,7 +372,6 @@ export function describeCmoStep(
 /** Cuso's latest research or strategy turn, step by step. */
 export async function cmoWork(
   cuso: Pick<Cuso, "sokoBotId" | "websiteUrl" | "brandBrain">,
-  now: Date = new Date(),
 ): Promise<CmoWork | null> {
   const turn = await prisma.sokoBotTurn.findFirst({
     where: {
@@ -289,7 +423,8 @@ export async function cmoWork(
     kind: turn.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX)
       ? "strategy"
       : "research",
-    status: await settledTurnStatus(turn, now),
+    change: cmoChangeKind(turn.clientTurnId),
+    status: await settledTurnStatus(turn),
     startedAt: turn.createdAt,
     steps,
     sections,
@@ -298,28 +433,90 @@ export async function cmoWork(
   };
 }
 
+/** What Cuso is doing right now, for the chat and the hiring steps. */
+export interface CmoActivity {
+  /** The step he is on, in CMO's words; null before his first one. */
+  step: string | null;
+  /** The model's latest summary of its reasoning, when it gave one. */
+  reasoning: string | null;
+}
+
+/** The turn Cuso is running now, whatever started it; null while he rests. */
+export async function cmoActivity(
+  cuso: Pick<Cuso, "sokoBotId" | "websiteUrl">,
+): Promise<CmoActivity | null> {
+  const turn = await prisma.sokoBotTurn.findFirst({
+    where: {
+      sokoBotId: cuso.sokoBotId,
+      status: { in: ["QUEUED", "STARTING", "RUNNING"] },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, eveSessionId: true },
+  });
+  if (!turn) return null;
+  // Read from the runtime's own log: a summary lands there as its step ends,
+  // and reaches the turn's events only when the turn is next reconciled.
+  const [call, thought] = await Promise.all([
+    prisma.sokoBotToolCall.findFirst({
+      where: { turnId: turn.id },
+      orderBy: { createdAt: "desc" },
+      select: { capability: true, input: true },
+    }),
+    turn.eveSessionId
+      ? prisma.sokoBotRuntimeEvent.findFirst({
+          where: {
+            sessionId: turn.eveSessionId,
+            type: "reasoning.completed",
+            turnId: turn.id,
+          },
+          orderBy: { startIndex: "desc" },
+          select: { data: true },
+        })
+      : null,
+  ]);
+  return {
+    step: call
+      ? (describeCmoStep(call.capability, call.input, cuso.websiteUrl)?.label ??
+        cmoCapabilityLabel(call.capability))
+      : null,
+    reasoning: thought ? safeReasoningSummary(thought.data) : null,
+  };
+}
+
 /**
- * Starts learning again after a failed or stuck first look, or after one that
- * ended without the Brand Brain's essentials and asked nothing.
+ * Starts learning again after a failed or stuck first look, after one that
+ * ended without the Brand Brain's essentials and asked nothing, or in place
+ * of one running past twice the usual time.
  */
 export async function retryCmoOnboarding(
   target: CusoTarget,
 ): Promise<{ turnId: string }> {
   const { userId } = target;
   const cuso = await requireCuso(target);
-  const state = await cmoLearningState(cuso);
-  if (state === "running") {
-    throw new CmoConflictError("Cuso is still learning the business");
-  }
   if (parseBrandBrain(cuso.brandBrain)) {
     throw new CmoConflictError("Cuso already learned the business");
+  }
+  const turn = await newestResearchTurn(cuso.sokoBotId);
+  if (turn && (await settledTurnStatus(turn)) === "running") {
+    // createdAt is PostgreSQL time.
+    if (!cmoRunIsSlow("research", turn.createdAt, await databaseNow())) {
+      throw new CmoConflictError("Cuso is still learning the business");
+    }
+    const { sokoBotControlPlane } = await import(
+      "@/services/soko-bot-control-plane.service"
+    );
+    await sokoBotControlPlane.expireTurn(turn.id);
   }
   const project = await prisma.project.findUnique({
     where: { id: cuso.projectId },
     select: { designMdUrl: true },
   });
   if (!project?.designMdUrl) {
-    waitUntil(learnCmoBrandVisual(cuso).catch(() => undefined));
+    waitUntil(
+      runAsBackgroundWork(() =>
+        learnCmoBrandVisual(cuso).catch(() => undefined),
+      ),
+    );
   }
   return startCmoResearch(cuso, userId);
 }
@@ -328,12 +525,36 @@ export async function retryCmoOnboarding(
 const UNSENT_POST_STATUSES = ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] as const;
 
 /**
+ * The owner's time zone for this Cuso: his routines keep their local times
+ * ("every day at 09:00") and move to the new zone, next runs included.
+ */
+export async function setCmoTimeZone(
+  target: CusoTarget,
+  timeZone: string,
+): Promise<void> {
+  const cuso = await requireCuso(target);
+  await prisma.sokoBot.updateMany({
+    where: { id: cuso.sokoBotId },
+    data: { ingestTimezone: timeZone },
+  });
+  const { retimeSystemSchedules } = await import(
+    "@/services/soko-bot-proactive.service"
+  );
+  await retimeSystemSchedules(cuso.sokoBotId, timeZone);
+}
+
+/**
  * Lets this person hire Cuso again for another website: the Cuso they work
  * with is archived (his running work stops) and his posts that have not gone
  * out are canceled. His organization, Project and Files stay in Sokosumi.
  * Only an organization owner or admin may (the archive checks).
  */
 export async function startCmoOver(target: CusoTarget): Promise<void> {
+  // Start over on a test copy is its teardown, which whoever made it may do.
+  if (await isTestCopyProject(target.projectId)) {
+    await tearDownTestCopyFor(target);
+    return;
+  }
   const { userId } = target;
   const cuso = await requireCuso(target);
   const { sokoBotControlPlane } = await import(
@@ -363,6 +584,10 @@ export async function startCmoOver(target: CusoTarget): Promise<void> {
     select: { id: true, revision: true },
   });
   const { cancelSocialPost } = await import("@/services/social-posts.service");
+  const leftPosts: {
+    id: string;
+    failure: ReturnType<typeof messageSafeErrorFields>;
+  }[] = [];
   for (const post of posts) {
     await cancelSocialPost({
       projectId: cuso.projectId,
@@ -371,27 +596,46 @@ export async function startCmoOver(target: CusoTarget): Promise<void> {
       postId: post.id,
       revision: post.revision,
     }).catch((error) => {
-      console.warn("Starting over left a Social post", {
-        postId: post.id,
-        error: error instanceof Error ? error.message : "unknown",
+      // A post's error can quote its text, so only its name and code.
+      leftPosts.push({
+        id: post.id,
+        failure: messageSafeErrorFields(error),
       });
     });
   }
+  if (leftPosts.length > 0)
+    recordCoreWarning(
+      { operation: "cmo_start_over", project: { id: cuso.projectId } },
+      {
+        message: "Starting over left Social posts unsent but not cancelled",
+        why: "Cancelling the posts failed",
+        fix: "Cancel the posts listed under socialPosts in the Social queue, or they may still publish.",
+      },
+      { socialPosts: leftPosts },
+    );
 }
 
 /**
  * Starts Cuso's research turn for a hire, as the member `userId`; the CMO lab
  * reruns it per brand.
  */
-export function startCmoResearch(
+export async function startCmoResearch(
   cuso: Cuso,
   userId: string,
+  clientTurnId = `${ONBOARDING_TURN_PREFIX}${cuso.sokoBotId}:${Date.now()}`,
 ): Promise<{ turnId: string }> {
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: cuso.sokoBotId },
+    select: { versionId: true },
+  });
+  const resuming = brandBrainSectionsSaved(cuso.brandBrain).length > 0;
+  const inParts = readsInParts(bot?.versionId ?? null);
   return startCmoTurn(cuso, userId, {
-    clientTurnId: `${ONBOARDING_TURN_PREFIX}${cuso.sokoBotId}:${Date.now()}`,
-    message:
-      brandBrainSectionsSaved(cuso.brandBrain).length > 0
-        ? finishBrandBrainMessage(cuso)
+    clientTurnId,
+    message: resuming
+      ? finishBrandBrainMessage(cuso, inParts)
+      : inParts
+        ? essentialsFromPartsMessage(cuso)
         : onboardingMessage(cuso),
     route: CMO_ONBOARDING_ROUTE,
   });
@@ -516,54 +760,59 @@ async function existingOrganizationWorkspace(input: {
   return getUserWorkspace(userId, { organizationId });
 }
 
-/** The hirer's first turn can spend the starter credits from a successful hire. */
-async function requireHirerFunding(
+/**
+ * A hire costs the organization nothing (free hiring, ADR 0068), so only the
+ * hirer's Seat is checked.
+ */
+async function requireHirerSeat(
   userId: string,
   organizationId: string,
 ): Promise<void> {
-  const { requireMemberTurnFunding, SokoBotBillingAccessError } = await import(
+  const { requireMemberSeat, SokoBotBillingAccessError } = await import(
     "@/services/soko-bot-billing.service"
   );
   try {
-    await requireMemberTurnFunding(userId, organizationId, CMO_STARTER_CREDITS);
+    await requireMemberSeat(userId, organizationId);
   } catch (error) {
     if (!(error instanceof SokoBotBillingAccessError)) throw error;
-    if (error.reason === "seat") {
-      throw new CmoForbiddenError(
-        "You need a Seat in that organization to hire Cuso",
-        CORE_API_ERROR_KINDS.ORGANIZATION_SEAT_REQUIRED,
-      );
-    }
-    throw new CmoConflictError(
-      CMO_OUT_OF_CREDITS,
-      CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE,
+    throw new CmoForbiddenError(
+      "You need a Seat in that organization to hire Cuso",
+      CORE_API_ERROR_KINDS.ORGANIZATION_SEAT_REQUIRED,
     );
   }
 }
 
+/** One unpaid Cuso per person (ADR 0068): the refusal names him for CMO's link. */
+async function requireNoUnpaidCuso(userId: string): Promise<void> {
+  const unpaid = await findUnpaidCusoHiredBy(userId);
+  if (!unpaid) return;
+  throw new CmoConflictError(
+    `Your Cuso for ${unpaid.businessName} is not subscribed yet. Subscribe or start him over before you hire another.`,
+    CORE_API_ERROR_KINDS.CMO_UNPAID_CUSO,
+    { unpaidCuso: unpaid },
+  );
+}
+
 /**
  * Whether this person may hire Cuso while CMO is invite-only: the email Core
- * holds for them, or its `@domain`, is on `CMO_HIRE_ALLOWLIST`. Everything
- * else in CMO stays open to whoever already works with a Cuso.
+ * holds for them, verified, or its `@domain`, is on `CMO_HIRE_ALLOWLIST`.
+ * Everything else in CMO stays open to whoever already works with a Cuso.
  */
 export async function mayHireCuso(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { email: true },
+  // Each hire's research and plan are free, and anyone can register an
+  // unverified address at a listed domain. Gates new hires only: a person's
+  // existing Cusos open whatever this says.
+  return await isOnEmailAllowlist(userId, getEnv().CMO_HIRE_ALLOWLIST, {
+    requireVerifiedEmail: true,
   });
-  const email = user?.email.trim().toLowerCase();
-  if (!email) return false;
-  const domain = email.slice(email.lastIndexOf("@"));
-  return getEnv().CMO_HIRE_ALLOWLIST.some(
-    (entry) => entry === email || entry === domain,
-  );
 }
 
 /**
  * Hires Cuso (ADR 0065): into a new organization named after the business,
  * or into `organizationId`, one the person belongs to. Either way a new
- * marketing Project gets Cuso as its shared bot (ADR 0061), his organization
- * gets starter credits, and his first turn starts. Hiring never hands back a
+ * marketing Project gets Cuso as its shared bot (ADR 0061) and his first
+ * turn starts, free until his strategy is approved (ADR 0068). A person with
+ * an unpaid Cuso is refused another (409). Hiring never hands back a
  * Cuso the person already works with; a Project that has one refuses a
  * second (409).
  */
@@ -571,39 +820,54 @@ export async function startCmoOnboarding(input: {
   userId: string;
   websiteUrl: string;
   organizationId?: string | undefined;
+  /** The owner's time zone, from their browser. */
+  timeZone?: string | undefined;
+  /** Hire a test copy of this Project's Cuso, in his organization (ADR 0073). */
+  testCopyOfProjectId?: string | undefined;
 }): Promise<Cuso> {
   // shortcut: two racing submits can hire twice, in two organizations or in
   // one; the start form submits once. Add a per-person lock if duplicates
   // show up.
 
-  // Before anything exists: each hire grants starter credits (ADR 0065).
+  // Before anything exists: each hire's research and plan are free.
   if (!(await mayHireCuso(input.userId))) {
     throw new CmoForbiddenError(
       "CMO is invite-only for now",
       CORE_API_ERROR_KINDS.CMO_HIRE_NOT_ALLOWED,
     );
   }
+  await requireNoUnpaidCuso(input.userId);
+  const sourceProjectId = input.testCopyOfProjectId;
+  // A test copy goes into its source's organization, whatever was asked.
+  const organizationId = sourceProjectId
+    ? await requireTestCopySource({
+        userId: input.userId,
+        sourceProjectId,
+        organizationId: input.organizationId,
+      })
+    : input.organizationId;
   // Organization names take 2 to 50 characters.
   const businessName = cmoBusinessNameFromUrl(input.websiteUrl)
     .slice(0, 50)
     .padEnd(2, ".");
-  const workspace = input.organizationId
+  const workspace = organizationId
     ? await existingOrganizationWorkspace({
         userId: input.userId,
-        organizationId: input.organizationId,
+        organizationId,
       })
     : await newOrganizationWorkspace({ ...input, businessName });
-  const organizationId = workspace.organizationId;
-  if (!organizationId) throw new Error("Cuso's workspace has no organization");
-  // Check Seat and spendable credits before creating a Project, including
-  // the starter credits the organization receives when the hire succeeds.
-  await requireHirerFunding(input.userId, organizationId);
+  if (!workspace.organizationId)
+    throw new Error("Cuso's workspace has no organization");
+  await requireHirerSeat(input.userId, workspace.organizationId);
 
   const project = await prisma.project.create({
     data: {
       workspaceId: workspace.id,
-      name: cmoProjectName(businessName),
+      name: sourceProjectId
+        ? `${cmoProjectName(businessName).slice(0, 108)} (test copy)`
+        : cmoProjectName(businessName),
       websiteUrl: input.websiteUrl,
+      testCopyOfProjectId: sourceProjectId ?? null,
     },
     select: { id: true },
   });
@@ -620,12 +884,19 @@ export async function startCmoOnboarding(input: {
       projectId: project.id,
       name: CUSO_NAME,
       versionId: CMO_SOKO_BOT_VERSION_ID,
+      ...(input.timeZone ? { timezone: input.timeZone } : {}),
     });
     sharedRoomId = bot.sharedRoomId;
     const cuso = await findCusoForBot(bot.id);
     if (!cuso) throw new Error("Cuso was not created");
-    await grantCmoStarterCredits({ projectId: project.id, organizationId });
     created = cuso;
+    if (sourceProjectId) {
+      await linkTestCopyConnections({
+        projectId: project.id,
+        sourceProjectId,
+        actorId: input.userId,
+      });
+    }
   } catch (error) {
     // No stray Project, Cuso or room: deleting the Project cascades to his
     // bot, which only lets go of its shared room. The Project is the one made
@@ -637,11 +908,15 @@ export async function startCmoOnboarding(input: {
     await prisma.project
       .delete({ where: { id: project.id } })
       .catch((cleanupError) => {
-        console.warn("Hiring Cuso cleanup failed", {
-          projectId: project.id,
-          error:
-            cleanupError instanceof Error ? cleanupError.message : "unknown",
-        });
+        recordCoreWarning(
+          { operation: "cmo_hire_cleanup", project: { id: project.id } },
+          {
+            message: "Could not delete the Project of a failed Cuso hire",
+            why: "The database delete failed",
+            fix: "Delete the Project under project.id by hand; it holds no Cuso. Read the database error under warnings[].cause.",
+            cause: cleanupError,
+          },
+        );
       });
     throw error;
   }
@@ -649,35 +924,61 @@ export async function startCmoOnboarding(input: {
   // The brand's look (logo, colours, fonts, DESIGN.md) is read alongside
   // Cuso's research; it never holds up onboarding.
   waitUntil(
-    learnCmoBrandVisual(created).catch((error) => {
-      console.warn("CMO brand visual failed", {
-        sokoBotId: created.sokoBotId,
-        error: error instanceof Error ? error.message : "unknown",
-      });
-    }),
+    runAsBackgroundWork(() =>
+      learnCmoBrandVisual(created).catch((error) => {
+        emitCoreWarning(
+          {
+            operation: "cmo_brand_visual",
+            sokoBot: { id: created.sokoBotId },
+            failure: messageSafeErrorFields(error),
+          },
+          {
+            message: "Could not learn the brand's look for a new Cuso",
+            why: "Reading the logo, colours, fonts and DESIGN.md threw",
+            fix: "Onboarding goes on without them; retrying Cuso's onboarding reads them again. If it repeats, look up the error name and code under failure.",
+          },
+        );
+      }),
+    ),
   );
   // The homepage screenshots need no research either, so the Brand Brain
   // opens with them instead of waiting for the full capture.
   waitUntil(
-    captureCmoHomepage(created).catch((error) => {
-      console.warn("CMO homepage capture failed", {
-        sokoBotId: created.sokoBotId,
-        error: error instanceof Error ? error.message : "unknown",
-      });
-    }),
+    runAsBackgroundWork(() =>
+      captureCmoHomepage(created).catch((error) => {
+        emitCoreWarning(
+          {
+            operation: "cmo_homepage_capture",
+            sokoBot: { id: created.sokoBotId },
+            failure: messageSafeErrorFields(error),
+          },
+          {
+            message: "Could not capture the brand's homepage for a new Cuso",
+            why: "The homepage screenshot capture threw",
+            fix: "The Brand Brain waits for the full capture after research instead. If it repeats, look up the error name and code under failure.",
+          },
+        );
+      }),
+    ),
   );
 
-  // A turn that cannot start (no credits yet) leaves the hire ready:
+  // A turn that cannot start (no Seat, Cuso busy) leaves the hire ready:
   // the learning card offers Try again and says why when it fails again.
-  await startCmoTurn(created, input.userId, {
-    clientTurnId: `${ONBOARDING_TURN_PREFIX}${created.sokoBotId}`,
-    message: onboardingMessage(created),
-    route: CMO_ONBOARDING_ROUTE,
-  }).catch((error) => {
-    console.warn("CMO onboarding turn did not start", {
-      sokoBotId: created.sokoBotId,
-      error: error instanceof Error ? error.message : "unknown",
-    });
+  await startCmoResearch(
+    created,
+    input.userId,
+    `${ONBOARDING_TURN_PREFIX}${created.sokoBotId}`,
+  ).catch((error) => {
+    // A turn's error can quote its prompt, so only its name and code.
+    recordCoreWarning(
+      { operation: "cmo_onboarding_turn", sokoBot: { id: created.sokoBotId } },
+      {
+        message: "Cuso's onboarding turn did not start",
+        why: "Starting the research turn failed",
+        fix: "The hire stays ready: the learning card offers Try again. If it repeats, look up the error name and code under failure.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
   });
 
   return created;

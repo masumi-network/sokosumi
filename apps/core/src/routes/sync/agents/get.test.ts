@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { expectCoreLogWhys } from "@/test/core-log";
 import mountSyncAgents from "./get";
 
 const {
@@ -42,14 +42,20 @@ vi.mock("../handler.js", () => ({
       deadlineMs: number;
       msRemaining: () => number;
       shouldContinue: () => boolean;
+      log: import("../handler.js").SyncRunContext["log"];
     }) => Promise<void>,
   ) => {
+    // The run's event, as the real handler sends it when the run ends.
+    const { createCoreLogger } = await import("@/lib/evlog");
+    const log = createCoreLogger({ operation: "cron_sync" });
     await operation({
       abortSignal: new AbortController().signal,
       deadlineMs: Date.now() + 60_000,
       msRemaining: () => 60_000,
       shouldContinue: () => true,
+      log,
     });
+    log.emit();
     return c.json({ ok: true });
   },
 }));
@@ -63,13 +69,18 @@ function createApp() {
 describe("GET /sync/agents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(console, "warn").mockImplementation(() => {});
     syncCardanoV2RailReadinessMock.mockResolvedValue(false);
     syncX402BuySideReadinessMock.mockResolvedValue(false);
     syncRegistryAgentsMock.mockResolvedValue(undefined);
   });
 
   it("reports a thrown x402 readiness sync to Sentry and still syncs the registry", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "The x402 buy-side readiness sync failed; the registry sync continues",
+      ["The readiness sync threw outside its own failure handling"],
+      ["The operation was aborted"],
+    );
     // syncX402BuySideReadiness alerts on its OWN handled failures. A throw
     // escapes that path entirely, so without a report here the stale cache
     // keeps serving "ready" behind nothing louder than a console line.
@@ -85,6 +96,7 @@ describe("GET /sync/agents", () => {
     });
     // Isolation is the point of the catch: the registry sync still runs.
     expect(syncRegistryAgentsMock).toHaveBeenCalledTimes(1);
+    expect(warnings[0]?.event).toMatchObject({ operation: "cron_sync" });
   });
 
   it("reports nothing when the x402 readiness sync returns normally", async () => {

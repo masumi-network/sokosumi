@@ -46,15 +46,19 @@ vi.mock("@/lib/db/prisma", () => ({
       update: messageUpdate,
       updateMany: messageUpdate,
       findFirst: messageFindFirst,
+      findUnique: vi.fn().mockResolvedValue(null),
       create: messageCreate,
     },
     $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
       callback({
+        $queryRaw: async () => [{ now: new Date("2026-09-07T10:01:00Z") }],
         sokoBotToolCall: { findMany: previewCalls },
         sokoBotTurn: { findUnique: turnFindUnique },
         chatRoomMention: { updateMany: mentionUpdateMany },
         chatRoomMessage: {
+          findUnique: vi.fn().mockResolvedValue(null),
           update: messageUpdate,
+          updateMany: messageUpdate,
           delete: messageDelete,
           create: messageCreate,
           upsert: messageUpsert,
@@ -69,6 +73,13 @@ const { createOrGetDirectRoomMock } = vi.hoisted(() => ({
 }));
 vi.mock("@/routes/v1/chats/rooms/helpers", () => ({
   createOrGetDirectRoom: createOrGetDirectRoomMock,
+}));
+
+const { holdsMention } = vi.hoisted(() => ({
+  holdsMention: vi.fn(async () => true),
+}));
+vi.mock("@/services/chat-room-mention-state", () => ({
+  holdsSokoBotMention: holdsMention,
 }));
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
@@ -105,6 +116,7 @@ function completedTurn(overrides: Record<string, unknown> = {}) {
     id: "turn-a",
     status: "COMPLETED",
     finalAnswer: "The answer is ready.",
+    errorKind: null,
     errorDetail: null,
     startedAt: new Date("2026-09-07T10:00:00Z"),
     createdAt: new Date("2026-09-07T10:00:00Z"),
@@ -146,6 +158,13 @@ beforeEach(() => {
 });
 
 describe("persistSokoBotChatTurn", () => {
+  it("uses PostgreSQL time for the Thought end when a legacy completed row has no completion stamp", async () => {
+    turnFindUnique.mockResolvedValue(completedTurn({ completedAt: null }));
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
+    expect(
+      messageUpdate.mock.calls[0][0].data.metadata.thought_timing_ms.end,
+    ).toBe(Date.parse("2026-09-07T10:01:00Z"));
+  });
   it("persists a successful response once and preserves its completion clock on retry", async () => {
     mentionUpdateMany
       .mockResolvedValueOnce({ count: 1 })
@@ -200,6 +219,36 @@ describe("persistSokoBotChatTurn", () => {
     expect(JSON.stringify(teammateReasoning)).not.toContain(
       "Checked the board for stuck work.",
     );
+  });
+
+  it("shows a Cuso's summary to every member, with his tools in CMO's words", async () => {
+    const events = [
+      {
+        type: "reasoning.completed",
+        toolName: null,
+        summary: "The owner wants a calmer look.",
+      },
+      {
+        type: "actions.requested",
+        toolName: "find_style_references",
+        summary: null,
+      },
+      { type: "actions.requested", toolName: "link_tasks", summary: null },
+    ];
+    turnFindUnique.mockResolvedValue(
+      completedTurn({
+        events,
+        versionId: "cmo-v1",
+        askedByUserId: "teammate-a",
+      }),
+    );
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
+    expect(messageUpdate.mock.calls[0][0].data.metadata.reasoning).toEqual([
+      { type: "reasoning", text: "The owner wants a calmer look." },
+      { type: "reasoning", text: "Looking for a picture style", kind: "step" },
+      // No Sokosumi feature by name in CMO: a tool without its own label.
+      { type: "reasoning", text: "Working", kind: "step" },
+    ]);
   });
 
   it("attaches prepared snapshots only to the successful answer, without a second post", async () => {
@@ -258,7 +307,7 @@ describe("persistSokoBotChatTurn", () => {
     await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
     const metadata = messageUpdate.mock.calls[0][0].data.metadata;
     expect(metadata.reasoning).toEqual([
-      { type: "reasoning", text: ANSWERED_DIRECTLY },
+      { type: "reasoning", text: ANSWERED_DIRECTLY, kind: "note" },
     ]);
     expect(metadata.thought_timing_ms).toEqual(
       expect.objectContaining({ start: expect.any(Number) }),
@@ -317,6 +366,52 @@ describe("persistSokoBotChatTurn", () => {
       }),
     );
     expect(roomUpdate).not.toHaveBeenCalled();
+  });
+
+  it("carries the assistant's usage-limit reason on the failed reply shell", async () => {
+    turnFindUnique.mockResolvedValue(
+      completedTurn({
+        status: "FAILED",
+        finalAnswer: null,
+        errorKind: "ai_budget_exceeded",
+      }),
+    );
+
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
+
+    expect(messageUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata: expect.objectContaining({
+            mention_failed: true,
+            mention_failure: {
+              kind: "ai_budget_exceeded",
+              message:
+                "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.",
+            },
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("records cancellation on the reply shell", async () => {
+    turnFindUnique.mockResolvedValue(
+      completedTurn({ status: "CANCELLED", finalAnswer: null }),
+    );
+
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
+
+    expect(messageUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata: expect.objectContaining({
+            mention_failed: true,
+            mention_failure: { kind: "turn_cancelled" },
+          }),
+        }),
+      }),
+    );
   });
 
   it("does not delete a reply when a silent finalizer loses its claim", async () => {
@@ -576,5 +671,67 @@ describe("publishSokoBotChatProgress", () => {
       }),
     );
     expect(publish).not.toHaveBeenCalled();
+  });
+  it("publishes the reasoning summary with the steps while the turn runs", async () => {
+    turnFindUnique.mockResolvedValue(
+      completedTurn({
+        status: "RUNNING",
+        chatResponseMessageId: "response-live",
+        events: [
+          {
+            type: "reasoning.completed",
+            toolName: null,
+            summary: "Checking what is on the calendar first.",
+          },
+          { type: "actions.requested", toolName: "list_tasks", summary: null },
+        ],
+      }),
+    );
+    messageUpdate.mockResolvedValue({ count: 1 });
+    await publishSokoBotChatProgress("turn-a");
+    expect(messageUpdate.mock.calls[0][0].data.metadata).toEqual(
+      expect.objectContaining({
+        streaming: true,
+        reasoning: [
+          {
+            type: "reasoning",
+            text: "Checking what is on the calendar first.",
+          },
+          { type: "reasoning", text: "list tasks", kind: "step" },
+        ],
+      }),
+    );
+    expect(publish).toHaveBeenCalledWith("response-live", "update");
+  });
+  it("writes nothing once the turn no longer holds the mention", async () => {
+    // Retry released it to a fresh attempt while this write was delayed.
+    // Its own reply id: progress is throttled per reply.
+    turnFindUnique.mockResolvedValue(
+      completedTurn({ status: "RUNNING", chatResponseMessageId: "response-z" }),
+    );
+    holdsMention.mockResolvedValueOnce(false);
+    await publishSokoBotChatProgress("turn-a");
+    // Progress needs the turn still running, not only holding the mention.
+    expect(holdsMention).toHaveBeenCalledWith(
+      expect.anything(),
+      "turn-a",
+      "mention-a",
+      { running: true },
+    );
+    expect(messageUpdate).not.toHaveBeenCalled();
+    expect(publish).not.toHaveBeenCalled();
+  });
+});
+
+describe("persistSokoBotChatTurn for a released turn", () => {
+  it("writes nothing once the turn no longer holds the mention", async () => {
+    turnFindUnique.mockResolvedValue(completedTurn());
+    holdsMention.mockResolvedValueOnce(false);
+    await persistSokoBotChatTurn(
+      "turn-a",
+      (await import("@/lib/db/prisma")).default as never,
+    );
+    expect(mentionUpdateMany).not.toHaveBeenCalled();
+    expect(messageUpdate).not.toHaveBeenCalled();
   });
 });

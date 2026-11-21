@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
-import { getTranslations } from "next-intl/server";
-import { BackToTasksButton } from "@/app/tasks/components/back-to-tasks-button";
+import { getFormatter, getTranslations } from "next-intl/server";
+import { Suspense } from "react";
 import { taskService } from "@/lib/services/task.service";
 
+import { readArchivedSearch } from "./archived-search";
+import { ArchivedTasksHeader } from "./archived-tasks-header";
 import { ArchivedTasksList } from "./archived-tasks-list";
+import { ArchivedTasksLoading } from "./archived-tasks-loading";
 
 // ponytail: one page of the latest archives; add Load more when people keep more.
 const ARCHIVED_TASKS_LIMIT = 100;
@@ -14,33 +17,55 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title"), description: t("description") };
 }
 
-/** Archived Tasks of the active workspace the viewer can see, to restore. */
-export default async function ArchivedTasksPage() {
+interface ArchivedTasksPageProps {
+  searchParams: Promise<{ q?: string | string[] }>;
+}
+
+async function ArchivedTasksContent({ searchParams }: ArchivedTasksPageProps) {
   await connection();
-  const [t, { tasks }] = await Promise.all([
+  const query = readArchivedSearch((await searchParams).q);
+  const [t, format, { tasks, pagination }] = await Promise.all([
     getTranslations("App.Tasks.Archived"),
+    getFormatter(),
     taskService.listTasks({
       archived: true,
       scope: "workspace",
       limit: ARCHIVED_TASKS_LIMIT,
+      ...(query ? { q: query } : {}),
     }),
   ]);
 
   return (
-    <div className="content-in flex w-full flex-col gap-4 pb-6">
-      <BackToTasksButton label={t("back")} />
-      <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">{t("title")}</h1>
-        <p className="text-muted-foreground text-sm">{t("description")}</p>
-      </div>
+    <div className="flex w-full flex-col gap-4 pb-6">
+      <ArchivedTasksHeader t={t} query={query} />
       <ArchivedTasksList
-        tasks={tasks.map(({ id, identifier, name, status }) => ({
-          id,
-          identifier,
-          name,
-          status,
+        query={query}
+        total={pagination?.total ?? tasks.length}
+        tasks={tasks.map((task) => ({
+          id: task.id,
+          identifier: task.identifier,
+          name: task.name,
+          status: task.status,
+          project: task.project?.name ?? null,
+          archivedOn: task.archivedAt
+            ? format.dateTime(task.archivedAt, { dateStyle: "medium" })
+            : null,
         }))}
       />
     </div>
+  );
+}
+
+/**
+ * Archived Tasks of the active workspace the viewer can see, to restore. The
+ * heading, search and row frames show at once; the rows fill in.
+ */
+export default function ArchivedTasksPage({
+  searchParams,
+}: ArchivedTasksPageProps) {
+  return (
+    <Suspense fallback={<ArchivedTasksLoading />}>
+      <ArchivedTasksContent searchParams={searchParams} />
+    </Suspense>
   );
 }

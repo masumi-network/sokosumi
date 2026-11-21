@@ -4,7 +4,7 @@ import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
 import { Gavel } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { ChatUnreadViewHeader } from "@/app/chat/components/chat-unread-view-header";
 import { messageSender } from "@/app/chat/components/room-helpers";
@@ -13,11 +13,16 @@ import { listChatDecisionsAction } from "@/app/chat/signal-actions";
 import { roomMentionNames } from "@/app/chat/utils/room-mention-names";
 import { formatUnreadThreadsPreview } from "@/app/chat/utils/unread-threads-preview";
 import { useLiveChatRooms } from "@/components/chat/use-live-chat-rooms";
+import {
+  usePageListSearch,
+  usePageSearchPagination,
+} from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
+import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
@@ -66,10 +71,7 @@ export function DecisionsView({
     setMessages(initialPage?.messages ?? []);
     setNextCursor(initialPage?.nextCursor ?? null);
   }
-  const currentPage = useRef(initialPage);
-  useEffect(() => {
-    currentPage.current = initialPage;
-  }, [initialPage]);
+  const currentPage = useLatestRef(initialPage);
   const [loadingOlder, setLoadingOlder] = useState(false);
 
   // Live rooms are the reader's access now: a decision whose room left the
@@ -77,6 +79,24 @@ export function DecisionsView({
   const visible = sawLiveRooms.current
     ? messages.filter((message) => roomsById.has(message.roomId))
     : messages;
+
+  const matching = usePageListSearch(visible, (message) => {
+    const room = roomsById.get(message.roomId);
+    return {
+      primary: [
+        formatUnreadThreadsPreview(
+          message.content,
+          roomMentionNames(room, tChannels("MentionAll.label")),
+        ),
+      ],
+      secondary: [
+        messageSender(message).name,
+        room && roomDisplayName(room, currentUserId),
+      ],
+    };
+  });
+
+  usePageSearchPagination(nextCursor, loadingOlder, handleLoadOlder);
 
   async function handleLoadOlder() {
     if (!nextCursor) return;
@@ -120,7 +140,7 @@ export function DecisionsView({
             </div>
           ) : (
             <ul className="flex flex-col gap-0.5" data-testid="decisions">
-              {visible.map((message) => {
+              {matching.map((message) => {
                 const room = roomsById.get(message.roomId);
                 const roomName = room
                   ? room.kind === "channel"

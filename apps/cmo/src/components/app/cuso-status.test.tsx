@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
 
 import { cmoOverview, cmoStrategyVersion } from "../../test-fixtures/cmo";
-import { CusoStatus } from "./cuso-status";
+import { CusoStatus, cusoBubble } from "./cuso-status";
 
 const NOW = new Date("2026-11-05T12:00:00Z");
 const approved = cmoStrategyVersion(new Date("2026-11-01T09:00:00Z"));
@@ -12,6 +12,7 @@ const channel = {
   handle: "acme",
   displayName: "Acme",
   status: "ACTIVE",
+  personalProfile: false,
 };
 const report = (at: string) => ({
   id: "u1",
@@ -20,6 +21,8 @@ const report = (at: string) => ({
   at: new Date(at),
   revertible: false,
   revertedAt: null,
+  posts: [],
+  media: [],
 });
 const production = (
   patch: Partial<ReturnType<typeof cmoOverview>["production"]>,
@@ -32,14 +35,21 @@ const production = (
   needPictures: 0,
   finishedAt: null,
   pillars: null,
+  level: "all_in" as const,
+  beyondPlan: [],
   ...patch,
 });
 
 const cases = [
   {
     name: "researching reads",
-    patch: { learning: "running" as const },
+    patch: {
+      ...approved,
+      channels: [channel],
+      learning: "running" as const,
+    },
     pose: "reading",
+    art: "searching",
     line: "Learning",
   },
   {
@@ -50,13 +60,15 @@ const cases = [
       production: production({ state: "running", ready: 8 }),
     },
     pose: "thinking",
+    art: "thinking",
     line: "8 of 11 made",
   },
   {
     name: "a plan waiting for approval needs the owner",
     patch: {},
     pose: "needs-you",
-    line: "Waiting for approval",
+    art: "pointing",
+    line: "need you",
   },
   {
     name: "a fresh report shows reporting",
@@ -67,7 +79,8 @@ const cases = [
       updates: [report("2026-11-05T09:00:00Z")],
     },
     pose: "reporting",
-    line: "Running",
+    art: "walking",
+    line: null,
   },
   {
     name: "idle is done",
@@ -78,38 +91,95 @@ const cases = [
       updates: [report("2026-11-01T09:00:00Z")],
     },
     pose: "done",
-    line: "Running",
+    art: "thumbs-up",
+    line: null,
   },
 ];
 
-it.each(cases)("Cuso's status card: $name", ({ patch, pose, line }) => {
+it.each(cases)("Cuso's status: $name", ({ patch, pose, art, line }) => {
   const html = renderToStaticMarkup(
-    <CusoStatus overview={cmoOverview(patch)} now={NOW} />,
-  );
-  expect(html).toContain(`src="/cuso/${pose}.png"`);
-  expect(html).toContain("Cuso");
-  expect(html).toContain(line);
-  // Needs you is the one pose whose state line sits on Iris.
-  expect(html.includes("cuso-status-iris")).toBe(pose === "needs-you");
-});
-
-it("is a focused button that opens the chat only while Cuso needs the owner", () => {
-  const needs = renderToStaticMarkup(
-    <CusoStatus overview={cmoOverview()} now={NOW} onOpen={() => {}} />,
-  );
-  expect(needs).toContain("<button");
-  expect(needs).toContain("card-focus");
-  const calm = renderToStaticMarkup(
     <CusoStatus
-      overview={cmoOverview({
-        ...approved,
-        channels: [channel],
-        production: production({}),
-      })}
+      overview={cmoOverview(patch)}
+      view="today"
       now={NOW}
       onOpen={() => {}}
     />,
   );
-  expect(calm).not.toContain("<button");
-  expect(calm).not.toContain("card-focus");
+  expect(html).toContain(encodeURIComponent(`/cuso/${art}.png`));
+  expect(html).toContain(`data-pose="${pose}"`);
+  // His bubble always says the state in words; the drawing is decoration.
+  expect(html).toContain('class="cuso-says"');
+  expect(html).toMatch(/class="cuso-figure" aria-hidden="true"/);
+  if (line) expect(html).toContain(line);
+  // Working shows the working dot in his bubble.
+  expect(html.includes("ob-box-dot")).toBe(
+    pose === "reading" || pose === "thinking",
+  );
+});
+
+const calm = cmoOverview({
+  ...approved,
+  channels: [channel],
+  production: production({}),
+});
+
+it("points at the owner whenever something needs them, on every page", () => {
+  const overview = cmoOverview();
+  for (const view of ["chat", "calendar", "settings"] as const) {
+    expect(cusoBubble(overview, view, NOW)).toMatchObject({
+      art: "pointing",
+      line: expect.stringMatching(/(One thing needs you|\d+ things need you)/),
+    });
+  }
+});
+
+it("speaks about the page while nothing needs the owner", () => {
+  expect(cusoBubble(calm, "chat", NOW).line).toBe("I'm listening");
+  expect(cusoBubble(calm, "strategy", NOW).line).toBe("This is how we win");
+  expect(cusoBubble(calm, "today", NOW).line).toBe("On schedule");
+  expect(cusoBubble(calm, "calendar", NOW).line).toBe("1 post is scheduled");
+  // A page with nothing of its own to say keeps his state.
+  const nothingOut = cmoOverview({
+    ...approved,
+    channels: [channel],
+    production: production({}),
+    posts: { draft: 0, scheduled: 0, published: 0, failed: 0 },
+  });
+  expect(cusoBubble(nothingOut, "calendar", NOW).line).toBe("On schedule");
+});
+
+it("keeps saying what he makes while he works, whatever the page", () => {
+  const making = cmoOverview({
+    ...approved,
+    channels: [channel],
+    production: production({ state: "running", ready: 8 }),
+  });
+  expect(cusoBubble(making, "chat", NOW)).toMatchObject({
+    art: "thinking",
+    line: "8 of 11 made",
+  });
+});
+
+it("opens Today from a pill link on every page but Today itself", () => {
+  const away = renderToStaticMarkup(
+    <CusoStatus overview={calm} view="chat" now={NOW} onOpen={() => {}} />,
+  );
+  // A real link, so it opens in a new tab too and takes the focus ring.
+  expect(away).toMatch(/<a class="cuso-says"[^>]*href="\/"/);
+  expect(away).toContain("Open Today");
+  expect(away).toContain('class="cuso-dot"');
+  const home = renderToStaticMarkup(
+    <CusoStatus overview={calm} view="today" now={NOW} onOpen={() => {}} />,
+  );
+  expect(home).not.toContain("<a ");
+  expect(home).toContain("On schedule");
+});
+
+it("stands in a light porthole, not on a half disc", () => {
+  const html = renderToStaticMarkup(
+    <CusoStatus overview={calm} view="chat" now={NOW} onOpen={() => {}} />,
+  );
+  expect(html).toMatch(
+    /<span class="cuso-figure" aria-hidden="true"><span class="cuso-ground"><\/span><img/,
+  );
 });

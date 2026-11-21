@@ -17,21 +17,42 @@ import prisma from "@/lib/db/prisma";
 export const EVAL_CONNECTED_ACCOUNT_PREFIX = "eval:";
 
 const CACHE_MS = 60_000;
-let cache: { at: number; workspaceIds: Set<string> } | null = null;
+let cache: {
+  at: number;
+  workspaceIds: Set<string>;
+  cusoProjectIds: Set<string>;
+} | null = null;
 
-export async function isEvalWorkspace(workspaceId: string): Promise<boolean> {
+async function evalLanes(): Promise<NonNullable<typeof cache> | null> {
   // A Prisma double without the eval tables (unit tests) has no lanes.
-  if (typeof prisma.evalLane?.findMany !== "function") return false;
+  if (typeof prisma.evalLane?.findMany !== "function") return null;
   if (!cache || Date.now() - cache.at > CACHE_MS) {
     const lanes = await prisma.evalLane.findMany({
-      select: { workspaceId: true },
+      select: { workspaceId: true, cusoProjectId: true },
     });
     cache = {
       at: Date.now(),
       workspaceIds: new Set(lanes.map((lane) => lane.workspaceId)),
+      cusoProjectIds: new Set(
+        lanes.flatMap((lane) =>
+          lane.cusoProjectId ? [lane.cusoProjectId] : [],
+        ),
+      ),
     };
   }
-  return cache.workspaceIds.has(workspaceId);
+  return cache;
+}
+
+export async function isEvalWorkspace(workspaceId: string): Promise<boolean> {
+  return (await evalLanes())?.workspaceIds.has(workspaceId) ?? false;
+}
+
+/**
+ * An eval lane's Cuso stands in for a paying customer: the CMO subscription
+ * gate lets him work on the lane's credits (ADR 0068).
+ */
+export async function isEvalCusoProject(projectId: string): Promise<boolean> {
+  return (await evalLanes())?.cusoProjectIds.has(projectId) ?? false;
 }
 
 /** A lane created a moment ago must count at once. */
@@ -63,6 +84,17 @@ const SIMULATED: Record<string, (input: unknown) => Record<string, unknown>> = {
   edit_ad_campaign: () => ({ updated: true }),
   delete_ad_campaign: () => ({ deleted: true }),
   handle_social_comment: () => ({ handled: true }),
+  // A real one costs more than a dollar of provider time per run.
+  generate_talking_video: () => ({
+    jobId: "eval-simulated-talking-video",
+    status: "QUEUED",
+    note: "Started. A talking video takes a few minutes; it lands in the owner's Files when it is ready.",
+  }),
+  // A paid check by the global SEO service; the case checks that Cuso asked.
+  check_search_rankings: () => ({
+    status: "started",
+    note: "The SEO specialist is checking now; it usually takes a few minutes. End your turn: tell the owner in one sentence that you asked the SEO specialist and will answer here once the result is in. Core wakes you with it.",
+  }),
 };
 
 /** What a tool answers in an eval workspace instead of running; null runs it. */

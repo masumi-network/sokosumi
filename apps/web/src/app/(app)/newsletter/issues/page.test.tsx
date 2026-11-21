@@ -60,7 +60,7 @@ vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   useHasAnyScopeProject: () => ({ isPending: false, hasProjects: true }),
 }));
 
-import NewsletterIssuesPage from "./page";
+import NewsletterIssuesPage, { generateMetadata } from "./page";
 
 const PROPS = {
   searchParams: Promise.resolve({ projectId: NEWSLETTER_PROJECT_ID }),
@@ -84,6 +84,10 @@ beforeEach(() => {
 });
 
 describe("newsletter issues page", () => {
+  it("titles the browser tab Newsletter", async () => {
+    await expect(generateMetadata()).resolves.toEqual({ title: "title" });
+  });
+
   it("hides disabled newsletters before fetching issues", async () => {
     mocks.enabled.mockResolvedValue(false);
     await expect(NewsletterIssuesPage(PROPS)).rejects.toThrow("NOT_FOUND");
@@ -114,7 +118,7 @@ describe("newsletter issues page", () => {
       screen.getByRole("link", { name: "Calendar.title" }),
     ).toHaveAttribute(
       "href",
-      `/calendar?types=newsletter&projectId=${NEWSLETTER_PROJECT_ID}`,
+      `/newsletter/calendar?projectId=${NEWSLETTER_PROJECT_ID}`,
     );
     expect(
       screen.getByRole("link", { name: "SignupForm.title" }),
@@ -140,6 +144,9 @@ describe("newsletter issues page", () => {
     expect(
       screen.getByRole("heading", { level: 2, name: "pickProject" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("searchbox", { name: messages.App.PageSearch.find }),
+    ).toBeInTheDocument();
     expect(screen.getByTestId("newsletter-backdrop")).toBeInTheDocument();
     expect(mocks.requireScope).not.toHaveBeenCalled();
     const button = screen.getByRole("button", { name: "Select project" });
@@ -151,15 +158,17 @@ describe("newsletter issues page", () => {
     expect(mocks.listProjects).not.toHaveBeenCalled();
     expect(mocks.list).not.toHaveBeenCalled();
   });
-  it("forwards valid cursors and ignores malformed ones", async () => {
+  it("forwards the search and valid cursors and ignores malformed ones", async () => {
     await NewsletterIssuesPage({
       searchParams: Promise.resolve({
         projectId: NEWSLETTER_PROJECT_ID,
+        q: " release ",
         cursor: NEWSLETTER_ISSUE.id,
       }),
     });
     expect(mocks.list).toHaveBeenLastCalledWith(NEWSLETTER_PROJECT_ID, {
       limit: 25,
+      search: "release",
       cursor: NEWSLETTER_ISSUE.id,
     });
     await NewsletterIssuesPage({

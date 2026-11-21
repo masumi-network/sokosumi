@@ -1,8 +1,15 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import * as Sentry from "@sentry/node";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
+import { coreEvlogMiddleware } from "@/lib/evlog";
 import type { EnvVariables } from "@/lib/hono";
+import { incrementRedisRateLimit } from "@/lib/redis-rate-limit";
+import { coreLogEvents, expectCoreLog } from "@/test/core-log";
 
 const mocks = vi.hoisted(() => ({
   access: vi.fn(),
@@ -15,6 +22,13 @@ vi.mock("@/lib/image-studio/access", () => ({
 vi.mock("@/services/image-studio-caption.service", () => ({
   writeStudioAssetCaption: mocks.write,
 }));
+vi.mock("@sentry/node", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sentry/node")>()),
+  captureException: vi.fn(),
+}));
+vi.mock("@/lib/redis-rate-limit", () => ({
+  incrementRedisRateLimit: vi.fn(),
+}));
 
 import mount from "./asset-caption-post";
 
@@ -23,6 +37,8 @@ const ASSET_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
 function createApp() {
   const app = new OpenAPIHono<EnvVariables>();
+  app.use(coreEvlogMiddleware());
+  app.onError(errorHandler);
   app.use("*", async (c, next) => {
     c.set("requestId", "studio-caption-request");
     c.set("authContext", {
@@ -83,6 +99,7 @@ describe("POST /projects/{id}/image-studio/assets/{assetId}/caption", () => {
   });
 
   it("returns 503 when writing fails", async () => {
+    expectCoreLog("error", "A request failed with a server error");
     mocks.write.mockRejectedValue(new Error("gateway down"));
 
     const response = await createApp().request(
@@ -94,6 +111,7 @@ describe("POST /projects/{id}/image-studio/assets/{assetId}/caption", () => {
   });
 
   it("returns 503 when the model writes nothing", async () => {
+    expectCoreLog("error", "A request failed with a server error");
     mocks.write.mockResolvedValue(err("empty"));
 
     const response = await createApp().request(
@@ -102,5 +120,44 @@ describe("POST /projects/{id}/image-studio/assets/{assetId}/caption", () => {
     );
 
     expect(response.status).toBe(503);
+  });
+
+  it("returns a 503 budget refusal with a single shared alert and no Sentry capture", async () => {
+    vi.mocked(incrementRedisRateLimit)
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(2);
+    mocks.write.mockImplementation(() =>
+      rethrowAiGatewayFailure(
+        Object.assign(new Error("API key budget exceeded"), {
+          name: "GatewayInternalServerError",
+        }),
+      ),
+    );
+    expectCoreLog("error", "AI Gateway budget exhausted");
+    expectCoreLog("warn", "AI Gateway budget exhausted");
+    const app = createApp();
+    const request = () =>
+      app.request(`/${PROJECT_ID}/image-studio/assets/${ASSET_ID}/caption`, {
+        method: "POST",
+      });
+
+    for (const response of [await request(), await request()]) {
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({
+        kind: CORE_API_ERROR_KINDS.AI_BUDGET_EXCEEDED,
+        message:
+          "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.",
+      });
+    }
+    expect(coreLogEvents()).toMatchObject([
+      {
+        status: 503,
+        level: "error",
+        error: { message: "AI Gateway budget exhausted" },
+      },
+      { status: 503, level: "warn" },
+    ]);
+    expect(coreLogEvents()[1]).not.toHaveProperty("error");
+    expect(Sentry.captureException).not.toHaveBeenCalled();
   });
 });

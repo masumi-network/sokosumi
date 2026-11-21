@@ -2,12 +2,19 @@ import "server-only";
 
 import type {
   CreateProjectImageJobRequest,
+  CreateProjectTalkingVideoJobRequest,
   CreateProjectVideoJobRequest,
+  GetProjectsByIdImageStudioTalkingVideosData,
+  GetProjectsByIdImageStudioTalkingVideosResponses,
+  ImageStudioRecentProjects,
   ProjectImageJob,
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
+  ProjectTalkingVideoScripts,
   SaveStudioBrandCopy,
   SaveStudioBrandLook,
+  SaveStudioPairwisePick,
+  SetStudioAssetFeedbackData,
   SocialPostMediaRef,
   StudioProductCatalog,
   StudioProductImport,
@@ -15,10 +22,14 @@ import type {
 } from "@sokosumi/core-client";
 import { coreClient } from "@/lib/clients/core.client";
 
+export type TalkingVideoPage =
+  GetProjectsByIdImageStudioTalkingVideosResponses[200]["data"];
+
 interface StudioStateQuery {
   assetId?: string;
   before?: string;
   beforeId?: string;
+  sort?: "newest" | "best";
 }
 
 /**
@@ -41,6 +52,12 @@ export const imageStudioService = {
     return result.data;
   },
 
+  /** Empty for a workspace with no Studio images yet. */
+  async getRecentProjects(): Promise<ImageStudioRecentProjects["projects"]> {
+    const result = await coreClient.getImageStudioRecentProjects();
+    return result.data.projects;
+  },
+
   async getState(
     projectId: string,
     query: StudioStateQuery = {},
@@ -53,6 +70,7 @@ export const imageStudioService = {
         assetId?: string;
         before?: Date;
         beforeId?: string;
+        sort?: "newest" | "best";
       },
     );
     return result.data;
@@ -87,8 +105,42 @@ export const imageStudioService = {
       .data;
   },
 
+  async setFeedback(
+    projectId: string,
+    assetId: string,
+    input: SetStudioAssetFeedbackData["body"],
+  ) {
+    return (await coreClient.setStudioAssetFeedback(projectId, assetId, input))
+      .data;
+  },
+
+  async hideAsset(projectId: string, assetId: string) {
+    await coreClient.hideStudioAsset(projectId, assetId);
+  },
+
+  async recordView(projectId: string, assetId: string) {
+    await coreClient.recordStudioAssetEvent(projectId, assetId);
+  },
+
   async listBatchAssets(projectId: string, batchId: string) {
     return (await coreClient.listStudioBatchAssets(projectId, batchId)).data;
+  },
+
+  async getComparePair(projectId: string, batchId: string) {
+    return (await coreClient.getStudioComparePair(projectId, batchId)).data;
+  },
+
+  async savePairwisePick(
+    projectId: string,
+    batchId: string,
+    input: SaveStudioPairwisePick,
+  ) {
+    return (await coreClient.saveStudioPairwisePick(projectId, batchId, input))
+      .data;
+  },
+
+  async getModelScoreboard(projectId: string) {
+    return (await coreClient.getStudioModelScoreboard(projectId)).data;
   },
 
   async saveBrandCopy(projectId: string, input: SaveStudioBrandCopy) {
@@ -153,6 +205,43 @@ export const imageStudioService = {
       input,
     );
     return result.data;
+  },
+
+  async createTalkingVideoJob(
+    projectId: string,
+    input: CreateProjectTalkingVideoJobRequest,
+  ): Promise<ProjectImageJob> {
+    const result = await coreClient.postProjectsByIdImageStudioTalkingVideoJobs(
+      projectId,
+      input,
+    );
+    return result.data;
+  },
+
+  /** Answering this settles finished talking videos, like `getState`. */
+  async getTalkingVideos(
+    projectId: string,
+    query?: GetProjectsByIdImageStudioTalkingVideosData["query"],
+    signal?: AbortSignal,
+  ): Promise<TalkingVideoPage> {
+    const result = await coreClient.getProjectsByIdImageStudioTalkingVideos(
+      projectId,
+      query,
+      signal,
+    );
+    return result.data;
+  },
+
+  async writeTalkingVideoScripts(
+    projectId: string,
+    input: { topic?: string; languageCode: string },
+  ): Promise<ProjectTalkingVideoScripts["scripts"]> {
+    const result =
+      await coreClient.postProjectsByIdImageStudioTalkingVideoScripts(
+        projectId,
+        input,
+      );
+    return result.data.scripts;
   },
 
   async cancelJob(

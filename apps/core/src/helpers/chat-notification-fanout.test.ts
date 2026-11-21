@@ -5,6 +5,11 @@ import {
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
 } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
+import { inRequest } from "@/test/in-request";
 
 const { schedulePublishMock } = vi.hoisted(() => ({
   schedulePublishMock: vi.fn(),
@@ -120,7 +125,7 @@ vi.mock("@sentry/node", () => ({
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => promise,
+  waitUntil: vi.fn((promise: Promise<unknown>) => promise),
 }));
 
 vi.mock("@/helpers/notification-email-resend", () => ({
@@ -813,7 +818,7 @@ describe("fanOutChatNotifications", () => {
     });
     expect(messageFindUniqueMock).toHaveBeenNthCalledWith(2, {
       where: { id: MESSAGE_ID },
-      select: { content: true, deletedAt: true },
+      select: expect.objectContaining({ content: true, deletedAt: true }),
     });
   });
 
@@ -959,6 +964,20 @@ describe("fanOutChatNotifications, counting per room", () => {
     expect(resendRoomMessageEmailMock).toHaveBeenCalledExactlyOnceWith(
       "notification_1",
       { allowInitialSend: true },
+    );
+  });
+
+  it("resends the counted row's email as background work, so a failure inside it is not put on the request's event", async () => {
+    expectBackgroundProbe("resendRoomMessageEmail");
+    resendRoomMessageEmailMock.mockImplementationOnce(async () =>
+      probeBackgroundFailure("resendRoomMessageEmail"),
+    );
+    notificationFindFirstMock.mockResolvedValue(
+      unreadRow({ authorName: "Ada", roomName: "general" }),
+    );
+
+    await inRequest(() =>
+      fanOutChatNotifications(params({ countPerRoom: true })),
     );
   });
 
@@ -1190,6 +1209,29 @@ describe("rewriteChatNotificationPreviews", () => {
     messagePreview: "meet at five",
   };
 
+  it("uses safe copy when re-reading a historical failed background report", async () => {
+    notificationFindManyMock.mockResolvedValue([storedRow(BASE)]);
+    messageFindUniqueMock.mockResolvedValue({
+      content:
+        'Background run "Review" failed before it could report. (Raw provider diagnostic)',
+      deletedAt: null,
+      senderSokoBotId: "bot-1",
+      metadata: {
+        soko_bot: { turn_id: "turn-1", background_run_title: "Review" },
+      },
+    });
+    await rewriteChatNotificationPreviews({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+    });
+
+    const preview = paramsWrittenTo(0).messagePreview;
+    expect(preview).toContain(
+      'Background run "Review" failed before it could report. Something went wrong',
+    );
+    expect(preview).not.toContain("Raw provider diagnostic");
+  });
+
   /**
    * The message row keeps no text after a delete. A copy left on a
    * notification row would outlive it and stay readable over the API.
@@ -1207,6 +1249,22 @@ describe("rewriteChatNotificationPreviews", () => {
       authorName: "Ada",
       roomName: "general",
     });
+  });
+
+  it("resends a rewritten row's email as background work, so a failure inside it is not put on the request's event", async () => {
+    expectBackgroundProbe("resendRoomMessageEmail");
+    resendRoomMessageEmailMock.mockImplementationOnce(async () =>
+      probeBackgroundFailure("resendRoomMessageEmail"),
+    );
+    notificationFindManyMock.mockResolvedValue([storedRow(BASE)]);
+    messageSays("");
+
+    await inRequest(() =>
+      rewriteChatNotificationPreviews({
+        roomId: ROOM_ID,
+        messageId: MESSAGE_ID,
+      }),
+    );
   });
 
   it("leaves the rest of the row's params alone", async () => {
@@ -1712,7 +1770,7 @@ describe("preview rewrite ordering", () => {
     expect(values).toEqual([MESSAGE_ID, ROOM_ID]);
     expect(messageFindUniqueMock).toHaveBeenCalledWith({
       where: { id: MESSAGE_ID, roomId: ROOM_ID },
-      select: { content: true, deletedAt: true },
+      select: expect.objectContaining({ content: true, deletedAt: true }),
     });
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
   });

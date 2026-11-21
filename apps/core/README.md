@@ -42,6 +42,16 @@ pnpm --filter core start
 
 Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps/core/.env.example` to `.env` and fill in values.
 
+### Automatic ad evaluations
+
+`AD_EVALS_ENABLED=true` enables background evaluation of newly settled curated-model images. It defaults to `false`; `AD_EVALS_PAUSED=true` is the kill switch. Both flags are checked again before the judge call. Changing deployment configuration takes a redeploy.
+
+`AD_EVALS_WORKSPACE_DAILY_LIMIT` defaults to 100 evaluations per workspace. `AD_EVALS_GLOBAL_DAILY_USD` defaults to $10 across all workspaces. Zero stops admissions. Days start at midnight UTC. Each call reserves $0.25 atomically before spending; concurrent workers share the same budget. Known cost replaces the reservation, while failures and unknown costs keep it. Daily counters survive ad/project deletion; the global counter also survives workspace deletion. Reservations stay on their admission day, including when a call finishes after midnight. Monitor provider pricing before changing the judge or its input limits.
+
+The versioned judge makes one bounded AI Gateway vision call with EU routing, zero retention and prompt training disabled. Images are resized privately in Core; reference photos use the existing Files access checks. No public image URLs are created. Results are workspace-owned and this PR adds no internal data sharing or UI. Images below a 1080 px short side fail the supported-placement size check. `logo_present` is N/A unless the brief asks the generator for a logo. Text matching is skipped for cutouts, explicit no-text briefs and headlines added later at export. When a prompt snapshot is missing, the eval is skipped.
+
+Evaluation is best effort through Core's existing `waitUntil` mechanism, after the asset transaction commits. There is no backfill or automatic retry after a failed or interrupted judge call; its reserved row prevents duplicate spend for the same asset and rubric. A rubric version change permits a new evaluation.
+
 ### Required (typical local setup)
 
 | Variable                               | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
@@ -54,8 +64,10 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 | `BETTER_AUTH_COOKIE_DOMAIN`            | Optional shared cookie domain for Better Auth cross-subdomain cookies. Leave unset on localhost; set it explicitly in deployed environments that need shared auth cookies                                                                                                                                                                                                                                                                                                          |
 | `RESEND_API_KEY`                       | Resend API key for transactional email                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `RESEND_FROM_EMAIL`                    | From-address for transactional email (default `noreply@sokosumi.com`)                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `CMO_HIRE_ALLOWLIST`                   | Who may hire Cuso while CMO is invite-only: full emails (`lena@harborbikes.com`) and domains with a leading `@` (`@nmkr.io`), comma-separated, case-insensitive. Matched against the email Core holds for the account. Unset or empty means nobody may hire; everyone who already works with a Cuso keeps using CMO. Changing it takes a redeploy.                                                                                                                                 |
+| `CMO_HIRE_ALLOWLIST`                   | Who may hire Cuso while CMO is invite-only: full emails (`lena@harborbikes.com`) and domains with a leading `@` (`@nmkr.io`), comma-separated, case-insensitive. Matched against the email Core holds for the account, and only once it is verified. Unset or empty means nobody may hire; everyone who already works with a Cuso keeps using CMO. Changing it takes a redeploy.                                                                                                   |
+| `CMO_SUBSCRIPTION_SKIP_ALLOWLIST`      | Testers who may continue a Cuso without a CMO subscription: his Project gets 10,000 Tester credits (`POST /v1/cmo/projects/{projectId}/skip-subscription`). Same form as `CMO_HIRE_ALLOWLIST`, but only a verified email counts (Google and Microsoft sign-ins are verified; an email sign-up once its code is confirmed). Unset or empty means nobody.                                                                                                                            |
 | `CMO_OAUTH_CLIENT_ID`                  | CMO's OAuth client id. Only a token of this client may write through `/v1/cmo/**`; anything else gets 403 `cmo_client_required`. Unset refuses every such write; reads stay open (ADR 0066).                                                                                                                                                                                                                                                                                       |
+| `POLAR_ACCESS_TOKEN`                   | Optional Polar organization access token for CMO plans and Project top-ups (ADR 0068). Needs `POLAR_WEBHOOK_SECRET` (webhook signing secret) and `POLAR_ENVIRONMENT` (`sandbox` or `production`) too; until all three are set the Polar routes and `POST /v1/webhooks/polar` return 503. Set them with the [Polar setup script](#polar-setup-cmo-plans).                                                                                                                           |
 | `NEWSLETTER_FROM_DOMAIN`               | Optional fallback newsletter sending hostname, e.g. `news.sokosumi.com`, used until a project verifies its own sending domain. Never falls back to transactional email configuration.                                                                                                                                                                                                                                                                                              |
 | `RESEND_NEWSLETTER_WEBHOOK_SECRET`     | Optional Resend webhook signing secret (`whsec_...`) for `POST /v1/webhooks/resend/newsletter`. The endpoint returns 503 until configured.                                                                                                                                                                                                                                                                                                                                         |
 | `DOMAIN_CONNECT_PRIVATE_KEY`           | Optional RSA private key (PEM) signing Domain Connect apply URLs for newsletter sending domains. Unset hides one-click DNS setup.                                                                                                                                                                                                                                                                                                                                                  |
@@ -70,27 +82,29 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 ### Project social accounts
 
 Project social accounts are available for X, YouTube, LinkedIn, Instagram, and
-Facebook. TikTok remains Coming soon. Connect accounts from the Project’s **Social**
+Facebook. Mainnet utxo projects also support TikTok. Connect accounts from the Project’s **Social**
 page. The same connection supports reconnection, replacement, and disconnection. Publishing
 and scheduling work on every connected provider: the composer and the API
-apply the chosen account's rules (text limits, up to four images or one video,
+apply the chosen account's rules (text limits, per-provider image limits including
+up to 20 images on X, or one GIF or one video where supported,
 Instagram needs media, YouTube needs a video, LinkedIn and YouTube
 need text). Each provider's auth config must carry its publishing scope before
 posts can go out; publishing fails with a clear permission error until then.
 
-Set `COMPOSIO_API_KEY` and a separate auth-config ID for each enabled provider
+Set `COMPOSIO_API_KEY` and a separate auth-config ID for each Composio provider
 on the Core deployment. Create each OAuth configuration in the same Composio
 environment as that API key. Omit unconfigured variables; connecting that
 provider returns a setup error without starting authorization.
 
-| Provider  | Composio toolkit | Core environment variable           | Identity access                                    | Publishing scope                                                 |
-| --------- | ---------------- | ----------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------- |
-| X         | `twitter`        | `COMPOSIO_X_AUTH_CONFIG_ID`         | Existing custom OAuth configuration (`users.read`) | —                                                                |
-| TikTok    | `tiktok`         | `COMPOSIO_TIKTOK_AUTH_CONFIG_ID`    | `user.info.basic`                                  | `video.publish`                                                  |
-| Instagram | `instagram`      | `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID` | `instagram_business_basic`                         | `instagram_business_content_publish`                             |
-| LinkedIn  | `linkedin`       | `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID`  | `openid`, `profile`                                | `w_member_social`                                                |
-| Facebook  | `facebook`       | `COMPOSIO_FACEBOOK_AUTH_CONFIG_ID`  | `public_profile`                                   | `pages_show_list`, `pages_manage_posts`, `pages_read_engagement` |
-| YouTube   | `youtube`        | `COMPOSIO_YOUTUBE_AUTH_CONFIG_ID`   | `https://www.googleapis.com/auth/youtube.readonly` | `https://www.googleapis.com/auth/youtube.upload`                 |
+| Provider                         | Composio toolkit  | Core environment variable           | Identity access                                    | Publishing scope                                                                              |
+| -------------------------------- | ----------------- | ----------------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| X                                | `twitter`         | `COMPOSIO_X_AUTH_CONFIG_ID`         | Existing custom OAuth configuration (`users.read`) | —                                                                                             |
+| Legacy TikTok                    | `tiktok`          | `ZERNIO_API_KEY`                    | TikTok                                             | Server-side Zernio key for account linking and publishing. See [TikTok setup](#tiktok-setup). |
+| `COMPOSIO_TIKTOK_AUTH_CONFIG_ID` | `user.info.basic` | `video.publish`                     |
+| Instagram                        | `instagram`       | `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID` | `instagram_business_basic`                         | `instagram_business_content_publish`                                                          |
+| LinkedIn                         | `linkedin`        | `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID`  | `openid`, `profile`                                | `w_member_social`                                                                             |
+| Facebook                         | `facebook`        | `COMPOSIO_FACEBOOK_AUTH_CONFIG_ID`  | `public_profile`                                   | `pages_show_list`, `pages_manage_posts`, `pages_read_engagement`                              |
+| YouTube                          | `youtube`         | `COMPOSIO_YOUTUBE_AUTH_CONFIG_ID`   | `https://www.googleapis.com/auth/youtube.readonly` | `https://www.googleapis.com/auth/youtube.upload`                                              |
 
 Use the provider OAuth callback shown by Composio when registering your OAuth
 app. The Sokosumi return URL is `<web-origin>/composio/callback`; it redeems the
@@ -98,12 +112,15 @@ one-use Composio session before Core verifies the account against the stored
 provider, auth configuration, and connecting user. Accounts are shared only
 with the Project’s Core executor. Tokens remain in Composio.
 
+A Composio Connect Link is a bearer link: whoever opens it attaches their own
+provider account. Only the `complete_auth` call (`completeComposioAuth` in
+`src/clients/composio.client.ts`) binds the connection to the signed-in user.
+Turning on the Composio project's callback verifier holds every connection
+until that endpoint answers, so deploy Core first and turn the verifier on second.
+
 Account types and setup requirements:
 
-- [TikTok](https://docs.composio.dev/toolkits/tiktok) requires your own OAuth app;
-  Composio-managed OAuth is unavailable. Identity uses `open_id` and display name.
-  Publishing picks the most permissive privacy level the account offers and records
-  it on the attempt; until the Content Posting audit is approved that is `SELF_ONLY`.
+- New TikTok connections use [Zernio](https://docs.zernio.com/platforms/tiktok). Existing Composio sandbox connections use their original credentials and private audience.
 - [Instagram](https://docs.composio.dev/toolkits/instagram) supports Business and
   Creator accounts, not Personal accounts.
 - [LinkedIn](https://docs.composio.dev/toolkits/linkedin) connects the authorizing
@@ -128,7 +145,7 @@ Core after changing them. The **Web** project needs no new variables.
 | ------------------------------------------ | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `COMPOSIO_API_KEY`                         | Yes            | Composio project API key (starts with `ak_`). Mark it sensitive.                                                                                                                     |
 | `COMPOSIO_X_AUTH_CONFIG_ID`                | Per provider   | Composio auth-config ID (`ac_…`) for X.                                                                                                                                              |
-| `COMPOSIO_TIKTOK_AUTH_CONFIG_ID`           | Per provider   | Auth-config ID for TikTok. See [TikTok setup](#tiktok-setup).                                                                                                                        |
+| `COMPOSIO_TIKTOK_AUTH_CONFIG_ID`           | Per provider   | Auth-config ID for existing Composio TikTok connections. See [TikTok setup](#tiktok-setup).                                                                                          |
 | `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID`        | Per provider   | Auth-config ID for Instagram.                                                                                                                                                        |
 | `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID`         | Per provider   | Auth-config ID for LinkedIn.                                                                                                                                                         |
 | `COMPOSIO_FACEBOOK_AUTH_CONFIG_ID`         | Per provider   | Auth-config ID for Facebook.                                                                                                                                                         |
@@ -145,7 +162,7 @@ the connect menu, and choosing it returns "This integration is not configured
 yet" without starting OAuth. Social scheduling is public.
 `socialProvidersForWorkspace` in `packages/utils/src/social-post.ts`
 (`@sokosumi/utils`) returns `SOCIAL_PUBLIC_PROVIDERS` (X, YouTube, LinkedIn,
-Instagram, and Facebook) for every workspace, including `utxo`. Only those enabled
+Instagram, and Facebook) for every workspace, including `utxo`. The mainnet `utxo` workspace also receives TikTok. Only those enabled
 providers can connect, create, edit, schedule, approve, publish, duplicate, or
 recycle posts; other providers show Coming soon. Existing disabled-provider posts
 fail when due with that reason without contacting the platform, preserving their
@@ -162,39 +179,11 @@ leave the list.
 
 #### TikTok setup
 
-TikTok has no Composio-managed OAuth app, so each environment needs its own
-TikTok developer app.
+New TikTok connections and explicit replacements in the mainnet utxo workspace use Zernio. Configure `ZERNIO_API_KEY` on the Core deployment with read/write Accounts and Publishing permissions. Analytics permission enables performance reporting. Set the key separately for the intended preview branch and Production. Redeploy Core after changing its environment.
 
-1. In the [TikTok for Developers](https://developers.tiktok.com/) portal, create
-   an app under your organization and add the **Login Kit** and **Content
-   Posting API** products. Turn on **Direct Post** in Content Posting API.
-2. Request the scopes `user.info.basic`, `video.upload`, and `video.publish`.
-3. In [Composio](https://docs.composio.dev/toolkits/tiktok), create an auth
-   config for the `tiktok` toolkit that uses your own developer app. Enter the
-   app's client key and client secret and the same scopes. Copy the redirect
-   URI Composio shows into the TikTok app's Login Kit redirect URIs.
-4. Copy the auth-config ID (`ac_…`) into `COMPOSIO_TIKTOK_AUTH_CONFIG_ID` on the
-   Core Vercel project for that environment, then redeploy Core.
-5. While the app is in sandbox, only TikTok accounts added as target users can
-   authorize it. Add the accounts you test with.
-6. Connect the account: open **Social**, choose a project, then **Connect
-   account → TikTok**.
-7. Post a test: a TikTok post needs exactly one MP4 video, and its caption is
-   at most 2,200 characters. Photos, GIFs, and a second video are rejected
-   before scheduling.
+Open the project's **Social posts → Accounts → Connect account → TikTok**. Core creates an isolated Zernio profile and verifies the authorized TikTok identity before attaching it to the project. The browser returns to the initiating Web origin at `/zernio/callback`. TikTok's OAuth app and provider redirect are managed by Zernio.
 
-Until TikTok approves the app's Content Posting audit, TikTok only offers the
-`SELF_ONLY` privacy level, so posts publish as private to the creator. Core
-always picks the most permissive level the account offers and records it on the
-attempt, so approved audits take effect without a code change. Submit the app
-for review (Login Kit) and the Content Posting audit before inviting accounts
-outside the sandbox.
-
-TikTok pulls the video from its URL. TikTok's Content Posting API only pulls
-from URL prefixes verified in the app's **URL properties**. Check that a test
-post publishes before relying on it. If TikTok rejects the Blob host
-(`*.public.blob.vercel-storage.com`, which cannot be verified), serve Drive
-media from a domain you control and verify that prefix.
+For **Post now**, choose one TikTok account, review one MP4 and the caption, select the audience and interaction settings, and confirm consent. New Zernio connections publish videos publicly when the creator explicitly selects **Everyone (public)**. Existing Composio sandbox connections retain **Only me**. Published status is recorded only after the provider confirms publication.
 
 ### Turnstile protection for authentication email
 
@@ -257,6 +246,15 @@ MACOS_MINIMUM_BUILD=
 ```
 
 Maintenance mode is read at startup, so changing `MAINTENANCE_MODE` requires a restart/redeploy.
+
+### Polar setup (CMO plans)
+
+CMO sells its plans and Project top-ups through Polar ([ADR 0068](../../docs/adr/0068-cmo-sells-its-plans-through-polar.md)). The products, the access token, the webhook endpoint and the portal settings are created by hand in Polar's dashboard. An interactive script walks through them, writes `POLAR_ACCESS_TOKEN`, `POLAR_WEBHOOK_SECRET` and `POLAR_ENVIRONMENT` to `apps/core/.env` and to the Core Vercel projects, and ends by reading the catalog through Core. Run it once per Polar environment:
+
+```bash
+bash apps/core/scripts/polar-setup.sh sandbox      # local, sokosumi-core-preprod, previews of sokosumi-core-mainnet
+bash apps/core/scripts/polar-setup.sh production   # sokosumi-core-mainnet Production only; writes no local file
+```
 
 ## Coworker Chat And Task Gating
 

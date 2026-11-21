@@ -1,17 +1,24 @@
 "use client";
 
 import { TaskStatus } from "@sokosumi/core-client";
+import { MessageSquare } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskDueBadge } from "./task-due-badge";
-import { TaskMetaDetails } from "./task-meta";
+import { TaskMentionMark } from "./task-mention-mark";
+import { TaskActorCluster } from "./task-meta";
+import { TaskOpenSubtasks } from "./task-open-subtasks";
 import { TaskPriorityMark } from "./task-priority-mark";
 import { TaskPrivateIndicator } from "./task-private-indicator";
 import { TaskRunAtBadge } from "./task-run-at-badge";
+import { TaskStatusAge } from "./task-status-age";
 import { TaskStatusBadge } from "./task-status-badge";
+import { TaskSubtaskProgress } from "./task-subtask-progress";
+import { TaskTags } from "./task-tags";
 
 interface TaskListItemProps {
   task: TaskWithCoworker;
@@ -28,76 +35,142 @@ export function TaskListItem({
   compact = false,
   statusLabels,
 }: TaskListItemProps) {
-  const handleProps = dragHandleProps
-    ? {
-        ...dragHandleProps.attributes,
-        ...dragHandleProps.listeners,
-      }
-    : null;
+  const t = useTranslations("App.Tasks");
+  const hasName = task.name.trim().length > 0;
+  const handleProps = dragHandleProps?.listeners;
+
+  const rowClassName = cn(
+    // One line. The slots after the title have fixed widths, so the same
+    // fact sits at the same place in every row. A narrow row keeps the
+    // status and the people, and leaves tags, dates and the comment count
+    // to the wide one, so the title keeps its room.
+    "flex items-center gap-3 text-xs",
+    // The list draws the surface and the hairlines. A row lifted out of it
+    // by a drag brings its own box.
+    "px-3 transition-colors",
+    // Inside the row: the list clips at its rounded edge, so a ring drawn
+    // outside the row would lose its sides.
+    "focus-visible:outline-ring focus-visible:outline-2 focus-visible:-outline-offset-2",
+    compact ? "py-1.5" : "py-2.5",
+    "hover:bg-accent",
+    "press content-in",
+    (dragHandleProps?.isDragging || isOverlay) &&
+      "bg-senary border-border rounded-lg border shadow-sm",
+  );
+  const row = (
+    <>
+      <span className="flex w-4 shrink-0 justify-center">
+        <TaskPriorityMark priority={task.priority} />
+      </span>
+      <span className="text-muted-foreground w-20 shrink-0 truncate tabular-nums">
+        {task.identifier}
+      </span>
+      <span
+        className={cn(
+          // The title takes the room the columns leave, so every column
+          // after it starts at the same place in every row.
+          "line-clamp-1 min-w-0 flex-1 text-sm font-medium",
+          hasName ? "text-foreground" : "text-muted-foreground",
+        )}
+      >
+        {hasName ? task.name : t("noTitle")}
+      </span>
+      {/* A column of its own, kept on a row with no tags, so the tags line
+          up. It shows only where the title still has room beside it. */}
+      <span className="hidden w-36 shrink-0 overflow-x-clip 2xl:flex">
+        <TaskTags
+          tags={task.tags}
+          showManualTopics={!compact}
+          workspaceTags={task.workspaceTags}
+          compact
+          quiet
+          inLink
+        />
+      </span>
+
+      <span className="flex shrink-0 items-center gap-3">
+        {/* The small marks share one column. */}
+        <span className="flex w-9 items-center justify-end gap-1">
+          <TaskMentionMark show={task.hasUnansweredMention} />
+          <TaskPrivateIndicator visibility={task.visibility} />
+        </span>
+        {/* From lg up: a narrow row gives this room to the title. */}
+        <span className="hidden w-28 lg:flex">
+          {task.statusSince && !task.isPending ? (
+            <TaskStatusAge
+              status={task.status}
+              statusSince={task.statusSince}
+              stuckOnly
+            />
+          ) : null}
+        </span>
+        <TaskStatusBadge
+          status={task.status}
+          label={statusLabels?.[task.status]}
+          className="w-32 lg:w-40"
+          plain
+        />
+        {/* One date, as on a board card: a scheduled Task says when it
+            starts, and that it is late only once it is. */}
+        <span className="hidden w-44 items-center gap-2 xl:flex">
+          {task.runAt ? <TaskRunAtBadge runAt={task.runAt} /> : null}
+          {task.dueOn ? (
+            <TaskDueBadge
+              dueOn={task.dueOn}
+              status={task.status}
+              overdueOnly={!!task.runAt}
+            />
+          ) : null}
+        </span>
+        {/* Sub-task progress has a column of its own, kept on a row with
+            none, so the people after it line up. */}
+        <span className="hidden w-14 shrink-0 overflow-x-clip xl:flex">
+          <TaskSubtaskProgress progress={task.subtaskProgress} />
+        </span>
+        <span className="flex w-16 justify-end">
+          <TaskActorCluster
+            assignee={task.assignee}
+            participants={task.participants}
+          />
+        </span>
+        <span className="text-muted-foreground hidden w-8 items-center gap-1 xl:flex">
+          {task.commentsCount > 0 ? (
+            <>
+              <MessageSquare className="size-3.5" aria-hidden />
+              <span className="tabular-nums">{task.commentsCount}</span>
+            </>
+          ) : null}
+        </span>
+      </span>
+    </>
+  );
 
   return (
     <div
       className={cn(
         "group",
         dragHandleProps && "cursor-grab",
-        (dragHandleProps?.isDragging || isOverlay) && "opacity-60",
+        (dragHandleProps?.isDragging || isOverlay || task.isPending) &&
+          "opacity-60",
       )}
       {...handleProps}
     >
-      <TaskDetailLink
-        href={taskHref(task)}
-        className={cn(
-          "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4",
-          "bg-background rounded-lg border border-border px-4 py-3 transition-colors",
-          "hover:bg-accent",
-          "press content-in",
-          (dragHandleProps?.isDragging || isOverlay) && "bg-senary shadow-sm",
-        )}
-      >
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <TaskPriorityMark priority={task.priority} />
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <div className="flex min-w-0 items-baseline gap-2">
-              {task.identifier ? (
-                <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                  {task.identifier}
-                </span>
-              ) : null}
-              <span className="text-foreground line-clamp-1 text-sm font-medium">
-                {task.name}
-              </span>
-            </div>
-            {!compact && (
-              <p className="text-muted-foreground line-clamp-1 text-xs break-all">
-                {task.descriptionPlain ?? "—"}
-              </p>
-            )}
-          </div>
+      {task.isPending ? (
+        // No page to open yet: the row is plain content until the create lands.
+        <div aria-busy className={rowClassName}>
+          {row}
         </div>
-
-        <div className="flex shrink-0 items-center gap-3 text-xs sm:gap-4">
-          <div className="flex items-center gap-1.5">
-            <TaskStatusBadge
-              status={task.status}
-              label={statusLabels?.[task.status]}
-              className="w-fit shrink-0 rounded-sm"
-            />
-            <TaskPrivateIndicator visibility={task.visibility} />
-          </div>
-          {task.runAt ? <TaskRunAtBadge runAt={task.runAt} /> : null}
-          {task.dueOn ? (
-            <TaskDueBadge dueOn={task.dueOn} status={task.status} />
-          ) : null}
-          <TaskMetaDetails
-            project={compact ? null : task.project}
-            assignee={task.assignee}
-            participants={task.participants}
-            commentsCount={task.commentsCount}
-            createdAt={task.createdAt}
-            variant="list"
-          />
-        </div>
-      </TaskDetailLink>
+      ) : (
+        <TaskDetailLink href={taskHref(task)} className={rowClassName}>
+          {row}
+        </TaskDetailLink>
+      )}
+      {/* Beside the row's link, not in it: each sub-task is a link too.
+          Starts under the title: row padding, mark, gap, ID, gap. */}
+      <TaskOpenSubtasks
+        task={task}
+        className={cn("ms-[8.25rem] me-3", compact ? "pb-1.5" : "pb-2.5")}
+      />
     </div>
   );
 }

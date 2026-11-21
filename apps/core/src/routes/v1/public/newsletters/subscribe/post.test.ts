@@ -37,7 +37,9 @@ vi.mock("resend", () => ({
     emails = { send: m.send };
   },
 }));
-vi.mock("@/lib/redis", () => ({ getRedisClient: () => ({ eval: m.redis }) }));
+vi.mock("@/lib/redis", () => ({
+  getRedisRateLimitClient: () => ({ status: "ready", eval: m.redis }),
+}));
 vi.mock("@/config/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/config/env")>();
   return {
@@ -151,6 +153,11 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("public newsletter signup", () => {
+  it("omits the subscriber name when the form leaves it out", async () => {
+    await signup();
+    expect(m.createMany.mock.lastCall?.[0]?.data).not.toHaveProperty("name");
+  });
+
   it("creates pending consent, records SUBSCRIBED and sends a signed confirmation from the newsletter domain", async () => {
     await signup({
       email: " Reader@EXAMPLE.com ",
@@ -472,6 +479,7 @@ describe("public newsletter signup", () => {
       expect.any(String),
       1,
       `newsletter:signup:${NEWSLETTER_ID}:198.51.100.1`,
+      600,
     );
     expect(m.transaction).not.toHaveBeenCalled();
     expect(m.send).not.toHaveBeenCalled();

@@ -8,7 +8,19 @@ import {
   type ProjectSocialProvider,
 } from "@/config/social-providers";
 import { linkedInPersonId } from "@/helpers/linkedin-person";
-import { tryUseLogger } from "@/lib/evlog";
+import {
+  pickSocialAccount,
+  type SocialAccountPick,
+} from "@/helpers/social-account-choice";
+import {
+  createCoreLogger,
+  recordCoreWarning,
+  tryUseLiveLogger,
+  tryUseLogger,
+} from "@/lib/evlog";
+import { composioLogger } from "@/lib/evlog-library-logs";
+import { knownKeyPaths } from "@/lib/known-key-paths";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 let instance: Composio | null | undefined;
 
@@ -21,6 +33,7 @@ export function getComposio(): Composio | null {
         apiKey: env.COMPOSIO_API_KEY,
         baseURL: env.COMPOSIO_API_BASE_URL ?? null,
         allowTracking: false,
+        logger: composioLogger,
       })
     : null;
   return instance;
@@ -66,6 +79,7 @@ export class ComposioApiError extends Error {
     readonly httpStatus: number,
     readonly body: unknown,
     message?: string,
+    readonly providerStatus: number | null = null,
   ) {
     super(message ?? `Composio API error (${httpStatus})`);
     this.name = "ComposioApiError";
@@ -165,14 +179,40 @@ export async function projectComposioFetch(
 interface XImageUploadFailure {
   reason: string;
   message: string;
+  status: number | null;
+  problem?: { type?: string; title?: string };
 }
 
 /** Read error fields only; validation input and request bodies can contain secrets. */
-function composioErrorText(body: unknown): string {
+function composioErrorDetails(body: unknown): {
+  text: string;
+  status: number | null;
+  problem?: XImageUploadFailure["problem"];
+} {
   const messages: string[] = [];
+  let visited = 0;
+  let status: number | null = null;
+  let problem: XImageUploadFailure["problem"];
   function collect(value: unknown, depth: number): void {
-    if (depth > 5 || messages.length >= 20) return;
+    if (
+      depth > 5 ||
+      messages.length >= 20 ||
+      value === null ||
+      value === undefined ||
+      visited++ >= 200
+    ) {
+      return;
+    }
     if (typeof value === "string") {
+      try {
+        const parsed: unknown = JSON.parse(value);
+        if (typeof parsed === "object" && parsed !== null) {
+          collect(parsed, depth + 1);
+          return;
+        }
+      } catch {
+        // Provider messages are usually plain text rather than JSON envelopes.
+      }
       messages.push(value.slice(0, 2000));
       return;
     }
@@ -182,6 +222,30 @@ function composioErrorText(body: unknown): string {
     }
     const detail = record(value);
     if (!detail) return;
+    for (const key of ["status", "status_code", "statusCode"]) {
+      const candidate = detail[key];
+      if (
+        typeof candidate === "number" &&
+        Number.isInteger(candidate) &&
+        candidate >= 400 &&
+        candidate <= 599
+      ) {
+        status = candidate;
+      }
+    }
+    // Both keys and values are allowlisted: even a problem title can echo secrets.
+    if (
+      detail.type === "invalid-request" ||
+      (typeof detail.type === "string" &&
+        /^https:\/\/api\.(?:x|twitter)\.com\/2\/problems\/invalid-request$/.test(
+          detail.type,
+        ))
+    ) {
+      problem = { ...problem, type: "invalid-request" };
+    }
+    if (detail.title === "Invalid Request") {
+      problem = { ...problem, title: "Invalid Request" };
+    }
     if (Array.isArray(detail.loc)) {
       for (const field of detail.loc.slice(0, 20)) {
         if (
@@ -203,12 +267,13 @@ function composioErrorText(body: unknown): string {
       "title",
       "code",
       "data",
+      "response",
     ]) {
       collect(detail[key], depth + 1);
     }
   }
   if (record(body)) collect(body, 0);
-  return messages.join(" ");
+  return { text: messages.join(" "), status, ...(problem ? { problem } : {}) };
 }
 
 /** Fixed explanations preserve useful provider diagnoses without echoing their text. */
@@ -216,19 +281,36 @@ export function composioXImageUploadFailure(
   body: unknown,
   status?: number | null,
 ): XImageUploadFailure {
-  const text = composioErrorText(body);
+  const details = composioErrorDetails(body);
+  const text = details.text;
+  const providerStatus =
+    details.status ??
+    (typeof status === "number" &&
+    Number.isInteger(status) &&
+    status >= 400 &&
+    status <= 599
+      ? status
+      : null);
   let reason =
     "The upload service could not accept the image. Try again or use a different image.";
   if (
+    providerStatus === 401 ||
     /unauthori[sz]ed|forbidden|permission|(?:missing|insufficient).?scope|access denied|(?:invalid|expired).{0,20}token|token.{0,20}expired|\b40[13]\b/i.test(
       text,
     )
   ) {
     reason =
       "The X connection is unauthorized or missing permission to upload images. Reconnect it and try again.";
-  } else if (/rate.?limit|too many requests|\b429\b/i.test(text)) {
+  } else if (
+    providerStatus === 429 ||
+    /rate.?limit|too many requests|\b429\b/i.test(text)
+  ) {
     reason = "X's upload rate limit was reached. Try again later.";
-  } else if (/time.?out|timed out/i.test(text)) {
+  } else if (
+    providerStatus === 408 ||
+    providerStatus === 504 ||
+    /time.?out|timed out/i.test(text)
+  ) {
     reason = "The image upload timed out. Try again later.";
   } else if (/temporarily|service unavailable|\b50[0234]\b/i.test(text)) {
     reason =
@@ -252,6 +334,14 @@ export function composioXImageUploadFailure(
   ) {
     reason = "The image file is too large. Use an image under 5 MB.";
   } else if (
+    details.problem ||
+    /invalid[ _-]?request|(?:parameters?|arguments?).{0,60}invalid|invalid.{0,60}(?:parameters?|arguments?)/i.test(
+      text,
+    )
+  ) {
+    reason =
+      "The image upload request has invalid parameters. Try again or use a different image.";
+  } else if (
     /image|file|media/i.test(text) &&
     /invalid|corrupt|damaged|cannot (?:identify|decode)|unrecognized/i.test(
       text,
@@ -264,9 +354,14 @@ export function composioXImageUploadFailure(
   ) {
     reason = "The image file is missing. Attach it again.";
   }
+  const diagnosis = [providerStatus, details.problem?.type]
+    .filter((value) => value !== null && value !== undefined)
+    .join(", ");
   return {
     reason,
-    message: `X could not upload the image${status ? ` (${status})` : ""}: ${reason}`,
+    message: `X could not upload the image${diagnosis ? ` (${diagnosis})` : ""}: ${reason}`,
+    status: providerStatus ?? null,
+    ...(details.problem ? { problem: details.problem } : {}),
   };
 }
 
@@ -317,6 +412,13 @@ export function recordComposioResponseFailure(
         )
       : [];
   });
+  const imageFailure =
+    operation === "upload X image"
+      ? composioXImageUploadFailure(
+          body,
+          response.ok ? undefined : response.status,
+        )
+      : null;
   tryUseLogger()?.set({
     composio: {
       operation,
@@ -331,8 +433,12 @@ export function recordComposioResponseFailure(
       reasons: Object.entries(reasons)
         .filter(([, pattern]) => pattern.test(text))
         .map(([reason]) => reason),
-      ...(operation === "upload X image"
-        ? { reason: composioXImageUploadFailure(body).reason }
+      ...(imageFailure
+        ? {
+            reason: imageFailure.reason,
+            providerStatus: imageFailure.status,
+            ...(imageFailure.problem ? { problem: imageFailure.problem } : {}),
+          }
         : {}),
     },
   });
@@ -350,13 +456,16 @@ export async function projectComposioResponse<T>(
     body = text;
   }
   if (!response.ok) {
+    const imageFailure =
+      context === "upload X image"
+        ? composioXImageUploadFailure(body, response.status)
+        : null;
     recordComposioResponseFailure(response, context, body, "http_error");
     throw new ComposioApiError(
       response.status,
       undefined,
-      context === "upload X image"
-        ? composioXImageUploadFailure(body, response.status).message
-        : `${context} failed (${response.status})`,
+      imageFailure?.message ?? `${context} failed (${response.status})`,
+      imageFailure?.status ?? null,
     );
   }
   return body as T;
@@ -541,10 +650,26 @@ export async function deleteComposioToolSession(
       { method: "DELETE", signal },
     );
     await projectComposioResponse(response, context);
-  } catch {
-    console.warn(`[composio] ${context} failed`);
+  } catch (error) {
+    // A session's answer can quote what its tools read or posted.
+    recordCoreWarning(
+      { operation: "composio_delete_tool_session" },
+      {
+        message: "Composio could not delete a tool session",
+        why: "The Composio tool session delete request failed",
+        fix: "Nothing: Composio expires the session on its own. If it repeats, check Composio's status.",
+      },
+      {
+        provider: "composio",
+        composioOperation: context,
+        failure: messageSafeErrorFields(error),
+      },
+    );
   }
 }
+
+/** The Pages one Facebook login is offered to pick from. */
+const FACEBOOK_PAGE_LIMIT = 25;
 
 /** Identity-only tools from https://docs.composio.dev/toolkits/{toolkit}. */
 const SOCIAL_IDENTITY_TOOLS: Record<
@@ -571,7 +696,7 @@ const SOCIAL_IDENTITY_TOOLS: Record<
   linkedin: { slug: "LINKEDIN_GET_MY_INFO", arguments: {} },
   facebook: {
     slug: "FACEBOOK_LIST_MANAGED_PAGES",
-    arguments: { fields: "id,name,picture", limit: 2 },
+    arguments: { fields: "id,name,picture", limit: FACEBOOK_PAGE_LIMIT },
   },
   youtube: {
     slug: "YOUTUBE_LIST_CHANNELS",
@@ -718,23 +843,9 @@ function socialIdentity(
         identityString(record(thumbnails?.default)?.url);
       break;
     }
-    case "facebook": {
-      // Posts go to a Page; never choose one when the account manages none or several.
-      const pages = Array.isArray(identity.data)
-        ? identity.data
-        : Array.isArray(identity.items)
-          ? identity.items
-          : null;
-      if (!pages || pages.length !== 1) return null;
-      const paging = record(identity.paging);
-      if (paging && identityString(paging.next)) return null;
-      const page = record(pages[0]) ?? {};
-      id = identityString(page.id);
-      handle = identityString(page.name);
-      displayName = handle;
-      avatarUrl = identityString(record(record(page.picture)?.data)?.url);
-      break;
-    }
+    case "facebook":
+      // Posts go to a Page, which `facebookPages` reads.
+      return null;
     case "instagram":
       id = identityString(identity.id);
       handle = identityString(identity.username);
@@ -758,15 +869,79 @@ function socialIdentity(
   return id ? { id, handle, displayName, avatarUrl, subscriptionType } : null;
 }
 
-/** Key paths (never values) of a payload, to learn a provider's shape from logs. */
-function payloadKeyPaths(value: unknown, prefix = "", depth = 0): string[] {
-  const data = record(value);
-  if (!data || depth > 4) return [];
-  return Object.entries(data).flatMap(([key, nested]) => {
-    const path = prefix ? `${prefix}.${key}` : key;
-    return [path, ...payloadKeyPaths(nested, path, depth + 1)];
+/** The Pages a Facebook login manages, each as the identity it would connect. */
+export function facebookPages(
+  payload: Record<string, unknown>,
+): ConnectedSocialIdentity[] {
+  const pages = Array.isArray(payload.data)
+    ? payload.data
+    : Array.isArray(payload.items)
+      ? payload.items
+      : [];
+  return pages.flatMap((entry) => {
+    const page = record(entry) ?? {};
+    const id = identityString(page.id);
+    const name = identityString(page.name);
+    return id
+      ? [
+          {
+            id,
+            handle: name,
+            displayName: name,
+            avatarUrl: identityString(record(record(page.picture)?.data)?.url),
+            subscriptionType: null,
+          },
+        ]
+      : [];
   });
 }
+
+/**
+ * The Page to connect: the picked one or the only one. Several without a pick
+ * ask the owner when `offerChoice` is set, and are refused otherwise.
+ */
+function facebookPage(
+  payload: Record<string, unknown>,
+  connectedAccountId: string,
+  pick: SocialAccountPick,
+): ConnectedSocialIdentity | null {
+  const pages = facebookPages(payload).map((page) => ({
+    ...page,
+    externalAccountId: page.id,
+  }));
+  const page = pickSocialAccount(connectedAccountId, pages, pick, (entry) => ({
+    name: entry.displayName ?? entry.id,
+    handle: null,
+    kind: "page",
+  }));
+  if (!page) return null;
+  const { externalAccountId: _externalAccountId, ...identity } = page;
+  return identity;
+}
+
+/** Keys a LinkedIn profile or userinfo may name in a log: the ones Core reads. */
+const LINKEDIN_PROFILE_LOG_KEYS: ReadonlySet<string> = new Set([
+  "data",
+  "response_dict",
+  "id",
+  "sub",
+  "vanityName",
+  "name",
+  "given_name",
+  "family_name",
+  "localizedFirstName",
+  "localizedLastName",
+  "picture",
+  "profile_picture",
+  "profile_picture_url",
+  "profilePictureUrl",
+  "profilePicture",
+  "displayImage",
+  "displayImage~",
+  "elements",
+  "identifiers",
+  "identifier",
+]);
 
 /**
  * Best effort: fill a LinkedIn photo (and name) from userinfo when the profile
@@ -796,10 +971,20 @@ async function withLinkedInUserInfo(
     const profile = record(payload?.response_dict) ?? payload;
     const avatarUrl = profile ? linkedInAvatarUrl(profile) : null;
     if (!avatarUrl) {
-      console.warn("[composio] LinkedIn identity has no photo", {
-        profileKeys: payloadKeyPaths(profilePayload).slice(0, 60),
-        userInfoKeys: payloadKeyPaths(payload).slice(0, 60),
-      });
+      // Many members have no photo, so info; the key paths show where one
+      // would be. The account sync runs this after its request has ended.
+      const linkedInPhoto = {
+        found: false,
+        profile: knownKeyPaths(profilePayload, LINKEDIN_PROFILE_LOG_KEYS, 4),
+        userInfo: knownKeyPaths(payload, LINKEDIN_PROFILE_LOG_KEYS, 4),
+      };
+      const log = tryUseLiveLogger();
+      if (log) log.set({ linkedInPhoto });
+      else
+        createCoreLogger({
+          operation: "composio_linkedin_userinfo",
+          linkedInPhoto,
+        }).emit();
     }
     return {
       ...identity,
@@ -807,8 +992,17 @@ async function withLinkedInUserInfo(
       displayName:
         identity.displayName ?? (profile ? linkedInDisplayName(profile) : null),
     };
-  } catch {
-    console.warn("[composio] LinkedIn userinfo lookup failed");
+  } catch (error) {
+    // Userinfo answers with the member's name and photo.
+    recordCoreWarning(
+      { operation: "composio_linkedin_userinfo" },
+      {
+        message: "Composio could not look up a LinkedIn member's userinfo",
+        why: "The LinkedIn userinfo tool call through Composio failed",
+        fix: "Nothing: the identity keeps its profile data without a photo, and the next account sync tries again.",
+      },
+      { provider: "composio", failure: messageSafeErrorFields(error) },
+    );
     return identity;
   }
 }
@@ -817,6 +1011,8 @@ export async function getConnectedSocialIdentity(input: {
   provider: ProjectSocialProvider;
   connectedAccountId: string;
   executorUserId: string;
+  /** Which of several Pages, or whether to ask. Facebook only. */
+  pick?: SocialAccountPick;
 }): Promise<ConnectedSocialIdentity> {
   const { toolkitSlug, name } = PROJECT_SOCIAL_PROVIDERS[input.provider];
   const tool = SOCIAL_IDENTITY_TOOLS[input.provider];
@@ -866,12 +1062,28 @@ export async function getConnectedSocialIdentity(input: {
     );
     const result = await projectComposioResponse<unknown>(response, context);
     const payload = socialIdentityPayload(result, input.provider);
-    const identity = payload ? socialIdentity(input.provider, payload) : null;
+    const identity = !payload
+      ? null
+      : input.provider === "facebook"
+        ? facebookPage(payload, input.connectedAccountId, input.pick ?? {})
+        : socialIdentity(input.provider, payload);
     if (!identity) {
       if (payload && input.provider === "facebook") {
         throw new ComposioIdentityError(
-          "Facebook publishing needs an account that manages exactly one Page. Use an account with a single manageable Page.",
+          facebookPages(payload).length === 0
+            ? "This Facebook login manages no Page. Use a login that manages the Page to post to."
+            : "This Facebook login manages several Pages. Pick the Page to post to.",
           CORE_API_ERROR_KINDS.SOCIAL_FACEBOOK_PAGE_REQUIRED,
+        );
+      }
+      if (
+        input.provider === "youtube" &&
+        Array.isArray(payload?.items) &&
+        payload.items.length !== 1
+      ) {
+        throw new ComposioIdentityError(
+          "This Google sign-in has no YouTube channel of its own. Sign in again and pick the channel's account on Google's screen.",
+          CORE_API_ERROR_KINDS.SOCIAL_YOUTUBE_CHANNEL_REQUIRED,
         );
       }
       throw new ComposioApiError(

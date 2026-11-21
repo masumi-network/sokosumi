@@ -1,8 +1,11 @@
 "use client";
 
-import { type TaskSchedule, TaskVisibility } from "@sokosumi/core-client";
+import {
+  type TaskSchedule,
+  TaskScheduleEndsMode,
+  TaskVisibility,
+} from "@sokosumi/core-client";
 import { CalendarClock, ChevronDown, Lock, Paperclip } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -27,7 +30,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useAbortController } from "@/hooks/effects/use-abort-controller";
 import {
   createTaskSchedule,
   type TaskScheduleActionError,
@@ -70,6 +73,8 @@ export type TaskScheduleBlueprintPrefill = Partial<
 interface TaskScheduleDialogProps {
   /** Edits this schedule; without it the dialog creates one. */
   schedule?: TaskSchedule;
+  /** Creates a new schedule prefilled from this one; the original stays. */
+  copyOf?: TaskSchedule;
   initialBlueprint?: TaskScheduleBlueprintPrefill;
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
@@ -80,6 +85,21 @@ interface TaskScheduleDialogProps {
 }
 
 const NEW_SCHEDULE_CRON = "0 9 * * *";
+
+/** A copy's rule: an end date already past would leave it no runs, so it repeats until changed. */
+export function copiedTaskScheduleRule(
+  rule: TaskSchedule["rule"],
+  now = new Date(),
+): TaskSchedule["rule"] {
+  if (
+    rule.endsMode === TaskScheduleEndsMode.ON &&
+    rule.endsOn &&
+    rule.endsOn < now
+  ) {
+    return { ...rule, endsMode: TaskScheduleEndsMode.NEVER, endsOn: null };
+  }
+  return rule;
+}
 
 /** One plain sentence for when the schedule runs. */
 function useWhenSummary(when: ScheduleWhen, selection: TaskScheduleSelection) {
@@ -144,6 +164,7 @@ export function TaskScheduleDialog(props: TaskScheduleDialogProps) {
 
 function TaskScheduleDialogForm({
   schedule,
+  copyOf,
   initialBlueprint,
   coworkerOptions,
   projectOptions,
@@ -154,10 +175,26 @@ function TaskScheduleDialogForm({
   const t = useTranslations("App.Tasks.Schedules.Dialog");
   const tWhen = useTranslations("App.Tasks.Schedules.Dialog.When");
   const tNewTask = useTranslations("App.Tasks.NewTask");
-  const router = useRouter();
   const descriptionId = useId();
   const privateDescriptionId = useId();
-  const blueprint = schedule ?? initialBlueprint ?? {};
+  const copiedAssigneeId = copyOf ? taskScheduleAssigneeId(copyOf) : null;
+  const blueprint: TaskScheduleBlueprintPrefill =
+    schedule ??
+    (copyOf && {
+      name: t("copyName", { name: copyOf.name }),
+      description: copyOf.description,
+      projectId: copyOf.projectId,
+      visibility: copyOf.visibility,
+      // Only an assignee this person may pick is copied; Core checks it again.
+      ...(coworkerOptions.some((option) => option.id === copiedAssigneeId)
+        ? {
+            assigneeId: copyOf.assigneeId,
+            assigneeSokoBotId: copyOf.assigneeSokoBotId,
+          }
+        : {}),
+    }) ??
+    initialBlueprint ??
+    {};
   const [name, setName] = useState(blueprint.name ?? "");
   const [description, setDescription] = useState(blueprint.description ?? "");
   const [projectId, setProjectId] = useState<string | null>(
@@ -179,26 +216,33 @@ function TaskScheduleDialogForm({
   const [isUploadingAttachments, setIsUploadingAttachments] = useState(false);
   const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
   const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
-  const uploadControllerRef = useRef<AbortController | null>(null);
+  const uploadController = useAbortController();
   const attachmentUrls = extractTaskAttachmentUrls(description);
-  useMountEffect(() => () => uploadControllerRef.current?.abort());
   // Keep the baseline stable for this keyed form's lifetime. Re-reading a
   // stored H cron on a same-revision refresh can select a different minute.
   const [initialSelection] = useState<TaskScheduleSelection>(() =>
     schedule
       ? taskScheduleRuleToSelection(schedule.rule)
-      : { timezone: getDefaultTimezone(), cron: NEW_SCHEDULE_CRON },
+      : copyOf
+        ? taskScheduleRuleToSelection(copiedTaskScheduleRule(copyOf.rule))
+        : { timezone: getDefaultTimezone(), cron: NEW_SCHEDULE_CRON },
   );
   const [initialWhen] = useState(() => selectionToWhen(initialSelection));
   const [when, setWhen] = useState<ScheduleWhen>(initialWhen);
+  // A copy cannot resend a stored rule the controls reject (a hashed cron);
+  // it takes the controls' reading of it instead.
+  const [copyUsesWhen] = useState(
+    () => !!copyOf && !selectionToTaskScheduleRule(initialSelection),
+  );
   // Until the controls differ from what was read, the rule stays as read: an
   // edit to the blueprint never rewrites a rule the controls only approximate.
   const whenChanged =
     JSON.stringify(whenToSelection(when)) !==
     JSON.stringify(whenToSelection(initialWhen));
   const selection = useMemo(
-    () => (whenChanged ? whenToSelection(when) : initialSelection),
-    [whenChanged, when, initialSelection],
+    () =>
+      whenChanged || copyUsesWhen ? whenToSelection(when) : initialSelection,
+    [whenChanged, copyUsesWhen, when, initialSelection],
   );
   const rule = useMemo(
     () => selectionToTaskScheduleRule(selection),
@@ -234,10 +278,9 @@ function TaskScheduleDialogForm({
   }
 
   async function handleAttachFiles(files: File[]) {
-    if (files.length === 0 || uploadControllerRef.current || isSaving) return;
+    if (files.length === 0 || uploadController.isActive() || isSaving) return;
 
-    const controller = new AbortController();
-    uploadControllerRef.current = controller;
+    const controller = uploadController.start();
     setIsUploadingAttachments(true);
     try {
       const uploaded = await uploadComposeAttachments(files, {
@@ -262,7 +305,7 @@ function TaskScheduleDialogForm({
     } catch {
       // The shared uploader reports errors and allows another attempt.
     } finally {
-      uploadControllerRef.current = null;
+      uploadController.release(controller);
       if (!controller.signal.aborted) {
         setPendingUploadFiles([]);
         setIsUploadingAttachments(false);
@@ -271,7 +314,7 @@ function TaskScheduleDialogForm({
   }
 
   async function handleSave() {
-    if (saveDisabled || uploadControllerRef.current) return;
+    if (saveDisabled || uploadController.isActive()) return;
 
     const input: TaskScheduleBlueprintInput = {
       name: name.trim(),
@@ -307,7 +350,6 @@ function TaskScheduleDialogForm({
         return;
       }
       toast.success(schedule ? t("saved") : t("created"));
-      router.refresh();
       onSaved?.(result.value.scheduleId);
       onClose();
     } finally {
@@ -321,7 +363,9 @@ function TaskScheduleDialogForm({
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
-      title={schedule ? t("editTitle") : t("createTitle")}
+      title={
+        schedule ? t("editTitle") : copyOf ? t("copyTitle") : t("createTitle")
+      }
       cancelLabel={tNewTask("cancel")}
       isDismissDisabled={isSaving}
     >
@@ -490,13 +534,17 @@ function TaskScheduleDialogForm({
                 {tWhen("title")}
               </h3>
               <p className="text-muted-foreground text-xs">
-                {schedule ? t("futureOnlyNotice") : t("createDescription")}
+                {schedule
+                  ? t("futureOnlyNotice")
+                  : copyOf
+                    ? t("copyDescription")
+                    : t("createDescription")}
               </p>
             </div>
             <TaskScheduleWhen
               value={when}
               onChange={setWhen}
-              storedCron={schedule?.rule.expr}
+              storedCron={(schedule ?? copyOf)?.rule.expr}
             />
           </section>
         </div>

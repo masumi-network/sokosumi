@@ -10,6 +10,13 @@ export const CMO_CHANNELS = {
     status: "live",
     owner: "connect",
     formats: {
+      talking_video: {
+        name: "Talking video",
+        what: "A presenter speaks a short script to camera, with captions",
+        image: false,
+        video: true,
+        talking: true,
+      },
       post: {
         name: "Text post",
         what: "A short story or lesson in your voice",
@@ -63,6 +70,13 @@ export const CMO_CHANNELS = {
     status: "live",
     owner: "connect",
     formats: {
+      talking_video: {
+        name: "Talking video",
+        what: "A presenter speaks a short script to camera, with captions",
+        image: false,
+        video: true,
+        talking: true,
+      },
       image: {
         name: "Image post",
         what: "A post with an image Cuso makes",
@@ -87,6 +101,13 @@ export const CMO_CHANNELS = {
     status: "live",
     owner: "connect",
     formats: {
+      talking_video: {
+        name: "Talking video",
+        what: "A presenter speaks a short script to camera, with captions",
+        image: false,
+        video: true,
+        talking: true,
+      },
       image: {
         name: "Image post",
         what: "One strong image with a caption",
@@ -117,6 +138,13 @@ export const CMO_CHANNELS = {
     status: "live",
     owner: "connect",
     formats: {
+      talking_video: {
+        name: "Talking video",
+        what: "A presenter speaks a short script to camera, with captions",
+        image: false,
+        video: true,
+        talking: true,
+      },
       short: {
         name: "YouTube Short",
         what: "A five-second vertical video made from a brand picture, with a title",
@@ -128,12 +156,19 @@ export const CMO_CHANNELS = {
   tiktok: {
     name: "TikTok",
     group: "social",
-    status: "soon",
+    status: "live",
     owner: "connect",
     formats: {
+      talking_video: {
+        name: "Talking video",
+        what: "A presenter speaks a short script to camera, with captions",
+        image: false,
+        video: true,
+        talking: true,
+      },
       video: {
         name: "Short video",
-        what: "Coming soon",
+        what: "A five-second vertical video made from a brand picture, with a caption",
         image: false,
         video: true,
       },
@@ -192,7 +227,8 @@ export const CMO_CHANNELS = {
   seo: {
     name: "Google search (SEO)",
     group: "search",
-    status: "live",
+    // Articles and page changes live in CMO's SEO tab, never in the strategy calendar.
+    status: "tab",
     owner: "publish",
     formats: {
       page_fix: {
@@ -212,7 +248,8 @@ export const CMO_CHANNELS = {
   {
     name: string;
     group: "social" | "ads" | "email" | "search";
-    status: "live" | "soon";
+    /** live: planned in the strategy; soon: not yet; tab: run from its own tab, never planned in the calendar. */
+    status: "live" | "soon" | "tab";
     /** What the owner does: connect the account, connect an ad account, add a mailing list, or publish SEO changes. */
     owner: "connect" | "ad_account" | "mailing_list" | "publish";
     formats: Record<
@@ -222,6 +259,8 @@ export const CMO_CHANNELS = {
         what: string;
         image: boolean;
         video?: boolean;
+        /** A presenter speaks the piece's script: a talking video. */
+        talking?: boolean;
         /** A multi-image format: the fewest and most slides it takes. */
         slides?: readonly [number, number];
       }
@@ -230,12 +269,35 @@ export const CMO_CHANNELS = {
 >;
 export type CmoChannelKey = keyof typeof CMO_CHANNELS;
 
+/**
+ * Networks whose rules ask the account's owner to confirm each post: Cuso
+ * makes the post and it waits for the owner's tap; nothing goes out on a
+ * schedule. TikTok requires the creator's consent per video.
+ */
+export const CMO_OWNER_CONFIRMED_CHANNELS: readonly string[] = ["tiktok"];
+
+/** Whether every post on this network waits for the owner's own confirmation. */
+export function isCmoOwnerConfirmedChannel(channel: string): boolean {
+  return CMO_OWNER_CONFIRMED_CHANNELS.includes(channel);
+}
+
 /** Whether a plan may use this channel and format today. */
 export function isCmoChannelFormat(channel: string, format: string): boolean {
   const entry = (
     CMO_CHANNELS as Record<string, (typeof CMO_CHANNELS)[CmoChannelKey]>
   )[channel];
   return Boolean(entry && entry.status === "live" && format in entry.formats);
+}
+
+/** Whether a format is a talking video: a presenter speaking a script. */
+export function isCmoTalkingFormat(channel: string, format: string): boolean {
+  const entry = (
+    CMO_CHANNELS as Record<
+      string,
+      { formats: Record<string, { talking?: boolean }> }
+    >
+  )[channel];
+  return Boolean(entry?.formats[format]?.talking);
 }
 
 /** Channel keys older plans or people use, mapped to today's channels. */

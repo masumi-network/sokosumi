@@ -10,7 +10,7 @@ export interface MentionMatch {
   hasLegacyFormat: boolean;
 }
 
-function escapeMarkdownDisplayText(value: string): string {
+export function escapeMarkdownDisplayText(value: string): string {
   return value.replace(/[\\`*_[\]{}()#+\-.!<>|~]/g, "\\$&");
 }
 

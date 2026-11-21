@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import type { ConnectedSocialIdentity } from "@/clients/composio.client";
 import {
   PROJECT_SOCIAL_PROVIDERS,
   type ProjectSocialProvider,
 } from "@/config/social-providers";
+import {
+  type SocialAccountPick,
+  socialAccountChoiceId,
+} from "@/helpers/social-account-choice";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 
 const { getEnvMock, logSetMock, ssrfSafeFetchMock } = vi.hoisted(() => ({
   getEnvMock: vi.fn(),
@@ -12,7 +16,11 @@ const { getEnvMock, logSetMock, ssrfSafeFetchMock } = vi.hoisted(() => ({
   ssrfSafeFetchMock: vi.fn(),
 }));
 
-vi.mock("@/lib/evlog", () => ({ tryUseLogger: () => ({ set: logSetMock }) }));
+// The real recorders keep their events at the drain seam.
+vi.mock("@/lib/evlog", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/evlog")>()),
+  tryUseLogger: () => ({ set: logSetMock }),
+}));
 vi.mock("@sokosumi/net", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@sokosumi/net")>()),
   ssrfSafeFetch: ssrfSafeFetchMock,
@@ -117,6 +125,150 @@ describe("X image upload failures", () => {
       expect(JSON.stringify(logSetMock.mock.calls)).not.toContain("secret-");
     },
   );
+
+  it.each([
+    (problem: Record<string, unknown>) => problem,
+    (problem: Record<string, unknown>) => JSON.stringify(problem),
+    (problem: Record<string, unknown>) => ({
+      data: { error: JSON.stringify({ response: problem }) },
+    }),
+    (problem: Record<string, unknown>) => ({ errors: [problem] }),
+  ])("preserves only allowlisted X problem diagnostics", async (wrap) => {
+    const { projectComposioResponse } = await import("./composio.client");
+    const body = wrap({
+      type: "https://api.x.com/2/problems/invalid-request",
+      title: "Invalid Request",
+      status: 400,
+      detail: "One or more parameters to your request was invalid.",
+      errors: [
+        {
+          message: "media contains private-error-value",
+          parameters: { media: "private-parameter-value" },
+        },
+      ],
+      request: { title: "private-request-value" },
+    });
+    const failure = await projectComposioResponse(
+      Response.json(body, { status: 400 }),
+      "upload X image",
+    ).catch((error: unknown) => error);
+    expect(failure).toMatchObject({
+      message:
+        "X could not upload the image (400, invalid-request): The image upload request has invalid parameters. Try again or use a different image.",
+      httpStatus: 400,
+      body: undefined,
+    });
+    expect(logSetMock).toHaveBeenCalledWith({
+      composio: expect.objectContaining({
+        providerStatus: 400,
+        problem: { type: "invalid-request", title: "Invalid Request" },
+        reason:
+          "The image upload request has invalid parameters. Try again or use a different image.",
+      }),
+    });
+    const retained = JSON.stringify([failure, logSetMock.mock.calls]);
+    expect(retained).not.toContain("private-");
+    expect(retained).not.toContain("One or more parameters");
+    expect(retained).not.toContain("https://api.x.com");
+  });
+
+  it("drops free-form problem titles, types, statuses and validation values", async () => {
+    const { composioXImageUploadFailure, projectComposioResponse } =
+      await import("./composio.client");
+    const body = {
+      error: {
+        title: "private-title",
+        type: "https://api.x.com/2/problems/private-type",
+        status: "400 private-status",
+        detail: "private-detail",
+        errors: [{ input: "private-input", parameters: "private-parameters" }],
+      },
+    };
+    expect(composioXImageUploadFailure(body)).toEqual({
+      reason:
+        "The upload service could not accept the image. Try again or use a different image.",
+      message:
+        "X could not upload the image: The upload service could not accept the image. Try again or use a different image.",
+      status: null,
+    });
+    const failure = await projectComposioResponse(
+      Response.json(body, { status: 400 }),
+      "upload X image",
+    ).catch((error: unknown) => error);
+    expect(JSON.stringify([failure, logSetMock.mock.calls])).not.toContain(
+      "private-",
+    );
+  });
+
+  it.each([
+    [401, "unauthorized"],
+    [429, "rate limit"],
+    [408, "timed out"],
+    [504, "timed out"],
+  ])(
+    "uses nested provider status %s for its safe reason",
+    async (status, reason) => {
+      const { composioXImageUploadFailure } = await import("./composio.client");
+      const failure = composioXImageUploadFailure(
+        {
+          status: 400,
+          data: JSON.stringify({ error: { response: { status } } }),
+        },
+        400,
+      );
+      expect(failure.status).toBe(status);
+      expect(failure.reason).toContain(reason);
+    },
+  );
+
+  it.each([401, 429, 503])(
+    "retains provider status %s separately from an HTTP 400 wrapper",
+    async (providerStatus) => {
+      const { projectComposioResponse } = await import("./composio.client");
+      const failure = await projectComposioResponse(
+        Response.json(
+          {
+            error: {
+              response: JSON.stringify({
+                status: providerStatus,
+                request: { token: "private-request-token" },
+              }),
+            },
+          },
+          { status: 400 },
+        ),
+        "upload X image",
+      ).catch((error: unknown) => error);
+      expect(failure).toMatchObject({
+        httpStatus: 400,
+        providerStatus,
+        body: undefined,
+        message: expect.stringContaining(`(${providerStatus})`),
+      });
+      expect(logSetMock).toHaveBeenCalledWith({
+        composio: expect.objectContaining({
+          upstreamStatus: 400,
+          providerStatus,
+        }),
+      });
+      expect(JSON.stringify([failure, logSetMock.mock.calls])).not.toContain(
+        "private-request-token",
+      );
+    },
+  );
+
+  it("does not label a 403 parameter rejection as unauthorized", async () => {
+    const { composioXImageUploadFailure } = await import("./composio.client");
+    expect(
+      composioXImageUploadFailure({
+        status: 403,
+        type: "https://api.x.com/2/problems/invalid-request",
+        title: "Invalid Request",
+      }).reason,
+    ).toBe(
+      "The image upload request has invalid parameters. Try again or use a different image.",
+    );
+  });
 
   it("never retains secrets echoed inside a recognized provider message", async () => {
     const { projectComposioResponse } = await import("./composio.client");
@@ -722,7 +874,7 @@ describe("getConnectedSocialIdentity", () => {
     {
       provider: "facebook",
       slug: "FACEBOOK_LIST_MANAGED_PAGES",
-      args: { fields: "id,name,picture", limit: 2 },
+      args: { fields: "id,name,picture", limit: 25 },
       payload: {
         data: [
           {
@@ -767,10 +919,13 @@ describe("getConnectedSocialIdentity", () => {
   ];
 
   function stubIdentity(payload: unknown) {
+    // Session, identity tool, session delete. LinkedIn also asks userinfo for
+    // a photo before the delete, so it takes the fourth answer.
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(Response.json({ session_id: "sess_identity" }))
       .mockResolvedValueOnce(Response.json(payload))
+      .mockResolvedValueOnce(Response.json({}))
       .mockResolvedValueOnce(Response.json({}));
     vi.stubGlobal("fetch", fetchMock);
     return fetchMock;
@@ -858,13 +1013,6 @@ describe("getConnectedSocialIdentity", () => {
       provider: "facebook",
       payload: { data: [{ id: "", name: "Alice" }] },
     },
-    {
-      provider: "facebook",
-      payload: {
-        data: [{ id: "page_one", name: "One" }],
-        paging: { next: "https://backend.composio.dev/next" },
-      },
-    },
     { provider: "youtube", payload: { items: [] } },
     {
       provider: "youtube",
@@ -892,11 +1040,66 @@ describe("getConnectedSocialIdentity", () => {
               name: "ComposioIdentityError",
               kind: "social_facebook_page_required",
             }
-          : { name: "ComposioApiError" },
+          : provider === "youtube" &&
+              (payload as { items: unknown[] }).items.length !== 1
+            ? {
+                name: "ComposioIdentityError",
+                kind: "social_youtube_channel_required",
+              }
+            : { name: "ComposioApiError" },
       );
       expect(fetchMock).toHaveBeenCalledTimes(3);
     },
   );
+
+  describe("a Facebook login that manages several Pages", () => {
+    const pages = {
+      data: [
+        { id: "page_one", name: "One" },
+        { id: "page_two", name: "Two" },
+      ],
+    };
+    const choiceOf = (pageId: string) =>
+      socialAccountChoiceId("ca_selected", pageId);
+    const lookUp = async (pick: SocialAccountPick) => {
+      stubIdentity({ data: { data: pages } });
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+      return getConnectedSocialIdentity({
+        provider: "facebook",
+        connectedAccountId: "ca_selected",
+        executorUserId: input.executorUserId,
+        pick,
+      });
+    };
+
+    it("offers the Pages to pick from, named by ids of this sign-in", async () => {
+      await expect(lookUp({ offerChoice: true })).rejects.toMatchObject({
+        name: "SocialAccountChoiceRequiredError",
+        choices: [
+          { id: choiceOf("page_one"), name: "One", handle: null, kind: "page" },
+          { id: choiceOf("page_two"), name: "Two", handle: null, kind: "page" },
+        ],
+      });
+    });
+
+    it("connects the picked Page", async () => {
+      await expect(
+        lookUp({ choiceId: choiceOf("page_two"), offerChoice: true }),
+      ).resolves.toMatchObject({ id: "page_two", handle: "Two" });
+    });
+
+    it("keeps the Page a reconnect holds without asking", async () => {
+      await expect(
+        lookUp({ externalAccountId: "page_one", offerChoice: true }),
+      ).resolves.toMatchObject({ id: "page_one" });
+    });
+
+    it("refuses a pick the login does not manage", async () => {
+      await expect(
+        lookUp({ choiceId: choiceOf("page_three"), offerChoice: true }),
+      ).rejects.toMatchObject({ kind: "social_facebook_page_required" });
+    });
+  });
 
   it.each([
     null,
@@ -1113,7 +1316,6 @@ describe("getConnectedSocialIdentity", () => {
     });
 
     it("keeps the identity without a photo when userinfo is refused", async () => {
-      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       stubLinkedIn(
         meProfile,
         Response.json({ data: null, error: "forbidden", successful: false }),
@@ -1131,8 +1333,78 @@ describe("getConnectedSocialIdentity", () => {
         displayName: "Alice Doe",
         avatarUrl: null,
       });
-      expect(JSON.stringify(warn.mock.calls)).not.toContain("licdn");
-      warn.mockRestore();
+      expect(coreLogEvents()).toEqual([
+        expect.objectContaining({
+          level: "info",
+          operation: "composio_linkedin_userinfo",
+          linkedInPhoto: expect.objectContaining({
+            found: false,
+            profile: {
+              keyPaths: expect.arrayContaining(["id", "profilePicture"]),
+              otherKeys: 0,
+            },
+          }),
+        }),
+      ]);
+      expect(JSON.stringify(coreLogEvents())).not.toContain("licdn");
+    });
+
+    it("counts profile and userinfo keys it does not know instead of naming them", async () => {
+      stubLinkedIn(
+        { ...meProfile, "Ada private launch plan": true },
+        Response.json({
+          data: { data: { sub: "li_123", "Ada private note": "x" } },
+          successful: true,
+        }),
+      );
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+
+      await getConnectedSocialIdentity({
+        provider: "linkedin",
+        connectedAccountId: "ca_selected",
+        executorUserId: input.executorUserId,
+      });
+
+      expect(coreLogEvents()).toEqual([
+        expect.objectContaining({
+          linkedInPhoto: expect.objectContaining({
+            profile: expect.objectContaining({ otherKeys: 1 }),
+            userInfo: expect.objectContaining({ otherKeys: 1 }),
+          }),
+        }),
+      ]);
+      expect(JSON.stringify(coreLogEvents())).not.toContain("Ada private");
+    });
+
+    it("keeps a failed userinfo lookup's answer out of the log", async () => {
+      const warnings = expectCoreLogWhys(
+        "warn",
+        "Composio could not look up a LinkedIn member's userinfo",
+        ["The LinkedIn userinfo tool call through Composio failed"],
+      );
+      const fetchMock = stubLinkedIn(meProfile, Response.json({}));
+      fetchMock.mockReset();
+      fetchMock
+        .mockResolvedValueOnce(Response.json({ session_id: "sess_identity" }))
+        .mockResolvedValueOnce(
+          Response.json({ data: { data: meProfile }, successful: true }),
+        )
+        .mockRejectedValueOnce(
+          new Error("Alice Doe <alice.private@example.com> is not allowed"),
+        )
+        .mockResolvedValueOnce(Response.json({}));
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+
+      await expect(
+        getConnectedSocialIdentity({
+          provider: "linkedin",
+          connectedAccountId: "ca_selected",
+          executorUserId: input.executorUserId,
+        }),
+      ).resolves.toMatchObject({ id: "li_123", avatarUrl: null });
+      expect(warnings[0]?.cause).toBeUndefined();
+      expect(JSON.stringify(coreLogEvents())).not.toContain("alice.private");
+      expect(JSON.stringify(coreLogEvents())).not.toContain("not allowed");
     });
 
     it("ignores a non-https photo value", async () => {
@@ -1172,7 +1444,11 @@ describe("getConnectedSocialIdentity", () => {
         Response.json({ data: { data: [{ id: "page_123", name: "Alice" }] } }),
       )
       .mockRejectedValueOnce(new Error("private-token private-session-url"));
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Composio could not delete a tool session",
+      ["The Composio tool session delete request failed"],
+    );
     const { getConnectedSocialIdentity } = await import("./composio.client");
     await expect(
       getConnectedSocialIdentity({
@@ -1181,10 +1457,13 @@ describe("getConnectedSocialIdentity", () => {
         executorUserId: input.executorUserId,
       }),
     ).resolves.toMatchObject({ id: "page_123", handle: "Alice" });
-    expect(warn).toHaveBeenCalledWith(
-      "[composio] delete Project Facebook identity session failed",
-    );
-    warn.mockRestore();
+    expect(warnings[0]?.event).toMatchObject({
+      provider: "composio",
+      composioOperation: "delete Project Facebook identity session",
+      failure: { errorName: "ComposioApiError" },
+    });
+    expect(warnings[0]?.cause).toBeUndefined();
+    expect(JSON.stringify(coreLogEvents())).not.toContain("private-");
   });
 
   it("sanitizes execute transport failures and deletes the identity session", async () => {

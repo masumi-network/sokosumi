@@ -5,7 +5,9 @@ import type { GridMove } from "@/components/data-grid/grid-keys";
 import { TableCell, TableUpdatedCell } from "./table-cell";
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  // A message that carries a reason shows it, so a dropped reason fails.
+  useTranslations: () => (key: string, values?: { reason?: string }) =>
+    values?.reason ? `${key} ${values.reason}` : key,
   useFormatter: () => ({
     // A named format (Last updated) reads back as `name:iso`; options format.
     dateTime: (date: Date, format: string | Intl.DateTimeFormatOptions) =>
@@ -95,7 +97,91 @@ describe("table cell editing", () => {
     fireEvent.change(input, { target: { value: "Keep me" } });
     fireEvent.blur(input);
     expect(await screen.findByRole("alert")).toHaveTextContent("Row changed");
-    expect(input).toHaveValue("Keep me");
+    expect(screen.getByRole("textbox")).toHaveValue("Keep me");
+  });
+  it("shows the sent value as pending and closes the editor while the save is open", async () => {
+    let finish = () => {};
+    const save = vi.fn(
+      () => new Promise<void>((resolve) => void (finish = resolve)),
+    );
+    renderCell({ onSave: save });
+    const input = openCell();
+    fireEvent.change(input, { target: { value: "Sent" } });
+    fireEvent.blur(input);
+    await waitFor(() => expect(save).toHaveBeenCalledOnce());
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(gridCell()).toHaveTextContent("Sent");
+    expect(gridCell()).toHaveAttribute("aria-busy", "true");
+    // The value it shows reads as pending, not as saved.
+    expect(screen.getByText("Sent").closest(".opacity-60")).not.toBeNull();
+    // The pointer actions are back as soon as the editor leaves.
+    expect(
+      screen.getByRole("button", { name: "cellHistory", hidden: true }),
+    ).toBeInTheDocument();
+    // No second edit starts on top of the open save.
+    fireEvent.doubleClick(gridCell());
+    fireEvent.keyDown(gridCell(), { key: "Enter" });
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    finish();
+    await waitFor(() => expect(gridCell()).toHaveTextContent("Original"));
+    expect(gridCell()).not.toHaveAttribute("aria-busy");
+    expect(screen.getByText("Original").closest(".opacity-60")).toBeNull();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+  it("brings the editor back after a failed save without taking focus", async () => {
+    let fail = (_: unknown) => {};
+    const save = vi.fn(
+      () => new Promise<void>((_, reject) => void (fail = reject)),
+    );
+    render(
+      <>
+        <button type="button">elsewhere</button>
+        {cellElement({ onSave: save })}
+      </>,
+    );
+    const input = openCell();
+    fireEvent.change(input, { target: { value: "Keep me" } });
+    fireEvent.blur(input);
+    await waitFor(() => expect(save).toHaveBeenCalledOnce());
+    const elsewhere = screen.getByRole("button", { name: "elsewhere" });
+    elsewhere.focus();
+    // A rejection leaves the editor enabled, so it could take focus.
+    fail({ error: "Conflict" });
+    // It says the value was not saved and is back, before the reason.
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "errors.cellNotSaved errors.conflict",
+    );
+    expect(screen.getByRole("textbox")).toHaveValue("Keep me");
+    expect(screen.getByRole("textbox")).toBeEnabled();
+    expect(elsewhere).toHaveFocus();
+    expect(screen.getByText("Original")).toBeInTheDocument();
+  });
+  it("focuses the editor again when the cell reopens after a save", async () => {
+    const save = vi.fn().mockResolvedValue(undefined);
+    renderCell({ onSave: save });
+    const input = openCell();
+    fireEvent.change(input, { target: { value: "Sent" } });
+    fireEvent.blur(input);
+    await waitFor(() => expect(gridCell()).not.toHaveAttribute("aria-busy"));
+    expect(save).toHaveBeenCalledOnce();
+    expect(openCell()).toHaveFocus();
+  });
+  it("hands focus to the cell when a select saves on change", async () => {
+    const save = vi.fn(() => new Promise<void>(() => {}));
+    const stage = {
+      ...column,
+      name: "Stage",
+      type: "single_select" as const,
+      options: ["Contacted"],
+    };
+    renderCell({ column: stage, row: { ...row, values: {} }, onSave: save });
+    fireEvent.doubleClick(gridCell());
+    const select = screen.getByRole("combobox", { name: "Stage" });
+    expect(select).toHaveFocus();
+    fireEvent.change(select, { target: { value: "Contacted" } });
+    await waitFor(() => expect(save).toHaveBeenCalledOnce());
+    expect(gridCell()).toHaveFocus();
+    expect(gridCell()).toHaveTextContent("Contacted");
   });
   it("sizes the editor like every other form control", () => {
     renderCell();

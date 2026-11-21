@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, X } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type RefObject, useId } from "react";
 import {
@@ -13,10 +13,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { creditsForVideo, videoModelsFor } from "./catalog";
+import { creditsForVideo } from "./catalog";
 import {
   STUDIO_COMPOSER_GUTTER_CLASS,
   STUDIO_PILL_CLASS,
@@ -24,7 +23,6 @@ import {
 import {
   assetContentUrl,
   type StudioAsset,
-  type StudioCatalog,
   type StudioLabels,
   type StudioVideoModel,
 } from "./types";
@@ -37,48 +35,36 @@ export interface StudioVideoSettings {
   resolution: string;
 }
 
-export interface StudioVideoDraft {
-  modelId: string;
-  settings: StudioVideoSettings;
-}
-
-/** A model's own defaults: 9:16, five seconds, its first resolution. */
-export function videoDraftFor(model: StudioVideoModel): StudioVideoDraft {
+/**
+ * A model's own defaults: 9:16, five seconds, its first resolution.
+ * Keep what still applies when the model changes; take the new model's defaults for the rest.
+ */
+export function videoSettingsFor(
+  model: StudioVideoModel,
+  current: StudioVideoSettings | null = null,
+): StudioVideoSettings {
+  const aspectRatio = current?.aspectRatio ?? "9:16";
+  const durationSeconds = current?.durationSeconds ?? 5;
   return {
-    modelId: model.id,
-    settings: {
-      aspectRatio: model.aspectRatios.includes("9:16")
+    aspectRatio: model.aspectRatios.includes(aspectRatio)
+      ? aspectRatio
+      : model.aspectRatios.includes("9:16")
         ? "9:16"
         : (model.aspectRatios[0] ?? ""),
-      durationSeconds: model.durations.includes(5)
+    durationSeconds: model.durations.includes(durationSeconds)
+      ? durationSeconds
+      : model.durations.includes(5)
         ? 5
         : (model.durations[0] ?? 5),
-      resolution: model.resolutions[0] ?? "",
-    },
-  };
-}
-
-/** Keep what still applies when the model changes; take the new model's defaults for the rest. */
-export function carryVideoSettings(
-  model: StudioVideoModel,
-  current: StudioVideoSettings,
-): StudioVideoSettings {
-  const fallback = videoDraftFor(model).settings;
-  return {
-    aspectRatio: model.aspectRatios.includes(current.aspectRatio)
-      ? current.aspectRatio
-      : fallback.aspectRatio,
-    durationSeconds: model.durations.includes(current.durationSeconds)
-      ? current.durationSeconds
-      : fallback.durationSeconds,
-    resolution: model.resolutions.includes(current.resolution)
-      ? current.resolution
-      : fallback.resolution,
+    resolution:
+      current && model.resolutions.includes(current.resolution)
+        ? current.resolution
+        : (model.resolutions[0] ?? ""),
   };
 }
 
 const TRIGGER_CLASS =
-  "text-muted-foreground hover:text-foreground h-8 max-w-[16rem] min-w-0 gap-1.5 px-2 text-sm font-medium";
+  "text-muted-foreground hover:text-foreground h-8 max-w-[min(16rem,100%)] min-w-0 gap-1.5 px-2 text-sm font-medium";
 
 function chipClass(active: boolean): string {
   return cn(
@@ -93,20 +79,18 @@ function chipClass(active: boolean): string {
 /**
  * Where a video is described and bought: one model, one clip.
  *
- * The image composer's shape — the prompt is the surface, the model and the
- * clip's settings are two summaries that open on demand — without its batch
- * machinery, because a video costs several images and takes minutes, and one
- * at a time is the honest default.
+ * The prompt, adjustable clip settings and price all refer to the same
+ * automatically selected model.
  */
 export function StudioVideoComposer({
   busy,
   canGenerate: projectReady,
-  catalog,
-  draft,
+  model,
+  settings,
   labels,
   modeSwitch,
   onClearSource,
-  onDraftChange,
+  onSettingsChange,
   onGenerate,
   onPromptChange,
   prompt,
@@ -116,12 +100,12 @@ export function StudioVideoComposer({
   busy: boolean;
   /** False until a project is open: a video is made in one. */
   canGenerate: boolean;
-  catalog: StudioCatalog;
-  draft: StudioVideoDraft;
+  model: StudioVideoModel;
+  settings: StudioVideoSettings;
   labels: StudioLabels;
   modeSwitch: React.ReactNode;
   onClearSource: () => void;
-  onDraftChange: (draft: StudioVideoDraft) => void;
+  onSettingsChange: (settings: StudioVideoSettings) => void;
   onGenerate: () => void;
   onPromptChange: (value: string) => void;
   prompt: string;
@@ -131,23 +115,17 @@ export function StudioVideoComposer({
 }) {
   const t = useTranslations("App.Studio");
   const promptHelpId = useId();
-  const models = videoModelsFor(catalog, source ? "image" : "text");
-  const model =
-    models.find((candidate) => candidate.id === draft.modelId) ?? models[0];
-  const { settings } = draft;
-  const credits = model ? creditsForVideo(model, settings) : null;
+  const credits = creditsForVideo(model, settings);
   const promptTooLong = prompt.length > MAX_PROMPT_LENGTH;
   const ready =
     projectReady &&
     !busy &&
-    model !== undefined &&
     credits !== null &&
     prompt.trim().length > 0 &&
     !promptTooLong;
 
   function update(next: Partial<StudioVideoSettings>) {
-    if (!model) return;
-    onDraftChange({ modelId: model.id, settings: { ...settings, ...next } });
+    onSettingsChange({ ...settings, ...next });
   }
 
   function submit() {
@@ -155,7 +133,7 @@ export function StudioVideoComposer({
   }
 
   const optionSummary = [
-    model && model.aspectRatios.length > 0 ? settings.aspectRatio : null,
+    model.aspectRatios.length > 0 ? settings.aspectRatio : null,
     `${settings.durationSeconds}s`,
     settings.resolution,
   ]
@@ -221,82 +199,9 @@ export function StudioVideoComposer({
         removeAttachmentLabel={() => ""}
         sendAriaLabel={labels.generateVideo}
         sendDisabled={!ready}
-        toolbarEnd={
-          credits === null ? null : (
-            <span className="text-muted-foreground text-xs tabular-nums">
-              {t("creditsCount", { count: credits })}
-            </span>
-          )
-        }
         toolbarStart={
-          <>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
             {modeSwitch}
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  className={TRIGGER_CLASS}
-                  size="sm"
-                  variant="ghost"
-                >
-                  <span className="sr-only">{labels.model}</span>
-                  <span className="min-w-0 truncate">{model?.label}</span>
-                  <ChevronDown
-                    aria-hidden
-                    className="text-muted-foreground size-3.5"
-                  />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="start"
-                className="w-80 max-w-[calc(100vw-2rem)] p-2"
-              >
-                <div aria-label={labels.model} role="radiogroup">
-                  {models.map((candidate) => {
-                    const checked = candidate.id === model?.id;
-                    const next = carryVideoSettings(candidate, settings);
-                    const price = creditsForVideo(candidate, next);
-                    return (
-                      <button
-                        aria-checked={checked}
-                        className={cn(
-                          POPOVER_ROW_CLASS,
-                          "flex w-full cursor-pointer items-start gap-2 px-2 py-1.5 text-left",
-                        )}
-                        key={candidate.id}
-                        onClick={() =>
-                          onDraftChange({
-                            modelId: candidate.id,
-                            settings: next,
-                          })
-                        }
-                        role="radio"
-                        type="button"
-                      >
-                        <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center">
-                          {checked ? (
-                            <Check aria-hidden className="size-4" />
-                          ) : null}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-medium">
-                            {candidate.label}
-                          </span>
-                          <span className="text-muted-foreground block text-xs">
-                            {candidate.description}
-                          </span>
-                        </span>
-                        {price === null ? null : (
-                          <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                            {t("creditsCount", { count: price })}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </PopoverContent>
-            </Popover>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -319,7 +224,7 @@ export function StudioVideoComposer({
                 align="start"
                 className="w-80 max-w-[calc(100vw-2rem)] space-y-3"
               >
-                {model && model.aspectRatios.length > 0 ? (
+                {model.aspectRatios.length > 0 ? (
                   <Row label={labels.aspectRatio}>
                     {model.aspectRatios.map((ratio) => (
                       <button
@@ -339,7 +244,7 @@ export function StudioVideoComposer({
                   </p>
                 )}
                 <Row label={labels.videoLength}>
-                  {model?.durations.map((seconds) => (
+                  {model.durations.map((seconds) => (
                     <button
                       aria-pressed={settings.durationSeconds === seconds}
                       className={chipClass(
@@ -354,7 +259,7 @@ export function StudioVideoComposer({
                   ))}
                 </Row>
                 <Row label={labels.resolution}>
-                  {model?.resolutions.map((resolution) => (
+                  {model.resolutions.map((resolution) => (
                     <button
                       aria-pressed={settings.resolution === resolution}
                       className={chipClass(settings.resolution === resolution)}
@@ -368,7 +273,12 @@ export function StudioVideoComposer({
                 </Row>
               </PopoverContent>
             </Popover>
-          </>
+            {credits === null ? null : (
+              <span className="text-muted-foreground ml-auto text-xs tabular-nums">
+                {t("creditsCount", { count: credits })}
+              </span>
+            )}
+          </div>
         }
         withOuterPadding={false}
         withSafeAreaPadding
@@ -420,6 +330,16 @@ function Row({
   );
 }
 
+/**
+ * The phone's main mode switch keeps its 28px pill but takes a 44px tap target
+ * below `md`: a transparent `::after` centred like `hit-area`, which stops at
+ * 40px. The composer toolbar scrolls sideways, so it clips anything outside
+ * its rows; the group's `py-2` makes its row tall enough to hold the target.
+ * Desktop is untouched.
+ */
+const MODE_TAP_TARGET_CLASS =
+  "relative max-md:after:absolute max-md:after:inset-[min(0px,calc((100%_-_var(--spacing)*11)_/_2))]";
+
 /** Image or Video: which composer is docked. */
 export function StudioModeSwitch({
   labels,
@@ -433,7 +353,7 @@ export function StudioModeSwitch({
   return (
     <div
       aria-label={labels.studioMode}
-      className="flex shrink-0 items-center gap-1"
+      className="flex shrink-0 items-center gap-1 max-md:py-2"
       role="radiogroup"
     >
       {(
@@ -444,7 +364,7 @@ export function StudioModeSwitch({
       ).map(([value, label]) => (
         <button
           aria-checked={mode === value}
-          className={chipClass(mode === value)}
+          className={cn(chipClass(mode === value), MODE_TAP_TARGET_CLASS)}
           key={value}
           onClick={() => onModeChange(value)}
           role="radio"

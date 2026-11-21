@@ -238,7 +238,7 @@ describe("AuthFlow signIn", () => {
     await continueWith(user, "ada@example.com");
     await waitFor(() => expect(signInFormMock).toHaveBeenCalled());
 
-    await user.click(screen.getByRole("button", { name: "changeEmail" }));
+    await user.click(screen.getByRole("button", { name: /changeEmail$/ }));
     await user.clear(emailField());
     await continueWith(user, "grace@example.com");
 
@@ -631,7 +631,7 @@ describe("AuthFlow signIn", () => {
     await continueWith(user, "ada@example.com");
     await waitFor(() => expect(signInFormMock).toHaveBeenCalled());
 
-    await user.click(screen.getByRole("button", { name: "changeEmail" }));
+    await user.click(screen.getByRole("button", { name: /changeEmail$/ }));
 
     expect(emailField()).toHaveValue("ada@example.com");
     await waitFor(() => expect(emailField()).toHaveFocus());
@@ -654,7 +654,7 @@ describe("AuthFlow signIn", () => {
 
     await waitFor(() => expect(signInFormMock).toHaveBeenCalled());
     expect(
-      screen.queryByRole("button", { name: "changeEmail" }),
+      screen.queryByRole("button", { name: /changeEmail$/ }),
     ).not.toBeInTheDocument();
   });
 
@@ -699,6 +699,13 @@ describe("AuthFlow signIn", () => {
     function register() {
       return screen.getByRole("link", { name: "Register.link" });
     }
+
+    it("is a target at least 24px tall", () => {
+      render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
+
+      // WCAG 2.5.8: a bare text-sm link is 20px tall on a phone.
+      expect(register()).toHaveClass("min-h-6");
+    });
 
     it("hands the typed email to sign-up instead of putting it in the link", async () => {
       const user = userEvent.setup();
@@ -851,7 +858,7 @@ describe("AuthFlow signIn", () => {
     await continueWith(user, "ada@example.com");
     await waitFor(() => expect(signInFormMock).toHaveBeenCalled());
     socialButtonsMock.mockClear();
-    await user.click(screen.getByRole("button", { name: "changeEmail" }));
+    await user.click(screen.getByRole("button", { name: /changeEmail$/ }));
 
     expect(socialButtonsMock).toHaveBeenCalled();
     for (const [props] of socialButtonsMock.mock.calls) {

@@ -1,19 +1,22 @@
 import type { StudioProductPhoto } from "@sokosumi/core-client";
 import { MAX_STUDIO_BATCH_IMAGES as MAX_BATCH } from "@sokosumi/utils";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { StudioBatchProduct } from "./studio-batch";
 import { StudioComposer } from "./studio-composer";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
-import type { StudioCatalog, StudioTarget } from "./types";
+import type { StudioAsset, StudioCatalog, StudioTarget } from "./types";
 import type { GenerationRequest } from "./use-generation-queue";
 
 const { uploadPhoto, getBrandKit } = vi.hoisted(() => ({
   uploadPhoto: vi.fn(),
   getBrandKit: vi.fn(),
 }));
+
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
 
 vi.mock("@/lib/actions/image-studio/brand-kit", () => ({
   getStudioBrandKit: getBrandKit,
@@ -55,13 +58,36 @@ const SETTINGS: StudioTarget["settings"] = {
   seed: null,
 };
 
-const LARGE_CATALOG: StudioCatalog = {
+const LETTERING_CATALOG: StudioCatalog = {
   ...TEST_CATALOG,
-  models: Array.from({ length: MAX_BATCH + 4 }, (_, index) => ({
-    ...TEST_CATALOG.models[0],
-    id: `many-${index}`,
-    label: `Many ${index}`,
-  })),
+  defaultModelId: "gemini-pro",
+  models: [
+    ...TEST_CATALOG.models,
+    {
+      ...TEST_CATALOG.models[0],
+      id: "gemini-pro",
+      label: "Gemini Pro",
+      resolutions: ["1K", "2K"],
+      price: {
+        ...TEST_CATALOG.models[0].price,
+        unitPriceUsd: 0.15,
+        perImageUsd: { "1K": 0.15, "2K": 0.15 },
+      },
+    },
+    {
+      ...TEST_CATALOG.models[0],
+      id: "ideogram-v3",
+      label: "Ideogram v3",
+      editEndpoint: "fal-ai/ideogram/v3/edit",
+      resolutions: ["1K"],
+      outputFormats: [],
+      price: {
+        ...TEST_CATALOG.models[0].price,
+        unitPriceUsd: 0.03,
+        perImageUsd: { "1K": 0.03 },
+      },
+    },
+  ],
 };
 
 const BATCH_PRODUCTS: StudioBatchProduct[] = [
@@ -92,12 +118,13 @@ const BATCH_PRODUCTS: StudioBatchProduct[] = [
 ];
 
 function Harness({
-  catalog = LARGE_CATALOG,
+  catalog = TEST_CATALOG,
   initial,
   onGenerate,
   productPhotos = false,
   batchProducts,
   generationProjectId,
+  referenceAssets = [],
 }: {
   catalog?: StudioCatalog;
   initial: StudioTarget;
@@ -105,6 +132,7 @@ function Harness({
   productPhotos?: boolean;
   batchProducts?: StudioBatchProduct[];
   generationProjectId?: string;
+  referenceAssets?: StudioAsset[];
 }) {
   const [target, setTarget] = useState(initial);
   const [prompt, setPrompt] = useState("A campaign image");
@@ -133,24 +161,10 @@ function Harness({
       productPhoto={photo}
       onTargetChange={setTarget}
       prompt={prompt}
-      referenceAssets={[]}
+      referenceAssets={referenceAssets}
       target={target}
     />
   );
-}
-
-function modelEntry(label: string) {
-  const entry = screen
-    .getAllByRole("checkbox")
-    .find((node) => node.textContent?.startsWith(label));
-  if (!entry) throw new Error(`Missing model ${label}`);
-  return entry;
-}
-
-function selectedLabels() {
-  return screen
-    .getAllByRole("checkbox", { checked: true })
-    .map((node) => node.textContent);
 }
 
 function generate() {
@@ -158,11 +172,208 @@ function generate() {
 }
 
 describe("an honest generation plan", () => {
+  it("does not mention lettering until an approved headline is selected", () => {
+    render(
+      <Harness
+        catalog={LETTERING_CATALOG}
+        initial={{ settings: SETTINGS }}
+        generationProjectId="project-a"
+        onGenerate={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("letteringIdeogramHint")).toBeNull();
+    expect(screen.queryByText("letteringFallbackHint")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "letteringIdeogram" }),
+    ).toBeNull();
+  });
+
+  it("defaults approved headlines to two-step Ideogram lettering with both charges", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    render(
+      <Harness
+        catalog={LETTERING_CATALOG}
+        generationProjectId="project-a"
+        initial={{
+          settings: { ...SETTINGS, resolution: "2K" },
+          exportHeadlines: { projectId: "project-a", lines: ["Made to last"] },
+        }}
+        onGenerate={onGenerate}
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: "letteringOverlay" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "letteringIdeogram" }),
+    ).toBeNull();
+    expect(screen.getByText("letteringIdeogramHint")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'letteringPlanCredits:{"sceneCredits":15,"letteringCredits":3,"credits":18}',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('creditsEach:{"credits":15,"count":1}'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('creditsEach:{"credits":3,"count":1}'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "2K" })).toBeNull();
+    generate();
+    expect(onGenerate.mock.calls[0][0]).toEqual([
+      expect.objectContaining({
+        modelId: "gemini-pro",
+        lettering: "ideogram",
+        exportHeadline: "Made to last",
+        settings: { ...SETTINGS, resolution: "1K" },
+      }),
+    ]);
+  });
+
+  it("reprices both lettering legs from the catalog for every requested copy", () => {
+    const catalog = {
+      ...LETTERING_CATALOG,
+      models: LETTERING_CATALOG.models.map((model) =>
+        model.id === "ideogram-v3"
+          ? {
+              ...model,
+              price: {
+                ...model.price,
+                unitPriceUsd: 0.06,
+                perImageUsd: { "1K": 0.06 },
+              },
+            }
+          : model,
+      ),
+    };
+    render(
+      <Harness
+        catalog={catalog}
+        generationProjectId="project-a"
+        initial={{
+          settings: SETTINGS,
+          exportHeadlines: { projectId: "project-a", lines: ["Made to last"] },
+        }}
+        onGenerate={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "2" }));
+    expect(
+      screen.getByText(
+        'letteringPlanCredits:{"sceneCredits":30,"letteringCredits":12,"credits":42}',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("falls back to the exact-font overlay when Ideogram cannot letter", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    const catalog = {
+      ...LETTERING_CATALOG,
+      models: LETTERING_CATALOG.models.filter(
+        (model) => model.id !== "ideogram-v3",
+      ),
+    };
+    render(
+      <Harness
+        catalog={catalog}
+        generationProjectId="project-a"
+        initial={{
+          settings: SETTINGS,
+          exportHeadlines: { projectId: "project-a", lines: ["Made to last"] },
+        }}
+        onGenerate={onGenerate}
+      />,
+    );
+    expect(screen.getByText("letteringFallbackHint")).toBeInTheDocument();
+    generate();
+    expect(onGenerate.mock.calls[0][0]).toEqual([
+      expect.objectContaining({
+        modelId: "gemini-pro",
+        exportHeadline: "Made to last",
+        lettering: "overlay",
+      }),
+    ]);
+  });
+
+  it("recovers a failed Ideogram edit with one catalog charge and its existing backdrop", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    const backdrop: StudioAsset = {
+      id: "backdrop",
+      projectId: "project-a",
+      projectName: "Ad",
+      rootId: "backdrop",
+      parentId: null,
+      version: 1,
+      prompt: "A product",
+      model: "gemini-pro",
+      settings: SETTINGS,
+      width: 1024,
+      height: 1024,
+      bytes: 3,
+      contentType: "image/png",
+      mediaType: "IMAGE",
+      video: null,
+      createdAt: new Date(),
+      jobId: "scene-job",
+      contentPath: "/backdrop",
+      lettering: "ideogram",
+      myThumb: null,
+      myReasons: [],
+      myComment: null,
+      thumbsUp: 0,
+      thumbsDown: 0,
+      score: 0.5,
+    };
+    const props = {
+      catalog: LETTERING_CATALOG,
+      generationProjectId: "project-a",
+      initial: {
+        settings: SETTINGS,
+        letteringBackdropId: backdrop.id,
+        exportHeadlines: { projectId: "project-a", lines: ["Made to last"] },
+      },
+      onGenerate,
+    };
+    const view = render(<Harness {...props} referenceAssets={[backdrop]} />);
+    expect(
+      screen.getByText('placementPlanCredits:{"count":1,"credits":3}'),
+    ).toBeInTheDocument();
+    expect(screen.getByText("letteringEditHint")).toBeInTheDocument();
+    expect(screen.queryByText("letteringIdeogramHint")).toBeNull();
+    generate();
+    expect(onGenerate.mock.calls[0][0]).toEqual([
+      expect.objectContaining({
+        modelId: "ideogram-v3",
+        letterExistingBackdrop: true,
+        lettering: "ideogram",
+        exportHeadline: "Made to last",
+        parentAssetId: "backdrop",
+        referenceAssetIds: ["backdrop"],
+      }),
+    ]);
+    view.rerender(
+      <Harness
+        {...props}
+        referenceAssets={[{ ...backdrop, id: "other-image" }]}
+      />,
+    );
+    expect(
+      screen.getByText(
+        'letteringPlanCredits:{"sceneCredits":15,"letteringCredits":3,"credits":18}',
+      ),
+    ).toBeInTheDocument();
+    generate();
+    const changedSource = onGenerate.mock.calls[1][0][0];
+    expect(changedSource.modelId).toBe("gemini-pro");
+    expect(changedSource.letterExistingBackdrop).toBeUndefined();
+  });
+
   it("uses each product's original cutout and blocks a batch with a missing photo", () => {
     const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
     const props = {
       catalog: TEST_CATALOG,
-      initial: { modelIds: ["model-a"], settings: SETTINGS },
+      initial: { settings: SETTINGS },
       onGenerate,
     };
     const view = render(<Harness {...props} batchProducts={BATCH_PRODUCTS} />);
@@ -204,7 +415,6 @@ describe("an honest generation plan", () => {
     const input = {
       catalog: TEST_CATALOG,
       initial: {
-        modelIds: ["model-a"],
         settings: SETTINGS,
         placementRatios: ["1:1", "9:16"] as StudioTarget["placementRatios"],
       },
@@ -247,7 +457,7 @@ describe("an honest generation plan", () => {
     render(
       <Harness
         catalog={TEST_CATALOG}
-        initial={{ modelIds: ["model-a"], settings: SETTINGS }}
+        initial={{ settings: SETTINGS }}
         onGenerate={onGenerate}
       />,
     );
@@ -286,7 +496,7 @@ describe("an honest generation plan", () => {
     render(
       <Harness
         catalog={TEST_CATALOG}
-        initial={{ modelIds: ["model-a"], settings: SETTINGS }}
+        initial={{ settings: SETTINGS }}
         onGenerate={onGenerate}
         productPhotos
       />,
@@ -330,7 +540,6 @@ describe("an honest generation plan", () => {
         batchProducts={BATCH_PRODUCTS}
         catalog={TEST_CATALOG}
         initial={{
-          modelIds: ["model-a"],
           settings: SETTINGS,
           placementRatios: ["1:1", "9:16"],
         }}
@@ -349,6 +558,17 @@ describe("an honest generation plan", () => {
 
     const requests = onGenerate.mock.calls[0][0];
     expect(requests).toHaveLength(6);
+    expect(requests.map(({ variationIndex }) => variationIndex)).toEqual([
+      0,
+      0,
+      1,
+      1,
+      undefined,
+      undefined,
+    ]);
+    expect(
+      new Set(requests.map(({ creativeDirection }) => creativeDirection)),
+    ).toEqual(new Set(["explainer"]));
     expect(
       new Set(requests.map(({ idempotencyKey }) => idempotencyKey)).size,
     ).toBe(6);
@@ -397,7 +617,6 @@ describe("an honest generation plan", () => {
         batchProducts={[{ ...BATCH_PRODUCTS[0], copies: MAX_BATCH }]}
         catalog={TEST_CATALOG}
         initial={{
-          modelIds: ["model-a"],
           settings: { ...SETTINGS, seed: 42 },
         }}
         onGenerate={onGenerate}
@@ -406,6 +625,9 @@ describe("an honest generation plan", () => {
     generate();
     const requests = onGenerate.mock.calls[0][0];
     expect(new Set(requests.map(({ prompt }) => prompt)).size).toBe(MAX_BATCH);
+    expect(requests.map(({ variationIndex }) => variationIndex)).toEqual(
+      Array.from({ length: MAX_BATCH }, (_, index) => index),
+    );
     expect(new Set(requests.map(({ settings }) => settings.seed))).toEqual(
       new Set([42]),
     );
@@ -426,7 +648,7 @@ describe("an honest generation plan", () => {
     render(
       <Harness
         catalog={TEST_CATALOG}
-        initial={{ modelIds: ["model-a"], settings: SETTINGS }}
+        initial={{ settings: SETTINGS }}
         onGenerate={onGenerate}
       />,
     );
@@ -441,196 +663,41 @@ describe("an honest generation plan", () => {
     expect(
       onGenerate.mock.calls[0][0].map((request) => request.prompt),
     ).toEqual([prompt, prompt]);
-  });
-
-  it("fits an oversized product batch by keeping selected models and leaving placements and copies intact", () => {
-    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
-    const incompatible = {
-      ...TEST_CATALOG.models[0],
-      aspectRatios: ["1:1"],
-    };
-    render(
-      <Harness
-        batchProducts={BATCH_PRODUCTS}
-        catalog={{
-          ...LARGE_CATALOG,
-          models: [incompatible, ...LARGE_CATALOG.models.slice(0, 2)],
-        }}
-        initial={{
-          modelIds: [incompatible.id, "many-0", "many-1"],
-          settings: SETTINGS,
-          placementRatios: ["1:1", "9:16"],
-        }}
-        onGenerate={onGenerate}
-      />,
-    );
     expect(
-      screen.getByText('productBatchLimit:{"count":12}', {
-        selector: '[role="alert"]',
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("unsupportedPlacements")).toBeInTheDocument();
-    generate();
-    expect(onGenerate).not.toHaveBeenCalled();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: 'fitBatchModels:{"count":2}' }),
-    );
-    expect(onGenerate).not.toHaveBeenCalled();
-    expect(modelEntry(incompatible.label)).toHaveAttribute(
-      "aria-checked",
-      "false",
-    );
-    expect(screen.queryByRole("alert")).toBeNull();
-    generate();
-    const requests = onGenerate.mock.calls[0][0];
-    expect(requests).toHaveLength(MAX_BATCH);
-    expect(new Set(requests.map(({ modelId }) => modelId))).toEqual(
-      new Set(["many-0", "many-1"]),
-    );
-    expect(requests.map(({ settings }) => settings.aspectRatio)).toEqual(
-      Array.from({ length: 3 }, () => ["1:1", "1:1", "9:16", "9:16"]).flat(),
-    );
+      onGenerate.mock.calls[0][0].map((request) => request.variationIndex),
+    ).toEqual([undefined, undefined]);
   });
 
-  it("selects only models that fit and buys every checked model", () => {
-    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
-    render(
-      <Harness
-        initial={{ modelIds: ["many-15"], settings: SETTINGS }}
-        onGenerate={onGenerate}
-      />,
-    );
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: 'selectModelsUpToLimit:{"count":12}',
-      }),
-    );
-
-    expect(selectedLabels()).toHaveLength(MAX_BATCH);
-    expect(modelEntry("Many 15")).toHaveAttribute("aria-checked", "true");
-    expect(modelEntry("Many 11")).toHaveAttribute("aria-checked", "false");
-    generate();
-    const requests = onGenerate.mock.calls[0][0];
-    expect(requests).toHaveLength(MAX_BATCH);
-    expect(requests.map((request) => request.modelId)).toEqual([
-      ...Array.from({ length: 11 }, (_, index) => `many-${index}`),
-      "many-15",
-    ]);
-  });
-
-  it("explains and refuses a thirteenth model until another is removed", () => {
-    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
-    render(
-      <Harness
-        initial={{
-          modelIds: LARGE_CATALOG.models
-            .slice(0, MAX_BATCH)
-            .map((model) => model.id),
-          settings: SETTINGS,
-        }}
-        onGenerate={onGenerate}
-      />,
-    );
-    const extra = modelEntry("Many 12");
-    expect(extra).toHaveAttribute("aria-disabled", "true");
-    expect(extra).toHaveAccessibleDescription(
-      'modelSelectionLimit:{"count":12}',
-    );
-    fireEvent.click(extra);
-    expect(selectedLabels()).toHaveLength(MAX_BATCH);
-    expect(extra).toHaveAttribute("aria-checked", "false");
-
-    fireEvent.click(modelEntry("Many 0"));
-    fireEvent.click(extra);
-    generate();
-    const requests = onGenerate.mock.calls[0][0];
-    expect(requests).toHaveLength(MAX_BATCH);
-    expect(requests.some((request) => request.modelId === "many-12")).toBe(
-      true,
-    );
-    expect(requests.some((request) => request.modelId === "many-0")).toBe(
-      false,
-    );
-  });
-
-  it("limits filtered bulk selection without promising to select all matches", () => {
-    render(
-      <Harness
-        initial={{
-          modelIds: LARGE_CATALOG.models
-            .slice(0, MAX_BATCH - 1)
-            .map((model) => model.id),
-          settings: SETTINGS,
-        }}
-        onGenerate={vi.fn()}
-      />,
-    );
-    fireEvent.change(screen.getByRole("textbox", { name: "searchModels" }), {
-      target: { value: "Many 1" },
-    });
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: 'selectModelsUpToLimit:{"count":12}',
-      }),
-    );
-    expect(screen.getAllByRole("checkbox", { checked: true })).toHaveLength(3);
-    expect(modelEntry("Many 11")).toHaveAttribute("aria-checked", "true");
-    expect(modelEntry("Many 12")).toHaveAttribute("aria-checked", "false");
-    expect(
-      screen.getByRole("button", {
-        name: 'selectModelsUpToLimit:{"count":12}',
-      }),
-    ).toBeDisabled();
-  });
-
-  it("refuses an over-limit restored target instead of silently dropping models", () => {
-    const onGenerate = vi.fn();
-    render(
-      <Harness
-        initial={{
-          modelIds: LARGE_CATALOG.models
-            .slice(0, MAX_BATCH + 1)
-            .map((model) => model.id),
-          settings: SETTINGS,
-        }}
-        onGenerate={onGenerate}
-      />,
-    );
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      'modelSelectionLimit:{"count":12}',
-    );
-    expect(screen.getByRole("button", { name: /^generate/ })).toBeDisabled();
-    fireEvent.keyDown(
-      screen.getByRole("textbox", { name: "promptPlaceholder" }),
-      {
-        key: "Enter",
-        ctrlKey: true,
-      },
-    );
-    expect(onGenerate).not.toHaveBeenCalled();
-  });
-
-  it("discloses each purchased frame after a template sets an unsupported ratio", () => {
+  it("recognizes variation and direction metadata when a prompt is reused for one copy", () => {
     const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
     render(
       <Harness
         catalog={TEST_CATALOG}
-        initial={{ modelIds: ["model-a", "model-b"], settings: SETTINGS }}
+        initial={{ settings: SETTINGS }}
         onGenerate={onGenerate}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "templates" }));
-    fireEvent.click(screen.getByRole("button", { name: "story-ad" }));
-    expect(screen.getByText("mixedSettings")).toBeInTheDocument();
-    expect(screen.getAllByText("dimensions: 9:16 · 1K · png")).toHaveLength(2);
-    expect(screen.getAllByText("dimensions: 1:1 · 1K · png")).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: "2" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "CreativeDirections.editorial" }),
+    );
     generate();
-    expect(
-      onGenerate.mock.calls[0][0].map(
-        (request) => request.settings.aspectRatio,
-      ),
-    ).toEqual(["9:16", "1:1"]);
+    const reusedPrompt = onGenerate.mock.calls[0][0][1].prompt;
+    fireEvent.click(screen.getByRole("button", { name: "1" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "CreativeDirections.auto" }),
+    );
+    fireEvent.change(
+      screen.getByRole("textbox", { name: TEST_LABELS.promptPlaceholder }),
+      { target: { value: reusedPrompt } },
+    );
+    generate();
+
+    expect(onGenerate.mock.calls[1][0][0]).toMatchObject({
+      prompt: reusedPrompt,
+      variationIndex: 1,
+      creativeDirection: "editorial",
+    });
   });
 
   it("prices and submits the requested placements within the copy limit", () => {
@@ -638,7 +705,7 @@ describe("an honest generation plan", () => {
     render(
       <Harness
         catalog={TEST_CATALOG}
-        initial={{ modelIds: ["model-a"], settings: SETTINGS }}
+        initial={{ settings: SETTINGS }}
         onGenerate={onGenerate}
       />,
     );
@@ -672,89 +739,48 @@ describe("an honest generation plan", () => {
     ).toBe(MAX_BATCH);
   });
 
-  it("keeps a selected placement visible and blocks incompatible batches", () => {
+  it("blocks an oversized product batch until fewer placements are requested", () => {
     const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
     render(
       <Harness
-        catalog={TEST_CATALOG}
-        initial={{ modelIds: ["model-a"], settings: SETTINGS }}
+        batchProducts={[{ ...BATCH_PRODUCTS[0], copies: MAX_BATCH }]}
+        initial={{ settings: SETTINGS, placementRatios: ["1:1", "9:16"] }}
         onGenerate={onGenerate}
       />,
     );
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      'productBatchLimit:{"count":12}',
+    );
+    expect(screen.getByRole("button", { name: /^generate/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /Placements.stories/ }));
+    generate();
+    expect(onGenerate.mock.calls[0][0]).toHaveLength(MAX_BATCH);
+  });
 
-    const stories = screen.getByRole("button", { name: /Placements.stories/ });
-    fireEvent.click(stories);
-    fireEvent.click(modelEntry("Model B"));
-    expect(stories).toHaveAttribute("aria-pressed", "true");
+  it("keeps an unsupported placement visible so it can be removed", () => {
+    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
+    render(
+      <Harness
+        catalog={{ ...TEST_CATALOG, defaultModelId: "model-b" }}
+        initial={{ settings: SETTINGS, placementRatios: ["9:16"] }}
+        onGenerate={onGenerate}
+      />,
+    );
     expect(screen.getByRole("alert")).toHaveTextContent(
       "unsupportedPlacements",
     );
+    expect(screen.getByRole("button", { name: /^generate/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /Placements.stories/ }));
     generate();
-    expect(onGenerate).not.toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole("button", { name: "4:5" }));
-    expect(stories).toHaveAttribute("aria-pressed", "false");
-    generate();
-    expect(
-      onGenerate.mock.calls[0][0].map(({ settings }) => settings.aspectRatio),
-    ).toEqual(["4:5", "4:5"]);
-  });
-
-  it("shows and prices the same normalized settings it submits for each model", () => {
-    const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
-    const inherited: StudioTarget["settings"] = {
-      ...SETTINGS,
-      aspectRatio: "9:16",
-      resolution: "0.5K",
-    };
-    render(
-      <Harness
-        catalog={TEST_CATALOG}
-        initial={{
-          modelIds: ["model-a", "model-b"],
-          settings: inherited,
-        }}
-        onGenerate={onGenerate}
-      />,
-    );
-    expect(screen.getByText("mixedSettings")).toBeInTheDocument();
-    expect(
-      screen.getByText('runPlanCredits:{"copies":1,"models":2,"credits":12}'),
-    ).toBeInTheDocument();
-    generate();
-    const requests = onGenerate.mock.calls[0][0];
-    expect(requests.map((request) => request.settings)).toEqual([
-      inherited,
-      SETTINGS,
-    ]);
-    expect(requests.map((request) => request.modelId)).toEqual([
-      "model-a",
-      "model-b",
-    ]);
-    for (const [index, request] of requests.entries()) {
-      const { aspectRatio, resolution, outputFormat } = request.settings;
-      const actualSettings = `dimensions: ${aspectRatio} · ${resolution} · ${outputFormat}`;
-      expect(screen.getAllByText(actualSettings)).toHaveLength(2);
-      const priceRow = screen
-        .getByText(
-          `creditsEach:${JSON.stringify({ credits: index === 0 ? 2 : 10, count: 1 })}`,
-        )
-        .closest("li");
-      if (!priceRow) throw new Error(`Missing price for ${request.modelLabel}`);
-      expect(
-        within(priceRow).getByText(request.modelLabel),
-      ).toBeInTheDocument();
-      expect(within(priceRow).getByText(actualSettings)).toBeInTheDocument();
-    }
+    expect(onGenerate.mock.calls[0][0]).toHaveLength(1);
   });
 
   it("summarizes a single model's normalized frame instead of inherited settings", () => {
     const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
     render(
       <Harness
-        catalog={TEST_CATALOG}
+        catalog={{ ...TEST_CATALOG, defaultModelId: "model-b" }}
         initial={{
-          modelIds: ["model-b"],
           settings: { ...SETTINGS, aspectRatio: "9:16", resolution: "0.5K" },
         }}
         onGenerate={onGenerate}
@@ -763,7 +789,6 @@ describe("an honest generation plan", () => {
 
     expect(screen.getByText("1:1 · 1K · png")).toBeInTheDocument();
     expect(screen.queryByText("9:16 · 0.5K · png")).not.toBeInTheDocument();
-    expect(screen.queryByText("mixedSettings")).not.toBeInTheDocument();
     generate();
     expect(onGenerate.mock.calls[0][0]).toHaveLength(1);
     expect(onGenerate.mock.calls[0][0][0].settings).toEqual(SETTINGS);
@@ -781,39 +806,27 @@ describe("an honest generation plan", () => {
     actualFormat: StudioTarget["settings"]["outputFormat"];
     shownFormat: string;
   }[])(
-    "discloses mixed formats when a model uses $shownFormat",
+    "discloses the format the automatic model uses for $shownFormat",
     ({ outputFormats, actualFormat, shownFormat }) => {
       const onGenerate = vi.fn<(requests: GenerationRequest[]) => void>();
-      const catalog: StudioCatalog = {
+      const catalog = {
         ...TEST_CATALOG,
-        models: TEST_CATALOG.models.map((model) =>
-          model.id === "model-b" ? { ...model, outputFormats } : model,
-        ),
+        models: [{ ...TEST_CATALOG.models[0], outputFormats }],
       };
       render(
         <Harness
           catalog={catalog}
-          initial={{
-            modelIds: ["model-a", "model-b"],
-            settings: { ...SETTINGS, outputFormat: "webp" },
-          }}
+          initial={{ settings: { ...SETTINGS, outputFormat: "webp" } }}
           onGenerate={onGenerate}
         />,
       );
-
-      expect(screen.getByText("mixedSettings")).toBeInTheDocument();
-      expect(screen.getAllByText("dimensions: 1:1 · 1K · webp")).toHaveLength(
-        2,
-      );
       expect(
-        screen.getAllByText(`dimensions: 1:1 · 1K · ${shownFormat}`),
-      ).toHaveLength(2);
+        screen.getByText(`dimensions: 1:1 · 1K · ${shownFormat}`),
+      ).toBeInTheDocument();
       generate();
-      expect(
-        onGenerate.mock.calls[0][0].map(
-          (request) => request.settings.outputFormat,
-        ),
-      ).toEqual(["webp", actualFormat]);
+      expect(onGenerate.mock.calls[0][0][0].settings.outputFormat).toBe(
+        actualFormat,
+      );
     },
   );
 });

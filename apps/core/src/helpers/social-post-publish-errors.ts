@@ -32,15 +32,39 @@ function summarize(value: string | null | undefined): string {
   return flat ? flat.slice(0, SUMMARY_LIMIT) : UNKNOWN_SUMMARY;
 }
 
+function isXImageRejection(message: string): boolean {
+  return (
+    message.startsWith("X could not upload the image") &&
+    [
+      "The image type was rejected. Try a JPEG or PNG image.",
+      "The image file is too large. Use an image under 5 MB.",
+      "The image upload request has invalid parameters. Try again or use a different image.",
+      "The image file is invalid or damaged. Try a different image.",
+      "The image file is missing. Attach it again.",
+    ].some((reason) => message.endsWith(`: ${reason}`))
+  );
+}
+
 function classifyApiError(error: ComposioApiError): PublishErrorClassification {
   const summary = summarize(error.message);
-  if (error.httpStatus === 429) {
+  const status = error.providerStatus ?? error.httpStatus;
+  const imageMessage = error.message.startsWith("X could not upload the image")
+    ? error.message
+    : "";
+  if (status === 429 || /rate.?limit/i.test(imageMessage)) {
     return { kind: "rate_limited", transient: true, summary };
   }
-  if (error.httpStatus === 401 || error.httpStatus === 403) {
+  if (
+    status === 401 ||
+    (status === 403 && !isXImageRejection(error.message)) ||
+    /unauthori[sz]ed|missing permission/i.test(imageMessage)
+  ) {
     return { kind: "unauthorized", transient: false, summary };
   }
-  if (error.httpStatus >= 500) {
+  if (/timed out|timeout/i.test(imageMessage)) {
+    return { kind: "timeout", transient: true, summary };
+  }
+  if (status >= 500 || /temporarily/i.test(imageMessage)) {
     return {
       kind: /timed out|timeout/i.test(error.message)
         ? "timeout"
@@ -70,7 +94,7 @@ function classifyToolError(
   if (
     status === 401 ||
     (status === 403 &&
-      (isXMediaStep ||
+      ((isXMediaStep && !isXImageRejection(error.message)) ||
         /permission|scope|forbidden|unauthori[sz]ed/i.test(providerMessage))) ||
     (isXMediaStep && /\b40[13]\b/.test(providerMessage)) ||
     /unauthori[sz]ed|expired.?token|token.*expired|missing.?permission|missing.?scope/i.test(

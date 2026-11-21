@@ -1,9 +1,16 @@
 import * as Sentry from "@sentry/node";
 import type { Prisma } from "@sokosumi/database";
 import { generateText } from "ai";
+import {
+  AiGatewayBudgetError,
+  rethrowAiGatewayFailure,
+} from "@/lib/ai-gateway-budget";
+import { aiGateway } from "@/lib/ai-gateway-purpose";
 
 import prisma from "@/lib/db/prisma";
+import { emitCoreWarning } from "@/lib/evlog";
 import { PROJECT_MEMORY_LOCK_TTL_MS } from "@/lib/project-memory-config";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 const LATEST_UPDATE_GENERATION_TIMEOUT_MS = 60_000;
 const MAX_LATEST_UPDATE_LINES = 120;
@@ -200,7 +207,7 @@ export async function refreshProjectLatestUpdate({
 
   try {
     const generation = await generateText({
-      model: modelId,
+      model: aiGateway("project-memory").languageModel(modelId),
       system: PROJECT_LATEST_UPDATE_SYSTEM_PROMPT,
       prompt,
       maxOutputTokens: MAX_OUTPUT_TOKENS,
@@ -210,13 +217,20 @@ export async function refreshProjectLatestUpdate({
           only: ["mistral"],
         },
       },
-    });
+    }).catch((error: unknown) =>
+      rethrowAiGatewayFailure(error, "project-memory"),
+    );
     const content = capLatestUpdateMd(generation.text);
     if (!content || !hasLeadingTldrHeading(content)) {
-      console.warn(
-        "Project latest update skipped: missing TL;DR or empty output",
+      // Runs in the project memory refresh, after the task event's response.
+      emitCoreWarning(
+        { operation: "project_latest_update", project: { id: projectId } },
         {
-          projectId,
+          message: "Skipped a project's latest update",
+          why: content
+            ? "The model's update has no leading TL;DR heading"
+            : "The model returned no update",
+          fix: "Nothing to do: the next completed task in the project generates it again.",
         },
       );
       return "skipped";
@@ -234,9 +248,18 @@ export async function refreshProjectLatestUpdate({
     }
     return "updated";
   } catch (error) {
-    console.warn("Project latest update skipped: generation failed", {
-      projectId,
-    });
+    if (error instanceof AiGatewayBudgetError) return "skipped";
+    emitCoreWarning(
+      { operation: "project_latest_update", project: { id: projectId } },
+      {
+        message: "Skipped a project's latest update",
+        why: "Generating the update failed",
+        fix: "Nothing to do for one failure: the next completed task generates it again. Sentry has the error.",
+      },
+      // Only safe fields: the prompt is the project's own content, and a
+      // model error can quote it.
+      { failure: messageSafeErrorFields(error) },
+    );
     Sentry.captureException(error, {
       tags: { error_type: "project_latest_update_failed" },
       extra: { projectId },

@@ -24,13 +24,17 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { leaveRoomAction } from "@/app/chat/actions";
-import { useRoomSelection } from "@/app/chat/components/room-cache-provider";
+import {
+  useRoomIntentPrefetch,
+  useRoomSelection,
+} from "@/app/chat/components/room-cache-provider";
 import { canLeaveChannel } from "@/app/chat/utils/channel-member-permissions";
 import {
   CHAT_CHATS_LIST_PATH,
   CHAT_EDIT_CHANNEL_PARAM,
   chatRoomEditHref,
   chatRoomHref,
+  isChatRoomPathname,
   pathWithSearch,
 } from "@/app/chat/utils/chat-route-base";
 import { getActiveRoomIdFromSelection } from "@/components/chat/active-room-id";
@@ -57,6 +61,7 @@ import {
   useRoomRowAttention,
 } from "@/components/chat/room-row-attention";
 import { RoomWorkspaceTile } from "@/components/chat/room-workspace-tile";
+import { usePendingPathname } from "@/components/navigation-progress.client";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -258,9 +263,17 @@ export function ChatRoomSidebarRow({
   workspaceName,
 }: ChatRoomSidebarRowProps) {
   const selectedPath = useRoomSelection();
+  const pendingPathname = usePendingPathname();
   const isActive = selectedPath
     ? getActiveRoomIdFromSelection(selectedPath) === room.id
     : routeIsActive;
+  // A click on another page's nav row takes the mark with it at once. Only
+  // the mark: the room is still the one on screen until that page arrives.
+  const isCurrent =
+    isActive &&
+    (pendingPathname === null || isChatRoomPathname(pendingPathname));
+  // The open room reads for itself. Reorder mode: the link stands down.
+  const intentRef = useRoomIntentPrefetch(href, !isActive && !reorderHandle);
 
   const tActions = useTranslations("App.Channels.Actions");
   const tChannels = useTranslations("App.Channels");
@@ -354,7 +367,6 @@ export function ChatRoomSidebarRow({
     if (isActive) {
       // Land on chat home / list (`/chat` — mobile list; desktop redirects).
       router.replace(CHAT_CHATS_LIST_PATH);
-      router.refresh();
     }
   }
 
@@ -405,14 +417,15 @@ export function ChatRoomSidebarRow({
 
   const roomLink = (
     <Link
-      aria-current={isActive ? "page" : undefined}
+      aria-current={isCurrent ? "page" : undefined}
       className={cn(
         SIDEBAR_ROW_LINK_CLASS,
-        isMuted && !isActive && "opacity-60",
+        isMuted && !isCurrent && "opacity-60",
         // Reorder mode: a press moves the room, so the link stands down.
         reorderHandle && "pointer-events-none",
       )}
       href={href}
+      ref={intentRef}
       tabIndex={reorderHandle ? -1 : undefined}
       title={workspaceName ?? undefined}
     >
@@ -426,7 +439,7 @@ export function ChatRoomSidebarRow({
           className={cn(
             "block min-w-0 truncate",
             bold && "font-semibold text-foreground",
-            isMuted && !isActive && "text-muted-foreground",
+            isMuted && !isCurrent && "text-muted-foreground",
           )}
         >
           {label}
@@ -484,7 +497,7 @@ export function ChatRoomSidebarRow({
             ? "[@media(hover:hover)]:w-16"
             : tileBesideColumn
               ? "[@media(hover:hover)]:w-8"
-              : isMuted || isActive || reorderHandle || hasRowCount || hasTile
+              : isMuted || isCurrent || reorderHandle || hasRowCount || hasTile
                 ? "[@media(hover:hover)]:size-4"
                 : [
                     "[@media(hover:hover)]:size-0",
@@ -501,7 +514,7 @@ export function ChatRoomSidebarRow({
   const roomButton = (
     <SidebarMenuButton
       asChild
-      isActive={isActive}
+      isActive={isCurrent}
       // A guest row is one of the items allowed a second line (GLOSSARY.md,
       // "Sidebar row"): its host organisation line is one a 28px row has no
       // room for, so this row alone releases the height to hold it, down to

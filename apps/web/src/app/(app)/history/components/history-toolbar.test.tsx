@@ -1,5 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+
+vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
@@ -19,6 +21,7 @@ vi.mock("./history-view-filters", () => ({
       Filters
     </button>
   ),
+  HistoryActiveFilters: () => null,
 }));
 
 vi.mock("./history-export-menu", () => ({
@@ -43,6 +46,7 @@ const filterLabels = {
     task: "Task",
     coworker: "Coworker",
     sokoBot: "Soko Bot",
+    seoChat: "SEO chat",
     contacts: "Find people",
     topUp: "Top up",
     unattributed: "Other",
@@ -50,11 +54,17 @@ const filterLabels = {
 };
 
 describe("HistoryToolbar", () => {
-  it("hides the page search input on mobile so header search owns filtering", () => {
-    const { container } = render(
+  it("focuses the page filter with Ctrl+F in the mobile toolbar", () => {
+    render(
       <HistoryToolbar
         activeOrganizationId={null}
-        filters={{ q: null, scope: "owned", type: null, projectId: null }}
+        filters={{
+          q: null,
+          scope: "owned",
+          type: null,
+          projectId: null,
+          taskId: null,
+        }}
         projectOptions={[]}
         resultsCountLabel="3 results found"
         labels={{
@@ -67,11 +77,12 @@ describe("HistoryToolbar", () => {
       />,
     );
 
-    const searchSlot = container.querySelector(".hidden.md\\:block");
-    expect(searchSlot).not.toBeNull();
-    expect(
-      screen.getByPlaceholderText("Search transactions").closest(".hidden"),
-    ).toBeTruthy();
+    const field = screen.getByRole("searchbox", {
+      name: "Search transactions",
+    });
+    expect(field.closest(".hidden")).toBeNull();
+    fireEvent.keyDown(window, { key: "f", ctrlKey: true });
+    expect(field).toHaveFocus();
     expect(screen.getByTestId("history-view-filters")).toBeInTheDocument();
   });
 
@@ -79,7 +90,13 @@ describe("HistoryToolbar", () => {
     const { container } = render(
       <HistoryToolbar
         activeOrganizationId={null}
-        filters={{ q: null, scope: "owned", type: null, projectId: null }}
+        filters={{
+          q: null,
+          scope: "owned",
+          type: null,
+          projectId: null,
+          taskId: null,
+        }}
         projectOptions={[]}
         resultsCountLabel="3 results found"
         labels={{
@@ -92,7 +109,8 @@ describe("HistoryToolbar", () => {
       />,
     );
 
-    const toolbar = container.firstElementChild;
+    // First row of the toolbar; active filter chips sit on their own row below.
+    const toolbar = container.firstElementChild?.firstElementChild;
     expect(toolbar).not.toBeNull();
 
     const resultsLabel = screen.getByText("3 results found");
@@ -101,12 +119,12 @@ describe("HistoryToolbar", () => {
     const filterWrapper = screen.getByTestId(
       "history-view-filters",
     ).parentElement;
-    expect(filterWrapper?.className).toMatch(/ml-auto/);
-
-    expect(
-      Array.from(toolbar?.children ?? []).indexOf(resultsLabel),
-    ).toBeLessThan(
-      Array.from(toolbar?.children ?? []).indexOf(filterWrapper as Element),
+    const actionGroup = filterWrapper?.parentElement;
+    expect(actionGroup).toBe(toolbar?.lastElementChild);
+    expect(actionGroup?.firstElementChild).toContainElement(
+      screen.getByRole("searchbox"),
     );
+    expect(actionGroup?.lastElementChild).toBe(filterWrapper);
+    expect(toolbar?.firstElementChild).toBe(resultsLabel);
   });
 });

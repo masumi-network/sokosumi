@@ -6,6 +6,7 @@ import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
+import { studioImageModelId } from "@/lib/image-studio/catalog";
 import { imageStudioValidationHook } from "@/lib/image-studio/request-validation";
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -74,14 +75,21 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         userId: userContext.userId,
         sessionId: input.sessionId,
         prompt: input.prompt,
+        templateId: input.templateId,
+        creativeDirection: input.creativeDirection,
+        variationIndex: input.variationIndex,
         product: input.product,
         batchId: input.batchId,
         reuseParentBatchSlot: true,
         exportHeadline: input.exportHeadline,
+        lettering: input.lettering,
         useProductCutout: input.useProductCutout,
         reuseParentCutout: true,
         reuseParentHeadlineIfAvailable: true,
-        modelId: input.modelId,
+        modelId:
+          input.letterExistingBackdrop && input.lettering === "ideogram"
+            ? "ideogram-v3"
+            : studioImageModelId(),
         settings: { ...DEFAULT_SETTINGS, ...input.settings },
         referenceAssetIds: input.referenceAssetIds,
         referenceFileIds: input.referenceFileIds,

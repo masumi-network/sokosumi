@@ -7,6 +7,8 @@ export const LONG_FORM_WRITING_SKILLS: readonly WritingSkill[] = [
     name: "Newsletter",
     description:
       "Read before any newsletter issue: a subject line people open, one idea, one link to click.",
+    audience:
+      "People who already know the business and asked to hear from it. Worth it for every business with a mailing list: it brings them back rather than reaching new people.",
     channels: ["newsletter"],
     content: `# Newsletter
 
@@ -90,6 +92,8 @@ Anna, from the bakery
     name: "Search (SEO)",
     description:
       "Read before any article or page fix: answer the search first, titles and descriptions that fit Google's limits.",
+    audience:
+      "People searching for an answer or a product right now. Worth it for almost every business: each piece answers a search its buyers make.",
     channels: ["seo"],
     content: `# Search (SEO)
 
@@ -101,7 +105,7 @@ The file gives each field, ready to paste:
 
 \`\`\`
 Page: [the page's URL]
-Now: [the page's current title, as the Brand Brain or Search Console shows it, or "not read"]
+Now: [the page's current title: read the page with web_fetch and copy it; "not read" only when the page does not load]
 Baseline: [Search Console for the page's main search, last 28 days: clicks, impressions, position; or "not connected"]
 Title: [at most 60 characters]
 Description: [120 to 155 characters]
@@ -171,7 +175,7 @@ Sourdough keeps three to four days at room temperature in a paper bag, longer th
         formats: ["article"],
       },
       {
-        rule: "Page fix: a Now line with the current title and a Baseline line, then the new fields.",
+        rule: 'Page fix: a Now line (the current title, or "not read") and a Baseline line (the numbers, or "not connected"), then the new fields.',
         formats: ["page_fix"],
       },
       { rule: "No keyword stuffing and no invented statistics." },

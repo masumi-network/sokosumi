@@ -12,11 +12,13 @@ import {
   record,
 } from "@/clients/composio.client";
 import { facebookInsightShareCount } from "@/clients/social-post-providers/facebook-shares";
+import { zernioPostMetrics } from "@/clients/social-post-providers/statistics";
 import {
   ComposioToolError,
   createComposioToolSession,
   executeComposioTool,
 } from "@/clients/social-post-providers/tools";
+import { getZernioAccountId, zernioRequest } from "@/clients/zernio.client";
 import type {
   SocialAccountMetric,
   SocialAccountPostMedia,
@@ -1164,6 +1166,111 @@ async function enrichMetaHistory(
     result.metricWarning = `${socialPostProviderLabel(context.provider)} published posts were imported, but some post insights are unavailable.`;
 }
 
+/** A Zernio account is one identity: a TikTok creator, or the LinkedIn Page or profile picked at sign-in. */
+async function readZernioStatistics(
+  context: SocialAccountStatisticsContext,
+  platform: "tiktok" | "linkedin",
+  accountId: string,
+  result: AccountPage,
+) {
+  const label = socialPostProviderLabel(platform);
+  if (context.includeProfile) {
+    try {
+      const data = record(
+        await zernioRequest(
+          `/accounts/follower-stats?accountIds=${encodeURIComponent(accountId)}`,
+          { signal: context.signal },
+        ),
+      );
+      const account = objects(data?.accounts).find(
+        (entry) => entry._id === accountId && entry.platform === platform,
+      );
+      if (!account) throw new Error("Account statistics unavailable");
+      const stats = record(account.accountStats);
+      result.accountMetrics = [
+        metric("follower_count", counter(account.currentFollowers)),
+        ...(platform === "tiktok"
+          ? [
+              metric("following_count", counter(stats?.followingCount)),
+              metric("likes_count", counter(stats?.likesCount)),
+              metric("video_count", counter(stats?.videoCount)),
+            ]
+          : []),
+      ];
+    } catch {
+      context.signal?.throwIfAborted();
+      result.accountError = `${label} account statistics are unavailable through Zernio.`;
+    }
+  }
+  try {
+    const page = Number(context.cursor ?? 1);
+    if (!Number.isSafeInteger(page) || page < 1)
+      throw new Error("Invalid history pagination");
+    const query = new URLSearchParams({
+      platform,
+      accountId,
+      page: String(page),
+      limit: "50",
+    });
+    const data = record(
+      await zernioRequest(`/analytics?${query}`, { signal: context.signal }),
+    );
+    const pagination = record(data?.pagination);
+    const total = counter(pagination?.total);
+    if (pagination?.page !== page || pagination?.limit !== 50 || total === null)
+      throw new Error("Invalid history pagination");
+    for (const item of requiredList(data, "posts", 50)) {
+      const platforms = objects(item.platforms);
+      const entry = platforms.find(
+        (entry) =>
+          entry.platform === platform &&
+          entry.accountId === accountId &&
+          entry.status === "published",
+      );
+      if (
+        !entry &&
+        (platforms.length ||
+          item.platform !== platform ||
+          !date(item.publishedAt) ||
+          (item.status != null && item.status !== "published"))
+      )
+        continue;
+      const imported = post(
+        { id: item.latePostId ?? item._id },
+        item.content,
+        date(item.publishedAt),
+        entry?.platformPostUrl ?? item.platformPostUrl,
+      );
+      if (!imported) continue;
+      imported.contentType =
+        item.mediaType === "carousel" ||
+        item.mediaType === "image" ||
+        item.mediaType === "video"
+          ? item.mediaType
+          : "unknown";
+      imported.media = objects(item.mediaItems)
+        .slice(0, 20)
+        .flatMap((media) =>
+          media.type === "image" || media.type === "video"
+            ? previewMedia(media.type, media.url, media.thumbnail)
+            : [],
+        );
+      imported.metrics = zernioPostMetrics(
+        platform,
+        entry
+          ? entry.syncStatus === "synced" && entry.analytics
+          : item.analytics,
+      );
+      result.posts.push(imported);
+    }
+    result.nextCursor = page * 50 < total ? String(page + 1) : null;
+  } catch {
+    context.signal?.throwIfAborted();
+    result.historyError = `${label} published history is unavailable through Zernio.`;
+  }
+  return result;
+}
+
 export async function fetchSocialAccountStatisticsPage(
   context: SocialAccountStatisticsContext,
 ): Promise<AccountPage> {
@@ -1176,6 +1283,17 @@ export async function fetchSocialAccountStatisticsPage(
     historyError: null,
     metricWarning: null,
   };
+  const accountId =
+    (context.provider === "tiktok" || context.provider === "linkedin") &&
+    getZernioAccountId(context.connectedAccountId);
+  if (accountId) {
+    return readZernioStatistics(
+      context,
+      context.provider === "linkedin" ? "linkedin" : "tiktok",
+      accountId,
+      result,
+    );
+  }
   const label = socialPostProviderLabel(context.provider);
   let sessionId: string | undefined;
   try {

@@ -214,9 +214,84 @@ describe("cmoBusinessNameFromUrl", () => {
 describe("listCmoChannels", () => {
   it("reads Project Social's lower-case status as ACTIVE", async () => {
     connectionFindMany.mockResolvedValue([
-      { id: "c1", provider: "linkedin", status: "active" },
+      {
+        id: "c1",
+        provider: "linkedin",
+        status: "active",
+        externalAccountId: "9Acyt0wAkf",
+      },
     ]);
     expect((await listCmoChannels("project-1"))[0]?.status).toBe("ACTIVE");
+  });
+
+  it("tells a LinkedIn profile from a company Page", async () => {
+    connectionFindMany.mockResolvedValue([
+      {
+        id: "c1",
+        provider: "linkedin",
+        status: "active",
+        externalAccountId: "9Acyt0wAkf",
+      },
+      { id: "c3", provider: "x", status: "active", externalAccountId: "1" },
+    ]);
+    const channels = await listCmoChannels("project-1");
+    expect(channels.map((channel) => channel.personalProfile)).toEqual([
+      true,
+      false,
+    ]);
+    expect(channels[0]).not.toHaveProperty("externalAccountId");
+  });
+
+  it("shows the Page that replaced a profile, not the disconnected profile", async () => {
+    connectionFindMany.mockResolvedValue([
+      {
+        id: "old",
+        provider: "linkedin",
+        status: "disconnected",
+        externalAccountId: "9Acyt0wAkf",
+        externalHandle: "patrick-tobler-6593b912b",
+        displayName: "Patrick Tobler",
+      },
+      {
+        id: "new",
+        provider: "linkedin",
+        status: "active",
+        externalAccountId: "urn:li:organization:77023867",
+        externalHandle: null,
+        displayName: "utxo AG",
+      },
+    ]);
+    expect(await listCmoChannels("project-1")).toEqual([
+      {
+        id: "new",
+        provider: "linkedin",
+        status: "ACTIVE",
+        externalHandle: null,
+        displayName: "utxo AG",
+        personalProfile: false,
+      },
+    ]);
+  });
+
+  it("keeps a network whose only account was disconnected, newest first", async () => {
+    connectionFindMany.mockResolvedValue([
+      {
+        id: "a",
+        provider: "x",
+        status: "disconnected",
+        externalAccountId: "1",
+      },
+      {
+        id: "b",
+        provider: "x",
+        status: "disconnected",
+        externalAccountId: "2",
+      },
+    ]);
+    const channels = await listCmoChannels("project-1");
+    expect(channels.map(({ id, status }) => ({ id, status }))).toEqual([
+      { id: "b", status: "DISCONNECTED" },
+    ]);
   });
 });
 

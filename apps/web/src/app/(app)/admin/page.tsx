@@ -1,32 +1,40 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-
+import { Suspense } from "react";
 import {
   Card,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-
+import { adminAdEvalsService } from "@/lib/services/admin-ad-evals.service";
 import {
   ADMIN_SECTION_GROUPS,
-  ADMIN_SECTIONS,
   type AdminSection,
   type AdminSectionGroup,
+  getVisibleAdminSections,
 } from "./admin-sections";
+import { SeoAlertSummary } from "./seo-alerts/seo-alert-summary";
 
 export const metadata: Metadata = {
   title: "Admin",
   description: "Internal tools for accounts, billing, catalog, and operations.",
 };
 
-function sectionsByGroup(group: AdminSectionGroup): AdminSection[] {
-  return ADMIN_SECTIONS.filter((section) => section.group === group);
+function sectionsByGroup(
+  sections: AdminSection[],
+  group: AdminSectionGroup,
+): AdminSection[] {
+  return sections.filter((section) => section.group === group);
 }
 
 export default async function AdminOverviewPage() {
-  const t = await getTranslations("App.Admin.Overview");
+  const [t, hasAdEvalsAccess] = await Promise.all([
+    getTranslations("App.Admin.Overview"),
+    adminAdEvalsService.hasAccess(),
+  ]);
+  const visibleSections = getVisibleAdminSections(hasAdEvalsAccess);
 
   return (
     <div className="min-h-full w-full">
@@ -39,7 +47,7 @@ export default async function AdminOverviewPage() {
         </div>
 
         {ADMIN_SECTION_GROUPS.map((group) => {
-          const sections = sectionsByGroup(group);
+          const sections = sectionsByGroup(visibleSections, group);
           if (sections.length === 0) {
             return null;
           }
@@ -73,6 +81,11 @@ export default async function AdminOverviewPage() {
                         <CardDescription>
                           {t(`Sections.${key}.description`)}
                         </CardDescription>
+                        {key === "seoAlerts" && (
+                          <Suspense fallback={null}>
+                            <SeoAlertSummary />
+                          </Suspense>
+                        )}
                       </CardHeader>
                     </Card>
                   </Link>

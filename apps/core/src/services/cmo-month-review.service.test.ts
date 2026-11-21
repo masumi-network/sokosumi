@@ -1,29 +1,46 @@
-import type { CmoCalendarEntry } from "@sokosumi/soko-bot";
+import type { BrandBrain, CmoCalendarEntry } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { evaluateWithJev, updateMany, readPieceText, recordUsage } = vi.hoisted(
-  () => ({
-    evaluateWithJev: vi.fn(),
-    updateMany: vi.fn(),
-    readPieceText: vi.fn(),
-    recordUsage: vi.fn(),
-  }),
-);
+const {
+  evaluateWithJev,
+  updateMany,
+  readPieceText,
+  recordUsage,
+  notifyCusoLowCredits,
+  otherClaimArgued,
+  referenceFindMany,
+} = vi.hoisted(() => ({
+  otherClaimArgued: vi.fn(),
+  referenceFindMany: vi.fn(),
+  evaluateWithJev: vi.fn(),
+  updateMany: vi.fn(),
+  readPieceText: vi.fn(),
+  recordUsage: vi.fn(),
+  notifyCusoLowCredits: vi.fn(),
+}));
 
 vi.mock("@/lib/soko-bot/jev", () => ({ evaluateWithJev }));
 vi.mock("@/lib/db/prisma", () => ({
-  default: { marketingStrategy: { updateMany } },
+  default: {
+    marketingStrategy: { updateMany },
+    referenceImage: { findMany: referenceFindMany },
+  },
 }));
+vi.mock("@/services/social-posts.service", () => ({ otherClaimArgued }));
 vi.mock("@/services/marketing-strategy-files.service", () => ({
   readMarketingPieceText: readPieceText,
 }));
 vi.mock("@/services/soko-bot-billing.service", () => ({
   recordSokoBotCheckUsage: recordUsage,
 }));
+vi.mock("@/helpers/cuso-low-credit-notification", () => ({
+  notifyCusoLowCreditsAfterCharge: notifyCusoLowCredits,
+}));
 
 import {
   advanceCmoMonthReview,
   type CmoMonthReview,
+  cmoBrandFacts,
   cmoCountedProblems,
   cmoPiecesToRewrite,
   cmoPillarShares,
@@ -120,6 +137,7 @@ const review = (patch: Partial<CmoMonthReview> = {}): CmoMonthReview => ({
 beforeEach(() => {
   vi.clearAllMocks();
   updateMany.mockResolvedValue({ count: 1 });
+  recordUsage.mockResolvedValue({ chargedCents: 0n, cusoProjectId: null });
 });
 
 describe("cmoPillarShares", () => {
@@ -305,6 +323,10 @@ describe("readCmoMonth", () => {
       offers: [{ name: "Pro", what: "Routing", price: "$49 a month" }],
       customerQuotes: ["Set up in ten minutes"],
       proof: undefined,
+      pricing: undefined,
+      customers: undefined,
+      reputation: undefined,
+      planOffer: undefined,
     };
     await readCmoMonth({
       pillars: [],
@@ -388,6 +410,25 @@ describe("cmoCountedProblems", () => {
     ).toEqual([]);
   });
 
+  it("takes an article's Link from as a line, a block or a heading, but not empty", () => {
+    const article = `Description: ${description}\n\n# How to route leads\n\n`;
+    for (const links of [
+      'Link from:\n- /pricing, on "routing"\n- /teams, on "team routing"',
+      '## Link from:\n- /pricing, on "routing"',
+      '**Link from:** /pricing, on "routing"',
+    ])
+      expect(cmoCountedProblems("seo", "article", article + links)).toEqual([]);
+    for (const empty of [
+      "Link from:",
+      "**Link from:**",
+      "## Link from:",
+      "Link from:\n\n## Next steps\nBook a demo.",
+    ])
+      expect(cmoCountedProblems("seo", "article", article + empty)).toEqual([
+        "it has no Link from: line naming the pages that should link to it",
+      ]);
+  });
+
   it("counts a Meta ad's visible point and headline, and a display ad's fields", () => {
     expect(
       cmoCountedProblems(
@@ -438,6 +479,47 @@ describe("cmoCountedProblems", () => {
   });
 });
 
+describe("cmoBrandFacts", () => {
+  it("holds the prices, customers, reviews and the plan's offer a piece may state", () => {
+    const section = (answer: string) => ({
+      answer,
+      findings: [],
+      openQuestions: [],
+    });
+    const planOffer = {
+      what: "14-day Teams trial",
+      why: "Try routing first",
+      proof: ["Teams from $12 per user on yearly billing"],
+      action: "Start a 14-day Teams trial",
+    };
+    const facts = cmoBrandFacts(
+      {
+        summary: "Acme routes leads.",
+        products: ["Router"],
+        offers: [],
+        voiceOfCustomer: [{ kind: "outcome", quote: "Set up in ten minutes" }],
+        profile: {
+          proof: section("Deel saves 6,000 hours"),
+          pricing: section("Teams has a 14-day trial"),
+          customers: section("Sales teams"),
+          reputation: section("4.5 on G2"),
+          company: section("Founded 2021"),
+        },
+      } as unknown as BrandBrain,
+      planOffer,
+    );
+    expect(facts).toMatchObject({
+      customerQuotes: ["Set up in ten minutes"],
+      proof: { answer: "Deel saves 6,000 hours" },
+      pricing: { answer: "Teams has a 14-day trial" },
+      customers: { answer: "Sales teams" },
+      reputation: { answer: "4.5 on G2" },
+      planOffer,
+    });
+    expect(facts).not.toHaveProperty("company");
+  });
+});
+
 describe("cmoRewriteMessage", () => {
   it("lists each piece with its reasons and hands over its channel's skills", () => {
     const message = cmoRewriteMessage({
@@ -451,12 +533,15 @@ describe("cmoRewriteMessage", () => {
         },
       ],
     });
-    expect(message).toContain("- Lead routing: plan 50%, made 75% (3 pieces)");
+    expect(message).toContain(
+      "- Lead routing: planned 50%, made 75% (3 pieces)",
+    );
     expect(message).toContain(
       '- c · x/post · "Piece c" · misses its network\'s writing skill',
     );
     expect(message).toContain('<skill id="x">');
     expect(message).not.toContain('<skill id="linkedin">');
+    expect(message).toContain("Change only what a piece's line names");
     expect(message).toContain("DONE:");
   });
 
@@ -472,7 +557,7 @@ describe("cmoRewriteMessage", () => {
         },
       ],
     });
-    expect(message).not.toContain("These pillars are off the plan");
+    expect(message).not.toContain("These pillars are off the strategy");
   });
 });
 
@@ -521,7 +606,9 @@ describe("advanceCmoMonthReview", () => {
     );
     const [message, runId] = startRewrite.mock.calls[0] ?? [];
     expect(runId).toBe("cmo-production:bot-1:1:review:4");
-    expect(message).toContain("- Lead routing: plan 50%, made 75% (3 pieces)");
+    expect(message).toContain(
+      "- Lead routing: planned 50%, made 75% (3 pieces)",
+    );
     expect(message).toContain(
       '- c · linkedin/post · "Piece c" · pillar Setup in minutes, but reads as Lead routing',
     );
@@ -531,6 +618,92 @@ describe("advanceCmoMonthReview", () => {
       key: "cmo-review:v1:1",
       costUsd: 0.002,
     });
+  });
+
+  // cmo-v8: posts with other words and one point passed the word compare.
+  it("rewrites a piece whose words argue another piece's claim", async () => {
+    otherClaimArgued.mockImplementation(async (text: string) => ({
+      problem:
+        text === "Words of b"
+          ? 'Rewrite the post: it argues another piece\'s claim ("Routing books the right rep"), not its own ("Setup takes minutes"). Make the post argue its own claim.'
+          : null,
+      costUsd: 0.000_1,
+    }));
+    jevReads({ pillar: "p0" }, { pillar: "p0" });
+    await advanceCmoMonthReview({
+      ...base,
+      strategy: {
+        pillars: PILLARS,
+        calendar: [
+          entry("a", { claim: "Routing books the right rep" }),
+          entry("b", { claim: "Setup takes minutes" }),
+        ],
+      },
+      version: { id: "v1", monthReview: null },
+      runs: [],
+    });
+    const [message] = startRewrite.mock.calls[0] ?? [];
+    expect(message).toContain(
+      '- b · linkedin/post · "Piece b" · argues another piece\'s claim ("Routing books the right rep")',
+    );
+    expect(message).not.toContain("- a ·");
+    expect(otherClaimArgued).toHaveBeenCalledWith(
+      "Words of a",
+      "Routing books the right rep",
+      ["Routing books the right rep", "Setup takes minutes"],
+    );
+  });
+
+  it("records how many pictures took each kind of print", async () => {
+    referenceFindMany.mockResolvedValue([
+      { id: "ref-1", kind: "poster" },
+      { id: "ref-2", kind: "infographic" },
+      { id: "ref-3", kind: "poster" },
+    ]);
+    jevReads({ pillar: "p0" }, { pillar: "p0" }, { pillar: "p1" });
+    await advanceCmoMonthReview({
+      ...base,
+      strategy: {
+        pillars: PILLARS,
+        calendar: [
+          entry("a", { styleReferenceId: "ref-1" }),
+          entry("b", { styleReferenceId: "ref-2" }),
+          entry("c", { styleReferenceId: "ref-3", pillar: "Setup in minutes" }),
+        ],
+      },
+      version: { id: "v1", monthReview: null },
+      runs: [],
+    });
+    expect(updateMany.mock.calls[0]?.[0].data.monthReview.pictureKinds).toEqual(
+      {
+        poster: 2,
+        infographic: 1,
+      },
+    );
+  });
+
+  it("checks Cuso's Project credits for a low balance after the read was charged", async () => {
+    recordUsage.mockResolvedValue({
+      chargedCents: 20n,
+      cusoProjectId: "project-1",
+    });
+    jevReads({ pillar: "p0" });
+    await advanceCmoMonthReview({
+      ...base,
+      version: { id: "v1", monthReview: null },
+      runs: [],
+    });
+    expect(notifyCusoLowCredits).toHaveBeenCalledWith("project-1");
+  });
+
+  it("checks nothing when the read charged nothing", async () => {
+    jevReads({ pillar: "p0" });
+    await advanceCmoMonthReview({
+      ...base,
+      version: { id: "v1", monthReview: null },
+      runs: [],
+    });
+    expect(notifyCusoLowCredits).not.toHaveBeenCalled();
   });
 
   it("rewrites a piece that misses its skill even when the pillars hold", async () => {
@@ -547,7 +720,7 @@ describe("advanceCmoMonthReview", () => {
     });
     const [message] = startRewrite.mock.calls[0] ?? [];
     expect(message).toContain('- b · linkedin/post · "Piece b" · misses "');
-    expect(message).not.toContain("These pillars are off the plan");
+    expect(message).not.toContain("These pillars are off the strategy");
   });
 
   it("stores the review and rewrites nothing when every piece holds", async () => {

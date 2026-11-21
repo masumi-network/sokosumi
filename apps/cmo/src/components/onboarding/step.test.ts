@@ -2,6 +2,7 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 
 import {
+  cmoBilling,
   cmoOverview,
   cmoStrategy,
   cmoStrategyVersion,
@@ -145,7 +146,12 @@ describe("onboardingStep", () => {
     ).toEqual({ step: "plan", phase: "planning" });
     // A stopped planning run keeps the screen, where Cuso offers a retry.
     expect(
-      onboardingStep(saved({ work: running("strategy", "failed") })).phase,
+      onboardingStep(
+        saved({
+          brandBrainConfirmedAt: confirmed,
+          work: running("strategy", "failed"),
+        }),
+      ).phase,
     ).toBe("planning");
     expect(onboardingStep(draft({ work: running("strategy") }))).toEqual({
       step: "plan",
@@ -156,6 +162,35 @@ describe("onboardingStep", () => {
         draft({ strategy: { ...cmoStrategy, changes: [], calendar: [] } }),
       ).phase,
     ).toBe("planning");
+  });
+
+  it("keeps Site and Brand while the plan Cuso started after the research is written", () => {
+    // The plan starts when the research ends, before the founder confirms.
+    expect(onboardingStep(saved({ work: running("strategy") }))).toEqual({
+      step: "brand",
+      phase: "review",
+    });
+    expect(
+      onboardingStep(
+        saved({
+          work: running("strategy"),
+          brandBrain: { ...brain, questions: [question()] },
+        }),
+      ),
+    ).toEqual({ step: "site", phase: "asking" });
+    // A finished plan waits for the founder's "Looks like us" too.
+    expect(onboardingStep(draft({ brandBrainConfirmedAt: null }))).toEqual({
+      step: "brand",
+      phase: "review",
+    });
+  });
+
+  it("keeps the first plan on screen while Cuso patches it or fixes the brand", () => {
+    for (const change of ["fix", "patch"] as const) {
+      expect(
+        onboardingStep(draft({ work: { ...running("strategy"), change } })),
+      ).toEqual({ step: "plan", phase: "review" });
+    }
   });
 
   it("reviews a whole plan, and keeps it on screen while Cuso changes it", () => {
@@ -194,7 +229,7 @@ describe("onboardingStep", () => {
         },
       }),
     ).toBe(false);
-    // A later no after a revision clears changes in Core, so Update plan
+    // A later no after a revision clears changes in Core, so Update strategy
     // shows again instead of Approve.
     expect(
       planUnfitted({
@@ -232,5 +267,54 @@ describe("onboardingStep", () => {
         }),
       ),
     ).toEqual({ step: "launch", phase: "review" });
+  });
+
+  describe("the checkout, before Launch", () => {
+    const unpaid = (patch: Partial<CmoOverview> = {}) =>
+      draft({
+        ...cmoStrategyVersion(new Date()),
+        onboardingStep: "checkout",
+        ...patch,
+      });
+
+    it("shows the plans right after the plan is approved", () => {
+      expect(onboardingStep(unpaid())).toEqual({
+        step: "checkout",
+        phase: "choosing",
+      });
+    });
+
+    it("confirms the payment back from Polar, until the subscription shows", () => {
+      expect(
+        onboardingStep(unpaid(), [], { returnedFromCheckout: true }),
+      ).toEqual({ step: "checkout", phase: "confirming" });
+    });
+
+    it("opens Launch once paid for, until an account is connected", () => {
+      expect(onboardingStep(unpaid({ onboardingStep: "accounts" }))).toEqual({
+        step: "launch",
+        phase: "review",
+      });
+    });
+
+    it("has no checkout for a Cuso with Tester credits", () => {
+      expect(
+        onboardingStep(
+          draft({
+            ...cmoStrategyVersion(new Date()),
+            onboardingStep: "done",
+            billing: cmoBilling({ hasTesterCredits: true }),
+          }),
+          ["accounts"],
+          { returnedFromCheckout: true },
+        ),
+      ).toEqual({ step: "launch", phase: "review" });
+    });
+
+    it("never opens before the plan is approved", () => {
+      expect(
+        onboardingStep(draft({ onboardingStep: "checkout" }), ["accounts"]),
+      ).toEqual({ step: "plan", phase: "review" });
+    });
   });
 });

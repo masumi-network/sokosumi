@@ -4,7 +4,11 @@ import type {
   ChatCatchUpTopic,
   ChatRoom,
 } from "@sokosumi/core-client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  onlineManager,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import {
   act,
   fireEvent,
@@ -15,19 +19,26 @@ import {
 } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "@/components/chat/organization-chat-events";
 import { clearRoomReadOverlays } from "@/components/chat/room-read-overlay";
 
 import { CatchUpView } from "./catch-up-view";
 
 const {
+  listActiveMock,
   listElsewhereMock,
+  loadRosterMock,
   markAllReadMock,
   sendMock,
   setLoopMock,
   showRoomUnreadCountMock,
   summaryActionMock,
+  toastErrorMock,
 } = vi.hoisted(() => ({
+  toastErrorMock: vi.fn(),
+  listActiveMock: vi.fn(),
   listElsewhereMock: vi.fn(),
+  loadRosterMock: vi.fn(),
   markAllReadMock: vi.fn(),
   sendMock: vi.fn(),
   setLoopMock: vi.fn(),
@@ -36,6 +47,10 @@ const {
 }));
 
 const NOW = new Date("2026-10-31T12:00:00.000Z");
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: toastErrorMock },
+}));
 
 vi.mock("next/link", () => ({
   default: ({ children, href }: { children: ReactNode; href: string }) => (
@@ -73,10 +88,20 @@ vi.mock("@/components/chat/signals/fetch-catch-up-summary", () => ({
 vi.mock("@/app/chat/actions", () => ({
   markAllChatUnreadReadAction: (...args: unknown[]) => markAllReadMock(...args),
   sendRoomMessageAction: (...args: unknown[]) => sendMock(...args),
+  loadChatComposeRosterAction: () => loadRosterMock(),
 }));
 
 vi.mock("@/components/chat/fetch-sidebar-room-collection", () => ({
-  fetchSidebarRoomCollection: () => listElsewhereMock(),
+  fetchSidebarRoomCollection: (collection: string) =>
+    collection === "active" ? listActiveMock() : listElsewhereMock(),
+}));
+
+// The real dialogs are covered on their own; here only their trigger counts.
+vi.mock("@/app/chat/components/create-channel-dialog", () => ({
+  CreateChannelDialog: ({ trigger }: { trigger: ReactNode }) => trigger,
+}));
+vi.mock("@/app/chat/components/create-direct-dialog", () => ({
+  CreateDirectDialog: ({ trigger }: { trigger: ReactNode }) => trigger,
 }));
 
 vi.mock("@/components/chat/use-show-room-unread-count", () => ({
@@ -179,16 +204,28 @@ function summaryAnswers(summary: Partial<ChatCatchUpSummary> = {}) {
   });
 }
 
-function renderCatchUp() {
-  return render(
-    <QueryClientProvider
-      client={
-        new QueryClient({ defaultOptions: { queries: { retry: false } } })
-      }
-    >
-      <CatchUpView currentUserId="user-1" organizationId="org-1" />
-    </QueryClientProvider>,
+function catchUpTree(
+  client: QueryClient,
+  organizationId: string | null = "org-1",
+) {
+  return (
+    <QueryClientProvider client={client}>
+      <CatchUpView currentUserId="user-1" organizationId={organizationId} />
+    </QueryClientProvider>
   );
+}
+
+function renderCatchUp(
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+) {
+  return render(catchUpTree(client));
+}
+
+/** The app's browser client keeps answers fresh for a minute. */
+function appQueryClient() {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: 60_000 } },
+  });
 }
 
 function elsewhereList() {
@@ -208,7 +245,21 @@ function workspaceRooms(list: HTMLElement, workspace: string) {
 beforeEach(() => {
   clearRoomReadOverlays();
   listElsewhereMock.mockReset();
+  listActiveMock.mockReset();
+  loadRosterMock.mockReset();
   summaryActionMock.mockReset();
+  listActiveMock.mockResolvedValue({
+    rooms: [elsewhereRoom("mine", { organizationId: "org-1" })],
+    nextCursor: null,
+  });
+  loadRosterMock.mockResolvedValue({
+    ok: true,
+    value: {
+      currentUserId: "user-1",
+      hasOrganization: true,
+      people: [{ id: "user-1" }, { id: "user-2" }],
+    },
+  });
   showRoomUnreadCountMock.mockReturnValue(true);
   listElsewhereMock.mockResolvedValue([]);
   summaryAnswers();
@@ -399,6 +450,199 @@ describe("CatchUpView's unread rooms elsewhere", () => {
     });
   });
 
+  describe("the first Catch up, before any room", () => {
+    const CREATE = "App.Channels.Signals.firstCatchUpCreateChannel";
+    const MESSAGE = "App.Channels.Signals.firstCatchUpMessageTeammate";
+
+    beforeEach(() => {
+      listActiveMock.mockResolvedValue({ rooms: [], nextCursor: null });
+    });
+
+    it("says what Catch up will hold and offers both first steps", async () => {
+      renderCatchUp();
+
+      expect(
+        await screen.findByText("App.Channels.Signals.firstCatchUpTitle"),
+      ).toBeTruthy();
+      expect(screen.getByRole("button", { name: CREATE })).toBeTruthy();
+      expect(screen.getByRole("button", { name: MESSAGE })).toBeTruthy();
+      expect(
+        screen.queryByText("App.Channels.Signals.caughtUpTitle"),
+      ).toBeNull();
+    });
+
+    it("offers no direct message without anyone to message", async () => {
+      loadRosterMock.mockResolvedValue({
+        ok: true,
+        value: {
+          currentUserId: "user-1",
+          hasOrganization: true,
+          people: [{ id: "user-1" }],
+        },
+      });
+
+      renderCatchUp();
+
+      expect(await screen.findByRole("button", { name: CREATE })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: MESSAGE })).toBeNull();
+    });
+
+    it("offers no channel in a personal workspace", async () => {
+      loadRosterMock.mockResolvedValue({
+        ok: true,
+        value: {
+          currentUserId: "user-1",
+          hasOrganization: false,
+          people: [{ id: "user-2" }],
+        },
+      });
+
+      renderCatchUp();
+
+      expect(await screen.findByRole("button", { name: MESSAGE })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: CREATE })).toBeNull();
+    });
+
+    it("still explains Catch up when the roster cannot be read", async () => {
+      loadRosterMock.mockResolvedValue({
+        ok: false,
+        error: { message: "nope" },
+      });
+
+      renderCatchUp();
+
+      expect(
+        await screen.findByText("App.Channels.Signals.firstCatchUpTitle"),
+      ).toBeTruthy();
+      expect(screen.queryByRole("button")).toBeNull();
+    });
+
+    it("offers no action when the roster's people and members failed to load", async () => {
+      // What the action answers when Core fails behind it: ok, with flags.
+      loadRosterMock.mockResolvedValue({
+        ok: true,
+        value: {
+          currentUserId: "user-1",
+          hasOrganization: true,
+          people: [],
+          membersLoadFailed: true,
+          peopleLoadFailed: true,
+        },
+      });
+
+      renderCatchUp();
+
+      expect(
+        await screen.findByText("App.Channels.Signals.firstCatchUpTitle"),
+      ).toBeTruthy();
+      expect(screen.queryByRole("button")).toBeNull();
+    });
+
+    it("offers no channel when only the members failed to load", async () => {
+      loadRosterMock.mockResolvedValue({
+        ok: true,
+        value: {
+          currentUserId: "user-1",
+          hasOrganization: true,
+          people: [{ id: "user-2" }],
+          membersLoadFailed: true,
+          peopleLoadFailed: false,
+        },
+      });
+
+      renderCatchUp();
+
+      expect(await screen.findByRole("button", { name: MESSAGE })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: CREATE })).toBeNull();
+    });
+
+    it("gives way to caught up once a room is created", async () => {
+      renderCatchUp(appQueryClient());
+      await screen.findByRole("button", { name: CREATE });
+
+      listActiveMock.mockResolvedValue({
+        rooms: [elsewhereRoom("launch", { organizationId: "org-1" })],
+        nextCursor: null,
+      });
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, {
+            detail: { room: elsewhereRoom("launch") },
+          }),
+        );
+      });
+
+      expect(await screen.findByTestId("chat-caught-up")).toBeTruthy();
+      await waitFor(() =>
+        expect(
+          screen.queryByText("App.Channels.Signals.firstCatchUpTitle"),
+        ).toBeNull(),
+      );
+    });
+
+    it("reads the rooms again on return, inside the cache's minute", async () => {
+      const client = appQueryClient();
+      const first = renderCatchUp(client);
+      await screen.findByRole("button", { name: CREATE });
+      first.unmount();
+
+      listActiveMock.mockResolvedValue({
+        rooms: [elsewhereRoom("launch", { organizationId: "org-1" })],
+        nextCursor: null,
+      });
+      renderCatchUp(client);
+
+      await waitFor(() =>
+        expect(
+          screen.queryByText("App.Channels.Signals.firstCatchUpTitle"),
+        ).toBeNull(),
+      );
+      expect(screen.getByTestId("chat-caught-up")).toBeTruthy();
+    });
+
+    it("asks again for the workspace switched to", async () => {
+      const client = appQueryClient();
+      const view = render(catchUpTree(client));
+      await screen.findByRole("button", { name: CREATE });
+
+      loadRosterMock.mockResolvedValue({
+        ok: true,
+        value: {
+          currentUserId: "user-1",
+          hasOrganization: false,
+          people: [{ id: "user-2" }],
+          membersLoadFailed: false,
+          peopleLoadFailed: false,
+        },
+      });
+      view.rerender(catchUpTree(client, null));
+
+      expect(await screen.findByRole("button", { name: MESSAGE })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: CREATE })).toBeNull();
+    });
+
+    it("stays caught up for someone who already has rooms", async () => {
+      listActiveMock.mockResolvedValue({
+        rooms: [elsewhereRoom("mine", { organizationId: "org-1" })],
+        nextCursor: null,
+      });
+
+      renderCatchUp();
+
+      expect(await screen.findByTestId("chat-caught-up")).toBeTruthy();
+      expect(loadRosterMock).not.toHaveBeenCalled();
+    });
+
+    it("stays caught up when the rooms cannot be read", async () => {
+      listActiveMock.mockResolvedValue(null);
+
+      renderCatchUp();
+
+      expect(await screen.findByTestId("chat-caught-up")).toBeTruthy();
+      expect(loadRosterMock).not.toHaveBeenCalled();
+    });
+  });
+
   describe("the briefing", () => {
     it("says how much came in since when, then what waits on you first", async () => {
       summaryAnswers({
@@ -509,13 +753,10 @@ describe("CatchUpView's unread rooms elsewhere", () => {
       setLoopMock.mockResolvedValue({ ok: true, value: {} });
 
       renderCatchUp();
-      await act(async () =>
-        (
-          await screen.findByRole("button", {
-            name: "App.Channels.Signals.Briefing.reply",
-          })
-        ).click(),
-      );
+      const reply = await screen.findByRole("button", {
+        name: "App.Channels.Signals.Briefing.reply",
+      });
+      await act(async () => reply.click());
       fireEvent.change(screen.getByRole("textbox"), {
         target: { value: "Yes, go ahead" },
       });
@@ -643,6 +884,295 @@ describe("CatchUpView's unread rooms elsewhere", () => {
           .getByTestId("catch-up-groups")
           .className.includes("lg:grid-cols-"),
       ).toBe(twoColumns);
+    });
+
+    /** One summary, then a read that never lands: only the page's own state shows. */
+    function summaryAnswersOnce(summary: Partial<ChatCatchUpSummary>) {
+      summaryActionMock.mockReset();
+      summaryActionMock
+        .mockResolvedValueOnce({
+          ok: true,
+          value: { ...EMPTY_SUMMARY, ...summary },
+        })
+        .mockReturnValue(new Promise(() => {}));
+    }
+
+    /** A Mark read that stays open until the test answers or rejects it. */
+    function holdMarkRead() {
+      let answer: (value: unknown) => void = () => {};
+      let reject: (reason: Error) => void = () => {};
+      markAllReadMock.mockReturnValueOnce(
+        new Promise((resolve, fail) => {
+          answer = resolve;
+          reject = fail;
+        }),
+      );
+      return {
+        answer: (value: unknown) => act(async () => answer(value)),
+        reject: () => act(async () => reject(new Error("network down"))),
+      };
+    }
+
+    const QUIET_ROOM = {
+      roomId: "room-q",
+      roomName: "random",
+      roomKind: "channel" as const,
+      unreadCount: 2,
+      latest: null,
+      mentionsYou: false,
+    };
+    const QUIET_REGION = "App.Channels.Signals.Briefing.otherMessages 1";
+
+    it.each([
+      [
+        "Core refuses",
+        (write: ReturnType<typeof holdMarkRead>) =>
+          write.answer({ ok: false, error: { message: "x" } }),
+      ],
+      [
+        "the call fails",
+        (write: ReturnType<typeof holdMarkRead>) => write.reject(),
+      ],
+    ])(
+      "takes the quiet rooms off before Core answers, and puts them back when %s",
+      async (_case, settle) => {
+        toastErrorMock.mockClear();
+        summaryAnswersOnce({
+          unreadMessageCount: 5,
+          unreadRoomCount: 2,
+          topics: [topic("t1")],
+          quietRooms: [QUIET_ROOM],
+        });
+        const write = holdMarkRead();
+        renderCatchUp();
+        const quiet = await screen.findByRole("region", { name: QUIET_REGION });
+        const unread = (messages: number, rooms: number) =>
+          screen.queryByText(
+            `App.Channels.Signals.Briefing.unread ${messages} ${rooms}`,
+          );
+
+        await act(async () =>
+          within(quiet)
+            .getByRole("button", { name: "App.Channels.Signals.markRead" })
+            .click(),
+        );
+        // The query cache tells its readers on a timer, so wait for the paint.
+        await waitFor(() =>
+          expect(
+            screen.queryByRole("region", { name: QUIET_REGION }),
+          ).toBeNull(),
+        );
+        // A topic in another room is not part of this write.
+        expect(screen.getByText("title of t1")).toBeTruthy();
+        // The header counts what is left: the quiet room held 2 of the 5.
+        expect(unread(3, 1)).toBeTruthy();
+
+        await settle(write);
+        expect(
+          await screen.findByRole("region", { name: QUIET_REGION }),
+        ).toBeTruthy();
+        expect(unread(5, 2)).toBeTruthy();
+        // The room that was never part of the write is still there.
+        expect(screen.getByText("title of t1")).toBeTruthy();
+        expect(toastErrorMock).toHaveBeenCalledWith(
+          "App.Channels.Signals.markAllReadError",
+        );
+      },
+    );
+
+    it("keeps the rooms off when a summary read from before the click lands", async () => {
+      const full = {
+        ...EMPTY_SUMMARY,
+        topics: [topic("t1", { status: "waitingOnYou" })],
+        quietRooms: [QUIET_ROOM],
+      };
+      let landLate: (value: unknown) => void = () => {};
+      summaryActionMock.mockReset();
+      summaryActionMock
+        .mockResolvedValueOnce({ ok: true, value: full })
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            landLate = resolve;
+          }),
+        )
+        .mockReturnValue(new Promise(() => {}));
+      setLoopMock.mockResolvedValue({ ok: true, value: {} });
+      markAllReadMock.mockClear();
+      const write = holdMarkRead();
+      renderCatchUp();
+      await screen.findByRole("region", { name: QUIET_REGION });
+      // Done re-reads the summary; that read is still out at the click.
+      await act(async () =>
+        screen
+          .getByRole("button", { name: "App.Channels.Signals.done" })
+          .click(),
+      );
+      await waitFor(() => expect(summaryActionMock).toHaveBeenCalledTimes(2));
+
+      await act(async () =>
+        within(screen.getByRole("region", { name: QUIET_REGION }))
+          .getByRole("button", { name: "App.Channels.Signals.markRead" })
+          .click(),
+      );
+      expect(markAllReadMock).toHaveBeenCalledTimes(1);
+      await act(async () => landLate({ ok: true, value: full }));
+      await act(async () => new Promise((resolve) => setTimeout(resolve, 20)));
+
+      expect(screen.queryByRole("region", { name: QUIET_REGION })).toBeNull();
+      await write.answer({ ok: true, value: null });
+    });
+
+    it("clears every unread room before Core answers and keeps the button until then", async () => {
+      toastErrorMock.mockClear();
+      // An open loop is already read, so it keeps the page, and the button.
+      summaryAnswersOnce({
+        headline: "A busy morning.",
+        openLoops: [item("loop")],
+        unreadMessageCount: 5,
+        unreadRoomCount: 2,
+        topics: [topic("t1")],
+        quietRooms: [QUIET_ROOM],
+      });
+      const write = holdMarkRead();
+      renderCatchUp();
+      const markAll = () =>
+        screen.queryByRole("button", {
+          name: "App.Channels.Signals.markAllRead",
+        });
+      const button = await screen.findByRole("button", {
+        name: "App.Channels.Signals.markAllRead",
+      });
+
+      await act(async () => button.click());
+      await waitFor(() => expect(screen.queryByText("title of t1")).toBeNull());
+      expect(screen.queryByRole("region", { name: QUIET_REGION })).toBeNull();
+      expect(
+        screen.queryByText(/App\.Channels\.Signals\.Briefing\.unread/),
+      ).toBeNull();
+      // The headline was written about the rooms that just left.
+      expect(screen.queryByText("A busy morning.")).toBeNull();
+      expect(markAll()).toBe(button);
+
+      const roomsChanged = vi.fn();
+      window.addEventListener(
+        ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
+        roomsChanged,
+      );
+      const summaryReads = summaryActionMock.mock.calls.length;
+      await write.answer({ ok: true, value: null });
+      window.removeEventListener(
+        ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
+        roomsChanged,
+      );
+      // The sidebar hears of the read, and the summary is written again.
+      expect(roomsChanged).toHaveBeenCalledTimes(1);
+      expect(summaryActionMock).toHaveBeenCalledTimes(summaryReads + 1);
+      await waitFor(() => expect(markAll()).toBeNull());
+      expect(screen.queryByText("title of t1")).toBeNull();
+      expect(toastErrorMock).not.toHaveBeenCalled();
+    });
+
+    it("says caught up before Core answers, and brings the page back when the write fails", async () => {
+      toastErrorMock.mockClear();
+      // What Core writes for one busy room: a headline, a topic, a section.
+      summaryAnswersOnce({
+        headline: "A busy morning.",
+        unreadMessageCount: 1,
+        unreadRoomCount: 1,
+        topics: [topic("t1")],
+        needsYou: [item("ask")],
+      });
+      const write = holdMarkRead();
+      renderCatchUp();
+      const button = await screen.findByRole("button", {
+        name: "App.Channels.Signals.markAllRead",
+      });
+
+      await act(async () => button.click());
+      expect(
+        await screen.findByText("App.Channels.Signals.caughtUpTitle"),
+      ).toBeTruthy();
+
+      // The header that began the write has left the page by now.
+      await write.reject();
+      expect(await screen.findByText("title of t1")).toBeTruthy();
+      expect(screen.getByText("A busy morning.")).toBeTruthy();
+      expect(toastErrorMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("fails at once offline, rather than holding the rooms off until the network returns", async () => {
+      toastErrorMock.mockClear();
+      summaryAnswersOnce({ topics: [topic("t1")], quietRooms: [QUIET_ROOM] });
+      markAllReadMock.mockRejectedValueOnce(new Error("network down"));
+      renderCatchUp();
+      const quiet = await screen.findByRole("region", { name: QUIET_REGION });
+      onlineManager.setOnline(false);
+      try {
+        await act(async () =>
+          within(quiet)
+            .getByRole("button", { name: "App.Channels.Signals.markRead" })
+            .click(),
+        );
+        await waitFor(() => expect(toastErrorMock).toHaveBeenCalledTimes(1));
+        expect(
+          await screen.findByRole("region", { name: QUIET_REGION }),
+        ).toBeTruthy();
+      } finally {
+        onlineManager.setOnline(true);
+      }
+    });
+
+    it("sends one write for two clicks in the same moment", async () => {
+      summaryAnswersOnce({
+        openLoops: [item("loop")],
+        topics: [topic("t1")],
+        quietRooms: [QUIET_ROOM],
+      });
+      markAllReadMock.mockClear();
+      const write = holdMarkRead();
+      renderCatchUp();
+      const quiet = await screen.findByRole("region", { name: QUIET_REGION });
+      const markAll = screen.getByRole("button", {
+        name: "App.Channels.Signals.markAllRead",
+      });
+
+      await act(async () => {
+        within(quiet)
+          .getByRole("button", { name: "App.Channels.Signals.markRead" })
+          .click();
+        markAll.click();
+      });
+      expect(markAllReadMock).toHaveBeenCalledTimes(1);
+
+      await write.answer({ ok: true, value: null });
+    });
+
+    it("holds the other Mark read while one write is open", async () => {
+      summaryAnswersOnce({
+        openLoops: [item("loop")],
+        topics: [topic("t1")],
+        quietRooms: [QUIET_ROOM],
+      });
+      markAllReadMock.mockClear();
+      const write = holdMarkRead();
+      renderCatchUp();
+      const quiet = await screen.findByRole("region", { name: QUIET_REGION });
+      const markAll = screen.getByRole("button", {
+        name: "App.Channels.Signals.markAllRead",
+      });
+
+      await act(async () =>
+        within(quiet)
+          .getByRole("button", { name: "App.Channels.Signals.markRead" })
+          .click(),
+      );
+      await waitFor(() =>
+        expect(markAll.getAttribute("aria-busy")).toBe("true"),
+      );
+      await act(async () => markAll.click());
+      expect(markAllReadMock).toHaveBeenCalledTimes(1);
+
+      await write.answer({ ok: true, value: null });
     });
 
     it("marks every unread room read at once", async () => {

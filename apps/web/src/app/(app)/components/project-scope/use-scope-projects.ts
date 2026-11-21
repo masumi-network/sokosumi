@@ -46,7 +46,7 @@ function toSelected(project: MaybeClosed): SelectedScopeProject {
   return { ...toRow(project), closed: !isOpen(project) };
 }
 
-function useWorkspaceScope(): RecentProjectsScope | null {
+export function useWorkspaceScope(): RecentProjectsScope | null {
   const { data: session, isPending, error } = useSession();
   if (!session || isPending || error) return null;
   return {

@@ -12,7 +12,7 @@ Creates or updates **one** Linear issue with `## Requirement`. No child issues.
 
 Only touch the fields documented here — no other Linear side effects.
 
-Use `linear` when it is on PATH. CLI recipes and flags: [`.agents/skills/linear-cli/`](../../.agents/skills/linear-cli/). This file is Sokosumi requirement publish rules (team, project, approval, defaults). Pass `--no-interactive` on create. Prefer `--description-file` for markdown. Never print `LINEAR_API_KEY`. If `command -v linear` fails, stop using this file and follow `LINEAR-MCP.md`.
+Use `linear` when it is on PATH. This repo does not install a linear-cli skill; flags come from `linear skill show` (or `linear COMMAND --help`). This file is Sokosumi requirement publish rules (team, project, approval, defaults). Pass `--no-interactive` on create. Prefer `--description-file` for markdown. Never print `LINEAR_API_KEY`. If `command -v linear` fails, stop using this file and follow `LINEAR-MCP.md`.
 
 ## Defaults
 
@@ -26,8 +26,6 @@ const LINEAR_PRIORITY = 3; // Medium — 0=No priority, 1=Urgent, 2=High, 3=Medi
 const LINEAR_ASSIGNEE = null; // omit --assignee on create unless user overrides
 const LINEAR_LABELS = ["Feature", "Bug", "Improvement"] as const;
 ```
-
-Also in repo: `.linear.toml` → `project_id = "sokosumi-6357694ddd23"`.
 
 ## Required on create (never omit)
 
@@ -81,7 +79,7 @@ When publish target is `update:SOK-XXX` and the user approved the draft:
 Run **before** any Linear write (after user approval):
 
 1. `command -v linear`. If it fails, stop this file and follow `LINEAR-MCP.md`.
-2. `linear team list` (proves auth; `.linear.toml` + `LINEAR_API_KEY` or `linear auth login`).
+2. `linear team list` (proves auth; `LINEAR_API_KEY` or `linear auth login`).
 3. If `linear` is present but `linear team list` fails, stop and tell the user to authenticate (`LINEAR_API_KEY` or `linear auth login`). Do not fall back to MCP when the binary is installed.
 
 ## Resolution order (create only)

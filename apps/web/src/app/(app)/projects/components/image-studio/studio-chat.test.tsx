@@ -323,6 +323,27 @@ describe("a retry the person has edited", () => {
     expect(prewarmMock).not.toHaveBeenCalled();
   });
 
+  it("reuses an in-flight first message saved by an older composer", async () => {
+    const message = "Make a poster about coffee";
+    window.sessionStorage.setItem(
+      "sokosumi:image-studio:intent:project-1",
+      JSON.stringify({
+        id: "original-attempt",
+        says: JSON.stringify([message, null, "ideogram-v3", { seed: 17 }]),
+      }),
+    );
+    renderChat();
+    const box = screen.getByPlaceholderText("placeholder");
+    fireEvent.change(box, { target: { value: message } });
+    await act(async () => {
+      fireEvent.submit(box.closest("form") as HTMLFormElement);
+    });
+
+    const headers = latestOptions().headers as () => Record<string, string>;
+    expect(headers()["x-sokosumi-studio-intent"]).toBe("original-attempt");
+    expect(prewarmMock).not.toHaveBeenCalled();
+  });
+
   it("counts a changed selection as a changed message", async () => {
     const { rerender } = render(
       <StudioChat

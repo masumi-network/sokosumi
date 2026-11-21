@@ -58,6 +58,8 @@ export function describeIntegration(
   integration: SokoBotIntegration,
   t: ReturnType<typeof useTranslations<"App.SokoBot.Integrations">>,
   format: ReturnType<typeof useFormatter>,
+  // Without `now`, next-intl logs ENVIRONMENT_FALLBACK for every call.
+  now: Date,
 ): string {
   const readsMail = integration.kinds.includes("email");
   const readsCalendar = integration.kinds.includes("calendar");
@@ -70,13 +72,16 @@ export function describeIntegration(
       if (readsCalendar && !readsMail) {
         return integration.lastIngestAt
           ? t("lastRead", {
-              when: format.relativeTime(new Date(integration.lastIngestAt)),
+              when: format.relativeTime(
+                new Date(integration.lastIngestAt),
+                now,
+              ),
             })
           : t("connectedNotRead");
       }
       return integration.lastIngestAt
         ? t("lastChecked", {
-            when: format.relativeTime(new Date(integration.lastIngestAt)),
+            when: format.relativeTime(new Date(integration.lastIngestAt), now),
           })
         : readsMail
           ? t("connectedNotChecked")

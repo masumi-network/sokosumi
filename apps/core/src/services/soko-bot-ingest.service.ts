@@ -3,7 +3,10 @@ import {
   type SokoBotCalendarEvent,
   type SokoBotInboxMessage,
 } from "@sokosumi/soko-bot";
+import { createError } from "evlog";
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotSelfStarter } from "@/lib/soko-bot/acting-user";
 import {
   MAIL_TRIAGE_GUIDE,
@@ -11,6 +14,7 @@ import {
   triagedMailLines,
   triageMail,
 } from "@/lib/soko-bot/mail-triage";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import { calendarPeopleBlock } from "@/services/contacts-context.service";
 import {
@@ -49,6 +53,32 @@ const LATE_MAIL_MS = 6 * HOUR_MS;
 const MAX_MAIL_PER_FETCH = 300;
 const MAX_MAIL_PER_BRIEFING = 40;
 const MAX_EVENTS_PER_PACKET = 15;
+
+const OPERATION = "soko_bot_ingest";
+
+/**
+ * The ingest cron runs after its response, so a failure the run survives is
+ * its own error event with the context of that bot. `why` is Core's own
+ * sentence; the error goes into `cause`, except where it can quote a mail, a
+ * calendar entry or a prompt built from them (`readsMail`): then the event
+ * keeps only `messageSafeErrorFields`, never the error's text.
+ */
+function logIngestFailure(
+  error: unknown,
+  failure: { message: string; why: string; fix: string; readsMail?: true },
+  context: Record<string, unknown> = {},
+): void {
+  const log = createCoreLogger({ operation: OPERATION, ...context });
+  log.error(
+    createError({
+      message: failure.message,
+      why: failure.why,
+      fix: failure.fix,
+      cause: !failure.readsMail && error instanceof Error ? error : undefined,
+    }),
+  );
+  log.emit();
+}
 
 export interface SokoBotIngestSyncInput {
   abortSignal: AbortSignal;
@@ -215,13 +245,16 @@ export class SokoBotIngestSyncService {
     try {
       const disconnected = await sweepLeaverSokoBotIntegrations();
       if (disconnected > 0) {
-        console.info("[soko-bot-ingest] Disconnected leavers' integrations", {
-          disconnected,
-        });
+        createCoreLogger({
+          operation: OPERATION,
+          leaverIntegrations: { disconnected },
+        }).emit();
       }
     } catch (error) {
-      console.error("Soko Bot leaver integration sweep failed", {
-        error: error instanceof Error ? error.message : "unknown",
+      logIngestFailure(error, {
+        message: "Could not disconnect the integrations of members who left",
+        why: "The leaver sweep failed",
+        fix: "This run may still read the mailbox of a member who left. The next soko-bot-ingest sync sweeps again; if it fails every run, read error.cause and disconnect those integrations by hand.",
       });
     }
     const bots = await prisma.sokoBot.findMany({
@@ -250,10 +283,19 @@ export class SokoBotIngestSyncService {
           continue;
         }
         result.failed += 1;
-        console.error("Soko Bot ingest failed", {
-          sokoBotId: bot.id,
-          error: error instanceof Error ? error.message : "unknown",
-        });
+        logIngestFailure(
+          error,
+          {
+            message: "Could not check a Soko Bot's mail and calendar",
+            why: "Reading the mailbox, the calendar or Jev's tags failed",
+            readsMail: true,
+            fix: "The next soko-bot-ingest sync checks this bot again. If it fails every run, check failure.operation and failure.status, and the mailbox's state on the bot's console tile.",
+          },
+          {
+            sokoBot: { id: bot.id },
+            failure: messageSafeErrorFields(error),
+          },
+        );
       }
     }
     return result;
@@ -313,11 +355,22 @@ export class SokoBotIngestSyncService {
       } catch (error) {
         // Surfaced on the console tile by the integrations service; the
         // bot must not treat an unreadable mailbox as an empty one.
-        console.error("Soko Bot ingest mail fetch failed", {
-          sokoBotId: bot.id,
-          provider: integration.provider.id,
-          error: error instanceof Error ? error.message : "unknown",
-        });
+        logIngestFailure(
+          error,
+          {
+            message: "Could not read a Soko Bot's mailbox",
+            why: `${integration.provider.name} rejected reading the mailbox`,
+            readsMail: true,
+            fix: "The mailbox is skipped this check and its cursor is kept, so no mail is lost. If it keeps failing, ask the owner to reconnect the mailbox.",
+          },
+          {
+            sokoBot: { id: bot.id },
+            integration: {
+              provider: integration.provider.id,
+              ...messageSafeErrorFields(error),
+            },
+          },
+        );
         continue;
       }
       // A cursor from before `seenIds` handled everything up to its newest.
@@ -417,17 +470,20 @@ export class SokoBotIngestSyncService {
     // A personal bot runs for its owner; a shared bot runs for nobody.
     const starter = sokoBotSelfStarter(bot);
     const kind = briefing ? "briefing" : "delta";
-    const gate = await proactiveGate(bot.id, now);
+    const gate = await proactiveGate(bot.id);
     if (!gate.ok) {
       // Logged like the events sync's withheld wake: a capped bot and a quiet
       // inbox look the same from the outside.
-      console.info("[soko-bot-ingest] Wake withheld", {
-        sokoBotId: bot.id,
-        reason: gate.reason,
-        usedToday: gate.usedToday,
-        limit: gate.limit,
-        mail: mail.length,
-      });
+      createCoreLogger({
+        operation: OPERATION,
+        sokoBot: { id: bot.id },
+        wakeWithheld: {
+          reason: gate.reason,
+          usedToday: gate.usedToday,
+          limit: gate.limit,
+          mail: mail.length,
+        },
+      }).emit();
       // A capped bot is not woken, but its owner's bulk mail is still read.
       if (bot.mailAutoRead && mail.length > 0) {
         const tagged = await triageMail({
@@ -437,7 +493,7 @@ export class SokoBotIngestSyncService {
         });
         tagged.log.set({
           outcome: "withheld",
-          mailAutoRead: await autoReadBulkMail(bot.id, tagged.mail),
+          mailAutoRead: await autoReadBulkMail(bot.id, tagged.mail, tagged.log),
         });
         tagged.log.emit();
       }
@@ -457,7 +513,7 @@ export class SokoBotIngestSyncService {
     });
     if (bot.mailAutoRead)
       triage.log.set({
-        mailAutoRead: await autoReadBulkMail(bot.id, triage.mail),
+        mailAutoRead: await autoReadBulkMail(bot.id, triage.mail, triage.log),
       });
     if (
       !briefing &&
@@ -508,10 +564,23 @@ export class SokoBotIngestSyncService {
           started.reconciliationLeaseToken,
         )
         .catch((error) => {
-          console.error("Soko Bot ingest turn reconciliation failed", {
-            turnId: started.turnId,
-            error: error instanceof Error ? error.message : "unknown",
-          });
+          if (reportSokoBotReconciliationLeaseLoss(started.turnId, error))
+            return;
+          logIngestFailure(
+            error,
+            {
+              message:
+                "Could not reconcile a Soko Bot turn that ingest started",
+              why: "Turn reconciliation threw",
+              fix: "The soko-bot-turns sync picks the turn up. If the turn stays stuck, check failure.errorName and failure.status, and the turn's events.",
+              readsMail: true,
+            },
+            {
+              sokoBot: { id: bot.id },
+              turn: { id: started.turnId },
+              failure: messageSafeErrorFields(error),
+            },
+          );
         });
     }
     return briefing ? "briefings" : "deltas";

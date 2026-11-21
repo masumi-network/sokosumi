@@ -53,6 +53,9 @@ import { stubLoadedImage } from "@/test/stub-pending-image-load";
 import { loadMoreSocialPosts, loadSocialPostQuoteCandidates } from "./actions";
 import { writeRememberedComposerAccounts } from "./social-post-composer-accounts";
 
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
+
 vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: {
     getProjectsByIdSocialConnections: (...args: unknown[]) =>
@@ -60,6 +63,21 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
     getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes: (
       ...args: unknown[]
     ) => getSuggestedTimesMock(...args),
+    getProjectsByIdSocialConnectionsByConnectionIdTiktokCreator: async (
+      _project: string,
+      account: string,
+    ) => ({
+      data: {
+        creator_nickname: "Sandbox creator",
+        privacy_level_options: [
+          account === "public-account" ? "PUBLIC_TO_EVERYONE" : "SELF_ONLY",
+        ],
+        comment_disabled: true,
+        duet_disabled: false,
+        stitch_disabled: true,
+        max_video_post_duration_sec: 10,
+      },
+    }),
     getProjectsByIdSocialConnectionsByConnectionIdSubscription: (
       ...args: unknown[]
     ) => getSubscriptionMock(...args),
@@ -210,14 +228,13 @@ const MESSAGES: Record<string, string> = {
   "composer.media.drop": "Drop files to attach",
   "composer.media.upload": "Upload",
   "composer.media.remove": "Remove {name}",
-  "composer.media.hint": "Up to 4 images, or one GIF, or one video.",
   "composer.media.unsupported": "Use a JPG, PNG, WebP, GIF, or MP4 file.",
   "composer.media.alreadyAttached": "That file is already attached.",
   "composer.media.uploadDuplicate":
     "A file with this name already exists in the Drive. Rename it and try again.",
   "composer.media.uploadFailed": "The upload failed. Try again.",
   "composer.media.errors.too_many_images":
-    "X allows at most 4 images per post.",
+    "{provider} allows at most {max} images per post.",
   "composer.media.errors.too_many_gifs": "X allows one GIF per post.",
   "composer.media.errors.too_many_videos": "X allows one video per post.",
   "composer.media.errors.mixed_media":
@@ -253,6 +270,11 @@ const MESSAGES: Record<string, string> = {
   "composer.unknownHandle": "Unknown X account",
   "composer.scheduledAt": "Scheduled time",
   "composer.saveDraft": "Save draft",
+  "toasts.draftTimeNotKept":
+    "Draft saved without its time. Edit it to pick the time again.",
+  "composer.keptOnDraft":
+    "Save draft keeps this time. Connect an account to schedule it.",
+  plannedFor: "Planned for {date}",
   "composer.save": "Save",
   "composer.schedule": "Schedule",
   "composer.reschedule": "Reschedule",
@@ -355,26 +377,48 @@ vi.mock("next-intl", async () => {
     useFormatter: () => createTestFormatter(),
     useLocale: () => "en",
     useTimeZone: () => "UTC",
-    useTranslations:
-      (namespace: string) =>
-      (key: string, values?: Record<string, string | number>) => {
-        if (namespace === "App.Projects.SocialPosts.toasts") {
-          const messages: Record<string, string> =
-            enMessages.App.Projects.SocialPosts.toasts;
-          return createTranslator({ locale: "en", messages })(key, values);
-        }
-        const message =
-          MESSAGES[
-            namespace === "App.Projects.SocialPosts.quote"
-              ? `quote.${key}`
-              : key
-          ] ?? key;
-        if (!values) return message;
-        return Object.entries(values).reduce(
-          (text, [name, value]) => text.replaceAll(`{${name}}`, String(value)),
-          message,
-        );
-      },
+    useTranslations: (namespace: string) =>
+      Object.assign(
+        (key: string, values?: Record<string, string | number>) => {
+          if (key.startsWith("composer.tt")) {
+            const messages = Object.fromEntries(
+              Object.entries(
+                enMessages.App.Projects.SocialPosts.composer,
+              ).filter(
+                (entry): entry is [string, string] =>
+                  typeof entry[1] === "string",
+              ),
+            );
+            return createTranslator({ locale: "en", messages })(
+              key.slice("composer.".length),
+              values,
+            );
+          }
+          if (namespace === "App.Projects.SocialPosts.toasts") {
+            const messages: Record<string, string> =
+              enMessages.App.Projects.SocialPosts.toasts;
+            return createTranslator({ locale: "en", messages })(key, values);
+          }
+          const message =
+            MESSAGES[
+              namespace === "App.Projects.SocialPosts.quote"
+                ? `quote.${key}`
+                : key
+            ] ?? key;
+          if (!values) return message;
+          return Object.entries(values).reduce(
+            (text, [name, value]) =>
+              text.replaceAll(`{${name}}`, String(value)),
+            message,
+          );
+        },
+        {
+          rich: createTranslator({
+            locale: "en",
+            messages: enMessages.App.Projects.SocialPosts,
+          }).rich,
+        },
+      ),
   };
 });
 
@@ -472,6 +516,7 @@ function buildConnection(
   overrides: Partial<ProjectSocialConnection> = {},
 ): ProjectSocialConnection {
   return {
+    personalProfile: false,
     id: "connection-1",
     provider: "x",
     externalHandle: "sokosumi",
@@ -567,6 +612,7 @@ const SCHEDULED_POST = buildPost({
   scheduledAt: new Date("2026-10-01T10:00:00.000Z"),
   timezone: "UTC",
   socialConnection: {
+    personalProfile: false,
     id: "connection-1",
     externalHandle: "sokosumi",
     displayName: null,
@@ -613,6 +659,7 @@ const FAILED_POST = buildPost({
   scheduledAt: new Date("2026-09-10T10:00:00.000Z"),
   timezone: "UTC",
   socialConnection: {
+    personalProfile: false,
     id: "connection-1",
     externalHandle: "sokosumi",
     displayName: null,
@@ -646,6 +693,7 @@ const PUBLISHING_POST = buildPost({
   scheduledAt: new Date("2026-09-15T09:00:00.000Z"),
   timezone: "UTC",
   socialConnection: {
+    personalProfile: false,
     id: "connection-1",
     externalHandle: "sokosumi",
     displayName: null,
@@ -756,6 +804,29 @@ function render(ui: React.ReactElement, searchParams?: string) {
 }
 
 describe("ProjectSocialPosts", () => {
+  it("selects only the matching failed posts when searching before a bulk retry", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          { ...FAILED_POST, id: "shown", text: "Launch day" },
+          { ...FAILED_POST, id: "hidden", text: "Sunday update" },
+        ]}
+        projectId={PROJECT_ID}
+        searchQuery="launch"
+      />,
+      "?tab=attention",
+    );
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "Select all posts that can be retried",
+      }),
+    );
+    expect(screen.getByText("1 selected")).toBeVisible();
+    expect(screen.queryByTestId("social-post-select-hidden")).toBeNull();
+  });
+
   it("shows waiting in the list and preview for a due quote", async () => {
     const user = userEvent.setup();
     render(
@@ -985,6 +1056,7 @@ describe("ProjectSocialPosts", () => {
       projectId: PROJECT_ID,
       action: "reconnect",
       socialConnectionId: "connection-1",
+      accountChoice: true,
     });
     const dialog = await screen.findByRole("alertdialog");
     expect(within(dialog).getByText("Retry 1 failed posts?")).toBeVisible();
@@ -1301,6 +1373,7 @@ describe("ProjectSocialPosts", () => {
           buildPost({
             id: "post-handle",
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: "Sokosumi",
@@ -1313,6 +1386,7 @@ describe("ProjectSocialPosts", () => {
             id: "post-name",
             provider: "linkedin",
             socialConnection: {
+              personalProfile: false,
               id: "connection-2",
               externalHandle: null,
               displayName: "Sokosumi Co",
@@ -1399,6 +1473,7 @@ describe("ProjectSocialPosts", () => {
         posts={[
           buildPost({
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: "Sokosumi",
@@ -1431,6 +1506,7 @@ describe("ProjectSocialPosts", () => {
             provider: "linkedin",
             media: [IMAGE_REF],
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: "Sokosumi",
@@ -1465,6 +1541,7 @@ describe("ProjectSocialPosts", () => {
             provider: "linkedin",
             text: "word ".repeat(80),
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: "Sokosumi",
@@ -1509,6 +1586,7 @@ describe("ProjectSocialPosts", () => {
         posts={[
           buildPost({
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: null,
@@ -1690,6 +1768,7 @@ describe("ProjectSocialPosts", () => {
     const named = buildPost({
       status: "FAILED",
       socialConnection: {
+        personalProfile: false,
         id: "connection-1",
         externalHandle: "sokosumi",
         displayName: "Sokosumi HQ",
@@ -1718,6 +1797,7 @@ describe("ProjectSocialPosts", () => {
           buildPost({
             status: "FAILED",
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: null,
@@ -3635,6 +3715,7 @@ describe("ProjectSocialPosts", () => {
         posts={[
           buildPost({
             socialConnection: {
+              personalProfile: false,
               id: "connection-2",
               externalHandle: "sokosumi-co",
               displayName: null,
@@ -4103,6 +4184,162 @@ describe("ProjectSocialPosts", () => {
     await user.click(schedule);
     expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
     expect(createProjectSocialPost).not.toHaveBeenCalled();
+  });
+
+  it("keeps a picked time on a draft saved with no account, without scheduling it", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts connections={[]} posts={[]} projectId={PROJECT_ID} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Fresh");
+    await pickInAnHour(user, dialog);
+    expect(
+      within(dialog).getByTestId("social-post-kept-on-draft"),
+    ).toHaveTextContent(
+      "Save draft keeps this time. Connect an account to schedule it.",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+
+    await waitFor(() => {
+      expect(updateProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        postId: "post-new",
+        scheduledAt: IN_AN_HOUR.toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        revision: 0,
+      });
+    });
+    // Created as a draft first: a time on create would schedule it.
+    expect(createProjectSocialPost).toHaveBeenCalledWith(
+      expect.not.objectContaining({ scheduledAt: expect.anything() }),
+    );
+    expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
+    expect(publishProjectSocialPost).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "fails",
+      () =>
+        vi.mocked(updateProjectSocialPost).mockResolvedValueOnce({
+          ok: false,
+          error: { code: "INTERNAL_ERROR", message: "Core down" },
+        }),
+    ],
+    [
+      "rejects",
+      () =>
+        vi
+          .mocked(updateProjectSocialPost)
+          .mockRejectedValueOnce(new Error("network")),
+    ],
+  ])(
+    "saves a timed draft once when its time %s, so Save draft never makes a copy",
+    async (_outcome, failTime) => {
+      freezeClock();
+      failTime();
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialPosts
+          connections={[]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const dialog = screen.getByRole("dialog");
+      await user.type(within(dialog).getByLabelText("Text"), "Fresh");
+      await pickInAnHour(user, dialog);
+      await user.click(
+        within(dialog).getByRole("button", { name: "Save draft" }),
+      );
+
+      // The draft exists: the composer closes and lists it, and says its
+      // time is missing, so there is no Save draft left to press twice.
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+      expect(createProjectSocialPost).toHaveBeenCalledTimes(1);
+      expect(updateProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({ postId: "post-new" }),
+      );
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "Draft saved without its time. Edit it to pick the time again.",
+      );
+      expect(toastSuccessMock).toHaveBeenCalledWith("Draft saved.");
+      expect(screen.getByTestId("social-post-post-new")).toBeInTheDocument();
+      expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
+    },
+  );
+
+  it("shows a draft's kept time and restores it when scheduling", async () => {
+    const user = userEvent.setup();
+    const keptAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          buildPost({
+            scheduledAt: keptAt,
+            socialConnection: SCHEDULED_POST.socialConnection,
+          }),
+        ]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("social-post-planned-post-draft"),
+    ).toHaveTextContent(
+      `Planned for ${createTestFormatter().dateTime(keptAt, "dateTime")}`,
+    );
+    await openRowMenu(user, "post-draft");
+    await user.click(screen.getByRole("menuitem", { name: "Schedule" }));
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByRole("button", {
+        name: `Schedule for ${createTestFormatter().dateTime(keptAt, "dateTime")}`,
+      }),
+    ).toBeEnabled();
+    expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
+  });
+
+  it("keeps the time on an edited draft when saving", async () => {
+    const user = userEvent.setup();
+    const keptAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    keptAt.setSeconds(0, 0);
+    render(
+      <ProjectSocialPosts
+        connections={[]}
+        posts={[buildPost({ scheduledAt: keptAt })]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openRowMenu(user, "post-draft");
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "!");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+
+    await waitFor(() => {
+      expect(updateProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({
+          postId: "post-draft",
+          scheduledAt: keptAt.toISOString(),
+        }),
+      );
+    });
+    expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
   });
 
   it("never saves a new draft with ⌘Enter in the schedule dialog", async () => {
@@ -4650,6 +4887,73 @@ describe("ProjectSocialPosts", () => {
     ).toBeDisabled();
   });
 
+  it.each([
+    ["public-account", "PUBLIC_TO_EVERYONE"],
+    ["private-account", "SELF_ONLY"],
+  ])(
+    "requires the creator’s chosen %s audience, consent and a valid duration",
+    async (id, level) => {
+      const user = userEvent.setup();
+      const connection = buildConnection({ id, provider: "tiktok" });
+      render(
+        <SocialProviderAvailabilityProvider enabledProviders={["tiktok"]}>
+          <ProjectSocialPosts
+            connections={[connection]}
+            posts={[]}
+            projectId={PROJECT_ID}
+          />
+        </SocialProviderAvailabilityProvider>,
+      );
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const dialog = within(screen.getByRole("dialog"));
+      await dialog.findByText("Posting to Sandbox creator");
+      const audience = dialog.getByLabelText("Who can see this video?");
+      expect(audience).toHaveValue("");
+      expect(dialog.getByLabelText("Allow comments")).toBeDisabled();
+      expect(
+        dialog.getByLabelText("Allow Duet with this video"),
+      ).not.toBeChecked();
+      await user.click(dialog.getByRole("button", { name: "Add from Drive" }));
+      await user.click(screen.getByRole("button", { name: "pick clip.mp4" }));
+      const submit = dialog.getByRole("button", { name: "Post now" });
+      expect(submit).toBeDisabled();
+      await user.selectOptions(audience, level);
+      const music = dialog.getByRole("checkbox", {
+        name: /I reviewed this video/,
+      });
+      expect(music).not.toBeChecked();
+      await user.click(music);
+      const video = dialog
+        .getByRole("group", { name: "TikTok" })
+        .querySelector("video")!;
+      Object.defineProperty(video, "duration", {
+        value: 11,
+        configurable: true,
+      });
+      fireEvent.loadedMetadata(video);
+      expect(submit).toBeDisabled();
+      Object.defineProperty(video, "duration", { value: 5 });
+      fireEvent.loadedMetadata(video);
+      expect(submit).toBeEnabled();
+      await user.click(submit);
+      await waitFor(() =>
+        expect(publishProjectSocialPost).toHaveBeenCalledWith(
+          expect.objectContaining({
+            tikTokSettings: {
+              acceptedMusicUsage: true,
+              privacyLevel: level,
+              previewConsent: true,
+              allowComment: false,
+              allowDuet: false,
+              allowStitch: false,
+              promotesOwnBrand: false,
+            },
+          }),
+        ),
+      );
+    },
+  );
+
   it("never selects a disabled TikTok account for a new draft", async () => {
     const user = userEvent.setup();
     render(
@@ -4673,6 +4977,27 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
   });
 
+  it("hides queueing when the posting queue is not open to the user", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).queryByRole("button", { name: "Add to queue" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole("link", {
+        name: "Add queue times in accounts.",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
   it("disables queueing without slots and links to accounts", async () => {
     const user = userEvent.setup();
     render(
@@ -4680,6 +5005,7 @@ describe("ProjectSocialPosts", () => {
         connections={[buildConnection()]}
         posts={[]}
         projectId={PROJECT_ID}
+        queueSlots={[]}
       />,
     );
     await user.click(screen.getByRole("button", { name: "New post" }));
@@ -4765,6 +5091,30 @@ describe("ProjectSocialPosts", () => {
         socialConnectionId: "connection-1",
       });
       expect(toastSuccessMock).toHaveBeenCalledWith("Added to the queue.");
+    },
+  );
+
+  it.each([false, true])(
+    "offers Retry in a shared preview only off a CMO Project (readOnly %s)",
+    (readOnly) => {
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection()]}
+          posts={[FAILED_POST]}
+          projectId={PROJECT_ID}
+          readOnly={readOnly}
+          selectedPostId={FAILED_POST.id}
+          previewOnly
+        />,
+      );
+      const dialog = screen.getByRole("dialog");
+      expect(
+        within(dialog).queryByRole("button", { name: "Retry" }) !== null,
+      ).toBe(!readOnly);
+      expect(
+        within(dialog).queryByRole("button", { name: /^Post actions/ }) !==
+          null,
+      ).toBe(!readOnly);
     },
   );
 
@@ -5141,6 +5491,96 @@ describe("ProjectSocialPosts", () => {
     ).toHaveLength(2);
   });
 
+  it.each(["publish", "schedule"] as const)(
+    "attaches twenty X images, rejects the twenty-first, and sends all twenty to %s",
+    async (action) => {
+      freezeClock();
+      for (let index = 0; index < 20; index++) {
+        uploadDriveFileMock.mockResolvedValueOnce({
+          pathname: `drive/users/user_1/photo-${index}.png`,
+          fileUrl: `https://store.public.blob.vercel-storage.com/drive/users/user_1/photo-${index}.png`,
+        });
+      }
+      const user = userEvent.setup();
+      render(
+        <ProjectSocialPosts
+          connections={[buildConnection()]}
+          posts={[]}
+          projectId={PROJECT_ID}
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: "New post" }));
+      const dialog = screen.getByRole("dialog");
+      const input = dialog.querySelector('input[type="file"]');
+      expect(input).not.toBeNull();
+      const dataTransfer = new DataTransfer();
+      for (let index = 0; index < 21; index++) {
+        dataTransfer.items.add(
+          new File(["photo"], `photo-${index}.png`, { type: "image/png" }),
+        );
+      }
+      await act(async () => {
+        fireEvent.change(input as HTMLInputElement, {
+          target: { files: dataTransfer.files },
+        });
+      });
+
+      await waitFor(() => {
+        expect(uploadDriveFileMock).toHaveBeenCalledTimes(20);
+        expect(toastErrorMock).toHaveBeenCalledWith(
+          "X allows at most 20 images per post.",
+        );
+      });
+      expect(
+        within(dialog).getByTestId("social-post-media").querySelectorAll("img"),
+      ).toHaveLength(20);
+      const carousel = within(dialog).getByTestId(
+        "social-post-preview-media-carousel",
+      );
+      const carouselItems = within(carousel).getAllByTestId(
+        "social-post-preview-carousel-item",
+      );
+      expect(carouselItems).toHaveLength(20);
+      for (const [index, item] of carouselItems.entries()) {
+        expect(within(item).getByRole("img")).toHaveAttribute(
+          "alt",
+          `photo-${index}.png`,
+        );
+      }
+      expect(
+        within(dialog).queryByTestId("social-post-preview-media-grid"),
+      ).not.toBeInTheDocument();
+      expect(
+        within(dialog).queryByTestId("social-post-preview-media-overflow"),
+      ).not.toBeInTheDocument();
+
+      if (action === "schedule") await pickInAnHour(user, dialog);
+      await user.click(
+        within(dialog).getByRole("button", {
+          name: action === "schedule" ? /^Schedule/ : "Post now",
+        }),
+      );
+
+      await waitFor(() => {
+        expect(createProjectSocialPost).toHaveBeenCalledWith(
+          expect.objectContaining({
+            media: Array.from({ length: 20 }, (_, index) =>
+              expect.objectContaining({
+                pathname: `drive/users/user_1/photo-${index}.png`,
+              }),
+            ),
+            ...(action === "schedule"
+              ? { scheduledAt: IN_AN_HOUR.toISOString() }
+              : {}),
+          }),
+        );
+        if (action === "publish")
+          expect(publishProjectSocialPost).toHaveBeenCalled();
+      });
+    },
+  );
+
   it("attaches a pasted image and a dropped image", async () => {
     uploadDriveFileMock
       .mockResolvedValueOnce({
@@ -5255,7 +5695,7 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.getByTestId("social-posts-section-drafts"),
     ).not.toHaveTextContent("Scheduled text");
-    expect(refreshMock).toHaveBeenCalledOnce();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -5365,6 +5805,7 @@ describe("ProjectSocialPosts", () => {
           {
             ...SCHEDULED_POST,
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: "Sokosumi HQ",
@@ -5600,7 +6041,7 @@ describe("ProjectSocialPosts", () => {
     expect(updateProjectSocialPost).not.toHaveBeenCalled();
   });
 
-  it("reports quotes moved while rescheduling from the preview and refreshes the calendar", async () => {
+  it("reports quotes moved while rescheduling from the preview without a second page render", async () => {
     freezeClock();
     const user = userEvent.setup();
     vi.mocked(scheduleProjectSocialPost).mockResolvedValue({
@@ -5651,7 +6092,7 @@ describe("ProjectSocialPosts", () => {
     expect(toastSuccessMock).toHaveBeenCalledWith(
       "Also moved 1 quote to keep it after this post",
     );
-    expect(refreshMock).toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("names a time that is too soon next to When", async () => {
@@ -5800,7 +6241,7 @@ describe("ProjectSocialPosts", () => {
       });
     });
     expect(toastSuccessMock).toHaveBeenCalledWith("Post canceled.");
-    expect(refreshMock).toHaveBeenCalledOnce();
+    expect(refreshMock).not.toHaveBeenCalled();
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("social-posts-selected"),
@@ -5850,6 +6291,7 @@ describe("ProjectSocialPosts", () => {
           {
             ...SCHEDULED_POST,
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: null,
@@ -5883,6 +6325,7 @@ describe("ProjectSocialPosts", () => {
           {
             ...FAILED_POST,
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: null,
@@ -6127,16 +6570,26 @@ describe("ProjectSocialPosts", () => {
         );
         expect(initiateProjectSocialConnection).toHaveBeenCalledWith(
           status === "disconnected"
-            ? { projectId: PROJECT_ID, action: "connect", provider: "x" }
+            ? {
+                projectId: PROJECT_ID,
+                action: "connect",
+                provider: "x",
+                accountChoice: true,
+              }
             : {
                 projectId: PROJECT_ID,
                 action: "reconnect",
                 socialConnectionId: connection.id,
+                accountChoice: true,
               },
         );
         expect(finalizeProjectSocialConnection).toHaveBeenCalledWith({
           projectId: PROJECT_ID,
           connectionId: "ca-1",
+          callbackProof: undefined,
+          pendingDataToken: undefined,
+          connectToken: undefined,
+          offerChoice: true,
         });
         expect(within(dialog).getByLabelText("Text")).toHaveValue("Fixed copy");
         expect(
@@ -6574,7 +7027,7 @@ describe("ProjectSocialPosts", () => {
       });
     });
     expect(toastSuccessMock).toHaveBeenCalledWith("Post published.");
-    expect(refreshMock).toHaveBeenCalledOnce();
+    expect(refreshMock).not.toHaveBeenCalled();
     await waitFor(() => {
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     });
@@ -6629,7 +7082,7 @@ describe("ProjectSocialPosts", () => {
         "Also moved 1 quote to keep it after this post",
       ),
     );
-    expect(refreshMock).toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("stays on Needs attention after a retry when other posts still need it", async () => {
@@ -8796,5 +9249,261 @@ describe("ProjectSocialPosts", () => {
       vi.mocked(updateProjectSocialPost).mock.invocationCallOrder[0],
     );
     expect(scheduleProjectSocialPost).toHaveBeenCalledTimes(1);
+  });
+
+  /** A write that stays open until the test answers it. */
+  function holdOpen<T>(write: (...args: never[]) => Promise<T>) {
+    let answer: (value: T) => void = () => {};
+    vi.mocked(write).mockReturnValueOnce(
+      new Promise<T>((resolve) => {
+        answer = resolve;
+      }),
+    );
+    return (value: T) => act(async () => answer(value));
+  }
+
+  it("takes a dismissed post off the list before the answer and puts it back when the write fails", async () => {
+    const user = userEvent.setup();
+    const answer = holdOpen(cancelProjectSocialPost);
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[FAILED_POST]}
+        projectId={PROJECT_ID}
+      />,
+      // The tab the reader is on, so a failed write can lead back to it.
+      "?tab=attention",
+    );
+
+    await openRowMenu(user, "post-failed");
+    await user.click(screen.getByRole("menuitem", { name: "Dismiss" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Dismiss",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByTestId("social-post-post-failed")).toBeNull(),
+    );
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+
+    await answer({
+      ok: false,
+      error: { code: "INTERNAL", message: "Core is down" },
+    } as Awaited<ReturnType<typeof cancelProjectSocialPost>>);
+    expect(await screen.findByTestId("social-post-post-failed")).toBeVisible();
+    expect(toastErrorMock).toHaveBeenCalledWith("Core is down");
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps a composer the reader opened meanwhile when a dismiss ends in a conflict", async () => {
+    const user = userEvent.setup();
+    const answer = holdOpen(cancelProjectSocialPost);
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[FAILED_POST]}
+        projectId={PROJECT_ID}
+      />,
+      "?tab=attention",
+    );
+
+    await openRowMenu(user, "post-failed");
+    await user.click(screen.getByRole("menuitem", { name: "Dismiss" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Dismiss",
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    await user.type(
+      within(screen.getByRole("dialog")).getByLabelText("Text"),
+      "Half written",
+    );
+
+    await answer({
+      ok: false,
+      error: {
+        kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
+        message: "Conflict copy can change freely",
+      },
+    } as Awaited<ReturnType<typeof cancelProjectSocialPost>>);
+
+    expect(refreshMock).toHaveBeenCalledOnce();
+    expect(
+      within(screen.getByRole("dialog")).getByLabelText("Text"),
+    ).toHaveValue("Half written");
+  });
+
+  it("approves two posts one after the other without waiting for the first answer", async () => {
+    const user = userEvent.setup();
+    const first = buildPost({
+      id: "approve-1",
+      status: "NEEDS_APPROVAL",
+      canApprove: true,
+    });
+    const second = buildPost({
+      id: "approve-2",
+      status: "NEEDS_APPROVAL",
+      canApprove: true,
+    });
+    const answerFirst = holdOpen(approveProjectSocialPost);
+    const answerSecond = holdOpen(approveProjectSocialPost);
+    const { rerender } = render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[first, second]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const firstRow = screen.getByTestId("social-post-approve-1");
+    await user.click(within(firstRow).getByRole("button", { name: "Approve" }));
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId("social-post-approve-1")).queryByRole(
+          "button",
+          { name: "Approve" },
+        ),
+      ).toBeNull(),
+    );
+    await user.click(
+      within(screen.getByTestId("social-post-approve-2")).getByRole("button", {
+        name: "Approve",
+      }),
+    );
+    expect(approveProjectSocialPost).toHaveBeenCalledTimes(2);
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+
+    const firstApproved = {
+      ...first,
+      status: "DRAFT" as const,
+      canApprove: false,
+      revision: 1,
+    };
+    await answerFirst({ ok: true, value: firstApproved });
+    // The first answer brings a server list that still has the second post
+    // waiting for approval. Its Approve must not come back.
+    rerender(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[firstApproved, second]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    expect(
+      within(screen.getByTestId("social-post-approve-2")).queryByRole(
+        "button",
+        { name: "Approve" },
+      ),
+    ).toBeNull();
+    await answerSecond({
+      ok: true,
+      value: { ...second, status: "DRAFT", canApprove: false, revision: 1 },
+    });
+    expect(toastSuccessMock).toHaveBeenCalledTimes(2);
+
+    // Once answered, a post follows the server list again.
+    rerender(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[firstApproved, { ...second, revision: 2 }]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    expect(
+      within(screen.getByTestId("social-post-approve-2")).getByRole("button", {
+        name: "Approve",
+      }),
+    ).toBeVisible();
+  });
+
+  it("follows an approved post to the calendar when Core schedules it after all", async () => {
+    const user = userEvent.setup();
+    // No time here, so the post shows as a draft until Core answers.
+    const post = buildPost({
+      id: "approve-1",
+      status: "NEEDS_APPROVAL",
+      scheduledAt: null,
+      canApprove: true,
+    });
+    const answer = holdOpen(approveProjectSocialPost);
+    render(
+      <ProjectSocialPosts
+        calendar={<p>Calendar entries</p>}
+        connections={[buildConnection()]}
+        posts={[post]}
+        projectId={PROJECT_ID}
+      />,
+      "?tab=drafts",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Approve" }));
+    expect(screen.queryByText("Calendar entries")).toBeNull();
+
+    await answer({
+      ok: true,
+      value: {
+        ...post,
+        status: "SCHEDULED",
+        scheduledAt: new Date("2026-12-01T10:00:00.000Z"),
+        canApprove: false,
+        revision: 1,
+      },
+    });
+    expect(await screen.findByText("Calendar entries")).toBeVisible();
+  });
+
+  it("takes the quote warning off a post before the Remove quote answer", async () => {
+    const user = userEvent.setup();
+    const reason = "The quoted post was cancelled";
+    const post = buildPost({
+      id: "failed-quote",
+      status: "FAILED",
+      quotedPostId: "original-post",
+      needsAttentionReason: reason,
+      canEdit: true,
+      canPublishNow: false,
+      canSchedule: false,
+    });
+    const answer = holdOpen(updateProjectSocialPost);
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[post]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openTab(user, "Needs attention");
+    const row = screen.getByTestId("social-post-failed-quote");
+    expect(within(row).getByText(reason)).toBeVisible();
+    await user.click(within(row).getByRole("button", { name: "Remove quote" }));
+
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId("social-post-failed-quote")).queryByText(
+          reason,
+        ),
+      ).toBeNull(),
+    );
+    expect(
+      within(screen.getByTestId("social-post-failed-quote")).queryByRole(
+        "button",
+        { name: "Remove quote" },
+      ),
+    ).toBeNull();
+
+    await answer({
+      ok: false,
+      error: { code: "INTERNAL", message: "Core is down" },
+    } as Awaited<ReturnType<typeof updateProjectSocialPost>>);
+    expect(
+      within(await screen.findByTestId("social-post-failed-quote")).getByText(
+        reason,
+      ),
+    ).toBeVisible();
   });
 });

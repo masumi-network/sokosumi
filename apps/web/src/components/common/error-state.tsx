@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,10 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  reportRouteError,
-  shouldReportRouteError,
-} from "@/lib/sentry/report-route-error";
+import { useReportRouteError } from "@/hooks/effects/use-report-route-error";
+import { shouldReportRouteError } from "@/lib/sentry/report-route-error";
 
 interface ErrorStateProps {
   error: Error & { digest?: string };
@@ -37,9 +34,7 @@ export function ErrorState({
   const t = useTranslations("App.Error");
   const notified = shouldReportRouteError(error);
 
-  useEffect(() => {
-    reportRouteError(error);
-  }, [error]);
+  useReportRouteError(error);
 
   return (
     <div

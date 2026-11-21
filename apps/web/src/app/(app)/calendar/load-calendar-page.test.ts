@@ -1,3 +1,5 @@
+import { err, ok, type Result } from "neverthrow";
+import { redirect } from "next/navigation";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getWorkspaceCalendarMock = vi.fn();
@@ -7,7 +9,13 @@ const getProjectByIdMock = vi.fn();
 const getProjectCalendarMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
 const getSessionMock = vi.fn();
+const getSessionResultMock = vi.fn(
+  async (): Promise<Result<unknown, { reason: string }>> =>
+    ok(await getSessionMock()),
+);
+const connectionMock = vi.fn(async () => undefined);
 const isNewsletterEnabledMock = vi.fn();
+const getTimeZoneMock = vi.fn();
 
 vi.mock("server-only", () => ({}));
 // Node 26's native Temporal ignores faked Date; the pure polyfill reads Date.now().
@@ -17,18 +25,26 @@ vi.mock("@/lib/newsletter-access.server", () => ({
   isNewsletterEnabled: () => isNewsletterEnabledMock(),
 }));
 
-vi.mock("next/navigation", () => ({
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
   },
 }));
 
 vi.mock("next/server", () => ({
-  connection: vi.fn(),
+  connection: () => connectionMock(),
+}));
+
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
+
+vi.mock("next-intl/server", () => ({
+  getTimeZone: () => getTimeZoneMock(),
 }));
 
 vi.mock("@/lib/auth/auth.server", () => ({
   getSession: () => getSessionMock(),
+  getSessionResult: () => getSessionResultMock(),
 }));
 
 vi.mock("@/lib/services/task.service", () => ({
@@ -143,6 +159,7 @@ describe("loadWorkspaceCalendarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     isNewsletterEnabledMock.mockResolvedValue(true);
+    getTimeZoneMock.mockResolvedValue("UTC");
     getSessionMock.mockResolvedValue({
       session: { activeOrganizationId: "org-1" },
       user: { id: "user-1" },
@@ -180,13 +197,41 @@ describe("loadWorkspaceCalendarPage", () => {
     });
   });
 
+  it("loads every page of the selected calendar range for search with the original filters", async () => {
+    getWorkspaceCalendarMock
+      .mockResolvedValueOnce({
+        items: [{ id: "unrelated" }],
+        pagination: { nextCursor: "second" },
+      })
+      .mockResolvedValueOnce({ items: [{ id: "matching" }], pagination: null });
+    const result = await loadWorkspaceCalendarPage({
+      complete: true,
+      searchParams: Promise.resolve({
+        projectId: "project-1",
+        scope: "owned",
+        types: "tasks",
+        view: "agenda",
+      }),
+    });
+    expect(result.items.map((item) => item.id)).toEqual([
+      "unrelated",
+      "matching",
+    ]);
+    expect(result.pagination).toBeNull();
+    expect(getWorkspaceCalendarMock.mock.calls[1]?.[0]).toEqual({
+      ...getWorkspaceCalendarMock.mock.calls[0]?.[0],
+      cursor: "second",
+      limit: 100,
+    });
+  });
+
   it("asks Core for every feature, never the deprecated Social flag", async () => {
     const result = await loadWorkspaceCalendarPage({
       searchParams: Promise.resolve({ timezone: "Europe/Berlin" }),
     });
     expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        types: "tasks,social,newsletter,contacts,marketing",
+        types: "tasks,social,newsletter,contacts,marketing,sokoBot",
         timeZone: "Europe/Berlin",
       }),
     );
@@ -208,7 +253,7 @@ describe("loadWorkspaceCalendarPage", () => {
     expect(getProjectCalendarMock).toHaveBeenCalledWith(
       PROJECT.id,
       expect.objectContaining({
-        types: "tasks,social,newsletter,marketing",
+        types: "tasks,social,newsletter,marketing,sokoBot",
         timeZone: "Europe/Berlin",
       }),
     );
@@ -223,7 +268,7 @@ describe("loadWorkspaceCalendarPage", () => {
     });
     expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        types: "tasks,social,newsletter,contacts",
+        types: "tasks,social,newsletter,contacts,sokoBot",
         scope: "owned",
       }),
     );
@@ -237,6 +282,45 @@ describe("loadWorkspaceCalendarPage", () => {
     expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
       expect.objectContaining({ timeZone: "UTC" }),
     );
+  });
+
+  it("renders a URL without a zone in the zone the browser reported", async () => {
+    getTimeZoneMock.mockResolvedValue("Europe/Oslo");
+
+    const result = await loadWorkspaceCalendarPage({
+      searchParams: Promise.resolve({}),
+    });
+
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ timeZone: "Europe/Oslo" }),
+    );
+    expect(result.renderedTimezone).toBe("Europe/Oslo");
+  });
+
+  it("keeps the URL's zone over the reported one", async () => {
+    getTimeZoneMock.mockResolvedValue("Europe/Oslo");
+
+    const result = await loadWorkspaceCalendarPage({
+      searchParams: Promise.resolve({ timezone: "Asia/Tokyo" }),
+    });
+
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ timeZone: "Asia/Tokyo" }),
+    );
+    expect(result.renderedTimezone).toBe("Asia/Tokyo");
+  });
+
+  it("renders a URL with an unknown zone in the reported one", async () => {
+    getTimeZoneMock.mockResolvedValue("Europe/Oslo");
+
+    const result = await loadWorkspaceCalendarPage({
+      searchParams: Promise.resolve({ timezone: "garbage" }),
+    });
+
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ timeZone: "Europe/Oslo" }),
+    );
+    expect(result.renderedTimezone).toBe("Europe/Oslo");
   });
 
   it("reports whether the workspace has Newsletter, for the Show filter", async () => {
@@ -275,8 +359,8 @@ describe("loadWorkspaceCalendarPage", () => {
 
   it.each([
     ["newsletter,contacts", "newsletter,contacts"],
-    [undefined, "tasks,social,newsletter,contacts,marketing"],
-    ["bogus", "tasks,social,newsletter,contacts,marketing"],
+    [undefined, "tasks,social,newsletter,contacts,marketing,sokoBot"],
+    ["bogus", "tasks,social,newsletter,contacts,marketing,sokoBot"],
   ])(
     "asks Core only for the selected features (types=%s)",
     async (types, query) => {
@@ -296,7 +380,9 @@ describe("loadWorkspaceCalendarPage", () => {
     await loadWorkspaceCalendarPage({ searchParams: Promise.resolve({}) });
 
     expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
-      expect.objectContaining({ types: "tasks,social,contacts,marketing" }),
+      expect.objectContaining({
+        types: "tasks,social,contacts,marketing,sokoBot",
+      }),
     );
   });
 
@@ -427,6 +513,44 @@ describe("loadWorkspaceCalendarPage", () => {
     ).rejects.toThrow("NEXT_NOT_FOUND");
 
     expect(getProjectCalendarMock).not.toHaveBeenCalled();
+  });
+
+  // connection() would drop the page from every link prefetch.
+  it("reads the page without deferring to the request", async () => {
+    const result = await loadWorkspaceCalendarPage({
+      searchParams: Promise.resolve({}),
+    });
+
+    expect(result.activeOrganizationId).toBe("org-1");
+    expect(connectionMock).not.toHaveBeenCalled();
+  });
+
+  // The cached read must not keep an outage as "signed out", so the click
+  // renders fresh and the page degrades as before.
+  it("renders a session outage fresh on the click", async () => {
+    getSessionResultMock.mockResolvedValueOnce(err({ reason: "timeout" }));
+    getSessionMock.mockResolvedValue(null);
+
+    const result = await loadWorkspaceCalendarPage({
+      searchParams: Promise.resolve({}),
+    });
+
+    expect(connectionMock).toHaveBeenCalledOnce();
+    expect(result.activeOrganizationId).toBeNull();
+  });
+
+  // Any redirect thrown inside the cached read, such as a Core 401 from a
+  // service, must reach the prefetch instead of the fresh fallback.
+  it("keeps a sign-in redirect from the cached read", async () => {
+    getSessionResultMock.mockImplementationOnce(async () =>
+      redirect("/signin"),
+    );
+
+    await expect(
+      loadWorkspaceCalendarPage({ searchParams: Promise.resolve({}) }),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(connectionMock).not.toHaveBeenCalled();
   });
 
   describe("scheduled Social post horizon", () => {

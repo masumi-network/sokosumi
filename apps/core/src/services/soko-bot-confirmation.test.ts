@@ -34,6 +34,7 @@ vi.mock("@/services/soko-bot-runtime.service", () => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $queryRaw: async () => [{ now: new Date() }],
     $transaction: transaction,
     sokoBotTurn: {
       findUnique: turnFindUnique,

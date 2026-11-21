@@ -4,7 +4,10 @@ const signInSocial = vi.fn();
 const signOutApi = vi.fn();
 const redirectMock = vi.fn();
 
+const setCookie = vi.fn();
+
 vi.mock("next/headers", () => ({
+  cookies: async () => ({ set: setCookie }),
   headers: async () => new Headers(),
 }));
 
@@ -59,6 +62,11 @@ describe("CMO sign-in actions", () => {
     await settle(signOut);
 
     expect(signOutApi).toHaveBeenCalledTimes(1);
+    expect(setCookie).toHaveBeenCalledWith(
+      "cmo-signed-out",
+      "1",
+      expect.objectContaining({ httpOnly: true, path: "/" }),
+    );
     expect(redirectMock).toHaveBeenCalledWith("/");
   });
 

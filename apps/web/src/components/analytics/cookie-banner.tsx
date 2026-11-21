@@ -5,22 +5,18 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { NEWSLETTER_EMBED_PATH } from "@/config/document-security-headers";
-import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
 import {
-  applyConsentMode,
-  type ConsentChoice,
-  readConsent,
-  writeConsent,
-} from "@/lib/analytics/consent";
+  openCookieConsentPreferences,
+  useCookieConsentBanner,
+} from "@/hooks/effects/use-cookie-consent-banner";
+import { MOBILE_BREAKPOINT } from "@/hooks/effects/use-mobile";
 import { cn } from "@/lib/utils";
 
 const COOKIE_POLICY_URL = "https://www.sokosumi.com/legal/cookie-policy";
 
 /** Reopen the preferences panel from anywhere (e.g. a footer link). */
-const OPEN_CONSENT_EVENT = "sokosumi:open-consent";
-
 export function openConsentPreferences() {
-  window.dispatchEvent(new Event(OPEN_CONSENT_EVENT));
+  openCookieConsentPreferences();
 }
 
 /** Desktop app chrome reserves a left sidebar; align to that column, not the viewport. */
@@ -76,34 +72,19 @@ export function CookieBanner() {
   const t = useTranslations("CookieConsent");
   const pathname = usePathname();
   const chromeLeftPx = useMainChromeLeftPx();
-  const [visible, setVisible] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const [analytics, setAnalytics] = useState(false);
-  const [marketing, setMarketing] = useState(false);
-
-  useEffect(() => {
-    const stored = readConsent();
-    if (!stored) setVisible(true);
-
-    const reopen = () => {
-      const current = readConsent();
-      setAnalytics(current?.analytics ?? false);
-      setMarketing(current?.marketing ?? false);
-      setExpanded(true);
-      setVisible(true);
-    };
-    window.addEventListener(OPEN_CONSENT_EVENT, reopen);
-    return () => window.removeEventListener(OPEN_CONSENT_EVENT, reopen);
-  }, []);
+  const {
+    visible,
+    expanded,
+    setExpanded,
+    analytics,
+    setAnalytics,
+    marketing,
+    setMarketing,
+    product,
+    decide,
+  } = useCookieConsentBanner();
 
   if (!visible || NEWSLETTER_EMBED_PATH.test(pathname)) return null;
-
-  const decide = (choice: Omit<ConsentChoice, "necessary">) => {
-    const stored = writeConsent(choice);
-    applyConsentMode(stored);
-    setVisible(false);
-    setExpanded(false);
-  };
 
   return (
     <div
@@ -115,9 +96,13 @@ export function CookieBanner() {
       <div className="app-scrollbar bg-background max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-lg border p-5 shadow-lg">
         <p className="text-sm font-medium">{t("title")}</p>
         <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-          {t("body")}{" "}
+          {t("body", { product })}{" "}
           <a
-            href={COOKIE_POLICY_URL}
+            href={
+              product === "CMO.XYZ"
+                ? "https://www.cmo.xyz/privacy#cookies-and-similar-storage"
+                : COOKIE_POLICY_URL
+            }
             target="_blank"
             rel="noreferrer"
             className="text-foreground underline"
@@ -143,7 +128,7 @@ export function CookieBanner() {
             />
             <Category
               title={t("marketingTitle")}
-              body={t("marketingBody")}
+              body={t("marketingBody", { product })}
               checked={marketing}
               onChange={setMarketing}
             />

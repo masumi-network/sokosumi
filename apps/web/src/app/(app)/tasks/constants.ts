@@ -1,6 +1,16 @@
 export const TASKS_ROUTE_REFRESH_DEBOUNCE_MS = 500;
 
 /**
+ * The board fills the screen under the app header, `main`'s padding and the
+ * 40px Tasks toolbar with its gap (9rem in all). Any taller and `main`
+ * scrolls the whole page by the difference. The loading skeleton uses it too.
+ */
+export const TASKS_BOARD_MIN_HEIGHT_CLASS = "min-h-[calc(100dvh-9rem)]";
+
+/** The row that holds the Tasks toolbar, on the board and in its loading shell. */
+export const TASKS_TOOLBAR_ROW_CLASS = "flex items-start gap-2";
+
+/**
  * The board re-renders the whole page on a task event, about a dozen Core
  * reads. Agents send events all day, so it waits for a quiet moment, and
  * never longer than the max wait.
@@ -36,3 +46,12 @@ export const TASK_DETAIL_SIDEBAR_CLASS =
 /** Admin / developer owner strip above TaskDetailView — same max width. */
 export const TASK_DETAIL_CONTEXT_STRIP_CLASS =
   "mx-auto w-full max-w-[80rem] px-4 pt-2";
+
+/**
+ * `TaskCard` frame per density. The tasks loading skeleton uses the same
+ * classes, so a padding change cannot make the skeleton jump on load.
+ */
+export const TASK_CARD_DENSITY_CLASS = {
+  normal: "flex flex-col gap-2 p-3",
+  compact: "flex flex-col gap-1 px-3 py-2",
+} as const;

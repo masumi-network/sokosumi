@@ -18,13 +18,18 @@ import {
   SOCIAL_POST_ATTEMPT_TOOL_SLUGS,
 } from "@/clients/social-post-providers";
 import { publishSocialPostFirstComment } from "@/clients/social-post-providers/first-comment";
+import { ZERNIO_LINKEDIN_CREATE_POST } from "@/clients/social-post-providers/linkedin";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import { ComposioPublishOutcomeUnknownError } from "@/clients/social-post-providers/tools";
 import type {
   SocialPostPublishContext,
   SocialPostPublishResult,
+  TikTokPostSettings,
 } from "@/clients/social-post-providers/types";
+import { ZERNIO_TIKTOK_CREATE_POST } from "@/clients/social-post-providers/zernio-tiktok";
+import { getZernioAccountId } from "@/clients/zernio.client";
 import {
+  requireOwnTikTokAppAllowed,
   requireSocialProviderEnabled,
   socialProviderProjectSelect,
   socialProviderWorkspaceForProject,
@@ -51,9 +56,14 @@ import {
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import type { CoworkerAuthenticationContext } from "@/middleware/auth";
+import { isCmoSubscribed } from "@/services/cmo-billing.service";
+import { CMO_PAUSED, LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
+import { studioVideoOfMedia } from "@/services/image-studio-drive.service";
 import {
-  projectExecutorUserId,
+  connectionExecutorUserId,
   requireLockedOpenProject,
   requireScopedProject,
 } from "@/services/project-social-connections.service";
@@ -61,9 +71,11 @@ import {
   getSocialPost,
   type SocialPostSummary,
 } from "@/services/social-posts.service";
+import { recordSocialStudioAdEvents } from "@/services/social-studio-events.service";
 import { resolveXSubscriptionType } from "@/services/x-subscription-tier.service";
 
 export const LEASE_MS = 5 * 60_000;
+const SOCIAL_POST_PUBLISH_OPERATION = "social_post_publish";
 export const MAX_ATTEMPTS = 3;
 /** A retry never lands later than this after the planned time. */
 export const RETRY_WINDOW_MS = 15 * 60_000;
@@ -77,6 +89,8 @@ const SETTLEMENT_RESERVE_MS = 20_000;
 
 const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
 const CONNECTION_INACTIVE_ERROR = "Social connection needs reconnecting";
+/** A test copy schedules real posts and never sends one (ADR 0073). */
+export const TEST_COPY_NEVER_PUBLISHES = "A test copy never publishes";
 const PROJECT_CLOSED_ERROR =
   "Cannot publish Social posts in a closing or closed Project";
 const AUTHORIZATION_REVOKED_ERROR =
@@ -105,6 +119,7 @@ export interface PublishDueSocialPostsResult {
 }
 
 export interface PublishSocialPostNowInput {
+  tikTokSettings?: TikTokPostSettings;
   projectId: string;
   workspaceId: string;
   userId: string;
@@ -120,6 +135,7 @@ const publisherInclude = {
   socialConnection: {
     select: {
       id: true,
+      executorProjectId: true,
       provider: true,
       status: true,
       composioConnectedAccountId: true,
@@ -166,6 +182,7 @@ type AttemptTrigger = "scheduler" | "publish_now";
 type AttemptOutcome = "published" | "retried" | "failed" | "missed" | "skipped";
 
 interface AttemptOptions {
+  tikTokSettings?: TikTokPostSettings;
   trigger: AttemptTrigger;
   actorUserId?: string;
   execution?: PublishDueSocialPostsInput;
@@ -205,10 +222,18 @@ async function settle(
     },
   });
   if (result.count === 0) {
-    console.warn("[social-post-publisher] Lost lease; leaving post untouched", {
-      postId: post.id,
-      status: data.status,
-    });
+    // The publish-now route awaits this; the cron runs it as background work.
+    recordCoreWarning(
+      {
+        operation: SOCIAL_POST_PUBLISH_OPERATION,
+        socialPost: { id: post.id, status: data.status },
+      },
+      {
+        message: "Left a Social post untouched after losing its publish lease",
+        why: "Another worker took over the post's publish lease first",
+        fix: "Nothing to do: the worker that holds the lease settles the post.",
+      },
+    );
     return false;
   }
   if (
@@ -216,6 +241,18 @@ async function settle(
     !post.publishedExternalId
   ) {
     await flagSocialPostQuotes(post.id, QUOTED_POST_FAILED, tx);
+  }
+  if (data.status === "PUBLISHED" && tx === prisma) {
+    await recordSocialStudioAdEvents({
+      projectId: post.projectId,
+      workspaceId: post.workspaceId,
+      postId: post.id,
+      type: "posted",
+      media: parseSocialPostMedia(post.media, post.id),
+      threadParts: post.threadParts.map((part) => ({
+        media: parseSocialPostMedia(part.media, part.id),
+      })),
+    });
   }
   return true;
 }
@@ -238,7 +275,9 @@ async function settleRetry(
         {
           status: "FAILED",
           lastError: PROJECT_CLOSED_ERROR,
-          attemptCount: data.attemptCount,
+          ...(data.attemptCount !== undefined
+            ? { attemptCount: data.attemptCount }
+            : {}),
         },
         tx,
       );
@@ -287,10 +326,13 @@ async function checkProjectPublishingAccess(
   attemptId?: string,
 ): Promise<AttemptOutcome | null> {
   try {
-    await requireScopedProject(post, {
+    const project = await requireScopedProject(post, {
       requireOpen: true,
       closedMessage: PROJECT_CLOSED_ERROR,
     });
+    // The last check before the provider: whatever claimed this post, a test
+    // copy's post stays here (ADR 0073).
+    if (project.testCopyOfProjectId) throw conflict(TEST_COPY_NEVER_PUBLISHES);
     return null;
   } catch (error) {
     if (
@@ -309,7 +351,10 @@ async function checkProjectPublishingAccess(
     }
     const settled = await settle(post, {
       status: "FAILED",
-      lastError: PROJECT_CLOSED_ERROR,
+      lastError:
+        error.message === TEST_COPY_NEVER_PUBLISHES
+          ? TEST_COPY_NEVER_PUBLISHES
+          : PROJECT_CLOSED_ERROR,
     });
     return settled ? "failed" : "skipped";
   }
@@ -687,11 +732,27 @@ async function attemptPublish(
         socialProviderWorkspaceForProject(post.project),
       ) !== null,
   );
-  if (disabledProvider) {
-    const message = socialProviderUnavailableMessage(
-      disabledProvider,
-      socialProviderWorkspaceForProject(post.project),
-    );
+  // Our own TikTok app's connections publish only where it is allowed.
+  const ownTikTokApp =
+    provider === "tiktok" &&
+    !!post.socialConnection &&
+    !getZernioAccountId(post.socialConnection.composioConnectedAccountId);
+  let closedMessage = disabledProvider
+    ? socialProviderUnavailableMessage(
+        disabledProvider,
+        socialProviderWorkspaceForProject(post.project),
+      )
+    : null;
+  if (!closedMessage && ownTikTokApp) {
+    try {
+      requireOwnTikTokAppAllowed(post.project);
+    } catch (error) {
+      if (!(error instanceof HTTPException)) throw error;
+      closedMessage = error.message;
+    }
+  }
+  if (closedMessage) {
+    const message = closedMessage;
     await prisma.socialPostPublishAttempt.create({
       data: {
         socialPostId: post.id,
@@ -700,7 +761,7 @@ async function attemptPublish(
         actorUserId: options.actorUserId ?? null,
         finishedAt: now,
         outcome: "failed_permanent",
-        errorKind: `provider_coming_soon:${disabledProvider}`,
+        errorKind: `provider_coming_soon:${disabledProvider ?? provider}`,
         providerOutcome: message,
       },
       select: { id: true },
@@ -805,13 +866,22 @@ async function attemptPublish(
     return settled ? "failed" : "skipped";
   }
 
+  const zernio = Boolean(
+    getZernioAccountId(connection.composioConnectedAccountId),
+  );
+  const toolSlug =
+    zernio && provider === "tiktok"
+      ? ZERNIO_TIKTOK_CREATE_POST
+      : zernio && provider === "linkedin"
+        ? ZERNIO_LINKEDIN_CREATE_POST
+        : SOCIAL_POST_ATTEMPT_TOOL_SLUGS[provider];
   const attempt = await prisma.socialPostPublishAttempt.create({
     data: {
       socialPostId: post.id,
       attempt: await nextAttemptNumber(post.id),
       trigger: options.trigger,
       actorUserId: options.actorUserId ?? null,
-      toolSlug: SOCIAL_POST_ATTEMPT_TOOL_SLUGS[provider],
+      toolSlug,
     },
     select: { id: true },
   });
@@ -882,14 +952,26 @@ async function attemptPublish(
       attempt.id,
     );
     if (projectOutcome) return projectOutcome;
+    const studioVideo = await studioVideoOfMedia(post.projectId, media);
     const context: SocialPostPublishContext = {
+      // Zernio's idempotency key, and the first comment it posts itself.
+      ...(zernio && { postId: post.id }),
+      ...(zernio && post.firstComment
+        ? { firstComment: post.firstComment }
+        : {}),
       provider,
       connectedAccountId: connection.composioConnectedAccountId,
-      executorUserId: projectExecutorUserId(post.projectId),
+      executorUserId: connectionExecutorUserId({
+        projectId: post.projectId,
+        executorProjectId: connection.executorProjectId,
+      }),
       externalAccountId: connection.externalAccountId,
       externalHandle: connection.externalHandle,
       text: post.text,
+      tikTokSettings: options.tikTokSettings,
       ...(quote.externalId ? { quoteExternalId: quote.externalId } : {}),
+      ...(studioVideo.talking ? { aiGenerated: true } : {}),
+      ...(studioVideo.reel ? { reel: true } : {}),
       media,
       signal,
     };
@@ -920,12 +1002,28 @@ async function attemptPublish(
       retryAt !== null &&
       post.scheduledAt !== null &&
       retryAt.getTime() <= retryWindowStart.getTime() + RETRY_WINDOW_MS;
-    console.warn("[social-post-publisher] Publish attempt failed", {
-      postId: post.id,
-      attempt: attemptCount,
-      kind: classified.kind,
-      retrying,
-    });
+    const providerError =
+      error instanceof ThreadPartPublishError ? error.cause : error;
+    // The provider's error can quote the post, so content-free metadata only.
+    recordCoreWarning(
+      {
+        operation: SOCIAL_POST_PUBLISH_OPERATION,
+        socialPost: { id: post.id, attempt: attemptCount, provider },
+      },
+      {
+        message: "A Social post publish attempt failed",
+        why: retrying
+          ? "The provider call failed with a transient error"
+          : "The provider call failed and the post will not be retried",
+        fix: retrying
+          ? "Nothing to do: the publisher retries the post."
+          : "The post is marked failed with the reason on its publish attempt; the user can reschedule it.",
+      },
+      {
+        failure: messageSafeErrorFields(providerError),
+        publishFailure: { kind: classified.kind, retrying },
+      },
+    );
     await prisma.socialPostPublishAttempt.update({
       where: { id: attempt.id },
       data: {
@@ -936,18 +1034,25 @@ async function attemptPublish(
         externalId: null,
       },
     });
-    const providerError =
-      error instanceof ThreadPartPublishError ? error.cause : error;
     if (shouldRequestReauthorization(providerError, classified)) {
       try {
         await prisma.projectSocialConnection.updateMany({
           where: { id: connection.id, status: "active" },
           data: { status: "reauthorization_required" },
         });
-      } catch {
-        console.warn(
-          "[social-post-publisher] Could not flag connection for reconnect",
-          { postId: post.id, connectionId: connection.id },
+      } catch (flagError) {
+        recordCoreWarning(
+          {
+            operation: SOCIAL_POST_PUBLISH_OPERATION,
+            socialPost: { id: post.id },
+            socialConnection: { id: connection.id },
+          },
+          {
+            message: "Could not flag a Social connection for reconnect",
+            why: "The database update failed",
+            fix: "The post still failed; the next publish to this connection flags it again. If this repeats, read the database error under cause.",
+            cause: flagError,
+          },
         );
       }
     }
@@ -975,7 +1080,7 @@ async function attemptPublish(
       finishedAt,
       outcome: "succeeded",
       errorKind: null,
-      toolSlug: published.toolSlug ?? SOCIAL_POST_ATTEMPT_TOOL_SLUGS[provider],
+      toolSlug: published.toolSlug ?? toolSlug,
       providerOutcome:
         published.providerOutcome ??
         (media.length > 0 ? `published, ${media.length} media` : "published"),
@@ -992,23 +1097,40 @@ async function attemptPublish(
     attemptCount,
   });
   const firstComment = post.firstComment?.trim() ?? "";
-  if (settled && firstComment && published.externalId) {
+  if (
+    settled &&
+    firstComment &&
+    published.externalId &&
+    !published.firstCommentIncluded
+  ) {
     try {
       await publishSocialPostFirstComment({
         provider,
         subscriptionType,
         connectedAccountId: connection.composioConnectedAccountId,
-        executorUserId: projectExecutorUserId(post.projectId),
+        executorUserId: connectionExecutorUserId({
+          projectId: post.projectId,
+          executorProjectId: connection.executorProjectId,
+        }),
         externalAccountId: connection.externalAccountId,
         externalId: lastExternalId ?? published.externalId,
         text: firstComment,
         signal,
       });
-    } catch {
-      console.warn("[social-post-publisher] First comment failed", {
-        postId: post.id,
-        provider,
-      });
+    } catch (commentError) {
+      // The provider's error can quote the comment, so content-free metadata only.
+      recordCoreWarning(
+        {
+          operation: SOCIAL_POST_PUBLISH_OPERATION,
+          socialPost: { id: post.id, provider },
+        },
+        {
+          message: "Published a Social post without its first comment",
+          why: "The provider call for the first comment failed",
+          fix: "The post is live; the user can add the comment by hand.",
+        },
+        { failure: messageSafeErrorFields(commentError) },
+      );
     }
   }
   return settled ? "published" : "skipped";
@@ -1017,13 +1139,41 @@ async function attemptPublish(
 type ClaimResult = { post: ClaimedPost } | "none" | "lost";
 
 /**
+ * The Cuso Projects among `where` whose posts wait: a Cuso paused without a
+ * CMO plan publishes nothing, by schedule or by hand (ADR 0068). One gate per
+ * Project; Projects without a live Cuso are not looked at. The scheduler asks
+ * about Projects with a post due before the run ends: a held post stays
+ * scheduled and spends no attempt; once he may work again it goes out, or,
+ * found more than `MISSED_AFTER_MS` late, is missed for the person to publish
+ * or reschedule.
+ */
+async function pausedCusoProjectIds(
+  where: Prisma.ProjectWhereInput,
+): Promise<string[]> {
+  const projects = await prisma.project.findMany({
+    where: {
+      ...where,
+      closingAt: null,
+      closedAt: null,
+      sokoBots: { some: LIVE_CUSO_WHERE },
+    },
+    select: { id: true },
+  });
+  const paused: string[] = [];
+  for (const { id } of projects) {
+    if (!(await isCmoSubscribed({ projectId: id }))) paused.push(id);
+  }
+  return paused;
+}
+
+/**
  * Optimistic claim of the earliest due post (or one whose lease expired): the
  * row must still carry the observed status and revision when the lease lands.
  *
  * Social scheduling is public. Expired publishing leases are always recovered
  * so a previously started attempt can be reconciled without publishing twice.
  */
-async function claimDuePost(): Promise<ClaimResult> {
+async function claimDuePost(held: string[]): Promise<ClaimResult> {
   const now = new Date();
   const candidate = await prisma.socialPost.findFirst({
     where: {
@@ -1040,7 +1190,13 @@ async function claimDuePost(): Promise<ClaimResult> {
       OR: [
         {
           status: "SCHEDULED",
-          project: { closingAt: null, closedAt: null },
+          // A test copy's due post is held, never sent (ADR 0073).
+          project: {
+            closingAt: null,
+            closedAt: null,
+            testCopyOfProjectId: null,
+          },
+          ...(held.length > 0 && { projectId: { notIn: held } }),
           scheduledAt: { lte: now },
           OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }],
         },
@@ -1119,12 +1275,20 @@ export async function publishDueSocialPosts(
     missed: 0,
     skipped: 0,
   };
+  const held = await pausedCusoProjectIds({
+    socialPosts: {
+      some: {
+        status: "SCHEDULED",
+        scheduledAt: { lte: new Date(input.deadlineMs) },
+      },
+    },
+  });
   while (
     input.shouldContinue() &&
     !input.abortSignal.aborted &&
     Date.now() < input.deadlineMs - SETTLEMENT_RESERVE_MS
   ) {
-    const claim = await claimDuePost();
+    const claim = await claimDuePost(held);
     if (claim === "none") break;
     if (claim === "lost") {
       result.skipped += 1;
@@ -1148,11 +1312,20 @@ export async function publishDueSocialPosts(
 export async function publishSocialPostNow(
   input: PublishSocialPostNowInput,
 ): Promise<SocialPostSummary> {
+  // Before anything changes, so a refused post keeps its status.
+  const paused = await pausedCusoProjectIds({
+    id: input.projectId,
+    workspaceId: input.workspaceId,
+  });
+  if (paused.length > 0) throw conflict(CMO_PAUSED);
   const { post, now, leaseToken, movedQuotes } = await serializableTransaction(
     async (tx) => {
-      await requireLockedOpenProject(tx, input, {
+      const project = await requireLockedOpenProject(tx, input, {
         closedMessage: PROJECT_CLOSED_ERROR,
       });
+      if (project.testCopyOfProjectId) {
+        throw conflict(TEST_COPY_NEVER_PUBLISHES);
+      }
       const post = await tx.socialPost.findFirst({
         where: {
           id: input.postId,
@@ -1182,6 +1355,10 @@ export async function publishSocialPostNow(
           post.project,
         );
       }
+      if (post.provider === "tiktok" && !input.tikTokSettings)
+        throw badRequest(
+          "Choose the TikTok audience and confirm the music usage before publishing",
+        );
       if (post.status === "DRAFT") {
         if (!post.socialConnection) {
           throw badRequest("A social connection is required to publish a post");
@@ -1263,7 +1440,11 @@ export async function publishSocialPostNow(
       socialConnection: post.socialConnection,
       project: post.project,
     },
-    { trigger: "publish_now", actorUserId: input.userId },
+    {
+      trigger: "publish_now",
+      actorUserId: input.userId,
+      tikTokSettings: input.tikTokSettings,
+    },
   );
   return {
     ...(await getSocialPost({

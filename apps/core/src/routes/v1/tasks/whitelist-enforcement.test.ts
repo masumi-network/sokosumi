@@ -37,6 +37,7 @@ const {
     const status = t.status as string | undefined;
     return {
       ...t,
+      workspaceId: (t.workspace as { id: string }).id,
       visibility: (t.visibility as string | undefined) ?? "PUBLIC",
       priority: (t.priority as string | undefined) ?? "NONE",
       number: (t.number as number | null | undefined) ?? null,
@@ -337,9 +338,14 @@ describe("task coworker whitelist enforcement", () => {
       share: null,
       links: [],
       files: [],
+      archivedAt: null,
       runAt: null,
       dueOn: null,
+      parentTaskId: null,
+      position: null,
+      subtaskProgress: { completed: 0, total: 0 },
       scheduleId: null,
+      followers: [],
       selectableStatuses: [],
       participants: [],
       linksFrom: [],

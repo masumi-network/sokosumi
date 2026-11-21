@@ -2,34 +2,39 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const { serviceMock, revalidatePathMock, MockCoreApiRequestError } = vi.hoisted(
-  () => {
-    class MockCoreApiRequestError extends Error {
-      status?: number;
-      constructor(message: string, status?: number) {
-        super(message);
-        this.status = status;
-      }
+const {
+  serviceMock,
+  revalidatePathMock,
+  refreshMock,
+  MockCoreApiRequestError,
+} = vi.hoisted(() => {
+  class MockCoreApiRequestError extends Error {
+    status?: number;
+    constructor(message: string, status?: number) {
+      super(message);
+      this.status = status;
     }
-    return {
-      serviceMock: {
-        getMine: vi.fn(),
-        createOrUpdate: vi.fn(),
-        startTurn: vi.fn(),
-        resolveDecision: vi.fn(),
-        createSchedule: vi.fn(),
-        topUpAvatars: vi.fn(),
-        createScoped: vi.fn(),
-        archive: vi.fn(),
-        reactivate: vi.fn(),
-        resetMemory: vi.fn(),
-        rename: vi.fn(),
-      },
-      revalidatePathMock: vi.fn(),
-      MockCoreApiRequestError,
-    };
-  },
-);
+  }
+  return {
+    serviceMock: {
+      getMine: vi.fn(),
+      createOrUpdate: vi.fn(),
+      startTurn: vi.fn(),
+      resolveDecision: vi.fn(),
+      createSchedule: vi.fn(),
+      createScoped: vi.fn(),
+      archive: vi.fn(),
+      reactivate: vi.fn(),
+      resetMemory: vi.fn(),
+      rename: vi.fn(),
+      updateSchedule: vi.fn(),
+      setAvatarCode: vi.fn(),
+    },
+    revalidatePathMock: vi.fn(),
+    refreshMock: vi.fn(),
+    MockCoreApiRequestError,
+  };
+});
 
 vi.mock("@/middleware/auth-middleware", () => ({
   withSession:
@@ -40,6 +45,7 @@ vi.mock("@/middleware/auth-middleware", () => ({
 
 vi.mock("next/cache", () => ({
   revalidatePath: (...args: unknown[]) => revalidatePathMock(...args),
+  refresh: () => refreshMock(),
 }));
 
 vi.mock("@/lib/clients/core.client", () => ({
@@ -56,7 +62,6 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
 
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
-  SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,
   SOKO_BOT_BUSY_ERROR_CODE,
   SOKO_BOT_ROUTE,
   SOKO_BOTS_ROUTE,
@@ -64,6 +69,7 @@ import {
 
 import {
   archiveSokoBotAction,
+  changeSokoBotScheduleRunAction,
   createScopedSokoBotAction,
   createSokoBotAction,
   createSokoBotScheduleAction,
@@ -71,8 +77,8 @@ import {
   renameSokoBotAction,
   resetSokoBotMemoryAction,
   resolveSokoBotDecisionAction,
+  setSokoBotAvatarCodeAction,
   startSokoBotTurnAction,
-  topUpSokoBotAvatarsAction,
 } from "../action";
 
 describe("soko-bot actions", () => {
@@ -97,32 +103,6 @@ describe("soko-bot actions", () => {
     expect(bad.ok).toBe(false);
     if (!bad.ok) expect(bad.error.code).toBe(CommonErrorCode.BAD_INPUT);
     expect(serviceMock.createOrUpdate).toHaveBeenCalledTimes(1);
-  });
-
-  it("topUpSokoBotAvatarsAction maps Core 429 to the rate-limited code", async () => {
-    // The picker shows a different sentence for this one: a spent allowance is
-    // a wait, not a breakage, and "could not load" tells the user to retry now.
-    serviceMock.topUpAvatars.mockRejectedValue(
-      new MockCoreApiRequestError("Too many pictures requested", 429),
-    );
-    const result = await topUpSokoBotAvatarsAction({ input: { take: 6 } });
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe(SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE);
-    }
-  });
-
-  it("topUpSokoBotAvatarsAction leaves other Core failures generic", async () => {
-    // Pins the mapping to 429 alone. Without this, mapping every status to the
-    // rate-limit code would still pass the test above.
-    serviceMock.topUpAvatars.mockRejectedValue(
-      new MockCoreApiRequestError("Boom", 500),
-    );
-    const result = await topUpSokoBotAvatarsAction({ input: { take: 6 } });
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe(CommonErrorCode.INTERNAL_SERVER_ERROR);
-    }
   });
 
   it("startSokoBotTurnAction maps Core 409 to the busy error code", async () => {
@@ -183,13 +163,56 @@ describe("soko-bot actions", () => {
     expect(serviceMock.createSchedule).not.toHaveBeenCalled();
   });
 
-  it("topUpSokoBotAvatarsAction refuses a take above one generation batch", async () => {
-    const bad = await topUpSokoBotAvatarsAction({
-      input: { take: 12, excludeIds: [] },
+  describe("changeSokoBotScheduleRunAction", () => {
+    const SCHEDULE_ID = "01960001-0001-7001-8001-0000000000cc";
+    const BOT_ID = "01960001-0001-7001-8001-000000000001";
+    const originalAt = new Date("2030-01-03T09:00:00.000Z");
+    const skip = (botId?: string) =>
+      changeSokoBotScheduleRunAction({
+        botId,
+        input: {
+          scheduleId: SCHEDULE_ID,
+          originalAt,
+          expectedAt: originalAt,
+          change: { action: "skip" },
+        },
+      });
+
+    it("sends the change as the schedule's run and refreshes the Calendar", async () => {
+      serviceMock.updateSchedule.mockResolvedValue({});
+      await expect(skip(BOT_ID)).resolves.toMatchObject({ ok: true });
+      expect(serviceMock.updateSchedule).toHaveBeenCalledWith(
+        SCHEDULE_ID,
+        { run: { originalAt, expectedAt: originalAt, action: "skip" } },
+        BOT_ID,
+      );
+      expect(revalidatePathMock).toHaveBeenCalledWith("/calendar");
     });
-    expect(bad.ok).toBe(false);
-    if (!bad.ok) expect(bad.error.code).toBe(CommonErrorCode.BAD_INPUT);
-    expect(serviceMock.topUpAvatars).not.toHaveBeenCalled();
+
+    it.each([
+      [409, "stale"],
+      [422, "invalid_time"],
+      [500, "failed"],
+    ])("maps Core %i to %s", async (status, kind) => {
+      serviceMock.updateSchedule.mockRejectedValue(
+        new MockCoreApiRequestError("no", status),
+      );
+      const result = await skip();
+      expect(result).toMatchObject({ ok: false, error: { kind } });
+    });
+
+    it("refuses a move without a time before calling Core", async () => {
+      const result = await changeSokoBotScheduleRunAction({
+        input: {
+          scheduleId: SCHEDULE_ID,
+          originalAt,
+          expectedAt: null,
+          change: { action: "move" },
+        },
+      });
+      expect(result).toMatchObject({ ok: false, error: { kind: "failed" } });
+      expect(serviceMock.updateSchedule).not.toHaveBeenCalled();
+    });
   });
 
   describe("shared bots", () => {
@@ -347,5 +370,30 @@ describe("soko-bot actions", () => {
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.error.message).toBe("Forbidden");
     });
+  });
+});
+
+describe("setSokoBotAvatarCodeAction", () => {
+  const CODE = "v1.owl.golden.peach.crimson.l.M.original.original.none.none";
+
+  beforeEach(() => vi.clearAllMocks());
+
+  it("saves the look and refreshes the page from the action, so the sidebar face changes too", async () => {
+    serviceMock.setAvatarCode.mockResolvedValue({
+      avatarCode: CODE,
+      avatarImageUrl: "https://blob.test/owl.webp",
+    });
+    const result = await setSokoBotAvatarCodeAction({ code: CODE });
+    expect(result.ok).toBe(true);
+    expect(serviceMock.setAvatarCode).toHaveBeenCalledWith(CODE, undefined);
+    expect(revalidatePathMock).toHaveBeenCalledWith(SOKO_BOT_ROUTE);
+    expect(refreshMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a code it cannot read without calling Core", async () => {
+    const result = await setSokoBotAvatarCodeAction({ code: "v1.owl" });
+    expect(result.ok).toBe(false);
+    expect(serviceMock.setAvatarCode).not.toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 });

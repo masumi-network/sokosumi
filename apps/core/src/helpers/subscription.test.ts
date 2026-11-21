@@ -16,9 +16,11 @@ const {
   getLatestSubscriptionByReferenceIdMock,
   listAvailableBucketsWithBalancesMock,
   listEnterprisePoolBucketsWithBalancesMock,
+  listProjectBucketsWithBalancesMock,
   resolveOrganizationBillingPlanMock,
   getEnterpriseContractBillingSummaryMock,
 } = vi.hoisted(() => ({
+  listProjectBucketsWithBalancesMock: vi.fn(),
   resolveActiveSubscriptionByReferenceIdMock: vi.fn(),
   getLatestSubscriptionByReferenceIdMock: vi.fn(),
   listAvailableBucketsWithBalancesMock: vi.fn(),
@@ -43,6 +45,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
       listAvailableBucketsWithBalancesMock(...args),
     listEnterprisePoolBucketsWithBalances: (...args: unknown[]) =>
       listEnterprisePoolBucketsWithBalancesMock(...args),
+    listProjectBucketsWithBalances: (...args: unknown[]) =>
+      listProjectBucketsWithBalancesMock(...args),
   },
 }));
 
@@ -588,6 +592,8 @@ describe("buildCreditsPayload", () => {
     listEnterprisePoolBucketsWithBalancesMock.mockReset();
     listAvailableBucketsWithBalancesMock.mockResolvedValue([]);
     listEnterprisePoolBucketsWithBalancesMock.mockResolvedValue([]);
+    listProjectBucketsWithBalancesMock.mockReset();
+    listProjectBucketsWithBalancesMock.mockResolvedValue([]);
     resolveOrganizationBillingPlanMock.mockResolvedValue({
       mode: "self_serve",
       plan: "starter",
@@ -905,6 +911,72 @@ describe("buildCreditsPayload", () => {
       tx,
       scope,
     );
+  });
+
+  it("lists Project credits as their own rows, named by Project, outside the organization's totals", async () => {
+    getCreditsMock.mockResolvedValue(5);
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
+    getLatestSubscriptionByReferenceIdMock.mockResolvedValue(null);
+    const { tx } = createTransactionClient({ totalCents: 0n, usedCents: 0n });
+    listAvailableBucketsWithBalancesMock.mockResolvedValue([
+      {
+        totalCents: convertCreditsToCents(5),
+        remainingCents: convertCreditsToCents(5),
+        expiresAt: null,
+        projectId: null,
+        projectName: null,
+      },
+    ]);
+    listProjectBucketsWithBalancesMock.mockResolvedValue([
+      {
+        totalCents: convertCreditsToCents(10_000),
+        remainingCents: convertCreditsToCents(9_000),
+        expiresAt: null,
+        projectId: "project_1",
+        projectName: "Acme launch",
+      },
+    ]);
+
+    const payload = await buildCreditsPayload({
+      userId: "user_1",
+      organizationId: "org_1",
+      referenceId: "org_1",
+      tx,
+    });
+
+    expect(listProjectBucketsWithBalancesMock).toHaveBeenCalledWith(
+      "user_1",
+      "org_1",
+      tx,
+    );
+    expect(payload.extra.buckets).toEqual([
+      { total: 5, remaining: 5, expiresAt: null },
+      {
+        total: 10_000,
+        remaining: 9_000,
+        expiresAt: null,
+        project: { id: "project_1", name: "Acme launch" },
+      },
+    ]);
+    expect(payload.extra.credits).toEqual({ total: 5, remaining: 5, used: 0 });
+    expect(payload.spendable).toBe(5);
+  });
+
+  it("lists no other Project's credits when read for a Project", async () => {
+    getCreditsMock.mockResolvedValue(10);
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
+    getLatestSubscriptionByReferenceIdMock.mockResolvedValue(null);
+    const { tx } = createTransactionClient({ totalCents: 0n, usedCents: 0n });
+
+    await buildCreditsPayload({
+      userId: null,
+      organizationId: "org_1",
+      referenceId: "org_1",
+      projectId: "project_1",
+      tx,
+    });
+
+    expect(listProjectBucketsWithBalancesMock).not.toHaveBeenCalled();
   });
 
   it("excludes enterprise pool remaining from credits.buffer", async () => {

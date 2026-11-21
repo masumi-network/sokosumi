@@ -7,10 +7,13 @@ import {
 } from "@sokosumi/core-client";
 import { Mail, Plus } from "lucide-react";
 import Link from "next/link";
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
 import { useRef, useState, useTransition } from "react";
 import { EmptyState } from "@/components/common/empty-state";
+import { pageSearchUrlUpdates } from "@/components/page-query-search-field";
+import { PageSearchActions } from "@/components/page-search-actions";
+import { PageSearchField } from "@/components/page-search-field";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
@@ -23,9 +26,10 @@ import { IssueDeleteButton } from "./issue-delete-button";
 import {
   IssueDeliveryOutcome,
   IssueStatusBadge,
+  IssueWhen,
 } from "./issue-delivery-status";
 import { NewIssueDialog } from "./new-issue-dialog";
-import { issueSearchParams } from "./search-params";
+import { ISSUE_SEARCH_MAX_LENGTH, issueSearchParams } from "./search-params";
 
 export function Issues({
   projectId,
@@ -42,15 +46,16 @@ export function Issues({
   readOnly?: boolean;
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues");
-  const format = useFormatter();
+  const tSearch = useTranslations("App.PageSearch");
   const [dialogOpen, setDialogOpen] = useState(false);
   const newButton = useRef<HTMLButtonElement>(null);
   const [pending, startTransition] = useTransition();
   const [pendingPage, setPendingPage] = useState<"first" | "next" | null>(null);
-  const [, setQuery] = useQueryStates(issueSearchParams, {
+  const [query, setQuery] = useQueryStates(issueSearchParams, {
     shallow: false,
     startTransition,
   });
+  const searching = Boolean(query.q.trim());
   const newIssue = readOnly ? null : (
     <div className="flex flex-wrap justify-center gap-2">
       <DraftIssueButton projectId={projectId} />
@@ -66,8 +71,8 @@ export function Issues({
   );
   return (
     <section className="min-w-0 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="space-y-1">
+      <div className="@container/page-toolbar flex flex-wrap items-center justify-between gap-3">
+        <div className="space-y-1 sm:flex-1">
           <h3 className="text-base font-semibold">{t("title")}</h3>
           <Link
             className="text-muted-foreground inline-block py-1 text-sm underline underline-offset-4"
@@ -76,15 +81,29 @@ export function Issues({
             {t("Readiness.audienceCount", { count: activeSubscribers })}
           </Link>
         </div>
-        {issues.length ? newIssue : null}
+        <PageSearchActions>
+          <PageSearchField
+            inHeader
+            value={query.q}
+            placeholder={tSearch("issues")}
+            maxLength={ISSUE_SEARCH_MAX_LENGTH}
+            onValueChange={(q) => {
+              setPendingPage(null);
+              void setQuery({ q, cursor: null }, pageSearchUrlUpdates(q));
+            }}
+          />
+          {issues.length || searching ? newIssue : null}
+        </PageSearchActions>
       </div>
       {!issues.length ? (
         <div className={HOLDER_CLASS}>
           <EmptyState
             icon={Mail}
-            title={t("emptyTitle")}
-            description={t("emptyDescription")}
-            action={newIssue}
+            title={searching ? undefined : t("emptyTitle")}
+            description={
+              searching ? tSearch("noMatches") : t("emptyDescription")
+            }
+            action={searching ? undefined : newIssue}
           />
         </div>
       ) : (
@@ -120,29 +139,7 @@ export function Issues({
                       </Link>
                     </h4>
                     <IssueStatusBadge issue={issue} />
-                    <p className="text-muted-foreground text-sm wrap-anywhere">
-                      {issue.sentAt
-                        ? t("sentAt", {
-                            date: format.dateTime(issue.sentAt, "dateTime"),
-                          })
-                        : issue.scheduledAt
-                          ? t("Lifecycle.scheduled", {
-                              date: format.dateTime(
-                                issue.scheduledAt,
-                                "dateTime",
-                                {
-                                  timeZone: issue.timezone ?? "UTC",
-                                },
-                              ),
-                              timezone: issue.timezone ?? "UTC",
-                            })
-                          : t("updated", {
-                              date: format.dateTime(
-                                issue.updatedAt,
-                                "dateTime",
-                              ),
-                            })}
-                    </p>
+                    <IssueWhen issue={issue} />
                   </div>
                   {readOnly ? null : (
                     <div className="flex min-w-0 flex-wrap items-center gap-2 md:justify-end">

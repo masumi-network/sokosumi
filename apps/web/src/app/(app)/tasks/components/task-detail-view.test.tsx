@@ -2,25 +2,28 @@ import type { Task, TaskEvent } from "@sokosumi/core-client";
 import type { ReactElement } from "react";
 import { renderToReadableStream } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TaskMetadataParticipantsField } from "@/app/tasks/components/task-metadata-participants-field";
+import { TaskMetadataParticipantsRow } from "@/app/tasks/components/task-metadata-participants-row";
 
-const listTaskActivityFeedMock = vi.fn();
 const taskActivitySectionMock = vi.fn();
+const taskMetadataMock = vi.fn();
 const taskDetailActionsMock = vi.fn();
+const taskSubtaskSectionMock = vi.fn();
 const viewer = vi.hoisted(() => ({
   id: "user_admin",
   hasAssignedSeat: false,
 }));
 
-class FakeCoreApiRequestError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
-    super(message);
-  }
+/** The component the sidebar's Participants row renders with. */
+function participantsRowType() {
+  const props = taskMetadataMock.mock.calls.at(-1)?.[0] as {
+    participants: ReactElement;
+  };
+  return props.participants.type;
 }
 
 vi.mock("server-only", () => ({}));
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
 
 vi.mock("next-intl/server", () => ({
   getTranslations: async () => {
@@ -31,19 +34,12 @@ vi.mock("next-intl/server", () => ({
 }));
 
 vi.mock("@/lib/auth/auth.server", () => ({
-  getSession: async () => ({
+  getPrivateCachedSession: async () => ({
     session: { activeOrganizationId: null },
     user: { id: viewer.id, name: "Admin", email: "admin@example.com" },
   }),
 }));
 
-vi.mock("@/lib/services/task.service", () => ({
-  taskService: {
-    listTaskContacts: async () => [],
-    listTaskActivityFeed: (...args: unknown[]) =>
-      listTaskActivityFeedMock(...args),
-  },
-}));
 vi.mock("@/lib/services/agent.service", () => ({
   agentService: { getAvailableAgentsWithCreditsPrice: async () => [] },
 }));
@@ -60,6 +56,19 @@ vi.mock("@/lib/services/organization-seat.service", () => ({
 }));
 vi.mock("@/lib/services/project.service", () => ({
   projectService: { getProjectById: async () => null },
+}));
+vi.mock("@/lib/clients/core.client", () => ({
+  coreClient: {
+    getMySokoBotActivity: async () => ({
+      data: {
+        id: "bot-1",
+        userId: "viewer-1",
+        avatarSeed: null,
+        avatarImageUrl: null,
+        avatarCode: null,
+      },
+    }),
+  },
 }));
 vi.mock("@/lib/services/user.service", () => ({
   userService: {
@@ -108,13 +117,22 @@ vi.mock("@/app/tasks/components/task-jobs", () => ({
   TaskJobs: () => null,
 }));
 vi.mock("@/app/tasks/components/task-metadata", () => ({
-  TaskMetadata: () => null,
+  TaskMetadata: (props: unknown) => {
+    taskMetadataMock(props);
+    return null;
+  },
 }));
 vi.mock("@/app/tasks/components/task-related-tasks", () => ({
   TaskRelatedTasks: () => null,
 }));
 vi.mock("@/app/tasks/components/task-status-realtime-listener", () => ({
   TaskStatusRealtimeListener: () => null,
+}));
+vi.mock("@/app/tasks/components/task-subtask-section", () => ({
+  TaskSubtaskSection: () => {
+    taskSubtaskSectionMock();
+    return null;
+  },
 }));
 vi.mock("@/app/tasks/components/task-tags", () => ({
   TaskTagSection: () => null,
@@ -171,6 +189,8 @@ function createTask(
     files: [],
     jobs: [],
     participants: [],
+    parentTaskId: null,
+    subtaskProgress: { completed: 0, total: 0 },
     events,
     tags: [],
     createdAt: new Date("2026-10-05T09:00:00Z"),
@@ -198,14 +218,9 @@ describe("TaskDetailView (forceReadOnly: admin and developer views)", () => {
     vi.clearAllMocks();
     viewer.id = "user_admin";
     viewer.hasAssignedSeat = false;
-    // Core scopes GET /tasks/{id}/events to the caller's active workspace; a
-    // platform admin outside the owner's workspace gets "Task not found".
-    listTaskActivityFeedMock.mockRejectedValue(
-      new FakeCoreApiRequestError("Task not found", 404),
-    );
   });
 
-  it("renders activity from the admin task payload instead of the workspace-scoped events read", async () => {
+  it("renders every comment from the admin task payload", async () => {
     const events = [
       event("evt_1", null, 1),
       ...Array.from({ length: 7 }, (_, index) =>
@@ -218,7 +233,6 @@ describe("TaskDetailView (forceReadOnly: admin and developer views)", () => {
     );
 
     expect(errors).toEqual([]);
-    expect(listTaskActivityFeedMock).not.toHaveBeenCalled();
     expect(taskActivitySectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         events,
@@ -227,26 +241,34 @@ describe("TaskDetailView (forceReadOnly: admin and developer views)", () => {
         canComment: false,
       }),
     );
+    // No follow for the reader of an admin view.
+    const props = taskActivitySectionMock.mock.calls[0]?.[0] as {
+      headerAction: { props: { viewerId: string | null } };
+    };
+    expect(props.headerAction.props.viewerId).toBeNull();
+    // No join or leave either: the Participants row is read-only.
+    expect(participantsRowType()).toBe(TaskMetadataParticipantsRow);
   });
 
-  it("keeps the workspace-scoped events read for the user-facing view", async () => {
-    const feedEvents = [event("evt_c0", "comment 0", 1)];
-    listTaskActivityFeedMock.mockResolvedValue({
-      events: feedEvents,
-      pagination: { commentCount: 12, latestCommentId: "evt_c11" },
-    });
+  it("renders the user-facing view from the task payload with the newest 5 comments", async () => {
+    const status = event("evt_1", null, 1);
+    const comments = Array.from({ length: 7 }, (_, index) =>
+      event(`evt_c${index}`, `comment ${index}`, index + 2),
+    );
 
-    const errors = await renderErrors(<TaskDetailView task={createTask([])} />);
+    const errors = await renderErrors(
+      <TaskDetailView task={createTask([status, ...comments])} />,
+    );
 
     expect(errors).toEqual([]);
-    expect(listTaskActivityFeedMock).toHaveBeenCalledWith("task_1");
     expect(taskActivitySectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        events: feedEvents,
-        commentCount: 12,
-        latestCommentId: "evt_c11",
+        events: [status, ...comments.slice(2)],
+        commentCount: 7,
+        latestCommentId: "evt_c6",
       }),
     );
+    expect(participantsRowType()).toBe(TaskMetadataParticipantsField);
   });
 });
 
@@ -257,10 +279,6 @@ describe("TaskDetailView (rights follow the Owner)", () => {
     vi.clearAllMocks();
     viewer.id = "user_viewer";
     viewer.hasAssignedSeat = true;
-    listTaskActivityFeedMock.mockResolvedValue({
-      events: [],
-      pagination: { commentCount: 0, latestCommentId: null },
-    });
   });
 
   async function renderFor(task: Task) {
@@ -326,5 +344,31 @@ describe("TaskDetailView (rights follow the Owner)", () => {
 
     expect(actions).toMatchObject({ isTaskOwner: false, canCancel: false });
     expect(activity.canComment).toBe(false);
+  });
+});
+
+describe("TaskDetailView (sub-task checklist)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    viewer.id = "user_owner";
+    viewer.hasAssignedSeat = true;
+  });
+
+  it("leaves the checklist out of a Task with no sub-tasks", async () => {
+    expect(
+      await renderErrors(<TaskDetailView task={createTask([])} />),
+    ).toEqual([]);
+
+    expect(taskSubtaskSectionMock).not.toHaveBeenCalled();
+  });
+
+  it("shows the checklist once the Task has a sub-task", async () => {
+    const task = createTask([], {
+      subtaskProgress: { completed: 0, total: 1 },
+    });
+
+    expect(await renderErrors(<TaskDetailView task={task} />)).toEqual([]);
+
+    expect(taskSubtaskSectionMock).toHaveBeenCalled();
   });
 });

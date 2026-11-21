@@ -1,5 +1,6 @@
 import {
   type Prisma,
+  type ProjectImageJobKind,
   ProjectImageJobStatus,
   ProjectImageMediaType,
 } from "@sokosumi/database";
@@ -20,8 +21,22 @@ import {
   type ImageJobFailureReason,
   readImageJobFailureReason,
 } from "@/lib/image-studio/failure-reason";
-import type { StudioAdHeadline } from "@/schemas/project-image-studio.schema";
+import {
+  assetSelect,
+  jobSelect,
+  olderStudioRows,
+  type StudioPageCursor,
+} from "@/lib/image-studio/list-query";
+import { readTalkingVideoSettings } from "@/lib/image-studio/talking-video";
+import type {
+  StudioAdHeadline,
+  StudioAssetRating,
+} from "@/schemas/project-image-studio.schema";
 import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
+import {
+  emptyStudioAssetRating,
+  getStudioAssetRatings,
+} from "./image-studio-feedback.service";
 
 /**
  * Versions, lineage, and the bytes behind them.
@@ -37,7 +52,7 @@ import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
  * `lib/image-studio/blob-store.ts`.
  */
 
-export interface AssetView {
+export interface AssetView extends StudioAssetRating {
   id: string;
   projectId: string;
   /** Named on the row so a workspace-wide gallery can say where each image lives. */
@@ -45,6 +60,7 @@ export interface AssetView {
   product?: StudioProductIdentity;
   batchId?: string;
   headline?: StudioAdHeadline;
+  lettering?: "overlay" | "ideogram";
   settings: unknown;
   rootId: string;
   parentId: string | null;
@@ -58,38 +74,10 @@ export interface AssetView {
   mediaType: "IMAGE" | "VIDEO";
   durationSeconds: number | null;
   video: VideoSettingsView | null;
+  aiGenerated?: boolean;
   createdAt: Date;
   jobId: string;
 }
-
-const assetSelect = {
-  id: true,
-  projectId: true,
-  project: { select: { name: true } },
-  settings: true,
-  rootId: true,
-  parentId: true,
-  version: true,
-  prompt: true,
-  model: true,
-  width: true,
-  height: true,
-  bytes: true,
-  contentType: true,
-  mediaType: true,
-  durationSeconds: true,
-  createdAt: true,
-  jobId: true,
-  headline: { select: { text: true, revision: true } },
-  job: {
-    select: {
-      productId: true,
-      productName: true,
-      batchId: true,
-      batchSlot: { select: { batchId: true } },
-    },
-  },
-} as const;
 
 function productView(job: {
   productId?: string | null;
@@ -104,6 +92,7 @@ function toAssetView({
   headline,
   job,
   project,
+  aiGenerated,
   ...asset
 }: Prisma.ProjectImageAssetGetPayload<{
   select: typeof assetSelect;
@@ -112,10 +101,13 @@ function toAssetView({
   return {
     ...asset,
     ...productView(job),
+    lettering: job.lettering === "ideogram" ? "ideogram" : "overlay",
     ...(batchId ? { batchId } : {}),
     ...(headline ? { headline } : {}),
+    ...(aiGenerated ? { aiGenerated } : {}),
     ...splitVideoSettings(asset.mediaType === "VIDEO", asset.settings),
     projectName: project.name,
+    ...emptyStudioAssetRating(),
   };
 }
 
@@ -168,6 +160,101 @@ interface ListScope {
   userId: string;
 }
 
+interface ListAssetOptions extends ListScope {
+  limit: number;
+  /** Return versions older than this cursor instead of the newest page. */
+  before?: StudioPageCursor;
+  /** Always include this version, whatever its age. */
+  pinnedAssetId?: string;
+  sort?: "newest" | "best";
+}
+
+async function applyRatings<T extends AssetView>(
+  assets: T[],
+  userId: string,
+): Promise<T[]> {
+  const ratings = await getStudioAssetRatings(
+    assets.map((asset) => asset.id),
+    userId,
+  );
+  return assets.map((asset) => ({ ...asset, ...ratings.get(asset.id)! }));
+}
+
+async function appendPinnedAsset(
+  assets: AssetView[],
+  options: ListAssetOptions,
+  where: Prisma.ProjectImageAssetWhereInput,
+) {
+  if (
+    options.pinnedAssetId &&
+    !assets.some((asset) => asset.id === options.pinnedAssetId)
+  ) {
+    const pinned = await prisma.projectImageAsset.findFirst({
+      where: { id: options.pinnedAssetId, ...where },
+      select: assetSelect,
+    });
+    // Appended out of order on purpose: it is not part of this page, it is the
+    // version the caller is looking at. The client keys off ids.
+    if (pinned) assets.push(toAssetView(pinned));
+  }
+}
+
+async function listBestAssets(
+  options: ListAssetOptions,
+  where: Prisma.ProjectImageAssetWhereInput,
+) {
+  // Rank lightweight ids before hydrating the page: a high-rated older image
+  // must be reachable even when it is outside the newest hundred versions.
+  const candidates = await prisma.projectImageAsset.findMany({
+    where,
+    select: { id: true, createdAt: true },
+  });
+  const ratings = await getStudioAssetRatings(
+    candidates.map((asset) => asset.id),
+    options.userId,
+  );
+  candidates.sort(
+    (left, right) =>
+      ratings.get(right.id)!.score - ratings.get(left.id)!.score ||
+      right.createdAt.getTime() - left.createdAt.getTime() ||
+      right.id.localeCompare(left.id),
+  );
+  const cursorId = options.before?.id;
+  const cursorIndex = cursorId
+    ? candidates.findIndex((asset) => asset.id === cursorId)
+    : -1;
+  // A hidden/deleted anchor ends this page chain; restarting would duplicate
+  // every already-loaded image. Refreshing starts a fresh ranked list.
+  const start = cursorId
+    ? cursorIndex === -1
+      ? candidates.length
+      : cursorIndex + 1
+    : 0;
+  const page = candidates.slice(start, start + options.limit + 1);
+  const hasMore = page.length > options.limit;
+  const ids = page.slice(0, options.limit).map((asset) => asset.id);
+  const rows =
+    ids.length > 0
+      ? await prisma.projectImageAsset.findMany({
+          where: { ...where, id: { in: ids } },
+          select: assetSelect,
+        })
+      : [];
+  const byId = new Map(rows.map((asset) => [asset.id, asset]));
+  const assets = ids.flatMap((id) => {
+    const asset = byId.get(id);
+    return asset ? [{ ...toAssetView(asset), ...ratings.get(id)! }] : [];
+  });
+  const last = page.slice(0, options.limit).at(-1);
+  const nextCursor =
+    hasMore && last ? { createdAt: last.createdAt, id: last.id } : null;
+  await appendPinnedAsset(assets, options, where);
+  return {
+    assets: assets.map((asset) => ({ ...asset, ...ratings.get(asset.id)! })),
+    nextCursor,
+  };
+}
+
 async function scopeWhere(scope: ListScope) {
   if (scope.projectId === null) {
     await requireWorkspaceAccess(scope);
@@ -179,25 +266,19 @@ async function scopeWhere(scope: ListScope) {
 
 /**
  * A page of versions, newest first, plus any version the caller is looking at.
+ * `sort: "best"` ranks feedback across the whole scope before paging.
  *
  * The pinned asset matters: a selection is preserved in the URL, and a project
  * past one page of history would otherwise reload to an empty preview because
  * the selected version was not in the newest page. It is fetched by id
  * regardless of age and merged in.
  */
-export async function listAssets(
-  options: ListScope & {
-    limit: number;
-    /** Return versions older than this cursor instead of the newest page. */
-    before?: { createdAt: Date; id: string };
-    /** Always include this version, whatever its age. */
-    pinnedAssetId?: string;
-  },
-): Promise<{
+export async function listAssets(options: ListAssetOptions): Promise<{
   assets: AssetView[];
   nextCursor: { createdAt: Date; id: string } | null;
 }> {
-  const where = await scopeWhere(options);
+  const where = { ...(await scopeWhere(options)), hiddenAt: null };
+  if (options.sort === "best") return listBestAssets(options, where);
 
   // Ordered by `(createdAt, id)`, not `createdAt` alone. Two versions settled
   // in the same millisecond are not rare — a webhook and a poll finishing
@@ -206,17 +287,7 @@ export async function listAssets(
   const page = await prisma.projectImageAsset.findMany({
     where: {
       ...where,
-      ...(options.before
-        ? {
-            OR: [
-              { createdAt: { lt: options.before.createdAt } },
-              {
-                createdAt: options.before.createdAt,
-                id: { lt: options.before.id },
-              },
-            ],
-          }
-        : {}),
+      ...olderStudioRows(options.before),
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: options.limit + 1,
@@ -235,20 +306,78 @@ export async function listAssets(
   const nextCursor =
     hasMore && last ? { createdAt: last.createdAt, id: last.id } : null;
 
-  if (
-    options.pinnedAssetId &&
-    !assets.some((asset) => asset.id === options.pinnedAssetId)
-  ) {
-    const pinned = await prisma.projectImageAsset.findFirst({
-      where: { id: options.pinnedAssetId, ...where },
-      select: assetSelect,
-    });
-    // Appended out of order on purpose: it is not part of this page, it is the
-    // version the caller is looking at. The client keys off ids.
-    if (pinned) assets.push(toAssetView(pinned));
-  }
+  await appendPinnedAsset(assets, options, where);
 
-  return { assets, nextCursor };
+  return { assets: await applyRatings(assets, options.userId), nextCursor };
+}
+
+export interface RecentStudioProject {
+  projectId: string;
+  projectName: string;
+  imageCount: number;
+  latestAt: Date;
+  latestImageId: string;
+}
+
+/**
+ * The workspace's projects with Studio images, most recently used first.
+ *
+ * Images only: a video has no still to show on a card. Closed projects and the
+ * caller's Hidden ones are left out, as the project list leaves them out.
+ */
+export async function listRecentStudioProjects(options: {
+  workspaceId: string;
+  userId: string;
+  limit: number;
+}): Promise<RecentStudioProject[]> {
+  await requireWorkspaceAccess(options);
+  const where = {
+    workspaceId: options.workspaceId,
+    mediaType: ProjectImageMediaType.IMAGE,
+    project: {
+      closedAt: null,
+      hides: { none: { userId: options.userId } },
+    },
+  };
+  const groups = await prisma.projectImageAsset.groupBy({
+    by: ["projectId"],
+    where,
+    _count: { _all: true },
+    _max: { createdAt: true },
+    orderBy: { _max: { createdAt: "desc" } },
+    take: options.limit,
+  });
+  const latest = await Promise.all(
+    groups.map((group) =>
+      prisma.projectImageAsset.findFirst({
+        where: { ...where, projectId: group.projectId },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        select: {
+          id: true,
+          createdAt: true,
+          project: { select: { name: true } },
+        },
+      }),
+    ),
+  );
+  return groups.flatMap((group, index) => {
+    const image = latest[index];
+    // Gone between the two reads: a closed project or a fresh Hide.
+    if (!image) return [];
+    return [
+      {
+        projectId: group.projectId,
+        projectName: image.project.name,
+        imageCount: group._count._all,
+        latestAt: image.createdAt,
+        latestImageId: image.id,
+      },
+    ];
+  });
+}
+
+export interface StudioBatchAssetView extends AssetView {
+  batchBrief: string;
 }
 
 export async function listStudioBatchAssets(options: {
@@ -256,13 +385,14 @@ export async function listStudioBatchAssets(options: {
   workspaceId: string;
   userId: string;
   batchId: string;
-}): Promise<AssetView[]> {
+}): Promise<StudioBatchAssetView[]> {
   await requireProjectAccess(options);
   const { projectId, workspaceId, batchId } = options;
   const image = {
     projectId,
     workspaceId,
     mediaType: ProjectImageMediaType.IMAGE,
+    hiddenAt: null,
   };
   const readyRevision = { projectId, workspaceId, asset: { is: image } };
   const slots = await prisma.projectImageJob.findMany({
@@ -277,6 +407,7 @@ export async function listStudioBatchAssets(options: {
     },
     take: MAX_STUDIO_BATCH_IMAGES + 1,
     select: {
+      prompt: true,
       asset: { select: assetSelect },
       batchRefinements: {
         where: readyRevision,
@@ -286,13 +417,13 @@ export async function listStudioBatchAssets(options: {
       },
     },
   });
-  return slots
-    .flatMap(({ asset, batchRefinements }) => {
+  const assets = slots
+    .flatMap(({ prompt, asset, batchRefinements }) => {
       const latest = batchRefinements[0]?.asset ?? asset;
       return latest &&
         latest.mediaType === ProjectImageMediaType.IMAGE &&
         latest.projectId === projectId
-        ? [toAssetView(latest)]
+        ? [{ ...toAssetView(latest), batchBrief: prompt }]
         : [];
     })
     .sort(
@@ -300,6 +431,7 @@ export async function listStudioBatchAssets(options: {
         right.createdAt.getTime() - left.createdAt.getTime() ||
         right.id.localeCompare(left.id),
     );
+  return applyRatings(assets, options.userId);
 }
 
 export async function getAsset(options: {
@@ -314,7 +446,7 @@ export async function getAsset(options: {
     select: assetSelect,
   });
   if (!asset) throw notFound("Image not found");
-  return toAssetView(asset);
+  return (await applyRatings([toAssetView(asset)], options.userId))[0]!;
 }
 
 /**
@@ -420,14 +552,27 @@ export interface JobView {
   kind: string;
   model: string;
   prompt: string;
+  templateId?: string;
+  creativeDirection?: string;
+  variationIndex?: number;
   /** The provider input this job asked for, so a retry can ask for the same. */
   settings: unknown;
   /** A video job's own settings. Null for an image job. */
   video: VideoSettingsView | null;
+  talkingVideo?: {
+    voice: string;
+    presenterId: string | null;
+    languageCode: string;
+    siteShots: boolean;
+    broll: boolean;
+    music: boolean;
+  };
   /** The versions this job referenced, so a retry keeps all of them. */
   referenceAssetIds: string[];
   referenceFileIds?: string[];
   useProductCutout?: boolean;
+  lettering?: "overlay" | "ideogram";
+  exportHeadline?: string;
   product?: StudioProductIdentity;
   /** One sentence a person can read. Never the provider's own words. */
   error: string | null;
@@ -470,68 +615,50 @@ export async function getJob(options: {
   await requireProjectAccess(options);
   const job = await prisma.projectImageJob.findFirst({
     where: { id: options.jobId, projectId: options.projectId },
-    select: {
-      id: true,
-      projectId: true,
-      status: true,
-      kind: true,
-      model: true,
-      prompt: true,
-      settings: true,
-      referenceAssetIds: true,
-      referenceFileIds: true,
-      useProductCutout: true,
-      productId: true,
-      productName: true,
-      error: true,
-      failureReason: true,
-      parentAssetId: true,
-      createdAt: true,
-      submittedAt: true,
-      settledAt: true,
-      cancelRequestedAt: true,
-      chargedCents: true,
-      transactionId: true,
-      asset: { select: { id: true } },
-    },
+    select: jobSelect,
   });
   return job ? toJobView(job) : null;
 }
 
+/** The delivered videos of these jobs, newest first. */
+export async function listAssetsOfJobs(
+  jobIds: string[],
+  userId: string,
+): Promise<AssetView[]> {
+  if (jobIds.length === 0) return [];
+  const assets = await prisma.projectImageAsset.findMany({
+    where: { jobId: { in: jobIds }, hiddenAt: null },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    select: assetSelect,
+  });
+  return await applyRatings(assets.map(toAssetView), userId);
+}
+
 export async function listJobs(
-  options: ListScope & { limit: number },
+  options: ListScope & {
+    limit: number;
+    kind?: ProjectImageJobKind;
+    before?: StudioPageCursor;
+  },
 ): Promise<JobView[]> {
-  const where = await scopeWhere(options);
+  const where = {
+    ...(await scopeWhere(options)),
+    ...olderStudioRows(options.before),
+    ...(options.kind !== undefined ? { kind: options.kind } : {}),
+  };
   const jobs = await prisma.projectImageJob.findMany({
     where,
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: options.limit,
-    select: {
-      id: true,
-      projectId: true,
-      status: true,
-      kind: true,
-      model: true,
-      prompt: true,
-      settings: true,
-      referenceAssetIds: true,
-      referenceFileIds: true,
-      useProductCutout: true,
-      productId: true,
-      productName: true,
-      error: true,
-      failureReason: true,
-      parentAssetId: true,
-      createdAt: true,
-      submittedAt: true,
-      settledAt: true,
-      cancelRequestedAt: true,
-      chargedCents: true,
-      transactionId: true,
-      asset: { select: { id: true } },
-    },
+    select: jobSelect,
   });
   return jobs.map(toJobView);
+}
+
+function talkingVideoView(settings: unknown): JobView["talkingVideo"] {
+  const { voice, presenterId, languageCode, siteShots, broll, music } =
+    readTalkingVideoSettings(settings);
+  return { voice, presenterId, languageCode, siteShots, broll, music };
 }
 
 export function toJobView(job: {
@@ -541,10 +668,15 @@ export function toJobView(job: {
   kind: string;
   model: string;
   prompt: string;
+  templateId?: string | null;
+  creativeDirection?: string | null;
+  variationIndex?: number | null;
   settings: unknown;
   referenceAssetIds: string[];
   referenceFileIds?: string[];
   useProductCutout?: boolean;
+  lettering?: string;
+  exportHeadline?: string | null;
   productId?: string | null;
   productName?: string | null;
   error: string | null;
@@ -565,16 +697,30 @@ export function toJobView(job: {
     kind: job.kind,
     model: job.model,
     prompt: job.prompt,
+    ...(job.templateId ? { templateId: job.templateId } : {}),
+    ...(job.creativeDirection
+      ? { creativeDirection: job.creativeDirection }
+      : {}),
+    ...(job.variationIndex != null
+      ? { variationIndex: job.variationIndex }
+      : {}),
     ...productView(job),
+    lettering: job.lettering === "ideogram" ? "ideogram" : "overlay",
     ...splitVideoSettings(
-      job.kind === "TEXT_TO_VIDEO" || job.kind === "IMAGE_TO_VIDEO",
+      job.kind === "TEXT_TO_VIDEO" ||
+        job.kind === "IMAGE_TO_VIDEO" ||
+        job.kind === "TALKING_VIDEO",
       job.settings,
     ),
+    ...(job.kind === "TALKING_VIDEO"
+      ? { talkingVideo: talkingVideoView(job.settings) }
+      : {}),
     referenceAssetIds: job.referenceAssetIds,
     ...(job.referenceFileIds?.length
       ? { referenceFileIds: job.referenceFileIds }
       : {}),
     ...(job.useProductCutout ? { useProductCutout: true } : {}),
+    ...(job.exportHeadline ? { exportHeadline: job.exportHeadline } : {}),
     error: job.error,
     failureReason: readImageJobFailureReason(job.failureReason),
     parentAssetId: job.parentAssetId,

@@ -1,17 +1,13 @@
 "use server";
 
 import {
-  type CreateTaskContext,
   type Task,
   type TaskEvent,
-  type TaskLink,
-  TaskLinkRelation,
   type TaskPriority,
   TaskStatus,
   type UserWritableTaskLinkRelation,
 } from "@sokosumi/core-client";
 import {
-  buildAdHocDesignMdPrefix,
   taskContextSelectionAttachesAnything,
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
@@ -22,22 +18,35 @@ import {
   toActionResult,
 } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
-import {
-  CoreApiRequestError,
-  toCoreApiActionError,
-} from "@/lib/clients/core.client";
+import { toCoreApiActionError } from "@/lib/clients/core.client";
 import { taskService } from "@/lib/services/task.service";
-import {
-  TASK_MUTATION_ERROR_KINDS,
-  type TaskMutationErrorKind,
-} from "@/lib/utils/task-mutation-error-kinds";
 import { normalizeTaskNameForCoreApi } from "@/lib/utils/task-transformer";
 import {
   type AuthenticatedRequest,
   withSession,
 } from "@/middleware/auth-middleware";
+import {
+  normalizeOptionalProjectId,
+  resolveAssigneeWrite,
+  rethrowTaskActionError,
+  revalidateTaskMutationRoutes,
+  type TaskMutationActionResult,
+  taskMutationFailure,
+  taskMutationSuccess,
+  toCoreTaskContext,
+  toTaskMutationErrorKind,
+} from "./task-mutation";
+import {
+  createTaskFromDescription,
+  type TaskContextSelectionInput,
+  type TaskTagSnapshot,
+  type TaskTagWrite,
+  taskTagSnapshot,
+} from "./task-write-input";
 
-interface CreateTaskParameters extends AuthenticatedRequest {
+export type { TaskContextSelectionInput } from "./task-write-input";
+
+interface CreateTaskParameters extends AuthenticatedRequest, TaskTagWrite {
   tagSuggestionReceipt?: string;
   /** A copy takes this Task's tags in Core instead of being classified. */
   copyOfTaskId?: string;
@@ -56,17 +65,8 @@ interface CreateTaskParameters extends AuthenticatedRequest {
   contactIds?: string[];
 }
 
-export interface TaskContextSelectionInput {
-  brand: {
-    enabled: boolean;
-    source: "project" | "default" | "custom";
-    custom?: { url: string } | null;
-  };
-  briefingEnabled: boolean;
-  contextMdEnabled: boolean;
-}
-
-interface UpdateTaskParameters extends AuthenticatedRequest {
+interface UpdateTaskParameters extends AuthenticatedRequest, TaskTagWrite {
+  expectedWorkspaceTagIds?: string[];
   taskId: string;
   name: string;
   description: string;
@@ -82,12 +82,6 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
   contactIds?: string[];
 }
 
-interface TaskMutationError {
-  kind: TaskMutationErrorKind;
-}
-
-type TaskMutationActionResult<T> = ActionResultDto<T, TaskMutationError>;
-
 export type CreateTaskResult = TaskMutationActionResult<{
   taskId: string;
   name: string;
@@ -102,24 +96,6 @@ type CreateTaskAndLinkResult = TaskMutationActionResult<{
   name: string;
   identifier: string | null;
 }>;
-
-function taskMutationSuccess<T>(value: T): TaskMutationActionResult<T> {
-  return toActionResult(ok(value));
-}
-
-function taskMutationFailure<T>(
-  kind: TaskMutationErrorKind,
-): TaskMutationActionResult<T> {
-  return toActionResult(err({ kind }));
-}
-
-function toTaskMutationErrorKind(error: unknown): TaskMutationErrorKind | null {
-  if (!(error instanceof CoreApiRequestError)) {
-    return null;
-  }
-
-  return TASK_MUTATION_ERROR_KINDS.find((kind) => kind === error.kind) ?? null;
-}
 
 interface SetTaskStatusFromDragParameters extends AuthenticatedRequest {
   taskId: string;
@@ -164,7 +140,6 @@ interface CreateTaskLinkParameters extends AuthenticatedRequest {
   relatedTaskId: string;
   relation: UserWritableTaskLinkRelation;
   note?: string | null;
-  replaceExistingParent?: boolean;
 }
 
 interface DeleteTaskLinkParameters extends AuthenticatedRequest {
@@ -172,7 +147,9 @@ interface DeleteTaskLinkParameters extends AuthenticatedRequest {
   linkId: string;
 }
 
-interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
+interface CreateAndLinkTaskParameters
+  extends AuthenticatedRequest,
+    TaskTagWrite {
   name?: string;
   tagSuggestionReceipt?: string;
   taskId: string;
@@ -187,356 +164,6 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   visibility?: "PUBLIC" | "PRIVATE";
   relation: UserWritableTaskLinkRelation;
   note?: string | null;
-  replaceExistingParent?: boolean;
-}
-
-function isClientCoreApiError(error: unknown): error is CoreApiRequestError {
-  return (
-    error instanceof CoreApiRequestError &&
-    typeof error.status === "number" &&
-    error.status >= 400 &&
-    error.status < 500 &&
-    error.status !== 401
-  );
-}
-
-function rethrowTaskActionError(
-  error: unknown,
-  fallbackMessage: string,
-  logLabel: string,
-): never {
-  console.error(logLabel, error);
-
-  if (isClientCoreApiError(error)) {
-    throw error;
-  }
-
-  const { message } = toCoreApiActionError(error);
-  throw new Error(message ?? fallbackMessage);
-}
-
-/** Queued needs a Run at (ADR 0041), so a Queued create without one is Ready. */
-function resolveCreateStatus(
-  requestedStatus: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">,
-): Extract<TaskStatus, "DRAFT" | "READY"> {
-  return requestedStatus === TaskStatus.QUEUED
-    ? TaskStatus.READY
-    : requestedStatus;
-}
-
-function normalizeLinkNote(note?: string | null): string | null | undefined {
-  if (typeof note === "undefined") {
-    return undefined;
-  }
-
-  const trimmedNote = note?.trim();
-  return trimmedNote ? trimmedNote : null;
-}
-
-function normalizeOptionalProjectId(
-  projectId?: string | null,
-): string | null | undefined {
-  if (typeof projectId === "undefined") {
-    return undefined;
-  }
-
-  const trimmedProjectId = projectId?.trim();
-  return trimmedProjectId ? trimmedProjectId : null;
-}
-
-/**
- * A task page can be open at `/tasks/{uuid}`, `/tasks/SOK-12` or the slug URL,
- * so revalidate the route, not one concrete path.
- */
-function revalidateTaskMutationRoutes() {
-  revalidatePath("/tasks");
-  revalidatePath("/tasks/[taskId]", "page");
-}
-
-/**
- * Ad hoc overrides are the only client-supplied DESIGN.md attach path. Keep
- * them limited to https blobs under the caller's own ad hoc prefix before
- * forwarding the URL to Core, which performs its own DESIGN.md URL check.
- */
-function resolveDesignMdAttachmentUrl(url: string, userId: string): string {
-  let parsed: URL;
-  try {
-    parsed = new URL(url.trim());
-  } catch {
-    throw new Error("Invalid DESIGN.md attachment URL");
-  }
-
-  if (parsed.protocol !== "https:") {
-    throw new Error("DESIGN.md attachment URL must use https");
-  }
-
-  const expectedPathPrefix = `/${buildAdHocDesignMdPrefix(userId)}`;
-  if (!parsed.pathname.startsWith(expectedPathPrefix)) {
-    throw new Error("DESIGN.md attachment URL is not valid for this user");
-  }
-
-  return parsed.href;
-}
-
-function toCoreTaskContext(
-  selection: TaskContextSelectionInput,
-  userId: string,
-): CreateTaskContext {
-  if (!selection.brand.enabled) {
-    return {
-      brand: false,
-      briefing: selection.briefingEnabled,
-      memory: selection.contextMdEnabled,
-    };
-  }
-
-  if (selection.brand.source === "custom") {
-    if (!selection.brand.custom) {
-      throw new Error("Custom DESIGN.md attachment required");
-    }
-
-    const customUrl = selection.brand.custom.url;
-    let brandUrl: string;
-    try {
-      brandUrl = resolveDesignMdAttachmentUrl(customUrl, userId);
-    } catch (error) {
-      // Edit may still carry a stored DESIGN.md that is not under this user's
-      // ad-hoc prefix (stale project/workspace brand). Forward non-adhoc https
-      // URLs so Core can grandfather the existing attachment. Foreign ad-hoc
-      // prefixes still fail here.
-      let pathname = "";
-      try {
-        const parsed = new URL(customUrl);
-        if (parsed.protocol !== "https:") {
-          throw new Error("DESIGN.md attachment URL must use https");
-        }
-        pathname = decodeURIComponent(parsed.pathname);
-      } catch (parseError) {
-        if (
-          parseError instanceof Error &&
-          parseError.message === "DESIGN.md attachment URL must use https"
-        ) {
-          throw parseError;
-        }
-        throw error;
-      }
-      if (pathname.startsWith("/design-md/adhoc/")) {
-        throw error;
-      }
-      if (!pathname.startsWith("/design-md/")) {
-        throw error;
-      }
-      brandUrl = customUrl;
-    }
-
-    return {
-      brand: {
-        url: brandUrl,
-      },
-      briefing: selection.briefingEnabled,
-      memory: selection.contextMdEnabled,
-    };
-  }
-
-  return {
-    brand: true,
-    brandSource: selection.brand.source === "project" ? "project" : "workspace",
-    briefing: selection.briefingEnabled,
-    memory: selection.contextMdEnabled,
-  };
-}
-
-function resolveAssigneeWrite(
-  assigneeId?: string | null,
-  assigneeSokoBotId?: string | null,
-  assigneeUserId?: string | null,
-): {
-  assigneeId: string | null;
-  assigneeSokoBotId: string | null;
-  assigneeUserId: string | null;
-} {
-  const sokoBotId = assigneeSokoBotId?.trim() || null;
-  if (sokoBotId) {
-    return {
-      assigneeId: null,
-      assigneeSokoBotId: sokoBotId,
-      assigneeUserId: null,
-    };
-  }
-
-  const userId =
-    typeof assigneeUserId === "string" ? assigneeUserId.trim() || null : null;
-  if (userId) {
-    return {
-      assigneeId: null,
-      assigneeSokoBotId: null,
-      assigneeUserId: userId,
-    };
-  }
-
-  return {
-    assigneeId: assigneeId?.trim() ? assigneeId : null,
-    assigneeSokoBotId: null,
-    assigneeUserId: null,
-  };
-}
-
-async function createTaskFromDescription(input: {
-  tagSuggestionReceipt?: string;
-  copyOfTaskId?: string;
-  name?: string;
-  description: string;
-  assigneeId: string | null;
-  assigneeSokoBotId?: string | null;
-  assigneeUserId?: string | null;
-  projectId?: string | null;
-  userId: string;
-  context?: TaskContextSelectionInput;
-  status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
-  runAt?: string;
-  visibility?: "PUBLIC" | "PRIVATE";
-  contactIds?: string[];
-}): Promise<Task> {
-  const trimmedDescription = input.description.trim();
-  if (!trimmedDescription) {
-    throw new Error("Description required");
-  }
-
-  const normalizedProjectId = normalizeOptionalProjectId(input.projectId);
-  const context = input.context
-    ? toCoreTaskContext(input.context, input.userId)
-    : undefined;
-
-  const assigneeWrite = resolveAssigneeWrite(
-    input.assigneeId,
-    input.assigneeSokoBotId,
-    input.assigneeUserId,
-  );
-  const trimmedName = input.name
-    ? normalizeTaskNameForCoreApi(input.name)
-    : undefined;
-
-  return taskService.createTask({
-    ...(input.tagSuggestionReceipt
-      ? { tagSuggestionReceipt: input.tagSuggestionReceipt }
-      : {}),
-    ...(input.copyOfTaskId ? { copyOfTaskId: input.copyOfTaskId } : {}),
-    description: trimmedDescription,
-    ...assigneeWrite,
-    projectId: normalizedProjectId ?? null,
-    ...(context ? { context } : {}),
-    // Core creates a Task with a Run at in Queued and ignores its status.
-    ...(input.runAt
-      ? { runAt: new Date(input.runAt) }
-      : { status: resolveCreateStatus(input.status) }),
-    ...(input.visibility ? { visibility: input.visibility } : {}),
-    ...(input.contactIds?.length ? { contactIds: input.contactIds } : {}),
-    ...(trimmedName ? { name: trimmedName } : {}),
-  });
-}
-
-async function collectParentLinksToReplace(input: {
-  taskId: string;
-  nextParentTaskId: string;
-  relation: UserWritableTaskLinkRelation;
-  replaceExistingParent?: boolean;
-}): Promise<TaskLink[]> {
-  const shouldReplaceParent =
-    input.relation === TaskLinkRelation.CHILD &&
-    input.replaceExistingParent !== false;
-
-  if (!shouldReplaceParent) {
-    return [];
-  }
-
-  const links = await taskService.listTaskLinks(input.taskId);
-  return links.filter(
-    (link) =>
-      link.relation === "child" && link.peerTask.id !== input.nextParentTaskId,
-  );
-}
-
-async function restoreParentLinks(
-  taskId: string,
-  parentLinks: TaskLink[],
-): Promise<void> {
-  for (const parentLink of parentLinks) {
-    await taskService.createTaskLink(taskId, {
-      toTaskId: parentLink.peerTask.id,
-      relation: "child",
-      note: parentLink.note,
-    });
-  }
-}
-
-async function rollbackCreatedParentLink(input: {
-  taskId: string;
-  createdLinkId: string;
-  deletedParentLinks: TaskLink[];
-}): Promise<void> {
-  const rollbackFailures: string[] = [];
-
-  try {
-    await taskService.deleteTaskLink(input.taskId, input.createdLinkId);
-  } catch (rollbackError) {
-    console.error("Failed to rollback created parent link", rollbackError);
-    rollbackFailures.push(
-      rollbackError instanceof Error
-        ? rollbackError.message
-        : String(rollbackError),
-    );
-  }
-
-  try {
-    await restoreParentLinks(input.taskId, input.deletedParentLinks);
-  } catch (rollbackError) {
-    console.error("Failed to restore previous parent links", rollbackError);
-    rollbackFailures.push(
-      rollbackError instanceof Error
-        ? rollbackError.message
-        : String(rollbackError),
-    );
-  }
-
-  if (rollbackFailures.length > 0) {
-    throw new Error(
-      `Task links may be inconsistent after a failed parent replacement. Rollback failed: ${rollbackFailures.join("; ")}`,
-    );
-  }
-}
-
-async function deletePreviousParentLinks(input: {
-  taskId: string;
-  createdLinkId: string;
-  parentLinksToReplace: TaskLink[];
-}): Promise<void> {
-  const deletedParentLinks: TaskLink[] = [];
-
-  try {
-    for (const parentLink of input.parentLinksToReplace) {
-      await taskService.deleteTaskLink(input.taskId, parentLink.id);
-      deletedParentLinks.push(parentLink);
-    }
-  } catch (error) {
-    try {
-      await rollbackCreatedParentLink({
-        taskId: input.taskId,
-        createdLinkId: input.createdLinkId,
-        deletedParentLinks,
-      });
-    } catch (rollbackError) {
-      const originalMessage =
-        error instanceof Error ? error.message : String(error);
-      const rollbackMessage =
-        rollbackError instanceof Error
-          ? rollbackError.message
-          : String(rollbackError);
-      throw new Error(
-        `${rollbackMessage} (while recovering from: ${originalMessage})`,
-      );
-    }
-    throw error;
-  }
 }
 
 async function archiveCreatedTaskAfterFailure(taskId: string): Promise<void> {
@@ -550,10 +177,22 @@ async function archiveCreatedTaskAfterFailure(taskId: string): Promise<void> {
   }
 }
 
+function normalizeLinkNote(note?: string | null): string | null | undefined {
+  if (typeof note === "undefined") {
+    return undefined;
+  }
+
+  const trimmedNote = note?.trim();
+  return trimmedNote ? trimmedNote : null;
+}
+
 export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
   async ({
     name,
     tagSuggestionReceipt,
+    workspaceTagIds,
+    dismissedTopicIds,
+    dismissedWorkspaceTagIds,
     copyOfTaskId,
     description,
     assigneeId,
@@ -572,6 +211,9 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
         ...(name ? { name } : {}),
         description,
         tagSuggestionReceipt,
+        workspaceTagIds,
+        dismissedTopicIds,
+        dismissedWorkspaceTagIds,
         copyOfTaskId,
         assigneeId,
         assigneeSokoBotId,
@@ -617,6 +259,10 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
     projectId,
     context,
     desiredStatus,
+    expectedWorkspaceTagIds,
+    workspaceTagIds,
+    dismissedTopicIds,
+    dismissedWorkspaceTagIds,
     runAt,
     contactIds,
     session,
@@ -643,6 +289,13 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
       const patchedTask = await taskService.patchTask(taskId, {
         name: trimmedName,
         description: trimmedDescription,
+        ...(workspaceTagIds !== undefined
+          ? { workspaceTagIds, expectedWorkspaceTagIds }
+          : {}),
+        ...(dismissedTopicIds !== undefined ? { dismissedTopicIds } : {}),
+        ...(dismissedWorkspaceTagIds !== undefined
+          ? { dismissedWorkspaceTagIds }
+          : {}),
         ...resolveAssigneeWrite(assigneeId, assigneeSokoBotId, assigneeUserId),
         ...(typeof normalizedProjectId !== "undefined"
           ? { projectId: normalizedProjectId }
@@ -656,7 +309,13 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
         ...(contactIds ? { contactIds } : {}),
       });
 
-      if (desiredStatus !== patchedTask.status) {
+      // Core parked it to wait for a person's instructions: its call stands
+      // over a run the form asked for. Any other status starts no run and still applies.
+      const parked =
+        patchedTask.status === TaskStatus.INPUT_REQUIRED &&
+        (desiredStatus === TaskStatus.READY ||
+          desiredStatus === TaskStatus.QUEUED);
+      if (desiredStatus !== patchedTask.status && !parked) {
         await taskService.createTaskEvent(taskId, {
           status: desiredStatus,
         });
@@ -696,11 +355,15 @@ export const setTaskStatusFromDrag = withSession<
     if (desiredStatus !== currentStatus) {
       const trimmedComment = comment?.trim();
       if (
-        userTaskStatusTransitionRequiresComment(currentStatus, desiredStatus) &&
+        userTaskStatusTransitionRequiresComment(
+          currentStatus,
+          desiredStatus,
+          task.assigneeId != null || task.assigneeSokoBotId != null,
+        ) &&
         !trimmedComment
       ) {
         throw new Error(
-          "A comment is required when reopening a canceled or completed task to ready",
+          "Tell the assignee what to do: a comment is required when sending a Task back to ready",
         );
       }
 
@@ -766,6 +429,25 @@ export const setTaskDueOn = withSession<
       "Failed to update task due date",
       "Failed to update task due date",
     );
+  }
+});
+
+export const setTaskWorkspaceTags = withSession<
+  AuthenticatedRequest &
+    TaskTagWrite & { taskId: string; expectedWorkspaceTagIds?: string[] },
+  ActionResultDto<TaskTagSnapshot, ActionError>
+>(async (input) => {
+  try {
+    const task = await taskService.patchTask(input.taskId, {
+      expectedWorkspaceTagIds: input.expectedWorkspaceTagIds,
+      workspaceTagIds: input.workspaceTagIds,
+      dismissedWorkspaceTagIds: input.dismissedWorkspaceTagIds,
+      dismissedTopicIds: input.dismissedTopicIds,
+    });
+    revalidateTaskMutationRoutes();
+    return toActionResult(ok(taskTagSnapshot(task)));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
   }
 });
 
@@ -855,7 +537,7 @@ export const subscribeTaskParticipant = withSession<
 export const createTaskLink = withSession<
   CreateTaskLinkParameters,
   { taskId: string; linkId: string; relatedTaskId: string }
->(async ({ taskId, relatedTaskId, relation, note, replaceExistingParent }) => {
+>(async ({ taskId, relatedTaskId, relation, note }) => {
   const normalizedTaskId = taskId.trim();
   const normalizedRelatedTaskId = relatedTaskId.trim();
   if (!normalizedTaskId || !normalizedRelatedTaskId) {
@@ -863,23 +545,10 @@ export const createTaskLink = withSession<
   }
 
   try {
-    const parentLinksToReplace = await collectParentLinksToReplace({
-      taskId: normalizedTaskId,
-      nextParentTaskId: normalizedRelatedTaskId,
-      relation,
-      replaceExistingParent,
-    });
-
     const link = await taskService.createTaskLink(normalizedTaskId, {
       toTaskId: normalizedRelatedTaskId,
       relation,
       note: normalizeLinkNote(note),
-    });
-
-    await deletePreviousParentLinks({
-      taskId: normalizedTaskId,
-      createdLinkId: link.id,
-      parentLinksToReplace,
     });
 
     revalidateTaskMutationRoutes();
@@ -938,6 +607,9 @@ export const createTaskAndLink = withSession<
     taskId,
     name,
     tagSuggestionReceipt,
+    workspaceTagIds,
+    dismissedTopicIds,
+    dismissedWorkspaceTagIds,
     description,
     assigneeId,
     assigneeSokoBotId,
@@ -950,7 +622,6 @@ export const createTaskAndLink = withSession<
     visibility,
     relation,
     note,
-    replaceExistingParent,
   }) => {
     const normalizedTaskId = taskId.trim();
     if (!normalizedTaskId) {
@@ -964,6 +635,9 @@ export const createTaskAndLink = withSession<
         description,
         name,
         tagSuggestionReceipt,
+        workspaceTagIds,
+        dismissedTopicIds,
+        dismissedWorkspaceTagIds,
         assigneeId,
         assigneeSokoBotId,
         assigneeUserId,
@@ -975,23 +649,10 @@ export const createTaskAndLink = withSession<
         visibility,
       });
 
-      const parentLinksToReplace = await collectParentLinksToReplace({
-        taskId: normalizedTaskId,
-        nextParentTaskId: createdTask.id,
-        relation,
-        replaceExistingParent,
-      });
-
       const link = await taskService.createTaskLink(normalizedTaskId, {
         toTaskId: createdTask.id,
         relation,
         note: normalizeLinkNote(note),
-      });
-
-      await deletePreviousParentLinks({
-        taskId: normalizedTaskId,
-        createdLinkId: link.id,
-        parentLinksToReplace,
       });
 
       revalidateTaskMutationRoutes();

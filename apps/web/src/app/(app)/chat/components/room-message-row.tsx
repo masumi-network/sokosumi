@@ -18,6 +18,7 @@ import {
   AlertCircle,
   Bookmark,
   Check,
+  CircleAlert,
   Copy,
   Ellipsis,
   Link2,
@@ -38,7 +39,6 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
-  type RefObject,
   useCallback,
   useEffect,
   useId,
@@ -49,7 +49,6 @@ import {
 import { toast } from "sonner";
 import { saveRoomMessageAction } from "@/app/chat/actions";
 import {
-  CoworkerFailedThoughtSparkle,
   CoworkerLiveThought,
   CoworkerThoughtTrace,
 } from "@/app/chat/components/coworker-thought-ui";
@@ -60,6 +59,7 @@ import {
   extractThoughtStartedAtMs,
   formatThoughtDurationLabel,
   isFailedMentionThoughtShell,
+  readFailedMentionShellTarget,
   resolveCoworkerThoughtViewModel,
 } from "@/app/chat/utils/coworker-thought";
 import {
@@ -97,6 +97,7 @@ import { MessageSignalBar } from "@/components/chat/signals/message-signal-bar";
 import { signalChips } from "@/components/chat/signals/signal-chips";
 import { MessageSkillChips } from "@/components/chat/skill-chip";
 import { COLLAPSED_FADE_CLASS } from "@/components/collapsed-fade-class";
+import { BotFace } from "@/components/soko-bot/bot-face";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -134,7 +135,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { copyTextWithToast } from "@/hooks/use-clipboard";
+import { copyTextWithToast } from "@/hooks/effects/use-clipboard";
 import {
   recordEmojiUse,
   useFrequentlyUsedEmojis,
@@ -147,11 +148,14 @@ import { getEmojiShortcodeName } from "@/lib/utils/emoji-shortcodes";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 import { getInitials } from "@/lib/utils/text";
-import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
+import {
+  ChatMessageSenderName,
+  ChatParticipantHoverCard,
+} from "./chat-participant-hover-card";
 import { MessageClampToggle } from "./message-clamp-toggle";
 import { MessageEditComposer } from "./message-edit-composer";
 import { participantDirectKey } from "./open-direct-with-participant";
-import { AiCoworkerAvatarBadge } from "./room-draft-shared";
+import { OutboundPendingSpinner } from "./outbound-pending-spinner";
 import {
   type ChatParticipantHoverProfile,
   formatRoomComposerTooLongFailure,
@@ -171,6 +175,7 @@ import { SokoBotChainBadge } from "./soko-bot-chain-badge";
 import {
   hasSokoBotMessageFooter,
   previewedTaskIds,
+  readSokoBotBackgroundFailure,
   SokoBotFeedbackButtons,
   SokoBotMessageFooter,
   SokoBotSourceLabel,
@@ -694,8 +699,11 @@ export function ChannelMessageText({
   canOpenHumanDirect,
   onOpenDirectMessage,
   openingDirectParticipantKey,
+  onSaveTranscript,
 }: {
   content: string;
+  /** Set when the viewer may edit the message: saves a voice transcript. */
+  onSaveTranscript?: (transcript: string) => boolean;
   enableMermaid?: boolean;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
@@ -797,6 +805,8 @@ export function ChannelMessageText({
                       onOpenImage={() => {
                         setOpenImageSrc(link.url);
                       }}
+                      transcript={link.transcript}
+                      onSaveTranscript={onSaveTranscript}
                     />
                   ),
                 )}
@@ -834,9 +844,11 @@ function ChannelMessageBody({
   canOpenHumanDirect,
   onOpenDirectMessage,
   openingDirectParticipantKey,
+  onSaveTranscript,
   trailing,
 }: {
   messageId: string;
+  onSaveTranscript?: (transcript: string) => boolean;
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
@@ -913,6 +925,7 @@ function ChannelMessageBody({
           canOpenHumanDirect={canOpenHumanDirect}
           onOpenDirectMessage={onOpenDirectMessage}
           openingDirectParticipantKey={openingDirectParticipantKey}
+          onSaveTranscript={onSaveTranscript}
         />
         {trailing}
       </div>
@@ -1486,7 +1499,8 @@ function useBottomSheetSwipeDismiss(
   open: boolean,
   onDismiss: () => void,
 ): {
-  contentRef: RefObject<HTMLDivElement | null>;
+  setContentRef: (node: HTMLDivElement | null) => void;
+  resetSwipe: () => void;
   swipeHandlers: {
     onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
     onPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
@@ -1494,7 +1508,7 @@ function useBottomSheetSwipeDismiss(
     onPointerCancel: (event: ReactPointerEvent<HTMLDivElement>) => void;
   };
 } {
-  const contentRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{
     pointerId: number | null;
     startY: number;
@@ -1514,17 +1528,33 @@ function useBottomSheetSwipeDismiss(
     el.style.transition = "";
   }, []);
 
-  useEffect(() => {
-    if (!open) {
-      dragRef.current = {
-        pointerId: null,
-        startY: 0,
-        dragging: false,
-        dismissing: false,
-      };
-      resetTransform();
-    }
-  }, [open, resetTransform]);
+  const resetSwipe = useCallback(() => {
+    dragRef.current = {
+      pointerId: null,
+      startY: 0,
+      dragging: false,
+      dismissing: false,
+    };
+    resetTransform();
+  }, [resetTransform]);
+
+  const setContentRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (contentRef.current && contentRef.current !== node) {
+        resetTransform();
+      }
+      contentRef.current = node;
+      if (!node) {
+        dragRef.current = {
+          pointerId: null,
+          startY: 0,
+          dragging: false,
+          dismissing: false,
+        };
+      }
+    },
+    [resetTransform],
+  );
 
   function finishPointer(event: ReactPointerEvent<HTMLDivElement>) {
     const drag = dragRef.current;
@@ -1557,9 +1587,11 @@ function useBottomSheetSwipeDismiss(
   }
 
   return {
-    contentRef,
+    setContentRef,
+    resetSwipe,
     swipeHandlers: {
       onPointerDown(event) {
+        if (!open) return;
         if (event.button !== 0) return;
         if (dragRef.current.dismissing) return;
         const fromHandle = Boolean(
@@ -1644,15 +1676,23 @@ function TouchMessageActionsSheet({
 }) {
   const t = useTranslations("App.Channels");
   const [portalHost, setPortalHost] = useState<HTMLDivElement | null>(null);
-  const { contentRef, swipeHandlers } = useBottomSheetSwipeDismiss(open, () => {
-    onOpenChange(false);
-  });
+  const { setContentRef, resetSwipe, swipeHandlers } =
+    useBottomSheetSwipeDismiss(open, () => {
+      onOpenChange(false);
+    });
   const setSheetContentRef = useCallback(
     (node: HTMLDivElement | null) => {
-      contentRef.current = node;
+      setContentRef(node);
       setPortalHost(node);
     },
-    [contentRef],
+    [setContentRef],
+  );
+  const handleSheetOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) resetSwipe();
+      onOpenChange(nextOpen);
+    },
+    [onOpenChange, resetSwipe],
   );
   const whoReactedRows = message.reactions.flatMap((reaction) => {
     const whoReactedLabel = formatWhoReactedLabel(reaction, t);
@@ -1674,7 +1714,7 @@ function TouchMessageActionsSheet({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleSheetOpenChange}>
       <SheetContent
         ref={setSheetContentRef}
         side="bottom"
@@ -1913,50 +1953,6 @@ const MESSAGE_LEFT_RAIL_CLASS =
   "flex w-8 min-w-8 max-w-8 shrink-0 justify-center overflow-visible pt-0.5";
 
 /**
- * Quiet dual-arc ring for classic outbound pending. Slow spin; static under
- * prefers-reduced-motion. Not the coworker Drive grid / thinking orb.
- */
-function OutboundPendingSpinner({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      fill="none"
-      aria-hidden
-      className={cn(
-        "text-muted-foreground animate-outbound-pending-spin motion-reduce:animate-none",
-        className,
-      )}
-      data-testid="outbound-delivery-pending-spinner"
-    >
-      {/* Faint track — stays put under reduced motion so the mark still reads. */}
-      <circle
-        cx="8"
-        cy="8"
-        r="5.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        opacity={0.28}
-      />
-      {/* Leading arc */}
-      <path
-        d="M8 2.5a5.5 5.5 0 0 1 4.76 2.75"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-      {/* Trailing arc (opposite, softer) */}
-      <path
-        d="M8 13.5a5.5 5.5 0 0 1-4.76-2.75"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        opacity={0.45}
-      />
-    </svg>
-  );
-}
-
-/**
  * Timestamp slot for classic outbound:
  * - Header (`reserveHeaderWidth`): pending before delay = wall-clock; after =
  *   spinner; confirm may show check; settled = wall-clock.
@@ -2108,28 +2104,69 @@ function MessageTimeOrOutboundStatus({
   return <MessageWallClockTime value={createdAt} className={className} />;
 }
 
-function FailedMentionActions({
+/**
+ * A reply that did not finish, said in place of it. The cause is not shown
+ * for generic failures: the shell does not carry one the reader can act on. "Your message is saved"
+ * only when the shell names the message it answers, which Core keeps.
+ */
+function FailedMentionCard({
+  name,
+  metadata,
+  isSokoBot,
   onRetryMention,
 }: {
+  name: string;
+  metadata: unknown;
+  isSokoBot: boolean;
   onRetryMention?: () => void;
 }) {
   const t = useTranslations("App.Channels");
-  if (!onRetryMention) {
-    return null;
-  }
+  const tFailure = useTranslations("Components.SokoBotTurnFailure");
+  const saved = readFailedMentionShellTarget(metadata) !== null;
+  const failure =
+    metadata && typeof metadata === "object" && "mention_failure" in metadata
+      ? metadata.mention_failure
+      : null;
+  const failureKind =
+    failure && typeof failure === "object" && "kind" in failure
+      ? failure.kind
+      : null;
+  const budgetExceeded = failureKind === "ai_budget_exceeded";
+  const showGeneric =
+    isSokoBot && !budgetExceeded && failureKind !== "turn_cancelled";
   return (
     <div
-      className="flex w-fit max-w-full flex-wrap items-center gap-x-2 gap-y-1 pt-0.5 text-xs"
+      className="border-border flex w-fit max-w-full flex-col gap-1 rounded-lg border px-3 py-2"
       data-testid="coworker-mention-failed"
+      role="status"
     >
-      <button
-        type="button"
-        className="text-foreground press underline underline-offset-4 font-medium"
-        data-testid="coworker-mention-retry"
-        onClick={onRetryMention}
-      >
-        {t("MentionStatus.retry")}
-      </button>
+      <p className="text-foreground flex items-center gap-1.5 text-sm font-medium">
+        <CircleAlert
+          aria-hidden
+          className="text-semantic-destructive size-4 shrink-0"
+        />
+        {t("MentionStatus.failed", { name })}
+      </p>
+      <p className="text-muted-foreground text-sm">
+        {budgetExceeded
+          ? tFailure("aiBudgetExceeded")
+          : showGeneric
+            ? tFailure("generic")
+            : saved
+              ? t("MentionStatus.failedSaved")
+              : t("MentionStatus.failedBody")}
+        {showGeneric && saved ? ` ${tFailure("messageSaved")}` : null}
+      </p>
+      {onRetryMention ? (
+        <button
+          type="button"
+          className="text-foreground press w-fit text-sm font-medium underline underline-offset-4"
+          data-testid="coworker-mention-retry"
+          onClick={onRetryMention}
+        >
+          {t("MentionStatus.retry")}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -2186,8 +2223,14 @@ function SenderFace({
   className,
   fallbackClassName,
   monogram = false,
+  live = false,
+  streaming = false,
 }: {
   sender: MessageSenderProfile;
+  /** A Soko Bot's newest message: its avatar is the live one. */
+  live?: boolean;
+  /** The reply is still being written. */
+  streaming?: boolean;
   /** Rendered pixels for the orb: twice the CSS size, for dense screens. */
   orbSize: number;
   className: string;
@@ -2195,6 +2238,19 @@ function SenderFace({
   /** One initial instead of two, for faces too small to fit both. */
   monogram?: boolean;
 }) {
+  if (live && sender.kind === "sokoBot" && sender.avatarCode) {
+    return (
+      <BotFace
+        imageUrl={sender.image}
+        seed={sender.avatarSeed ?? ""}
+        avatarCode={sender.avatarCode}
+        avatarState={streaming ? "working" : "idle"}
+        avatarSize={orbSize / 2}
+        // A live avatar is a picture, never the orb, so it gets no ring.
+        className={className}
+      />
+    );
+  }
   if (sender.kind === "sokoBot" && sender.avatarSeed && !sender.image) {
     return (
       <AuroraOrb
@@ -2251,7 +2307,7 @@ function ThreadReplyBar({
       aria-label={countLabel}
       aria-describedby={message.threadLastReplyAt ? ageId : undefined}
       className={cn(
-        "text-foreground press underline underline-offset-4 -mx-1 mt-1 inline-flex min-h-9 items-center gap-1.5 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
+        "text-foreground press underline-offset-4 -mx-1 mt-1 inline-flex min-h-9 items-center gap-1.5 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
         // Unread reads as a bar, not a badge: the tint plus an inset left
         // rule gives the count an edge to sit against without adding a
         // second mark to a row that already carries reactions. The rule
@@ -2297,13 +2353,18 @@ function ThreadReplyBar({
           })}
         </span>
       ) : null}
-      <span>{countLabel}</span>
+      {/* Underline on the count and age only: on the button it ran under
+          the "·" too, which read as a third link. */}
+      <span className="underline">{countLabel}</span>
       {message.threadLastReplyAt ? (
         <>
           <span aria-hidden className="text-muted-foreground font-normal">
             ·
           </span>
-          <span id={ageId} className="text-muted-foreground font-normal">
+          <span
+            id={ageId}
+            className="text-muted-foreground font-normal underline"
+          >
             {format.relativeTime(message.threadLastReplyAt, {
               now,
               style: "narrow",
@@ -2357,9 +2418,9 @@ function MessageMetaFooter({
                       reaction.reactedByCurrentUser &&
                         "border-border bg-muted text-foreground",
                     )}
-                    aria-label={t("Reactions.toggle", {
-                      emoji: reaction.emoji,
-                    })}
+                    // Named by what it shows (emoji and count); pressed
+                    // when tapping it again takes the reader's reaction back.
+                    aria-pressed={reaction.reactedByCurrentUser}
                   >
                     <span className="text-sm leading-none">
                       {reaction.emoji}
@@ -2402,6 +2463,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onQuote,
   onPin,
   onStartEdit,
+  onSaveTranscript,
   onDelete,
   onRemoveUnfurl,
   onRetryOutbound,
@@ -2409,6 +2471,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onRemoveOutbound,
   onJumpToQuotedMessage,
   onSendToSelf,
+  isSelfDirect = false,
   showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
@@ -2416,6 +2479,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onCancelEdit,
   onSaveEdit,
   isSavingEdit = false,
+  isSaving = false,
   mentions = {},
   channels = [],
   showThreadButton = true,
@@ -2424,6 +2488,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   isPinned = false,
   isContinuation = false,
   isFirstOfDay = false,
+  liveFace = false,
+  liveFaceStreaming = false,
   newestEndsInAttachment = false,
   seenBy,
 }: {
@@ -2445,6 +2511,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
   onStartEdit?: (message: ChatRoomMessage) => void;
+  /** Saves a voice message's transcript; offered where `onStartEdit` is. */
+  onSaveTranscript?: (message: ChatRoomMessage, transcript: string) => boolean;
   onDelete?: (message: ChatRoomMessage) => void;
   onRemoveUnfurl?: (message: ChatRoomMessage, url: string) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
@@ -2454,6 +2522,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onJumpToQuotedMessage?: (messageId: string) => void;
   /** Send to yourself. The room omits it inside the Self Direct. */
   onSendToSelf?: (message: ChatRoomMessage) => void;
+  /** Self Direct: delete copy speaks of a private note, not a shared message. */
+  isSelfDirect?: boolean;
   /** Brief check in the timestamp slot after confirm (fades, then wall-clock). */
   showOutboundSentTick?: boolean;
   isEditing?: boolean;
@@ -2463,6 +2533,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   /** Optional content uses the live editor value (avoids stale draft on Enter). */
   onSaveEdit?: (content?: string) => void;
   isSavingEdit?: boolean;
+  /** Shows a change Core has not answered yet (a pin, an edit). */
+  isSaving?: boolean;
   mentions?: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
   channels?: readonly ComposerChannelOption[];
   showThreadButton?: boolean;
@@ -2481,6 +2553,10 @@ export const ChatMessageRow = memo(function ChatMessageRow({
    * re-renders only the row that loses it.
    */
   newestEndsInAttachment?: boolean;
+  /** The sender's avatar is live: this row heads that Soko Bot's newest group. */
+  liveFace?: boolean;
+  /** That group's newest reply is still being written (it may be a later row). */
+  liveFaceStreaming?: boolean;
   /**
    * Seen by faces, pinned to the bottom-right of the message column. Newest
    * message only.
@@ -2489,6 +2565,14 @@ export const ChatMessageRow = memo(function ChatMessageRow({
 }) {
   const tChat = useTranslations("App.Chat.Chat");
   const tChannels = useTranslations("App.Channels");
+  const tFailure = useTranslations("Components.SokoBotTurnFailure");
+  const backgroundFailure =
+    message.sender.type === "sokoBot"
+      ? readSokoBotBackgroundFailure(message.metadata)
+      : null;
+  const noticeMention = backgroundFailure
+    ? /^@\S+(?= )/.exec(message.content)?.[0]
+    : null;
   const router = useRouter();
   const sender = messageSender(message);
   const hoverProfile = sender.kind === "unknown" ? null : sender;
@@ -2732,6 +2816,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
       id={`message-${message.id}`}
       data-message-id={message.id}
       aria-label={isContinuation ? sender.name : undefined}
+      aria-busy={isSaving || undefined}
       className={cn(
         // Landed mark: a left rail plus a wash, drawn on ::before/::after under
         // the content (`isolate` scopes their z-index -1 to the row). Nothing
@@ -2745,6 +2830,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         // has somewhere to put eight buttons.
         "group relative isolate -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md px-2 transition-colors hover:bg-accent",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
+        isSaving && "opacity-60",
         isContinuation
           ? "min-h-0 py-0.5"
           : isFirstOfDay
@@ -2801,8 +2887,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               orbSize={64}
               className="size-8"
               fallbackClassName="text-xs"
+              live={liveFace}
+              streaming={liveFaceStreaming}
             />
-            {sender.kind === "coworker" ? <AiCoworkerAvatarBadge /> : null}
           </span>
         </ChatParticipantHoverCard>
       )}
@@ -2822,22 +2909,15 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           ) : null
         ) : (
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
-            <ChatParticipantHoverCard
-              profile={hoverProfile}
-              side="top"
-              align="start"
-              className="w-fit min-w-0 max-w-full"
+            <ChatMessageSenderName
+              sender={sender}
               currentUserId={currentUserId}
               canOpenHumanDirect={canOpenHumanDirect}
               onOpenDirect={onOpenDirectMessage}
               isOpeningDirect={isOpeningDirect}
               isDirectActionBusy={isDirectActionBusy}
               active={interacted}
-            >
-              <span className="truncate text-base font-semibold md:text-sm">
-                {sender.name}
-              </span>
-            </ChatParticipantHoverCard>
+            />
             <MessageTimeOrOutboundStatus
               createdAt={message.createdAt}
               outboundStatus={outboundStatus}
@@ -2903,16 +2983,14 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                   channels={channels}
                 />
               ) : isFailedMentionThoughtShell(message.metadata) ? (
-                <>
-                  <CoworkerFailedThoughtSparkle
-                    label={tChannels("MentionStatus.failed")}
-                  />
-                  <FailedMentionActions
-                    onRetryMention={
-                      onRetryMention ? () => onRetryMention(message) : undefined
-                    }
-                  />
-                </>
+                <FailedMentionCard
+                  name={sender.name}
+                  metadata={message.metadata}
+                  isSokoBot={message.sender.type === "sokoBot"}
+                  onRetryMention={
+                    onRetryMention ? () => onRetryMention(message) : undefined
+                  }
+                />
               ) : thoughtView?.showThinkingFallback ||
                 thoughtView?.liveBeat != null ? (
                 <CoworkerLiveThought
@@ -2976,6 +3054,35 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                       />
                       {bodyEndsTheRow ? <SeenByInlineReserve /> : null}
                     </>
+                  ) : backgroundFailure ? (
+                    <>
+                      {noticeMention ? (
+                        <ChannelMessageText
+                          content={noticeMention}
+                          coworkersById={coworkersById}
+                          coworkersBySlug={coworkersBySlug}
+                          sokoBotsById={sokoBotsById}
+                          sokoBotsBySlug={sokoBotsBySlug}
+                          usersById={usersById}
+                          usersBySlug={usersBySlug}
+                          channelLinks={channelLinks}
+                          currentUserId={currentUserId}
+                          canOpenHumanDirect={canOpenHumanDirect}
+                          onOpenDirectMessage={onOpenDirectMessage}
+                          openingDirectParticipantKey={
+                            openingDirectParticipantKey
+                          }
+                        />
+                      ) : null}
+                      <p>
+                        {backgroundFailure.kind === "turn_deadline_exceeded"
+                          ? tFailure("backgroundDeadline", {
+                              title: backgroundFailure.title,
+                            })
+                          : `${tFailure("backgroundFailed", { title: backgroundFailure.title })} ${tFailure(backgroundFailure.kind === "ai_budget_exceeded" ? "aiBudgetExceeded" : "generic")}`}
+                        {bodyEndsTheRow ? <SeenByInlineReserve /> : null}
+                      </p>
+                    </>
                   ) : quote && !message.content.trim() ? (
                     bodyEndsTheRow ? (
                       <SeenByInlineReserve />
@@ -2984,6 +3091,12 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                     <ChannelMessageBody
                       messageId={message.id}
                       content={message.content}
+                      onSaveTranscript={
+                        canEdit && onSaveTranscript
+                          ? (transcript) =>
+                              onSaveTranscript(message, transcript)
+                          : undefined
+                      }
                       coworkersById={coworkersById}
                       coworkersBySlug={coworkersBySlug}
                       sokoBotsById={sokoBotsById}
@@ -3159,9 +3272,15 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>{tChannels("Message.delete")}</AlertDialogTitle>
+              <AlertDialogTitle>
+                {isSelfDirect
+                  ? tChannels("Message.deleteNoteTitle")
+                  : tChannels("Message.delete")}
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                {tChannels("Message.deleteConfirm")}
+                {isSelfDirect
+                  ? tChannels("Message.deleteNoteConfirm")
+                  : tChannels("Message.deleteConfirm")}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

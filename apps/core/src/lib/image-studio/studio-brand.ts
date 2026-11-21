@@ -29,8 +29,12 @@ import { parseBrandBrain } from "@/services/brand-brain.service";
 /** Enough for colours, type, and voice. The stored job prompt stays the brief. */
 const BRAND_BLOCK_MAX_CHARS = 1600;
 
+/** Bump when brand wrapping or the job's provider prompt guidance changes. */
+export const STUDIO_PROMPT_ASSEMBLY_VERSION = "2026-11-21.1";
+
 export interface StudioBrand {
   designMd: string | null;
+  designColors?: string[];
   memory: string | null;
   /** Who the business is and sounds like, from the Project's Brand Brain. */
   brandBrain: string | null;
@@ -68,13 +72,21 @@ export function requireApprovedStudioHeadline(text: string, brand: unknown) {
 export function applyStudioBrandPrompt(
   prompt: string,
   brand: StudioBrand,
+  briefFirst = false,
 ): string {
+  const block = studioBrandPromptBlock(brand);
+  if (briefFirst && block) return `${prompt}\n\n${block}`;
+  return block ? `${block}\n\nBrief:\n${prompt}` : prompt;
+}
+
+/** The exact brand prefix, without the brief, for snapshot hashing. */
+export function studioBrandPromptBlock(brand: StudioBrand): string {
   const design = clipBrandText(brand.designMd);
   const memory = clipBrandText(brand.memory);
   const brandBrain = clipBrandText(brand.brandBrain);
   const approvedLines = clipBrandText(brand.approvedLines);
   if (!design && !memory && !brandBrain && !approvedLines && !brand.look)
-    return prompt;
+    return "";
 
   const parts = ["Follow this project's brand."];
   if (brand.look) {
@@ -90,8 +102,26 @@ export function applyStudioBrandPrompt(
   if (brandBrain) parts.push(`Brand Brain:\n${brandBrain}`);
   if (design) parts.push(`Design:\n${design}`);
   if (memory) parts.push(`Memory:\n${memory}`);
-  parts.push(`Brief:\n${prompt}`);
   return parts.join("\n\n");
+}
+
+/** The edit receives only approved copy and the effective Studio look. */
+export function buildStudioLetteringPrompt(
+  headline: string,
+  look: { colors: string[]; fonts: string[] },
+): string {
+  return [
+    `Add only this approved headline to the supplied image: ${JSON.stringify(headline)}. Reproduce the wording exactly.`,
+    "Letter it into the clear upper area as part of the ad artwork. Preserve the product, its packaging and printed labels, the scene, composition, lighting, and all other details. Add no other copy or logos.",
+    ...(look.colors.length
+      ? [`Use the brand palette: ${look.colors.join(", ")}.`]
+      : []),
+    ...(look.fonts.length
+      ? [
+          `Use the brand font names as typographic direction: ${look.fonts.join(", ")}.`,
+        ]
+      : []),
+  ].join("\n\n");
 }
 
 export async function loadStudioBrand(projectId: string): Promise<StudioBrand> {
@@ -109,8 +139,11 @@ export async function loadStudioBrand(projectId: string): Promise<StudioBrand> {
     const brain = parseBrandBrain(project.brandBrain?.body);
     const approvedLines = clipBrandText(brain?.voice.examples.join("\n"));
     const look = studioBrandLookSchema.safeParse(project.studioBrandLook);
+    const design = (await readDesignMdContent(project.designMdUrl))?.trim();
+    const designLook = designMdBrandLook(design ?? "");
     return {
-      designMd: await readDesignMd(project.designMdUrl),
+      designMd: designPromptExcerpt(design, designLook),
+      ...(designLook.colors.length ? { designColors: designLook.colors } : {}),
       memory: clipBrandText(project.contextMd),
       brandBrain: brandBrainText(brain),
       ...(approvedLines ? { approvedLines } : {}),
@@ -341,12 +374,13 @@ function clipBrandText(value: string | null | undefined): string | null {
     : trimmed;
 }
 
-async function readDesignMd(url: string | null): Promise<string | null> {
-  const content = (await readDesignMdContent(url))?.trim();
+function designPromptExcerpt(
+  content: string | undefined,
+  { colors, fonts }: ReturnType<typeof designMdBrandLook>,
+): string | null {
   if (!content || content.length <= BRAND_BLOCK_MAX_CHARS) {
     return content || null;
   }
-  const { colors, fonts } = designMdBrandLook(content);
   return clipBrandText(
     [
       colors.length ? `Brand colors: ${colors.join(", ")}` : "",

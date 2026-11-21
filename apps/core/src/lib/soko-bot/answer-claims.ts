@@ -1,3 +1,5 @@
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { askJev } from "./jev";
 
 /** A long report (a weekly wrap, a stand-up) takes Jev several seconds. */
@@ -7,7 +9,7 @@ const MAX_TEXT_LENGTH = 8_000;
 const MAX_CLAIM_PROBABILITY = 0.5;
 
 const CLAIMS_ACTION =
-  "The text is an assistant's reply to its owner. confirmedChanges lists the changes its tools confirmed in this turn. Does the reply say the assistant has already changed something in Sokosumi or for other people that is not in confirmedChanges: created, assigned, updated or archived a Task, sent or posted a message or email, scheduled a check-in or reminder, changed a calendar, uploaded to Drive, hired an Agent, generated an image, or changed its memory? Reporting a change that is in confirmedChanges is fine. Offers, plans, questions, research findings, calculations, files in the assistant's own private workspace, and what other people did do not count.";
+  "The text is an assistant's reply to its owner. confirmedChanges lists the changes its tools confirmed in this turn. Does the reply say the assistant has already changed something in Sokosumi or for other people that is not in confirmedChanges: created, assigned, updated or archived a Task, sent or posted a message or email, scheduled a check-in or reminder, changed a calendar, uploaded to Drive, hired an Agent, generated an image, or changed its memory? Reporting a change that is in confirmedChanges is fine. Only count changes the reply says the assistant itself made. Offers, plans, questions, research findings, calculations, files in the assistant's own private workspace, and work it reports from Tasks, Coworkers, other people or earlier days (what was implemented, completed or merged) do not count.";
 
 /**
  * Whether the bot's own words claim an action its receipts do not show.
@@ -33,9 +35,16 @@ export async function claimsAction(
       ? null
       : probability >= MAX_CLAIM_PROBABILITY;
   } catch (error) {
-    console.warn("Soko Bot claim check failed", {
-      error: error instanceof Error ? error.name : "unknown",
-    });
+    // Only safe fields: a model error can quote the text it was sent.
+    recordCoreWarning(
+      { operation: "soko_bot_claim_check" },
+      {
+        message: "Could not check a Soko Bot reply for unconfirmed claims",
+        why: "Jev, the judging model, failed or timed out",
+        fix: "Nothing: the reply is held back and the owner is told why.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
     return null;
   }
 }

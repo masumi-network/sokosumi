@@ -6,54 +6,30 @@ import {
   type ReactNode,
   useContext,
   useLayoutEffect,
-  useState,
 } from "react";
-import { roomIdFromPath } from "@/app/chat/utils/chat-route-base";
-import type {
-  RoomTranscriptCache,
-  RoomTranscriptEntry,
-} from "@/app/chat/utils/room-transcript-cache";
-import { useRoomCache, useRoomSelection } from "./room-cache-provider";
+import type { RoomTranscriptEntry } from "@/app/chat/utils/room-transcript-cache";
+import { usePaintedRoom, useRoomCache } from "./room-cache-provider";
 import { RoomOpenLoadingView } from "./room-open-loading-view";
 import { RoomsClient, type RoomsClientProps } from "./rooms-client";
+
+const NO_ROOM_KEY = ["room-transcript", "no-room"];
 
 const RoomBootstrapContext = createContext<
   ((props: RoomsClientProps) => void) | null
 >(null);
 
-const NO_ROOM_KEY = ["room-transcript", "no-room"];
-
-/** Cached room, or the page bootstrap that just registered this room. */
-function roomCanPaint(
-  cache: RoomTranscriptCache,
-  roomId: string,
-  bootstrap: RoomsClientProps | null,
-): boolean {
-  if (!cache.available(roomId)) return false;
-  if (cache.get(roomId)?.bootstrap.selectedRoomId === roomId) return true;
-  return bootstrap?.selectedRoomId === roomId;
-}
-
 /**
  * Lives above the route's loading boundary. Next owns URLs and access
  * validation; a room painted before its page did so from a click read that
- * Core answered only for a member.
+ * Core answered only for a member. Which room paints is decided by
+ * `RoomCacheSession`, which the app chrome reads too.
  */
 export function PersistentRoomView({ children }: { children: ReactNode }) {
+  const painted = usePaintedRoom();
   const cache = useRoomCache();
-  const path = useRoomSelection();
-  const [registered, setRegistered] = useState<RoomsClientProps | null>(null);
-  // A page registered before a workspace switch never paints in the next one.
-  const bootstrap =
-    registered &&
-    cache?.matchesScope(
-      registered.currentUserId,
-      registered.activeOrganization?.id ?? null,
-    )
-      ? registered
-      : null;
-  const requestedId = roomIdFromPath(path);
-  // The click's read can seed the target before its page registers.
+  const requestedId = painted?.requestedId;
+  // Keeps the click's read for the target alive while chat shows; the
+  // session reads it without observing, so it still expires elsewhere.
   useQuery<RoomTranscriptEntry>(
     {
       queryKey: cache && requestedId ? cache.key(requestedId) : NO_ROOM_KEY,
@@ -61,27 +37,11 @@ export function PersistentRoomView({ children }: { children: ReactNode }) {
     },
     cache?.client,
   );
-  const [paintedId, setPaintedId] = useState(requestedId);
-  // A click updates the target before the next page can register. Painting
-  // that id immediately unmounts the open room onto a page that renders null.
-  const targetRevoked = Boolean(
-    requestedId && cache && !cache.available(requestedId),
-  );
-  const targetReady = Boolean(
-    requestedId && cache && roomCanPaint(cache, requestedId, bootstrap),
-  );
-  const nextPaintedId = !cache
-    ? requestedId
-    : !requestedId
-      ? undefined
-      : targetReady || targetRevoked
-        ? requestedId
-        : paintedId;
-  if (nextPaintedId !== paintedId) setPaintedId(nextPaintedId);
-  const roomId = cache ? nextPaintedId : requestedId;
+  if (!painted) return children;
+  const { roomId, bootstrap, register } = painted;
   return (
-    <RoomBootstrapContext value={setRegistered}>
-      {cache && roomId ? (
+    <RoomBootstrapContext value={register}>
+      {roomId ? (
         <SelectedRoom key={roomId} roomId={roomId} bootstrap={bootstrap}>
           {children}
         </SelectedRoom>
@@ -101,6 +61,8 @@ function SelectedRoom({
   bootstrap: RoomsClientProps | null;
   children: ReactNode;
 }) {
+  // Same mutable availability read as RoomCacheSession's painted room.
+  "use no memo";
   const cache = useRoomCache()!;
   const { data } = useQuery<RoomTranscriptEntry>(
     { queryKey: cache.key(roomId), queryFn: skipToken },

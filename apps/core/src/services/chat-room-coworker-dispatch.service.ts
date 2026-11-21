@@ -1,5 +1,6 @@
 import type { SokosumiProviderCallOptions } from "@sokosumi/ai-provider";
 import { coworkerTextLooksLikeAgentError } from "@sokosumi/ai-provider";
+import { readSokoBotAttemptAt } from "@sokosumi/utils";
 import { streamText } from "ai";
 import { findUsableCoworkerByCapabilityInWorkspace } from "@/helpers/access-control";
 import {
@@ -15,7 +16,8 @@ import {
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotMessageMemberId } from "@/helpers/soko-bot-message-member";
 import prisma from "@/lib/db/prisma";
-import { createCoreLogger } from "@/lib/evlog";
+import { createCoreLogger, emitCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
 import {
   readQuoteFromMetadata,
@@ -42,7 +44,10 @@ import {
   failMentionWithCoworkerShell,
   publishMentionThoughtPlaceholder,
 } from "./chat-room-mention-stream";
-import { runSokoBotMentionDispatch } from "./chat-room-soko-bot-dispatch.service";
+import {
+  failUnclaimedSokoBotMention,
+  runSokoBotMentionDispatch,
+} from "./chat-room-soko-bot-dispatch.service";
 
 /** Cap Ably thought updates; first beat always publishes. */
 const MENTION_THOUGHT_PUBLISH_MIN_INTERVAL_MS = 250;
@@ -58,7 +63,19 @@ export async function dispatchChatRoomMention(
   try {
     await runChatRoomMentionDispatch(mentionId);
   } catch (error) {
-    console.error("Room coworker dispatch failed:", { mentionId, error });
+    // Runs in waitUntil (or the effect outbox), so its own event.
+    emitCoreError(
+      {
+        failure: messageSafeErrorFields(error),
+        operation: "chat_room_mention_dispatch",
+        mention: { id: mentionId },
+      },
+      {
+        message: "Could not answer a chat mention",
+        why: "The dispatch threw before the mention was answered",
+        fix: "The mention is marked failed, so the asker can retry it. If this repeats, look up the error name and code under failure.",
+      },
+    );
     // Marking the row failed unpins the poller but says nothing to the person
     // watching the bubble. Anything that escaped after a placeholder was
     // opened — a thread lookup, a provider update, a room read — would leave
@@ -66,16 +83,38 @@ export async function dispatchChatRoomMention(
     const linked = await prisma.chatRoomMention
       .findUnique({
         where: { id: mentionId },
-        select: { responseMessageId: true, message: { select: { id: true } } },
+        select: {
+          responseMessageId: true,
+          sokoBotId: true,
+          message: { select: { id: true } },
+        },
       })
       .catch(() => null);
-    if (linked?.responseMessageId) {
+    // A Soko Bot mention may belong to a newer attempt by now (Retry), and
+    // its dispatch fails its own reply under that check
+    // (`failSokoBotReplyIfOwned`). An unchecked write here could fail the
+    // newer attempt and discard its answer, so write nothing and leave the
+    // mention to stale reclaim; likewise when the mention could not be read.
+    if (!linked || linked.sokoBotId) return;
+    if (linked.responseMessageId) {
       await failMentionThoughtPlaceholder({
         placeholderId: linked.responseMessageId,
         sourceMessageId: linked.message.id,
         mentionId,
       }).catch((cleanupError) => {
-        console.error("Failed to end the assistant bubble:", cleanupError);
+        emitCoreError(
+          {
+            failure: messageSafeErrorFields(cleanupError),
+            operation: "chat_room_mention_dispatch",
+            mention: { id: mentionId },
+          },
+          {
+            message:
+              "Could not end the thinking reply of a failed chat mention",
+            why: "Writing the failed state of the reply threw",
+            fix: "The reply may keep showing as thinking until the room is reloaded; the mention is still marked failed.",
+          },
+        );
       });
     }
     await markMentionFailed(mentionId, error);
@@ -86,6 +125,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   const mention = await prisma.chatRoomMention.findUnique({
     where: { id: mentionId },
     include: {
+      responseMessage: { select: { metadata: true } },
       coworker: {
         select: {
           id: true,
@@ -176,21 +216,40 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
 
     // Fail closed when the human sender row was deleted (SetNull): billing /
     // provider auth as the room creator would attribute cost to the wrong user.
+    // A Soko Bot mention fails only under a claim this worker acquires first
+    // (`failUnclaimedSokoBotMention`): the row read here may already belong to
+    // another worker setting it up, and its stamp is that worker's, not ours.
     const failWithShell = (error: unknown) =>
-      failMentionWithCoworkerShell({
-        mentionId,
-        sourceMessageId: mention.message.id,
-        roomId: mention.message.roomId,
-        parentMessageId: mention.message.parentMessageId,
-        coworkerId: mention.coworkerId,
-        sokoBotId: mention.sokoBotId,
-        existingPlaceholderId: mention.responseMessageId,
-        error,
-      });
+      mention.sokoBotId
+        ? failUnclaimedSokoBotMention(mentionId, error)
+        : failMentionWithCoworkerShell({
+            mentionId,
+            sourceMessageId: mention.message.id,
+            roomId: mention.message.roomId,
+            parentMessageId: mention.message.parentMessageId,
+            coworkerId: mention.coworkerId,
+            sokoBotId: mention.sokoBotId,
+            existingPlaceholderId: mention.responseMessageId,
+            error,
+          });
 
     // `instanceof` because unit fixtures build partial mention rows; the real
     // query selects every scalar, so this is always a Date in production.
-    const askedAt = mention.createdAt;
+    // Measured from the current attempt, not the original ask: a `pending`
+    // mention was written now or by an explicit Retry, and a reclaimed one
+    // carries its attempt's start on the reply (`readSokoBotAttemptAt`). An
+    // old failure retried today gets a fresh budget; stale reclaim of one
+    // attempt stays bounded.
+    const attemptAt =
+      mention.status === "pending"
+        ? mention.updatedAt instanceof Date
+          ? mention.updatedAt.getTime()
+          : undefined
+        : readSokoBotAttemptAt(mention.responseMessage?.metadata);
+    const askedAt =
+      mention.createdAt instanceof Date
+        ? new Date(Math.max(mention.createdAt.getTime(), attemptAt ?? 0))
+        : mention.createdAt;
     if (
       askedAt instanceof Date &&
       Date.now() - askedAt.getTime() > ROOM_MENTION_GIVE_UP_MS &&
@@ -332,10 +391,18 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
         thoughtStartedAtMs: generationStartedAtMs,
       });
     } catch (publishError) {
-      console.error("Mention Thought placeholder create failed:", {
-        mentionId,
-        error: publishError,
-      });
+      emitCoreError(
+        {
+          failure: messageSafeErrorFields(publishError),
+          operation: "chat_room_mention_dispatch",
+          mention: { id: mentionId },
+        },
+        {
+          message: "Could not open the thinking reply for a chat mention",
+          why: "Writing or publishing the reply placeholder threw",
+          fix: "The Coworker still answers; the room shows the reply once it is written.",
+        },
+      );
     }
 
     // A Soko Bot asking is named as one, so the Coworker knows who it answers.
@@ -488,10 +555,19 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
               });
             })
             .catch((publishError) => {
-              console.error("Mention Thought placeholder publish failed:", {
-                mentionId,
-                error: publishError,
-              });
+              emitCoreError(
+                {
+                  failure: messageSafeErrorFields(publishError),
+                  operation: "chat_room_mention_dispatch",
+                  mention: { id: mentionId },
+                },
+                {
+                  message:
+                    "Could not update the thinking reply of a chat mention",
+                  why: "Publishing the reply update threw",
+                  fix: "The next update or the final answer replaces it.",
+                },
+              );
             });
         });
       await thoughtPublishQueue;

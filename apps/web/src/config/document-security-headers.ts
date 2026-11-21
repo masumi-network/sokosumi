@@ -31,6 +31,7 @@ interface DocumentSecurityHeaderOptions {
 }
 
 export const NEWSLETTER_EMBED_PATH = /^\/n\/[^/]+\/embed\/?$/;
+const RESET_PASSWORD_DOCUMENT_PATH = /^\/reset-password(?:\/|$)/;
 
 /**
  * The document security headers, in one list.
@@ -47,13 +48,20 @@ export function documentSecurityHeaders(
   return [
     { key: "Cross-Origin-Opener-Policy", value: CROSS_ORIGIN_OPENER_POLICY },
     { key: "X-Content-Type-Options", value: "nosniff" },
-    { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+    {
+      key: "Referrer-Policy",
+      value:
+        options.pathname && RESET_PASSWORD_DOCUMENT_PATH.test(options.pathname)
+          ? "no-referrer"
+          : "strict-origin-when-cross-origin",
+    },
     // Denies only the capabilities the product never uses; every unlisted
     // feature keeps its browser default, so same-origin clipboard writes and
-    // notifications keep working.
+    // notifications keep working. Microphone is same-origin only: chat voice
+    // messages record with it.
     {
       key: "Permissions-Policy",
-      value: "camera=(), microphone=(), geolocation=()",
+      value: "camera=(), microphone=(self), geolocation=()",
     },
     // Only the public newsletter signup embed accepts inbound framing. The iframes in
     // offer-card, document-viewer and image-viewer are outbound (third-party
@@ -86,6 +94,10 @@ export function documentSecurityHeaderRules(
     {
       source: "/:path((?!n/[^/]+/embed/?$).*)",
       headers: [{ key: "X-Frame-Options", value: "DENY" }],
+    },
+    {
+      source: "/reset-password/:path*",
+      headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
     },
   ];
 }

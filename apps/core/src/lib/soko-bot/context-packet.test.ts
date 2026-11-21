@@ -17,6 +17,7 @@ const {
   projectFindManyMock,
   recentTurnCountMock,
   recentTurnFindManyMock,
+  sokoBotFindUniqueMock,
   taskCountMock,
   taskFindManyMock,
   transactionMock,
@@ -24,6 +25,7 @@ const {
   userFindUniqueMock,
   workspaceFindFirstMock,
 } = vi.hoisted(() => ({
+  sokoBotFindUniqueMock: vi.fn(),
   agentCountMock: vi.fn(),
   agentFindManyMock: vi.fn(),
   billingMock: vi.fn(),
@@ -54,6 +56,7 @@ vi.mock("@/helpers/subscription", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
+    sokoBot: { findUnique: sokoBotFindUniqueMock },
     sokoBotNudge: { findMany: vi.fn().mockResolvedValue([]) },
     agent: { count: agentCountMock, findMany: agentFindManyMock },
     brandBrain: { findUnique: brandBrainFindUniqueMock },
@@ -250,6 +253,9 @@ beforeEach(() => {
     name: "Ada",
     metadata: JSON.stringify({ locale: "de-CH", timezone: "Europe/Zurich" }),
   });
+  sokoBotFindUniqueMock.mockResolvedValue({
+    ingestTimezone: "America/Los_Angeles",
+  });
   projectFindManyMock.mockResolvedValue([]);
   taskFindManyMock.mockResolvedValue([]);
   coworkerFindManyMock.mockResolvedValue([]);
@@ -334,6 +340,35 @@ describe("ContextPacketBuilder", () => {
       new Date(NOW.getTime() - 7 * 24 * 60 * 60 * 1_000),
     );
     expect(openQuery.take + finishedQuery.take).toBe(24);
+  });
+
+  it("gives the owner the bot's zone, from their browser at setup, when they saved none", async () => {
+    userFindUniqueOrThrowMock.mockResolvedValue({
+      id: "user-1",
+      name: "Ada",
+      metadata: null,
+    });
+
+    const result = await new ContextPacketBuilder().build(buildInput());
+
+    expect(result.packet.actor.timezone).toBe("America/Los_Angeles");
+    expect(sokoBotFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: buildInput().sokoBotId },
+      select: { ingestTimezone: true },
+    });
+  });
+
+  it("drops a bot zone that is not a real time zone", async () => {
+    userFindUniqueOrThrowMock.mockResolvedValue({
+      id: "user-1",
+      name: "Ada",
+      metadata: null,
+    });
+    sokoBotFindUniqueMock.mockResolvedValue({ ingestTimezone: "Mars/Base" });
+
+    const result = await new ContextPacketBuilder().build(buildInput());
+
+    expect(result.packet.actor.timezone).toBeNull();
   });
 
   it("leaves the marketplace out of turns that cannot hire", async () => {
@@ -580,6 +615,24 @@ describe("ContextPacketBuilder", () => {
     );
   });
 
+  it("reads the workspace membership without a user filter for a self-started turn", async () => {
+    const input = buildInput();
+    await new ContextPacketBuilder().build({
+      ...input,
+      userId: null,
+      sharedScope: {
+        sokoBotId: input.sokoBotId,
+        workspaceId: input.workspaceId,
+        projectId: null,
+      },
+    });
+
+    expect(
+      workspaceFindFirstMock.mock.lastCall?.[0].select.organization.select
+        .members,
+    ).toStrictEqual({ select: { role: true }, take: 1 });
+  });
+
   it("builds a shared bot's packet from its scope and never as OWNER", async () => {
     const sharedScope = {
       sokoBotId: buildInput().sokoBotId,
@@ -600,6 +653,10 @@ describe("ContextPacketBuilder", () => {
     expect(userFindUniqueMock).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: "user-1" } }),
     );
+    expect(
+      workspaceFindFirstMock.mock.lastCall?.[0].select.organization.select
+        .members.where,
+    ).toStrictEqual({ userId: "user-1" });
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({

@@ -6,17 +6,17 @@
 
 [CORRECTION, REPORTED: user product direction, 2026-09-27] The earlier plan centered the hackathon developer flow. The CLI and Skill are a continuing, framework-neutral product. Private Workspace setup with an existing agent comes first. Developer onboarding and global listing follow that path. The hackathon is the first milestone. Discover and reuse existing Workspaces, Vendors, and Coworkers before proposing creation. Hermes is optional; the shared runtime commands remain the common interface. Hosts can use the operator's hardware or cloud environment.
 
-[VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`, `apps/cli/src/cli/registration-authority.ts`, `apps/core/src/routes/v1/coworkers/post.ts:83-112`] Current Core creation allows platform admin on any network and own Vendor admin on Preprod (Mainnet: platform admin). Current CLI connection requires Vendor-admin membership and membership in the selected organization, even for platform admins. Organization owner/admin status alone does not grant either permission. The CLI does not connect a personal Workspace through this path. These product instructions do not change Core permissions or billing.
+[VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`, `apps/cli/src/cli/registration-authority.ts`, `apps/core/src/routes/v1/coworkers/post.ts:83-112`] Current Core creation allows platform admin on any network and own Vendor admin on Preprod (Mainnet: platform admin). Current CLI connection requires Vendor-admin membership. Organization connection also requires membership in the selected organization, even for platform admins. Organization owner/admin status alone does not grant either permission. `coworkers register|connect --personal` connects the caller's personal Workspace ([SPEC.md](../SPEC.md)). These product instructions do not change Core permissions or billing.
 
-[VERIFIED: `apps/cli/src/cli/commands/runtime.ts:258`, `apps/cli/src/coworker/runtime-task.ts:195`, at `c2271e441`] The shared execution path uses `runtime key-import`, `runtime start`, and `runtime complete`. `runtime receipt` reads an existing Task payment through Core. Completion submits status and result text without `masumiPayment`. [OPEN] Live execution and intended seller wallet receipt remain unproven. Follow the [current Skill](../skills/sokosumi/SKILL.md) for setup.
+[VERIFIED: `apps/cli/src/cli/commands/runtime.ts:258`, `completeVerifiedTask` in `apps/cli/src/coworker/runtime-task.ts`, at `c2271e441`] The shared execution path uses `runtime key-import`, `runtime start`, and `runtime complete`. `runtime receipt` reads an existing Task payment through Core. Completion submits status and result text without `masumiPayment`. [OPEN] Live execution and intended seller wallet receipt remain unproven. Follow the [current Skill](../skills/sokosumi/SKILL.md) for setup.
 
 ## Payment delivery status, 2026-09-30
 
 [VERIFIED: git history at `c2271e441`] [#5342](https://github.com/masumi-network/sokosumi/pull/5342) merged the Core receipt route and CLI reader. [VERIFIED: `apps/core/src/helpers/coworker-task-receipt.ts:113-122`] The reader reports MPS settlement state after checking stored purchase terms. A settled result can have a null transaction hash. This source behavior does not prove a live Coworker payment.
 
-[VERIFIED: draft branch contents, 2026-09-30] These open draft PRs contain planning documents and corrections to existing guides. Each draft uses the preceding branch, with #5463 based on `main`.
+[VERIFIED: GitHub PR read, 2026-11-17] [#5463](https://github.com/masumi-network/sokosumi/pull/5463), [#5464](https://github.com/masumi-network/sokosumi/pull/5464), and [#5465](https://github.com/masumi-network/sokosumi/pull/5465) merged on 2026-09-30 as documentation only. The payment code those briefs describe is still unbuilt.
 
-| Draft                                                         | Proposed implementation                                        | Brief                                                                |
+| Brief                                                         | Proposed implementation                                        | Document                                                             |
 | ------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------- |
 | [#5463](https://github.com/masumi-network/sokosumi/pull/5463) | Seller binding and customer Task approval                      | [Seller authorization](mps-payment-stack/01-seller-authorization.md) |
 | [#5464](https://github.com/masumi-network/sokosumi/pull/5464) | Funding, execution, result submission, collection and recovery | [Paid runtime](mps-payment-stack/02-paid-runtime.md)                 |
@@ -25,31 +25,6 @@
 [CORRECTION, REPORTED: user decisions, 2026-09-30] The first flow will use an existing developer-managed MPS seller. Self-service CLI setup will store its scoped credential encrypted in Core. The Task billing owner will approve each fixed quote. Organization approval will require membership and applicable Seat eligibility in the original billing organization. Implementation is pending. Live end-to-end acceptance must tie the delivered Task to the intended seller's payment.
 
 [CORRECTION, VERIFIED: `apps/cli/package.json:2-18,30-31`, at `da193024e`] The source manifest declares `@masumi_network/sokosumi` version `1.1.0`, public access, Node.js 26.x, and `dist` plus `skills`. Earlier private-package and undecided-package statements are stale. [OPEN] This review did not check npm's current release or perform a fresh registry installation.
-
-## Feature PR delivery, 2026-09-27
-
-[CORRECTION, VERIFIED: git history at `c2271e441`, 2026-09-30] All eight PRs below are merged. The earlier draft-stack description recorded their initial delivery state. The dated test and pilot records remain historical evidence.
-
-| Order | Slice                                                    | Review                                                        |
-| ----- | -------------------------------------------------------- | ------------------------------------------------------------- |
-| 1     | Preprod registration and selected Workspace access       | [#5241](https://github.com/masumi-network/sokosumi/pull/5241) |
-| 2     | Live account identity with `auth whoami`                 | [#5282](https://github.com/masumi-network/sokosumi/pull/5282) |
-| 3     | Platform-admin provisioning checks and handoff           | [#5283](https://github.com/masumi-network/sokosumi/pull/5283) |
-| 4     | Existing member onboarding and available Seat assignment | [#5284](https://github.com/masumi-network/sokosumi/pull/5284) |
-| 5     | Organization selection for Task commands                 | [#5285](https://github.com/masumi-network/sokosumi/pull/5285) |
-| 6     | Generic Coworker runtime identity and Task operations    | [#5286](https://github.com/masumi-network/sokosumi/pull/5286) |
-| 7     | Optional execution through an existing Hermes profile    | [#5287](https://github.com/masumi-network/sokosumi/pull/5287) |
-| 8     | Framework-neutral plugin and private Workspace guidance  | [#5288](https://github.com/masumi-network/sokosumi/pull/5288) |
-
-[CORRECTION, VERIFIED: local command output, 2026-09-27] The earlier stack reported 422 passing tests. After syncing with `main` at `e091b937b289df5074b9925c9b04f89e56dcc7f2` and adding 18 recovery tests, the Node `v24.19.0` suite reports `tests 440`, `pass 440`, `fail 0`, and `skipped 0`. The CLI build passed. Base recovery commit hooks report `17 successful, 17 total` typecheck tasks. Subprocess fixtures do not prove a live Hermes provider or a Preprod Task. Earlier shell checks used Node `v26.8.1`; these checks explicitly selected Node 24.
-
-[REPORTED: independent Fresh Eyes review, 2026-09-27] The reviewer found one recovery gap: a failed creation response could hide a successful Coworker creation. [VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`, `apps/cli/test/cli/coworker-creation-recovery.test.ts`] Uncertain failures now direct inspection before retrying and retain Core error fields. Name validation runs before creation. [REPORTED: final review] Fresh Eyes found no remaining issue in the integrated fix. Live authentication, provider execution, and seller receipt remain outside this review.
-
-[VERIFIED: regression output] Before the runtime fixes, delayed stdin and malformed event tests reported `tests 3`, `pass 0`, `fail 3`. Focused checks after the fix reported `tests 9`, `pass 9`, `fail 0`. A source-only mutation that restored unrestricted Hermes environment inheritance failed the retained filtering test: `tests 1`, `pass 0`, `fail 1`.
-
-[VERIFIED: Skills CLI `1.7.0`, local checkout] Temporary project installs for Claude Code and Hermes Agent returned `status: installed`, `scope: project`, and `mode: copy`. Both installed files matched source bytes. Repository discovery needs `--full-depth`; without it, this installer missed all six CLI Skills. This check did not run a host model or fetch GitHub.
-
-[REPORTED: pilot scope, 2026-09-27] Live runtime execution, host installation, Seat readiness for the pilot user, and payment receipt were open at that checkpoint. User-managed subscriptions remain in Web. [CORRECTION, VERIFIED: git history at `c2271e441`] The setup stack has merged. The payment drafts above define the next planned work. [OPEN] Current pilot Seat capacity has not been rechecked.
 
 ## Goal and scope
 
@@ -95,7 +70,7 @@ The contract is [SPEC.md](../SPEC.md). The architecture decision is [ADR 0004](a
 
 [VERIFIED] Current Core Coworker creation allows platform admin on any network and own Vendor admin on Preprod (Mainnet: platform admin). This CLI work does not change that permission. Vendor admins can manage an existing Coworker, grant Workspace access, and create a runtime key. [Create route](../../core/src/routes/v1/coworkers/post.ts#L83-L112) · [Management access](../../core/src/routes/v1/coworkers/coworker-management-access.ts#L24-L66) · [Workspace access](../../core/src/routes/v1/coworkers/[id]/workspace-access/post.ts#L48-L74)
 
-[VERIFIED] The current CLI lists organization workspaces but does not create one. When none exists, it directs the user to the Sokosumi Web workspace switcher. [Workspace guidance](../src/cli/registration-authority.ts#L18-L23) · [Workspace command](../src/cli/commands/workspaces.ts#L39-L45)
+[VERIFIED] The current CLI lists organization workspaces but does not create one. When none exists, it directs the user to the Sokosumi Web workspace switcher. [Workspace guidance](../src/cli/registration-authority.ts#L4-L6) · [Workspace command](../src/cli/commands/workspaces.ts#L39-L45)
 
 [VERIFIED: CLI source] `coworkers register` creates a Coworker through Core, then requests Workspace access. `coworkers connect` requests access for an existing Coworker. Both report completion only after `GRANTED`. [CORRECTION, REPORTED: pilot run, 2026-09-27] The recorded pilot reached `GRANTED`; current live access has not been rechecked. [CLI command](../src/cli/commands/coworkers.ts) · [Core route](../../core/src/routes/v1/coworkers/[id]/workspace-access/post.ts)
 

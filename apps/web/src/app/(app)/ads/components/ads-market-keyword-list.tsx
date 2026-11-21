@@ -1,5 +1,8 @@
+"use client";
+
 import type { AdMarketKeyword } from "@sokosumi/core-client";
 import { useFormatter, useTranslations } from "next-intl";
+import { usePageListSearch } from "@/components/page-list-search";
 
 import {
   Table,
@@ -66,6 +69,10 @@ export function AdsMarketKeywordList({
       .filter((part) => part !== NO_VALUE)
       .join(" · ");
 
+  const matching = usePageListSearch(keywords, (item) => ({
+    primary: [item.keyword],
+    secondary: [competition(item)],
+  }));
   return (
     <div className="flex flex-col gap-4" data-testid="ads-market-keywords">
       <AdsUpdated at={fetchedAt} />
@@ -92,7 +99,7 @@ export function AdsMarketKeywordList({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {keywords.map((keyword) => (
+            {matching.map((keyword) => (
               <TableRow key={keyword.keyword}>
                 <TableCell className="max-w-64 truncate font-medium">
                   {keyword.keyword}
@@ -117,7 +124,7 @@ export function AdsMarketKeywordList({
         className="flex flex-col gap-4 md:hidden"
         data-testid="ads-market-keywords-rows"
       >
-        {keywords.map((keyword) => (
+        {matching.map((keyword) => (
           <li
             key={keyword.keyword}
             className="flex items-center justify-between gap-4"
@@ -125,7 +132,11 @@ export function AdsMarketKeywordList({
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{keyword.keyword}</p>
               <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
-                {t("searchesPerMonth", { count: count(keyword.searchVolume) })}
+                {keyword.searchVolume === null
+                  ? t("noSearchData")
+                  : t("searchesPerMonth", {
+                      count: formatter.number(keyword.searchVolume),
+                    })}
               </p>
               {priceLine(keyword) ? (
                 <p className="text-muted-foreground text-xs tabular-nums">

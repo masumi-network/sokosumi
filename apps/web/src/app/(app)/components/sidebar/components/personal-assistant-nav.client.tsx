@@ -1,12 +1,13 @@
 "use client";
 
 import { AnnouncedFeature, SokoBotStatus } from "@sokosumi/core-client";
+import { avatarStateOf } from "@sokosumi/soko-bot";
 import { Bot, Users } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useFormatter, useNow, useTranslations } from "next-intl";
-import type { ReactNode } from "react";
-import { publishPersonalAssistantChromeVisible } from "@/components/chat/personal-assistant-chrome-store";
+import { type ReactNode, Suspense, use } from "react";
+import { browser } from "react-dom";
+import { useNavPathname } from "@/components/navigation-progress.client";
 import { BotFace } from "@/components/soko-bot/bot-face";
 import { SOKO_BOT_STATUS_TONE } from "@/components/soko-bot/soko-bot-badges";
 import {
@@ -28,7 +29,7 @@ import {
   SIDEBAR_ROW_LABEL_CLASS,
   SIDEBAR_ROW_LINK_CLASS,
 } from "@/components/ui/sidebar-classes";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { usePersonalAssistantChromeVisible } from "@/hooks/effects/use-personal-assistant-chrome-visible";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 import { isPathActive } from "@/lib/utils/is-path-active";
@@ -47,6 +48,7 @@ import { useLiveSokoBot } from "./use-live-soko-bot";
 export interface SidebarSokoBotAvatar {
   id: string;
   imageUrl: string | null;
+  avatarCode?: string | null;
   seed: string;
 }
 
@@ -66,10 +68,8 @@ export default function PersonalAssistantNav({
 }: {
   bot?: SidebarSokoBotLive | null;
 }) {
-  useMountEffect(() => {
-    // Session memory for Instant `/chat` (SOK-903): mount means the row is shown.
-    publishPersonalAssistantChromeVisible(true);
-  });
+  // Session memory for Instant `/chat` (SOK-903): mount means the row is shown.
+  usePersonalAssistantChromeVisible();
 
   return (
     <SidebarGroup className="w-full">
@@ -84,7 +84,7 @@ export default function PersonalAssistantNav({
 
 function StaticSokoBotsRow() {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
-  const pathname = usePathname();
+  const pathname = useNavPathname();
   const isActive = [SOKO_BOTS_ROUTE, SOKO_BOT_ROUTE].some((route) =>
     isPathActive(pathname, route),
   );
@@ -131,7 +131,7 @@ function StaticSokoBotsRow() {
 function LiveSokoBotRow({ bot: rendered }: { bot: SidebarSokoBotLive }) {
   const bot = useLiveSokoBot(rendered);
   const t = useTranslations("App.Sidebar.Content.SokoBot");
-  const pathname = usePathname();
+  const pathname = useNavPathname();
   const isActive = isPathActive(pathname, SOKO_BOT_ROUTE);
   const isTeamActive = !isActive && isPathActive(pathname, SOKO_BOTS_ROUTE);
 
@@ -197,8 +197,9 @@ function LiveSokoBotRow({ bot: rendered }: { bot: SidebarSokoBotLive }) {
 /**
  * What the bot is doing, in the tone the Soko Bot status badge paints it.
  * The words are the sidebar's where a row says more than the badge's one
- * word ("Working now", "Needs attention", when an idle bot was last active),
- * and the badge's own where they agree ("Paused").
+ * word ("Working now", when an idle bot was last active), and the badge's
+ * own where they agree ("Paused", "Couldn't reply"): a failed reply reads the
+ * same here, on the bot's page and on its Direct in the chat list.
  */
 function StatusLine({ bot }: { bot: SidebarSokoBotLive }) {
   const t = useTranslations("App.Sidebar.Content.SokoBot");
@@ -206,7 +207,7 @@ function StatusLine({ bot }: { bot: SidebarSokoBotLive }) {
   const text: Record<SokoBotStatus, ReactNode> = {
     [SokoBotStatus.RUNNING]: t("workingNow"),
     [SokoBotStatus.PAUSED]: tStatus(SokoBotStatus.PAUSED),
-    [SokoBotStatus.ERROR]: t("needsAttention"),
+    [SokoBotStatus.ERROR]: tStatus(SokoBotStatus.ERROR),
     [SokoBotStatus.IDLE]: bot.lastActivityAt ? (
       <LastActive at={bot.lastActivityAt} />
     ) : (
@@ -227,8 +228,27 @@ function StatusLine({ bot }: { bot: SidebarSokoBotLive }) {
   );
 }
 
-/** "Active 2h ago", narrow, in the reader's locale; ticks once a minute. */
-function LastActive({ at }: { at: Date }) {
+/**
+ * "Active 2h ago", narrow, in the reader's locale; ticks once a minute. The
+ * server sends the time of day instead ("Active 9:34 PM"): its clock and the
+ * browser's differ by the load, so a relative label from each would not
+ * hydrate (React #418), and a date as well would not fit the row.
+ */
+export function LastActive({ at }: { at: Date }) {
+  const t = useTranslations("App.Sidebar.Content.SokoBot");
+  const formatter = useFormatter();
+
+  return (
+    <Suspense
+      fallback={t("activeAgo", { time: formatter.dateTime(at, "time") })}
+    >
+      <LastActiveRelative at={at} />
+    </Suspense>
+  );
+}
+
+function LastActiveRelative({ at }: { at: Date }) {
+  use(browser());
   const t = useTranslations("App.Sidebar.Content.SokoBot");
   const formatter = useFormatter();
   const now = useNow({ updateInterval: 60_000 });
@@ -258,6 +278,10 @@ function LiveBotFace({ bot }: { bot: SidebarSokoBotLive }) {
         imageUrl={bot.imageUrl}
         seed={bot.seed}
         orbSize={40}
+        avatarCode={bot.avatarCode}
+        // The poll knows the bot's status, not its turn: running reads as working.
+        avatarState={avatarStateOf({ status: bot.status })}
+        avatarSize={20}
         className="size-5"
       />
       <span

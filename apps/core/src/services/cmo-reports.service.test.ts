@@ -73,6 +73,14 @@ vi.mock("@/config/env", async (importOriginal) =>
     await importOriginal<typeof import("@/config/env")>(),
   ),
 );
+// Reverting to an approved month restarts its production in the background;
+// `cmo-production.service.test.ts` covers that run.
+vi.mock("@/services/cmo-production.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/cmo-production.service")
+  >()),
+  kickCmoProduction: vi.fn(),
+}));
 
 import {
   listCmoReports,
@@ -142,6 +150,71 @@ describe("report_update", () => {
       status: "Production",
       details: [],
     });
+  });
+
+  it("rewrites the turn's card when the same turn reports again", async () => {
+    sokoBotFindUnique.mockResolvedValue(cuso());
+    messageFindMany.mockResolvedValue([
+      {
+        id: MESSAGE_ID,
+        clientMessageId: "cmo-report:turn-1:call-1",
+        metadata: reportMessage({ kind: "request" }).metadata,
+      },
+    ]);
+    messageUpdate.mockImplementation(async (args) => ({
+      id: args.where.id,
+      createdAt: new Date("2026-10-05T09:03:00Z"),
+      metadata: args.data.metadata,
+    }));
+
+    const record = await reportCmoUpdate({
+      sokoBotId: "bot-1",
+      turnId: "turn-1",
+      toolCallId: "call-2",
+      update: {
+        kind: "request",
+        headline: "Video and X draft ready",
+        done: ["Checked the draft again"],
+        upNext: [],
+        changes: [],
+      },
+    });
+
+    expect(messageUpsert).not.toHaveBeenCalled();
+    expect(messageUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: MESSAGE_ID },
+        data: expect.objectContaining({ content: "Video and X draft ready" }),
+      }),
+    );
+    expect(record).toMatchObject({ id: MESSAGE_ID, turnId: "turn-1" });
+  });
+
+  it("posts a second card for the same turn's report of another kind", async () => {
+    sokoBotFindUnique.mockResolvedValue(cuso());
+    messageFindMany.mockResolvedValue([
+      {
+        id: MESSAGE_ID,
+        clientMessageId: "cmo-report:turn-1:call-1",
+        metadata: reportMessage({ kind: "weekly" }).metadata,
+      },
+    ]);
+
+    await reportCmoUpdate({
+      sokoBotId: "bot-1",
+      turnId: "turn-1",
+      toolCallId: "call-2",
+      update: {
+        kind: "request",
+        headline: "Paused Instagram",
+        done: [],
+        upNext: [],
+        changes: [],
+      },
+    });
+
+    expect(messageUpsert).toHaveBeenCalledTimes(1);
+    expect(messageUpdate).not.toHaveBeenCalled();
   });
 
   it("posts the report as a result card in Cuso's shared room", async () => {

@@ -2,7 +2,9 @@ import {
   type DataRoom,
   DataRoomEventKind,
   type DataRoomMember,
+  DataRoomStorage,
   FileSourceScope,
+  Prisma,
 } from "@sokosumi/database";
 import { normalizeDriveFolderPath } from "@sokosumi/utils";
 
@@ -10,13 +12,24 @@ import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
 import { canSeeDataRoom } from "@/lib/data-room-visibility";
 import prisma from "@/lib/db/prisma";
-import type { DataRoomCaller } from "@/services/data-room.service";
+import { toDataRoomViewerQuestionDto } from "@/schemas/data-room.schema";
+import {
+  cleanDataRoomCompany,
+  type DataRoomCompany,
+} from "@/schemas/data-room-company.schema";
+import {
+  type DataRoomCaller,
+  listDataRooms,
+} from "@/services/data-room.service";
 import {
   logDataRoomEvent,
   memberSeesPath,
   normalizeEmail,
 } from "@/services/data-room-access.service";
-import { findDataRoomFile } from "@/services/data-room-files.service";
+import {
+  findDataRoomFile,
+  listDataRoomFiles,
+} from "@/services/data-room-files.service";
 
 /**
  * A room of this Drive the caller may run, or 404: one Drive's owner never
@@ -132,6 +145,8 @@ export async function updateDataRoomSettings(input: {
   store: DataRoomCaller;
   roomId: string;
   title?: string | null;
+  welcomeNote?: string | null;
+  company?: DataRoomCompany | null;
   logoFileId?: string | null;
   allowedDomains?: string[];
   expiresAt?: Date | null;
@@ -153,6 +168,16 @@ export async function updateDataRoomSettings(input: {
     data: {
       ...(input.title !== undefined
         ? { title: input.title?.trim() || null }
+        : {}),
+      ...(input.welcomeNote !== undefined
+        ? { welcomeNote: input.welcomeNote?.trim() || null }
+        : {}),
+      ...(input.company !== undefined
+        ? {
+            company: input.company
+              ? cleanDataRoomCompany(input.company)
+              : Prisma.DbNull,
+          }
         : {}),
       ...(input.logoFileId !== undefined
         ? { logoFileId: input.logoFileId }
@@ -355,18 +380,91 @@ export async function setDataRoomOrder(input: {
 
 export async function listDataRoomQuestions(input: {
   room: Pick<DataRoom, "id">;
-  memberId?: string;
-  path?: string;
 }) {
   return prisma.dataRoomQuestion.findMany({
-    where: {
-      roomId: input.room.id,
-      ...(input.memberId ? { memberId: input.memberId } : {}),
-      ...(input.path ? { path: input.path } : {}),
-    },
+    where: { roomId: input.room.id },
     orderBy: { createdAt: "desc" },
     include: { member: { select: { email: true, name: true } } },
   });
+}
+
+/**
+ * What a viewer reads: their own questions, and the answers the owner shared
+ * with the room about documents this viewer may still open. Others' questions
+ * never say who asked.
+ */
+export async function listViewerDataRoomQuestions(input: {
+  room: Pick<
+    DataRoom,
+    "id" | "workspaceId" | "sourceScope" | "ownerId" | "folderPath"
+  >;
+  member: Pick<DataRoomMember, "id" | "folderPaths">;
+  path?: string;
+}) {
+  const rows = await prisma.dataRoomQuestion.findMany({
+    where: {
+      roomId: input.room.id,
+      ...(input.path ? { path: input.path } : {}),
+      OR: [
+        { memberId: input.member.id },
+        { sharedAt: { not: null }, answer: { not: null } },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  const others = rows.some((row) => row.memberId !== input.member.id);
+  const live = others
+    ? new Set((await listDataRoomFiles(input.room)).map((file) => file.path))
+    : new Set<string>();
+  return rows
+    .filter(
+      (row) =>
+        row.memberId === input.member.id ||
+        (live.has(row.path) && memberSeesPath(input.member, row.path)),
+    )
+    .map((row) => toDataRoomViewerQuestionDto(row, input.member.id));
+}
+
+/**
+ * Questions nobody has answered yet, across every room of this Drive the
+ * caller may run (the rooms `listDataRooms` shows them), newest first, a
+ * page at a time. A closing room's questions are left out: its viewers are
+ * being let go.
+ *
+ * Ids are UUIDv7, so id order is creation order: the cursor is the last id
+ * seen and the next page is every id below it. That keeps working when the
+ * cursor's own question was answered in the meantime.
+ */
+export async function listWaitingDataRoomQuestions(
+  store: DataRoomCaller,
+  page: { cursor?: string; take: number },
+) {
+  const rooms = (await listDataRooms(store)).filter(
+    (room) => room.storage !== DataRoomStorage.MOVING_OUT,
+  );
+  if (rooms.length === 0) return { count: 0, questions: [], hasMore: false };
+  const where = {
+    roomId: { in: rooms.map((room) => room.id) },
+    answeredAt: null,
+  };
+  const [count, rows] = await Promise.all([
+    prisma.dataRoomQuestion.count({ where }),
+    prisma.dataRoomQuestion.findMany({
+      where: page.cursor ? { ...where, id: { lt: page.cursor } } : where,
+      orderBy: { id: "desc" },
+      take: page.take + 1,
+      include: { member: { select: { email: true, name: true } } },
+    }),
+  ]);
+  const byId = new Map(rooms.map((room) => [room.id, room]));
+  return {
+    count,
+    hasMore: rows.length > page.take,
+    questions: rows.slice(0, page.take).flatMap((question) => {
+      const room = byId.get(question.roomId);
+      return room ? [{ ...question, room }] : [];
+    }),
+  };
 }
 
 export async function answerDataRoomQuestion(input: {
@@ -374,14 +472,24 @@ export async function answerDataRoomQuestion(input: {
   roomId: string;
   questionId: string;
   answer: string;
+  /** Show it to the room; undefined keeps the current choice. */
+  shared?: boolean;
   userId: string;
 }) {
   const room = await requireOwnedDataRoom(input.store, input.roomId);
   const answer = input.answer.trim();
   if (!answer) throw badRequest("Write an answer");
+  const now = new Date();
   const { count } = await prisma.dataRoomQuestion.updateMany({
     where: { id: input.questionId, roomId: room.id },
-    data: { answer, answeredByUserId: input.userId, answeredAt: new Date() },
+    data: {
+      answer,
+      answeredByUserId: input.userId,
+      answeredAt: now,
+      ...(input.shared === undefined
+        ? {}
+        : { sharedAt: input.shared ? now : null }),
+    },
   });
   if (count === 0) throw notFound("Question not found");
 }

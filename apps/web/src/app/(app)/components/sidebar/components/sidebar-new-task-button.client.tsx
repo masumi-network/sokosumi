@@ -3,7 +3,7 @@
 import { AnnouncedFeature } from "@sokosumi/core-client";
 import { SquarePen } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Suspense, useEffectEvent } from "react";
+import { Suspense } from "react";
 
 import { useNewTaskOpener } from "@/app/components/new-task-button.client";
 import { Button } from "@/components/ui/button";
@@ -14,10 +14,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
-import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
+import {
+  isEditableKeyboardTarget,
+  OPEN_SURFACE_SELECTOR,
+} from "@/lib/utils/is-editable-keyboard-target";
 import { useMarkFeatureSeen, useNewBadgeState } from "./feature-badges";
 
 // Alt+N (Option+N on a Mac). Matched by physical key: on a Mac, Option+N is
@@ -26,8 +29,6 @@ import { useMarkFeatureSeen, useNewBadgeState } from "./feature-badges";
 // at QWERTY's N, not the one printed "N".
 const SHORTCUT_CODE = "KeyN";
 const SHORTCUT_KEYS = "Alt+N";
-const OPEN_SURFACE_SELECTOR =
-  '[role="dialog"], [role="alertdialog"], [role="menu"]';
 
 /**
  * New task, the sidebar header's main action, so it alone sits on a quiet
@@ -69,31 +70,24 @@ function NewTaskShortcutButton({ openNewTask }: { openNewTask: () => void }) {
     }
   }
 
-  const handleShortcut = useEffectEvent(handleOpen);
-
-  useMountEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.defaultPrevented || event.repeat) return;
-      if (!event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) {
-        return;
-      }
-      if (event.code !== SHORTCUT_CODE) return;
-      if (isEditableKeyboardTarget(event.target)) return;
-      // Inside an open dialog (the wizard itself included) or menu, the key
-      // belongs to that surface; opening again would remount the wizard and
-      // drop what the reader entered.
-      if (
-        event.target instanceof Element &&
-        event.target.closest(OPEN_SURFACE_SELECTOR)
-      ) {
-        return;
-      }
-      event.preventDefault();
-      handleShortcut();
+  useEventListener("window", "keydown", (event) => {
+    if (event.defaultPrevented || event.repeat) return;
+    if (!event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) {
+      return;
     }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    if (event.code !== SHORTCUT_CODE) return;
+    if (isEditableKeyboardTarget(event.target)) return;
+    // Inside an open dialog (the wizard itself included) or menu, the key
+    // belongs to that surface; opening again would remount the wizard and
+    // drop what the reader entered.
+    if (
+      event.target instanceof Element &&
+      event.target.closest(OPEN_SURFACE_SELECTOR)
+    ) {
+      return;
+    }
+    event.preventDefault();
+    handleOpen();
   });
 
   return (

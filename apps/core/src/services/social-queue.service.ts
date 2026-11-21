@@ -7,9 +7,12 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
   getSocialPost,
+  prepareSocialPostMutationMedia,
+  type ScheduleSocialPostInput,
   type SocialPostSummary,
   scheduleSocialPost,
 } from "@/services/social-posts.service";
+import { recordSocialStudioAdEvents } from "@/services/social-studio-events.service";
 
 const QUEUE_OCCUPIED_STATUSES = [
   "SCHEDULED",
@@ -49,13 +52,10 @@ export interface ResolveNextSocialQueueSlotInput extends ProjectScope {
   socialConnectionId: string;
 }
 
-export interface QueueSocialPostInput extends ProjectScope {
-  userId: string;
-  coworkerId?: string;
-  postId: string;
-  socialConnectionId?: string;
-  revision: number;
-}
+export type QueueSocialPostInput = Omit<
+  ScheduleSocialPostInput,
+  "scheduledAt" | "timezone"
+>;
 
 function mapSlot(slot: {
   id: string;
@@ -160,7 +160,8 @@ export async function resolveNextSocialQueueSlot(
 export async function queueSocialPost(
   input: QueueSocialPostInput,
 ): Promise<SocialPostSummary> {
-  return serializableTransaction(async (tx) => {
+  input = await prepareSocialPostMutationMedia(input);
+  const result = await serializableTransaction(async (tx) => {
     const post = await getSocialPost(input, tx);
     const socialConnectionId =
       input.socialConnectionId ?? post.socialConnection?.id;
@@ -171,7 +172,7 @@ export async function queueSocialPost(
       { ...input, socialConnectionId },
       tx,
     );
-    return scheduleSocialPost(
+    const scheduled = await scheduleSocialPost(
       {
         ...input,
         scheduledAt: next.scheduledAt,
@@ -179,5 +180,28 @@ export async function queueSocialPost(
       },
       tx,
     );
+    return { post: scheduled, previous: post };
   }, "The queue was modified, reload and retry");
+  const { post, previous } = result;
+  if (input.media !== undefined) {
+    await recordSocialStudioAdEvents({
+      ...input,
+      postId: post.id,
+      type: "attached_to_post",
+      media: post.media,
+      threadParts: post.threadParts,
+      previousMedia: previous.media,
+      previousThreadParts: previous.threadParts,
+    });
+  }
+  if (post.status === "SCHEDULED") {
+    await recordSocialStudioAdEvents({
+      ...input,
+      postId: post.id,
+      type: "scheduled",
+      media: post.media,
+      threadParts: post.threadParts,
+    });
+  }
+  return post;
 }

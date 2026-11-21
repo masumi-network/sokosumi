@@ -1,11 +1,28 @@
+import {
+  CUSO_IDENTITY,
+  composeCusoPersona,
+  cusoToolDescription,
+} from "../cmo-texts.js";
 import { composeSokoBotPersona, type SokoBotPersona } from "../persona.js";
 import {
   isSokoBotCmoCapability,
+  isSokoBotCompetitorCapability,
   SOKO_BOT_CMO_CAPABILITIES,
+  SOKO_BOT_COMPETITOR_CAPABILITIES,
   type SokoBotCapability,
 } from "../policy.js";
+import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
 import { CMO_MODEL_TRIALS } from "./cmo-model-trials.js";
+import { cmoWritesMonthAtOnce } from "./cmo-skills.js";
 import { cmoV1 } from "./cmo-v1.js";
+import { cmoV2 } from "./cmo-v2.js";
+import { cmoV3 } from "./cmo-v3.js";
+import { cmoV4 } from "./cmo-v4.js";
+import { cmoV5 } from "./cmo-v5.js";
+import { cmoV6 } from "./cmo-v6.js";
+import { cmoV7 } from "./cmo-v7.js";
+import { cmoV8 } from "./cmo-v8.js";
+import { cmoV9 } from "./cmo-v9.js";
 import {
   getSokoBotSkill,
   SOKO_BOT_SKILLS,
@@ -91,10 +108,18 @@ export const DEFAULT_SOKO_BOT_VERSION_ID = "v33";
  */
 export const SOKO_BOT_PRODUCT_VERSIONS: readonly SokoBotVersion[] = [
   cmoV1,
+  cmoV2,
+  cmoV3,
+  cmoV4,
+  cmoV5,
+  cmoV6,
+  cmoV7,
+  cmoV8,
+  cmoV9,
   ...CMO_MODEL_TRIALS,
 ];
 /** The Cuso version a new hire starts on. */
-export const CMO_SOKO_BOT_VERSION_ID = cmoV1.id;
+export const CMO_SOKO_BOT_VERSION_ID = cmoV8.id;
 /**
  * Every Cuso version. A Cuso stays on the version he was hired on until he is
  * moved, so finding one means any of these, never only the newest.
@@ -130,13 +155,38 @@ export const SHARED_SOKO_BOT_GUIDANCE = [
   'You have no owner: every member of the team can ask you for help. Wherever these instructions, tool results or packets say "the owner" or "your owner", that means the member who asked you in a turn a member started, and the team in a turn you started yourself (a schedule, a Task event or mail). There is no owner\'s chat: you speak in your shared room, where every member can read what you write.',
 ].join("\n");
 
+/** A tool's description as this version's bot reads it. */
+export function sokoBotToolDescription(
+  capability: SokoBotCapability,
+  version: Pick<SokoBotVersion, "texts">,
+): string {
+  return version.texts === "cmo"
+    ? cusoToolDescription(capability)
+    : SOKO_BOT_TOOL_DESCRIPTIONS[capability];
+}
+
+/** Who the bot is told it is, ahead of its operating instructions. */
+export function sokoBotIdentity(
+  version: Pick<SokoBotVersion, "texts">,
+): string {
+  return version.texts === "cmo"
+    ? CUSO_IDENTITY
+    : "You are Soko Bot, the owner's autonomous Sokosumi project manager. Your operating instructions arrive each turn as the versioned OPERATING INSTRUCTIONS block; follow them exactly.";
+}
+
 /** Base prompt followed by every included skill. */
 export function composeSystemPrompt(
   version: SokoBotVersion,
   persona?: SokoBotPersona,
 ): string {
   return [
-    ...(persona ? [composeSokoBotPersona(persona)] : []),
+    ...(persona
+      ? [
+          version.texts === "cmo"
+            ? composeCusoPersona(persona.name?.trim() || "Cuso")
+            : composeSokoBotPersona(persona),
+        ]
+      : []),
     version.systemPrompt.trim(),
     ...version.skills.map((id) => getSokoBotSkill(id).content.trim()),
     ...(persona?.shared ? [SHARED_SOKO_BOT_GUIDANCE] : []),
@@ -155,21 +205,34 @@ export function versionShowsResultCards(
 /**
  * Route ceiling ∩ version allowlist; a version narrows, it never widens. The
  * one exception is a product's own tools: a CMO bot always carries its Brand
- * Brain and strategy tools, and no other bot ever does.
+ * Brain and strategy tools, and no other bot ever does. It always carries
+ * the competitor tools too, which other bots get from their route.
  */
 export function applyVersionCapabilities(
   version: SokoBotVersion,
   capabilities: readonly SokoBotCapability[],
 ): SokoBotCapability[] {
+  const cmo = version.profile === "cmo";
   const routed = capabilities.filter(
-    (capability) => !isSokoBotCmoCapability(capability),
+    (capability) =>
+      !isSokoBotCmoCapability(capability) &&
+      !(cmo && isSokoBotCompetitorCapability(capability)),
   );
   const allowed = version.capabilities
     ? routed.filter((capability) =>
         (version.capabilities as readonly string[]).includes(capability),
       )
     : routed;
-  return version.profile === "cmo"
-    ? [...allowed, ...SOKO_BOT_CMO_CAPABILITIES]
+  return cmo
+    ? [
+        ...allowed,
+        // Core's month writer belongs to the production skill that calls it.
+        ...SOKO_BOT_CMO_CAPABILITIES.filter(
+          (capability) =>
+            capability !== "write_month_pieces" ||
+            cmoWritesMonthAtOnce(version.skills),
+        ),
+        ...SOKO_BOT_COMPETITOR_CAPABILITIES,
+      ]
     : allowed;
 }

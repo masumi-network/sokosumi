@@ -4,12 +4,14 @@ import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { del } from "@vercel/blob";
 import { z } from "zod";
 import { getEnv } from "@/config/env";
+import { jsonInput } from "@/helpers/prisma-json";
 import { getCredits } from "@/helpers/user";
 import prisma from "@/lib/db/prisma";
 import {
   EVAL_CONNECTED_ACCOUNT_PREFIX,
   forgetEvalWorkspaces,
 } from "@/lib/evals/eval-guard";
+import { seedEvalMcpServer } from "@/lib/evals/eval-mcp-server";
 import { tombstoneDriveUploadResources } from "@/services/file-catalog.service";
 import { freeCreditAdminService } from "@/services/free-credit-admin.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
@@ -69,7 +71,7 @@ async function ensureUser(lane: number, who: string, name: string) {
     data: {
       name,
       firstName,
-      lastName,
+      lastName: lastName ?? null,
       email,
       emailVerified: true,
       termsAccepted: true,
@@ -293,7 +295,7 @@ async function createLane(lane: number): Promise<EvalLaneRecord> {
       sokoBotId: bot.id,
       cusoBotId: cuso.id,
       cusoProjectId: cusoProject.id,
-      world,
+      world: jsonInput(world),
     },
   });
   return toRecord(row);
@@ -397,20 +399,21 @@ export async function prepareEvalLane(
   }
 }
 
-/** Between runs nothing wakes a lane's bots: crons skip paused bots. */
-export async function pauseEvalLanes(count: number): Promise<void> {
+/** The Soko Bot and Cuso of the first `count` lanes. */
+export async function evalLaneBotIds(count: number): Promise<string[]> {
   const lanes = await prisma.evalLane.findMany({
     where: { lane: { lte: count } },
     select: { sokoBotId: true, cusoBotId: true },
   });
+  return lanes.flatMap((lane) =>
+    lane.cusoBotId ? [lane.sokoBotId, lane.cusoBotId] : [lane.sokoBotId],
+  );
+}
+
+/** Between runs nothing wakes a lane's bots: crons skip paused bots. */
+export async function pauseEvalLanes(count: number): Promise<void> {
   await prisma.sokoBot.updateMany({
-    where: {
-      id: {
-        in: lanes.flatMap((lane) =>
-          lane.cusoBotId ? [lane.sokoBotId, lane.cusoBotId] : [lane.sokoBotId],
-        ),
-      },
-    },
+    where: { id: { in: await evalLaneBotIds(count) } },
     data: { proactivePaused: true },
   });
 }
@@ -476,4 +479,5 @@ export async function resetEvalLaneForSokoBot(
   await prisma.newsletterIssue.deleteMany({ where: { workspaceId } });
   await prisma.contact.deleteMany({ where: { workspaceId } });
   await sokoBotControlPlane.resetMemory(lane.userId, workspaceId);
+  await seedEvalMcpServer(lane);
 }

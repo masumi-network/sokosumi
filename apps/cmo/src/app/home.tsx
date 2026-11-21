@@ -7,7 +7,6 @@ import {
 } from "@sokosumi/core-client";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-
 import { CmoApp } from "../components/app/cmo-app";
 import { CusoPicker } from "../components/cuso-picker";
 import { NameSetup } from "../components/name-setup";
@@ -15,6 +14,11 @@ import { Onboarding } from "../components/onboarding";
 import { OnboardingFlow } from "../components/onboarding/flow";
 import { SignedIn } from "../components/signed-in";
 import { getAuth } from "../lib/auth";
+import {
+  adsReturnErrorFromCode,
+  connectReturnError,
+  measureReturnError,
+} from "../lib/connect-return";
 import { asSignedInPersonInPage } from "../lib/core";
 import { LAST_CUSO_COOKIE } from "../lib/last-cuso";
 import { isValidPersonName } from "../lib/person-name";
@@ -22,36 +26,64 @@ import { CMO_SIGN_IN_ERROR } from "../lib/sign-in-errors";
 import { VIEW_PATHS, type View } from "../lib/views";
 import { signOut } from "./actions";
 import {
+  addCompetitor,
+  addCompetitorMoveToStrategy,
   addMailingList,
   answerBrandQuestion,
   answerPlanQuestion,
   applyPlanAnswers,
   approveBrandBrain,
+  approveDraft,
   approveStrategy,
+  askCusoForArticles,
+  changeChannel,
+  changePlan,
+  clearPresenter,
   connectAds,
   connectChannel,
   connectMeasurement,
   connectSetupChannel,
+  declineDraft,
+  editDraft,
   finishAccounts,
+  fixBrandSection,
   launchAd,
   loadAdCampaigns,
+  loadChatWork,
+  loadChatWorkTable,
+  loadChatWorkText,
+  loadCompetitors,
   loadCusos,
   loadMessages,
   loadOverview,
   loadPieceText,
+  loadPlans,
+  loadSeo,
   loadState,
+  markLandingPageLive,
   onboard,
+  openPortal,
   pauseEntry,
+  readTikTokCreator,
+  removeCompetitor,
   requestStrategy,
   retryLearning,
   revertUpdate,
   saveBrandBrain,
+  searchKeywords,
   sendMessage,
   setAdBudget,
   setAdCampaignStatus,
+  setPresenter,
+  setSeoSuggestionStatus,
+  setTimeZone,
   skipBrandQuestions,
   skippedSteps,
+  skipSubscription,
   startOver,
+  startPlanCheckout,
+  startTopUp,
+  updateCompetitor,
 } from "./cmo-actions";
 import { saveName } from "./name-actions";
 
@@ -153,13 +185,18 @@ async function openedScreen(input: {
 
 export interface HomeSearchParams {
   error?: string | string[];
+  /** "subscribed" is Polar's return after a payment; "connect" and "results" a connection's. */
   step?: string | string[];
   project?: string | string[];
   /** The account menu's "Your Cusos": the Cuso picker. */
   cusos?: string | string[];
   /** "Hire a new Cuso" and Start over: the hire form. */
   hire?: string | string[];
+  /** With `hire`: the Project of the Cuso to hire a test copy of. */
+  testCopyOf?: string | string[];
   connect?: string | string[];
+  ads?: string | string[];
+  measure?: string | string[];
   from?: string | string[];
 }
 
@@ -179,8 +216,8 @@ export async function Home({ searchParams, view }: HomeProps) {
   const params = await searchParams;
   const error = first(params.error);
   const step = first(params.step);
-  // Signed out, the home page is the waitlist site (the proxy serves it);
-  // sign-in errors and expired sessions go to the unlinked /login.
+  // Signed out, sign-in errors and expired sessions go to /login, which
+  // goes on to sign in.
   const signedOut = (signedOutError: string | undefined): never =>
     redirect(
       signedOutError
@@ -253,6 +290,7 @@ export async function Home({ searchParams, view }: HomeProps) {
         organizations={organizations}
         signOut={signOut}
         cusoPicker={opened.cusoPicker}
+        testCopyOf={first(params.testCopyOf) || undefined}
         onboard={onboard}
       />
     );
@@ -268,23 +306,39 @@ export async function Home({ searchParams, view }: HomeProps) {
   // Every Cuso action names the Project of the overview this page rendered,
   // so a workspace switch elsewhere cannot move them to another Cuso.
   const { projectId } = overview;
+  const adsError = adsReturnErrorFromCode(first(params.ads) ?? null);
+  const measureError = measureReturnError(first(params.measure) ?? null);
   if (overview.onboardingStep !== "done" || backInHiring) {
+    const skipped = await skippedSteps(projectId);
     // The app's pages open once onboarding ends; until then it is the first run.
-    if (view !== "chat") {
+    if (view !== "today") {
       redirect(`/?project=${encodeURIComponent(projectId)}`);
     }
     return (
       <OnboardingFlow
+        // Go to Today sets the cookie and re-renders this page: start the
+        // flow fresh, or it keeps the overview and cookie it was first given.
+        key={skipped.includes("accounts") ? "launched" : "hiring"}
         overview={overview}
         messages={await loadMessages(projectId).catch(() => [])}
         initialStep={step === "results" ? "results" : undefined}
-        skipped={await skippedSteps(overview.projectId)}
+        measureError={measureError}
+        skipped={skipped}
+        // The steps up to Subscribe open in place, without this page
+        // rendering again, so the plans load from the first of them.
+        plans={
+          overview.onboardingStep === "accounts"
+            ? []
+            : await loadPlans().catch(() => [])
+        }
+        returnedFromCheckout={step === "subscribed"}
         actions={{
           loadState: loadState.bind(null, projectId),
           sendMessage: sendMessage.bind(null, projectId),
           retryLearning: retryLearning.bind(null, projectId),
           requestStrategy: requestStrategy.bind(null, projectId),
           saveBrandBrain: saveBrandBrain.bind(null, projectId),
+          fixBrandSection: fixBrandSection.bind(null, projectId),
           approveStrategy: approveStrategy.bind(null, projectId),
           setAdBudget: setAdBudget.bind(null, projectId),
           approveBrandBrain: approveBrandBrain.bind(null, projectId),
@@ -296,38 +350,95 @@ export async function Home({ searchParams, view }: HomeProps) {
           connectChannel: connectSetupChannel.bind(null, projectId),
           connectMeasurement: connectMeasurement.bind(null, projectId),
           connectAds: connectAds.bind(null, projectId),
+          setPresenter: setPresenter.bind(null, projectId),
+          clearPresenter: clearPresenter.bind(null, projectId),
+          startPlanCheckout: startPlanCheckout.bind(null, projectId),
           startOver: startOver.bind(null, projectId),
+          startTopUp: startTopUp.bind(null, projectId),
+          skipSubscription: skipSubscription.bind(null, projectId),
           signOut,
         }}
       />
     );
   }
+  // "Your Cusos" leads somewhere only when there is another Cuso to open.
+  const [messages, work, { manyCusos, mayHire }] = await Promise.all([
+    loadMessages(projectId).catch(() => []),
+    loadChatWork(projectId).catch(() => []),
+    loadCusos()
+      .then(({ cusos, mayHire }) => ({ manyCusos: cusos.length > 1, mayHire }))
+      .catch(() => ({ manyCusos: false, mayHire: false })),
+  ]);
   return (
     <CmoApp
       overview={overview}
-      messages={await loadMessages(projectId).catch(() => [])}
+      manyCusos={manyCusos}
+      mayHire={mayHire}
+      plans={
+        overview.billing.viewerCanManage && overview.billing.tier
+          ? await loadPlans().catch(() => [])
+          : []
+      }
+      messages={messages}
+      work={work}
       name={session.user.name}
       email={session.user.email}
+      image={session.user.image ?? null}
       initialView={step === "connect" ? "channels" : view}
-      connectFailed={step === "connect" && first(params.connect) === "failed"}
+      connectError={
+        step === "connect"
+          ? connectReturnError(first(params.connect) ?? null)
+          : null
+      }
+      adsError={adsError}
+      measureError={measureError}
       actions={{
         loadState: loadState.bind(null, projectId),
+        loadChatWork: loadChatWork.bind(null, projectId),
+        loadChatWorkText: loadChatWorkText.bind(null, projectId),
+        loadChatWorkTable: loadChatWorkTable.bind(null, projectId),
         sendMessage: sendMessage.bind(null, projectId),
         loadPieceText: loadPieceText.bind(null, projectId),
+        loadSeo: loadSeo.bind(null, projectId),
+        searchKeywords: searchKeywords.bind(null, projectId),
+        setSeoSuggestionStatus: setSeoSuggestionStatus.bind(null, projectId),
+        markLandingPageLive: markLandingPageLive.bind(null, projectId),
+        askCusoForArticles: askCusoForArticles.bind(null, projectId),
         approveStrategy: approveStrategy.bind(null, projectId),
+        requestStrategy: requestStrategy.bind(null, projectId),
         setAdBudget: setAdBudget.bind(null, projectId),
         revertUpdate: revertUpdate.bind(null, projectId),
         retryLearning: retryLearning.bind(null, projectId),
         saveBrandBrain: saveBrandBrain.bind(null, projectId),
         pauseEntry: pauseEntry.bind(null, projectId),
+        approveDraft: approveDraft.bind(null, projectId),
+        readTikTokCreator: readTikTokCreator.bind(null, projectId),
+        declineDraft: declineDraft.bind(null, projectId),
+        editDraft: editDraft.bind(null, projectId),
+        competitors: {
+          loadCompetitors: loadCompetitors.bind(null, projectId),
+          addCompetitor: addCompetitor.bind(null, projectId),
+          updateCompetitor: updateCompetitor.bind(null, projectId),
+          removeCompetitor: removeCompetitor.bind(null, projectId),
+          addMoveToStrategy: addCompetitorMoveToStrategy.bind(null, projectId),
+        },
         connectChannel: connectChannel.bind(null, projectId),
+        changeChannel: changeChannel.bind(null, projectId),
         addMailingList: addMailingList.bind(null, projectId),
         connectMeasurement: connectMeasurement.bind(null, projectId),
         connectAds: connectAds.bind(null, projectId),
         launchAd: launchAd.bind(null, projectId),
         setAdCampaignStatus: setAdCampaignStatus.bind(null, projectId),
         loadAdCampaigns: loadAdCampaigns.bind(null, projectId),
+        setTimeZone: setTimeZone.bind(null, projectId),
         startOver: startOver.bind(null, projectId),
+        startTopUp: startTopUp.bind(null, projectId),
+        skipSubscription: skipSubscription.bind(null, projectId),
+        // Outside hiring the monthly plans, cheapest first; Polar's checkout
+        // lets the person switch.
+        subscribe: startPlanCheckout.bind(null, projectId, "month"),
+        changePlan: changePlan.bind(null, projectId),
+        openPortal: openPortal.bind(null, projectId),
         signOut,
       }}
     />

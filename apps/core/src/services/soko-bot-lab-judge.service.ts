@@ -9,8 +9,14 @@ import {
 } from "@sokosumi/soko-bot";
 import { generateText, Output } from "ai";
 import { getEnv } from "@/config/env";
+import { jsonInput } from "@/helpers/prisma-json";
+import {
+  AiGatewayBudgetError,
+  rethrowAiGatewayFailure,
+} from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { runClaudeCodeJudge } from "@/lib/soko-bot/claude-code-judge";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import {
   assertSokoBotInferenceRegion,
@@ -44,8 +50,12 @@ const TOOL_BUDGET = 60_000;
 
 export class SokoBotLabJudgeError extends Error {}
 
+/** The judge a verdict is recorded under: a Gateway id, or `claude-code:<model>`. */
 export function sokoBotJudgeModel(): string {
-  return getEnv().SOKO_BOT_JUDGE_MODEL;
+  const env = getEnv();
+  return env.SOKO_BOT_JUDGE_RUNNER === "claude-code"
+    ? `claude-code:${env.SOKO_BOT_JUDGE_CLAUDE_CODE_MODEL}`
+    : env.SOKO_BOT_JUDGE_MODEL;
 }
 
 function clip(value: unknown, limit = VALUE_LIMIT): string {
@@ -190,12 +200,16 @@ export async function generateSokoBotJudgeText(options: {
   abortSignal?: AbortSignal;
 }) {
   const result = await generateText({
-    ...sokoBotModelRequest({ role: "judge", model: options.model }),
+    ...sokoBotModelRequest({
+      role: "judge",
+      model: options.model,
+      purpose: "evals",
+    }),
     output: Output.object({ schema: sokoBotJudgeVerdictSchema }),
     abortSignal: options.abortSignal,
     instructions: SOKO_BOT_JUDGE_RUBRIC,
     prompt: JSON.stringify(options.payload),
-  });
+  }).catch((error: unknown) => rethrowAiGatewayFailure(error, "evals"));
   assertSokoBotInferenceRegion(result.providerMetadata, {
     model: options.model,
     role: "judge",
@@ -215,10 +229,28 @@ async function askJudge(
     costUsd: 0,
     inference: [],
   };
+  const env = getEnv();
+  const onClaudeCode = env.SOKO_BOT_JUDGE_RUNNER === "claude-code";
+  if (onClaudeCode && env.VERCEL_ENV) {
+    throw new SokoBotJudgeFailure(
+      "SOKO_BOT_JUDGE_RUNNER=claude-code needs the local claude CLI and does not run on Vercel. Use the gateway judge here.",
+      usage,
+    );
+  }
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
+      if (onClaudeCode) {
+        // The subscription pays for it, so nothing is added to the usage.
+        const output = await runClaudeCodeJudge({
+          model: env.SOKO_BOT_JUDGE_CLAUDE_CODE_MODEL,
+          instructions: SOKO_BOT_JUDGE_RUBRIC,
+          prompt: JSON.stringify(payload),
+          timeoutMs: JUDGE_TIMEOUT_MS,
+        });
+        return { verdict: sokoBotJudgeVerdictSchema.parse(output), usage };
+      }
       const result = await generateSokoBotJudgeText({
-        model: modelOverride ?? sokoBotJudgeModel(),
+        model: modelOverride ?? env.SOKO_BOT_JUDGE_MODEL,
         payload,
         abortSignal: AbortSignal.timeout(JUDGE_TIMEOUT_MS),
       });
@@ -235,6 +267,7 @@ async function askJudge(
     } catch (error) {
       if (error instanceof SokoBotModelPolicyError) throw error;
       lastError = error;
+      if (error instanceof AiGatewayBudgetError) break;
     }
   }
   // Both attempts spent tokens. Throwing without reporting them would hide a
@@ -327,7 +360,7 @@ async function addTurnOverheadUsage(
 async function storeTurnVerdict(turnId: string, call: JudgeCall) {
   await addTurnOverheadUsage(turnId, call.usage, {
     qualityScore: overallScore(call.verdict),
-    qualityVerdict: call.verdict,
+    qualityVerdict: jsonInput(call.verdict),
     qualityModel: sokoBotJudgeModel(),
     judgedAt: new Date(),
   });
@@ -348,7 +381,9 @@ function labJudgePayload(scenario: SokoBotScenario, transcript: Transcript) {
           ? `Coworker set the task to ${scenario.trigger.status}: ${scenario.trigger.comment}`
           : scenario.trigger?.kind === "ingest"
             ? `Self-started ${scenario.trigger.beat} turn built from the connected mail and calendar (see the packet in the prompt).`
-            : scenario.prompt,
+            : scenario.trigger?.kind === "follow_up"
+              ? `The owner had asked: ${scenario.trigger.ask}\nCore then started this follow-up: ${scenario.trigger.outcome} Cuso's plan: ${scenario.trigger.then}`
+              : scenario.prompt,
     },
     turn: transcript,
   };
@@ -404,9 +439,8 @@ export async function judgeSokoBotLabTurn(input: {
       versionId: turn.versionId ?? "unknown",
       passed: input.evaluation.passed,
       total: input.evaluation.total,
-      checks: input.evaluation.checks,
-      judge: judge ?? undefined,
-      judgeModel: judge ? model : undefined,
+      checks: jsonInput(input.evaluation.checks),
+      ...(judge ? { judge: jsonInput(judge), judgeModel: model } : {}),
     };
     await prisma.sokoBotLabRun.upsert({
       where: { turnId: input.turnId },

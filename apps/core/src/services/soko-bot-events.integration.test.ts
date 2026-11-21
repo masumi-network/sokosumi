@@ -31,7 +31,7 @@ vi.mock("@/lib/db/prisma", async () => {
           const key = `${args.where.key}:${scope.key}`;
           return query({
             ...args,
-            where: { ...args.where, key },
+            where: { key },
             create: { ...args.create, key },
           });
         },

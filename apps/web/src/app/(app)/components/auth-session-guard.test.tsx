@@ -1,4 +1,5 @@
 import type { Session } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { act, render, waitFor } from "@testing-library/react";
 import type Ably from "ably";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,7 +12,7 @@ import {
 } from "@/lib/ably/realtime-singleton.client";
 import { authClient } from "@/lib/auth/auth.client";
 
-const replaceMock = vi.fn();
+let replaceMock: ReturnType<typeof vi.spyOn>;
 const { RealtimeMock } = vi.hoisted(() => ({
   RealtimeMock: vi.fn(function Realtime(
     this: { close: ReturnType<typeof vi.fn> },
@@ -24,12 +25,6 @@ const { RealtimeMock } = vi.hoisted(() => ({
 
 vi.mock("ably", () => ({ default: { Realtime: RealtimeMock } }));
 vi.mock("ably/push", () => ({ default: {} }));
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    replace: replaceMock,
-  }),
-}));
 
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
@@ -105,7 +100,9 @@ async function retireRealtimeClient() {
 
 describe("AuthSessionGuard", () => {
   beforeEach(() => {
-    replaceMock.mockReset();
+    replaceMock = vi
+      .spyOn(window.location, "replace")
+      .mockImplementation(() => {});
     vi.mocked(authClient.getSession).mockReset();
     globalThis.__sokosumiAblyRealtimeClient = undefined;
     discardRetiredAblyRealtimeClient();
@@ -114,7 +111,6 @@ describe("AuthSessionGuard", () => {
       "fetch",
       vi.fn().mockResolvedValue({ ok: false, status: 401 }),
     );
-    vi.spyOn(console, "error").mockImplementation(() => {});
 
     window.history.replaceState({}, "", "/agents?view=grid");
   });
@@ -148,6 +144,35 @@ describe("AuthSessionGuard", () => {
       expect(replaceMock).toHaveBeenCalledWith(
         "/signin?returnUrl=%2Fagents%3Fview%3Dgrid",
       );
+    });
+  });
+
+  it("retries the sign-in redirect on tab return, not immediate refocus, when beforeunload cancels navigation", async () => {
+    vi.mocked(authClient.getSession).mockResolvedValue(missingSession);
+
+    render(<AuthSessionGuard />);
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledTimes(1);
+    });
+
+    // Dismissing a beforeunload prompt refocuses the window; do not immediately
+    // re-prompt so the reader can still reach their editor.
+    window.dispatchEvent(new Event("focus"));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(replaceMock).toHaveBeenCalledTimes(1);
+
+    // Returning to the tab retries the expiry redirect.
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "visible",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -491,6 +516,7 @@ describe("AuthSessionGuard", () => {
   });
 
   it("replaces a retired realtime client after focus confirms a restored session", async () => {
+    expectConsole("error", "Ably auth request failed", 3);
     vi.mocked(authClient.getSession).mockResolvedValue(presentSession);
     render(<AuthSessionGuard />);
     await vi.dynamicImportSettled();
@@ -514,6 +540,8 @@ describe("AuthSessionGuard", () => {
   });
 
   it("keeps a retired client when a newer probe invalidates an older valid session", async () => {
+    expectConsole("error", "Ably auth request failed", 2);
+    expectConsole("error", "Ably auth request failed");
     const retired = await retireRealtimeClient();
     const staleProbe = deferred<typeof presentSession>();
     vi.mocked(authClient.getSession)
@@ -533,6 +561,7 @@ describe("AuthSessionGuard", () => {
   });
 
   it("does not revive a retired client from a session probe after unmount", async () => {
+    expectConsole("error", "Ably auth request failed", 3);
     const retired = await retireRealtimeClient();
     const probe = deferred<typeof presentSession>();
     vi.mocked(authClient.getSession).mockImplementation(() => probe.promise);

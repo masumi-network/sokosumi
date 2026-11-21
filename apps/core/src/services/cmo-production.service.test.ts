@@ -2,14 +2,25 @@ import type {
   CmoCalendarEntry,
   MarketingStrategyPlan,
 } from "@sokosumi/soko-bot";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { waitUntil } from "@vercel/functions";
+import { Hono } from "hono";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
+
+import { coreEvlogMiddleware, recordCoreWarning } from "@/lib/evlog";
+import { findCusoForBot } from "@/services/cmo-cuso.service";
 
 import type { MarketingStrategyPost } from "@/services/marketing-strategy.service";
+import {
+  coreLogEvents,
+  expectCoreLog,
+  expectCoreLogWhys,
+} from "@/test/core-log";
 
 const {
   turnFindMany,
   turnFindFirst,
   botFindUniqueOrThrow,
+  botFindUnique,
   startTurn,
   isCmoSubscribed,
   listCmoChannels,
@@ -24,6 +35,7 @@ const {
   listMediaJobs,
   advanceMedia,
   turnCount,
+  subscriptionFindFirst,
 } = vi.hoisted(() => ({
   listMediaJobs: vi.fn(),
   advanceMedia: vi.fn(),
@@ -39,11 +51,18 @@ const {
   turnFindMany: vi.fn(),
   turnFindFirst: vi.fn(),
   botFindUniqueOrThrow: vi.fn(),
+  botFindUnique: vi.fn(),
   startTurn: vi.fn(),
   isCmoSubscribed: vi.fn(),
   listCmoChannels: vi.fn(),
+  subscriptionFindFirst: vi.fn(),
 }));
 
+// PostgreSQL's clock: the test clock, or the time a test sets.
+const pgClock = vi.hoisted(() => ({ now: null as Date | null }));
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => pgClock.now ?? new Date(),
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotSchedule: { updateMany: scheduleUpdateMany },
@@ -52,7 +71,11 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: turnFindFirst,
       count: turnCount,
     },
-    sokoBot: { findUniqueOrThrow: botFindUniqueOrThrow },
+    sokoBot: {
+      findUniqueOrThrow: botFindUniqueOrThrow,
+      findUnique: botFindUnique,
+    },
+    polarSubscription: { findFirst: subscriptionFindFirst },
   },
 }));
 
@@ -62,7 +85,18 @@ vi.mock("@/services/cmo-cuso.service", () => ({
   cmoRunnerUserId,
   listCmoChannels,
 }));
-vi.mock("@/services/cmo-billing.service", () => ({ isCmoSubscribed }));
+vi.mock("@/services/cmo-billing.service", async () => {
+  const { cmoVolumeLevelForTier } = await import("@sokosumi/utils");
+  return {
+    isCmoSubscribed,
+    cmoPlanLevel: async () =>
+      cmoVolumeLevelForTier((await subscriptionFindFirst())?.tier ?? null),
+  };
+});
+const keepCusoFirstCompetitorCheck = vi.hoisted(() => vi.fn());
+vi.mock("@/services/cmo-competitors.service", () => ({
+  keepCusoFirstCompetitorCheck,
+}));
 vi.mock("@/services/marketing-strategy.service", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("@/services/marketing-strategy.service")
@@ -101,10 +135,12 @@ import {
   cmoHiredAt,
   cmoMixLedger,
   cmoPieceReady,
+  cmoPraiseOnly,
   cmoProductionMessage,
   cmoProductionSteps,
   cmoReadyPieceIds,
   cmoSyncOrder,
+  kickCmoProduction,
   readCmoProduction,
   syncCmoProduction,
 } from "./cmo-production.service";
@@ -143,6 +179,7 @@ function post(
   return {
     entry: { ...made, socialPostId: made.id },
     entryId: made.id,
+    revision: 1,
     media: media.map((pathname) => ({
       pathname,
       fileUrl: `https://blob.example/${pathname}`,
@@ -258,6 +295,15 @@ describe("cmoPieceReady", () => {
     ).toBe(true);
   });
 
+  it("counts a TikTok video as made once it has its words and video: it waits for the owner, not for Cuso", () => {
+    const tiktok = { channel: "tiktok", format: "video", draft: "Words" };
+    const withTikTok = new Set(["tiktok"]);
+    expect(cmoPieceReady(piece(tiktok), withTikTok)).toBe(false);
+    expect(cmoPieceReady(piece(tiktok, ["drive/a.mp4"]), withTikTok)).toBe(
+      true,
+    );
+  });
+
   it("counts published and skipped pieces as done", () => {
     expect(cmoPieceReady(piece({ status: "published" }), connected)).toBe(true);
     expect(cmoPieceReady(piece({ status: "skipped" }), connected)).toBe(true);
@@ -326,6 +372,21 @@ describe("cmoReadyPieceIds", () => {
     expect([...ready]).toEqual(["a", "c", "d"]);
   });
 
+  it("finishes every post of one talking video, which share its file", () => {
+    const talking = { format: "talking_video", draft: "Caption" };
+    const pieces = [
+      piece({ ...talking, id: "reel", channel: "instagram" }, ["drive/v.mp4"]),
+      piece({ ...talking, id: "short", channel: "youtube", videoOf: "tv" }, [
+        "drive/v.mp4",
+      ]),
+    ];
+    expect([...cmoReadyPieceIds(pieces, new Set())]).toEqual(["reel", "short"]);
+    expect(cmoProductionSteps(pieces)).toMatchObject({
+      pictured: 2,
+      needPictures: 2,
+    });
+  });
+
   it("finishes a carousel only with its slides, none shared with another piece", () => {
     const carousel = {
       channel: "instagram",
@@ -370,11 +431,80 @@ describe("cmoProductionMessage", () => {
     expect(message).toContain("- a · 2026-11-05 09:00 · linkedin/text");
     expect(message).toContain("Connected networks: x");
     expect(message).toContain("update_social_post");
-    expect(message).toContain("educational 1 of 2 (plan 60%)");
+    expect(message).toContain("educational 1 of 2 (planned 60%)");
     expect(message).toContain("report_update kind production");
     expect(message).toContain("DONE:");
     expect(cmoMixLedger(strategy(calendar))).toBe(
-      "educational 1 of 2 (plan 60%), promotional 1 of 2 (plan 40%)",
+      "educational 1 of 2 (planned 60%), promotional 1 of 2 (planned 40%)",
+    );
+  });
+
+  it("asks for a style on every picture, slides included, only where the reference library is set up", () => {
+    const withPicture = [entry({ id: "a", format: "image" })];
+    const input = {
+      businessName: "Acme",
+      strategy: strategy(withPicture),
+      pending: withPicture.map((item) => piece(item)),
+      connected: new Set<string>(),
+      attempt: 1,
+      topUp: false,
+    };
+    const brief = cmoProductionMessage({ ...input, styles: true });
+    expect(brief).toContain("every piece with a picture takes the look");
+    expect(brief).toContain("send visualFileIds as an empty list");
+    expect(cmoProductionMessage(input)).not.toContain("find_style_references");
+    const carousel = [
+      entry({ id: "c", channel: "instagram", format: "carousel" }),
+    ];
+    expect(
+      cmoProductionMessage({
+        ...input,
+        strategy: strategy(carousel),
+        pending: carousel.map((item) => piece(item)),
+        styles: true,
+      }),
+    ).toContain("slideHeadlines: one entry per slide");
+    // Text has no picture, and a video is animated from a plain still.
+    for (const patch of [
+      { id: "b" },
+      { id: "v", channel: "tiktok", format: "video" },
+    ]) {
+      const other = [entry(patch)];
+      expect(
+        cmoProductionMessage({
+          ...input,
+          strategy: strategy(other),
+          pending: other.map((item) => piece(item)),
+          styles: true,
+        }),
+      ).not.toContain("find_style_references");
+    }
+  });
+
+  it("makes the whole month from a short plan: titled weeks like week one", () => {
+    // The first plan writes week one in full and weeks two to four as titles.
+    const calendar = Array.from({ length: 16 }, (_, index) =>
+      entry({
+        id: `e${index + 1}`,
+        date: `2026-11-${String(5 + index).padStart(2, "0")}`,
+        title: `Piece ${index + 1}`,
+        ...(index < 4 ? { brief: `What piece ${index + 1} shows.` } : {}),
+      }),
+    );
+    const message = cmoProductionMessage({
+      businessName: "Acme",
+      strategy: strategy(calendar),
+      pending: calendar.map((item) => piece(item)),
+      connected: new Set(),
+      attempt: 1,
+      topUp: false,
+    });
+
+    expect(message).toContain("Pieces (16):");
+    for (const item of calendar) expect(message).toContain(`- ${item.id} ·`);
+    expect(message).toContain("brief: What piece 1 shows.");
+    expect(message).toContain(
+      '"Piece 16" · (no brief: write it from its title, approach and pillar)',
     );
   });
 
@@ -389,6 +519,31 @@ describe("cmoProductionMessage", () => {
     });
     expect(message).toContain("The month is made.");
     expect(message).toContain("Connected networks: none yet");
+  });
+
+  it("asks a talking video for its script, and its posts on other networks for a caption only", () => {
+    const talking = { channel: "instagram", format: "talking_video" };
+    const message = cmoProductionMessage({
+      businessName: "Acme",
+      strategy: strategy([]),
+      pending: [
+        piece({ ...talking, id: "tv" }),
+        piece({
+          ...talking,
+          id: "written",
+          script: "Stop emailing back and forth.",
+        }),
+        piece({ ...talking, id: "yt", channel: "youtube", videoOf: "tv" }),
+      ],
+      connected: new Set(),
+      attempt: 1,
+      topUp: false,
+    });
+    expect(message).toContain("(write its script)");
+    expect(message).toContain(
+      "(the talking video of tv on youtube: write only this post's own caption for youtube; its script stays on tv)",
+    );
+    expect(message).not.toContain("(write its visual)");
   });
 
   it("asks for a visual and names the proof, and leaves the media to Core", () => {
@@ -485,11 +640,13 @@ describe("cmoProductionMessage", () => {
 
 describe("advanceCmoProduction", () => {
   beforeEach(() => {
+    pgClock.now = null;
     vi.clearAllMocks();
     isCmoSubscribed.mockResolvedValue(true);
     listCmoChannels.mockResolvedValue([]);
     turnFindFirst.mockResolvedValue({ id: "turn-0" });
     botFindUniqueOrThrow.mockResolvedValue({ sharedRoomId: "room-1" });
+    botFindUnique.mockResolvedValue({ versionId: "cmo-v5" });
     cmoRunnerUserId.mockResolvedValue("user-1");
     startTurn.mockResolvedValue({ turnId: "run-1", status: "QUEUED" });
     listMediaJobs.mockResolvedValue([]);
@@ -579,12 +736,25 @@ describe("advanceCmoProduction", () => {
   });
 
   it("says starting, not running, while no run works yet", async () => {
+    pgClock.now = new Date(APPROVED + 10 * 60 * 1_000);
     const read = await readCmoProduction(cuso([post({})]), {
       connected: new Set(),
       subscribed: true,
       now: NOW,
     });
     expect(read.status).toMatchObject({ state: "starting", written: 0 });
+  });
+
+  it("says blocked when no run started for half an hour, and still tries", async () => {
+    pgClock.now = new Date(APPROVED + 31 * 60 * 1_000);
+    const read = await readCmoProduction(cuso([post({})]), {
+      connected: new Set(),
+      subscribed: true,
+      now: NOW,
+    });
+    expect(read.status.state).toBe("blocked");
+    await advanceCmoProduction(cuso([post({})]), NOW);
+    expect(startTurn).toHaveBeenCalledTimes(1);
   });
 
   it("leaves a working run alone", async () => {
@@ -653,7 +823,7 @@ describe("advanceCmoProduction", () => {
         clientTurnId: `${RUN}:review:1`,
         message: "Rewrite these",
         background: expect.objectContaining({
-          title: "Rewrite pieces that miss the plan for Acme",
+          title: "Rewrite pieces that miss the strategy for Acme",
         }),
       }),
     );
@@ -708,7 +878,99 @@ describe("advanceCmoProduction", () => {
     expect(started.message).not.toContain("- e1 ·");
   });
 
+  it("still starts the run when the pictures fail, logging no prompt", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "CMO pictures did not move on this round",
+      ["Advancing the month's pictures threw"],
+    );
+    advanceMedia.mockRejectedValue(
+      new Error("Image job failed for SENTINEL-PROMPT a sunlit bookshop"),
+    );
+    await advanceCmoProduction(
+      cuso(
+        [post({ draft: "Done." }), post({ id: "news" })],
+        [
+          {
+            clientTurnId: `${RUN}:1:0`,
+            status: "COMPLETED",
+            createdAt: hoursAgo(48),
+          },
+        ],
+      ),
+      NOW,
+    );
+    expect(startTurn).toHaveBeenCalledTimes(1);
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "cmo_media",
+      sokoBot: { id: "bot-1" },
+      failure: { errorName: "Error" },
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-PROMPT");
+  });
+
+  it("logs a kicked run's warnings on their own event, not the request's", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "CMO pictures did not move on this round",
+      ["Advancing the month's pictures threw"],
+    );
+    advanceMedia.mockRejectedValue(new Error("image studio down"));
+    vi.mocked(findCusoForBot).mockResolvedValue(
+      cuso([post({ draft: "Done." })], []) as never,
+    );
+    const app = new Hono();
+    app.use(coreEvlogMiddleware());
+    app.post("/kick", async (c) => {
+      kickCmoProduction("bot-1");
+      // waitUntil work can log while the request's event is still live.
+      await vi.mocked(waitUntil).mock.calls[0]?.[0];
+      return c.json({ ok: true });
+    });
+    await app.request("http://localhost/kick", { method: "POST" });
+    expect(warnings[0]?.event).toMatchObject({ operation: "cmo_media" });
+    expect(warnings[0]?.event.method).toBeUndefined();
+    expect(warnings[0]?.event.path).toBeUndefined();
+  });
+
+  it("keeps a kicked run's turn-start warnings off the live request", async () => {
+    const warnings = expectCoreLog("warn", "Turn start cleanup stand-in");
+    // Stands in for the control plane's own cleanup warning while a turn
+    // starts: mixed-context code, so it follows the background marker.
+    startTurn.mockImplementation(async () => {
+      recordCoreWarning(
+        { operation: "soko_bot_turn_start" },
+        { message: "Turn start cleanup stand-in", why: "A test stand-in" },
+      );
+      return { turnId: "run-1", status: "QUEUED" };
+    });
+    // The kick reads the clock; the fixtures are dated against NOW.
+    vi.useFakeTimers({ toFake: ["Date"], now: NOW });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    vi.mocked(findCusoForBot).mockResolvedValue(
+      cuso([post({ id: "a" }), post({ id: "b" })]) as never,
+    );
+    const app = new Hono();
+    app.use(coreEvlogMiddleware());
+    app.post("/approve", async (c) => {
+      kickCmoProduction("bot-1");
+      // The work logs while the request's event is still live.
+      await vi.mocked(waitUntil).mock.calls[0]?.[0];
+      return c.json({ ok: true });
+    });
+    await app.request("http://localhost/approve", { method: "POST" });
+    expect(startTurn).toHaveBeenCalledTimes(1);
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "soko_bot_turn_start",
+    });
+    expect(warnings[0]?.event.method).toBeUndefined();
+    expect(warnings[0]?.event.path).toBeUndefined();
+  });
+
   it("stops after four runs in a day and tries again the next", async () => {
+    pgClock.now = NOW;
     const runs = [1, 2, 3, 4].map((n) => ({
       clientTurnId: `${RUN}:${5 - n}:0`,
       status: "FAILED",
@@ -718,11 +980,13 @@ describe("advanceCmoProduction", () => {
     expect(stuck.state).toBe("stuck");
     expect(startTurn).not.toHaveBeenCalled();
     const nextDay = new Date(NOW.getTime() + 24 * 60 * 60 * 1_000);
+    pgClock.now = nextDay;
     await advanceCmoProduction(cuso([post({})], runs), nextDay);
     expect(startTurn).toHaveBeenCalledTimes(1);
   });
 
   it("waits a day when the last run made nothing ready", async () => {
+    pgClock.now = NOW;
     const posts = [
       post({ draft: "Done." }),
       post({ id: "img", format: "image", draft: "Words" }),
@@ -757,6 +1021,41 @@ describe("advanceCmoProduction", () => {
       NOW,
     );
     expect(startTurn.mock.calls[0]?.[0].clientTurnId).toBe(`${RUN}:1:0`);
+  });
+
+  it("starts a newly approved version even when the version before used today's runs", async () => {
+    // NMKR, 2026-11-19: three runs for the morning's version and a top-up a
+    // minute before the new approval left the new month stuck until morning.
+    pgClock.now = NOW;
+    const earlier = [1, 2, 3, 4].map((n) => ({
+      clientTurnId: `cmo:production:bot-1:1759309200000:${5 - n}:0`,
+      status: "COMPLETED",
+      createdAt: hoursAgo(n),
+    }));
+    const status = await advanceCmoProduction(cuso([post({})], earlier), NOW);
+    expect(status.state).toBe("running");
+    expect(startTurn.mock.calls[0]?.[0].clientTurnId).toBe(`${RUN}:1:0`);
+  });
+
+  it("has Core write the social pieces on cmo-v6 and lists only Cuso's own", async () => {
+    botFindUnique.mockResolvedValue({ versionId: "cmo-v6" });
+    await advanceCmoProduction(
+      cuso([post({ id: "post-a" }), post({ id: "post-b" })]),
+      NOW,
+    );
+    const message = startTurn.mock.calls[0]?.[0].message as string;
+    expect(message).toContain(
+      "Core writes 2 social pieces of the month for you: call write_month_pieces first, and again until left is 0.",
+    );
+    expect(message).not.toContain("- post-a");
+    expect(message).not.toContain("Pieces (");
+  });
+
+  it("keeps cmo-v5's brief: every piece listed, no month writer", async () => {
+    await advanceCmoProduction(cuso([post({ id: "post-a" })]), NOW);
+    const message = startTurn.mock.calls[0]?.[0].message as string;
+    expect(message).not.toContain("write_month_pieces");
+    expect(message).toContain("- post-a");
   });
 
   it("waits for a run still working on the version approved before", async () => {
@@ -815,5 +1114,168 @@ describe("syncCmoProduction", () => {
       }),
       data: { requestedByUserId: "owner-2" },
     });
+  });
+
+  it("keeps each Cuso's first competitor check, beside his month", async () => {
+    const cuso = {
+      sokoBotId: "bot-1",
+      projectId: "project-1",
+      workspaceId: "ws-1",
+      websiteUrl: "https://acme.io",
+      businessName: "acme.io",
+    };
+    listCusos.mockResolvedValue([cuso]);
+    cmoRunnerUserId.mockResolvedValue("owner-1");
+    scheduleUpdateMany.mockResolvedValue({ count: 0 });
+    const now = new Date("2026-11-18T21:00:00Z");
+    await expect(syncCmoProduction(() => true, now)).resolves.toEqual({
+      checked: 1,
+    });
+    expect(keepCusoFirstCompetitorCheck).toHaveBeenCalledWith(cuso, now);
+  });
+
+  it("logs each Cuso it skipped as its own event, without the error text", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "CMO production sync skipped a Cuso",
+      [
+        "Advancing this Cuso's production threw",
+        "Advancing this Cuso's production threw",
+      ],
+    );
+    const hire = (sokoBotId: string) => ({
+      sokoBotId,
+      projectId: `project-${sokoBotId}`,
+      workspaceId: "ws-1",
+      websiteUrl: "https://acme.io",
+      businessName: "acme.io",
+    });
+    listCusos.mockResolvedValue([hire("bot-1"), hire("bot-2")]);
+    cmoRunnerUserId.mockRejectedValue(
+      new Error("Plan SENTINEL-PLAN launch week could not be read"),
+    );
+    await expect(syncCmoProduction()).resolves.toEqual({ checked: 0 });
+    expect(warnings.map((warning) => warning.event.sokoBot)).toEqual(
+      expect.arrayContaining([{ id: "bot-1" }, { id: "bot-2" }]),
+    );
+    expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-PLAN");
+  });
+});
+
+describe("the month the plan bought", () => {
+  /** Three X posts a day for two days, and a talking video shown on YouTube too. */
+  const month = [
+    ...["2026-11-10", "2026-11-11"].flatMap((date) =>
+      ["a", "b", "c"].map((slot) =>
+        post({ id: `x-${date}-${slot}`, date, channel: "x", format: "post" }),
+      ),
+    ),
+    post({
+      id: "v1",
+      date: "2026-11-12",
+      channel: "instagram",
+      format: "talking_video",
+    }),
+    post({
+      id: "v1@youtube",
+      date: "2026-11-12",
+      channel: "youtube",
+      format: "talking_video",
+      videoOf: "v1",
+    }),
+  ];
+  const read = async (tier: string | null) => {
+    subscriptionFindFirst.mockResolvedValueOnce(tier ? { tier } : null);
+    return readCmoProduction(cuso(month), {
+      connected: new Set(),
+      subscribed: true,
+      now: NOW,
+    });
+  };
+
+  it("makes one X post a day on Starter, and the rest waits for a bigger plan", async () => {
+    const { status, pieces } = await read("starter");
+    expect(status.level).toBe("steady");
+    expect(pieces.map((piece) => piece.id)).toEqual([
+      "x-2026-11-10-a",
+      "x-2026-11-11-a",
+      "v1",
+      "v1@youtube",
+    ]);
+    expect(status.total).toBe(4);
+    expect(status.beyondPlan).toEqual([
+      "x-2026-11-10-b",
+      "x-2026-11-10-c",
+      "x-2026-11-11-b",
+      "x-2026-11-11-c",
+    ]);
+  });
+
+  it("makes more of the same month on Growth, and all of it on Scale", async () => {
+    expect((await read("growth")).status).toMatchObject({
+      level: "active",
+      total: 6,
+    });
+    expect((await read("scale")).status).toMatchObject({
+      level: "all_in",
+      total: 8,
+      beyondPlan: [],
+    });
+  });
+
+  it("makes all of it on Tester credits, with no plan bought", async () => {
+    expect((await read(null)).status).toMatchObject({
+      level: "all_in",
+      total: 8,
+    });
+  });
+});
+
+// cmo-v8: NMKR's month opened two posts on "One G2 review, rated 4.0/5"
+// whose reviewer found the fees "somewhat high".
+describe("cmoPraiseOnly", () => {
+  const lukewarm =
+    "One G2 review rates NMKR Studio 4.0/5 and says its percentage fees feel somewhat high.";
+  const praise = "TURF says NMKR's API saved countless development hours.";
+  const fact = "Book.io sold over 130,000 NFTs with NMKR.";
+
+  it("keeps clear praise and facts and leaves out a lukewarm review", async () => {
+    const evaluate = vi.fn(
+      async ({ state }: { state: { points: { point: string }[] } }) => ({
+        answers: new Map(
+          state.points.map(({ point }, index) => [
+            `p${index}`,
+            { type: "boolean", probability: point === lukewarm ? 0.1 : 0.9 },
+          ]),
+        ),
+        costUsd: 0.000_1,
+      }),
+    );
+    const kept = await cmoPraiseOnly(
+      [praise, lukewarm, fact],
+      evaluate as never,
+    );
+    expect(kept.points).toEqual([praise, fact]);
+    // Read once: the same points ask Jev nothing again.
+    const again = await cmoPraiseOnly(
+      [praise, lukewarm, fact],
+      evaluate as never,
+    );
+    expect(again).toEqual({ points: [praise, fact], costUsd: 0 });
+    expect(evaluate).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves out an unread review when Jev does not answer", async () => {
+    const evaluate = vi.fn(async () => {
+      throw new Error("timeout");
+    });
+    const other = "A G2 reviewer gave NMKR Studio 3 stars for support.";
+    const kept = await cmoPraiseOnly(
+      ["NMKR Studio lists a project audit at 150 ADA.", other],
+      evaluate as never,
+    );
+    expect(kept.points).toEqual([
+      "NMKR Studio lists a project audit at 150 ADA.",
+    ]);
   });
 });

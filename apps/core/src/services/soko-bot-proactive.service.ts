@@ -14,6 +14,7 @@ import { buildChatMessagePreview } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -61,19 +62,11 @@ const ATTENTION_MAX_AGE_MS = 7 * 24 * HOUR_MS;
 
 /** Start of the bot's current local day, for the daily proactive cap. */
 export function localDayStart(now: Date, timeZone: string): Date {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(now);
-  const get = (type: string) =>
-    Number(parts.find((p) => p.type === type)?.value);
-  const minutesIntoDay = (get("hour") % 24) * 60 + get("minute");
-  return new Date(now.getTime() - minutesIntoDay * 60_000);
+  return new Date(
+    Temporal.Instant.fromEpochMilliseconds(now.getTime())
+      .toZonedDateTimeISO(timeZone)
+      .startOfDay().epochMilliseconds,
+  );
 }
 
 export interface ProactiveGate {
@@ -88,10 +81,9 @@ export interface ProactiveGate {
  * by the owner or the platform, and under its daily cap of self-started
  * turns (SCHEDULE, EVENT, INGEST) for its local day.
  */
-export async function proactiveGate(
-  sokoBotId: string,
-  now = new Date(),
-): Promise<ProactiveGate> {
+export async function proactiveGate(sokoBotId: string): Promise<ProactiveGate> {
+  // PostgreSQL time: the counted turns' createdAt is.
+  const now = await databaseNow();
   const bot = await prisma.sokoBot.findUniqueOrThrow({
     where: { id: sokoBotId },
     select: {
@@ -402,32 +394,26 @@ export async function stageSokoBotNudges(
       ["SUPPRESSED", "BLOCKED", "DEAD_LETTER", "PUBLISHED"].includes(
         delivered.status,
       );
+    const data = {
+      lastAt: at,
+      pendingTurnId: terminal ? null : turnId,
+      ...(published
+        ? { lastDeliveryId: delivered.id, lastDeliveredAt: delivered.updatedAt }
+        : {}),
+      ...(terminal && !published
+        ? { nextCheckAt: new Date(at.getTime() + 60_000) }
+        : {}),
+    };
     for (const key of keys) {
       await tx.sokoBotNudge.upsert({
         where: { sokoBotId_key: { sokoBotId, key } },
         create: {
           sokoBotId,
           key,
-          lastAt: at,
-          pendingTurnId: terminal ? null : turnId,
-          lastDeliveryId: published ? delivered.id : undefined,
-          lastDeliveredAt: published ? delivered.updatedAt : undefined,
-          nextCheckAt:
-            terminal && !published
-              ? new Date(at.getTime() + 60_000)
-              : undefined,
+          ...data,
           expiresAt: new Date(at.getTime() + 7 * 24 * HOUR_MS),
         },
-        update: {
-          lastAt: at,
-          pendingTurnId: terminal ? null : turnId,
-          lastDeliveryId: published ? delivered.id : undefined,
-          lastDeliveredAt: published ? delivered.updatedAt : undefined,
-          nextCheckAt:
-            terminal && !published
-              ? new Date(at.getTime() + 60_000)
-              : undefined,
-        },
+        update: data,
       });
     }
   }, "Reminder staging collided with delivery");
@@ -658,7 +644,10 @@ export async function buildSystemBeatMessage(input: {
       id: true,
       name: true,
       status: true,
+      assigneeSokoBotId: true,
       assignee: { select: { name: true } },
+      assigneeUser: { select: { name: true } },
+      assigneeSokoBot: { select: { name: true } },
     },
     orderBy: { updatedAt: "desc" },
     take: 12,
@@ -667,7 +656,7 @@ export async function buildSystemBeatMessage(input: {
     lines.push("## Your open Tasks");
     for (const task of open) {
       lines.push(
-        `- ${task.status} · "${task.name ?? "Untitled task"}" (id ${task.id})${task.assignee ? ` · ${task.assignee.name}` : ""}`,
+        `- ${task.status} · "${task.name ?? "Untitled task"}" (id ${task.id}) · ${openTaskHolder(task, bot.id, isSharedSokoBot(bot))}`,
       );
     }
     lines.push("");
@@ -741,7 +730,7 @@ export async function manageSokoBotReminder(
           : input.action === "SNOOZE"
             ? "SNOOZED"
             : "CANCELLED",
-      acknowledgedAt: input.action === "ACKNOWLEDGE" ? now : undefined,
+      ...(input.action === "ACKNOWLEDGE" ? { acknowledgedAt: now } : {}),
       snoozedUntil: input.action === "SNOOZE" ? until : null,
       nextCheckAt: input.action === "SNOOZE" ? until : null,
       revision: { increment: 1 },
@@ -762,4 +751,29 @@ export async function manageSokoBotReminder(
     key: input.key,
     revision: input.revision + (changed.count === 1 ? 1 : 0),
   };
+}
+
+/**
+ * Who does an open Task. An unassigned one is its owner's own work: Jarvis
+ * read "READY · <task>" as work waiting for him and gave it to a Coworker.
+ */
+export function openTaskHolder(
+  task: {
+    assigneeSokoBotId: string | null;
+    assignee: { name: string | null } | null;
+    assigneeUser: { name: string | null } | null;
+    assigneeSokoBot: { name: string | null } | null;
+  },
+  sokoBotId: string,
+  shared: boolean,
+): string {
+  if (task.assigneeSokoBotId === sokoBotId) return "assigned to you";
+  const holder =
+    task.assignee?.name ??
+    task.assigneeUser?.name ??
+    task.assigneeSokoBot?.name;
+  if (holder) return `with ${holder}`;
+  return shared
+    ? "unassigned: the team's, not yours to hand out"
+    : "unassigned: your owner's own work, not yours to hand out";
 }

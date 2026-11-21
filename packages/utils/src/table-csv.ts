@@ -1,7 +1,10 @@
 /** Bounded RFC 4180 CSV, including escaped quotes and embedded newlines. */
-export function parseTableCsv(
+export function readCsvRows(
   text: string,
-  { maxRows = 10_000 }: { maxRows?: number } = {},
+  {
+    maxRows = 10_000,
+    preserveEmptyRows = false,
+  }: { maxRows?: number; preserveEmptyRows?: boolean } = {},
 ): string[][] {
   if (text.length > 5_000_000) throw new Error("CSV exceeds 5 MB");
   const rows: string[][] = [];
@@ -47,7 +50,7 @@ export function parseTableCsv(
       // not a one-field row. Exporters routinely end a file with one, and
       // emitting `[""]` for it fails the whole import on column count. A
       // quoted empty field sets `closed`, so `""` stays a real row.
-      if (row.length || field || closed) pushRow();
+      if (row.length || field || closed || preserveEmptyRows) pushRow();
     } else {
       if (closed) throw new Error("Unexpected text after CSV quote");
       field += char;
@@ -55,6 +58,15 @@ export function parseTableCsv(
   }
   if (quoted) throw new Error("Unclosed CSV quote");
   if (field || row.length || closed) pushRow();
+  return rows;
+}
+
+/** CSV as a table: named headers, and every row as wide as the header. */
+export function parseTableCsv(
+  text: string,
+  options: { maxRows?: number; preserveEmptyRows?: boolean } = {},
+): string[][] {
+  const rows = readCsvRows(text, options);
   if (!rows.length || rows[0].some((header) => !header.trim()))
     throw new Error("CSV needs non-empty column headers");
   if (rows.some((row) => row.length !== rows[0].length))

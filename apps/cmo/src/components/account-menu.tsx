@@ -3,8 +3,9 @@
 import "./onboarding/onboarding.css";
 
 import { ChevronDown, LogOut, Users } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 
+import { useEventListener } from "../hooks/effects/use-event-listener";
 import { AGENT_NAME } from "../lib/agent";
 import { StartOver } from "./start-over";
 import { ThemeToggle } from "./theme-toggle";
@@ -12,9 +13,15 @@ import { ThemeToggle } from "./theme-toggle";
 interface AccountMenuProps {
   label: string;
   startOver?: () => Promise<string | null>;
+  /** With `startOver`: this Cuso has a subscription that starting over ends. */
+  subscribed?: boolean;
   signOut?: (() => Promise<void>) | undefined;
   /** False where the Cuso picker has its own link (the app's sidebar). */
   cusoPicker?: boolean;
+  /** The button's content in place of the label pill: the person's avatar. */
+  trigger?: ReactNode;
+  /** Items above the theme switch (the person, Settings); `close` shuts the menu. */
+  children?: (close: () => void) => ReactNode;
 }
 
 /**
@@ -24,49 +31,47 @@ interface AccountMenuProps {
 export function AccountMenu({
   label,
   startOver,
+  subscribed = false,
   signOut,
   cusoPicker = true,
+  trigger: person,
+  children,
 }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: MouseEvent | KeyboardEvent) => {
-      if (event instanceof KeyboardEvent && event.key !== "Escape") return;
-      if (
-        event instanceof MouseEvent &&
-        root.current?.contains(event.target as Node)
-      ) {
-        return;
-      }
-      setOpen(false);
-      if (event instanceof KeyboardEvent) trigger.current?.focus();
-    };
-    document.addEventListener("mousedown", close);
-    document.addEventListener("keydown", close);
-    return () => {
-      document.removeEventListener("mousedown", close);
-      document.removeEventListener("keydown", close);
-    };
-  }, [open]);
+  useEventListener(open ? "document" : null, "mousedown", (event) => {
+    if (root.current?.contains(event.target as Node)) return;
+    setOpen(false);
+  });
+  useEventListener(open ? "document" : null, "keydown", (event) => {
+    if (event.key !== "Escape") return;
+    setOpen(false);
+    trigger.current?.focus();
+  });
 
   return (
     <div className="ob-who" ref={root}>
       <button
         ref={trigger}
         type="button"
-        className="ob-who-button"
+        className={person ? "who-button" : "ob-who-button"}
         aria-expanded={open}
+        aria-label={person ? label : undefined}
         onClick={() => setOpen((value) => !value)}
       >
-        <span className="dot live" aria-hidden="true" />
-        <span className="ob-who-name">{label}</span>
-        <ChevronDown size={14} aria-hidden="true" />
+        {person ?? (
+          <>
+            <span className="dot live" aria-hidden="true" />
+            <span className="ob-who-name">{label}</span>
+            <ChevronDown size={14} aria-hidden="true" />
+          </>
+        )}
       </button>
       {open ? (
         <div className="ob-who-menu">
+          {children?.(() => setOpen(false))}
           <ThemeToggle className="ob-who-item" withLabel />
           {cusoPicker ? (
             <a className="ob-who-item" href="/?cusos=1">
@@ -75,7 +80,11 @@ export function AccountMenu({
             </a>
           ) : null}
           {startOver ? (
-            <StartOver className="ob-who-item" startOver={startOver} />
+            <StartOver
+              className="ob-who-item"
+              startOver={startOver}
+              subscribed={subscribed}
+            />
           ) : null}
           {signOut ? (
             <form action={signOut}>

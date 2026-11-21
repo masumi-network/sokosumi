@@ -9,7 +9,7 @@ const waitUntilMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@vercel/functions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@vercel/functions")>()),
-  waitUntil: (promise: Promise<unknown>) => waitUntilMock(promise),
+  waitUntil: vi.fn((promise: Promise<unknown>) => waitUntilMock(promise)),
 }));
 
 import { errorHandler } from "@/helpers/error-handler";

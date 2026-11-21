@@ -1,4 +1,5 @@
 import type { VendorGrant } from "@sokosumi/core-client";
+import { connection } from "next/server";
 import { getSession } from "@/lib/auth/auth.server";
 import { userService } from "@/lib/services/user.service";
 import { vendorGrantService } from "@/lib/services/vendor-grant.service";
@@ -19,10 +20,15 @@ interface TasksPendingVendorGrantBannerSlotProps {
   parkedTaskCount: number;
 }
 
+/**
+ * The banner's reads are uncached, so they wait for the request: a link
+ * prefetch of Tasks keeps this slot empty instead of calling Core.
+ */
 export async function TasksPendingVendorGrantBannerSlot({
   activeOrganizationId,
   parkedTaskCount,
 }: TasksPendingVendorGrantBannerSlotProps) {
+  await connection();
   const [session, members] = await Promise.all([
     getSession(),
     userService.getMyMembersWithOrganizations(),

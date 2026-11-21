@@ -1,13 +1,17 @@
+import { ImageStudioRoute } from "@sokosumi/core-client";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 
 import { startGeneration } from "../lib/core";
 import { idempotencyKeyFor, identityFrom } from "../lib/identity";
+import { CURATED_IMAGE_MODEL_IDS } from "../lib/models";
+import { studioRouterForSession } from "../lib/router-trial";
 
 export default defineTool({
   description:
     "Generate a new image from a description. Use this for a genuinely new idea. To change an image that already exists, use refine_image instead so the original is preserved and the lineage stays intact.",
   inputSchema: z.object({
+    route: z.enum(ImageStudioRoute).optional(),
     catalogProductId: z
       .string()
       .uuid()
@@ -32,10 +36,10 @@ export default defineTool({
         "Requested variant index within this turn; use 1 unless the user requested multiple images.",
       ),
     modelId: z
-      .enum(["muse-image", "gemini-flash", "gemini-pro", "flux-2-pro"])
-      .default("muse-image")
+      .enum(CURATED_IMAGE_MODEL_IDS)
+      .default("gemini-pro")
       .describe(
-        "Supported Studio model. Consult list_image_options for capabilities; never invent endpoints.",
+        "Use gemini-pro for images and ads; ideogram-v3 for text-heavy images. Use recraft-v4-1-text-to-vector only for logos, icons and flat diagrams, with PNG output and no seed.",
       ),
     placementId: z
       .string()
@@ -56,6 +60,8 @@ export default defineTool({
     const identity = identityFrom(ctx);
     const { job } = await startGeneration(identity, {
       prompt: input.prompt,
+      route: input.route,
+      experimentArm: studioRouterForSession(ctx.session.id).arm,
       parentAssetId: null,
       referenceAssetIds: [],
       aspectRatio: input.aspectRatio,

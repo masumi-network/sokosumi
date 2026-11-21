@@ -21,6 +21,9 @@ const mocks = vi.hoisted(() => ({
   storedContent: vi.fn(),
   nudge: vi.fn(),
   messageFind: vi.fn(),
+  taskEvent: vi.fn(),
+  seoAnalysis: vi.fn(),
+  seoObservation: vi.fn(),
   transaction: vi.fn(),
   findMany: vi.fn(),
   findUnique: vi.fn(),
@@ -57,6 +60,9 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotTurn: { findUniqueOrThrow: mocks.turn },
     sokoBot: { findFirst: mocks.bot },
     workspace: { findFirst: mocks.workspace },
+    taskEvent: { findFirst: mocks.taskEvent },
+    projectSeoAnalysis: { findFirst: mocks.seoAnalysis },
+    projectSeoObservation: { findFirst: mocks.seoObservation },
     chatRoom: { findFirst: mocks.room, update: mocks.roomUpdate },
     chatRoomMessage: {
       upsert: mocks.message,
@@ -98,6 +104,7 @@ import {
 function turn(overrides = {}) {
   return {
     id: "turn",
+    clientTurnId: "client-turn",
     source: "SCHEDULE",
     status: "COMPLETED",
     sokoBotId: "bot",
@@ -172,6 +179,59 @@ describe("durable delivery", () => {
     expect(mocks.emitMessageNotifications).toHaveBeenCalledWith({
       messageId: "message",
       mentionedUserIds: [],
+      throwOnError: true,
+    });
+  });
+
+  it.each([true, false])(
+    "adds a verified SEO result to a follower message only for a readable audit (%s)",
+    async (isSeo) => {
+      const summaryTurn = turn({
+        source: "EVENT",
+        clientTurnId: "task-interest:status:e1",
+      });
+      mocks.find.mockResolvedValue(delivery({ turn: summaryTurn }));
+      mocks.taskEvent.mockResolvedValue({ taskId: "task/1" });
+      mocks.seoAnalysis.mockResolvedValue(
+        isSeo ? { id: "private-audit-id", status: "completed" } : null,
+      );
+      mocks.seoObservation.mockResolvedValue(isSeo ? { id: "report" } : null);
+      await deliverSokoBotDelivery("delivery");
+      const content = mocks.message.mock.calls[0]?.[0]?.create?.content;
+      expect(content).toBe(
+        isSeo
+          ? "Saved result\n\n[Open SEO results](/tasks/task%2F1/result)"
+          : "Saved result",
+      );
+      expect(mocks.taskEvent.mock.calls[0]?.[0]?.where?.task).toMatchObject({
+        workspaceId: "workspace",
+        archivedAt: null,
+        OR: [
+          { visibility: "PUBLIC" },
+          { visibility: "PRIVATE", ownerId: "owner" },
+        ],
+      });
+    },
+  );
+
+  it("pushes a followed Task's completion summary like a Direct the owner never turned off", async () => {
+    const summaryTurn = turn({
+      source: "EVENT",
+      clientTurnId: "task-interest:status:e1",
+    });
+    mocks.find.mockResolvedValue(delivery({ turn: summaryTurn }));
+    mocks.update.mockResolvedValue(
+      delivery({
+        status: "PERSISTED",
+        messageId: "message",
+        turn: summaryTurn,
+      }),
+    );
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.emitMessageNotifications).toHaveBeenCalledWith({
+      messageId: "message",
+      mentionedUserIds: [],
+      osBannerDefaultOn: true,
       throwOnError: true,
     });
   });
@@ -274,6 +334,36 @@ describe("durable delivery", () => {
     expect(mocks.upsertDelivery).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({ status: "PENDING", reason: null }),
+      }),
+    );
+  });
+
+  it("delivers safe copy when a background run fails with a provider error", async () => {
+    mocks.find.mockResolvedValue(
+      delivery({
+        turn: turn({
+          status: "FAILED",
+          finalAnswer: null,
+          parentTurnId: "parent",
+          backgroundTitle: "Gmail CRM",
+          errorKind: "GatewayInternalServerError",
+          errorDetail: "Raw provider diagnostic",
+        }),
+      }),
+    );
+
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.message).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          content:
+            'Background run "Gmail CRM" failed before it could report. Something went wrong on our side. Try again. If it keeps happening, contact support.',
+          metadata: expect.objectContaining({
+            soko_bot: expect.objectContaining({
+              background_failure_kind: "unknown",
+            }),
+          }),
+        }),
       }),
     );
   });

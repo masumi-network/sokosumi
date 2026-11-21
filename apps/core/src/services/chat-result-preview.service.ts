@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto";
 import { jobInclude, type Prisma } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { type ChatResultReference } from "@sokosumi/soko-bot";
-import { formatTaskIdentifier } from "@sokosumi/utils";
+import {
+  formatTaskIdentifier,
+  removeSeoTaskRequest,
+  type SocialPostMediaRef,
+} from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { socialProviderProjectSelect } from "@/config/social-providers";
 import {
@@ -37,7 +41,7 @@ import {
   getSocialPost,
   isSocialPostProviderEnabled,
 } from "@/services/social-posts.service";
-import { taskScheduleVisibilityWhere } from "@/services/task-schedule.service";
+import { taskScheduleVisibilityWhere } from "@/services/task-schedule-read.service";
 
 export interface ChatResultActor {
   userId: string;
@@ -112,6 +116,7 @@ interface ResolvedWorkspace {
 }
 
 interface ResultOutput {
+  transformation?: SocialPostMediaRef["transformation"];
   name: string;
   contentType: string | null;
   sizeBytes: number | null;
@@ -127,14 +132,20 @@ function driveFileOutputs(
     displayName: string;
     mimeType: string | null;
     sizeBytes: number | null;
+    sourceId?: string;
   }>,
+  media: readonly SocialPostMediaRef[] = [],
 ): ResultOutput[] {
   const scope = organizationId
     ? `scope=org&organizationId=${encodeURIComponent(organizationId)}`
     : "scope=me";
   return resources.map((file) => {
     const href = `/api/drive/files/${encodeURIComponent(file.id)}/content?${scope}`;
+    const transformation = media.find(
+      (item) => item.pathname === file.sourceId,
+    )?.transformation;
     return {
+      ...(transformation ? { transformation } : {}),
       name: file.displayName.slice(0, 500),
       contentType: file.mimeType,
       sizeBytes: file.sizeBytes,
@@ -306,6 +317,7 @@ export async function preloadChatResultHydration(
         publishedAt: true,
         timezone: true,
         media: true,
+        threadParts: { select: { media: true }, orderBy: { position: "asc" } },
         project: { select: socialProviderProjectSelect },
         socialConnection: {
           select: {
@@ -318,11 +330,20 @@ export async function preloadChatResultHydration(
       },
     });
     const pathnamesByPost = new Map<string, string[]>();
+    const mediaByPost = new Map<string, SocialPostMediaRef[]>();
     const pathnamesByWorkspace = new Map<string, Set<string>>();
     for (const post of posts) {
-      const pathnames = parseSocialPostMedia(post.media, post.id).map(
-        (media) => media.pathname,
+      const media = [
+        ...parseSocialPostMedia(post.media, post.id),
+        ...(post.threadParts ?? []).flatMap((part) =>
+          parseSocialPostMedia(part.media, post.id),
+        ),
+      ];
+      mediaByPost.set(
+        entityKey(post.workspaceId, post.projectId, post.id),
+        media,
       );
+      const pathnames = media.map((item) => item.pathname);
       pathnamesByPost.set(
         entityKey(post.workspaceId, post.projectId, post.id),
         pathnames,
@@ -379,6 +400,7 @@ export async function preloadChatResultHydration(
           displayName: string;
           mimeType: string | null;
           sizeBytes: number | null;
+          sourceId?: string;
         }
       >
     >();
@@ -408,6 +430,7 @@ export async function preloadChatResultHydration(
         const resource = live?.get(id);
         return resource ? [resource] : [];
       });
+      const media = mediaByPost.get(key) ?? [];
       social.set(key, {
         text: post.text,
         provider: post.provider,
@@ -420,7 +443,7 @@ export async function preloadChatResultHydration(
         publishedAt: post.publishedAt,
         timezone: post.timezone,
         socialConnection: post.socialConnection,
-        outputs: driveFileOutputs(workspace.organizationId, resources),
+        outputs: driveFileOutputs(workspace.organizationId, resources, media),
       });
     }
   }
@@ -489,7 +512,7 @@ export async function resolveChatResultReference(
     scope?: ChatResultHydrationScope;
   },
   client: Prisma.TransactionClient = prisma,
-): Promise<ChatResultSnapshot> {
+): Promise<Omit<ChatResultSnapshot, "data"> & { data: ChatResultAvailable }> {
   const { reference: ref, actor, scope } = input;
   const workspace = scope
     ? scope.workspaces.get(actor.workspaceId)
@@ -507,13 +530,16 @@ export async function resolveChatResultReference(
     organizationId,
     kind: actor.kind ?? "interactive",
   };
-  async function files(ids: string[]) {
+  async function files(
+    ids: string[],
+    media: readonly SocialPostMediaRef[] = [],
+  ) {
     const resources = await loadLiveResources({
       workspaceId: actor.workspaceId,
       actor: fileActor,
       resourceIds: ids.slice(0, 12),
     });
-    return driveFileOutputs(organizationId, resources);
+    return driveFileOutputs(organizationId, resources, media);
   }
   let data: ChatResultAvailable;
   switch (ref.kind) {
@@ -620,7 +646,9 @@ export async function resolveChatResultReference(
           tags: mapTaskTags(task),
         },
         status: task.status,
-        summary: task.description?.slice(0, 4000) ?? null,
+        summary: task.description
+          ? removeSeoTaskRequest(task.description).slice(0, 4000) || null
+          : null,
         sourceHref: `/tasks/${encodeURIComponent(task.id)}`,
         assignee:
           task.assignee?.name ??
@@ -691,8 +719,17 @@ export async function resolveChatResultReference(
       const schedule = await client.sokoBotSchedule.findFirst({
         where: {
           id: ref.id,
-          requestedByUserId: actor.userId,
           workspaceId: actor.workspaceId,
+          // The schedule tools reach the member's personal bot and the
+          // Organization's shared bots whoever asked (`memberSokoBot`), so an
+          // update to such a schedule needs its card too.
+          OR: [
+            { requestedByUserId: actor.userId },
+            { sokoBot: { userId: actor.userId } },
+            ...(organizationId
+              ? [{ sokoBot: { userId: null, deletedAt: null } }]
+              : []),
+          ],
         },
         include: {
           sokoBot: {
@@ -714,7 +751,8 @@ export async function resolveChatResultReference(
           : null,
         status: schedule.enabled ? "ACTIVE" : "PAUSED",
         summary: schedule.prompt.slice(0, 4000),
-        sourceHref: "/personal-assistant",
+        // The bot's page scrolls to this schedule and highlights it.
+        sourceHref: `/personal-assistant?schedule=${encodeURIComponent(schedule.id)}`,
         scheduledAt: schedule.nextRunAt,
         timezone: schedule.timezone,
         recurrence: schedule.runOnce ? null : schedule.cronExpression,
@@ -741,7 +779,11 @@ export async function resolveChatResultReference(
               },
               client,
             );
-            const pathnames = loaded.media.map((media) => media.pathname);
+            const media = [
+              ...loaded.media,
+              ...(loaded.threadParts ?? []).flatMap((part) => part.media),
+            ];
+            const pathnames = media.map((item) => item.pathname);
             return {
               text: loaded.text,
               provider: loaded.provider,
@@ -768,6 +810,7 @@ export async function resolveChatResultReference(
                         take: 12,
                       })
                     ).map((file) => file.id),
+                media,
               ),
             };
           })();
@@ -949,7 +992,7 @@ export async function resolveChatResultReference(
     throw unprocessableEntity(
       "Result is too large to preview; open its source",
     );
-  return persisted.data;
+  return snapshot;
 }
 
 export async function hydrateChatResultSnapshots(
@@ -961,6 +1004,24 @@ export async function hydrateChatResultSnapshots(
     scope ?? (await preloadChatResultHydration(snapshots, viewerUserId));
   return Promise.all(
     snapshots.map(async (snapshot): Promise<ChatResultPreview> => {
+      if (snapshot.data.state === "unavailable") {
+        try {
+          const current = await resolveChatResultReference({
+            reference: snapshot.reference,
+            actor: { userId: viewerUserId, workspaceId: snapshot.workspaceId },
+            previewId: snapshot.data.id,
+            scope: resolved,
+          });
+          return current.data;
+        } catch (error) {
+          if (
+            error instanceof HTTPException &&
+            (error.status === 403 || error.status === 404)
+          )
+            return { id: snapshot.data.id, state: "unavailable" };
+          throw error;
+        }
+      }
       try {
         const current = await resolveChatResultReference({
           reference: snapshot.reference,
@@ -989,6 +1050,10 @@ export async function hydrateChatResultSnapshots(
                 details: current.data.details,
                 outputs: current.data.outputs,
               }
+            : {}),
+          // Cards recorded before follow-ups linked to their row open it too.
+          ...(snapshot.data.kind === "bot_schedule"
+            ? { sourceHref: current.data.sourceHref }
             : {}),
           // A report the owner reverted says so on its card.
           ...(snapshot.data.kind === "cmo_report"

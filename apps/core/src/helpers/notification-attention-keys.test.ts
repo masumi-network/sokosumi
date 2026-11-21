@@ -25,6 +25,11 @@ import {
 const UPDATE_MESSAGE_KEYS: readonly string[] = [
   "Notifications.Task.failed",
   "Notifications.Task.canceled",
+  // An SEO monitor result got worse. The reader can read it later: nothing waits on them.
+  "Notifications.Task.seoMonitorWorse",
+  // Task interest moments on the bell: news, not a request.
+  "Notifications.Task.overdue",
+  "Notifications.Task.dueDateMovedLater",
 ];
 
 const SOURCE_ROOT = join(process.cwd(), "src");

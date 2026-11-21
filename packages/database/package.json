@@ -42,7 +42,7 @@
   "scripts": {
     "prisma:generate": "pnpm exec prisma generate --no-hints",
     "prisma:migrate:dev": "pnpm exec prisma migrate dev",
-    "prisma:migrate:deploy": "pnpm exec prisma migrate deploy",
+    "prisma:migrate:deploy": "tsx scripts/migrate-deploy.ts",
     "prisma:migrate:reset": "pnpm exec prisma migrate reset",
     "prisma:check-drift": "pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma --script --exit-code",
     "prisma:studio": "pnpm exec prisma studio",
@@ -57,6 +57,9 @@
     "data-migration:org-period-idempotency-sentinels": "tsx scripts/backfill-org-period-idempotency-sentinels.ts",
     "data-migration:delete-member-period-tombstones": "tsx scripts/delete-covered-member-period-tombstones.ts",
     "data-migration:credit-bucket-owner-xor": "tsx scripts/reconcile-credit-bucket-owner-xor.ts",
+    "data-migration:task-work-type-presets": "tsx scripts/backfill-task-work-type-presets.ts",
+    "data-migration:requeue-empty-company-lookups": "tsx scripts/requeue-empty-company-lookups.ts",
+    "data-migration:cmo-clear-first-competitor-week": "tsx scripts/cmo-clear-first-competitor-week.ts",
     "test": "vitest run",
     "test:ci": "vitest run",
     "test:watch": "vitest"
@@ -75,6 +78,6 @@
     "prisma": "7.10.1",
     "tsx": "4.23.15",
     "typescript": "7.0.2",
-    "vitest": "5.1.0"
+    "vitest": "5.1.1"
   }
 }

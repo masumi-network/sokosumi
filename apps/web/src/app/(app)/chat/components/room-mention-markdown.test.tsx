@@ -2,6 +2,7 @@ import type { ChatRoomCoworkerParticipant } from "@sokosumi/core-client";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { describe, expect, it, vi } from "vitest";
 import { REGRESSION } from "@/components/mermaid/__tests__/regression";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
@@ -19,13 +20,21 @@ vi.mock("next-intl", () => ({
 vi.mock("@/components/ui/hover-card", () => ({
   HoverCard: ({ children }: { children: ReactNode }) => <>{children}</>,
   HoverCardTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
+  // Portaled and positioned like the real content: Radix's placement props
+  // stay off the DOM, and the card is not nested in the trigger's paragraph.
   HoverCardContent: ({
     children,
+    sideOffset: _sideOffset,
+    align: _align,
+    side: _side,
     ...props
   }: {
     children: ReactNode;
     "data-testid"?: string;
-  }) => <div {...props}>{children}</div>,
+    sideOffset?: number;
+    align?: string;
+    side?: string;
+  }) => createPortal(<div {...props}>{children}</div>, document.body),
 }));
 
 const coworker: ChatRoomCoworkerParticipant = {
@@ -57,6 +66,20 @@ describe("RoomMessageMarkdown mention hover", () => {
     expect(card).toHaveTextContent("Elena");
     expect(within(card).getByLabelText("AI coworker")).toBeInTheDocument();
     expect(card).toHaveTextContent("Message");
+  });
+
+  it("renders links as plain text when not interactive", () => {
+    render(
+      <RoomMessageMarkdown
+        content="Brief at https://example.com/brief"
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        hoverInteractive={false}
+      />,
+    );
+
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.getByText(/example\.com\/brief/)).toBeInTheDocument();
   });
 
   it("keeps the mention chip mounted when parent lookups change", () => {

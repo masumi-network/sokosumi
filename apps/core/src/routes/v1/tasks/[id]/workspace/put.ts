@@ -12,6 +12,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
 import { ok } from "@/helpers/response";
+import { requireSeoTaskExecutionUnchanged } from "@/helpers/seo-task-execution";
 import { requireTaskAssignableSokoBot } from "@/helpers/soko-bot-task-assign";
 import { mapTask } from "@/helpers/task";
 import { requireTaskNotParked } from "@/helpers/vendor-grants";
@@ -85,6 +86,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             include: buildTaskIncludeForViewer(
               authContext,
               movedTask.workspaceId,
+              c.var.workspaceContext?.workspaceId,
             ),
           }),
         };
@@ -141,6 +143,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!(await lockTaskRows(tx, [movedTask.id]))) {
         throw conflict("Task changed during workspace move");
       }
+      const current = await requireTaskMoveAccess(userContext, id, tx);
+      await requireSeoTaskExecutionUnchanged(tx, current, {
+        workspaceId: targetWorkspace.id,
+        projectId: null,
+      });
 
       const existingLink = await tx.taskLink.findFirst({
         where: {
@@ -154,6 +161,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (existingLink) {
         throw conflict(
           "Cannot move a task with related tasks. Remove its links first.",
+        );
+      }
+
+      // Sub-task Jobs and placement would split across workspaces (v1).
+      if (
+        current.parentTaskId ||
+        (await tx.task.count({ where: { parentTaskId: id } })) > 0
+      ) {
+        throw conflict(
+          "Cannot move a sub-task, or a task with sub-tasks, to another workspace.",
         );
       }
 
@@ -199,7 +216,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         deliveryWorkspaceIds: [movedTask.workspaceId, targetWorkspace.id],
         task: await tx.task.findUniqueOrThrow({
           where: { id },
-          include: buildTaskIncludeForViewer(authContext, targetWorkspace.id),
+          include: buildTaskIncludeForViewer(
+            authContext,
+            targetWorkspace.id,
+            c.var.workspaceContext?.workspaceId,
+          ),
         }),
       };
     }, "Task changed by a concurrent request. Please retry.");

@@ -18,6 +18,12 @@ vi.mock("@/components/ui/image-viewer", () => ({
 }));
 
 const ASSET: StudioAsset = {
+  myThumb: null,
+  myReasons: [],
+  myComment: null,
+  thumbsUp: 0,
+  thumbsDown: 0,
+  score: 0.5,
   id: "asset-a",
   projectId: "project-a",
   projectName: "Campaign",
@@ -38,7 +44,7 @@ const ASSET: StudioAsset = {
   contentPath: "/asset-a",
 };
 
-it("keeps Schedule and Refine available when the original model cannot vary", async () => {
+it("keeps Schedule and Refine available when the automatic model cannot edit", async () => {
   const onSchedule = vi
     .fn<(asset: StudioAsset) => Promise<void>>()
     .mockResolvedValue();
@@ -126,7 +132,7 @@ function mount(
 }
 
 describe.each(["gallery", "lightbox"] as const)("%s variation", (surface) => {
-  it("offers a variation for a known model that can edit this image", () => {
+  it("offers a variation when the automatic model can edit the image", () => {
     const onVariation = mount(surface);
     fireEvent.click(screen.getByRole("button", { name: "regenerate" }));
     expect(onVariation).toHaveBeenCalledExactlyOnceWith(ASSET);
@@ -155,7 +161,7 @@ describe.each(["gallery", "lightbox"] as const)("%s variation", (surface) => {
         screen.queryByRole("button", { name: "regenerate" }),
       ).not.toBeInTheDocument();
       expect(onVariation).not.toHaveBeenCalled();
-      // The separate editing path can still let the person choose another model.
+      // The original brief and reference remain available in the composer.
       expect(
         screen.getByRole("button", {
           name: surface === "gallery" ? "reusePrompt" : "refine",
@@ -164,14 +170,10 @@ describe.each(["gallery", "lightbox"] as const)("%s variation", (surface) => {
     },
   );
 
-  it("does not silently offer a variation on the default for a withdrawn original", () => {
-    const onVariation = mount(surface, TEST_CATALOG, {
-      ...ASSET,
-      model: "vendor/retired",
-    });
-    expect(
-      screen.queryByRole("button", { name: "regenerate" }),
-    ).not.toBeInTheDocument();
-    expect(onVariation).not.toHaveBeenCalled();
+  it("offers a variation on the automatic model for a withdrawn original", () => {
+    const asset = { ...ASSET, model: "vendor/retired" };
+    const onVariation = mount(surface, TEST_CATALOG, asset);
+    fireEvent.click(screen.getByRole("button", { name: "regenerate" }));
+    expect(onVariation).toHaveBeenCalledExactlyOnceWith(asset);
   });
 });

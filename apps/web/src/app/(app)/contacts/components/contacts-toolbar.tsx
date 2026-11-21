@@ -8,11 +8,12 @@ import type {
 } from "@sokosumi/core-client";
 import {
   ChevronDown,
+  CircleDot,
+  Copy,
   GitMerge,
   ListFilter,
   ListMinus,
   ListPlus,
-  Search,
   X,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -40,7 +41,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Dot, PersonAvatar } from "./contact-visuals";
 import type { Teammate } from "./use-contacts-data";
@@ -106,18 +106,14 @@ export function useStageOptions(): FilterOption[] {
 /**
  * Search, one Filter menu, `menus` beside it and the filters in force as
  * removable chips, on a single row: the chrome stays one line high however
- * many filters exist.
+ * many filters exist. The workspace keeps search visible during selection.
  */
 export function ContactsFilterBar({
-  search,
-  onSearch,
   filters,
   onFilter,
   teammates,
   menus: extraMenus,
 }: {
-  search: string;
-  onSearch: (value: string) => void;
   filters: ContactFilters;
   onFilter: (key: ContactFilterKey, value: string | null) => void;
   teammates: Teammate[];
@@ -169,20 +165,6 @@ export function ContactsFilterBar({
   const active = menus.filter((menu) => filters[menu.key]);
   return (
     <>
-      <div className="relative order-last w-full sm:order-none sm:w-56">
-        <Search
-          aria-hidden
-          className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2"
-        />
-        <Input
-          type="search"
-          aria-label={t("toolbar.search")}
-          placeholder={t("toolbar.searchPlaceholder")}
-          value={search}
-          onChange={(event) => onSearch(event.target.value)}
-          className={cn(CONTROL, "border-control-border bg-background ps-9")}
-        />
-      </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -249,8 +231,10 @@ export function ContactsBulkBar({
   count,
   lists,
   viewList,
+  onSetStage,
   onAddToList,
   onRemoveFromList,
+  onCopyEmails,
   onMerge,
   onClear,
 }: {
@@ -258,12 +242,15 @@ export function ContactsBulkBar({
   lists: ContactList[];
   /** The manual list on screen, offered first for removal. */
   viewList: ContactList | null;
+  onSetStage: (stage: ContactStage) => void;
   onAddToList: (list: ContactList) => void;
   onRemoveFromList: (list: ContactList) => void;
+  onCopyEmails: () => void;
   onMerge: () => void;
   onClear: () => void;
 }) {
   const t = useTranslations("App.Contacts");
+  const stageOptions = useStageOptions();
   const manual = lists.filter((list) => list.kind === "manual");
   const removable = viewList
     ? [viewList, ...manual.filter((list) => list.id !== viewList.id)]
@@ -280,6 +267,25 @@ export function ContactsBulkBar({
       <span className="me-2 shrink-0 text-sm font-medium tabular-nums">
         {t("bulk.selected", { count })}
       </span>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="sm" variant="ghost" className={action}>
+            <CircleDot aria-hidden className="size-4" />
+            {t("bulk.setStage")}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="start"
+          className="max-h-96 min-w-48 overflow-y-auto"
+        >
+          <DropdownMenuRadioGroup
+            value=""
+            onValueChange={(stage) => onSetStage(stage as ContactStage)}
+          >
+            <GroupedRadioItems options={stageOptions} />
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button size="sm" variant="ghost" className={action}>
@@ -322,6 +328,15 @@ export function ContactsBulkBar({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
+      <Button
+        size="sm"
+        variant="ghost"
+        className={action}
+        onClick={onCopyEmails}
+      >
+        <Copy aria-hidden className="size-4" />
+        {t("bulk.copyEmails")}
+      </Button>
       <Button
         size="sm"
         variant="ghost"

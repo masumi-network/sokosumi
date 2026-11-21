@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-
+import { expectCoreLogWhys } from "@/test/core-log";
 import { transformPurchaseToJobUpdate } from "./purchase";
 
 type PurchaseInput = Parameters<typeof transformPurchaseToJobUpdate>[0];
@@ -70,15 +70,28 @@ describe("transformPurchaseToJobUpdate", () => {
   });
 
   it("omits unknown on-chain states instead of throwing", () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "A purchase field from the payment node was skipped",
+      ["The payment node sent an enum value this Core build does not know"],
+    );
     const transformedPurchase = transformPurchaseToJobUpdate(
       buildPurchase({ onChainState: "SomeFutureState" as never }),
     );
+    expect(errors[0]?.event).toMatchObject({
+      unknownValue: { value: "SomeFutureState" },
+    });
 
     expect("onChainStatus" in transformedPurchase).toBe(false);
     expect(transformedPurchase.nextAction).toBe("NONE");
   });
 
   it("omits unknown next actions instead of throwing", () => {
+    expectCoreLogWhys(
+      "error",
+      "A purchase field from the payment node was skipped",
+      ["The payment node sent an enum value this Core build does not know"],
+    );
     const transformedPurchase = transformPurchaseToJobUpdate(
       buildPurchase({
         NextAction: {
@@ -94,6 +107,11 @@ describe("transformPurchaseToJobUpdate", () => {
   });
 
   it("omits unknown next action error types instead of throwing", () => {
+    expectCoreLogWhys(
+      "error",
+      "A purchase field from the payment node was skipped",
+      ["The payment node sent an enum value this Core build does not know"],
+    );
     const transformedPurchase = transformPurchaseToJobUpdate(
       buildPurchase({
         NextAction: {
@@ -109,6 +127,11 @@ describe("transformPurchaseToJobUpdate", () => {
   });
 
   it("omits transaction fields when the transaction status is unknown", () => {
+    expectCoreLogWhys(
+      "error",
+      "A purchase field from the payment node was skipped",
+      ["The payment node sent an enum value this Core build does not know"],
+    );
     const purchase = buildPurchase();
     const transformedPurchase = transformPurchaseToJobUpdate({
       ...purchase,

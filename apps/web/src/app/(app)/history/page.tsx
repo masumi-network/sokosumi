@@ -1,19 +1,25 @@
+import { X } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { HistoryList } from "@/app/history/components/history-list";
 import { HistorySpendChart } from "@/app/history/components/history-spend-chart";
 import { HistoryToolbar } from "@/app/history/components/history-toolbar";
 import { HISTORY_PAGE_LIMIT } from "@/app/history/constants";
+import { getHistoryEmptyState } from "@/app/history/utils/history-empty-state";
 import {
   applyHistoryProjectAllowlist,
+  buildHistoryFiltersSearchParams,
   getHistoryFiltersResetKey,
   parseHistoryFilters,
   resolveHistoryApiTypes,
 } from "@/app/history/utils/history-filters";
+import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/auth/auth.server";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { historyService } from "@/lib/services/history.service";
+import { taskService } from "@/lib/services/task.service";
 
 interface HistoryPageProps {
   searchParams: Promise<{
@@ -21,6 +27,7 @@ interface HistoryPageProps {
     scope?: string | string[];
     type?: string | string[];
     projectId?: string | string[];
+    taskId?: string | string[];
   }>;
 }
 
@@ -57,16 +64,22 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     projectId: filters.projectId ?? undefined,
     q: filters.q ?? undefined,
     scope: filters.scope,
+    taskId: filters.taskId ?? undefined,
     types: resolveHistoryApiTypes(filters.type),
   };
-  const [historyPage, dailySpend] = await Promise.all([
+  const [historyPage, dailySpend, filteredTask] = await Promise.all([
     historyService.listHistory({ limit: HISTORY_PAGE_LIMIT, ...listParams }),
     historyService.listDailySpend(listParams),
+    filters.taskId
+      ? taskService.getTaskById(filters.taskId).catch(() => null)
+      : null,
   ]);
   const filterResetKey = getHistoryFiltersResetKey(
     filters,
     activeOrganizationId,
   );
+
+  const emptyState = getHistoryEmptyState(t, filters, activeOrganizationId);
 
   const historyTotal =
     historyPage.pagination?.total ?? historyPage.history.length;
@@ -79,6 +92,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     task: t("Row.kind.task"),
     coworker: t("Row.kind.coworker"),
     sokoBot: t("Row.kind.sokoBot"),
+    seoChat: t("Row.kind.seoChat"),
     contacts: t("Row.kind.contacts"),
     topUp: t("Row.kind.topUp"),
     unattributed: t("Row.kind.unattributed"),
@@ -112,6 +126,28 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
           }}
         />
 
+        {filters.taskId ? (
+          <div className="flex min-w-0 items-center gap-2 text-sm">
+            <p className="text-muted-foreground min-w-0 truncate">
+              {t("TaskFilter.label", {
+                task: filteredTask?.name ?? t("TaskFilter.unknownTask"),
+              })}
+            </p>
+            <Button asChild variant="outline" size="sm">
+              <Link
+                href={`/history?${buildHistoryFiltersSearchParams(
+                  new URLSearchParams(),
+                  { ...filters, taskId: null },
+                  activeOrganizationId,
+                ).toString()}`}
+              >
+                <X aria-hidden />
+                {t("TaskFilter.clear")}
+              </Link>
+            </Button>
+          </div>
+        ) : null}
+
         <HistorySpendChart days={dailySpend} />
 
         <HistoryList
@@ -121,11 +157,9 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
           filterResetKey={filterResetKey}
           filters={filters}
           activeOrganizationId={activeOrganizationId}
+          clearFilters={emptyState.clearFilters}
           labels={{
-            empty: {
-              title: t("Empty.title"),
-              description: t("Empty.description"),
-            },
+            empty: emptyState.labels,
             loadMore: t("List.loadMore"),
             loadMoreError: t("List.loadMoreError"),
             row: {

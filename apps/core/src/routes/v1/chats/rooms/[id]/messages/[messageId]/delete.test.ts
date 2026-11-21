@@ -1,7 +1,13 @@
 import { Prisma } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { coreEvlogMiddleware } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
+import { expectBackgroundRejection } from "@/test/wait-until";
 
 import mountDeleteChatRoomMessage from "./delete";
 
@@ -86,9 +92,9 @@ vi.mock("@/lib/chat-unfurl-snapshot", () => ({
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => {
+  waitUntil: vi.fn((promise: Promise<unknown>) => {
     waitUntilPromises.push(promise);
-  },
+  }),
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -120,8 +126,12 @@ const tx = {
   },
 };
 
-function createApp(authContext: AuthVariables["authContext"]) {
+function createApp(
+  authContext: AuthVariables["authContext"],
+  options: { evlog?: boolean } = {},
+) {
   const app = new OpenAPIHonoWithAuth();
+  if (options.evlog) app.use("*", coreEvlogMiddleware());
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -525,6 +535,42 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
     );
   });
 
+  it.each([
+    {
+      target: "deleteChatRoomFilesIfOwned",
+      mock: deleteChatRoomFilesIfOwnedMock,
+    },
+    {
+      target: "deleteChatRoomUnfurlSnapshotsIfOwned",
+      mock: deleteSnapshotsMock,
+    },
+  ])(
+    "runs the blob cleanup's $target as background work, off the request's event",
+    async ({ target, mock }) => {
+      expectBackgroundProbe(target);
+      // Shared code behind it calls `recordCoreError`, which would otherwise
+      // find this request still live.
+      mock.mockImplementationOnce(async () => probeBackgroundFailure(target));
+      messageFindFirstMock.mockReset();
+      messageFindFirstMock
+        .mockResolvedValueOnce(baseMessage())
+        .mockResolvedValueOnce(
+          baseMessage({
+            content: "",
+            deletedAt: new Date("2026-08-02T05:00:00.000Z"),
+            metadata: null,
+          }),
+        );
+
+      const response = await createApp(userAuthContext, {
+        evlog: true,
+      }).request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, { method: "DELETE" });
+
+      expect(response.status).toBe(200);
+      await Promise.all(waitUntilPromises);
+    },
+  );
+
   it("names blob cleanup by the ids on the row, not the ones in the path", async () => {
     const ownedFile = `https://abc.public.blob.vercel-storage.com/users/${USER_ID}/chats/${ROOM_ID}/report.pdf`;
     const snapshot = `https://abc.public.blob.vercel-storage.com/chats/${ROOM_ID}/unfurls/${MESSAGE_ID}/image-preview-xyz.png`;
@@ -572,6 +618,8 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
   });
 
   it("still tombstones when owned blob delete rejects", async () => {
+    // The blob cleanup runs after the response; its failure is the subject.
+    expectBackgroundRejection("blob down");
     deleteChatRoomFilesIfOwnedMock.mockRejectedValueOnce(
       new Error("blob down"),
     );

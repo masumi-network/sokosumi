@@ -10,11 +10,9 @@ import {
   Bookmark,
   FolderInput,
   Link2,
-  MoreHorizontal,
   Search,
   SlidersHorizontal,
   Trash2,
-  X,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
@@ -38,6 +36,7 @@ import {
 } from "@/app/drive/components/drive-folder-nav";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import type { DriveShareItem } from "@/app/drive/components/drive-share-dialog";
+import { PageSearchField } from "@/components/page-search-field";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,31 +50,24 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
 import {
   countActiveFileFilters,
   createFileCollection,
   decideSuggestion,
-  deleteDriveUploads,
-  deleteFileCollection,
   EMPTY_FILE_FILTERS,
   type FileSearchFilterState,
   type FileStore,
   fetchFileCollections,
   fetchFileSearchPage,
-  fetchWorkspaceFolders,
   fetchWorkspaceLabels,
   updateFileCollection,
 } from "@/lib/utils/file-search.client";
+import * as moves from "./drive-all-files-moves";
 import { mergeLoadedFilePage } from "./drive-all-files-panel.utils";
+import { DriveCollectionChip } from "./drive-collection-chip";
+import { useWorkspaceFolders } from "./use-workspace-folders";
 
 /**
  * All files: one search field over filenames, extracted text and confirmed
@@ -216,7 +208,7 @@ export function DriveAllFilesPanel({
     ...EMPTY_FILE_FILTERS,
     folder: initialFolder,
   });
-  const [folders, setFolders] = useState<string[]>([]);
+  const folders = useWorkspaceFolders(store, reloadToken);
   const [labels, setLabels] = useState<WorkspaceLabel[]>([]);
   const [labelsState, setLabelsState] = useState<
     "loading" | "ready" | "failed"
@@ -231,6 +223,8 @@ export function DriveAllFilesPanel({
     "loading" | "ready" | "failed"
   >("loading");
   const [collectionBusy, setCollectionBusy] = useState(false);
+  /** The collection whose new name has not saved yet. */
+  const [renamingId, setRenamingId] = useState<string | null>(null);
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(
     null,
   );
@@ -275,6 +269,8 @@ export function DriveAllFilesPanel({
   const sequenceRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const lastSelectedIndexRef = useRef<number | null>(null);
+  /** Runs the search the list shows now, not the one a late caller saw. */
+  const reloadRef = useRef(async (_keepSelection?: boolean) => {});
 
   /**
    * A stable identity for the active store, used as an effect dependency
@@ -362,20 +358,22 @@ export function DriveAllFilesPanel({
    * `setFilters` and not `applyFilters`: the page is where this came from, so
    * telling it again would be an echo.
    */
-  useEffect(() => {
-    setFilters((current) =>
-      current.folder === initialFolder
-        ? current
-        : { ...current, folder: initialFolder },
-    );
-  }, [initialFolder]);
+  const [prevInitialFolder, setPrevInitialFolder] = useState(initialFolder);
+  if (prevInitialFolder !== initialFolder) {
+    setPrevInitialFolder(initialFolder);
+    if (filters.folder !== initialFolder) {
+      setFilters({ ...filters, folder: initialFolder });
+    }
+  }
 
   const debouncedSearch = useDebouncedCallback((value: string) => {
     setAppliedQuery(value);
   }, SEARCH_DEBOUNCE_MS);
 
   useEffect(() => {
-    void runSearch({ query: appliedQuery, filters });
+    reloadRef.current = (keepSelection) =>
+      runSearch({ query: appliedQuery, filters, keepSelection });
+    void reloadRef.current();
     // `reloadToken` is a signal, not an input: the same query and filters run
     // again because the files under them changed.
   }, [appliedQuery, filters, runSearch, reloadToken]);
@@ -398,19 +396,11 @@ export function DriveAllFilesPanel({
     setCollectionsState("loading");
 
     void (async () => {
-      const [labelResult, collectionResult, folderResult] =
-        await Promise.allSettled([
-          fetchWorkspaceLabels({ store, signal: controller.signal }),
-          fetchFileCollections({ store, signal: controller.signal }),
-          fetchWorkspaceFolders({ store, signal: controller.signal }),
-        ]);
+      const [labelResult, collectionResult] = await Promise.allSettled([
+        fetchWorkspaceLabels({ store, signal: controller.signal }),
+        fetchFileCollections({ store, signal: controller.signal }),
+      ]);
       if (controller.signal.aborted) return;
-
-      // No state of its own. A folder facet the reader cannot see is a filter
-      // they do not miss, and the search box above it is the better tool
-      // anyway — so a failure here is silent rather than an error about
-      // something they were not looking for.
-      setFolders(folderResult.status === "fulfilled" ? folderResult.value : []);
 
       if (labelResult.status === "fulfilled") {
         setLabels(labelResult.value);
@@ -434,7 +424,9 @@ export function DriveAllFilesPanel({
 
   // Switching workspace is a different scope: drop everything rather than
   // letting one store's rows linger under another store's header.
-  useEffect(() => {
+  const [prevStoreKey, setPrevStoreKey] = useState(storeKey);
+  if (prevStoreKey !== storeKey) {
+    setPrevStoreKey(storeKey);
     setSelectedIds([]);
     setState({
       items: [],
@@ -444,7 +436,7 @@ export function DriveAllFilesPanel({
       error: null,
       restarted: false,
     });
-  }, [storeKey]);
+  }
 
   async function loadMore() {
     const cursor = state.meta?.nextCursor;
@@ -624,28 +616,34 @@ export function DriveAllFilesPanel({
       ?.trim();
     if (!name || name === collection.name) return;
 
+    // Still busy during the save, so two renames cannot pass each other.
     setCollectionBusy(true);
-    try {
-      await updateFileCollection({ store, collectionId: collection.id, name });
-      await reloadCollections();
-    } catch {
-      toast.error(t("collectionSaveFailed"));
-    } finally {
-      setCollectionBusy(false);
-    }
+    const saved = await moves.rename(
+      store,
+      collection,
+      name,
+      setCollections,
+      setRenamingId,
+      t,
+    );
+    // The shelf is in name order, and only Core knows the new place.
+    if (saved) await reloadCollections();
+    setCollectionBusy(false);
   }
 
   async function removeCollection(collection: FileCollection) {
     setCollectionBusy(true);
-    try {
-      await deleteFileCollection({ store, collectionId: collection.id });
-      if (activeCollectionId === collection.id) setActiveCollectionId(null);
-      await reloadCollections();
-    } catch {
-      toast.error(t("collectionDeleteFailed"));
-    } finally {
-      setCollectionBusy(false);
+    const removed = await moves.remove(
+      store,
+      collection,
+      collections,
+      setCollections,
+      t,
+    );
+    if (removed && activeCollectionId === collection.id) {
+      setActiveCollectionId(null);
     }
+    setCollectionBusy(false);
   }
 
   // The folder is the trail's job, not a filter chip's, so it does not count.
@@ -669,31 +667,30 @@ export function DriveAllFilesPanel({
   async function deleteSelected() {
     const targets = deletableSelection;
     if (targets.length === 0) return;
+    // The list loads again only after a failure, when a search open now or
+    // started during the delete can bring rows back, or when no row is left.
+    const noRowLeft = targets.length === state.items.length;
+    const mustReload = state.loading || noRowLeft;
+    // Not the empty state: files that are not loaded yet can be behind it.
+    if (noRowLeft) setState((current) => ({ ...current, loading: true }));
+    const searchAtStart = sequenceRef.current;
     setBulkBusy(true);
+    setConfirmDeleteOpen(false);
+    setSelectedIds([]);
     try {
-      const failedPathnames = await deleteDriveUploads(
-        targets.flatMap((item) => (item.pathname ? [item.pathname] : [])),
-      );
-      const deleted = targets.length - failedPathnames.length;
-      if (failedPathnames.length === 0) {
+      const failedIds = await moves.deleteUploads(targets, setState);
+      const deleted = targets.length - failedIds.length;
+      if (failedIds.length === 0) {
         toast.success(t("bulkDeleted", { count: deleted }));
-        setSelectedIds([]);
+        if (!mustReload && sequenceRef.current === searchAtStart) return;
       } else {
         toast.warning(
-          t("bulkDeletePartial", {
-            deleted,
-            failed: failedPathnames.length,
-          }),
+          t("bulkDeletePartial", { deleted, failed: failedIds.length }),
         );
         // The failed rows stay selected, so trying again is one click.
-        setSelectedIds(
-          targets
-            .filter((item) => failedPathnames.includes(item.pathname ?? ""))
-            .map((item) => item.id),
-        );
+        setSelectedIds((now) => [...new Set([...now, ...failedIds])]);
       }
-      setConfirmDeleteOpen(false);
-      await runSearch({ query: appliedQuery, filters, keepSelection: true });
+      await reloadRef.current(true);
     } finally {
       setBulkBusy(false);
     }
@@ -775,40 +772,27 @@ export function DriveAllFilesPanel({
           setAppliedQuery(query);
         }}
       >
-        <div className="relative min-w-0 flex-1">
-          <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-          <Input
-            type="search"
-            enterKeyHint="search"
-            value={query}
-            placeholder={t("searchPlaceholder")}
-            aria-label={t("searchLabel")}
-            maxLength={1000}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              debouncedSearch(event.target.value);
-            }}
-            // The browser's own clear control is inconsistent and hidden in
-            // some engines; ours is always the same and always there.
-            className="h-11 w-full pl-8 pr-9 @2xl:h-10 [&::-webkit-search-cancel-button]:hidden"
-            data-testid="drive-all-files-search"
-          />
-          {query ? (
-            <button
-              type="button"
-              aria-label={t("searchClear")}
-              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring hit-area absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 focus-visible:outline-none focus-visible:ring-2"
-              onClick={() => {
-                debouncedSearch.cancel();
-                setQuery("");
-                setAppliedQuery("");
-              }}
-              data-testid="drive-all-files-search-clear"
-            >
-              <X className="size-4" aria-hidden />
-            </button>
-          ) : null}
-        </div>
+        <PageSearchField
+          className="min-w-0 flex-1"
+          enterKeyHint="search"
+          value={query}
+          placeholder={t("searchPlaceholder")}
+          aria-label={t("searchLabel")}
+          clearLabel={t("searchClear")}
+          maxLength={1000}
+          data-testid="drive-all-files-search"
+          // The browser's own clear control is inconsistent and hidden in
+          // some engines; ours is always the same and always there.
+          onValueChange={(next) => {
+            setQuery(next);
+            if (!next) {
+              debouncedSearch.cancel();
+              setAppliedQuery("");
+            } else {
+              debouncedSearch(next);
+            }
+          }}
+        />
 
         <div className="flex items-center gap-2">
           {/* Enter submits on a phone; the button stays where there is room. */}
@@ -984,68 +968,25 @@ export function DriveAllFilesPanel({
             </span>
           ) : (
             collections.map((collection) => (
-              <span key={collection.id} className="flex items-center">
-                <Button
-                  size="sm"
-                  variant={
-                    activeCollectionId === collection.id
-                      ? "secondary"
-                      : "outline"
-                  }
-                  disabled={collectionBusy}
-                  onClick={() => {
-                    const definition = collection.definition as Partial<
-                      FileSearchFilterState & { query?: string }
-                    >;
-                    applyFilters({ ...EMPTY_FILE_FILTERS, ...definition });
-                    setQuery(definition.query ?? "");
-                    setAppliedQuery(definition.query ?? "");
-                    setActiveCollectionId(collection.id);
-                  }}
-                >
-                  {collection.name}
-                </Button>
-                {collection.isOwner ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        // 44px on touch, which is the minimum this codebase
-                        // uses elsewhere (`min-h-11`); a 32px target was
-                        // comfortable with a mouse and a miss with a thumb.
-                        // `hit-area` covers a wide container on a narrow
-                        // viewport, where the 32px box applies below md.
-                        className="hit-area size-11 @2xl:size-8"
-                        disabled={collectionBusy}
-                        aria-label={t("collectionActions", {
-                          name: collection.name,
-                        })}
-                      >
-                        <MoreHorizontal className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      <DropdownMenuItem
-                        onClick={() => void resaveCollection(collection)}
-                      >
-                        {t("collectionResave")}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => void renameCollection(collection)}
-                      >
-                        {t("collectionRename")}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={() => void removeCollection(collection)}
-                      >
-                        {t("collectionDelete")}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : null}
-              </span>
+              <DriveCollectionChip
+                key={collection.id}
+                collection={collection}
+                active={activeCollectionId === collection.id}
+                disabled={collectionBusy}
+                saving={renamingId === collection.id}
+                onOpen={() => {
+                  const definition = collection.definition as Partial<
+                    FileSearchFilterState & { query?: string }
+                  >;
+                  applyFilters({ ...EMPTY_FILE_FILTERS, ...definition });
+                  setQuery(definition.query ?? "");
+                  setAppliedQuery(definition.query ?? "");
+                  setActiveCollectionId(collection.id);
+                }}
+                onResave={() => void resaveCollection(collection)}
+                onRename={() => void renameCollection(collection)}
+                onDelete={() => void removeCollection(collection)}
+              />
             ))
           )}
         </div>

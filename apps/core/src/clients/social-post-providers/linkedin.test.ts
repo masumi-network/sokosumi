@@ -6,6 +6,13 @@ import {
   publishLinkedInPost,
 } from "@/clients/social-post-providers/linkedin";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
+
+const zernioRequestMock = vi.hoisted(() => vi.fn());
+vi.mock("@/clients/zernio.client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/clients/zernio.client")>()),
+  zernioRequest: zernioRequestMock,
+}));
 
 const {
   getEnvMock,
@@ -19,7 +26,11 @@ const {
   downloadSocialPostMediaMock: vi.fn(),
 }));
 
-vi.mock("@/lib/evlog", () => ({ tryUseLogger: () => ({ set: logSetMock }) }));
+// The real recorders keep their events at the drain seam.
+vi.mock("@/lib/evlog", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/evlog")>()),
+  tryUseLogger: () => ({ set: logSetMock }),
+}));
 vi.mock("@sokosumi/net", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@sokosumi/net")>()),
   ssrfSafeFetch: ssrfSafeFetchMock,
@@ -357,7 +368,11 @@ describe("publishLinkedInPost", () => {
   });
 
   it("treats a confirmed post without an id as published without a link", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "LinkedIn published a post but returned no post id",
+      ["The LinkedIn create post response held no post URN Core recognizes"],
+    );
     stubSession(() =>
       toolResponse({
         status_code: 201,
@@ -371,21 +386,31 @@ describe("publishLinkedInPost", () => {
       publishedUrl: null,
       toolSlug: "LINKEDIN_CREATE_LINKED_IN_POST",
     });
-    expect(warn).toHaveBeenCalledWith(
-      "[linkedin] Published post returned no post id",
-      {
-        toolSlug: "LINKEDIN_CREATE_LINKED_IN_POST",
-        keyPaths: [
-          "status_code",
-          "id",
-          "response_data",
-          "response_data.message",
-          "response_data.secret",
-        ],
-      },
+    expect(warnings[0]?.event).toMatchObject({
+      provider: "linkedin",
+      toolSlug: "LINKEDIN_CREATE_LINKED_IN_POST",
+      keyPaths: ["status_code", "id", "response_data", "response_data.message"],
+      otherKeys: 1,
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("tok_should_not_log");
+  });
+
+  it("counts a response key it does not know instead of naming it", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "LinkedIn published a post but returned no post id",
+      ["The LinkedIn create post response held no post URN Core recognizes"],
     );
-    expect(JSON.stringify(warn.mock.calls)).not.toContain("tok_should_not_log");
-    warn.mockRestore();
+    stubSession(() =>
+      toolResponse({
+        status_code: 201,
+        response_data: { "Ada private launch plan": true },
+      }),
+    );
+
+    await publishLinkedInPost(context);
+
+    expect(JSON.stringify(coreLogEvents())).not.toContain("Ada private");
   });
 
   it("only accepts LinkedIn post URNs as the post id", () => {
@@ -437,5 +462,101 @@ describe("escapeLinkedInCommentary", () => {
     ["", ""],
   ])("escapes %j", (text, expected) => {
     expect(escapeLinkedInCommentary(text)).toBe(expected);
+  });
+});
+
+describe("LinkedIn through Zernio", () => {
+  const input = {
+    ...context,
+    postId: "post-123",
+    connectedAccountId: "zernio:page-account",
+    externalAccountId: "urn:li:organization:42",
+    firstComment: " https://acme.example/launch ",
+  };
+  const published = {
+    post: {
+      _id: "zpost",
+      platforms: [
+        {
+          platform: "linkedin",
+          accountId: "page-account",
+          status: "published",
+          platformPostUrl:
+            "https://www.linkedin.com/feed/update/urn:li:share:7",
+        },
+      ],
+    },
+  };
+
+  beforeEach(() => zernioRequestMock.mockReset());
+
+  it("posts as the picked account, with the first comment in the same call", async () => {
+    zernioRequestMock.mockResolvedValueOnce(published);
+    await expect(publishLinkedInPost(input)).resolves.toEqual({
+      externalId: "zpost",
+      publishedUrl: "https://www.linkedin.com/feed/update/urn:li:share:7",
+      toolSlug: "ZERNIO_LINKEDIN_CREATE_POST",
+      firstCommentIncluded: true,
+    });
+    expect(zernioRequestMock).toHaveBeenCalledWith("/posts", {
+      method: "POST",
+      idempotencyKey: "post-123",
+      signal: undefined,
+      body: {
+        publishNow: true,
+        content: input.text,
+        platforms: [
+          {
+            platform: "linkedin",
+            accountId: "page-account",
+            platformSpecificData: {
+              firstComment: "https://acme.example/launch",
+            },
+          },
+        ],
+      },
+    });
+    // No Composio session: the Zernio account is the Page.
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("sends one video alone, or every image", async () => {
+    const image = {
+      pathname: "drive/a.jpg",
+      fileUrl: "https://store.public.blob.vercel-storage.com/a.jpg",
+      name: "a.jpg",
+      size: 1,
+      mimeType: "image/jpeg",
+      kind: "image" as const,
+    };
+    const video = {
+      ...image,
+      fileUrl: "https://store.public.blob.vercel-storage.com/a.mp4",
+      mimeType: "video/mp4",
+      kind: "video" as const,
+    };
+    zernioRequestMock.mockResolvedValue(published);
+    await publishLinkedInPost({ ...input, media: [image, image] });
+    expect(zernioRequestMock.mock.calls[0][1].body.mediaItems).toEqual([
+      { type: "image", url: image.fileUrl },
+      { type: "image", url: image.fileUrl },
+    ]);
+    await publishLinkedInPost({ ...input, media: [image, video] });
+    expect(zernioRequestMock.mock.calls[1][1].body.mediaItems).toEqual([
+      { type: "video", url: video.fileUrl },
+    ]);
+  });
+
+  it("reports a refusal, and an unknown outcome when Zernio does not answer", async () => {
+    const { ZernioApiError } = await import("@/clients/zernio.client");
+    zernioRequestMock.mockRejectedValueOnce(new ZernioApiError(422));
+    await expect(publishLinkedInPost(input)).rejects.toMatchObject({
+      name: "ComposioToolError",
+      message: "LinkedIn refused the post (HTTP 422)",
+    });
+    zernioRequestMock.mockRejectedValueOnce(new ZernioApiError(502));
+    await expect(publishLinkedInPost(input)).rejects.toMatchObject({
+      name: "ComposioPublishOutcomeUnknownError",
+    });
   });
 });

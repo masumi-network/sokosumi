@@ -4,7 +4,12 @@ import {
   stepCountIs,
   type ToolSet,
 } from "ai";
-import { streamModelCall } from "../lib/soko-bot/stream-model-call";
+import {
+  modelReasoningSummaryOptions,
+  stepReasoningSummary,
+  streamModelCall,
+} from "../lib/soko-bot/stream-model-call";
+import { endedByTool, toolEndedTurn } from "../lib/soko-bot/turn-parts";
 import { compactHistory } from "./history";
 import {
   isFinalReport,
@@ -18,12 +23,6 @@ import {
   TIME_UP_PROMPT,
 } from "./rounds";
 
-/** Each provider's switch for a returned reasoning summary; others ignore it. */
-const REASONING_SUMMARY_OPTIONS = {
-  openai: { reasoningSummary: "auto" },
-  google: { thinkingConfig: { includeThoughts: true } },
-};
-
 export interface TurnLoopInput {
   model: LanguageModel;
   system: string;
@@ -34,13 +33,14 @@ export interface TurnLoopInput {
   /** Epoch ms by which the turn must have answered. */
   deadline: number;
   stopped: AbortSignal;
+  /** Told each step's reasoning summary as the step ends, when it has one. */
+  onReasoning?: (summary: string) => Promise<void>;
   now?: () => number;
 }
 
 export interface TurnLoopResult {
   text: string;
   finishReason: string;
-  steps: { reasoningText?: string | undefined }[];
 }
 
 /**
@@ -61,7 +61,6 @@ export async function runTurnLoop(
   const timeUp = () => input.background && now() >= reportAt;
   let messages: ModelMessage[] = [{ role: "user", content: input.message }];
   let stepsLeft = input.maxSteps;
-  const steps: TurnLoopResult["steps"] = [];
   let text = "";
   let finishReason = "";
   let idleRounds = 0;
@@ -71,21 +70,26 @@ export async function runTurnLoop(
       system: input.system,
       messages: compactHistory(messages) ?? messages,
       tools: input.tools,
-      stopWhen: [stepCountIs(stepsLeft), timeUp],
+      stopWhen: [stepCountIs(stepsLeft), timeUp, endedByTool],
       prepareStep: ({ messages: current }) => {
         const compacted = compactHistory(current);
         return compacted ? { messages: compacted } : {};
       },
       // Ask for the provider's reasoning summary (never raw thoughts) so the
       // chat can show what the bot considered, as Coworker replies do.
-      providerOptions: REASONING_SUMMARY_OPTIONS,
+      providerOptions: modelReasoningSummaryOptions(input.model),
+      onStepFinish: async (step) => {
+        const summary = stepReasoningSummary(step);
+        if (summary) await input.onReasoning?.(summary);
+      },
       abortSignal: signal(),
       maxRetries: 1,
     });
-    steps.push(...result.steps);
     stepsLeft -= result.steps.length;
     // A model can answer in one step and end on an empty one; `text` is
     // only the last step's.
+    const ended = toolEndedTurn(result.steps);
+    if (ended) return { text: ended, finishReason: result.finishReason };
     text =
       result.text ||
       (result.steps.findLast((step) => step.text.trim())?.text ?? "");
@@ -97,7 +101,9 @@ export async function runTurnLoop(
     )
       ? idleRounds + 1
       : 0;
-    messages = [...messages, ...result.response.messages];
+    // Every step's messages: `response.messages` holds the last step's alone,
+    // and a nudged round that cannot see its own calls does the brief again.
+    messages = [...messages, ...result.responseMessages];
     const keepGoing =
       input.background &&
       !isFinalReport(text) &&
@@ -131,6 +137,5 @@ export async function runTurnLoop(
   return {
     text: input.background ? reportText(text) : text,
     finishReason,
-    steps,
   };
 }

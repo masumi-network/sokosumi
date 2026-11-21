@@ -1,6 +1,28 @@
 import type { Prisma } from "@sokosumi/database";
-import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  CMO_RESEARCH_GROUPS,
+  CMO_SOKO_BOT_VERSION_ID,
+} from "@sokosumi/soko-bot";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const { unpaidCuso, testCopy } = vi.hoisted(() => ({
+  unpaidCuso: vi.fn(),
+  testCopy: {
+    requireSource: vi.fn(),
+    link: vi.fn(),
+    tearDown: vi.fn(),
+    is: vi.fn(async () => false),
+  },
+}));
+vi.mock("@/services/cmo-test-copy.service", () => ({
+  requireTestCopySource: testCopy.requireSource,
+  linkTestCopyConnections: testCopy.link,
+  tearDownTestCopyFor: testCopy.tearDown,
+}));
+vi.mock("@/services/project-test-copy", () => ({
+  isTestCopyProject: testCopy.is,
+}));
+
 import {
   archiveBot,
   cancelSocialPost,
@@ -8,7 +30,6 @@ import {
   chatRoomUpdate,
   createBot,
   createOrganizationWorkspace,
-  creditBucketFindFirst,
   cusoFind,
   cusoFindMany,
   envOverrides,
@@ -25,11 +46,18 @@ import {
   projectDelete,
   resetCmoServiceMocks,
   sokoBotFindUnique,
+  sokoBotUpdateMany,
   startTurn,
+  toolCallFindFirst,
   turnFindFirst,
   userFindUnique,
 } from "@/test-fixtures/cmo-service";
 
+// PostgreSQL's clock: the test clock, or the time a test sets.
+const pgClock = vi.hoisted(() => ({ now: null as Date | null }));
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => pgClock.now ?? new Date(),
+}));
 vi.mock(
   "@/lib/db/prisma",
   async () =>
@@ -45,6 +73,10 @@ vi.mock(
   async () =>
     (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.freeCredits,
 );
+vi.mock("@/services/cmo-billing.service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/cmo-billing.service")>()),
+  findUnpaidCusoHiredBy: unpaidCuso,
+}));
 vi.mock(
   "@/services/soko-bot-shared-create.service",
   async () =>
@@ -89,20 +121,34 @@ vi.mock(
     (await import("@/test-fixtures/cmo-service")).cmoServiceMocks
       .integrationConnection,
 );
+// Hiring hands these to `waitUntil` without awaiting them; real ones would
+// fetch the brand's site after this file ends.
+vi.mock("@/services/cmo-brand-visual.service", () => ({
+  learnCmoBrandVisual: vi.fn(async () => undefined),
+}));
+vi.mock("@/services/cmo-brand-media.service", () => ({
+  captureCmoHomepage: vi.fn(async () => undefined),
+}));
 vi.mock("@/config/env", async (importOriginal) =>
   (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.env(
     await importOriginal<typeof import("@/config/env")>(),
   ),
 );
 
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 import {
+  cmoActivity,
   cmoLearningState,
+  cmoResearchEndAnswer,
+  cmoResearchParts,
   cmoWork,
   describeCmoStep,
   mayHireCuso,
   retryCmoOnboarding,
+  setCmoTimeZone,
   startCmoOnboarding,
   startCmoOver,
+  startCmoResearch,
 } from "./cmo-hiring.service";
 
 beforeEach(resetCmoServiceMocks);
@@ -118,6 +164,12 @@ describe("learning state", () => {
     goals: "More sales",
   };
   const now = new Date("2026-10-05T10:00:00Z");
+  beforeEach(() => {
+    pgClock.now = now;
+  });
+  afterEach(() => {
+    pgClock.now = null;
+  });
   const turn = (status: string, minutesAgo: number) => ({
     id: "turn-1",
     status,
@@ -128,9 +180,9 @@ describe("learning state", () => {
   it("is running while the turn keeps making progress", async () => {
     turnFindFirst.mockResolvedValue(turn("RUNNING", 2));
     eventFindFirst.mockResolvedValue({
-      occurredAt: new Date(now.getTime() - 10_000),
+      createdAt: new Date(now.getTime() - 10_000),
     });
-    expect(await cmoLearningState(workspace, now)).toBe("running");
+    expect(await cmoLearningState(workspace)).toBe("running");
     expect(expireTurn).not.toHaveBeenCalled();
   });
 
@@ -138,17 +190,17 @@ describe("learning state", () => {
     // Its run died with the process that ran it: last event 7 minutes ago.
     turnFindFirst.mockResolvedValue(turn("RUNNING", 8));
     eventFindFirst.mockResolvedValue({
-      occurredAt: new Date(now.getTime() - 7 * 60_000),
+      createdAt: new Date(now.getTime() - 7 * 60_000),
     });
-    expect(await cmoLearningState(workspace, now)).toBe("failed");
+    expect(await cmoLearningState(workspace)).toBe("failed");
     expect(expireTurn).toHaveBeenCalledWith("turn-1");
   });
 
   it("reports a failed turn, and done when Cuso finished with questions", async () => {
     turnFindFirst.mockResolvedValueOnce(turn("FAILED", 3));
-    expect(await cmoLearningState(workspace, now)).toBe("failed");
+    expect(await cmoLearningState(workspace)).toBe("failed");
     turnFindFirst.mockResolvedValueOnce(turn("COMPLETED", 3));
-    expect(await cmoLearningState(workspace, now)).toBe("done");
+    expect(await cmoLearningState(workspace)).toBe("done");
   });
 
   it("retries only after a failure, with a fresh turn id", async () => {
@@ -166,10 +218,35 @@ describe("learning state", () => {
     expect(input.sokoBotId).toBe("bot-1");
 
     turnFindFirst.mockResolvedValue(turn("RUNNING", 1));
-    eventFindFirst.mockResolvedValue({ occurredAt: new Date() });
+    eventFindFirst.mockResolvedValue({ createdAt: now });
     await expect(
       retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
     ).rejects.toThrow("still learning");
+  });
+
+  it("restarts research that runs past twice the usual time", async () => {
+    cusoFind.mockResolvedValue(workspace);
+    // Still making progress, but 15 minutes in: the usual is 7.
+    turnFindFirst.mockResolvedValue(turn("RUNNING", 15));
+    eventFindFirst.mockResolvedValue({ createdAt: now });
+    startTurn.mockResolvedValue({ turnId: "turn-2" });
+    expect(
+      await retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
+    ).toEqual({
+      turnId: "turn-2",
+    });
+    expect(expireTurn).toHaveBeenCalledWith("turn-1");
+  });
+
+  it("keeps research running under twice the usual time", async () => {
+    cusoFind.mockResolvedValue(workspace);
+    turnFindFirst.mockResolvedValue(turn("RUNNING", 13));
+    eventFindFirst.mockResolvedValue({ createdAt: now });
+    await expect(
+      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
+    ).rejects.toThrow("still learning");
+    expect(expireTurn).not.toHaveBeenCalled();
+    expect(startTurn).not.toHaveBeenCalled();
   });
 
   it("retries a finished turn that saved sections but no essentials, finishing them", async () => {
@@ -189,6 +266,18 @@ describe("learning state", () => {
     );
   });
 
+  it("says Cuso is paused when his Project has no paid CMO plan", async () => {
+    cusoFind.mockResolvedValue(workspace);
+    turnFindFirst.mockResolvedValue(turn("FAILED", 3));
+    funding.requireFunding.mockRejectedValueOnce(
+      new funding.BillingError("no", "cmo_paused"),
+    );
+    await expect(
+      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
+    ).rejects.toThrow("paused until a CMO plan is paid");
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
   it("says out of credits instead of starting a turn that would stop", async () => {
     cusoFind.mockResolvedValue(workspace);
     turnFindFirst.mockResolvedValue(turn("FAILED", 3));
@@ -199,6 +288,73 @@ describe("learning state", () => {
       retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
     ).rejects.toThrow("out of credits");
     expect(startTurn).not.toHaveBeenCalled();
+  });
+});
+
+describe("activity", () => {
+  const cuso = { sokoBotId: "bot-1", websiteUrl: "https://acme.io" };
+  const running = {
+    id: "turn-chat",
+    eveSessionId: "sess-1",
+    createdAt: new Date("2026-11-17T10:00:00Z"),
+  };
+
+  it("is nothing while Cuso rests", async () => {
+    turnFindFirst.mockResolvedValue(null);
+    expect(await cmoActivity(cuso)).toBeNull();
+  });
+
+  it("names the step he is on and his latest reasoning, for any turn", async () => {
+    turnFindFirst.mockResolvedValue(running);
+    toolCallFindFirst.mockResolvedValue({
+      capability: "web_fetch",
+      input: { url: "https://acme.io/pricing" },
+    });
+    // The runtime's own log, so it shows before the turn is reconciled.
+    eventFindFirst.mockResolvedValue({
+      data: { text: " The pricing page says who it is for. " },
+    });
+    expect(await cmoActivity(cuso)).toEqual({
+      step: "Reading acme.io/pricing",
+      reasoning: "The pricing page says who it is for.",
+    });
+    expect(eventFindFirst).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          sessionId: "sess-1",
+          type: "reasoning.completed",
+          turnId: running.id,
+        },
+      }),
+    );
+    // The running turn, whatever started it: no chat or hiring filter.
+    expect(turnFindFirst).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          sokoBotId: "bot-1",
+          status: { in: ["QUEUED", "STARTING", "RUNNING"] },
+        },
+      }),
+    );
+  });
+
+  it("never names a tool: one without its own words reads as working", async () => {
+    turnFindFirst.mockResolvedValue(running);
+    toolCallFindFirst.mockResolvedValue({
+      capability: "link_tasks",
+      input: {},
+    });
+    eventFindFirst.mockResolvedValue(null);
+    expect(await cmoActivity(cuso)).toEqual({
+      step: "Working",
+      reasoning: null,
+    });
+  });
+
+  it("has no step before his first one", async () => {
+    turnFindFirst.mockResolvedValue(running);
+    eventFindFirst.mockResolvedValue(null);
+    expect(await cmoActivity(cuso)).toEqual({ step: null, reasoning: null });
   });
 });
 
@@ -233,6 +389,26 @@ describe("work", () => {
     expect(work?.sectionsSaved).toBe(2);
   });
 
+  it("tells a fix or a patch from a whole plan", async () => {
+    const kinds = [];
+    for (const clientTurnId of [
+      "cmo:strategy:bot-1:1",
+      "cmo:strategy:bot-1:fix:1",
+      "cmo:strategy:bot-1:patch:1",
+      "cmo:onboarding:bot-1:1",
+    ]) {
+      turnFindFirst.mockResolvedValue({ ...turn, clientTurnId });
+      const work = await cmoWork(cuso(null));
+      kinds.push([work?.kind, work?.change]);
+    }
+    expect(kinds).toEqual([
+      ["strategy", null],
+      ["strategy", "fix"],
+      ["strategy", "patch"],
+      ["research", null],
+    ]);
+  });
+
   it("lists none before any section is saved", async () => {
     turnFindFirst.mockResolvedValue(turn);
     const work = await cmoWork(cuso(null));
@@ -255,7 +431,43 @@ describe("work", () => {
   });
 });
 
+describe("research groups", () => {
+  it("covers every Brand Brain section exactly once", () => {
+    const keys = CMO_RESEARCH_GROUPS.flatMap((group) => group.sections);
+    expect([...keys].sort()).toEqual(
+      [
+        "company",
+        "offer",
+        "problems",
+        "customers",
+        "buyers",
+        "value",
+        "pricing",
+        "positioning",
+        "competition",
+        "sales",
+        "marketing",
+        "content",
+        "proof",
+        "reputation",
+        "momentum",
+        "opportunities",
+      ].sort(),
+    );
+  });
+});
+
 describe("starting over", () => {
+  it("tears a test copy down on Start over, without archiving as the caller", async () => {
+    testCopy.is.mockResolvedValueOnce(true);
+    await startCmoOver({ projectId: "project-1", userId: "user-1" });
+    expect(testCopy.tearDown).toHaveBeenCalledWith({
+      projectId: "project-1",
+      userId: "user-1",
+    });
+    expect(archiveBot).not.toHaveBeenCalled();
+  });
+
   it("archives the Cuso and cancels his unsent posts", async () => {
     cusoFind.mockResolvedValue({ sokoBotId: "bot-1", workspaceId: "ws-1" });
     postFindMany.mockResolvedValue([{ id: "post-1", revision: 3 }]);
@@ -288,6 +500,35 @@ describe("starting over", () => {
       where: { id: "room-1" },
       data: { name: "Cuso · acme.io" },
     });
+  });
+
+  it("names every post it could not cancel on one warning, without their text", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Starting over left Social posts unsent but not cancelled",
+      ["Cancelling the posts failed"],
+    );
+    cusoFind.mockResolvedValue({
+      sokoBotId: "bot-1",
+      workspaceId: "ws-1",
+      projectId: "project-1",
+    });
+    postFindMany.mockResolvedValue([
+      { id: "post-1", revision: 3 },
+      { id: "post-2", revision: 4 },
+    ]);
+    cancelSocialPost.mockRejectedValue(
+      new Error("Could not cancel SENTINEL-POST launch day words"),
+    );
+    await startCmoOver({ projectId: "project-1", userId: "user-1" });
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "cmo_start_over",
+      socialPosts: [
+        { id: "post-1", failure: { errorName: "Error" } },
+        { id: "post-2", failure: { errorName: "Error" } },
+      ],
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-POST");
   });
 
   it("leaves posts alone when the person may not archive him", async () => {
@@ -361,6 +602,16 @@ describe("research feed", () => {
   });
 });
 
+const { retimeSystemSchedules } = vi.hoisted(() => ({
+  retimeSystemSchedules: vi.fn(async () => undefined),
+}));
+vi.mock("@/services/soko-bot-proactive.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/soko-bot-proactive.service")
+  >()),
+  retimeSystemSchedules,
+}));
+
 describe("startCmoOnboarding", () => {
   const input = {
     userId: "user-1",
@@ -387,36 +638,125 @@ describe("startCmoOnboarding", () => {
     projectDelete.mockResolvedValue({ id: "project-1" });
     createBot.mockResolvedValue({ id: "bot-1" });
     startTurn.mockResolvedValue({ turnId: "turn-1" });
-    creditBucketFindFirst.mockResolvedValue(null);
-    // The hirer is seated and funded unless a test says otherwise.
-    funding.requireMemberFunding.mockReset();
+    // The hirer is seated and has no unpaid Cuso unless a test says otherwise.
+    funding.requireMemberSeat.mockReset();
+    unpaidCuso.mockResolvedValue(null);
   });
 
-  it("gives every hire's organization starter credits, once per Project", async () => {
+  it("keeps the hire when the onboarding turn does not start, logging no prompt", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Cuso's onboarding turn did not start",
+      ["Starting the research turn failed"],
+    );
+    startTurn.mockRejectedValue(
+      new Error("Turn refused for SENTINEL-PROMPT research acme.io"),
+    );
+    await expect(startCmoOnboarding(input)).resolves.toMatchObject({
+      sokoBotId: "bot-1",
+    });
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "cmo_onboarding_turn",
+      sokoBot: { id: "bot-1" },
+      failure: { errorName: "Error" },
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-PROMPT");
+  });
+
+  it("hires Cuso in the owner's time zone, and on the default without one", async () => {
+    await startCmoOnboarding({ ...input, timeZone: "America/Los_Angeles" });
+    expect(createBot.mock.lastCall?.[0]).toMatchObject({
+      timezone: "America/Los_Angeles",
+    });
     await startCmoOnboarding(input);
-    expect(grantFreeCredits).toHaveBeenCalledWith({
-      target: { targetType: "organization", targetId: "org-1" },
-      credits: 10_000,
-      ttlDays: null,
-      referenceNote: "CMO.xyz starter credits (project project-1)",
+    expect(createBot.mock.lastCall?.[0]).not.toHaveProperty("timezone");
+  });
+
+  it("moves Cuso and his routines to a new time zone", async () => {
+    cusoFind.mockResolvedValue({ sokoBotId: "bot-1", projectId: "project-1" });
+    await setCmoTimeZone(
+      { userId: "user-1", projectId: "project-1" },
+      "Asia/Tokyo",
+    );
+    expect(sokoBotUpdateMany).toHaveBeenCalledWith({
+      where: { id: "bot-1" },
+      data: { ingestTimezone: "Asia/Tokyo" },
+    });
+    expect(retimeSystemSchedules).toHaveBeenCalledWith("bot-1", "Asia/Tokyo");
+  });
+
+  it("hires a test copy into its source's organization and links the source's accounts", async () => {
+    testCopy.requireSource.mockResolvedValue("org-team");
+    const copy = { ...input, testCopyOfProjectId: "project-source" };
+    await expect(startCmoOnboarding(copy)).resolves.toMatchObject({
+      sokoBotId: "bot-1",
+    });
+    expect(testCopy.requireSource).toHaveBeenCalledWith({
+      userId: "user-1",
+      sourceProjectId: "project-source",
+      organizationId: undefined,
+    });
+    expect(getUserWorkspace).toHaveBeenLastCalledWith("user-1", {
+      organizationId: "org-team",
+    });
+    expect(projectCreate.mock.lastCall?.[0].data).toMatchObject({
+      name: "CMO.xyz · acme.io (test copy)",
+      testCopyOfProjectId: "project-source",
+    });
+    expect(testCopy.link).toHaveBeenCalledWith({
+      projectId: "project-1",
+      sourceProjectId: "project-source",
+      actorId: "user-1",
+    });
+  });
+
+  it("creates nothing when the test copy is refused, and links nothing on a plain hire", async () => {
+    testCopy.requireSource.mockRejectedValue(new Error("refused"));
+    await expect(
+      startCmoOnboarding({
+        ...input,
+        organizationId: "org-team",
+        testCopyOfProjectId: "project-source",
+      }),
+    ).rejects.toThrow("refused");
+    expect(projectCreate).not.toHaveBeenCalled();
+
+    await startCmoOnboarding(input);
+    expect(projectCreate.mock.lastCall?.[0].data).toMatchObject({
+      name: "CMO.xyz · acme.io",
+      testCopyOfProjectId: null,
+    });
+    expect(testCopy.link).not.toHaveBeenCalled();
+  });
+
+  it("hires into an organization with no credits and grants no credits", async () => {
+    await expect(
+      startCmoOnboarding({ ...input, organizationId: "org-team" }),
+    ).resolves.toMatchObject({ sokoBotId: "bot-1" });
+    expect(funding.requireMemberSeat).toHaveBeenCalledWith(
+      "user-1",
+      "org-team",
+    );
+    expect(grantFreeCredits).not.toHaveBeenCalled();
+    // His first turn is free hiring's, so nothing holds it back.
+    expect(startTurn).toHaveBeenCalled();
+  });
+
+  it("refuses a second unpaid hire, naming the unpaid Cuso, before creating anything", async () => {
+    unpaidCuso.mockResolvedValue({
+      projectId: "project-0",
+      businessName: "old.io",
     });
 
-    // A second hire by the same person brings its own grant.
-    grantFreeCredits.mockClear();
-    projectCreate.mockResolvedValue({ id: "project-2" });
-    await startCmoOnboarding({ ...input, organizationId: "org-team" });
-    expect(grantFreeCredits).toHaveBeenCalledWith(
-      expect.objectContaining({
-        target: { targetType: "organization", targetId: "org-team" },
-        referenceNote: "CMO.xyz starter credits (project project-2)",
-      }),
-    );
-
-    // The same Project's grant does not repeat.
-    grantFreeCredits.mockClear();
-    creditBucketFindFirst.mockResolvedValue({ id: "bucket-1" });
-    await startCmoOnboarding(input);
-    expect(grantFreeCredits).not.toHaveBeenCalled();
+    await expect(startCmoOnboarding(input)).rejects.toMatchObject({
+      kind: "cmo_unpaid_cuso",
+      extensions: {
+        unpaidCuso: { projectId: "project-0", businessName: "old.io" },
+      },
+    });
+    expect(unpaidCuso).toHaveBeenCalledWith("user-1");
+    expect(createOrganizationWorkspace).not.toHaveBeenCalled();
+    expect(projectCreate).not.toHaveBeenCalled();
   });
 
   it("hires Cuso into a new organization named after the website", async () => {
@@ -509,15 +849,44 @@ describe("startCmoOnboarding", () => {
     expect(grantFreeCredits).not.toHaveBeenCalled();
   });
 
+  it("refuses a person on the list whose email is not verified, and hires once it is", async () => {
+    envOverrides.CMO_HIRE_ALLOWLIST = ["@harborbikes.com"];
+    userFindUnique.mockResolvedValue({
+      email: "lena@harborbikes.com",
+      emailVerified: false,
+      preferredOrganizationId: "org-1",
+    });
+    await expect(mayHireCuso("user-1")).resolves.toBe(false);
+    await expect(startCmoOnboarding(input)).rejects.toMatchObject({
+      kind: "cmo_hire_not_allowed",
+    });
+    expect(projectCreate).not.toHaveBeenCalled();
+
+    userFindUnique.mockResolvedValue({
+      email: "lena@harborbikes.com",
+      emailVerified: true,
+      preferredOrganizationId: "org-1",
+    });
+    await expect(startCmoOnboarding(input)).resolves.toMatchObject({
+      projectId: "project-1",
+    });
+  });
+
   it("reads the email Core holds, ignoring its case and spaces", async () => {
     envOverrides.CMO_HIRE_ALLOWLIST = ["@harborbikes.com"];
-    userFindUnique.mockResolvedValue({ email: " Lena@HarborBikes.COM " });
+    userFindUnique.mockResolvedValue({
+      email: " Lena@HarborBikes.COM ",
+      emailVerified: true,
+    });
     await expect(mayHireCuso("user-1")).resolves.toBe(true);
     expect(userFindUnique).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: "user-1" } }),
     );
     // A subdomain is another domain.
-    userFindUnique.mockResolvedValue({ email: "lena@shop.harborbikes.com" });
+    userFindUnique.mockResolvedValue({
+      email: "lena@shop.harborbikes.com",
+      emailVerified: true,
+    });
     await expect(mayHireCuso("user-1")).resolves.toBe(false);
     userFindUnique.mockResolvedValue(null);
     await expect(mayHireCuso("user-1")).resolves.toBe(false);
@@ -533,56 +902,23 @@ describe("startCmoOnboarding", () => {
   });
 
   it("refuses an unseated member of a paid organization before creating anything", async () => {
-    funding.requireMemberFunding.mockRejectedValueOnce(
+    funding.requireMemberSeat.mockRejectedValueOnce(
       new funding.BillingError("no seat", "seat"),
     );
 
     await expect(
       startCmoOnboarding({ ...input, organizationId: "org-team" }),
     ).rejects.toMatchObject({ kind: "organization_seat_required" });
-    expect(funding.requireMemberFunding).toHaveBeenCalledWith(
-      "user-1",
-      "org-team",
-      10_000,
-    );
     expect(projectCreate).not.toHaveBeenCalled();
-    expect(grantFreeCredits).not.toHaveBeenCalled();
   });
 
-  it("hires into an empty existing organization on its starter credits", async () => {
-    await expect(
-      startCmoOnboarding({ ...input, organizationId: "org-team" }),
-    ).resolves.toMatchObject({ sokoBotId: "bot-1" });
-    expect(funding.requireMemberFunding).toHaveBeenCalledWith(
-      "user-1",
-      "org-team",
-      10_000,
-    );
-    expect(startTurn).toHaveBeenCalled();
-  });
-
-  it("refuses a hire its starter credits still cannot fund before creating a Project", async () => {
-    funding.requireMemberFunding.mockRejectedValue(
-      new funding.BillingError("no credits"),
-    );
-
-    await expect(
-      startCmoOnboarding({ ...input, organizationId: "org-team" }),
-    ).rejects.toMatchObject({ kind: "insufficient_balance" });
-    expect(projectCreate).not.toHaveBeenCalled();
-    expect(grantFreeCredits).not.toHaveBeenCalled();
-    expect(createBot).not.toHaveBeenCalled();
-    expect(startTurn).not.toHaveBeenCalled();
-  });
-
-  it("leaves no starter credits when Cuso provisioning fails", async () => {
+  it("removes the Project when Cuso provisioning fails", async () => {
     createBot.mockRejectedValueOnce(new Error("Could not create Cuso"));
 
     await expect(startCmoOnboarding(input)).rejects.toThrow(
       "Could not create Cuso",
     );
     expect(projectDelete).toHaveBeenCalledWith({ where: { id: "project-1" } });
-    expect(grantFreeCredits).not.toHaveBeenCalled();
   });
 
   it("hires another Cuso for a person who already works with one", async () => {
@@ -714,5 +1050,156 @@ describe("startCmoOnboarding", () => {
     expect(chatRoomDelete).toHaveBeenCalledWith({ where: { id: "room-1" } });
     expect(projectDelete).toHaveBeenCalledWith({ where: { id: "project-1" } });
     expect(startTurn).not.toHaveBeenCalled();
+  });
+});
+
+describe("research in parts (SOKD-167)", () => {
+  const cuso = {
+    sokoBotId: "bot-1",
+    projectId: "project-1",
+    createdAt: new Date("2026-11-10T10:00:00Z"),
+    workspaceId: "ws-1",
+    websiteUrl: "https://acme.io",
+    businessName: "acme.io",
+    brandBrain: null,
+    brandBrainUpdatedAt: null,
+    brandBrainConfirmedAt: null,
+  };
+  const section = (answer: string) => ({ answer, findings: [] });
+
+  it("gives a first read on cmo-v2 one part per research group", () => {
+    const parts = cmoResearchParts("cmo-v2", cuso);
+    expect(parts.map((part) => part.key)).toEqual(
+      CMO_RESEARCH_GROUPS.map((group) => group.key),
+    );
+    expect(parts[0]?.title).toBe("Website");
+    expect(parts[0]?.message).toContain("acme.io (https://acme.io)");
+    expect(parts[0]?.message).toContain('"### Website"');
+    expect(parts[0]?.message).toContain("company, offer, pricing");
+    // Research and save only: never chat, posts or reports mid-read.
+    expect(parts[0]?.tools).toContain("save_brand_brain");
+    expect(parts[0]?.tools).not.toContain("post_chat");
+    expect(parts[0]?.tools).not.toContain("report_update");
+  });
+
+  it("gives a retry parts only for the groups still missing", () => {
+    const parts = cmoResearchParts("cmo-v2", {
+      ...cuso,
+      brandBrain: {
+        profile: {
+          company: section("Acme sells rockets."),
+          offer: section("Rockets."),
+          pricing: section("$9."),
+          proof: section("Named customers."),
+        },
+      },
+    });
+    // Reviews has proof but not reputation, so it runs again.
+    expect(parts.map((part) => part.key)).toEqual([
+      "buyers",
+      "competitors",
+      "social",
+      "reviews",
+      "news",
+    ]);
+  });
+
+  it("gives none on cmo-v1, or once the essentials exist", () => {
+    expect(cmoResearchParts("cmo-v1", cuso)).toEqual([]);
+    expect(cmoResearchParts(null, cuso)).toEqual([]);
+    expect(
+      cmoResearchParts("cmo-v2", {
+        ...cuso,
+        brandBrain: {
+          summary: "Acme sells rockets to hobbyists.",
+          voice: { tone: "Clear.", do: [], dont: [], examples: [] },
+          audience: [],
+          products: [],
+          competitors: [],
+          channels: [],
+        },
+      }),
+    ).toEqual([]);
+  });
+
+  it("asks cmo-v2's first read for the essentials from the hand-overs", async () => {
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v2" });
+    startTurn.mockResolvedValue({ turnId: "turn-1" });
+    await startCmoResearch(cuso, "user-1");
+    const message = startTurn.mock.calls[0]?.[0].message as string;
+    expect(message).toContain("hand-overs");
+    expect(message).toContain("save the essentials");
+    expect(message).not.toContain("read the website, search for the company");
+  });
+
+  it("tells a cmo-v2 retry its new sections are in the hand-overs", async () => {
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v2" });
+    startTurn.mockResolvedValue({ turnId: "turn-1" });
+    await startCmoResearch(
+      { ...cuso, brandBrain: { profile: { company: section("Rockets.") } } },
+      "user-1",
+    );
+    const message = startTurn.mock.calls[0]?.[0].message as string;
+    expect(message).toContain("save the essentials");
+    expect(message).toContain("their hand-overs below do");
+  });
+
+  it("keeps cmo-v1's first read word for word", async () => {
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v1" });
+    startTurn.mockResolvedValue({ turnId: "turn-1" });
+    await startCmoResearch(cuso, "user-1");
+    expect(startTurn.mock.calls[0]?.[0].message).toContain(
+      "read the website, search for the company, its reviews, competitors, news and social profiles",
+    );
+  });
+});
+
+describe("ending a read in parts on its essentials (SOKD-167)", () => {
+  const onboarding = {
+    clientTurnId: "cmo:onboarding:bot-1",
+    versionId: "cmo-v2",
+  };
+  const essentials = {
+    reveal: { positioning: "Scheduling infrastructure for everyone" },
+    questions: [{ id: "q1" }],
+    marketingToday: { summary: "Mostly organic" },
+  };
+
+  it("answers with the reveal's position once the essentials are complete", () => {
+    expect(cmoResearchEndAnswer(onboarding, essentials)).toBe(
+      "Scheduling infrastructure for everyone",
+    );
+  });
+
+  it("lets the turn go on while the essentials still miss a piece", () => {
+    for (const missing of ["reveal", "marketingToday"] as const)
+      expect(
+        cmoResearchEndAnswer(onboarding, {
+          ...essentials,
+          [missing]: undefined,
+        }),
+      ).toBeUndefined();
+    expect(
+      cmoResearchEndAnswer(onboarding, { ...essentials, questions: [] }),
+    ).toBeUndefined();
+    expect(cmoResearchEndAnswer(onboarding, null)).toBeUndefined();
+  });
+
+  it("keeps cmo-v1 and every other turn on Cuso's own closing step", () => {
+    expect(
+      cmoResearchEndAnswer({ ...onboarding, versionId: "cmo-v1" }, essentials),
+    ).toBeUndefined();
+    expect(
+      cmoResearchEndAnswer({ ...onboarding, versionId: null }, essentials),
+    ).toBeUndefined();
+    expect(
+      cmoResearchEndAnswer(
+        { ...onboarding, clientTurnId: "chat-1" },
+        essentials,
+      ),
+    ).toBeUndefined();
+    expect(
+      cmoResearchEndAnswer({ ...onboarding, clientTurnId: null }, essentials),
+    ).toBeUndefined();
   });
 });

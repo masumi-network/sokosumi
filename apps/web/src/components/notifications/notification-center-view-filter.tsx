@@ -1,12 +1,14 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, useRef } from "react";
+import { useNeedsYouDataRoomQuestions } from "@/components/notifications/notification-data-room-questions";
 import { useNeedsYouTasks } from "@/components/notifications/notification-waiting-tasks";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
 import { isNotificationCenterView } from "@/contexts/notification-view-storage";
+import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import { cn } from "@/lib/utils";
 
 // The strip's bottom line is an inset shadow rather than a border, because
@@ -47,7 +49,8 @@ interface NotificationCenterViewFilterProps {
  * Needs you is not "unread": a row stays there, read or not, until the
  * request it stands for is answered. An account notice is one of those
  * requests: it lives on Needs you, so it counts on that tab, and so does
- * each Task waiting on the reader, by the number Home shows. The push primer
+ * each Task waiting on the reader, by the number Home shows, and each
+ * unanswered question in the reader's data rooms. The push primer
  * does not: it is an offer, and a blocked or iPhone browser would carry the
  * count for good.
  */
@@ -60,18 +63,26 @@ export function NotificationCenterViewFilter({
     useNotifications();
   const { notice } = useAccountNotice();
   const { data: waitingTasks } = useNeedsYouTasks();
+  const { data: waitingQuestions } = useNeedsYouDataRoomQuestions();
   const needsYouCount =
-    needsActionCount + (waitingTasks?.count ?? 0) + (notice !== null ? 1 : 0);
+    needsActionCount +
+    (waitingTasks?.count ?? 0) +
+    (waitingQuestions?.pages[0]?.total ?? 0) +
+    (notice !== null ? 1 : 0);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Four labels do not fit the bell panel in every locale, so the strip
   // scrolls. A view chosen by click or restored on load must not sit past
   // the edge.
-  useEffect(() => {
-    listRef.current
-      ?.querySelector<HTMLElement>('[data-state="active"]')
-      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [view]);
+  useScrollIntoViewWhen(
+    () => listRef.current?.querySelector<HTMLElement>('[data-state="active"]'),
+    true,
+    {
+      block: "nearest",
+      inline: "nearest",
+      resetKey: view,
+    },
+  );
 
   function handleValueChange(next: string): void {
     if (isNotificationCenterView(next)) {

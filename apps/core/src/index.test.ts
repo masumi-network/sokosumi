@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 const {
   createMarkdownFromOpenApiMock,
@@ -257,6 +258,12 @@ describe("core index", () => {
   });
 
   it("returns 500 when llms generation fails and retries on the next request", async () => {
+    // The failed request's event carries the error, without its text.
+    const errors = expectCoreLogWhys(
+      "error",
+      "A request failed with an unexpected error",
+      ["The route threw an error it did not handle"],
+    );
     createMarkdownFromOpenApiMock
       .mockRejectedValueOnce(new Error("boom"))
       .mockResolvedValueOnce("# llms");
@@ -268,6 +275,7 @@ describe("core index", () => {
     );
     expect(failedResponse.status).toBe(500);
     expect(createMarkdownFromOpenApiMock).toHaveBeenCalledTimes(1);
+    expect(errors[0]?.event).toMatchObject({ failure: { errorName: "Error" } });
 
     const recoveredResponse = await fetchHandler(
       new Request("http://localhost/llms.txt"),

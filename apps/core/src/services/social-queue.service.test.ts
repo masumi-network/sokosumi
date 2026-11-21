@@ -10,7 +10,9 @@ const {
   socialPostFindManyMock,
   scheduleSocialPostMock,
   getSocialPostMock,
+  prepareSocialPostMutationMediaMock,
   transactionMock,
+  recordAdEventsMock,
 } = vi.hoisted(() => ({
   projectFindFirstMock: vi.fn(),
   slotFindManyMock: vi.fn(),
@@ -19,7 +21,13 @@ const {
   socialPostFindManyMock: vi.fn(),
   scheduleSocialPostMock: vi.fn(),
   getSocialPostMock: vi.fn(),
+  prepareSocialPostMutationMediaMock: vi.fn(async (input) => input),
   transactionMock: vi.fn(),
+  recordAdEventsMock: vi.fn(),
+}));
+
+vi.mock("@/services/social-studio-events.service", () => ({
+  recordSocialStudioAdEvents: recordAdEventsMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -38,6 +46,7 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/services/social-posts.service", () => ({
   scheduleSocialPost: scheduleSocialPostMock,
   getSocialPost: getSocialPostMock,
+  prepareSocialPostMutationMedia: prepareSocialPostMutationMediaMock,
 }));
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
@@ -79,6 +88,8 @@ describe("social queue service", () => {
     scheduleSocialPostMock.mockResolvedValue({
       id: POST_ID,
       status: "SCHEDULED",
+      media: [],
+      threadParts: [],
     });
   });
 
@@ -167,6 +178,31 @@ describe("social queue service", () => {
       }),
       expect.anything(),
     );
+    expect(recordAdEventsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        postId: POST_ID,
+        type: "scheduled",
+        media: [],
+      }),
+    );
+  });
+
+  it("does not count a queued draft awaiting approval as scheduled", async () => {
+    const { queueSocialPost } = await loadService();
+    scheduleSocialPostMock.mockResolvedValueOnce({
+      id: POST_ID,
+      status: "NEEDS_APPROVAL",
+      media: [],
+      threadParts: [],
+    });
+    await queueSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: 0,
+    });
+    expect(recordAdEventsMock).not.toHaveBeenCalled();
   });
 
   it("skips an occupied slot", async () => {
@@ -238,6 +274,32 @@ describe("social queue service", () => {
           socialConnectionId: "other-connection",
         }),
       }),
+    );
+  });
+
+  it("prepares media before opening the queue transaction", async () => {
+    const media = [{ pathname: "prepared-image.jpg" }];
+    prepareSocialPostMutationMediaMock.mockImplementationOnce(
+      async (input) => ({
+        ...input,
+        media,
+      }),
+    );
+    const { queueSocialPost } = await loadService();
+    await queueSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: 0,
+      socialConnectionId: "other-connection",
+    });
+    expect(
+      prepareSocialPostMutationMediaMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(transactionMock.mock.invocationCallOrder[0]);
+    expect(scheduleSocialPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({ media }),
+      prisma,
     );
   });
 

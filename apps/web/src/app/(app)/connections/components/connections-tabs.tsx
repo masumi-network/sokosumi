@@ -1,8 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useQueryState } from "nuqs";
-import { type ReactNode, useEffect } from "react";
+import type { ReactNode } from "react";
 
 import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
@@ -12,35 +11,26 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { useNormalizedQueryTab } from "@/hooks/effects/use-normalized-query-tab";
 import { cn } from "@/lib/utils";
 
-type ConnectionsTabValue = "connected-apps" | "mcp";
+const ENABLED_TABS = ["connected-apps", "mcp"] as const;
 
 interface ConnectionsTabsProps {
   connectedAppsContent: ReactNode;
   mcpContent: ReactNode;
 }
 
-const ENABLED_TABS: ConnectionsTabValue[] = ["connected-apps", "mcp"];
-
 export function ConnectionsTabs({
   connectedAppsContent,
   mcpContent,
 }: ConnectionsTabsProps) {
   const t = useTranslations("App.Connections");
-  const [tab, setTab] = useQueryState("tab", {
-    defaultValue: "connected-apps",
-  });
-
-  const activeTab = ENABLED_TABS.includes(tab as ConnectionsTabValue)
-    ? (tab as ConnectionsTabValue)
-    : "connected-apps";
-
-  useEffect(() => {
-    if (!ENABLED_TABS.includes(tab as ConnectionsTabValue)) {
-      void setTab("connected-apps");
-    }
-  }, [setTab, tab]);
+  const [activeTab, setTab] = useNormalizedQueryTab(
+    "tab",
+    ENABLED_TABS,
+    "connected-apps",
+  );
 
   return (
     <Tabs

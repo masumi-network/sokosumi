@@ -11,6 +11,7 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 
 function Boom({ message }: { message: string }): ReactNode {
@@ -23,7 +24,7 @@ describe("DefaultErrorBoundary", () => {
   beforeEach(() => {
     captureException.mockClear();
     // Boundary + React both log the caught error; keep the suite output clean.
-    consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    consoleError = vi.spyOn(console, "error");
   });
 
   afterEach(() => {
@@ -32,6 +33,8 @@ describe("DefaultErrorBoundary", () => {
   });
 
   it("reports the caught error, its component stack, and caller context to Sentry", () => {
+    expectConsole("error", "[chat-error-boundary]");
+    const reactErrors = expectConsole("error", "");
     render(
       <DefaultErrorBoundary
         boundaryName="chat"
@@ -54,6 +57,7 @@ describe("DefaultErrorBoundary", () => {
     ];
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toBe("render exploded");
+    expect(reactErrors[0]?.[1]).toBe(error);
     expect(captureContext.tags?.errorBoundary).toBe("chat");
     expect(captureContext.extra?.roomId).toBe("room-1");
     expect(typeof captureContext.contexts?.react?.componentStack).toBe(
@@ -62,6 +66,8 @@ describe("DefaultErrorBoundary", () => {
   });
 
   it("still reports when no context is given (default boundary name)", () => {
+    expectConsole("error", "[default-error-boundary]");
+    const reactErrors = expectConsole("error", "");
     render(
       <DefaultErrorBoundary fallback={<div>fallback</div>}>
         <Boom message="no context" />
@@ -69,10 +75,12 @@ describe("DefaultErrorBoundary", () => {
     );
 
     expect(captureException).toHaveBeenCalledTimes(1);
-    const [, captureContext] = captureException.mock.calls[0] as [
+    const [error, captureContext] = captureException.mock.calls[0] as [
       Error,
       { tags?: Record<string, unknown>; extra?: unknown },
     ];
+    expect(reactErrors[0]?.[1]).toBe(error);
+    expect(error.message).toBe("no context");
     expect(captureContext.tags?.errorBoundary).toBe("default");
     expect(captureContext.extra).toBeUndefined();
   });

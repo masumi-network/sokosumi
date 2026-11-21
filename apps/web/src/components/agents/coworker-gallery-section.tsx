@@ -1,28 +1,29 @@
 "use client";
 
 import type { Coworker } from "@sokosumi/core-client";
-import {
-  ArrowRight,
-  ChevronDown,
-  ChevronUp,
-  ExternalLink,
-  Search,
-} from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { useQueryState } from "nuqs";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { StartChatButton } from "@/app/chat/components/landing/start-chat-button.client";
 import { OpenCoworkerRoomProvider } from "@/app/chat/components/landing/use-open-coworker-room";
 import { coworkerCanChat } from "@/app/chat/utils/coworker-utils";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
 import { COWORKER_FALLBACK_IMAGES } from "@/app/tasks/utils/coworker-fallback-images";
 import {
+  groupCoworkerSearchResults,
+  type OfferItem,
+} from "@/components/agents/coworker-gallery-results";
+import { CoworkerGallerySearch } from "@/components/agents/coworker-gallery-search";
+import {
+  GalleryGroupHeading,
+  GalleryResultsStatus,
+} from "@/components/agents/gallery-group-heading";
+import {
   GALLERY_DIVIDER_CLASS,
   GALLERY_HERO_BAND_CLASS,
   GALLERY_HERO_HEADLINE_CLASS,
   GALLERY_HERO_INNER_CLASS,
-  GALLERY_SECTION_HEADLINE_CLASS,
   GALLERY_SOCIAL_PROOF_CAPTION_CLASS,
   GALLERY_SOCIAL_PROOF_FACE_CLASS,
 } from "@/components/agents/gallery-page-classes";
@@ -35,19 +36,16 @@ import {
 import { TagIcon } from "@/components/agents/tag-icon";
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { canUseNextImageSrc } from "@/config/next-image";
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
-import type { CoworkerOffer } from "@/lib/types/coworker";
+import useGalleryFilter from "@/hooks/use-gallery-filter";
+import { GALLERY_SCOPES } from "@/lib/agents/gallery-filter";
 import { cn } from "@/lib/utils";
 import { regionFlag } from "@/lib/utils/region-flag";
 
 interface CoworkerGallerySectionProps {
   coworkers: Coworker[];
-}
-
-interface OfferItem {
-  offer: CoworkerOffer;
-  coworker: Coworker;
 }
 
 const FOCUS_RING =
@@ -446,10 +444,11 @@ function CoworkerGallerySectionInner({
   coworkers,
 }: CoworkerGallerySectionProps) {
   const t = useTranslations("App.Agents.CoworkerGallerySection");
+  const tScope = useTranslations("App.Agents.FilterSection.scope");
   const hasAssignedSeat = useHasAssignedOrganizationSeat();
   const getTypeLabel = (type: OutputKind) => t(`outputTypes.${type}`);
-  // Coworker gallery search — independent from catalog `agentQuery`.
-  const [query, setQuery] = useQueryState("query", { defaultValue: "" });
+  // The page's one search; the agent catalog below filters by it too.
+  const { query, setQuery, scope, setScope } = useGalleryFilter();
   const { handleOpenWith } = useCreateTaskModal();
   const [selected, setSelected] = useState<OfferItem | null>(null);
   const [showAllCompanies, setShowAllCompanies] = useState(false);
@@ -474,28 +473,6 @@ function CoworkerGallerySectionInner({
     return out;
   }, [sortedCoworkers]);
 
-  // Rotating placeholder — cycles the base hint + real example searches so the
-  // search feels alive and hints at what you can look for. Pauses on focus/typing
-  // and honors reduced-motion.
-  const rotatingHints = useMemo(() => {
-    const out = [t("searchPlaceholder")];
-    for (const suggestion of suggestions) {
-      if (!out.includes(suggestion)) out.push(suggestion);
-    }
-    return out;
-  }, [suggestions, t]);
-  const [hintIdx, setHintIdx] = useState(0);
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  useEffect(() => {
-    if (rotatingHints.length <= 1) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const id = window.setInterval(
-      () => setHintIdx((index) => (index + 1) % rotatingHints.length),
-      3000,
-    );
-    return () => window.clearInterval(id);
-  }, [rotatingHints.length]);
-
   // Social proof: a cluster of real coworker faces.
   const socialAvatars = useMemo(
     () => sortedCoworkers.filter((c) => c.image).slice(0, 5),
@@ -509,53 +486,13 @@ function CoworkerGallerySectionInner({
   // matches, OR any of their offers match. Surface all their offers when the
   // coworker matched directly, otherwise just the matching offers. Then group by
   // company (priority-sorted, so Serviceplan/Elena lead).
-  const vendorGroups = useMemo(() => {
-    const map = new Map<
-      string,
-      { vendor: Coworker["vendor"]; coworkers: Coworker[]; offers: OfferItem[] }
-    >();
-    for (const coworker of sortedCoworkers) {
-      const allOffers: OfferItem[] = (coworker.metadata?.offers ?? []).map(
-        (offer) => ({ offer, coworker }),
-      );
-      let offers = allOffers;
-      if (q) {
-        const profile = coworker.metadata?.profile;
-        const coworkerText = [
-          coworker.name,
-          coworker.vendor.name,
-          coworker.caption ?? "",
-          coworker.description ?? "",
-          ...(profile?.capabilities ?? []),
-          ...(profile?.examples ?? []),
-        ]
-          .join(" ")
-          .toLowerCase();
-        const coworkerMatches = coworkerText.includes(q);
-        const matchingOffers = allOffers.filter((item) =>
-          `${item.offer.title} ${item.offer.description ?? ""} ${item.offer.category ?? ""} ${item.offer.deliverable ?? ""}`
-            .toLowerCase()
-            .includes(q),
-        );
-        if (!coworkerMatches && matchingOffers.length === 0) continue;
-        offers = coworkerMatches ? allOffers : matchingOffers;
-      }
-      const key = coworker.vendor.id;
-      let group = map.get(key);
-      if (!group) {
-        group = { vendor: coworker.vendor, coworkers: [], offers: [] };
-        map.set(key, group);
-      }
-      group.coworkers.push(coworker);
-      group.offers.push(...offers);
-    }
-    return Array.from(map.values());
-  }, [sortedCoworkers, q]);
+  const vendorGroups = useMemo(
+    () => groupCoworkerSearchResults(sortedCoworkers, q),
+    [sortedCoworkers, q],
+  );
 
-  if (!coworkers.length) {
-    return null;
-  }
-
+  // No early return without coworkers: the hero holds the page's only search
+  // and Show control, which the agent catalog needs too.
   // While searching, show everything; otherwise cap the number of companies.
   const isSearching = q !== "";
   const visibleGroups =
@@ -563,6 +500,10 @@ function CoworkerGallerySectionInner({
       ? vendorGroups
       : vendorGroups.slice(0, VENDOR_CAP);
   const canShowMoreCompanies = !isSearching && vendorGroups.length > VENDOR_CAP;
+  const matchingCoworkers = vendorGroups.reduce(
+    (total, group) => total + group.coworkers.length,
+    0,
+  );
 
   return (
     <section className="space-y-12 md:space-y-16">
@@ -587,45 +528,47 @@ function CoworkerGallerySectionInner({
             </div>
           ) : null}
           <h2 className={GALLERY_HERO_HEADLINE_CLASS}>{t("heroHeadline")}</h2>
-          {/* Brand gradient ring; intensifies on focus. */}
-          <div className="from-quaternary to-chart-1-quinary focus-within:from-primary focus-within:to-chart-1 relative w-full max-w-xl rounded-full bg-gradient-to-r p-0.5 transition-[--tw-gradient-from,--tw-gradient-to] duration-300">
-            <div className="relative rounded-full">
-              <Search
-                aria-hidden
-                className="text-background-muted pointer-events-none absolute top-1/2 left-5 size-5 -translate-y-1/2 transition-colors"
-              />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => setIsSearchFocused(false)}
-                placeholder=""
-                aria-label={t("searchHint")}
-                className="bg-foreground text-background h-14 w-full rounded-full pr-5 pl-13 text-base outline-none md:text-lg"
-              />
-              {/* Animated rotating placeholder (hidden while typing/focused) */}
-              {query === "" && !isSearchFocused ? (
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute top-1/2 right-5 left-13 -translate-y-1/2 overflow-hidden text-left"
-                >
-                  <span
-                    key={hintIdx}
-                    className="text-background-muted animate-in fade-in slide-in-from-bottom-1.5 block truncate text-base duration-500 md:text-lg"
-                  >
-                    {rotatingHints[hintIdx % rotatingHints.length]}
-                  </span>
-                </div>
-              ) : null}
-            </div>
-          </div>
+          <CoworkerGallerySearch
+            query={query}
+            setQuery={(value) => void setQuery(value)}
+            suggestions={suggestions}
+          />
+          <ToggleGroup
+            type="single"
+            aria-label={tScope("label")}
+            value={scope}
+            onValueChange={(next) => {
+              const match = GALLERY_SCOPES.find((option) => option === next);
+              if (match) void setScope(match);
+            }}
+          >
+            {GALLERY_SCOPES.map((option) => (
+              // flex-none: each option sizes to its label and keeps its px-3.
+              <ToggleGroupItem
+                key={option}
+                value={option}
+                className="flex-none"
+              >
+                {tScope(option)}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          <GalleryResultsStatus
+            message={
+              isSearching && scope !== "agents"
+                ? t("coworkersFound", { count: matchingCoworkers })
+                : scope === "coworkers" && vendorGroups.length === 0
+                  ? t("noCoworkers")
+                  : ""
+            }
+          />
           {suggestions.length > 0 ? (
             <div className="flex flex-wrap items-center justify-center gap-2">
               {suggestions.map((suggestion) => (
                 <button
                   key={suggestion}
                   type="button"
-                  onClick={() => setQuery(suggestion)}
+                  onClick={() => void setQuery(suggestion)}
                   className={cn(
                     "bg-card border-border text-muted-foreground press hover:text-foreground rounded-full border px-3 py-1.5 text-sm transition-colors",
                     FOCUS_RING,
@@ -639,11 +582,12 @@ function CoworkerGallerySectionInner({
         </div>
       </div>
 
-      {vendorGroups.length > 0 ? (
+      {scope !== "agents" && vendorGroups.length > 0 ? (
         <div className="space-y-8">
-          <h2 className={GALLERY_SECTION_HEADLINE_CLASS}>
-            {t("coworkersTitle")}
-          </h2>
+          <GalleryGroupHeading
+            title={t("coworkersTitle")}
+            count={isSearching ? matchingCoworkers : undefined}
+          />
           <div>
             {visibleGroups.map(
               ({ vendor, coworkers: members, offers }, index) => (
@@ -697,6 +641,10 @@ function CoworkerGallerySectionInner({
             </div>
           ) : null}
         </div>
+      ) : scope === "coworkers" ? (
+        <p className="text-muted-foreground text-center text-sm">
+          {isSearching ? t("noResults") : t("noCoworkers")}
+        </p>
       ) : null}
 
       <OfferDetailDialog

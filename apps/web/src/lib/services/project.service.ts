@@ -5,6 +5,7 @@ import type {
   CancelSocialPostRequest,
   CreateSocialPostRequest,
   DisconnectProjectSocialConnectionResponse,
+  FinalizeProjectSocialConnectionRequest,
   GetProjectsByIdCalendarData,
   GetProjectsData,
   InitiateProjectSocialConnectionRequest,
@@ -30,6 +31,7 @@ import type {
   ReplaceSocialQueueSlotsRequest,
   ResumeSocialPostThreadRequest,
   ScheduleSocialPostRequest,
+  SocialAccountChoices,
   SocialPost,
   SocialPostStatus,
   SocialQueueSlots,
@@ -39,6 +41,8 @@ import type {
 } from "@sokosumi/core-client";
 import type { CoreApiPagination } from "@/lib/clients/core.client";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+
+import { listWorkspaceSocialPosts } from "./workspace-social-posts";
 
 interface ListProjectsParams {
   cursor?: string | null;
@@ -330,11 +334,11 @@ export const projectService = (() => {
 
   async function finalizeSocialConnection(
     projectId: string,
-    connectionId: string,
-  ): Promise<ProjectSocialConnection> {
+    input: FinalizeProjectSocialConnectionRequest,
+  ): Promise<ProjectSocialConnection | SocialAccountChoices> {
     const result = await coreClient.postProjectsByIdSocialConnectionsFinalize(
       projectId,
-      { connectionId },
+      input,
     );
     return result.data;
   }
@@ -482,11 +486,20 @@ export const projectService = (() => {
     return result.data;
   }
 
+  /** Null when the posting queue is not open to this user (Core answers 403). */
   async function listSocialQueueSlots(
     projectId: string,
-  ): Promise<SocialQueueSlots> {
-    const result = await coreClient.getProjectsByIdSocialQueueSlots(projectId);
-    return result.data;
+  ): Promise<SocialQueueSlots | null> {
+    try {
+      const result =
+        await coreClient.getProjectsByIdSocialQueueSlots(projectId);
+      return result.data;
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 403) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   async function replaceSocialQueueSlots(
@@ -749,6 +762,7 @@ export const projectService = (() => {
     retryProjectClose,
     cancelProjectCloseOwedWork,
     listSocialPosts,
+    listWorkspaceSocialPosts,
     listSocialPostStatistics,
     listSocialAccountStatistics,
     refreshSocialAccountStatistics,

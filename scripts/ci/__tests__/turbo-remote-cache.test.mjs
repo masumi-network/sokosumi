@@ -12,6 +12,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 
+import { fixtureGitEnv } from "./fixture-git-env.mjs";
+
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
 
 const HASHED_ENV = [
@@ -107,7 +109,14 @@ describe("GitHub OIDC remote cache wiring", () => {
       jobBlock(ci, "web"),
       /permissions: &turbo-permissions\n\s+contents: read\n\s+id-token:\s*write/,
     );
-    for (const jobId of ["core", "packages", "cli", "build", "typecheck"]) {
+    for (const jobId of [
+      "core",
+      "core-postgres",
+      "packages",
+      "cli",
+      "build",
+      "typecheck",
+    ]) {
       assert.match(jobBlock(ci, jobId), /permissions: \*turbo-permissions/);
     }
   });
@@ -260,6 +269,7 @@ describe("GitHub OIDC remote cache wiring", () => {
       ["typecheck", "js"],
       ["web", "web"],
       ["core", "core"],
+      ["core-postgres", "core"],
       ["packages", "packages"],
       ["cli", "cli"],
       ["local-env", "local-env"],
@@ -290,7 +300,10 @@ describe("GitHub OIDC remote cache wiring", () => {
     for (const [jobId, name] of [
       ["web", "Test Web"],
       ["core", "Test Core"],
+      ["core-postgres", "Test Core PostgreSQL"],
       ["packages", "Test Packages"],
+      ["cli", "Test CLI"],
+      ["ci-config", "Test CI config"],
     ]) {
       const block = jobBlock(test, jobId);
       assert.match(block, new RegExp(`\\n    name: ${name}\\n`));
@@ -314,7 +327,7 @@ describe("GitHub OIDC remote cache wiring", () => {
 
   it("the PostgreSQL suites run in parallel only on per-worker databases", async () => {
     const test = await readRepoFile(".github", "workflows", "ci.yml");
-    const step = jobBlock(test, "core").match(
+    const step = jobBlock(test, "core-postgres").match(
       /- name: Test against PostgreSQL\n([\s\S]*?)(?=\n      - |\n\n  [a-z]|$)/,
     );
     assert.ok(step, "missing step Test against PostgreSQL");
@@ -549,12 +562,11 @@ describe("Vercel web turbo build command", () => {
         JSON.stringify({ name }),
       );
     }
+    const env = fixtureGitEnv();
     const git = (...args) =>
-      execFileSync("git", args, { cwd: fixture, encoding: "utf8" }).trim();
+      execFileSync("git", args, { cwd: fixture, env, encoding: "utf8" }).trim();
     git("init", "-q");
-    git("config", "user.name", "CI fixture");
-    git("config", "user.email", "ci@example.invalid");
-    git("add", ".");
+    git("add", "-f", ".");
     git("commit", "-qm", "initial fixture");
     for (const [file, content, expected] of [
       [
@@ -571,7 +583,7 @@ describe("Vercel web turbo build command", () => {
     ]) {
       const base = git("rev-parse", "HEAD");
       await writeFile(path.join(fixture, file), content);
-      git("add", file);
+      git("add", "-f", file);
       git("commit", "-qm", `change ${file}`);
       for (const name of ["web", "@sokosumi/core", "cmo"]) {
         const result = spawnSync(
@@ -584,7 +596,7 @@ describe("Vercel web turbo build command", () => {
             name,
             "--exit-code",
           ],
-          { cwd: fixture, encoding: "utf8" },
+          { cwd: fixture, env, encoding: "utf8" },
         );
         assert.equal(
           result.status,
@@ -593,6 +605,50 @@ describe("Vercel web turbo build command", () => {
         );
       }
     }
+  });
+
+  it("isolates fixture git and turbo from an inherited GIT_DIR", async (t) => {
+    const canary = await mkdtemp(path.join(tmpdir(), "vercel-ignore-canary-"));
+    t.after(() => rm(canary, { recursive: true, force: true }));
+    const cleanEnv = fixtureGitEnv();
+    const git = (...args) =>
+      execFileSync("git", args, {
+        cwd: canary,
+        env: cleanEnv,
+        encoding: "utf8",
+      }).trim();
+    git("init", "-q");
+    await writeFile(path.join(canary, "sentinel.txt"), "ok\n");
+    git("add", "-f", ".");
+    git("commit", "-qm", "sentinel");
+    const beforeHead = git("rev-parse", "HEAD");
+    const beforeCount = git("rev-list", "--all", "--count");
+
+    const childEnv = { ...cleanEnv, GIT_DIR: path.join(canary, ".git") };
+    // Clear Node's test-runner child marker so the nested `node --test` runs
+    // as a standalone runner and reports its own pass count.
+    delete childEnv.NODE_TEST_CONTEXT;
+
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--test",
+        "--test-reporter=spec",
+        "--test-name-pattern=^builds every app for root install configuration changes$",
+        import.meta.filename,
+      ],
+      {
+        cwd: repoRoot,
+        env: childEnv,
+        encoding: "utf8",
+      },
+    );
+
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stdout, /pass 1/);
+    assert.equal(git("rev-parse", "HEAD"), beforeHead);
+    assert.equal(git("rev-list", "--all", "--count"), beforeCount);
+    assert.equal(git("status", "--porcelain"), "");
   });
 
   it("lets only a production deployment of a new commit skip its build", async () => {

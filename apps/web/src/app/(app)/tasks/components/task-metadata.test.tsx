@@ -29,9 +29,23 @@ vi.mock("sonner", () => ({
   toast: { error: vi.fn(), success: vi.fn() },
 }));
 
-vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string, values?: Record<string, string>) =>
-    values?.name ? `${key}:${values.name}` : key,
+vi.mock("next-intl", async () => {
+  const { createTestFormatter } = await import("@/test/intl-formatter");
+  const formatter = createTestFormatter({ locale: "en-US", timeZone: "UTC" });
+  return {
+    useFormatter: () => formatter,
+    useNow: () => new Date("2026-03-10T00:00:00.000Z"),
+    useTranslations: () => (key: string, values?: Record<string, string>) =>
+      values?.name
+        ? `${key}:${values.name}`
+        : values?.datetime
+          ? `${key}:${values.datetime}`
+          : key,
+  };
+});
+
+vi.mock("@/components/time-ago", () => ({
+  TimeAgo: ({ date }: { date: string }) => <time>{date}</time>,
 }));
 
 vi.mock("@/components/aurora-orb", () => ({
@@ -79,10 +93,12 @@ const baseLabels = {
   status: "Status",
   statusLabels: baseStatusLabels,
   organization: "Organization",
+  organizationReadOnly: "read-only",
   personalWorkspace: "Personal",
   project: "Project",
   noProject: "No project",
   schedule: "Schedule",
+  startsAt: "Start time",
   assignee: "Assignee",
   noAssignee: "No assignee",
   memberFallback: "Member",
@@ -151,6 +167,32 @@ function renderTaskMetadata(
 }
 
 describe("TaskMetadata", () => {
+  it("shows when a Scheduled task starts, and nothing once it runs", () => {
+    const runAt = "2030-01-15T15:00:00.000Z";
+    const { rerender } = renderTaskMetadata({
+      task: { ...createTask({ status: TaskStatus.QUEUED }), runAt },
+    });
+
+    const row = screen.getByRole("group", { name: "Start time" });
+    expect(within(row).getByText(/^at:/)).toHaveAttribute("datetime", runAt);
+
+    rerender(
+      <TaskMetadata
+        title="Properties"
+        taskId="task-1"
+        editable={false}
+        task={{ ...createTask(), runAt }}
+        project={null}
+        labels={baseLabels}
+        statusFieldLabels={baseStatusFieldLabels}
+        priorityLabels={basePriorityLabels}
+      />,
+    );
+    expect(
+      screen.queryByRole("group", { name: "Start time" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("renders Properties as a quiet section heading above metadata", () => {
     renderTaskMetadata({ task: createTask() });
 
@@ -176,7 +218,7 @@ describe("TaskMetadata", () => {
       screen.getByRole("group", { name: "Assignee: Hepha" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("group", { name: "Organization: Personal" }),
+      screen.getByRole("group", { name: "Organization: Personal (read-only)" }),
     ).toBeVisible();
     expect(
       screen.getByRole("group", { name: "Project: No project" }),
@@ -245,8 +287,56 @@ describe("TaskMetadata", () => {
     });
 
     expect(
-      screen.getByRole("group", { name: "Organization: Masumi" }),
+      screen.getByRole("group", { name: "Organization: Masumi (read-only)" }),
     ).toBeInTheDocument();
+  });
+
+  it("puts the read-only Organization row last, with no control", () => {
+    renderTaskMetadata({
+      task: createTask({
+        visibility: "PRIVATE",
+        organization: { id: "org_1", name: "Masumi", slug: "masumi" },
+      }),
+      editable: true,
+      assigneeField: <button type="button">Assignee picker</button>,
+      projectField: <button type="button">Project picker</button>,
+    });
+
+    const rows = screen.getAllByRole("group");
+    const organizationRow = screen.getByRole("group", {
+      name: "Organization: Masumi (read-only)",
+    });
+    expect(rows.at(-1)).toBe(organizationRow);
+    expect(within(organizationRow).queryByRole("button")).toBeNull();
+    expect(within(organizationRow).queryByRole("combobox")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Assignee picker" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Project picker" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("group", { name: /^Assignee:/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: /^Project:/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("puts the workspace credits directly under the Organization row", () => {
+    renderTaskMetadata({
+      task: createTask({
+        organization: { id: "org_1", name: "Masumi", slug: "masumi" },
+      }),
+      credits: <p>3 credits used in this workspace</p>,
+    });
+
+    const organizationRow = screen.getByRole("group", {
+      name: "Organization: Masumi (read-only)",
+    });
+    expect(organizationRow.nextElementSibling).toBe(
+      screen.getByText("3 credits used in this workspace"),
+    );
   });
 
   it("links the project name, or shows a muted No project", () => {
@@ -448,6 +538,31 @@ describe("TaskMetadata", () => {
   });
 });
 
+describe("TaskMetadata time in status", () => {
+  it("shows time in status under a read-only status", () => {
+    renderTaskMetadata({
+      task: {
+        ...createTask({ status: TaskStatus.INPUT_REQUIRED }),
+        statusSince: "2026-03-09T12:00:00.000Z",
+      },
+    });
+
+    expect(screen.getByText("label")).toBeVisible();
+    expect(screen.getByText("2026-03-09T12:00:00.000Z")).toBeTruthy();
+  });
+
+  it("shows nothing for a Task that is not waiting", () => {
+    renderTaskMetadata({
+      task: {
+        ...createTask({ status: TaskStatus.COMPLETED }),
+        statusSince: "2026-03-01T00:00:00.000Z",
+      },
+    });
+
+    expect(screen.queryByText("2026-03-01T00:00:00.000Z")).toBeNull();
+  });
+});
+
 describe("TaskMetadata priority", () => {
   it("puts Priority directly under Status", () => {
     renderTaskMetadata({ task: createTask({ priority: TaskPriority.HIGH }) });
@@ -550,5 +665,42 @@ describe("TaskMetadata participants", () => {
     expect(screen.queryByText("Owner")).not.toBeInTheDocument();
     expect(screen.getByText("Hepha")).toBeInTheDocument();
     expect(screen.queryByText("Participants")).toBeNull();
+  });
+});
+
+describe("TaskMetadata field slots", () => {
+  // The detail page keys each slot by the Task id so it resets on a new
+  // Task. Same-keyed siblings duplicated rows when the status changed.
+  it("shows each slot once after the status changes", () => {
+    const slots = {
+      assigneeField: <div key="task-1">Assignee slot</div>,
+      participants: <div key="task-1">Participants slot</div>,
+      projectField: <div key="task-1">Project slot</div>,
+    };
+    const { rerender } = renderTaskMetadata({
+      task: createTask({ status: TaskStatus.DRAFT }),
+      editable: true,
+      ...slots,
+    });
+
+    for (const status of [TaskStatus.READY, TaskStatus.DRAFT]) {
+      rerender(
+        <TaskMetadata
+          title="Properties"
+          taskId="task-1"
+          editable
+          task={createTask({ status })}
+          project={null}
+          labels={baseLabels}
+          statusFieldLabels={baseStatusFieldLabels}
+          priorityLabels={basePriorityLabels}
+          {...slots}
+        />,
+      );
+    }
+
+    expect(screen.getAllByText("Assignee slot")).toHaveLength(1);
+    expect(screen.getAllByText("Participants slot")).toHaveLength(1);
+    expect(screen.getAllByText("Project slot")).toHaveLength(1);
   });
 });

@@ -7,12 +7,16 @@ const {
   paymentUpdateMock,
   actionCreateMock,
   actionCreateManyMock,
+  transactionCreateMock,
+  cusoUpdateManyMock,
 } = vi.hoisted(() => ({
   paymentUpdateManyMock: vi.fn(),
   paymentFindUniqueMock: vi.fn(),
   paymentUpdateMock: vi.fn(),
   actionCreateMock: vi.fn(),
   actionCreateManyMock: vi.fn(),
+  transactionCreateMock: vi.fn(),
+  cusoUpdateManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -28,6 +32,8 @@ vi.mock("@/lib/db/prisma", () => ({
           create: actionCreateMock,
           createMany: actionCreateManyMock,
         },
+        transaction: { create: transactionCreateMock },
+        sokoBot: { updateMany: cusoUpdateManyMock },
       }),
   },
 }));
@@ -54,6 +60,11 @@ const ASSET = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
 const CAIP2_NETWORK = "eip155:8453";
 const ON_CHAIN_AMOUNT = "1500000";
 
+beforeEach(() => {
+  transactionCreateMock.mockResolvedValue({ id: REFUND_TRANSACTION_ID });
+  cusoUpdateManyMock.mockResolvedValue({ count: 1 });
+});
+
 /**
  * The charge Transaction. `amount` is NEGATIVE by convention
  * (createTaskEventTransaction writes `input.cents * -1n`).
@@ -63,7 +74,7 @@ function transaction(overrides: Record<string, unknown> = {}) {
     amount: -500n,
     userId: USER_ID,
     organizationId: null,
-    creditConsumptions: [{ bucket: { projectId: null } }],
+    creditConsumptions: [{ amount: 500n, bucket: { projectId: null } }],
     ...overrides,
   };
 }
@@ -83,6 +94,32 @@ function verifiedPaymentRow(overrides: Record<string, unknown> = {}) {
     transaction: transaction(),
     ...overrides,
   };
+}
+
+/** The data of the `index`th Transaction the refund created. */
+function refundCreate(index = 0) {
+  const call = transactionCreateMock.mock.calls[index]?.[0] as {
+    data: {
+      amount: bigint;
+      organization?: unknown;
+      organizationId?: string | null;
+      user?: unknown;
+      userId?: string | null;
+      sourceCreditBucket: {
+        create: {
+          amount: bigint;
+          expiresAt: Date | null;
+          organizationId?: string | null;
+          projectId?: string | null;
+          referenceId: string;
+          referenceType: CreditBucketReferenceType;
+          user?: unknown;
+          userId?: string | null;
+        };
+      };
+    };
+  };
+  return call.data;
 }
 
 function actionCreateData(): Record<string, unknown> {
@@ -189,32 +226,11 @@ describe("refundRefusedTaskX402Payment", () => {
       },
     });
     expect(paymentUpdateMock).toHaveBeenCalledTimes(1);
-    const updateArg = paymentUpdateMock.mock.calls[0]?.[0] as {
-      data: {
-        refundTransaction: {
-          create: {
-            amount: bigint;
-            organizationId?: string | null;
-            userId?: string | null;
-            sourceCreditBucket: {
-              create: {
-                amount: bigint;
-                expiresAt: Date | null;
-                organizationId?: string | null;
-                referenceId: string;
-                referenceType: CreditBucketReferenceType;
-                userId?: string | null;
-              };
-            };
-          };
-        };
-      };
-    };
-    expect(updateArg.data.refundTransaction.create.amount).toBe(500n);
-    expect(updateArg.data.refundTransaction.create.userId).toBe(USER_ID);
-    expect(updateArg.data.refundTransaction.create.organizationId).toBeNull();
-    const bucket =
-      updateArg.data.refundTransaction.create.sourceCreditBucket.create;
+    const refund = refundCreate();
+    expect(refund.amount).toBe(500n);
+    expect(refund.userId).toBe(USER_ID);
+    expect(refund.organizationId).toBeNull();
+    const bucket = refund.sourceCreditBucket.create;
     expect(bucket.referenceId).toBe(`task-x402-payment:${PAYMENT_ID}`);
     expect(bucket.referenceType).toBe(CreditBucketReferenceType.REFUND);
     expect(bucket.expiresAt).toBeNull();
@@ -344,7 +360,10 @@ describe("refundVerifiedTaskX402Payment", () => {
       verifiedPaymentRow({
         transaction: transaction({
           organizationId: ORGANIZATION_ID,
-          creditConsumptions: [{ bucket: { projectId: "project_1" } }],
+          creditConsumptions: [
+            { amount: 10n, bucket: { projectId: "project_1" } },
+            { amount: 490n, bucket: { projectId: null } },
+          ],
         }),
       }),
     );
@@ -364,49 +383,30 @@ describe("refundVerifiedTaskX402Payment", () => {
       data: { status: "REFUNDED" },
     });
     expect(paymentUpdateMock).toHaveBeenCalledTimes(1);
-    const updateArg = paymentUpdateMock.mock.calls[0]?.[0] as {
-      data: {
-        refundTransaction: {
-          create: {
-            amount: bigint;
-            organization?: { connect: { id: string } };
-            organizationId?: string | null;
-            user?: { connect: { id: string } };
-            userId?: string | null;
-            sourceCreditBucket: {
-              create: {
-                organizationId?: string | null;
-                user?: { connect: { id: string } };
-                userId?: string | null;
-              };
-            };
-          };
-        };
-      };
-    };
-    expect(updateArg.data.refundTransaction.create.amount).toBe(500n);
-    expect(updateArg.data.refundTransaction.create.user).toBeUndefined();
-    expect(updateArg.data.refundTransaction.create.userId).toBeNull();
-    expect(updateArg.data.refundTransaction.create.organizationId).toBe(
+    const refund = refundCreate();
+    expect(refund.amount).toBe(10n);
+    expect(refund.user).toBeUndefined();
+    expect(refund.userId).toBeNull();
+    expect(refund.organizationId).toBe(ORGANIZATION_ID);
+    expect(refund.organization).toBeUndefined();
+    expect(refund.sourceCreditBucket.create.userId).toBeNull();
+    expect(refund.sourceCreditBucket.create.user).toBeUndefined();
+    expect(refund.sourceCreditBucket.create.organizationId).toBe(
       ORGANIZATION_ID,
     );
-    expect(
-      updateArg.data.refundTransaction.create.organization,
-    ).toBeUndefined();
-    expect(
-      updateArg.data.refundTransaction.create.sourceCreditBucket.create.userId,
-    ).toBeNull();
-    expect(
-      updateArg.data.refundTransaction.create.sourceCreditBucket.create.user,
-    ).toBeUndefined();
-    expect(
-      updateArg.data.refundTransaction.create.sourceCreditBucket.create
-        .organizationId,
-    ).toBe(ORGANIZATION_ID);
-    // Back to the Project the charge spent its Project credits from.
-    expect(
-      updateArg.data.refundTransaction.create.sourceCreditBucket.create,
-    ).toMatchObject({ projectId: "project_1" });
+    // Split by scope: 10 back to the Project, 490 back to the pool.
+    expect(refund.sourceCreditBucket.create).toMatchObject({
+      amount: 10n,
+      projectId: "project_1",
+    });
+    expect(refundCreate(1).sourceCreditBucket.create).toMatchObject({
+      amount: 490n,
+      projectId: null,
+    });
+    // The record links the Project part.
+    expect(paymentUpdateMock.mock.calls[0]?.[0].data.refundTransaction).toEqual(
+      { connect: { id: REFUND_TRANSACTION_ID } },
+    );
     // The row records WHICH lever refunded it. The aggregate's headline quality
     // signal counts this kind, so a resolve-produced REFUNDED row must never be
     // mistaken for one of these.
@@ -641,41 +641,13 @@ describe("resolvePendingTaskX402Payment", () => {
     expect(row.refundTransactionId).toBe(REFUND_TRANSACTION_ID);
     // The compensating refund is the full debit, non-expiring, same shape as
     // every other x402 refund.
-    const updateArg = paymentUpdateMock.mock.calls[0]?.[0] as {
-      data: {
-        refundTransaction: {
-          create: {
-            amount: bigint;
-            organization?: { connect: { id: string } };
-            organizationId?: string | null;
-            user?: { connect: { id: string } };
-            userId?: string | null;
-            sourceCreditBucket: {
-              create: {
-                amount: bigint;
-                expiresAt: Date | null;
-                organizationId?: string | null;
-                referenceId: string;
-                referenceType: CreditBucketReferenceType;
-                user?: { connect: { id: string } };
-                userId?: string | null;
-              };
-            };
-          };
-        };
-      };
-    };
-    expect(updateArg.data.refundTransaction.create.amount).toBe(500n);
-    expect(updateArg.data.refundTransaction.create.user).toBeUndefined();
-    expect(updateArg.data.refundTransaction.create.userId).toBeNull();
-    expect(updateArg.data.refundTransaction.create.organizationId).toBe(
-      ORGANIZATION_ID,
-    );
-    expect(
-      updateArg.data.refundTransaction.create.organization,
-    ).toBeUndefined();
-    const bucket =
-      updateArg.data.refundTransaction.create.sourceCreditBucket.create;
+    const refund = refundCreate();
+    expect(refund.amount).toBe(500n);
+    expect(refund.user).toBeUndefined();
+    expect(refund.userId).toBeNull();
+    expect(refund.organizationId).toBe(ORGANIZATION_ID);
+    expect(refund.organization).toBeUndefined();
+    const bucket = refund.sourceCreditBucket.create;
     expect(bucket.referenceId).toBe(`task-x402-payment:${PAYMENT_ID}`);
     expect(bucket.referenceType).toBe(CreditBucketReferenceType.REFUND);
     expect(bucket.expiresAt).toBeNull();

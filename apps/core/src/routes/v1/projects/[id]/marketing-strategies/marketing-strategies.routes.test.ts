@@ -34,6 +34,10 @@ const m = vi.hoisted(() => ({
   kickCmoProduction: vi.fn(),
 }));
 
+// PostgreSQL's clock is the test clock here.
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
 vi.mock("@/lib/db/prisma", () => {
   const client: Record<string, unknown> = {
     project: { findFirst: m.projectFindFirst },
@@ -219,6 +223,9 @@ describe("Marketing strategy routes", () => {
       nextCursor: NEW_ID,
       total: 3,
     });
+
+    expect(m.strategyFindMany.mock.lastCall?.[0]).not.toHaveProperty("cursor");
+    expect(m.strategyFindMany.mock.lastCall?.[0]).not.toHaveProperty("skip");
 
     m.strategyFindMany.mockResolvedValue([older]);
     await createApp().request(`${BASE}?limit=1&cursor=${NEW_ID}`);
@@ -504,6 +511,28 @@ describe("Marketing strategy routes", () => {
         }),
       },
     });
+  });
+
+  it("clears the stored note when a strategy answer changes to yes", async () => {
+    m.strategyFindFirst.mockResolvedValue(
+      version(OLD_ID, null, {
+        ...PLAN,
+        questions: PLAN.questions.map((question) => ({
+          ...question,
+          answer: "no",
+          note: "Most come from referrals.",
+        })),
+      }),
+    );
+    const response = await post(`${OLD_ID}/answers`, {
+      questionId: "q1",
+      answer: "yes",
+    });
+
+    expect(response.status).toBe(200);
+    const [question] = m.strategyUpdate.mock.lastCall?.[0].data.plan.questions;
+    expect(question).toHaveProperty("answer", "yes");
+    expect(question).not.toHaveProperty("note");
   });
 
   it("is not found for a question the version does not have", async () => {

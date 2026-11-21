@@ -6,6 +6,7 @@ import type { Account } from "@sokosumi/utils";
 import type { ReactNode } from "react";
 import type { DesignMdProfileValue } from "@/components/design-md/types";
 import type { TimeFormatPreference } from "@/i18n/time-format";
+import type { EmailChangeStatus } from "@/lib/auth/auth.server";
 import { AccountProvider } from "@/lib/auth/types";
 import { AccountBillingDetails } from "./account-billing-details";
 import { AccountCoworkerAccess } from "./account-coworker-access";
@@ -30,6 +31,7 @@ interface AccountSettingsProps {
   credentialAccountsLoadError?: ReactNode;
   userName?: string;
   userEmail?: string;
+  emailChange?: EmailChangeStatus | null;
   userFirstName?: null | string;
   userLastName?: null | string;
   userImage?: null | string;
@@ -54,6 +56,7 @@ export function AccountSettings({
   credentialAccountsLoadError,
   userName = "",
   userEmail,
+  emailChange,
   userFirstName,
   userLastName,
   userImage,
@@ -84,7 +87,7 @@ export function AccountSettings({
           firstName={userFirstName ?? ""}
           lastName={userLastName ?? ""}
         />
-        <EmailForm />
+        <EmailForm currentEmail={userEmail} emailChange={emailChange} />
         <div className="md:col-span-2">
           {credentialAccountsLoadError ? (
             credentialAccountsLoadError
@@ -118,7 +121,8 @@ export function AccountSettings({
         <AccountVendorGrants />
       </div>
 
-      <div className="border-t pt-8">
+      {/* `empty:hidden` drops the divider when the card renders nothing. */}
+      <div className="border-t pt-8 empty:hidden">
         <AccountCoworkerAccess />
       </div>
 

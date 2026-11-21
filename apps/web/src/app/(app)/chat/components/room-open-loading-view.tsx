@@ -1,11 +1,10 @@
 "use client";
 
 import { ALargeSmall, AtSign, Paperclip, SmilePlus } from "lucide-react";
-import { useLayoutEffect, useState } from "react";
 
 import { RoomMessageListSkeleton } from "@/app/chat/components/room-message-list-skeleton";
 import { RoomShellLayout } from "@/app/chat/components/room-shell-layout";
-import { getFormatToolbarOpenPreference } from "@/app/chat/utils/format-toolbar-preference-storage";
+import { RoomTypingLine } from "@/app/chat/components/room-typing-line";
 import { ComposerFormatToolbar } from "@/components/chat/composer-format-toolbar";
 import {
   ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME,
@@ -14,6 +13,7 @@ import {
   RoomMessageComposer,
 } from "@/components/chat/room-message-composer";
 import { Button } from "@/components/ui/button";
+import { useFormatToolbarOpenPreference } from "@/hooks/effects/use-format-toolbar-open-preference";
 import { cn } from "@/lib/utils";
 
 /**
@@ -25,10 +25,7 @@ import { cn } from "@/lib/utils";
  * empty:before cannot steal mobile LCP from real chrome.
  */
 export function RoomOpenLoadingView(): React.ReactElement {
-  const [formatToolbarOpen, setFormatToolbarOpen] = useState(false);
-  useLayoutEffect(() => {
-    setFormatToolbarOpen(getFormatToolbarOpenPreference() ?? false);
-  }, []);
+  const [formatToolbarOpen] = useFormatToolbarOpenPreference();
 
   return (
     <RoomShellLayout
@@ -54,6 +51,7 @@ export function RoomOpenLoadingView(): React.ReactElement {
             withOuterPadding={false}
             withSafeAreaPadding
             className="px-3 md:px-5"
+            typingLine={<RoomTypingLine typistIds={[]} />}
             aboveEditor={
               formatToolbarOpen ? (
                 <ComposerFormatToolbar

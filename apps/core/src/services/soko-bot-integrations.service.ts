@@ -1,11 +1,3 @@
-import { createHash } from "node:crypto";
-import fs from "node:fs/promises";
-import path from "node:path";
-
-import {
-  ComposioToolkitNotFoundError,
-  ComposioToolNotFoundError,
-} from "@composio/core";
 import type { Prisma } from "@sokosumi/database";
 import {
   getSokoBotIntegrationProvider,
@@ -17,77 +9,24 @@ import {
   type SokoBotInboxMessageDetail,
   type SokoBotIntegrationProvider,
 } from "@sokosumi/soko-bot";
-
 import { getComposio } from "@/clients/composio.client";
 import { adProviderForToolkit } from "@/config/ads-providers";
-import { getEnv } from "@/config/env";
 import { socialProviderForToolkit } from "@/config/social-providers";
+import {
+  list as asList,
+  field as pick,
+  text as str,
+} from "@/lib/contacts/capture-provider";
 import prisma from "@/lib/db/prisma";
-
-export class SokoBotIntegrationError extends Error {
-  constructor(
-    message: string,
-    readonly kind:
-      | "IDENTITY_MISMATCH"
-      | "NOT_CONFIGURED"
-      | "NOT_FOUND"
-      | "UNKNOWN_PROVIDER"
-      | "UPSTREAM" = "UPSTREAM",
-  ) {
-    super(message);
-  }
-}
-
-/** Composio "user id": one identity per bot so accounts never cross bots. */
-export function composioEntityId(sokoBotId: string): string {
-  return `sokobot:${sokoBotId}`;
-}
-
-function isComposioMissingResource(error: unknown): boolean {
-  return (
-    error instanceof ComposioToolNotFoundError ||
-    error instanceof ComposioToolkitNotFoundError
-  );
-}
-
-/** Any failure talking to Composio surfaces with its message instead of a 500. */
-export async function withComposio<T>(
-  what: string,
-  fn: () => Promise<T>,
-): Promise<T> {
-  try {
-    return await fn();
-  } catch (error) {
-    if (error instanceof SokoBotIntegrationError) throw error;
-    const raw = error instanceof Error ? error.message : String(error);
-    // The SDK embeds the API's JSON body; keep only its message.
-    const json = raw.match(/\{.*\}$/s);
-    let message = raw;
-    if (json) {
-      try {
-        const parsed = JSON.parse(json[0]) as { error?: { message?: string } };
-        if (parsed.error?.message) message = parsed.error.message;
-      } catch {
-        // Not JSON after all; keep the raw text.
-      }
-    }
-    throw new SokoBotIntegrationError(
-      `Composio (${what}): ${message}`,
-      isComposioMissingResource(error) ? "NOT_FOUND" : "UPSTREAM",
-    );
-  }
-}
-
-export function requireComposio() {
-  const composio = getComposio();
-  if (!composio) {
-    throw new SokoBotIntegrationError(
-      "Integrations are not configured on this environment",
-      "NOT_CONFIGURED",
-    );
-  }
-  return composio;
-}
+import { createCoreLogger, logCoreWarning, recordCoreError } from "@/lib/evlog";
+import {
+  invitationAddresses,
+  mailboxAddresses,
+} from "@/lib/soko-bot/integration-addresses";
+import {
+  executeIntegrationTool as execute,
+  SokoBotIntegrationError,
+} from "@/services/composio-integration-tools.service";
 
 const SLUG_PATTERN = /^[a-z0-9_-]{1,64}$/;
 
@@ -149,6 +88,7 @@ async function loadCatalog(): Promise<SokoBotIntegrationCatalogEntry[] | null> {
       .filter(
         (toolkit) =>
           toolkit.slug.toLowerCase() !== "composio" &&
+          toolkit.slug.toLowerCase() !== "tiktok" &&
           !adProviderForToolkit(toolkit.slug) &&
           connectable(toolkit),
       )
@@ -179,15 +119,18 @@ export async function searchSokoBotIntegrationCatalog(
     catalogCache = { at: Date.now(), entries };
   }
   const needle = query.trim().toLowerCase();
-  const entries = needle
-    ? catalogCache.entries.filter(
-        (entry) =>
-          entry.provider.includes(needle) ||
-          entry.name.toLowerCase().includes(needle) ||
-          (entry.description?.toLowerCase().includes(needle) ?? false),
-      )
-    : catalogCache.entries;
-  return entries.slice(0, limit);
+  const { entries } = catalogCache;
+  if (!needle) return entries.slice(0, limit);
+  const names: SokoBotIntegrationCatalogEntry[] = [];
+  const descriptions: SokoBotIntegrationCatalogEntry[] = [];
+  for (const entry of entries) {
+    const name = entry.name.toLowerCase();
+    if (name.includes(needle) || entry.provider.includes(needle))
+      names.push(entry);
+    else if (entry.description?.toLowerCase().includes(needle))
+      descriptions.push(entry);
+  }
+  return names.concat(descriptions).slice(0, limit);
 }
 
 function curatedCatalog(
@@ -211,7 +154,11 @@ function curatedCatalog(
     }));
 }
 
-/** Revoke the account snapshot captured atomically during bot deletion. */
+/**
+ * Revoke the account snapshot captured atomically during bot deletion.
+ * Failures go on the live request event (bot deletion, member removal), or
+ * on their own event in the leaver sweep's cron.
+ */
 export async function revokeSokoBotIntegrationAccounts(
   sokoBotId: string,
   rows: {
@@ -225,6 +172,16 @@ export async function revokeSokoBotIntegrationAccounts(
   if (!composio) return { revoked: 0, failed: rows.map((r) => r.provider) };
 
   const failed = new Set<string>();
+  // One request can revoke for several bots on one event: each record
+  // names its bot, since evlog concatenates arrays and overwrites scalars.
+  const failures: {
+    sokoBotId: string;
+    provider: string;
+    accountId: string;
+    /** Composio's error, as redacted detail. */
+    cause: unknown;
+  }[] = [];
+  let firstError: unknown;
   for (const row of rows) {
     for (const accountId of new Set([
       row.composioAccountId,
@@ -235,13 +192,28 @@ export async function revokeSokoBotIntegrationAccounts(
         await composio.connectedAccounts.delete(accountId);
       } catch (error) {
         failed.add(row.provider);
-        console.error("Soko Bot integration revoke failed", {
+        firstError ??= error;
+        failures.push({
           sokoBotId,
           provider: row.provider,
-          error: error instanceof Error ? error.message : "unknown",
+          accountId,
+          cause: error,
         });
       }
     }
+  }
+  if (failures.length > 0) {
+    recordCoreError(
+      { operation: "soko_bot_integration_revoke" },
+      {
+        message:
+          "Could not revoke a Soko Bot's integration accounts at Composio",
+        why: "Composio refused the delete",
+        fix: "The integrations are gone from Sokosumi, but the accounts may still be live at Composio. Delete the account ids under integrationRevoke.failures in the Composio dashboard.",
+        cause: firstError,
+      },
+      { integrationRevoke: { failures } },
+    );
   }
   return { revoked: rows.length - failed.size, failed: [...failed] };
 }
@@ -291,305 +263,6 @@ export async function activeIntegrationsForBot(
   });
 }
 
-export interface SokoBotIntegrationTool {
-  slug: string;
-  name: string;
-  description: string | null;
-  inputSchema: unknown;
-  /** Composio marks it as only looking things up. */
-  readOnly: boolean;
-}
-
-const READ_ONLY_TAG = "readOnlyHint";
-
-/**
- * Why a bot may not use this toolkit (or tool) directly: ads go through the
- * Project's ad account, never a connection of the bot's own. Null when allowed.
- */
-export function adToolkitRefusal(
-  providerId: string,
-  tool?: string,
-): string | null {
-  // A tool slug is `{TOOLKIT}_{ACTION}`, so its prefix names the toolkit.
-  const provider =
-    adProviderForToolkit(providerId) ??
-    (tool ? adProviderForToolkit(tool.trim().split("_")[0]) : undefined);
-  return provider
-    ? `${provider.name} is used through the Project's ad account: start with list_ad_accounts and use the ad tools`
-    : null;
-}
-
-/** Tool descriptors of one toolkit, optionally narrowed by intent words. */
-export async function listIntegrationTools(
-  integration: ActiveIntegration,
-  options: { query?: string; limit: number },
-): Promise<SokoBotIntegrationTool[]> {
-  const refusal = adToolkitRefusal(integration.provider.id);
-  if (refusal) throw new SokoBotIntegrationError(refusal);
-  const composio = requireComposio();
-  const tools = await withComposio("list tools", () =>
-    composio.tools.getRawComposioTools({
-      toolkits: [integration.provider.id],
-      search: options.query?.trim() || undefined,
-      limit: options.limit,
-    }),
-  );
-  return tools.map((tool) => ({
-    slug: tool.slug,
-    name: tool.name,
-    description: tool.description ?? null,
-    inputSchema: tool.inputParameters ?? null,
-    readOnly: tool.tags?.includes(READ_ONLY_TAG) ?? false,
-  }));
-}
-
-/** Runs one toolkit tool as the connected account; mailboxes and ad toolkits are refused. */
-export async function runIntegrationTool(
-  integration: ActiveIntegration,
-  tool: string,
-  args: Record<string, unknown>,
-): Promise<Record<string, unknown>> {
-  return execute(integration, integrationToolSlug(integration, tool), args);
-}
-
-/** Runs a tool only when Composio marks it read-only, so a read can never write. */
-export async function readIntegrationTool(
-  integration: ActiveIntegration,
-  tool: string,
-  args: Record<string, unknown>,
-): Promise<Record<string, unknown>> {
-  const slug = integrationToolSlug(integration, tool);
-  const composio = requireComposio();
-  const described = await withComposio("describe tool", () =>
-    composio.tools.getRawComposioToolBySlug(slug),
-  );
-  if (!described.tags?.includes(READ_ONLY_TAG))
-    throw new SokoBotIntegrationError(
-      `${slug} is not marked read-only; a tool that changes something runs through run_integration_tool`,
-    );
-  return execute(integration, slug, args);
-}
-
-/** The tool's slug, after refusing mailboxes, ad toolkits and other toolkits' tools. */
-function integrationToolSlug(
-  integration: ActiveIntegration,
-  tool: string,
-): string {
-  const refusal = adToolkitRefusal(integration.provider.id, tool);
-  if (refusal) throw new SokoBotIntegrationError(refusal);
-  if (isSokoBotEmailProvider(integration.provider.id)) {
-    throw new SokoBotIntegrationError(
-      "Mailboxes are read through search_inbox and read_email only",
-    );
-  }
-  const slug = tool.trim().toUpperCase();
-  const prefix = `${integration.provider.id.toUpperCase()}_`;
-  if (!slug.startsWith(prefix)) {
-    throw new SokoBotIntegrationError(
-      `Tool ${tool} does not belong to ${integration.provider.name}`,
-    );
-  }
-  return slug;
-}
-
-/** A Composio call the model is waiting on; well under the turn budget. */
-const COMPOSIO_TIMEOUT_MS = 45_000;
-
-async function executeViaRest(
-  integration: ActiveIntegration,
-  slug: string,
-  args: Record<string, unknown>,
-): Promise<{
-  successful: boolean;
-  error: string | null;
-  data: Record<string, unknown>;
-}> {
-  const env = getEnv();
-  const base = (
-    env.COMPOSIO_API_BASE_URL ?? "https://backend.composio.dev"
-  ).replace(/\/$/, "");
-  const response = await fetch(
-    `${base}/api/v3/tools/execute/${encodeURIComponent(slug)}`,
-    {
-      method: "POST",
-      headers: {
-        "x-api-key": env.COMPOSIO_API_KEY ?? "",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        user_id: composioEntityId(integration.sokoBotId),
-        connected_account_id: integration.composioAccountId,
-        arguments: args,
-        version: "latest",
-      }),
-      // Every other external call in Core is bounded; this one was not, and it
-      // is the only unbounded I/O a tool call can reach. A provider that never
-      // answers held the whole turn open until the invocation was killed, which
-      // leaves the turn RUNNING and the chat on "Thinking…".
-      signal: AbortSignal.timeout(COMPOSIO_TIMEOUT_MS),
-    },
-  );
-  const body = (await response.json().catch(() => ({}))) as {
-    successful?: boolean;
-    error?: string | { message?: string } | null;
-    data?: Record<string, unknown>;
-  };
-  if (!response.ok) {
-    const message =
-      typeof body.error === "string"
-        ? body.error
-        : (body.error?.message ?? `HTTP ${response.status}`);
-    throw new SokoBotIntegrationError(`Composio (${slug}): ${message}`);
-  }
-  return {
-    successful: body.successful ?? false,
-    error:
-      typeof body.error === "string"
-        ? body.error
-        : (body.error?.message ?? null),
-    data: body.data ?? {},
-  };
-}
-
-/**
- * Lab seam: `SOKO_BOT_INTEGRATION_FIXTURES=record` writes every Composio
- * tool response to disk; `replay` answers from disk and refuses calls that
- * were never recorded. Keys drop time-window arguments so a recording made
- * today still matches tomorrow's request.
- */
-function fixtureMode(): "record" | "replay" | null {
-  const mode = process.env.SOKO_BOT_INTEGRATION_FIXTURES;
-  return mode === "record" || mode === "replay" ? mode : null;
-}
-
-function fixtureDir(): string {
-  return (
-    process.env.SOKO_BOT_INTEGRATION_FIXTURE_DIR ??
-    path.join(process.cwd(), "fixtures", "soko-bot-integrations")
-  );
-}
-
-const TIME_ARGS = new Set([
-  "timeMin",
-  "timeMax",
-  "start_datetime",
-  "end_datetime",
-  "filter",
-]);
-
-function fixtureKey(slug: string, args: Record<string, unknown>): string {
-  const stable: Record<string, unknown> = {};
-  for (const key of Object.keys(args).sort()) {
-    if (TIME_ARGS.has(key)) continue;
-    const value = args[key];
-    stable[key] =
-      key === "query" && typeof value === "string"
-        ? value.replace(/after:\d+/g, "after:*").trim()
-        : value;
-  }
-  const hash = createHash("sha1")
-    .update(JSON.stringify(stable))
-    .digest("hex")
-    .slice(0, 10);
-  return `${slug}.${hash}`;
-}
-
-async function execute(
-  integration: ActiveIntegration,
-  slug: string,
-  args: Record<string, unknown>,
-): Promise<Record<string, unknown>> {
-  const mode = fixtureMode();
-  const key = fixtureKey(slug, args);
-  const file = path.join(fixtureDir(), `${key}.json`);
-  if (mode === "replay") {
-    try {
-      const recorded = JSON.parse(await fs.readFile(file, "utf8")) as {
-        data: Record<string, unknown>;
-      };
-      return recorded.data;
-    } catch {
-      // A listing may fall back to any recording of the same tool — the bot
-      // phrases queries freely — but fetching one id must not, or replay
-      // would hand back a different message than the one asked for.
-      const strict = slug === integration.provider.tools.getMessage;
-      const siblings = strict
-        ? []
-        : await fs.readdir(fixtureDir()).catch(() => []);
-      const sibling = siblings.find((name) => name.startsWith(`${slug}.`));
-      if (sibling) {
-        const recorded = JSON.parse(
-          await fs.readFile(path.join(fixtureDir(), sibling), "utf8"),
-        ) as { data: Record<string, unknown> };
-        return recorded.data;
-      }
-      throw new SokoBotIntegrationError(
-        `No recording for ${slug} (${key}); run the lab with --record first`,
-      );
-    }
-  }
-  requireComposio();
-  // The SDK refuses `version: "latest"` for manual execution; the REST API
-  // accepts it, so call it directly with the same key.
-  const result = await withComposio(slug, () =>
-    executeViaRest(integration, slug, args),
-  );
-  if (!result.successful) {
-    throw new SokoBotIntegrationError(
-      `${integration.provider.name}: ${result.error ?? "request failed"}`,
-    );
-  }
-  if (mode === "record") {
-    await fs.mkdir(fixtureDir(), { recursive: true });
-    await fs.writeFile(
-      file,
-      JSON.stringify(
-        { slug, args, recordedAt: new Date().toISOString(), data: result.data },
-        null,
-        2,
-      ),
-    );
-  }
-  return result.data;
-}
-
-function str(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (typeof value === "number") return String(value);
-  return "";
-}
-
-function pick(obj: unknown, ...keys: string[]): unknown {
-  if (!obj || typeof obj !== "object") return undefined;
-  for (const key of keys) {
-    const value = (obj as Record<string, unknown>)[key];
-    if (value !== undefined && value !== null) return value;
-  }
-  return undefined;
-}
-
-function asList(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
-}
-
-function addressList(value: unknown): string[] {
-  if (typeof value === "string") {
-    return value
-      .split(",")
-      .map((part) => part.trim())
-      .filter(Boolean);
-  }
-  return asList(value).map((entry) => {
-    const email = pick(entry, "emailAddress", "email", "address");
-    if (email && typeof email === "object") {
-      const name = str(pick(email, "name"));
-      const address = str(pick(email, "address", "email"));
-      return name ? `${name} <${address}>` : address;
-    }
-    return str(email ?? entry);
-  });
-}
-
 function isoOrEmpty(value: unknown): string {
   if (typeof value === "number") return new Date(value).toISOString();
   const text = str(value);
@@ -605,7 +278,7 @@ function normaliseMessage(
   const from = pick(raw, "sender", "from");
   const fromText =
     from && typeof from === "object"
-      ? (addressList([from])[0] ?? "")
+      ? (mailboxAddresses([from])[0] ?? "")
       : str(from);
   const labels = asList(pick(raw, "labelIds", "categories")).map(str);
   const isRead = pick(raw, "isRead");
@@ -614,7 +287,7 @@ function normaliseMessage(
     id: str(pick(raw, "messageId", "id")),
     threadId: str(pick(raw, "threadId", "conversationId")) || null,
     from: fromText,
-    to: addressList(pick(raw, "to", "toRecipients")),
+    to: mailboxAddresses(pick(raw, "to", "toRecipients")),
     subject: str(pick(raw, "subject")),
     snippet: (
       str(pick(pick(raw, "preview"), "body")) ||
@@ -632,6 +305,8 @@ function normaliseMessage(
   };
 }
 
+const MAX_CALENDAR_ATTENDEES = 20;
+
 function normaliseEvent(
   providerId: string,
   raw: unknown,
@@ -641,6 +316,7 @@ function normaliseEvent(
   const startDate = str(pick(start, "dateTime", "date")) || str(start);
   const endDate = str(pick(end, "dateTime", "date")) || str(end);
   const allDay = Boolean(pick(start, "date")) || Boolean(pick(raw, "isAllDay"));
+  const { attendees, organizer } = invitationAddresses(raw);
   return {
     provider: providerId,
     id: str(pick(raw, "id")),
@@ -652,8 +328,12 @@ function normaliseEvent(
       str(pick(raw, "location")) ||
       str(pick(pick(raw, "location"), "displayName")) ||
       null,
-    attendees: addressList(pick(raw, "attendees")).slice(0, 20),
-    organizer: addressList([pick(raw, "organizer")])[0] || null,
+    attendees: attendees.slice(0, MAX_CALENDAR_ATTENDEES),
+    ...((pick(raw, "attendeesOmitted") === true ||
+      attendees.length > MAX_CALENDAR_ATTENDEES) && {
+      attendeesIncomplete: true,
+    }),
+    organizer,
     description:
       str(pick(raw, "description", "bodyPreview")).slice(0, 500) || null,
     link: str(pick(raw, "htmlLink", "webLink")) || null,
@@ -983,9 +663,22 @@ export async function fetchInboxAttachment(
     const bytes = inline ? base64Bytes(inline) : null;
     if (bytes) return bytes;
   }
-  console.warn("[soko-bot-mail] unreadable attachment result", {
-    keys: data && typeof data === "object" ? Object.keys(data) : typeof data,
+  // Read from a Soko Bot turn's tool call, in the background: its own event.
+  // Only the operation: the result's keys and values can quote the mail.
+  const log = createCoreLogger({
+    operation: "soko_bot_mail_attachment",
+    integration: {
+      id: integration.id,
+      provider: integration.provider.id,
+      operation: slug,
+    },
   });
+  logCoreWarning(log, {
+    message: "A mailbox returned an attachment Sokosumi cannot read",
+    why: "Composio's result held no file link and no base64 data",
+    fix: "Run the attachment tool for a test mailbox in the Composio playground and teach fetchInboxAttachment the shape it returns.",
+  });
+  log.emit();
   throw new SokoBotIntegrationError(
     "The mailbox returned the attachment in a form Sokosumi cannot read",
   );

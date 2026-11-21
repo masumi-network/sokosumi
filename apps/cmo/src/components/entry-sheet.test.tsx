@@ -29,6 +29,23 @@ describe("EntrySheet", () => {
     expect(html).toContain("One request, start to finish.");
   });
 
+  it("names the other networks one talking video goes out on", () => {
+    const html = renderToStaticMarkup(
+      <EntrySheet
+        entry={{
+          ...entry,
+          channel: "instagram",
+          format: "talking_video",
+          alsoOn: ["youtube", "facebook"],
+        }}
+        onClose={() => {}}
+      />,
+    );
+    expect(html).toContain(
+      "Instagram · Talking video · video by Cuso · also on YouTube, Facebook",
+    );
+  });
+
   it("shows an image with the piece's title as its text", () => {
     const html = renderToStaticMarkup(
       <EntrySheet

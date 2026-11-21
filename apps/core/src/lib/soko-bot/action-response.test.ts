@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
 import { ACTION_CAPABILITIES } from "./action-receipts";
 import {
+  ACTION_LABELS,
   buildActionResponse,
   HELD_BACK_REPLY,
   parseActionNarrativeText,
@@ -56,8 +57,35 @@ function replay() {
 }
 
 describe("action lines the owner reads", () => {
+  it("has words for every action, so no line shows a tool's name", () => {
+    expect(
+      [...ACTION_CAPABILITIES].filter((action) => !ACTION_LABELS[action]),
+    ).toEqual([]);
+  });
+
   beforeEach(() => {
     vi.resetAllMocks();
+  });
+
+  it("links a calendar mailbox to its saved card without linking the name from the question", async () => {
+    const email = "studio@cerise.example";
+    const link =
+      "/contacts?contact=019aaa01-0000-7000-8000-000000000001&workspace=019aaa01-0000-7000-8000-000000000002";
+    const event = "[Calendar event](https://calendar.example/events/proof)";
+    const text = `I cannot confirm Micah. The invite lists Cerise Desk, using ${email}. ${event}`;
+    const calendarRead = receipt({
+      capability: "list_calendar_events",
+      disposition: null,
+      result: { events: [{ contactReferences: [{ email, link }] }] },
+    });
+    db.sokoBotToolCall.findMany.mockImplementation(async ({ where }) =>
+      where.capability.in.includes("list_calendar_events")
+        ? [calendarRead]
+        : [],
+    );
+    const result = await buildActionResponse(prisma, "turn-current", text);
+    expect(result.answerText).toBe(text.replace(email, `[${email}](${link})`));
+    expect(result.appliedReceiptIds).toEqual([]);
   });
 
   it("links a verified newsletter draft to the editor for human review", async () => {
@@ -255,6 +283,50 @@ describe("action lines the owner reads", () => {
       "Couldn't archive 2 Tasks: [Test task a](/tasks/a), [Test task b](/tasks/b).",
     );
     expect(result.unfulfilledActions).toHaveLength(4);
+  });
+
+  it("drops a talking video refused for its price once a shorter one starts", async () => {
+    const video = (presenter: string) => [
+      receipt({
+        id: "receipt-refused",
+        toolCallId: "call-refused",
+        capability: "generate_talking_video",
+        status: "FAILED",
+        disposition: "REJECTED",
+        verification: "NONE",
+        committedAt: null,
+        targetId: null,
+        input: {
+          projectId: "project-1",
+          presenter: "maya",
+          script: "A long script that costs too much.",
+          maxCredits: 250,
+        },
+      }),
+      receipt({
+        id: "receipt-started",
+        toolCallId: "call-started",
+        capability: "generate_talking_video",
+        targetId: "job-1",
+        createdAt: new Date("2026-09-26T12:01:00Z"),
+        input: {
+          projectId: "project-1",
+          presenter,
+          script: "A shorter script.",
+          maxCredits: 250,
+        },
+      }),
+    ];
+    db.sokoBotTurn.findUnique.mockResolvedValue({ source: "CHAT" });
+
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce(video("maya"));
+    const retried = await buildActionResponse(prisma, "turn-current", "");
+    expect(retried.answerText).not.toContain("Not confirmed");
+
+    // Another presenter is another video: the refused one still counts.
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce(video("jonas"));
+    const other = await buildActionResponse(prisma, "turn-current", "");
+    expect(other.answerText).toContain("Not confirmed");
   });
 
   it("links a scheduled social post to where the owner finds it", async () => {
@@ -479,7 +551,7 @@ describe("authoritative action responses", () => {
     expect(db.sokoBotToolCall.findMany).toHaveBeenCalledWith({
       where: {
         turnId: "turn-current",
-        capability: { in: [...ACTION_CAPABILITIES] },
+        capability: { in: [...ACTION_CAPABILITIES, "list_calendar_events"] },
       },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     });

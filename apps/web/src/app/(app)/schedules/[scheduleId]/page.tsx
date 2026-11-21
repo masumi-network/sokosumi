@@ -11,6 +11,7 @@ import { connection } from "next/server";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { ProjectScopeMarker } from "@/app/components/project-scope/project-scope-marker";
+import { seoMonitorPlanText } from "@/app/seo/components/seo-monitor-text";
 import TaskDetailLoading from "@/app/tasks/[taskId]/loading";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskScheduleActions } from "@/app/tasks/components/task-schedule-actions";
@@ -32,6 +33,7 @@ import {
   taskScheduleZoneName,
 } from "@/app/tasks/utils/task-schedule-view";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
+import { BackLink } from "@/components/back-link";
 import { Badge } from "@/components/ui/badge";
 import {
   HOLDER_CLASS,
@@ -109,6 +111,7 @@ async function TaskScheduleDetailContent({
     tStatus,
     tTaskDetail,
     formatter,
+    tSeo,
   ] = await Promise.all([
     loadTaskScheduleAssigneeOptions(activeOrganizationId),
     getProjectFilterOptions(schedule.projectId),
@@ -128,7 +131,15 @@ async function TaskScheduleDetailContent({
     getTranslations("App.Tasks.Filters.statusOptions"),
     getTranslations("App.Tasks.Detail"),
     getFormatter(),
+    getTranslations("App.Seo"),
   ]);
+  // An SEO monitor's plan sentence in the reader's language; Core's description is English.
+  const description = schedule.seoMonitor
+    ? seoMonitorPlanText(tSeo, formatter, {
+        ...schedule.seoMonitor,
+        rule: schedule.rule,
+      })
+    : schedule.description;
   const statusLabels = buildTaskStatusLabels((key) => tStatus(key));
   const project = projectOptions.find(
     (option) => option.id === schedule.projectId,
@@ -161,13 +172,13 @@ async function TaskScheduleDetailContent({
           <div className={TASK_DETAIL_MAIN_CLASS}>
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <Link
+                <BackLink
                   href={TASK_SCHEDULES_PATH}
                   className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
                 >
                   <ArrowLeft className="size-4" aria-hidden />
                   {t("Detail.back")}
-                </Link>
+                </BackLink>
                 {schedule.canWrite ? (
                   <TaskScheduleActions
                     schedule={schedule}
@@ -186,10 +197,10 @@ async function TaskScheduleDetailContent({
               </h1>
             </div>
 
-            {schedule.description ? (
+            {description ? (
               <TaskDescription
                 title={tTaskDetail("description")}
-                description={schedule.description}
+                description={description}
                 expandLabel={tTaskDetail("expand")}
                 collapseLabel={tTaskDetail("collapse")}
               />

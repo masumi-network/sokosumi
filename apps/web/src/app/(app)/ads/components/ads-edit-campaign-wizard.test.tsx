@@ -1,7 +1,18 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  render as rtlRender,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
+import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TestQueryProvider } from "@/test/query-provider";
+
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: TestQueryProvider });
+}
 
 import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
 import { createAdCampaign, editAdCampaign } from "@/lib/actions/ads/action";
@@ -19,6 +30,9 @@ const { toastSuccessMock, uploadMock, sizes } = vi.hoisted(() => ({
   /** Natural sizes by file name; the browser reads them from the pixels. */
   sizes: new Map<string, { width: number; height: number }>(),
 }));
+
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
 
 vi.mock("sonner", () => ({
   toast: {
@@ -148,7 +162,8 @@ function renderEdit(initialValues: GoogleFormValues, started = false) {
 }
 
 const nameInput = () => screen.getByLabelText("Name");
-const save = () => screen.getByRole("button", { name: "Save changes" });
+const save = () =>
+  screen.getByRole("button", { name: /^Save (changes|\d+ changes?)$/ });
 const sent = () => editMock.mock.calls[0]?.[0];
 const stepBar = () => screen.getByRole("list", { name: "Steps" });
 /** The bar's step names: each item's hidden text, minus "Go to". */
@@ -163,6 +178,21 @@ const currentStep = () => screen.getByRole("listitem", { current: "step" });
 const goTo = (step: Step) =>
   screen.getByRole("button", { name: new RegExp(`^Go to ${step}`) });
 const jump = (user: User, step: Step) => user.click(goTo(step));
+
+/** A Review row by its label, from its Changed mark. */
+const changedRow = (label: string) =>
+  screen
+    .getAllByText("Changed")
+    .map((mark) => mark.closest("div") as HTMLElement)
+    .find((row) => row.querySelector("dt")?.textContent?.startsWith(label));
+/** The struck (`del`) or new (`ins`) values in a Review row. */
+const marked = (row: HTMLElement | undefined, tag: "del" | "ins") =>
+  Array.from(row?.querySelectorAll(tag) ?? []).map((item) =>
+    item.textContent?.replace(/^(Was|Now): /, ""),
+  );
+
+/** Makes one change, so there is something to save. */
+const change = (user: User) => user.type(nameInput(), "!");
 
 /** Opens Review and saves from there. */
 async function saveFromReview(user: User) {
@@ -297,6 +327,7 @@ describe("EditGoogleCampaignWizard", () => {
   describe("the review", () => {
     it("tells the type without an Edit button, and says saving sends the ad back to review", async () => {
       const user = renderEdit(SEARCH_VALUES);
+      await change(user);
       await jump(user, "Review");
 
       expect(screen.getByText("Campaign type")).toBeVisible();
@@ -313,6 +344,160 @@ describe("EditGoogleCampaignWizard", () => {
       expect(
         screen.queryByRole("button", { name: "Create campaign" }),
       ).toBeNull();
+    });
+
+    it("lines the locked type row up with the other rows", async () => {
+      const user = renderEdit(SEARCH_VALUES);
+      await jump(user, "Review");
+
+      const row = (label: string) =>
+        screen.getByText(label, { selector: "dt" }).parentElement?.className;
+      expect(row("Campaign type")).toBe(row("Name"));
+    });
+
+    it("keeps Save off and says so while nothing has changed", async () => {
+      const user = renderEdit(SEARCH_VALUES);
+      await jump(user, "Review");
+
+      expect(
+        screen.getByRole("button", { name: "Save changes" }),
+      ).toBeDisabled();
+      expect(
+        screen.getByText("Nothing has changed yet. Change a step to save."),
+      ).toBeVisible();
+      expect(screen.queryByText("Changed")).toBeNull();
+    });
+
+    it("marks a changed row with its old and new value and counts it", async () => {
+      const user = renderEdit(SEARCH_VALUES);
+      const budget = screen.getByLabelText(/^Daily budget/);
+      await user.clear(budget);
+      await user.type(budget, "30");
+      await jump(user, "Review");
+
+      expect(
+        screen.getByRole("button", { name: "Save 1 change" }),
+      ).toBeEnabled();
+      const row = screen.getByText("Changed").closest("div") as HTMLElement;
+      expect(row).toHaveTextContent("Daily budget");
+      expect(row.querySelector("del")).toHaveTextContent("Was: $25.50");
+      expect(row.querySelector("ins")).toHaveTextContent("Now: $30.00");
+      expect(
+        screen.getByText("Saving sends the ad back to Google's review."),
+      ).toBeVisible();
+    });
+
+    it("counts each changed part and shows the old and new headline", async () => {
+      const user = renderEdit(SEARCH_VALUES);
+      await change(user);
+      await jump(user, "Ad");
+      await user.type(screen.getAllByLabelText(/^Headline/)[0]!, "!");
+      await jump(user, "Review");
+
+      expect(
+        screen.getByRole("button", { name: "Save 2 changes" }),
+      ).toBeEnabled();
+      expect(screen.getAllByText("Changed")).toHaveLength(2);
+      const headlines = changedRow("Headlines");
+      expect(headlines).toHaveTextContent("Removed");
+      expect(marked(headlines, "del")).toEqual(["One"]);
+      expect(marked(headlines, "ins")).toEqual(["One!"]);
+    });
+
+    it("names a replaced keyword when the count stays the same", async () => {
+      const user = renderEdit(SEARCH_VALUES);
+      await jump(user, "Keywords");
+      const keywords = screen.getByRole("textbox", { name: "Keywords" });
+      await user.clear(keywords);
+      await user.type(keywords, 'running shoes{Enter}"road shoes"');
+      await jump(user, "Review");
+
+      const row = changedRow("Keywords");
+      expect(row).toHaveTextContent("2 keywords");
+      expect(marked(row, "del")).toEqual(['"trail shoes"']);
+      expect(marked(row, "ins")).toEqual(['"road shoes"']);
+      expect(
+        screen.getByRole("button", { name: "Save 1 change" }),
+      ).toBeEnabled();
+    });
+
+    it("names a sitelink edit that moves text across the separator", async () => {
+      const user = renderEdit({
+        ...SEARCH_VALUES,
+        sitelinks: [
+          {
+            text: "Sale",
+            finalUrl: "https://example.com/sale",
+            description1: "Fast · Free",
+            description2: "Delivery",
+          },
+        ],
+      });
+      await jump(user, "Ad");
+      await user.click(screen.getByRole("button", { name: /^Sitelinks/ }));
+      const first = screen.getByLabelText("Description line 1");
+      const second = screen.getByLabelText("Description line 2");
+      await user.clear(first);
+      await user.type(first, "Fast");
+      await user.clear(second);
+      await user.type(second, "Free · Delivery");
+      await jump(user, "Review");
+
+      expect(
+        screen.getByRole("button", { name: "Save 1 change" }),
+      ).toBeEnabled();
+      const row = changedRow("Sitelinks");
+      expect(row).toBeDefined();
+      expect(row?.querySelectorAll("del")).toHaveLength(1);
+      expect(row?.querySelectorAll("ins")).toHaveLength(1);
+    });
+
+    it("shows a changed sitelink and display path, old and new", async () => {
+      const user = renderEdit({
+        ...SEARCH_VALUES,
+        sitelinks: [
+          {
+            text: "Sale",
+            finalUrl: "https://example.com/sale",
+            description1: "",
+            description2: "",
+          },
+        ],
+      });
+      await jump(user, "Ad");
+      await user.type(screen.getByLabelText("Path 2"), "sale");
+      await user.click(screen.getByRole("button", { name: /^Sitelinks/ }));
+      const text = screen.getByLabelText("Link text");
+      await user.clear(text);
+      await user.type(text, "Outlet");
+      await jump(user, "Review");
+
+      expect(marked(changedRow("Display path"), "del")).toEqual(["shoes"]);
+      expect(marked(changedRow("Display path"), "ins")).toEqual(["shoes/sale"]);
+      expect(marked(changedRow("Sitelinks"), "del")).toEqual([
+        "Sale · https://example.com/sale",
+      ]);
+      expect(marked(changedRow("Sitelinks"), "ins")).toEqual([
+        "Outlet · https://example.com/sale",
+      ]);
+    });
+
+    it("is back to no changes once an edit is reverted", async () => {
+      const user = renderEdit(SEARCH_VALUES);
+      await change(user);
+      await jump(user, "Review");
+      expect(
+        screen.getByRole("button", { name: "Save 1 change" }),
+      ).toBeEnabled();
+
+      await jump(user, "Basics");
+      await user.type(nameInput(), "{Backspace}  ");
+      await jump(user, "Review");
+
+      expect(
+        screen.getByRole("button", { name: "Save changes" }),
+      ).toBeDisabled();
+      expect(screen.queryByText("Changed")).toBeNull();
     });
 
     it("tells a Display campaign's type too", async () => {
@@ -350,6 +535,7 @@ describe("EditGoogleCampaignWizard", () => {
         ],
       });
 
+      await change(user);
       await saveFromReview(user);
 
       const sitelinks = await screen.findByRole("button", {
@@ -406,6 +592,7 @@ describe("EditGoogleCampaignWizard", () => {
       editMock.mockResolvedValue({ ok: true, value: undefined });
       const user = renderEdit(SEARCH_VALUES, true);
 
+      await change(user);
       await saveFromReview(user);
 
       await waitFor(() => expect(editMock).toHaveBeenCalledTimes(1));
@@ -433,6 +620,7 @@ describe("EditGoogleCampaignWizard", () => {
       );
       const user = renderEdit(SEARCH_VALUES);
 
+      await change(user);
       await saveFromReview(user);
 
       await waitFor(() => expect(onBusyChange).toHaveBeenCalledWith(true));
@@ -467,6 +655,7 @@ describe("EditGoogleCampaignWizard", () => {
       editMock.mockResolvedValue(refused(409, "Campaign can't be edited here"));
       const user = renderEdit(SEARCH_VALUES);
 
+      await change(user);
       await saveFromReview(user);
 
       const alert = await screen.findByRole("alert");
@@ -481,6 +670,7 @@ describe("EditGoogleCampaignWizard", () => {
       editMock.mockResolvedValue(refused(409, "Ad connection is not active"));
       const user = renderEdit(SEARCH_VALUES);
 
+      await change(user);
       await saveFromReview(user);
 
       const alert = await screen.findByRole("alert");
@@ -497,6 +687,7 @@ describe("EditGoogleCampaignWizard", () => {
         editMock.mockResolvedValue(refused(status));
         const user = renderEdit(SEARCH_VALUES);
 
+        await change(user);
         await saveFromReview(user);
 
         const alert = await screen.findByRole("alert");
@@ -509,6 +700,7 @@ describe("EditGoogleCampaignWizard", () => {
       editMock.mockRejectedValue(new Error("network"));
       const user = renderEdit(SEARCH_VALUES);
 
+      await change(user);
       await saveFromReview(user);
 
       expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -540,10 +732,41 @@ describe("EditGoogleCampaignWizard", () => {
       expect(screen.getByLabelText("Business name")).toHaveValue("Acme");
     });
 
+    it("shows a replaced image as removed and added on Review", async () => {
+      const user = renderEdit(DISPLAY_VALUES);
+      await jump(user, "Ad");
+      await user.click(
+        screen.getByRole("button", {
+          name: "Remove Current image (Landscape)",
+        }),
+      );
+      const file = new File(["x"], "wide.png", { type: "image/png" });
+      Object.defineProperty(file, "size", { value: 1000 });
+      await user.upload(screen.getByLabelText("Image files"), file);
+      await screen.findByRole("img", { name: "wide.png" });
+      await jump(user, "Review");
+
+      const row = changedRow("Images") as HTMLElement;
+      const removed = row.querySelector("del") as HTMLElement;
+      const added = row.querySelector("ins") as HTMLElement;
+      expect(
+        within(removed).getByRole("img", { name: "Current image (Landscape)" }),
+      ).toHaveAttribute("src", KEPT_LANDSCAPE.url);
+      expect(removed).toHaveTextContent("Landscape");
+      expect(
+        within(added).getByRole("img", { name: "wide.png" }),
+      ).toBeVisible();
+      expect(row.querySelectorAll("del, ins")).toHaveLength(2);
+      expect(
+        screen.getByRole("button", { name: "Save 1 change" }),
+      ).toBeEnabled();
+    });
+
     it("sends the images it kept as asset and role", async () => {
       editMock.mockResolvedValue({ ok: true, value: undefined });
       const user = renderEdit(DISPLAY_VALUES, true);
 
+      await change(user);
       await saveFromReview(user);
 
       await waitFor(() => expect(editMock).toHaveBeenCalledTimes(1));

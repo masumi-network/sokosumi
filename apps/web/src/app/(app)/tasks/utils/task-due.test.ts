@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { dayInTimeZone, dueDayDate, isTaskOverdue } from "./task-due";
+import {
+  dayInTimeZone,
+  dueDayDate,
+  isTaskOverdue,
+  nextMonday,
+  shiftDay,
+} from "./task-due";
 
 describe("dayInTimeZone", () => {
   it("reads the calendar day in the given zone", () => {
@@ -31,5 +37,21 @@ describe("dueDayDate", () => {
     expect(dueDayDate("2026-11-20").toISOString().slice(0, 10)).toBe(
       "2026-11-20",
     );
+  });
+});
+
+describe("shiftDay", () => {
+  it("moves across month, year and leap-day ends", () => {
+    expect(shiftDay("2026-11-30", 1)).toBe("2026-12-01");
+    expect(shiftDay("2026-12-31", 1)).toBe("2027-01-01");
+    expect(shiftDay("2028-03-01", -1)).toBe("2028-02-29");
+  });
+});
+
+describe("nextMonday", () => {
+  it("is the Monday after the day, a week on from a Monday", () => {
+    expect(nextMonday("2026-11-12")).toBe("2026-11-16"); // Thursday
+    expect(nextMonday("2026-11-15")).toBe("2026-11-16"); // Sunday
+    expect(nextMonday("2026-11-16")).toBe("2026-11-23"); // Monday
   });
 });

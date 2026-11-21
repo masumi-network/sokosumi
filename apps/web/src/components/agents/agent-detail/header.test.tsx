@@ -1,5 +1,7 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { createMockCoreAgent } from "@/lib/helpers/__tests__/fixtures/core-agent";
 
 import { AgentDetailHeader } from "./header";
@@ -8,8 +10,18 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-vi.mock("next-themes", () => ({
-  useTheme: () => ({ resolvedTheme: "light" }),
+const { openNewTaskWizardMock } = vi.hoisted(() => ({
+  openNewTaskWizardMock: vi.fn(),
+}));
+
+vi.mock("@/app/components/new-task-wizard-provider", () => ({
+  useOptionalNewTaskWizard: () => ({
+    openNewTaskWizard: openNewTaskWizardMock,
+  }),
+}));
+
+vi.mock("@/app/components/project-scope/use-project-scope", () => ({
+  useProjectScope: () => ({ projectId: null }),
 }));
 
 vi.mock("next/image", () => ({
@@ -50,4 +62,32 @@ describe("AgentDetailHeader", () => {
       ).not.toBeInTheDocument();
     },
   );
+
+  it("opens New task with this agent mentioned, and submits nothing", async () => {
+    const user = userEvent.setup();
+    render(
+      <OrganizationSeatContext value={true}>
+        <AgentDetailHeader agent={agent} />
+      </OrganizationSeatContext>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "startTask" }));
+
+    expect(openNewTaskWizardMock).toHaveBeenCalledWith({
+      projectId: null,
+      prompt: "@agent-1 ",
+    });
+  });
+
+  it("offers no Start a task to a member without a seat", () => {
+    render(
+      <OrganizationSeatContext value={false}>
+        <AgentDetailHeader agent={agent} />
+      </OrganizationSeatContext>,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "startTask" }),
+    ).not.toBeInTheDocument();
+  });
 });

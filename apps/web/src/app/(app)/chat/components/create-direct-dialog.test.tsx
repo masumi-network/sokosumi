@@ -4,7 +4,7 @@ import type {
   Coworker,
   Member,
 } from "@sokosumi/core-client";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { toast } from "sonner";
@@ -211,6 +211,29 @@ describe("CreateDirectDialog", () => {
     expect(assignMock).toHaveBeenCalledWith("/chat/rooms/room-direct");
   });
 
+  it("shows the reader's own initials on Message yourself, not the label's", async () => {
+    const roster = await loadChatComposeRosterActionMock();
+    loadChatComposeRosterActionMock.mockResolvedValueOnce({
+      ...roster,
+      value: {
+        ...roster.value,
+        currentUserName: "Ada Tester",
+        currentUserImage: null,
+      },
+    });
+    const user = userEvent.setup();
+    renderSeated(<CreateDirectDialog />);
+    await user.click(screen.getByRole("button", { name: "Draft.title" }));
+    const self = await screen.findByRole("button", {
+      name: /SelfDirect.messageYourself/,
+    });
+    expect(self).toHaveTextContent(/^AT/);
+    await user.click(self);
+    expect(screen.getByTestId("direct-recipient-composer")).toHaveTextContent(
+      /AT\s*SelfDirect.messageYourself/,
+    );
+  });
+
   it("prevents selecting self alongside a peer", async () => {
     const user = userEvent.setup();
     renderSeated(<CreateDirectDialog />);
@@ -378,9 +401,8 @@ describe("CreateDirectDialog", () => {
   });
 
   it("keeps the search composer visible while the roster loads", async () => {
-    loadChatComposeRosterActionMock.mockImplementation(
-      () => new Promise(() => {}),
-    );
+    const roster = Promise.withResolvers();
+    loadChatComposeRosterActionMock.mockReturnValue(roster.promise);
     const user = userEvent.setup();
     renderSeated(<CreateDirectDialog />);
 
@@ -394,6 +416,13 @@ describe("CreateDirectDialog", () => {
         .getByTestId("direct-recipient-composer")
         .contains(screen.getByPlaceholderText("Draft.searchPlaceholder")),
     ).toBe(true);
+    // A load left pending holds every later transition in this worker.
+    await act(async () =>
+      roster.resolve({
+        ok: false,
+        error: { code: "INTERNAL_SERVER_ERROR", message: "Roster down" },
+      }),
+    );
   });
 
   it("scrolls a fixed-height roster pane and keeps chips in the composer", async () => {

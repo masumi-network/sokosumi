@@ -65,7 +65,9 @@ vi.mock("@/clients/email.client", () => ({
   sendEmail: m.sendEmail,
   sendEmails: m.sendEmails,
 }));
-vi.mock("@/lib/redis", () => ({ getRedisClient: () => ({ eval: m.redis }) }));
+vi.mock("@/lib/redis", () => ({
+  getRedisRateLimitClient: () => ({ status: "ready", eval: m.redis }),
+}));
 vi.mock("@/lib/db/prisma", () => {
   const client = {
     workspace: { findUnique: m.workspaceFindUnique },
@@ -96,10 +98,15 @@ vi.mock("@/lib/db/prisma", () => {
     contactListMember: { createMany: m.memberCreateMany },
     newsletterSubscriber: {
       // The pre-send re-check of pending confirmations has its own mock.
-      findMany: (args: Prisma.NewsletterSubscriberFindManyArgs) =>
-        args.where?.status === "PENDING" && args.where.OR
+      findMany: (args: Prisma.NewsletterSubscriberFindManyArgs) => {
+        const { where } = args;
+        return where &&
+          "status" in where &&
+          where.status === "PENDING" &&
+          Array.isArray(where.OR)
           ? m.pendingFindMany(args)
-          : m.findMany(args),
+          : m.findMany(args);
+      },
       count: m.count,
       groupBy: m.groupBy,
       findUnique: m.findUnique,
@@ -358,7 +365,10 @@ describe("Project newsletter access", () => {
         id: true,
         closingAt: true,
         closedAt: true,
-        workspace: { select: { organization: { select: { slug: true } } } },
+        testCopyOfProjectId: true,
+        workspace: {
+          select: { id: true, organization: { select: { slug: true } } },
+        },
       },
     });
     expect(m.newsletterFindUnique).not.toHaveBeenCalled();
@@ -784,6 +794,7 @@ describe("newsletter subscribers", () => {
         status: "ACTIVE",
         OR: [
           { email: { contains: "ADA", mode: "insensitive" } },
+          { contactId: null, name: { contains: "ADA", mode: "insensitive" } },
           { contact: { name: { contains: "ADA", mode: "insensitive" } } },
           {
             contact: {
@@ -809,6 +820,11 @@ describe("newsletter subscribers", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       data: { subscribers: [{ contact: null }] },
+    });
+    expect(m.findMany.mock.lastCall?.[0]).toStrictEqual({
+      where: { newsletterId: NEWSLETTER_ID },
+      take: 21,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
     expect(m.contactFindMany).not.toHaveBeenCalled();
   });
@@ -1108,10 +1124,11 @@ describe("newsletter subscribers", () => {
       m.findUnique.mockImplementation(() => current);
       m.deleteMany.mockImplementation(
         ({ where }: Prisma.NewsletterSubscriberDeleteManyArgs) => {
-          const allowed = where?.status;
+          const allowed = where && "status" in where ? where.status : undefined;
           if (
             current &&
             typeof allowed === "object" &&
+            "in" in allowed &&
             Array.isArray(allowed.in) &&
             !allowed.in.includes(current.status)
           )
@@ -1169,9 +1186,10 @@ describe("newsletter subscribers", () => {
           status: "UNSUBSCRIBED",
           unsubscribedAt: NOW,
         };
-        const allowed = where?.status;
+        const allowed = where && "status" in where ? where.status : undefined;
         if (
           typeof allowed === "object" &&
+          "in" in allowed &&
           Array.isArray(allowed.in) &&
           !allowed.in.includes(current.status)
         )
@@ -1294,7 +1312,10 @@ describe("newsletter subscriber CSV import", () => {
         const created = [];
         for (const row of data) {
           if (existing.has(row.email)) continue;
-          existing.set(row.email, row.status ?? "PENDING");
+          existing.set(
+            row.email,
+            typeof row.status === "string" ? row.status : "PENDING",
+          );
           created.push({ ...SUBSCRIBER, ...row, id: row.email });
         }
         return created;
@@ -1594,6 +1615,7 @@ describe("newsletter subscribers from contacts", () => {
       expect.any(String),
       1,
       `newsletter:signup:${NEWSLETTER_ID}:unknown`,
+      600,
     );
     m.createManyAndReturn.mockResolvedValue([]);
     m.findMany.mockResolvedValue(people.map(() => ({ status: "PENDING" })));

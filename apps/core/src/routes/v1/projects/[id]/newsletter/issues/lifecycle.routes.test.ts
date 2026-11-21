@@ -56,20 +56,16 @@ vi.mock("@/helpers/coworker-user-context-binding", () => ({
     return { userId: "user_1", organizationId: null };
   },
 }));
-vi.mock("@/services/task-domain.service", async (original) => {
-  const actual =
-    await original<typeof import("@/services/task-domain.service")>();
-  return {
-    createTaskForActor: m.createTask,
-    archiveTaskRecord: actual.archiveTaskRecord,
-  };
-});
+vi.mock("@/services/task-domain.service", () => ({
+  createTaskForActor: m.createTask,
+}));
 vi.mock("@/services/newsletter-send.service", () => ({
   sendNewsletterIssue: m.send,
 }));
 vi.mock("@sentry/node", () => ({ captureException: vi.fn() }));
 vi.mock("@/lib/db/prisma", () => {
   const tx = {
+    projectSeoAnalysis: { findUnique: vi.fn().mockResolvedValue(null) },
     newsletterIssue: {
       updateMany: m.updateMany,
       deleteMany: m.remove,
@@ -80,10 +76,13 @@ vi.mock("@/lib/db/prisma", () => {
     newsletterSendingDomain: { findUnique: m.sendingDomain },
     task: {
       findFirst: m.task,
+      findMany: async () => [],
       updateMany: m.taskUpdate,
       update: m.taskMetadata,
     },
     taskEvent: { create: m.event },
+    // Archiving the approval Task locks it before it reads its sub-tasks.
+    $queryRaw: async () => [{ id: "locked" }],
   };
   return {
     default: {

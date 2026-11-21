@@ -2,14 +2,11 @@
 
 import { Check, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
-import {
-  clearPendingProjectBrandJob,
-  savePendingProjectBrandJob,
-} from "@/app/projects/project-brand-job";
+import { projectBrandJobCallbacks } from "@/app/projects/project-brand-job";
 import {
   DESIGN_MD_TRANSLATION_NAMESPACE,
   type DesignMdOwner,
@@ -20,6 +17,7 @@ import {
   resolveProjectSiteIcon,
   updateProject,
 } from "@/lib/actions/project/action";
+import { useSession } from "@/lib/auth/auth.client";
 
 export interface ProjectBrandChange {
   logo?: string | null;
@@ -37,46 +35,20 @@ interface ProjectBrandSetupProps {
   onBrandChange?: (brand: ProjectBrandChange) => void;
 }
 
-export function ProjectBrandSetup({
-  projectId,
-  projectName,
-  websiteUrl,
-  onReadyLogo,
-  onBrandChange,
-}: ProjectBrandSetupProps) {
+export function ProjectBrandSetup(props: ProjectBrandSetupProps) {
+  const { projectId, projectName, websiteUrl, onReadyLogo, onBrandChange } =
+    props;
   const t = useTranslations("App.Projects.Wizard.brand");
-  const tDesignMd = useTranslations(DESIGN_MD_TRANSLATION_NAMESPACE);
+  const viewerId = useSession().data?.user.id;
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [isResolvingLogo, setIsResolvingLogo] = useState(true);
+  // Kept here: the icon starts on the first mount and must not start again
+  // when brand setup mounts again for the viewer.
+  const iconStarted = useRef(false);
 
-  const owner = useMemo<DesignMdOwner>(
-    () => ({ type: "project", projectId }),
-    [projectId],
-  );
-
-  const brand = useDesignMdGeneration({
-    messages: {
-      generationFailed: tDesignMd("generateError"),
-      saveFailed: tDesignMd("saveError"),
-      startFailed: tDesignMd("startGenerateError"),
-    },
-    onCompleted: (designMd) => {
-      onBrandChange?.({
-        designMd: {
-          url: designMd.url,
-          extractionId: designMd.extractionId,
-        },
-      });
-    },
-    // The wizard may close before the job finishes; the project page resumes
-    // polling from this record so the brand still lands in the background.
-    onJobStarted: (job) =>
-      savePendingProjectBrandJob(projectId, { ...job, url: websiteUrl }),
-    onSettled: () => clearPendingProjectBrandJob(projectId),
-    owner,
-  });
-
-  useMountEffect(() => {
+  const resolveIcon = () => {
+    if (iconStarted.current) return;
+    iconStarted.current = true;
     void (async () => {
       try {
         const result = await resolveProjectSiteIcon({
@@ -104,11 +76,73 @@ export function ProjectBrandSetup({
         setIsResolvingLogo(false);
       }
     })();
+  };
 
+  // DESIGN.md setup starts once the viewer is known, so a failure is kept for
+  // the project page: it mounts again when the session loads.
+  return (
+    <BrandSetup
+      key={viewerId ?? ""}
+      {...props}
+      isResolvingLogo={isResolvingLogo}
+      logoUrl={logoUrl}
+      resolveIcon={resolveIcon}
+      viewerId={viewerId}
+    />
+  );
+}
+
+function BrandSetup({
+  projectId,
+  projectName,
+  websiteUrl,
+  onBrandChange,
+  isResolvingLogo,
+  logoUrl,
+  resolveIcon,
+  viewerId,
+}: ProjectBrandSetupProps & {
+  isResolvingLogo: boolean;
+  logoUrl: string | null;
+  resolveIcon: () => void;
+  viewerId: string | undefined;
+}) {
+  const t = useTranslations("App.Projects.Wizard.brand");
+  const tDesignMd = useTranslations(DESIGN_MD_TRANSLATION_NAMESPACE);
+
+  const owner = useMemo<DesignMdOwner>(
+    () => ({ type: "project", projectId }),
+    [projectId],
+  );
+
+  const brand = useDesignMdGeneration({
+    messages: {
+      generationFailed: tDesignMd("generateError"),
+      saveFailed: tDesignMd("saveError"),
+      startFailed: tDesignMd("startGenerateError"),
+    },
+    onCompleted: (designMd) => {
+      onBrandChange?.({
+        designMd: {
+          url: designMd.url,
+          extractionId: designMd.extractionId,
+        },
+      });
+    },
+    // The wizard may close before the job finishes; the project page resumes
+    // polling from this record so the brand still lands in the background.
+    // A failure seen here is kept too, so the project page shows it.
+    ...projectBrandJobCallbacks(projectId, viewerId),
+    owner,
+  });
+
+  useMountEffect(() => {
+    resolveIcon();
+    if (!viewerId) return;
     void brand.generate({ url: websiteUrl });
   });
 
-  const isBusy = isResolvingLogo || brand.isRunning;
+  const isBusy = isResolvingLogo || brand.isRunning || brand.status === "idle";
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col items-center text-center">

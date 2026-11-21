@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -95,7 +95,8 @@ describe("ProjectDetailActions", () => {
     expect(hideProjectActionMock).toHaveBeenCalledWith({
       projectId: "project-1",
     });
-    expect(refreshMock).toHaveBeenCalled();
+    // The Hide action revalidates; a refresh on top is a second page render.
+    expect(refreshMock).not.toHaveBeenCalled();
     const [message, options] = toastSuccessMock.mock.calls[0];
     expect(message).toBe("Project hidden");
     expect(options.action.label).toBe("Undo");
@@ -163,7 +164,9 @@ describe("ProjectDetailActions", () => {
         projectId: "project-1",
       }),
     );
-    expect(refreshMock).toHaveBeenCalled();
+    // Let the answered write finish before looking for a refresh.
+    await act(async () => {});
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("exposes project actions only inside the overflow menu", async () => {
@@ -242,6 +245,29 @@ describe("ProjectDetailActions", () => {
       expectedProjectRevision: 3,
       reason: "Campaign complete",
     });
+  });
+
+  it("closes the menu behind the confirmation, so keeping the project open leaves no menu behind", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectDetailActions
+        projectId="project-1"
+        projectRevision={3}
+        labels={LABELS}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Close project" }));
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Keep project open" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "More actions" })).toHaveFocus();
   });
 
   it("does not offer close after closing has started", async () => {
@@ -351,6 +377,89 @@ describe("ProjectDetailActions", () => {
     expect(toastErrorMock).toHaveBeenLastCalledWith(LABELS.closeDialog.error, {
       duration: Infinity,
     });
+  });
+
+  it("keeps the replay operation ID across closing and reopening the dialog after a failure", async () => {
+    const user = userEvent.setup();
+    closeProjectMock.mockRejectedValue(new Error("close failed"));
+    render(
+      <ProjectDetailActions
+        projectId="project-1"
+        projectRevision={3}
+        labels={LABELS}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Close project" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Reason (optional)" }),
+      "Campaign complete",
+    );
+    await user.click(screen.getByRole("button", { name: "Close project" }));
+    await vi.waitFor(() => expect(closeProjectMock).toHaveBeenCalledTimes(1));
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Keep project open" }),
+      ).toBeEnabled(),
+    );
+    await user.click(screen.getByRole("button", { name: "Keep project open" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Close project" }));
+    await user.click(screen.getByRole("button", { name: "Close project" }));
+    await vi.waitFor(() => expect(closeProjectMock).toHaveBeenCalledTimes(2));
+
+    expect(closeProjectMock.mock.calls[1]?.[0].operationId).toBe(
+      closeProjectMock.mock.calls[0]?.[0].operationId,
+    );
+  });
+
+  it("clears the replay operation ID when the project transitions through closing or closed", async () => {
+    const user = userEvent.setup();
+    closeProjectMock.mockRejectedValue(new Error("close failed"));
+    const { rerender } = render(
+      <ProjectDetailActions
+        projectId="project-1"
+        projectRevision={3}
+        labels={LABELS}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Close project" }));
+    await user.click(screen.getByRole("button", { name: "Close project" }));
+    await vi.waitFor(() => expect(closeProjectMock).toHaveBeenCalledTimes(1));
+
+    rerender(
+      <ProjectDetailActions
+        projectId="project-1"
+        projectRevision={4}
+        isClosingOrClosed
+        labels={LABELS}
+      />,
+    );
+    rerender(
+      <ProjectDetailActions
+        projectId="project-1"
+        projectRevision={5}
+        isClosingOrClosed={false}
+        labels={LABELS}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Close project" }));
+    await user.click(screen.getByRole("button", { name: "Close project" }));
+    await vi.waitFor(() => expect(closeProjectMock).toHaveBeenCalledTimes(2));
+
+    expect(closeProjectMock.mock.calls[1]?.[0].operationId).not.toBe(
+      closeProjectMock.mock.calls[0]?.[0].operationId,
+    );
   });
 
   it("warns how many scheduled posts close will cancel", async () => {

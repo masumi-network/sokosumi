@@ -3,6 +3,7 @@
 import { Onboarding } from "../../../components/onboarding";
 import { inertOnboardingActions } from "../../../components/onboarding/actions";
 import { OnboardingFlow } from "../../../components/onboarding/flow";
+import { cmoPlans } from "../../../test-fixtures/cmo";
 import { type Screen, screenOverview } from "./fixtures";
 
 interface FixtureScreenProps {
@@ -23,6 +24,8 @@ export function FixtureScreen({ screen }: FixtureScreenProps) {
       messages={[]}
       // The Brand screen shows its questions-left line when they were skipped.
       skipped={screen === "brand" ? ["questions"] : []}
+      plans={cmoPlans}
+      returnedFromCheckout={screen === "subscribe-confirming"}
       actions={inertOnboardingActions(overview)}
     />
   );

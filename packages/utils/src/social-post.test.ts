@@ -131,7 +131,7 @@ describe("per-provider limits and requirements", () => {
 
   it("exposes the strictest request bounds and the schedule lead", () => {
     expect(SOCIAL_POST_TEXT_MAX).toBe(SOCIAL_POST_TEXT_LIMITS.facebook);
-    expect(SOCIAL_POST_MEDIA_MAX).toBe(10);
+    expect(SOCIAL_POST_MEDIA_MAX).toBe(20);
     expect(SOCIAL_POST_MIN_SCHEDULE_LEAD_MS).toBe(60_000);
     expect(SOCIAL_POST_TEXT_MAX).toBeGreaterThan(SOCIAL_POST_TEXT_LIMITS.x);
   });
@@ -427,15 +427,21 @@ describe("validateSocialPostMedia", () => {
     expect(validateSocialPostMedia("x", [])).toEqual({ ok: true });
   });
 
-  it("accepts up to four images", () => {
-    expect(validateSocialPostMedia("x", [image, image, image, image])).toEqual({
-      ok: true,
-    });
+  it("accepts up to 20 images on X", () => {
+    expect(
+      validateSocialPostMedia(
+        "x",
+        Array.from({ length: 20 }, () => image),
+      ),
+    ).toEqual({ ok: true });
   });
 
-  it("rejects a fifth image", () => {
+  it("rejects 21 images on X", () => {
     expect(
-      validateSocialPostMedia("x", [image, image, image, image, image]),
+      validateSocialPostMedia(
+        "x",
+        Array.from({ length: 21 }, () => image),
+      ),
     ).toEqual({ ok: false, reason: "too_many_images" });
   });
 
@@ -453,6 +459,12 @@ describe("validateSocialPostMedia", () => {
       ok: false,
       reason: "too_many_videos",
     });
+    expect(
+      validateSocialPostMedia(
+        "x",
+        Array.from({ length: 20 }, () => gif),
+      ),
+    ).toEqual({ ok: false, reason: "too_many_gifs" });
   });
 
   it("rejects mixed kinds", () => {

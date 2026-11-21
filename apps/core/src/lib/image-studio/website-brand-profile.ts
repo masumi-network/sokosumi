@@ -1,8 +1,9 @@
 import { generateText, Output } from "ai";
 import pTimeout from "p-timeout";
 import { z } from "zod";
-
 import { getEnv } from "@/config/env";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
+import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import { getRedisClient } from "@/lib/redis";
 import { studioBrandCopySchema } from "@/schemas/studio-brand-kit.schema";
 import {
@@ -34,7 +35,8 @@ async function allowWebsiteSuggestion(
   workspaceId: string,
 ) {
   const env = getEnv();
-  if (!env.AI_GATEWAY_API_KEY && process.env.VERCEL !== "1") return false;
+  if (!aiGatewayApiKey("default", env) && process.env.VERCEL !== "1")
+    return false;
   const redis = getRedisClient();
   if (!redis) return false;
   return (
@@ -79,7 +81,7 @@ export async function suggestWebsiteBrandProfile(
       abortSignal: AbortSignal.timeout(10_000),
       maxOutputTokens: 700,
       maxRetries: 0,
-    });
+    }).catch(rethrowAiGatewayFailure);
     const profile = profileSchema.parse(output);
     const supported = ({ evidence }: z.infer<typeof suggestion>) =>
       source.includes(evidence.replace(/\s+/g, " "));
@@ -125,7 +127,7 @@ export async function suggestWebsiteOffers(
       abortSignal: AbortSignal.timeout(10_000),
       maxOutputTokens: 3_000,
       maxRetries: 0,
-    });
+    }).catch(rethrowAiGatewayFailure);
     const offers = new Map<
       string,
       Pick<z.infer<typeof offerSchema>, "name" | "description" | "price">

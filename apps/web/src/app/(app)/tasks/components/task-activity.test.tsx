@@ -1,10 +1,21 @@
 import type { TaskEvent } from "@sokosumi/core-client";
 import { Channel, TaskEventStatus, TaskStatus } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
+
+async function submitCommentWithHappyDomError() {
+  const errorCalls = expectConsole("error", "");
+  await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+  expect(errorCalls[0]?.[0]).toBeInstanceOf(DOMException);
+  expect(errorCalls[0]?.[0]).toMatchObject({
+    name: "NotFoundError",
+    message: "The specified element is not owned by this form element",
+  });
+}
 
 const {
   uploadTaskAttachmentMock,
@@ -647,6 +658,27 @@ describe("TaskActivitySection", () => {
     expect(screen.getByText("from Email")).toBeInTheDocument();
     expect(screen.getByLabelText("from Sokosumi")).toBeInTheDocument();
     expect(screen.getByLabelText("from Email")).toBeInTheDocument();
+  });
+
+  it("names no origin when the app is unknown", () => {
+    const events: TaskEvent[] = [
+      createEvent("created-unknown", {
+        createdAt: "2026-01-01T10:00:00.000Z",
+        status: TaskEventStatus.CREATED,
+        channel: Channel.UNKNOWN,
+      }),
+      createEvent("status-unknown", {
+        createdAt: "2026-01-01T10:00:00.001Z",
+        status: TaskStatus.READY,
+        channel: Channel.UNKNOWN,
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(screen.getByText("created the task")).toBeInTheDocument();
+    expect(screen.queryByText("from Unknown")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("from Unknown")).not.toBeInTheDocument();
   });
 
   it("uses created copy for CREATED events instead of a status update", () => {
@@ -1324,13 +1356,16 @@ describe("TaskActivitySection", () => {
     });
 
     it("does not send the viewer when they @ themselves", async () => {
+      // happy-dom bug: requestSubmit() sets event.submitter to the form, not null,
+      // so React's new FormData(form, submitter) throws.
+      // https://github.com/capricorn86/happy-dom/issues/2438
       createTaskCommentMock.mockResolvedValue(undefined);
       render(<TaskActivitySection {...baseProps} mentionableUsers={members} />);
 
       act(() => {
         editorProps.current?.onChange("joining @user-1:user");
       });
-      await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+      await submitCommentWithHappyDomError();
 
       await waitFor(() => {
         expect(createTaskCommentMock).toHaveBeenCalledWith({
@@ -1342,6 +1377,9 @@ describe("TaskActivitySection", () => {
     });
 
     it("sends mentioned workspace members with the comment", async () => {
+      // happy-dom bug: requestSubmit() sets event.submitter to the form, not null,
+      // so React's new FormData(form, submitter) throws.
+      // https://github.com/capricorn86/happy-dom/issues/2438
       createTaskCommentMock.mockResolvedValue(undefined);
       render(
         <TaskActivitySection
@@ -1356,7 +1394,7 @@ describe("TaskActivitySection", () => {
           "Thanks @user-2:ada and @agent-1:writer, again @user-2:ada",
         );
       });
-      await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+      await submitCommentWithHappyDomError();
 
       await waitFor(() => {
         expect(createTaskCommentMock).toHaveBeenCalledWith({
@@ -1368,6 +1406,9 @@ describe("TaskActivitySection", () => {
     });
 
     it("does not send human mentions when mentionableUsers is empty", async () => {
+      // happy-dom bug: requestSubmit() sets event.submitter to the form, not null,
+      // so React's new FormData(form, submitter) throws.
+      // https://github.com/capricorn86/happy-dom/issues/2438
       createTaskCommentMock.mockResolvedValue(undefined);
       render(
         <TaskActivitySection
@@ -1380,7 +1421,7 @@ describe("TaskActivitySection", () => {
       act(() => {
         editorProps.current?.onChange("Thanks @user-2:ada");
       });
-      await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+      await submitCommentWithHappyDomError();
 
       await waitFor(() => {
         expect(createTaskCommentMock).toHaveBeenCalledWith({
@@ -1716,17 +1757,19 @@ describe("TaskActivitySection", () => {
   });
 
   it("jumps to an optimistic comment before refresh", async () => {
+    // happy-dom bug: requestSubmit() sets event.submitter to the form, not null,
+    // so React's new FormData(form, submitter) throws.
+    // https://github.com/capricorn86/happy-dom/issues/2438
     highlightListMessageMock.mockReturnValue(true);
-    createTaskCommentMock.mockImplementation(
-      () => new Promise(() => undefined),
-    );
+    const sent = Promise.withResolvers<void>();
+    createTaskCommentMock.mockReturnValue(sent.promise);
 
     render(<TaskActivitySection {...baseProps} latestCommentId="c-old" />);
 
     act(() => {
       editorProps.current?.onChange("Brand new");
     });
-    await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+    await submitCommentWithHappyDomError();
 
     await waitFor(() => {
       expect(screen.getByText("Brand new")).toBeInTheDocument();
@@ -1739,16 +1782,21 @@ describe("TaskActivitySection", () => {
     expect(highlightListMessageMock).toHaveBeenCalled();
     const targetId = highlightListMessageMock.mock.calls.at(-1)?.[1];
     expect(String(targetId)).toMatch(/^optimistic:/);
+    // A send left pending holds every later transition in this worker.
+    await act(async () => sent.resolve());
   });
 
   it("restores the draft when the comment fails to send", async () => {
+    // happy-dom bug: requestSubmit() sets event.submitter to the form, not null,
+    // so React's new FormData(form, submitter) throws.
+    // https://github.com/capricorn86/happy-dom/issues/2438
     createTaskCommentMock.mockRejectedValue(new Error("offline"));
     const { container } = render(<TaskActivitySection {...baseProps} />);
 
     act(() => {
       editorProps.current?.onChange("Keep me");
     });
-    await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+    await submitCommentWithHappyDomError();
 
     await waitFor(() => {
       expect(createTaskCommentMock).toHaveBeenCalled();
@@ -1760,6 +1808,9 @@ describe("TaskActivitySection", () => {
   });
 
   it("merges text typed during a failed send with the restored draft", async () => {
+    // happy-dom bug: requestSubmit() sets event.submitter to the form, not null,
+    // so React's new FormData(form, submitter) throws.
+    // https://github.com/capricorn86/happy-dom/issues/2438
     let rejectSend!: (error: Error) => void;
     createTaskCommentMock.mockImplementation(
       () =>
@@ -1772,7 +1823,7 @@ describe("TaskActivitySection", () => {
     act(() => {
       editorProps.current?.onChange("Original");
     });
-    await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+    await submitCommentWithHappyDomError();
 
     await waitFor(() => {
       expect(createTaskCommentMock).toHaveBeenCalled();
@@ -1790,5 +1841,46 @@ describe("TaskActivitySection", () => {
     await waitFor(() => {
       expect(editorProps.current?.value).toBe("Original\nTyped while pending");
     });
+  });
+
+  it("resets activity state and shows fresh events when taskId changes", () => {
+    const firstEvents: TaskEvent[] = [
+      createEvent("task-1-comment", {
+        createdAt: "2026-01-01T10:00:00.000Z",
+        status: null,
+        comment: "First task comment",
+      }),
+    ];
+    const secondEvents: TaskEvent[] = [
+      {
+        ...createEvent("task-2-comment", {
+          createdAt: "2026-01-02T10:00:00.000Z",
+          status: null,
+          comment: "Second task comment",
+        }),
+        taskId: "task-2",
+      },
+    ];
+
+    const { rerender } = render(
+      <TaskActivitySection
+        {...baseProps}
+        taskId="task-1"
+        events={firstEvents}
+      />,
+    );
+
+    expect(screen.getByText("First task comment")).toBeInTheDocument();
+
+    rerender(
+      <TaskActivitySection
+        {...baseProps}
+        taskId="task-2"
+        events={secondEvents}
+      />,
+    );
+
+    expect(screen.queryByText("First task comment")).not.toBeInTheDocument();
+    expect(screen.getByText("Second task comment")).toBeInTheDocument();
   });
 });

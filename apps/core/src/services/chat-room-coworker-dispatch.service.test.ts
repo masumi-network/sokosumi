@@ -1,8 +1,7 @@
-import type { DrainContext } from "evlog";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
-import { initCoreLogger } from "@/lib/evlog";
+import { coreLogEvents, expectCoreLog } from "@/test/core-log";
 
 const {
   findUniqueMock,
@@ -134,6 +133,15 @@ vi.mock("@/lib/ably/publish", () => ({
   publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
 }));
 
+// A Soko Bot mention leaves this service for its own dispatcher, which
+// `chat-room-soko-bot-dispatch.service.test.ts` covers.
+vi.mock("./chat-room-soko-bot-dispatch.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("./chat-room-soko-bot-dispatch.service")
+  >()),
+  runSokoBotMentionDispatch: vi.fn().mockResolvedValue(undefined),
+}));
+
 const { persistChatHumanMentionsMock, emitChatMessageNotificationsMock } =
   vi.hoisted(() => ({
     persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
@@ -146,12 +154,12 @@ vi.mock("@/helpers/chat-human-mentions", () => ({
 
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
-
 import { dispatchChatRoomMention } from "./chat-room-coworker-dispatch.service";
 import {
   ROOM_COWORKER_STREAM_TIMEOUT,
   ROOM_SENT_STALE_MS,
 } from "./chat-room-mention-state";
+import { runSokoBotMentionDispatch } from "./chat-room-soko-bot-dispatch.service";
 
 const publishRealtimeMock = vi.mocked(publishChatRoomMessageRealtimeById);
 
@@ -169,7 +177,10 @@ function asyncStreamParts(
 
 const MENTION_ID = "mention_1";
 const ORG_WORKSPACE_ID = "ws_org_1";
-const capturedChatEvents: DrainContext[] = [];
+/** The mention's own chat event, apart from any error event the test drains. */
+function capturedChatEvents() {
+  return coreLogEvents().filter((event) => event.chat !== undefined);
+}
 
 function pendingMention(
   overrides: {
@@ -216,13 +227,6 @@ function pendingMention(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  capturedChatEvents.length = 0;
-  initCoreLogger({
-    silent: true,
-    drain: (ctx) => {
-      capturedChatEvents.push(ctx);
-    },
-  });
   getSokosumiProviderMock.mockReturnValue(() => "mock-model");
   createCoworkerConversationMock.mockResolvedValue({ id: "provider_conv_1" });
   findManyMock.mockResolvedValue([]);
@@ -292,7 +296,7 @@ describe("dispatchChatRoomMention claim", () => {
 
     expect(updateManyMock).toHaveBeenCalledWith({
       where: { id: MENTION_ID, status: "pending" },
-      data: { status: "sent", error: null },
+      data: { status: "sent", error: null, updatedAt: expect.any(Date) },
     });
     expect(updateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -452,7 +456,7 @@ describe("dispatchChatRoomMention claim", () => {
 
     expect(updateManyMock).toHaveBeenNthCalledWith(1, {
       where: { id: MENTION_ID, status: "pending" },
-      data: { status: "sent", error: null },
+      data: { status: "sent", error: null, updatedAt: expect.any(Date) },
     });
     expect(updateManyMock).toHaveBeenNthCalledWith(
       2,
@@ -461,13 +465,18 @@ describe("dispatchChatRoomMention claim", () => {
           id: MENTION_ID,
           status: "sent",
         }),
-        data: { status: "sent", error: null },
+        data: { status: "sent", error: null, updatedAt: expect.any(Date) },
       }),
     );
     expect(streamTextMock).toHaveBeenCalled();
   });
 
   it("ends the assistant bubble when dispatch throws after opening one", async () => {
+    expectCoreLog("error", "Could not mark a failed chat mention as failed");
+    const dispatchErrors = expectCoreLog(
+      "error",
+      "Could not answer a chat mention",
+    );
     // Marking the row failed unpins the poller but leaves the person watching
     // a spinner that never stops — the shape of the messages that never ended.
     findUniqueMock.mockResolvedValueOnce(pendingMention()).mockResolvedValue({
@@ -485,6 +494,18 @@ describe("dispatchChatRoomMention claim", () => {
           metadata: expect.objectContaining({ mention_failed: true }),
         }),
       }),
+    );
+    // A provider's text can quote the message: only its shape is logged.
+    expect(dispatchErrors[0]?.why).toBe(
+      "The dispatch threw before the mention was answered",
+    );
+    expect(dispatchErrors[0]?.event).toMatchObject({
+      operation: "chat_room_mention_dispatch",
+      mention: { id: MENTION_ID },
+      failure: { errorName: "Error" },
+    });
+    expect(JSON.stringify(dispatchErrors[0]?.event)).not.toContain(
+      "database went away",
     );
   });
 
@@ -1056,6 +1077,7 @@ describe("dispatchChatRoomMention claim", () => {
   });
 
   it("keeps a failed Thought shell when the provider stream throws", async () => {
+    expectCoreLog("error", "Could not answer a chat mention");
     findUniqueMock.mockResolvedValue(pendingMention());
     updateManyMock.mockResolvedValue({ count: 1 });
     streamTextMock.mockReturnValue({
@@ -1097,13 +1119,14 @@ describe("dispatchChatRoomMention claim", () => {
         status: "failed",
       }),
     });
-    expect(capturedChatEvents[0]?.event.chat).toMatchObject({
+    expect(capturedChatEvents()[0]?.chat).toMatchObject({
       kind: "coworker_channel_mention",
       mention: { id: MENTION_ID, claim: "claimed" },
     });
   });
 
   it("fails closed when fullStream emits an error part after Thought", async () => {
+    expectCoreLog("error", "Could not answer a chat mention");
     findUniqueMock.mockResolvedValue(pendingMention());
     updateManyMock.mockResolvedValue({ count: 1 });
     streamTextMock.mockReturnValue({
@@ -1221,15 +1244,15 @@ describe("coworker mention chat log fields", () => {
 
     await dispatchChatRoomMention(MENTION_ID);
 
-    expect(capturedChatEvents).toHaveLength(1);
-    expect(capturedChatEvents[0]?.event.chat).toEqual({
+    expect(capturedChatEvents()).toHaveLength(1);
+    expect(capturedChatEvents()[0]?.chat).toEqual({
       kind: "coworker_channel_mention",
       room: { id: "room_1" },
       coworker: { id: "cow_1", slug: "hannah" },
       mention: { id: MENTION_ID, claim: "already_in_flight" },
     });
-    expect(capturedChatEvents[0]?.event.coworker).toBeUndefined();
-    expect(JSON.stringify(capturedChatEvents[0]?.event.chat)).not.toContain(
+    expect(capturedChatEvents()[0]?.coworker).toBeUndefined();
+    expect(JSON.stringify(capturedChatEvents()[0]?.chat)).not.toContain(
       "@hannah hi",
     );
   });
@@ -1240,7 +1263,7 @@ describe("coworker mention chat log fields", () => {
 
     await dispatchChatRoomMention(MENTION_ID);
 
-    expect(capturedChatEvents[0]?.event.chat).toMatchObject({
+    expect(capturedChatEvents()[0]?.chat).toMatchObject({
       kind: "coworker_channel_mention",
       mention: { id: MENTION_ID, claim: "claimed" },
     });
@@ -1258,7 +1281,7 @@ describe("coworker mention chat log fields", () => {
 
     await dispatchChatRoomMention(MENTION_ID);
 
-    expect(capturedChatEvents[0]?.event.chat).toMatchObject({
+    expect(capturedChatEvents()[0]?.chat).toMatchObject({
       thread: { parentMessageId: "parent_1" },
       mention: { claim: "already_in_flight" },
     });
@@ -1272,7 +1295,7 @@ describe("coworker mention chat log fields", () => {
 
     await dispatchChatRoomMention(MENTION_ID);
 
-    expect(capturedChatEvents[0]?.event.chat).toEqual({
+    expect(capturedChatEvents()[0]?.chat).toEqual({
       kind: "coworker_channel_mention",
       room: { id: "room_1" },
       coworker: { id: "cow_1" },
@@ -1295,6 +1318,9 @@ describe("coworker mention chat log fields", () => {
 
     await dispatchChatRoomMention(MENTION_ID);
 
-    expect(capturedChatEvents).toHaveLength(0);
+    expect(runSokoBotMentionDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ mentionId: MENTION_ID }),
+    );
+    expect(capturedChatEvents()).toHaveLength(0);
   });
 });

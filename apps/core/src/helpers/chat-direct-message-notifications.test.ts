@@ -51,6 +51,11 @@ vi.mock("@sentry/node", () => ({
   captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }));
 
+// The fan-out tells each recipient's sidebar over Ably; no Ably here.
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
+}));
+
 import {
   emitChatDirectMessageNotifications,
   shouldEmitChatDirectMessageNotifications,

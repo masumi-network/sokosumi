@@ -62,7 +62,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { sokoBotId, roomId } = c.req.valid("param");
-    const { cursor, take, skip } = parseCursorPagination(c.req.valid("query"));
+    const { cursor, take } = parseCursorPagination(c.req.valid("query"));
     const [room, bot] = await Promise.all([
       prisma.chatRoom.findFirst({
         where: {
@@ -83,8 +83,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma.chatRoomMessage.findMany({
         where,
         take: take + 1,
-        skip,
-        cursor: cursor ? { id: cursor } : undefined,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         include: chatRoomMessageInclude,
       }),

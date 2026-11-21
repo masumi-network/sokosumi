@@ -1,6 +1,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
 import type { CusoMessage } from "./chat-messages";
+import type { ChatWork } from "./chat-work";
 import { strategyApproved } from "./strategy";
 
 type Update = CmoOverview["updates"][number];
@@ -9,7 +10,8 @@ type Update = CmoOverview["updates"][number];
  * One item in the chat thread. Messages come from the chat with Cuso; cards
  * come from what Cuso saved (Brand Brain, strategy, reports) and from the
  * owner's own steps (approval). Nothing here is invented: every card is a
- * record in Core.
+ * record in Core. What Cuso makes in chat (a picture, a video, a
+ * voice-over) sits where he started it, and fills in once it is made.
  */
 export type ThreadItem =
   | { kind: "message"; at: string; message: CusoMessage }
@@ -19,6 +21,7 @@ export type ThreadItem =
   | { kind: "strategy"; at: string }
   | { kind: "connect"; at: string }
   | { kind: "production"; at: string }
+  | { kind: "work"; at: string; work: ChatWork }
   | { kind: "update"; at: string; update: Update };
 
 function iso(value: Date | string | null | undefined): string | null {
@@ -35,14 +38,23 @@ function iso(value: Date | string | null | undefined): string | null {
 export function buildThread(
   overview: CmoOverview,
   messages: CusoMessage[],
+  work: ChatWork[] = [],
 ): ThreadItem[] {
   // A report is a message in the room; it shows as its card below.
   const reports = new Set(overview.updates.map((update) => update.id));
   const hired = iso(overview.hiredAt);
+  // A background run's report is its card: the card holds the result.
+  const runs = new Set(
+    work.flatMap((made) =>
+      made.turnId && made.state !== "making" ? [made.turnId] : [],
+    ),
+  );
   const items: ThreadItem[] = messages
     .filter(
       (message) =>
-        !reports.has(message.id) && (!hired || message.createdAt > hired),
+        !reports.has(message.id) &&
+        !(message.turnId && runs.has(message.turnId)) &&
+        (!hired || message.createdAt > hired),
     )
     .map((message) => ({
       kind: "message",
@@ -87,9 +99,22 @@ export function buildThread(
     const latest = production.map((update) => iso(update.at) ?? created).sort();
     items.push({ kind: "production", at: latest.at(-1) ?? approvedAt });
   }
+  // A file shown where Cuso made it is not shown again under his report.
+  const shown = new Set(work.map((made) => made.url));
   for (const update of overview.updates) {
     if (update.kind === "production") continue;
-    items.push({ kind: "update", at: iso(update.at) ?? created, update });
+    items.push({
+      kind: "update",
+      at: iso(update.at) ?? created,
+      update: {
+        ...update,
+        media: update.media.filter((file) => !shown.has(file.url)),
+      },
+    });
+  }
+  for (const made of work) {
+    const at = iso(made.at) ?? created;
+    if (!hired || at > hired) items.push({ kind: "work", at, work: made });
   }
   // Stable: cards built at the same moment keep the order pushed above.
   return items
@@ -108,6 +133,7 @@ export type CusoState =
   | "planning"
   | "waiting-approval"
   | "waiting-channel"
+  | "blocked"
   | "running";
 
 /** How Cuso looks: the pose of his avatar for that state. */
@@ -128,7 +154,8 @@ const CUSO_STATE_LABEL: Record<CusoState, string> = {
   planning: "Planning",
   "waiting-approval": "Waiting for approval",
   "waiting-channel": "Waiting for a channel",
-  running: "Running",
+  blocked: "Couldn't start",
+  running: "On schedule",
 };
 
 /**
@@ -144,6 +171,7 @@ const STATE_POSE: Record<Exclude<CusoState, "running">, CusoPose> = {
   planning: "thinking",
   "waiting-approval": "needs-you",
   "waiting-channel": "needs-you",
+  blocked: "thinking",
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -159,6 +187,7 @@ export function cusoState(overview: CmoOverview): CusoState {
   if (!overview.strategy) return "planning";
   if (!strategyApproved(overview)) return "waiting-approval";
   if (overview.channels.length === 0) return "waiting-channel";
+  if (overview.production.state === "blocked") return "blocked";
   return "running";
 }
 

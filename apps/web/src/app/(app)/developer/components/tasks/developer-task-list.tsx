@@ -5,7 +5,14 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
+import {
+  getTaskStatusLabel,
+  TaskStatusBadge,
+} from "@/app/tasks/components/task-status-badge";
+import {
+  usePageListSearch,
+  usePageSearchPagination,
+} from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -54,6 +61,18 @@ export function DeveloperTaskList({ initialPage }: DeveloperTaskListProps) {
     });
   }
 
+  usePageSearchPagination(nextCursor, isPending, handleLoadMore);
+  const visibleTasks = usePageListSearch(tasks, (task) => ({
+    primary: [task.name, task.id],
+    secondary: [
+      getTaskStatusLabel(task.status),
+      formatDeveloperTaskCoworkerNames(task.assignee, task.creatorCoworker),
+      task.owner?.name,
+      task.owner?.email,
+      task.organization?.name ?? t("personalWorkspace"),
+    ],
+  }));
+
   return (
     <div className="space-y-4">
       <p className="text-muted-foreground text-sm tabular-nums">
@@ -78,7 +97,7 @@ export function DeveloperTaskList({ initialPage }: DeveloperTaskListProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tasks.map((task) => {
+              {visibleTasks.map((task) => {
                 const coworkerNames = formatDeveloperTaskCoworkerNames(
                   task.assignee,
                   task.creatorCoworker,

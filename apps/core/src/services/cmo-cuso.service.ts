@@ -10,6 +10,7 @@ import {
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { CORE_API_ERROR_KINDS, type CoreApiErrorKind } from "@sokosumi/utils";
 import { conflict } from "@/helpers/error";
+import { postsAsPerson } from "@/helpers/linkedin-person";
 import prisma from "@/lib/db/prisma";
 import { requireProjectAccessForUser } from "@/lib/image-studio/access";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
@@ -25,11 +26,15 @@ import type { SettledTurnStatus } from "@/services/soko-bot-turn-progress.servic
  * bot's Cuso, who pays for him, and starts and reads his turns.
  */
 
-/** A CMO refusal; `kind` is the stable error kind CMO matches on, if any. */
+/**
+ * A CMO refusal; `kind` is the stable error kind CMO matches on, if any, and
+ * `extensions` the data its response carries beside it.
+ */
 export class CmoError extends Error {
   constructor(
     message: string,
     readonly kind?: CoreApiErrorKind,
+    readonly extensions?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -192,6 +197,7 @@ const CUSO_SELECT = {
       id: true,
       workspaceId: true,
       websiteUrl: true,
+      cmoPendingAdBudget: true,
       workspace: { select: { organizationId: true } },
       brandBrain: {
         select: { body: true, updatedAt: true, confirmedAt: true },
@@ -218,6 +224,27 @@ export interface Cuso {
   brandBrain: Prisma.JsonValue | null;
   brandBrainUpdatedAt: Date | null;
   brandBrainConfirmedAt: Date | null;
+  /** An ad budget the owner set while he was busy, still to plan. */
+  pendingAdBudget?: CmoPendingAdBudget | null;
+}
+
+/** An ad budget set while Cuso was busy: he plans it when his turn ends. */
+export interface CmoPendingAdBudget {
+  monthly: number;
+  currency: string;
+  userId: string;
+}
+
+function pendingAdBudgetOf(
+  value: Prisma.JsonValue | null,
+): CmoPendingAdBudget | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const { monthly, currency, userId } = value as Record<string, unknown>;
+  return typeof monthly === "number" &&
+    typeof currency === "string" &&
+    typeof userId === "string"
+    ? { monthly, currency, userId }
+    : null;
 }
 
 /** Null for a bot without a Project, which `CUSO_BOT_WHERE` never returns. */
@@ -234,6 +261,7 @@ function cusoView({ id, createdAt, project }: CusoRow): Cuso | null {
     brandBrain: project.brandBrain?.body ?? null,
     brandBrainUpdatedAt: project.brandBrain?.updatedAt ?? null,
     brandBrainConfirmedAt: project.brandBrain?.confirmedAt ?? null,
+    pendingAdBudget: pendingAdBudgetOf(project.cmoPendingAdBudget),
   };
 }
 
@@ -372,6 +400,9 @@ export async function startCmoProductionForProject(
 /** What the founder reads when a step cannot start for lack of credits. */
 export const CMO_OUT_OF_CREDITS = "You're out of credits";
 
+/** What the founder reads when Cuso is paused for want of a CMO plan. */
+export const CMO_PAUSED = "Cuso is paused until a CMO plan is paid";
+
 /** A turn of Cuso's that `userId`, a member of his organization, started. */
 export async function startCmoTurn(
   cuso: Pick<Cuso, "workspaceId" | "sokoBotId">,
@@ -387,7 +418,9 @@ export async function startCmoTurn(
     await requireSokoBotTurnFunding(userId, cuso.sokoBotId);
   } catch (error) {
     if (error instanceof SokoBotBillingAccessError) {
-      throw new CmoConflictError(CMO_OUT_OF_CREDITS);
+      throw new CmoConflictError(
+        error.reason === "cmo_paused" ? CMO_PAUSED : CMO_OUT_OF_CREDITS,
+      );
     }
     throw error;
   }
@@ -411,6 +444,21 @@ export async function startCmoTurn(
 }
 
 export const ONBOARDING_TURN_PREFIX = "cmo:onboarding:";
+
+/** How long a run usually takes; the CMO app's slow copy uses the same. */
+const CMO_USUAL_MS = { research: 7 * 60_000, strategy: 6 * 60_000 } as const;
+
+/**
+ * A run past twice its usual time may be restarted by the founder's Try
+ * again, even while it still makes progress.
+ */
+export function cmoRunIsSlow(
+  kind: keyof typeof CMO_USUAL_MS,
+  startedAt: Date,
+  now: Date,
+): boolean {
+  return now.getTime() - startedAt.getTime() > 2 * CMO_USUAL_MS[kind];
+}
 
 /** Where Cuso's first look at the business stands, for the learning card. */
 export type CmoLearningState = SettledTurnStatus;
@@ -473,7 +521,11 @@ export async function requireCuso(
   return cuso;
 }
 
-/** The business's connected social accounts, from Project Social. */
+/**
+ * The business's social accounts, from Project Social: one per network, the
+ * newest active one, else the newest. Replacing an account (a LinkedIn Page
+ * for the profile) leaves the old row disconnected.
+ */
 export async function listCmoChannels(projectId: string) {
   const rows = await prisma.projectSocialConnection.findMany({
     where: { projectId },
@@ -481,11 +533,23 @@ export async function listCmoChannels(projectId: string) {
     select: {
       id: true,
       provider: true,
+      externalAccountId: true,
       externalHandle: true,
       displayName: true,
       status: true,
     },
   });
+  const current = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) {
+    const kept = current.get(row.provider);
+    if (!kept || row.status === "active" || kept.status !== "active") {
+      current.set(row.provider, row);
+    }
+  }
   // Project Social stores "active"; CMO reads statuses upper case.
-  return rows.map((row) => ({ ...row, status: row.status.toUpperCase() }));
+  return [...current.values()].map(({ externalAccountId, ...row }) => ({
+    ...row,
+    status: row.status.toUpperCase(),
+    personalProfile: postsAsPerson(row.provider, externalAccountId),
+  }));
 }

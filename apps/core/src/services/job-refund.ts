@@ -1,8 +1,8 @@
 import type { Prisma } from "@sokosumi/database";
 
 import {
-  buildCompensatingRefundTransactionCreate,
   COMPENSATED_SPEND_CONSUMPTIONS_SELECT,
+  createCompensatingRefund,
 } from "@/helpers/compensating-refund";
 
 /**
@@ -36,18 +36,15 @@ export async function refundJob(
   if (actorUserId === null) {
     throw new Error("Spend transaction is missing userId");
   }
+  const refundId = await createCompensatingRefund(tx, {
+    amount,
+    actorUserId,
+    organizationId: transaction.organizationId,
+    referenceId: jobId,
+    consumptions: transaction.creditConsumptions,
+  });
   await tx.job.update({
     where: { id: jobId },
-    data: {
-      refundedTransaction: {
-        create: buildCompensatingRefundTransactionCreate({
-          amount,
-          actorUserId,
-          organizationId: transaction.organizationId,
-          referenceId: jobId,
-          consumptions: transaction.creditConsumptions,
-        }),
-      },
-    },
+    data: { refundedTransaction: { connect: { id: refundId } } },
   });
 }

@@ -8,6 +8,7 @@ import {
   dataRoomViewSchema,
   toDataRoomTreeRowDto,
 } from "@/schemas/data-room.schema";
+import { readDataRoomCompany } from "@/schemas/data-room-company.schema";
 import { resolveDataRoomViewer } from "@/services/data-room-access.service";
 import { dataRoomName } from "@/services/data-room-email.service";
 import {
@@ -52,6 +53,9 @@ export default function mount(app: OpenAPIHono) {
         dataRoomViewSchema.parse({
           ...base,
           state: viewer.kind === "closed" ? viewer.reason : "out",
+          // The note is for the people let in, like the files.
+          welcomeNote: null,
+          company: null,
           viewer: null,
           rows: [],
         }),
@@ -65,6 +69,8 @@ export default function mount(app: OpenAPIHono) {
       dataRoomViewSchema.parse({
         ...base,
         state: "in",
+        welcomeNote: room.welcomeNote,
+        company: readDataRoomCompany(room.company),
         viewer: { email: viewer.member.email, name: viewer.member.name },
         rows: buildDataRoomTree({ files, order, member: viewer.member }).map(
           toDataRoomTreeRowDto,

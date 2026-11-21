@@ -32,6 +32,10 @@ import {
   searchProjectAdLocations,
   updateProjectAdCampaign,
 } from "@/services/project-ad-accounts.service";
+import {
+  isTestCopyProject,
+  TEST_COPY_NOTHING_AT_ONCE,
+} from "@/services/project-test-copy";
 
 /**
  * Sokosumi Ads in CMO (the owner's Project ad accounts, ADR 0062): connect
@@ -41,10 +45,16 @@ import {
  * inside the approved plan's ad budget.
  */
 
-/** Cuso, for an owner or admin: only they connect or spend. */
+/**
+ * Cuso, for an owner or admin: only they connect or spend. A test copy has
+ * no ad account and never spends (ADR 0073).
+ */
 async function requireAdsOwner(target: CusoTarget): Promise<Cuso> {
   const { userId } = target;
   const cuso = await requireCuso(target);
+  if (await isTestCopyProject(cuso.projectId)) {
+    throw new CmoConflictError(TEST_COPY_NOTHING_AT_ONCE);
+  }
   const { organizationId } = await cmoPayer(cuso);
   const mayApprove = await mayApproveMarketingStrategy(userId, {
     id: cuso.workspaceId,
@@ -212,12 +222,12 @@ async function dailyAdBudget(cuso: Cuso) {
   const approved = await approvedMarketingStrategy(cuso.projectId);
   const plan = parseMarketingPlan(approved?.plan);
   if (!approved || !plan) {
-    throw new CmoConflictError("Approve a plan before launching ads");
+    throw new CmoConflictError("Approve a strategy before launching ads");
   }
   const ads = plan.ads;
   if (!ads || ads.monthly <= 0) {
     throw new CmoConflictError(
-      "Your plan has no ad budget. Ask Cuso to add one, then launch.",
+      "Your strategy has no ad budget. Ask Cuso to add one, then launch.",
     );
   }
   return {
@@ -226,6 +236,24 @@ async function dailyAdBudget(cuso: Cuso) {
     currency: ads.currency.toUpperCase(),
     monthly: ads.monthly,
     perDay: ads.monthly / 30,
+  };
+}
+
+/**
+ * What the approved strategy lets search ads spend a day, and how many are
+ * written: each gets an equal share at launch. Null without an ad budget.
+ */
+export async function cmoSearchAdBudget(
+  cuso: Cuso,
+): Promise<{ currency: string; perDay: number; searchAds: number } | null> {
+  const approved = await approvedMarketingStrategy(cuso.projectId);
+  const ads = parseMarketingPlan(approved?.plan)?.ads;
+  if (!approved || !ads || ads.monthly <= 0) return null;
+  const files = await listMarketingStrategyFiles(approved);
+  return {
+    currency: ads.currency.toUpperCase(),
+    perDay: roundBudget(ads.monthly / 30),
+    searchAds: [...files.values()].filter((file) => file.searchAd).length,
   };
 }
 
@@ -276,7 +304,7 @@ export async function requireAdBudgetRoom(input: {
   const budget = await dailyAdBudget(input.cuso);
   if (input.account.currency.toUpperCase() !== budget.currency) {
     throw new CmoConflictError(
-      `Your plan's ad budget is in ${budget.currency}, but this ad account bills in ${input.account.currency}. Ask Cuso to set the budget in ${input.account.currency}.`,
+      `Your strategy's ad budget is in ${budget.currency}, but this ad account bills in ${input.account.currency}. Ask Cuso to set the budget in ${input.account.currency}.`,
     );
   }
   const running = await runningPerDay(
@@ -288,7 +316,7 @@ export async function requireAdBudgetRoom(input: {
   );
   if (running + input.dailyBudget > budget.perDay + 0.005) {
     throw new CmoConflictError(
-      `That would spend ${money(running + input.dailyBudget, budget.currency)} a day, and your plan allows ${money(budget.perDay, budget.currency)} (${money(budget.monthly, budget.currency)} a month). Pause another ad or raise the budget.`,
+      `That would spend ${money(running + input.dailyBudget, budget.currency)} a day, and your strategy allows ${money(budget.perDay, budget.currency)} (${money(budget.monthly, budget.currency)} a month). Pause another ad or raise the budget.`,
     );
   }
 }

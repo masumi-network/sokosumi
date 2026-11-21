@@ -15,11 +15,11 @@ import {
   CloudUpload,
   Copy,
   ExternalLink,
+  ImageOff,
   Info,
   Link2,
   Loader2,
   RotateCw,
-  Sparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -27,7 +27,6 @@ import {
   type Dispatch,
   type SetStateAction,
   useCallback,
-  useEffect,
   useId,
   useMemo,
   useRef,
@@ -84,16 +83,16 @@ import {
   ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
 } from "@/lib/constants/organization-logo";
 import type { PersistedDesignMd } from "@/lib/services/design-md.service";
-import { cn } from "@/lib/utils";
-import {
-  cleanupOrganizationLogoBestEffort,
-  getOrganizationLogoUploadErrorMessage,
-  uploadOrganizationLogoDirect,
-} from "@/lib/utils/organization-logo-upload.client";
 import {
   ClientTimeoutError,
   raceWithTimeout,
 } from "@/lib/utils/race-with-timeout";
+import {
+  cleanupOwnedLogoBestEffort,
+  getUserFileUploadErrorMessage,
+  uploadOwnedLogoDirect,
+} from "@/lib/utils/user-file-upload.client";
+import { sweepWorkspace } from "@/lib/workspace-sweep";
 
 const TOTAL_STEPS = 4;
 /**
@@ -204,7 +203,20 @@ function BrandLookSummary({ look }: { look: PersistedDesignMd["look"] }) {
   );
 }
 
-export function CreateOrganizationWizard({
+export function CreateOrganizationWizard(props: CreateOrganizationWizardProps) {
+  const [wasOpen, setWasOpen] = useState(props.open);
+  const [sessionKey, setSessionKey] = useState(0);
+  // Reset to a clean slate whenever the wizard is (re)opened.
+  if (props.open !== wasOpen) {
+    setWasOpen(props.open);
+    if (props.open) {
+      setSessionKey((count) => count + 1);
+    }
+  }
+  return <CreateOrganizationWizardContent key={sessionKey} {...props} />;
+}
+
+function CreateOrganizationWizardContent({
   open,
   onOpenChange,
   onOrganizationReady,
@@ -214,7 +226,7 @@ export function CreateOrganizationWizard({
   );
   const tDesignMd = useTranslations(DESIGN_MD_TRANSLATION_NAMESPACE);
   const router = useRouter();
-  const { handleSelectWorkspace } = useWorkspaceSwitcher();
+  const { handleSelectWorkspace, whenSettled } = useWorkspaceSwitcher();
 
   const [step, setStep] = useState(0);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
@@ -311,45 +323,6 @@ export function CreateOrganizationWizard({
     owner: designMdOwner,
   });
 
-  const resetAll = useCallback(() => {
-    setStep(0);
-    focusedStepRef.current = 0;
-    setOrganizationId(null);
-    setOrganizationName("");
-    setNormalizedUrl(null);
-    setIsCreatingOrg(false);
-    setIsLeaving(false);
-    leavingRef.current = false;
-    setLogoUrl("");
-    setIsResolvingLogo(false);
-    setPendingLogoFiles([]);
-    setIsUploadingLogo(false);
-    setInviteLink(null);
-    setIsCreatingLink(false);
-    setLinkFailed(false);
-    setCopied(false);
-    setEmails("");
-    setIsSendingInvites(false);
-    logoStartedRef.current = false;
-    brandStartedRef.current = false;
-    linkStartedRef.current = false;
-    orgCreateInFlightRef.current = false;
-    savedValuesRef.current = null;
-    brandForceRef.current = false;
-    brand.reset();
-    setBrandResult(null);
-    form.reset({ name: "", url: "" });
-  }, [brand, form]);
-
-  // Reset to a clean slate whenever the wizard is (re)opened.
-  const wasOpenRef = useRef(false);
-  useEffect(() => {
-    if (open && !wasOpenRef.current) {
-      resetAll();
-    }
-    wasOpenRef.current = open;
-  }, [open, resetAll]);
-
   const persistLogo = useCallback(
     async (nextLogo: string | null, previousLogo?: string) => {
       if (!organizationId) return;
@@ -358,7 +331,11 @@ export function CreateOrganizationWizard({
         data: { logo: nextLogo },
       });
       if (previousLogo && previousLogo !== nextLogo) {
-        void cleanupOrganizationLogoBestEffort(organizationId, previousLogo);
+        void cleanupOwnedLogoBestEffort(
+          "organization",
+          organizationId,
+          previousLogo,
+        );
       }
     },
     [organizationId],
@@ -380,7 +357,11 @@ export function CreateOrganizationWizard({
             data: { logo: result.value.url },
           });
           if (previousLogo && previousLogo !== result.value.url) {
-            void cleanupOrganizationLogoBestEffort(orgId, previousLogo);
+            void cleanupOwnedLogoBestEffort(
+              "organization",
+              orgId,
+              previousLogo,
+            );
           }
         }
       } catch (error) {
@@ -398,9 +379,10 @@ export function CreateOrganizationWizard({
    * derived artifacts, so the logo and brand guidelines are re-derived from
    * the new site rather than silently keeping the first one.
    */
-  const handleCreateOrganization = useCallback(async (): Promise<
-    string | null
-  > => {
+  const handleCreateOrganization = useCallback(async (): Promise<{
+    id: string;
+    url: string;
+  } | null> => {
     if (orgCreateInFlightRef.current) return null;
 
     const values = form.getValues();
@@ -411,7 +393,7 @@ export function CreateOrganizationWizard({
       const saved = savedValuesRef.current;
       const nameChanged = saved?.name !== values.name;
       const urlChanged = saved?.url !== url;
-      if (!nameChanged && !urlChanged) return organizationId;
+      if (!nameChanged && !urlChanged) return { id: organizationId, url };
 
       orgCreateInFlightRef.current = true;
       setIsCreatingOrg(true);
@@ -451,7 +433,7 @@ export function CreateOrganizationWizard({
           setBrandResult(null);
         }
 
-        return organizationId;
+        return { id: organizationId, url };
       } catch (error) {
         console.error("Failed to update organization", error);
         toast.error(t("Errors.createFailed"));
@@ -492,7 +474,7 @@ export function CreateOrganizationWizard({
       setOrganizationName(values.name);
       setNormalizedUrl(url);
       savedValuesRef.current = { name: values.name, url };
-      return createdId;
+      return { id: createdId, url };
     } catch (error) {
       console.error("Failed to create organization", error);
       toast.error(t("Errors.createFailed"));
@@ -504,37 +486,15 @@ export function CreateOrganizationWizard({
   }, [brand, form, organizationId, router, t]);
 
   const handleDetailsContinue = form.handleSubmit(async () => {
-    const orgId = await handleCreateOrganization();
-    if (orgId) setStep(1);
-  });
-
-  // Step 1 — resolve the favicon once we have an org + website.
-  useEffect(() => {
-    if (
-      step === 1 &&
-      organizationId &&
-      normalizedUrl &&
-      !logoStartedRef.current
-    ) {
+    const org = await handleCreateOrganization();
+    if (!org) return;
+    setStep(1);
+    // Step 1 — resolve the favicon once we have an org + website.
+    if (!logoStartedRef.current) {
       logoStartedRef.current = true;
-      void resolveLogoFromWebsite(organizationId, normalizedUrl);
+      void resolveLogoFromWebsite(org.id, org.url);
     }
-  }, [step, organizationId, normalizedUrl, resolveLogoFromWebsite]);
-
-  // Step 2 — generate the brand guidelines once.
-  useEffect(() => {
-    if (
-      step === 2 &&
-      organizationId &&
-      normalizedUrl &&
-      !brandStartedRef.current
-    ) {
-      brandStartedRef.current = true;
-      const force = brandForceRef.current;
-      brandForceRef.current = false;
-      void brand.generate({ force, url: normalizedUrl });
-    }
-  }, [step, organizationId, normalizedUrl, brand]);
+  });
 
   // Step 3 — mint the shareable invite link once (retry via button on failure).
   const mintInviteLink = useCallback(async () => {
@@ -560,17 +520,24 @@ export function CreateOrganizationWizard({
     }
   }, [organizationId, t]);
 
-  useEffect(() => {
-    if (
-      step === SUCCESS_STEP &&
-      organizationId &&
-      !isLeaving &&
-      !linkStartedRef.current
-    ) {
+  function handleLogoContinue() {
+    setStep(2);
+    // Step 2 — generate the brand guidelines once.
+    if (organizationId && normalizedUrl && !brandStartedRef.current) {
+      brandStartedRef.current = true;
+      const force = brandForceRef.current;
+      brandForceRef.current = false;
+      void brand.generate({ force, url: normalizedUrl });
+    }
+  }
+
+  function handleBrandContinue() {
+    setStep(SUCCESS_STEP);
+    if (organizationId && !leavingRef.current && !linkStartedRef.current) {
       linkStartedRef.current = true;
       void mintInviteLink();
     }
-  }, [step, organizationId, isLeaving, mintInviteLink]);
+  }
 
   const handleLogoUpload = useCallback(
     async (files: File[]) => {
@@ -580,9 +547,14 @@ export function CreateOrganizationWizard({
       const previousLogo = logoUrl;
       try {
         const uploaded = await raceWithTimeout(
-          uploadOrganizationLogoDirect(organizationId, logoFile, {
-            allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
-            maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+          uploadOwnedLogoDirect({
+            kind: "organization",
+            ownerId: organizationId,
+            file: logoFile,
+            options: {
+              allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
+              maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+            },
           }),
           ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
         );
@@ -593,10 +565,7 @@ export function CreateOrganizationWizard({
         toast.error(
           error instanceof ClientTimeoutError
             ? t("Logo.uploadError")
-            : getOrganizationLogoUploadErrorMessage(
-                error,
-                t("Logo.uploadError"),
-              ),
+            : getUserFileUploadErrorMessage(error, t("Logo.uploadError")),
         );
       } finally {
         setPendingLogoFiles([]);
@@ -660,12 +629,21 @@ export function CreateOrganizationWizard({
         onOrganizationReady(orgId);
         return false;
       }
-      void handleSelectWorkspace(orgId, {
-        shouldRedirectAgentJobsBasePath: false,
+      // The dialog stays up until the sweep covers the screen, so the old
+      // workspace never shows between it and the new one.
+      leavingRef.current = true;
+      setIsLeaving(true);
+      void sweepWorkspace(async () => {
+        onOpenChange(false);
+        const settled = whenSettled();
+        await handleSelectWorkspace(orgId, {
+          shouldRedirectAgentJobsBasePath: false,
+        });
+        await settled;
       });
-      return true;
+      return false;
     },
-    [handleSelectWorkspace, onOrganizationReady],
+    [handleSelectWorkspace, onOpenChange, onOrganizationReady, whenSettled],
   );
 
   const isBusy = isCreatingOrg || isUploadingLogo || isLeaving;
@@ -698,26 +676,8 @@ export function CreateOrganizationWizard({
           {t("description")}
         </DialogDescription>
 
-        <div className="relative flex items-center px-6 py-5 sm:px-8 sm:py-6">
-          <div className="absolute inset-x-0 top-0 flex h-[3px] gap-1">
-            {Array.from({ length: TOTAL_STEPS }).map((_, index) => (
-              <span
-                key={index}
-                className="bg-border h-full flex-1 overflow-hidden"
-              >
-                <span
-                  className={cn(
-                    "bg-primary block size-full origin-left transition-transform duration-200 ease-out motion-reduce:transition-none",
-                    index <= step ? "scale-x-100" : "scale-x-0",
-                  )}
-                />
-              </span>
-            ))}
-          </div>
-          <span className="text-muted-foreground text-2xs font-medium tracking-[0.16em] tabular-nums">
-            {String(step + 1).padStart(2, "0")} /{" "}
-            {String(TOTAL_STEPS).padStart(2, "0")}
-          </span>
+        {/* Keeps the close button's row; the step is only announced. */}
+        <div className="h-14 sm:h-16">
           <span className="sr-only" aria-live="polite">
             {step + 1} / {TOTAL_STEPS}
           </span>
@@ -960,7 +920,7 @@ export function CreateOrganizationWizard({
                     </div>
                   ) : brand.status === "failed" ? (
                     <div className="bg-muted flex size-24 items-center justify-center rounded-lg border">
-                      <Sparkles className="text-muted-foreground size-6" />
+                      <ImageOff className="text-muted-foreground size-6" />
                     </div>
                   ) : (
                     <div className="bg-muted flex size-24 items-center justify-center rounded-lg border transition-colors duration-200">
@@ -1236,7 +1196,7 @@ export function CreateOrganizationWizard({
               variant="primary"
               size="lg"
               className="h-11 px-6"
-              onClick={() => setStep((current) => current + 1)}
+              onClick={handleLogoContinue}
               disabled={isBusy}
             >
               {logoUrl ? t("Nav.next") : t("Nav.skipForNow")}
@@ -1250,7 +1210,7 @@ export function CreateOrganizationWizard({
               variant="primary"
               size="lg"
               className="h-11 px-6"
-              onClick={() => setStep((current) => current + 1)}
+              onClick={handleBrandContinue}
               disabled={isBusy}
             >
               {t("Nav.finishSetup")}

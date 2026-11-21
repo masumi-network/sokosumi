@@ -1,22 +1,17 @@
 import { randomUUID } from "node:crypto";
-import {
-  getSokoBotVersion,
-  redactSokoBotSensitiveText,
-  SOKO_BOT_CMO_RHYTHMS,
-  SOKO_BOT_SYSTEM_SCHEDULES,
-  sokoBotSystemSchedulePrompt,
-} from "@sokosumi/soko-bot";
+import { redactSokoBotSensitiveText } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
-import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
+import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
 import { sokoBotScheduleActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   isRetryableSokoBotRuntimeError,
   SokoBotRuntimeUnavailableError,
 } from "@/lib/soko-bot/runtime-errors";
+import { nextEffectiveRun } from "@/lib/soko-bot/schedule-run-changes";
 import {
   inheritedScheduleRoute,
   systemScheduleRoute,
@@ -28,11 +23,12 @@ import {
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
 import {
-  buildSystemBeatMessage,
   proactiveGate,
   stageSokoBotNudges,
 } from "@/services/soko-bot-proactive.service";
 import { MAX_CONSECUTIVE_SCHEDULE_FAILURES } from "@/services/soko-bot-schedule.service";
+
+import { buildScheduledSystemBeat } from "@/services/soko-bot-scheduled-beat.service";
 
 const SCHEDULE_LEASE_MS = 5 * 60 * 1_000;
 const BUSY_RETRY_DELAY_MS = 60_000;
@@ -48,7 +44,7 @@ export interface SokoBotScheduleSyncInput {
   shouldContinue: () => boolean;
   enqueueReconciliation?: (input: {
     turnId: string;
-    leaseToken?: string;
+    leaseToken: string;
   }) => void;
 }
 
@@ -275,17 +271,18 @@ export class SokoBotSchedulesSyncService {
     }
 
     const scheduledFor = due.nextRunAt;
-    const nextRunAt = due.runOnce
+    const walkFrom = new Date(Math.max(scheduledFor.getTime(), Date.now()));
+    const nextCronAt = due.runOnce
       ? scheduledFor
       : computeNextRunWithMinimumInterval(
           {
             cron: due.cronExpression,
             timezone: due.timezone,
-            from: new Date(Math.max(scheduledFor.getTime(), Date.now())),
+            from: walkFrom,
           },
           MIN_SCHEDULE_INTERVAL_MS,
         );
-    if (!nextRunAt) {
+    if (!nextCronAt) {
       await prisma.sokoBotSchedule.update({
         where: { id: due.id },
         data: {
@@ -299,6 +296,27 @@ export class SokoBotSchedulesSyncService {
     const leaseToken = randomUUID();
     const leaseExpiresAt = new Date(Date.now() + SCHEDULE_LEASE_MS);
     const claimed = await prisma.$transaction(async (tx) => {
+      let nextRunAt = nextCronAt;
+      // Only schedules a member or the bot set up have runs moved or skipped.
+      if (!due.runOnce && !due.systemKey && !due.taskId && !due.jobId) {
+        // Same lock a Calendar run change takes before it writes, so the
+        // walk below sees every run moved or skipped up to this claim.
+        await tx.$queryRaw`
+          SELECT "id" FROM "soko_bot_schedule"
+          WHERE "id" = ${due.id}::uuid
+          FOR UPDATE
+        `;
+        const changes = await tx.sokoBotScheduleRunChange.findMany({
+          where: { scheduleId: due.id },
+          select: { originalAt: true, scheduledAt: true },
+        });
+        // Cron runs a late claim missed coalesce into `nextCronAt`, but a
+        // moved run after this one fires even when its time already passed:
+        // moves walk from `scheduledFor`, cron times from `nextCronAt`.
+        nextRunAt =
+          nextEffectiveRun(due, changes, scheduledFor, nextCronAt) ??
+          nextCronAt;
+      }
       const moved = await tx.sokoBotSchedule.updateMany({
         where: {
           id: due.id,
@@ -387,7 +405,7 @@ export class SokoBotSchedulesSyncService {
         },
         data: {
           status: completed ? "COMPLETED" : "FAILED",
-          turnId: turnId ?? undefined,
+          ...(turnId != null ? { turnId } : {}),
           completedAt: new Date(),
           leaseToken: null,
           leaseExpiresAt: null,
@@ -450,7 +468,6 @@ export class SokoBotSchedulesSyncService {
       let turnStatus: string | null = null;
       let turnErrorKind: string | null = null;
       let reconciliationLeaseToken: string | undefined;
-      let startedFresh = false;
       if (turnId) {
         const existing = await prisma.sokoBotTurn.findUnique({
           where: { id: turnId },
@@ -481,36 +498,12 @@ export class SokoBotSchedulesSyncService {
             },
           });
           if (bot) {
-            // A CMO bot's rhythms carry one prompt, its own: a dream there
-            // must not read like an assistant's with its morning stand-up.
-            const cmo = getSokoBotVersion(bot.versionId).profile === "cmo";
-            const cmoRhythm = cmo
-              ? SOKO_BOT_CMO_RHYTHMS.find(
-                  (candidate) => candidate.key === schedule.systemKey,
-                )
-              : undefined;
-            const rhythm = SOKO_BOT_SYSTEM_SCHEDULES.find(
-              (candidate) => candidate.key === schedule.systemKey,
-            );
-            const beat = await buildSystemBeatMessage({
+            const beat = await buildScheduledSystemBeat(
               bot,
-              key: schedule.systemKey,
-              // Registry prompt wins so wording changes ship without a migration.
-              prompt: cmo
-                ? (cmoRhythm?.prompt ?? schedule.prompt)
-                : ((rhythm &&
-                    sokoBotSystemSchedulePrompt(
-                      rhythm,
-                      isSharedSokoBot(bot),
-                    )) ??
-                  schedule.prompt),
-              // Meeting prep reads the window after its own half-hour slot,
-              // so a late or retried run briefs the same meetings, once.
-              now:
-                schedule.systemKey === "meeting-prep"
-                  ? new Date(scheduledFor)
-                  : new Date(),
-            });
+              schedule.systemKey,
+              scheduledFor,
+              schedule.prompt,
+            );
             // Nothing to brief on (no external meeting, no mail waiting):
             // the occurrence is done without a turn or a cent spent.
             if (beat.skip) {
@@ -553,7 +546,7 @@ export class SokoBotSchedulesSyncService {
           source: "SCHEDULE",
           ownScheduleId: schedule.systemKey ? undefined : schedule.id,
           // Built-in rhythms run on the route Core gives them; a schedule the
-          // owner or the bot wrote is classified like any message.
+          // owner or the bot wrote runs with the tools stored with it.
           presetRoute:
             systemScheduleRoute(schedule.systemKey) ??
             inheritedScheduleRoute(schedule.capabilityNames),
@@ -567,7 +560,6 @@ export class SokoBotSchedulesSyncService {
         turnStatus = started.status;
         turnErrorKind = started.errorKind ?? null;
         reconciliationLeaseToken = started.reconciliationLeaseToken;
-        startedFresh = true;
         if (nudgeKeys.length > 0) {
           await stageSokoBotNudges(
             schedule.sokoBotId,
@@ -613,17 +605,29 @@ export class SokoBotSchedulesSyncService {
         data: { status: "RUNNING" },
       });
       if (linked.count === 0) return "deferred";
-      if (startedFresh && turnId) {
+      if (reconciliationLeaseToken && turnId) {
         try {
           enqueueReconciliation?.({
             turnId,
             leaseToken: reconciliationLeaseToken,
           });
         } catch (error) {
-          console.warn("Failed to enqueue scheduled turn reconciliation", {
-            turnId,
-            error: error instanceof Error ? error.message : "unknown",
+          // The schedules cron runs after its response: its own event.
+          const log = createCoreLogger({
+            operation: "soko_bot_schedules_sync",
+            turn: { id: turnId },
           });
+          logCoreWarning(
+            log,
+            {
+              message: "Could not start draining a scheduled Soko Bot turn",
+              why: "Enqueueing the reconciliation threw",
+              fix: "The turn has started; the soko-bot-turns sync drains it instead.",
+            },
+            // The raw error is redacted detail, never the why.
+            { cause: error },
+          );
+          log.emit();
         }
       }
       return "deferred";

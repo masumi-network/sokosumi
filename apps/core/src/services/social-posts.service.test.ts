@@ -12,16 +12,19 @@ import {
   it,
   vi,
 } from "vitest";
-
 import * as socialProviders from "@/config/social-providers";
 import prisma from "@/lib/db/prisma";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 const {
   projectFindFirstMock,
+  workspaceFindUniqueOrThrowMock,
   socialConnectionFindFirstMock,
   socialAccountPostFindFirstMock,
   socialPostCreateMock,
   socialPostFindFirstMock,
+  socialPostFindUniqueMock,
+  prepareSocialPostMediaMock,
   socialPostFindManyMock,
   socialPostCountMock,
   socialPostUpdateManyMock,
@@ -30,12 +33,16 @@ const {
   transactionMock,
   queryRawMock,
   resolveXSubscriptionTypeMock,
+  recordAdEventsMock,
 } = vi.hoisted(() => ({
   projectFindFirstMock: vi.fn(),
+  workspaceFindUniqueOrThrowMock: vi.fn(),
   socialConnectionFindFirstMock: vi.fn(),
   socialAccountPostFindFirstMock: vi.fn(),
   socialPostCreateMock: vi.fn(),
   socialPostFindFirstMock: vi.fn(),
+  socialPostFindUniqueMock: vi.fn(),
+  prepareSocialPostMediaMock: vi.fn(async (_scope, _provider, media) => media),
   socialPostFindManyMock: vi.fn(),
   socialPostCountMock: vi.fn(),
   socialPostUpdateManyMock: vi.fn(),
@@ -44,16 +51,29 @@ const {
   transactionMock: vi.fn(),
   queryRawMock: vi.fn(),
   resolveXSubscriptionTypeMock: vi.fn(),
+  recordAdEventsMock: vi.fn(),
+}));
+
+vi.mock("@/services/social-studio-events.service", () => ({
+  recordSocialStudioAdEvents: recordAdEventsMock,
 }));
 
 vi.mock("@/services/x-subscription-tier.service", () => ({
   resolveXSubscriptionType: resolveXSubscriptionTypeMock,
 }));
 
+vi.mock("@/services/social-post-media-preparation.service", () => ({
+  prepareSocialPostMedia: prepareSocialPostMediaMock,
+  requirePreparedSocialPostProvider: vi.fn(),
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
     projectSocialQueueSlot: { findMany: queueSlotFindManyMock },
+    workspace: {
+      findUniqueOrThrow: workspaceFindUniqueOrThrowMock,
+    },
     $queryRaw: queryRawMock,
     project: {
       findFirst: projectFindFirstMock,
@@ -62,6 +82,7 @@ vi.mock("@/lib/db/prisma", () => ({
     projectSocialConnection: { findFirst: socialConnectionFindFirstMock },
     socialAccountPost: { findFirst: socialAccountPostFindFirstMock },
     socialPost: {
+      findUnique: socialPostFindUniqueMock,
       create: socialPostCreateMock,
       findFirst: socialPostFindFirstMock,
       findMany: socialPostFindManyMock,
@@ -87,6 +108,7 @@ const activeConnection = {
   id: SOCIAL_CONNECTION_ID,
   projectId: PROJECT_ID,
   provider: "x",
+  externalAccountId: "1384455565187891201",
   externalHandle: "sokosumi",
   subscriptionType: null,
   status: "active",
@@ -185,6 +207,7 @@ const scheduledPost = {
   socialConnection: {
     id: SOCIAL_CONNECTION_ID,
     provider: "x",
+    externalAccountId: "1384455565187891201",
     externalHandle: "sokosumi",
     status: "active",
   },
@@ -215,15 +238,179 @@ describe("social posts service", () => {
     );
     queryRawMock.mockResolvedValue([{ id: PROJECT_ID }]);
     projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
+    workspaceFindUniqueOrThrowMock.mockResolvedValue({ organizationId: null });
     socialConnectionFindFirstMock.mockResolvedValue(activeConnection);
     socialPostFindManyMock.mockImplementation(async ({ where }) =>
       where.quotedPostId ? [] : [draftPost],
     );
     socialPostCountMock.mockResolvedValue(1);
     socialPostFindFirstMock.mockResolvedValue(draftPost);
+    socialPostFindUniqueMock.mockResolvedValue(draftPost);
     socialPostCreateMock.mockResolvedValue(draftPost);
     socialPostUpdateManyMock.mockResolvedValue({ count: 1 });
   });
+
+  it("records attached studio media after a successful draft save", async () => {
+    const { createSocialPost } = await loadService();
+    socialPostCreateMock.mockResolvedValue({
+      ...draftPost,
+      media: [IMAGE_REF],
+    });
+    await createSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      organizationId: null,
+      text: "Launch",
+      media: [IMAGE_REF],
+    });
+    expect(recordAdEventsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        postId: POST_ID,
+        type: "attached_to_post",
+        media: [IMAGE_REF],
+        threadParts: [],
+      }),
+    );
+    expect(recordAdEventsMock.mock.invocationCallOrder[0]).toBeGreaterThan(
+      socialPostCreateMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("does not record scheduling when the transaction rolls back", async () => {
+    const { createSocialPost } = await loadService();
+    transactionMock.mockRejectedValueOnce(new Error("transaction rolled back"));
+    await expect(
+      createSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        organizationId: null,
+        text: "Launch",
+        media: [IMAGE_REF],
+        scheduledAt: FUTURE,
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+      }),
+    ).rejects.toThrow("transaction rolled back");
+    expect(recordAdEventsMock).not.toHaveBeenCalled();
+  });
+
+  it("records a schedule only after its transaction commits", async () => {
+    const { createSocialPost } = await loadService();
+    transactionMock.mockResolvedValueOnce({
+      ...scheduledPost,
+      media: [IMAGE_REF],
+    });
+    await createSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      organizationId: null,
+      text: "Launch",
+      media: [IMAGE_REF],
+      scheduledAt: FUTURE,
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+    });
+    expect(recordAdEventsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "scheduled", media: [IMAGE_REF] }),
+    );
+    expect(recordAdEventsMock.mock.invocationCallOrder[0]).toBeGreaterThan(
+      transactionMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("keeps an edit successful when its optional event comparison read fails", async () => {
+    const { updateSocialPost } = await loadService();
+    socialPostFindFirstMock.mockRejectedValueOnce(
+      new Error("comparison unavailable"),
+    );
+    transactionMock.mockResolvedValueOnce({ ...draftPost, media: [IMAGE_REF] });
+    await expect(
+      updateSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        organizationId: null,
+        postId: POST_ID,
+        media: [IMAGE_REF],
+        revision: 0,
+      }),
+    ).resolves.toMatchObject({ id: POST_ID });
+    expect(recordAdEventsMock).not.toHaveBeenCalled();
+  });
+
+  it("does not count a draft awaiting approval as scheduled", async () => {
+    const { scheduleSocialPost } = await loadService();
+    transactionMock.mockResolvedValueOnce({
+      ...scheduledPost,
+      status: "NEEDS_APPROVAL",
+    });
+    await scheduleSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      postId: POST_ID,
+      scheduledAt: FUTURE,
+      timezone: "UTC",
+      revision: 0,
+    });
+    expect(recordAdEventsMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["x", "instagram"] as const)(
+    "prepares the original image before scheduling onto %s",
+    async (provider) => {
+      const padded = {
+        ...JPEG_REF,
+        pathname: JPEG_REF.pathname.replace("launch.jpg", "padded.jpg"),
+        fileUrl: JPEG_REF.fileUrl.replace("launch.jpg", "padded.jpg"),
+        transformation: {
+          provider: "instagram" as const,
+          code: "pad_4_5" as const,
+          notice: "Instagram will pad this image to 4:5.",
+          original: JPEG_REF,
+        },
+      };
+      const storedMedia = provider === "x" ? padded : JPEG_REF;
+      const preparedMedia = provider === "x" ? JPEG_REF : padded;
+      const stored = {
+        ...draftPost,
+        provider: provider === "x" ? "instagram" : "x",
+        media: [storedMedia],
+        revision: 1,
+      };
+      socialPostFindUniqueMock.mockResolvedValue(stored);
+      socialPostFindFirstMock.mockResolvedValue(stored);
+      socialConnectionFindFirstMock.mockResolvedValue({
+        ...activeConnection,
+        provider,
+      });
+      prepareSocialPostMediaMock.mockResolvedValueOnce([preparedMedia]);
+      const { scheduleSocialPost } = await loadService();
+      await scheduleSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        postId: POST_ID,
+        revision: 1,
+        scheduledAt: FUTURE,
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+      });
+      expect(prepareSocialPostMediaMock).toHaveBeenCalledWith(
+        expect.objectContaining({ organizationId: null }),
+        provider,
+        [storedMedia],
+      );
+      expect(
+        prepareSocialPostMediaMock.mock.invocationCallOrder[0],
+      ).toBeLessThan(transactionMock.mock.invocationCallOrder[0]);
+      expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ media: [preparedMedia], provider }),
+        }),
+      );
+    },
+  );
 
   describe("queue uses the scheduling path", () => {
     beforeEach(() => {
@@ -412,7 +599,12 @@ describe("social posts service", () => {
           id: TARGET_ID,
           text: "Original",
           media: [IMAGE_REF],
-          account: target.socialConnection,
+          account: {
+            id: target.socialConnection.id,
+            externalHandle: target.socialConnection.externalHandle,
+            status: target.socialConnection.status,
+            personalProfile: false,
+          },
           scheduledAt: FUTURE,
         },
         canPublishNow: false,
@@ -585,7 +777,7 @@ describe("social posts service", () => {
 
     it("allows retry after the quoted post recovers without allowing cancellation to auto-resume", async () => {
       const failedQuote = {
-        ...draftPost,
+        ...scheduledPost,
         status: "FAILED",
         quotedPostId: TARGET_ID,
         quotedPost: {
@@ -1513,10 +1705,44 @@ describe("social posts service", () => {
         id: true,
         closingAt: true,
         closedAt: true,
-        workspace: { select: { organization: { select: { slug: true } } } },
+        testCopyOfProjectId: true,
+        workspace: {
+          select: {
+            organization: { select: { slug: true } },
+            id: true,
+          },
+        },
       },
     });
     expect(socialPostFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("lists every Project's posts in the workspace, and only that workspace", async () => {
+    const { listWorkspaceSocialPosts } = await loadService();
+
+    await listWorkspaceSocialPosts({
+      workspaceId: WORKSPACE_ID,
+      statuses: ["FAILED", "MISSED", "NEEDS_APPROVAL"],
+    });
+
+    const where = {
+      workspaceId: WORKSPACE_ID,
+      status: { in: ["FAILED", "MISSED", "NEEDS_APPROVAL"] },
+    };
+    expect(socialPostFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where }),
+    );
+    expect(socialPostFindManyMock.mock.lastCall?.[0]?.where).toStrictEqual(
+      where,
+    );
+    expect(socialPostFindManyMock.mock.lastCall?.[0]).not.toHaveProperty(
+      "cursor",
+    );
+    expect(socialPostFindManyMock.mock.lastCall?.[0]).not.toHaveProperty(
+      "skip",
+    );
+    expect(socialPostCountMock).toHaveBeenCalledWith({ where });
+    expect(projectFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("lists a bounded page with derived capability flags", async () => {
@@ -1549,7 +1775,7 @@ describe("social posts service", () => {
         canEdit: true,
         canSchedule: true,
         canCancel: true,
-        canPublishNow: true,
+        canPublishNow: false,
         canApprove: false,
         canReject: false,
         canDuplicate: false,
@@ -1754,7 +1980,13 @@ describe("social posts service", () => {
     "sets canPublishNow $canPublishNow on a $provider draft",
     async ({ provider, media, canPublishNow }) => {
       socialPostFindManyMock.mockResolvedValue([
-        { ...draftPost, provider, media },
+        {
+          ...draftPost,
+          provider,
+          media,
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+          socialConnection: { ...scheduledPost.socialConnection, provider },
+        },
       ]);
       const { listSocialPosts } = await loadService();
 
@@ -1766,6 +1998,18 @@ describe("social posts service", () => {
       expect(posts[0]).toMatchObject({ canPublishNow });
     },
   );
+
+  it("does not offer Post now on a draft with no account", async () => {
+    socialPostFindManyMock.mockResolvedValue([draftPost]);
+    const { listSocialPosts } = await loadService();
+
+    const { posts } = await listSocialPosts({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+    });
+
+    expect(posts[0]).toMatchObject({ canEdit: true, canPublishNow: false });
+  });
 
   it("returns not found for a post in another Project", async () => {
     socialPostFindFirstMock.mockResolvedValue(null);
@@ -2643,46 +2887,300 @@ describe("social posts service", () => {
     expect(socialPostCreateMock).not.toHaveBeenCalled();
   });
 
-  it("refuses a Soko Bot's post that says what another post of its month says", async () => {
-    socialPostFindFirstMock.mockResolvedValue({
-      ...draftPost,
-      marketingStrategyId: "version-1",
+  describe("ownMessageProblem", () => {
+    /** Fees and minting share a dimension: they are one message. */
+    const embed = async (values: readonly string[]) => ({
+      costUsd: 0.000_02,
+      embeddings: values.map((value) => [
+        /fee|minting|costs/i.test(value) ? 1 : 0,
+        /governance|vote/i.test(value) ? 1 : 0,
+        0.1,
+      ]),
     });
-    socialPostFindManyMock.mockResolvedValue([
-      {
-        id: "fee",
-        text: "The Studio account has no monthly fee. Minting costs 3% or at least 2 ADA per token, and network fees are separate.",
-        media: [],
-        planning: { title: "Fees" },
-      },
-      // An idea still showing its plan's title is not a written post.
-      {
-        id: "idea",
-        text: "No monthly fee on a Studio account",
-        media: [],
-        planning: { title: "No monthly fee on a Studio account" },
-      },
-    ]);
-    const { updateSocialPost } = await loadService();
 
-    await expect(
-      updateSocialPost({
-        projectId: PROJECT_ID,
-        workspaceId: WORKSPACE_ID,
-        organizationId: null,
-        userId: USER_ID,
-        sokoBotId: "55555555-5555-4555-8555-555555555555",
-        postId: POST_ID,
-        revision: 0,
-        text: "No monthly fee on a Studio account. Each token costs 3% or a 2 ADA minimum; network fees are separate.",
-      }),
-    ).rejects.toMatchObject({
-      status: 400,
-      message: expect.stringContaining(
-        'it says nearly what the post "The Studio account has no monthly fee.',
-      ),
+    beforeEach(() => {
+      socialPostFindFirstMock.mockResolvedValue({
+        marketingStrategyId: "version-1",
+      });
+      socialPostFindManyMock.mockResolvedValue([
+        {
+          text: "The Studio account has no monthly fee. Minting costs 3% or at least 2 ADA per token.",
+          planning: { title: "Fees" },
+        },
+        // An idea still showing its plan's title is not a written post.
+        {
+          text: "No monthly fee on a Studio account",
+          planning: { title: "No monthly fee on a Studio account" },
+        },
+        {
+          text: "Holders vote on governance proposals from the wallet.",
+          planning: { title: "Governance" },
+        },
+      ]);
     });
-    expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+
+    it("names the month's post a Soko Bot's text says again", async () => {
+      const { ownMessageProblem } = await loadService();
+
+      const result = await ownMessageProblem(
+        {
+          postId: POST_ID,
+          workspaceId: WORKSPACE_ID,
+          text: "No monthly fee on a Studio account; each token costs 3%.",
+        },
+        embed,
+      );
+
+      expect(result).toEqual({
+        problem:
+          'Rewrite the post: it says nearly what the post "The Studio account has no monthly fee. Minting costs 3% or at least 2 ADA per..." says. Give it its own message from its pillar: another claim, number, customer or step.',
+        costUsd: 0.000_02,
+      });
+      expect(socialPostFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            marketingStrategyId: "version-1",
+            id: { not: POST_ID },
+            status: { not: "CANCELED" },
+          },
+        }),
+      );
+    });
+
+    it("lets one talking video's posts on several networks say the same", async () => {
+      socialPostFindFirstMock.mockResolvedValue({
+        marketingStrategyId: "version-1",
+        planning: { id: "tv@youtube", videoOf: "tv" },
+      });
+      socialPostFindManyMock.mockResolvedValue([
+        {
+          text: "No monthly fee on a Studio account. Each token costs 3%.",
+          planning: { id: "tv", title: "Fees" },
+        },
+        {
+          text: "Studio has no monthly fee; minting costs 3% a token.",
+          planning: { id: "tv@facebook", videoOf: "tv", title: "Fees" },
+        },
+      ]);
+      const { ownMessageProblem } = await loadService();
+      const text = "No monthly fee on a Studio account; each token costs 3%.";
+
+      expect(
+        (
+          await ownMessageProblem(
+            { postId: POST_ID, workspaceId: WORKSPACE_ID, text },
+            embed,
+          )
+        ).problem,
+      ).toBeNull();
+
+      // Another entry's post saying it again is still refused.
+      socialPostFindFirstMock.mockResolvedValue({
+        marketingStrategyId: "version-1",
+        planning: { id: "other" },
+      });
+      expect(
+        (
+          await ownMessageProblem(
+            { postId: POST_ID, workspaceId: WORKSPACE_ID, text },
+            embed,
+          )
+        ).problem,
+      ).toContain("Rewrite the post");
+    });
+
+    it("lets a post with its own message through", async () => {
+      const { ownMessageProblem } = await loadService();
+
+      const result = await ownMessageProblem(
+        {
+          postId: POST_ID,
+          workspaceId: WORKSPACE_ID,
+          text: "Stake from the wallet in two taps.",
+        },
+        embed,
+      );
+
+      expect(result.problem).toBeNull();
+    });
+
+    // cmo-v8's month review: words that argue another piece's claim rather
+    // than its own. On saves it refused 229 posts of NMKR's one-pillar month
+    // and the month never finished, so only the review asks it.
+    it("names a text that argues another piece's claim clearly more than its own", async () => {
+      const { otherClaimArgued } = await loadService();
+      const off = await otherClaimArgued(
+        "Every holder can vote on the next governance step.",
+        "Staking rewards arrive every epoch",
+        ["Holders vote on governance proposals"],
+        embed,
+      );
+      expect(off.problem).toContain(
+        'it argues another piece\'s claim ("Holders vote on governance proposals")',
+      );
+      const own = await otherClaimArgued(
+        "Rewards land in your wallet every epoch.",
+        "Staking rewards arrive every epoch",
+        ["Holders vote on governance proposals"],
+        embed,
+      );
+      expect(own.problem).toBeNull();
+    });
+
+    it("checks nothing for a post outside a marketing month", async () => {
+      socialPostFindFirstMock.mockResolvedValue({ marketingStrategyId: null });
+      const { ownMessageProblem } = await loadService();
+
+      const result = await ownMessageProblem(
+        { postId: POST_ID, workspaceId: WORKSPACE_ID, text: "Fees again" },
+        embed,
+      );
+
+      expect(result).toEqual({ problem: null, costUsd: 0 });
+      expect(socialPostFindManyMock).not.toHaveBeenCalled();
+    });
+  });
+
+  // cmo-v8: cal.com's LinkedIn posts (2026-11-20) opened on advice and
+  // failed Jev's hook rule on 2 of 2 runs.
+  describe("linkedInOpeningProblem", () => {
+    beforeEach(() => {
+      queryRawMock.mockResolvedValue([{ refused: 0 }]);
+      socialPostFindManyMock.mockResolvedValue([]);
+    });
+    const jev = (probability: number) =>
+      vi.fn(async () => ({
+        answers: new Map([["hook", { type: "boolean", probability }]]),
+        costUsd: 0.000_1,
+      }));
+
+    it("refuses a month's LinkedIn post that opens on advice", async () => {
+      socialPostFindFirstMock.mockResolvedValue({
+        marketingStrategyId: "version-1",
+        provider: "linkedin",
+      });
+      const { linkedInOpeningProblem } = await loadService();
+      const evaluate = jev(0.1);
+      const result = await linkedInOpeningProblem(
+        {
+          postId: POST_ID,
+          workspaceId: WORKSPACE_ID,
+          text: "A booking flow should start with the team.\n\nHere is why.\n\nMore text.",
+        },
+        evaluate as never,
+      );
+      expect(result.problem).toContain(
+        'Rewrite the post\'s first line: "A booking flow should start with the team." gives no reason to tap "see more".',
+      );
+      expect(result.costUsd).toBe(0.000_1);
+      expect(evaluate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          state: {
+            opening: "A booking flow should start with the team.",
+          },
+        }),
+      );
+    });
+
+    it("lets a result through, and checks no other network", async () => {
+      socialPostFindFirstMock.mockResolvedValue({
+        marketingStrategyId: "version-1",
+        provider: "linkedin",
+      });
+      const { linkedInOpeningProblem } = await loadService();
+      const text = "Deel cut its booking back-and-forth by 70% in a week.";
+      expect(
+        (
+          await linkedInOpeningProblem(
+            { postId: POST_ID, workspaceId: WORKSPACE_ID, text },
+            jev(0.9) as never,
+          )
+        ).problem,
+      ).toBeNull();
+      socialPostFindFirstMock.mockResolvedValue({
+        marketingStrategyId: "version-1",
+        provider: "x",
+      });
+      const evaluate = jev(0.1);
+      expect(
+        await linkedInOpeningProblem(
+          { postId: POST_ID, workspaceId: WORKSPACE_ID, text: "Tips." },
+          evaluate as never,
+        ),
+      ).toEqual({ problem: null, costUsd: 0 });
+      expect(evaluate).not.toHaveBeenCalled();
+    });
+
+    // NMKR's month opened on Book.io's 130,000 NFTs again and again.
+    it("refuses a first line another LinkedIn post of the month already opens with", async () => {
+      socialPostFindFirstMock.mockResolvedValue({
+        marketingStrategyId: "version-1",
+        provider: "linkedin",
+      });
+      socialPostFindManyMock.mockResolvedValue([
+        {
+          text: "Book.io sold 130,000 NFTs on NMKR.\n\nMore.",
+          planning: { title: "Book.io" },
+        },
+      ]);
+      const embed = async (values: readonly string[]) => ({
+        costUsd: 0.000_01,
+        embeddings: values.map((value) => [
+          /book\.io/i.test(value) ? 1 : 0,
+          value.length / 1000,
+        ]),
+      });
+      const { linkedInOpeningProblem } = await loadService();
+      const evaluate = jev(0.9);
+      const result = await linkedInOpeningProblem(
+        {
+          postId: POST_ID,
+          workspaceId: WORKSPACE_ID,
+          text: "Book.io reports 130,000 NFTs sold with NMKR.\n\nWhy it matters.",
+        },
+        evaluate as never,
+        embed,
+      );
+      expect(result.problem).toContain(
+        'it opens like another LinkedIn post of the month ("Book.io sold 130,000 NFTs on NMKR.")',
+      );
+      expect(evaluate).not.toHaveBeenCalled();
+    });
+
+    // NMKR's month stalled on the same posts refused again and again.
+    it("lets an opening through after it was refused twice", async () => {
+      socialPostFindFirstMock.mockResolvedValue({
+        marketingStrategyId: "version-1",
+        provider: "linkedin",
+      });
+      queryRawMock.mockResolvedValue([{ refused: 2 }]);
+      const { linkedInOpeningProblem } = await loadService();
+      const evaluate = jev(0.1);
+      expect(
+        await linkedInOpeningProblem(
+          { postId: POST_ID, workspaceId: WORKSPACE_ID, text: "Tips." },
+          evaluate as never,
+        ),
+      ).toEqual({ problem: null, costUsd: 0 });
+      expect(evaluate).not.toHaveBeenCalled();
+    });
+
+    it("never holds a post up when Jev does not answer", async () => {
+      socialPostFindFirstMock.mockResolvedValue({
+        marketingStrategyId: "version-1",
+        provider: "linkedin",
+      });
+      const { linkedInOpeningProblem } = await loadService();
+      const evaluate = vi.fn(async () => {
+        throw new Error("timeout");
+      });
+      expect(
+        await linkedInOpeningProblem(
+          { postId: POST_ID, workspaceId: WORKSPACE_ID, text: "Tips." },
+          evaluate as never,
+        ),
+      ).toEqual({ problem: null, costUsd: 0 });
+    });
   });
 
   it("leaves a person's own formatting alone", async () => {
@@ -3101,6 +3599,7 @@ describe("social posts service", () => {
     it("replaces media on update and re-checks the text rule", async () => {
       socialPostFindFirstMock
         .mockResolvedValueOnce({ ...draftPost, text: "", media: [IMAGE_REF] })
+        .mockResolvedValueOnce({ ...draftPost, text: "", media: [IMAGE_REF] })
         .mockResolvedValueOnce({ ...draftPost, media: [GIF_REF], revision: 1 });
       const { updateSocialPost } = await loadService();
 
@@ -3143,7 +3642,11 @@ describe("social posts service", () => {
     });
 
     it("treats malformed stored media as none", async () => {
-      vi.spyOn(console, "warn").mockImplementation(() => {});
+      const warnings = expectCoreLogWhys(
+        "warn",
+        "A social post's media list was ignored",
+        ["The post's media column does not match the media list schema"],
+      );
       socialPostFindManyMock.mockResolvedValue([
         { ...draftPost, media: [{ pathname: 1 }] },
       ]);
@@ -3155,10 +3658,7 @@ describe("social posts service", () => {
       });
 
       expect(posts[0].media).toEqual([]);
-      expect(console.warn).toHaveBeenCalledWith(
-        expect.stringContaining("media"),
-        { postId: POST_ID },
-      );
+      expect(warnings[0]?.event).toMatchObject({ postId: POST_ID });
     });
 
     it("enforces the media rules when scheduling", async () => {
@@ -3375,6 +3875,7 @@ describe("social posts service", () => {
         status: "reauthorization_required",
       });
       socialPostFindFirstMock
+        .mockResolvedValueOnce(failed)
         .mockResolvedValueOnce(failed)
         .mockResolvedValueOnce({
           ...failed,
@@ -3784,7 +4285,13 @@ describe("social posts service", () => {
           id: true,
           closingAt: true,
           closedAt: true,
-          workspace: { select: { organization: { select: { slug: true } } } },
+          testCopyOfProjectId: true,
+          workspace: {
+            select: {
+              organization: { select: { slug: true } },
+              id: true,
+            },
+          },
         },
       });
       expect(projectFindFirstMock).not.toHaveBeenCalled();

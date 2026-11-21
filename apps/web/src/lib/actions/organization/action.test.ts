@@ -1,4 +1,5 @@
 import { MemberRole } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -128,9 +129,7 @@ describe("organization actions", () => {
   });
 
   it("returns sent and failed statuses for a partial batch", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Failed to invite organization member");
     inviteOrganizationMemberViaCoreMock
       .mockResolvedValueOnce({})
       .mockRejectedValueOnce(new Error("invite failed"));
@@ -151,8 +150,6 @@ describe("organization actions", () => {
         ],
       },
     });
-
-    consoleErrorSpy.mockRestore();
   });
 
   it("rejects users who are not members of the organization", async () => {
@@ -247,12 +244,14 @@ describe("organization actions", () => {
   });
 
   it("maps membership lookup failures to INTERNAL_SERVER_ERROR", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    getMyMemberInOrganizationMock.mockRejectedValue(
-      new MockCoreApiRequestError("Internal Server Error", { status: 500 }),
+    const errorCalls = expectConsole(
+      "error",
+      "Failed to bulk invite organization members",
     );
+    const error = new MockCoreApiRequestError("Internal Server Error", {
+      status: 500,
+    });
+    getMyMemberInOrganizationMock.mockRejectedValue(error);
     const { inviteOrganizationMembersBulk } = await import("./action");
 
     const result = await inviteOrganizationMembersBulk({
@@ -268,8 +267,7 @@ describe("organization actions", () => {
       },
     });
     expect(inviteOrganizationMemberViaCoreMock).not.toHaveBeenCalled();
-
-    consoleErrorSpy.mockRestore();
+    expect(errorCalls[0]?.[1]).toBe(error);
   });
 });
 
@@ -527,9 +525,7 @@ describe("createOrganizationWorkspaceAction", () => {
   );
 
   it("maps other failures to INTERNAL_SERVER_ERROR", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    expectConsole("error", "Failed to create organization");
     createMyWorkspaceMock.mockRejectedValue(new Error("fetch failed"));
     const { createOrganizationWorkspaceAction } = await import("./action");
 
@@ -544,7 +540,6 @@ describe("createOrganizationWorkspaceAction", () => {
         error: { code: "INTERNAL_SERVER_ERROR" },
       });
     } finally {
-      consoleError.mockRestore();
     }
   });
 });

@@ -3,12 +3,21 @@ import { z } from "zod";
 
 import { listImageOptions } from "../lib/core";
 import { identityFrom } from "../lib/identity";
+import { CURATED_IMAGE_MODEL_IDS } from "../lib/models";
 
 export default defineTool({
   description:
-    "List every supported image model and placement with verified capabilities, settings, target dimensions, limits, and documentation. Read-only; no generation or charge. Use before choosing non-default models or placement IDs.",
+    "List supported Studio models, placements and settings. Read-only; no generation or charge.",
   inputSchema: z.object({}),
   async execute(_input, ctx) {
-    return await listImageOptions(identityFrom(ctx));
+    const { catalog } = await listImageOptions(identityFrom(ctx));
+    const imageIds: readonly string[] = CURATED_IMAGE_MODEL_IDS;
+    return {
+      catalog: {
+        ...catalog,
+        defaultModelId: "gemini-pro",
+        models: catalog.models.filter(({ id }) => imageIds.includes(id)),
+      },
+    };
   },
 });

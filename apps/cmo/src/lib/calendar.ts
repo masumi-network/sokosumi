@@ -1,6 +1,6 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
-import { channelInfo } from "./channels";
+import { channelInfo, formatMedia } from "./channels";
 
 type Entry = NonNullable<CmoOverview["strategy"]>["calendar"][number];
 
@@ -22,13 +22,17 @@ export function calendarKind(
   return "post";
 }
 
-/** Social networks Cuso posts to once connected; TikTok follows soon. */
+/**
+ * Social networks Cuso posts to once connected. On TikTok each video waits
+ * for the owner's own confirmation.
+ */
 export const SOCIAL_PROVIDERS = [
   "x",
   "linkedin",
   "instagram",
   "facebook",
   "youtube",
+  "tiktok",
 ] as const;
 
 export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number];
@@ -47,6 +51,52 @@ export function entryReadiness(
 ): "ready" | "connect" | "soon" {
   if (connected.includes(channel)) return "ready";
   return isSocialProvider(channel) ? "connect" : "soon";
+}
+
+/**
+ * A written social post that cannot go out yet because its network is not
+ * connected: it waits for the owner, not for Cuso. Null for every other piece.
+ */
+export function waitsForNetwork(
+  entry: Pick<Entry, "status" | "channel">,
+  connected: readonly string[],
+): SocialProvider | null {
+  const channel = entry.channel.toLowerCase();
+  return entry.status === "draft" &&
+    isSocialProvider(channel) &&
+    !connected.includes(channel)
+    ? channel
+    : null;
+}
+
+/** The networks with a live connection, lower-cased. */
+export function connectedNetworks(channels: CmoOverview["channels"]): string[] {
+  return channels
+    .filter((channel) => channel.status.toUpperCase() === "ACTIVE")
+    .map((channel) => channel.provider.toLowerCase());
+}
+
+/** The opening words of a text, ending on a whole word. */
+export function wholeWords(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max + 1);
+  const end = cut.lastIndexOf(" ");
+  return `${cut.slice(0, end > 0 ? end : max).replace(/[\s,;:.]+$/, "")}…`;
+}
+
+/**
+ * Whether a piece is fully made: scheduled or out, or written with its picture
+ * or video when it needs one. Until then the owner sees only that it is coming.
+ */
+export function pieceMade(
+  entry: Pick<Entry, "status" | "channel" | "format">,
+  hasMedia: boolean,
+): boolean {
+  if (entry.status === "scheduled" || entry.status === "published") {
+    return true;
+  }
+  if (entry.status !== "draft") return false;
+  return hasMedia || formatMedia(entry.channel, entry.format) === null;
 }
 
 const DAY_MS = 86_400_000;

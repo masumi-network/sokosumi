@@ -11,6 +11,7 @@ import type { Prisma } from "@sokosumi/database";
 import { CONTACT_LIST_COLORS, type CONTACT_STAGES } from "@sokosumi/utils";
 import { generateText } from "ai";
 import { z } from "zod";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import { companyDomain } from "@/lib/contacts/capture-filters";
 import {
   checkListProposal,
@@ -31,6 +32,8 @@ import {
   normalizePersonName,
 } from "@/lib/contacts/merge-rules";
 import prisma from "@/lib/db/prisma";
+import { emitCoreError, emitCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { sokoBotModelRequest } from "@/lib/soko-bot/model-policy";
 import {
@@ -49,6 +52,7 @@ import {
 
 /** EU-routed and cheap; the same policy as the agent's own models. */
 export const CONTACT_ENRICHMENT_MODEL = "google/gemini-3.8-flash";
+const ENRICHMENT_OPERATION = "contact_enrichment";
 const TIMEOUT_MS = 15_000;
 // Gemini spends part of this on thinking, even at the low level.
 const MAX_OUTPUT_TOKENS = 1_500;
@@ -293,7 +297,7 @@ export async function generateWithContactModel(input: {
     prompt: input.prompt,
     maxOutputTokens: input.maxOutputTokens ?? MAX_OUTPUT_TOKENS,
     abortSignal: AbortSignal.timeout(input.timeoutMs ?? TIMEOUT_MS),
-  });
+  }).catch(rethrowAiGatewayFailure);
   return {
     text: result.text,
     costUsd: gatewayCostUsd(result.providerMetadata),
@@ -455,10 +459,19 @@ export async function enrichWorkspaceContacts(input: {
       actor = (await enrichOne(contact, lists, budget, stats, deps)) ?? actor;
     } catch (error) {
       stats.failures += 1;
-      console.error("Contact enrichment failed", {
-        contactId: contact.id,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      emitCoreError(
+        {
+          operation: ENRICHMENT_OPERATION,
+          workspace: { id: input.workspaceId },
+          contact: { id: contact.id },
+        },
+        {
+          message: "Could not enrich a contact",
+          why: "Enriching the contact threw",
+          fix: "The contact stays queued for the next contact capture run. If it repeats, look up the error name and code under failure.",
+        },
+        { failure: messageSafeErrorFields(error) },
+      );
     }
   }
   if (
@@ -478,10 +491,18 @@ export async function enrichWorkspaceContacts(input: {
       });
     } catch (error) {
       stats.failures += 1;
-      console.error("Contact list proposal failed", {
-        workspaceId: input.workspaceId,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      emitCoreError(
+        {
+          operation: ENRICHMENT_OPERATION,
+          workspace: { id: input.workspaceId },
+        },
+        {
+          message: "Could not propose a contact list",
+          why: "Proposing or saving the list threw",
+          fix: "No list was proposed this run; the next run that classifies contacts tries again.",
+        },
+        { failure: messageSafeErrorFields(error) },
+      );
     }
 }
 
@@ -520,9 +541,19 @@ async function enrichOne(
     answer = parseEnrichmentAnswer(result.text);
   } catch (error) {
     stats.modelFailures += 1;
-    console.warn("Contact enrichment model call failed", {
-      error: error instanceof Error ? error.name : "unknown",
-    });
+    emitCoreWarning(
+      {
+        operation: ENRICHMENT_OPERATION,
+        workspace: { id: contact.workspaceId },
+        contact: { id: contact.id },
+      },
+      {
+        message: "Could not classify a contact",
+        why: "The enrichment model call failed",
+        fix: "The contact stays queued for the next contact capture run.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
     return null;
   }
   // A cut-off or malformed answer stays queued instead of counting as done.
@@ -739,9 +770,15 @@ async function proposeContactList(input: {
     text = result.text;
   } catch (error) {
     stats.modelFailures += 1;
-    console.warn("Contact list proposal model call failed", {
-      error: error instanceof Error ? error.name : "unknown",
-    });
+    emitCoreWarning(
+      { operation: ENRICHMENT_OPERATION, workspace: { id: actor.workspaceId } },
+      {
+        message: "Could not ask for a contact list proposal",
+        why: "The list proposal model call failed",
+        fix: "No list was proposed this run; the next run that classifies contacts asks again.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
     return;
   }
   const existingNames = lists.map((list) => list.name);

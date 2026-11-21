@@ -8,13 +8,18 @@ import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { type ReactNode, Suspense } from "react";
+import { AdDataConsentSettings } from "@/components/ad-data-consent/ad-data-consent-settings";
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
 import DefaultLoading from "@/components/default-loading";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { AUTO_DETECT_VALUE } from "@/i18n/locales";
 import { parseTimeFormat, TIME_FORMAT_COOKIE_NAME } from "@/i18n/time-format";
-import { getSession, listUserAccounts } from "@/lib/auth/auth.server";
+import {
+  getEmailChangeStatus,
+  getSession,
+  listUserAccounts,
+} from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
 import { toDesignMdProfileValue } from "@/lib/helpers/design-md-profile";
 import { designMdService } from "@/lib/services/design-md.service";
@@ -36,13 +41,41 @@ async function AccountPageContent() {
   // not soft-reject dynamic APIs while filling this Suspense hole.
   await connection();
 
-  const t = await getTranslations("App.Account.LinkedAccounts");
-  const tBilling = await getTranslations("App.Account.BillingDetails");
-  const tDelete = await getTranslations("App.Account.Delete");
-  const [accountsResult, session, cookieStore] = await Promise.all([
+  // No read here needs another's answer, so all of them start together. The
+  // two that may fail on their own keep their error for the section they feed.
+  const [
+    t,
+    tBilling,
+    tDelete,
+    accountsResult,
+    session,
+    cookieStore,
+    billingRead,
+    workspaceAccess,
+    members,
+    deletionRead,
+    emailChangeRead,
+  ] = await Promise.all([
+    getTranslations("App.Account.LinkedAccounts"),
+    getTranslations("App.Account.BillingDetails"),
+    getTranslations("App.Account.Delete"),
     listUserAccounts(),
-    getSession(),
+    // Fresh read: DESIGN.md uploads and saves write the user's metadata in
+    // Core, which the session cookie cache does not see for up to five
+    // minutes, so the file row would offer the old file.
+    getSession({ refresh: true }),
     cookies(),
+    coreClient.getMyBillingDetails().then(
+      (response) => ({ data: response.data }),
+      (error: unknown) => ({ error }),
+    ),
+    userService.getWorkspaceAccess(),
+    userService.getMyMembersWithOrganizations(),
+    coreClient.getMyDeletion().then(
+      (response) => ({ data: response.data }),
+      (error: unknown) => ({ error }),
+    ),
+    getEmailChangeStatus(),
   ]);
   const initialTimeFormat =
     parseTimeFormat(cookieStore.get(TIME_FORMAT_COOKIE_NAME)?.value) ??
@@ -51,11 +84,10 @@ async function AccountPageContent() {
   let billingDetails: StripeCustomerBillingDetails | undefined;
   let billingDetailsLoadError: ReactNode | undefined;
 
-  try {
-    const billingDetailsResponse = await coreClient.getMyBillingDetails();
-    billingDetails = billingDetailsResponse.data;
-  } catch (error) {
-    console.error("Failed to load billing details", error);
+  if ("data" in billingRead) {
+    billingDetails = billingRead.data;
+  } else {
+    console.error("Failed to load billing details", billingRead.error);
     billingDetailsLoadError = (
       <CoreAuthReadRetry
         description={tBilling("loadError")}
@@ -70,19 +102,17 @@ async function AccountPageContent() {
     userMetadata,
     designMdService.getDesignMdPreviewUrl,
   );
-  const [workspaceAccess, members] = await Promise.all([
-    userService.getWorkspaceAccess(),
-    userService.getMyMembersWithOrganizations(),
-  ]);
 
   let deletionBlockers: UserDeletionEvaluation["blockers"] = [];
   let deletionPreflightFailed = false;
   let deletionPreflightLoadError: ReactNode | undefined;
-  try {
-    const deletionResponse = await coreClient.getMyDeletion();
-    deletionBlockers = deletionResponse.data.blockers;
-  } catch (error) {
-    console.error("Failed to load account deletion blockers", error);
+  if ("data" in deletionRead) {
+    deletionBlockers = deletionRead.data.blockers;
+  } else {
+    console.error(
+      "Failed to load account deletion blockers",
+      deletionRead.error,
+    );
     deletionPreflightFailed = true;
     deletionPreflightLoadError = (
       <CoreAuthReadRetry
@@ -96,7 +126,7 @@ async function AccountPageContent() {
   return (
     <div className="content-in min-h-full w-full">
       <BillingPortalErrorToast generalMessage={tBilling("Errors.general")} />
-      <div className={cn(HOLDER_CLASS, "p-3")}>
+      <div className={cn(HOLDER_CLASS, "space-y-6 p-3")}>
         <AccountSettings
           accounts={accountsResult.isOk() ? accountsResult.value : []}
           billingDetails={billingDetails}
@@ -113,6 +143,8 @@ async function AccountPageContent() {
           }
           userName={session?.user.name}
           userEmail={session?.user.email}
+          // `null` when the read failed: unknown, not "nothing waiting".
+          emailChange={emailChangeRead.unwrapOr(null)}
           userFirstName={session?.user.firstName}
           userLastName={session?.user.lastName}
           userImage={session?.user.image}
@@ -133,6 +165,9 @@ async function AccountPageContent() {
           }
           initialTimeFormat={initialTimeFormat}
         />
+        {workspaceAccess?.hasPersonalWorkspace ? (
+          <AdDataConsentSettings organizationId={null} />
+        ) : null}
       </div>
     </div>
   );

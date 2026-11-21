@@ -6,8 +6,8 @@ import {
   ChevronDown,
   ListFilter,
   Plus,
-  Sparkles,
   X,
+  Zap,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -123,24 +123,31 @@ export function ContactsViewMenus({
   );
 }
 
-function ListsMenu({
+/** A contact list or a company list, as the Lists menu shows it. */
+type MenuList = Pick<ContactList, "id" | "name" | "color" | "count"> &
+  Partial<Pick<ContactList, "kind" | "createdAutomatically">>;
+
+/** The team's lists as a menu; `companies` names them company lists. */
+export function ListsMenu<List extends MenuList>({
   view,
   onViewChange,
   lists,
   onNewList,
   onEditList,
   onDeleteList,
-}: Pick<
-  Props,
-  | "view"
-  | "onViewChange"
-  | "lists"
-  | "onNewList"
-  | "onEditList"
-  | "onDeleteList"
->) {
+  companies = false,
+}: {
+  view: string;
+  onViewChange: (view: string) => void;
+  lists: List[];
+  onNewList: () => void;
+  onEditList: (list: List) => void;
+  onDeleteList: (list: List) => void;
+  companies?: boolean;
+}) {
   const t = useTranslations("App.Contacts");
   const current = lists.find((list) => list.id === view) ?? null;
+  const label = companies ? t("views.companyLists") : t("views.lists");
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -150,12 +157,12 @@ function ListsMenu({
           className={cn(TRIGGER, "max-w-64")}
         >
           {current ? <Dot className={LIST_COLOR_DOT[current.color]} /> : null}
-          <span className="truncate">{current?.name ?? t("views.lists")}</span>
+          <span className="truncate">{current?.name ?? label}</span>
           <ChevronDown aria-hidden className={CHEVRON} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuLabel>{t("views.lists")}</DropdownMenuLabel>
+        <DropdownMenuLabel>{label}</DropdownMenuLabel>
         {lists.map((list) => (
           <DropdownMenuItem key={list.id} onClick={() => onViewChange(list.id)}>
             <Dot className={LIST_COLOR_DOT[list.color]} />
@@ -166,7 +173,7 @@ function ListsMenu({
                 className="size-3.5 shrink-0"
               />
             ) : list.createdAutomatically ? (
-              <Sparkles
+              <Zap
                 aria-label={t("views.autoList")}
                 className="size-3.5 shrink-0"
               />
@@ -181,13 +188,13 @@ function ListsMenu({
         ))}
         {lists.length === 0 ? (
           <p className="text-muted-foreground px-2 py-1.5 text-sm">
-            {t("views.noLists")}
+            {companies ? t("views.noCompanyLists") : t("views.noLists")}
           </p>
         ) : null}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onNewList}>
           <Plus aria-hidden className="size-4" />
-          {t("views.newList")}
+          {companies ? t("views.newCompanyList") : t("views.newList")}
         </DropdownMenuItem>
         {current ? (
           <>

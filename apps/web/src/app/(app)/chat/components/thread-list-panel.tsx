@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChatRoomMessage, ChatRoomThread } from "@sokosumi/core-client";
-import { Loader2, MegaphoneOff, X } from "lucide-react";
+import { BellOff, Loader2, X } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   listThreadsAction,
@@ -118,7 +118,9 @@ export function ThreadListPanel({
   }, [roomId]);
 
   async function handleLoadOlder() {
-    if (!nextCursor || isLoadingOlder) {
+    // Mark all holds the boundary too, but an observer entry queued before
+    // that hold landed can still call in here.
+    if (!nextCursor || isLoadingOlder || isMarkingAllRead) {
       return;
     }
     const requestId = ++listRequestIdRef.current;
@@ -185,15 +187,29 @@ export function ThreadListPanel({
   // Two groups, so the eye finds where the unread stops instead of reading
   // each row's weight. A partition of what is loaded: nothing extra is
   // fetched, and Core returns unread first, so paging only grows Earlier.
-  const unreadItems = items.filter((item) => threadNeedsOverviewUnread(item));
-  const earlierItems = items.filter((item) => !threadNeedsOverviewUnread(item));
+  // While Mark all is on its way, every thread Core will mark shows as read
+  // already. Core leaves muted threads alone (SOK-1087). A refused Mark all
+  // ends this, and the unread rows are back.
+  const shownItems = isMarkingAllRead
+    ? items.map((item) =>
+        item.mutedAt == null ? { ...item, unreadReplyCount: 0 } : item,
+      )
+    : items;
+  const unreadItems = shownItems.filter((item) =>
+    threadNeedsOverviewUnread(item),
+  );
+  const earlierItems = shownItems.filter(
+    (item) => !threadNeedsOverviewUnread(item),
+  );
   const showEmpty = !isLoading && !error && items.length === 0;
   // Every loaded list is divided, even one with nothing unread: the reader
   // scans for the Unread heading, so it answers them either way, with the rows
   // or with a line saying there are none. Only a room with no Threads at all
   // drops the headings, because there its own empty state already speaks.
   const hasGroups = items.length > 0;
-  const showMarkAll = unreadItems.length > 0;
+  // The button stays while its write is open, so focus and the spinner
+  // have somewhere to be.
+  const showMarkAll = isMarkingAllRead || unreadItems.length > 0;
 
   function renderRow(item: ChatRoomThread) {
     const sender = messageSender(item.parentMessage);
@@ -242,7 +258,7 @@ export function ThreadListPanel({
           }
           trailing={
             item.mutedAt ? (
-              <MegaphoneOff
+              <BellOff
                 className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
                 aria-label={labels.muted}
                 data-testid="thread-list-muted"
@@ -338,8 +354,16 @@ export function ThreadListPanel({
         {nextCursor ? (
           <ThreadListLoadMore
             boundaryKey={items.at(-1)?.parentMessage.id ?? ""}
+            // Held while Mark all runs: an older page that starts during the
+            // reload discards it, and the read rows would turn unread again.
+            // The row shows busy for that time, which is true: the list is
+            // being read again.
             status={
-              isLoadingOlder ? "loading" : olderFailed ? "failed" : "idle"
+              isLoadingOlder || isMarkingAllRead
+                ? "loading"
+                : olderFailed
+                  ? "failed"
+                  : "idle"
             }
             onLoad={() => {
               void handleLoadOlder();

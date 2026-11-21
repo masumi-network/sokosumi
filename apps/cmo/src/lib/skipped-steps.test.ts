@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { cmoOverview } from "../test-fixtures/cmo";
+import { cmoBilling, cmoOverview } from "../test-fixtures/cmo";
 import { readSkippedSteps, withSkippedSteps } from "./skipped-steps";
 
 describe("withSkippedSteps", () => {
   it("keeps Core's step without the cookie", () => {
-    for (const step of ["brandBrain", "strategy", "accounts"] as const) {
+    for (const step of [
+      "brandBrain",
+      "strategy",
+      "accounts",
+      "checkout",
+    ] as const) {
       const overview = cmoOverview({ onboardingStep: step });
       expect(withSkippedSteps(overview, readSkippedSteps(undefined))).toBe(
         overview,
@@ -13,13 +18,44 @@ describe("withSkippedSteps", () => {
     }
   });
 
-  it("is done once the person skipped the accounts", () => {
+  it("is done once the person finished the accounts (Core reaches them only after the checkout)", () => {
     expect(
       withSkippedSteps(
         cmoOverview({ onboardingStep: "accounts" }),
         readSkippedSteps("accounts"),
       ).onboardingStep,
     ).toBe("done");
+  });
+
+  it("is done after skipped accounts for a Cuso with Tester credits", () => {
+    expect(
+      withSkippedSteps(
+        cmoOverview({
+          onboardingStep: "accounts",
+          billing: cmoBilling({ hasTesterCredits: true }),
+        }),
+        readSkippedSteps("accounts"),
+      ).onboardingStep,
+    ).toBe("done");
+  });
+
+  it("is done after skipped accounts once the Cuso has a CMO subscription", () => {
+    expect(
+      withSkippedSteps(
+        cmoOverview({
+          onboardingStep: "accounts",
+          billing: cmoBilling({ status: "active" }),
+        }),
+        readSkippedSteps("accounts"),
+      ).onboardingStep,
+    ).toBe("done");
+  });
+
+  it("never skips the checkout", () => {
+    const overview = cmoOverview({ onboardingStep: "checkout" });
+    expect(withSkippedSteps(overview, readSkippedSteps("accounts"))).toBe(
+      overview,
+    );
   });
 
   it("still waits for the Brand Brain and an approved strategy", () => {

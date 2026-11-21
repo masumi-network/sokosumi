@@ -30,7 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { dataTableService } from "@/lib/services/data-table.client";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
-import { tableImportBatches } from "./table-import";
+import { isNumericCsvColumn, tableImportBatches } from "./table-import";
 import { isTableRejection } from "./table-mutations";
 import { parseTableInput, tableError } from "./table-value";
 
@@ -73,6 +73,8 @@ export function TableCreateDialog({
       options: string[];
     }>
   >([]);
+  /** Columns preset to Number from their values, until someone picks a type. */
+  const [guessedIds, setGuessedIds] = useState<string[]>([]);
   const [blankColumnId] = useState(() => crypto.randomUUID());
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -88,13 +90,20 @@ export function TableCreateDialog({
       const rows = parseTableCsv(await file.text());
       setCsv(rows);
       setCsvName(file.name);
-      setColumns(
-        rows[0].map((name) => ({
-          id: crypto.randomUUID(),
+      const next = rows[0].map((name, i) => ({
+        id: crypto.randomUUID(),
+        name,
+        type: isNumericCsvColumn(
           name,
-          type: "text",
-          options: [],
-        })),
+          rows.slice(1).map((row) => row[i]),
+        )
+          ? ("number" as const)
+          : ("text" as const),
+        options: [],
+      }));
+      setColumns(next);
+      setGuessedIds(
+        next.filter((column) => column.type === "number").map((c) => c.id),
       );
       setAttempt(null);
       setError("");
@@ -303,9 +312,17 @@ export function TableCreateDialog({
                       "bg-background h-10 rounded-md border px-3 py-2",
                     )}
                     aria-label={t("type")}
+                    aria-describedby={
+                      guessedIds.includes(column.id)
+                        ? `${column.id}-guess`
+                        : undefined
+                    }
                     value={column.type}
                     disabled={pending || !!attempt}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      setGuessedIds(
+                        guessedIds.filter((id) => id !== column.id),
+                      );
                       setColumns(
                         columns.map((item, i) =>
                           i === index
@@ -315,8 +332,8 @@ export function TableCreateDialog({
                               }
                             : item,
                         ),
-                      )
-                    }
+                      );
+                    }}
                   >
                     {TABLE_TYPES.map((type) => (
                       <option key={type} value={type}>
@@ -324,6 +341,14 @@ export function TableCreateDialog({
                       </option>
                     ))}
                   </select>
+                  {guessedIds.includes(column.id) && (
+                    <p
+                      id={`${column.id}-guess`}
+                      className="text-muted-foreground col-start-2 text-xs"
+                    >
+                      {t("numberGuess")}
+                    </p>
+                  )}
                   {column.type.includes("select") && (
                     // Hangs under the type that asked for it, in the same
                     // column, so the pair still reads as one mapping row now
@@ -358,7 +383,10 @@ export function TableCreateDialog({
                     <tr className="border-b">
                       {columns.map((column) => (
                         <th
-                          className="h-10 px-2 text-start font-medium whitespace-nowrap"
+                          className={cn(
+                            "h-10 px-2 text-start font-medium whitespace-nowrap",
+                            column.type === "number" && "text-end",
+                          )}
                           key={column.id}
                         >
                           {column.name}
@@ -371,7 +399,11 @@ export function TableCreateDialog({
                       <tr key={index}>
                         {row.map((value, i) => (
                           <td
-                            className="max-w-48 truncate border-b p-2"
+                            className={cn(
+                              "max-w-48 truncate border-b p-2",
+                              columns[i].type === "number" &&
+                                "text-end tabular-nums",
+                            )}
                             key={columns[i].id}
                           >
                             {value}

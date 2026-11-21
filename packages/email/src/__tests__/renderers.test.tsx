@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   renderAccessRequestEmail,
   renderChatRoomInvitationEmail,
+  renderCusoLowCreditsEmail,
   renderEmailCodeEmail,
   renderJobFailureNotificationEmail,
   renderLowBalanceEmail,
@@ -81,6 +82,26 @@ describe("email renderers", () => {
     expect(rendered.html).not.toContain("href=");
   });
 
+  it.each([
+    ["en", "Your CMO.XYZ code: 042917", "Enter this code in CMO.XYZ"],
+    ["de", "Dein CMO.XYZ-Code: 042917", "Gib diesen Code in CMO.XYZ ein"],
+    ["es", "Tu código de CMO.XYZ: 042917", "Introduce este código en CMO.XYZ"],
+  ] as const)(
+    "names CMO.XYZ, never Sokosumi, in a code asked for from CMO (%s)",
+    async (locale, subject, message) => {
+      const rendered = await renderEmailCodeEmail({
+        brand: "cmo",
+        locale,
+        code: "042917",
+        expiresInMinutes: 10,
+      });
+
+      expect(rendered.subject).toBe(subject);
+      expect(rendered.html).toContain(message);
+      expect(rendered.html.toLowerCase()).not.toContain("sokosumi");
+    },
+  );
+
   it("writes the email code email in the reader's language", async () => {
     const rendered = await renderEmailCodeEmail({
       locale: "de",
@@ -157,6 +178,39 @@ describe("email renderers", () => {
     expect(rendered.html).toContain(
       "https://app.sokosumi.com/billing?tab=credits",
     );
+  });
+
+  it("renders a Cuso's low-credit email with his credits, his next grant and CMO's link", async () => {
+    const rendered = await renderCusoLowCreditsEmail({
+      actionUrl: "https://app.cmo.xyz/settings?project=p-1",
+      businessName: "acme.com",
+      credits: 900,
+      cusoName: "Cuso",
+      locale: "en",
+      nextGrantAt: new Date("2026-12-01T00:00:00.000Z"),
+      recipientName: "Sandro",
+    });
+
+    expect(rendered.subject).toBe(
+      "CMO - Cuso for acme.com is running low on credits",
+    );
+    expect(rendered.html).toContain("900");
+    expect(rendered.html).toContain("December 1, 2026");
+    expect(rendered.html).toContain("https://app.cmo.xyz/settings?project=p-1");
+    expect(rendered.html).not.toContain("/billing");
+  });
+
+  it("names no next grant when a Cuso has none coming", async () => {
+    const rendered = await renderCusoLowCreditsEmail({
+      actionUrl: "https://app.cmo.xyz/settings?project=p-1",
+      businessName: "acme.com",
+      credits: 12,
+      cusoName: "Cuso",
+      locale: "en",
+      nextGrantAt: null,
+    });
+
+    expect(rendered.html).not.toContain("next plan credits");
   });
 
   it("links the notification settings from the footer", async () => {

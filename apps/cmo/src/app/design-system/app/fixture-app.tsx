@@ -2,21 +2,66 @@
 
 import { CmoApp, type CmoAppActions } from "../../../components/app/cmo-app";
 import type { View } from "../../../lib/views";
-import { messages, overview } from "./fixtures";
+import { cmoPlans } from "../../../test-fixtures/cmo";
+import { competitors, noCompetitors } from "./competitors-fixture";
+import {
+  busyOverview,
+  chat,
+  messages,
+  overview,
+  quietOverview,
+  seo,
+} from "./fixtures";
 
 /** Actions that change nothing: every call hands the same overview back. */
 const actions: CmoAppActions = {
   // The same data every time, so the app's polling never changes the screen.
   loadState: async () => ({ overview, messages }),
+  loadChatWork: async () => [],
+  loadChatWorkText: async () =>
+    "## Three trends\n\n- Loyalty passes replace one-off drops\n- Brands mint on their own site\n- Buyers pay by card",
+  loadChatWorkTable: async () => ({
+    columns: ["Post", "Channel", "Status"],
+    rows: Array.from({ length: 12 }, (_, index) => [
+      `Launch post ${index + 1}`,
+      index % 2 ? "LinkedIn" : "X",
+      index < 4 ? "Made" : "Planned",
+    ]),
+    total: 12,
+  }),
   sendMessage: async () => {},
+  changeChannel: async () => ({ url: null, error: null }),
+  skipSubscription: async () => ({ error: null }),
   loadPieceText: async (id) =>
     overview.strategy?.calendar.find((entry) => entry.id === id)?.draft ?? null,
   approveStrategy: async () => overview,
+  requestStrategy: async () => ({ overview, error: null }),
   setAdBudget: async () => ({ overview, error: null }),
   revertUpdate: async () => overview,
   saveBrandBrain: async () => overview,
   retryLearning: async () => ({ overview, error: null }),
   pauseEntry: async () => overview,
+  approveDraft: async () => ({ overview, error: null }),
+  readTikTokCreator: async () => ({
+    creator: {
+      creator_nickname: "acme",
+      privacy_level_options: ["PUBLIC_TO_EVERYONE"],
+      comment_disabled: false,
+      duet_disabled: false,
+      stitch_disabled: false,
+      max_video_post_duration_sec: 600,
+    },
+    error: null,
+  }),
+  declineDraft: async () => ({ overview, error: null }),
+  editDraft: async () => ({ overview, error: null }),
+  competitors: {
+    loadCompetitors: async () => competitors,
+    addCompetitor: async () => ({ competitors, error: null }),
+    updateCompetitor: async () => ({ competitors, error: null }),
+    removeCompetitor: async () => ({ competitors, error: null }),
+    addMoveToStrategy: async () => ({ competitors, error: null }),
+  },
   connectChannel: async () => ({ url: null, error: null }),
   addMailingList: async () => ({ overview, error: null }),
   connectMeasurement: async () => ({ url: null, error: null }),
@@ -51,23 +96,89 @@ const actions: CmoAppActions = {
   ],
   // Both would leave the preview.
   startOver: async () => null,
+  setTimeZone: async () => null,
+  startTopUp: async () => ({ url: null, error: null }),
+  subscribe: async () => ({ url: null, error: null }),
+  changePlan: async () => ({ change: null, error: null }),
+  openPortal: async () => ({ url: null, error: null }),
   signOut: async () => {},
+  loadSeo: async () => seo,
+  searchKeywords: async () => ({
+    search: seo.keywordSearches[0] ?? null,
+    error: null,
+  }),
+  setSeoSuggestionStatus: async () => null,
+  markLandingPageLive: async () => ({ note: null, error: null }),
+  askCusoForArticles: async () => null,
 };
 
 /** The signed-in app on one page, over fixture data, for looking at without Core. */
 interface FixtureAppProps {
   view: View;
+  /**
+   * Competitors: the page with nobody watched yet, or still loading.
+   * blocked: the month could not start, and a message does not send.
+   * busy: a full month, five or six posts a day.
+   * quiet: no posts yet, nothing that needs the owner, a long business name.
+   */
+  state?: "empty" | "loading" | "blocked" | "busy" | "quiet";
 }
 
-export function FixtureApp({ view }: FixtureAppProps) {
+export function FixtureApp({ view, state }: FixtureAppProps) {
+  const shown =
+    state === "quiet"
+      ? { overview: quietOverview, messages }
+      : view === "chat"
+        ? chat
+        : {
+            overview: state === "busy" ? busyOverview : overview,
+            messages,
+          };
+  const data =
+    state === "blocked"
+      ? {
+          ...shown,
+          overview: {
+            ...shown.overview,
+            production: {
+              ...shown.overview.production,
+              state: "blocked" as const,
+              ready: 0,
+              written: 0,
+              pictured: 0,
+            },
+          },
+        }
+      : shown;
+  const loadCompetitors =
+    state === "loading"
+      ? () => new Promise<null>(() => {})
+      : async () => (state === "empty" ? noCompetitors : competitors);
   return (
     <CmoApp
-      overview={overview}
-      messages={messages}
+      overview={data.overview}
+      messages={data.messages}
+      work={view === "chat" ? chat.work : []}
       name="Francis Luz"
       email="francis@acme.io"
+      // The quiet state shows an account with its own picture.
+      image={state === "quiet" ? "/apple-icon.png" : null}
       initialView={view}
-      actions={actions}
+      plans={cmoPlans}
+      mayHire
+      actions={{
+        ...actions,
+        loadState: async () => data,
+        ...(state === "blocked"
+          ? {
+              sendMessage: async () => {
+                throw new Error("Could not send the message");
+              },
+            }
+          : {}),
+        loadChatWork: async () => (view === "chat" ? chat.work : []),
+        competitors: { ...actions.competitors, loadCompetitors },
+      }}
     />
   );
 }

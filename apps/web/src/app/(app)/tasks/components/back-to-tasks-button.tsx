@@ -1,39 +1,69 @@
 "use client";
 
 import { ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import type { MouseEvent } from "react";
 
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { BackLink } from "@/components/back-link";
+import { navigateBack } from "@/lib/navigation/navigate-back";
 
-import { getStoredTasksReturnPath } from "./task-navigation";
+import {
+  getStoredTasksReturnPath,
+  isCalendarReturnPath,
+} from "./task-navigation";
 import { useTasksReturnPath } from "./use-tasks-return-path";
+
+const TASKS_PATH = "/tasks";
 
 interface BackToTasksButtonProps {
   label: string;
+  /** Set on a task's own page: a task opened from the Calendar goes back there. */
+  calendarLabel?: string;
+  /** False where the board is not the likely next page. */
+  loadOnMount?: boolean;
 }
 
-export function BackToTasksButton({ label }: BackToTasksButtonProps) {
+export function BackToTasksButton({
+  label,
+  calendarLabel,
+  loadOnMount = true,
+}: BackToTasksButtonProps) {
   const router = useRouter();
-  const returnPath = useTasksReturnPath();
+  const pathname = usePathname();
+  const allowCalendar = calendarLabel !== undefined;
+  const returnPath = useTasksReturnPath({ allowCalendar });
+  const taskPath = allowCalendar ? pathname : undefined;
 
-  useMountEffect(() => {
-    router.prefetch(getStoredTasksReturnPath());
-  });
-
-  const handleNavigate = () => {
-    router.push(getStoredTasksReturnPath());
+  const handleNavigate = (event: MouseEvent<HTMLAnchorElement>) => {
+    // A modified click opens a new tab or window from the link's href.
+    if (
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      event.button !== 0
+    ) {
+      return;
+    }
+    // Read storage at click time: `returnPath` state can lag behind the
+    // TaskDetailLink click that wrote it.
+    event.preventDefault();
+    navigateBack(router, getStoredTasksReturnPath({ taskPath }));
   };
 
   return (
-    <button
-      type="button"
+    <BackLink
+      href={returnPath ?? TASKS_PATH}
+      prefetchOnMount={loadOnMount && returnPath !== null}
       className="text-muted-foreground press hover:text-foreground hidden items-center gap-1.5 text-sm transition-colors md:inline-flex"
       onClick={handleNavigate}
-      onPointerEnter={() => router.prefetch(returnPath)}
-      onFocus={() => router.prefetch(returnPath)}
     >
       <ArrowLeft className="size-4" />
-      <span>{label}</span>
-    </button>
+      <span>
+        {calendarLabel && returnPath && isCalendarReturnPath(returnPath)
+          ? calendarLabel
+          : label}
+      </span>
+    </BackLink>
   );
 }

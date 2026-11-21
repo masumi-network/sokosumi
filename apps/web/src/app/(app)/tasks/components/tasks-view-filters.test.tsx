@@ -1,9 +1,17 @@
 import { TaskStatus } from "@sokosumi/core-client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { workspaceTagsQueryKey } from "@/queries/workspace-tags";
 
+const WORKSPACE_TAG_ID = "11223344-55aa-7111-8123-456789012345";
 const filterDropdownMenuMock = vi.fn();
+
+vi.mock("@/app/tasks/actions", () => ({
+  saveTasksView: vi.fn(async () => true),
+}));
 
 vi.mock("@/components/common/filter-dropdown-menu", () => ({
   FilterDropdownMenu: (props: unknown) => {
@@ -14,6 +22,7 @@ vi.mock("@/components/common/filter-dropdown-menu", () => ({
 
 import type { FilterDropdownMenuSection } from "@/components/common/filter-dropdown-menu";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
+import { TasksSearchParamsProvider } from "./tasks-search-params";
 import { TasksViewFilters } from "./tasks-view-filters";
 
 const replaceMock = vi.fn();
@@ -73,33 +82,54 @@ const labels = {
 function renderTasksViewFilters(
   activeOrganizationId: string | null,
   userId: string | null = null,
+  restoredQuery: string | null = null,
+  display?: (activeFilters: string[]) => React.ReactNode,
 ) {
+  const queryClient = new QueryClient();
+  queryClient.setQueryData(workspaceTagsQueryKey(activeOrganizationId), [
+    { id: WORKSPACE_TAG_ID, displayName: "Release blocker", archived: false },
+    {
+      id: "12345678-abcd-7123-8123-456789012345",
+      displayName: "Past release",
+      archived: true,
+    },
+  ]);
   render(
-    <TasksViewFilters
-      activeOrganizationId={activeOrganizationId}
-      userId={userId}
-      coworkerOptions={[
-        mockCoworkerOption({ id: "user-1", name: "Me", kind: "user" }),
-        mockCoworkerOption({
-          id: "coworker-1",
-          slug: "elena",
-          name: "Elena",
-          image: "elena.png",
-        }),
-      ]}
-      projectOptions={[
-        {
-          id: "33333333-3333-4333-8333-333333333333",
-          name: "Research",
-        },
-      ]}
-      labels={labels}
-    />,
+    <QueryClientProvider client={queryClient}>
+      <TasksSearchParamsProvider
+        restoredQuery={restoredQuery}
+        activeOrganizationId={activeOrganizationId}
+      >
+        <TasksViewFilters
+          activeOrganizationId={activeOrganizationId}
+          userId={userId}
+          coworkerOptions={[
+            mockCoworkerOption({ id: "user-1", name: "Me", kind: "user" }),
+            mockCoworkerOption({
+              id: "coworker-1",
+              slug: "elena",
+              name: "Elena",
+              image: "elena.png",
+            }),
+          ]}
+          projectOptions={[
+            {
+              id: "33333333-3333-4333-8333-333333333333",
+              name: "Research",
+            },
+          ]}
+          labels={labels}
+          display={display}
+        />
+      </TasksSearchParamsProvider>
+    </QueryClientProvider>,
+    { wrapper: NuqsTestingAdapter },
   );
 
   return filterDropdownMenuMock.mock.calls.at(-1)?.[0] as {
     buttonLabel: string;
     sections: FilterDropdownMenuSection[];
+    resetAction?: { label: string; onReset: () => void };
   };
 }
 
@@ -113,15 +143,152 @@ describe("TasksViewFilters", () => {
   it("filters to the tasks assigned to the viewer in one click", async () => {
     renderTasksViewFilters("org-1", "user-1");
 
-    await userEvent.click(screen.getByRole("button", { name: "My tasks" }));
+    await userEvent.click(screen.getByRole("radio", { name: "My tasks" }));
 
-    expect(replaceMock).toHaveBeenCalledWith("/tasks?assigneeUserId=user-1");
+    expect(replaceMock).toHaveBeenCalledWith(
+      "/tasks?scope=workspace&assigneeUserId=user-1",
+    );
+  });
+
+  it("shows one view at a time: switching leaves My tasks", async () => {
+    window.history.replaceState(null, "", "/tasks?assigneeUserId=user-1");
+    searchParams = new URLSearchParams(window.location.search);
+    renderTasksViewFilters("org-1", "user-1");
+
+    expect(screen.getByRole("radio", { name: "My tasks" })).toBeChecked();
+    // My tasks is the view, so no Coworker chip repeats it.
+    expect(screen.queryByRole("list", { name: "activeFilters" })).toBeNull();
+    await userEvent.click(screen.getByRole("radio", { name: "needsMe" }));
+
+    expect(replaceMock).toHaveBeenLastCalledWith(
+      "/tasks?scope=workspace&needsMe=1",
+    );
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("goes back to All and keeps a coworker the reader picked", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/tasks?assigneeId=coworker-1&mentions=1",
+    );
+    searchParams = new URLSearchParams(window.location.search);
+    renderTasksViewFilters("org-1", "user-1");
+
+    expect(screen.getByRole("radio", { name: "mentions" })).toBeChecked();
+    await userEvent.click(screen.getByRole("radio", { name: "All" }));
+
+    expect(replaceMock).toHaveBeenLastCalledWith(
+      "/tasks?assigneeId=coworker-1&scope=workspace",
+    );
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("shows Needs me over My tasks from an old link, and keeps the assignee as a chip", () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/tasks?needsMe=1&assigneeUserId=user-1",
+    );
+    searchParams = new URLSearchParams(window.location.search);
+    renderTasksViewFilters("org-1", "user-1");
+
+    expect(screen.getByRole("radio", { name: "needsMe" })).toBeChecked();
+    expect(
+      within(screen.getByRole("list", { name: "activeFilters" }))
+        .getAllByRole("listitem")
+        .map((chip) => chip.textContent),
+    ).toEqual(["chip(Coworker, Me)"]);
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("keeps each chip's whole label: chips never shrink, a long one keeps its title", () => {
+    searchParams = new URLSearchParams("status=DRAFT&stuck=1");
+    renderTasksViewFilters(null);
+
+    const chips = within(
+      screen.getByRole("list", { name: "activeFilters" }),
+    ).getAllByRole("listitem");
+    expect(chips).toHaveLength(2);
+    for (const chip of chips) {
+      expect(chip).toHaveClass("shrink-0");
+      expect(chip).not.toHaveClass("min-w-0");
+      expect(chip.querySelector("[title]")).toHaveAttribute(
+        "title",
+        chip.querySelector("[title]")?.textContent ?? "",
+      );
+    }
+  });
+
+  it("names the view, project, search and every chip for the view options menu", () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/tasks?q=release&needsMe=1&assigneeUserId=user-1&status=READY&projectId=33333333-3333-4333-8333-333333333333",
+    );
+    searchParams = new URLSearchParams(window.location.search);
+    const display = vi.fn((_activeFilters: string[]) => null);
+    renderTasksViewFilters("org-1", "user-1", null, display);
+
+    expect(display.mock.calls.at(-1)?.[0]).toEqual([
+      "chip(viewLabel, needsMe)",
+      "chip(projectLabel, Research)",
+      "chip(searchPlaceholder, release)",
+      "chip(Coworker, Me)",
+      "chip(Status, Ready)",
+    ]);
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("keeps the view when the reader presses it again", async () => {
+    renderTasksViewFilters("org-1", "user-1");
+
+    await userEvent.click(screen.getByRole("radio", { name: "All" }));
+
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
+
+  it("shows no view switcher without a viewer", () => {
+    renderTasksViewFilters("org-1");
+
+    expect(screen.queryByRole("radiogroup")).toBeNull();
+  });
+
+  it("sets and clears Stuck from the Filters menu", () => {
+    const props = renderTasksViewFilters(null);
+    const stuck = props.sections.find((section) => section.id === "stuck");
+
+    expect(screen.queryByRole("button", { name: /stuck/ })).toBeNull();
+    expect(stuck?.value).toBeNull();
+    stuck?.onChange(stuck.options[0]?.value ?? null);
+    expect(replaceMock).toHaveBeenLastCalledWith("/tasks?scope=owned&stuck=1");
+    stuck?.onChange(null);
+    expect(replaceMock).toHaveBeenLastCalledWith("/tasks?scope=owned");
+  });
+
+  it("keeps a restored saved view when a filter changes before the address bar has it", () => {
+    window.history.replaceState(null, "", "/tasks");
+    const props = renderTasksViewFilters(
+      null,
+      null,
+      "scope=owned&status=READY",
+    );
+    // Next can commit the bare URL again after the restore wrote it.
+    window.history.replaceState(null, "", "/tasks");
+    const stuck = props.sections.find((section) => section.id === "stuck");
+
+    stuck?.onChange(stuck.options[0]?.value ?? null);
+
+    expect(replaceMock).toHaveBeenLastCalledWith(
+      "/tasks?scope=owned&status=READY&stuck=1",
+    );
   });
 
   it("hides My tasks when the viewer is not an assignee option", () => {
     renderTasksViewFilters("org-1", "someone-else");
 
-    expect(screen.queryByRole("button", { name: "My tasks" })).toBeNull();
+    expect(screen.getByRole("radio", { name: "needsMe" })).toBeTruthy();
+    expect(screen.queryByRole("radio", { name: "My tasks" })).toBeNull();
   });
 
   it("shows scope and coworker sections in workspace context", () => {
@@ -133,6 +300,8 @@ describe("TasksViewFilters", () => {
       "visibility",
       "coworker",
       "status",
+      "stuck",
+      "tag",
     ]);
   });
 
@@ -154,7 +323,38 @@ describe("TasksViewFilters", () => {
     expect(props.sections.map((section) => section.id)).toEqual([
       "coworker",
       "status",
+      "stuck",
+      "tag",
     ]);
+  });
+
+  it("keeps a workspace tag distinct from a built-in topic when switching filters", () => {
+    const props = renderTasksViewFilters("org-1");
+    const tag = props.sections.find((section) => section.id === "tag");
+    expect(tag?.options).toContainEqual(
+      expect.objectContaining({
+        value: WORKSPACE_TAG_ID,
+        label: "Release blocker",
+        group: "workspaceTags",
+      }),
+    );
+    expect(tag?.options).toContainEqual(
+      expect.objectContaining({
+        value: "12345678-abcd-7123-8123-456789012345",
+        label: "Past release",
+        group: "archivedTags",
+      }),
+    );
+    tag?.onChange(WORKSPACE_TAG_ID);
+    expect(replaceMock).toHaveBeenLastCalledWith(
+      `/tasks?scope=workspace&tag=${WORKSPACE_TAG_ID}`,
+    );
+    tag?.onChange("research");
+    expect(replaceMock).toHaveBeenLastCalledWith(
+      "/tasks?scope=workspace&tag=research",
+    );
+    tag?.onChange(null);
+    expect(replaceMock).toHaveBeenLastCalledWith("/tasks?scope=workspace");
   });
 
   it("groups every status under its board column, Done holding the finished ones", () => {
@@ -177,11 +377,43 @@ describe("TasksViewFilters", () => {
     expect(screen.queryByRole("list")).toBeNull();
   });
 
+  it("offers Reset in the Filters menu only while a filter is set, and it clears every chip", () => {
+    expect(renderTasksViewFilters("org-1").resetAction).toBeUndefined();
+
+    window.history.replaceState(
+      null,
+      "",
+      "/tasks?stuck=1&status=FAILED&scope=owned",
+    );
+    searchParams = new URLSearchParams(window.location.search);
+    const props = renderTasksViewFilters("org-1");
+    expect(props.resetAction?.label).toBe("clear");
+    props.resetAction?.onReset();
+
+    expect(replaceMock).toHaveBeenLastCalledWith("/tasks?scope=workspace");
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("clears a scope hidden under Needs me with the other chips", () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/tasks?needsMe=1&scope=owned&stuck=1&status=FAILED",
+    );
+    searchParams = new URLSearchParams(window.location.search);
+    renderTasksViewFilters("org-1", "user-1").resetAction?.onReset();
+
+    expect(replaceMock).toHaveBeenLastCalledWith(
+      "/tasks?needsMe=1&scope=workspace",
+    );
+    window.history.replaceState(null, "", "/");
+  });
+
   it("shows each active filter as a chip that removes only itself", async () => {
     window.history.replaceState(
       null,
       "",
-      "/tasks?status=COMPLETED&assigneeId=coworker-1&visibility=PRIVATE&scope=owned",
+      "/tasks?status=COMPLETED&assigneeId=coworker-1&visibility=PRIVATE&scope=owned&stuck=1",
     );
     searchParams = new URLSearchParams(window.location.search);
     renderTasksViewFilters("org-1");
@@ -194,6 +426,7 @@ describe("TasksViewFilters", () => {
       "chip(Visibility, Private)",
       "chip(Coworker, Elena)",
       "chip(Status, Completed)",
+      "chip(stuck, stuckDays(3))",
     ]);
 
     await userEvent.click(
@@ -202,7 +435,7 @@ describe("TasksViewFilters", () => {
       }),
     );
     expect(replaceMock).toHaveBeenCalledWith(
-      "/tasks?assigneeId=coworker-1&visibility=PRIVATE&scope=owned",
+      "/tasks?assigneeId=coworker-1&visibility=PRIVATE&scope=owned&stuck=1",
     );
     window.history.replaceState(null, "", "/");
   });

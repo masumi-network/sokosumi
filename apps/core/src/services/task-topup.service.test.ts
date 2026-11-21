@@ -70,4 +70,25 @@ describe("markOutOfCreditsTasksAsToppedUp", () => {
     );
     expect(tx.task.update).toHaveBeenCalledTimes(1);
   });
+
+  it("resumes only a Project's Tasks when the credits are that Project's", async () => {
+    const tx = createTx();
+
+    await markOutOfCreditsTasksAsToppedUp({
+      organizationId: "org_1",
+      projectId: "project_1",
+      userId: null,
+      tx: tx as never,
+    });
+
+    expect(tx.task.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organizationId: "org_1",
+          projectId: "project_1",
+          status: TaskStatus.OUT_OF_CREDITS,
+        },
+      }),
+    );
+  });
 });

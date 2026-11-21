@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import {
@@ -38,6 +38,7 @@ import { cn } from "@/lib/utils";
 
 import {
   type ProjectHideLabels,
+  type ProjectMenuChange,
   useProjectMenuActions,
 } from "./use-project-menu-actions";
 
@@ -75,6 +76,8 @@ interface ProjectDetailActionsProps {
   labels: ProjectDetailActionsLabels;
   /** Restyles the "More actions" button, as the project card does. */
   triggerClassName?: string;
+  /** Lets the card show a Pin, Hide or Show before Core answers. */
+  onChanging?: (change: ProjectMenuChange) => void;
 }
 
 /**
@@ -91,14 +94,16 @@ export function ProjectDetailActions({
   readOnly = false,
   labels,
   triggerClassName,
+  onChanging,
 }: ProjectDetailActionsProps) {
   const router = useRouter();
-  // Both callers read the Pin and Hide on the server, so a refresh redraws
-  // the menu and re-sorts or moves a card on the Projects list.
+  // Both callers read the Pin and Hide on the server. The actions revalidate,
+  // so their answer redraws the menu and re-sorts or moves a card on the
+  // Projects list.
   const projectActions = useProjectMenuActions({
     labels: labels.hide,
     pinError: labels.pin?.error,
-    onChange: () => router.refresh(),
+    onChanging,
   });
   // Hiding unpins, so a Hidden project offers no Pin; a closing one keeps
   // only Unpin, as the header's Pin button does.
@@ -107,7 +112,7 @@ export function ProjectDetailActions({
       ? labels.pin
       : null;
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
-  const closeAttemptRef = useRef<{
+  const [closeAttempt, setCloseAttempt] = useState<{
     operationId: string;
     reason?: string;
   } | null>(null);
@@ -115,14 +120,14 @@ export function ProjectDetailActions({
   const [closeReason, setCloseReason] = useState("");
   const [isClosing, startCloseTransition] = useTransition();
 
-  useEffect(() => {
-    if (!isClosingOrClosed) {
-      return;
-    }
-    closeAttemptRef.current = null;
+  if (
+    isClosingOrClosed &&
+    (isCloseDialogOpen || closeReason !== "" || closeAttempt !== null)
+  ) {
+    setCloseAttempt(null);
     setCloseReason("");
     setIsCloseDialogOpen(false);
-  }, [isClosingOrClosed]);
+  }
 
   function handleCloseProject() {
     if (projectRevision === undefined) {
@@ -130,28 +135,27 @@ export function ProjectDetailActions({
     }
 
     const normalizedReason = closeReason.trim() || undefined;
-    let closeAttempt = closeAttemptRef.current;
-    if (!closeAttempt || closeAttempt.reason !== normalizedReason) {
-      closeAttempt = {
+    let nextCloseAttempt = closeAttempt;
+    if (!nextCloseAttempt || nextCloseAttempt.reason !== normalizedReason) {
+      nextCloseAttempt = {
         operationId: crypto.randomUUID(),
         reason: normalizedReason,
       };
+      setCloseAttempt(nextCloseAttempt);
     }
-    closeAttemptRef.current = closeAttempt;
 
     startCloseTransition(async () => {
       try {
         await closeProject({
           projectId,
-          operationId: closeAttempt.operationId,
+          operationId: nextCloseAttempt.operationId,
           expectedProjectRevision: projectRevision,
           ...(normalizedReason ? { reason: normalizedReason } : {}),
         });
-        closeAttemptRef.current = null;
+        setCloseAttempt(null);
         setIsCloseDialogOpen(false);
         setCloseReason("");
         toast.success(labels.closeDialog.success);
-        router.refresh();
       } catch {
         router.refresh();
         toast.error(labels.closeDialog.error, { duration: Infinity });
@@ -216,10 +220,9 @@ export function ProjectDetailActions({
           {!readOnly && !isClosingOrClosed && projectRevision !== undefined ? (
             <DropdownMenuItem
               variant="destructive"
-              onSelect={(event) => {
-                event.preventDefault();
-                setIsCloseDialogOpen(true);
-              }}
+              // Let the menu close: kept open, it sat under the dialog and was
+              // still open once the dialog closed.
+              onSelect={() => setIsCloseDialogOpen(true)}
             >
               <CircleStop className="size-4" aria-hidden />
               {labels.close}

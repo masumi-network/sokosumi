@@ -1,8 +1,7 @@
 "use client";
 
-import { Search, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 import {
@@ -11,7 +10,7 @@ import {
   HISTORY_SEARCH_MAX_LENGTH,
   type ProjectFilterOption,
 } from "@/app/history/utils/history-filters";
-import { Input } from "@/components/ui/input";
+import { PageSearchField } from "@/components/page-search-field";
 import { getEnvPublicConfig } from "@/config/env.public";
 
 interface HistorySearchProps {
@@ -40,12 +39,14 @@ export function HistorySearch({
       ),
     [activeOrganizationId, projectOptions, searchParams],
   );
+  const [prevQuery, setPrevQuery] = useState(filters.q);
   const [searchValue, setSearchValue] = useState(filters.q ?? "");
 
   // Syncs local input when URL state changes via navigation or filter resets.
-  useEffect(() => {
+  if (prevQuery !== filters.q) {
+    setPrevQuery(filters.q);
     setSearchValue(filters.q ?? "");
-  }, [filters.q]);
+  }
 
   function replaceWithQuery(nextQuery: string | null) {
     const paramsForMerge = new URLSearchParams(
@@ -91,31 +92,13 @@ export function HistorySearch({
   }
 
   return (
-    <div className="relative w-full">
-      <Search
-        className="pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2 text-muted-foreground"
-        aria-hidden
-      />
-      <Input
-        className="pr-8 pl-8"
-        maxLength={HISTORY_SEARCH_MAX_LENGTH}
-        placeholder={labels.placeholder}
-        value={searchValue}
-        onChange={(event) => handleInputChange(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") handleClear();
-        }}
-      />
-      {searchValue ? (
-        <button
-          type="button"
-          aria-label={labels.clear}
-          className="hit-area absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-[color,background-color,border-color,transform] outline-none press hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-          onClick={handleClear}
-        >
-          <X className="size-4" aria-hidden />
-        </button>
-      ) : null}
-    </div>
+    <PageSearchField
+      inHeader
+      maxLength={HISTORY_SEARCH_MAX_LENGTH}
+      placeholder={labels.placeholder}
+      clearLabel={labels.clear}
+      value={searchValue}
+      onValueChange={(next) => (next ? handleInputChange(next) : handleClear())}
+    />
   );
 }

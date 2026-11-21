@@ -56,6 +56,55 @@ afterEach(() => {
 });
 
 describe("useGenerationQueue", () => {
+  it("passes the approved headline and lettering mode to Core", async () => {
+    const { result } = renderHook(() =>
+      useGenerationQueue({ onAccepted: vi.fn() }),
+    );
+    act(() =>
+      result.current.enqueue([
+        {
+          ...request("lettering"),
+          modelId: "gemini-pro",
+          exportHeadline: "Made to last",
+          lettering: "ideogram",
+        },
+      ]),
+    );
+    await waitFor(() => expect(result.current.queued).toHaveLength(0));
+    expect(startImageGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        exportHeadline: "Made to last",
+        lettering: "ideogram",
+      }),
+    );
+    expect(startImageGeneration).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps prompt metadata when dispatching a queued request", async () => {
+    const { result } = renderHook(() =>
+      useGenerationQueue({ onAccepted: vi.fn() }),
+    );
+    act(() => {
+      result.current.enqueue([
+        {
+          ...request("1"),
+          templateId: "social-post",
+          creativeDirection: "lifestyle",
+          variationIndex: 0,
+        },
+      ]);
+    });
+
+    await waitFor(() => expect(result.current.queued).toHaveLength(0));
+    expect(startImageGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateId: "social-post",
+        creativeDirection: "lifestyle",
+        variationIndex: 0,
+      }),
+    );
+  });
+
   it("sends a batch one at a time until the queue is empty", async () => {
     const onAccepted = vi.fn();
     const { result } = renderHook(() => useGenerationQueue({ onAccepted }));

@@ -1,8 +1,6 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { parseAsStringLiteral, useQueryState } from "nuqs";
-
 import {
   SOCIAL_TABS,
   type SocialTab,
@@ -13,7 +11,10 @@ import {
   SOCIAL_TABS_LIST_CLASS_NAME,
   SOCIAL_TABS_ROW_CLASS_NAME,
   SocialTabTrigger,
+  useSocialTab,
 } from "@/app/projects/components/social-posts/social-tab-trigger";
+import { PageSearchActions } from "@/components/page-search-actions";
+import { SearchablePageContent } from "@/components/searchable-page-content";
 import {
   SEGMENTED_TABS_LIST_CLASS_NAME,
   Tabs,
@@ -31,32 +32,38 @@ function isSocialTab(value: string): value is SocialTab {
 /**
  * Social's tab row on the all-projects view, the same row a project gets.
  *
- * The calendar and Performance span every project. Drafts, Needs attention
+ * The calendar, Needs attention and Performance span every project. Drafts
  * and accounts belong to one project, so those tabs ask for one rather than disappear.
  */
 export function SocialAllProjectsTabs({
   actions,
+  searchField,
+  attention,
+  attentionCount = 0,
   calendar,
   notice,
   projectFailed = false,
   workspaceId,
 }: {
   actions: React.ReactNode;
+  searchField?: React.ReactNode;
+  /** Every project's failed, missed and waiting-for-approval posts. */
+  attention: React.ReactNode;
+  /** How many of them, as the tab shows it (`50+` when there are more). */
+  attentionCount?: number | string;
   calendar: React.ReactNode;
   /** Why the scoped project could not be opened, when it could not. */
   notice?: string;
   /**
    * The scoped project failed to load (not "it is gone"). A slim banner offers
-   * a retry above the tabs that need a project; Performance spans every project.
+   * a retry above the tabs that need a project; Performance and Needs
+   * attention span every project.
    */
   projectFailed?: boolean;
   workspaceId: string;
 }) {
   const t = useTranslations("App.Projects.SocialPosts");
-  const [tabParam, setTabParam] = useQueryState(
-    "tab",
-    parseAsStringLiteral(SOCIAL_TABS),
-  );
+  const [tabParam, setTabParam] = useSocialTab();
   const tab = tabParam ?? "calendar";
 
   return (
@@ -70,8 +77,13 @@ export function SocialAllProjectsTabs({
         void setTabParam(value === "calendar" ? null : value);
       }}
     >
-      <div className="flex flex-row items-center justify-between gap-3 max-md:items-start">
-        <div className={cn(SOCIAL_TABS_ROW_CLASS_NAME, "items-center gap-3")}>
+      <div className="@container/page-toolbar flex flex-wrap items-center justify-between gap-3 max-md:items-start">
+        <div
+          className={cn(
+            SOCIAL_TABS_ROW_CLASS_NAME,
+            "items-center gap-3 sm:basis-64",
+          )}
+        >
           <TabsList
             aria-label={t("title")}
             className={cn(
@@ -82,6 +94,12 @@ export function SocialAllProjectsTabs({
           >
             {SOCIAL_TABS.map((candidate) => (
               <SocialTabTrigger
+                alert={candidate === "attention" && Boolean(attentionCount)}
+                count={
+                  candidate === "attention" && attentionCount
+                    ? String(attentionCount)
+                    : null
+                }
                 key={candidate}
                 label={t(`sections.${candidate}`)}
                 tab={candidate}
@@ -89,10 +107,17 @@ export function SocialAllProjectsTabs({
             ))}
           </TabsList>
         </div>
-        {actions}
+        {tab === "calendar" || tab === "attention" ? (
+          <PageSearchActions>
+            {searchField}
+            {actions}
+          </PageSearchActions>
+        ) : (
+          actions
+        )}
       </div>
 
-      {projectFailed && tab !== "statistics" ? (
+      {projectFailed && tab !== "statistics" && tab !== "attention" ? (
         <SocialLoadError
           data-testid="social-project-load-error"
           kind="project"
@@ -111,16 +136,20 @@ export function SocialAllProjectsTabs({
         {calendar}
       </TabsContent>
       <TabsContent value="drafts">
-        <SocialAccountsProjectPrompt kind="drafts" />
+        <SearchablePageContent>
+          <SocialAccountsProjectPrompt kind="drafts" />
+        </SearchablePageContent>
       </TabsContent>
-      <TabsContent value="attention">
-        <SocialAccountsProjectPrompt kind="attention" notice={notice} />
-      </TabsContent>
+      <TabsContent value="attention">{attention}</TabsContent>
       <TabsContent value="statistics">
-        <SocialPostStatistics workspaceId={workspaceId} />
+        <SearchablePageContent>
+          <SocialPostStatistics workspaceId={workspaceId} />
+        </SearchablePageContent>
       </TabsContent>
       <TabsContent value="accounts">
-        <SocialAccountsProjectPrompt notice={notice} />
+        <SearchablePageContent>
+          <SocialAccountsProjectPrompt notice={notice} />
+        </SearchablePageContent>
       </TabsContent>
     </Tabs>
   );

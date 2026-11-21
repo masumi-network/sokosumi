@@ -16,6 +16,18 @@ export const COLUMN_TASK_STATUSES: Record<KanbanColumnId, TaskStatus[]> = {
   done: [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELED],
 };
 
+/**
+ * The status a column's title already names. A board card in that column
+ * shows the marker without the word. `input-required` has none: its statuses
+ * each ask for something different.
+ */
+export const COLUMN_MAIN_STATUS: Partial<Record<KanbanColumnId, TaskStatus>> = {
+  backlog: TaskStatus.DRAFT,
+  todo: TaskStatus.READY,
+  "in-progress": TaskStatus.RUNNING,
+  done: TaskStatus.COMPLETED,
+};
+
 const STATUS_TO_COLUMN_ID = (() => {
   const map = new Map<TaskStatus, KanbanColumnId>();
   for (const [columnId, statuses] of Object.entries(COLUMN_TASK_STATUSES)) {
@@ -35,10 +47,32 @@ export interface ColumnListQueryOptions {
   statuses: TaskStatus[];
 }
 
+/** Columns whose Tasks wait on someone; only these can be stuck. */
+export const WAITING_COLUMN_IDS: KanbanColumnId[] = [
+  "todo",
+  "in-progress",
+  "input-required",
+];
+
+export const WAITING_TASK_STATUSES = WAITING_COLUMN_IDS.flatMap(
+  (columnId) => COLUMN_TASK_STATUSES[columnId],
+);
+
+/** The column whose statuses each ask a person for something. */
+export const NEEDS_PERSON_COLUMN_ID: KanbanColumnId = "input-required";
+
 export function getColumnListQueryOptions(
   columnId: KanbanColumnId,
   statusFilter: TaskStatus | null,
+  stuck = false,
+  needsMe = false,
 ): ColumnListQueryOptions {
+  if (stuck && !WAITING_COLUMN_IDS.includes(columnId)) {
+    return { statuses: [] };
+  }
+  if (needsMe && columnId !== NEEDS_PERSON_COLUMN_ID) {
+    return { statuses: [] };
+  }
   const statuses = COLUMN_TASK_STATUSES[columnId].filter(
     (columnStatus) => statusFilter === null || columnStatus === statusFilter,
   );

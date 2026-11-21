@@ -1,36 +1,21 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import type {
-  ComponentProps,
-  FocusEvent,
-  MouseEvent,
-  PointerEvent,
-  TouchEvent,
-} from "react";
+import type { ComponentProps, MouseEvent } from "react";
 
+import { RestingIntentLink } from "@/components/resting-intent-link";
 import { storeTasksReturnPath } from "./task-navigation";
 
-interface TaskDetailLinkProps
-  extends Omit<ComponentProps<typeof Link>, "href"> {
-  href: string;
-}
+type TaskDetailLinkProps = Omit<
+  ComponentProps<typeof RestingIntentLink>,
+  "ref" | "prefetch"
+>;
 
 export function TaskDetailLink({
   href,
   onClick,
-  onPointerEnter,
-  onFocus,
-  onTouchStart,
+  prefetchContent = true,
   ...props
 }: TaskDetailLinkProps) {
-  const router = useRouter();
-
-  const prefetchTaskDetail = () => {
-    router.prefetch(href);
-  };
-
   function handleClick(event: MouseEvent<HTMLAnchorElement>) {
     onClick?.(event);
     if (event.defaultPrevented || typeof window === "undefined") {
@@ -40,36 +25,13 @@ export function TaskDetailLink({
     storeTasksReturnPath();
   }
 
-  function handlePointerEnter(event: PointerEvent<HTMLAnchorElement>) {
-    onPointerEnter?.(event);
-    if (!event.defaultPrevented) {
-      prefetchTaskDetail();
-    }
-  }
-
-  function handleFocus(event: FocusEvent<HTMLAnchorElement>) {
-    onFocus?.(event);
-    if (!event.defaultPrevented) {
-      prefetchTaskDetail();
-    }
-  }
-
-  function handleTouchStart(event: TouchEvent<HTMLAnchorElement>) {
-    onTouchStart?.(event);
-    if (!event.defaultPrevented) {
-      prefetchTaskDetail();
-    }
-  }
-
   return (
-    <Link
+    <RestingIntentLink
       {...props}
+      prefetchContent={prefetchContent}
       href={href}
       prefetch={false}
       onClick={handleClick}
-      onPointerEnter={handlePointerEnter}
-      onFocus={handleFocus}
-      onTouchStart={handleTouchStart}
     />
   );
 }

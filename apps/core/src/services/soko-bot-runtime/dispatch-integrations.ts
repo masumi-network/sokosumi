@@ -1,0 +1,224 @@
+import {
+  isCmoMeasurementSource,
+  SOKO_BOT_TOOL_INPUT_SCHEMAS,
+  sokoBotDraftEmailInputSchema,
+  sokoBotListIntegrationToolsInputSchema,
+  sokoBotReadEmailInputSchema,
+  sokoBotRunIntegrationToolInputSchema,
+  sokoBotSaveEmailAttachmentInputSchema,
+  sokoBotSearchInboxInputSchema,
+  sokoBotSendEmailDraftInputSchema,
+  sokoBotUpdateEmailsInputSchema,
+} from "@sokosumi/soko-bot";
+import { readSokoBotSource } from "@/lib/soko-bot/source-query";
+import { testCopySourceBotId } from "@/services/cmo-test-copy.service";
+import {
+  adToolkitRefusal,
+  integrationToolSearchResult,
+  listIntegrationTools,
+  readIntegrationTool,
+  runIntegrationTool,
+} from "@/services/composio-integration-tools.service";
+import { listSokoBotIntegrationsForBot } from "@/services/soko-bot-integration-list.service";
+import {
+  activeIntegrationsForBot,
+  fetchInboxMessage,
+  fetchInboxPage,
+} from "@/services/soko-bot-integrations.service";
+import { listMcpServersForBot } from "@/services/soko-bot-mcp.service";
+import {
+  type AuthorizedSokoBotRuntime,
+  type ExecuteSokoBotToolInput,
+  SokoBotRefusedUnsentError,
+  SokoBotRuntimeValidationError,
+} from "../soko-bot-runtime.service";
+import { listCalendarEvents } from "./calendar";
+import { type RuntimeOperations } from "./operations";
+
+/**
+ * The bot's connected account for a generic toolkit. A CMO test copy has no
+ * measurement account of its own: it reads its source's (ADR 0073), and only
+ * with tools Composio marks read-only.
+ */
+async function genericIntegration(sokoBotId: string, provider: string) {
+  const sourceBotId = isCmoMeasurementSource(provider)
+    ? await testCopySourceBotId(sokoBotId)
+    : null;
+  const [integration] = await activeIntegrationsForBot(
+    sourceBotId ?? sokoBotId,
+    "generic",
+    provider,
+  );
+  return { integration, readOnly: sourceBotId !== null };
+}
+
+export async function dispatchIntegrationsTools(
+  runtime: RuntimeOperations,
+  input: ExecuteSokoBotToolInput,
+  authorized: AuthorizedSokoBotRuntime,
+): Promise<unknown> {
+  switch (input.capability) {
+    case "list_integrations": {
+      const [result, mcpServers] = await Promise.all([
+        listSokoBotIntegrationsForBot(authorized.turn.sokoBotId),
+        listMcpServersForBot(authorized.turn.sokoBotId),
+      ]);
+      // A bot's own ad connection is unusable: ads go through the Project's
+      // ad account. The owner still sees it in Settings to disconnect it.
+      return [
+        ...result.integrations.filter(
+          (i) => i.status !== "DISCONNECTED" && !adToolkitRefusal(i.provider),
+        ),
+        // Where the bot looks first for "is X connected", so its MCP servers
+        // are named here too (ADR 0074).
+        ...mcpServers,
+      ];
+    }
+
+    case "find_integrations":
+      return runtime.findIntegrations(
+        authorized,
+        SOKO_BOT_TOOL_INPUT_SCHEMAS.find_integrations.parse(input.input).query,
+      );
+
+    case "search_inbox": {
+      const parsed = sokoBotSearchInboxInputSchema.parse(input.input);
+      const integrations = await activeIntegrationsForBot(
+        authorized.turn.sokoBotId,
+        "email",
+        parsed.provider,
+      );
+      const limit = parsed.limit ?? 20;
+      // A token belongs to one mailbox; across several, a merged page cut
+      // to the limit would skip mail the token has already moved past.
+      if (parsed.pageToken && integrations.length !== 1)
+        throw new SokoBotRuntimeValidationError(
+          "pageToken needs the provider of the page it came from",
+        );
+      let nextPageToken: string | null = null;
+      const result = await readSokoBotSource({
+        source: "MAIL",
+        filters: {
+          query: parsed.query ?? "",
+          since: parsed.since ?? "",
+          unreadOnly: String(parsed.unreadOnly ?? false),
+        },
+        queries: integrations.map((integration) => async () => {
+          const page = await fetchInboxPage(integration, {
+            query: parsed.query,
+            since: parsed.since ? new Date(parsed.since) : undefined,
+            unreadOnly: parsed.unreadOnly,
+            limit,
+            pageToken: parsed.pageToken,
+          });
+          if (integrations.length === 1) nextPageToken = page.nextPageToken;
+          return page.messages;
+        }),
+      });
+      return {
+        coverage: {
+          ...result.coverage,
+          includedCount: Math.min(result.rows.length, limit),
+          omittedCount: Math.max(0, result.rows.length - limit),
+        },
+        failedSources: result.failedSources,
+        note: result.note,
+        messages: result.rows
+          .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
+          .slice(0, limit),
+        nextPageToken,
+      };
+    }
+
+    case "read_email": {
+      const parsed = sokoBotReadEmailInputSchema.parse(input.input);
+      const [integration] = await activeIntegrationsForBot(
+        authorized.turn.sokoBotId,
+        "email",
+        parsed.provider,
+      );
+      if (!integration) {
+        throw new SokoBotRuntimeValidationError(
+          `No connected mailbox for provider ${parsed.provider}`,
+        );
+      }
+      return fetchInboxMessage(integration, parsed.messageId);
+    }
+
+    case "update_emails":
+      return runtime.updateEmails(
+        authorized,
+        sokoBotUpdateEmailsInputSchema.parse(input.input),
+        input.toolCallId,
+      );
+
+    case "draft_email":
+      return runtime.draftEmail(
+        authorized,
+        sokoBotDraftEmailInputSchema.parse(input.input),
+        input.toolCallId,
+      );
+
+    case "save_email_attachment":
+      return runtime.saveEmailAttachment(
+        authorized,
+        sokoBotSaveEmailAttachmentInputSchema.parse(input.input),
+        input.toolCallId,
+      );
+
+    case "send_email_draft":
+      return runtime.sendEmailDraft(
+        authorized,
+        sokoBotSendEmailDraftInputSchema.parse(input.input),
+        input.toolCallId,
+      );
+
+    case "list_integration_tools": {
+      const parsed = sokoBotListIntegrationToolsInputSchema.parse(input.input);
+      const refusal = adToolkitRefusal(parsed.provider);
+      if (refusal) throw new SokoBotRuntimeValidationError(refusal);
+      const { integration } = await genericIntegration(
+        authorized.turn.sokoBotId,
+        parsed.provider.toLowerCase(),
+      );
+      if (!integration) {
+        throw new SokoBotRuntimeValidationError(
+          `No connected account for provider ${parsed.provider} (mailboxes use search_inbox)`,
+        );
+      }
+      return integrationToolSearchResult(
+        await listIntegrationTools(integration, {
+          query: parsed.query,
+          limit: parsed.limit ?? 20,
+        }),
+        parsed.query,
+      );
+    }
+
+    case "read_integration_tool":
+
+    case "run_integration_tool": {
+      const parsed = sokoBotRunIntegrationToolInputSchema.parse(input.input);
+      // Nothing was sent: a refused-unsent receipt, so a retry stays allowed.
+      const refusal = adToolkitRefusal(parsed.provider, parsed.tool);
+      if (refusal) throw new SokoBotRefusedUnsentError(refusal);
+      const { integration, readOnly } = await genericIntegration(
+        authorized.turn.sokoBotId,
+        parsed.provider.toLowerCase(),
+      );
+      if (!integration) {
+        throw new SokoBotRuntimeValidationError(
+          `No connected account for provider ${parsed.provider}`,
+        );
+      }
+      return (
+        input.capability === "read_integration_tool" || readOnly
+          ? readIntegrationTool
+          : runIntegrationTool
+      )(integration, parsed.tool, parsed.arguments ?? {});
+    }
+
+    case "list_calendar_events":
+      return listCalendarEvents(authorized, input.input);
+  }
+}

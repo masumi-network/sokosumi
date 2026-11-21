@@ -1,5 +1,7 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+import { withCloseStatus } from "@/app/projects/projects-page-data";
 import { projectService } from "@/lib/services/project.service";
 import {
   type AuthenticatedRequest,
@@ -8,6 +10,7 @@ import {
 
 import {
   PROJECTS_PAGE_LIMIT,
+  type ProjectsListProject,
   type ProjectsListState,
   projectsListStateQuery,
 } from "./constants";
@@ -23,9 +26,7 @@ interface LoadMoreProjectsParams extends AuthenticatedRequest {
 export const loadMoreProjects = withSession<
   LoadMoreProjectsParams,
   {
-    projects: Awaited<
-      ReturnType<typeof projectService.listProjects>
-    >["projects"];
+    projects: ProjectsListProject[];
     nextCursor: string | null;
   }
 >(async ({ cursor, query, state }) => {
@@ -37,7 +38,7 @@ export const loadMoreProjects = withSession<
   });
 
   return {
-    projects: page.projects,
+    projects: await withCloseStatus(page.projects),
     nextCursor: page.pagination?.nextCursor ?? null,
   };
 });
@@ -47,18 +48,33 @@ interface ProjectPinParams extends AuthenticatedRequest {
 }
 
 /**
+ * A Pin or a Hide changes what the Projects list and the project header
+ * show. Revalidating here puts the new page into the action's own answer, so
+ * the caller needs no refresh after it.
+ */
+async function thenRevalidateProjects<T>(write: Promise<T>): Promise<T> {
+  const result = await write;
+  revalidatePath("/projects");
+  return result;
+}
+
+/**
  * Product UI says Pin; Core says star (ADR 0017). Both actions are idempotent
  * at Core, so a double click cannot reorder the reader's Pins or fail.
  */
 export const pinProjectAction = withSession<
   ProjectPinParams,
   Awaited<ReturnType<typeof projectService.pinProject>>
->(async ({ projectId }) => projectService.pinProject(projectId));
+>(async ({ projectId }) =>
+  thenRevalidateProjects(projectService.pinProject(projectId)),
+);
 
 export const unpinProjectAction = withSession<
   ProjectPinParams,
   Awaited<ReturnType<typeof projectService.unpinProject>>
->(async ({ projectId }) => projectService.unpinProject(projectId));
+>(async ({ projectId }) =>
+  thenRevalidateProjects(projectService.unpinProject(projectId)),
+);
 
 /**
  * A Hide is the reader's own and the opposite of a Pin: hiding unpins, and
@@ -68,9 +84,13 @@ export const unpinProjectAction = withSession<
 export const hideProjectAction = withSession<
   ProjectPinParams,
   Awaited<ReturnType<typeof projectService.hideProject>>
->(async ({ projectId }) => projectService.hideProject(projectId));
+>(async ({ projectId }) =>
+  thenRevalidateProjects(projectService.hideProject(projectId)),
+);
 
 export const showProjectAction = withSession<
   ProjectPinParams,
   Awaited<ReturnType<typeof projectService.showProject>>
->(async ({ projectId }) => projectService.showProject(projectId));
+>(async ({ projectId }) =>
+  thenRevalidateProjects(projectService.showProject(projectId)),
+);

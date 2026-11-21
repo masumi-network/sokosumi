@@ -45,9 +45,11 @@ import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/so
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { TaskCard } from "@/app/tasks/components/task-card";
 import { TaskProjectSelect } from "@/app/tasks/components/task-project-select";
+import { taskScheduleZoneName } from "@/app/tasks/utils/task-schedule-view";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
+import { formatCronScheduleTitle } from "@/components/schedules/format";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,6 +76,9 @@ import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { ProjectSelectionMessage } from "./project-selection-message";
 import { loadRoomMessageResults } from "./room-message-results";
 import { selectChatProjectAction } from "./select-project-action";
+
+/** A card's label sits above its value until the card is wide enough for two columns, so a date or repeat rule is not split mid-value. */
+const DETAIL_ROW_CLASS = "flex min-w-0 flex-col gap-0.5 @sm:contents";
 
 const icons = {
   task: ListTodo,
@@ -121,6 +126,7 @@ export function ResultPreviewCard({
   const t = useTranslations("Components.ChatResults");
   const format = useFormatter();
   const tTaskStatus = useTranslations("App.Tasks.Filters.statusOptions");
+  const tSchedule = useTranslations("App.Tasks.Schedule");
   if (result.state !== "available" || !icons[result.kind])
     return (
       <div className="bg-card-background text-muted-foreground flex max-w-xl items-center gap-2 rounded-lg border p-3 text-sm">
@@ -128,6 +134,19 @@ export function ResultPreviewCard({
         {t("unavailable")}
       </div>
     );
+  const isBotSchedule = result.kind === "bot_schedule";
+  // "Weekly (Monday, 9:00 AM)", not "0 9 * * 1". Only a bot follow-up's cron
+  // is its whole rule: a Task schedule keeps an every-N-days step outside the
+  // cron, so its cron alone would read as daily. Unnamed shapes stay raw.
+  const recurrence =
+    isBotSchedule && result.recurrence
+      ? formatCronScheduleTitle(
+          result.recurrence,
+          result.timezone ?? "UTC",
+          format,
+          tSchedule,
+        )
+      : null;
   if (result.kind === "project_selection")
     return <ChatProjectSelection result={result} source={source} />;
   if (result.decision)
@@ -176,6 +195,7 @@ export function ResultPreviewCard({
             name: output.name,
             size: output.sizeBytes ?? 0,
             mimeType: output.contentType ?? "image/png",
+            transformation: output.transformation,
             kind: output.contentType?.startsWith("video/")
               ? "video"
               : output.contentType === "image/gif"
@@ -241,7 +261,7 @@ export function ResultPreviewCard({
       onClick={openSource}
       onAuxClick={openSource}
       className={cn(
-        "relative isolate w-full min-w-0 cursor-pointer rounded-lg",
+        "relative isolate w-full min-w-0 cursor-pointer rounded-lg @container",
         nativeTask ? "max-w-sm" : "max-w-xl",
         !nativeTask && "bg-background rounded-lg border p-4",
       )}
@@ -249,7 +269,11 @@ export function ResultPreviewCard({
       <Link
         ref={sourceLink}
         href={cardHref(result.sourceHref, botId)}
-        aria-label={t("openLabel", { title: result.title })}
+        aria-label={
+          isBotSchedule
+            ? t("openScheduleLabel", { title: result.title })
+            : t("openLabel", { title: result.title })
+        }
         className="focus-visible:ring-ring absolute inset-0 rounded-lg outline-none focus-visible:ring-2"
         data-testid="result-preview-source"
       />
@@ -304,7 +328,7 @@ export function ResultPreviewCard({
           </p>
         ) : null}
         {!nativeTask && (
-          <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
+          <dl className="flex flex-col gap-2 text-xs @sm:grid @sm:grid-cols-[auto_minmax(0,1fr)] @sm:gap-x-3 @sm:gap-y-1">
             {(
               [
                 ["assignee", nativeTask || jobStatus ? null : result.assignee],
@@ -313,7 +337,7 @@ export function ResultPreviewCard({
               ] as const
             ).map(([label, value]) =>
               value ? (
-                <div key={label} className="contents">
+                <div key={label} className={DETAIL_ROW_CLASS}>
                   <dt className="text-muted-foreground">{t(label)}</dt>
                   <dd className="flex items-center gap-2 wrap-break-word">
                     {label === "project" && result.projectInfo ? (
@@ -329,7 +353,10 @@ export function ResultPreviewCard({
               ) : null,
             )}
             {result.details?.map((detail, index) => (
-              <div key={`${detail.label}-${index}`} className="contents">
+              <div
+                key={`${detail.label}-${index}`}
+                className={DETAIL_ROW_CLASS}
+              >
                 <dt className="text-muted-foreground">{detail.label}</dt>
                 <dd className="min-w-0 wrap-break-word">
                   <DetailValue value={detail.value} />
@@ -337,7 +364,7 @@ export function ResultPreviewCard({
               </div>
             ))}
             {result.scheduledAt ? (
-              <div className="contents">
+              <div className={DETAIL_ROW_CLASS}>
                 <dt className="text-muted-foreground">{t("scheduled")}</dt>
                 <dd className="wrap-break-word">
                   <time dateTime={new Date(result.scheduledAt).toISOString()}>
@@ -349,15 +376,19 @@ export function ResultPreviewCard({
                         : undefined,
                     )}
                   </time>
-                  {result.timezone ? ` · ${result.timezone}` : ""}
+                  {result.timezone
+                    ? ` · ${taskScheduleZoneName(result.timezone)}`
+                    : ""}
                 </dd>
               </div>
             ) : null}
             {result.recurrence ? (
-              <div className="contents">
+              <div className={DETAIL_ROW_CLASS}>
                 <dt className="text-muted-foreground">{t("recurrence")}</dt>
-                <dd className="font-mono wrap-break-word">
-                  {result.recurrence}
+                <dd
+                  className={cn("wrap-break-word", !recurrence && "font-mono")}
+                >
+                  {recurrence ?? result.recurrence}
                 </dd>
               </div>
             ) : null}
@@ -454,7 +485,11 @@ export function ResultPreviewCard({
             aria-hidden
             className="text-foreground ml-auto inline-flex items-center gap-1"
           >
-            {jobStatus ? t("openJob") : t("open")}
+            {jobStatus
+              ? t("openJob")
+              : isBotSchedule
+                ? t("openSchedule")
+                : t("open")}
             <ArrowUpRight aria-hidden className="size-3.5" />
           </span>
         </div>

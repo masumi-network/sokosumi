@@ -5,18 +5,18 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import type { CoworkerOption } from "@/lib/types/coworker";
-
 import type {
   TaskFormInitialDesignMdAttachment,
   TaskFormLabels,
 } from "./task-form";
 import { TaskForm } from "./task-form";
 import { TaskFormModal } from "./task-form-modal";
+import type { TaskFormTagPrefill } from "./task-form-types";
 
 interface TaskEditModalProps {
   taskId: string;
   title: string;
-  initialValues: {
+  initialValues: TaskFormTagPrefill & {
     name: string;
     description: string;
     assigneeId: string;

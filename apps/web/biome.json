@@ -9,5 +9,30 @@
       "!public/**/*.svg",
       "!next-env.d.ts"
     ]
-  }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "src/**",
+        "!src/hooks/effects/**",
+        "!src/components/ui/**",
+        "!**/*.test.*",
+        "!**/*.spec.*",
+        "!**/__tests__/**",
+        "!src/test/**",
+        "!src/test-fixtures/**",
+        "!**/fixtures/**",
+        "!**/*-fixture.*",
+        "!**/*-fixtures.*",
+        "!**/*.fixture.*",
+        "!**/*.fixtures.*",
+        "!**/fixtures.*",
+        "!**/fixture-*.*"
+      ],
+      "plugins": [
+        "../../biome-plugins/no-direct-effects.grit",
+        "../../biome-plugins/no-effect-aliases.grit"
+      ]
+    }
+  ]
 }

@@ -98,7 +98,7 @@ export function JobDetailsModal({
       open={isOpen}
       onOpenChange={(nextOpen) => !nextOpen && handleClose()}
     >
-      <DialogContent className="w-svw max-w-3xl border-none bg-transparent p-0 focus:ring-0 focus:outline-none md:w-[80vw] [&>button]:hidden">
+      <DialogContent className="w-svw max-w-3xl border-none sm:max-w-3xl bg-transparent p-0 focus:ring-0 focus:outline-none md:w-[80vw] [&>button]:hidden">
         <DialogTitle className="sr-only">{job.name ?? t("title")}</DialogTitle>
         <DialogDescription className="hidden" />
         <ScrollArea className="max-h-dvh md:max-h-[90dvh]">

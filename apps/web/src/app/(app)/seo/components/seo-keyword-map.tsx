@@ -1,0 +1,693 @@
+"use client";
+
+import { Maximize2, Minus, Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
+import {
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverAnchor } from "@/components/ui/popover";
+import { useAbortController } from "@/hooks/effects/use-abort-controller";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
+import { cn } from "@/lib/utils";
+import {
+  SEO_MAP_RADIUS,
+  type SeoKeywordPoint,
+  seoKeywordMap,
+  seoNearestPoint,
+} from "./seo-keyword-map-model";
+import { SeoKeywordMapPopover } from "./seo-keyword-map-popover";
+import {
+  SEO_MAP_MAX_ZOOM,
+  SEO_MAP_PRESS_SLOP,
+  useSeoMapZoom,
+} from "./seo-keyword-map-zoom";
+import {
+  SEO_DIFFICULTY_HARD_FROM,
+  SEO_DIFFICULTY_MEDIUM_FROM,
+  type SeoKeywordGroup,
+} from "./seo-keyword-rows-model";
+import { assessKeywordIdeas, priorityFirst } from "./seo-keyword-shortlist";
+import { SeoFoldSummary } from "./seo-shared";
+import type { SeoWorkspaceModel } from "./use-seo-workspace";
+
+/** How far from a dot, in px, the pointer still picks it. */
+const POINTER_REACH = 16;
+/** From this dot on, the dots come in together: a map of many keywords does not keep the reader waiting. */
+const DOT_STAGGER_MAX = 12;
+/** Room in px between the frame and the outer dots, so no dot is cut at an edge. */
+const PAD = 12;
+/** From this zoom on, the lines at 2 and 5 times a decade show: a decade then fills most of the frame. */
+const MINOR_FROM = 2;
+/** The plot height: one class for the axis column and the frame, so the labels stand on their lines. */
+const PLOT_HEIGHT = "h-44 sm:h-52";
+/** The three bands of the Difficulty column, with the place of their word on the axis. */
+const BANDS = [
+  { band: "easy", middle: SEO_DIFFICULTY_MEDIUM_FROM / 2 },
+  {
+    band: "medium",
+    middle: (SEO_DIFFICULTY_MEDIUM_FROM + SEO_DIFFICULTY_HARD_FROM) / 2,
+  },
+  { band: "hard", middle: (SEO_DIFFICULTY_HARD_FROM + 100) / 2 },
+] as const;
+
+/**
+ * Searches a month against keyword difficulty: a keyword high and to the left is worth the most work.
+ * The pointer or the arrow keys pick a keyword and a card gives its numbers; the table under it gives
+ * every number without a pointer. The map pans and zooms (drag, pinch, the buttons, or + and - keys), so a
+ * cluster of easy keywords pulls apart. A press on a dot, or Enter on the picked keyword, opens the keyword
+ * with a content Task, a question to the agent, and Track for an idea.
+ */
+export function SeoKeywordMap({
+  groups,
+  comparisonIdeas = groups.ideas,
+  model,
+}: {
+  comparisonIdeas?: SeoKeywordGroup[];
+  groups: { checked: SeoKeywordGroup[]; ideas: SeoKeywordGroup[] };
+  model: SeoWorkspaceModel;
+}) {
+  const t = useTranslations("App.Seo.keywords");
+  const result = useSeoResultTranslations("App.Seo.keywords");
+  const format = useSeoResultFormatter();
+  const hintId = useId();
+  const subtitleId = useId();
+  const { frame, size, transform, zoomBy } = useSeoMapZoom();
+  // By keyword, so a refetch that reorders the dots keeps the card on its keyword.
+  const [activeId, setActiveId] = useState<string | null>(null);
+  // The keyboard keeps its keyword when the mouse leaves the map.
+  const [keyed, setKeyed] = useState(false);
+  // A dot is under the mouse: a press opens it. Only the pointer writes it, so a focus or a key moves no cursor.
+  const [hovered, setHovered] = useState(false);
+  // The keyword whose popover is open: its own state, so a blur of the map, which drops the picked dot, keeps it.
+  const [openId, setOpenId] = useState<string | null>(null);
+  const group = useRef<HTMLDivElement>(null);
+  // The popover closed by a press outside it: the focus stays where the press put it.
+  const outside = useRef(false);
+  const opener = useRef<HTMLElement | null>(null);
+  // The keyword a pan in a press closed: the click that ends the press does not open it again.
+  const panClosed = useRef<string | null>(null);
+  // The listeners of a press in progress, removed when the map leaves before the press ends.
+  const pressAbort = useAbortController();
+  // A zoom or a pan can take the dot out of the frame: the popover at it closes.
+  const view = `${transform.k}:${transform.x}:${transform.y}`;
+  const [openView, setOpenView] = useState(view);
+  if (view !== openView) {
+    setOpenView(view);
+    // The dots moved under a still pointer: the next move finds what is under it. A drag pans with the hand.
+    setHovered(false);
+    if (openId) {
+      panClosed.current = openId;
+      setOpenId(null);
+    }
+  }
+  const assessments = useMemo(
+    () => assessKeywordIdeas(groups.ideas, comparisonIdeas),
+    [groups.ideas, comparisonIdeas],
+  );
+  const map = useMemo(() => seoKeywordMap(groups), [groups]);
+  if (!map) {
+    // Too few keywords for a map: an open keyword closes, and does not open again when the map is back.
+    if (openId) setOpenId(null);
+    return null;
+  }
+  const { points, ticks, minorTicks } = map;
+  const { k, x: panX, y: panY } = transform;
+  const measured = size.width > 0 && size.height > 0;
+  // Map units, 0 to 100, to px of the zoomed frame.
+  const toX = (value: number) =>
+    (PAD + (value / 100) * (size.width - 2 * PAD)) * k + panX;
+  const toY = (value: number) =>
+    (PAD + (value / 100) * (size.height - 2 * PAD)) * k + panY;
+  const inX = (px: number) => px >= 0 && px <= size.width;
+  const inY = (px: number) => px >= 0 && px <= size.height;
+  // The buttons and keys zoom around the middle of the dots, so a zoom in keeps them in view.
+  const middleOf = (
+    values: number[],
+    to: (value: number) => number,
+    max: number,
+  ) =>
+    Math.min(
+      Math.max(to((Math.min(...values) + Math.max(...values)) / 2), 0),
+      max,
+    );
+  const zoomAt = (factor: number | null) =>
+    zoomBy(
+      factor,
+      measured
+        ? [
+            middleOf(
+              points.map((point) => point.x),
+              toX,
+              size.width,
+            ),
+            middleOf(
+              points.map((point) => point.y),
+              toY,
+              size.height,
+            ),
+          ]
+        : undefined,
+    );
+  const lines = [
+    ...ticks.map((tick) => ({ ...tick, minor: false })),
+    ...(k >= MINOR_FROM
+      ? minorTicks.map((tick) => ({ ...tick, minor: true }))
+      : []),
+  ].filter((tick) => !measured || inY(toY(tick.y)));
+  const found = points.findIndex((point) => point.group.lead.id === activeId);
+  const active = found < 0 ? null : found;
+  const setActive = (index: number | null) =>
+    setActiveId(index === null ? null : (points[index]?.group.lead.id ?? null));
+  const count = (value: number) =>
+    format.number(value, { notation: "compact" });
+  const position = (point: SeoKeywordPoint) =>
+    point.group.best !== null
+      ? result("ranked", { position: point.group.best })
+      : point.checked && point.group.reads.length
+        ? result("notFound")
+        : null;
+  const assessmentOf = (point: SeoKeywordPoint) =>
+    point.checked ? undefined : assessments.get(point.group.lead.id);
+  const reasonOf = (point: SeoKeywordPoint) =>
+    assessmentOf(point)?.reason === "priority";
+  const reasonText = (point: SeoKeywordPoint) =>
+    reasonOf(point) ? result("shortlist.label") : null;
+  const leadIdea = points
+    .filter(reasonOf)
+    .toSorted((a, b) => priorityFirst(assessmentOf(a), assessmentOf(b)))[0];
+  const details = (point: SeoKeywordPoint) => [
+    // Said in words too: the ring of an idea is not the only sign.
+    ...(point.checked ? [] : [reasonText(point) ?? result("map.idea")]),
+    `${format.number(point.volume)} ${result("volumeUnit", { count: point.volume })}`,
+    result("map.difficulty", { value: Math.round(point.difficulty) }),
+    ...(position(point) ? [position(point) ?? ""] : []),
+    ...(point.gain
+      ? [
+          result("map.top10", { clicks: point.gain.top10 }),
+          result("map.top3", { clicks: point.gain.top3 }),
+        ]
+      : []),
+  ];
+  const opened = points.find((point) => point.group.lead.id === openId);
+  // A keyword that left the map (tracked, or filtered out) closes: it does not open again when it comes back.
+  if (openId && !opened) setOpenId(null);
+  // The card of the picked dot gives way to the open keyword.
+  const focus = opened || active === null ? null : points[active];
+  // A press or Enter on a dot opens it, and on the open dot closes it. The popover it replaces closes after the
+  // new one took the focus: its close must not pull the focus back to the map.
+  function openKeyword(
+    id: string | null,
+    trigger: HTMLElement | null = group.current,
+  ) {
+    opener.current = trigger;
+    if (openId) outside.current = true;
+    setOpenId(id === openId ? null : id);
+  }
+  function pick(event: PointerEvent<HTMLDivElement>) {
+    setKeyed(false);
+    const box = event.currentTarget.getBoundingClientRect();
+    if (!box.width || !box.height) return;
+    const inner = { width: box.width - 2 * PAD, height: box.height - 2 * PAD };
+    // The pointer back in map units: the zoom undone, then the padding.
+    const nearest = seoNearestPoint(
+      points,
+      {
+        x: (((event.clientX - box.left - panX) / k - PAD) / inner.width) * 100,
+        y: (((event.clientY - box.top - panY) / k - PAD) / inner.height) * 100,
+      },
+      { width: inner.width * k, height: inner.height * k },
+      POINTER_REACH,
+    );
+    setActive(nearest);
+    setHovered(nearest !== null);
+  }
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Escape") return setActive(null);
+    if ((event.key === "Enter" || event.key === " ") && active !== null) {
+      event.preventDefault();
+      return openKeyword(points[active]?.group.lead.id ?? null);
+    }
+    // Ctrl or Cmd with + or - is the zoom of the page: keep it for readers who need it.
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    const factor = { "+": 2, "=": 2, "-": 0.5, "0": null }[event.key];
+    if (factor !== undefined) {
+      event.preventDefault();
+      return zoomAt(factor);
+    }
+    const step = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
+    if (step === undefined) return;
+    event.preventDefault();
+    setKeyed(true);
+    setActive(
+      Math.min(
+        Math.max((active ?? (step > 0 ? -1 : points.length)) + step, 0),
+        points.length - 1,
+      ),
+    );
+  }
+  const zoomButton = "size-10 md:size-8";
+  return (
+    // The popover root holds the whole map: its anchor stands at the dot, and its content stands outside the
+    // map's group, so the keys and presses inside it reach none of the map's own handlers.
+    <Popover
+      open={Boolean(opened)}
+      onOpenChange={(open) => {
+        if (open) return;
+        // The map picks the keyword it opened again, so the arrow keys go on from there. A press outside keeps
+        // the reader where it went: no card of the closed keyword comes back over the map. A close that comes
+        // after a press opened another dot clears only the keyword it closed.
+        const closed = openId;
+        if (!outside.current && opener.current === group.current)
+          setActiveId((current) => current ?? closed);
+        setOpenId((current) => (current === closed ? null : current));
+      }}
+    >
+      <figure className="bg-card-background min-w-0 space-y-4 rounded-xl p-4 sm:p-5">
+        <figcaption className="flex items-start justify-between gap-4">
+          {/* One line says how to read the map: no note under it, no label inside it. */}
+          <span className="min-w-0 space-y-1">
+            <span className="block font-semibold">{t("map.title")}</span>
+            <span
+              id={subtitleId}
+              className="text-muted-foreground block text-sm"
+            >
+              {result("map.subtitle")}
+            </span>
+          </span>
+          {/* The zoom stands beside the title, not over the dots. */}
+          <span className="flex shrink-0 gap-1">
+            {k > 1 ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className={zoomButton}
+                aria-label={t("map.zoomReset")}
+                onClick={() => zoomAt(null)}
+              >
+                <Maximize2 />
+              </Button>
+            ) : null}
+            <Button
+              variant="outline"
+              size="icon"
+              className={zoomButton}
+              aria-label={t("map.zoomOut")}
+              disabled={k <= 1}
+              onClick={() => zoomAt(0.5)}
+            >
+              <Minus />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className={zoomButton}
+              aria-label={t("map.zoomIn")}
+              disabled={k >= SEO_MAP_MAX_ZOOM}
+              onClick={() => zoomAt(2)}
+            >
+              <Plus />
+            </Button>
+          </span>
+        </figcaption>
+        {/* Identity by fill, not by color alone: filled for a keyword of yours, a ring for an idea. A map of
+          one kind needs no legend. */}
+        {points.some((point) => point.checked) &&
+        points.some((point) => !point.checked) ? (
+          <p aria-hidden className="text-muted-foreground flex gap-4 text-xs">
+            <span className="flex items-center gap-1.5">
+              <span className="bg-chart-5 size-2.5 rounded-full" />
+              {t("map.checked")}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="border-chart-5 size-2.5 rounded-full border-2" />
+              {t("ideas.short")}
+            </span>
+          </p>
+        ) : null}
+        {leadIdea && (
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+            <span
+              aria-hidden
+              className="bg-chart-5 size-2.5 rotate-45 rounded-xs"
+            />
+            <span>{t("shortlist.chartKey")}</span>
+            <button
+              type="button"
+              className="text-foreground text-start font-medium underline underline-offset-4"
+              onClick={(event) =>
+                openKeyword(leadIdea.group.lead.id, event.currentTarget)
+              }
+            >
+              <bdi lang={leadIdea.group.lead.languageCode ?? ""}>
+                {leadIdea.group.lead.keyword}
+              </bdi>
+              {" · "}
+              {result("shortlist.clicks", { count: leadIdea.gain?.top10 ?? 0 })}
+            </button>
+          </p>
+        )}
+        <div
+          ref={group}
+          role="group"
+          aria-label={t("map.title")}
+          aria-describedby={`${subtitleId} ${hintId}`}
+          tabIndex={0}
+          className="focus-visible:ring-ring rounded-md focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none"
+          onBlur={() => setActive(null)}
+          onKeyDown={handleKeyDown}
+        >
+          <span className="sr-only" id={hintId}>
+            {t("map.hint")}
+          </span>
+          <p lang="en" className="sr-only" role="status">
+            {focus ? (
+              <>
+                <bdi lang={focus.group.lead.languageCode ?? ""}>
+                  {focus.group.lead.keyword}
+                </bdi>
+                : {format.list(details(focus))}
+              </>
+            ) : null}
+          </p>
+          <p className="text-muted-foreground mb-1 text-xs">{t("volume")}</p>
+          <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2">
+            <div
+              aria-hidden
+              className={cn(
+                "text-muted-foreground relative min-w-8 overflow-hidden text-right text-xs tabular-nums",
+                PLOT_HEIGHT,
+              )}
+            >
+              {lines.map((tick) => (
+                <span
+                  key={tick.value}
+                  className="absolute right-0 -translate-y-1/2"
+                  style={{
+                    top: measured ? toY(tick.y) : `${tick.y}%`,
+                  }}
+                >
+                  {count(tick.value)}
+                </span>
+              ))}
+            </div>
+            <div
+              ref={frame}
+              data-testid="seo-keyword-map"
+              className={cn(
+                "relative overflow-hidden rounded-md",
+                // Over a dot a press opens it: the hand that points says so. Elsewhere a drag pans the map.
+                hovered ? "cursor-pointer" : "cursor-grab",
+                "active:cursor-grabbing",
+                PLOT_HEIGHT,
+              )}
+              onPointerMove={pick}
+              onPointerDown={(event) => {
+                panClosed.current = null;
+                pick(event);
+                // A drag at the edge of the map moves nothing and gets no click, and the popover never sees it
+                // outside: the drag closes the popover here, wherever the press ends.
+                if (!openId || event.button !== 0) return;
+                const press = pressAbort.start();
+                const start = { x: event.clientX, y: event.clientY };
+                const end = (up: globalThis.PointerEvent) => {
+                  // Another finger's lift is not the end of this press.
+                  if (up.pointerId !== event.pointerId) return;
+                  pressAbort.abort();
+                  if (
+                    up.type === "pointerup" &&
+                    Math.hypot(up.clientX - start.x, up.clientY - start.y) >
+                      SEO_MAP_PRESS_SLOP
+                  ) {
+                    outside.current = true;
+                    setOpenId(null);
+                  }
+                };
+                window.addEventListener("pointerup", end, {
+                  signal: press.signal,
+                });
+                window.addEventListener("pointercancel", end, {
+                  signal: press.signal,
+                });
+              }}
+              // A drag gets no click: the zoom keeps it. The zoom also stops the press before the popover sees it
+              // outside, so the map closes the popover here.
+              onClick={(event) => {
+                const id =
+                  active === null
+                    ? null
+                    : (points[active]?.group.lead.id ?? null);
+                // The second click of a double-click zooms: it does not close what the first one opened.
+                if (event.detail > 1 && id === openId) return;
+                if (id === null || id !== panClosed.current) openKeyword(id);
+              }}
+              onPointerLeave={(event) => {
+                setHovered(false);
+                // Keep the keyword under a lifted finger and the one the keyboard is on.
+                if (event.pointerType === "mouse" && !keyed) setActive(null);
+              }}
+            >
+              {measured ? (
+                <svg
+                  aria-hidden
+                  className="absolute inset-0 size-full"
+                  viewBox={`0 0 ${size.width} ${size.height}`}
+                >
+                  {lines.map((tick) => (
+                    <line
+                      key={tick.value}
+                      className="stroke-border"
+                      strokeDasharray={tick.minor ? "2 4" : undefined}
+                      x1={0}
+                      x2={size.width}
+                      y1={toY(tick.y)}
+                      y2={toY(tick.y)}
+                    />
+                  ))}
+                  {/* Where Easy turns Medium and Medium turns Hard: the words of the Difficulty column. */}
+                  {[SEO_DIFFICULTY_MEDIUM_FROM, SEO_DIFFICULTY_HARD_FROM].map(
+                    (edge) => (
+                      <line
+                        key={edge}
+                        className="stroke-border"
+                        strokeDasharray="2 4"
+                        x1={toX(edge)}
+                        x2={toX(edge)}
+                        y1={0}
+                        y2={size.height}
+                      />
+                    ),
+                  )}
+                </svg>
+              ) : null}
+              {points.map((point, index) => {
+                const left = measured ? toX(point.x) : `${point.x}%`;
+                const top = measured ? toY(point.y) : `${point.y}%`;
+                return (
+                  <span
+                    key={point.group.lead.id}
+                    aria-hidden
+                    data-testid="seo-keyword-dot"
+                    data-recommended={reasonOf(point) ? true : undefined}
+                    className={cn(
+                      "ring-background pop-in stagger-delay pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 transition-colors duration-150 motion-reduce:transition-none",
+                      // The picked dot sits over a neighbour it touches.
+                      (index === active || point === opened) && "z-[1]",
+                      reasonOf(point) && "rotate-45 rounded-xs",
+                      point === opened &&
+                        "ring-foreground ring-offset-background ring-offset-2",
+                      point.checked || reasonOf(point)
+                        ? index === active || point === opened
+                          ? "bg-foreground"
+                          : "bg-chart-5"
+                        : cn(
+                            "bg-background border-2",
+                            index === active || point === opened
+                              ? "border-foreground"
+                              : "border-muted-foreground",
+                          ),
+                    )}
+                    style={
+                      {
+                        left,
+                        top,
+                        width: SEO_MAP_RADIUS * 2,
+                        height: SEO_MAP_RADIUS * 2,
+                        // The dots come in one by one, by their place in the list, not by size.
+                        "--stagger-index": Math.min(index, DOT_STAGGER_MAX),
+                        "--stagger-step": "30ms",
+                      } as CSSProperties
+                    }
+                  />
+                );
+              })}
+              {opened ? (
+                // The anchor covers the dot: a popover that flips to the other side leaves the dot in view.
+                <PopoverAnchor asChild>
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
+                    style={{
+                      left: measured ? toX(opened.x) : `${opened.x}%`,
+                      top: measured ? toY(opened.y) : `${opened.y}%`,
+                      width: SEO_MAP_RADIUS * 2,
+                      height: SEO_MAP_RADIUS * 2,
+                    }}
+                  />
+                </PopoverAnchor>
+              ) : null}
+              {focus ? (
+                <div
+                  aria-hidden
+                  lang="en"
+                  data-testid="seo-keyword-card"
+                  className="bg-popover text-popover-foreground pointer-events-none absolute z-10 w-max max-w-[min(20rem,100%)] rounded-md border px-3 py-2 text-xs shadow-md"
+                  // In the other half of the frame from the dot: it never covers the dot or leaves the screen.
+                  style={{
+                    ...((measured ? toX(focus.x) / size.width : focus.x / 100) >
+                    0.5
+                      ? { left: 8 }
+                      : { right: 8 }),
+                    ...((measured
+                      ? toY(focus.y) / size.height
+                      : focus.y / 100) < 0.5
+                      ? { bottom: 8 }
+                      : { top: 8 }),
+                  }}
+                >
+                  <p className="font-medium break-words">
+                    <bdi lang={focus.group.lead.languageCode ?? ""}>
+                      {focus.group.lead.keyword}
+                    </bdi>
+                  </p>
+                  <p className="text-muted-foreground tabular-nums">
+                    {result("map.preview", {
+                      volume: focus.volume,
+                      value: Math.round(focus.difficulty),
+                    })}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+            <span className="text-muted-foreground text-xs">
+              {t("map.axis")}
+            </span>
+            {/* The bands of the Difficulty column under the frame, so the axis reads in the list's own words. */}
+            <div
+              aria-hidden
+              className="text-muted-foreground relative h-4 overflow-hidden text-xs"
+            >
+              {BANDS.map(({ band, middle }) => {
+                const at = measured ? toX(middle) : null;
+                return at === null || inX(at) ? (
+                  <span
+                    key={band}
+                    className="absolute -translate-x-1/2 whitespace-nowrap"
+                    style={{ left: at ?? `${middle}%` }}
+                  >
+                    {result(`difficulty.${band}`)}
+                  </span>
+                ) : null;
+              })}
+            </div>
+          </div>
+        </div>
+        {opened ? (
+          <SeoKeywordMapPopover
+            // A new keyword mounts a new popover, so it takes the focus as the first one did.
+            key={opened.group.lead.id}
+            assessment={assessmentOf(opened)}
+            point={opened}
+            model={model}
+            onInteractOutside={() => {
+              outside.current = true;
+            }}
+            // An action opens another dialog: the popover closes first and leaves the focus on the map, so the
+            // dialog gives it back there.
+            onLeave={() => {
+              outside.current = true;
+              if (opener.current === group.current)
+                setActiveId((current) => current ?? openId);
+              setOpenId(null);
+              opener.current?.focus();
+            }}
+            // Closing gives the focus back to the map, on the keyword it opened. A press outside keeps the focus
+            // where it went: a field the reader clicked keeps the keys.
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              if (!outside.current) opener.current?.focus();
+              outside.current = false;
+            }}
+          />
+        ) : null}
+        <details className="text-sm">
+          <SeoFoldSummary className="text-muted-foreground py-1 text-xs">
+            {t("map.table")}
+          </SeoFoldSummary>
+          <p className="text-muted-foreground pt-2 text-xs">
+            {result("map.source")}
+          </p>
+          <div className="max-h-64 overflow-auto pt-2">
+            <table className="w-full text-xs">
+              <thead className="text-muted-foreground text-left">
+                <tr>
+                  <th scope="col" className="py-1 font-normal">
+                    {t("keyword")}
+                  </th>
+                  <th scope="col" className="py-1 text-right font-normal">
+                    {t("volume")}
+                  </th>
+                  <th scope="col" className="py-1 text-right font-normal">
+                    {t("map.axis")}
+                  </th>
+                  <th scope="col" className="py-1 text-right font-normal">
+                    {t("shortlist.gain")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {points
+                  .toSorted(
+                    (left, right) =>
+                      priorityFirst(assessmentOf(left), assessmentOf(right)) ||
+                      (right.gain?.top10 ?? 0) - (left.gain?.top10 ?? 0),
+                  )
+                  .map((point) => (
+                    <tr key={point.group.lead.id} className="border-t">
+                      <td className="py-1 break-words">
+                        {point.group.lead.keyword}
+                        {point.checked ? null : (
+                          <span className="text-muted-foreground">
+                            {" "}
+                            · {reasonText(point) ?? result("map.idea")}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-1 text-right tabular-nums">
+                        {format.number(point.volume)}
+                      </td>
+                      <td className="py-1 text-right tabular-nums">
+                        {Math.round(point.difficulty)}
+                      </td>
+                      <td className="py-1 text-right tabular-nums">
+                        {point.gain ? format.number(point.gain.top10) : null}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </figure>
+    </Popover>
+  );
+}

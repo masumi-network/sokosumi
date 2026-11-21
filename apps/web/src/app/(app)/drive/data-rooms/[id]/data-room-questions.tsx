@@ -1,13 +1,17 @@
 "use client";
 
 import type { DataRoomQuestion, DataRoomTreeRow } from "@sokosumi/core-client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useFocusWhen } from "@/hooks/effects/use-focus-when";
+import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import { cn } from "@/lib/utils";
 import {
   answerDataRoomQuestion,
@@ -15,6 +19,7 @@ import {
   fetchDataRoomQuestions,
 } from "@/lib/utils/data-room.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
+import { NEEDS_YOU_DATA_ROOM_QUESTIONS_QUERY_KEY } from "@/queries/needs-you-data-room-questions";
 import { rowLabel } from "./data-room-activity";
 
 /** Viewers' questions about documents, each answerable in place. */
@@ -22,12 +27,16 @@ export function DataRoomQuestions({
   store,
   roomId,
   rows,
+  focusQuestionId,
 }: {
   store: FileStore;
   roomId: string;
   rows: DataRoomTreeRow[];
+  /** The question Needs you opened the room on, ready to answer. */
+  focusQuestionId?: string | null;
 }) {
   const t = useTranslations("App.Drive.DataRoom.Questions");
+  const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: ["drive", "data-room", roomId, "questions", store],
     queryFn: () => fetchDataRoomQuestions({ store, roomId }),
@@ -55,7 +64,14 @@ export function DataRoomQuestions({
           roomId={roomId}
           question={question}
           label={rowLabel(rows, question.path)}
-          onAnswered={() => void query.refetch()}
+          focused={question.id === focusQuestionId}
+          onAnswered={() => {
+            void query.refetch();
+            // Needs you lists this question until it has an answer.
+            void queryClient.invalidateQueries({
+              queryKey: NEEDS_YOU_DATA_ROOM_QUESTIONS_QUERY_KEY,
+            });
+          }}
         />
       ))}
     </ul>
@@ -67,21 +83,37 @@ function QuestionItem({
   roomId,
   question,
   label,
+  focused,
   onAnswered,
 }: {
   store: FileStore;
   roomId: string;
   question: DataRoomQuestion;
   label: string;
+  focused: boolean;
   onAnswered: () => void;
 }) {
   const t = useTranslations("App.Drive.DataRoom.Questions");
   const format = useFormatter();
   const [answer, setAnswer] = useState(question.answer ?? "");
+  const [shared, setShared] = useState(question.sharedAt !== null);
   const [busy, setBusy] = useState(false);
+  const shareHintId = useId();
+  const answerRef = useRef<HTMLTextAreaElement>(null);
+
+  // Opened from Needs you: bring the question into view with its answer box
+  // ready, once, when it first renders.
+  useScrollIntoViewWhen(answerRef, focused, { block: "center" });
+  useFocusWhen(answerRef, focused, { preventScroll: true });
 
   return (
-    <li className={cn(HOLDER_ITEM_CLASS, "grid gap-2 p-4")}>
+    <li
+      className={cn(
+        HOLDER_ITEM_CLASS,
+        "grid gap-2 p-4",
+        focused && "ring-ring ring-2",
+      )}
+    >
       <p className="text-muted-foreground text-xs">
         {t("byline", {
           who: question.name ?? question.email,
@@ -102,8 +134,9 @@ function QuestionItem({
               roomId,
               questionId: question.id,
               answer,
+              shared,
             });
-            toast.success(t("answered"));
+            toast.success(shared ? t("answeredShared") : t("answered"));
             onAnswered();
           } catch (error) {
             toast.error(dataRoomRefusal(error) ?? t("answerFailed"));
@@ -113,19 +146,37 @@ function QuestionItem({
         }}
       >
         <Textarea
+          ref={answerRef}
           rows={2}
           aria-label={t("answerLabel")}
           placeholder={t("answerPlaceholder")}
           value={answer}
           onChange={(event) => setAnswer(event.target.value)}
         />
+        <div className="grid gap-1">
+          <Label className="flex min-h-6 items-center gap-2 font-normal">
+            <Checkbox
+              checked={shared}
+              onCheckedChange={(checked) => setShared(checked === true)}
+              aria-describedby={shareHintId}
+            />
+            {t("shareLabel")}
+          </Label>
+          <p id={shareHintId} className="text-muted-foreground text-xs">
+            {t("shareHint")}
+          </p>
+        </div>
         <Button
           type="submit"
           variant="outline"
           size="sm"
           className="justify-self-start"
           loading={busy}
-          disabled={!answer.trim() || answer === question.answer}
+          disabled={
+            !answer.trim() ||
+            (answer === question.answer &&
+              shared === (question.sharedAt !== null))
+          }
         >
           {question.answer ? t("updateAnswer") : t("answer")}
         </Button>

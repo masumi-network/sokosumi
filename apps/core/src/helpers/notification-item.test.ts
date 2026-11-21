@@ -35,6 +35,25 @@ function row(overrides: Partial<Notification> = {}): Notification {
 }
 
 describe("mapNotificationToItem", () => {
+  it("rewrites an old chat preview whose diagnostic was truncated", () => {
+    const notification = row({
+      kind: NotificationKind.CHAT,
+      messageParams: JSON.stringify({
+        count: 3,
+        messagePreview:
+          '@Ada Lovelace Background run "Review" failed before it could report. (Raw provider diagnostic…',
+      }),
+    });
+    const item = mapNotificationToItem(notification);
+    expect(item.messageParams.count).toBe(3);
+    expect(item.messageParams.messagePreview).toContain(
+      '@Ada Lovelace Background run "Review" failed before it could report.',
+    );
+    expect(item.messageParams.messagePreview).not.toContain(
+      "Raw provider diagnostic",
+    );
+  });
+
   it("does not throw when a JSON column will not parse", () => {
     let item: ReturnType<typeof mapNotificationToItem> | undefined;
 

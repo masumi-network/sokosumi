@@ -329,3 +329,29 @@
   border-radius: 999px;
   background: var(--border);
 }
+
+/* A made piece's own words, small as on a phone, cut after whole lines. */
+.mw-text {
+  display: block;
+  overflow: hidden;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.mw-text.big {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+img.mw-img {
+  width: 100%;
+  object-fit: cover;
+}
+
+.pf-item figcaption small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.6875rem;
+}

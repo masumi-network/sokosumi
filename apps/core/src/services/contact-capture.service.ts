@@ -19,6 +19,7 @@ import {
   normalizeContactChannelValue,
 } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
+import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import {
   type CaptureCandidate,
   type ExtractContext,
@@ -59,7 +60,17 @@ import {
   type XFollower,
 } from "@/lib/contacts/x-followers";
 import prisma from "@/lib/db/prisma";
-import { createCoreLogger } from "@/lib/evlog";
+import {
+  type CoreError,
+  createCoreLogger,
+  emitCoreError,
+  emitCoreWarning,
+} from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import {
+  runIntegrationTool,
+  SokoBotIntegrationError,
+} from "@/services/composio-integration-tools.service";
 import {
   enrichCompanies,
   workspacesWithPendingCompanies,
@@ -94,8 +105,6 @@ import {
   fetchCalendarPage,
   fetchInboxPage,
   resolveProvider,
-  runIntegrationTool,
-  SokoBotIntegrationError,
 } from "@/services/soko-bot-integrations.service";
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
@@ -211,6 +220,13 @@ interface SourceCursor {
   followsAt?: string;
   /** The followers page still to read; set until all were read. */
   followersToken?: string | null;
+  /**
+   * Every follower was read once; a later walk stops at a page of people who
+   * were all contacts before it began.
+   */
+  followersWalked?: boolean;
+  /** When the current walk began at the newest follower. */
+  followersWalkFrom?: string;
   /** Provider lacks a needed tool: left alone until then. */
   pausedUntil?: string;
 }
@@ -233,7 +249,31 @@ export interface CaptureStats {
   skipped: SkipCounts;
   backfillsCompleted: number;
   unsupported: string[];
-  errors: string[];
+  /** Content-free: provider errors and contact writes can quote mail or addresses. */
+  errors: CaptureFailure[];
+}
+
+interface CaptureFailure {
+  integrationId?: string;
+  provider?: string;
+  source?: string;
+  failure: ReturnType<typeof messageSafeErrorFields>;
+}
+
+/**
+ * One error event per failure the run survives, with that item's context.
+ * Capture only runs in its cron, so the event is standalone. The error can
+ * quote a mail, a message or a contact, so it carries no cause, only
+ * `failure`.
+ */
+function emitCaptureError(
+  context: Record<string, unknown>,
+  error: Omit<CoreError, "cause">,
+  cause: unknown,
+) {
+  emitCoreError({ operation: "contact_capture", ...context }, error, {
+    failure: messageSafeErrorFields(cause),
+  });
 }
 
 function emptyStats(): CaptureStats {
@@ -525,10 +565,15 @@ export class ContactCaptureService {
             usd: this.limits.companyUsdPerWorkspace,
             shouldContinue,
           }).catch((error: unknown) => {
-            console.error("Company lookup failed", {
-              workspaceId,
-              error: error instanceof Error ? error.message : "unknown",
-            });
+            emitCaptureError(
+              { workspace: { id: workspaceId } },
+              {
+                message: "Could not look up the companies of captured contacts",
+                why: "The company lookup step threw",
+                fix: "Capture is unaffected; the next contact capture run looks them up again.",
+              },
+              error,
+            );
             return companies;
           }),
         );
@@ -539,19 +584,31 @@ export class ContactCaptureService {
             limit: this.limits.embeddingsPerWorkspace,
             shouldContinue,
           }).catch((error: unknown) => {
-            console.error("Contact search embedding failed", {
-              workspaceId,
-              error: error instanceof Error ? error.message : "unknown",
-            });
+            if (!(error instanceof AiGatewayBudgetError)) {
+              emitCaptureError(
+                { workspace: { id: workspaceId } },
+                {
+                  message: "Could not update contact search for a workspace",
+                  why: "The embedding step threw",
+                  fix: "Search keeps its old entries; the next contact capture run embeds the changed contacts.",
+                },
+                error,
+              );
+            }
             return { embedded: 0, costUsd: 0, failed: true };
           }),
         );
     } catch (error) {
-      stats.errors.push(error instanceof Error ? error.message : "unknown");
-      console.error("Contact capture failed", {
-        workspaceId,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      stats.errors.push({ failure: messageSafeErrorFields(error) });
+      emitCaptureError(
+        { workspace: { id: workspaceId } },
+        {
+          message: "Contact capture stopped early for a workspace",
+          why: "A capture step threw outside any one integration",
+          fix: "The next contact capture run continues from the saved cursors. If it repeats, look up the error name and code under failure.",
+        },
+        error,
+      );
     } finally {
       log.set({
         workspace: { id: workspaceId },
@@ -714,13 +771,27 @@ export class ContactCaptureService {
           continue;
         }
         lastError = error instanceof Error ? error.message : "unknown";
-        stats.errors.push(`${row.provider}:${source}: ${lastError}`);
-        console.error("Contact capture source failed", {
+        const failure = {
           integrationId: row.id,
           provider: row.provider,
           source,
-          error: lastError,
+        };
+        stats.errors.push({
+          ...failure,
+          failure: messageSafeErrorFields(error),
         });
+        emitCaptureError(
+          {
+            workspace: { id: row.sokoBot.workspaceId },
+            contactCaptureSource: failure,
+          },
+          {
+            message: "Could not read a contact capture source",
+            why: "Reading the source from its provider failed",
+            fix: "The source keeps its cursor and the next contact capture run reads it again; its last error is on the capture state.",
+          },
+          error,
+        );
       }
     }
     const sources = PROVIDER_SOURCES[row.provider] ?? [];
@@ -1086,10 +1157,18 @@ export class ContactCaptureService {
       });
     } catch (error) {
       stats.failed += 1;
-      console.error("Contact capture write failed", {
-        integrationId: context.row.id,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      emitCaptureError(
+        {
+          workspace: { id: actor.workspaceId },
+          contactCaptureIntegration: { id: context.row.id },
+        },
+        {
+          message: "Could not save a captured contact",
+          why: "The contact write transaction failed",
+          fix: "The contact is skipped this run and captured again when it next appears. If it repeats, look up the error name and code under failure.",
+        },
+        error,
+      );
       return;
     }
     if (result.created) stats.created += 1;
@@ -1113,9 +1192,19 @@ export class ContactCaptureService {
       stats.merged += 1;
     } catch (error) {
       stats.mergeSuggestions += 1;
-      console.warn("Contact capture merge skipped", {
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      emitCoreWarning(
+        {
+          operation: "contact_capture",
+          workspace: { id: actor.workspaceId },
+          contactCaptureIntegration: { id: context.row.id },
+        },
+        {
+          message: "Suggested a contact merge instead of merging",
+          why: "The verified merge transaction failed",
+          fix: "Nothing is lost: the merge stays a suggestion the user can accept.",
+        },
+        { failure: messageSafeErrorFields(error) },
+      );
     }
   }
 
@@ -1381,7 +1470,9 @@ export class ContactCaptureService {
   /**
    * X keeps about 30 days of DMs, so there is no long backfill: every hour
    * the newest pages back to `since` (the first run reads all it has). Once
-   * a day, followers become contacts, newest first.
+   * a day, followers become contacts, newest first: X bills every follower a
+   * page returns, so a long walk goes on a few pages a day, and after one
+   * full walk a walk ends at the first page it has nothing new on.
    */
   private async captureX(
     context: RunContext,
@@ -1396,9 +1487,8 @@ export class ContactCaptureService {
     const dmsDue =
       cursor.backfillUntil !== null ||
       now.getTime() - since.getTime() >= this.limits.xIntervalMs;
-    // An unfinished followers walk goes on every run; a new one daily.
+    // A day's walk, new or unfinished, at most once a day.
     const followsDue =
-      !!cursor.followersToken ||
       !cursor.followsAt ||
       now.getTime() - new Date(cursor.followsAt).getTime() >=
         this.limits.xFollowsIntervalMs;
@@ -1491,8 +1581,11 @@ export class ContactCaptureService {
 
   /**
    * Walks the owner's followers from where the last run stopped, a page at a
-   * time. A page is read again when the run's write budget ends inside it;
-   * followers already on a contact are passed over, so that costs nothing.
+   * time, at most `xFollowPages` pages a day. A page is read again when the
+   * run's write budget ends inside it. After one full walk, a new one stops at
+   * the first page whose people were all contacts before it began: X lists
+   * followers newest first, so everyone after them was read before. People a
+   * walk adds itself, or who only became contacts from a DM, keep it going.
    */
   private async readXFollowers(
     context: RunContext,
@@ -1507,6 +1600,17 @@ export class ContactCaptureService {
       index ??= personNameIndex(context.actor.workspaceId);
       return index;
     };
+    // Before `followersWalked` existed, `followsAt` was set only by a finished
+    // walk.
+    cursor.followersWalked ??= Boolean(cursor.followsAt);
+    if (!cursor.followersToken)
+      cursor.followersWalkFrom = context.now.toISOString();
+    const walkFrom = new Date(
+      cursor.followersWalkFrom ?? context.now.toISOString(),
+    );
+    // Today's walk, however far it gets.
+    cursor.followsAt = context.now.toISOString();
+    await save();
     for (let page = 0; page < this.limits.xFollowPages; page += 1) {
       if (budget.calls <= 0 || !this.canRead(context)) return;
       const token = cursor.followersToken ?? null;
@@ -1521,14 +1625,19 @@ export class ContactCaptureService {
       const followers = result.items.flatMap(
         (raw) => parseXFollower(raw) ?? [],
       );
-      const done = await this.addXFollowers(context, followers, names);
+      const { done, settled } = await this.addXFollowers(
+        context,
+        followers,
+        names,
+        walkFrom,
+      );
       await recordXFollowerCounts(context.actor.workspaceId, followers);
       if (!done) return;
-      cursor.followersToken = result.nextToken;
-      // Only a finished walk waits a day; an unfinished one goes on next run.
-      if (!result.nextToken) cursor.followsAt = context.now.toISOString();
+      const caughtUp = cursor.followersWalked === true && settled;
+      cursor.followersToken = caughtUp ? null : result.nextToken;
+      if (!result.nextToken) cursor.followersWalked = true;
       await save();
-      if (!result.nextToken) return;
+      if (caughtUp || !result.nextToken) return;
     }
   }
 
@@ -1536,28 +1645,38 @@ export class ContactCaptureService {
    * Each follower who looks like a person joins the contact they certainly
    * are (`matchFollower`), or becomes a new contact in the "X followers"
    * list. Their bio stands in for the summary, so the model never enriches
-   * them. False when the write budget ran out first.
+   * them. `done` is false when the write budget ran out first; `settled` when
+   * the page has people and every one was a contact before `walkFrom`.
    */
   private async addXFollowers(
     context: RunContext,
     followers: readonly XFollower[],
     names: () => Promise<Map<string, string[]>>,
-  ): Promise<boolean> {
+    walkFrom: Date,
+  ): Promise<{ done: boolean; settled: boolean }> {
     const { actor } = context;
     const handleOf = (follower: XFollower) =>
       normalizeContactChannelValue("X", follower.username) ?? "";
-    const linked = new Set(
-      (
-        await prisma.contactChannel.findMany({
-          where: {
-            workspaceId: actor.workspaceId,
-            type: "X",
-            value: { in: followers.map(handleOf) },
-          },
-          select: { value: true },
-        })
-      ).map((channel) => channel.value),
+    const channels = await prisma.contactChannel.findMany({
+      where: {
+        workspaceId: actor.workspaceId,
+        type: "X",
+        value: { in: followers.map(handleOf) },
+      },
+      select: { value: true, createdAt: true },
+    });
+    const linked = new Set(channels.map((channel) => channel.value));
+    const before = new Set(
+      channels
+        .filter((channel) => channel.createdAt < walkFrom)
+        .map((channel) => channel.value),
     );
+    const people = followers.filter(
+      (follower) => linked.has(handleOf(follower)) || !isLikelyBot(follower),
+    );
+    const settled =
+      people.length > 0 &&
+      people.every((follower) => before.has(handleOf(follower)));
     const open = followers.filter((follower) => {
       if (linked.has(handleOf(follower))) return false;
       if (!isLikelyBot(follower)) return true;
@@ -1565,7 +1684,7 @@ export class ContactCaptureService {
         (context.stats.skipped.bot_user ?? 0) + 1;
       return false;
     });
-    if (open.length === 0) return true;
+    if (open.length === 0) return { done: true, settled };
     const index = await names();
     const bucketOf = (follower: XFollower) =>
       index.get(followerNameKey(follower.name ?? "") ?? "") ?? [];
@@ -1594,7 +1713,7 @@ export class ContactCaptureService {
     );
     for (const follower of open) {
       if (context.budget.captures <= 0 || !context.shouldContinue())
-        return false;
+        return { done: false, settled };
       context.budget.captures -= 1;
       const profile = `https://x.com/${follower.username}`;
       const fields = {
@@ -1668,7 +1787,7 @@ export class ContactCaptureService {
         if (!isConflict(error)) throw error;
       }
     }
-    return true;
+    return { done: true, settled };
   }
 }
 

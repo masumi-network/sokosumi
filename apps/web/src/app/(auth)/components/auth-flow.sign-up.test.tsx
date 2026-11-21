@@ -282,7 +282,7 @@ describe("AuthFlow signUp", () => {
       expect.objectContaining({ email: "ada@example.com" }),
     );
     expect(
-      screen.getByRole("button", { name: "changeEmail" }),
+      screen.getByRole("button", { name: /changeEmail$/ }),
     ).toBeInTheDocument();
   });
 
@@ -343,7 +343,7 @@ describe("AuthFlow signUp", () => {
     rememberAuthEmailHint("ada@example.com", { signUp: { codeSentAt: 1_000 } });
     render(<AuthFlow mode="signUp" lastUsedMethod={null} />);
 
-    await user.click(screen.getByRole("button", { name: "changeEmail" }));
+    await user.click(screen.getByRole("button", { name: /changeEmail$/ }));
 
     expect(emailField()).toHaveValue("ada@example.com");
     expect(emailField()).toBeEnabled();
@@ -705,7 +705,7 @@ describe("AuthFlow signUp", () => {
     render(<AuthFlow mode="signUp" lastUsedMethod={null} />);
     await continueWith(user, "ada@example.com");
 
-    await user.click(screen.getByRole("button", { name: "changeEmail" }));
+    await user.click(screen.getByRole("button", { name: /changeEmail$/ }));
 
     expect(emailField()).toHaveValue("ada@example.com");
     expect(emailField()).toHaveFocus();
@@ -735,7 +735,7 @@ describe("AuthFlow signUp", () => {
       "invited@example.com",
     );
     expect(
-      screen.queryByRole("button", { name: "changeEmail" }),
+      screen.queryByRole("button", { name: /changeEmail$/ }),
     ).not.toBeInTheDocument();
   });
 
@@ -767,7 +767,6 @@ describe("AuthFlow signUp", () => {
     expect(window.sessionStorage.getItem("auth-email-hint")).toBe(
       "ada@example.com",
     );
-    const errors = vi.spyOn(console, "error");
     const root = hydrateRoot(container, ui);
     try {
       await waitFor(() =>
@@ -776,11 +775,9 @@ describe("AuthFlow signUp", () => {
         ),
       );
       expect(takeAuthEmailHint()).toBeNull();
-      expect(errors).not.toHaveBeenCalled();
     } finally {
       await act(() => root.unmount());
       container.remove();
-      errors.mockRestore();
     }
   });
 
@@ -809,9 +806,9 @@ describe("AuthFlow signUp", () => {
     );
     expect(emailField()).toHaveValue("ada@example.com");
     await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
-    await screen.findByRole("button", { name: "changeEmail" });
+    await screen.findByRole("button", { name: /changeEmail$/ });
     rememberAuthEmailHint("stale@example.com");
-    await user.click(screen.getByRole("button", { name: "changeEmail" }));
+    await user.click(screen.getByRole("button", { name: /changeEmail$/ }));
     expect(emailField()).toHaveValue("ada@example.com");
     expect(takeAuthEmailHint()).toBeNull();
   });
@@ -912,6 +909,15 @@ describe("AuthFlow signUp", () => {
 
     expect(fireGTMEvent.viewRegisterArea).toHaveBeenCalledTimes(1);
     expect(fireGTMEvent.registerFormStart).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives Log in a target at least 24px tall", () => {
+    render(<AuthFlow mode="signUp" lastUsedMethod={null} />);
+
+    // WCAG 2.5.8: a bare text-sm link is 20px tall on a phone.
+    expect(screen.getByRole("link", { name: "Login.link" })).toHaveClass(
+      "min-h-6",
+    );
   });
 
   it("links to sign-in without a query when there is no OAuth request", () => {

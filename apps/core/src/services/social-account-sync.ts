@@ -11,6 +11,7 @@ import { waitUntil } from "@vercel/functions";
 import { err, ok, type Result } from "neverthrow";
 import prisma from "@/lib/db/prisma";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import { socialAccountStatisticsSchema } from "@/schemas/social-account-statistics.schema";
 import {
   backfillLinkedInAccountProfile,
@@ -18,6 +19,7 @@ import {
 } from "@/services/project-social-connections.service";
 import { refreshSocialAccountStatistics } from "@/services/social-account-statistics.service";
 import {
+  BILLED_PER_READ_PROVIDERS,
   SOCIAL_SYNC_FRESH_MS,
   type SocialSyncReadModel,
   type SocialSyncStoredRow,
@@ -135,6 +137,7 @@ export async function requestSocialAccountRefresh(
     },
     select: {
       status: true,
+      provider: true,
       performanceHeadFetchedAt: true,
       performanceRefreshAttemptedAt: true,
       performanceRefreshRequestedAt: true,
@@ -153,6 +156,7 @@ export async function requestSocialAccountRefresh(
     sync: socialSyncReadModel(
       {
         status: row.status,
+        provider: row.provider,
         performanceHeadFetchedAt: row.performanceHeadFetchedAt,
         performanceRefreshAttemptedAt: row.performanceRefreshAttemptedAt,
         performanceRefreshRequestedAt: row.performanceRefreshRequestedAt,
@@ -164,10 +168,13 @@ export async function requestSocialAccountRefresh(
 }
 
 function startDetachedSync(connectionId: string): void {
-  const work = runDueSocialAccountSync({
-    connectionId,
-    shouldContinue: () => true,
-  }).then(() => undefined);
+  // Known background work: its events stay standalone (`recordCore*`).
+  const work = runAsBackgroundWork(() =>
+    runDueSocialAccountSync({
+      connectionId,
+      shouldContinue: () => true,
+    }),
+  ).then(() => undefined);
   if (process.env.VERCEL) waitUntil(work);
   else void work;
 }
@@ -273,6 +280,7 @@ export async function runDueSocialAccountSync(
       data: { performanceRefreshAttemptedAt: now },
     });
     if (claimed.count === 0) continue;
+    const billed = BILLED_PER_READ_PROVIDERS.has(account.provider);
     // Accounts connected before LinkedIn photos were read get one on sync.
     await backfillLinkedInAccountProfile(account);
 
@@ -302,7 +310,10 @@ export async function runDueSocialAccountSync(
         );
         if (snapshot?.historyComplete) metrics.accountsCompleted += 1;
       }
+      // Older history of a billed account goes on with the day's read, never
+      // on its own hourly: each page is up to a hundred posts billed.
       while (
+        (needHead || !billed) &&
         continueHistory &&
         !input.abortSignal?.aborted &&
         input.shouldContinue() &&

@@ -28,8 +28,8 @@ const createTaskLinkRequestExample = {
 } as const;
 
 const patchTaskLinkRequestExample = {
-  relation: "child",
-  note: "Moved under the onboarding epic",
+  relation: "blocks",
+  note: "Blocks the onboarding launch",
 } as const;
 
 const taskLinkPeerTaskSchema = z
@@ -52,9 +52,12 @@ const taskLinkRelationSchema = z
 
 export type TaskLinkRelationResponse = z.infer<typeof taskLinkRelationSchema>;
 
-/** Relations users may create or patch. */
+/**
+ * Relations users may create or patch. `parent` and `child` stay readable on
+ * older links; a new parent is a sub-task (SOKD-279).
+ */
 const userWritableTaskLinkRelationSchema = z
-  .enum(["related", "blocks", "blocked_by", "parent", "child", "duplicate"])
+  .enum(["related", "blocks", "blocked_by", "duplicate"])
   .openapi("UserWritableTaskLinkRelation");
 
 export type UserWritableTaskLinkRelationResponse = z.infer<
@@ -99,13 +102,13 @@ export const createTaskLinkRequestSchema = z
 export const patchTaskLinkRequestSchema = z
   .object({
     relation: userWritableTaskLinkRelationSchema.optional().openapi({
-      example: "child",
+      example: "blocks",
     }),
     note: z
       .string()
       .max(2000)
       .nullish()
-      .openapi({ example: "Moved under the onboarding epic" }),
+      .openapi({ example: "Blocks the onboarding launch" }),
   })
   .refine((data) => data.relation !== undefined || data.note !== undefined, {
     message: "At least one of relation or note is required",

@@ -1,21 +1,34 @@
 "use client";
 
 import type {
-  DataRoomQuestion,
   DataRoomTreeRow,
   DataRoomView,
+  DataRoomViewerQuestion,
 } from "@sokosumi/core-client";
-import { Download, File, Folder, LogOut } from "lucide-react";
+import {
+  Building2,
+  ChevronRight,
+  Download,
+  File,
+  Folder,
+  House,
+  LogOut,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useState } from "react";
+import { CapTableFileView } from "@/components/cap-table/cap-table-view";
+import { SpreadsheetFileView } from "@/components/spreadsheet/spreadsheet-view";
 import { TeamFileView } from "@/components/team/team-view";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { isCapTableFileName } from "@/lib/cap-table-file";
+import { spreadsheetKind } from "@/lib/spreadsheet-file";
 import { fileTitle, isTeamFileName } from "@/lib/team-file";
 import { cn } from "@/lib/utils";
 import { formatBytes } from "@/lib/utils/format-bytes";
+import { RoomCompany } from "./room-company";
 import { RoomMark } from "./room-mark";
 import { RoomPdf } from "./room-pdf";
 
@@ -26,7 +39,10 @@ const IMAGE_TYPES = new Set([
   "image/webp",
 ]);
 
-/** A signed-in viewer's room: the numbered index, one file open beside it. */
+/** The Company page's place in the index, beside file paths. */
+const COMPANY: unique symbol = Symbol("company");
+
+/** A signed-in viewer's room: the numbered index, the Welcome page, the Company page or one file beside it. */
 export function RoomViewer({
   token,
   room,
@@ -37,11 +53,41 @@ export function RoomViewer({
   const t = useTranslations("Share.Room");
   const router = useRouter();
   const base = `/share/rooms/${encodeURIComponent(token)}`;
-  const firstFile = room.rows.find((row) => row.kind === "file") ?? null;
-  const [openPath, setOpenPath] = useState<string | null>(
-    firstFile?.path ?? null,
+  /** The open file's path; null is the Welcome page. */
+  const [openPath, setOpenPath] = useState<string | null | typeof COMPANY>(
+    null,
   );
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const open = room.rows.find((row) => row.path === openPath) ?? null;
+  const visible = room.rows.filter((row) =>
+    ancestorsOf(row.path).every((folder) => expanded.has(folder)),
+  );
+
+  function toggle(path: string) {
+    setExpanded((previous) => {
+      const next = new Set(previous);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  }
+
+  function openFile(path: string) {
+    setExpanded((previous) => new Set([...previous, ...ancestorsOf(path)]));
+    setOpenPath(path);
+  }
+
+  /** Shows a folder in the index, open at its first document. */
+  function openFolder(path: string) {
+    const first = room.rows.find(
+      (row) => row.kind === "file" && row.path.startsWith(`${path}/`),
+    );
+    if (first) openFile(first.path);
+    else
+      setExpanded(
+        (previous) => new Set([...previous, ...ancestorsOf(path), path]),
+      );
+  }
 
   return (
     <div className="flex w-full flex-col gap-4 p-4 md:px-8 md:py-6">
@@ -53,14 +99,6 @@ export function RoomViewer({
             {t("signedInAs", { email: room.viewer?.email ?? "" })}
           </p>
         </div>
-        {room.allowDownload && room.rows.length > 0 ? (
-          <Button asChild variant="outline" size="sm">
-            <a href={`${base}/zip`}>
-              <Download aria-hidden className="size-4" />
-              {t("downloadAll")}
-            </a>
-          </Button>
-        ) : null}
         <Button
           type="button"
           variant="ghost"
@@ -81,12 +119,53 @@ export function RoomViewer({
         <div className="grid min-w-0 gap-4 md:grid-cols-[minmax(16rem,22rem)_1fr]">
           <nav aria-label={t("indexLabel")} className="min-w-0">
             <ul className="divide-border divide-y rounded-lg border">
-              {room.rows.map((row) => (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setOpenPath(null)}
+                  aria-current={openPath === null || undefined}
+                  className={cn(
+                    "flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left text-sm",
+                    openPath === null ? "bg-muted" : "hover:bg-quinary",
+                  )}
+                >
+                  <House
+                    aria-hidden
+                    className="text-muted-foreground size-4 shrink-0"
+                  />
+                  {t("welcome")}
+                </button>
+              </li>
+              {room.company ? (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => setOpenPath(COMPANY)}
+                    aria-current={openPath === COMPANY || undefined}
+                    className={cn(
+                      "flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left text-sm",
+                      openPath === COMPANY ? "bg-muted" : "hover:bg-quinary",
+                    )}
+                  >
+                    <Building2
+                      aria-hidden
+                      className="text-muted-foreground size-4 shrink-0"
+                    />
+                    {t("Company.title")}
+                  </button>
+                </li>
+              ) : null}
+              {visible.map((row) => (
                 <RoomRow
                   key={row.path}
                   row={row}
                   active={row.path === openPath}
-                  onOpen={() => setOpenPath(row.path)}
+                  expanded={expanded.has(row.path)}
+                  onOpen={() =>
+                    row.kind === "folder"
+                      ? toggle(row.path)
+                      : setOpenPath(row.path)
+                  }
                 />
               ))}
             </ul>
@@ -100,8 +179,14 @@ export function RoomViewer({
                 allowDownload={room.allowDownload}
                 watermark={room.watermark}
               />
+            ) : openPath === COMPANY && room.company ? (
+              <RoomCompany
+                company={room.company}
+                rows={room.rows}
+                onOpenFolder={openFolder}
+              />
             ) : (
-              <p className="text-muted-foreground text-sm">{t("pickFile")}</p>
+              <RoomWelcome base={base} room={room} onOpenFile={openFile} />
             )}
           </section>
         </div>
@@ -110,53 +195,159 @@ export function RoomViewer({
   );
 }
 
+/** "Legal/Formation/Bylaws.pdf" → ["Legal", "Legal/Formation"]. */
+function ancestorsOf(path: string): string[] {
+  const segments = path.split("/");
+  return segments
+    .slice(0, -1)
+    .map((_, index) => segments.slice(0, index + 1).join("/"));
+}
+
+function RoomWelcome({
+  base,
+  room,
+  onOpenFile,
+}: {
+  base: string;
+  room: DataRoomView;
+  onOpenFile: (path: string) => void;
+}) {
+  const t = useTranslations("Share.Room");
+  const files = room.rows.filter((row) => row.kind === "file");
+  const folders = room.rows.length - files.length;
+  const first = files[0];
+  const { questions, status, retry } = useRoomQuestions(`${base}/questions`);
+  const shared = questions.flatMap((question) => {
+    const row = room.rows.find((r) => r.path === question.path);
+    return question.shared && question.answer && row ? [{ question, row }] : [];
+  });
+
+  return (
+    <article className="grid max-w-2xl gap-5 rounded-lg border p-5 md:p-6">
+      <header className="grid gap-1">
+        <h2 className="text-xl font-semibold tracking-tight">
+          {t("welcomeTitle", { title: room.title })}
+        </h2>
+        <p className="text-muted-foreground text-sm">
+          {t("contents", { files: files.length, folders })}
+        </p>
+      </header>
+      {room.welcomeNote ? (
+        <p className="text-sm leading-relaxed whitespace-pre-line">
+          {room.welcomeNote}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap gap-2">
+        {room.allowDownload ? (
+          <Button asChild>
+            <a href={`${base}/zip`}>
+              <Download aria-hidden className="size-4" />
+              {t("downloadAll")}
+            </a>
+          </Button>
+        ) : null}
+        {first ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenFile(first.path)}
+          >
+            {t("openFirst", { name: fileTitle(first.name) })}
+          </Button>
+        ) : null}
+      </div>
+      <p role="status" className="sr-only">
+        {status === "loading" ? t("sharedLoading") : ""}
+      </p>
+      {status === "failed" ? (
+        <div className="flex flex-wrap items-center gap-3 border-t pt-4">
+          <p
+            role="alert"
+            className="text-muted-foreground min-w-0 flex-1 text-sm"
+          >
+            {t("sharedFailed")}
+          </p>
+          <Button type="button" variant="outline" size="sm" onClick={retry}>
+            {t("retry")}
+          </Button>
+        </div>
+      ) : shared.length > 0 ? (
+        <section className="grid gap-3 border-t pt-4">
+          <h3 className="text-sm font-medium">{t("sharedTitle")}</h3>
+          <ul className="grid gap-4">
+            {shared.map(({ question, row }) => (
+              <li key={question.id} className="grid gap-1 text-sm">
+                <button
+                  type="button"
+                  onClick={() => onOpenFile(row.path)}
+                  className="text-muted-foreground hover:text-foreground inline-flex min-h-6 min-w-0 items-center gap-1.5 justify-self-start text-left text-xs underline-offset-4 hover:underline"
+                >
+                  <File aria-hidden className="size-3.5 shrink-0" />
+                  <span className="tabular-nums">{row.number}</span>
+                  <span className="truncate">{fileTitle(row.name)}</span>
+                </button>
+                <p className="font-medium">{question.body}</p>
+                <p className="text-muted-foreground whitespace-pre-line">
+                  {question.answer}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+    </article>
+  );
+}
+
 function RoomRow({
   row,
   active,
+  expanded,
   onOpen,
 }: {
   row: DataRoomTreeRow;
   active: boolean;
+  expanded: boolean;
   onOpen: () => void;
 }) {
-  const t = useTranslations("Share.Room");
-  const Icon = row.kind === "folder" ? Folder : File;
-  const content = (
-    <>
-      <span className="text-muted-foreground w-10 shrink-0 text-xs tabular-nums">
-        {row.number}
-      </span>
-      <Icon aria-hidden className="text-muted-foreground size-4 shrink-0" />
-      <span className="min-w-0 flex-1 truncate text-sm">
-        {fileTitle(row.name)}
-      </span>
-      {row.isNew ? (
-        <span className="bg-muted shrink-0 rounded px-1.5 text-2xs font-medium">
-          {t("new")}
-        </span>
-      ) : null}
-    </>
-  );
-  const indent = { paddingInlineStart: `${12 + row.depth * 16}px` };
-  if (row.kind === "folder")
-    return (
-      <li className="flex min-w-0 items-center gap-2 py-2 pe-3" style={indent}>
-        {content}
-      </li>
-    );
+  const folder = row.kind === "folder";
+  const Icon = folder ? Folder : File;
   return (
     <li>
       <button
         type="button"
         onClick={onOpen}
         aria-current={active || undefined}
+        aria-expanded={folder ? expanded : undefined}
         className={cn(
           "flex w-full min-w-0 items-center gap-2 py-2 pe-3 text-left",
           active ? "bg-muted" : "hover:bg-quinary",
         )}
-        style={indent}
+        style={{ paddingInlineStart: `${12 + row.depth * 16}px` }}
       >
-        {content}
+        <span className="text-muted-foreground w-10 shrink-0 text-xs tabular-nums">
+          {row.number}
+        </span>
+        {folder ? (
+          <ChevronRight
+            aria-hidden
+            className={cn(
+              "text-muted-foreground size-4 shrink-0 transition-transform",
+              expanded && "rotate-90",
+            )}
+          />
+        ) : (
+          <span aria-hidden className="size-4 shrink-0" />
+        )}
+        <Icon aria-hidden className="text-muted-foreground size-4 shrink-0" />
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate text-sm",
+            folder && "font-medium",
+          )}
+        >
+          {fileTitle(row.name)}
+        </span>
       </button>
     </li>
   );
@@ -176,6 +367,7 @@ function RoomFile({
   const t = useTranslations("Share.Room");
   const url = `${base}/files/${encodeURIComponent(row.resourceId ?? "")}`;
   const mime = row.mimeType ?? "";
+  const sheet = spreadsheetKind(mime, row.name);
 
   return (
     <div className="grid gap-4">
@@ -208,6 +400,10 @@ function RoomFile({
 
       {isTeamFileName(row.name) ? (
         <TeamFileView url={url} />
+      ) : isCapTableFileName(row.name) ? (
+        <CapTableFileView url={url} />
+      ) : sheet ? (
+        <SpreadsheetFileView url={url} kind={sheet} />
       ) : mime === "application/pdf" ? (
         <RoomPdf url={url} />
       ) : IMAGE_TYPES.has(mime) ? (
@@ -236,23 +432,12 @@ function RoomQuestions({
 }) {
   const t = useTranslations("Share.Room");
   const questionId = useId();
-  const [questions, setQuestions] = useState<DataRoomQuestion[]>([]);
+  const { questions, setQuestions } = useRoomQuestions(
+    `${base}/questions?resourceId=${encodeURIComponent(resourceId)}`,
+  );
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let current = true;
-    fetch(`${base}/questions?resourceId=${encodeURIComponent(resourceId)}`)
-      .then((response) => (response.ok ? response.json() : []))
-      .then((loaded: DataRoomQuestion[]) => {
-        if (current) setQuestions(loaded);
-      })
-      .catch(() => {});
-    return () => {
-      current = false;
-    };
-  }, [base, resourceId]);
 
   return (
     <div className="grid gap-3 border-t pt-4">
@@ -261,6 +446,11 @@ function RoomQuestions({
         <ul className="grid gap-3">
           {questions.map((question) => (
             <li key={question.id} className="grid gap-1 text-sm">
+              {question.shared ? (
+                <p className="text-muted-foreground text-xs">
+                  {t("sharedNote")}
+                </p>
+              ) : null}
               <p>{question.body}</p>
               <p className="text-muted-foreground">
                 {question.answer ?? t("awaitingAnswer")}
@@ -283,7 +473,7 @@ function RoomQuestions({
               body: JSON.stringify({ resourceId, body }),
             });
             if (!response.ok) throw new Error("ask failed");
-            const asked = (await response.json()) as DataRoomQuestion;
+            const asked = (await response.json()) as DataRoomViewerQuestion;
             setQuestions((previous) => [asked, ...previous]);
             setBody("");
           } catch {
@@ -318,4 +508,44 @@ function RoomQuestions({
       </form>
     </div>
   );
+}
+
+/**
+ * The viewer's own questions and the room's shared answers at `url`, with
+ * whether they are still loading or failed to, and a way to load them again.
+ */
+function useRoomQuestions(url: string) {
+  const [questions, setQuestions] = useState<DataRoomViewerQuestion[]>([]);
+  const [status, setStatus] = useState<"loading" | "ready" | "failed">(
+    "loading",
+  );
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let current = true;
+    fetch(url, attempt > 0 ? { cache: "no-store" } : undefined)
+      .then((response) => {
+        if (!response.ok) throw new Error(`Questions ${response.status}`);
+        return response.json();
+      })
+      .then((loaded: DataRoomViewerQuestion[]) => {
+        if (!current) return;
+        setQuestions(loaded);
+        setStatus("ready");
+      })
+      .catch(() => {
+        if (current) setStatus("failed");
+      });
+    return () => {
+      current = false;
+    };
+  }, [url, attempt]);
+  return {
+    questions,
+    setQuestions,
+    status,
+    retry: () => {
+      setStatus("loading");
+      setAttempt((count) => count + 1);
+    },
+  };
 }

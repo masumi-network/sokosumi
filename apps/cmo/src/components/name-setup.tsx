@@ -3,8 +3,9 @@
 import { useActionState } from "react";
 
 import type { NameFormState } from "../app/name-actions";
-import { FormAlert, FormField, useFocusFirstInvalid } from "./form-field";
-import { Mascot } from "./mascot";
+import { useFocusFirstInvalid } from "../hooks/effects/use-focus-first-invalid";
+import { FormAlert, FormField } from "./form-field";
+import { Logo } from "./logo";
 import { SubmitButton } from "./submit-button";
 
 interface NameSetupProps {
@@ -71,7 +72,7 @@ export function NameSetup({ saveName, signOut }: NameSetupProps) {
           </div>
         </form>
       </div>
-      <Mascot className="hero-mascot" />
+      <Logo lockup="primary" className="hero-logo" />
     </main>
   );
 }

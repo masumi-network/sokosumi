@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/nextjs";
 import type { OrganizationRecord } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
@@ -158,7 +159,7 @@ describe("TaskWorkspaceSwitchDialog", () => {
     ).toBeInTheDocument();
   });
 
-  it("switches workspace and refreshes the task route on confirm", async () => {
+  it("switches workspace on confirm and keeps the task route, which the switch re-renders", async () => {
     render(<TaskWorkspaceSwitchDialog {...defaultProps} />);
 
     fireEvent.click(
@@ -174,9 +175,10 @@ describe("TaskWorkspaceSwitchDialog", () => {
       expect(updatePreferredOrganization).toHaveBeenCalledWith({
         organizationId: "org_123",
       });
-      expect(refreshMock).toHaveBeenCalled();
     });
-
+    // The preferred-workspace action already rendered the task route.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(refreshMock).not.toHaveBeenCalled();
     expect(pushMock).not.toHaveBeenCalled();
     expect(replaceMock).not.toHaveBeenCalled();
   });
@@ -195,6 +197,7 @@ describe("TaskWorkspaceSwitchDialog", () => {
   });
 
   it("shows an error toast and reports to Sentry when switching fails", async () => {
+    expectConsole("error", "Failed to switch organization");
     const switchError = new Error("setActive failed");
     vi.mocked(authClient.organization.setActive).mockRejectedValue(switchError);
 

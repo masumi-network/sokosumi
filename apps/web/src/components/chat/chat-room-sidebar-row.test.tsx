@@ -1,12 +1,14 @@
 import type { ChatRoom } from "@sokosumi/core-client";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { ForesightManager } from "js.foresight";
 import {
   cloneElement,
   createContext,
   isValidElement,
   type ReactElement,
   type ReactNode,
+  type Ref,
   useContext,
   useState,
 } from "react";
@@ -42,6 +44,7 @@ vi.mock("next/navigation", () => ({
     refresh: refreshMock,
   }),
   useSearchParams: () => roomSearchParams.current,
+  usePathname: () => "/chat/rooms/room-open",
 }));
 
 vi.mock("next/link", () => ({
@@ -49,16 +52,27 @@ vi.mock("next/link", () => ({
     children,
     href,
     className,
+    ref,
     tabIndex,
     title,
+    "aria-current": ariaCurrent,
   }: {
     children: ReactNode;
     href: string;
     className?: string;
+    ref?: Ref<HTMLAnchorElement>;
     tabIndex?: number;
     title?: string;
+    "aria-current"?: "page";
   }) => (
-    <a href={href} className={className} tabIndex={tabIndex} title={title}>
+    <a
+      href={href}
+      className={className}
+      ref={ref}
+      tabIndex={tabIndex}
+      title={title}
+      aria-current={ariaCurrent}
+    >
       {children}
     </a>
   ),
@@ -343,6 +357,8 @@ vi.mock("@/components/ui/alert-dialog", () => {
 });
 
 import { toast } from "sonner";
+import { NavigationProgress } from "@/components/navigation-progress.client";
+import { startNavigation } from "@/test/pending-navigation";
 import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
 import {
   markOrganizationChatRoomUnreadAction,
@@ -524,6 +540,34 @@ describe("ChatRoomSidebarRow unread threads", () => {
     );
 
     expect(document.querySelector('[data-slot="room-thread-rows"]')).toBeNull();
+  });
+
+  it("watches the room link for an approach, but not the open room or rows being reordered", () => {
+    const watched = () =>
+      ForesightManager.instance.registeredElements.has(
+        screen.getByRole("link", { name: /general/ }),
+      );
+    const row = (reorderHandle?: ReactNode, isActive = false) => (
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={isActive}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+        reorderHandle={reorderHandle}
+      />
+    );
+    const view = render(row());
+    expect(watched()).toBe(true);
+
+    view.rerender(row(<button type="button">Move</button>));
+    expect(watched()).toBe(false);
+
+    view.rerender(row());
+    expect(watched()).toBe(true);
+    view.rerender(row(undefined, true));
+    expect(watched()).toBe(false);
   });
 
   it("lists nothing under a room with no unread thread", () => {
@@ -1380,7 +1424,7 @@ describe("ChatRoomSidebarRow leave menu", () => {
     expect(toast.success).toHaveBeenCalledWith("You left general.");
     expect(notifyMock).toHaveBeenCalledWith({ removedRoomId: "room-1" });
     expect(replaceMock).toHaveBeenCalledWith(CHAT_CHATS_LIST_PATH);
-    expect(refreshMock).toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 });
 
@@ -2023,5 +2067,71 @@ describe("ChatRoomSidebarRow Mark unread", () => {
     );
     expect(onRoomUpdated).toHaveBeenLastCalledWith(settled);
     expect(applyRoomReadOverlays([original])[0]).toEqual(settled);
+  });
+});
+
+describe("ChatRoomSidebarRow while a click heads for another page", () => {
+  function renderOpenRoom() {
+    const room = makeRoom({ id: "room-open" });
+    render(
+      <NavigationProgress>
+        <ChatRoomSidebarRow
+          room={room}
+          href={`/chat/rooms/${room.id}`}
+          label="Open room"
+          isActive
+          leading={<span>#</span>}
+          onRoomUpdated={vi.fn()}
+        />
+      </NavigationProgress>,
+    );
+  }
+
+  function isMarked() {
+    return (
+      screen
+        .getByRole("link", { name: /Open room/ })
+        .getAttribute("aria-current") === "page"
+    );
+  }
+
+  it("gives up the current mark for a page outside chat, and takes it back if the page never opens", async () => {
+    renderOpenRoom();
+    expect(isMarked()).toBe(true);
+
+    const arrive = await startNavigation("/tasks");
+    try {
+      expect(isMarked()).toBe(false);
+    } finally {
+      await arrive();
+    }
+
+    expect(isMarked()).toBe(true);
+  });
+
+  // The room is still on screen: only the mark moves.
+  it("still treats the room as the open one while the other page loads", async () => {
+    renderOpenRoom();
+    await openRoomMenu("Open room");
+
+    const arrive = await startNavigation("/tasks");
+    try {
+      expect(
+        screen.getByRole("menuitem", { name: "Mark as unread" }),
+      ).toBeDisabled();
+    } finally {
+      await arrive();
+    }
+  });
+
+  it("leaves the mark to the room selection when the click opens another room", async () => {
+    renderOpenRoom();
+
+    const arrive = await startNavigation("/chat/rooms/room-other");
+    try {
+      expect(isMarked()).toBe(true);
+    } finally {
+      await arrive();
+    }
   });
 });

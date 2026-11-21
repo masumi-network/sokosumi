@@ -4,6 +4,9 @@ import type { CmoAdCampaigns, CmoOverview } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AGENT_NAME } from "../lib/agent";
+import { adsReturnErrorFromCode } from "../lib/connect-return";
+import type { View } from "../lib/views";
+import { ViewLink } from "./app/view-link";
 
 type Entry = NonNullable<CmoOverview["strategy"]>["calendar"][number];
 type AdAccounts = CmoAdCampaigns["accounts"];
@@ -31,13 +34,9 @@ export interface AdActions {
 /** Why an ad connection came back without an account, from the return address. */
 export function adsReturnError(): string | null {
   if (typeof window === "undefined") return null;
-  const ads = new URLSearchParams(window.location.search).get("ads");
-  if (ads === "none") {
-    return "That login has no ad account. Create one in Google Ads or Meta, then connect again.";
-  }
-  return ads === "failed"
-    ? "That ad connection didn't finish. Try again."
-    : null;
+  return adsReturnErrorFromCode(
+    new URLSearchParams(window.location.search).get("ads"),
+  );
 }
 
 /** Starts connecting Google Ads or Meta Ads; the browser goes to their sign-in. */
@@ -180,7 +179,7 @@ export function SearchAdControl({
             Launch ad
           </button>
           <span className="note">
-            Starts spending from your plan's ad budget.
+            Starts spending from your strategy's ad budget.
           </span>
         </div>
       )}
@@ -206,10 +205,12 @@ export function AdsPanel({
   overview,
   actions,
   onChange,
+  openView,
 }: {
   overview: CmoOverview;
   actions: Pick<AdActions, "loadAdCampaigns" | "setAdCampaignStatus">;
   onChange: (overview: CmoOverview) => void;
+  openView: (view: View) => void;
 }) {
   const [accounts, setAccounts] = useState<AdAccounts | null>(null);
   const [pending, setPending] = useState<string | null>(null);
@@ -237,8 +238,11 @@ export function AdsPanel({
       <h3>Ads</h3>
       {!connected ? (
         <p className="muted">
-          Connect Google Ads or Meta Ads in Channels and their numbers show
-          here.
+          Connect Google Ads or Meta Ads in{" "}
+          <ViewLink view="channels" open={openView}>
+            Channels
+          </ViewLink>{" "}
+          and their numbers show here.
         </p>
       ) : accounts === null ? (
         <p className="muted">Reading your ad accounts…</p>
@@ -266,7 +270,7 @@ export function AdsPanel({
                     · last 7 days
                   </span>
                 </span>
-                <span className="tag">
+                <span className="state">
                   {campaign.status === "ACTIVE" ? "Running" : "Paused"}
                 </span>
                 {campaign.status === "ACTIVE" ||

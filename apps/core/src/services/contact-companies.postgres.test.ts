@@ -4,9 +4,20 @@
  * (with a fake page and model).
  */
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { requeueEmptyCompanyLookups } from "@sokosumi/database/helpers";
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
+import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { runContactTool } from "@/lib/soko-bot/contact-tools";
+import { expectCoreLog } from "@/test/core-log";
 import {
   companyWarmth,
   enrichCompanies,
@@ -16,6 +27,12 @@ import {
   updateCompany,
   workspacesWithPendingCompanies,
 } from "./contact-companies.service";
+import {
+  createCompanyList,
+  deleteCompanyList,
+  listCompanyLists,
+  updateCompanyListMembers,
+} from "./contact-company-lists.service";
 import {
   type ContactActor,
   contactCompanyMemberIds,
@@ -34,11 +51,14 @@ const organizationId = randomUUID();
 const workspaceId = randomUUID();
 const actor: ContactActor = { workspaceId, userId: alice, sokoBotId: null };
 
-function create(input: Partial<Parameters<typeof upsertContact>[2]>) {
+function create(
+  input: Partial<Parameters<typeof upsertContact>[2]>,
+  contactActor: ContactActor = actor,
+) {
   return inContactTransaction(
     async (tx) =>
       (
-        await upsertContact(tx, actor, {
+        await upsertContact(tx, contactActor, {
           channels: [],
           upsert: false,
           ...input,
@@ -163,6 +183,88 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
     ).toBe(1);
   });
 
+  it("keeps companies on company lists and filters by them", async () => {
+    const { items } = await listCompanies(actor, { limit: 10 });
+    const acme = items.find((item) => item.name === "Acme Robotics");
+    const blum = items.find((item) => item.name === "Blum Studio");
+    const list = await inContactTransaction((tx) =>
+      createCompanyList(tx, actor, { name: "Target accounts", color: "blue" }),
+    );
+    await expect(
+      inContactTransaction((tx) =>
+        createCompanyList(tx, actor, { name: "target ACCOUNTS", color: "red" }),
+      ),
+    ).rejects.toThrow("already exists");
+    const added = await inContactTransaction((tx) =>
+      updateCompanyListMembers(tx, actor, list.id, {
+        add: [acme?.id ?? "", acme?.id ?? ""],
+        remove: [],
+      }),
+    );
+    expect(added.count).toBe(1);
+    await expect(
+      inContactTransaction((tx) =>
+        updateCompanyListMembers(tx, actor, list.id, {
+          add: [randomUUID()],
+          remove: [],
+        }),
+      ),
+    ).rejects.toThrow("Company not found");
+
+    const onList = await listCompanies(actor, { listId: list.id, limit: 10 });
+    expect(onList.items.map((item) => item.name)).toEqual(["Acme Robotics"]);
+    expect(onList.items[0]?.listIds).toEqual([list.id]);
+    expect(
+      (await listCompanies(actor, { limit: 10 })).items.find(
+        (item) => item.id === blum?.id,
+      )?.listIds,
+    ).toEqual([]);
+    expect((await getCompany(actor, acme?.id ?? "")).company.listIds).toEqual([
+      list.id,
+    ]);
+
+    await inContactTransaction((tx) =>
+      updateCompanyListMembers(tx, actor, list.id, {
+        add: [],
+        remove: [acme?.id ?? ""],
+      }),
+    );
+    expect(
+      (await listCompanies(actor, { listId: list.id, limit: 10 })).total,
+    ).toBe(0);
+    await inContactTransaction((tx) => deleteCompanyList(tx, actor, list.id));
+    expect(await listCompanyLists(actor)).toEqual([]);
+  });
+
+  it("puts company names ahead of descriptions before applying the page limit", async () => {
+    const all = (await listCompanies(actor, { limit: 100 })).items;
+    const direct = all.find((company) => company.name === "Blum Studio");
+    const other = all.find((company) => company.name !== "Blum Studio");
+    if (!direct || !other) throw new Error("Missing test companies");
+    await prisma.contactCompany.update({
+      where: { id: other.id },
+      data: { description: "Collaborates with Blum Studio" },
+    });
+    try {
+      const options = {
+        search: "blum studio",
+        limit: 1,
+        sort: "people" as const,
+      };
+      const page = await listCompanies(actor, options);
+      expect(page.total).toBe(2);
+      expect(page.items[0]?.id).toBe(direct.id);
+      expect(
+        (await listCompanies(actor, { ...options, offset: 1 })).items[0]?.id,
+      ).toBe(other.id);
+    } finally {
+      await prisma.contactCompany.update({
+        where: { id: other.id },
+        data: { description: other.description },
+      });
+    }
+  });
+
   it("reads one company with its people, teammates and next steps", async () => {
     const [acme] = (await listCompanies(actor, { limit: 1 })).items;
     const detail = await getCompany(actor, acme?.id ?? "");
@@ -202,7 +304,30 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
     ).rejects.toThrow(/changed meanwhile/);
   });
 
-  it("reads a company's website once and fills only empty facts", async () => {
+  it("looks up a company again after a Gateway budget refusal", async () => {
+    expectCoreLog("warn", "Could not look up a company's website", 0);
+    for (let run = 0; run < 3; run += 1) {
+      expect(
+        await enrichCompanies(workspaceId, {
+          limit: 5,
+          usd: 1,
+          deps: {
+            fetchPage: async () =>
+              `<a href="https://linkedin.com/company/acme">in</a>`,
+            generate: async () => {
+              throw new AiGatewayBudgetError();
+            },
+          },
+        }),
+      ).toEqual({ looked: 1, filled: 0, costUsd: 0 });
+    }
+    expect(
+      await prisma.contactCompany.findFirstOrThrow({
+        where: { workspaceId, key: "d:acme.com" },
+      }),
+    ).toMatchObject({ enrichedAt: null, linkedinUrl: null, lookupFailures: 0 });
+    expect(await workspacesWithPendingCompanies(100)).toContain(workspaceId);
+
     const fetched: string[] = [];
     const result = await enrichCompanies(workspaceId, {
       limit: 5,
@@ -229,10 +354,182 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
       headquarters: "Zurich, Switzerland",
       linkedinUrl: "https://linkedin.com/company/acme",
       whyItMatters: "Our first hardware partner.",
+      enrichedAt: expect.any(Date),
     });
     expect(
       (await enrichCompanies(workspaceId, { limit: 5, usd: 1 })).looked,
     ).toBe(0);
+  });
+
+  async function createLookupWorkspace() {
+    const { id } = await prisma.workspace.create({ data: { userId: alice } });
+    onTestFinished(async () => {
+      await prisma.workspace.delete({ where: { id } });
+    });
+    return { ...actor, workspaceId: id };
+  }
+
+  it("stops the workspace pass after a model-call error without counting a site failure", async () => {
+    expectCoreLog("warn", "Could not run the company lookup model");
+    const lookupActor = await createLookupWorkspace();
+    const id = lookupActor.workspaceId;
+    for (const name of ["Quiet", "Loud"]) {
+      await create(
+        {
+          name,
+          organization: `${name} Company`,
+          channels: [
+            { type: "EMAIL", value: `contact@${name.toLowerCase()}.example` },
+          ],
+        },
+        lookupActor,
+      );
+    }
+    const deps = {
+      fetchPage: vi.fn().mockResolvedValue("<p>Company website</p>"),
+      generate: vi.fn().mockRejectedValue(new Error("Provider unavailable")),
+    };
+
+    expect(await enrichCompanies(id, { deps, limit: 5, usd: 1 })).toEqual({
+      looked: 1,
+      filled: 0,
+      costUsd: 0,
+    });
+    expect(deps.fetchPage).toHaveBeenCalledTimes(1);
+    expect(deps.generate).toHaveBeenCalledTimes(1);
+    expect(
+      await prisma.contactCompany.count({
+        where: { workspaceId: id, enrichedAt: null, lookupFailures: 0 },
+      }),
+    ).toBe(2);
+    expect(await workspacesWithPendingCompanies(100)).toContain(id);
+  });
+
+  it("stops scheduling an exhausted lookup and completes an empty lookup after a website edit", async () => {
+    const lookupActor = await createLookupWorkspace();
+    const id = lookupActor.workspaceId;
+    await create(
+      {
+        name: "Toni Vale",
+        organization: "Quiet Company",
+        channels: [{ type: "EMAIL", value: "toni@quiet.example" }],
+      },
+      lookupActor,
+    );
+    const [company] = (await listCompanies(lookupActor, { limit: 1 })).items;
+    if (!company) throw new Error("Missing Quiet Company fixture");
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not look up a company's website",
+    );
+    const deps = {
+      fetchPage: vi
+        .fn()
+        .mockImplementationOnce(async () => {
+          await updateCompany(lookupActor, company.id, {
+            version: company.version,
+            website: "https://updated.example",
+          });
+          throw new Error("The old site failed");
+        })
+        .mockRejectedValueOnce(new Error("Company website returned HTTP 503"))
+        .mockRejectedValueOnce(
+          new DOMException("Site timed out", "TimeoutError"),
+        )
+        .mockResolvedValue("<p>Quiet Company</p>"),
+      generate: vi
+        .fn()
+        .mockResolvedValueOnce({ text: "invalid JSON", costUsd: 0.001 })
+        .mockResolvedValue({ text: "{}", costUsd: 0 }),
+    };
+    const run = () => enrichCompanies(id, { deps, limit: 5, usd: 1 });
+    const read = async () =>
+      (await getCompany(lookupActor, company.id)).company;
+    const isPending = async () =>
+      (await workspacesWithPendingCompanies(100)).includes(id);
+
+    expect((await run()).looked).toBe(1); // A stale failure leaves the new site its full allowance.
+    for (const costUsd of [0, 0, 0.001]) {
+      expect(await isPending()).toBe(true);
+      expect(await run()).toEqual({ looked: 1, filled: 0, costUsd });
+      expect((await read()).enrichedAt).toBeNull();
+    }
+    expect(warnings).toHaveLength(1);
+    expect(await isPending()).toBe(false);
+    expect((await run()).looked).toBe(0);
+
+    await updateCompany(lookupActor, company.id, {
+      version: (await read()).version,
+      website: null,
+    });
+    expect(await isPending()).toBe(true);
+    expect(await run()).toEqual({ looked: 1, filled: 0, costUsd: 0 });
+    expect(deps.fetchPage).toHaveBeenLastCalledWith("https://quiet.example");
+    expect(await read()).toMatchObject({
+      enrichedAt: expect.any(Date),
+      description: null,
+    });
+    expect(await isPending()).toBe(false);
+    expect((await run()).looked).toBe(0);
+  });
+
+  it("requeues only pre-cutover companies with empty lookup facts", async () => {
+    const { workspaceId: id } = await createLookupWorkspace();
+    const old = new Date(1);
+    const cutoff = new Date(2);
+    const recent = new Date(3);
+    const rows = [
+      { key: "empty", enrichedAt: old },
+      {
+        key: "linkedin",
+        enrichedAt: old,
+        linkedinUrl: "https://linkedin.com/company/quiet",
+      },
+      { key: "description", enrichedAt: old, description: "Known" },
+      { key: "industry", enrichedAt: old, industry: "Known" },
+      { key: "size", enrichedAt: old, size: "Known" },
+      { key: "headquarters", enrichedAt: old, headquarters: "Known" },
+      { key: "pending", enrichedAt: null },
+      { key: "recent", enrichedAt: recent },
+    ];
+    await prisma.contactCompany.createMany({
+      data: rows.map((row) => ({
+        ...row,
+        name: row.key,
+        workspaceId: id,
+        lookupFailures: 2,
+      })),
+    });
+    const read = () =>
+      prisma.contactCompany.findMany({
+        where: { workspaceId: id },
+        orderBy: { key: "asc" },
+      });
+    const original = await read();
+
+    expect(await requeueEmptyCompanyLookups(prisma, { before: cutoff })).toBe(
+      2,
+    );
+    expect(await read()).toEqual(original);
+    expect(
+      await requeueEmptyCompanyLookups(prisma, { before: cutoff, apply: true }),
+    ).toBe(2);
+    expect(await read()).toEqual(
+      original.map((row) =>
+        row.key === "empty" || row.key === "linkedin"
+          ? { ...row, enrichedAt: null, lookupFailures: 0 }
+          : row,
+      ),
+    );
+    await prisma.contactCompany.updateMany({
+      where: { workspaceId: id, key: "empty" },
+      data: { enrichedAt: recent },
+    });
+    const afterLookup = await read();
+    expect(
+      await requeueEmptyCompanyLookups(prisma, { before: cutoff, apply: true }),
+    ).toBe(0);
+    expect(await read()).toEqual(afterLookup);
   });
 
   it("lets a Soko Bot find a company and read its people compactly", async () => {
@@ -334,8 +631,9 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
     const [blum] = (
       await listCompanies(actor, { name: "Blum Studio", limit: 5 })
     ).items;
+    if (!blum) throw new Error("Missing Blum Studio fixture");
     await prisma.contactCompany.update({
-      where: { id: blum?.id },
+      where: { id: blum.id },
       data: { website: "https://blum.studio", enrichedAt: null },
     });
     await enrichCompanies(workspaceId, {
@@ -345,7 +643,7 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
         fetchPage: async () => {
           // A teammate saves a description meanwhile.
           await prisma.contactCompany.update({
-            where: { id: blum?.id },
+            where: { id: blum.id },
             data: {
               description: "Written by Alice.",
               version: { increment: 1 },
@@ -360,7 +658,7 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
       },
     });
     const row = await prisma.contactCompany.findUniqueOrThrow({
-      where: { id: blum?.id },
+      where: { id: blum.id },
     });
     // A name-only company with a website is read too.
     expect(row).toMatchObject({
@@ -375,8 +673,9 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
     const [ostwerk] = (await listCompanies(actor, { limit: 50 })).items.filter(
       (company) => company.name === "Ostwerk",
     );
-    await updateCompany(actor, ostwerk?.id ?? "", {
-      version: ostwerk?.version ?? 1,
+    if (!ostwerk) throw new Error("Missing Ostwerk fixture");
+    await updateCompany(actor, ostwerk.id, {
+      version: ostwerk.version,
       whyItMatters: "Supplier.",
     });
     await prisma.contactChannel.create({
@@ -406,7 +705,7 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
     await listCompanies(actor, { limit: 50 });
     expect(
       await prisma.contactCompany.findUniqueOrThrow({
-        where: { id: ostwerk?.id },
+        where: { id: ostwerk.id },
       }),
     ).toMatchObject({
       key: "d:ostwerk.com",
@@ -420,6 +719,7 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
     const [ostwerk] = (
       await listCompanies(actor, { name: "Ostwerk", limit: 5 })
     ).items;
+    if (!ostwerk) throw new Error("Missing Ostwerk fixture");
     await enrichCompanies(workspaceId, {
       limit: 10,
       usd: 1,
@@ -427,7 +727,7 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
         fetchPage: async (url) => {
           if (url === "https://ostwerk.com")
             await prisma.contactCompany.update({
-              where: { id: ostwerk?.id },
+              where: { id: ostwerk.id },
               data: { website: "https://ostwerk.example", enrichedAt: null },
             });
           return "<p>Old site</p>";
@@ -440,7 +740,7 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
     });
     expect(
       await prisma.contactCompany.findUniqueOrThrow({
-        where: { id: ostwerk?.id },
+        where: { id: ostwerk.id },
       }),
     ).toMatchObject({ description: null, enrichedAt: null });
   });
@@ -558,6 +858,7 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
     });
     const [rot] = (await listCompanies(actor, { name: "Rotfabrik", limit: 5 }))
       .items;
+    if (!rot) throw new Error("Missing Rotfabrik fixture");
     await prisma.contactChannel.updateMany({
       where: { contactId: ines.id },
       data: { value: "ines@rotfabrik.example" },
@@ -573,7 +874,7 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
         if (!raced && args.data?.key) {
           raced = true;
           await prisma.contactCompany.update({
-            where: { id: rot?.id },
+            where: { id: rot.id },
             data: {
               website: "https://custom.example",
               version: { increment: 1 },

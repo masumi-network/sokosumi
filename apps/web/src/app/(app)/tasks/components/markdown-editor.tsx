@@ -46,6 +46,7 @@ import {
   UNKNOWN_MENTION_CLASSNAME,
   VIEWPORT_PADDING_PX,
 } from "@/components/ui/mention-textarea-utils";
+import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import { cn } from "@/lib/utils";
 import { clearComposerFormat } from "@/lib/utils/composer-clear-format";
 import {
@@ -329,10 +330,6 @@ export const MarkdownEditor = forwardRef<
     [keyToValue, slugToValue],
   );
 
-  useEffect(() => {
-    onMentionQueryChange?.(query);
-  }, [onMentionQueryChange, query]);
-
   const filteredMentions = useMemo(() => {
     if (query === null) return normalizedMentions;
     return filterNormalizedMentions(normalizedMentions, query);
@@ -349,19 +346,21 @@ export const MarkdownEditor = forwardRef<
       nextActiveIndex?: number;
     }) => {
       setQuery(nextQuery);
+      onMentionQueryChange?.(nextQuery);
       setIsOpen(true);
       setActiveIndex(nextActiveIndex);
       setTriggerPosition(nextTriggerPosition);
     },
-    [],
+    [onMentionQueryChange],
   );
 
   const closeSuggestions = useCallback(() => {
     setIsOpen(false);
     setQuery(null);
+    onMentionQueryChange?.(null);
     setActiveIndex(0);
     setTriggerPosition(null);
-  }, []);
+  }, [onMentionQueryChange]);
 
   const convertMarkdownToHtml = useCallback(
     (text: string): string => markdownToHtml(text, resolveMentionDisplay),
@@ -801,13 +800,11 @@ export const MarkdownEditor = forwardRef<
     [insertMention],
   );
 
-  useEffect(() => {
-    if (!isOpen || !listRef.current) return;
-    const activeItem = listRef.current.querySelector(
-      `[data-index="${activeIndex}"]`,
-    );
-    activeItem?.scrollIntoView({ block: "nearest" });
-  }, [activeIndex, isOpen]);
+  useScrollIntoViewWhen(
+    () => listRef.current?.querySelector(`[data-index="${activeIndex}"]`),
+    isOpen,
+    { block: "nearest", resetKey: activeIndex },
+  );
 
   useEffect(() => {
     return () => {

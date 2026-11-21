@@ -48,6 +48,10 @@ vi.mock("./ads-market-profile", () => ({
     </div>
   ),
 }));
+vi.mock("./ads-market-refresh", () => ({
+  AdsMarketRefresh: ({ children }: { children: React.ReactNode }) => children,
+  AdsMarketUpdating: ({ children }: { children: React.ReactNode }) => children,
+}));
 vi.mock("./ads-market-results", () => ({
   AdsMarketResults: ({ projectId }: { projectId: string }) => (
     <div data-testid="results">{projectId}</div>

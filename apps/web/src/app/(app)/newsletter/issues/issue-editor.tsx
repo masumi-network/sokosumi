@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { IssueAnalyticsSummary } from "@/app/newsletter/analytics/issue-analytics-summary";
 import { newsletterDesignDefaults } from "@/app/newsletter/newsletter-design-fields";
@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/holder-surface";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { saveNewsletterIssue } from "@/lib/actions/newsletter/issues";
 import {
   type NewsletterSettingsValues,
@@ -57,10 +58,8 @@ import { DraftIssueButton } from "./draft-issue-dialog";
 import { IssueActions } from "./issue-actions";
 import { IssueBlockFields } from "./issue-block-fields";
 import { BlockIcon, IssueBlockLibrary, newBlock } from "./issue-block-library";
-import {
-  IssueDeliveryOutcome,
-  IssueStatusBadge,
-} from "./issue-delivery-status";
+import { IssueDeliveryOutcome } from "./issue-delivery-status";
+import { IssueHeader } from "./issue-header";
 import { NewsletterIssuePreview } from "./issue-preview";
 import { hasNewsletterSender } from "./issue-readiness";
 
@@ -143,14 +142,9 @@ export function NewsletterIssueEditor({
   const designDirty = designForm.formState.isDirty;
   const unsaved = isDirty || designDirty;
 
-  useEffect(() => {
-    if (!unsaved) return;
-    function handleBeforeUnload(event: BeforeUnloadEvent) {
-      event.preventDefault();
-    }
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [unsaved]);
+  useEventListener(unsaved ? "window" : null, "beforeunload", (event) => {
+    event.preventDefault();
+  });
 
   async function handleSave(values: NewsletterIssueValues) {
     form.clearErrors("root");
@@ -232,21 +226,15 @@ export function NewsletterIssueEditor({
             {t("back")}
           </Link>
         </Button>
-        <div className="flex flex-wrap items-center gap-3">
-          {editable && !blocks.fields.length ? (
-            <DraftIssueButton projectId={projectId} template={template} />
-          ) : null}
-          {status === NewsletterIssueStatus.SENT ? (
-            <Button asChild variant="outline">
-              <Link
-                href={`/n/${encodeURIComponent(newsletter.publicSlug)}/p/${encodeURIComponent(currentIssue.publicSlug)}`}
-              >
-                {t("viewOnWeb")}
-              </Link>
-            </Button>
-          ) : null}
-        </div>
+        {editable && !blocks.fields.length ? (
+          <DraftIssueButton projectId={projectId} template={template} />
+        ) : null}
       </div>
+      <IssueHeader
+        issue={currentIssue}
+        newsletterSlug={newsletter.publicSlug}
+        recipients={analytics?.totals.sent}
+      />
       {status === NewsletterIssueStatus.SENT && analytics ? (
         <IssueAnalyticsSummary analytics={analytics} />
       ) : null}
@@ -479,10 +467,7 @@ export function NewsletterIssueEditor({
           )}
         >
           <div className={cn(HOLDER_ITEM_CLASS, "min-w-0 space-y-3 p-4")}>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-base font-semibold">{t("sendPanel")}</h3>
-              <IssueStatusBadge issue={currentIssue} />
-            </div>
+            <h3 className="text-base font-semibold">{t("sendPanel")}</h3>
             {editable ? (
               <div className="space-y-3">
                 <div

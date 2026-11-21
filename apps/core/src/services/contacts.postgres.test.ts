@@ -27,10 +27,13 @@ import {
   listContactActivity,
   listContacts,
   logContactInteraction,
+  markNotDuplicates,
   mergeContacts,
   removeContactChannel,
   removeContactInteraction,
   setContactArchived,
+  setContactsStage,
+  undoContactsStage,
   updateContact,
   upsertContact,
 } from "./contacts.service";
@@ -362,6 +365,143 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     expect(activity.items[1]?.user).toMatchObject({ name: "Alice" });
   });
 
+  it("sets one stage on many contacts, all or none", async () => {
+    const { contact: lead } = await create(asAlice, {
+      name: "Stage Lead",
+      stage: "LEAD",
+    });
+    const { contact: plain } = await create(asAlice, { name: "Stage Plain" });
+    const { contact: foreign } = await create(asOutsider, {
+      name: "Stage Foreign",
+    });
+    const { contact: loser } = await create(asAlice, { name: "Stage Loser" });
+    await inContactTransaction((tx) =>
+      mergeContacts(tx, asAlice, plain.id, [loser.id]),
+    );
+    const plainVersion = (
+      await prisma.contact.findUniqueOrThrow({ where: { id: plain.id } })
+    ).version;
+
+    for (const ids of [
+      [lead.id, foreign.id],
+      [lead.id, loser.id],
+      [lead.id, randomUUID()],
+    ])
+      await expect(
+        inContactTransaction((tx) =>
+          setContactsStage(tx, asAlice, ids, "CUSTOMER"),
+        ),
+      ).rejects.toMatchObject({ status: 404 });
+    const untouched = await prisma.contact.findMany({
+      where: { id: { in: [lead.id, plain.id, foreign.id] } },
+      select: { stage: true },
+    });
+    expect(untouched.map((row) => row.stage).sort()).toEqual([
+      "CONTACT",
+      "CONTACT",
+      "LEAD",
+    ]);
+
+    await expect(
+      inContactTransaction((tx) =>
+        setContactsStage(tx, asBob, [lead.id, plain.id, lead.id], "LEAD"),
+      ),
+    ).resolves.toEqual({
+      updated: 1,
+      undo: [{ id: plain.id, stage: "CONTACT", version: plainVersion + 1 }],
+    });
+    const rows = await prisma.contact.findMany({
+      where: { id: { in: [lead.id, plain.id] } },
+      select: { id: true, stage: true, version: true, name: true },
+    });
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        {
+          id: lead.id,
+          stage: "LEAD",
+          version: lead.version,
+          name: "Stage Lead",
+        },
+        {
+          id: plain.id,
+          stage: "LEAD",
+          version: plainVersion + 1,
+          name: "Stage Plain",
+        },
+      ]),
+    );
+    const activity = await listContactActivity(asAlice, plain.id, {
+      limit: 1,
+    });
+    expect(activity.items[0]).toMatchObject({
+      kind: "UPDATED",
+      changes: { stage: { before: "CONTACT", after: "LEAD" } },
+      user: { name: "Bob" },
+    });
+  });
+
+  it("undoes a bulk stage change per contact, never over a later edit", async () => {
+    const { contact: lead } = await create(asAlice, {
+      name: "Undo Lead",
+      stage: "LEAD",
+    });
+    const { contact: partner } = await create(asAlice, {
+      name: "Undo Partner",
+      stage: "PARTNER",
+    });
+    const { contact: edited } = await create(asAlice, { name: "Undo Edited" });
+    const ids = [lead.id, partner.id, edited.id];
+    const { undo } = await inContactTransaction((tx) =>
+      setContactsStage(tx, asAlice, ids, "CUSTOMER"),
+    );
+    const stageOf = async () =>
+      Object.fromEntries(
+        (
+          await prisma.contact.findMany({
+            where: { id: { in: ids } },
+            select: { id: true, stage: true },
+          })
+        ).map((row) => [row.id, row.stage]),
+      );
+
+    // Another workspace cannot use the undo payload.
+    await expect(
+      inContactTransaction((tx) => undoContactsStage(tx, asOutsider, undo)),
+    ).resolves.toEqual({ restored: 0, skipped: 3 });
+    // Bob renames one contact after the bulk change; undo leaves it alone.
+    const editedNow = await prisma.contact.findUniqueOrThrow({
+      where: { id: edited.id },
+    });
+    await inContactTransaction((tx) =>
+      updateContact(tx, asBob, edited.id, {
+        version: editedNow.version,
+        name: "Undo Edited Again",
+      }),
+    );
+
+    await expect(
+      inContactTransaction((tx) => undoContactsStage(tx, asAlice, undo)),
+    ).resolves.toEqual({ restored: 2, skipped: 1 });
+    expect(await stageOf()).toEqual({
+      [lead.id]: "LEAD",
+      [partner.id]: "PARTNER",
+      [edited.id]: "CUSTOMER",
+    });
+    const activity = await listContactActivity(asAlice, partner.id, {
+      limit: 2,
+    });
+    expect(activity.items.map((item) => item.changes)).toEqual([
+      { stage: { before: "CUSTOMER", after: "PARTNER" } },
+      { stage: { before: "PARTNER", after: "CUSTOMER" } },
+    ]);
+
+    // A second undo finds new versions and restores nothing.
+    await expect(
+      inContactTransaction((tx) => undoContactsStage(tx, asAlice, undo)),
+    ).resolves.toEqual({ restored: 0, skipped: 3 });
+    expect((await stageOf())[lead.id]).toBe("LEAD");
+  });
+
   it("merges channels, interactions, lists and history into the winner", async () => {
     const list = await inContactTransaction((tx) =>
       createContactList(tx, asAlice, { name: "Investors", color: "violet" }),
@@ -582,6 +722,7 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       name: "Filter Fresh",
       stage: "PROSPECT",
       organization: "Filterworks",
+      location: "Zürich, Switzerland",
     });
     await log(asBob, fresh.contact.id, days(2));
     const query = (filter: Parameters<typeof listContacts>[1]["filter"]) =>
@@ -600,10 +741,33 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     expect(await query({ hasChannel: "GITHUB" })).toEqual(["Filter Stale"]);
     expect(await query({ search: "filterstale" })).toEqual(["Filter Stale"]);
     expect(await query({ search: "filterworks" })).toEqual(["Filter Fresh"]);
+    expect(await query({ search: "zurich" })).toEqual(["Filter Fresh"]);
+    expect(await query({ search: "ZÜRICH, SWITZ" })).toEqual(["Filter Fresh"]);
     expect(await query({ createdWithinDays: 1 })).toEqual([
       "Filter Fresh",
       "Filter Stale",
     ]);
+    // unaccent expands and replaces letters NFD cannot split: Æ, ø.
+    await create(asAlice, { name: "Filter Island", location: "Ærøskøbing" });
+    expect(await query({ search: "aeroskobing" })).toEqual(["Filter Island"]);
+    expect(await query({ search: "ærø" })).toEqual(["Filter Island"]);
+    // A search and a smart list's search compose in one query.
+    const island = await inContactTransaction((tx) =>
+      createContactList(tx, asAlice, {
+        name: "Islands",
+        color: "blue",
+        smartFilter: { search: "skobing" },
+      }),
+    );
+    const inList = (search: string) =>
+      listContacts(asAlice, {
+        filter: { search },
+        listId: island.id,
+        sort: "name",
+        limit: 50,
+      }).then((page) => page.items.map((contact) => contact.name));
+    expect(await inList("aero")).toEqual(["Filter Island"]);
+    expect(await inList("zurich")).toEqual([]);
   });
 
   it("derives the reply state from directions and filters by it", async () => {
@@ -724,6 +888,38 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     expect(dates).toEqual([...dates].sort((a, b) => b - a));
   });
 
+  it("pages name hits before sorted role and summary hits, including literal search characters", async () => {
+    const marker = "Q_17%";
+    const rows = await Promise.all([
+      create(asAlice, { name: "Lane Q_17%" }),
+      create(asAlice, { name: "Smith Q_17%" }),
+      create(asAlice, { name: "Adams", role: marker }),
+      create(asAlice, { name: "Doyle", summary: marker }),
+      create(asAlice, { name: "Queen17 decoy", role: "QA17-random" }),
+    ]);
+    try {
+      const pages = [];
+      let cursor: string | undefined;
+      for (let index = 0; index < 4; index++) {
+        const result = await listContacts(asAlice, {
+          filter: { search: marker },
+          sort: "name",
+          limit: 1,
+          cursor,
+        });
+        expect(result.total).toBe(4);
+        pages.push(result.items[0]?.name);
+        cursor = result.nextCursor ?? undefined;
+      }
+      expect(pages).toEqual(["Lane Q_17%", "Smith Q_17%", "Adams", "Doyle"]);
+      expect(cursor).toBeUndefined();
+    } finally {
+      await prisma.contact.deleteMany({
+        where: { id: { in: rows.map((row) => row.contact.id) } },
+      });
+    }
+  });
+
   it("pages through contacts sorted by last contact with never-contacted last", async () => {
     const seen: string[] = [];
     let cursor: string | undefined;
@@ -799,6 +995,28 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
       knownBy: [{ id: bob }],
       channels: [{ source: "CALENDAR" }],
     });
+  });
+
+  it("leaves contacts marked as different people out of duplicates", async () => {
+    const ids = [
+      (await create(asAlice, { name: "Mia Twin" })).contact.id,
+      (await create(asAlice, { name: "mia twin" })).contact.id,
+      (await create(asAlice, { name: "Mia Twin " })).contact.id,
+    ];
+    const group = async () =>
+      (await findDuplicateContacts(asAlice)).find(
+        (found) => found.name.trim().toLowerCase() === "mia twin",
+      );
+    expect((await group())?.contacts).toHaveLength(3);
+    // Two of them are different people; the third may still be either.
+    await inContactTransaction((tx) =>
+      markNotDuplicates(tx, asAlice, [ids[0] ?? "", ids[1] ?? ""]),
+    );
+    expect((await group())?.contacts).toHaveLength(3);
+    await inContactTransaction((tx) => markNotDuplicates(tx, asAlice, ids));
+    expect(await group()).toBeUndefined();
+    // Marking again is a no-op.
+    await inContactTransaction((tx) => markNotDuplicates(tx, asAlice, ids));
   });
 
   it("removes a primary channel and promotes the next one", async () => {
@@ -984,12 +1202,16 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
           linkNewsletterContacts(tx, newsletter.id, asAlice, people, "MANUAL"),
         );
         await prisma.newsletterSubscriber.createMany({
-          data: people.map((person, index) => ({
-            newsletterId: newsletter.id,
-            contactId: original.get(person.email)?.id,
-            email: person.email,
-            status: index === 0 ? "ACTIVE" : "BOUNCED",
-          })),
+          data: people.map((person, index) => {
+            const contact = original.get(person.email);
+            if (!contact) throw new Error("Missing reader contact fixture");
+            return {
+              newsletterId: newsletter.id,
+              contactId: contact.id,
+              email: person.email,
+              status: index === 0 ? "ACTIVE" : "BOUNCED",
+            };
+          }),
         });
         const survivor = await create(asAlice, { name: "Surviving reader" });
         await inContactTransaction((tx) =>

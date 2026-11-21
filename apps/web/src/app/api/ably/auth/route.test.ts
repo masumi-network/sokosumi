@@ -13,6 +13,8 @@ vi.mock("@/lib/clients/utils/core-api-base-url", () => ({
   getCoreApiBaseUrl: () => "http://core.test/v1",
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
+import { CoreApiRequestError } from "@/lib/clients/core.request";
 import { POST } from "./route";
 
 function createRequest() {
@@ -26,7 +28,6 @@ describe("POST /api/ably/auth", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", fetchMock);
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
     headersMock.mockResolvedValue(new Headers({ cookie: "session=abc" }));
     // The session helper reports null on both outages and expired sessions.
     getSessionMock.mockResolvedValue(null);
@@ -93,11 +94,20 @@ describe("POST /api/ably/auth", () => {
   it.each([403, 429, 500, 503])(
     "keeps Core %i retryable instead of reporting session loss",
     async (status) => {
+      const errorCalls = expectConsole(
+        "error",
+        "Failed to mint Ably token via Core:",
+      );
       fetchMock.mockResolvedValue(new Response("Core error", { status }));
 
       const response = await POST(createRequest());
 
       expect(response.status).toBe(502);
+      expect(errorCalls[0]?.[1]).toBeInstanceOf(CoreApiRequestError);
+      expect(errorCalls[0]?.[1]).toMatchObject({
+        message: `Core Ably token mint failed (${status}): Core error`,
+        status,
+      });
     },
   );
 
@@ -107,6 +117,7 @@ describe("POST /api/ably/auth", () => {
    * realtime client.
    */
   it("answers 503 when the Core token request runs out of time", async () => {
+    expectConsole("error", "Failed to mint Ably token via Core");
     const timeout = new Error("The operation was aborted due to timeout");
     timeout.name = "TimeoutError";
     fetchMock.mockRejectedValue(timeout);
@@ -127,6 +138,7 @@ describe("POST /api/ably/auth", () => {
    * out the retry hint, which is what the browser needs to come back.
    */
   it("keeps transport failure retryable instead of reporting session loss", async () => {
+    expectConsole("error", "Failed to mint Ably token via Core");
     fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
 
     const response = await POST(createRequest());

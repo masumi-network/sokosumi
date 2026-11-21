@@ -1,17 +1,21 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TASK_DETAIL_SHELL_CLASS } from "@/app/tasks/constants";
 
 const {
+  connectionMock,
   projectServiceMock,
   notificationServiceMock,
   workspaceColumnMock,
   notFoundMock,
 } = vi.hoisted(() => ({
+  connectionMock: vi.fn(async () => undefined),
   projectServiceMock: {
     getProjectCloseStatus: vi.fn(),
     getProjectById: vi.fn(),
     getProjectsStats: vi.fn(),
+    isProjectHidden: vi.fn(async () => false),
     listRecentActivity: vi.fn(),
   },
   notificationServiceMock: { listNeedsYou: vi.fn() },
@@ -21,10 +25,16 @@ const {
   }),
 }));
 
-vi.mock("next/navigation", () => ({
+vi.mock("server-only", () => ({}));
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
+vi.mock("next/server", () => ({ connection: connectionMock }));
+
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
   notFound: notFoundMock,
   // The project tab bar reads the current route to mark its own tab.
   usePathname: () => "/projects/project-1",
+  useRouter: () => ({ refresh: vi.fn() }),
 }));
 
 vi.mock("next-intl/server", async () => {
@@ -51,25 +61,46 @@ vi.mock("@/app/projects/components/workspace-column", async () => ({
       typeof import("@/app/projects/components/workspace-column")
     >("@/app/projects/components/workspace-column")
   ).panelFeed,
+  requestPanelFeed: (
+    await vi.importActual<
+      typeof import("@/app/projects/components/workspace-column")
+    >("@/app/projects/components/workspace-column")
+  ).requestPanelFeed,
   WorkspaceColumn: (props: Record<string, unknown>) => {
     workspaceColumnMock(props);
     return <div data-testid="workspace-column" />;
   },
 }));
 
-// The Bots tab asks Core about shared bots; off here, as by default.
+// The Bots tab asks Core about shared bots; off by default.
+const listSharedMock = vi.fn(async (): Promise<unknown> => null);
+const getActiveOrganizationIdMock = vi.fn(
+  async (): Promise<string | null> => null,
+);
 vi.mock("@/lib/services/soko-bot.service", () => ({
-  sokoBotService: { listShared: async () => null },
+  sokoBotService: { listShared: () => listSharedMock() },
 }));
 vi.mock("@/lib/services/user.service", () => ({
-  userService: { getActiveOrganizationId: async () => null },
+  userService: {
+    getActiveOrganizationId: () => getActiveOrganizationIdMock(),
+  },
 }));
 
 // Stubbed: the pin reads the reader's Pin list through react-query, and this
 // file is about the page, not about Pin state.
 vi.mock("@/app/projects/components/project-header-actions", () => ({
-  ProjectHeaderActions: ({ cmo }: { cmo?: boolean }) => (
-    <div data-testid="project-header-actions" data-cmo={String(Boolean(cmo))}>
+  ProjectHeaderActions: ({
+    cmo,
+    isHidden,
+  }: {
+    cmo?: boolean;
+    isHidden?: boolean;
+  }) => (
+    <div
+      data-testid="project-header-actions"
+      data-cmo={String(Boolean(cmo))}
+      data-hidden={String(isHidden)}
+    >
       <div>Pin project</div>
       <div>Project actions</div>
     </div>
@@ -164,6 +195,65 @@ describe("ProjectDetailPage", () => {
     );
     expect(projectServiceMock.getProjectsStats).not.toHaveBeenCalled();
     expect(notFoundMock).toHaveBeenCalledOnce();
+  });
+
+  // A cached 404 would outlive the stale window: nothing on a 404 page
+  // refreshes it. So a miss reads the project again, fresh.
+  it("reads a missing project again, fresh, before the 404", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(null);
+
+    const { default: ProjectDetailPage } = await import("./page");
+
+    await expect(
+      ProjectDetailPage({
+        params: Promise.resolve({ projectId: "project-missing" }),
+      }),
+    ).rejects.toThrow("NOT_FOUND");
+
+    expect(connectionMock).toHaveBeenCalledOnce();
+    expect(projectServiceMock.getProjectById).toHaveBeenCalledTimes(2);
+  });
+
+  // A connection() the page awaits would drop the Overview from a link
+  // prefetch. This proves only that the page renders without it, and that
+  // the uncached panel reads wait for it.
+  it("renders the Overview while the request has not come, and reads the panels only after it", async () => {
+    connectionMock.mockReturnValue(new Promise(() => {}));
+    projectServiceMock.getProjectById.mockResolvedValue(buildProject());
+
+    const { default: ProjectDetailPage } = await import("./page");
+    try {
+      render(
+        await ProjectDetailPage({
+          params: Promise.resolve({ projectId: "project-1" }),
+        }),
+      );
+
+      expect(screen.getByText("Launch plan")).toBeInTheDocument();
+      expect(notificationServiceMock.listNeedsYou).not.toHaveBeenCalled();
+      expect(projectServiceMock.listRecentActivity).not.toHaveBeenCalled();
+    } finally {
+      connectionMock.mockReset();
+      connectionMock.mockImplementation(async () => undefined);
+    }
+  });
+
+  // A prefetch must not keep a failed read as the page the click opens.
+  it("renders a failed project read fresh on the click", async () => {
+    projectServiceMock.getProjectById
+      .mockRejectedValueOnce(new Error("Core answered 503"))
+      .mockResolvedValue(buildProject());
+
+    const { default: ProjectDetailPage } = await import("./page");
+    render(
+      await ProjectDetailPage({
+        params: Promise.resolve({ projectId: "project-1" }),
+      }),
+    );
+
+    // The panels' feeds call connection() too, so count the fresh read.
+    expect(projectServiceMock.getProjectById).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("Launch plan")).toBeInTheDocument();
   });
 
   it("is one column of what the project is, beside its panels", async () => {
@@ -323,6 +413,42 @@ describe("ProjectDetailPage", () => {
     ).toHaveAttribute("aria-current", "page");
   });
 
+  // Read inside the prefetch cache: the header would read it outside, and an
+  // uncached Core read while a prefetch renders cuts that prefetch short.
+  it("hands the header the cached Hidden state", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(buildProject());
+    projectServiceMock.isProjectHidden.mockResolvedValueOnce(true);
+
+    const { default: ProjectDetailPage } = await import("./page");
+    render(
+      await ProjectDetailPage({
+        params: Promise.resolve({ projectId: "project-1" }),
+      }),
+    );
+
+    expect(screen.getByTestId("project-header-actions")).toHaveAttribute(
+      "data-hidden",
+      "true",
+    );
+  });
+
+  it("adds the Bots tab in an organization with shared bots", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(buildProject());
+    listSharedMock.mockResolvedValueOnce([{ id: "bot-1" }]);
+    getActiveOrganizationIdMock.mockResolvedValueOnce("org-1");
+
+    const { default: ProjectDetailPage } = await import("./page");
+    render(
+      await ProjectDetailPage({
+        params: Promise.resolve({ projectId: "project-1" }),
+      }),
+    );
+
+    expect(
+      screen.getByRole("link", { name: "App.Projects.Detail.tabs.bots" }),
+    ).toHaveAttribute("href", "/projects/project-1/bots");
+  });
+
   it("counts the Tasks board's columns, each linking to the project's board", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(buildProject());
     projectServiceMock.getProjectsStats.mockResolvedValue(
@@ -359,12 +485,16 @@ describe("ProjectDetailPage", () => {
     expect(done).toHaveTextContent("App.Projects.Detail.stats.done14");
     // Each opens the project's board, where its column shows that number.
     for (const link of [running, waiting, done]) {
-      expect(link).toHaveAttribute("href", "/tasks?projectId=project-1");
+      expect(link).toHaveAttribute(
+        "href",
+        "/tasks?projectId=project-1&scope=workspace",
+      );
     }
     expect(screen.queryByTestId("project-status-open")).toBeNull();
   });
 
   it("leaves the strip out when the counts fail to load", async () => {
+    expectConsole("warn", "Project Overview task counts failed");
     projectServiceMock.getProjectById.mockResolvedValue(buildProject());
     projectServiceMock.getProjectsStats.mockRejectedValue(new Error("down"));
 
@@ -380,6 +510,7 @@ describe("ProjectDetailPage", () => {
   });
 
   it("scopes Needs you and Recent activity to the project", async () => {
+    expectConsole("warn", "Workspace column feed failed");
     projectServiceMock.getProjectById.mockResolvedValue(buildProject());
     notificationServiceMock.listNeedsYou.mockRejectedValue(new Error("down"));
 

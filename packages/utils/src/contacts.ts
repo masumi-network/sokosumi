@@ -209,6 +209,16 @@ export function normalizeContactChannelValue(
   }
 }
 
+/** Opens the contact detail panel in the workspace that supplied the link. */
+export function contactDetailHref(
+  contactId: string,
+  workspaceId?: string,
+): string {
+  const params = new URLSearchParams({ contact: contactId });
+  if (workspaceId) params.set("workspace", workspaceId);
+  return `/contacts?${params}`;
+}
+
 /** A name to file a contact under when only an address is known. */
 export function contactNameFromChannel(
   type: ContactChannelType,
@@ -407,6 +417,48 @@ export const contactListMembersSchema = z
     "Add or remove at least one contact",
   );
 
+/** A company list is always manual: no smart filter. */
+export const companyListInputSchema = contactListInputSchema.omit({
+  smartFilter: true,
+});
+
+export const companyListUpdateSchema = contactListUpdateSchema.omit({
+  smartFilter: true,
+});
+
+export const companyListMembersSchema = z
+  .object({
+    add: z.array(z.uuid()).max(500).default([]),
+    remove: z.array(z.uuid()).max(500).default([]),
+  })
+  .refine(
+    (value) => value.add.length + value.remove.length > 0,
+    "Add or remove at least one company",
+  );
+
+/** One stage for many contacts at once; all of them or none change. */
+export const setContactsStageSchema = z.object({
+  contactIds: z.array(z.uuid()).min(1).max(500),
+  stage: z.enum(CONTACT_STAGES),
+});
+
+/**
+ * Puts each contact back on its own earlier stage, but only while it is still
+ * at `version`: a contact someone changed since stays as it is.
+ */
+export const undoContactsStageSchema = z.object({
+  contacts: z
+    .array(
+      z.object({
+        id: z.uuid(),
+        stage: z.enum(CONTACT_STAGES),
+        version: z.int().positive(),
+      }),
+    )
+    .min(1)
+    .max(500),
+});
+
 export const mergeContactsSchema = z
   .object({
     winnerId: z.uuid(),
@@ -420,7 +472,7 @@ export const mergeContactsSchema = z
 const columnRefSchema = z.string().trim().min(1).max(200);
 
 /** Contact field → table column (id or name) for an import. */
-export const contactImportMappingSchema = z
+const contactImportMappingSchema = z
   .object({
     name: columnRefSchema,
     organization: columnRefSchema.optional(),

@@ -3,9 +3,16 @@ import { createRoute } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { getImageCatalog } from "@/lib/image-studio/catalog";
+import {
+  getImageCatalog,
+  studioImageModelId,
+} from "@/lib/image-studio/catalog";
 import { ensureImageCatalogFresh } from "@/lib/image-studio/fal-catalog-refresh";
-import { getVideoCatalog } from "@/lib/image-studio/video-catalog";
+import { getTalkingVideoCatalog } from "@/lib/image-studio/talking-video";
+import {
+  getVideoCatalog,
+  studioVideoModelId,
+} from "@/lib/image-studio/video-catalog";
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { imageStudioCatalogSchema } from "@/schemas/project-image-studio.schema";
 
@@ -55,9 +62,11 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       c,
       imageStudioCatalogSchema.parse({
         ...getImageCatalog(),
-        defaultVideoModelId: video.defaultModelId,
-        defaultAnimateModelId: video.defaultAnimateModelId,
+        defaultModelId: studioImageModelId(),
+        defaultVideoModelId: studioVideoModelId("text"),
+        defaultAnimateModelId: studioVideoModelId("image"),
         videoModels: video.models,
+        talkingVideo: getTalkingVideoCatalog(),
       }),
     );
   });

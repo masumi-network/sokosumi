@@ -30269,6 +30269,386 @@
           }
         }
       }
+    },
+    "/contacts/{id}": {
+      "get": {
+        "tags": [
+          "Contacts"
+        ],
+        "description": "One contact with its channels, lists, who on the team knows them, the ten latest interactions and merge suggestions. A merged contact answers with `mergedIntoId` set.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationSlug"
+          },
+          {
+            "$ref": "#/components/parameters/ContextUserId"
+          },
+          {
+            "$ref": "#/components/parameters/ContextOrganizationId"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contact",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ContactDetail"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginationMetadata"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Contact not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -35603,6 +35983,649 @@
           "youtube"
         ],
         "example": "x"
+      },
+      "ContactDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Contact"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "recentInteractions": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ContactInteraction"
+                }
+              },
+              "mergeSuggestions": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ContactMergeSuggestion"
+                }
+              }
+            },
+            "required": [
+              "recentInteractions",
+              "mergeSuggestions"
+            ]
+          }
+        ]
+      },
+      "Contact": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContactScore"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "organization": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "whyInteresting": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "stage": {
+            "$ref": "#/components/schemas/ContactStage"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ContactKind"
+          },
+          "nextStep": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "followUpAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-11-02"
+          },
+          "avatarUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "customFields": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "firstContactAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2021-01-01T00:00:00.000Z"
+          },
+          "lastContactAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "example": "2021-01-01T00:00:00.000Z"
+          },
+          "interactionCount": {
+            "type": "integer"
+          },
+          "lastInboundAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "example": "2021-01-01T00:00:00.000Z"
+          },
+          "awaitingReplySince": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "example": "2021-01-01T00:00:00.000Z"
+          },
+          "replyState": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContactReplyState"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where the latest outreach stands: AWAITING_REPLY for a week, then NO_REPLY; IN_CONVERSATION when they wrote or met within 30 days, REPLIED before that; null without directed interactions."
+          },
+          "createdByUserId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdBySokoBotId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mergedIntoId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "archivedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "example": "2021-01-01T00:00:00.000Z"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2021-01-01T00:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2021-01-01T00:00:00.000Z"
+          },
+          "channels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContactChannel"
+            }
+          },
+          "lists": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContactListRef"
+            }
+          },
+          "knownBy": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContactKnownBy"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "score",
+          "name",
+          "organization",
+          "role",
+          "location",
+          "summary",
+          "whyInteresting",
+          "stage",
+          "kind",
+          "nextStep",
+          "followUpAt",
+          "avatarUrl",
+          "customFields",
+          "firstContactAt",
+          "lastContactAt",
+          "interactionCount",
+          "lastInboundAt",
+          "awaitingReplySince",
+          "replyState",
+          "createdByUserId",
+          "createdBySokoBotId",
+          "mergedIntoId",
+          "version",
+          "archivedAt",
+          "createdAt",
+          "updatedAt",
+          "channels",
+          "lists",
+          "knownBy"
+        ]
+      },
+      "ContactScore": {
+        "type": "object",
+        "properties": {
+          "familiarity": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "How well the reader knows them, 0–100, from the reader's own interactions: how many, whether they answer, meetings, how recent."
+          },
+          "importance": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100,
+            "description": "How much they matter to the reader, 0–100; null until judged."
+          },
+          "importanceSource": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "JEV",
+              "SOKO_BOT",
+              "MANUAL",
+              null
+            ]
+          },
+          "importanceReason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why Jev judged it so, as comma-separated keys: decides, value, active, close, or noise."
+          }
+        },
+        "required": [
+          "familiarity",
+          "importance",
+          "importanceSource",
+          "importanceReason"
+        ]
+      },
+      "ContactStage": {
+        "type": "string",
+        "enum": [
+          "CONTACT",
+          "PROSPECT",
+          "LEAD",
+          "ACTIVE",
+          "CUSTOMER",
+          "PARTNER",
+          "INVESTOR",
+          "VENDOR",
+          "ADVISOR",
+          "COMMUNITY",
+          "PRESS",
+          "FRIEND",
+          "DORMANT"
+        ]
+      },
+      "ContactKind": {
+        "type": "string",
+        "enum": [
+          "PERSON",
+          "ORGANIZATION"
+        ]
+      },
+      "ContactReplyState": {
+        "type": "string",
+        "enum": [
+          "AWAITING_REPLY",
+          "NO_REPLY",
+          "IN_CONVERSATION",
+          "REPLIED"
+        ]
+      },
+      "ContactChannel": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ContactChannelType"
+          },
+          "value": {
+            "type": "string"
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isPrimary": {
+            "type": "boolean"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ContactChannelSource"
+          },
+          "sourceUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "verified": {
+            "type": "boolean"
+          },
+          "followers": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2021-01-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "value",
+          "label",
+          "isPrimary",
+          "source",
+          "sourceUrl",
+          "verified",
+          "followers",
+          "createdAt"
+        ]
+      },
+      "ContactChannelType": {
+        "type": "string",
+        "enum": [
+          "EMAIL",
+          "PHONE",
+          "SLACK",
+          "LINKEDIN",
+          "X",
+          "WEBSITE",
+          "TELEGRAM",
+          "WHATSAPP",
+          "GITHUB",
+          "OTHER"
+        ]
+      },
+      "ContactChannelSource": {
+        "type": "string",
+        "enum": [
+          "MANUAL",
+          "EMAIL",
+          "CALENDAR",
+          "SLACK",
+          "WEB_RESEARCH",
+          "IMPORT",
+          "OTHER",
+          "X"
+        ]
+      },
+      "ContactListRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "color": {
+            "$ref": "#/components/schemas/ContactListColor"
+          },
+          "addedAutomatically": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "color",
+          "addedAutomatically"
+        ]
+      },
+      "ContactListColor": {
+        "type": "string",
+        "enum": [
+          "gray",
+          "red",
+          "orange",
+          "amber",
+          "green",
+          "teal",
+          "blue",
+          "indigo",
+          "violet",
+          "pink"
+        ]
+      },
+      "ContactKnownBy": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ContactPerson"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "interactionCount": {
+                "type": "integer"
+              },
+              "lastInteractionAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "example": "2021-01-01T00:00:00.000Z"
+              }
+            },
+            "required": [
+              "interactionCount",
+              "lastInteractionAt"
+            ]
+          }
+        ]
+      },
+      "ContactPerson": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "image": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "image"
+        ]
+      },
+      "ContactInteraction": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "contactId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2021-01-01T00:00:00.000Z"
+          },
+          "channel": {
+            "$ref": "#/components/schemas/ContactInteractionChannel"
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContactInteractionDirection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "sourceRef": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sourceUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "user": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContactPerson"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sokoBot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContactSokoBot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2021-01-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "contactId",
+          "occurredAt",
+          "channel",
+          "direction",
+          "summary",
+          "sourceRef",
+          "sourceUrl",
+          "user",
+          "sokoBot",
+          "createdAt"
+        ]
+      },
+      "ContactInteractionChannel": {
+        "type": "string",
+        "enum": [
+          "EMAIL",
+          "MEETING",
+          "SLACK",
+          "CALL",
+          "MANUAL",
+          "OTHER",
+          "X"
+        ]
+      },
+      "ContactInteractionDirection": {
+        "type": "string",
+        "enum": [
+          "IN",
+          "OUT",
+          "BOTH"
+        ]
+      },
+      "ContactSokoBot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "ContactMergeSuggestion": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "enum": [
+              "shared_channel",
+              "same_name"
+            ]
+          },
+          "contactIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "reason",
+          "contactIds"
+        ]
       }
     }
   }

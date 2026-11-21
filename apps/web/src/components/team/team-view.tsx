@@ -69,7 +69,17 @@ export function TeamFileView({ url }: { url: string }) {
   return <TeamView team={state.team} />;
 }
 
+/** One person is a profile page; more are an org chart. */
 export function TeamView({ team }: { team: Team }) {
+  const [only] = team.people;
+  return team.people.length === 1 && only ? (
+    <ProfilePage person={only} />
+  ) : (
+    <OrgChart team={team} />
+  );
+}
+
+function OrgChart({ team }: { team: Team }) {
   const t = useTranslations("Components.TeamView");
   const [openId, setOpenId] = useState<string | null>(null);
   const open = team.people.find((person) => person.id === openId) ?? null;
@@ -241,7 +251,6 @@ function Photo({
 }
 
 function Profile({ person }: { person: TeamPerson }) {
-  const t = useTranslations("Components.TeamView");
   return (
     <div className="grid gap-6 p-6">
       <div className="flex items-center gap-4 pe-6">
@@ -249,19 +258,52 @@ function Profile({ person }: { person: TeamPerson }) {
         <div className="grid min-w-0 gap-1">
           <SheetTitle className="text-xl">{person.name}</SheetTitle>
           <SheetDescription>{person.role}</SheetDescription>
-          {person.linkedin ? (
-            <a
-              href={person.linkedin}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground truncate text-xs underline-offset-2 hover:underline"
-            >
-              {t("linkedin")}
-            </a>
-          ) : null}
+          <LinkedIn person={person} />
         </div>
       </div>
+      <ProfileDetails person={person} />
+    </div>
+  );
+}
 
+/** A one-person team file: the same profile, as a page of its own. */
+function ProfilePage({ person }: { person: TeamPerson }) {
+  return (
+    <article className="mx-auto grid w-full max-w-2xl gap-8 py-4">
+      <header className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-start">
+        <Photo person={person} className="size-28 shrink-0" />
+        <div className="grid min-w-0 gap-1">
+          <h2 className="text-3xl font-semibold tracking-tight">
+            {person.name}
+          </h2>
+          <p className="text-muted-foreground text-base">{person.role}</p>
+          <LinkedIn person={person} />
+        </div>
+      </header>
+      <ProfileDetails person={person} />
+    </article>
+  );
+}
+
+function LinkedIn({ person }: { person: TeamPerson }) {
+  const t = useTranslations("Components.TeamView");
+  if (!person.linkedin) return null;
+  return (
+    <a
+      href={person.linkedin}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-muted-foreground hover:text-foreground truncate text-xs underline-offset-2 hover:underline"
+    >
+      {t("linkedin")}
+    </a>
+  );
+}
+
+function ProfileDetails({ person }: { person: TeamPerson }) {
+  const t = useTranslations("Components.TeamView");
+  return (
+    <>
       {person.summary ? (
         <p className="text-sm leading-relaxed">{person.summary}</p>
       ) : null}
@@ -285,7 +327,7 @@ function Profile({ person }: { person: TeamPerson }) {
 
       <Entries title={t("experience")} entries={person.experience} />
       <Entries title={t("education")} entries={person.education} />
-    </div>
+    </>
   );
 }
 

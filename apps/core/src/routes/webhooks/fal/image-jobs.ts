@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 
 import prisma from "@/lib/db/prisma";
+import { recordCoreWarning } from "@/lib/evlog";
 import { parseMedia } from "@/lib/image-studio/fal-client";
 import {
   readWebhookHeaders,
@@ -33,9 +34,19 @@ export function mountFalImageJobsWebhook(app: Hono): void {
       rawBody: raw,
     });
     if (!verification.ok) {
-      console.warn("[webhooks/fal] rejected delivery", {
-        reason: verification.reason,
-      });
+      // A JWKS failure carries the library's text after its code; that text
+      // belongs in `cause`, the code in a field.
+      const [reason, ...detail] = verification.reason.split(":");
+      recordCoreWarning(
+        { operation: "fal_image_job_webhook" },
+        {
+          message: "Rejected a fal webhook delivery",
+          why: "Its signature did not verify against fal's published keys",
+          fix: "A guessed or replayed request needs nothing. If genuine deliveries keep failing, check fal's key endpoint and the server clock; the reason field names the check that failed.",
+          ...(detail.length > 0 ? { cause: detail.join(":") } : {}),
+        },
+        { verification: { reason } },
+      );
       // 401 rather than 200: an unverified caller gets no signal that the
       // request id it guessed exists, and a genuine delivery that failed
       // verification should be retried rather than silently dropped.
@@ -91,10 +102,7 @@ export function mountFalImageJobsWebhook(app: Hono): void {
     // The provider's dimensions go with the URL. They used to be dropped here,
     // which is half of why stored assets read 0x0.
     const produced = media[0]!;
-    await settleWithMedia(job.id, produced.url, {
-      width: produced.width,
-      height: produced.height,
-    });
+    await settleWithMedia(job.id, produced.url, produced, requestId);
     return c.json({ ok: true }, 200);
   });
 }

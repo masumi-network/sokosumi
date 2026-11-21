@@ -42,6 +42,16 @@ describe("shared Soko Bot persona", () => {
     expect(intro).not.toContain("your personal assistant");
   });
 
+  it("names AI coworkers as sign-up does, not ones the owner lacks", () => {
+    const intro = composeSokoBotIntroduction({
+      name: "Atlas",
+      ownerName: null,
+    });
+    expect(intro).toContain("Tasks for AI coworkers");
+    expect(intro).not.toContain("your Coworkers");
+    expect(intro).not.toContain("Coworker questions");
+  });
+
   it("keeps the personal introduction unchanged", () => {
     expect(
       composeSokoBotIntroduction({ name: "Atlas", ownerName: "Ana Lima" }),

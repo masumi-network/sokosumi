@@ -17,6 +17,8 @@ import { Subscribers } from "./subscribers";
 
 export const instant = false;
 
+export { generateNewsletterMetadata as generateMetadata } from "@/app/newsletter/newsletter-project";
+
 interface SubscribersPageProps {
   searchParams: Promise<SearchParams>;
 }
@@ -29,7 +31,10 @@ export default async function SubscribersPage({
 
   const scope = await loadNewsletterProject(searchParams);
   if (!scope.project) {
-    return newsletterWorkspacePage({ unavailable: scope.unavailable });
+    return newsletterWorkspacePage({
+      unavailable: scope.unavailable,
+      showSearch: true,
+    });
   }
   const { project } = scope;
   const newsletter = await newsletterService.getSettings(project.id);

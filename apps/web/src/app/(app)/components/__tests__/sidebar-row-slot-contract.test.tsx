@@ -42,7 +42,7 @@ vi.mock("next-intl", () => ({
   useNow: () => new Date(),
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => false }));
+vi.mock("@/hooks/effects/use-mobile", () => ({ useIsMobile: () => false }));
 
 vi.mock("@/app/chat/components/browse-channels-dialog", () => ({
   BrowseChannelsDialog: () => null,
@@ -70,6 +70,8 @@ vi.mock("@/components/chat/live-member-presence-dot", () => ({
 }));
 vi.mock("@/components/chat/personal-assistant-chrome-store", () => ({
   publishPersonalAssistantChromeVisible: vi.fn(),
+  publishFailedSokoBotId: vi.fn(),
+  useFailedSokoBotId: () => null,
 }));
 vi.mock("@/components/chat/fetch-sidebar-room-collection", () => ({
   fetchSidebarRoomCollection: async () => ({ rooms: [], nextCursor: null }),

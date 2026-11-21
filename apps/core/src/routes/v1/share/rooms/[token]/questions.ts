@@ -4,14 +4,14 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created, ok } from "@/helpers/response";
 import {
   askDataRoomQuestionRequestSchema,
-  dataRoomQuestionSchema,
-  dataRoomQuestionsSchema,
-  toDataRoomQuestionDto,
+  dataRoomViewerQuestionSchema,
+  dataRoomViewerQuestionsSchema,
+  toDataRoomViewerQuestionDto,
 } from "@/schemas/data-room.schema";
 import { findDataRoomFile } from "@/services/data-room-files.service";
 import {
   askDataRoomQuestion,
-  listDataRoomQuestions,
+  listViewerDataRoomQuestions,
 } from "@/services/data-room-members.service";
 import { requireDataRoomViewer } from "./viewer.js";
 
@@ -19,7 +19,7 @@ const listRoute = createRoute({
   method: "get",
   path: "/{token}/questions",
   description:
-    "The viewer's own questions in the room, with answers; about one document when resourceId is given.",
+    "The viewer's own questions in the room and the answers the owner shared with everyone, never who else asked; about one document when resourceId is given.",
   tags: ["Share"],
   security: [],
   request: {
@@ -27,7 +27,7 @@ const listRoute = createRoute({
     query: z.object({ resourceId: z.string().uuid().optional() }),
   },
   responses: {
-    200: jsonSuccessResponse(dataRoomQuestionsSchema, "Questions"),
+    200: jsonSuccessResponse(dataRoomViewerQuestionsSchema, "Questions"),
     401: jsonErrorResponse("Not signed in"),
     404: jsonErrorResponse("Not Found"),
     410: jsonErrorResponse("Closed or expired"),
@@ -51,7 +51,7 @@ const askRoute = createRoute({
     },
   },
   responses: {
-    201: jsonSuccessResponse(dataRoomQuestionSchema, "Question"),
+    201: jsonSuccessResponse(dataRoomViewerQuestionSchema, "Question"),
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Not signed in"),
     404: jsonErrorResponse("Not Found"),
@@ -66,15 +66,12 @@ export default function mount(app: OpenAPIHono) {
     const file = resourceId
       ? await findDataRoomFile(viewer.room, resourceId)
       : null;
-    const questions = await listDataRoomQuestions({
+    const questions = await listViewerDataRoomQuestions({
       room: viewer.room,
-      memberId: viewer.member.id,
+      member: viewer.member,
       ...(file ? { path: file.path } : {}),
     });
-    return ok(
-      c,
-      dataRoomQuestionsSchema.parse(questions.map(toDataRoomQuestionDto)),
-    );
+    return ok(c, dataRoomViewerQuestionsSchema.parse(questions));
   });
 
   app.openapi(askRoute, async (c) => {
@@ -88,11 +85,8 @@ export default function mount(app: OpenAPIHono) {
     });
     return created(
       c,
-      dataRoomQuestionSchema.parse(
-        toDataRoomQuestionDto({
-          ...question,
-          member: { email: viewer.member.email, name: viewer.member.name },
-        }),
+      dataRoomViewerQuestionSchema.parse(
+        toDataRoomViewerQuestionDto(question, viewer.member.id),
       ),
     );
   });

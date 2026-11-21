@@ -9,6 +9,7 @@ import {
   NEEDS_YOU_TAGS,
 } from "@/lib/chat-signals/tags";
 import prisma from "@/lib/db/prisma";
+import { readBackgroundMessageContent } from "@/lib/soko-bot/background-failure";
 import {
   captureContactInteraction,
   inContactTransaction,
@@ -88,7 +89,13 @@ export async function notifyChatSignalReaders(
 
   const bodies = await prisma.chatRoomMessage.findMany({
     where: { id: { in: due.map(({ message }) => message.messageId) } },
-    select: { id: true, content: true, senderUser: { select: { name: true } } },
+    select: {
+      id: true,
+      content: true,
+      metadata: true,
+      senderSokoBotId: true,
+      senderUser: { select: { name: true } },
+    },
   });
   let notified = 0;
   for (const { message, recipients } of due) {
@@ -100,7 +107,7 @@ export async function notifyChatSignalReaders(
       roomShape,
       organizationId: room.organizationId,
       messageId: message.messageId,
-      content: body.content,
+      content: readBackgroundMessageContent(body),
       authorUserId: message.authorUserId,
       authorName: body.senderUser?.name ?? "Someone",
       mentionedUserIds: recipients,
@@ -159,7 +166,7 @@ export async function captureExternalRoomContacts(
 
   const bodies = await prisma.chatRoomMessage.findMany({
     where: { id: { in: messages.map((message) => message.messageId) } },
-    select: { id: true, content: true },
+    select: { id: true, content: true, metadata: true, senderSokoBotId: true },
   });
   const actor = {
     workspaceId: workspace.id,
@@ -180,10 +187,13 @@ export async function captureExternalRoomContacts(
         : [];
     for (const [guestId, person] of people) {
       if (!person.email) continue;
-      const preview = buildChatMessagePreview(
-        bodies.find((body) => body.id === message.messageId)?.content ?? "",
-        new Map(),
-      ).slice(0, 160);
+      const body = bodies.find((body) => body.id === message.messageId);
+      const preview = body
+        ? buildChatMessagePreview(
+            readBackgroundMessageContent(body),
+            new Map(),
+          ).slice(0, 160)
+        : "";
       const interaction = escalation
         ? {
             occurredAt: message.sentAt.toISOString(),

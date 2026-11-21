@@ -14,9 +14,13 @@ import {
   type CmoSaveBrandBrainInput,
   cmoBrandProfileSchema,
   cmoSaveBrandBrainInputSchema,
+  type StoredBrandBrainBody,
+  storedBrandBrainSchema,
 } from "@sokosumi/soko-bot";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
-import { answerNote, keepAnswers } from "@/helpers/question-answers";
+import { jsonInput } from "@/helpers/prisma-json";
+import { keepAskedQuestions } from "@/helpers/question-answers";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import type { StudioBrandCopy } from "@/schemas/studio-brand-kit.schema";
 
@@ -26,9 +30,17 @@ import type { StudioBrandCopy } from "@/schemas/studio-brand-kit.schema";
  * membership; nothing here is CMO's.
  */
 
-export function parseBrandBrain(value: unknown): BrandBrain | null {
-  const parsed = brandBrainSchema.safeParse(value);
+/** As `brandBrainSchema` allows. */
+const BRAND_BRAIN_QUESTIONS_MAX = 6;
+
+export function parseBrandBrain(value: unknown): StoredBrandBrainBody | null {
+  const parsed = storedBrandBrainSchema.safeParse(value);
   return parsed.success ? parsed.data : null;
+}
+
+/** The promise in one line, as CMO shows it. */
+function promiseOf(brain: BrandBrain | null | undefined): string | undefined {
+  return brain?.reveal?.positioning ?? brain?.summary;
 }
 
 export const BRAND_BRAIN_SELECT = {
@@ -74,6 +86,11 @@ export async function saveBrandBrain(
   projectId: string,
   input: CmoSaveBrandBrainInput,
   db?: Prisma.TransactionClient,
+  /**
+   * Cuso's save: when his turn was asked, so only the corrections in its
+   * brief close. A member's own edit closes the fix whenever it was asked.
+   */
+  options: { briefedAt?: Date; by?: "cuso" } = {},
 ): Promise<BrandBrainRecord> {
   const save = cmoSaveBrandBrainInputSchema.parse(input);
   const write = async (tx: Prisma.TransactionClient) => {
@@ -81,14 +98,33 @@ export async function saveBrandBrain(
     const stored = storedBrandBrain(row?.body);
     const incoming = { ...save.brandBrain?.profile, ...save.sections };
     // Cuso's packet carries no findings; a section he rewrites keeps them.
+    // The owner's fix is Core's: it stays, and closes once the answer changes.
     const kept = Object.fromEntries(
-      Object.entries(incoming).map(([key, section]) => {
+      Object.entries(incoming).map(([key, sent]) => {
         const before = stored.profile[key as CmoBrandSectionKey];
+        if (!sent) return [key, sent];
+        const { fix: _sent, ...section } = sent;
+        // A correction asked while the turn wrote never reached it: it stays
+        // open, so the next change picks it up.
+        const briefed =
+          !options.briefedAt ||
+          (before?.fix &&
+            Date.parse(before.fix.at) <= options.briefedAt.getTime());
+        const fix = before?.fix && {
+          ...before.fix,
+          fixed:
+            before.fix.fixed ||
+            (section.answer !== before.answer && Boolean(briefed)),
+        };
         return [
           key,
-          section && section.findings.length === 0 && before
-            ? { ...section, findings: before.findings }
-            : section,
+          {
+            ...section,
+            ...(section.findings.length === 0 && before
+              ? { findings: before.findings }
+              : {}),
+            ...(fix ? { fix } : {}),
+          },
         ];
       }),
     );
@@ -105,17 +141,22 @@ export async function saveBrandBrain(
         "Save the essentials in brandBrain first; reveal, marketingToday and questions add to them.",
       );
     }
+    // Essentials saved again without questions keep the stored ones: an empty
+    // list would wipe what was asked and answered, and they would be asked
+    // again.
+    const sent = save.questions ?? save.brandBrain?.questions ?? [];
     const questions = withCorrections(
-      save.brandBrain || patchingQuestions
-        ? keepAnswers(
-            save.questions ?? save.brandBrain?.questions ?? [],
+      sent.length > 0
+        ? keepAskedQuestions(
+            sent,
             before?.questions ?? [],
+            BRAND_BRAIN_QUESTIONS_MAX,
           )
         : (before?.questions ?? []),
       before?.questions ?? [],
       rewrittenSections(stored.profile, profile),
     );
-    const essentials = base
+    const merged = base
       ? {
           ...base,
           ...(reveal ? { reveal } : {}),
@@ -123,7 +164,21 @@ export async function saveBrandBrain(
           questions,
         }
       : null;
-    const body = essentials ? { ...essentials, profile } : { profile };
+    // Whose words the promise is: a member's rewrite marks it theirs, and
+    // Cuso writing it again makes it his.
+    const rewritten = promiseOf(merged) !== promiseOf(before);
+    const promiseByOwner = rewritten
+      ? options.by !== "cuso"
+      : before?.promiseByOwner === true;
+    const { promiseByOwner: _sent, ...rest } = (merged ?? {}) as {
+      promiseByOwner?: boolean;
+    };
+    const essentials = merged
+      ? { ...rest, ...(promiseByOwner ? { promiseByOwner } : {}) }
+      : null;
+    const body = jsonInput(
+      essentials ? { ...essentials, profile } : { profile },
+    );
     const updatedAt = essentials ? { updatedAt: new Date() } : {};
     return tx.brandBrain.upsert({
       where: { projectId },
@@ -145,21 +200,23 @@ export async function saveStudioBrandCopy(
       throw conflict("The brand kit changed. Reload it before saving.");
     }
     const existing = parseBrandBrain(row?.body);
-    const body = brandBrainSchema.parse({
-      products: [],
-      competitors: [],
-      channels: [],
-      profile: storedBrandBrain(row?.body).profile,
-      ...existing,
-      summary: copy.summary,
-      audience: copy.audience,
-      voice: {
-        do: existing?.voice.do ?? [],
-        dont: existing?.voice.dont ?? [],
-        tone: copy.tone,
-        examples: copy.approvedLines,
-      },
-    });
+    const body = jsonInput(
+      brandBrainSchema.parse({
+        products: [],
+        competitors: [],
+        channels: [],
+        profile: storedBrandBrain(row?.body).profile,
+        ...existing,
+        summary: copy.summary,
+        audience: copy.audience,
+        voice: {
+          do: existing?.voice.do ?? [],
+          dont: existing?.voice.dont ?? [],
+          tone: copy.tone,
+          examples: copy.approvedLines,
+        },
+      }),
+    );
     const updatedAt = new Date(
       Math.max(Date.now(), (row?.updatedAt?.getTime() ?? 0) + 1),
     );
@@ -172,15 +229,23 @@ export async function saveStudioBrandCopy(
   });
 }
 
-/** The sections whose answer a save changed. */
+/**
+ * The sections whose answer a save changed, and whose fix it closed: a no
+ * answered while the turn wrote is still waiting, like its fix.
+ */
 function rewrittenSections(
   before: CmoBrandProfile,
   after: CmoBrandProfile,
 ): Set<CmoBrandSectionKey> {
   return new Set(
-    CMO_BRAND_SECTION_KEYS.filter(
-      (key) => after[key] && after[key]?.answer !== before[key]?.answer,
-    ),
+    CMO_BRAND_SECTION_KEYS.filter((key) => {
+      const section = after[key];
+      return (
+        section &&
+        section.answer !== before[key]?.answer &&
+        (!section.fix || section.fix.fixed)
+      );
+    }),
   );
 }
 
@@ -205,6 +270,107 @@ function withCorrections(
   });
 }
 
+/**
+ * A section's waiting corrections, as the Brand Brain stores them: room for
+ * a no's statement and the owner's whole note, twice over.
+ */
+const BRAND_FIX_NOTE_MAX = 2_000;
+
+/**
+ * The owner says one section is wrong: the fix waits on that section until
+ * Cuso (or a member) rewrites its answer. A second fix before then adds to
+ * the first. The other sections are not touched.
+ */
+export async function requestBrandBrainFix(
+  projectId: string,
+  input: { section: CmoBrandSectionKey; note: string },
+  db?: Prisma.TransactionClient,
+): Promise<BrandBrain> {
+  const write = async (tx: Prisma.TransactionClient) => {
+    const brain = parseBrandBrain((await lockBrandBrain(tx, projectId))?.body);
+    const section = brain?.profile[input.section];
+    if (!brain || !section) {
+      throw notFound("That section is not in the Brand Brain");
+    }
+    const open = section.fix && !section.fix.fixed ? section.fix.note : null;
+    const note = open ? `${open} ${input.note}` : input.note;
+    // Cut to fit, the newest correction would be lost while the owner reads
+    // that it was taken.
+    if (note.length > BRAND_FIX_NOTE_MAX)
+      throw conflict(
+        "This section already has a correction waiting for Cuso, and this one does not fit beside it. Wait until he has rewritten the section, or say it in fewer words.",
+      );
+    const fix = {
+      note,
+      // PostgreSQL time, like the createdAt of the turn that is briefed on it.
+      at: (await databaseNow(tx)).toISOString(),
+      fixed: false,
+    };
+    const fixed = {
+      ...brain,
+      profile: { ...brain.profile, [input.section]: { ...section, fix } },
+    };
+    await tx.brandBrain.update({
+      where: { projectId },
+      data: { body: jsonInput(fixed) },
+    });
+    return fixed;
+  };
+  return db ? write(db) : prisma.$transaction(write);
+}
+
+/**
+ * Takes one correction back out of a section's open fix, when the owner
+ * changes the answer that asked for it. A fix left with nothing in it closes.
+ */
+export async function withdrawBrandBrainFix(
+  projectId: string,
+  input: { section: CmoBrandSectionKey; note: string },
+  db?: Prisma.TransactionClient,
+): Promise<void> {
+  const write = async (tx: Prisma.TransactionClient) => {
+    const brain = parseBrandBrain((await lockBrandBrain(tx, projectId))?.body);
+    const section = brain?.profile[input.section];
+    const fix = section?.fix;
+    if (
+      !brain ||
+      !section ||
+      !fix ||
+      fix.fixed ||
+      !fix.note.includes(input.note)
+    )
+      return;
+    const note = fix.note.replace(input.note, "").replace(/\s+/g, " ").trim();
+    const withdrawn = {
+      ...brain,
+      profile: {
+        ...brain.profile,
+        [input.section]: {
+          ...section,
+          fix: note ? { ...fix, note } : { ...fix, fixed: true },
+        },
+      },
+    };
+    await tx.brandBrain.update({
+      where: { projectId },
+      data: { body: jsonInput(withdrawn) },
+    });
+  };
+  await (db ? write(db) : prisma.$transaction(write));
+}
+
+/** The sections the owner fixed that Cuso has not rewritten yet. */
+export function brandBrainOpenFixes(
+  brain: BrandBrain,
+): { section: CmoBrandSectionKey; note: string; at: string }[] {
+  return CMO_BRAND_SECTION_KEYS.flatMap((key) => {
+    const fix = brain.profile[key]?.fix;
+    return fix && !fix.fixed
+      ? [{ section: key, note: fix.note, at: fix.at }]
+      : [];
+  });
+}
+
 /** The answers whose sections still say what the owner said is not true. */
 export function brandBrainCorrections(brain: BrandBrain): CmoBrandQuestion[] {
   return brain.questions.filter(
@@ -213,16 +379,17 @@ export function brandBrainCorrections(brain: BrandBrain): CmoBrandQuestion[] {
 }
 
 /**
- * What an answer adds to its section: a yes confirms the statement, a no
- * records what is true instead or, without a note, that the statement is not.
+ * What an answer adds to its section: a yes confirms the statement (with the
+ * owner's details), a no records what is true instead or, without a note,
+ * that the statement is not, and a not sure adds only the owner's details.
  */
 function answerFinding(question: CmoBrandQuestion): CmoBrandFinding | null {
   const point =
     question.answer === "yes"
-      ? question.statement
+      ? confirmed(question.statement, question.note)
       : question.answer === "no"
         ? (question.note ?? notTrue(question.statement))
-        : undefined;
+        : question.note;
   return point
     ? {
         point,
@@ -235,6 +402,10 @@ function answerFinding(question: CmoBrandQuestion): CmoBrandFinding | null {
 
 function notTrue(statement: string): string {
   return `Not true: ${statement}`.slice(0, 400);
+}
+
+function confirmed(statement: string, note: string | undefined): string {
+  return note ? `${statement} (${note})`.slice(0, 400) : statement;
 }
 
 /**
@@ -265,8 +436,9 @@ export async function confirmBrandBrain(
 export async function answerBrandBrainQuestion(
   projectId: string,
   input: { questionId: string; answer: CmoBrandAnswer; note?: string },
-): Promise<void> {
-  await prisma.$transaction(async (tx) => {
+  db?: Prisma.TransactionClient,
+): Promise<{ asked: CmoBrandQuestion; answered: CmoBrandQuestion }> {
+  const write = async (tx: Prisma.TransactionClient) => {
     const brain = parseBrandBrain((await lockBrandBrain(tx, projectId))?.body);
     const question = brain?.questions.find(
       (candidate) => candidate.id === input.questionId,
@@ -274,11 +446,13 @@ export async function answerBrandBrainQuestion(
     if (!brain || !question) {
       throw notFound("That question is not in the Brand Brain");
     }
-    const { corrected: _earlier, ...asked } = question;
+    const { corrected: _earlier, note: _previousNote, ...asked } = question;
+    const note = input.note?.trim();
     const answered: CmoBrandQuestion = {
       ...asked,
       answer: input.answer,
-      note: answerNote(input.answer, input.note),
+      // Any answer may carry the owner's details, not only a no.
+      ...(note ? { note } : {}),
       // A no stays open until its section says what is true instead.
       ...(input.answer === "no" ? { corrected: false } : {}),
     };
@@ -286,6 +460,7 @@ export async function answerBrandBrainQuestion(
       question.statement,
       notTrue(question.statement),
       question.note,
+      confirmed(question.statement, question.note),
     ].filter(Boolean);
     const section = brain.profile[question.section];
     const finding = answerFinding(answered);
@@ -295,27 +470,30 @@ export async function answerBrandBrainQuestion(
         (candidate) => !earlier.includes(candidate.point),
       ),
     ].slice(0, 6);
+    const updatedSection = section
+      ? { ...section, findings }
+      : finding
+        ? { answer: finding.point, findings, openQuestions: [] }
+        : null;
     const profile = {
       ...brain.profile,
-      [question.section]: section
-        ? { ...section, findings }
-        : finding
-          ? { answer: finding.point, findings, openQuestions: [] }
-          : undefined,
+      ...(updatedSection ? { [question.section]: updatedSection } : {}),
     };
     await tx.brandBrain.update({
       where: { projectId },
       data: {
-        body: {
+        body: jsonInput({
           ...brain,
           profile,
           questions: brain.questions.map((candidate) =>
             candidate.id === question.id ? answered : candidate,
           ),
-        },
+        }),
       },
     });
-  });
+    return { asked: question, answered };
+  };
+  return db ? write(db) : prisma.$transaction(write);
 }
 
 /** A saved profile section at a glance. */
@@ -386,5 +564,8 @@ export function compactBrandBrain(
   );
   // An answered question already lives in its section as a finding.
   const questions = brain.questions.filter((question) => !question.answer);
-  return { ...brain, profile, questions };
+  // Core's own marks stay out: Cuso reads what he and the owner wrote.
+  const { promiseByOwner: _owner, ...essentials } =
+    brain as StoredBrandBrainBody;
+  return { ...essentials, profile, questions };
 }

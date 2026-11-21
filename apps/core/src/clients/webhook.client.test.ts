@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 
 const fetchMock = vi.fn();
 vi.stubGlobal("fetch", fetchMock);
@@ -66,6 +67,11 @@ describe("webhookClient", () => {
   });
 
   it("skips Sentry reporting on receiver backpressure", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "A webhook receiver's queue was full; the call is not reported to Sentry",
+      ["The receiver answered that its queue is full"],
+    );
     fetchMock.mockResolvedValue(
       new Response("The request queue reached full capacity.", {
         status: 400,
@@ -78,9 +84,19 @@ describe("webhookClient", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(captureMessageMock).not.toHaveBeenCalled();
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "webhook_call",
+      webhookType: "userCreated",
+      status: 400,
+    });
   });
 
   it("skips Sentry reporting on transient webhook timeouts", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "A webhook call failed transiently; it is not reported to Sentry",
+      ["The call timed out or lost its connection"],
+    );
     fetchMock.mockRejectedValue(
       Object.assign(new Error("The operation was aborted"), {
         name: "AbortError",
@@ -92,5 +108,35 @@ describe("webhookClient", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(captureMessageMock).not.toHaveBeenCalled();
+    expect(warnings[0]?.event).toMatchObject({
+      webhookType: "userCreated",
+      // `postWebhook` rewraps a timeout as a plain Error.
+      failure: { errorName: "Error" },
+    });
+  });
+
+  it("keeps a transient failure's text out of the log", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "A webhook call failed transiently; it is not reported to Sentry",
+      ["The call timed out or lost its connection"],
+    );
+    fetchMock.mockRejectedValue(
+      Object.assign(
+        new Error(
+          "timed out after 5000ms posting ada@example.com to hook-secret-path",
+        ),
+        { name: "TimeoutError" },
+      ),
+    );
+    const { webhookClient } = await import("./webhook.client");
+
+    await webhookClient.callWebhook("userCreated", {
+      email: "ada@example.com",
+    });
+
+    const drained = JSON.stringify(coreLogEvents());
+    expect(drained).not.toContain("hook-secret-path");
+    expect(drained).not.toContain("ada@");
   });
 });

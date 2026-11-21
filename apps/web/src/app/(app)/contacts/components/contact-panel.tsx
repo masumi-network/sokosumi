@@ -13,6 +13,8 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import {
+  Archive,
+  ArchiveRestore,
   AtSign,
   Bot,
   Building2,
@@ -28,12 +30,13 @@ import {
   PenLine,
   Phone,
   Plus,
-  Sparkles,
   Trash2,
   UserRound,
+  UserSearch,
+  Zap,
 } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type FormEvent, type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   channelHref,
@@ -41,7 +44,6 @@ import {
   coreErrorOf,
   IMPORTANCE_LEVELS,
   isFollowUpDue,
-  LIST_COLOR_DOT,
   primaryEmail,
   sortChannels,
 } from "@/app/contacts/contacts-view";
@@ -49,7 +51,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -74,12 +75,17 @@ import {
 import { contactsService } from "@/lib/services/contacts.client";
 import { cn } from "@/lib/utils";
 import { ChannelTypeSelect } from "./channel-type-select";
+import {
+  CopyContactLinkItem,
+  useContactWorkspaceId,
+} from "./contact-link-workspace";
+import { ContactListDialog } from "./contact-list-dialog";
 import { ContactTasks } from "./contact-tasks";
 import {
   ChannelIcon,
   ContactAvatar,
-  Dot,
   ListChip,
+  ListOption,
   PersonAvatar,
   ReplyChip,
   ScoreMeter,
@@ -87,7 +93,12 @@ import {
 } from "./contact-visuals";
 import { GroupedRadioItems, useStageOptions } from "./contacts-toolbar";
 import { InlineField } from "./inline-field";
-import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
+import { useContactArchive } from "./use-contact-archive";
+import {
+  useContactUpdate,
+  useImportanceUpdate,
+  useListToggle,
+} from "./use-contact-update";
 import {
   CONTACT_DUPLICATES_KEY,
   contactKey,
@@ -128,8 +139,9 @@ export function ContactPanel({
   onMerge,
 }: Props) {
   const t = useTranslations("App.Contacts.panel");
+  const workspaceId = useContactWorkspaceId();
   const detail = useQuery({
-    queryKey: contactKey(contactId),
+    queryKey: [...contactKey(contactId), workspaceId],
     queryFn: () => contactsService.get(contactId),
   });
   return (
@@ -141,14 +153,25 @@ export function ContactPanel({
         onCloseAutoFocus={onCloseAutoFocus}
       >
         {detail.data ? (
-          <PanelBody
-            contact={detail.data}
-            lists={lists}
-            teammates={teammates}
-            onClose={onClose}
-            onOpenContact={onOpenContact}
-            onMerge={onMerge}
-          />
+          <>
+            {detail.data.archivedAt ? (
+              <ArchivedNotice contact={detail.data} />
+            ) : null}
+            <PanelBody
+              contact={detail.data}
+              lists={lists}
+              teammates={teammates}
+              onClose={onClose}
+              onOpenContact={onOpenContact}
+              onMerge={onMerge}
+            />
+            {/* Outside the body, so an archived contact's history still pages. */}
+            <Section title={t("tasks.title")}>
+              <ContactTasks contact={detail.data} />
+            </Section>
+            <TimelineSection contact={detail.data} />
+            <ActivitySection contact={detail.data} />
+          </>
         ) : detail.error ? (
           <div className="grid gap-3 p-6">
             <SheetTitle>{t("notFoundTitle")}</SheetTitle>
@@ -219,7 +242,7 @@ function PanelBody({
 }: Omit<Props, "contactId"> & { contact: ContactDetail }) {
   const t = useTranslations("App.Contacts");
   const format = useFormatter();
-  const now = useNow();
+  const now = useNow({ updateInterval: 60_000 });
   const cache = useQueryClient();
   const update = useContactUpdate();
   const save = (fields: Parameters<typeof update>[1], optimistic = {}) =>
@@ -245,18 +268,31 @@ function PanelBody({
     teammates.find((person) => person.id === contact.createdByUserId) ?? null;
   const manualLists = lists.filter((list) => list.kind === "manual");
   const [enriching, setEnriching] = useState(false);
+  const [creatingList, setCreatingList] = useState(false);
+  const listsTrigger = useRef<HTMLButtonElement>(null);
 
-  async function toggleList(list: ContactList, on: boolean) {
+  /**
+   * Puts this person on a list just made from their panel. On failure the
+   * list stays, so trying again only adds them: never a second list.
+   */
+  async function addToNewList(list: Pick<ContactList, "id" | "name">) {
     try {
-      await contactsService.changeMembers(
-        list.id,
-        on ? { add: [contact.id] } : { remove: [contact.id] },
+      await contactsService.changeMembers(list.id, { add: [contact.id] });
+    } catch {
+      toast.error(
+        t("panel.newListAddFailed", { list: list.name, name: contact.name }),
+        {
+          action: {
+            label: t("panel.retry"),
+            onClick: () => void addToNewList(list),
+          },
+        },
       );
-      await refreshContacts(cache, contact.id);
-    } catch (error) {
-      toast.error(coreErrorOf(error).message ?? t("errors.saveFailed"));
     }
+    await refreshContacts(cache, contact.id);
   }
+
+  const { toggleList, isSaving } = useListToggle();
 
   async function enrich() {
     setEnriching(true);
@@ -289,16 +325,7 @@ function PanelBody({
     }
   }
 
-  async function archive() {
-    try {
-      await contactsService.archive(contact.id);
-      await refreshContacts(cache, contact.id);
-      toast.success(t("panel.archived", { name: contact.name }));
-      onClose();
-    } catch (error) {
-      toast.error(coreErrorOf(error).message ?? t("errors.saveFailed"));
-    }
-  }
+  const archive = useContactArchive();
 
   const subtitle = [contact.role, contact.organization]
     .filter(Boolean)
@@ -310,8 +337,13 @@ function PanelBody({
     contact.channels.some((channel) => channel.type === type),
   );
 
+  // An archived contact is read-only until restored; Restore sits above. The
+  // fieldset stops native controls; Radix menus open on pointerdown, which a
+  // fieldset does not stop, so each menu trigger is disabled itself too.
+  const archived = !!contact.archivedAt;
+
   return (
-    <div className="flex flex-col">
+    <fieldset disabled={archived} className="flex min-w-0 flex-col">
       <header className="flex items-start gap-4 px-6 pt-6 pb-5 pe-14">
         <ContactAvatar
           name={contact.name}
@@ -406,7 +438,7 @@ function PanelBody({
                 })}
           </p>
         </div>
-        {contact.kind === "PERSON" ? (
+        {contact.kind === "PERSON" && !archived ? (
           <Button
             size="sm"
             variant="outline"
@@ -416,12 +448,12 @@ function PanelBody({
             loading={enriching}
             onClick={() => void enrich()}
           >
-            <Sparkles aria-hidden className="size-4" />
+            <UserSearch aria-hidden className="size-4" />
             <span className="sr-only sm:not-sr-only">{t("panel.enrich")}</span>
           </Button>
         ) : null}
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger asChild disabled={archived}>
             <Button
               size="icon"
               variant="ghost"
@@ -432,18 +464,7 @@ function PanelBody({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={() =>
-                void navigator.clipboard
-                  ?.writeText(
-                    `${window.location.origin}/contacts?contact=${contact.id}`,
-                  )
-                  .then(() => toast.success(t("panel.linkCopied")))
-              }
-            >
-              <Copy aria-hidden className="size-4" />
-              {t("panel.copyLink")}
-            </DropdownMenuItem>
+            <CopyContactLinkItem contactId={contact.id} />
             <DropdownMenuItem
               onClick={() =>
                 void save({
@@ -463,7 +484,7 @@ function PanelBody({
             <DropdownMenuSeparator />
             <DropdownMenuItem
               variant="destructive"
-              onClick={() => void archive()}
+              onClick={() => void archive(contact, onClose)}
             >
               <Trash2 aria-hidden className="size-4" />
               {t("panel.archive")}
@@ -472,7 +493,7 @@ function PanelBody({
         </DropdownMenu>
       </header>
 
-      {contact.mergeSuggestions.length ? (
+      {contact.mergeSuggestions.length && !archived ? (
         <MergeBanner
           contact={contact}
           onOpenContact={onOpenContact}
@@ -483,13 +504,13 @@ function PanelBody({
       <dl className="grid gap-1 px-6 pb-5">
         <Property label={t("columns.stage")}>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger asChild disabled={archived}>
               <button
                 type="button"
                 aria-label={t("panel.changeStage", {
                   stage: t(`stages.${contact.stage}`),
                 })}
-                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 items-center rounded-md px-2 outline-none focus-visible:ring-2"
+                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 items-center rounded-md px-2 outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50"
               >
                 <StageChip stage={contact.stage} />
               </button>
@@ -511,11 +532,11 @@ function PanelBody({
         </Property>
         <Property label={t("columns.importance")}>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger asChild disabled={archived}>
               <button
                 type="button"
                 aria-label={t("importance.change")}
-                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-x-3 rounded-md px-2 text-start outline-none focus-visible:ring-2"
+                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-x-3 rounded-md px-2 text-start outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50"
               >
                 <ScoreMeter
                   value={importance}
@@ -581,11 +602,12 @@ function PanelBody({
         ) : null}
         <Property label={t("columns.lists")}>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger asChild disabled={archived}>
               <button
+                ref={listsTrigger}
                 type="button"
                 aria-label={t("panel.changeLists")}
-                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-1 rounded-md px-2 py-1.5 text-sm outline-none focus-visible:ring-2"
+                className="hover:bg-accent transition-colors focus-visible:ring-ring -mx-2 flex min-h-9 w-[calc(100%+1rem)] flex-wrap items-center gap-1 rounded-md px-2 py-1.5 text-sm outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50"
               >
                 {contact.lists.length ? (
                   contact.lists.map((list) => (
@@ -594,6 +616,7 @@ function PanelBody({
                       name={list.name}
                       color={list.color}
                       automatic={list.addedAutomatically}
+                      saving={isSaving(contact.id, list.id)}
                     />
                   ))
                 ) : (
@@ -605,36 +628,41 @@ function PanelBody({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-56">
               <DropdownMenuLabel>{t("panel.manualLists")}</DropdownMenuLabel>
-              {manualLists.map((list) => {
-                const membership = contact.lists.find(
-                  (item) => item.id === list.id,
-                );
-                return (
-                  <DropdownMenuCheckboxItem
-                    key={list.id}
-                    checked={!!membership}
-                    onSelect={(event) => event.preventDefault()}
-                    onCheckedChange={(checked) =>
-                      void toggleList(list, checked === true)
-                    }
-                  >
-                    <Dot className={LIST_COLOR_DOT[list.color]} />
-                    {list.name}
-                    {membership?.addedAutomatically ? (
-                      <span className="text-muted-foreground ms-auto ps-3 text-xs">
-                        {t("panel.automatic")}
-                      </span>
-                    ) : null}
-                  </DropdownMenuCheckboxItem>
-                );
-              })}
+              {manualLists.map((list) => (
+                <ListOption
+                  key={list.id}
+                  list={list}
+                  membership={contact.lists.find(({ id }) => id === list.id)}
+                  saving={isSaving(contact.id, list.id)}
+                  onToggle={(on) => void toggleList(contact, list, on)}
+                />
+              ))}
               {manualLists.length === 0 ? (
                 <p className="text-muted-foreground px-2 py-1.5 text-sm">
                   {t("panel.noManualLists")}
                 </p>
               ) : null}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => setCreatingList(true)}>
+                <Plus aria-hidden className="size-4" />
+                {t("panel.newList")}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          {creatingList ? (
+            <ContactListDialog
+              onCloseAutoFocus={(event) => {
+                // Back to the Lists button, which opened it through its menu.
+                event.preventDefault();
+                listsTrigger.current?.focus();
+              }}
+              onClose={() => setCreatingList(false)}
+              onSaved={(list) => {
+                setCreatingList(false);
+                void addToNewList(list);
+              }}
+            />
+          ) : null}
         </Property>
         <Property label={t("columns.organization")}>
           <InlineField
@@ -742,12 +770,51 @@ function PanelBody({
           </div>
         </div>
       </Section>
+    </fieldset>
+  );
+}
 
-      <Section title={t("panel.tasks.title")}>
-        <ContactTasks contact={contact} />
-      </Section>
-      <TimelineSection contact={contact} />
-      <ActivitySection contact={contact} />
+/** When an archived contact was archived, and the one thing to do: Restore. */
+function ArchivedNotice({ contact }: { contact: ContactDetail }) {
+  const t = useTranslations("App.Contacts");
+  const format = useFormatter();
+  const restore = useContactArchive({ restore: true });
+  const [restoring, setRestoring] = useState(false);
+  async function handleRestore() {
+    setRestoring(true);
+    try {
+      // The panel stays open on the contact, now live again.
+      await restore(contact, () => {});
+    } finally {
+      setRestoring(false);
+    }
+  }
+  return (
+    <div className="px-6 pt-6 pe-14">
+      <Alert className="border-border bg-muted">
+        <Archive aria-hidden className="size-4" />
+        <AlertDescription className="grid gap-2">
+          <p className="text-foreground text-sm">
+            {t("panel.archivedOn", {
+              date: format.dateTime(new Date(contact.archivedAt ?? 0), {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              }),
+            })}
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-foreground w-fit"
+            loading={restoring}
+            onClick={() => void handleRestore()}
+          >
+            <ArchiveRestore aria-hidden className="size-4" />
+            {t("panel.restore")}
+          </Button>
+        </AlertDescription>
+      </Alert>
     </div>
   );
 }
@@ -899,6 +966,7 @@ function ChannelsSection({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span
+                    role="img"
                     tabIndex={0}
                     aria-label={t("panel.channelSource", {
                       type: t(`channelTypes.${channel.type}`),
@@ -1199,7 +1267,7 @@ function activityText(
 function ActivitySection({ contact }: { contact: ContactDetail }) {
   const t = useTranslations("App.Contacts");
   const format = useFormatter();
-  const now = useNow();
+  const now = useNow({ updateInterval: 60_000 });
   const activity = useInfiniteQuery({
     queryKey: ["contact-timeline", contact.id, "activity"],
     queryFn: ({ pageParam }) =>
@@ -1220,7 +1288,7 @@ function ActivitySection({ contact }: { contact: ContactDetail }) {
               className="text-muted-foreground flex items-start gap-2 text-xs"
             >
               {isAutomatic(entry) ? (
-                <Sparkles aria-hidden className="size-4 shrink-0" />
+                <Zap aria-hidden className="size-4 shrink-0" />
               ) : entry.user ? (
                 <PersonAvatar person={entry.user} className="size-4" />
               ) : (
@@ -1232,7 +1300,14 @@ function ActivitySection({ contact }: { contact: ContactDetail }) {
                 </span>
                 {" · "}
                 <time dateTime={new Date(entry.createdAt).toISOString()}>
-                  {format.relativeTime(new Date(entry.createdAt), now)}
+                  {/* An edit made since `now` last ticked reads "now", not "in 8 seconds". */}
+                  {format.relativeTime(
+                    Math.min(
+                      new Date(entry.createdAt).getTime(),
+                      now.getTime(),
+                    ),
+                    now,
+                  )}
                 </time>
                 <WebSource url={webSourceUrl(entry)} />
               </span>

@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  type DraggableAttributes,
   type DraggableSyntheticListeners,
   useDndMonitor,
   useDraggable,
@@ -21,8 +20,13 @@ const DND_DRAG_COLUMNS = new Set<KanbanColumnId>(["backlog", "todo", "done"]);
 /** Columns that accept drops. */
 const DND_DROP_COLUMNS = new Set<KanbanColumnId>(["backlog", "todo"]);
 
+/**
+ * Pointer drag only. dnd-kit's `attributes` (role="button", tabIndex 0,
+ * "press space to pick up") are left off: the board has no keyboard sensor,
+ * so they made each card a nameless, dead Tab stop around its link. Keyboard
+ * users change status on the task page.
+ */
 export interface DragHandleProps {
-  attributes: DraggableAttributes;
   listeners: DraggableSyntheticListeners;
   isDragging: boolean;
 }
@@ -63,10 +67,12 @@ export function statusForColumn(columnId: KanbanColumnId): TaskStatus | null {
  * only draggable when they can reopen to READY (completed/canceled + coworker).
  */
 export function isTaskDnDDraggable(
-  task: Pick<TaskWithCoworker, "status"> & {
+  task: Pick<TaskWithCoworker, "status" | "isPending"> & {
     assignee?: { id: string } | null;
   },
 ): boolean {
+  if (task.isPending) return false;
+
   if (
     task.status === TaskStatus.COMPLETED ||
     task.status === TaskStatus.CANCELED
@@ -80,11 +86,10 @@ export function isTaskDnDDraggable(
 export function DraggableTask({ id, columnId, children }: DraggableTaskProps) {
   const justDraggedRef = useRef(false);
   const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({
-      id,
-      data: { columnId },
-    });
+  const { listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id,
+    data: { columnId },
+  });
   useDndMonitor({
     onDragEnd(event) {
       if (event.active.id === id) {
@@ -125,7 +130,7 @@ export function DraggableTask({ id, columnId, children }: DraggableTaskProps) {
       data-dnd-draggable=""
       onClickCapture={handleClickCapture}
     >
-      {children({ attributes, listeners, isDragging })}
+      {children({ listeners, isDragging })}
     </div>
   );
 }

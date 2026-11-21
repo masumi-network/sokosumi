@@ -84,9 +84,13 @@ const BOOLEAN_OPTION_NAMES = [
   "personal",
   "unassign",
   "clear-project",
+  "include-subtasks",
+  "first",
+  "detach",
   "wait",
   "tick",
   "markdown",
+  "summary-md",
 ] as const;
 
 const VALUE_OPTIONS = new Set<ValueOptionName>([
@@ -137,12 +141,16 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "to",
   "relation",
   "note",
+  "parent",
+  "after",
+  "due",
   "sort",
   "suite",
   "cases",
   "repeats",
   "soko-bot-version",
   "cuso-version",
+  "out",
 ]);
 
 const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([

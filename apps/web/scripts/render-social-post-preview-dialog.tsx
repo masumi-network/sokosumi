@@ -28,6 +28,7 @@ const POST: SocialPost = {
   scheduledAt: new Date("2026-09-10T10:00:00.000Z"),
   timezone: "UTC",
   socialConnection: {
+    personalProfile: false,
     id: "connection-1",
     externalHandle: "sokosumi",
     displayName: "Sokosumi",

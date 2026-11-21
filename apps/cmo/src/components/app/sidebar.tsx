@@ -2,33 +2,51 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import {
+  Binoculars,
   Brain,
   CalendarDays,
   ChartLine,
+  House,
   type LucideIcon,
   MessageSquare,
+  Search,
   Settings,
   Share2,
   Target,
-  Users,
 } from "lucide-react";
-import { AGENT_NAME } from "../../lib/agent";
-import { VIEW_PATHS, type View } from "../../lib/views";
+import { needsYou } from "../../lib/today";
+import type { View } from "../../lib/views";
 import { AccountMenu } from "../account-menu";
 import { hostOf } from "../brand-profile";
 import { BusinessMark, businessDisplayName } from "../business-mark";
-import { Logo } from "../logo";
 import { CusoStatus } from "./cuso-status";
+import { ViewLink } from "./view-link";
 
-export const VIEWS = [
-  ["chat", AGENT_NAME, MessageSquare],
-  ["strategy", "Strategy", Target],
+type Page = readonly [View, string, LucideIcon];
+
+/** Where the owner goes every day. */
+const MAIN = [
+  ["today", "Today", House],
+  ["chat", "Chat", MessageSquare],
   ["calendar", "Calendar", CalendarDays],
   ["results", "Results", ChartLine],
+] as const satisfies readonly Page[];
+
+/** What Cuso works from: the owner's brand, a quiet group of its own. */
+const BRAND = [
+  ["strategy", "Strategy", Target],
   ["brain", "Brand Brain", Brain],
+  ["competitors", "Competitors", Binoculars],
+  ["seo", "SEO", Search],
   ["channels", "Channels", Share2],
+] as const satisfies readonly Page[];
+
+/** Every page; Settings opens from the account menu. */
+export const VIEWS = [
+  ...MAIN,
+  ...BRAND,
   ["settings", "Settings", Settings],
-] as const satisfies readonly (readonly [View, string, LucideIcon])[];
+] as const satisfies readonly Page[];
 
 /** First letter for the person avatar chip. */
 export function initial(text: string): string {
@@ -41,75 +59,120 @@ interface SidebarProps {
   onSelect: (view: View) => void;
   name: string;
   email: string;
+  /** The account's picture; without one the avatar shows the initial. */
+  image?: string | null;
   signOut?: () => Promise<void>;
+  /** The person has another Cuso, so "Your Cusos" leads somewhere. */
+  manyCusos?: boolean;
   /** Pins the time Cuso's "just filed" report counts from (previews, tests). */
   now?: Date;
 }
 
-/** The app's sidebar: the Business, pages, the Cuso picker, Cuso's status and the person. */
+/**
+ * The app's sidebar: the Business and the person on top, the pages, and
+ * Cuso on his stage at the foot.
+ */
 export function Sidebar({
   overview,
   view,
   onSelect,
   name,
   email,
+  image = null,
   signOut,
+  manyCusos = false,
   now,
 }: SidebarProps) {
-  const host = hostOf(overview.websiteUrl);
-  const displayName = businessDisplayName(overview);
+  const needs = needsYou(overview).length;
+  const link = ([id, label]: Page) => (
+    <ViewLink
+      key={id}
+      view={id}
+      open={onSelect}
+      className={view === id ? "active" : ""}
+      aria-current={view === id ? "page" : undefined}
+    >
+      <span className="nav-label">{label}</span>
+      {id === "today" && needs > 0 ? (
+        <span className="count num" aria-label={`${needs} need you`}>
+          {needs}
+        </span>
+      ) : null}
+    </ViewLink>
+  );
   return (
     <nav className="side" aria-label="Main">
-      <div className="side-head">
-        <Logo />
-      </div>
-      <div className="business card" title={overview.websiteUrl}>
-        <BusinessMark overview={overview} size={28} />
-        <span className="business-text">
-          <span className="business-name">{displayName}</span>
-          {host !== displayName ? <span className="note">{host}</span> : null}
-        </span>
-      </div>
-      <div className="nav">
-        {VIEWS.map(([id, label, Icon]) => (
-          <a
-            key={id}
-            href={VIEW_PATHS[id]}
-            className={view === id ? "active" : ""}
-            aria-current={view === id ? "page" : undefined}
-            onClick={(event) => {
-              // A modified click opens the page in a new tab as usual.
-              if (event.metaKey || event.ctrlKey || event.shiftKey) return;
-              event.preventDefault();
-              onSelect(id);
-            }}
-          >
-            <Icon size={16} aria-hidden="true" />
-            <span>{label}</span>
+      <header className="side-head">
+        <BusinessMark overview={overview} size={38} />
+        <span className="side-name">
+          <b>{businessDisplayName(overview)}</b>
+          <a href={overview.websiteUrl} target="_blank" rel="noreferrer">
+            {hostOf(overview.websiteUrl)}
           </a>
-        ))}
-        {/* The Cuso picker: switch Business or hire another (ADR 0065). */}
-        <a href="/?cusos=1">
-          <Users size={16} aria-hidden="true" />
-          <span>Your {AGENT_NAME}s</span>
-        </a>
-      </div>
-      <div className="grow" />
-      <CusoStatus
-        overview={overview}
-        now={now}
-        onOpen={() => onSelect("chat")}
-      />
-      <div className="who">
-        <span className="avatar" aria-hidden="true">
-          {initial(name || email)}
         </span>
-        <span className="who-text">
-          <span className="who-name">{name || email}</span>
-          {name ? <span className="note">{email}</span> : null}
-        </span>
-        <AccountMenu label="Account" signOut={signOut} cusoPicker={false} />
+        <AccountMenu
+          label={`Account: ${name || email}`}
+          signOut={signOut}
+          cusoPicker={manyCusos}
+          trigger={
+            // The picked page's fill marks Settings as open.
+            <span
+              className={
+                view === "settings"
+                  ? "avatar-ring avatar-ring-active"
+                  : "avatar-ring"
+              }
+              aria-hidden="true"
+            >
+              {image ? (
+                <img
+                  className="avatar avatar-photo"
+                  src={image}
+                  alt=""
+                  width={36}
+                  height={36}
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <span className="avatar avatar-initial">
+                  {initial(name || email)}
+                </span>
+              )}
+            </span>
+          }
+        >
+          {(close) => (
+            <>
+              <p className="ob-who-person">
+                <b>{name || email}</b>
+                {name ? <span className="note">{email}</span> : null}
+              </p>
+              <ViewLink
+                view="settings"
+                open={(next) => {
+                  close();
+                  onSelect(next);
+                }}
+                className="ob-who-item"
+                aria-current={view === "settings" ? "page" : undefined}
+              >
+                <Settings size={14} aria-hidden="true" />
+                Settings
+              </ViewLink>
+            </>
+          )}
+        </AccountMenu>
+      </header>
+      <div className="nav">
+        <div className="nav-main">{MAIN.map(link)}</div>
+        <p className="nav-group" id="nav-brand">
+          Your brand
+        </p>
+        <div className="nav-brand" role="group" aria-labelledby="nav-brand">
+          {BRAND.map(link)}
+        </div>
       </div>
+      <CusoStatus overview={overview} view={view} now={now} onOpen={onSelect} />
     </nav>
   );
 }

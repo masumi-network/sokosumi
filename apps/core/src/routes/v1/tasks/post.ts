@@ -1,11 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { TaskStatus, TaskVisibility } from "@sokosumi/database";
+import { calendarDateSchema } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { dateTimeSchema } from "@/helpers/datetime";
-import { errorResponseSchema } from "@/helpers/error";
+import { badRequest, errorResponseSchema, forbidden } from "@/helpers/error";
 import {
   jsonContent,
   jsonErrorResponse,
@@ -29,13 +30,26 @@ import {
 } from "@/helpers/task-event-channel";
 import { resolveTaskName } from "@/helpers/task-name";
 import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
-import { mapTaskTags, TASK_TAG_VOCABULARY_VERSION } from "@/helpers/task-tags";
-import { notifyWorkspaceApproversOfPendingGrant } from "@/helpers/vendor-grants";
+import {
+  dismissTaskTopics,
+  mapTaskTags,
+  TASK_TAG_VOCABULARY_VERSION,
+} from "@/helpers/task-tags";
+import {
+  applyJevWorkspaceTags,
+  setTaskWorkspaceTags,
+} from "@/helpers/task-workspace-tags";
+import {
+  hasGrantedWorkspaceAccess,
+  notifyWorkspaceApproversOfPendingGrant,
+} from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
+import { recordCoreError } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
@@ -46,28 +60,40 @@ import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskPrioritySchema } from "@/schemas/domain-enums.schema";
 import {
   createTaskContextSchema,
+  dismissedTopicIdsSchema,
+  dismissedWorkspaceTagIdsSchema,
   taskContactIdsSchema,
   taskEventChannelField,
   taskEventDeprecatedOriginField,
   taskSchema,
+  taskWorkspaceTagIdsSchema,
 } from "@/schemas/task.schema";
 import {
   createTaskForActor,
   type TaskDomainActor,
 } from "@/services/task-domain.service";
 import { classifyTaskTagsInline } from "@/services/task-tag-classification.service";
-import {
-  readCachedTaskTagSuggestions,
-  verifyTaskTagReceipt,
-} from "@/services/task-tag-suggestions.service";
-import { taskInclude } from "@/types/task";
+import { taskInclude, taskTagSuggestionsForViewer } from "@/types/task";
 
 export const createTaskRequestSchema = z
   .object({
+    workspaceTagIds: taskWorkspaceTagIdsSchema,
+    dismissedWorkspaceTagIds: dismissedWorkspaceTagIdsSchema,
+    dismissedTopicIds: dismissedTopicIdsSchema,
     tagSuggestionReceipt: z.string().max(4096).optional(),
     copyOfTaskId: z.uuid().optional().openapi({
       description:
         "A Task the caller can read in the active workspace. The new Task takes its tags instead of being classified, and its name when `name` is omitted, so a copy calls no model.",
+    }),
+    parentTaskId: z.string().optional().openapi({
+      description:
+        "Creates a sub-task of this Task, which the caller must be able to read in the active workspace. The sub-task takes the parent's project and visibility, and its context attachments default to off, since the parent carries them.",
+      example: "01960001-0001-7001-8001-000000000001",
+    }),
+    afterTaskId: z.string().nullish().openapi({
+      description:
+        "With parentTaskId: place the new sub-task directly after this sibling. Omitted or null puts it last.",
+      example: null,
     }),
     name: z
       .string()
@@ -103,6 +129,11 @@ export const createTaskRequestSchema = z
       description:
         "Start the Task at this future time instead of now. Puts the Task in QUEUED (status is ignored); requires a Coworker or Soko Bot assignee.",
       example: "2026-06-24T09:00:00.000Z",
+    }),
+    dueOn: calendarDateSchema.nullish().openapi({
+      description:
+        "The day the Task should be done by (YYYY-MM-DD). Omitted or null leaves it without one.",
+      example: "2026-11-20",
     }),
     contactIds: taskContactIdsSchema.optional(),
     channel: taskEventChannelField.optional(),
@@ -205,12 +236,50 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     );
     const runAt = body.runAt ? parseFutureRunAt(body.runAt) : null;
 
+    const shouldEnforceCreateGrant =
+      isCoworkerAuthContext(authContext) && Boolean(authContext.context);
+    const canUseWorkspaceTags =
+      !shouldEnforceCreateGrant ||
+      (await hasGrantedWorkspaceAccess({
+        vendorId: authContext.vendorId,
+        workspaceId: workspaceContext.workspaceId,
+      }));
+    const requestedTagChanges = Boolean(
+      body.workspaceTagIds?.length ||
+        body.dismissedWorkspaceTagIds?.length ||
+        body.dismissedTopicIds?.length,
+    );
+    if (!canUseWorkspaceTags && requestedTagChanges) {
+      throw forbidden("Workspace access is required to manage Task tags");
+    }
+
     // A copy reads its source first: an unreadable source fails before any
     // work, and a readable one gives the copy its name and tags, so a copy
     // calls no model.
     const copySource = body.copyOfTaskId
-      ? await requireTaskReadForRouteVars(c.var, body.copyOfTaskId)
+      ? await requireTaskReadForRouteVars(c.var, body.copyOfTaskId, prisma, {
+          workspaceTags: canUseWorkspaceTags
+            ? {
+                where: { label: { archivedAt: null, mergedIntoId: null } },
+                select: { labelId: true, state: true },
+              }
+            : false,
+        })
       : null;
+
+    const parentTask = body.parentTaskId
+      ? await requireTaskReadForRouteVars(c.var, body.parentTaskId)
+      : null;
+    if (body.afterTaskId && !parentTask) {
+      throw badRequest("afterTaskId needs parentTaskId");
+    }
+    // The parent already carries the project's context attachments.
+    const context = parentTask
+      ? { brand: false, briefing: false, memory: false, ...body.context }
+      : body.context;
+    const projectId = parentTask
+      ? (body.projectId ?? parentTask.projectId)
+      : body.projectId;
 
     const resolvedName = copySource
       ? (body.name ?? copySource.name)
@@ -219,14 +288,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           description: body.description,
         });
 
-    const shouldEnforceCreateGrant =
-      isCoworkerAuthContext(authContext) && Boolean(authContext.context);
     const project = await findTaskProjectInWorkspace(
-      body.projectId,
+      projectId,
       workspaceContext.workspaceId,
     );
     const projectWithBriefing =
-      !shouldEnforceCreateGrant && body.context?.briefing !== false
+      !shouldEnforceCreateGrant && context?.briefing !== false
         ? await healProjectBriefingUrl(project, workspaceContext.workspaceId)
         : project;
 
@@ -234,30 +301,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     // Read after normal preparation so an in-flight composer evaluation can finish.
     // Only exact authored input is eligible; generated title/context are derived.
-    const suggestionScope = {
-      userId: userContext.userId,
-      workspaceId: workspaceContext.workspaceId,
-    };
-    const receiptTags =
-      !copiedTags &&
-      authContext.actor === "user" &&
-      authContext.authenticationMethod === "session"
-        ? (verifyTaskTagReceipt(
-            body.tagSuggestionReceipt,
-            suggestionScope,
-            body,
-          ) ?? (await readCachedTaskTagSuggestions(suggestionScope, body)))
-        : null;
     // Every other actor — a token, a delegated coworker, a Soko Bot — classifies
     // here instead of waiting for the next `/sync/task-tags` tick. Bounded and
     // failure-swallowing: null just leaves the row `pending` for that tick.
-    const suggestedTags = copiedTags
-      ? null
-      : (receiptTags ??
-        (await classifyTaskTagsInline({
-          name: resolvedName,
-          description: body.description,
-        })));
+    const suggestedTags =
+      copiedTags || !canUseWorkspaceTags
+        ? null
+        : await classifyTaskTagsInline({
+            name: resolvedName,
+            description: body.description,
+            workspaceId: workspaceContext.workspaceId,
+            composer:
+              authContext.actor === "user" &&
+              authContext.authenticationMethod === "session"
+                ? {
+                    userId: userContext.userId,
+                    name: body.name,
+                    receipt: body.tagSuggestionReceipt,
+                  }
+                : undefined,
+          });
 
     const task = await prisma.$transaction(async (tx) => {
       const createdTask = await createTaskForActor(
@@ -266,19 +329,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ownerId: userContext.userId,
           organizationId: userContext.organizationId,
           workspaceId: workspaceContext.workspaceId,
-          projectId: body.projectId,
+          projectId,
           name: resolvedName,
           description: body.description,
           resolveDescription: async (tx) => {
             const contextProject =
-              shouldEnforceCreateGrant && body.context?.briefing !== false
+              shouldEnforceCreateGrant && context?.briefing !== false
                 ? await healProjectBriefingUrl(
                     project,
                     workspaceContext.workspaceId,
                   )
                 : projectWithBriefing;
             return resolveTaskDescriptionWithContext({
-              context: body.context,
+              context,
               description: body.description,
               organizationId: userContext.organizationId,
               ownerId: userContext.userId,
@@ -292,38 +355,113 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           status: runAt ? TaskStatus.QUEUED : body.status,
           runAt,
           contactIds: body.contactIds,
+          dueOn: body.dueOn ? new Date(`${body.dueOn}T00:00:00.000Z`) : null,
           channel: body.channel,
           visibility: body.visibility,
           priority: body.priority,
+          ...(parentTask
+            ? {
+                parent: {
+                  taskId: parentTask.id,
+                  afterTaskId: body.afterTaskId,
+                },
+              }
+            : {}),
         },
         tx,
       );
-      if (copiedTags) {
+      // The grant may have changed while Jev evaluated the authored text.
+      const canPersistWorkspaceTags =
+        canUseWorkspaceTags &&
+        !(
+          shouldEnforceCreateGrant &&
+          createdTask.status === TaskStatus.GRANT_PENDING
+        );
+      if (!canPersistWorkspaceTags && requestedTagChanges) {
+        throw forbidden("Workspace access is required to manage Task tags");
+      }
+      const dismissedWorkspaceTagIds = new Set(
+        body.dismissedWorkspaceTagIds?.map((id) => id.toLowerCase()),
+      );
+      const workspaceTagIds =
+        body.workspaceTagIds ??
+        (copySource?.workspaceId === workspaceContext.workspaceId
+          ? copySource.workspaceTags
+              ?.map(({ labelId }) => labelId)
+              .filter((id) => !dismissedWorkspaceTagIds.has(id))
+          : undefined);
+      if (
+        canPersistWorkspaceTags &&
+        (workspaceTagIds?.length || body.dismissedWorkspaceTagIds?.length)
+      ) {
+        await setTaskWorkspaceTags(
+          tx,
+          createdTask.id,
+          workspaceContext.workspaceId,
+          workspaceTagIds,
+          body.dismissedWorkspaceTagIds,
+        );
+      }
+      if (
+        canPersistWorkspaceTags &&
+        workspaceTagIds?.length &&
+        copySource?.workspaceId === workspaceContext.workspaceId
+      ) {
+        const inherited = copySource.workspaceTags
+          ?.filter((tag) => tag.state === "JEV_ADDED")
+          .map((tag) => tag.labelId);
+        if (inherited?.length) {
+          await tx.taskWorkspaceTag.updateMany({
+            where: { taskId: createdTask.id, labelId: { in: inherited } },
+            data: { state: "JEV_ADDED" },
+          });
+        }
+      }
+      if (suggestedTags !== null && canPersistWorkspaceTags) {
+        await applyJevWorkspaceTags(
+          tx,
+          createdTask.id,
+          workspaceContext.workspaceId,
+          suggestedTags.workspaceSuggestions,
+        );
+      }
+
+      const automaticTags =
+        copiedTags?.automatic ??
+        (canPersistWorkspaceTags ? suggestedTags?.tags : undefined);
+      const topicCorrections =
+        copiedTags || body.dismissedTopicIds?.length
+          ? dismissTaskTopics(
+              {
+                manualTags: copiedTags?.manual,
+                rejectedTags: copiedTags?.rejected,
+              },
+              body.dismissedTopicIds,
+            )
+          : undefined;
+      if (automaticTags || topicCorrections) {
         await tx.task.update({
           where: { id: createdTask.id },
           data: {
-            automaticTags: copiedTags.automatic,
-            manualTags: copiedTags.manual,
-            rejectedTags: copiedTags.rejected,
-            tagClassificationState: "complete",
-            tagClassificationLease: null,
-            tagVocabularyVersion: TASK_TAG_VOCABULARY_VERSION,
-          },
-        });
-      } else if (suggestedTags !== null) {
-        await tx.task.update({
-          where: { id: createdTask.id },
-          data: {
-            automaticTags: suggestedTags,
-            tagClassificationState: "complete",
-            tagClassificationLease: null,
-            tagVocabularyVersion: TASK_TAG_VOCABULARY_VERSION,
+            ...(automaticTags && {
+              automaticTags,
+              tagClassificationState: "complete",
+              tagClassificationLease: null,
+              tagVocabularyVersion: TASK_TAG_VOCABULARY_VERSION,
+            }),
+            ...topicCorrections,
           },
         });
       }
       return tx.task.findUniqueOrThrow({
         where: { id: createdTask.id },
-        include: taskInclude,
+        include: {
+          ...taskInclude,
+          ...taskTagSuggestionsForViewer(
+            authContext,
+            canPersistWorkspaceTags ? workspaceContext.workspaceId : null,
+          ),
+        },
       });
     });
 
@@ -339,9 +477,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           grantId: task.pendingVendorGrantId,
         });
       } catch (error) {
-        console.error(
-          "Failed to notify approvers of pending vendor grant after task create",
-          error,
+        // The notice is a mail naming the task: content-free fields only.
+        recordCoreError(
+          {
+            operation: "task_create",
+            taskId: task.id,
+            grantId: task.pendingVendorGrantId,
+          },
+          {
+            message: "Could not notify workspace approvers of a pending grant",
+            why: "Sending the approval request failed after the task was created",
+            fix: "The task waits in GRANT_PENDING until someone approves; tell the workspace's approvers. Look up the error name and code under failure.",
+          },
+          { failure: messageSafeErrorFields(error) },
         );
         Sentry.captureException(error, {
           extra: {

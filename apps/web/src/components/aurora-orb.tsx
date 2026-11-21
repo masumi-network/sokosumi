@@ -1,21 +1,14 @@
 "use client";
 
-import { Suspense, use, useEffect, useRef } from "react";
+import { Suspense, use, useRef } from "react";
 import { browser } from "react-dom";
 
 import {
-  type MountHandle,
-  mount,
-  type OrbExpression,
-  toDataURL,
-} from "@/lib/aurora-orb";
+  type AuroraOrbEvent as OrbEvent,
+  useAuroraOrbCanvas,
+} from "@/hooks/effects/use-aurora-orb-canvas";
+import { type OrbExpression, toDataURL } from "@/lib/aurora-orb";
 import { cn } from "@/lib/utils";
-
-interface OrbEvent {
-  expr: OrbExpression;
-  nonce: number;
-  ms?: number;
-}
 
 interface AuroraOrbProps {
   /** Seed string — same seed always renders the identical orb. */
@@ -89,7 +82,9 @@ function AuroraOrbStatic({
     // Data-URL PNG (already DPR-scaled + cached) — next/image adds no value here.
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={dataUrl}
+      // Empty when the browser gives no 2D canvas; no src, not "", so the
+      // browser does not fetch the page again.
+      src={dataUrl || undefined}
       alt={alt}
       className={cn("block shrink-0 rounded-full object-cover", className)}
     />
@@ -114,39 +109,13 @@ function AuroraOrbAnimated({
   event: OrbEvent | null;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const handleRef = useRef<MountHandle | null>(null);
-  const expressionRef = useRef(expression);
-  expressionRef.current = expression;
-  const speedRef = useRef(speed);
-  speedRef.current = speed;
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const handle = mount(canvas, {
-      seed,
-      speed: speedRef.current,
-      size,
-      expression: expressionRef.current,
-    });
-    handleRef.current = handle;
-    return () => {
-      handle.stop();
-      handleRef.current = null;
-    };
-  }, [seed, size]);
-  useEffect(() => {
-    handleRef.current?.setExpression(expression ?? null);
-  }, [expression]);
-  useEffect(() => {
-    handleRef.current?.setSpeed(speed);
-  }, [speed]);
-  const lastEventNonce = useRef(0);
-  useEffect(() => {
-    if (event && event.nonce !== lastEventNonce.current) {
-      lastEventNonce.current = event.nonce;
-      handleRef.current?.pulse(event.expr, event.ms);
-    }
-  }, [event]);
+  useAuroraOrbCanvas(canvasRef, {
+    seed,
+    size,
+    speed,
+    expression,
+    event,
+  });
 
   return (
     <canvas
@@ -253,40 +222,14 @@ function PlaceholderOrb({
   animate = true,
 }: PlaceholderOrbProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const handleRef = useRef<MountHandle | null>(null);
-  const expressionRef = useRef(expression);
-  expressionRef.current = expression;
-  const speedRef = useRef(speed);
-  speedRef.current = speed;
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const handle = mount(canvas, {
-      placeholder: true,
-      animate,
-      speed: speedRef.current,
-      size,
-      expression: expressionRef.current,
-    });
-    handleRef.current = handle;
-    return () => {
-      handle.stop();
-      handleRef.current = null;
-    };
-  }, [size, animate]);
-  useEffect(() => {
-    handleRef.current?.setExpression(expression ?? null);
-  }, [expression]);
-  useEffect(() => {
-    handleRef.current?.setSpeed(speed);
-  }, [speed]);
-  const lastEventNonce = useRef(0);
-  useEffect(() => {
-    if (event && event.nonce !== lastEventNonce.current) {
-      lastEventNonce.current = event.nonce;
-      handleRef.current?.pulse(event.expr, event.ms);
-    }
-  }, [event]);
+  useAuroraOrbCanvas(canvasRef, {
+    placeholder: true,
+    animate,
+    size,
+    speed,
+    expression,
+    event,
+  });
 
   return (
     <canvas

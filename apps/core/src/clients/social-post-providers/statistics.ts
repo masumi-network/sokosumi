@@ -11,6 +11,7 @@ import {
   createComposioToolSession,
   executeComposioTool,
 } from "@/clients/social-post-providers/tools";
+import { getZernioAccountId, zernioRequest } from "@/clients/zernio.client";
 import type { SocialPostMetrics } from "@/schemas/social-post-statistics.schema";
 
 export interface SocialPostStatisticsContext {
@@ -86,12 +87,35 @@ function matchingVideo(
   return items.map(record).find((item) => item?.id === externalId) ?? null;
 }
 
+/**
+ * Zernio's counters for one post. TikTok has no impressions and LinkedIn
+ * counts them instead of views; a metric a network lacks stays absent.
+ */
+export function zernioPostMetrics(
+  provider: "tiktok" | "linkedin",
+  raw: unknown,
+): SocialPostMetrics {
+  const values = record(raw);
+  return {
+    ...emptyMetrics(),
+    ...(provider === "tiktok"
+      ? { views: counter(values?.views) }
+      : { impressions: counter(values?.impressions) }),
+    likes: counter(values?.likes),
+    comments: counter(values?.comments),
+    shares: counter(values?.shares),
+  };
+}
+
 /** Reads only the published post through its existing connected account. */
 export async function fetchSocialPostStatistics(
   context: SocialPostStatisticsContext,
 ): Promise<SocialPostMetrics> {
   const label = socialPostProviderLabel(context.provider);
-  if (context.provider === "linkedin") {
+  const zernioAccountId =
+    (context.provider === "tiktok" || context.provider === "linkedin") &&
+    getZernioAccountId(context.connectedAccountId);
+  if (context.provider === "linkedin" && !zernioAccountId) {
     throw new SocialPostStatisticsUnavailableError(
       "LinkedIn personal post statistics are not available through this connection.",
     );
@@ -99,6 +123,35 @@ export async function fetchSocialPostStatistics(
   const unavailable = `${label} statistics are unavailable. Check the connection permissions or try again later.`;
   let sessionId: string | undefined;
   try {
+    if (zernioAccountId) {
+      const query = new URLSearchParams({
+        platform: context.provider,
+        accountId: zernioAccountId,
+        postId: context.externalId,
+      });
+      const result = record(
+        await zernioRequest(`/analytics?${query}`, { signal: context.signal }),
+      );
+      const platform =
+        Array.isArray(result?.platformAnalytics) &&
+        result.platformAnalytics
+          .map(record)
+          .find(
+            (entry) =>
+              entry?.accountId === zernioAccountId &&
+              entry.platform === context.provider &&
+              entry.syncStatus === "synced",
+          );
+      const metrics = zernioPostMetrics(
+        context.provider === "linkedin" ? "linkedin" : "tiktok",
+        platform && platform.analytics,
+      );
+      if (Object.values(metrics).every((value) => value === null))
+        throw new SocialPostStatisticsUnavailableError(unavailable);
+      return metrics;
+    }
+    if (context.provider === "linkedin")
+      throw new SocialPostStatisticsUnavailableError(unavailable);
     const activeSessionId = await createComposioToolSession({
       toolkitSlug: context.provider === "x" ? "twitter" : context.provider,
       connectedAccountId: context.connectedAccountId,

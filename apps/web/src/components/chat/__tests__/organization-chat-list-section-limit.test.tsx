@@ -1,9 +1,11 @@
 import type { ChatRoom } from "@sokosumi/core-client";
-import { screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { PageListSearchContext } from "@/components/page-list-search";
 import {
+  createOrganizationChatList,
   emptyListResult,
   harnessPathname,
   listRoomsMock,
@@ -68,6 +70,52 @@ describe("OrganizationChatList section limit", () => {
     );
   });
 
+  it("finds a channel past Show more and ranks its name ahead of another channel's topic", () => {
+    const rooms = channels({
+      "ch-1": { topic: "launch" },
+      "ch-9": { name: "Launch team" },
+    });
+    render(
+      <PageListSearchContext.Provider
+        value={{ query: "launch", register: () => () => {} }}
+      >
+        {createOrganizationChatList({ rooms, paintOnly: true })}
+      </PageListSearchContext.Provider>,
+    );
+    expect(
+      screen.getAllByTestId("room-row").map((row) => row.textContent),
+    ).toEqual(["Launch team", "ch-1"]);
+  });
+
+  it.each([
+    {
+      privateIds: ["ch-1", "ch-3", "ch-5", "ch-8"],
+      visible: ["ch-2", "ch-4", "ch-1", "ch-3", "ch-5"],
+    },
+    {
+      privateIds: ["ch-2", "ch-4", "ch-6", "ch-8"],
+      visible: ["ch-1", "ch-3", "ch-5", "ch-2", "ch-4"],
+    },
+    {
+      privateIds: ["ch-9"],
+      visible: ["ch-1", "ch-2", "ch-3", "ch-4", "ch-9"],
+    },
+  ])(
+    "balances the preview when private channels are $privateIds",
+    ({ privateIds, visible }) => {
+      const rooms = channels().map((room) =>
+        privateIds.includes(room.id)
+          ? { ...room, discoverability: "private" as const }
+          : room,
+      );
+      renderOrganizationChatList({ rooms });
+
+      expect(
+        screen.getAllByTestId("room-row").map((row) => row.textContent),
+      ).toEqual(visible);
+    },
+  );
+
   it("always lists an unread room and the open room past the limit", () => {
     harnessPathname.current = "/chat/rooms/ch-8";
     renderOrganizationChatList({
@@ -82,6 +130,41 @@ describe("OrganizationChatList section limit", () => {
     expect(screen.getByText("ch-7")).toBeInTheDocument();
     expect(screen.getByText("ch-8")).toBeInTheDocument();
     expect(screen.queryByText("ch-6")).not.toBeInTheDocument();
+  });
+
+  it("groups recent channels in the preview and restores the full order on expansion", async () => {
+    const user = userEvent.setup();
+    const rooms = channels({
+      "ch-1": { mutedAt: new Date("2026-01-20") },
+      "ch-2": { discoverability: "private" },
+      "ch-3": { discoverability: "private" },
+      "ch-8": {
+        discoverability: "private",
+        unreadCount: 1,
+        channelUnreadCount: 1,
+      },
+    });
+    listRoomsMock.mockResolvedValue(emptyListResult(rooms));
+    renderOrganizationChatList({ rooms });
+    const visibleIds = () =>
+      screen.getAllByTestId("room-row").map((row) => row.textContent);
+    const preview = ["ch-1", "ch-4", "ch-5", "ch-2", "ch-3", "ch-8"];
+
+    expect(visibleIds()).toEqual(preview);
+    await user.click(screen.getByRole("button", { name: SHOW_MORE }));
+    expect(visibleIds()).toEqual([
+      "ch-4",
+      "ch-5",
+      "ch-6",
+      "ch-7",
+      "ch-9",
+      "ch-2",
+      "ch-3",
+      "ch-8",
+      "ch-1",
+    ]);
+    await user.click(screen.getByRole("button", { name: SHOW_LESS }));
+    expect(visibleIds()).toEqual(preview);
   });
 
   it("shows every room on Show more, back to the limit on Show less, and remembers it", async () => {

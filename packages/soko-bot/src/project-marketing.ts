@@ -61,6 +61,20 @@ export const cmoBrandSectionSchema = z.object({
   findings: z.array(cmoBrandFindingSchema).max(6).default([]),
   /** What still needs the owner or a source to confirm. */
   openQuestions: z.array(shortText).max(3).default([]),
+  /**
+   * The owner's correction: what is true instead, when they asked, and
+   * whether the section was rewritten to match it. Set by Core; anything a
+   * save sends here is ignored.
+   */
+  fix: z
+    .object({
+      /** Every correction waiting on the section, a no's statement with its note included. */
+      note: longText,
+      /** When the owner asked, as an ISO time. */
+      at: z.string().max(40),
+      fixed: z.boolean(),
+    })
+    .optional(),
 });
 export type CmoBrandSection = z.infer<typeof cmoBrandSectionSchema>;
 
@@ -196,7 +210,10 @@ export const cmoBrandQuestionSchema = z.object({
   /** The profile section the answer lands in. */
   section: z.enum(CMO_BRAND_SECTION_KEYS),
   answer: z.enum(CMO_BRAND_ANSWERS).optional(),
-  /** The owner's own words after a no: what is true instead. */
+  /**
+   * The owner's own words: after a no, what is true instead; on a Brand Brain
+   * question, details to any answer.
+   */
   note: shortText.optional(),
   /**
    * Set by Core on a no: false until the section is rewritten to match it,
@@ -301,6 +318,17 @@ export const brandBrainSchema = z.object({
 });
 export type BrandBrain = z.infer<typeof brandBrainSchema>;
 
+/**
+ * The Brand Brain as Core stores and serves it: Cuso's essentials plus what
+ * only Core sets. Cuso's save_brand_brain takes `brandBrainSchema`, so a
+ * save never sets these.
+ */
+export const storedBrandBrainSchema = brandBrainSchema.extend({
+  /** A member rewrote the promise, so it is their words, not the site's. */
+  promiseByOwner: z.boolean().optional(),
+});
+export type StoredBrandBrainBody = z.infer<typeof storedBrandBrainSchema>;
+
 export const CMO_CALENDAR_STATUSES = [
   "idea",
   "draft",
@@ -403,15 +431,65 @@ export const cmoCalendarEntrySchema = z.object({
    * makes it from this, attaches it and makes each carousel slide.
    */
   visual: longText.optional(),
-  /** Brand pictures (brandPictures fileIds) the visual is made from. */
+  /**
+   * Brand pictures (brandPictures fileIds) the visual is made from. A styled
+   * picture shows them inside its style, so it names one only when it must
+   * show that page, screen or product.
+   */
   visualFileIds: z.array(z.string().max(100)).max(3).optional(),
+  /**
+   * A reference library image (find_style_references) whose look the
+   * picture borrows: an old ad, poster or label. Core makes it in that style
+   * with the brand's logo, colours and DESIGN.md.
+   */
+  styleReferenceId: z.string().uuid().optional(),
+  /**
+   * The few words lettered into a styled picture, spelled exactly; left out,
+   * the picture carries no words.
+   */
+  headline: z.string().trim().min(1).max(60).optional(),
   /** A carousel's slides in order: what each one shows and its few words. */
   slides: z.array(shortText).max(10).optional(),
+  /**
+   * A styled carousel's words: one entry per slide, in order, lettered into
+   * that slide and spelled exactly.
+   */
+  slideHeadlines: z.array(z.string().trim().min(1).max(60)).max(10).optional(),
+  /**
+   * A talking video's spoken words, hook first, in the brand's own voice.
+   * Never a customer's account. The post's draft is its caption.
+   */
+  script: z.string().trim().min(20).max(600).optional(),
+  /** Who speaks it: a stock presenter id, or "owner" for the owner's photo. */
+  presenter: z.string().trim().min(1).max(40).optional(),
+  /** The stock voice that speaks it. */
+  voice: z.string().trim().min(1).max(40).optional(),
+  /** ISO 639-1 language of the script, e.g. "de". */
+  languageCode: z.string().trim().length(2).optional(),
+  /**
+   * The other networks a talking video also goes out on. Core makes the
+   * video once and keeps one Social post per network, each with its own
+   * caption.
+   */
+  alsoOn: z
+    .array(z.string().trim().toLowerCase().min(1).max(40))
+    .max(4)
+    .optional(),
+  /**
+   * On a talking video's post for another network: the entry whose video it
+   * shows. Set by Core; Cuso never sends it.
+   */
+  videoOf: z.string().max(64).optional(),
   /**
    * The one real moment the piece is built on, from the Brand Brain: a
    * customer and what they did, a launch, a number, a decision.
    */
   story: shortText.optional(),
+  /**
+   * The one point the piece argues, in a sentence (cmo-v8). Core compares
+   * the month's claims by meaning, so no point is made again in other words.
+   */
+  claim: shortText.optional(),
   imageFileId: z.string().max(100).optional(),
   /** A carousel's slides in order, the cover first (also its imageFileId). */
   slideFileIds: z.array(z.string().max(100)).max(10).optional(),
@@ -457,14 +535,65 @@ export const socialPostPlanningSchema = cmoCalendarEntrySchema.pick({
   campaignId: true,
   visual: true,
   visualFileIds: true,
+  styleReferenceId: true,
+  headline: true,
   slides: true,
+  slideHeadlines: true,
+  script: true,
+  presenter: true,
+  voice: true,
+  languageCode: true,
+  alsoOn: true,
+  videoOf: true,
   story: true,
+  claim: true,
 });
 export type SocialPostPlanning = z.infer<typeof socialPostPlanningSchema>;
 
-/** The funnel's stages, top to bottom. */
-export const CMO_FUNNEL_STAGES = [
+/** The kinds of print in the reference library. */
+export const REFERENCE_KINDS = [
+  "ad",
+  "poster",
+  "magazine-cover",
+  "label",
+  "trade-card",
+  "playbill",
+  "record-cover",
+  "book-cover",
+  "illustration",
+  "infographic",
+  "other",
+] as const;
+
+/** What a reference suits as a piece's style: Cuso searches by these. */
+export const REFERENCE_PURPOSES = [
+  "product",
+  "announcement",
+  "event",
+  "offer",
+  "how-to",
+  "data",
+  "comparison",
+  "quote",
+  "people",
+  "story",
+  "brand",
+] as const;
+
+/** The funnel's four stages, top to bottom: the classic AIDA funnel. */
+export const CMO_AIDA_STAGES = [
   "awareness",
+  "interest",
+  "desire",
+  "action",
+] as const;
+
+/**
+ * Every stage a saved funnel may hold: AIDA's four, and the three a Cuso
+ * before cmo-v5 wrote, which older strategies still carry.
+ */
+export const CMO_FUNNEL_STAGES = [
+  ...CMO_AIDA_STAGES,
   "consideration",
   "conversion",
   "loyalty",
@@ -539,6 +668,8 @@ const strategyPlanShape = {
       why: shortText,
       /** Pieces a week across all channels. */
       perWeek: z.number().int().min(1).max(200),
+      /** Set by Core: the owner asked for this lower pace. */
+      setByOwner: z.boolean().optional(),
     })
     .optional(),
   /**
@@ -554,6 +685,16 @@ const strategyPlanShape = {
       without: shortText,
       /** The owner set the amount; Cuso keeps it. */
       setByOwner: z.boolean().default(false),
+      /**
+       * What Cuso would start with if the owner says yes to ads (cmo-v5):
+       * ads are planned only after that yes.
+       */
+      suggest: z
+        .object({
+          channel: channelKey,
+          monthly: z.number().min(0).max(10_000_000),
+        })
+        .optional(),
     })
     .optional(),
   /** Each channel before Cuso and in this plan, from the Brand Brain's marketing today. */
@@ -665,9 +806,13 @@ const strategyPlanShape = {
     .array(
       z.object({
         stage: z.enum(CMO_FUNNEL_STAGES),
-        /** What people do here, in their words: "Hear about us". */
-        name: shortText,
+        /** A name of Cuso's own for the stage; only older strategies have one. */
+        name: shortText.optional(),
         goal: shortText,
+        /** What Cuso does at this stage, in one plain sentence. */
+        cusoDoes: shortText.optional(),
+        /** What the owner does at this stage, when it needs them. */
+        youDo: shortText.optional(),
         channels: z.array(channelKey).max(6).default([]),
         metric: shortText,
         target: shortText.optional(),
@@ -696,6 +841,15 @@ const strategyPlanShape = {
       }),
     )
     .max(4)
+    .default([]),
+  /**
+   * Live social networks this strategy leaves out because they clearly do
+   * not fit the buyer, each with its reason. Every other live network is in
+   * `channels` (cmo-v5).
+   */
+  leftOut: z
+    .array(z.object({ channel: channelKey, why: shortText }))
+    .max(6)
     .default([]),
   /**
    * Channels Cuso runs that this plan leaves out because the owner has no
@@ -827,6 +981,9 @@ export const cmoPreviewSchema = z.object({
 });
 export type CmoPreview = z.infer<typeof cmoPreviewSchema>;
 
+/** The most entries a month's calendar holds (cmo-v3's All-in pace). */
+export const CMO_CALENDAR_MAX_ENTRIES = 240;
+
 export const marketingStrategyPlanSchema = z.object({
   /** The month the plan covers, YYYY-MM. */
   month: z.string().regex(/^\d{4}-\d{2}$/, "Use YYYY-MM"),
@@ -835,7 +992,7 @@ export const marketingStrategyPlanSchema = z.object({
   why: longText.optional(),
   goals: z.array(shortText).min(1).max(6),
   audience: shortText.optional(),
-  /** The language posts, ads and emails are written in, named in English ("German"). */
+  /** The language every piece is in, its calendar title and brief included, named in English ("German"). */
   contentLanguage: shortText.optional(),
   positioning: longText.optional(),
   pillars: cmoPillarsSchema,
@@ -846,14 +1003,40 @@ export const marketingStrategyPlanSchema = z.object({
         cadence: shortText,
         /** Why this channel at this cadence, for this audience. */
         why: shortText.optional(),
+        /**
+         * A social network's place in the plan (cmo-v3): main where the main
+         * buyer and most of the audience are, at the pace's full rate; side
+         * for another buyer, two to three a week.
+         */
+        role: z.enum(["main", "side"]).optional(),
+        /** The Brand Brain buyer a side channel's pieces are written for. */
+        buyer: shortText.optional(),
+        /** Set by Core: the owner asked for this lower cadence. */
+        setByOwner: z.boolean().optional(),
       }),
     )
     .max(10),
   ...strategyPlanShape,
-  calendar: z.array(cmoCalendarEntrySchema).max(120),
+  calendar: z.array(cmoCalendarEntrySchema).max(CMO_CALENDAR_MAX_ENTRIES),
   /** Up to one sample each of a post, an ad, an SEO piece, a newsletter. */
   previews: z.array(cmoPreviewSchema).max(4).default([]),
   /** After a change request: what is different from the last version. */
   changes: z.array(shortText).max(10).default([]),
+  /**
+   * What the last patch changed: each entry it touched, with the entry as it
+   * was before (null when the patch added it), so CMO can strike it through.
+   * Set by Core; the next whole save clears it.
+   */
+  patched: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(64),
+        was: cmoCalendarEntrySchema.nullable(),
+      }),
+    )
+    // Every entry a turn's patches touched or added: a cmo-v3 month adds
+    // weeks two to four by patch, so it can be nearly the whole calendar.
+    .max(CMO_CALENDAR_MAX_ENTRIES)
+    .default([]),
 });
 export type MarketingStrategyPlan = z.infer<typeof marketingStrategyPlanSchema>;

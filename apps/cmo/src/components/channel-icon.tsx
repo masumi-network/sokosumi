@@ -5,7 +5,7 @@ import {
   Megaphone,
   MessageCircle,
   Newspaper,
-  Sparkles,
+  Share2,
 } from "lucide-react";
 import { type ComponentProps, useId } from "react";
 
@@ -253,6 +253,6 @@ export function ChannelIcon({
     case "seo":
       return <Globe size={size} aria-hidden />;
     default:
-      return <Sparkles size={size} aria-hidden />;
+      return <Share2 size={size} aria-hidden />;
   }
 }

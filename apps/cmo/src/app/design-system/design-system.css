@@ -15,7 +15,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0;
   border: 1px solid var(--border);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-card);
   overflow: hidden;
 }
 
@@ -91,17 +91,25 @@
   min-width: 0;
 }
 
-.ds-logo {
+.ds-logos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 32px;
   margin: 0;
-  font-size: 1rem;
-  line-height: 1;
-  color: var(--foreground);
+  padding: 0;
+  list-style: none;
 }
 
-.ds-logo .logo {
-  height: 1em;
+.ds-logos li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ds-logos .logo img {
   width: auto;
-  display: block;
+  height: 120px;
 }
 
 .ds-checklist {
@@ -164,7 +172,7 @@
   flex: none;
   width: 36px;
   height: 36px;
-  border: 1px solid var(--line);
+  border: var(--line-width-small) solid var(--line);
   border-radius: var(--radius-control);
 }
 
@@ -229,13 +237,18 @@
 .ds-radius-box {
   width: 64px;
   height: 64px;
-  border: 1px solid var(--line);
+  border: var(--line-width) solid var(--line);
   background: var(--card);
 }
 
-.ds-shadow-box {
+.ds-shadow {
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow);
+}
+
+.ds-shadow-big {
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-hard);
+  box-shadow: var(--shadow-big);
 }
 
 .ds-card-body {
@@ -268,32 +281,13 @@
   flex-direction: column;
 }
 
-.ds-avatar {
-  display: grid;
-  place-items: center;
-  width: 64px;
-  height: 64px;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  background: var(--stage);
-}
-
 /* Only "Needs you" is labelled on Iris; Cuso's circle stays --stage. */
 .ds-pose-on-iris {
   padding: 1px 6px;
-  border: 1px solid var(--line);
+  border: var(--line-width-small) solid var(--line);
   border-radius: var(--radius-mark);
   background: var(--primary);
   color: var(--primary-foreground);
-}
-
-.ds-avatar :is(img, video) {
-  width: 48px;
-  height: 48px;
-}
-
-.ds-avatar video {
-  border-radius: 50%;
 }
 
 /* The art is painted on light Iris, so it fills the stage in both themes. */
@@ -302,7 +296,7 @@
   aspect-ratio: 4 / 5;
   max-height: 640px;
   overflow: hidden;
-  border: 1px solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--primary-hover);
 }
@@ -312,7 +306,8 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  padding: 24px;
+  object-fit: contain;
   object-position: 50% 100%;
 }
 
@@ -328,22 +323,20 @@
   border-radius: var(--radius-card);
 }
 
-.ds-r-panel {
-  border-radius: var(--radius-panel);
-}
-
 .ds-scenes {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
 }
 
-.ds-scenes :is(img, video) {
+.ds-scenes img {
   width: 160px;
   height: 160px;
-  border: 1px solid var(--line);
+  padding: 12px;
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
-  object-fit: cover;
+  background: var(--primary-hover);
+  object-fit: contain;
 }
 
 /* The onboarding parts, stacked, each under a small label. */
@@ -370,8 +363,8 @@
 
 .ds-side {
   display: flex;
-  width: 240px;
-  height: 640px;
+  width: 340px;
+  height: 900px;
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
 }
@@ -382,13 +375,18 @@
 }
 
 .ds-statuses {
-  display: grid;
-  max-width: 240px;
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px 48px;
 }
 
-.ds-statuses .cuso-status {
-  margin: 0;
+/* Each pose on its stage, as the sidebar's foot shows it: Cuso leans out to the right. */
+.ds-stage {
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  height: 380px;
+  margin-right: 100px;
 }
 
 .ds-avatars {
@@ -412,4 +410,23 @@
 
 .ds-screen.dark {
   color-scheme: dark;
+}
+
+.ds-r-pill {
+  border-radius: var(--radius-pill);
+}
+
+/* A board or screen pins its own theme, so it picks its own logo file. */
+:root .ds-board.light .logo .logo-on-light,
+:root .ds-screen.light .logo .logo-on-light,
+:root .ds-board.dark .logo .logo-on-dark,
+:root .ds-screen.dark .logo .logo-on-dark {
+  display: block;
+}
+
+:root .ds-board.light .logo .logo-on-dark,
+:root .ds-screen.light .logo .logo-on-dark,
+:root .ds-board.dark .logo .logo-on-light,
+:root .ds-screen.dark .logo .logo-on-light {
+  display: none;
 }

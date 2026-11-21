@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { AUTH_SHELL_SAFE_AREA_PADDING_CLASS } from "@/app/components/app-shell-safe-area";
 import { LEGAL_URLS } from "@/lib/constants/legal-urls";
 
 import FlowsLayout from "./layout";
@@ -84,15 +85,41 @@ describe("FlowsLayout impersonation banner", () => {
 
     render(await FlowsLayout({ children: <p>gate content</p> }));
 
+    // The same four links, in the same order, as sign-up and log in.
     for (const [name, href] of [
-      ["privacyPolicy", LEGAL_URLS.PRIVACY_POLICY],
       ["termsOfServices", LEGAL_URLS.TERMS_OF_SERVICE],
+      ["privacyPolicy", LEGAL_URLS.PRIVACY_POLICY],
+      ["imprint", LEGAL_URLS.IMPRINT],
+      ["acceptableUse", LEGAL_URLS.ACCEPTABLE_USE],
     ]) {
       const link = screen.getByRole("link", { name });
       expect(link).toHaveAttribute("href", href);
       expect(link).toHaveAttribute("target", "_blank");
       expect(link).toHaveAttribute("rel", "noopener noreferrer");
     }
+  });
+
+  it("draws the setup logo like sign-up's, without a way out of setup", async () => {
+    readRouteSessionMock.mockResolvedValue({ status: "signedOut" });
+
+    render(await FlowsLayout({ children: <p>gate content</p> }));
+
+    // Sign-up's header: a 100x13 logo, centred in a 24px row.
+    const logos = screen.getAllByAltText("Sokosumi Logo");
+    for (const logo of logos) {
+      expect(logo).toHaveAttribute("width", "100");
+      expect(logo).toHaveAttribute("height", "13");
+      expect(logo.closest("a")).toBeNull();
+    }
+    expect(logos[0]?.parentElement).toHaveClass(
+      "inline-flex",
+      "min-h-6",
+      "items-center",
+    );
+    // Sign-up's padding, safe areas included, so the logo sits where it did.
+    expect(logos[0]?.closest("[data-workspace-gate-shell]")).toHaveClass(
+      ...AUTH_SHELL_SAFE_AREA_PADDING_CLASS.split(" "),
+    );
   });
 
   it("mounts the banner with the target identity while impersonating", async () => {
@@ -136,6 +163,16 @@ describe("FlowsLayout impersonation banner", () => {
     const column =
       screen.getByText("gate content").parentElement?.parentElement;
     expect(column).toHaveClass("min-w-0", "flex-1");
+  });
+
+  it("holds the page in the main landmark", async () => {
+    readRouteSessionMock.mockResolvedValue({ status: "signedOut" });
+
+    render(await FlowsLayout({ children: <p>gate content</p> }));
+
+    expect(screen.getByRole("main")).toContainElement(
+      screen.getByText("gate content"),
+    );
   });
 
   it("mounts no banner when signed out", async () => {

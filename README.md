@@ -12,7 +12,7 @@ sokosumi/
 │   ├── web/         # Next.js 16 web app (TypeScript, Tailwind, Shadcn UI)
 │   ├── core/        # Hono API — owns all Postgres/Prisma access
 │   ├── cmo/         # Next.js 16 CMO app at app.cmo.xyz (Sign in with Sokosumi; no database)
-│   ├── apple/       # Native macOS + iOS — Xcode (outside turbo and Biome)
+│   ├── apple/       # Native macOS — Xcode (outside turbo and Biome)
 │   └── cli/         # Developer CLI — Ink TUI and headless commands (SPEC + VISION)
 ├── packages/
 │   ├── database/    # @sokosumi/database — Prisma schema, client, helpers
@@ -98,10 +98,11 @@ Other available scripts:
 
 - `pnpm build` — TypeScript build
 - `pnpm check` — Biome check
+- `pnpm effects:check` — Direct-effect baseline check for Web and CMO
 - `pnpm typecheck` — workspace typecheck
 - `pnpm format` — Write Biome formatting (not the gate)
 
-The husky hook runs `pnpm precommit` (`pnpm check && pnpm typecheck`). CI gates the same pair as `Biome` and `Typecheck`.
+The husky hook runs `pnpm precommit` (`pnpm check && pnpm effects:check && pnpm typecheck`). CI gates `Biome` (which runs `biome check .` and the full `no-direct-effects` suite against the base SHA) and `Typecheck`.
 
 ## Testing
 

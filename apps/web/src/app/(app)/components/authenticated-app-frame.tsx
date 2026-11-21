@@ -8,6 +8,7 @@ import { SidebarEdgeHandle } from "@/app/components/sidebar/components/sidebar-e
 import { WorkspaceSwitcherProvider } from "@/app/components/workspace-switcher/workspace-switcher.client";
 import { EmergencyDialog } from "@/components/emergency-dialog/emergency-dialog";
 import { ImpersonationBanner } from "@/components/impersonation/impersonation-banner";
+import { WarmLikelyPages } from "@/components/warm-likely-pages.client";
 import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
 import { NotificationProvider } from "@/contexts/notification-provider";
 import { OrgPresenceProvider } from "@/contexts/org-presence-provider";
@@ -66,6 +67,17 @@ export default async function AuthenticatedAppFrame({
     redirect(await signInRedirectPath());
   }
   const session = sessionRead.session;
+  const activeOrganizationId = session.session.activeOrganizationId ?? null;
+  // Neither read needs the workspace gate's answer, so both start beside it.
+  // The seat gate is a single read the frame already has to finish before it
+  // paints nav. Newsletter's workspace availability resolves alongside it.
+  const hasAssignedSeatRead = organizationSeatService
+    .hasAssignedSeat(activeOrganizationId)
+    .catch((error) => {
+      console.error("Failed to resolve assigned organization seat", error);
+      return activeOrganizationId == null;
+    });
+  const newsletterEnabledRead = isNewsletterEnabled();
 
   // Workspace gate is the only access decision for product chrome — not
   // `onboardingCompleted`. Fail closed: not-ready or a failed workspaces read → gate
@@ -85,7 +97,6 @@ export default async function AuthenticatedAppFrame({
     (session.user as typeof session.user & { role?: string | null }).role,
   );
 
-  const activeOrganizationId = session.session.activeOrganizationId ?? null;
   // One Core read (ADR 0051, cached per request): the Workspace switcher's
   // list and the active workspace's social providers.
   const workspaces = (await userService.getMyWorkspaces())?.workspaces ?? [];
@@ -93,17 +104,9 @@ export default async function AuthenticatedAppFrame({
     workspaces.find(
       (workspace) => workspace.organizationId === activeOrganizationId,
     )?.enabledSocialProviders ?? [];
-  // In parallel: the seat gate is a single read the frame already has to
-  // finish before it paints nav.
-  // Newsletter's workspace availability resolves alongside them.
   const [hasAssignedSeat, newsletterEnabled] = await Promise.all([
-    organizationSeatService
-      .hasAssignedSeat(activeOrganizationId)
-      .catch((error) => {
-        console.error("Failed to resolve assigned organization seat", error);
-        return activeOrganizationId == null;
-      }),
-    isNewsletterEnabled(),
+    hasAssignedSeatRead,
+    newsletterEnabledRead,
   ]);
 
   // AuthSessionHydrator must be an earlier sibling, not a wrapper.
@@ -127,16 +130,17 @@ export default async function AuthenticatedAppFrame({
               >
                 <NotificationToaster />
                 <AccountNoticeToast />
-                <HistorySearchDialogProvider
-                  activeOrganizationId={activeOrganizationId}
-                >
-                  {/* Sidebar "New Task" opens the wizard in place, so the
-                    provider wraps sidebar and content. */}
-                  <AuthenticatedRoomCache
-                    currentUserId={session.user.id}
-                    workspaceId={activeOrganizationId}
+                {/* Sidebar "New Task" opens the wizard in place, so the
+                  provider wraps sidebar and content; Search's "Mention in
+                  a new Task" opens it too, so it wraps Search as well. */}
+                <NewTaskWizardProvider>
+                  <HistorySearchDialogProvider
+                    activeOrganizationId={activeOrganizationId}
                   >
-                    <NewTaskWizardProvider>
+                    <AuthenticatedRoomCache
+                      currentUserId={session.user.id}
+                      workspaceId={activeOrganizationId}
+                    >
                       {/* The sidebar header and the phone's top bar each
                           place a switcher trigger; this owns what is behind
                           them, once. */}
@@ -161,6 +165,11 @@ export default async function AuthenticatedAppFrame({
                         <SidebarEdgeHandle />
                         <Suspense fallback={null}>
                           <AppShellOverlays />
+                        </Suspense>
+                        {/* Reads the project scope from the URL's search
+                            params, which wait for the request. */}
+                        <Suspense fallback={null}>
+                          <WarmLikelyPages />
                         </Suspense>
                         <div
                           className="flex min-w-0 flex-1 overflow-clip"
@@ -214,9 +223,9 @@ export default async function AuthenticatedAppFrame({
                           </div>
                         </div>
                       </WorkspaceSwitcherProvider>
-                    </NewTaskWizardProvider>
-                  </AuthenticatedRoomCache>
-                </HistorySearchDialogProvider>
+                    </AuthenticatedRoomCache>
+                  </HistorySearchDialogProvider>
+                </NewTaskWizardProvider>
               </NoticeDialogProvider>
             </AccountNoticeProvider>
           </OrgPresenceProvider>

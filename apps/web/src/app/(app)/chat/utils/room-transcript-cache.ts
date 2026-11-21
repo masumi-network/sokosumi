@@ -10,6 +10,10 @@ import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organizati
 import { getRememberedPinnedRooms } from "@/components/chat/remembered-pinned-rooms";
 import { chatReadThrottleResumeInMs } from "@/lib/chat/chat-read-throttle";
 import { isListedInWorkspace } from "@/lib/chat/room-workspace-scope";
+import {
+  filterTopLevelChatRoomMessages,
+  isTopLevelChatRoomMessage,
+} from "./chat-room-message-scope";
 import { isOutboundLocalMessage } from "./outbound-room-message";
 import {
   emptyRoomTranscript,
@@ -22,6 +26,21 @@ import {
 export const ROOM_RETENTION_MS = 30 * 60 * 1000;
 /** A click's head read only stands in for the open that click starts. */
 const ROOM_OPEN_PREFETCH_MS = 10_000;
+/**
+ * How long a read an approach started serves a later approach or the click.
+ * The room hears of no new message between that read and its mount, so the
+ * time is short: a click follows an approach well inside it, and a later
+ * click reads for itself.
+ */
+export const ROOM_APPROACH_REUSE_MS = 2_000;
+/**
+ * Reads that approaches may start inside one open window. Core refills each
+ * user's chat read budget by one read a second, and every chat read on every
+ * device draws on it. Approaches take at most this part of that rate.
+ */
+const ROOM_APPROACH_READ_LIMIT = 6;
+/** How long one approach's reads cover a room. A cursor that stays near it reads once. */
+const ROOM_APPROACH_REPEAT_MS = 60_000;
 export interface RoomTranscriptEntry {
   bootstrap: RoomsClientProps;
   transcript: RoomTranscript;
@@ -60,19 +79,35 @@ function reconcile(
     : mergeRoomHeadPage(retained, page);
 }
 
+function normalizeTopLevelTranscript(
+  transcript: RoomTranscript,
+): RoomTranscript {
+  if (transcript.messages.every(isTopLevelChatRoomMessage)) {
+    return transcript;
+  }
+  return {
+    ...transcript,
+    messages: filterTopLevelChatRoomMessages(transcript.messages),
+  };
+}
+
 /** Query cache owns data; this session owns scroll positions, request coalescing and fences. */
 export class RoomTranscriptCache {
   readonly prefix: readonly string[];
   private valid = true;
   private readonly revoked = new Set<string>();
+  /** Whether the cache was cleared before, so what read it needs a repaint. */
   activate() {
+    const cleared = !this.valid;
     this.valid = true;
+    return cleared;
   }
   available(roomId: string) {
     return this.valid && !this.revoked.has(roomId);
   }
   private readonly reads = new Map<string, Promise<RoomMessagesPage | null>>();
   // Head reads started by a room click, kept until the open's first head read takes them.
+  // An approach starts them too. A failed read goes at once, an untaken one with a later approach.
   private readonly prefetched = new Map<
     string,
     { revision: number; at: number; page: Promise<RoomMessagesPage | null> }
@@ -82,6 +117,10 @@ export class RoomTranscriptCache {
     string,
     { at: number; page: Promise<RoomMessagesPage | null> }
   >();
+  // Start times of the reads approaches started, inside the open window.
+  private approachReads: number[] = [];
+  // When an approach last read each room.
+  private readonly approachedAt = new Map<string, number>();
   // Positions follow the retained entry's lifetime without notifying data subscribers.
   private readonly positions = new WeakMap<object, TranscriptPosition>();
 
@@ -192,9 +231,12 @@ export class RoomTranscriptCache {
     update: (entry: RoomTranscriptEntry) => RoomTranscriptEntry,
   ) {
     if (!this.current(roomId, lifetime)) return;
-    this.client.setQueryData<RoomTranscriptEntry>(this.key(roomId), (entry) =>
-      entry ? update(entry) : undefined,
-    );
+    this.client.setQueryData<RoomTranscriptEntry>(this.key(roomId), (entry) => {
+      if (!entry) return undefined;
+      const next = update(entry);
+      const transcript = normalizeTopLevelTranscript(next.transcript);
+      return transcript === next.transcript ? next : { ...next, transcript };
+    });
   }
 
   setTranscript(
@@ -209,7 +251,9 @@ export class RoomTranscriptCache {
         transcript: {
           ...transcript,
           messages: transcript.messages.filter(
-            (message) => !isOutboundLocalMessage(message),
+            (message) =>
+              !isOutboundLocalMessage(message) &&
+              isTopLevelChatRoomMessage(message),
           ),
         },
         revision: entry.revision + 1,
@@ -238,17 +282,14 @@ export class RoomTranscriptCache {
    * A page proves membership: Core answers it only for a member. When it
    * lands before the room page registers, `provisional` seeds the room so it
    * paints from this read; the page's bootstrap then replaces those props.
+   *
+   * An approach starts the same read before the click (`approach`). The click
+   * takes that read while it is new, so one room open costs one head read.
    */
   prefetch(roomId: string, provisional?: () => RoomsClientProps | null) {
     const entry = this.get(roomId);
     if (!this.available(roomId) || entry?.resolved) return;
-    const page = this.fetch(roomId);
-    this.prefetched.set(roomId, {
-      // A seeded entry starts at revision 0.
-      revision: entry?.revision ?? 0,
-      at: Date.now(),
-      page,
-    });
+    const page = this.approachedHead(roomId) ?? this.startHead(roomId);
     if (!provisional || entry) return;
     void page.then((head) => {
       if (!head || !this.available(roomId) || this.get(roomId)) return;
@@ -268,24 +309,99 @@ export class RoomTranscriptCache {
    * second read must not start only once the room has mounted.
    */
   prefetchUnreadWindow(roomId: string) {
-    if (!this.available(roomId)) return;
-    this.prefetchedUnread.set(roomId, {
-      at: Date.now(),
-      page: this.fetch(roomId, { openAtUnread: true }),
+    if (!this.available(roomId) || this.approachedUnreadWindow(roomId)) return;
+    const page = this.fetch(roomId, { openAtUnread: true });
+    this.prefetchedUnread.set(roomId, { at: Date.now(), page });
+    void page.then((window) => {
+      // A failed read must not stand in for the click's own.
+      if (!window && this.prefetchedUnread.get(roomId)?.page === page)
+        this.prefetchedUnread.delete(roomId);
     });
   }
 
-  /** The click's open-at-unread read, once, for the visit that click opened. */
+  /**
+   * Start a room's open reads when the reader heads for its link, ahead of
+   * the click: the head, and the open-at-unread window when the room opens at
+   * its Unread divider. Nothing paints from them until the click.
+   *
+   * An approach is a guess, and a pass over a list makes many. So it reads
+   * nothing while chat reads are throttled, nothing for a room an approach
+   * read a short time ago, and nothing once the approaches of this open
+   * window have used their share of reads.
+   */
+  approach(roomId: string, opensAtUnread: boolean) {
+    if (!this.available(roomId) || chatReadThrottleResumeInMs() > 0) return;
+    const now = Date.now();
+    this.approachReads = this.approachReads.filter(
+      (at) => now - at < ROOM_OPEN_PREFETCH_MS,
+    );
+    // Reads no open took would otherwise stay for as long as the cache does.
+    for (const reads of [this.prefetched, this.prefetchedUnread])
+      for (const [id, { at }] of reads)
+        if (now - at >= ROOM_OPEN_PREFETCH_MS) reads.delete(id);
+    for (const [id, at] of this.approachedAt)
+      if (now - at >= ROOM_APPROACH_REPEAT_MS) this.approachedAt.delete(id);
+    if (this.approachedAt.has(roomId)) return;
+    const head = !this.get(roomId)?.resolved && !this.approachedHead(roomId);
+    const unreadWindow = opensAtUnread && !this.approachedUnreadWindow(roomId);
+    const reads = Number(head) + Number(unreadWindow);
+    if (this.approachReads.length + reads > ROOM_APPROACH_READ_LIMIT) return;
+    if (reads > 0) this.approachedAt.set(roomId, now);
+    for (let read = 0; read < reads; read++) this.approachReads.push(now);
+    if (head) this.startHead(roomId);
+    if (unreadWindow) this.prefetchUnreadWindow(roomId);
+  }
+
+  private startHead(roomId: string) {
+    const page = this.fetch(roomId);
+    this.prefetched.set(roomId, {
+      // A seeded entry starts at revision 0.
+      revision: this.get(roomId)?.revision ?? 0,
+      at: Date.now(),
+      page,
+    });
+    void page.then((head) => {
+      // A failed read must not stand in for the click's own.
+      if (!head && this.prefetched.get(roomId)?.page === page)
+        this.prefetched.delete(roomId);
+    });
+    return page;
+  }
+
+  /** The head read a recent approach started against this transcript, if any. */
+  private approachedHead(roomId: string) {
+    const started = this.prefetched.get(roomId);
+    return started &&
+      started.revision === (this.get(roomId)?.revision ?? 0) &&
+      Date.now() - started.at < ROOM_APPROACH_REUSE_MS
+      ? started.page
+      : undefined;
+  }
+
+  private approachedUnreadWindow(roomId: string) {
+    const started = this.prefetchedUnread.get(roomId);
+    return started != null && Date.now() - started.at < ROOM_APPROACH_REUSE_MS;
+  }
+
+  /**
+   * The click's open-at-unread read, once, for the visit that click opened.
+   * An approach's read stands in for the click's, for the visit that opens next.
+   */
   takeUnreadWindow(roomId: string) {
     const prefetched = this.prefetchedUnread.get(roomId);
     this.prefetchedUnread.delete(roomId);
-    if (!prefetched || Date.now() - prefetched.at >= ROOM_OPEN_PREFETCH_MS)
-      return undefined;
+    if (!prefetched || !this.fitsOpen(prefetched.at)) return undefined;
     return prefetched.page;
+  }
+
+  /** Whether a read started at `at` is still new enough to stand in for an open. */
+  private fitsOpen(at: number) {
+    return Date.now() - at < ROOM_OPEN_PREFETCH_MS;
   }
 
   evict(roomId: string) {
     this.revoked.add(roomId);
+    this.approachedAt.delete(roomId);
     this.prefetched.delete(roomId);
     this.prefetchedUnread.delete(roomId);
     for (const key of this.reads.keys()) {
@@ -298,6 +414,7 @@ export class RoomTranscriptCache {
     this.reads.clear();
     this.prefetched.clear();
     this.prefetchedUnread.clear();
+    this.approachedAt.clear();
     this.client.removeQueries({ queryKey: this.prefix });
   }
 
@@ -316,7 +433,7 @@ export class RoomTranscriptCache {
     const promise = (
       prefetched &&
       prefetched.revision === revision &&
-      Date.now() - prefetched.at < ROOM_OPEN_PREFETCH_MS
+      this.fitsOpen(prefetched.at)
         ? prefetched.page.then((page) => page ?? this.fetch(roomId, options))
         : this.fetch(roomId, options)
     ).finally(() => {

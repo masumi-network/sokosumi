@@ -141,6 +141,9 @@ model Contact {
   /// @deprecated See `Task.contactId`.
   legacyTasks           Task[]                 @relation("TaskLegacyContact")
 
+  notDuplicateOf ContactNotDuplicate[] @relation("NotDuplicateContact")
+  notDuplicateTo ContactNotDuplicate[] @relation("NotDuplicateOther")
+
   @@index([workspaceId, archivedAt, updatedAt, id])
   @@index([workspaceId, lastContactAt])
   @@index([workspaceId, name])
@@ -428,30 +431,34 @@ model ContactSearch {
 /// `n:acmerobotics`. The row holds facts people, bots and the background
 /// lookup add: one lookup per company domain, never per person.
 model ContactCompany {
-  id            String    @id @default(uuid(7)) @db.Uuid
-  workspaceId   String    @db.Uuid
-  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  key           String
-  name          String
-  domain        String?
-  website       String?
-  description   String?
-  industry      String?
+  id             String    @id @default(uuid(7)) @db.Uuid
+  workspaceId    String    @db.Uuid
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  key            String
+  name           String
+  domain         String?
+  website        String?
+  description    String?
+  industry       String?
   /// Headcount as written: "11-50", "about 200".
-  size          String?
-  headquarters  String?
-  linkedinUrl   String?
-  whyItMatters  String?
+  size           String?
+  headquarters   String?
+  linkedinUrl    String?
+  whyItMatters   String?
   /// Every spelling its people have written (lowercase letters and digits),
   /// kept after a rename so archived people are still found.
-  aliases       String[]  @default([])
-  /// When the background lookup last read the company's site; null queues it.
-  enrichedAt    DateTime?
+  aliases        String[]  @default([])
+  /// When the background lookup last completed successfully, even with no facts.
+  enrichedAt     DateTime?
+  /// Failed lookups of the current site. The queue caps these across runs.
+  lookupFailures Int       @default(0)
   /// Since when no live contact belongs to it: its lookup waits until one does.
-  inactiveSince DateTime?
-  version       Int       @default(1)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  inactiveSince  DateTime?
+  version        Int       @default(1)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  listMemberships ContactCompanyListMember[]
 
   @@unique([workspaceId, key])
   @@index([workspaceId, enrichedAt])
@@ -471,4 +478,55 @@ model TaskContact {
   @@id([taskId, contactId])
   @@index([contactId])
   @@map("task_contact")
+}
+
+/// Two contacts someone said are different people: the duplicates check no
+/// longer pairs them. `contactId` is the smaller id of the pair.
+model ContactNotDuplicate {
+  workspaceId     String   @db.Uuid
+  contactId       String   @db.Uuid
+  contact         Contact  @relation("NotDuplicateContact", fields: [contactId], references: [id], onDelete: Cascade)
+  otherContactId  String   @db.Uuid
+  otherContact    Contact  @relation("NotDuplicateOther", fields: [otherContactId], references: [id], onDelete: Cascade)
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+
+  @@id([contactId, otherContactId])
+  @@index([workspaceId])
+  @@index([otherContactId])
+  @@map("contact_not_duplicate")
+}
+
+/// A named, shared list of companies, like `ContactList` for people. Always
+/// manual: people and bots add and remove companies.
+model ContactCompanyList {
+  id                 String                     @id @default(uuid(7)) @db.Uuid
+  workspaceId        String                     @db.Uuid
+  workspace          Workspace                  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name               String
+  nameKey            String
+  color              String
+  description        String?
+  createdByUserId    String?
+  createdBySokoBotId String?                    @db.Uuid
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  members            ContactCompanyListMember[]
+
+  @@unique([workspaceId, nameKey])
+  @@map("contact_company_list")
+}
+
+model ContactCompanyListMember {
+  listId           String             @db.Uuid
+  list             ContactCompanyList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  companyId        String             @db.Uuid
+  company          ContactCompany     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  addedByUserId    String?
+  addedBySokoBotId String?            @db.Uuid
+  addedAt          DateTime           @default(now())
+
+  @@id([listId, companyId])
+  @@index([companyId])
+  @@map("contact_company_list_member")
 }

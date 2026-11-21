@@ -1,14 +1,22 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { requireTaskReadForRouteVars } from "@/helpers/access-control";
+import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import { resolveTaskRefToId } from "@/helpers/task-ref";
+import { loadTaskAncestors } from "@/helpers/task-subtasks";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { isCoworkerAuthContext, isUserAuthContext } from "@/middleware/auth";
+import {
+  isCoworkerAuthContext,
+  isUserAuthContext,
+  requireUserContext,
+} from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskSchema } from "@/schemas/task.schema";
+import { loadTaskSeoAuditLink } from "@/services/seo-task-audit-link";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
 const paramsSchema = z.object({
@@ -20,6 +28,18 @@ const paramsSchema = z.object({
   }),
 });
 
+const querySchema = z.object({
+  archived: z
+    .enum(["true", "false"])
+    .optional()
+    .openapi({
+      param: { name: "archived", in: "query" },
+      description:
+        "true reads an archived Task instead, read-only, with the same access as the archived list. People only; coworkers and Soko Bots get 400.",
+      example: "true",
+    }),
+});
+
 const route = createRoute({
   method: "get",
   path: "/{id}",
@@ -28,9 +48,11 @@ const route = createRoute({
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
+    query: querySchema,
   },
   responses: {
     200: jsonSuccessResponse(taskSchema, "Retrieve task"),
+    400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
   },
@@ -39,7 +61,41 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
+    const { archived } = c.req.valid("query");
     const { authContext, workspaceContext } = c.var;
+
+    if (archived === "true") {
+      if (!isUserAuthContext(authContext)) {
+        throw badRequest("Only people can read archived Tasks.");
+      }
+      const { userId } = requireUserContext(authContext);
+      const { workspaceId: archivedWorkspaceId } =
+        requireWorkspaceContext(workspaceContext);
+      // Same rows as GET /tasks?archived=true lists.
+      const archivedTask = await prisma.task.findFirst({
+        where: {
+          id: await resolveTaskRefToId(id, archivedWorkspaceId, prisma),
+          archivedAt: { not: null },
+          workspaceId: archivedWorkspaceId,
+          ...buildHumanTaskVisibilityWhere(userId),
+        },
+        include: buildTaskIncludeForViewer(
+          authContext,
+          archivedWorkspaceId,
+          c.var.workspaceContext?.workspaceId,
+        ),
+      });
+      if (!archivedTask) {
+        throw notFound("Task not found");
+      }
+      return ok(
+        c,
+        taskSchema.parse({
+          ...mapTask(archivedTask, authContext),
+          ancestors: await loadTaskAncestors(archivedTask.parentTaskId, prisma),
+        }),
+      );
+    }
 
     const workspaceId =
       isUserAuthContext(authContext) ||
@@ -47,7 +103,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ? requireWorkspaceContext(workspaceContext).workspaceId
         : null;
 
-    const include = buildTaskIncludeForViewer(authContext, workspaceId);
+    const include = buildTaskIncludeForViewer(
+      authContext,
+      workspaceId,
+      c.var.workspaceContext?.workspaceId,
+    );
     const taskId = workspaceId
       ? await resolveTaskRefToId(id, workspaceId, prisma)
       : id;
@@ -58,6 +118,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       include,
     );
 
-    return ok(c, taskSchema.parse(mapTask(task, authContext)));
+    // A coworker reads only what it is assigned; parent names would leak.
+    const [ancestors, seoAudit] = await Promise.all([
+      isCoworkerAuthContext(authContext)
+        ? []
+        : loadTaskAncestors(task.parentTaskId, prisma),
+      loadTaskSeoAuditLink(c.var, task.id),
+    ]);
+    return ok(
+      c,
+      taskSchema.parse({ ...mapTask(task, authContext), ancestors, seoAudit }),
+    );
   });
 }

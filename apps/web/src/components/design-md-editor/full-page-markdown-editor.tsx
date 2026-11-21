@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { MarkdownEditor } from "@/app/tasks/components/markdown-editor";
 import Markdown from "@/components/markdown";
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { cn } from "@/lib/utils";
 
 export interface FullPageMarkdownEditorLabels {
@@ -55,21 +55,12 @@ export function FullPageMarkdownEditor({
   const isDirty = value !== initialValue;
   const isEmpty = value.trim().length === 0;
   const canSave = isDirty && !isEmpty;
-  const isDirtyRef = useRef(isDirty);
-  isDirtyRef.current = isDirty;
 
-  useMountEffect(() => {
-    function handleBeforeUnload(event: BeforeUnloadEvent) {
-      if (isDirtyRef.current) {
-        event.preventDefault();
-        event.returnValue = "";
-      }
+  useEventListener("window", "beforeunload", (event) => {
+    if (isDirty) {
+      event.preventDefault();
+      event.returnValue = "";
     }
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
   });
 
   const handleCancelClick = useCallback(() => {
@@ -88,7 +79,20 @@ export function FullPageMarkdownEditor({
 
   return (
     <>
-      <div className={cn("flex h-full min-h-0 flex-col", className)}>
+      {/*
+        The app's main column grows with its content, so h-full bounds
+        nothing: the editor grew to the whole file, its toolbar scrolled away
+        and text ran under the footer. This is the main column's height (the
+        header's 4rem, or the phone's 5rem top padding, plus p-4). The floor
+        keeps the toolbar and a few lines of text in a short window (a phone
+        held sideways), where the page scrolls instead.
+      */}
+      <div
+        className={cn(
+          "flex h-[calc(100dvh-6rem-env(safe-area-inset-top))] min-h-[26rem] flex-col",
+          className,
+        )}
+      >
         <header className="border-b px-4 py-4 sm:px-6">
           <h1 className="font-semibold text-lg tracking-tight sm:text-xl">
             {labels.title}
@@ -96,13 +100,14 @@ export function FullPageMarkdownEditor({
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="hidden min-h-0 flex-1 lg:grid lg:grid-cols-2 lg:divide-x">
+          <div className="hidden min-h-0 flex-1 lg:grid lg:grid-cols-2 lg:grid-rows-1 lg:divide-x">
             <div className="flex min-h-0 flex-col overflow-hidden p-4 sm:p-6">
               <MarkdownEditor
                 value={value}
                 onChange={onValueChange}
+                ariaLabel={labels.title}
                 className="flex h-full min-h-0 flex-col"
-                editorClassName="max-h-none min-h-0 flex-1"
+                editorClassName="h-full max-h-none"
               />
             </div>
             <div className="app-scrollbar min-h-0 overflow-y-auto p-4 sm:p-6">
@@ -129,8 +134,9 @@ export function FullPageMarkdownEditor({
               <MarkdownEditor
                 value={value}
                 onChange={onValueChange}
+                ariaLabel={labels.title}
                 className="flex h-full min-h-0 flex-col"
-                editorClassName="max-h-none min-h-0 flex-1"
+                editorClassName="h-full max-h-none"
               />
             </TabsContent>
             <TabsContent

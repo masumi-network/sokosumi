@@ -24,12 +24,12 @@ import { encodeTableCsv } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  Bot,
   Clock,
   GripVertical,
   ListFilter,
   MoreHorizontal,
   Plus,
-  Sparkles,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -40,11 +40,11 @@ import {
   type KeyboardEvent,
   type ReactNode,
   useCallback,
-  useEffect,
   useId,
   useRef,
   useState,
 } from "react";
+import { toast } from "sonner";
 import { DRIVE_SURFACE_PANEL_CLASS } from "@/app/drive/components/drive-view-layout";
 import { ColumnResizeHandle } from "@/components/data-grid/column-resize-handle";
 import {
@@ -92,6 +92,8 @@ import {
   TableRow as TableRowShell,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
+import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
 import { useSession } from "@/lib/auth/auth.client";
 import { dataTableService } from "@/lib/services/data-table.client";
 import { cn } from "@/lib/utils";
@@ -99,8 +101,10 @@ import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { moveIdToSlot } from "@/lib/utils/move-id";
 import { TableCell, TableUpdatedCell } from "./table-cell";
 import { TableColumnDialog } from "./table-column-dialog";
+import { TableFindReplace } from "./table-find-replace";
 import { cellWrap, columnWidth } from "./table-layout";
 import { createTableMutations, isTableRejection } from "./table-mutations";
+import { archivePatch, hideRows, saveArchive } from "./table-row-archive";
 import {
   parseTableInput,
   tableError,
@@ -219,23 +223,21 @@ function ReorderHandle({
 function TableDescription({ text }: { text: string }) {
   const t = useTranslations("App.Tables");
   const id = useId();
-  const ref = useRef<HTMLParagraphElement>(null);
+  const [element, setElement] = useState<HTMLParagraphElement | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [overflows, setOverflows] = useState(false);
-  useEffect(() => {
-    const element = ref.current;
-    if (!element || expanded) return;
-    const measure = () =>
+  useResizeObserver(
+    expanded ? null : element,
+    () => {
+      if (!element) return;
       setOverflows(element.scrollHeight > element.clientHeight + 1);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [expanded, text]);
+    },
+    { immediate: true, resetKey: text },
+  );
   return (
     <div className="mt-1 max-w-2xl text-sm">
       <p
-        ref={ref}
+        ref={setElement}
         id={id}
         className={cn("text-muted-foreground", !expanded && "line-clamp-1")}
       >
@@ -338,6 +340,8 @@ function TableWorkspace({
   const [retrySlot, setRetrySlot] = useState<string>();
   const [pending, setPending] = useState(false);
   const [column, setColumn] = useState<TableColumn | "new" | null>(null);
+  const [findReplace, setFindReplace] = useState(false);
+  const tableMenu = useRef<HTMLButtonElement>(null);
   const [dialog, setDialog] = useState<
     "views" | "history" | "enrich" | "rename" | "archive" | null
   >(null);
@@ -357,23 +361,30 @@ function TableWorkspace({
   const [enrichmentRequest, setEnrichmentRequest] =
     useState<Parameters<typeof dataTableService.enrich>[1]>();
   const [taskId, setTaskId] = useState<string | null>(null);
-  useEffect(() => {
-    // Read the pending state when a handler runs, not when the effect does.
-    // `mutate.hasPending()` is not React state, so a request that goes
-    // unresolved after the listeners are installed re-renders nothing, and a
-    // captured boolean would let a link navigate away from a write that may
-    // have committed. `allowNavigation` reads it live for the same reason.
-    const isUnresolved = () =>
-      pending ||
-      !!retryAction ||
-      mutate.hasPending() ||
-      (!!enrichmentRequest && !taskId);
-    if (!hasDrafts && !isUnresolved()) return;
-    function beforeUnload(event: BeforeUnloadEvent) {
+  // Read the pending state when a handler runs, not when the effect does.
+  // `mutate.hasPending()` is not React state, so a request that goes
+  // unresolved after the listeners are installed re-renders nothing, and a
+  // captured boolean would let a link navigate away from a write that may
+  // have committed. `allowNavigation` reads it live for the same reason.
+  const isUnresolved = () =>
+    pending ||
+    !!retryAction ||
+    mutate.hasPending() ||
+    (!!enrichmentRequest && !taskId);
+  const guardNavigation = hasDrafts || isUnresolved();
+
+  useEventListener(
+    guardNavigation ? "window" : null,
+    "beforeunload",
+    (event) => {
       event.preventDefault();
       event.returnValue = "";
-    }
-    function navigate(event: MouseEvent) {
+    },
+  );
+  useEventListener(
+    guardNavigation ? "document" : null,
+    "click",
+    (event) => {
       const anchor =
         event.target instanceof Element
           ? event.target.closest("a[href]")
@@ -387,16 +398,13 @@ function TableWorkspace({
         event.preventDefault();
         event.stopPropagation();
       }
-    }
-    window.addEventListener("beforeunload", beforeUnload);
-    document.addEventListener("click", navigate, true);
-    return () => {
-      window.removeEventListener("beforeunload", beforeUnload);
-      document.removeEventListener("click", navigate, true);
-    };
-  }, [enrichmentRequest, hasDrafts, mutate, pending, retryAction, t, taskId]);
+    },
+    true,
+  );
+  const moveInFlight = useRef(false);
+  const rowsKey = ["table-rows", table.id, definition, cursor, archivedRows];
   const rows = useQuery({
-    queryKey: ["table-rows", table.id, definition, cursor, archivedRows],
+    queryKey: rowsKey,
     queryFn: () =>
       dataTableService.query(table.id, {
         ...definition,
@@ -404,7 +412,8 @@ function TableWorkspace({
         limit: 50,
         archived: archivedRows,
       }),
-    refetchInterval: 3000,
+    // A poll during a move or archive would read the rows from before it.
+    refetchInterval: () => (moveInFlight.current ? false : 3000),
   });
   const displayedRows = [...(rows.data?.rows ?? [])];
   for (const { row } of Object.values(editingRows))
@@ -617,7 +626,6 @@ function TableWorkspace({
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   );
   const [dragLabel, setDragLabel] = useState<string | null>(null);
-  const moveInFlight = useRef(false);
   /**
    * One move at a time: the next one needs the versions this one returns, so
    * it waits for the refresh. A failed move refreshes, undoing its preview.
@@ -625,7 +633,7 @@ function TableWorkspace({
   async function runMove(
     slot: string,
     preview: () => void,
-    send: () => Promise<unknown>,
+    send: (slot: string) => Promise<unknown>,
   ) {
     if (moveInFlight.current || pending) return;
     if (retryAction) {
@@ -637,7 +645,7 @@ function TableWorkspace({
     try {
       await run(async () => {
         try {
-          await send();
+          await send(slot);
         } catch (error) {
           await refresh();
           throw error;
@@ -687,7 +695,7 @@ function TableWorkspace({
       "move-row",
       () =>
         cache.setQueryData<typeof rows.data>(
-          ["table-rows", table.id, definition, cursor, archivedRows],
+          rowsKey,
           (previous) =>
             previous && {
               ...previous,
@@ -799,6 +807,7 @@ function TableWorkspace({
               <Button
                 size="icon"
                 variant="ghost"
+                ref={tableMenu}
                 className={TOOLBAR_ICON_CONTROL}
                 aria-label={t("tableMenu")}
               >
@@ -815,6 +824,11 @@ function TableWorkspace({
               >
                 {t("rename")}
               </DropdownMenuItem>
+              {!table.archivedAt && (
+                <DropdownMenuItem onClick={() => setFindReplace(true)}>
+                  {t("findReplace.title")}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => void run(handleExport)}>
                 {t("exportCsv")}
               </DropdownMenuItem>
@@ -972,7 +986,7 @@ function TableWorkspace({
                 setDialog("enrich");
               }}
             >
-              <Sparkles aria-hidden className="size-4" />
+              <Bot aria-hidden className="size-4" />
               {t("askAgent")}
             </Button>
             <Button
@@ -980,24 +994,21 @@ function TableWorkspace({
               variant="outline"
               className={EDITOR_TOOLBAR_CONTROL}
               disabled={pending || !!table.archivedAt}
-              onClick={() =>
-                void run(async () => {
-                  await mutate(
-                    "archive-rows",
-                    {
-                      patch: (rows.data?.rows ?? [])
-                        .filter((row) => selected.includes(row.id))
-                        .map((row) => ({
-                          id: row.id,
-                          version: row.version,
-                          archived: !archivedRows,
-                        })),
-                    },
-                    (body) => dataTableService.batch(table.id, body),
-                  );
-                  setSelected([]);
-                }, "archive-rows")
-              }
+              onClick={() => {
+                const patch = archivePatch(rows.data, selected, !archivedRows);
+                if (!patch.length) return;
+                void runMove(
+                  "archive-rows",
+                  () => {
+                    hideRows(cache, rowsKey, selected);
+                    setSelected([]);
+                  },
+                  (slot) =>
+                    saveArchive(t, slot, patch, mutate, (body) =>
+                      dataTableService.batch(table.id, body),
+                    ),
+                );
+              }}
             >
               {archivedRows ? t("restoreRows") : t("archiveRows")}
             </Button>
@@ -1490,6 +1501,26 @@ function TableWorkspace({
           column={column === "new" ? undefined : column}
           onClose={() => setColumn(null)}
           onSaved={() => void refresh()}
+        />
+      )}
+      {findReplace && (
+        <TableFindReplace
+          table={table}
+          returnFocus={tableMenu}
+          onClose={() => setFindReplace(false)}
+          onDone={(count) => {
+            void refresh();
+            toast.success(t("findReplace.done", { count }), {
+              action: {
+                label: t("history"),
+                onClick: () => {
+                  setHistoryCursor(undefined);
+                  setHistoryCell({});
+                  setDialog("history");
+                },
+              },
+            });
+          }}
         />
       )}
       <Dialog

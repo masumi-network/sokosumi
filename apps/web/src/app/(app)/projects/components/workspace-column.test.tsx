@@ -2,22 +2,34 @@ import type {
   NotificationItem,
   ProjectActivityItem,
 } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   NeedsYouPanel,
   panelFeed,
   RecentActivityPanel,
+  requestPanelFeed,
 } from "./workspace-column";
 
-const { getProjectByIdMock, markReadMock, navigateMock, setViewMock } =
-  vi.hoisted(() => ({
-    getProjectByIdMock: vi.fn(),
-    markReadMock: vi.fn(),
-    navigateMock: vi.fn(),
-    setViewMock: vi.fn(),
-  }));
+const {
+  connectionMock,
+  getFormatterMock,
+  getProjectByIdMock,
+  markReadMock,
+  navigateMock,
+  setViewMock,
+} = vi.hoisted(() => ({
+  connectionMock: vi.fn(async () => undefined),
+  getFormatterMock: vi.fn(async () => ({
+    relativeTime: () => "2h ago",
+    dateTime: () => "Oct 1",
+  })),
+  getProjectByIdMock: vi.fn(),
+  markReadMock: vi.fn(),
+  navigateMock: vi.fn(),
+  setViewMock: vi.fn(),
+}));
 
 vi.mock("@/lib/services/project.service", () => ({
   projectService: { getProjectById: getProjectByIdMock },
@@ -31,12 +43,11 @@ function translator(namespace: string) {
       : `${namespace}.${key}`;
 }
 
+vi.mock("next/server", () => ({ connection: () => connectionMock() }));
+
 vi.mock("next-intl/server", () => ({
   getTranslations: async (namespace: string) => translator(namespace),
-  getFormatter: async () => ({
-    relativeTime: () => "2h ago",
-    dateTime: () => "Oct 1",
-  }),
+  getFormatter: () => getFormatterMock(),
 }));
 
 vi.mock("next-intl", () => ({
@@ -164,6 +175,22 @@ describe("NeedsYouPanel", () => {
     expect(within(row).getByTestId("project-avatar")).toBeInTheDocument();
   });
 
+  it("takes a row's project from a project read still in flight", async () => {
+    render(
+      await NeedsYouPanel({
+        feed: Promise.resolve([notification("n1", project.id)]),
+        projects: Promise.resolve({
+          [project.id]: { name: "Launch", logo: null },
+        }),
+      }),
+    );
+
+    expect(screen.getByTestId("workspace-needs-you-row")).toHaveTextContent(
+      "Launch",
+    );
+    expect(getProjectByIdMock).not.toHaveBeenCalled();
+  });
+
   it("says nothing waits when the view is empty", async () => {
     render(await NeedsYouPanel({ feed: Promise.resolve([]), projects: {} }));
 
@@ -219,6 +246,36 @@ describe("NeedsYouPanel", () => {
       expect(screen.queryByRole("link")).toBeNull();
       unmount();
     }
+  });
+
+  it("puts your bot's failed reply first on Home and opens its chat", async () => {
+    render(
+      await NeedsYouPanel({
+        feed: Promise.resolve([]),
+        projects: {},
+        quiet: true,
+        lead: {
+          title: "Pip couldn't finish its last reply",
+          detail: "Open the chat",
+          href: "/chat/rooms/room-1",
+        },
+      }),
+    );
+
+    // Not "Nothing waits on you" while the sidebar says the bot failed.
+    expect(screen.queryByTestId("home-needs-you-empty")).toBeNull();
+    const [row] = screen.getAllByTestId("home-needs-you-row");
+    expect(
+      within(row).getByRole("link", {
+        name: /Pip couldn't finish its last reply.*Open the chat/,
+      }),
+    ).toHaveAttribute("href", "/chat/rooms/room-1");
+    // Show all is about notifications; a lone bot row has none to show.
+    expect(
+      screen.queryByRole("link", {
+        name: "App.Projects.column.needsYou.showAll",
+      }),
+    ).toBeNull();
   });
 });
 
@@ -341,10 +398,53 @@ describe("RecentActivityPanel", () => {
 
 describe("panelFeed", () => {
   it("turns a failed feed into null so the panel can say so", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => {});
+    expectConsole("warn", "Workspace column feed failed");
     await expect(panelFeed(Promise.reject(new Error("down")))).resolves.toBe(
       null,
     );
     await expect(panelFeed(Promise.resolve([1]))).resolves.toEqual([1]);
+  });
+});
+
+describe("requestPanelFeed", () => {
+  // A prefetch ends by rejecting `connection()`. Logging that as a failed
+  // feed would fill the logs with one false warning per hover.
+  it("reads nothing and logs nothing when a prefetch ends", async () => {
+    const warn = vi.spyOn(console, "warn");
+    const read = vi.fn(async () => [1]);
+    connectionMock.mockRejectedValueOnce(new Error("prerender aborted"));
+
+    await expect(requestPanelFeed(read)).resolves.toBe(null);
+
+    expect(read).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+});
+
+// The time labels read the clock. A clock read, or an uncached Core read,
+// while a link prefetch renders would cut that prefetch short.
+describe("Workspace column panels in a link prefetch", () => {
+  it.each([
+    [
+      "Needs you",
+      () =>
+        NeedsYouPanel({
+          feed: Promise.resolve([]),
+          projects: {},
+        }),
+    ],
+    [
+      "Recent activity",
+      () => RecentActivityPanel({ feed: Promise.resolve([]) }),
+    ],
+  ])("%s reads nothing before the request comes", async (_name, render) => {
+    connectionMock.mockReturnValueOnce(new Promise(() => {}));
+    getFormatterMock.mockClear();
+
+    void render();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(getFormatterMock).not.toHaveBeenCalled();
   });
 });

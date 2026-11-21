@@ -3,14 +3,8 @@
 import { AnnouncedFeature, type ChatRoom } from "@sokosumi/core-client";
 import { CheckCheck, Loader2, Sunrise } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import {
-  type ReactNode,
-  useEffect,
-  useEffectEvent,
-  useTransition,
-} from "react";
+import { type ReactNode, useTransition } from "react";
 import { toast } from "sonner";
 import { markAllChatUnreadReadAction } from "@/app/chat/actions";
 import { CHAT_CATCH_UP_PATH } from "@/app/chat/utils/chat-route-base";
@@ -19,12 +13,16 @@ import {
   NeedsYouPill,
   RowCountMark,
 } from "@/components/chat/mention-count-pill";
-import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
+import {
+  beginRoomsRead,
+  notifyOrganizationChatRoomsChanged,
+} from "@/components/chat/organization-chat-events";
 import {
   resolveUnreadThreadsAttention,
   roomUnreadReads,
 } from "@/components/chat/room-attention";
 import { ROOM_COUNT_CAP } from "@/components/chat/room-count-label";
+import { useNavPathname } from "@/components/navigation-progress.client";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarMenu,
@@ -38,6 +36,7 @@ import {
   SIDEBAR_ROW_LABEL_CLASS,
   SIDEBAR_ROW_LINK_CLASS,
 } from "@/components/ui/sidebar-classes";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { cn } from "@/lib/utils";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
@@ -80,34 +79,24 @@ export function ChatUnreadsFilterChip({
     markFeatureSeen(AnnouncedFeature.UNREADS);
     onUnreadOnlyChange(!unreadOnly);
   }
-  const toggleFromKeyboard = useEffectEvent(toggleUnreadOnly);
-
   // The same toggle the button runs, from the keyboard: ⌘⇧U / Ctrl+Shift+U is
   // no browser default (checked against Chrome, Safari, Firefox and Edge).
   // Editable targets keep their "u" for text and, on Linux, their Ctrl+Shift+U
   // Unicode input, so the shortcut stands down there.
-  useEffect(() => {
-    if (!showsShortcut) {
+  useEventListener(showsShortcut ? "window" : null, "keydown", (event) => {
+    if (event.key?.toLowerCase() !== "u" || event.repeat) {
       return;
     }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key?.toLowerCase() !== "u" || event.repeat) {
-        return;
-      }
-      const hostModifier = isApplePlatform ? event.metaKey : event.ctrlKey;
-      if (!hostModifier || !event.shiftKey || event.altKey) {
-        return;
-      }
-      if (isEditableKeyboardTarget(event.target)) {
-        return;
-      }
-      event.preventDefault();
-      toggleFromKeyboard();
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showsShortcut, isApplePlatform]);
+    const hostModifier = isApplePlatform ? event.metaKey : event.ctrlKey;
+    if (!hostModifier || !event.shiftKey || event.altKey) {
+      return;
+    }
+    if (isEditableKeyboardTarget(event.target)) {
+      return;
+    }
+    event.preventDefault();
+    toggleUnreadOnly();
+  });
 
   // A mode, not a place: on, it takes the primary tint the app uses for what
   // is on. Before React reads the remembered filter, the boot script's mark
@@ -158,14 +147,20 @@ export function ChatMarkAllReadButton({
   const t = useTranslations("App.Channels.UnreadNav");
   const [isMarking, startMarking] = useTransition();
   const markAllTargets = markAllReadTargets(rooms);
-  if (!unreadOnly || markAllTargets.length === 0) {
+  // The rooms read at once, so the button stays for the write: it holds the
+  // spinner and the focus.
+  if (!unreadOnly || (markAllTargets.length === 0 && !isMarking)) {
     return null;
   }
 
   function handleMarkAllRead() {
+    const settle = beginRoomsRead(rooms);
     startMarking(async () => {
-      const result = await markAllChatUnreadReadAction(markAllTargets);
-      if (!result.ok) {
+      const result = await markAllChatUnreadReadAction(markAllTargets).catch(
+        () => null,
+      );
+      settle(result?.ok === true);
+      if (!result?.ok) {
         toast.error(t("markAllReadError"));
       }
       // What Core holds now, part-read or not, is what the rooms show next.
@@ -229,7 +224,7 @@ export function ChatUnreadNavRows({
   onUnreadOnlyChange,
 }: ChatUnreadNavRowsProps) {
   const t = useTranslations("App.Channels.UnreadNav");
-  const pathname = usePathname();
+  const pathname = useNavPathname();
   const showsChip = onUnreadOnlyChange !== undefined;
 
   const { threadCount, mentionCount } = resolveUnreadThreadsAttention(rooms);

@@ -88,7 +88,7 @@ describe("buildRoomMentionPrompt", () => {
     });
 
     expect(prompt).toBe(
-      "Patrick replied to a thread you are part of in #general:\n\nsounds good, go ahead",
+      "Patrick wrote to you in a thread in #general:\n\nsounds good, go ahead",
     );
   });
 

@@ -7,31 +7,31 @@ import type {
 import {
   MAX_STUDIO_BATCH_IMAGES as MAX_BATCH,
   productBrief,
+  studioAdCopyPrompts,
+  studioAdVariationIndex,
 } from "@sokosumi/utils";
-import { Check, ChevronDown, Undo2, X } from "lucide-react";
+import { ChevronDown, Undo2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useMemo, useRef, useState, useTransition } from "react";
+import { useId, useMemo, useState, useTransition } from "react";
 import {
   ROOM_COMPOSER_TEXTAREA_CLASSNAME,
   RoomMessageComposer,
 } from "@/components/chat/room-message-composer";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   clampToModel,
   creditsForBatch,
   creditsForImage,
+  defaultModel,
   priceUnitLabelKey,
 } from "./catalog";
-import { readApprovedStudioHeadlines } from "./studio-approved-headlines";
 import type { StudioBatchProduct } from "./studio-batch";
 import {
   STUDIO_COMPOSER_GUTTER_CLASS,
@@ -40,8 +40,8 @@ import {
 import {
   STUDIO_CREATIVE_DIRECTIONS,
   type StudioCreativeDirection,
-  studioAdCopyPrompts,
 } from "./studio-creative-directions";
+import { readStudioHeadlineKit } from "./studio-headline-kit";
 import { AD_PLACEMENTS, type PlacementRatio } from "./studio-placements";
 import { StudioProductPhotoControl } from "./studio-product-photo";
 import { StudioTemplateMenu } from "./studio-template-picker";
@@ -52,7 +52,6 @@ import {
   type StudioAsset,
   type StudioCatalog,
   type StudioLabels,
-  type StudioModel,
   type StudioSettings,
   type StudioTarget,
 } from "./types";
@@ -79,29 +78,6 @@ function chipClass(active: boolean, disabled = false): string {
 }
 
 /**
- * One of the composer's two quiet disclosures.
- *
- * Each says what is currently chosen and opens to let it be changed. They are
- * deliberately the same shape and the same weight, so the eye lands on the
- * one thing that is a different weight — the Generate button.
- */
-function TriggerLabel({
-  children,
-  label,
-}: {
-  children: React.ReactNode;
-  label: string;
-}) {
-  return (
-    <>
-      <span className="sr-only">{label}</span>
-      <span className="min-w-0 truncate">{children}</span>
-      <ChevronDown aria-hidden className="text-muted-foreground size-3.5" />
-    </>
-  );
-}
-
-/**
  * The composer's disclosure triggers.
  *
  * `h-8` and `text-sm` are what `size="sm"` on this app's Button already means,
@@ -121,11 +97,8 @@ const TRIGGER_CLASS =
 /**
  * Where a generation is described and bought.
  *
- * The prompt is the surface; everything that qualifies it is one of two
- * summaries that open on demand — which models, and the
- * frame/resolution/format the request will carry. They read as a sentence
- * about the work rather than as a form, and the only emphatic control on the
- * page is the one that spends money.
+ * The composer shows the prompt, the settings the automatic route supports,
+ * and the price of the requested images before Generate is pressed.
  *
  * Every option offered — every ratio, every resolution, every format — is
  * read from the model's entry in Core's verified catalog, so the composer
@@ -181,12 +154,11 @@ export function StudioComposer({
    */
   onPromptChange: (value: string) => void;
   /**
-   * The target is shared with the assistant, so the page owns it.
+   * The page owns the target so templates and recovery can restore settings.
    *
    * An updater rather than a value: two options changed in the same tick are
    * batched, and computing the second from the render's stale `target` threw
-   * the first one away. Selecting two models quickly is the normal way to use
-   * this composer, so that was not a rare case.
+   * the first one away. Each update must see the preceding settings change.
    */
   onTargetChange: (update: (current: StudioTarget) => StudioTarget) => void;
   prompt: string;
@@ -217,7 +189,6 @@ export function StudioComposer({
   // Only for the strings that interpolate a count; see `StudioLabels`.
   const t = useTranslations("App.Studio");
   const [copies, setCopies] = useState(1);
-  const [modelQuery, setModelQuery] = useState("");
   const [loadingHeadlines, startLoadingHeadlines] = useTransition();
   const [headlineStatus, setHeadlineStatus] = useState<{
     projectId: string;
@@ -228,7 +199,10 @@ export function StudioComposer({
       ? (target.exportHeadlines?.lines ?? NO_HEADLINES)
       : NO_HEADLINES;
   const usesApprovedHeadlines = headlineOptions.length > 0;
-  const searchRef = useRef<HTMLInputElement>(null);
+  const ideogramModel = catalog.models.find(
+    (model) => model.id === "ideogram-v3",
+  );
+  const automaticModel = defaultModel(catalog);
   const promptHelpId = useId();
   const hasProductBatch = batchProducts.length > 0;
   const productCopies = batchProducts.reduce(
@@ -266,7 +240,8 @@ export function StudioComposer({
     }
     startLoadingHeadlines(async () => {
       try {
-        const lines = await readApprovedStudioHeadlines(generationProjectId);
+        const { approvedLines: lines } =
+          await readStudioHeadlineKit(generationProjectId);
         if (!lines.length) {
           setHeadlineStatus({
             projectId: generationProjectId,
@@ -297,11 +272,7 @@ export function StudioComposer({
     const key = priceUnitLabelKey(unit);
     return key ? t(`PriceUnits.${key}`) : unit;
   }
-  const {
-    modelIds: selectedModelIds,
-    settings,
-    placementRatios = NO_PLACEMENTS,
-  } = target;
+  const { settings, placementRatios = NO_PLACEMENTS } = target;
   const frameCount = Math.max(1, placementRatios.length);
   const hasPhotoReference = hasProductBatch
     ? batchProducts.some(({ photo }) => photo !== null)
@@ -317,60 +288,32 @@ export function StudioComposer({
   const referenceCount =
     referenceAssets.length + (hasPhotoReference && !useCutout ? 1 : 0);
   const tooManyReferences = referenceCount > MAX_STUDIO_REFERENCES;
-  const modelLimit = Math.floor(
-    MAX_BATCH / (frameCount * Math.max(1, productCopies)),
-  );
-
-  // A reference is an edit request. Only offer models that can consume every
-  // selected image; a generation-only model must never drop the base image.
-  const availableModels = useMemo(
-    () =>
-      catalog.models.filter(
-        (model) =>
-          referenceCount === 0 ||
-          (model.editEndpoint !== null &&
-            model.maxReferences >= referenceCount),
-      ),
-    [catalog.models, referenceCount],
-  );
-  const selectedModels = useMemo(
-    () =>
-      availableModels.filter((model) => selectedModelIds.includes(model.id)),
-    [availableModels, selectedModelIds],
-  );
-
-  const needle = modelQuery.trim().toLowerCase();
-  const shownModels = useMemo(
-    () =>
-      needle === ""
-        ? availableModels
-        : availableModels.filter((model) =>
-            `${model.label} ${model.id}`.toLowerCase().includes(needle),
-          ),
-    [availableModels, needle],
-  );
-
-  /** Select the shown models that fit, keeping the existing selection first. */
-  function setShown(on: boolean) {
-    const ids = new Set(shownModels.map((model) => model.id));
-    onTargetChange((current) => {
-      const selectedCount = availableModels.filter((model) =>
-        current.modelIds.includes(model.id),
-      ).length;
-      return {
-        ...current,
-        modelIds: on
-          ? [
-              ...current.modelIds,
-              ...shownModels
-                .map((model) => model.id)
-                .filter((id) => !current.modelIds.includes(id))
-                .slice(0, Math.max(0, modelLimit - selectedCount)),
-            ]
-          : current.modelIds.filter((id) => !ids.has(id)),
-      };
-    });
-  }
+  const letterExistingBackdrop =
+    usesApprovedHeadlines &&
+    Boolean(ideogramModel?.editEndpoint) &&
+    !hasPhotoReference &&
+    !wantsCutout &&
+    referenceAssets.length === 1 &&
+    referenceAssets[0].id === target.letteringBackdropId;
+  // Headlined ads always letter with Ideogram when the catalog can; the
+  // exact-font overlay is only a fallback (failed lettering, or no edit path).
+  const twoStepLettering =
+    !letterExistingBackdrop &&
+    usesApprovedHeadlines &&
+    automaticModel?.id === "gemini-pro" &&
+    Boolean(ideogramModel?.editEndpoint);
+  const lettering =
+    twoStepLettering || letterExistingBackdrop ? "ideogram" : "overlay";
+  const generationModel = letterExistingBackdrop
+    ? ideogramModel
+    : automaticModel;
+  const model =
+    generationModel &&
+    (referenceCount === 0 ||
+      (generationModel.editEndpoint &&
+        generationModel.maxReferences >= referenceCount))
+      ? generationModel
+      : null;
 
   const setSettings = (update: (current: StudioSettings) => StudioSettings) =>
     onTargetChange((current) => ({
@@ -382,30 +325,22 @@ export function StudioComposer({
     onTargetChange((current) => ({ ...current, creativeDirection: direction }));
   }
 
-  /**
-   * The options every chosen model can honour.
-   *
-   * An intersection, not a union: a ratio only one of two selected models
-   * supports would produce a batch where half the images silently came back
-   * framed differently from what was asked.
-   */
-  const shared = useMemo(() => {
-    if (selectedModels.length === 0) {
-      return { aspectRatios: [], resolutions: [], outputFormats: [] };
-    }
-    const intersect = (pick: (model: StudioModel) => string[]) =>
-      selectedModels
-        .map(pick)
-        .reduce((all, next) => all.filter((value) => next.includes(value)));
-    return {
-      aspectRatios: intersect((model) => model.aspectRatios),
-      resolutions: intersect((model) => model.resolutions),
-      outputFormats: intersect((model) => model.outputFormats),
-    };
-  }, [selectedModels]);
+  const shared = {
+    aspectRatios:
+      model?.aspectRatios.filter(
+        (ratio) =>
+          !twoStepLettering || ideogramModel?.aspectRatios.includes(ratio),
+      ) ?? [],
+    resolutions:
+      model?.resolutions.filter(
+        (resolution) =>
+          !twoStepLettering || ideogramModel?.resolutions.includes(resolution),
+      ) ?? [],
+    outputFormats: model?.outputFormats ?? [],
+  };
 
   const unsupportedPlacements =
-    selectedModels.length > 0 &&
+    model !== null &&
     placementRatios.some((ratio) => !shared.aspectRatios.includes(ratio));
 
   function togglePlacement(ratio: PlacementRatio) {
@@ -422,31 +357,31 @@ export function StudioComposer({
 
   const references = referenceAssets;
 
-  const overSelectionLimit = selectedModels.length > modelLimit;
-  const modelsThatFit =
-    hasProductBatch && overSelectionLimit && !tooManyReferences
-      ? selectedModels
-          .filter((model) =>
-            placementRatios.every((ratio) =>
-              model.aspectRatios.includes(ratio),
-            ),
-          )
-          .slice(0, modelLimit)
-      : [];
+  const overBatchLimit = frameCount * productCopies > MAX_BATCH;
 
   // The summary, price and submitted requests all read this same plan.
   const plan = useMemo(() => {
     const frames = placementRatios.length
       ? placementRatios
       : [settings.aspectRatio];
-    const configured = (
-      unsupportedPlacements || tooManyReferences ? [] : frames
-    ).flatMap((aspectRatio) =>
-      selectedModels.map((model) => ({
-        model,
-        settings: clampToModel(model, { ...settings, aspectRatio }),
-      })),
-    );
+    const configured =
+      !model || unsupportedPlacements || tooManyReferences
+        ? []
+        : frames.map((aspectRatio) => {
+            const scene = clampToModel(model, { ...settings, aspectRatio });
+            const final =
+              twoStepLettering && ideogramModel
+                ? clampToModel(ideogramModel, scene)
+                : scene;
+            return {
+              model,
+              settings: {
+                ...scene,
+                aspectRatio: final.aspectRatio,
+                resolution: final.resolution,
+              },
+            };
+          });
     const each = configured.length
       ? Math.min(copies, Math.floor(MAX_BATCH / configured.length))
       : 0;
@@ -468,7 +403,7 @@ export function StudioComposer({
           },
         ];
     let copyIndex = 0;
-    const legs = overSelectionLimit
+    const legs = overBatchLimit
       ? []
       : entries.flatMap((entry) =>
           studioAdCopyPrompts(
@@ -489,7 +424,35 @@ export function StudioComposer({
             }));
           }),
         );
-    return { copies: hasProductBatch ? productCopies : each, legs, configured };
+    const charges = configured.flatMap((leg) =>
+      twoStepLettering && ideogramModel
+        ? [
+            leg,
+            {
+              model: ideogramModel,
+              settings: clampToModel(ideogramModel, leg.settings),
+            },
+          ]
+        : [leg],
+    );
+    const chargedLegs = legs.flatMap((leg) =>
+      twoStepLettering && ideogramModel
+        ? [
+            leg,
+            {
+              model: ideogramModel,
+              settings: clampToModel(ideogramModel, leg.settings),
+            },
+          ]
+        : [leg],
+    );
+    return {
+      copies: hasProductBatch ? productCopies : each,
+      legs,
+      configured,
+      charges,
+      chargedLegs,
+    };
   }, [
     batchProducts,
     batchPrompts,
@@ -497,15 +460,17 @@ export function StudioComposer({
     directedBrief,
     hasProductBatch,
     headlineOptions,
-    overSelectionLimit,
+    ideogramModel,
+    overBatchLimit,
     placementRatios,
     product,
     productCopies,
     productPhoto,
-    selectedModels,
+    model,
     settings,
     tooManyReferences,
     unsupportedPlacements,
+    twoStepLettering,
   ]);
 
   /**
@@ -516,7 +481,11 @@ export function StudioComposer({
    * line says how much work is being bought and stays silent about credits
    * rather than printing a total that is missing a leg.
    */
-  const batchCredits = useMemo(() => creditsForBatch(plan.legs), [plan.legs]);
+  const batchCredits = useMemo(
+    () => creditsForBatch(plan.chargedLegs),
+    [plan.chargedLegs],
+  );
+  const sceneCredits = useMemo(() => creditsForBatch(plan.legs), [plan.legs]);
 
   const totalJobs = plan.legs.length;
   const plannedHeadlines = [
@@ -526,10 +495,6 @@ export function StudioComposer({
       ),
     ),
   ];
-  const selectionLimitReached = selectedModels.length >= modelLimit;
-  const selectionLimitReason = hasProductBatch
-    ? t("productBatchLimit", { count: MAX_BATCH })
-    : t("modelSelectionLimit", { count: modelLimit });
   const canGenerate =
     !busy &&
     !loadingHeadlines &&
@@ -539,51 +504,23 @@ export function StudioComposer({
     !promptTooLong &&
     totalJobs > 0;
 
-  function toggleModel(model: StudioModel) {
-    onTargetChange((current) => {
-      const adding = !current.modelIds.includes(model.id);
-      if (
-        adding &&
-        availableModels.filter((candidate) =>
-          current.modelIds.includes(candidate.id),
-        ).length >= modelLimit
-      ) {
-        return current;
-      }
-      const next = adding
-        ? [...current.modelIds, model.id]
-        : current.modelIds.filter((id) => id !== model.id);
-      // Emptying the selection is allowed. It used to be refused, on the
-      // grounds that the option rows would have no capabilities to read — but
-      // that made the last remaining model unclearable, and with five selected
-      // on open that is a control that visibly stops working. Generate is
-      // disabled and the rows say what to do instead.
-      return {
-        ...current,
-        modelIds: next,
-        // Only when adding, which is the only direction that can need it: a
-        // newly selected model may not offer what is currently chosen, while
-        // removing one can only widen the intersection. Clamping on the way out
-        // is a no-op today — every selected model already supports the current
-        // frame — so this is not a bug fix, it is refusing to run a rule in the
-        // direction where it could only ever be wrong.
-        settings: adding
-          ? clampToModel(model, current.settings)
-          : current.settings,
-      };
-    });
-  }
-
   function submit() {
     if (!canGenerate) return;
     // Straight from the plan, so the batch bought is the batch the line above
-    // the button described — including its model order and its clamped
+    // the button described — including its placements and its clamped
     // settings. Nothing is decided a second time here.
     const requests: GenerationRequest[] = plan.legs.map((leg) => {
       const id = crypto.randomUUID();
       return {
         id,
         prompt: leg.prompt,
+        templateId: target.templateId,
+        creativeDirection:
+          creativeDirection ??
+          STUDIO_CREATIVE_DIRECTIONS.find(({ guidance }) =>
+            leg.prompt.includes(`\n\nCreative direction: ${guidance}`),
+          )?.id,
+        variationIndex: studioAdVariationIndex(leg.prompt),
         modelId: leg.model.id,
         modelLabel: leg.model.label,
         settings: leg.settings,
@@ -594,7 +531,10 @@ export function StudioComposer({
         referenceAssetIds: references.map((asset) => asset.id),
         ...(leg.photo ? { referenceFileIds: [leg.photo.id] } : {}),
         ...(leg.product ? { product: leg.product } : {}),
-        ...(leg.exportHeadline ? { exportHeadline: leg.exportHeadline } : {}),
+        ...(leg.exportHeadline
+          ? { exportHeadline: leg.exportHeadline, lettering }
+          : {}),
+        ...(letterExistingBackdrop ? { letterExistingBackdrop: true } : {}),
         ...(useCutout ? { useProductCutout: true } : {}),
         // One key per request, never shared across the batch: these are
         // deliberately different images, not retries of one.
@@ -606,34 +546,28 @@ export function StudioComposer({
     onGenerate(requests);
   }
 
-  const modelSummary =
-    selectedModels.length === 1
-      ? selectedModels[0].label
-      : t("modelCount", { count: selectedModels.length });
-
-  const hasSharedFormat = shared.outputFormats.length > 0;
-
-  const plannedSettings = plan.configured.map(({ settings: actual }) =>
-    [
-      actual.aspectRatio,
-      actual.resolution,
-      actual.outputFormat ?? t("modelChoosesFormat"),
-    ]
-      .filter(Boolean)
-      .join(" · "),
-  );
-  const mixedSettings = new Set(plannedSettings).size > 1;
+  const firstSettings = plan.configured[0]?.settings;
+  const settingsSummary = firstSettings
+    ? [
+        firstSettings.aspectRatio,
+        firstSettings.resolution,
+        firstSettings.outputFormat ?? t("modelChoosesFormat"),
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : labels.moreOptions;
   const optionSummary = [
     creativeDirection ? t(`CreativeDirections.${creativeDirection}`) : null,
     frameCount > 1 || unsupportedPlacements
       ? t("placementCount", { count: frameCount })
-      : mixedSettings
-        ? t("mixedSettings")
-        : (plannedSettings[0] ?? labels.moreOptions),
+      : settingsSummary,
     !hasProductBatch && plan.copies > 1
       ? t("copyCount", { count: plan.copies })
       : null,
     usesApprovedHeadlines ? t("approvedHeadlinesSummary") : null,
+    usesApprovedHeadlines
+      ? t(lettering === "ideogram" ? "letteringIdeogram" : "letteringOverlay")
+      : null,
     useCutout ? t("productCutoutSummary") : null,
   ]
     .filter(Boolean)
@@ -676,27 +610,10 @@ export function StudioComposer({
                 {t("unsupportedPlacements")}
               </p>
             ) : null}
-            {overSelectionLimit ? (
-              <div className="flex flex-wrap items-center gap-2 px-4 pb-2">
-                <p className="text-destructive text-xs" role="alert">
-                  {selectionLimitReason}
-                </p>
-                {modelsThatFit.length ? (
-                  <Button
-                    onClick={() =>
-                      onTargetChange((current) => ({
-                        ...current,
-                        modelIds: modelsThatFit.map(({ id }) => id),
-                      }))
-                    }
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    {t("fitBatchModels", { count: modelsThatFit.length })}
-                  </Button>
-                ) : null}
-              </div>
+            {overBatchLimit ? (
+              <p className="text-destructive px-4 pb-2 text-xs" role="alert">
+                {t("productBatchLimit", { count: MAX_BATCH })}
+              </p>
             ) : null}
             {tooManyReferences ? (
               <p className="text-destructive px-4 pb-2 text-xs" role="alert">
@@ -711,15 +628,12 @@ export function StudioComposer({
                 {t("productCutoutNeedsPhoto")}
               </p>
             ) : null}
-            {!useCutout &&
-            hasPhotoReference &&
-            !tooManyReferences &&
-            selectedModels.length === 0 ? (
+            {!useCutout && hasPhotoReference && !tooManyReferences && !model ? (
               <p
                 className="text-muted-foreground px-4 pb-2 text-xs"
                 role="status"
               >
-                {t("productPhotoNeedsModel")}
+                {t("unsupportedReferences")}
               </p>
             ) : null}
             {hasProductBatch ? (
@@ -814,154 +728,6 @@ export function StudioComposer({
                 onApplyTemplate={onApplyTemplate}
               />
             ) : null}
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  className={TRIGGER_CLASS}
-                  size="sm"
-                  variant="ghost"
-                >
-                  <TriggerLabel label={labels.model}>
-                    {modelSummary}
-                  </TriggerLabel>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="start"
-                className="app-scrollbar max-h-[min(32rem,var(--radix-popover-content-available-height))] w-96 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain p-2"
-                onOpenAutoFocus={(event) => {
-                  event.preventDefault();
-                  searchRef.current?.focus();
-                }}
-              >
-                <div className="flex items-center justify-between gap-2 pb-2">
-                  {/* One brief on every model is the thing this composer is for,
-                  so it is one click rather than one click per model. Both
-                  act on what the search shows, so "select all" after typing
-                  "flux" means every FLUX, not the whole catalog. */}
-                  <span className="text-muted-foreground px-1 text-xs font-medium">
-                    {labels.model}
-                  </span>
-                  <div className="flex gap-1">
-                    <Button
-                      type="button"
-                      className="h-7 px-2 text-xs"
-                      disabled={
-                        selectionLimitReached ||
-                        shownModels.every((model) =>
-                          selectedModelIds.includes(model.id),
-                        )
-                      }
-                      onClick={() => setShown(true)}
-                      size="sm"
-                      variant="ghost"
-                    >
-                      {selectedModels.length +
-                        shownModels.filter(
-                          (model) => !selectedModelIds.includes(model.id),
-                        ).length >
-                      modelLimit
-                        ? t("selectModelsUpToLimit", { count: modelLimit })
-                        : labels.selectAllModels}
-                    </Button>
-                    <Button
-                      type="button"
-                      className="h-7 px-2 text-xs"
-                      disabled={
-                        !shownModels.some((model) =>
-                          selectedModelIds.includes(model.id),
-                        )
-                      }
-                      onClick={() => setShown(false)}
-                      size="sm"
-                      variant="ghost"
-                    >
-                      {labels.unselectAllModels}
-                    </Button>
-                  </div>
-                </div>
-                <Input
-                  aria-label={labels.searchModels}
-                  ref={searchRef}
-                  className="mb-2 h-8 text-sm"
-                  onChange={(event) => setModelQuery(event.currentTarget.value)}
-                  placeholder={labels.searchModels}
-                  value={modelQuery}
-                />
-                <p
-                  className="text-muted-foreground mb-2 px-1 text-xs"
-                  id="studio-model-selection-limit"
-                >
-                  {selectionLimitReason}
-                </p>
-                <div
-                  className="app-scrollbar max-h-80 overflow-y-auto overscroll-contain"
-                  role="group"
-                  aria-label={labels.model}
-                >
-                  {shownModels.length === 0 ? (
-                    <p className="text-muted-foreground px-2 py-3 text-xs">
-                      {labels.noModelsMatch}
-                    </p>
-                  ) : null}
-                  {shownModels.map((model) => {
-                    const credits = creditsForImage(
-                      model,
-                      clampToModel(model, {
-                        ...settings,
-                        aspectRatio: placementRatios[0] ?? settings.aspectRatio,
-                      }),
-                    );
-                    const checked = selectedModelIds.includes(model.id);
-                    const unavailable = !checked && selectionLimitReached;
-                    return (
-                      <button
-                        aria-checked={checked}
-                        aria-describedby={
-                          unavailable
-                            ? "studio-model-selection-limit"
-                            : undefined
-                        }
-                        aria-disabled={unavailable || undefined}
-                        className={cn(
-                          POPOVER_ROW_CLASS,
-                          "flex w-full cursor-pointer items-start gap-2 px-2 py-1.5 text-left",
-                          unavailable && "cursor-not-allowed opacity-60",
-                        )}
-                        key={model.id}
-                        onClick={() => toggleModel(model)}
-                        role="checkbox"
-                        type="button"
-                      >
-                        <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center">
-                          {checked ? (
-                            <Check aria-hidden className="size-4" />
-                          ) : null}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="flex min-w-0 items-baseline gap-2">
-                            <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                              {model.label}
-                            </span>
-                            {frameCount === 1 ? (
-                              <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                                {credits === null
-                                  ? labels.creditsNoFigure
-                                  : t("creditsCount", { count: credits })}
-                              </span>
-                            ) : null}
-                          </span>
-                          <span className="text-muted-foreground block truncate text-xs">
-                            {model.description}
-                          </span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </PopoverContent>
-            </Popover>
 
             <Popover>
               <PopoverTrigger asChild>
@@ -971,9 +737,12 @@ export function StudioComposer({
                   size="sm"
                   variant="ghost"
                 >
-                  <TriggerLabel label={labels.moreOptions}>
-                    {optionSummary}
-                  </TriggerLabel>
+                  <span className="sr-only">{labels.moreOptions}</span>
+                  <span className="min-w-0 truncate">{optionSummary}</span>
+                  <ChevronDown
+                    aria-hidden
+                    className="text-muted-foreground size-3.5"
+                  />
                 </Button>
               </PopoverTrigger>
               <PopoverContent
@@ -1018,6 +787,17 @@ export function StudioComposer({
                     <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
                       {t("useApprovedHeadlinesHint")}
                     </p>
+                    {usesApprovedHeadlines ? (
+                      <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
+                        {t(
+                          letterExistingBackdrop
+                            ? "letteringEditHint"
+                            : twoStepLettering
+                              ? "letteringIdeogramHint"
+                              : "letteringFallbackHint",
+                        )}
+                      </p>
+                    ) : null}
                     {plannedHeadlines.length ? (
                       <ul className="text-muted-foreground list-disc space-y-0.5 ps-5 text-xs break-words">
                         {plannedHeadlines.map((line) => (
@@ -1062,42 +842,17 @@ export function StudioComposer({
                     </p>
                   </div>
                 ) : null}
-                {/* Every row below reads its options from the chosen models, so
-                with none chosen they are all empty. Saying so beats three
-                labelled rows with nothing in them. */}
-                {selectedModels.length === 0 ? (
-                  <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
-                    {labels.noModelSelected}
-                  </p>
-                ) : null}
-                {mixedSettings && frameCount === 1 ? (
-                  <ul className="space-y-2 text-xs">
-                    {plan.configured.map(({ model }, index) => (
-                      <li className="break-words" key={model.id}>
-                        <span className="font-medium">{model.label}</span>
-                        <p className="text-muted-foreground tabular-nums">
-                          {labels.dimensions}: {plannedSettings[index]}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-
-                <p className="text-muted-foreground text-xs text-pretty">
-                  {t("placementHelp")}
-                </p>
                 <Row label={t("adPlacements")}>
                   {AD_PLACEMENTS.map(({ ratio, label }) => {
                     const selected = placementRatios.includes(ratio);
                     const unsupported = !shared.aspectRatios.includes(ratio);
                     const exceedsLimit =
-                      selectedModels.length *
-                        (placementRatios.length + 1) *
+                      (placementRatios.length + 1) *
                         Math.max(1, productCopies) >
                       MAX_BATCH;
                     const disabled = !selected && (unsupported || exceedsLimit);
                     const reason = unsupported
-                      ? t("placementNeedsModels")
+                      ? t("unsupportedFrame")
                       : exceedsLimit
                         ? t("placementLimit", { count: MAX_BATCH })
                         : undefined;
@@ -1179,9 +934,9 @@ export function StudioComposer({
                   ))}
                 </Row>
 
-                {/* Without a shared format there are no common choices to offer.
-                Each model's actual format is disclosed with its settings. */}
-                {hasSharedFormat ? (
+                {/* A provider may determine the output format itself. Its
+                price breakdown shows that alongside the actual settings. */}
+                {shared.outputFormats.length > 0 ? (
                   <Row label={labels.outputFormat}>
                     {shared.outputFormats.map((format) => (
                       <button
@@ -1210,10 +965,10 @@ export function StudioComposer({
                 ) : (
                   <Row label={labels.copies}>
                     {COPY_CHOICES.map((count) => {
-                      // Against the models that will actually run, and against the
-                      // plan rather than the raw choice: this is where the ceiling
-                      // becomes visible, so `plan.copies` is what reads as pressed.
-                      const images = selectedModels.length * frameCount * count;
+                      // Each copy needs one image per placement, so a wider
+                      // set of placements can bring the copy count down. The
+                      // pressed chip shows the count the plan can deliver.
+                      const images = frameCount * count;
                       const overCeiling = images > MAX_BATCH && count > 1;
                       /**
                        * Why this one is unavailable, in its own arithmetic.
@@ -1224,17 +979,10 @@ export function StudioComposer({
                        * "3, dimmed" and nothing at all.
                        */
                       const reason = overCeiling
-                        ? frameCount > 1
-                          ? t("placementCopiesOverCeiling", {
-                              images,
-                              limit: MAX_BATCH,
-                            })
-                          : t("copiesOverCeiling", {
-                              models: selectedModels.length,
-                              copies: count,
-                              images,
-                              limit: MAX_BATCH,
-                            })
+                        ? t("placementCopiesOverCeiling", {
+                            images,
+                            limit: MAX_BATCH,
+                          })
                         : undefined;
                       return (
                         <button
@@ -1290,21 +1038,18 @@ export function StudioComposer({
                     variant="ghost"
                   >
                     <span className="min-w-0 text-start tabular-nums">
-                      {hasProductBatch || frameCount > 1
-                        ? batchCredits === null
-                          ? t("placementPlan", { count: totalJobs })
-                          : t("placementPlanCredits", {
-                              count: totalJobs,
+                      {twoStepLettering
+                        ? batchCredits === null || sceneCredits === null
+                          ? t("letteringPlan")
+                          : t("letteringPlanCredits", {
+                              sceneCredits,
+                              letteringCredits: batchCredits - sceneCredits,
                               credits: batchCredits,
                             })
                         : batchCredits === null
-                          ? t("runPlan", {
-                              copies: plan.copies,
-                              models: selectedModels.length,
-                            })
-                          : t("runPlanCredits", {
-                              copies: plan.copies,
-                              models: selectedModels.length,
+                          ? t("placementPlan", { count: totalJobs })
+                          : t("placementPlanCredits", {
+                              count: totalJobs,
                               credits: batchCredits,
                             })}
                     </span>
@@ -1345,28 +1090,34 @@ export function StudioComposer({
                   ) : null}
 
                   <ul className="space-y-2">
-                    {plan.configured.map(
-                      ({ model, settings: actual }, index) => {
-                        const credits = creditsForImage(model, actual);
-                        return (
-                          <li key={`${model.id}:${actual.aspectRatio}`}>
-                            <div className="flex min-w-0 items-baseline gap-2">
-                              <span className="min-w-0 flex-1 text-xs font-medium text-pretty">
-                                {model.label}
-                              </span>
-                              <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                                {credits === null
-                                  ? labels.creditsNoFigure
-                                  : t("creditsEach", {
-                                      credits,
-                                      count: plan.copies,
-                                    })}
-                              </span>
-                            </div>
-                            <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
-                              {labels.dimensions}: {plannedSettings[index]}
-                            </p>
-                            {/* Composed here rather than rendered from Core's
+                    {plan.charges.map(({ model, settings: actual }) => {
+                      const credits = creditsForImage(model, actual);
+                      return (
+                        <li key={`${model.id}:${actual.aspectRatio}`}>
+                          <div className="flex min-w-0 items-baseline gap-2">
+                            <span className="min-w-0 flex-1 text-xs font-medium text-pretty">
+                              {model.label}
+                            </span>
+                            <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                              {credits === null
+                                ? labels.creditsNoFigure
+                                : t("creditsEach", {
+                                    credits,
+                                    count: plan.copies,
+                                  })}
+                            </span>
+                          </div>
+                          <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
+                            {labels.dimensions}:{" "}
+                            {[
+                              actual.aspectRatio,
+                              actual.resolution,
+                              actual.outputFormat ?? t("modelChoosesFormat"),
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </p>
+                          {/* Composed here rather than rendered from Core's
                           `price.basis`. That string is built as "fal lists
                           $0.03 per images for this endpoint" — fal's pricing
                           API answers in plurals because it is describing a
@@ -1374,26 +1125,25 @@ export function StudioComposer({
                           images". Web holds the same two figures separately,
                           so it can say it once, correctly, and in the reader's
                           language. */}
-                            <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed text-pretty">
-                              {t("priceBasis", {
-                                price: `$${model.price.unitPriceUsd}`,
-                                unit: priceUnitLabel(model.price.unit),
-                              })}
-                            </p>
-                            <a
-                              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mt-0.5 inline-block rounded text-xs underline underline-offset-2 outline-none focus-visible:ring-2"
-                              href={model.price.sourceUrl}
-                              rel="noreferrer"
-                              target="_blank"
-                            >
-                              {t("creditsCheckedOn", {
-                                date: model.price.verifiedAt,
-                              })}
-                            </a>
-                          </li>
-                        );
-                      },
-                    )}
+                          <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed text-pretty">
+                            {t("priceBasis", {
+                              price: `$${model.price.unitPriceUsd}`,
+                              unit: priceUnitLabel(model.price.unit),
+                            })}
+                          </p>
+                          <a
+                            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mt-0.5 inline-block rounded text-xs underline underline-offset-2 outline-none focus-visible:ring-2"
+                            href={model.price.sourceUrl}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            {t("creditsCheckedOn", {
+                              date: model.price.verifiedAt,
+                            })}
+                          </a>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </PopoverContent>
               </Popover>
@@ -1470,10 +1220,8 @@ function Row({
   label: string;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
-      <span className="text-muted-foreground w-20 shrink-0 text-xs font-medium">
-        {label}
-      </span>
+    <div className="space-y-1.5">
+      <p className="text-muted-foreground text-xs font-medium">{label}</p>
       <div className="flex min-w-0 flex-wrap items-center gap-1.5">
         {children}
       </div>

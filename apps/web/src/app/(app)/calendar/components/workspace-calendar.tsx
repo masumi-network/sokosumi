@@ -29,14 +29,16 @@ import {
   startOfWeek,
 } from "date-fns";
 import {
+  Bot,
   Building2,
   ChevronLeft,
   ChevronRight,
   CircleDashed,
   Clock3,
   Ellipsis,
+  Plus,
   Repeat,
-  Sparkles,
+  User,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -75,16 +77,14 @@ import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { useReportMovedSocialPostQuotes } from "@/app/projects/components/social-posts/social-post-quote";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
+import { storeTasksReturnPath } from "@/app/tasks/components/task-navigation";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
 import {
   TASK_SCHEDULES_PATH,
   taskSchedulePath,
 } from "@/app/tasks/utils/task-schedule-view";
-import {
-  FilterDropdownMenu,
-  type FilterDropdownMenuSection,
-} from "@/components/common/filter-dropdown-menu";
+import { type FilterDropdownMenuSection } from "@/components/common/filter-dropdown-menu";
 import {
   SOCIAL_POST_PROVIDERS,
   socialPlatformFilterSection,
@@ -98,8 +98,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
-import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
+import { useLoadWhenVisible } from "@/hooks/effects/use-load-when-visible";
+import { useIsMobile } from "@/hooks/effects/use-mobile";
+import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
+import { useUrlTimezone } from "@/hooks/effects/use-url-timezone";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { CalendarRealtimeBridge } from "@/lib/ably/calendar-realtime-bridge";
 import { coreClient } from "@/lib/clients/core.browser.client";
@@ -112,8 +115,13 @@ import {
 import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
 import { cn } from "@/lib/utils";
 import { schedulableRunAtLocalIso } from "@/lib/utils/task-schedule";
-import { CalendarShowFilter } from "./calendar-show-filter";
 import {
+  type CalendarFilterSurface,
+  CalendarFilters,
+} from "./calendar-filters";
+import {
+  type BotRunHandlers,
+  type ChangeableBotRun,
   calendarCardClassName,
   FeatureCalendarEvent,
   featureEntryPlacement,
@@ -122,6 +130,7 @@ import {
   type ChangeableRun,
   changeRun,
   isChangeableRun,
+  isMovedRun,
   isTaskEntry,
   useReportRunChangeFailure,
 } from "./run-change";
@@ -140,6 +149,8 @@ import {
 import { SocialPostMoveDialog } from "./social-post-move-dialog";
 import { SocialStatusSummary } from "./social-status-summary";
 import { SourceMarker } from "./source-marker";
+import { useBotRunChanges } from "./use-bot-run-changes";
+import { useRunChanges } from "./use-run-changes";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
 type CalendarView = (typeof CALENDAR_VIEWS)[number];
@@ -203,6 +214,7 @@ function findCalendarPeople(
 }
 
 interface WorkspaceCalendarProps {
+  searchField?: ReactNode;
   /**
    * A fixed set of features, as when another page embeds the Calendar: the
    * Show filter is left out rather than offered and then ignored.
@@ -224,6 +236,7 @@ interface WorkspaceCalendarProps {
     from: Date;
     to: Date;
   };
+  renderedTimezone?: string;
   coworkers?: CalendarCoworker[];
   lockedProjectId?: string;
   workspaceId?: string | null;
@@ -347,15 +360,7 @@ function isDraggableCalendarEntry(item: WorkspaceCalendarEntry) {
   return isChangeableRun(item) || isChangeableSocialPost(item);
 }
 
-/** A moved Run is planned at a time other than the rule's. */
-function isMovedRun(item: WorkspaceCalendarItem): boolean {
-  return (
-    item.originalScheduledAt !== null &&
-    item.originalScheduledAt.getTime() !== item.scheduledAt.getTime()
-  );
-}
-
-interface RunHandlers {
+interface RunHandlers extends BotRunHandlers {
   onMoveRun: (item: ChangeableRun) => void;
   onRestoreRun: (item: ChangeableRun) => void;
   onSkipRun: (item: ChangeableRun) => void;
@@ -572,6 +577,7 @@ function CalendarView({
   canCreate,
   coworkers,
   date,
+  emptyState,
   items,
   onDateClick,
   runHandlers,
@@ -585,6 +591,8 @@ function CalendarView({
   canCreate: boolean;
   coworkers: CalendarCoworker[];
   date: Date;
+  /** What an empty period says: nothing yet, or nothing matching. */
+  emptyState: ReactNode;
   items: WorkspaceCalendarEntry[];
   onDateClick: (date: Date) => void;
   runHandlers: RunHandlers;
@@ -597,34 +605,36 @@ function CalendarView({
   timeZone: string;
   view: CalendarView;
 }) {
-  const router = useRouter();
   const isMobile = useIsMobile();
-  const calendarRef = useRef<HTMLDivElement>(null);
+  const [calendarElement, setCalendarElement] = useState<HTMLDivElement | null>(
+    null,
+  );
   const [fillHeight, setFillHeight] = useState<number | null>(null);
   const socialChips = socialPostVariant !== "compact";
   // Social's week is one row of days; let it reach the bottom of the screen
   // rather than stop under the last chip.
   const fillSpace = socialChips && view === "week" && !isMobile;
-  useEffect(() => {
-    if (!fillSpace || !calendarRef.current) return;
-    const element = calendarRef.current;
-    const measure = () => {
-      setFillHeight(
-        Math.max(
-          320,
-          window.innerHeight - element.getBoundingClientRect().top - 24,
-        ),
-      );
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(element.parentElement ?? element);
-    window.addEventListener("resize", measure);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, [fillSpace]);
+  const measureFillHeight = () => {
+    if (!calendarElement) return;
+    setFillHeight(
+      Math.max(
+        320,
+        window.innerHeight - calendarElement.getBoundingClientRect().top - 24,
+      ),
+    );
+  };
+  useResizeObserver(
+    fillSpace && calendarElement
+      ? (calendarElement.parentElement ?? calendarElement)
+      : null,
+    measureFillHeight,
+    { immediate: true },
+  );
+  useEventListener(
+    fillSpace && calendarElement ? "window" : null,
+    "resize",
+    measureFillHeight,
+  );
   const formatDate = useFormatter().dateTime;
   const t = useTranslations("App.Calendar");
   const reportRunChangeFailure = useReportRunChangeFailure();
@@ -691,7 +701,9 @@ function CalendarView({
           reportRunChangeFailure(result.error.kind);
           return;
         }
-        router.refresh();
+        // No router.refresh() after a write here: each action revalidates,
+        // so its response already carries this page. A refresh on top holds
+        // that render back until a second full page render ends.
       } catch {
         clearPendingMove(item.id);
         info.revert();
@@ -730,7 +742,6 @@ function CalendarView({
         return;
       }
       reportMovedQuotes(result.value);
-      router.refresh();
     } catch {
       clearPendingMove(item.id);
       revert?.();
@@ -790,9 +801,9 @@ function CalendarView({
       >
         <h2 className="text-lg font-semibold">{t("agenda.upcoming")}</h2>
         {items.length === 0 ? (
-          <p className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
-            {t(socialOnly ? "empty.socialOnly" : "empty.title")}
-          </p>
+          <div className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
+            {emptyState}
+          </div>
         ) : null}
         {Array.from(days, ([day, dayItems]) => (
           <section
@@ -839,6 +850,7 @@ function CalendarView({
                   ) : (
                     <FeatureCalendarEvent
                       item={item}
+                      {...runHandlers}
                       source={sources.find(
                         ({ sourceId }) => sourceId === item.sourceId,
                       )}
@@ -860,7 +872,7 @@ function CalendarView({
     <>
       <div
         className="app-scrollbar workspace-calendar-theme overflow-x-auto rounded-xl bg-card-background"
-        ref={calendarRef}
+        ref={setCalendarElement}
         data-can-create={canCreate ? "true" : undefined}
         data-view={view}
         data-testid={`calendar-${view}`}
@@ -894,6 +906,9 @@ function CalendarView({
             durationEditable: false,
           }))}
           timeZone={timeZone}
+          // Every entry is an instant. FullCalendar's default hour ran a run
+          // after 11 PM into the next day's cell.
+          defaultTimedEventDuration={0}
           headerToolbar={false}
           height={fillSpace && fillHeight ? fillHeight : "auto"}
           // Timed events default to "list-item" (dot + time + title); the card
@@ -988,6 +1003,7 @@ function CalendarView({
               return (
                 <FeatureCalendarEvent
                   item={item}
+                  {...runHandlers}
                   source={sources.find(
                     ({ sourceId }) => sourceId === item.sourceId,
                   )}
@@ -1022,6 +1038,25 @@ function CalendarView({
 }
 
 export function WorkspaceCalendar({
+  calendarKey,
+  ...props
+}: WorkspaceCalendarProps & { calendarKey?: string }) {
+  // Choosing features reloads the data scope. Keep its open controls across that remount.
+  const [surface, setSurface] = useState<CalendarFilterSurface>(null);
+  return (
+    <WorkspaceCalendarView
+      key={calendarKey}
+      {...props}
+      surface={surface}
+      setSurface={setSurface}
+    />
+  );
+}
+
+function WorkspaceCalendarView({
+  surface,
+  setSurface,
+  searchField,
   activeOrganizationId = null,
   currentUserId = null,
   initialDate,
@@ -1030,12 +1065,16 @@ export function WorkspaceCalendar({
   sources = [],
   pagination = null,
   range,
+  renderedTimezone,
   coworkers = [],
   lockedProjectId,
   workspaceId = null,
   types,
   newsletterEnabled = false,
-}: WorkspaceCalendarProps) {
+}: WorkspaceCalendarProps & {
+  surface: CalendarFilterSurface;
+  setSurface: (next: CalendarFilterSurface) => void;
+}) {
   const t = useTranslations("App.Calendar");
   const locale = useLocale();
   const tFilters = useTranslations("App.Tasks.Filters");
@@ -1056,6 +1095,7 @@ export function WorkspaceCalendar({
         }
       : queryState;
   const [loadedItems, setLoadedItems] = useState(items);
+  const [shownItems, changeShownRun] = useRunChanges(loadedItems);
   const [nextCursor, setNextCursor] = useState(pagination?.nextCursor ?? null);
   const [loadMoreError, setLoadMoreError] = useState(false);
   const [isLoadingRuns, setIsLoadingRuns] = useState(false);
@@ -1067,6 +1107,10 @@ export function WorkspaceCalendar({
     items: WorkspaceCalendarEntry[];
   } | null>(null);
   const [movingRun, setMovingRun] = useState<ChangeableRun | null>(null);
+  const [movingBotRun, setMovingBotRun] = useState<ChangeableBotRun | null>(
+    null,
+  );
+  const { moveBotRun, restoreBotRun, skipBotRun } = useBotRunChanges();
   const [calendarRenderEpoch, setCalendarRenderEpoch] = useState(0);
   const calendarAccessGeneration = useRef(0);
   const hasActivatedRef = useRef(false);
@@ -1184,11 +1228,32 @@ export function WorkspaceCalendar({
         (!lockedProjectId || source.sourceId === `project:${lockedProjectId}`),
     );
 
-  useMountEffect(() => {
-    if (!isValidTimezone(state.timezone)) {
-      void setState({ timezone: timeZone }, { shallow: false });
-    }
-  });
+  const filtersActive =
+    state.scope === "owned" ||
+    (!socialOnly &&
+      (state.assigneeId !== null ||
+        state.assigneeUserId !== null ||
+        state.status !== null)) ||
+    (socialOnly && (state.postStatus !== null || state.provider !== null));
+  // A filter, or a feature hidden under Show, can empty a busy period; an
+  // empty one otherwise is a new workspace, so say what lands here and how.
+  const emptyState = socialOnly ? (
+    t("empty.socialOnly")
+  ) : filtersActive || shownTypes.length < availableTypes.length ? (
+    t("empty.filtered")
+  ) : (
+    <>
+      <span className="text-foreground block font-medium">
+        {t("empty.title", { view })}
+      </span>
+      <span className="mt-1 block">{t("empty.hint")}</span>
+      {canCreate ? (
+        <span className="block">{t("empty.createHint", { view })}</span>
+      ) : null}
+    </>
+  );
+
+  useUrlTimezone(state.timezone, timeZone, renderedTimezone, setState);
 
   useEffect(() => {
     if (isMobile && state.view === null && !socialOnly) {
@@ -1238,7 +1303,7 @@ export function WorkspaceCalendar({
     );
   }
 
-  const visibleItems = loadedItems
+  const visibleItems = shownItems
     .filter((item) => isVisible(item))
     .sort(
       (left, right) => left.scheduledAt.getTime() - right.scheduledAt.getTime(),
@@ -1253,7 +1318,7 @@ export function WorkspaceCalendar({
     number
   >();
   if (socialOnly) {
-    for (const item of loadedItems) {
+    for (const item of shownItems) {
       if (
         item.kind === "socialPost" &&
         isSocialPostStatus(item.status) &&
@@ -1337,29 +1402,20 @@ export function WorkspaceCalendar({
     openCreateDialog(`${getCalendarDayKey(date)}T12:00`);
   }
 
-  const reportRunChangeFailure = useReportRunChangeFailure();
-
-  async function handleRunChange(
-    item: ChangeableRun,
-    change: { action: "skip" | "restore" },
-  ) {
-    try {
-      const result = await changeRun(item, change);
-      if (!result.ok) {
-        reportRunChangeFailure(result.error.kind);
-        return;
-      }
-      router.refresh();
-    } catch {
-      reportRunChangeFailure("failed");
-    }
-  }
-
   const runHandlers: RunHandlers = {
     onMoveRun: setMovingRun,
-    onRestoreRun: (item) => void handleRunChange(item, { action: "restore" }),
-    onSkipRun: (item) => void handleRunChange(item, { action: "skip" }),
-    onOpen: (path) => router.push(path),
+    onRestoreRun: (item) => changeShownRun(item, { action: "restore" }),
+    onSkipRun: (item) => changeShownRun(item, { action: "skip" }),
+    onMoveBotRun: setMovingBotRun,
+    onSkipBotRun: (item) => void skipBotRun(item),
+    onRestoreBotRun: restoreBotRun,
+    onOpen: (path) => {
+      // A task opened here offers Back to this view, period and filters.
+      if (path.startsWith("/tasks/")) {
+        storeTasksReturnPath(path);
+      }
+      router.push(path);
+    },
   };
 
   async function loadNextPage() {
@@ -1415,6 +1471,7 @@ export function WorkspaceCalendar({
     setNextCursor(null);
     setLoadMoreError(false);
     setMovingRun(null);
+    setMovingBotRun(null);
   }
 
   function handleCalendarInvalidated() {
@@ -1425,6 +1482,7 @@ export function WorkspaceCalendar({
     handleCalendarInvalidated();
     setLoadMoreError(false);
     setMovingRun(null);
+    setMovingBotRun(null);
   }
 
   // Month/week grids must show every event: a day holding three of its five
@@ -1458,7 +1516,7 @@ export function WorkspaceCalendar({
       {
         id: "coworker",
         label: tFilters("coworkerLabel"),
-        icon: Sparkles,
+        icon: Bot,
         value: state.assigneeId,
         allLabel: tFilters("all"),
         options: coworkers
@@ -1478,7 +1536,7 @@ export function WorkspaceCalendar({
       {
         id: "human",
         label: tFilters("humanLabel"),
-        icon: Sparkles,
+        icon: User,
         value: state.assigneeUserId,
         allLabel: tFilters("all"),
         options: coworkers
@@ -1601,7 +1659,7 @@ export function WorkspaceCalendar({
           onInvalidated={handleCalendarInvalidated}
         />
       ) : null}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+      <div className="@container/page-toolbar flex flex-wrap items-center gap-x-4 gap-y-3">
         {view === "month" || view === "week" ? (
           <div
             className={cn(
@@ -1668,44 +1726,47 @@ export function WorkspaceCalendar({
           className={cn(
             "ms-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 max-sm:w-full max-sm:justify-between",
             socialOnly && "max-md:order-1 max-md:w-full max-md:justify-between",
+            searchField && "max-sm:justify-end",
           )}
         >
-          <ToggleGroup
-            type="single"
-            aria-label={t("view.label")}
-            value={view}
-            onValueChange={(value) => {
-              const nextView = views.find((candidate) => candidate === value);
-              if (nextView) {
-                handleViewChange(nextView);
-              }
-            }}
-            className={cn(
-              "app-scrollbar h-auto min-w-0 flex-wrap max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
-              socialOnly && "min-h-11 md:min-h-8",
-            )}
-            data-testid="calendar-views"
+          <div
+            className={
+              searchField
+                ? "flex w-full min-w-0 max-w-full flex-wrap items-center justify-end gap-2 @2xl/page-toolbar:w-auto"
+                : "contents"
+            }
           >
-            {views.map((calendarView) => (
-              <ToggleGroupItem
-                className={cn(
-                  "max-sm:px-1.5 max-sm:text-xs",
-                  socialOnly && "min-h-11 shrink-0 md:min-h-8",
-                )}
-                key={calendarView}
-                value={calendarView}
-              >
-                {t(`view.${calendarView}`)}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-          {types ? null : (
-            <CalendarShowFilter
-              available={availableTypes}
-              selected={shownTypes}
-              onChange={handleTypesChange}
-            />
-          )}
+            {searchField}
+            <ToggleGroup
+              type="single"
+              aria-label={t("view.label")}
+              value={view}
+              onValueChange={(value) => {
+                const nextView = views.find((candidate) => candidate === value);
+                if (nextView) {
+                  handleViewChange(nextView);
+                }
+              }}
+              className={cn(
+                "app-scrollbar h-auto min-w-0 flex-wrap max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
+                socialOnly && "min-h-11 md:min-h-8",
+              )}
+              data-testid="calendar-views"
+            >
+              {views.map((calendarView) => (
+                <ToggleGroupItem
+                  className={cn(
+                    "max-sm:px-1.5 max-sm:text-xs",
+                    socialOnly && "min-h-11 shrink-0 md:min-h-8",
+                  )}
+                  key={calendarView}
+                  value={calendarView}
+                >
+                  {t(`view.${calendarView}`)}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
           {lockedProjectId && !socialOnly ? (
             <Button asChild size="sm" variant="outline">
               <Link
@@ -1717,27 +1778,28 @@ export function WorkspaceCalendar({
             </Button>
           ) : null}
           <div>
-            <FilterDropdownMenu
-              buttonLabel={tFilters("title")}
-              emptyResultsLabel={tFilters("emptyResults")}
-              searchPlaceholder={tFilters("searchPlaceholder")}
+            <CalendarFilters
+              available={availableTypes}
+              selected={shownTypes}
+              onChange={types ? undefined : handleTypesChange}
               sections={filterSections}
-              triggerClassName={
-                socialOnly
-                  ? "min-h-11 min-w-11 sm:min-h-8 sm:min-w-0"
-                  : undefined
-              }
-              showActiveIndicator={
-                state.scope === "owned" ||
-                (!socialOnly &&
-                  (state.assigneeId !== null ||
-                    state.assigneeUserId !== null ||
-                    state.status !== null)) ||
-                (socialOnly &&
-                  (state.postStatus !== null || state.provider !== null))
-              }
+              filtersActive={filtersActive}
+              socialOnly={socialOnly}
+              surface={surface}
+              setSurface={setSurface}
             />
           </div>
+          {canCreate ? (
+            // Phones have the + button; a day click is pointer-only.
+            <Button
+              className="max-md:hidden"
+              type="button"
+              onClick={handleAgendaCreate}
+            >
+              <Plus aria-hidden />
+              {t("create.fab")}
+            </Button>
+          ) : null}
         </div>
       </div>
       {canCreate ? (
@@ -1759,9 +1821,11 @@ export function WorkspaceCalendar({
             statuses={SOCIAL_POST_STATUSES}
           />
         ) : null}
-        {visibleItems.length === 0 && view !== "agenda" ? (
-          <div className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
-            {t(socialOnly ? "empty.socialOnly" : "empty.title")}
+        {/* The grid's period, not the whole loaded range: an empty week next
+            to a busy one still says so. */}
+        {view !== "agenda" && !visibleItems.some(inShownPeriod) ? (
+          <div className="bg-card-background text-muted-foreground rounded-xl p-8 text-center text-sm">
+            {emptyState}
           </div>
         ) : null}
         <CalendarView
@@ -1769,6 +1833,7 @@ export function WorkspaceCalendar({
           canCreate={canCreate}
           coworkers={coworkers}
           date={date}
+          emptyState={emptyState}
           items={visibleItems}
           onDateClick={handleDateClick}
           runHandlers={runHandlers}
@@ -1802,9 +1867,23 @@ export function WorkspaceCalendar({
       {movingRun ? (
         <RunMoveDialog
           key={movingRun.id}
-          item={movingRun}
+          name={movingRun.taskName}
+          scheduledAt={movingRun.scheduledAt}
           timeZone={timeZone}
           onClose={() => setMovingRun(null)}
+          onMove={(scheduledAt) =>
+            changeShownRun(movingRun, { action: "move", scheduledAt })
+          }
+        />
+      ) : null}
+      {movingBotRun ? (
+        <RunMoveDialog
+          key={movingBotRun.id}
+          name={movingBotRun.name}
+          scheduledAt={movingBotRun.scheduledAt}
+          timeZone={timeZone}
+          onClose={() => setMovingBotRun(null)}
+          onMove={(scheduledAt) => moveBotRun(movingBotRun, scheduledAt)}
         />
       ) : null}
     </div>

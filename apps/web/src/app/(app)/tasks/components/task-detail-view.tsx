@@ -1,35 +1,26 @@
-import type {
-  Task,
-  TaskEvent,
-  TaskEventsPaginationMetadata,
-} from "@sokosumi/core-client";
-import { TaskVisibility } from "@sokosumi/core-client";
+import type { Task } from "@sokosumi/core-client";
 import {
+  isTaskEditableStatus,
+  removeSeoTaskRequest,
   removeTaskContextAttachmentLinks,
-  resolveIpfsOrHttpUrl,
-  type SubscriptionPlanName,
   type TaskAssigneeKind,
 } from "@sokosumi/utils";
 import Link from "next/link";
+import { unstable_rethrow } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { Suspense } from "react";
-import {
-  type MentionableUser,
-  TaskActivitySection,
-} from "@/app/tasks/components/task-activity";
-import { TaskContactsSection } from "@/app/tasks/components/task-contacts";
+import { Fragment, Suspense } from "react";
 import { TaskContextSection } from "@/app/tasks/components/task-context-section";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
+import { TaskActivitySectionContent } from "@/app/tasks/components/task-detail-activity-section";
 import { mapVisibleTaskLinks } from "@/app/tasks/components/task-detail-api-types";
 import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
+import { TaskMetadataSection } from "@/app/tasks/components/task-detail-metadata-section";
 import { TaskFiles } from "@/app/tasks/components/task-files";
-import { TaskFromSchedule } from "@/app/tasks/components/task-from-schedule";
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
-import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
-import { TaskTagSection } from "@/app/tasks/components/task-tags";
+import { TaskSubtaskSection } from "@/app/tasks/components/task-subtask-section";
 import { TaskVendorGrantApprovalBanner } from "@/app/tasks/components/task-vendor-grant-approval-banner";
 import { TaskVendorGrantPendingInfoBanner } from "@/app/tasks/components/task-vendor-grant-pending-info-banner";
 import {
@@ -40,25 +31,19 @@ import {
 } from "@/app/tasks/constants";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { taskFormAssigneeId } from "@/app/tasks/utils/coworker-options";
-import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
-import { resolveTaskDetailViewerPlan } from "@/app/tasks/utils/task-activity-plan";
-import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
+import { startPrivateTaskDetailReads } from "@/app/tasks/utils/private-task-detail-cache";
 import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
 import { taskLinkHref } from "@/app/tasks/utils/task-href";
 import {
   canCancelTaskForViewer,
-  canCommentOnTaskForViewer,
   isReadOnlyForViewer,
 } from "@/app/tasks/utils/task-read-only";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
-import { getSession } from "@/lib/auth/auth.server";
+import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
-import { organizationSeatService } from "@/lib/services/organization-seat.service";
-import { projectService } from "@/lib/services/project.service";
-import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
 import {
   buildWorkspaceApprovalReviewHref,
@@ -67,8 +52,9 @@ import {
   VENDOR_GRANT_REVIEW_HASH,
 } from "@/lib/utils/workspace-approval";
 
-type SessionResult = Awaited<ReturnType<typeof getSession>>;
-type AgentsResult = Awaited<
+type PrivateReads = ReturnType<typeof startPrivateTaskDetailReads>;
+export type SessionResult = Awaited<PrivateReads["sessionPromise"]>;
+export type AgentsResult = Awaited<
   ReturnType<typeof agentService.getAvailableAgentsWithCreditsPrice>
 >;
 type CoworkersResult = Awaited<
@@ -77,17 +63,7 @@ type CoworkersResult = Awaited<
 type MembersResult = Awaited<
   ReturnType<typeof userService.getMyMembersWithOrganizations>
 >;
-type ProjectResult = Awaited<
-  ReturnType<typeof projectService.getProjectById>
-> | null;
-
-interface TaskActivityFeed {
-  events: TaskEvent[];
-  pagination: Pick<
-    TaskEventsPaginationMetadata,
-    "commentCount" | "latestCommentId"
-  >;
-}
+export type ProjectResult = Awaited<PrivateReads["projectPromise"]>;
 
 interface TaskDetailViewProps {
   task: Task;
@@ -116,30 +92,27 @@ export async function TaskDetailView({
   const assigneeOptionsPromise = forceReadOnly
     ? Promise.resolve([])
     : listTaskAssigneeOptions(task.workspace.organizationId ?? null);
+  // Started with the other reads so the Project picker adds no waterfall.
+  const projectOptionsPromise =
+    forceReadOnly || !isTaskEditableStatus(task.status)
+      ? Promise.resolve([])
+      : getProjectFilterOptions().catch((error: unknown) => {
+          unstable_rethrow(error);
+          return null;
+        });
   const agentsPromise = agentService.getAvailableAgentsWithCreditsPrice();
   const membersPromise = userService.getMyMembersWithOrganizations();
   const workspaceAccessPromise = userService.getWorkspaceAccess();
-  const sessionPromise = getSession();
-  // Admin read-only: plan is unavailable for the viewer (not "free"). Skip the
-  // org subscription call that used to 403 → auth-redirect bounce.
-  const currentPlanPromise = sessionPromise.then((session) =>
-    resolveTaskDetailViewerPlan(forceReadOnly, session, task.organizationId),
-  );
-  const hasAssignedSeatPromise = forceReadOnly
-    ? Promise.resolve(false)
-    : organizationSeatService.hasAssignedSeat(
-        task.workspace.organizationId ?? null,
-      );
-  const mentionableUsersPromise =
-    forceReadOnly || task.visibility === TaskVisibility.PRIVATE
-      ? Promise.resolve([])
-      : listTaskAssigneeMemberOptions(task.workspace.organizationId ?? null);
+  const {
+    sessionPromise,
+    currentPlanPromise,
+    hasAssignedSeatPromise,
+    mentionableUsersPromise,
+    projectPromise,
+    viewerSokoBotPromise,
+  } = startPrivateTaskDetailReads(task, forceReadOnly);
   const translationsPromise = getTranslations("App.Tasks.Detail");
-  const projectPromise = task.projectId
-    ? projectService.getProjectById(task.projectId).catch(() => null)
-    : Promise.resolve(null);
   const linkedTasks = mapVisibleTaskLinks(task.links);
-  const parentTask = linkedTasks.find((link) => link.relation === "child");
 
   const [t, tStatus] = await Promise.all([
     translationsPromise,
@@ -158,6 +131,7 @@ export async function TaskDetailView({
         <div className={TASK_DETAIL_GRID_CLASS}>
           <div className={TASK_DETAIL_MAIN_CLASS}>
             <TaskDetailHeader
+              taskId={task.id}
               taskName={task.name}
               identifier={task.identifier}
               identifierLabels={
@@ -172,26 +146,35 @@ export async function TaskDetailView({
                   : undefined
               }
               backLabel={t("back")}
+              // Admin and developer views have their own list; the reader's
+              // own board is not the likely next page there.
+              loadBoardOnMount={!forceReadOnly}
+              calendarBackLabel={t("backToCalendar")}
+              seoAudit={task.seoAudit}
+              seoAuditLabels={{
+                audit: t("openSeoAudit"),
+                project: t("openSeoProjectWorkspace"),
+              }}
               parentLink={
-                <>
-                  {parentTask ? (
-                    <p className="text-muted-foreground text-sm">
-                      <Link
-                        href={taskLinkHref(
-                          {
-                            id: parentTask.id,
-                            identifier: parentTask.identifier,
-                            name: parentTask.name,
-                          },
-                          relatedTaskHrefBasePath,
-                        )}
-                        className="text-foreground underline underline-offset-4"
-                      >
-                        {t("clonedFrom", { name: parentTask.name })}
-                      </Link>
-                    </p>
-                  ) : null}
-                </>
+                task.ancestors?.length ? (
+                  <nav
+                    aria-label={t("subtaskOf")}
+                    className="text-muted-foreground flex flex-wrap items-center gap-1 text-sm"
+                  >
+                    <span>{t("subtaskOf")}</span>
+                    {task.ancestors.map((ancestor, index) => (
+                      <Fragment key={ancestor.id}>
+                        {index > 0 ? <span aria-hidden>/</span> : null}
+                        <Link
+                          href={taskLinkHref(ancestor, relatedTaskHrefBasePath)}
+                          className="text-foreground underline underline-offset-4"
+                        >
+                          {ancestor.name}
+                        </Link>
+                      </Fragment>
+                    ))}
+                  </nav>
+                ) : null
               }
               actions={
                 <Suspense fallback={<TaskDetailActionsFallback />}>
@@ -239,6 +222,21 @@ export async function TaskDetailView({
                 task={task}
               />
             </Suspense>
+
+            {/* A Task with no sub-tasks has no section; the "⋯" menu adds the first. */}
+            {forceReadOnly || task.subtaskProgress.total === 0 ? null : (
+              <Suspense
+                fallback={
+                  <TaskSectionFallback title={t("subtasks")} rows={2} />
+                }
+              >
+                <TaskSubtaskSection
+                  task={task}
+                  hasAssignedSeatPromise={hasAssignedSeatPromise}
+                  assigneeOptionsPromise={assigneeOptionsPromise}
+                />
+              </Suspense>
+            )}
           </div>
 
           <aside className={TASK_DETAIL_SIDEBAR_CLASS}>
@@ -253,6 +251,9 @@ export async function TaskDetailView({
                   forceReadOnly={forceReadOnly}
                   hasAssignedSeatPromise={hasAssignedSeatPromise}
                   projectPromise={projectPromise}
+                  sessionPromise={sessionPromise}
+                  assigneeOptionsPromise={assigneeOptionsPromise}
+                  projectOptionsPromise={projectOptionsPromise}
                 />
               </Suspense>
               <TaskRelatedTasks
@@ -261,8 +262,6 @@ export async function TaskDetailView({
                   related: t("actions.relations.related"),
                   blocks: t("actions.relations.blocks"),
                   blocked_by: t("actions.relations.blockedBy"),
-                  parent: t("actions.relations.subtask"),
-                  child: t("actions.relations.parent"),
                   duplicate: t("actions.relations.duplicate"),
                 }}
                 statusLabels={buildTaskStatusLabels((key) => tStatus(key))}
@@ -278,6 +277,7 @@ export async function TaskDetailView({
               files={task.files ?? []}
               expandLabel={t("expand")}
               collapseLabel={t("collapse")}
+              downloadAllName={task.name}
             />
 
             {task.jobs.length > 0 && (
@@ -303,6 +303,7 @@ export async function TaskDetailView({
                 sessionPromise={sessionPromise}
                 currentPlanPromise={currentPlanPromise}
                 mentionableUsersPromise={mentionableUsersPromise}
+                viewerSokoBotPromise={viewerSokoBotPromise}
               />
             </Suspense>
           </div>
@@ -435,7 +436,7 @@ async function TaskDescriptionSection({
     getTranslations("App.Tasks.Detail"),
   ]);
   const descriptionBody = task.description
-    ? removeTaskContextAttachmentLinks(task.description)
+    ? removeSeoTaskRequest(removeTaskContextAttachmentLinks(task.description))
     : null;
 
   return (
@@ -477,110 +478,6 @@ async function TaskContextSectionSlot({
   );
 }
 
-async function TaskMetadataSection({
-  task,
-  forceReadOnly,
-  hasAssignedSeatPromise,
-  projectPromise,
-}: {
-  task: Task;
-  forceReadOnly: boolean;
-  hasAssignedSeatPromise: Promise<boolean>;
-  projectPromise: Promise<ProjectResult>;
-}) {
-  const [project, hasAssignedSeat, t, tTasks, tStatus, tPriority, contacts] =
-    await Promise.all([
-      projectPromise,
-      hasAssignedSeatPromise,
-      getTranslations("App.Tasks.Detail"),
-      getTranslations("App.Tasks"),
-      getTranslations("App.Tasks.Filters.statusOptions"),
-      getTranslations("App.Tasks.Priority"),
-      taskService.listTaskContacts(task.id),
-    ]);
-  const statusLabels = buildTaskStatusLabels((key) => tStatus(key));
-  const isReadOnly = isReadOnlyForViewer({
-    forceReadOnly,
-    taskStatus: task.status,
-    hasAssignedSeat,
-  });
-
-  return (
-    <div className="space-y-6">
-      <TaskMetadata
-        title={t("properties")}
-        taskId={task.id}
-        editable={!isReadOnly}
-        task={{
-          status: task.status,
-          priority: task.priority,
-          dueOn: task.dueOn,
-          visibility: task.visibility,
-          selectableStatuses: task.selectableStatuses,
-          organization: task.organization,
-          assignee: task.assignee,
-        }}
-        project={project ? { id: project.id, name: project.name } : null}
-        schedule={
-          task.scheduleId ? (
-            <Suspense fallback={null}>
-              <TaskFromSchedule scheduleId={task.scheduleId} />
-            </Suspense>
-          ) : null
-        }
-        labels={{
-          privateBadge: t("privateBadge"),
-          status: t("status"),
-          statusLabels,
-          organization: t("organization"),
-          personalWorkspace: t("personalWorkspace"),
-          project: t("project"),
-          noProject: t("noProject"),
-          schedule: t("schedule"),
-          assignee: t("assignee"),
-          noAssignee: t("noAssignee"),
-          memberFallback: t("memberFallback"),
-          personalAssistantFallback: tTasks("personalAssistant"),
-        }}
-        priorityLabels={{
-          priority: tPriority("title"),
-          levels: {
-            URGENT: tPriority("levels.URGENT"),
-            HIGH: tPriority("levels.HIGH"),
-            MEDIUM: tPriority("levels.MEDIUM"),
-            LOW: tPriority("levels.LOW"),
-            NONE: tPriority("levels.NONE"),
-          },
-          changePriority: tPriority("change"),
-          noPriorityMatches: tPriority("noResults"),
-          updateError: tPriority("updateError"),
-        }}
-        statusFieldLabels={{
-          status: t("status"),
-          statusLabels,
-          changeStatus: t("actions.changeStatus"),
-          noStatusMatches: t("actions.noStatusMatches"),
-          reopenToReadyTitle: t("actions.reopenToReadyTitle"),
-          reopenToReadyDescription: t("actions.reopenToReadyDescription"),
-          reopenToReadyCommentLabel: t("actions.reopenToReadyCommentLabel"),
-          reopenToReadyCommentPlaceholder: t(
-            "actions.reopenToReadyCommentPlaceholder",
-          ),
-          reopenToReadyCommentRequired: t(
-            "actions.reopenToReadyCommentRequired",
-          ),
-          reopenToReadyConfirm: t("actions.reopenToReadyConfirm"),
-          cancel: t("actions.cancel"),
-          updateStatusSuccess: t("actions.updateStatusSuccess"),
-          updateStatusError: tTasks("Errors.updateStatus"),
-        }}
-      />
-      <TaskTagSection key={task.updatedAt.toString()} tags={task.tags} />
-      {contacts?.length ? <TaskContactsSection contacts={contacts} /> : null}
-    </div>
-  );
-}
-
 async function TaskDetailActionsSlot({
   taskId,
   task,
@@ -617,6 +514,7 @@ async function TaskDetailActionsSlot({
     t,
     tTasks,
     tMembersTableHeader,
+    initialDesignMdAttachment,
   ] = await Promise.all([
     coworkersPromise,
     assigneeOptionsPromise,
@@ -628,10 +526,10 @@ async function TaskDetailActionsSlot({
     getTranslations("App.Tasks.Detail"),
     getTranslations("App.Tasks"),
     getTranslations("Components.MembersTable.Header"),
+    sessionPromise.then((session) =>
+      session?.user.id ? designMdService.resolveEffectiveDesignMd() : null,
+    ),
   ]);
-  const initialDesignMdAttachment = session?.user.id
-    ? await designMdService.resolveEffectiveDesignMd()
-    : null;
   const { task: taskWithCoworker, agentNameById } = buildTaskDetailContext(
     task,
     coworkers,
@@ -663,10 +561,16 @@ async function TaskDetailActionsSlot({
       taskVisibility={taskWithCoworker.visibility}
       jobsCount={taskWithCoworker.jobsCount}
       taskLinks={task.links}
+      parentTaskId={task.parentTaskId}
+      ancestorIds={task.ancestors?.map((ancestor) => ancestor.id)}
       coworkerOptions={coworkerOptions}
       agentNameById={agentNameById}
       defaultAssigneeId={taskFormAssigneeId(task) || undefined}
       assigneeKind={taskAssigneeKindFromTask(task.assignee)}
+      assigneeName={taskAssigneeDisplayName(
+        task.assignee,
+        tTasks("personalAssistant"),
+      )}
       initialDesignMdAttachment={initialDesignMdAttachment}
       currentOrganizationId={task.workspace.organizationId ?? null}
       organizations={members}
@@ -682,6 +586,8 @@ async function TaskDetailActionsSlot({
         !forceReadOnly && hasAssignedSeat
           ? {
               name: task.name,
+              tags: task.tags,
+              workspaceTags: task.workspaceTags,
               description: task.description
                 ? removeTaskContextAttachmentLinks(task.description)
                 : null,
@@ -707,14 +613,7 @@ async function TaskDetailActionsSlot({
         archive: t("actions.archive"),
         archiveError: t("actions.archiveError"),
         reopenToReady: t("actions.reopenToReady"),
-        reopenToReadyTitle: t("actions.reopenToReadyTitle"),
-        reopenToReadyDescription: t("actions.reopenToReadyDescription"),
-        reopenToReadyCommentLabel: t("actions.reopenToReadyCommentLabel"),
-        reopenToReadyCommentPlaceholder: t(
-          "actions.reopenToReadyCommentPlaceholder",
-        ),
         reopenToReadyCommentRequired: t("actions.reopenToReadyCommentRequired"),
-        reopenToReadyConfirm: t("actions.reopenToReadyConfirm"),
         cancel: t("actions.cancel"),
         share: t("actions.share"),
         startWorking: t("actions.startWorking"),
@@ -754,138 +653,6 @@ async function TaskJobsSection({
       unknownAgentLabel={t("jobsUnknownAgent")}
     />
   );
-}
-
-async function TaskActivitySectionContent({
-  taskId,
-  task,
-  forceReadOnly,
-  hasAssignedSeatPromise,
-  agentsPromise,
-  sessionPromise,
-  currentPlanPromise,
-  mentionableUsersPromise,
-}: {
-  taskId: string;
-  task: Task;
-  forceReadOnly: boolean;
-  hasAssignedSeatPromise: Promise<boolean>;
-  agentsPromise: Promise<AgentsResult>;
-  sessionPromise: Promise<SessionResult>;
-  currentPlanPromise: Promise<SubscriptionPlanName | null>;
-  mentionableUsersPromise: Promise<MentionableUser[]>;
-}) {
-  const [
-    agents,
-    session,
-    viewerPlan,
-    hasAssignedSeat,
-    mentionableUsers,
-    t,
-    activityEvents,
-  ] = await Promise.all([
-    agentsPromise,
-    sessionPromise,
-    currentPlanPromise,
-    hasAssignedSeatPromise,
-    mentionableUsersPromise,
-    getTranslations("App.Tasks.Detail"),
-    // Read-only (admin and developer views): the viewer is outside the task's
-    // workspace, so the workspace-scoped events read 404s. Those payloads
-    // already carry every event.
-    forceReadOnly
-      ? taskActivityFeedFromTask(task)
-      : taskService.listTaskActivityFeed(taskId),
-  ]);
-  const {
-    userById: actorsUserById,
-    coworkerById,
-    sokoBotById,
-  } = buildTaskActivityActors({
-    ...task,
-    events: activityEvents.events,
-  });
-  const currentUser = session?.user
-    ? {
-        id: session.user.id,
-        name: session.user.name ?? "User",
-        image: session.user.image
-          ? resolveIpfsOrHttpUrl(session.user.image)
-          : null,
-      }
-    : null;
-  // Participants resolve `@` names in comments even after they leave the workspace.
-  const participantUserById = Object.fromEntries(
-    task.participants.map(({ user }) => [
-      user.id,
-      {
-        name: user.name,
-        image: user.image ? resolveIpfsOrHttpUrl(user.image) : null,
-      },
-    ]),
-  );
-  const knownUserById = { ...participantUserById, ...actorsUserById };
-  const userById = currentUser
-    ? {
-        ...knownUserById,
-        [currentUser.id]: {
-          name: currentUser.name,
-          image: currentUser.image,
-        },
-      }
-    : knownUserById;
-  const agentNameById = buildAgentNameById(agents);
-
-  return (
-    <TaskActivitySection
-      key={taskId}
-      taskId={taskId}
-      title={t("activity")}
-      placeholder={t("commentPlaceholder")}
-      submitLabel={t("submit")}
-      actorCoworkerLabel={t("actorCoworker")}
-      actorUserLabel={t("actorUser")}
-      actorSokoBotLabel={t("actorSokoBot")}
-      actorSystemLabel={t("actorSystem")}
-      actionCommentedLabel={t("actionCommented")}
-      actionUpdatedStatusLabel={t("actionUpdatedStatus")}
-      actionCreatedTaskLabel={t("actionCreatedTask")}
-      taskOwnerId={task.ownerId}
-      events={activityEvents.events}
-      commentCount={activityEvents.pagination.commentCount}
-      latestCommentId={activityEvents.pagination.latestCommentId}
-      taskFiles={task.files}
-      agentNameById={agentNameById}
-      userById={userById}
-      coworkerById={coworkerById}
-      sokoBotById={sokoBotById}
-      currentUser={currentUser}
-      expandLabel={t("expand")}
-      collapseLabel={t("collapse")}
-      viewerPlan={viewerPlan}
-      mentionableUsers={mentionableUsers.map(({ id, name }) => ({ id, name }))}
-      participants={task.participants}
-      canComment={canCommentOnTaskForViewer({
-        taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
-        taskOwnerId: task.ownerId,
-        sessionUserId: session?.user.id,
-        forceReadOnly,
-        taskStatus: task.status,
-        hasAssignedSeat,
-      })}
-    />
-  );
-}
-
-function taskActivityFeedFromTask(task: Task): TaskActivityFeed {
-  const comments = task.events.filter((event) => event.comment != null);
-  return {
-    events: task.events,
-    pagination: {
-      commentCount: comments.length,
-      latestCommentId: comments.at(-1)?.id ?? null,
-    },
-  };
 }
 
 function buildTaskDetailContext(

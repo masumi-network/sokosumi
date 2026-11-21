@@ -2,7 +2,6 @@
 
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { useRef, useState } from "react";
@@ -136,7 +135,6 @@ function AccountChoice({
 }: HandBackRequest & { account: OAuthRequestAccount }) {
   const t = useTranslations("Auth.OAuthHandBack");
   const clientName = client?.name;
-  const router = useRouter();
   const { hasFailed, handBack, fail } = useHandBack(oauthQuery);
   const [pendingChoice, setPendingChoice] = useState<
     "continue" | "switch" | null
@@ -165,7 +163,7 @@ function AccountChoice({
         });
         if (result.error) throw result.error;
         if (result.data?.user.id !== account.id) {
-          router.refresh();
+          window.location.reload();
           chooseAgain();
           return false;
         }
@@ -192,11 +190,11 @@ function AccountChoice({
       chooseAgain();
     };
     signOutWithPushRelease(account.id, {
+      afterSignOut: "reload",
       fetchOptions: {
         // Always validate this exact request, including a missing or invalid
         // parameter manifest that the client plugin would otherwise omit.
         body: { oauth_query: oauthQuery },
-        onSuccess: () => router.refresh(),
         onError: ({ error }) =>
           isRejectedOAuthRequestError(error) ? fail() : signOutFailed(),
       },
@@ -225,7 +223,7 @@ function AccountChoice({
             : t("chooseAccountTitle")}
         </h1>
         <p className="text-sm text-muted-foreground">
-          {t.rich("signedInAs", {
+          {t.rich(client?.brand === "cmo" ? "signedInAsCmo" : "signedInAs", {
             email: account.email,
             account: (chunks: ReactNode) => (
               <span className="font-medium text-foreground">{chunks}</span>

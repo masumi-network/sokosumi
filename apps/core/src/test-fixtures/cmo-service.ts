@@ -10,6 +10,7 @@ import { vi } from "vitest";
 
 export const memberFindMany = vi.fn();
 export const sokoBotFindUnique = vi.fn();
+export const sokoBotUpdateMany = vi.fn();
 export const cusoFindMany = vi.fn();
 export const memberFindUnique = vi.fn();
 export const chatRoomDelete = vi.fn();
@@ -21,13 +22,20 @@ export const subscriptionFindFirst = vi.fn();
 export const subscriptionCreate = vi.fn();
 export const subscriptionUpdate = vi.fn();
 export const projectFindUnique = vi.fn();
+/** The gate's free-hiring read: null unless a test is hiring. */
+export const projectFindFirst = vi.fn();
 export const projectUpdate = vi.fn();
 export const turnFindFirst = vi.fn();
+/** The turn a save runs in; null unless a test gives its message. */
+export const turnFindUnique = vi.fn();
 export const toolCallFindMany = vi.fn();
+export const toolCallFindFirst = vi.fn();
 export const connectionFindMany = vi.fn();
 export const workspaceFindUnique = vi.fn();
 export const postFindFirst = vi.fn();
 export const postFindMany = vi.fn();
+/** Reference library rows a save's style ids are looked up in. */
+export const referenceFindMany = vi.fn();
 export const postUpdate = vi.fn();
 export const postCreateMany = vi.fn();
 export const postUpdateMany = vi.fn();
@@ -44,6 +52,10 @@ export const createOrganizationWorkspace = vi.fn();
 export const organizationFindFirst = vi.fn();
 export const organizationUpdate = vi.fn();
 export const creditBucketFindFirst = vi.fn();
+/** The gate's Tester credits read: none unless a test grants them. */
+export const creditBucketFindMany = vi.fn();
+/** The Project's CMO subscription that has not ended: none unless a test seeds one. */
+export const polarSubscriptionFindFirst = vi.fn();
 export const grantFreeCredits = vi.fn();
 export const getUserWorkspace = vi.fn();
 export const messageUpsert = vi.fn();
@@ -69,6 +81,7 @@ type CusoFixture = {
   brandBrain?: unknown;
   brandBrainUpdatedAt?: Date | null;
   brandBrainConfirmedAt?: Date | null;
+  pendingAdBudget?: unknown;
 };
 
 /**
@@ -86,6 +99,7 @@ export function asCusoBot(cuso: unknown) {
       id: fixture.projectId ?? "project-1",
       workspaceId: fixture.workspaceId ?? "ws-1",
       websiteUrl: fixture.websiteUrl ?? "https://acme.io",
+      cmoPendingAdBudget: fixture.pendingAdBudget ?? null,
       workspace: { organizationId: "org-1" },
       brandBrain: fixture.brandBrain
         ? {
@@ -214,6 +228,7 @@ const client = {
     // Finding Cuso by his bot or by a member: the Cuso `cusoFind` stands for.
     findFirst: async (args: unknown) => asCusoBot(await cusoFind(args)),
     findMany: cusoFindMany,
+    updateMany: sokoBotUpdateMany,
   },
   chatRoom: { delete: chatRoomDelete, update: chatRoomUpdate },
   chatRoomMessage: {
@@ -228,10 +243,12 @@ const client = {
     findUnique: projectFindUnique,
     update: projectUpdate,
     updateMany: projectUpdateMany,
-    // Cuso's Project lives in the business's organization (ADR 0065).
-    findFirst: async () => ({
-      workspace: { id: "ws-1", userId: null, organizationId: "org-1" },
-    }),
+    // Cuso's Project lives in the business's organization (ADR 0065); the
+    // gate's free-hiring read is `projectFindFirst`.
+    findFirst: async (args: { select?: { workspace?: unknown } }) =>
+      args.select?.workspace
+        ? { workspace: { id: "ws-1", userId: null, organizationId: "org-1" } }
+        : projectFindFirst(args),
   },
   marketingStrategy,
   fileProjectLink: { findMany: fileLinkFindMany },
@@ -239,15 +256,19 @@ const client = {
     findFirst: organizationFindFirst,
     update: organizationUpdate,
   },
-  creditBucket: { findFirst: creditBucketFindFirst },
+  creditBucket: {
+    findFirst: creditBucketFindFirst,
+    findMany: creditBucketFindMany,
+  },
+  polarSubscription: { findFirst: polarSubscriptionFindFirst },
   subscription: {
     findFirst: subscriptionFindFirst,
     create: subscriptionCreate,
     update: subscriptionUpdate,
   },
   workspace: { findUnique: workspaceFindUnique },
-  sokoBotTurn: { findFirst: turnFindFirst },
-  sokoBotToolCall: { findMany: toolCallFindMany },
+  sokoBotTurn: { findFirst: turnFindFirst, findUnique: turnFindUnique },
+  sokoBotToolCall: { findMany: toolCallFindMany, findFirst: toolCallFindFirst },
   projectSocialConnection: { findMany: connectionFindMany },
   socialPost: {
     findFirst: postFindFirst,
@@ -256,6 +277,7 @@ const client = {
     createMany: postCreateMany,
     updateMany: postUpdateMany,
   },
+  referenceImage: { findMany: referenceFindMany },
   // No piece of the approved version is written to Files unless a test says so.
   marketingStrategyFile: { findMany: async () => [] },
   // Calendar times read in UTC unless a test gives Cuso's rhythms a zone.
@@ -271,12 +293,12 @@ const client = {
 export const funding = {
   spendable: 100,
   requireFunding: vi.fn(),
-  /** A hirer's Seat and first turn on a Cuso being hired: allowed unless a test refuses them. */
-  requireMemberFunding: vi.fn(),
+  /** A hirer's Seat in the organization: allowed unless a test refuses it. */
+  requireMemberSeat: vi.fn(),
   BillingError: class extends Error {
     constructor(
       message: string,
-      readonly reason: "seat" | "credits" = "credits",
+      readonly reason: "seat" | "credits" | "cmo_paused" = "credits",
     ) {
       super(message);
     }
@@ -305,7 +327,7 @@ export const cmoServiceMocks = {
   },
   billing: {
     requireSokoBotTurnFunding: funding.requireFunding,
-    requireMemberTurnFunding: funding.requireMemberFunding,
+    requireMemberSeat: funding.requireMemberSeat,
     SokoBotBillingAccessError: funding.BillingError,
   },
   vercelFunctions: { waitUntil: vi.fn() },
@@ -359,6 +381,7 @@ export function resetCmoServiceMocks(): void {
   // The person asking is on the hire allowlist unless a test says otherwise.
   userFindUnique.mockResolvedValue({
     email: "lena@harborbikes.com",
+    emailVerified: true,
     preferredOrganizationId: "org-1",
   });
   for (const key of Object.keys(envOverrides)) {
@@ -366,7 +389,12 @@ export function resetCmoServiceMocks(): void {
   }
   envOverrides.CMO_HIRE_ALLOWLIST = ["lena@harborbikes.com"];
   expireTurn.mockResolvedValue(true);
+  polarSubscriptionFindFirst.mockResolvedValue(null);
+  creditBucketFindFirst.mockResolvedValue(null);
+  creditBucketFindMany.mockResolvedValue([]);
+  projectFindFirst.mockResolvedValue(null);
   toolCallFindMany.mockResolvedValue([]);
+  toolCallFindFirst.mockResolvedValue(null);
   // A report message comes back as it was written.
   messageUpsert.mockImplementation(async (args) => ({
     id: args.create.id,
@@ -374,6 +402,8 @@ export function resetCmoServiceMocks(): void {
     metadata: args.create.metadata,
   }));
   projectUpdateMany.mockResolvedValue({ count: 1 });
+  // The Tester credit grant's liveness write finds the live Cuso unless a test archives him.
+  sokoBotUpdateMany.mockResolvedValue({ count: 1 });
   messageFindMany.mockResolvedValue([]);
   // Every hire lives in the business's organization (ADR 0065), and the
   // member asking owns it unless a test says otherwise.
@@ -392,6 +422,7 @@ export function resetCmoServiceMocks(): void {
   fileLinkFindMany.mockResolvedValue([]);
   // No Social posts or connections unless a test seeds them.
   postFindMany.mockResolvedValue([]);
+  referenceFindMany.mockResolvedValue([]);
   connectionFindMany.mockResolvedValue([]);
   // The Cuso a member works with is the one `cusoFind` stands for here, in
   // the business's organization.

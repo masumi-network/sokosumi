@@ -1,6 +1,8 @@
+import type { AvatarState } from "@sokosumi/soko-bot";
 import { AuroraOrb } from "@/components/aurora-orb";
 import { defaultOrbSeed, type OrbExpression } from "@/lib/aurora-orb";
 import { cn } from "@/lib/utils";
+import { LiveBotAvatarLazy } from "./lazy-live-bot-avatar.client";
 
 /**
  * The orb seed `BotFace` draws for a bot: its own seed, or the default orb of
@@ -26,6 +28,10 @@ export function BotFace({
   orbSize = 128,
   animate = false,
   expression,
+  avatarCode,
+  avatarState = "idle",
+  avatarSize = 64,
+  interactive = false,
   className,
 }: {
   imageUrl: string | null;
@@ -37,8 +43,28 @@ export function BotFace({
   animate?: boolean;
   /** Eyes override for the orb; omit for its resting look. */
   expression?: OrbExpression;
+  /** The bot's avatar code: draws the live avatar (the picture shows until it is ready). */
+  avatarCode?: string | null;
+  avatarState?: AvatarState;
+  /** CSS pixels the live avatar is drawn at; sets its canvas resolution. */
+  avatarSize?: number;
+  /** The live avatar follows the pointer (large faces only). */
+  interactive?: boolean;
   className?: string;
 }) {
+  if (avatarCode) {
+    return (
+      <LiveBotAvatarLazy
+        code={avatarCode}
+        state={avatarState}
+        size={avatarSize}
+        imageUrl={imageUrl}
+        alt={alt}
+        interactive={interactive}
+        className={className}
+      />
+    );
+  }
   if (imageUrl) {
     return (
       <img

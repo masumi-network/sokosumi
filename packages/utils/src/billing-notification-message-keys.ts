@@ -14,3 +14,7 @@ export const BILLING_CREDITS_ADDED_MESSAGE_KEY =
 
 export const BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY =
   "Notifications.Billing.subscriptionEnding";
+
+/** A Cuso's Project credits ran low; it opens CMO, not Sokosumi's billing (SOKD-246). */
+export const BILLING_CUSO_LOW_CREDITS_MESSAGE_KEY =
+  "Notifications.Billing.cusoLowCredits";

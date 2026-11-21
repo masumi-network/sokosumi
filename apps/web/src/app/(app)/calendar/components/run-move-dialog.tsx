@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
@@ -19,73 +18,53 @@ import {
   utcToDateTimeLocalInTimezone,
   zonedDateTimeLocalToUtc,
 } from "@/lib/schedules/zoned-datetime";
-import {
-  type ChangeableRun,
-  changeRun,
-  runChangeErrorKey,
-  useReportRunChangeFailure,
-} from "./run-change";
 
 interface RunMoveDialogProps {
-  item: ChangeableRun;
+  /** What runs: the Task's or the Soko Bot schedule's name. */
+  name: string;
+  scheduledAt: Date;
   /** IANA zone the wall-clock input is interpreted in. */
   timeZone: string;
   onClose: () => void;
+  /** Moves the Run: shown at once, put back with a toast when Core refuses. */
+  onMove: (scheduledAt: Date) => void;
 }
 
-/** Moves one Task Schedule Run to another time; the rule stays as it is. */
-export function RunMoveDialog({ item, timeZone, onClose }: RunMoveDialogProps) {
+/** Moves one Task Schedule or Soko Bot run to another time; the rule stays as it is. */
+export function RunMoveDialog({
+  name,
+  scheduledAt: currentAt,
+  timeZone,
+  onClose,
+  onMove,
+}: RunMoveDialogProps) {
   const t = useTranslations("App.Calendar");
-  const router = useRouter();
-  const reportRunChangeFailure = useReportRunChangeFailure();
   const inputId = useId();
   const [value, setValue] = useState(() =>
-    utcToDateTimeLocalInTimezone(item.scheduledAt, timeZone),
+    utcToDateTimeLocalInTimezone(currentAt, timeZone),
   );
   const [error, setError] = useState<string | null>(null);
-  const [isPending, setIsPending] = useState(false);
 
-  async function handleSubmit() {
-    if (isPending) {
-      return;
-    }
-
+  function handleSubmit() {
     const scheduledAt = zonedDateTimeLocalToUtc(value, timeZone);
     if (!scheduledAt) {
       setError(t("runMove.invalid"));
       return;
     }
-
-    setIsPending(true);
-    setError(null);
-    try {
-      const result = await changeRun(item, { action: "move", scheduledAt });
-      if (!result.ok) {
-        // The Run this dialog holds is out of date: start over from the
-        // refreshed Calendar.
-        if (result.error.kind === "stale") {
-          reportRunChangeFailure("stale");
-          onClose();
-          return;
-        }
-        setError(t(runChangeErrorKey(result.error.kind)));
-        return;
-      }
-
-      onClose();
-      router.refresh();
-    } catch {
-      setError(t("event.runError"));
-    } finally {
-      setIsPending(false);
+    // Core refuses a past time. Say so here, while the input is still open.
+    if (scheduledAt.getTime() <= Date.now()) {
+      setError(t("event.runInvalidTime"));
+      return;
     }
+    onClose();
+    onMove(scheduledAt);
   }
 
   return (
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open && !isPending) {
+        if (!open) {
           onClose();
         }
       }}
@@ -94,7 +73,7 @@ export function RunMoveDialog({ item, timeZone, onClose }: RunMoveDialogProps) {
         <DialogHeader>
           <DialogTitle>{t("runMove.title")}</DialogTitle>
           <DialogDescription>
-            {t("runMove.description", { name: item.taskName })}
+            {t("runMove.description", { name })}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
@@ -103,7 +82,6 @@ export function RunMoveDialog({ item, timeZone, onClose }: RunMoveDialogProps) {
             id={inputId}
             type="datetime-local"
             value={value}
-            disabled={isPending}
             onChange={(event) => setValue(event.target.value)}
           />
         </div>
@@ -113,20 +91,10 @@ export function RunMoveDialog({ item, timeZone, onClose }: RunMoveDialogProps) {
           </p>
         ) : null}
         <DialogFooter>
-          <Button
-            disabled={isPending}
-            type="button"
-            variant="outline"
-            onClick={onClose}
-          >
+          <Button type="button" variant="outline" onClick={onClose}>
             {t("runMove.cancel")}
           </Button>
-          <Button
-            disabled={isPending}
-            type="button"
-            variant="primary"
-            onClick={() => void handleSubmit()}
-          >
+          <Button type="button" variant="primary" onClick={handleSubmit}>
             {t("runMove.confirm")}
           </Button>
         </DialogFooter>

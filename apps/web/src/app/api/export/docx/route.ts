@@ -192,11 +192,9 @@ export async function POST(request: NextRequest) {
     // The conversion below owns process globals (`fetch`, `window`, `document`),
     // so only one export may run at a time per instance.
     return withDocxExportLock(async () => {
-      // Set up DOM context for server-side HTML processing
       const cleanup = await setupDomContext();
 
       try {
-        // Check if markdown contains HTML content
         const hasHtml = hasHtmlContent(markdown);
         const logoBuffer = dataUrlToBuffer(parsed.value.logoPng);
         const kanjiLogoBuffer = dataUrlToBuffer(parsed.value.kanjiLogoPng);
@@ -246,6 +244,8 @@ export async function POST(request: NextRequest) {
               {
                 plugins: [
                   tablePlugin(),
+                  // imagePlugin parses SVG with the DOM from setupDomContext. It never
+                  // loads the optional @xmldom/xmldom peer, so the lockfile omits it.
                   imagePlugin({
                     cacheConfig: { cacheMode: "memory", cache: {} },
                   }),

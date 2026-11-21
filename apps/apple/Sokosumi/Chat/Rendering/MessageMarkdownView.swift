@@ -13,7 +13,7 @@ struct MessageMarkdownView: View {
   var diagrams = true
   @EnvironmentObject private var workspaces: WorkspaceState
   @Environment(\.openURL) private var openURL
-  @State private var selectedProfile: ChatParticipantProfile?
+  @State private var selectedProfile: MessageProfile?
   var body: some View {
     MessageMarkdownContent(source: source, room: room, channels: channels, preparedDocument: preparedDocument, diagrams: diagrams)
       .textSelection(.enabled)
@@ -21,6 +21,10 @@ struct MessageMarkdownView: View {
       .tint(.primary)
       .frame(maxWidth: .infinity, alignment: .leading)
       .environment(\.openURL, OpenURLAction { url in
+        if case let .contact(mention) = ChatLink(url: url, webBaseURL: CoreSettings.webBaseURL) {
+          selectedProfile = .contact(mention, workspaces.compositionContext)
+          return .handled
+        }
         if url.scheme == "sokosumi-channel" {
           if let id = MessageChannels.roomId(for: url, channels: workspaces.composerChannels) {
             Task { @MainActor in
@@ -34,11 +38,18 @@ struct MessageMarkdownView: View {
           return .handled
         }
         if let room {
-          selectedProfile = ChatParticipantProfile.resolving(url, in: room)
+          selectedProfile = ChatParticipantProfile.resolving(url, in: room).map(MessageProfile.participant)
         }
         return .handled
       })
-      .popover(item: $selectedProfile) { ParticipantDetailsView(profile: $0) }
+      .popover(item: $selectedProfile) { profile in
+        switch profile {
+        case let .participant(participant):
+          ParticipantDetailsView(profile: participant)
+        case let .contact(mention, context):
+          ContactMentionView(mention: mention, context: context, openInContacts: { openURL($0) })
+        }
+      }
   }
 }
 
@@ -91,6 +102,7 @@ private struct MessageMarkdownContent: View {
           }
         }
         .messageImageGallery(document.imageGallery)
+        .environment(\.showsVoiceTranscript, document.showsVoiceTranscript)
       } else {
         ProgressView()
           .controlSize(.small)
@@ -125,8 +137,13 @@ struct MarkdownBlocksView: View {
   }
 }
 
+extension EnvironmentValues {
+  @Entry var showsVoiceTranscript = false
+}
+
 private struct MarkdownBlockView: View {
   let block: MessageMarkdownBlock
+  @Environment(\.showsVoiceTranscript) private var showsVoiceTranscript
 
   var body: some View {
     switch block.kind {
@@ -152,6 +169,14 @@ private struct MarkdownBlockView: View {
     case let .codeBlock(languageHint):
       if let diagram = block.diagram {
         MermaidFigureView(diagram: diagram)
+      } else if showsVoiceTranscript, languageHint == "transcript" {
+        // A voice message's transcript (web `splitVoiceTranscript`): prose under the player, not code.
+        VStack(alignment: .leading, spacing: 4) {
+          Text("Transcript").font(.caption.weight(.medium)).foregroundStyle(.secondary)
+          Text(String(block.text.characters).trimmingCharacters(in: .whitespacesAndNewlines))
+            .textSelection(.enabled)
+            .fixedSize(horizontal: false, vertical: true)
+        }
       } else {
         MessageCodeBlock(source: String(block.text.characters), languageHint: languageHint)
       }

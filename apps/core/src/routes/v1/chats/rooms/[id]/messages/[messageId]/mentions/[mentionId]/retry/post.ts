@@ -6,6 +6,7 @@ import { badRequest, conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -13,6 +14,7 @@ import {
 import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomMessageSchema } from "@/schemas/chat-room.schema";
 import { dispatchChatRoomMention } from "@/services/chat-room-coworker-dispatch.service";
+import { releaseFailedTurnForRetry } from "@/services/chat-room-mention-state";
 
 import {
   chatRoomMessageInclude,
@@ -121,6 +123,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
         throw conflict("Mention is not failed");
       }
+      await releaseFailedTurnForRetry(tx, mentionId);
 
       return tx.chatRoomMessage.findUniqueOrThrow({
         where: { id: messageId },
@@ -129,7 +132,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     await publishChatRoomMessageRealtime(message, "mention_status");
-    waitUntil(dispatchChatRoomMention(mentionId));
+    // Background work: its events never land on this request's event.
+    waitUntil(runAsBackgroundWork(() => dispatchChatRoomMention(mentionId)));
 
     return ok(
       c,

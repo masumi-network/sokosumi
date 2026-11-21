@@ -2,15 +2,17 @@ import { z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { type Prisma, TaskPaymentClaimStatus } from "@sokosumi/database";
 import type { MasumiTaskPurchaseInput } from "@sokosumi/masumi/clients";
+import { createError } from "evlog";
 import { v4 as uuidv4 } from "uuid";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { getEnv } from "@/config/env";
 import {
-  buildCompensatingRefundTransactionCreate,
   COMPENSATED_SPEND_CONSUMPTIONS_SELECT,
+  createCompensatingRefund,
 } from "@/helpers/compensating-refund";
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger } from "@/lib/evlog";
 
 const MAX_FAILURE_REASON_LENGTH = 2_000;
 const PROCESSING_LEASE_MS = 2 * 60 * 1_000;
@@ -228,19 +230,16 @@ export async function refundFailedTaskPaymentClaim(
       );
     }
 
+    const refundId = await createCompensatingRefund(tx, {
+      amount: refundAmount,
+      actorUserId,
+      organizationId: claim.transaction.organizationId,
+      referenceId: `task-payment:${claim.id}`,
+      consumptions: claim.transaction.creditConsumptions,
+    });
     await tx.taskPaymentClaim.update({
       where: { id: claim.id },
-      data: {
-        refundTransaction: {
-          create: buildCompensatingRefundTransactionCreate({
-            amount: refundAmount,
-            actorUserId,
-            organizationId: claim.transaction.organizationId,
-            referenceId: `task-payment:${claim.id}`,
-            consumptions: claim.transaction.creditConsumptions,
-          }),
-        },
-      },
+      data: { refundTransaction: { connect: { id: refundId } } },
     });
     return true;
   });
@@ -734,11 +733,21 @@ async function escalateUnprocessableTaskPaymentClaim(
       });
     }
   } catch (escalationError) {
-    // Best-effort: escalation must not abort the remaining batch.
-    console.error(
-      `[sync/task-payment-claims] Failed to escalate claim ${claimId}:`,
-      escalationError,
+    // Best-effort: escalation must not abort the remaining batch. It runs in
+    // the cron or after the task event's response, so it is its own event.
+    const log = createCoreLogger({
+      operation: "task_payment_claim_escalation",
+      taskPaymentClaim: { id: claimId },
+    });
+    log.error(
+      createError({
+        message: "Could not park a failing task payment claim for review",
+        why: "The claim update failed",
+        fix: "The claim stays pending and the next task-payment-claims sync tries it again. If this repeats, set reviewRequiredAt on the claim by hand and check the database.",
+        cause: escalationError instanceof Error ? escalationError : undefined,
+      }),
     );
+    log.emit();
   }
 }
 
@@ -807,10 +816,19 @@ export async function syncPendingTaskPaymentClaims(
       // throw skips — so without this the row keeps `nextAttemptAt` in the past,
       // sorts first on every tick. processTaskPaymentClaim escalates it under
       // the lease token it still owns before rethrowing; this is the report.
-      console.error(
-        `[sync/task-payment-claims] Failed to process claim ${claim.id}:`,
-        error,
+      const log = createCoreLogger({
+        operation: "task_payment_claim_sync",
+        taskPaymentClaim: { id: claim.id },
+      });
+      log.error(
+        createError({
+          message: "Could not process a task payment claim",
+          why: "Processing the claim threw",
+          fix: "The claim was parked for review when its lease was held; otherwise the next task-payment-claims sync retries it. Read error.cause and the Sentry issue.",
+          cause: error instanceof Error ? error : undefined,
+        }),
       );
+      log.emit();
       Sentry.captureException(error, {
         tags: { error_type: "task_payment_claim_process_failed" },
         extra: { claimId: claim.id },

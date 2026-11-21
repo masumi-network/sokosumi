@@ -37,7 +37,7 @@ export function normalizeFileLabelName(value: string): string {
 }
 
 /** The form a label is shown in: NFC and trimmed, capitalization preserved. */
-export function displayFileLabelName(value: string): string {
+function displayFileLabelName(value: string): string {
   return value.normalize("NFC").replace(/\s+/gu, " ").trim();
 }
 

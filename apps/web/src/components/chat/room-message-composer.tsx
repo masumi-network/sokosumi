@@ -8,6 +8,7 @@ import {
   type ReactNode,
   type Ref,
   useRef,
+  useState,
 } from "react";
 
 import { chatMobileComposerSafeAreaPbClass } from "@/app/chat/components/chat-mobile-tab-registry";
@@ -15,9 +16,9 @@ import { EmojiPicker } from "@/components/chat/emoji-picker";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { Button } from "@/components/ui/button";
 import { MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX } from "@/components/ui/mention-textarea-utils";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
+import { useKeyboardOpen } from "@/hooks/effects/use-keyboard-open";
 import { recordEmojiUse } from "@/hooks/use-frequently-used-emojis";
-import { useKeyboardOpen } from "@/hooks/use-keyboard-open";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 
@@ -135,24 +136,27 @@ export function RoomMessageComposer({
 }: RoomMessageComposerProps) {
   const keyboardOpen = useKeyboardOpen();
   const sendBlocked = isSending || sendDisabled;
+  const safeAreaPaddingClassName =
+    withSafeAreaPadding && chatMobileComposerSafeAreaPbClass(keyboardOpen);
   return (
     <form
       ref={formRef}
       className={cn(
-        "relative shrink-0",
+        "pointer-events-none relative isolate shrink-0",
         withOuterPadding && "px-5 pt-2 md:pt-3",
-        withSafeAreaPadding && chatMobileComposerSafeAreaPbClass(keyboardOpen),
+        safeAreaPaddingClassName,
         className,
       )}
       onSubmit={onSubmit}
     >
       {typingLine}
-      {aboveCard}
-      <div className="w-full">
+      <div className="pointer-events-auto contents">{aboveCard}</div>
+      <div className="relative w-full">
         {/* scroll-margin on the shell, not the overflow:auto editor. Chromium
             uses editor scroll-margin during mouse selection and jumps long drafts. */}
+        {/* WebKit needs an explicit rounded clip for corner hit testing. */}
         <div
-          className="border-border overflow-hidden rounded-xl border bg-background"
+          className="pointer-events-auto border-border overflow-hidden rounded-xl border bg-background [clip-path:inset(0_round_calc(var(--radius)+4px))]"
           data-room-composer-mention-anchor
           style={{ scrollMarginTop: MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX }}
         >
@@ -217,7 +221,7 @@ function RoomComposerSendButton({
   testId,
   onPrepareSubmit,
 }: RoomComposerSendButtonProps) {
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [sendButton, setSendButton] = useState<HTMLButtonElement | null>(null);
   const lastPointerSubmitAtRef = useRef(Number.NEGATIVE_INFINITY);
 
   function requestComposerSubmit(form: HTMLFormElement | null) {
@@ -232,17 +236,14 @@ function RoomComposerSendButton({
   // pointerdown alone blurs and the visual viewport grows back, touchstart
   // alone keeps both). React registers `onTouchStart` passively, where
   // preventDefault is a silent no-op, so this has to be a native listener.
-  useMountEffect(() => {
-    const button = buttonRef.current;
-    if (!button) return;
-    const keepEditorFocus = (event: globalThis.TouchEvent) => {
+  useEventListener(
+    sendButton,
+    "touchstart",
+    (event) => {
       event.preventDefault();
-    };
-    button.addEventListener("touchstart", keepEditorFocus, { passive: false });
-    return () => {
-      button.removeEventListener("touchstart", keepEditorFocus);
-    };
-  });
+    },
+    { passive: false },
+  );
 
   function handleSendPointerDown(event: PointerEvent<HTMLButtonElement>) {
     // Covers pointer/mouse; touchstart above is what holds focus on iOS.
@@ -270,7 +271,7 @@ function RoomComposerSendButton({
 
   return (
     <Button
-      ref={buttonRef}
+      ref={setSendButton}
       type="button"
       variant="primary"
       size="icon"

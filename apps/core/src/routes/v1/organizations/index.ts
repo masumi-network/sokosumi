@@ -5,6 +5,7 @@ import mountApproveOrganizationCoworkerAccess from "./[id]/coworker-access/[acce
 import mountDenyOrganizationCoworkerAccess from "./[id]/coworker-access/[accessId]/deny/post.js";
 import mountRevokeOrganizationCoworkerAccess from "./[id]/coworker-access/[accessId]/revoke/post.js";
 import mountGetOrganizationCoworkerAccess from "./[id]/coworker-access/get.js";
+import mountGetOrganizationCreditSpend from "./[id]/credit-spend/get.js";
 import mountGetOrganizationDeletion from "./[id]/deletion/get.js";
 import mountPutOrganizationDesignMd from "./[id]/design-md/put.js";
 import mountGetOrganizationEnterpriseContractSummary from "./[id]/enterprise-contract-summary/get.js";
@@ -58,6 +59,7 @@ mountApproveOrganizationVendorGrant(app);
 mountDenyOrganizationVendorGrant(app);
 mountRevokeOrganizationVendorGrant(app);
 mountGetOrganizationSeatSummary(app);
+mountGetOrganizationCreditSpend(app);
 mountGetOrganizationBillingPlan(app);
 mountGetOrganizationEnterpriseContractSummary(app);
 mountGetOrganizationStripeCustomer(app);

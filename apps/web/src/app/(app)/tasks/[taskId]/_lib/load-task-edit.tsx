@@ -8,6 +8,7 @@ import type {
   TaskFormInitialDesignMdAttachment,
   TaskFormLabels,
 } from "@/app/tasks/components/task-form";
+import type { TaskFormTagPrefill } from "@/app/tasks/components/task-form-types";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import {
   taskFormAssigneeId,
@@ -42,7 +43,7 @@ interface TaskEditReady {
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
   agentNameById: Map<string, string>;
-  initialValues: {
+  initialValues: TaskFormTagPrefill & {
     name: string;
     description: string;
     assigneeId: string;
@@ -182,6 +183,8 @@ export async function loadTaskEdit(
     projectOptions,
     agentNameById,
     initialValues: {
+      tags: taskResult.tags,
+      workspaceTags: taskResult.workspaceTags,
       name: taskResult.name,
       description: taskResult.description ?? "",
       assigneeId: taskFormAssigneeId(taskResult),

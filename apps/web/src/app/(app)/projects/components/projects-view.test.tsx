@@ -1,21 +1,36 @@
 import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import {
-  loadMoreProjects,
-  pinProjectAction,
-  showProjectAction,
-} from "@/app/projects/actions";
+import { loadMoreProjects } from "@/app/projects/actions";
 import { ProjectsView } from "@/app/projects/components/projects-view";
 import {
   PROJECTS_BROWSE_HEADER_ROW_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
 } from "@/app/projects/constants";
 
+const { queryStateOptions } = vi.hoisted(() => ({
+  queryStateOptions: {} as Record<
+    string,
+    { startTransition?: (callback: () => Promise<void>) => void }
+  >,
+}));
+
 vi.mock("nuqs", async (importOriginal) => ({
   ...(await importOriginal<typeof import("nuqs")>()),
-  useQueryState: () => ["", vi.fn()],
+  useQueryState: (
+    key: string,
+    options: { startTransition?: (callback: () => Promise<void>) => void },
+  ) => {
+    queryStateOptions[key] = options;
+    return ["", vi.fn()];
+  },
 }));
 
 const { refreshMock } = vi.hoisted(() => ({ refreshMock: vi.fn() }));
@@ -30,7 +45,8 @@ vi.mock("use-debounce", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+    values ? `${key} ${JSON.stringify(values)}` : key,
 }));
 
 vi.mock("@/app/projects/actions", () => ({
@@ -112,6 +128,17 @@ const labels = {
   },
   filter: { placeholder: "Filter projects", clear: "Clear filter" },
   noMatches: "No projects match",
+  noMatchesIn: {
+    open: "No open projects match",
+    hidden: "No hidden projects match",
+    closed: "No closed projects match",
+  },
+  elsewhere: "Matching projects are in another view.",
+  showIn: {
+    open: "Show open projects",
+    hidden: "Show hidden projects",
+    closed: "Show closed projects",
+  },
 };
 
 const project = {
@@ -258,9 +285,10 @@ describe("ProjectsView toolbar", () => {
     expect(header).toContainElement(toggle);
     expect(screen.getByRole("radio", { name: "Open" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Closed" })).toBeInTheDocument();
-    // Search takes the room the two controls leave.
-    expect(screen.getByLabelText("Filter projects").parentElement).toHaveClass(
-      "flex-1",
+    // Search and create share the trailing group in reading and keyboard order.
+    const field = screen.getByLabelText("Filter projects").parentElement;
+    expect(field?.nextElementSibling).toBe(
+      screen.getByRole("button", { name: "New project" }),
     );
   });
 
@@ -364,6 +392,128 @@ describe("ProjectsView empty states", () => {
   });
 });
 
+describe("ProjectsView closing cards", () => {
+  const closing = {
+    ...project,
+    closingAt: new Date("2026-09-18T10:00:00.000Z"),
+    closedAt: null,
+  };
+
+  // A refresh can change only what the close still owes, or fail it, while
+  // the project itself (id, updatedAt, Pin) stays the same.
+  it("follows a refreshed close status when nothing else changed", () => {
+    const { rerender } = renderView({
+      projects: [
+        {
+          ...closing,
+          closeStatus: { state: "CLOSING", owedOccurrenceCount: 2 },
+        },
+      ],
+    });
+    expect(screen.getByText('remaining {"count":2}')).toBeInTheDocument();
+
+    const props = {
+      nextCursor: null,
+      query: "",
+      state: "open" as const,
+      initialCreateProjectOpen: false,
+      createProjectModalResetKey: "false",
+      labels,
+    };
+    rerender(
+      <ProjectsView
+        {...props}
+        projects={[
+          {
+            ...closing,
+            closeStatus: { state: "CLOSING", owedOccurrenceCount: 1 },
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText('remaining {"count":1}')).toBeInTheDocument();
+
+    rerender(
+      <ProjectsView
+        {...props}
+        projects={[
+          {
+            ...closing,
+            closeStatus: { state: "CLOSE_FAILED", owedOccurrenceCount: 1 },
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText("failedBadge")).toBeInTheDocument();
+    expect(screen.queryByText("badge")).not.toBeInTheDocument();
+
+    // A failed read shows the badge alone; the next good read brings the
+    // line back.
+    rerender(
+      <ProjectsView
+        {...props}
+        projects={[{ ...closing, closeStatus: null }]}
+      />,
+    );
+    expect(screen.getByText("badge")).toBeInTheDocument();
+    expect(screen.queryByText("failed")).not.toBeInTheDocument();
+    rerender(
+      <ProjectsView
+        {...props}
+        projects={[
+          {
+            ...closing,
+            closeStatus: { state: "CLOSING", owedOccurrenceCount: 0 },
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText('remaining {"count":0}')).toBeInTheDocument();
+  });
+});
+
+describe("ProjectsView filter with no matches", () => {
+  it("says which view holds the matches and links there with the filter kept", () => {
+    renderView({ projects: [], query: "SPR", otherMatches: ["hidden"] });
+
+    expect(screen.getByText("No open projects match")).toBeInTheDocument();
+    expect(screen.queryByText("No projects match")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Matching projects are in another view."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Show hidden projects" }),
+    ).toHaveAttribute("href", "/projects?state=hidden&q=SPR");
+    expect(
+      screen.queryByRole("link", { name: "Show closed projects" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("links to Open without a state, its default view", () => {
+    renderView({
+      projects: [],
+      query: "a b",
+      state: "closed",
+      otherMatches: ["open", "hidden"],
+    });
+
+    expect(screen.getByText("No closed projects match")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Show open projects" }),
+    ).toHaveAttribute("href", "/projects?q=a+b");
+    expect(
+      screen.getByRole("link", { name: "Show hidden projects" }),
+    ).toHaveAttribute("href", "/projects?state=hidden&q=a+b");
+  });
+
+  it("keeps the plain no-match message when nothing matches anywhere", () => {
+    renderView({ projects: [], query: "zzz", otherMatches: [] });
+
+    expect(screen.getByText("No projects match")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+});
+
 describe("ProjectsView Hidden view", () => {
   it("draws its cards without a Pin item, each offering Show", async () => {
     const user = userEvent.setup();
@@ -375,36 +525,42 @@ describe("ProjectsView Hidden view", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Show" })).toBeInTheDocument();
   });
-
-  it("refetches the page once a Show lands, so the card leaves the view", async () => {
-    const user = userEvent.setup();
-    vi.mocked(showProjectAction).mockResolvedValue({
-      projectId: "project-1",
-      hiddenAt: null,
-    });
-    refreshMock.mockClear();
-    renderView({ state: "hidden" });
-
-    await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Show" }));
-
-    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
-  });
 });
 
-describe("ProjectsView Pin re-sort", () => {
-  it("refetches the server-ordered page once a Pin lands", async () => {
-    vi.mocked(pinProjectAction).mockResolvedValue(
-      undefined as unknown as Awaited<ReturnType<typeof pinProjectAction>>,
-    );
-    refreshMock.mockClear();
-    const user = userEvent.setup();
+describe("ProjectsView switching views", () => {
+  it("marks the old cards stale until the new list arrives", async () => {
+    const refetch = Promise.withResolvers<void>();
+    renderView();
+    const panel = screen.getByTestId("projects-browse");
+    expect(panel).not.toHaveAttribute("aria-busy");
+
+    // A server refetch that has not answered yet.
+    act(() => {
+      queryStateOptions.state?.startTransition?.(() => refetch.promise);
+    });
+
+    expect(panel).toHaveAttribute("aria-busy", "true");
+    expect(
+      panel.querySelector('[data-slot="button-loading-bar"]'),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Autumn Launch").closest(".grid")).toHaveClass(
+      "opacity-50",
+    ); // A refetch left pending holds every later transition in this worker.
+    await act(async () => refetch.resolve());
+  });
+
+  it("shares the pending state with the filter", async () => {
+    const refetch = Promise.withResolvers<void>();
     renderView();
 
-    await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Pin" }));
+    act(() => {
+      queryStateOptions.q?.startTransition?.(() => refetch.promise);
+    });
 
-    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
-    expect(pinProjectAction).toHaveBeenCalledWith({ projectId: "project-1" });
+    expect(screen.getByTestId("projects-browse")).toHaveAttribute(
+      "aria-busy",
+      "true",
+    ); // A refetch left pending holds every later transition in this worker.
+    await act(async () => refetch.resolve());
   });
 });

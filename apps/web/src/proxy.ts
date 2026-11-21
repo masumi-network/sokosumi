@@ -1,5 +1,3 @@
-import { resolveBetterAuthCookiePrefix } from "@sokosumi/utils";
-import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 
 import { APPLE_APP_SITE_ASSOCIATION_PATH } from "@/config/apple-app-site-association";
@@ -10,9 +8,11 @@ import {
   PUSH_WORKER_RENEWAL_PATH,
 } from "@/config/push-worker-assets";
 import { SENTRY_TUNNEL_PATH } from "@/config/sentry-tunnel";
+import { hasSessionCookie } from "@/lib/auth/session-cookie";
 import {
   COMPOSIO_BOT_VERIFIER_PATH,
   COMPOSIO_CALLBACK_PATH,
+  COMPOSIO_MANAGED_RETURN_PATH,
   COMPOSIO_OWNER_VERIFICATION_PARAM,
 } from "@/lib/composio/oauth-popup-protocol";
 import {
@@ -64,10 +64,14 @@ const EXCLUDED_PATHS = [
   "/maintenance",
 ];
 
-// These documents relay OAuth results only. Core still authenticates and
-// authorizes the initiating owner before it redeems or finalizes consent.
-const COMPOSIO_CONNECTION_DOCUMENT_PATHS = new Set([
+// Consent documents contain no workspace data. Their server actions still
+// require the authenticated initiating viewer and workspace. Match exactly so
+// callback credentials cannot enter a sign-in URL after a session expires.
+const OAUTH_CONNECTION_DOCUMENT_PATHS = new Set([
+  COMPOSIO_MANAGED_RETURN_PATH,
+  "/seo/connections/return",
   "/composio/callback",
+  "/zernio/callback",
   "/composio/handoff",
 ]);
 
@@ -78,11 +82,6 @@ export async function proxy(request: NextRequest) {
   const securityHeaderOptions = {
     includeHsts: env.VERCEL_ENV === "production",
   };
-  const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix({
-    network: env.NETWORK,
-    vercelEnv: env.VERCEL_ENV,
-    vercelGitCommitRef: env.VERCEL_GIT_COMMIT_REF,
-  });
 
   const isMaintenanceMode = env.MAINTENANCE_MODE;
   if (isMaintenanceMode) {
@@ -111,10 +110,11 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Create response early so we can always set pathname + document headers
   const response = NextResponse.next();
   response.headers.set("x-pathname", pathname);
-  response.headers.set("x-search-params", searchParams);
+  if (pathname !== "/zernio/callback") {
+    response.headers.set("x-search-params", searchParams);
+  }
   applyDocumentSecurityHeaders(response, {
     ...securityHeaderOptions,
     pathname,
@@ -152,16 +152,13 @@ export async function proxy(request: NextRequest) {
     return relay;
   }
   if (
-    COMPOSIO_CONNECTION_DOCUMENT_PATHS.has(pathname) ||
+    OAUTH_CONNECTION_DOCUMENT_PATHS.has(pathname) ||
     EXCLUDED_PATHS.some((path) => pathname.startsWith(path))
   ) {
     return response;
   }
 
-  const sessionCookie = getSessionCookie(request, {
-    cookiePrefix: betterAuthCookiePrefix,
-  });
-  if (!sessionCookie) {
+  if (!hasSessionCookie(request)) {
     const currentUrl = pathname + searchParams;
     const returnUrl = encodeURIComponent(currentUrl);
     const signInRedirect = NextResponse.redirect(

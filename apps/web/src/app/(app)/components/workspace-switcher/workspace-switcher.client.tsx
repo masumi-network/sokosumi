@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { createContext, type ReactNode, use, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
+import { ContactLinkWorkspaceProvider } from "@/app/contacts/components/contact-link-workspace";
 import { CreateOrganizationWizard } from "@/components/organizations/create-organization-wizard/create-organization-wizard";
 import OrganizationBulkInviteModal from "@/components/organizations/organization-bulk-invite/modal";
 import type { OrganizationLogoSource } from "@/components/organizations/organization-logo";
@@ -25,6 +26,7 @@ import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspa
 import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
+import { sweepWorkspace } from "@/lib/workspace-sweep";
 import type { WorkspaceSwitcherPlacement } from "./workspace-switcher-skeleton";
 
 type WorkspaceChoice = "personal" | "organization";
@@ -121,7 +123,8 @@ export function WorkspaceSwitcherProvider({
   );
   const tIdentity = useTranslations("WorkspaceGate.Identity");
   const { data: clientSession } = useSession();
-  const { isPending, handleSelectWorkspace } = useWorkspaceSwitcher();
+  const { isPending, handleSelectWorkspace, whenSettled } =
+    useWorkspaceSwitcher();
   const {
     Component: CreateOrganizationModal,
     showModal: showCreateOrganizationModal,
@@ -214,7 +217,11 @@ export function WorkspaceSwitcherProvider({
       return;
     }
     setOpenPlacement(null);
-    handleSelectWorkspace(workspaceId);
+    void sweepWorkspace(async () => {
+      const settled = whenSettled();
+      await handleSelectWorkspace(workspaceId);
+      await settled;
+    });
   }
 
   async function activateCreatedPersonalWorkspace(): Promise<void> {
@@ -277,6 +284,13 @@ export function WorkspaceSwitcherProvider({
     }
   }
 
+  const workspaceIds = useMemo(
+    () => workspaces.map((workspace) => workspace.id),
+    [workspaces],
+  );
+  const contactWorkspaceReady =
+    !isPending && clientSession?.user?.id === sessionUser.id;
+
   const state: WorkspaceSwitcherState = {
     sessionUser,
     personalWorkspace,
@@ -294,7 +308,19 @@ export function WorkspaceSwitcherProvider({
 
   return (
     <WorkspaceSwitcherContext value={state}>
-      {children}
+      <ContactLinkWorkspaceProvider
+        workspaceId={
+          contactWorkspaceReady
+            ? workspaces.find(
+                (workspace) =>
+                  workspace.organizationId === activeOrganizationId,
+              )?.id
+            : undefined
+        }
+        available={contactWorkspaceReady ? workspaceIds : undefined}
+      >
+        {children}
+      </ContactLinkWorkspaceProvider>
       {CreateOrganizationModal}
       {activeOrganizationId ? (
         <OrganizationBulkInviteModal

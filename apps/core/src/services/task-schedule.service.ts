@@ -1,39 +1,20 @@
 import { createHash, randomUUID } from "node:crypto";
-
 import {
   type Prisma,
-  type TaskSchedule,
   type TaskScheduleRun,
   TaskScheduleRunState,
   TaskScheduleState,
   TaskVisibility,
-  VendorGrantStatus,
-  workCreatorInclude,
 } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
-
-import {
-  requireCoworkerCapability,
-  requireGrantedWorkspaceAccessOrRequest,
-  requireRightOnWorkWithoutOwner,
-} from "@/helpers/access-control";
-import {
-  lockCalendarScope,
-  requireOpenCalendarProject,
-} from "@/helpers/calendar-locks";
+import { requireRightOnWorkWithoutOwner } from "@/helpers/access-control";
 import {
   badRequest,
   conflict,
-  forbidden,
   notFound,
   unprocessableEntity,
 } from "@/helpers/error";
-import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
-import {
-  createPaginationMeta,
-  parseCursorPagination,
-} from "@/helpers/pagination";
 import {
   isOperationIdUniqueConstraintError,
   isPrismaUniqueViolation,
@@ -41,39 +22,36 @@ import {
 import { requireTaskAssignableSokoBot } from "@/helpers/soko-bot-task-assign";
 import { nextAssigneeWrite } from "@/helpers/task-assignee-alias";
 import { validateTaskScheduleRule } from "@/helpers/task-schedule";
-import {
-  buildCoworkerPrivateTaskVisibilityWhere,
-  buildHumanTaskVisibilityWhere,
-  isPrivateTaskVisibleToCoworker,
-} from "@/helpers/task-visibility";
-import { getWorkspaceGrant } from "@/helpers/vendor-grants";
-import { creatorFields, mapWorkCreator } from "@/helpers/work-creator";
+import { creatorFields } from "@/helpers/work-creator";
 import prisma from "@/lib/db/prisma";
-import type { EnvVariables } from "@/lib/hono";
 import {
-  isCoworkerAuthContext,
-  isSokoBotAuthContext,
-  requireUserContext,
-} from "@/middleware/auth";
-import {
-  requireWorkspaceContext,
-  type WorkspaceContext,
-} from "@/middleware/workspace";
+  isSeoMonitorDescription,
+  requireSeoMonitorApprovalForWrite,
+  seoMonitorDescriptionWithRule,
+} from "@/lib/seo/monitor-plan";
+import { type WorkspaceContext } from "@/middleware/workspace";
 import type {
   CreateTaskScheduleRequest,
   CreateTaskScheduleRunRequest,
-  TaskScheduleListQuery,
   TaskScheduleRule,
-  TaskScheduleRunListQuery,
   UpdateTaskScheduleRequest,
   UpdateTaskScheduleRunRequest,
 } from "@/schemas/task-schedule.schema";
+import { requireTaskReferences } from "@/services/task-domain.service";
 import {
-  requireTaskReferences,
-  type TaskDomainActor,
-} from "@/services/task-domain.service";
+  findReadableSchedule,
+  type RouteVars,
+  requireScheduleWriteAccess,
+  requireSeoMonitorOwner,
+  resolveScheduleActor,
+  SCHEDULE_ASSIGNEE_VENDOR,
+  type ScheduleActor,
+  type ScheduleWithAssigneeVendor,
+  type TaskScheduleView,
+  toScheduleDomainActor,
+  toTaskScheduleView,
+} from "@/services/task-schedule-read.service";
 import {
-  announceReleasedTasks,
   cancelMissedTaskScheduleRuns,
   isRunException,
   moveTaskScheduleRunsToProject,
@@ -83,6 +61,12 @@ import {
   stopPlannedTaskScheduleRuns,
   trimPlannedTaskScheduleRuns,
 } from "@/services/task-schedule-runs.service";
+import {
+  lockScheduleMonitorAudit,
+  requireOpenScheduleProjects,
+} from "@/services/task-schedule-scope";
+import { announceReleasedTasks } from "@/services/task-schedule-task.service";
+import { approveManualSeoRun } from "./project-seo-monitor.service";
 
 function requireScheduleAssignee(assigneeUserId: string | null | undefined) {
   if (assigneeUserId != null) {
@@ -101,74 +85,6 @@ function requireScheduleAssignee(assigneeUserId: string | null | undefined) {
  * schedules and on the private ones of the member they act for, and change
  * the ones they created or whose assignee is in their vendor family.
  */
-
-/**
- * Who reads or changes a schedule: a person, or a Coworker with a GRANTED
- * workspace grant acting for the member `userId`.
- */
-export type TaskScheduleReader =
-  | { kind: "user"; userId: string }
-  | { kind: "coworker"; coworkerId: string; vendorId: string; userId: string };
-
-type ScheduleActor = TaskScheduleReader & {
-  workspace: WorkspaceContext;
-};
-
-type RouteVars = EnvVariables["Variables"];
-
-async function resolveScheduleActor(
-  vars: RouteVars,
-  { requestMissingGrant = true }: { requestMissingGrant?: boolean } = {},
-): Promise<ScheduleActor> {
-  const { authContext } = vars;
-  if (isSokoBotAuthContext(authContext)) {
-    throw forbidden("Soko Bots cannot manage Task Schedules");
-  }
-  const userContext = requireUserContext(authContext);
-  const workspace = requireWorkspaceContext(vars.workspaceContext);
-  await requireAssignedOrganizationSeat(
-    userContext.userId,
-    workspace.organizationId,
-  );
-
-  if (isCoworkerAuthContext(authContext)) {
-    await requireCoworkerCapability(authContext.coworkerId, "tasks");
-    const grant = await getWorkspaceGrant({
-      vendorId: authContext.vendorId,
-      workspaceId: workspace.workspaceId,
-    });
-    if (requestMissingGrant) {
-      await requireGrantedWorkspaceAccessOrRequest({
-        vendorId: authContext.vendorId,
-        workspaceId: workspace.workspaceId,
-        requestedByUserId: userContext.userId,
-        grant,
-      });
-    } else if (grant?.status !== VendorGrantStatus.GRANTED) {
-      throw forbidden("This Coworker has no workspace grant here");
-    }
-    return {
-      kind: "coworker",
-      coworkerId: authContext.coworkerId,
-      vendorId: authContext.vendorId,
-      userId: userContext.userId,
-      workspace,
-    };
-  }
-
-  return { kind: "user", userId: userContext.userId, workspace };
-}
-
-function toDomainActor(actor: ScheduleActor): TaskDomainActor {
-  return actor.kind === "user"
-    ? { kind: "user", userId: actor.userId }
-    : {
-        kind: "coworker",
-        coworkerId: actor.coworkerId,
-        vendorId: actor.vendorId,
-        enforceWorkspaceGrant: true,
-      };
-}
 
 /** Every new rule starts a new epoch of Runs. */
 function ruleColumns(rule: TaskScheduleRule, now: Date) {
@@ -199,28 +115,6 @@ function resolveVisibility(
 }
 
 /**
- * A closing project Ends its schedules and a closed one never releases, so a
- * schedule neither joins nor changes in one. The scope is locked first, as the
- * close request locks it, so a close cannot slip in between.
- */
-async function requireOpenScheduleProjects(
-  tx: Prisma.TransactionClient,
-  workspaceId: string,
-  projectIds: Array<string | null | undefined>,
-): Promise<void> {
-  const ids = [
-    ...new Set(projectIds.filter((id): id is string => Boolean(id))),
-  ];
-  if (ids.length === 0) return;
-  if (!(await lockCalendarScope(tx, workspaceId, ids))) {
-    throw notFound("Project not found");
-  }
-  for (const id of ids) {
-    await requireOpenCalendarProject(tx, workspaceId, id);
-  }
-}
-
-/**
  * Whether the caller may create a Task Schedule in the active workspace: the
  * same gate as create, except that a missing vendor grant is not requested.
  */
@@ -241,15 +135,26 @@ export async function canCreateTaskSchedules(
 export async function createTaskSchedule(
   vars: RouteVars,
   input: CreateTaskScheduleRequest,
+  seoMonitor?: {
+    origin: "interactive" | "cmo-subscription";
+    requestIdentity?: object;
+    saveApproval?: (
+      tx: Prisma.TransactionClient,
+      scheduleId: string,
+    ) => Promise<void>;
+  },
 ): Promise<TaskScheduleView> {
   const actor = await resolveScheduleActor(vars);
-  const domainActor = toDomainActor(actor);
+  const domainActor = toScheduleDomainActor(actor);
   const creator = { ownerId: actor.userId, ...creatorFields(domainActor) };
   const { operationId, ...request } = input;
   const replay = operationId
     ? createOperationReplay(actor.workspace.workspaceId, operationId, {
         ...creator,
         request,
+        ...(seoMonitor?.requestIdentity && {
+          seoApproval: seoMonitor.requestIdentity,
+        }),
       })
     : null;
   // A retry answers with the schedule it made, even if its rule or assignee
@@ -259,6 +164,11 @@ export async function createTaskSchedule(
     return toTaskScheduleView(actor, replayed);
   }
 
+  requireSeoMonitorApprovalForWrite(
+    input.description,
+    null,
+    seoMonitor?.origin,
+  );
   requireScheduleAssignee(input.assigneeUserId);
   validateTaskScheduleRule(input.rule);
   const visibility = resolveVisibility(input.visibility, actor.workspace);
@@ -282,6 +192,7 @@ export async function createTaskSchedule(
         },
         tx,
       );
+      await lockScheduleMonitorAudit(tx, actor, input.description);
       await requireOpenScheduleProjects(tx, actor.workspace.workspaceId, [
         blueprint.projectId,
       ]);
@@ -298,6 +209,7 @@ export async function createTaskSchedule(
         },
       });
       await replay?.record(tx, schedule.id);
+      await seoMonitor?.saveApproval?.(tx, schedule.id);
       return await tx.taskSchedule.update({
         where: { id: schedule.id },
         data: {
@@ -355,198 +267,6 @@ function createOperationReplay(
   };
 }
 
-/** The schedules a reader sees, in any workspace it may read. */
-export function taskScheduleVisibilityWhere(
-  reader: TaskScheduleReader,
-): Prisma.TaskScheduleWhereInput {
-  if (reader.kind === "user") {
-    return buildHumanTaskVisibilityWhere(reader.userId);
-  }
-  // A private schedule stays with its owner: a Coworker sees one only while
-  // acting for that owner, and then only on its vendor family, as for Tasks.
-  return {
-    AND: [
-      buildHumanTaskVisibilityWhere(reader.userId),
-      buildCoworkerPrivateTaskVisibilityWhere(reader),
-    ],
-  };
-}
-
-function readableWhere(actor: ScheduleActor): Prisma.TaskScheduleWhereInput {
-  return {
-    workspaceId: actor.workspace.workspaceId,
-    ...taskScheduleVisibilityWhere(actor),
-  };
-}
-
-/**
- * What `canWriteTaskSchedule` reads beyond the schedule's own columns, and the
- * Creator a response maps.
- */
-const SCHEDULE_ASSIGNEE_VENDOR = {
-  assignee: { select: { vendorId: true } },
-  ...workCreatorInclude,
-} as const;
-
-type ScheduleWithAssigneeVendor = Prisma.TaskScheduleGetPayload<{
-  include: typeof SCHEDULE_ASSIGNEE_VENDOR;
-}>;
-
-/** A schedule as its reader gets it: with whether they may change it. */
-export type TaskScheduleView = Omit<ScheduleWithAssigneeVendor, "assignee"> & {
-  canWrite: boolean;
-};
-
-function toTaskScheduleView(
-  reader: TaskScheduleReader,
-  { assignee, ...schedule }: ScheduleWithAssigneeVendor,
-): TaskScheduleView {
-  return {
-    ...schedule,
-    canWrite: canWriteTaskSchedule(reader, { ...schedule, assignee }),
-  };
-}
-
-async function findReadableSchedule(
-  actor: ScheduleActor,
-  id: string,
-  tx: Prisma.TransactionClient = prisma,
-) {
-  const schedule = await tx.taskSchedule.findFirst({
-    where: { id, ...readableWhere(actor) },
-    include: SCHEDULE_ASSIGNEE_VENDOR,
-  });
-  if (!schedule) {
-    throw notFound("Task Schedule not found");
-  }
-  return schedule;
-}
-
-export async function getTaskSchedule(
-  vars: RouteVars,
-  id: string,
-): Promise<TaskScheduleView> {
-  const actor = await resolveScheduleActor(vars);
-  return toTaskScheduleView(actor, await findReadableSchedule(actor, id));
-}
-
-export async function listTaskSchedules(
-  vars: RouteVars,
-  query: TaskScheduleListQuery,
-) {
-  const actor = await resolveScheduleActor(vars);
-  const { cursor, take, skip } = parseCursorPagination(query);
-  const where: Prisma.TaskScheduleWhereInput = {
-    ...readableWhere(actor),
-    ...(query.projectId ? { projectId: query.projectId } : {}),
-    ...(query.state ? { state: query.state } : {}),
-  };
-  const [rows, total] = await Promise.all([
-    prisma.taskSchedule.findMany({
-      where,
-      include: SCHEDULE_ASSIGNEE_VENDOR,
-      take: take + 1,
-      skip,
-      cursor: cursor ? { id: cursor } : undefined,
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    }),
-    prisma.taskSchedule.count({ where }),
-  ]);
-  const hasMore = rows.length > take;
-  const schedules = rows
-    .slice(0, take)
-    .map((row) => toTaskScheduleView(actor, row));
-  return {
-    schedules,
-    pagination: createPaginationMeta(schedules, total, take, hasMore, cursor),
-  };
-}
-
-export async function listTaskScheduleRuns(
-  vars: RouteVars,
-  id: string,
-  query: TaskScheduleRunListQuery,
-) {
-  const actor = await resolveScheduleActor(vars);
-  await findReadableSchedule(actor, id);
-  const { cursor, take, skip } = parseCursorPagination(query);
-  const where: Prisma.TaskScheduleRunWhereInput = {
-    scheduleId: id,
-    effectiveScheduledAt: {
-      gte: query.from ? new Date(query.from) : undefined,
-      lt: query.to ? new Date(query.to) : undefined,
-    },
-    manual: query.manual === undefined ? undefined : query.manual === "true",
-  };
-  const [rows, total] = await Promise.all([
-    prisma.taskScheduleRun.findMany({
-      where,
-      take: take + 1,
-      skip,
-      cursor: cursor ? { id: cursor } : undefined,
-      orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
-    }),
-    prisma.taskScheduleRun.count({ where }),
-  ]);
-  const hasMore = rows.length > take;
-  const runs = rows.slice(0, take);
-  return {
-    runs,
-    pagination: createPaginationMeta(runs, total, take, hasMore, cursor),
-  };
-}
-
-type WritableScheduleFields = Pick<
-  TaskSchedule,
-  "ownerId" | "visibility" | "creatorCoworkerId" | "assigneeId"
-> & {
-  assignee: { vendorId: string } | null;
-};
-
-/**
- * Members change the public schedules of their workspace and their own
- * private ones, as they do Tasks (ADR 0048). A Coworker changes those of the
- * member it acts for that it created or whose assignee is in its vendor
- * family. The schedule must be one read in the writer's workspace.
- */
-export function canWriteTaskSchedule(
-  writer: TaskScheduleReader,
-  schedule: WritableScheduleFields,
-): boolean {
-  if (
-    schedule.visibility !== TaskVisibility.PUBLIC &&
-    schedule.ownerId !== writer.userId
-  ) {
-    return false;
-  }
-  if (
-    writer.kind === "coworker" &&
-    !isPrivateTaskVisibleToCoworker(schedule, writer)
-  ) {
-    return false;
-  }
-  return (
-    writer.kind === "user" ||
-    schedule.creatorCoworkerId === writer.coworkerId ||
-    schedule.assigneeId === writer.coworkerId ||
-    schedule.assignee?.vendorId === writer.vendorId
-  );
-}
-
-function requireScheduleWriteAccess(
-  actor: ScheduleActor,
-  schedule: WritableScheduleFields,
-): void {
-  if (canWriteTaskSchedule(actor, schedule)) {
-    return;
-  }
-  throw forbidden(
-    actor.kind === "user"
-      ? "Only the owner can change a private Task Schedule"
-      : "Coworkers can only change the Task Schedules they created or whose assignee is in their vendor family",
-  );
-}
-
 function throwStateConflict(message: string): never {
   throw conflict(message, {
     kind: CORE_API_ERROR_KINDS.SCHEDULE_STATE_CONFLICT,
@@ -580,6 +300,12 @@ export async function updateTaskSchedule(
   return await prisma.$transaction(async (tx) => {
     const current = await findReadableSchedule(actor, id, tx);
     requireScheduleWriteAccess(actor, current);
+    requireSeoMonitorApprovalForWrite(input.description, current.description);
+    requireSeoMonitorOwner(actor, current);
+    // An SEO monitor keeps its approved pages and check: an edit replaces its rule only.
+    const description = isSeoMonitorDescription(current.description)
+      ? seoMonitorDescriptionWithRule(current.description, input)
+      : input.description;
     if (current.state === TaskScheduleState.ENDED) {
       throwStateConflict("An Ended Task Schedule cannot be changed");
     }
@@ -618,10 +344,11 @@ export async function updateTaskSchedule(
             ? undefined
             : assignees?.assigneeSokoBotId,
         workspaceId: current.workspaceId,
-        actor: toDomainActor(actor),
+        actor: toScheduleDomainActor(actor),
       },
       tx,
     );
+    await lockScheduleMonitorAudit(tx, actor, description);
     await requireOpenScheduleProjects(tx, current.workspaceId, [
       current.projectId,
       input.projectId,
@@ -630,9 +357,11 @@ export async function updateTaskSchedule(
     const { count } = await tx.taskSchedule.updateMany({
       where: { id, revision: input.expectedRevision },
       data: {
-        name: input.name,
-        description: input.description,
-        projectId: input.projectId,
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(description !== undefined ? { description } : {}),
+        ...(input.projectId !== undefined
+          ? { projectId: input.projectId }
+          : {}),
         ...assignees,
         ...rule,
         revision: { increment: 1 },
@@ -725,6 +454,8 @@ export async function changeTaskScheduleState(
         `A Task Schedule that is ${current.state} cannot be ${label}`,
       );
     }
+    if (action === "resume")
+      await lockScheduleMonitorAudit(tx, actor, current.description);
     await requireOpenScheduleProjects(tx, current.workspaceId, [
       current.projectId,
     ]);
@@ -787,8 +518,9 @@ const RUN_ACTION_LABELS: Record<
 
 /**
  * The row an action leaves behind. Only an upcoming Run that has not
- * created its Task changes: a planned one can be skipped or moved, and a
- * skipped or moved one restored. A skip keeps the Run's time, a move
+ * created its Task changes: a planned one can be skipped or moved, a
+ * skipped one moved (planned again at that time: the Calendar's Undo), and
+ * a skipped or moved one restored. A skip keeps the Run's time, a move
  * keeps the rule's time in `originalScheduledAt`, and a restore puts the
  * Run back at the rule's time. The time it ends up at must be in the
  * future and inside the projection horizon.
@@ -801,7 +533,8 @@ function runAfterAction(
   const changeable =
     input.action === "restore"
       ? isRunException(run)
-      : run.state === TaskScheduleRunState.PLANNED;
+      : run.state === TaskScheduleRunState.PLANNED ||
+        (input.action === "move" && run.state === TaskScheduleRunState.SKIPPED);
   if (
     !changeable ||
     run.releasedTaskId !== null ||
@@ -853,6 +586,7 @@ export async function changeTaskScheduleRun(
   return await prisma.$transaction(async (tx) => {
     const current = await findReadableSchedule(actor, id, tx);
     requireScheduleWriteAccess(actor, current);
+    requireSeoMonitorOwner(actor, current);
     if (current.state !== TaskScheduleState.ACTIVE) {
       throwStateConflict(
         "Only the Runs of an Active Task Schedule can be changed",
@@ -933,22 +667,36 @@ export async function changeTaskScheduleRun(
 export async function runTaskScheduleNow(
   vars: RouteVars,
   id: string,
-  { expectedRevision }: CreateTaskScheduleRunRequest,
+  input: CreateTaskScheduleRunRequest,
+  origin: "interactive" | "cmo-subscription" = "interactive",
 ): Promise<{ revision: number; run: TaskScheduleRun }> {
+  const { expectedRevision } = input;
   const actor = await resolveScheduleActor(vars);
-
-  const { run, task } = await prisma.$transaction(async (tx) => {
+  const readCurrent = async (tx: Prisma.TransactionClient) => {
     const current = await findReadableSchedule(actor, id, tx);
     requireScheduleWriteAccess(actor, current);
+    requireSeoMonitorOwner(actor, current);
     if (current.state === TaskScheduleState.ENDED) {
       throwStateConflict("An Ended Task Schedule cannot run");
     }
-    await requireOpenScheduleProjects(tx, current.workspaceId, [
-      current.projectId,
-    ]);
     if (current.revision !== expectedRevision) {
       throwRevisionConflict();
     }
+    return current;
+  };
+  const before = await readCurrent(prisma);
+  const approval = await approveManualSeoRun(before, input, origin);
+  const { run, task } = await prisma.$transaction(async (tx) => {
+    const current = await readCurrent(tx);
+    if (
+      current.description !== before.description ||
+      current.projectId !== before.projectId ||
+      current.organizationId !== before.organizationId
+    )
+      throwRevisionConflict();
+    await requireOpenScheduleProjects(tx, current.workspaceId, [
+      current.projectId,
+    ]);
     // Claimed first, so a concurrent edit or a second submit fails before any
     // Task. Every change bumps the revision, so a lost claim is a stale one.
     const { count } = await tx.taskSchedule.updateMany({
@@ -964,6 +712,7 @@ export async function runTaskScheduleNow(
         current,
         new Date(),
         actorColumns(actor),
+        approval,
       );
     } catch (error) {
       // The Run's time fell on a rule time to the millisecond.
@@ -998,55 +747,4 @@ export async function deleteTaskSchedule(
     ]);
     await tx.taskSchedule.delete({ where: { id } });
   });
-}
-
-export function mapTaskSchedule(schedule: TaskScheduleView) {
-  return {
-    id: schedule.id,
-    workspaceId: schedule.workspaceId,
-    organizationId: schedule.organizationId,
-    ownerId: schedule.ownerId,
-    creatorUserId: schedule.creatorUserId,
-    creatorCoworkerId: schedule.creatorCoworkerId,
-    creatorSokoBotId: schedule.creatorSokoBotId,
-    creator: mapWorkCreator(`TaskSchedule ${schedule.id}`, schedule),
-    state: schedule.state,
-    rule: {
-      expr: schedule.expr,
-      timezone: schedule.timezone,
-      intervalDays: schedule.intervalDays,
-      anchorAt: schedule.anchorAt,
-      endsMode: schedule.endsMode,
-      endsOn: schedule.endsOn,
-      targetRunCount: schedule.targetRunCount,
-    },
-    ruleEffectiveFrom: schedule.ruleEffectiveFrom,
-    releasedCount: schedule.releasedCount,
-    nextRunAt: schedule.nextRunAt,
-    revision: schedule.revision,
-    name: schedule.name,
-    description: schedule.description,
-    projectId: schedule.projectId,
-    visibility: schedule.visibility,
-    assigneeId: schedule.assigneeId,
-    assigneeSokoBotId: schedule.assigneeSokoBotId,
-    assigneeUserId: schedule.assigneeUserId,
-    createdAt: schedule.createdAt,
-    updatedAt: schedule.updatedAt,
-    canWrite: schedule.canWrite,
-  };
-}
-
-export function mapTaskScheduleRun(run: TaskScheduleRun) {
-  return {
-    id: run.id,
-    state: run.state,
-    originalScheduledAt: run.originalScheduledAt,
-    effectiveScheduledAt: run.effectiveScheduledAt,
-    manual: run.manual,
-    releasedTaskId: run.releasedTaskId,
-    actorUserId: run.actorUserId,
-    actorCoworkerId: run.actorCoworkerId,
-    updatedAt: run.updatedAt,
-  };
 }

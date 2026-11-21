@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   socialPostEngagementRate,
   socialPostInteractions,
-  summarizeSocialPostEngagement,
 } from "./social-post-engagement";
 
 const empty = {
@@ -46,25 +45,5 @@ describe("social post engagement", () => {
         metrics: { ...empty, likes: 0, comments: 0, shares: 0 },
       }),
     ).toBe(0);
-    expect(
-      summarizeSocialPostEngagement([
-        {
-          provider: "youtube",
-          metrics: { ...empty, likes: 1, comments: 1 },
-        },
-        {
-          provider: "x",
-          metrics: { ...empty, likes: 1, comments: 1, shares: null },
-          additionalMetrics: [
-            { key: "quote_count", value: 1, period: "lifetime", unit: "count" },
-          ],
-        },
-      ]),
-    ).toEqual({
-      postCount: 2,
-      measuredInteractionCount: 1,
-      interactions: 2,
-      engagementRates: [null, null],
-    });
   });
 });

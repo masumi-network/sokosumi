@@ -1,7 +1,6 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import { mountSokoBotApiKeyRoutes } from "./api-keys.js";
-import { mountSokoBotAvatarRoutes } from "./avatars.js";
 import { mountSokoBotIntegrationByIdRoutes } from "./by-id/integrations.js";
 import { mountSokoBotScheduleByIdRoutes } from "./by-id/schedules.js";
 import { cusoLock } from "./cuso-lock.js";
@@ -9,10 +8,13 @@ import { mountSokoBotEventRoutes } from "./events.js";
 import { sokoBotRouteGate } from "./helpers.js";
 import { mountSokoBotIntegrationAuthRoutes } from "./integration-auth.js";
 import mountGetIntegrationsCatalog from "./integrations/catalog/get.js";
+import { mountSokoBotMcpServerRoutes } from "./mcp-servers.js";
 import mountGetMySokoBotActivity, {
   mountById as mountGetSokoBotActivity,
 } from "./me/activity/get.js";
-import mountClaimMySokoBotAvatar from "./me/avatar/post.js";
+import mountSetMySokoBotAvatarCode, {
+  mountById as mountSetSokoBotAvatarCode,
+} from "./me/avatar-code/put.js";
 import mountUpdateMySokoBotBoardFollowing, {
   mountById as mountUpdateSokoBotBoardFollowing,
 } from "./me/board-following/put.js";
@@ -77,6 +79,7 @@ import mountUpdateMySokoBotVersion, {
 import mountCreateSokoBot, {
   mountById as mountReactivateSokoBot,
 } from "./post.js";
+import { mountSokoBotSecretRoutes } from "./secrets.js";
 import mountBrowseSokoBotSkills from "./skills/browse/get.js";
 import mountSearchSokoBotSkills from "./skills/search/get.js";
 import mountGetSokoBotTeam from "./team/get.js";
@@ -106,14 +109,13 @@ mountCreateMySokoBotSchedule(app);
 mountUpdateMySokoBotSchedule(app);
 mountDeleteMySokoBotSchedule(app);
 mountResolveMySokoBotDecision(app);
-mountSokoBotAvatarRoutes(app);
 mountGetMySokoBotIntegrations(app);
 mountGetIntegrationsCatalog(app);
 mountConnectMySokoBotIntegration(app);
 mountFinalizeMySokoBotIntegration(app);
 mountDisconnectMySokoBotIntegration(app);
 mountIntroduceMySokoBot(app);
-mountClaimMySokoBotAvatar(app);
+mountSetMySokoBotAvatarCode(app);
 mountListSokoBotVersions(app);
 mountUpdateMySokoBotProactive(app);
 mountSendMySokoBotTurnFeedback(app);
@@ -143,6 +145,7 @@ mountDeleteSokoBotPermanently(app);
 mountUpdateSokoBotProactive(app);
 mountUpdateSokoBotBoardFollowing(app);
 mountRenameSokoBot(app);
+mountSetSokoBotAvatarCode(app);
 mountResolveSokoBotDecision(app);
 mountCancelSokoBotTurn(app);
 mountGetSokoBotTurn(app);
@@ -154,5 +157,7 @@ mountUpdateSokoBotVersion(app);
 mountReactivateSokoBot(app);
 mountSokoBotIntegrationByIdRoutes(app);
 mountSokoBotScheduleByIdRoutes(app);
+mountSokoBotSecretRoutes(app);
+mountSokoBotMcpServerRoutes(app);
 
 export default app;

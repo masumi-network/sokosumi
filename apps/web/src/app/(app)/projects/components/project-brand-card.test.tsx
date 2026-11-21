@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -6,19 +6,32 @@ import {
   ProjectBrandCard,
   ProjectBrandProvider,
 } from "@/app/projects/components/project-brand-card";
-import { removeProjectDesignMd } from "@/lib/actions/project/action";
+import { projectBrandJobCallbacks } from "@/app/projects/project-brand-job";
+import {
+  removeProjectDesignMd,
+  updateProject,
+} from "@/lib/actions/project/action";
 
-const { generateMock, refreshMock, resumeMock } = vi.hoisted(() => ({
-  generateMock: vi.fn(),
-  refreshMock: vi.fn(),
-  resumeMock: vi.fn(),
-}));
+const { generateMock, generationOptions, refreshMock, resumeMock } = vi.hoisted(
+  () => ({
+    generateMock: vi.fn(),
+    // The options the provider passes the generation hook, so a test can
+    // play the hook's callbacks.
+    generationOptions: { current: null as null | Record<string, unknown> },
+    refreshMock: vi.fn(),
+    resumeMock: vi.fn(),
+  }),
+);
 
 const MESSAGES: Record<string, string> = {
   brand: "Brand",
   "brandCard.ready": "Ready",
   "brandCard.generating": "Generating…",
   "brandCard.notSet": "Not set",
+  "brandCard.failed": "Failed",
+  "brandCard.failedReason":
+    "We couldn't generate a DESIGN.md from {host}. Check the address and try again.",
+  "brandCard.lastTried": "Last tried {when}",
   "brandCard.generate": "Generate from website",
   "brandCard.missingWebsite":
     "Add a project website before generating brand context.",
@@ -32,7 +45,10 @@ const MESSAGES: Record<string, string> = {
   "brandCard.removeDialog.description":
     "This removes the project's DESIGN.md file.",
   "brandCard.removeDialog.cancel": "Cancel",
+  "brandCard.websiteInvalid": "Enter a website like example.com.",
+  "brandCard.websiteLabel": "Project website",
   "errors.brand": "Couldn't update project brand context",
+  "errors.update": "Failed to update project",
 };
 
 vi.mock("next/navigation", () => ({
@@ -40,7 +56,16 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => MESSAGES[key] ?? key,
+  useFormatter: () => ({ dateTime: () => "Nov 20, 2026, 11:56 PM" }),
+  useTranslations: () => (key: string, values?: Record<string, string>) =>
+    (MESSAGES[key] ?? key).replace(
+      /\{(\w+)\}/g,
+      (_, name: string) => values?.[name] ?? name,
+    ),
+}));
+
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: { user: { id: "viewer-1" } } }),
 }));
 
 vi.mock("sonner", () => ({
@@ -49,6 +74,7 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/lib/actions/project/action", () => ({
   removeProjectDesignMd: vi.fn(),
+  updateProject: vi.fn(),
 }));
 
 vi.mock("@/components/design-md/design-md-upload-trigger", () => ({
@@ -83,15 +109,24 @@ vi.mock("@/components/design-md/design-md-upload-trigger", () => ({
   ),
 }));
 vi.mock("@/components/design-md/use-design-md-generation", () => ({
-  useDesignMdGeneration: () => ({
-    errorMessage: null,
-    generate: generateMock,
-    isRunning: false,
-    reset: vi.fn(),
-    resume: resumeMock,
-    status: "idle",
-  }),
+  useDesignMdGeneration: (options: Record<string, unknown>) => {
+    generationOptions.current = options;
+    return {
+      errorMessage: null,
+      generate: generateMock,
+      isRunning: false,
+      reset: vi.fn(),
+      resume: resumeMock,
+      status: "idle",
+    };
+  },
 }));
+
+const FAILURE_KEY = "sokosumi:project-brand-failure:viewer-1:project-1";
+
+function generationCallback<T>(name: string) {
+  return generationOptions.current?.[name] as (value: T) => void;
+}
 
 function renderBrandDashboard({
   autoStart,
@@ -105,16 +140,39 @@ function renderBrandDashboard({
   designMd?: { extractionId: string | null; url: string } | null;
   websiteUrl?: string | null;
 } = {}) {
-  return render(
+  const tree = (url: string | null | undefined) => (
     <ProjectBrandProvider
       autoStart={autoStart}
       projectId="project-1"
       initialDesignMd={designMd}
-      websiteUrl={websiteUrl}
+      websiteUrl={url}
     >
-      <ProjectBrandCard projectId="project-1" websiteUrl={websiteUrl} />
-    </ProjectBrandProvider>,
+      <ProjectBrandCard projectId="project-1" websiteUrl={url} />
+    </ProjectBrandProvider>
   );
+  const view = render(tree(websiteUrl));
+  return {
+    ...view,
+    /** The revalidated page passing a newly saved website back in. */
+    rerenderWithWebsite: (url: string) => view.rerender(tree(url)),
+  };
+}
+
+async function submitWebsite(
+  user: ReturnType<typeof userEvent.setup>,
+  value: string,
+) {
+  await user.type(screen.getByRole("textbox"), value);
+  await user.click(
+    screen.getByRole("button", { name: "Generate from website" }),
+  );
+}
+
+function mockSavedWebsite() {
+  vi.mocked(updateProject).mockResolvedValue({
+    ok: true,
+    value: { projectId: "project-1" },
+  } as Awaited<ReturnType<typeof updateProject>>);
 }
 
 async function openBrandMenu(user: ReturnType<typeof userEvent.setup>) {
@@ -262,12 +320,17 @@ describe("ProjectBrandCard", () => {
     });
   });
 
-  it("drops generation and explains when website is missing", async () => {
+  it("asks for the website in the card when it is missing", async () => {
     renderBrandDashboard({ designMd: null, websiteUrl: null });
 
     expect(
-      screen.queryByRole("button", { name: "Generate from website" }),
-    ).toBeNull();
+      screen.getByRole("textbox", {
+        name: "Add a project website before generating brand context.",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Generate from website" }),
+    ).toHaveAttribute("type", "submit");
     expect(screen.getByRole("button", { name: "Upload" })).toBeInTheDocument();
     // Choosing Upload leaves no empty button row above the upload form.
     await userEvent
@@ -278,6 +341,255 @@ describe("ProjectBrandCard", () => {
     expect(
       screen.getByTestId("project-brand-card").querySelector(".flex-wrap"),
     ).toBeNull();
+    expect(
+      screen.getByText(
+        "Add a project website before generating brand context.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("lets the owner fix a saved website that generation could not use", async () => {
+    const user = userEvent.setup();
+    mockSavedWebsite();
+    renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://bad.invalid/",
+    });
+
+    const field = screen.getByRole("textbox", {
+      name: "Project website",
+    });
+    expect(field).toHaveValue("https://bad.invalid/");
+
+    await user.clear(field);
+    await submitWebsite(user, "springtea.example");
+
+    await waitFor(() =>
+      expect(updateProject).toHaveBeenCalledWith({
+        projectId: "project-1",
+        websiteUrl: "https://springtea.example/",
+      }),
+    );
+    await waitFor(() =>
+      expect(generateMock).toHaveBeenCalledWith({
+        force: true,
+        url: "https://springtea.example/",
+      }),
+    );
+  });
+
+  it("retries the saved website without saving it again", async () => {
+    const user = userEvent.setup();
+    renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://example.com/",
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: "Generate from website" }),
+    );
+
+    expect(updateProject).not.toHaveBeenCalled();
+    expect(generateMock).toHaveBeenCalledWith({
+      force: true,
+      url: "https://example.com/",
+    });
+  });
+
+  it("follows a refreshed saved website while the field is untouched", async () => {
+    const user = userEvent.setup();
+    const view = renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://old.example/",
+    });
+
+    view.rerenderWithWebsite("https://new.example/");
+    expect(
+      screen.getByRole("textbox", { name: "Project website" }),
+    ).toHaveValue("https://new.example/");
+    await user.click(
+      screen.getByRole("button", { name: "Generate from website" }),
+    );
+
+    expect(updateProject).not.toHaveBeenCalled();
+    expect(generateMock).toHaveBeenCalledWith({
+      force: true,
+      url: "https://new.example/",
+    });
+  });
+
+  it("drops the saved draft, so a later refreshed website wins", async () => {
+    const user = userEvent.setup();
+    mockSavedWebsite();
+    const view = renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://a.example/",
+    });
+
+    await user.clear(screen.getByRole("textbox", { name: "Project website" }));
+    await submitWebsite(user, "b.example");
+    await waitFor(() => expect(updateProject).toHaveBeenCalledOnce());
+
+    view.rerenderWithWebsite("https://b.example/");
+    view.rerenderWithWebsite("https://c.example/");
+    expect(
+      screen.getByRole("textbox", { name: "Project website" }),
+    ).toHaveValue("https://c.example/");
+    await user.click(
+      screen.getByRole("button", { name: "Generate from website" }),
+    );
+
+    expect(updateProject).toHaveBeenCalledOnce();
+    expect(generateMock).toHaveBeenLastCalledWith({
+      force: true,
+      url: "https://c.example/",
+    });
+  });
+
+  it("keeps the typed website when saving it fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateProject).mockRejectedValue(new Error("Forbidden"));
+    const view = renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://a.example/",
+    });
+
+    await user.clear(screen.getByRole("textbox", { name: "Project website" }));
+    await submitWebsite(user, "b.example");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Failed to update project",
+    );
+
+    view.rerenderWithWebsite("https://a.example/");
+    expect(
+      screen.getByRole("textbox", { name: "Project website" }),
+    ).toHaveValue("b.example");
+  });
+
+  it("saves only the website, then generates exactly once", async () => {
+    const user = userEvent.setup();
+    mockSavedWebsite();
+    const view = renderBrandDashboard({ designMd: null, websiteUrl: null });
+
+    await submitWebsite(user, "springtea.example");
+
+    // No name: one from this render could undo a rename made meanwhile.
+    await waitFor(() =>
+      expect(updateProject).toHaveBeenCalledWith({
+        projectId: "project-1",
+        websiteUrl: "https://springtea.example/",
+      }),
+    );
+    await waitFor(() =>
+      expect(generateMock).toHaveBeenCalledWith({
+        force: true,
+        url: "https://springtea.example/",
+      }),
+    );
+
+    view.rerenderWithWebsite("https://springtea.example/");
+    await waitFor(() => expect(generateMock).toHaveBeenCalledOnce());
+    expect(refreshMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("generates from a website saved after an existing brand was removed", async () => {
+    const user = userEvent.setup();
+    vi.mocked(removeProjectDesignMd).mockResolvedValue({
+      projectId: "project-1",
+    });
+    mockSavedWebsite();
+    const view = renderBrandDashboard({ websiteUrl: null });
+
+    await openBrandMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: /Remove/ }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Remove",
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText("Not set")).toBeInTheDocument(),
+    );
+    // Removing still suppresses the passive auto-start.
+    expect(generateMock).not.toHaveBeenCalled();
+
+    await submitWebsite(user, "example.com");
+    await waitFor(() =>
+      expect(generateMock).toHaveBeenCalledWith({
+        force: true,
+        url: "https://example.com/",
+      }),
+    );
+
+    view.rerenderWithWebsite("https://example.com/");
+    await waitFor(() => expect(generateMock).toHaveBeenCalledOnce());
+  });
+
+  it("shows the save error and skips generation when the update is refused", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateProject).mockResolvedValue({
+      ok: false,
+      error: { kind: "identifier_invalid" },
+    } as Awaited<ReturnType<typeof updateProject>>);
+    renderBrandDashboard({ designMd: null, websiteUrl: null });
+
+    await submitWebsite(user, "example.com");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Failed to update project",
+    );
+    expect(generateMock).not.toHaveBeenCalled();
+  });
+
+  it("explains an invalid website without saving", async () => {
+    const user = userEvent.setup();
+    renderBrandDashboard({ designMd: null, websiteUrl: null });
+
+    await user.type(screen.getByRole("textbox"), "acme");
+    await user.click(
+      screen.getByRole("button", { name: "Generate from website" }),
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Enter a website like example.com.",
+    );
+    expect(screen.getByRole("textbox")).toHaveAttribute("aria-invalid", "true");
+    expect(updateProject).not.toHaveBeenCalled();
+
+    await user.clear(screen.getByRole("textbox"));
+    await user.click(
+      screen.getByRole("button", { name: "Generate from website" }),
+    );
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(updateProject).not.toHaveBeenCalled();
+  });
+
+  it("shows the save error in the card when the update fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateProject).mockRejectedValue(new Error("Forbidden"));
+    renderBrandDashboard({ designMd: null, websiteUrl: null });
+
+    await user.type(screen.getByRole("textbox"), "example.com");
+    await user.click(
+      screen.getByRole("button", { name: "Generate from website" }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Failed to update project",
+    );
+    expect(refreshMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the website hint, without a field, once a DESIGN.md is uploaded", () => {
+    renderBrandDashboard({ websiteUrl: null });
+
+    expect(screen.queryByRole("textbox")).toBeNull();
     expect(
       screen.getByText(
         "Add a project website before generating brand context.",
@@ -299,5 +611,194 @@ describe("ProjectBrandCard", () => {
     expect(
       screen.getByRole("button", { name: "Generate from website" }),
     ).toBeDisabled();
+  });
+
+  it("keeps the latest failed generation after a refresh", () => {
+    window.sessionStorage.setItem(
+      FAILURE_KEY,
+      JSON.stringify({
+        failedAt: "2026-11-20T23:56:00.000Z",
+        website: "https://bad.invalid/",
+      }),
+    );
+    renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://bad.invalid/",
+    });
+
+    expect(screen.getByText("Failed")).toBeInTheDocument();
+    expect(screen.queryByText("Not set")).toBeNull();
+    const field = screen.getByRole("textbox", { name: "Project website" });
+    expect(field).toHaveAttribute("aria-invalid", "true");
+    expect(field).toHaveAccessibleDescription(
+      "We couldn't generate a DESIGN.md from bad.invalid. Check the address and try again. Last tried Nov 20, 2026, 11:56 PM",
+    );
+  });
+
+  it("lets another attempt's failure replace its own for good", () => {
+    renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://bad.invalid/",
+    });
+    const attempt = { attemptId: "attempt-1", url: "https://bad.invalid/" };
+    act(() => {
+      generationCallback<typeof attempt>("onStarted")(attempt);
+      generationCallback<typeof attempt>("onFailed")(attempt);
+    });
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+
+    // Another surface in this tab (the wizard) fails on a later attempt.
+    const other = projectBrandJobCallbacks("project-1", "viewer-1");
+    act(() => {
+      other.onStarted({ attemptId: "other" });
+      window.sessionStorage.setItem(
+        FAILURE_KEY,
+        JSON.stringify({
+          failedAt: "2026-11-21T00:00:00.000Z",
+          website: "https://bad.invalid/",
+        }),
+      );
+      other.onSettled({ attemptId: "other" });
+    });
+    expect(screen.getByText("Failed")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    // A retry clears that failure; the older one must not come back.
+    act(() => other.onStarted({ attemptId: "retry" }));
+    expect(screen.queryByText("Failed")).toBeNull();
+  });
+
+  it("remembers a failure the generation reports", () => {
+    renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://bad.invalid/",
+    });
+
+    const attempt = { attemptId: "attempt-1", url: "https://bad.invalid/" };
+    act(() => {
+      generationCallback<typeof attempt>("onStarted")(attempt);
+      generationCallback<typeof attempt>("onFailed")(attempt);
+    });
+
+    expect(screen.getByText("Failed")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "We couldn't generate a DESIGN.md from bad.invalid.",
+    );
+    expect(
+      JSON.parse(window.sessionStorage.getItem(FAILURE_KEY) ?? ""),
+    ).toEqual({
+      failedAt: expect.any(String),
+      website: "https://bad.invalid/",
+    });
+  });
+
+  it("clears the failure when a new attempt starts", () => {
+    window.sessionStorage.setItem(
+      FAILURE_KEY,
+      JSON.stringify({
+        failedAt: "2026-11-20T23:56:00.000Z",
+        website: "https://bad.invalid/",
+      }),
+    );
+    renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://bad.invalid/",
+    });
+
+    act(() =>
+      generationCallback<{ attemptId: string; url: string }>("onStarted")({
+        attemptId: "attempt-1",
+        url: "https://bad.invalid/",
+      }),
+    );
+
+    expect(screen.queryByText("Failed")).toBeNull();
+    expect(
+      screen.getByRole("textbox", { name: "Project website" }),
+    ).not.toHaveAttribute("aria-invalid", "true");
+    expect(window.sessionStorage.getItem(FAILURE_KEY)).toBeNull();
+  });
+
+  it("marks the field invalid only while it holds the failed website", async () => {
+    const user = userEvent.setup();
+    window.sessionStorage.setItem(
+      FAILURE_KEY,
+      JSON.stringify({
+        failedAt: "2026-11-20T23:56:00.000Z",
+        website: "https://bad.invalid/",
+      }),
+    );
+    renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://bad.invalid/",
+    });
+    const field = screen.getByRole("textbox", { name: "Project website" });
+    // Restored on load: described, not announced again.
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    await user.type(field, "x");
+    expect(field).not.toHaveAttribute("aria-invalid", "true");
+    await user.type(field, "{Backspace}");
+    expect(field).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("auto-starts a changed website despite an older website's failure", async () => {
+    window.sessionStorage.setItem(
+      FAILURE_KEY,
+      JSON.stringify({
+        failedAt: "2026-11-20T23:56:00.000Z",
+        website: "https://bad.invalid/",
+      }),
+    );
+    renderBrandDashboard({
+      designMd: null,
+      websiteUrl: "https://example.com/",
+    });
+
+    await waitFor(() =>
+      expect(generateMock).toHaveBeenCalledWith({
+        url: "https://example.com/",
+      }),
+    );
+  });
+
+  it("does not auto-start a website whose generation failed", async () => {
+    window.sessionStorage.setItem(
+      FAILURE_KEY,
+      JSON.stringify({
+        failedAt: "2026-11-20T23:56:00.000Z",
+        website: "https://bad.invalid/",
+      }),
+    );
+    renderBrandDashboard({
+      designMd: null,
+      websiteUrl: "https://bad.invalid/",
+    });
+
+    expect(await screen.findByText("Failed")).toBeInTheDocument();
+    expect(generateMock).not.toHaveBeenCalled();
+  });
+
+  it("ignores a failure for a website the project no longer has", () => {
+    window.sessionStorage.setItem(
+      FAILURE_KEY,
+      JSON.stringify({
+        failedAt: "2026-11-20T23:56:00.000Z",
+        website: "https://bad.invalid/",
+      }),
+    );
+    renderBrandDashboard({
+      autoStart: false,
+      designMd: null,
+      websiteUrl: "https://example.com/",
+    });
+
+    expect(screen.getByText("Not set")).toBeInTheDocument();
+    expect(screen.queryByText("Failed")).toBeNull();
   });
 });

@@ -11,9 +11,11 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
+import { useEventListener } from "../hooks/effects/use-event-listener";
 import { AGENT_NAME } from "../lib/agent";
-import { channelLabel, formatDay } from "../lib/calendar";
+import { channelLabel, formatDay, isSocialProvider } from "../lib/calendar";
 import { formatHasImage, formatHasVideo, formatName } from "../lib/channels";
+import { BusinessMark, businessDisplayName } from "./business-mark";
 import { ChannelIcon } from "./channel-icon";
 import { DraftText } from "./draft-text";
 import { withoutLabel } from "./showcases";
@@ -35,7 +37,16 @@ export function EntrySheet({
   position,
   onPrev,
   onNext,
+  overview,
+  state,
+  onEdit,
 }: {
+  /** Whose post it is; with it a social post shows as it will on its network. */
+  overview?: CmoOverview;
+  /** Where the post stands ("Scheduled", "Waiting for LinkedIn"). */
+  state?: ReactNode;
+  /** Saves the owner's own words for the post; a refusal comes back as text. */
+  onEdit?: (text: string) => Promise<string | null>;
   entry: Entry;
   /** The image or video Cuso made for this piece, once he has. */
   media?: Media;
@@ -68,17 +79,17 @@ export function EntrySheet({
     };
   }, [entry.id, filed, loadText]);
   const draft = entry.draft ?? filedText;
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-      // The arrows step through pieces, except while typing a change.
-      if (event.target instanceof HTMLInputElement) return;
-      if (event.key === "ArrowLeft") onPrev?.();
-      if (event.key === "ArrowRight") onNext?.();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, onPrev, onNext]);
+  useEventListener("window", "keydown", (event) => {
+    if (event.key === "Escape") onClose();
+    // The arrows step through pieces, except while typing a change.
+    if (
+      event.target instanceof HTMLInputElement ||
+      event.target instanceof HTMLTextAreaElement
+    )
+      return;
+    if (event.key === "ArrowLeft") onPrev?.();
+    if (event.key === "ArrowRight") onNext?.();
+  });
   return (
     <>
       {/* The sheet's Close button is its one control; the scrim only catches clicks. */}
@@ -91,7 +102,7 @@ export function EntrySheet({
         exit={{ opacity: 0 }}
       />
       <motion.aside
-        className="sheet card-focus"
+        className="sheet"
         role="dialog"
         aria-label={entry.title}
         initial={{ x: 40, opacity: 0 }}
@@ -111,6 +122,9 @@ export function EntrySheet({
                 : formatHasImage(entry.channel, entry.format)
                   ? ` · image by ${AGENT_NAME}`
                   : ""}
+            {entry.alsoOn?.length
+              ? ` · also on ${entry.alsoOn.map(channelLabel).join(", ")}`
+              : ""}
           </span>
           {position ? (
             <span className="sheet-steps">
@@ -119,7 +133,7 @@ export function EntrySheet({
                 className="sheet-close"
                 onClick={onPrev}
                 disabled={!onPrev}
-                aria-label="Previous piece"
+                aria-label="Previous post"
               >
                 <ChevronLeft size={16} />
               </button>
@@ -131,7 +145,7 @@ export function EntrySheet({
                 className="sheet-close"
                 onClick={onNext}
                 disabled={!onNext}
-                aria-label="Next piece"
+                aria-label="Next post"
               >
                 <ChevronRight size={16} />
               </button>
@@ -159,50 +173,68 @@ export function EntrySheet({
           <span className="cal-pillar">{entry.pillar}</span>
         ) : null}
         <h3 className="sheet-title">{entry.title}</h3>
-        {media?.kind === "video" ? (
-          <video
-            className="sheet-media"
-            src={media.url}
-            controls
-            playsInline
-            preload="metadata"
-            aria-label={`Video for ${entry.title}`}
+        {overview && draft && isSocialProvider(entry.channel.toLowerCase()) ? (
+          <PostPreview
+            key={entry.id}
+            entry={entry}
+            media={media}
+            text={draft}
+            overview={overview}
+            state={state}
+            onEdit={onEdit}
           />
-        ) : media?.slides ? (
-          <ol className="sheet-slides" aria-label={`Slides for ${entry.title}`}>
-            {media.slides.map((slide, index) => (
-              <li key={slide}>
-                <img
-                  src={slide}
-                  alt={`Slide ${index + 1} of ${media.slides?.length}`}
-                />
-              </li>
-            ))}
-          </ol>
-        ) : media?.kind === "image" ? (
-          <img className="sheet-media" src={media.url} alt={entry.title} />
-        ) : null}
-        {draft ? (
-          <div className="sheet-draft">
-            <DraftText text={draft} title={entry.title} />
-            {filed ? (
-              <p className="note">
-                In your Files, ready to paste, launch or send.
-              </p>
-            ) : null}
-          </div>
-        ) : filed ? (
-          <p className="note">Opening it from your Files…</p>
         ) : (
           <>
-            {entry.hook ? (
-              <p className="sheet-hook">“{withoutLabel(entry.hook)}”</p>
+            {state ? <p className="sheet-state">{state}</p> : null}
+            {media?.kind === "video" ? (
+              <video
+                className="sheet-media"
+                src={media.url}
+                controls
+                playsInline
+                preload="metadata"
+                aria-label={`Video for ${entry.title}`}
+              />
+            ) : media?.slides ? (
+              <ol
+                className="sheet-slides"
+                aria-label={`Slides for ${entry.title}`}
+              >
+                {media.slides.map((slide, index) => (
+                  <li key={slide}>
+                    <img
+                      src={slide}
+                      alt={`Slide ${index + 1} of ${media.slides?.length}`}
+                    />
+                  </li>
+                ))}
+              </ol>
+            ) : media?.kind === "image" ? (
+              <img className="sheet-media" src={media.url} alt={entry.title} />
             ) : null}
-            {entry.brief ? <p>{entry.brief}</p> : null}
-            <p className="note">
-              {AGENT_NAME} makes it with the rest of the month once you
-              subscribe.
-            </p>
+            {draft ? (
+              <div className="sheet-draft">
+                <DraftText text={draft} title={entry.title} />
+                {filed ? (
+                  <p className="note">
+                    In your Files, ready to paste, launch or send.
+                  </p>
+                ) : null}
+              </div>
+            ) : filed ? (
+              <p className="note">Opening it from your Files…</p>
+            ) : (
+              <>
+                {entry.hook ? (
+                  <p className="sheet-hook">“{withoutLabel(entry.hook)}”</p>
+                ) : null}
+                {entry.brief ? <p>{entry.brief}</p> : null}
+                <p className="note">
+                  {AGENT_NAME} makes it with the rest of the month once you
+                  subscribe.
+                </p>
+              </>
+            )}
           </>
         )}
         {extra}
@@ -215,6 +247,177 @@ export function EntrySheet({
         {onAsk ? <ChangePiece entry={entry} onAsk={onAsk} /> : null}
       </motion.aside>
     </>
+  );
+}
+
+function PieceMedia({ entry, media }: { entry: Entry; media?: Media }) {
+  if (media?.kind === "video") {
+    return (
+      <video
+        className="post-media"
+        src={media.url}
+        controls
+        playsInline
+        preload="metadata"
+        aria-label={`Video for ${entry.title}`}
+      />
+    );
+  }
+  if (media?.slides) {
+    return (
+      <ol className="sheet-slides" aria-label={`Slides for ${entry.title}`}>
+        {media.slides.map((slide, index) => (
+          <li key={slide}>
+            <img
+              src={slide}
+              alt={`Slide ${index + 1} of ${media.slides?.length}`}
+            />
+          </li>
+        ))}
+      </ol>
+    );
+  }
+  return media?.kind === "image" ? (
+    <img className="post-media" src={media.url} alt={entry.title} />
+  ) : null;
+}
+
+/** "cal.com" → "cal": the handle a network shows under the name. */
+function handleOf(overview: CmoOverview, channel: string): string {
+  const account = overview.channels.find(
+    (item) => item.provider.toLowerCase() === channel,
+  );
+  if (account?.handle) return account.handle.replace(/^@/, "");
+  try {
+    const host = new URL(overview.websiteUrl).hostname.replace(/^www\./, "");
+    return host.split(".")[0] ?? host;
+  } catch {
+    return overview.businessName.toLowerCase().replace(/\W+/g, "");
+  }
+}
+
+/**
+ * A social post as it will look on its network: who posts it, the words,
+ * then the picture or video (Instagram leads with the picture). The owner
+ * can rewrite the words in place; Core checks and saves them.
+ */
+function PostPreview({
+  entry,
+  media,
+  text,
+  overview,
+  state,
+  onEdit,
+}: {
+  entry: Entry;
+  media?: Media;
+  text: string;
+  overview: CmoOverview;
+  state?: ReactNode;
+  onEdit?: (text: string) => Promise<string | null>;
+}) {
+  const channel = entry.channel.toLowerCase();
+  const [editing, setEditing] = useState(false);
+  const [prevText, setPrevText] = useState(text);
+  const [words, setWords] = useState(text);
+  const [refusal, setRefusal] = useState<string | null>(null);
+  const [saving, startSaving] = useTransition();
+  // Stepping to another post, or a save, shows that post's own words.
+  if (prevText !== text) {
+    setPrevText(text);
+    setWords(text);
+    setEditing(false);
+    setRefusal(null);
+  }
+  const pictureFirst = channel === "instagram";
+  const picture = <PieceMedia entry={entry} media={media} />;
+  return (
+    <div className="post-wrap">
+      <article
+        className="post"
+        aria-label={`Post for ${channelLabel(channel)}`}
+      >
+        <header className="post-head">
+          <BusinessMark overview={overview} size={36} />
+          <span className="post-who">
+            <b>{businessDisplayName(overview)}</b>
+            <span className="note">
+              @{handleOf(overview, channel)} ·{" "}
+              {formatDay(entry.date, { day: "numeric", month: "short" })}
+              {entry.time ? `, ${entry.time}` : ""}
+            </span>
+          </span>
+          <ChannelIcon channel={channel} size={18} />
+        </header>
+        {pictureFirst ? picture : null}
+        {editing ? (
+          <div key={text} className="field">
+            <label htmlFor={`post-text-${entry.id}`}>Post text</label>
+            <textarea
+              id={`post-text-${entry.id}`}
+              rows={8}
+              value={words}
+              disabled={saving}
+              onChange={(event) => setWords(event.target.value)}
+            />
+          </div>
+        ) : (
+          <div className="post-text">
+            <DraftText text={text} title={entry.title} />
+          </div>
+        )}
+        {pictureFirst ? null : picture}
+      </article>
+      <div className="post-foot">
+        {state}
+        <span className="sp" />
+        {editing ? (
+          <>
+            <button
+              type="button"
+              className="button button-small"
+              disabled={saving || !words.trim() || words.trim() === text.trim()}
+              onClick={() =>
+                startSaving(async () => {
+                  const error = await onEdit?.(words.trim()).catch(
+                    () => "That didn't go through. Try again.",
+                  );
+                  setRefusal(error ?? null);
+                  if (!error) setEditing(false);
+                })
+              }
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+            <button
+              type="button"
+              className="button button-secondary button-small"
+              disabled={saving}
+              onClick={() => {
+                setWords(text);
+                setRefusal(null);
+                setEditing(false);
+              }}
+            >
+              Cancel
+            </button>
+          </>
+        ) : onEdit ? (
+          <button
+            type="button"
+            className="button button-secondary button-small"
+            onClick={() => setEditing(true)}
+          >
+            Edit text
+          </button>
+        ) : null}
+      </div>
+      {refusal ? (
+        <p className="note" role="alert">
+          {refusal}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -247,7 +450,7 @@ function ChangePiece({
           setFailed(false);
           try {
             await onAsk(
-              `Change this piece: "${entry.title}" (${entry.channel}, ${entry.date}, id ${entry.id}). ${request}`,
+              `Change this post: "${entry.title}" (${entry.channel}, ${entry.date}, id ${entry.id}). ${request}`,
             );
             setSent(true);
           } catch {
@@ -257,7 +460,7 @@ function ChangePiece({
       }}
     >
       <label className="label" htmlFor={`change-${entry.id}`}>
-        Change this piece
+        Change this post
       </label>
       <div className="sheet-change-row">
         <input

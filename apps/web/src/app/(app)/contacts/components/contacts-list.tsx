@@ -1,9 +1,15 @@
 "use client";
 import type { Contact } from "@sokosumi/core-client";
+import { ArchiveRestore } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { primaryEmail } from "@/app/contacts/contacts-view";
 import { Button } from "@/components/ui/button";
-import { ContactAvatar, ReplyChip } from "./contact-visuals";
+import { cn } from "@/lib/utils";
+import {
+  CONTACT_AVATAR_FILL_CLASS,
+  ContactAvatar,
+  ReplyChip,
+} from "./contact-visuals";
 
 /**
  * The contacts as a plain list for phones, where a spreadsheet only shows a
@@ -12,6 +18,7 @@ import { ContactAvatar, ReplyChip } from "./contact-visuals";
 export function ContactsList({
   contacts,
   onOpen,
+  onRestore,
   hasMore,
   loadingMore,
   onLoadMore,
@@ -19,6 +26,8 @@ export function ContactsList({
 }: {
   contacts: Contact[];
   onOpen: (id: string) => void;
+  /** Archived rows: a Restore button beside each person. */
+  onRestore?: (contact: Contact) => void;
   hasMore: boolean;
   loadingMore: boolean;
   onLoadMore: () => void;
@@ -38,18 +47,18 @@ export function ContactsList({
               .join(" · ") ||
               null);
           return (
-            <li key={contact.id}>
+            <li key={contact.id} className="flex items-center">
               <button
                 type="button"
                 onClick={() => onOpen(contact.id)}
-                className="hover:bg-accent transition-colors flex min-h-14 w-full items-center gap-3 px-3 py-2 text-start"
+                className="hover:bg-accent transition-colors flex min-h-14 w-full min-w-0 flex-1 items-center gap-3 px-3 py-2 text-start"
               >
                 <ContactAvatar
                   name={contact.name}
                   src={contact.avatarUrl}
                   email={email}
                   kind={contact.kind}
-                  className="size-8"
+                  className={cn("size-8", CONTACT_AVATAR_FILL_CLASS)}
                 />
                 <span className="grid min-w-0 flex-1">
                   <span className="truncate text-sm font-medium">
@@ -70,6 +79,18 @@ export function ContactsList({
                   />
                 ) : null}
               </button>
+              {onRestore ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mx-3 h-10 shrink-0 md:h-8"
+                  aria-label={t("panel.restoreName", { name: contact.name })}
+                  onClick={() => onRestore(contact)}
+                >
+                  <ArchiveRestore aria-hidden className="size-4" />
+                  {t("panel.restore")}
+                </Button>
+              ) : null}
             </li>
           );
         })}

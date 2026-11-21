@@ -97,7 +97,13 @@ describe.runIf(enabled)("table column layout on PostgreSQL", () => {
         key: randomUUID(),
         version: resized.version,
         columns: [
-          { id: nameId, name: "Name", type: "text" },
+          {
+            id: nameId,
+            name: "Name",
+            type: "text",
+            width: undefined,
+            wrap: undefined,
+          },
           { id: priceId, name: "Price", type: "number" },
         ],
       }),

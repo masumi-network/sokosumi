@@ -1,22 +1,42 @@
 import { createHash } from "node:crypto";
 import {
   CMO_SOKO_BOT_VERSION_ID,
+  CMO_SOKO_BOT_VERSION_IDS,
+  isSokoBotAnnouncementCapability,
   isSokoBotNewsletterCapability,
+  SOKO_BOT_ANNOUNCEMENT_CAPABILITIES,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
+  SOKO_BOT_COMPETITOR_CAPABILITIES,
   SOKO_BOT_NEWSLETTER_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
   type SokoBotRuntime,
 } from "@sokosumi/soko-bot";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { sokoBotTurnReader } from "@/helpers/task-visibility";
+import { recordCoreError } from "@/lib/evlog";
 import { buildActionResponse } from "@/lib/soko-bot/action-response";
 import { loadClassificationContext } from "@/lib/soko-bot/classification-context";
-import { enqueueSokoBotDelivery } from "@/services/soko-bot-delivery.service";
+import {
+  deliverSokoBotTurnOutbox,
+  enqueueSokoBotDelivery,
+} from "@/services/soko-bot-delivery.service";
 import { assessSokoBotIntentOutcome } from "@/services/soko-bot-outcome.service";
+import * as proactive from "@/services/soko-bot-proactive.service";
 import { prepareTurnActionResultPreviews } from "@/services/turn-action-result-previews.service";
+import { expectCoreLog } from "@/test/core-log";
+import { inRequest } from "@/test/in-request";
 import { jevRoute } from "@/test/jev-routes";
 
+const assignCodeMock = vi.hoisted(() => vi.fn());
+vi.mock("@/services/soko-bot-avatar-code.service", () => ({
+  giveNewSokoBotAvatar: assignCodeMock.mockResolvedValue(null),
+}));
+
 const intentFindManyMock = vi.hoisted(() => vi.fn().mockResolvedValue([]));
+const competitorChecksOnForMock = vi.hoisted(() => vi.fn());
+vi.mock("@/services/competitors.service", () => ({
+  competitorChecksOnFor: competitorChecksOnForMock,
+}));
 const newsletterDraftAvailableMock = vi.hoisted(() => vi.fn());
 vi.mock("@/services/newsletter-draft.service", () => ({
   isNewsletterDraftAvailable: newsletterDraftAvailableMock,
@@ -106,8 +126,12 @@ const {
       SOKO_BOT_PROACTIVE_PAUSED: boolean;
       SOKO_BOT_ENABLED?: boolean;
       EXA_API_KEY?: string;
+      SOKO_BOT_ANNOUNCEMENT_BOT_IDS: string[];
     }
-  >(() => ({ SOKO_BOT_PROACTIVE_PAUSED: false })),
+  >(() => ({
+    SOKO_BOT_PROACTIVE_PAUSED: false,
+    SOKO_BOT_ANNOUNCEMENT_BOT_IDS: [],
+  })),
   jobFindManyMock: vi.fn(),
   memoryCreateMock: vi.fn(),
   memoryFindFirstMock: vi.fn(),
@@ -145,9 +169,23 @@ vi.mock("ai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("ai")>()),
   experimental_evaluate: jevEvaluate,
 }));
-const forfeitMock = vi.hoisted(() => vi.fn());
+const { forfeitMock, forfeitIfLeavingCmoMock } = vi.hoisted(() => ({
+  forfeitMock: vi.fn(),
+  forfeitIfLeavingCmoMock: vi.fn(),
+}));
 vi.mock("@/helpers/cuso-project-credits", () => ({
   forfeitCusoProjectCredits: forfeitMock,
+  forfeitCusoProjectCreditsIfLeavingCmo: forfeitIfLeavingCmoMock,
+}));
+const { revokeSubscriptionMock, revokeSubscriptionIfLeavingCmoMock } =
+  vi.hoisted(() => ({
+    revokeSubscriptionMock: vi.fn(),
+    revokeSubscriptionIfLeavingCmoMock: vi.fn(),
+  }));
+vi.mock("@/services/polar-subscription-end.service", () => ({
+  revokeCusoSubscription: revokeSubscriptionMock,
+  revokeCusoSubscriptionIfLeavingCmo: revokeSubscriptionIfLeavingCmoMock,
+  revokeSubscriptionsLeftByEnding: vi.fn(),
 }));
 vi.mock("@/helpers/chat-room-mention-status", () => ({
   failOpenChatRoomMentions: failOpenMentionsMock,
@@ -196,11 +234,19 @@ vi.mock("@/lib/soko-bot/preference-capture", () => ({
   capturePreference: capturePreferenceMock,
   MIN_PREFERENCE_CONFIDENCE: 0.85,
 }));
+const afterCmoTurnMock = vi.hoisted(() => vi.fn().mockResolvedValue(null));
+vi.mock("@/services/cmo-strategy.service", () => ({
+  afterCmoTurn: afterCmoTurnMock,
+}));
 vi.mock("@/lib/soko-bot/route-outcome", () => ({
   logSokoBotRouteOutcome: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/services/soko-bot-availability.service", () => ({
   getSokoBotAvailability: availabilityMock,
+}));
+// PostgreSQL's clock is the test clock here.
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -248,7 +294,11 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotSchedule: {
       findFirst: scheduleFindFirstMock,
       update: scheduleUpdateMock,
+      // A new bot's built-in rhythms (`ensureSystemSchedules`): none exist yet.
+      findMany: vi.fn().mockResolvedValue([]),
+      create: vi.fn().mockResolvedValue({}),
     },
+    sokoBotScheduleRunChange: { findMany: async () => [] },
     sokoBotScheduleRun: {
       findFirst: scheduleRunFindFirstMock,
       findUnique: scheduleRunFindUniqueMock,
@@ -289,11 +339,21 @@ vi.mock("@/helpers/billing-notifications", () => ({
     notifyLowBalanceAfterChargeMock(...args),
 }));
 
+const notifyCusoLowCreditsAfterChargeMock = vi
+  .fn()
+  .mockResolvedValue(undefined);
+
+vi.mock("@/helpers/cuso-low-credit-notification", () => ({
+  notifyCusoLowCreditsAfterCharge: (...args: unknown[]) =>
+    notifyCusoLowCreditsAfterChargeMock(...args),
+}));
+
 import { JevTurnClassifier } from "@/lib/soko-bot/classifier";
 import {
   type BuiltContextPacket,
   ContextPacketBuilder,
 } from "@/lib/soko-bot/context-packet";
+import { systemScheduleRoute } from "@/lib/soko-bot/system-routes";
 import {
   SokoBotControlPlane,
   SokoBotNotFoundError,
@@ -316,6 +376,7 @@ function adminBot(overrides: Record<string, unknown> = {}) {
     eveSessionId: null,
     memoryVersion: 1,
     runtimeVersion: "eve-test",
+    ingestTimezone: "Europe/Berlin",
     versionId: null as string | null,
     turns: [],
     ...overrides,
@@ -339,6 +400,7 @@ function runtimeWithReset(
 function transactionClient() {
   return {
     $queryRaw: transactionQueryRawMock,
+    $executeRaw: vi.fn().mockResolvedValue(1),
     member: { findFirst: memberFindFirstMock },
     sokoBotIntent: {
       create: vi.fn().mockResolvedValue({ id: "intent-1", revision: 1 }),
@@ -357,6 +419,7 @@ function transactionClient() {
       create: botCreateMock,
       findFirst: botFindFirstMock,
       findUnique: botFindUniqueMock,
+      findUniqueOrThrow: botFindUniqueOrThrowMock,
       update: botUpdateMock,
       updateMany: botUpdateManyMock,
     },
@@ -429,6 +492,7 @@ function builtContext(memoryVersion = 1): BuiltContextPacket {
 beforeEach(() => {
   jevEvaluate.mockResolvedValue(jevRoute("DIRECT_RESPONSE"));
   newsletterDraftAvailableMock.mockResolvedValue(false);
+  competitorChecksOnForMock.mockResolvedValue(false);
 });
 
 describe("SokoBotControlPlane lifecycle", () => {
@@ -440,7 +504,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       disabledAt: null,
       disabledReason: null,
     });
-    getEnvMock.mockReturnValue({ SOKO_BOT_PROACTIVE_PAUSED: false });
+    getEnvMock.mockReturnValue({
+      SOKO_BOT_PROACTIVE_PAUSED: false,
+      SOKO_BOT_ANNOUNCEMENT_BOT_IDS: [],
+    });
     adminActionCreateMock.mockResolvedValue({});
     adminActionFindFirstMock.mockResolvedValue(null);
     adminActionFindManyMock.mockResolvedValue([]);
@@ -519,6 +586,92 @@ describe("SokoBotControlPlane lifecycle", () => {
     },
   );
 
+  it.each([true, false])(
+    "offers the competitor tools only while a Project's weekly check is on: %s",
+    async (available) => {
+      competitorChecksOnForMock.mockResolvedValue(available);
+      botFindFirstMock.mockResolvedValue(adminBot());
+      botFindUniqueMock.mockResolvedValue(adminBot());
+      turnFindUniqueMock.mockResolvedValue(null);
+      turnFindFirstMock.mockResolvedValue(null);
+      turnCreateMock.mockResolvedValue({
+        id: "competitor-turn",
+        leaseToken: "competitor-lease",
+      });
+      const runtime = runtimeWithReset(vi.fn());
+      runtime.createSession = vi.fn().mockResolvedValue({
+        sessionId: "competitor-session",
+        runtimeVersion: "test",
+        acceptedAt: new Date().toISOString(),
+      });
+      const result = await new SokoBotControlPlane(
+        runtime,
+        {
+          build: vi.fn().mockResolvedValue(builtContext()),
+        } as ContextPacketBuilder,
+        new JevTurnClassifier(),
+      ).startTurn({
+        userId: "user_1",
+        workspaceId: "workspace_1",
+        clientTurnId: "competitor-client",
+        message: "What did our competitors do this week?",
+      });
+      expect(competitorChecksOnForMock).toHaveBeenCalledWith({
+        workspaceId: "workspace_1",
+        projectId: undefined,
+      });
+      const granted = turnCreateMock.mock.calls[0]?.[0]?.data
+        ?.capabilityNames as string[];
+      for (const capability of SOKO_BOT_COMPETITOR_CAPABILITIES) {
+        expect(result.capabilities.includes(capability)).toBe(available);
+        expect(granted.includes(capability)).toBe(available);
+      }
+      // Unrelated reads stay either way.
+      expect(granted).toContain("list_social_posts");
+    },
+  );
+
+  it.each([true, false])(
+    "offers announcement tools only to a listed bot: %s",
+    async (listed) => {
+      getEnvMock.mockReturnValue({
+        SOKO_BOT_PROACTIVE_PAUSED: false,
+        SOKO_BOT_ANNOUNCEMENT_BOT_IDS: listed ? [BOT_ID] : [],
+      });
+      botFindFirstMock.mockResolvedValue(adminBot());
+      botFindUniqueMock.mockResolvedValue(adminBot());
+      turnFindUniqueMock.mockResolvedValue(null);
+      turnFindFirstMock.mockResolvedValue(null);
+      turnCreateMock.mockResolvedValue({
+        id: "announcement-turn",
+        leaseToken: "announcement-lease",
+      });
+      const runtime = runtimeWithReset(vi.fn());
+      runtime.createSession = vi.fn().mockResolvedValue({
+        sessionId: "announcement-session",
+        runtimeVersion: "test",
+        acceptedAt: new Date().toISOString(),
+      });
+      await new SokoBotControlPlane(
+        runtime,
+        {
+          build: vi.fn().mockResolvedValue(builtContext()),
+        } as ContextPacketBuilder,
+        new JevTurnClassifier(),
+      ).startTurn({
+        userId: "user_1",
+        workspaceId: "workspace_1",
+        clientTurnId: "announcement-client",
+        message: "Draft this week's announcement",
+      });
+      const granted = turnCreateMock.mock.calls[0]?.[0]?.data
+        ?.capabilityNames as string[];
+      for (const capability of SOKO_BOT_ANNOUNCEMENT_CAPABILITIES) {
+        expect(granted.includes(capability)).toBe(listed);
+      }
+    },
+  );
+
   it.each([
     { exaKey: "exa-key", offered: true },
     { exaKey: undefined, offered: false },
@@ -527,6 +680,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     async ({ exaKey, offered }) => {
       getEnvMock.mockReturnValue({
         SOKO_BOT_PROACTIVE_PAUSED: false,
+        SOKO_BOT_ANNOUNCEMENT_BOT_IDS: [],
         EXA_API_KEY: exaKey,
       });
       const cuso = adminBot({
@@ -570,6 +724,120 @@ describe("SokoBotControlPlane lifecycle", () => {
   );
 
   it.each([
+    {
+      clientTurnId: "cmo:onboarding:bot_1:1",
+      status: "COMPLETED",
+      starts: true,
+    },
+    { clientTurnId: "cmo:onboarding:bot_1:1", status: "FAILED", starts: true },
+    {
+      clientTurnId: "cmo:onboarding:bot_1:1",
+      status: "CANCELLED",
+      starts: false,
+    },
+    // A plan, fix or patch that ends lets the next queued fix start.
+    { clientTurnId: "cmo:strategy:bot_1:1", status: "COMPLETED", starts: true },
+    {
+      clientTurnId: "cmo:strategy:bot_1:fix:1",
+      status: "FAILED",
+      starts: true,
+    },
+    {
+      clientTurnId: "cmo:strategy:bot_1:1",
+      status: "CANCELLED",
+      starts: false,
+    },
+    // A production run moves the month on when it ends.
+    {
+      clientTurnId: "cmo:production:bot_1:1",
+      status: "COMPLETED",
+      starts: true,
+      parentTurnId: "parent-1",
+    },
+    {
+      clientTurnId: "cmo:production:bot_1:1",
+      status: "CANCELLED",
+      starts: false,
+      parentTurnId: "parent-1",
+    },
+    { clientTurnId: null, status: "COMPLETED", starts: false },
+    // A chat with Cuso held the bot: a fix asked meanwhile may start now.
+    {
+      clientTurnId: "chat:1",
+      status: "COMPLETED",
+      starts: true,
+      versionId: "cmo-v1",
+    },
+    {
+      clientTurnId: "chat:1",
+      status: "COMPLETED",
+      starts: false,
+      versionId: "cmo-v1",
+      parentTurnId: "parent-1",
+    },
+  ] as const)(
+    "starts Cuso's next run when his research or plan turn settles: $clientTurnId $status",
+    async ({ clientTurnId, status, starts, ...turn }) => {
+      turnFindUniqueMock.mockResolvedValueOnce({
+        parentTurnId: null,
+        ...turn,
+        sokoBotId: BOT_ID,
+        clientTurnId,
+        requestedByUserId: "user_1",
+        startedAt: new Date(),
+        costUsdMicros: 0n,
+        status: "RUNNING",
+        finalAnswer: "Done.",
+        capabilityNames: [],
+        cancellationRequestedAt: null,
+        scheduleRun: null,
+      });
+      await new SokoBotControlPlane()["settleTurn"]({
+        turnId: "turn_1",
+        status,
+      });
+      await vi.waitFor(() =>
+        starts
+          ? expect(afterCmoTurnMock).toHaveBeenCalledWith({
+              sokoBotId: BOT_ID,
+              userId: "user_1",
+              clientTurnId,
+            })
+          : expect(afterCmoTurnMock).not.toHaveBeenCalled(),
+      );
+    },
+  );
+
+  it("logs a next run that did not start through Core's logger", async () => {
+    const warned = expectCoreLog("warn", "CMO's next run did not start");
+    afterCmoTurnMock.mockRejectedValueOnce(new Error("Gateway answered 502"));
+    turnFindUniqueMock.mockResolvedValueOnce({
+      parentTurnId: null,
+      sokoBotId: BOT_ID,
+      clientTurnId: "cmo:onboarding:1",
+      requestedByUserId: "user_1",
+      startedAt: new Date(),
+      costUsdMicros: 0n,
+      status: "RUNNING",
+      finalAnswer: "Done.",
+      capabilityNames: [],
+      cancellationRequestedAt: null,
+      scheduleRun: null,
+    });
+    await new SokoBotControlPlane()["settleTurn"]({
+      turnId: "turn_1",
+      status: "COMPLETED",
+    });
+    await vi.waitFor(() => expect(warned).toHaveLength(1));
+    expect(warned[0]?.event).toMatchObject({
+      operation: "cmo_next_run",
+      failure: { errorName: "Error" },
+    });
+    // The error's own text never reaches the event.
+    expect(JSON.stringify(warned[0]?.event)).not.toContain("Gateway answered");
+  });
+
+  it.each([
     { capability: "create_schedule", route: "MANAGE_WORK", guarded: true },
     { capability: "post_chat", route: "DELEGATE_TASK", guarded: true },
     { capability: "update_memory", route: "MANAGE_WORK", guarded: true },
@@ -606,6 +874,56 @@ describe("SokoBotControlPlane lifecycle", () => {
       );
     },
   );
+
+  it("logs a failure in the settled turn's outbox as its own event while the request is still open", async () => {
+    const errors = expectCoreLog(
+      "error",
+      "Could not delete old published Calendar invalidations",
+    );
+    let outbox: Promise<void> | undefined;
+    // A TASK_EVENT effect reaches the Calendar invalidation prune, which
+    // logs on the live request event unless the work is marked background.
+    vi.mocked(deliverSokoBotTurnOutbox).mockImplementationOnce(() => {
+      outbox = (async () =>
+        recordCoreError(
+          { operation: "calendar_invalidation_prune" },
+          {
+            message: "Could not delete old published Calendar invalidations",
+            why: "The database delete failed",
+            cause: new Error("db down"),
+          },
+        ))();
+      return outbox;
+    });
+    turnFindUniqueMock.mockResolvedValueOnce({
+      sokoBotId: BOT_ID,
+      requestedByUserId: "user_1",
+      eveSessionId: "session_1",
+      startedAt: new Date(),
+      costUsdMicros: 0n,
+      status: "RUNNING",
+      finalAnswer: "Done.",
+      route: "DIRECT_RESPONSE",
+      capabilityNames: [],
+      leaseToken: null,
+      cancellationRequestedAt: null,
+      scheduleRun: null,
+    });
+
+    await inRequest(async () => {
+      await new SokoBotControlPlane()["settleTurn"]({
+        turnId: "turn_1",
+        status: "COMPLETED",
+      });
+      await vi.waitFor(() => expect(outbox).toBeDefined());
+      await outbox;
+    });
+
+    expect(errors[0]?.event).toMatchObject({
+      operation: "calendar_invalidation_prune",
+    });
+    expect(errors[0]?.event.method).toBeUndefined();
+  });
 
   it.each([
     {
@@ -1005,6 +1323,39 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(capabilities).toContain("run_integration_tool");
     expect(capabilities).not.toContain("search_inbox");
     expect(capabilities).not.toContain("send_email_draft");
+  });
+
+  it("reserves a meeting brief without adding the CMO profile's tools", async () => {
+    const bot = adminBot({ versionId: "cmo-v1" });
+    botFindFirstMock.mockResolvedValue(bot);
+    botFindUniqueMock.mockResolvedValue(bot);
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    turnCreateMock.mockResolvedValue({
+      id: "meeting-turn",
+      leaseToken: "lease",
+    });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    const builder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+    await new SokoBotControlPlane(runtime, builder).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "meeting",
+      message: "Prepared meeting evidence",
+      source: "SCHEDULE",
+      presetRoute: systemScheduleRoute("meeting-prep"),
+    });
+    expect(turnCreateMock.mock.calls[0]?.[0]?.data).toMatchObject({
+      capabilityNames: [],
+      classification: { systemKey: "meeting-prep" },
+    });
   });
 
   it("keeps every tool and saves the preference when Jev only guesses the route", async () => {
@@ -1601,8 +1952,34 @@ describe("SokoBotControlPlane lifecycle", () => {
       name: "Fresh",
     });
 
-    expect(botCreateMock).toHaveBeenCalled();
+    expect(botCreateMock).toHaveBeenCalledOnce();
+    const data = botCreateMock.mock.lastCall?.[0]?.data;
+    expect(data).not.toHaveProperty("ingestTimezone");
+    expect(data).not.toHaveProperty("avatarSeed");
+    expect(data).not.toHaveProperty("personalityTone");
+    expect(data).not.toHaveProperty("personalityDetail");
+    expect(data).not.toHaveProperty("personalityStyle");
     expect(coworkerCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("gives a new assistant a random avatar code", async () => {
+    botFindFirstMock.mockResolvedValue(null);
+    botCreateMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-00000000aaaa",
+      ingestTimezone: "UTC",
+      avatarCode: null,
+    });
+
+    await new SokoBotControlPlane().create({
+      userId: "user_1",
+      workspaceId: "ws_1",
+      name: "Fresh",
+    });
+
+    expect(assignCodeMock).toHaveBeenCalledWith(
+      "01960001-0001-7001-8001-00000000aaaa",
+      undefined,
+    );
   });
 
   it("preserves an administrator pause during profile updates", async () => {
@@ -1621,14 +1998,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       name: "Soko",
     });
 
-    expect(botUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          archivedAt: undefined,
-          status: undefined,
-        }),
-      }),
-    );
+    expect(botUpdateMock.mock.lastCall?.[0]).toStrictEqual({
+      where: { id: BOT_ID },
+      data: { name: "Soko" },
+    });
   });
 
   it("cursor-paginates user turns with a stable ID cursor", async () => {
@@ -1787,14 +2160,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       name: "Soko",
     });
 
-    expect(botUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          archivedAt: null,
-          status: undefined,
-        }),
-      }),
-    );
+    expect(botUpdateMock.mock.lastCall?.[0]).toStrictEqual({
+      where: { id: BOT_ID },
+      data: { archivedAt: null, name: "Soko" },
+    });
   });
 
   it("refuses a turn whenever durable administrator pause is set", async () => {
@@ -1853,6 +2222,56 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(transactionMock).not.toHaveBeenCalled();
   });
 
+  it("recovers a concurrently reserved meeting retry when the provider evidence changed", async () => {
+    const slot = "2026-11-19T13:30:00.000Z";
+    const preset = systemScheduleRoute("meeting-prep");
+    if (!preset) throw new Error("Missing meeting preset");
+    const retry = {
+      id: "meeting-retry",
+      workspaceId: "workspace_1",
+      source: "ADMIN_RETRY",
+      status: "COMPLETED",
+      route: "DIRECT_RESPONSE",
+      capabilityNames: [],
+      classifierVersion: "soko-bot-system-route-v1",
+      classification: { systemKey: "meeting-prep", meetingPrepSlot: slot },
+      userMessage: "Already reserved evidence",
+    };
+    botFindFirstMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(retry);
+    scheduleRunFindUniqueMock.mockResolvedValue({
+      turnId: retry.id,
+      status: "COMPLETED",
+      attempt: 3,
+      prompt: retry.userMessage,
+      schedule: {
+        sokoBotId: BOT_ID,
+        workspaceId: retry.workspaceId,
+        systemKey: "meeting-prep",
+        requestedByUserId: null,
+        sokoBot: { userId: "user_1" },
+      },
+    });
+    const result = await new SokoBotControlPlane().startTurn({
+      userId: "user_1",
+      workspaceId: retry.workspaceId,
+      source: "ADMIN_RETRY",
+      clientTurnId: "admin-schedule-retry:run_1:operation",
+      message: "Calendar changed during this retry",
+      presetRoute: { ...preset, meetingPrepSlot: slot },
+      adminScheduleReservation: {
+        kind: "TERMINAL",
+        runId: "run_1",
+        expectedAttempt: 2,
+        expectedStatus: "FAILED",
+        previousTurnId: "old",
+        expectedPrompt: "Old text",
+      },
+    });
+    expect(result).toMatchObject({ turnId: retry.id, duplicate: true });
+    expect(scheduleRunUpdateManyMock).not.toHaveBeenCalled();
+  });
+
   it("rejects a mismatched client turn before pause policy", async () => {
     botFindFirstMock.mockResolvedValue(
       adminBot({
@@ -1891,7 +2310,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         eveSessionId: "session_bound_after_lost_response",
       }),
     );
-    turnFindUniqueMock.mockResolvedValue({
+    const released = {
       id: "turn_existing",
       sokoBotId: BOT_ID,
       requestedByUserId: "user_1",
@@ -1905,7 +2324,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       errorKind: "runtime_start_ambiguous",
       leaseToken: "lease_1",
       deadlineAt: new Date("2099-08-18T12:00:00.000Z"),
-    });
+    };
+    turnFindUniqueMock.mockResolvedValue(released);
+    turnFindFirstMock.mockResolvedValue(released);
+    botFindUniqueOrThrowMock.mockResolvedValue(adminBot({ status: "RUNNING" }));
     contextSnapshotFindUniqueMock.mockResolvedValue({
       id: "snapshot_1",
       packet: builtContext().packet,
@@ -1946,14 +2368,15 @@ describe("SokoBotControlPlane lifecycle", () => {
       sessionId: "session_bound_after_lost_response",
       status: "RUNNING",
       duplicate: true,
-      reconciliationLeaseToken: "lease_1",
+      // This call's own resume acknowledged the start: it owns the drain.
+      reconciliationLeaseToken: expect.not.stringMatching("lease_1"),
     });
     expect(resetSession).not.toHaveBeenCalled();
   });
 
   it("grants the memory revision persisted in the snapshot when reset happened later", async () => {
     botFindFirstMock.mockResolvedValue(adminBot({ status: "RUNNING" }));
-    turnFindUniqueMock.mockResolvedValue({
+    const released = {
       id: "turn_existing",
       sokoBotId: BOT_ID,
       requestedByUserId: "user_1",
@@ -1967,7 +2390,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       errorKind: "runtime_start_ambiguous",
       leaseToken: "lease_1",
       deadlineAt: new Date("2099-08-18T12:00:00.000Z"),
-    });
+    };
+    turnFindUniqueMock.mockResolvedValue(released);
+    turnFindFirstMock.mockResolvedValue(released);
+    botFindUniqueOrThrowMock.mockResolvedValue(adminBot({ status: "RUNNING" }));
     contextSnapshotFindUniqueMock.mockResolvedValue({
       id: "snapshot_1",
       packet: builtContext().packet,
@@ -2030,10 +2456,13 @@ describe("SokoBotControlPlane lifecycle", () => {
     const acknowledgementBarrier = new Promise<void>((resolve) => {
       releaseAcknowledgement = resolve;
     });
-    turnUpdateManyMock.mockImplementationOnce(async () => {
-      await acknowledgementBarrier;
-      return { count: 0 };
-    });
+    turnUpdateManyMock
+      .mockImplementationOnce(async () => {
+        await acknowledgementBarrier;
+        return { count: 0 };
+      })
+      .mockResolvedValueOnce({ count: 0 })
+      .mockResolvedValueOnce({ count: 0 });
     const contextBuilder = {
       build: vi.fn().mockResolvedValue(builtContext()),
     } as ContextPacketBuilder;
@@ -2051,11 +2480,103 @@ describe("SokoBotControlPlane lifecycle", () => {
     await vi.waitFor(() => expect(turnUpdateManyMock).toHaveBeenCalledOnce());
     releaseAcknowledgement();
 
-    await expect(pending).rejects.toThrow(
-      "stopped before runtime acknowledgement",
-    );
+    await expect(pending).resolves.toMatchObject({
+      turnId: replacement.id,
+      status: "STARTING",
+      duplicate: true,
+    });
+    expect((await pending).reconciliationLeaseToken).toBeUndefined();
     expect(resetSession).not.toHaveBeenCalled();
-    expect(turnUpdateManyMock).toHaveBeenCalledOnce();
+    expect(turnUpdateManyMock).toHaveBeenCalledTimes(3);
+  });
+
+  // The acknowledgement may have committed and only its response was lost.
+  // The caller uses a CAS to renew its own acknowledged lease before draining.
+  // A replacement lease leaves the caller with an observation of the turn.
+  it.each([
+    ["renews its acknowledged lease and receives a grant", true],
+    ["only observes under a replacement lease", false],
+  ])("after a lost acknowledgement response %s", async (_label, ownLease) => {
+    const fresh = {
+      id: "turn_fresh",
+      sokoBotId: BOT_ID,
+      requestedByUserId: "user_1",
+      workspaceId: "workspace_1",
+      source: "CHAT",
+      userMessage: "Hello",
+      eveSessionId: null,
+      status: "STARTING",
+      route: "DIRECT_RESPONSE",
+      capabilityNames: [],
+      errorKind: null,
+      startedAt: null,
+      costUsdMicros: 0n,
+      scheduleRun: null,
+      deadlineAt: new Date(Date.now() + 60 * 60_000),
+    };
+    let startLease = "";
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindFirstMock.mockResolvedValue(null);
+    turnCreateMock.mockImplementation(async ({ data }) => {
+      startLease = data.leaseToken;
+      return { ...fresh, leaseToken: data.leaseToken };
+    });
+    turnFindUniqueMock
+      .mockResolvedValueOnce(null)
+      .mockImplementation(async () => ({
+        ...fresh,
+        status: "RUNNING",
+        eveSessionId: "accepted_session",
+        reconcilerHeartbeatAt: new Date(),
+        leaseToken: ownLease ? startLease : "watchdog_lease",
+      }));
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "accepted_session",
+      runtimeVersion: "eve-test",
+      acceptedAt: "2026-08-18T12:00:00.000Z",
+    });
+    turnUpdateManyMock
+      .mockRejectedValueOnce(new Error("Connection reset after commit"))
+      .mockResolvedValueOnce({ count: ownLease ? 1 : 0 })
+      .mockResolvedValueOnce({ count: 0 });
+
+    const result = await new SokoBotControlPlane(
+      runtime,
+      {
+        build: vi.fn().mockResolvedValue(builtContext()),
+      } as ContextPacketBuilder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "client-turn-1",
+      message: "Hello",
+    });
+
+    expect(startLease).not.toBe("");
+    expect(result).toMatchObject({
+      turnId: "turn_fresh",
+      status: "RUNNING",
+      duplicate: !ownLease,
+    });
+    expect(result.reconciliationLeaseToken).toBe(
+      ownLease ? startLease : undefined,
+    );
+    expect(turnUpdateManyMock).toHaveBeenNthCalledWith(2, {
+      where: {
+        id: "turn_fresh",
+        leaseToken: startLease,
+        status: { in: ["RUNNING", "CANCEL_REQUESTED"] },
+        startedAt: { not: null },
+        eveSessionId: "accepted_session",
+      },
+      data: {
+        leaseExpiresAt: expect.any(Date),
+        reconcilerHeartbeatAt: expect.any(Date),
+      },
+    });
   });
 
   it("starts no turn at all while an administrator has it switched off", async () => {
@@ -2298,6 +2819,8 @@ describe("SokoBotControlPlane lifecycle", () => {
       backgroundTitle: "Gmail CRM",
       destinationRoomId: "room-owner",
     });
+    expect(data).not.toHaveProperty("chatMentionId");
+    expect(data).not.toHaveProperty("chatResponseMessageId");
     expect(data.deadlineAt.getTime() - Date.now()).toBeGreaterThan(
       5 * 60 * 60 * 1_000,
     );
@@ -2486,7 +3009,9 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(granted).toContain("hire_agent");
     expect(granted).toEqual(
       SOKO_BOT_ROUTE_CAPABILITIES.HIRE_AGENT.filter(
-        (capability) => !isSokoBotNewsletterCapability(capability),
+        (capability) =>
+          !isSokoBotNewsletterCapability(capability) &&
+          !isSokoBotAnnouncementCapability(capability),
       ),
     );
   });
@@ -2899,6 +3424,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       sokoBot: adminBot({ status: "RUNNING" }),
     };
     turnFindFirstMock.mockResolvedValue(turn);
+    botFindUniqueOrThrowMock.mockResolvedValue(turn.sokoBot);
     contextSnapshotFindUniqueMock.mockResolvedValue({
       id: "snapshot_1",
       packet: builtContext().packet,
@@ -2946,9 +3472,119 @@ describe("SokoBotControlPlane lifecycle", () => {
     });
   });
 
+  it.each([
+    ["legacy meeting", "meeting-prep", false],
+    ["ordinary schedule", "standup", false],
+    ["unavailable origin store", "unavailable", false],
+    ["rebuilt meeting", "meeting-prep", true],
+  ] as const)(
+    "recovers a STARTING admin retry according to its stored origin: %s",
+    async (_label, systemKey, rebuilt) => {
+      const slot = new Date("2026-11-19T13:30:00.000Z");
+      const originalId = "01960001-0001-7001-8001-000000000041";
+      const middleId = "01960001-0001-7001-8001-000000000042";
+      const turn = {
+        id: "01960001-0001-7001-8001-000000000043",
+        sokoBotId: BOT_ID,
+        requestedByUserId: "user_1",
+        workspaceId: "workspace_1",
+        source: "ADMIN_RETRY",
+        clientTurnId: `admin-retry:${middleId}:latest`,
+        userMessage: rebuilt
+          ? "Verified calendar evidence"
+          : "Historical packet",
+        eveSessionId: null,
+        status: "STARTING",
+        route: "DIRECT_RESPONSE",
+        classifierVersion: "soko-bot-system-route-v1",
+        classification: rebuilt
+          ? { systemKey, meetingPrepSlot: slot.toISOString() }
+          : { rationaleSummary: "Operator retry on the failed turn's route." },
+        capabilityNames: rebuilt ? [] : ["search_inbox"],
+        errorKind: null,
+        leaseToken: "expired",
+        deadlineAt: new Date("2099-08-18T12:00:00.000Z"),
+        sokoBot: adminBot({ status: "RUNNING" }),
+      };
+      const parent = {
+        ...turn,
+        id: middleId,
+        clientTurnId: `admin-retry:${originalId}:older`,
+      };
+      const original = {
+        ...turn,
+        id: originalId,
+        source: "SCHEDULE",
+        clientTurnId: `schedule:${BOT_ID}:${slot.toISOString()}`,
+      };
+      turnFindFirstMock.mockImplementation(async ({ where }) =>
+        where.id === originalId
+          ? original
+          : where.id === middleId
+            ? parent
+            : turn,
+      );
+      scheduleRunFindFirstMock.mockResolvedValue({
+        schedule: { systemKey },
+        scheduledFor: slot,
+      });
+      if (systemKey === "unavailable")
+        scheduleRunFindFirstMock.mockRejectedValueOnce(
+          new Error("Temporary database error"),
+        );
+      turnFindUniqueMock.mockImplementation(async () => ({
+        ...turn,
+        leaseToken: turnUpdateManyMock.mock.calls[0]?.[0].data.leaseToken,
+      }));
+      botFindUniqueOrThrowMock.mockResolvedValue(turn.sokoBot);
+      contextSnapshotFindUniqueMock.mockResolvedValue({
+        id: "snapshot",
+        packet: builtContext().packet,
+      });
+      const runtime = runtimeWithReset(vi.fn());
+      runtime.createSession = vi.fn().mockResolvedValue({
+        sessionId: "recovered",
+        runtimeVersion: "eve-test",
+        acceptedAt: slot.toISOString(),
+      });
+      const recovery = new SokoBotControlPlane(runtime).recoverStartingTurn(
+        turn.id,
+      );
+      if (systemKey === "unavailable") {
+        await expect(recovery).rejects.toThrow(
+          "verify the original occurrence",
+        );
+        expect(runtime.createSession).not.toHaveBeenCalled();
+        expect(turnUpdateManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              leaseExpiresAt: null,
+              errorKind: "runtime_start_ambiguous",
+            }),
+          }),
+        );
+        return;
+      }
+      if (systemKey === "meeting-prep" && !rebuilt) {
+        await expect(recovery).rejects.toThrow("rebuild meeting evidence");
+        expect(runtime.createSession).not.toHaveBeenCalled();
+        expect(turnUpdateManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ status: "FAILED" }),
+          }),
+        );
+        return;
+      }
+      await expect(recovery).resolves.toMatchObject({ status: "RUNNING" });
+      expect(runtime.createSession).toHaveBeenCalledWith(
+        expect.objectContaining({ message: turn.userMessage }),
+      );
+    },
+  );
+
   it("rolls back replay acknowledgement when administrator pause wins", async () => {
     botFindFirstMock.mockResolvedValue(adminBot({ status: "RUNNING" }));
-    turnFindUniqueMock.mockResolvedValue({
+    const released = {
       id: "turn_existing",
       sokoBotId: BOT_ID,
       requestedByUserId: "user_1",
@@ -2962,13 +3598,25 @@ describe("SokoBotControlPlane lifecycle", () => {
       errorKind: "runtime_start_ambiguous",
       leaseToken: "lease_1",
       deadlineAt: new Date("2099-08-18T12:00:00.000Z"),
-    });
+    };
+    turnFindUniqueMock
+      .mockResolvedValueOnce(released)
+      .mockImplementation(async () => ({
+        ...released,
+        leaseToken: turnUpdateManyMock.mock.calls[0]?.[0].data.leaseToken,
+      }));
+    turnFindFirstMock.mockResolvedValue(released);
+    botFindUniqueOrThrowMock.mockResolvedValue(adminBot({ status: "RUNNING" }));
     contextSnapshotFindUniqueMock.mockResolvedValue({
       id: "snapshot_1",
       packet: builtContext().packet,
     });
     memoryFindFirstMock.mockResolvedValue(null);
     botUpdateManyMock.mockResolvedValueOnce({ count: 0 });
+    turnUpdateManyMock
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 });
     const resetSession = vi.fn<SokoBotRuntime["resetSession"]>();
     const runtime = runtimeWithReset(resetSession);
     runtime.createSession = vi.fn().mockResolvedValue({
@@ -3317,6 +3965,34 @@ describe("SokoBotControlPlane lifecycle", () => {
       expect(forfeitMock.mock.invocationCallOrder[0]).toBeLessThan(
         botUpdateMock.mock.invocationCallOrder[0] ?? 0,
       );
+    });
+
+    it("ends Cuso's subscription at Polar before the write-off", async () => {
+      await new SokoBotControlPlane().archive("admin_1", "ws_1", SHARED_ID);
+
+      expect(revokeSubscriptionMock).toHaveBeenCalledExactlyOnceWith(BOT_ID);
+      expect(revokeSubscriptionMock.mock.invocationCallOrder[0]).toBeLessThan(
+        forfeitMock.mock.invocationCallOrder[0] ?? 0,
+      );
+    });
+
+    it("archives nothing and writes nothing off when Polar refuses", async () => {
+      revokeSubscriptionMock.mockRejectedValueOnce(new Error("polar refused"));
+
+      await expect(
+        new SokoBotControlPlane().archive("admin_1", "ws_1", SHARED_ID),
+      ).rejects.toThrow("polar refused");
+
+      expect(forfeitMock).not.toHaveBeenCalled();
+      expect(botUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it("leaves the subscription alone when a member may not archive", async () => {
+      await expect(
+        new SokoBotControlPlane().archive("member_1", "ws_1", SHARED_ID),
+      ).rejects.toMatchObject({ status: 403 });
+
+      expect(revokeSubscriptionMock).not.toHaveBeenCalled();
     });
 
     it("writes nothing off for an already archived bot", async () => {
@@ -3763,6 +4439,11 @@ describe("SokoBotControlPlane lifecycle", () => {
         }),
       }),
     );
+    expect(adminActionCreateMock).toHaveBeenCalledTimes(2);
+    for (const [{ data }] of adminActionCreateMock.mock.calls) {
+      expect(data).toHaveProperty("requestId", "request-transport-1");
+      expect(data).not.toHaveProperty("traceId");
+    }
   });
 
   it("refuses resume while a session-reset outbox entry is unfinished", async () => {
@@ -3816,10 +4497,39 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
     const nextRunAt = scheduleUpdateMock.mock.calls[0]?.[0]?.data?.nextRunAt;
     expect(nextRunAt.getTime()).toBeGreaterThan(now.getTime());
+    // Switching it back on is not rewriting it: the run's tools stay.
+    expect(
+      scheduleUpdateMock.mock.calls[0]?.[0]?.data?.capabilityNames,
+    ).toBeUndefined();
+  });
+
+  it("gives a schedule a person rewrites their chat tools", async () => {
+    scheduleFindFirstMock.mockResolvedValue({
+      id: "schedule_1",
+      sokoBotId: BOT_ID,
+      requestedByUserId: "user_1",
+      enabled: true,
+      consecutiveFailures: 0,
+      timezone: "UTC",
+      cronExpression: "0 16 * * 5",
+      nextRunAt: new Date("2026-11-20T16:00:00.000Z"),
+    });
+    scheduleUpdateMock.mockResolvedValue({ id: "schedule_1" });
+
+    await new SokoBotControlPlane().updateSchedule({
+      userId: "user_1",
+      scheduleId: "schedule_1",
+      prompt: "Draft this week's announcement",
+    });
+
+    const granted = scheduleUpdateMock.mock.calls[0]?.[0]?.data
+      ?.capabilityNames as string[];
+    expect(granted).toContain("start_background_run");
+    expect(granted).not.toContain("delete_schedule");
   });
 
   it("recursively redacts sensitive admin presentation fields", async () => {
-    botFindUniqueMock.mockResolvedValue(
+    botFindFirstMock.mockResolvedValue(
       adminBot({
         name: "Soko",
         memoryHash: "hash",
@@ -3829,7 +4539,13 @@ describe("SokoBotControlPlane lifecycle", () => {
             userMessage: "password=turn-secret",
             finalAnswer: "token=answer-secret",
             events: [],
-            toolCalls: [{ result: { nested: "api_key=tool-secret" } }],
+            toolCalls: [
+              {
+                errorKind: "provider_error",
+                errorDetail: "Provider rejected the request (HTTP 429)",
+                result: { nested: "api_key=tool-secret" },
+              },
+            ],
             pendingDecisions: [
               {
                 proposal: {
@@ -3848,6 +4564,10 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
 
     const detail = await new SokoBotControlPlane().getForAdmin(BOT_ID);
+    expect(detail.turns[0].toolCalls[0]).toMatchObject({
+      errorKind: "provider_error",
+      errorDetail: "Provider rejected the request (HTTP 429)",
+    });
     const serialized = JSON.stringify(detail);
 
     for (const secret of [
@@ -3908,7 +4628,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     ]);
     const resetSession = vi.fn<SokoBotRuntime["resetSession"]>();
 
-    const detail = await new SokoBotControlPlane(
+    const { detail } = await new SokoBotControlPlane(
       runtimeWithReset(resetSession),
     ).performAdminAction({
       sokoBotId: BOT_ID,
@@ -3954,7 +4674,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     ]);
     turnFindFirstMock.mockResolvedValue(null);
 
-    const detail = await new SokoBotControlPlane().performAdminAction({
+    const { detail } = await new SokoBotControlPlane().performAdminAction({
       sokoBotId: BOT_ID,
       operatorId: "admin_1",
       action: "RESET_SESSION",
@@ -3969,6 +4689,39 @@ describe("SokoBotControlPlane lifecycle", () => {
         data: expect.objectContaining({ status: "SUCCEEDED" }),
       }),
     );
+  });
+
+  it("returns no drain grant on a successful admin retry replay while its turn has a lease", async () => {
+    const failedTurnId = "01960001-0001-7000-8000-000000000011";
+    const retry = {
+      id: "01960001-0001-7000-8000-000000000012",
+      source: "ADMIN_RETRY",
+      status: "RUNNING",
+      leaseToken: "01960001-0001-7000-8000-000000000013",
+    };
+    const input = {
+      sokoBotId: BOT_ID,
+      operatorId: "admin_1",
+      action: "RETRY_LAST_FAILED" as const,
+      reason: "Retry failed turn",
+      operationId: "successful-retry-replay",
+    };
+    botFindUniqueMock.mockResolvedValue(adminBot({ status: "RUNNING" }));
+    botFindFirstMock.mockResolvedValue(adminBot({ turns: [retry] }));
+    adminActionFindUniqueMock.mockResolvedValue({
+      ...input,
+      userId: "user_1",
+      targetId: failedTurnId,
+    });
+    adminActionFindFirstMock.mockResolvedValue({ status: "SUCCEEDED" });
+    const control = new SokoBotControlPlane();
+    const startTurn = vi.spyOn(control, "startTurn");
+
+    const { detail, reconciliation } = await control.performAdminAction(input);
+
+    expect(detail.turns).toMatchObject([retry]);
+    expect(reconciliation).toBeUndefined();
+    expect(startTurn).not.toHaveBeenCalled();
   });
 
   it("binds retry-last operation replay to its originally resolved failed turn", async () => {
@@ -4097,6 +4850,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     async (action) => {
       getEnvMock.mockReturnValue({
         SOKO_BOT_PROACTIVE_PAUSED: false,
+        SOKO_BOT_ANNOUNCEMENT_BOT_IDS: [],
         SOKO_BOT_ENABLED: false,
       });
       botFindUniqueMock.mockResolvedValue(adminBot());
@@ -4153,6 +4907,15 @@ describe("SokoBotControlPlane lifecycle", () => {
         capabilities: [],
         duplicate: false,
       });
+      if (systemKey === "meeting-prep") {
+        const build = vi
+          .spyOn(proactive, "buildSystemBeatMessage")
+          .mockResolvedValue({
+            message: "Calendar evidence",
+            nudgeKeys: [],
+          });
+        onTestFinished(() => build.mockRestore());
+      }
       const sharedBot = adminBot({
         userId: null,
         createdByUserId: "creator_1",
@@ -4167,6 +4930,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         status: "FAILED",
         attempt: 1,
         turnId: null,
+        scheduledFor: new Date("2026-11-19T13:30:00.000Z"),
         prompt: "Occurrence prompt",
         schedule: {
           sokoBotId: BOT_ID,
@@ -4204,6 +4968,226 @@ describe("SokoBotControlPlane lifecycle", () => {
       expect(memberFindManyMock).not.toHaveBeenCalled();
     },
   );
+
+  describe("meeting prep retries", () => {
+    const slot = new Date("2026-11-19T13:30:00.000Z");
+    const originalId = "01960001-0001-7001-8001-000000000041";
+    const latestId = "01960001-0001-7001-8001-000000000042";
+    const scheduleId = "01960001-0001-7001-8001-000000000043";
+    const runId = "01960001-0001-7001-8001-000000000044";
+    const freshMessage = "Water cooler talk with Alexa";
+    const staleMessage = "Water cooler talk with Tim and Phil's RSVP";
+    const schedule = {
+      sokoBotId: BOT_ID,
+      systemKey: "meeting-prep",
+      workspaceId: "workspace_1",
+      prompt: staleMessage,
+    };
+    const run = {
+      id: runId,
+      status: "FAILED",
+      attempt: 2,
+      turnId: null,
+      prompt: staleMessage,
+      scheduledFor: slot,
+      schedule,
+    };
+    const original = {
+      id: originalId,
+      source: "SCHEDULE",
+      workspaceId: "workspace_1",
+      clientTurnId: `schedule:${scheduleId}:${slot.toISOString()}`,
+      classifierVersion: "soko-bot-system-route-v1",
+      classification: {
+        rationaleSummary: "Meeting prep: brief the owner, change nothing.",
+      },
+      userMessage: staleMessage,
+      route: "DIRECT_RESPONSE",
+      capabilityNames: ["search_inbox"],
+    };
+    const legacyRetry = {
+      ...original,
+      id: latestId,
+      source: "ADMIN_RETRY",
+      clientTurnId: `admin-retry:${originalId}:old-operation`,
+      classification: {
+        rationaleSummary: "Operator retry on the failed turn's route.",
+      },
+    };
+
+    function setup() {
+      const bot = adminBot({
+        workspaceId: "workspace_1",
+        ingestTimezone: "Europe/Oslo",
+      });
+      botFindFirstMock.mockResolvedValue(bot);
+      botFindUniqueMock.mockResolvedValue(bot);
+      botFindUniqueOrThrowMock.mockResolvedValue(bot);
+      adminActionFindUniqueMock.mockResolvedValue(null);
+      scheduleRunFindFirstMock.mockResolvedValue(run);
+      turnFindFirstMock.mockImplementation(async ({ where }) =>
+        where.id === originalId ? original : legacyRetry,
+      );
+      turnFindUniqueMock.mockResolvedValue(null);
+      const build = vi
+        .spyOn(proactive, "buildSystemBeatMessage")
+        .mockResolvedValue({ message: freshMessage, nudgeKeys: [] });
+      onTestFinished(() => build.mockRestore());
+      const control = new SokoBotControlPlane();
+      const start = vi.spyOn(control, "startTurn").mockResolvedValue({
+        turnId: "retry",
+        sokoBotId: BOT_ID,
+        sessionId: "session",
+        status: "RUNNING",
+        route: "DIRECT_RESPONSE",
+        capabilities: [],
+        duplicate: false,
+      });
+      return {
+        start,
+        build,
+        retry(
+          action: "RETRY_LAST_FAILED" | "RETRY_SCHEDULE_RUN",
+          targetId: string,
+        ) {
+          return control.performAdminAction({
+            action,
+            targetId,
+            sokoBotId: BOT_ID,
+            operatorId: "admin_1",
+            reason: "Recover the brief",
+            operationId: "recover-meeting",
+          });
+        },
+      };
+    }
+
+    it.each(["RETRY_LAST_FAILED", "RETRY_SCHEDULE_RUN"] as const)(
+      "rebuilds %s from its original calendar slot and the current prompt",
+      async (action) => {
+        const { start, build, retry } = setup();
+        await retry(action, action === "RETRY_LAST_FAILED" ? latestId : runId);
+        expect(build).toHaveBeenCalledWith(
+          expect.objectContaining({
+            key: "meeting-prep",
+            now: slot,
+            prompt: expect.stringContaining("Address the owner as you."),
+          }),
+        );
+        expect(start).toHaveBeenCalledWith(
+          expect.objectContaining({
+            message: freshMessage,
+            presetRoute: expect.objectContaining({
+              systemKey: "meeting-prep",
+              capabilities: [],
+              meetingPrepSlot: slot.toISOString(),
+            }),
+          }),
+        );
+      },
+    );
+
+    it("resolves a prior schedule-run retry through the bot's original run", async () => {
+      const { retry, start } = setup();
+      turnFindFirstMock.mockResolvedValue({
+        ...legacyRetry,
+        clientTurnId: `admin-schedule-retry:${runId}:older-operation`,
+      });
+      await retry("RETRY_LAST_FAILED", latestId);
+      expect(scheduleRunFindFirstMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: runId, schedule: { sokoBotId: BOT_ID } },
+        }),
+      );
+      expect(start).toHaveBeenCalledWith(
+        expect.objectContaining({ message: freshMessage }),
+      );
+    });
+
+    it("refuses to resume a previously bound legacy packet with a generic preset", async () => {
+      const { retry, start, build } = setup();
+      const id = "older-reservation";
+      const bound = {
+        ...legacyRetry,
+        id,
+        clientTurnId: `admin-schedule-retry:${runId}:${adminRetryOperationKey("recover-meeting")}`,
+      };
+      scheduleRunFindFirstMock.mockResolvedValue({
+        ...run,
+        status: "RUNNING",
+        turnId: id,
+        turn: bound,
+      });
+      turnFindUniqueMock.mockResolvedValue({ id });
+      await expect(retry("RETRY_SCHEDULE_RUN", runId)).rejects.toThrow(
+        "earlier brief",
+      );
+      expect(start).not.toHaveBeenCalled();
+      expect(build).not.toHaveBeenCalled();
+    });
+
+    it("preserves a chat retry even when its client id resembles a schedule", async () => {
+      const { retry, start, build } = setup();
+      turnFindFirstMock.mockImplementation(async ({ where }) =>
+        where.id === originalId ? { ...original, source: "CHAT" } : legacyRetry,
+      );
+      await retry("RETRY_LAST_FAILED", latestId);
+      expect(start).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: staleMessage,
+          presetRoute: expect.not.objectContaining({
+            systemKey: "meeting-prep",
+          }),
+        }),
+      );
+      expect(build).not.toHaveBeenCalled();
+    });
+
+    it("suppresses a legacy admin retry when its parent no longer exists", async () => {
+      const { retry, start } = setup();
+      turnFindFirstMock.mockImplementation(async ({ where }) =>
+        where.id === originalId ? null : legacyRetry,
+      );
+      await expect(retry("RETRY_LAST_FAILED", latestId)).rejects.toThrow(
+        "original occurrence",
+      );
+      expect(start).not.toHaveBeenCalled();
+    });
+
+    it("suppresses an empty original meeting window instead of replaying the saved text", async () => {
+      const { retry, start, build } = setup();
+      build.mockResolvedValue({ message: "", nudgeKeys: [], skip: true });
+      await expect(retry("RETRY_SCHEDULE_RUN", runId)).rejects.toThrow(
+        "meeting evidence",
+      );
+      expect(start).not.toHaveBeenCalled();
+    });
+
+    it("resumes an already rebuilt retry from the same operation without reading the calendar again", async () => {
+      const { retry, start, build } = setup();
+      const rebuilt = {
+        ...legacyRetry,
+        userMessage: freshMessage,
+        classification: {
+          systemKey: "meeting-prep",
+          meetingPrepSlot: slot.toISOString(),
+        },
+      };
+      turnFindUniqueMock.mockResolvedValue(rebuilt);
+      // The trusted reservation must survive pruning of a legacy parent.
+      turnFindFirstMock.mockImplementation(async ({ where }) =>
+        where.id === originalId ? null : legacyRetry,
+      );
+      await retry("RETRY_LAST_FAILED", latestId);
+      expect(build).not.toHaveBeenCalled();
+      expect(start).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: freshMessage,
+          presetRoute: expect.objectContaining({ capabilities: [] }),
+        }),
+      );
+    });
+  });
 
   it("uses immutable occurrence prompt and avoids post-start schedule-run mutation for admin retry", async () => {
     const controlPlane = new SokoBotControlPlane();
@@ -4614,6 +5598,10 @@ describe("SokoBotControlPlane lifecycle", () => {
     const settled = await new SokoBotControlPlane().expireTurn("turn_1");
 
     expect(settled).toBe(true);
+    expect(turnFindFirstMock.mock.calls[0]?.[0]?.where).toStrictEqual({
+      id: "turn_1",
+      status: { in: ["QUEUED", "STARTING", "RUNNING", "CANCEL_REQUESTED"] },
+    });
     expect(transactionMock).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: "Serializable",
     });
@@ -4664,6 +5652,8 @@ describe("SokoBotControlPlane lifecycle", () => {
       chargedCents: 5n,
       expectedCents: 5n,
       shortfall: false,
+      organizationId: null,
+      cusoProjectId: null,
     });
     let insideTransaction = false;
     let notifiedInsideTransaction: boolean | null = null;
@@ -4686,7 +5676,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     const settled = await new SokoBotControlPlane().expireTurn("turn_1");
 
     expect(settled).toBe(true);
-    // After the transaction, on the personal wallet Soko Bot turns bill.
+    // After the transaction, on the wallet the turn was charged to.
     expect(notifiedInsideTransaction).toBe(false);
     expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
       userId: "user_1",
@@ -4710,6 +5700,8 @@ describe("SokoBotControlPlane lifecycle", () => {
       chargedCents: 5n,
       expectedCents: 5n,
       shortfall: false,
+      organizationId: null,
+      cusoProjectId: null,
     });
 
     const settled = await new SokoBotControlPlane().expireTurn("turn_1");
@@ -4721,19 +5713,115 @@ describe("SokoBotControlPlane lifecycle", () => {
     });
   });
 
-  it("settles a no-session cancellation only under its current lease", async () => {
-    turnFindFirstMock.mockResolvedValue({ leaseToken: "cancel-lease-1" });
+  it("checks the Organization wallet a turn in an Organization workspace drew on", async () => {
     turnFindUniqueMock.mockResolvedValue({
+      sokoBotId: BOT_ID,
+      requestedByUserId: "user_1",
+      eveSessionId: "session_1",
+      startedAt: new Date(Date.now() - 5_000),
+      costUsdMicros: 0n,
+      status: "RUNNING",
+      leaseToken: "lease_1",
+      scheduleRun: null,
+    });
+    turnUpdateManyMock.mockResolvedValue({ count: 1 });
+    botUpdateManyMock.mockResolvedValue({ count: 1 });
+    recordUsageMock.mockResolvedValue({
+      chargedCents: 5n,
+      expectedCents: 5n,
+      shortfall: false,
+      organizationId: "org_1",
+      cusoProjectId: null,
+    });
+
+    await new SokoBotControlPlane().expireTurn("turn_1");
+
+    // Not the member's personal wallet: a new Organization owner has none,
+    // and was told "0 left" while the Organization held 249 credits.
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
+      userId: "user_1",
+      organizationId: "org_1",
+    });
+    expect(notifyCusoLowCreditsAfterChargeMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["an empty pool and a healthy Project balance", "plenty"],
+    ["a low Project balance", "low"],
+  ])(
+    "sends no pool notice for a Cuso's charge paid from his Project credits, with %s",
+    async () => {
+      turnFindUniqueMock.mockResolvedValue({
+        sokoBotId: BOT_ID,
+        requestedByUserId: "user_1",
+        eveSessionId: "session_1",
+        startedAt: new Date(Date.now() - 5_000),
+        costUsdMicros: 0n,
+        status: "RUNNING",
+        leaseToken: "lease_1",
+        scheduleRun: null,
+      });
+      turnUpdateManyMock.mockResolvedValue({ count: 1 });
+      botUpdateManyMock.mockResolvedValue({ count: 1 });
+      recordUsageMock.mockResolvedValue({
+        chargedCents: 5n,
+        expectedCents: 5n,
+        shortfall: false,
+        organizationId: "org_1",
+        cusoProjectId: "01960001-0001-7001-8001-0000000000aa",
+      });
+
+      await new SokoBotControlPlane().expireTurn("turn_1");
+
+      // The only low-credit notice sends him to Sokosumi's pool top-up,
+      // which CMO does not offer; his Project's notice belongs to CMO.
+      expect(notifyLowBalanceAfterChargeMock).not.toHaveBeenCalled();
+      // His own notice instead, on his Project, after the charge committed.
+      expect(notifyCusoLowCreditsAfterChargeMock).toHaveBeenCalledWith(
+        "01960001-0001-7001-8001-0000000000aa",
+      );
+    },
+  );
+
+  it("sends a Cuso in free hiring no low-credit notice, because nothing was charged", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      sokoBotId: BOT_ID,
+      requestedByUserId: "user_1",
+      eveSessionId: "session_1",
+      startedAt: new Date(Date.now() - 5_000),
+      costUsdMicros: 0n,
+      status: "RUNNING",
+      leaseToken: "lease_1",
+      scheduleRun: null,
+    });
+    turnUpdateManyMock.mockResolvedValue({ count: 1 });
+    botUpdateManyMock.mockResolvedValue({ count: 1 });
+    recordUsageMock.mockResolvedValue({
+      chargedCents: 0n,
+      expectedCents: 5n,
+      shortfall: false,
+      organizationId: null,
+      cusoProjectId: "01960001-0001-7001-8001-0000000000aa",
+    });
+
+    await new SokoBotControlPlane().expireTurn("turn_1");
+
+    expect(notifyCusoLowCreditsAfterChargeMock).not.toHaveBeenCalled();
+    expect(notifyLowBalanceAfterChargeMock).not.toHaveBeenCalled();
+  });
+
+  it("claims a fresh lease to settle a no-session cancellation", async () => {
+    turnFindUniqueMock.mockImplementation(async () => ({
       sokoBotId: BOT_ID,
       requestedByUserId: "user_1",
       eveSessionId: null,
       startedAt: null,
       costUsdMicros: 0n,
       status: "CANCEL_REQUESTED",
-      leaseToken: "cancel-lease-1",
+      leaseToken: turnUpdateManyMock.mock.calls[0]?.[0].data.leaseToken,
       cancellationRequestedAt: new Date(),
       scheduleRun: null,
-    });
+    }));
 
     const settled =
       await new SokoBotControlPlane().settleUndeliverableCancellation(
@@ -4745,7 +5833,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           id: "turn_cancelled_before_acceptance",
-          leaseToken: "cancel-lease-1",
+          leaseToken: expect.any(String),
           eveSessionId: null,
         }),
         data: expect.objectContaining({ status: "CANCELLED" }),
@@ -4774,6 +5862,75 @@ describe("updateVersion", () => {
       ),
     ).rejects.toThrow("CMO's own version");
   });
+
+  it("writes off Cuso's Project credits when the admin lab moves him off CMO", async () => {
+    vi.clearAllMocks();
+    botFindFirstMock.mockResolvedValueOnce(
+      adminBot({
+        userId: null,
+        versionId: CMO_SOKO_BOT_VERSION_ID,
+        workspace: { organizationId: "org_1" },
+      }),
+    );
+    botUpdateManyMock.mockResolvedValue({ count: 1 });
+
+    await new SokoBotControlPlane().updateVersion(
+      "admin_1",
+      "workspace_1",
+      "v19",
+      { allowUnpromoted: true },
+      { kind: "id", sokoBotId: BOT_ID },
+    );
+
+    expect(forfeitIfLeavingCmoMock).toHaveBeenCalledExactlyOnceWith(
+      BOT_ID,
+      "v19",
+      expect.objectContaining({ sokoBot: expect.any(Object) }),
+    );
+    expect(forfeitIfLeavingCmoMock.mock.invocationCallOrder[0]).toBeLessThan(
+      botUpdateManyMock.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  it("ends Cuso's subscription before the admin lab's version change, and changes nothing when Polar refuses", async () => {
+    vi.clearAllMocks();
+    const cuso = adminBot({
+      userId: null,
+      versionId: CMO_SOKO_BOT_VERSION_ID,
+      workspace: { organizationId: "org_1" },
+    });
+    botFindFirstMock.mockResolvedValue(cuso);
+    botUpdateManyMock.mockResolvedValue({ count: 1 });
+    const move = () =>
+      new SokoBotControlPlane().updateVersion(
+        "admin_1",
+        "workspace_1",
+        "v19",
+        { allowUnpromoted: true },
+        { kind: "id", sokoBotId: BOT_ID },
+      );
+
+    await move();
+
+    expect(revokeSubscriptionIfLeavingCmoMock).toHaveBeenCalledExactlyOnceWith(
+      BOT_ID,
+      "v19",
+    );
+    expect(
+      revokeSubscriptionIfLeavingCmoMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(forfeitIfLeavingCmoMock.mock.invocationCallOrder[0] ?? 0);
+
+    vi.clearAllMocks();
+    botFindFirstMock.mockResolvedValue(cuso);
+    revokeSubscriptionIfLeavingCmoMock.mockRejectedValueOnce(
+      new Error("polar refused"),
+    );
+
+    await expect(move()).rejects.toThrow("polar refused");
+
+    expect(forfeitIfLeavingCmoMock).not.toHaveBeenCalled();
+    expect(botUpdateManyMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("SET_VERSION and fleet migration", () => {
@@ -4787,6 +5944,7 @@ describe("SET_VERSION and fleet migration", () => {
     });
     getEnvMock.mockReturnValue({
       SOKO_BOT_PROACTIVE_PAUSED: false,
+      SOKO_BOT_ANNOUNCEMENT_BOT_IDS: [],
       SOKO_BOT_ENABLED: true,
     });
     adminActionCreateMock.mockResolvedValue({});
@@ -4823,6 +5981,102 @@ describe("SET_VERSION and fleet migration", () => {
     expect(audit).toMatchObject({ status: "SUCCEEDED", targetId: "v16" });
     expect(audit.before).toMatchObject({ versionId: "v14" });
     expect(audit.after).toMatchObject({ versionId: "v16" });
+  });
+
+  it("writes off Cuso's Project credits when he moves to a version outside CMO", async () => {
+    botFindUniqueMock.mockResolvedValue(
+      adminBot({ userId: null, versionId: CMO_SOKO_BOT_VERSION_ID }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+
+    await new SokoBotControlPlane().performAdminAction({
+      sokoBotId: BOT_ID,
+      operatorId: "admin_1",
+      action: "SET_VERSION",
+      versionId: "v16",
+      reason: "Move Cuso to the assistant",
+      operationId: "cuso-off-cmo",
+    });
+
+    // In the version change's transaction, before the write: the helper
+    // still reads him as a live Cuso.
+    expect(forfeitIfLeavingCmoMock).toHaveBeenCalledExactlyOnceWith(
+      BOT_ID,
+      "v16",
+      expect.objectContaining({ sokoBot: expect.any(Object) }),
+    );
+    expect(forfeitIfLeavingCmoMock.mock.invocationCallOrder[0]).toBeLessThan(
+      botUpdateMock.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  it("ends Cuso's subscription before SET_VERSION, and changes nothing when Polar refuses", async () => {
+    botFindUniqueMock.mockResolvedValue(
+      adminBot({ userId: null, versionId: CMO_SOKO_BOT_VERSION_ID }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+    const move = (operationId: string) =>
+      new SokoBotControlPlane().performAdminAction({
+        sokoBotId: BOT_ID,
+        operatorId: "admin_1",
+        action: "SET_VERSION",
+        versionId: "v16",
+        reason: "Move Cuso to the assistant",
+        operationId,
+      });
+
+    await move("cuso-off-cmo-revoke");
+
+    expect(revokeSubscriptionIfLeavingCmoMock).toHaveBeenCalledExactlyOnceWith(
+      BOT_ID,
+      "v16",
+    );
+    expect(
+      revokeSubscriptionIfLeavingCmoMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(forfeitIfLeavingCmoMock.mock.invocationCallOrder[0] ?? 0);
+
+    vi.clearAllMocks();
+    revokeSubscriptionIfLeavingCmoMock.mockRejectedValueOnce(
+      new Error("polar refused"),
+    );
+
+    await expect(move("cuso-off-cmo-refused")).rejects.toThrow("polar refused");
+
+    expect(forfeitIfLeavingCmoMock).not.toHaveBeenCalled();
+    expect(botUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("asks the write-off about a move between CMO versions too", async () => {
+    botFindUniqueMock.mockResolvedValue(
+      adminBot({ userId: null, versionId: CMO_SOKO_BOT_VERSION_ID }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+
+    await new SokoBotControlPlane().performAdminAction({
+      sokoBotId: BOT_ID,
+      operatorId: "admin_1",
+      action: "SET_VERSION",
+      versionId: CMO_SOKO_BOT_VERSION_IDS.at(-1) as string,
+      reason: "Next CMO version",
+      operationId: "cuso-cmo-to-cmo",
+    });
+
+    expect(botUpdateMock).toHaveBeenCalled();
+    // The helper keeps the credits for a CMO version (its own test).
+    expect(forfeitIfLeavingCmoMock).toHaveBeenCalledWith(
+      BOT_ID,
+      CMO_SOKO_BOT_VERSION_IDS.at(-1),
+      expect.any(Object),
+    );
   });
 
   it("refuses an unknown version before it writes an intent", async () => {
@@ -4918,7 +6172,10 @@ describe("SET_VERSION and fleet migration", () => {
       ...data,
     }));
     postOwnerNoticeMock.mockReset().mockRejectedValue(new Error("Ably down"));
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not tell a Soko Bot's owner about its version move",
+    );
 
     const result = await new SokoBotControlPlane().migrateVersions({
       operatorId: "admin_1",
@@ -4928,7 +6185,50 @@ describe("SET_VERSION and fleet migration", () => {
     });
 
     expect(result).toMatchObject({ moved: 1, notified: 0, failed: 0 });
-    warn.mockRestore();
+    expect(warnings[0]).toMatchObject({
+      why: "Posting the version notice in the owner's chat failed",
+    });
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "soko_bot_turn",
+      versionNoticeFailures: [
+        { sokoBotId: expect.any(String), errorName: "Error" },
+      ],
+    });
+  });
+
+  it("names every bot whose notice could not be posted", async () => {
+    botFindManyMock.mockResolvedValue([
+      { id: "bot-a", versionId: "v16" },
+      { id: "bot-b", versionId: "v16" },
+    ]);
+    botFindUniqueMock.mockImplementation(async ({ where }) =>
+      adminBot({ id: where.id, versionId: "v16" }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+    postOwnerNoticeMock.mockReset().mockRejectedValue(new Error("Ably down"));
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not tell a Soko Bot's owner about its version move",
+      2,
+    );
+    // Both warnings sit on one event, the admin's migrate request.
+    await inRequest(() =>
+      new SokoBotControlPlane().migrateVersions({
+        operatorId: "admin_1",
+        toVersionId: "v19",
+        reason: "Move the fleet to Luna",
+        notifyOwners: true,
+      }),
+    );
+
+    expect(warnings[0]?.event).toBe(warnings[1]?.event);
+    expect(warnings[0]?.event.versionNoticeFailures).toEqual([
+      { sokoBotId: "bot-a", errorName: "Error" },
+      { sokoBotId: "bot-b", errorName: "Error" },
+    ]);
   });
 
   it("posts nothing unless asked to", async () => {

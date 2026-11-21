@@ -42,6 +42,7 @@ import {
   hasValidX402DiscoveryUrl,
 } from "@/helpers/x402-readiness";
 import prisma from "@/lib/db/prisma";
+import { recordCoreWarning, tryUseLiveLogger } from "@/lib/evlog";
 import { agentListSchema } from "@/schemas/agent.schema";
 import {
   cursorPaginationMetaSchema,
@@ -133,14 +134,20 @@ function logX402ListingDrops(
   if (dropsByReason.size === 0) {
     return;
   }
-  const summary = JSON.stringify(Object.fromEntries(dropsByReason));
+  const x402Listing = { dropsByReason: Object.fromEntries(dropsByReason) };
   if (listedCount === 0 && isUnfilteredFirstPage && !hasMore) {
-    console.warn(
-      `[agents] every x402 candidate agent was dropped as unpayable: ${summary}`,
+    recordCoreWarning(
+      { operation: "agents_list" },
+      {
+        message: "Every x402 candidate agent was dropped as unpayable",
+        why: "No candidate agent passed the x402 payability checks",
+        fix: "Check the payment node's buy-side readiness and the agents' payment sources; dropsByReason names the check each agent failed.",
+      },
+      { x402Listing },
     );
     return;
   }
-  console.debug(`[agents] non-payable x402 agents by reason: ${summary}`);
+  tryUseLiveLogger()?.set({ x402Listing });
 }
 
 function listedPaymentSources(agent: {
@@ -317,7 +324,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHono) {
   app.openapi(route, async (c) => {
     const queryParams = c.req.valid("query");
-    const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const { cursor, take } = parseCursorPagination(queryParams);
     const { category: categorySlugs } = queryParams;
     const kinds: AgentListKind[] = queryParams.kind ?? [...AGENT_LIST_KINDS];
     const includeCardano = kinds.includes("cardano");
@@ -354,8 +361,7 @@ export default function mount(app: OpenAPIHono) {
         prisma.agent.findMany({
           where,
           take: takePlusOne,
-          skip,
-          cursor: cursor ? { id: cursor } : undefined,
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
           orderBy: [...agentOrderBy, { id: "desc" }],
           include: {
             ...agentPricingInclude,

@@ -1,5 +1,5 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { clearMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
 import { updatePreferredOrganization } from "@/lib/actions/organization/action";
 import {
@@ -120,42 +120,37 @@ describe("activateOrganizationWorkspace", () => {
       },
     });
 
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const consoleErrorSpy = expectConsole(
+      "error",
+      "Failed to persist preferred organization",
+    );
 
-    await expect(
-      activateOrganizationWorkspace("org-7"),
-    ).resolves.toBeUndefined();
+    await expect(activateOrganizationWorkspace("org-7")).resolves.toBe(false);
 
     expect(authClient.organization.setActive).toHaveBeenCalledWith({
       organizationId: "org-7",
     });
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
+    expect(consoleErrorSpy).toContainEqual([
       "Failed to persist preferred organization:",
       {
         code: "UNAUTHORIZED",
       },
-    );
-
-    consoleErrorSpy.mockRestore();
+    ]);
   });
 
   it("retries setActive once and reports failure after two errors", async () => {
+    expectConsole("error", "Organization workspace activation retry failed");
     vi.mocked(authClient.organization.setActive).mockResolvedValue({
       data: null,
       error: { message: "setActive failed" },
     });
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Organization workspace activation failed");
 
     await expect(activateOrganizationWorkspaceWithRetry("org-7")).resolves.toBe(
       false,
     );
 
     expect(authClient.organization.setActive).toHaveBeenCalledTimes(2);
-    consoleErrorSpy.mockRestore();
   });
 
   it("succeeds on the second setActive attempt", async () => {
@@ -172,16 +167,13 @@ describe("activateOrganizationWorkspace", () => {
       ok: true,
       value: { organizationId: "org-7" },
     });
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Organization workspace activation failed");
 
     await expect(activateOrganizationWorkspaceWithRetry("org-7")).resolves.toBe(
       true,
     );
 
     expect(authClient.organization.setActive).toHaveBeenCalledTimes(2);
-    consoleErrorSpy.mockRestore();
   });
 });
 

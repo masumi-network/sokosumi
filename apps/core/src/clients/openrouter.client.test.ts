@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 
 const {
   generateTextMock,
@@ -91,36 +92,63 @@ describe("openrouter.client", () => {
 
   it("returns null when agent summary generation fails, so sync retries", async () => {
     generateTextMock.mockRejectedValue(new Error("timeout"));
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const errors = expectCoreLogWhys(
+      "error",
+      "OpenRouter agent summary generation failed",
+      ["The OpenRouter text generation call failed"],
+    );
 
-    try {
-      const { openrouterClient } = await import("./openrouter.client");
+    const { openrouterClient } = await import("./openrouter.client");
 
-      await expect(
-        openrouterClient.generateAgentSummary("Landing page teardown agent"),
-      ).resolves.toBeNull();
-    } finally {
-      consoleErrorSpy.mockRestore();
-    }
+    await expect(
+      openrouterClient.generateAgentSummary("Landing page teardown agent"),
+    ).resolves.toBeNull();
+    expect(errors[0]?.event).toMatchObject({
+      provider: "openrouter",
+      generation: "agent summary generation",
+      failure: { errorName: "Error" },
+    });
   });
 
   it("returns null when generateText throws trailing bytes", async () => {
     generateTextMock.mockRejectedValue(new Error("479 trailing bytes"));
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectCoreLogWhys("error", "OpenRouter task name generation failed", [
+      "The OpenRouter text generation call failed",
+    ]);
 
-    try {
-      const { openrouterClient } = await import("./openrouter.client");
+    const { openrouterClient } = await import("./openrouter.client");
 
-      await expect(
-        openrouterClient.generateTaskName("Build landing page"),
-      ).resolves.toBeNull();
-    } finally {
-      consoleErrorSpy.mockRestore();
-    }
+    await expect(
+      openrouterClient.generateTaskName("Build landing page"),
+    ).resolves.toBeNull();
+  });
+
+  it("keeps the provider's text, which can quote the prompt, out of the log", async () => {
+    generateTextMock.mockRejectedValue(
+      Object.assign(
+        new Error("Rejected prompt: Build Ada's secret launch page"),
+        {
+          name: "AI_APICallError",
+          statusCode: 400,
+        },
+      ),
+    );
+    const errors = expectCoreLogWhys(
+      "error",
+      "OpenRouter task name generation failed",
+      ["The OpenRouter text generation call failed"],
+    );
+
+    const { openrouterClient } = await import("./openrouter.client");
+
+    await expect(
+      openrouterClient.generateTaskName("Build Ada's secret launch page"),
+    ).resolves.toBeNull();
+    expect(errors[0]?.cause).toBeUndefined();
+    expect(errors[0]?.event).toMatchObject({
+      failure: { errorName: "AI_APICallError", status: 400 },
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("secret launch");
   });
 
   it("returns null without calling generateText when OpenRouter is not configured", async () => {

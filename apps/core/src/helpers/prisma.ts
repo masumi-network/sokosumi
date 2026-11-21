@@ -36,7 +36,8 @@ export function isPrismaForeignKeyViolation(error: unknown): boolean {
 }
 
 /**
- * Returns true when Postgres aborted a transaction due to concurrent writes.
+ * Returns true when Postgres aborted a transaction due to concurrent writes:
+ * a serialization failure or a deadlock.
  * Prisma surfaces this as P2034; the pg driver adapter can also raise
  * `DriverAdapterError: TransactionWriteConflict` without a Prisma code.
  */
@@ -73,9 +74,13 @@ export function isPrismaTransactionConflict(error: unknown): boolean {
     return true;
   }
   // Raw queries (SELECT … FOR UPDATE) surface the Postgres serialization
-  // failure directly: SQLSTATE 40001.
+  // failure directly: SQLSTATE 40001, or 40P01 for a deadlock. The driver
+  // adapter files both under TransactionWriteConflict.
   return (
-    /\b40001\b/.test(message) || /could not serialize access/i.test(message)
+    /\b40001\b/.test(message) ||
+    /could not serialize access/i.test(message) ||
+    /\b40P01\b/.test(message) ||
+    /deadlock detected/i.test(message)
   );
 }
 
@@ -176,6 +181,20 @@ export function isBlockchainIdentifierUniqueConstraintError(
  */
 export function isIdempotencyKeyUniqueConstraintError(error: unknown): boolean {
   return isPrismaUniqueViolationOnField(error, "idempotencyKey");
+}
+
+/**
+ * Credit bucket @@unique([referenceId, referenceType]): the grant of this
+ * reference exists. Scoped so another unique violation in the same
+ * transaction is not taken for an earlier grant.
+ */
+export function isCreditBucketReferenceUniqueConstraintError(
+  error: unknown,
+): boolean {
+  return (
+    isPrismaUniqueViolationOnField(error, "referenceId") &&
+    isPrismaUniqueViolationOnField(error, "referenceType")
+  );
 }
 
 /**

@@ -23,6 +23,7 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
   },
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@/lib/utils/workspace-approval";
 
@@ -81,6 +82,10 @@ describe("handleNotificationNavigation", () => {
   });
 
   it("navigates directly when workspaceId is missing", async () => {
+    expectConsole(
+      "warn",
+      "Notification missing workspaceId, navigating without workspace switch",
+    );
     await handleNotificationNavigation(
       createNotification({ metadata: { projectId: "project_1" } }),
       "org_1",
@@ -89,7 +94,7 @@ describe("handleNotificationNavigation", () => {
       t,
     );
 
-    expect(pushMock).toHaveBeenCalledWith("/tasks/task_1");
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task_1/result");
     expect(getWorkspaceOrganizationIdMock).not.toHaveBeenCalled();
     expect(handleSelectWorkspace).not.toHaveBeenCalled();
   });
@@ -109,7 +114,7 @@ describe("handleNotificationNavigation", () => {
       shouldRedirectAgentJobsBasePath: false,
       successMessage: "switched:Org One",
     });
-    expect(pushMock).toHaveBeenCalledWith("/tasks/task_1");
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task_1/result");
   });
 
   it("navigates without switching when active org already matches", async () => {
@@ -124,10 +129,14 @@ describe("handleNotificationNavigation", () => {
     );
 
     expect(handleSelectWorkspace).not.toHaveBeenCalled();
-    expect(pushMock).toHaveBeenCalledWith("/tasks/task_1");
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task_1/result");
   });
 
   it("navigates without switching when workspace lookup fails", async () => {
+    expectConsole(
+      "warn",
+      "Failed to resolve workspace organization, navigating without workspace switch",
+    );
     getWorkspaceOrganizationIdMock.mockResolvedValueOnce(undefined);
 
     await handleNotificationNavigation(
@@ -139,10 +148,14 @@ describe("handleNotificationNavigation", () => {
     );
 
     expect(handleSelectWorkspace).not.toHaveBeenCalled();
-    expect(pushMock).toHaveBeenCalledWith("/tasks/task_1");
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task_1/result");
   });
 
   it("still switches and navigates when account name lookup fails", async () => {
+    expectConsole(
+      "warn",
+      "Failed to resolve workspace account name for notification switch",
+    );
     getWorkspaceOrganizationIdMock.mockResolvedValueOnce("org_1");
     getMyMembersWithOrganizationsMock.mockRejectedValueOnce(
       new Error("members unavailable"),
@@ -160,10 +173,11 @@ describe("handleNotificationNavigation", () => {
       shouldRedirectAgentJobsBasePath: false,
       successMessage: undefined,
     });
-    expect(pushMock).toHaveBeenCalledWith("/tasks/task_1");
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task_1/result");
   });
 
   it("does not navigate when workspace switch fails", async () => {
+    expectConsole("warn", "Failed to switch workspace for notification");
     getWorkspaceOrganizationIdMock.mockResolvedValueOnce("org_1");
     handleSelectWorkspace.mockRejectedValueOnce(new Error("switch failed"));
 
@@ -259,6 +273,7 @@ describe("handleNotificationNavigation", () => {
     );
 
     it("switches with the usual notice for a room the reader has left", async () => {
+      expectConsole("warn", "Failed to read notification room");
       getWorkspaceOrganizationIdMock.mockResolvedValueOnce("org_1");
       getChatRoomMock.mockRejectedValueOnce(new Error("Room not found"));
 

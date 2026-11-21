@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const createMyFileUploadSessionMock = vi.fn();
 const createOrganizationLogoUploadSessionMock = vi.fn();
+const createVendorLogoUploadSessionMock = vi.fn();
+const cleanupOrganizationLogoMock = vi.fn();
+const cleanupVendorLogoMock = vi.fn();
 
 vi.mock("@/lib/clients/core.browser.client", async () => {
   const actual = await vi.importActual<
@@ -15,12 +18,18 @@ vi.mock("@/lib/clients/core.browser.client", async () => {
         createMyFileUploadSessionMock(...args),
       createOrganizationLogoUploadSession: (...args: unknown[]) =>
         createOrganizationLogoUploadSessionMock(...args),
+      createVendorLogoUploadSession: (...args: unknown[]) =>
+        createVendorLogoUploadSessionMock(...args),
+      cleanupOrganizationLogo: (...args: unknown[]) =>
+        cleanupOrganizationLogoMock(...args),
+      cleanupVendorLogo: (...args: unknown[]) => cleanupVendorLogoMock(...args),
     },
   };
 });
 
 import { CoreApiRequestError } from "@/lib/clients/core.browser.client";
 import {
+  cleanupOwnedLogoBestEffort,
   getUserFileUploadErrorMessage,
   UserFileUploadError,
   uploadInputDataFiles,
@@ -381,6 +390,63 @@ describe("user-file-upload.client", () => {
     const error = new Error("Aborted");
     error.name = "AbortError";
     expect(getUserFileUploadErrorMessage(error)).toBe("Upload canceled.");
+  });
+
+  it("dispatches logo mint and cleanup by owner kind", async () => {
+    const file = new File(["logo"], "logo.png", { type: "image/png" });
+    createOrganizationLogoUploadSessionMock.mockResolvedValue(grantSession());
+    createVendorLogoUploadSessionMock.mockResolvedValue(grantSession());
+    stubSuccessfulXhr({
+      url: "https://blob.example/logo.png",
+      pathname: "logos/logo.png",
+      downloadUrl: "https://blob.example/download/logo.png",
+      etag: '"etag"',
+    });
+
+    await uploadOwnedLogoDirect({
+      kind: "organization",
+      ownerId: "org_123",
+      file,
+    });
+    await uploadOwnedLogoDirect({
+      kind: "vendor",
+      ownerId: "vendor_123",
+      file,
+    });
+
+    expect(createOrganizationLogoUploadSessionMock).toHaveBeenCalledWith(
+      "org_123",
+      expect.objectContaining({
+        filename: "logo.png",
+        contentType: "image/png",
+      }),
+    );
+    expect(createVendorLogoUploadSessionMock).toHaveBeenCalledWith(
+      "vendor_123",
+      expect.objectContaining({
+        filename: "logo.png",
+        contentType: "image/png",
+      }),
+    );
+    expect(createMyFileUploadSessionMock).not.toHaveBeenCalled();
+
+    await cleanupOwnedLogoBestEffort(
+      "organization",
+      "org_123",
+      "https://blob.example/old-org.png",
+    );
+    await cleanupOwnedLogoBestEffort(
+      "vendor",
+      "vendor_123",
+      "https://blob.example/old-vendor.png",
+    );
+
+    expect(cleanupOrganizationLogoMock).toHaveBeenCalledWith("org_123", {
+      url: "https://blob.example/old-org.png",
+    });
+    expect(cleanupVendorLogoMock).toHaveBeenCalledWith("vendor_123", {
+      url: "https://blob.example/old-vendor.png",
+    });
   });
 
   it("uses the owned-logo error mapper when mint fails", async () => {

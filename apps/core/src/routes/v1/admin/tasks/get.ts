@@ -40,7 +40,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const queryParams = c.req.valid("query");
-    const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const { cursor, take } = parseCursorPagination(queryParams);
     const term = queryParams.query?.trim();
 
     const where: Prisma.TaskWhereInput = term
@@ -73,8 +73,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma.task.findMany({
         where,
         take: takePlusOne,
-        skip,
-        cursor: cursor ? { id: cursor } : undefined,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         include: {
           owner: { select: { id: true, name: true, email: true } },

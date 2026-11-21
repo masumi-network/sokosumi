@@ -1,16 +1,20 @@
 import { HTTPException } from "hono/http-exception";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getRedisClientMock, redisEvalMock, loggerSetMock, tryUseLoggerMock } =
-  vi.hoisted(() => ({
-    getRedisClientMock: vi.fn(),
-    redisEvalMock: vi.fn(),
-    loggerSetMock: vi.fn(),
-    tryUseLoggerMock: vi.fn(),
-  }));
+const {
+  getRedisRateLimitClientMock,
+  redisEvalMock,
+  loggerSetMock,
+  tryUseLoggerMock,
+} = vi.hoisted(() => ({
+  getRedisRateLimitClientMock: vi.fn(),
+  redisEvalMock: vi.fn(),
+  loggerSetMock: vi.fn(),
+  tryUseLoggerMock: vi.fn(),
+}));
 
 vi.mock("@/lib/redis", () => ({
-  getRedisClient: getRedisClientMock,
+  getRedisRateLimitClient: getRedisRateLimitClientMock,
 }));
 
 vi.mock("@/lib/evlog", () => ({
@@ -27,7 +31,10 @@ import {
 describe("chat-message-read-budget", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getRedisClientMock.mockReturnValue({ eval: redisEvalMock });
+    getRedisRateLimitClientMock.mockReturnValue({
+      status: "ready",
+      eval: redisEvalMock,
+    });
     redisEvalMock.mockResolvedValue([1, 0]);
     tryUseLoggerMock.mockReturnValue({ set: loggerSetMock });
   });
@@ -76,7 +83,7 @@ describe("chat-message-read-budget", () => {
   });
 
   it("resolves without redis (local/dev fail-open)", async () => {
-    getRedisClientMock.mockReturnValue(null);
+    getRedisRateLimitClientMock.mockReturnValue(null);
 
     await expect(
       assertChatMessageReadBudget("user-1"),

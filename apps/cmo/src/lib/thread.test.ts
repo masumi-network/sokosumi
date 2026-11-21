@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 
 import { cmoOverview, cmoStrategyVersion } from "../test-fixtures/cmo";
-import { cusoPose } from "./thread";
+import { cusoPose, cusoStatus } from "./thread";
 
 const NOW = new Date("2026-11-05T12:00:00Z");
 const approved = cmoStrategyVersion(new Date("2026-11-01T09:00:00Z"));
@@ -11,6 +11,7 @@ const channel = {
   handle: "acme",
   displayName: "Acme",
   status: "ACTIVE" as const,
+  personalProfile: false,
 };
 
 it("maps waiting states to needs-you and research to reading", () => {
@@ -32,10 +33,23 @@ it("reports for a day after a filed update once hired and running", () => {
             at: new Date("2026-11-05T09:00:00Z"),
             revertible: false,
             revertedAt: null,
+            posts: [],
+            media: [],
           },
         ],
       }),
       NOW,
     ),
   ).toBe("reporting");
+});
+
+it("says it couldn't start when the month is blocked, not on schedule", () => {
+  const hired = cmoOverview({ ...approved, channels: [channel] });
+  expect(cusoStatus(hired)).toBe("On schedule");
+  expect(
+    cusoStatus({
+      ...hired,
+      production: { ...hired.production, state: "blocked" },
+    }),
+  ).toBe("Couldn't start");
 });

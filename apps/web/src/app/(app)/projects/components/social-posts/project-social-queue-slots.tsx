@@ -6,7 +6,6 @@ import type {
   SocialQueueSlotWrite,
 } from "@sokosumi/core-client";
 import { Plus, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -103,7 +102,6 @@ export function ProjectSocialQueueSlots({
   projectId,
   queueSlots,
 }: ProjectSocialQueueSlotsProps) {
-  const router = useRouter();
   const t = useTranslations("App.Projects.SocialPosts.queue");
   const [savedQueue, setSavedQueue] = useState(() => ({
     timezone: queueSlots.timezone ?? getDefaultTimezone(),
@@ -164,7 +162,6 @@ export function ProjectSocialQueueSlots({
       toast.success(
         result.value.slots.length === 0 ? t("toasts.empty") : t("toasts.saved"),
       );
-      router.refresh();
     } catch (error) {
       toast.error(toActionRejectionError(error).message ?? t("toasts.failed"));
     } finally {

@@ -1,8 +1,10 @@
+import { getCookies, parseSetCookieHeader } from "better-auth/cookies";
 import { createAuthMiddleware } from "evlog/better-auth";
 import type { EvlogVariables } from "evlog/hono";
 import type { MiddlewareHandler } from "hono";
 
 import { auth } from "@/lib/auth";
+import { deferBetterAuthRequestLogs } from "@/lib/evlog-library-logs";
 
 /**
  * Documented Hono wiring: https://www.evlog.dev/use-cases/better-auth/overview
@@ -16,9 +18,60 @@ const identify = createAuthMiddleware(auth, {
   fields: ["id", "email"],
 });
 
+const CLIENT_AUTH_REDIRECT_ERRORS = new Set([
+  "access_denied",
+  "no_code",
+  "state_mismatch",
+  "state_not_found",
+]);
+
+function isClientCausedRedirect(
+  response: Response,
+  requestUrl: string,
+  oauthErrorURL?: string,
+): boolean {
+  if (response.status < 300 || response.status >= 400) return false;
+  const location = response.headers.get("location");
+  const redirect = location && URL.parse(location, requestUrl);
+  if (!redirect) return false;
+
+  const errorURLs = [auth.options.onAPIError?.errorURL, oauthErrorURL];
+  const matchesErrorPage = errorURLs.some((url) => {
+    const errorPage = url && URL.parse(url, requestUrl);
+    return (
+      errorPage &&
+      redirect.origin === errorPage.origin &&
+      redirect.pathname === errorPage.pathname
+    );
+  });
+  if (!matchesErrorPage) return false;
+
+  const errors = redirect.searchParams.getAll("error");
+  if (errors.length !== 1 || !CLIENT_AUTH_REDIRECT_ERRORS.has(errors[0])) {
+    return false;
+  }
+
+  // The error page itself can also be the callback URL of a successful sign-in.
+  const setCookie = response.headers.get("set-cookie");
+  if (!setCookie) return true;
+  const { sessionToken } = getCookies(auth.options);
+  return !parseSetCookieHeader(setCookie).get(sessionToken.name)?.value;
+}
+
 export function betterAuthEvlogMiddleware(): MiddlewareHandler<EvlogVariables> {
   return async (c, next) => {
     const log = c.get("log");
+    if (log && c.req.path.startsWith("/auth/")) {
+      const flush = deferBetterAuthRequestLogs(log);
+      try {
+        await next();
+      } finally {
+        flush((oauthErrorURL) =>
+          isClientCausedRedirect(c.res, c.req.url, oauthErrorURL),
+        );
+      }
+      return;
+    }
     // Bearer / API-key / coworker / sokoBot: auth middleware picks that
     // actor. Cookie identify must not run first or user/session from the
     // browser cookie land on a service-credential event.

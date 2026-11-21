@@ -2,24 +2,32 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Check, CircleAlert, Loader2 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { type KeyboardEvent, useRef, useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
 import { changeIdeas } from "../../lib/change-ideas";
 import { channelInfo } from "../../lib/channels";
-import { strategyApproved } from "../../lib/strategy";
+import {
+  monthLabel,
+  monthPostCount,
+  strategyApproved,
+} from "../../lib/strategy";
 import { CusoAvatar } from "../cuso";
 import { EntrySheet } from "../entry-sheet";
-import { AdBudget, money, PACES, PacePicker } from "../strategy-core";
+import { AdsChoice, money } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
 import { SubmitButton } from "../submit-button";
+import type { SkipSubscription, StartTopUp } from "../top-up";
 import {
   Checklist,
+  type ChecklistItem,
   PLANNING_PHASES,
   useElapsed,
   workChecklist,
+  workNow,
 } from "./checklist";
+import { CusoScene } from "./cuso-scene";
 import {
   type ConnectMeasurement,
   MonthPanel,
@@ -98,12 +106,12 @@ export function planningRows(
         ...done,
         id: `pillar:${pillar.name}`,
         kind: "brain",
-        label: `${pillar.name}: ${pillar.share}% of pieces`,
+        label: `${pillar.name}: ${pillar.share}% of posts`,
       });
     }
   }
   if (running) {
-    const pieces = strategy?.calendar.length ?? 0;
+    const pieces = strategy ? monthPostCount(strategy.calendar) : 0;
     // On top, so what Cuso is on stays in view above the plan so far.
     rows.unshift({
       id: strategy ? "calendar" : "plan",
@@ -111,13 +119,31 @@ export function planningRows(
       label: !strategy
         ? "Choosing your idea, channels and pillars"
         : pieces > 0
-          ? `Writing four weeks, day by day: ${pieces} pieces so far`
+          ? `Writing four weeks, day by day: ${pieces} posts so far`
           : "Writing four weeks, day by day",
       url: null,
       status: "running",
     });
   }
   return rows;
+}
+
+/**
+ * The planning checklist. Once the plan's idea and channels are saved, Cuso
+ * is on the calendar, whatever steps Core has reported so far; the checklist
+ * then agrees with the feed below it.
+ */
+export function planningChecklist(
+  steps: Step[],
+  strategy: Strategy | null,
+  running: boolean,
+): ChecklistItem[] {
+  const items = workChecklist(steps, PLANNING_PHASES, running);
+  if (!running || !strategy) return items;
+  return items.map((item, at) => ({
+    ...item,
+    state: at === items.length - 1 ? "working" : "done",
+  }));
 }
 
 const ANSWER_WORDS: Record<string, string> = {
@@ -132,6 +158,10 @@ interface PlanStepProps {
   phase: PlanPhase;
   /** The tab to open, such as Results after a measurement connection. */
   initialTab?: PlanTab;
+  /** Why a measurement connection that sent the founder back did not finish. */
+  measureError?: string | null;
+  /** Called once the one-shot measurement return notice has been left behind. */
+  onConsumeMeasureError?: () => void;
   /** Cuso writes or changes the plan; a refusal comes back as text. */
   onRequest: (note?: string) => Promise<string | null>;
   /** The owner's own monthly ad budget; a refusal comes back as text. */
@@ -149,6 +179,12 @@ interface PlanStepProps {
   starting?: boolean;
   /** Set when the founder opened the plan again: leads on to where they were. */
   ahead?: { label: string; onClick: () => void };
+  /** The top-up checkout; left out or null when this Cuso may not top up. */
+  topUp?: StartTopUp | null;
+  /** The plan checkout, set when Cuso is paused without a CMO plan. */
+  subscribe?: StartTopUp | null;
+  /** Continues without a subscription, for a tester Core allows it. */
+  skip?: SkipSubscription | null;
 }
 
 /**
@@ -157,18 +193,36 @@ interface PlanStepProps {
  * While Cuso writes or changes it, the plan stays on screen and fills in.
  */
 export function PlanStep(props: PlanStepProps) {
-  const { overview, phase, onRequest } = props;
+  const {
+    overview,
+    phase,
+    onRequest,
+    topUp = null,
+    subscribe = null,
+    skip = null,
+  } = props;
   if (phase === "planning") {
     return (
       <Planning
         overview={overview}
         starting={props.starting ?? false}
         onRetry={() => onRequest()}
+        topUp={topUp}
+        subscribe={subscribe}
+        skip={skip}
       />
     );
   }
   if (phase === "writing-needed" || !overview.strategy) {
-    return <WriteNeeded overview={overview} onWrite={() => onRequest()} />;
+    return (
+      <WriteNeeded
+        overview={overview}
+        onWrite={() => onRequest()}
+        topUp={topUp}
+        subscribe={subscribe}
+        skip={skip}
+      />
+    );
   }
   return <PlanReview {...props} />;
 }
@@ -177,29 +231,53 @@ interface PlanningProps {
   overview: CmoOverview;
   starting: boolean;
   onRetry: () => Promise<string | null>;
+  topUp: StartTopUp | null;
+  subscribe: StartTopUp | null;
+  skip: SkipSubscription | null;
 }
 
 /** The first plan is being written: the checklist, and the way to try again. */
-function Planning({ overview, starting, onRetry }: PlanningProps) {
+function Planning({
+  overview,
+  starting,
+  onRetry,
+  topUp,
+  subscribe,
+  skip,
+}: PlanningProps) {
   const work = overview.work;
   const running =
     starting || (work?.kind === "strategy" && work.status === "running");
   const noCredits = !running && overview.billing.availableCredits <= 0;
   const elapsed = useElapsed(work?.startedAt, running);
-  const rows = planningRows(
-    work?.kind === "strategy" ? work.steps : [],
+  const steps = work?.kind === "strategy" ? work.steps : [];
+  const rows = planningRows(steps, overview.strategy ?? null, running);
+  const checklist = planningChecklist(
+    steps,
     overview.strategy ?? null,
     running,
   );
   return (
-    <section className="panel ob-wait">
-      <div className={running ? "card ob-says" : "card card-focus ob-says"}>
-        <CusoAvatar pose="reporting" size={96} />
+    <section className="ob-wait">
+      <div className="ob-lead">
+        {running ? (
+          <CusoScene
+            scene="planning"
+            now={workNow(steps, checklist) ?? "Getting started"}
+          />
+        ) : (
+          <CusoAvatar pose="needs-you" size={176} />
+        )}
         <h1 className="ob-h1">
-          {running ? "Writing your plan" : "Planning stopped"}
+          {running ? "Writing your strategy" : "Writing stopped"}
         </h1>
         {noCredits ? (
-          <Refusal text="credits" topUpUrl={overview.subscribeUrl} />
+          <Refusal
+            text="credits"
+            topUp={topUp}
+            subscribe={subscribe}
+            skip={skip}
+          />
         ) : (
           <p className="muted">
             {running
@@ -208,17 +286,11 @@ function Planning({ overview, starting, onRetry }: PlanningProps) {
           </p>
         )}
         {elapsed ? <p className="ob-small muted num">{elapsed}</p> : null}
-        <Checklist
-          items={workChecklist(
-            work?.kind === "strategy" ? work.steps : [],
-            PLANNING_PHASES,
-            running,
-          )}
-        />
+        <Checklist items={checklist} />
         <div className="ob-feed" aria-label="What Cuso is writing">
           <p className="ob-feed-title">
             <span className={running ? "ob-live on" : "ob-live"} />
-            {running ? "Live" : "What Cuso wrote"}
+            {running ? "Live" : `What ${AGENT_NAME} wrote`}
           </p>
           {rows.length === 0 ? (
             <p className="ob-feed-empty">
@@ -257,7 +329,12 @@ function Planning({ overview, starting, onRetry }: PlanningProps) {
           )}
         </div>
         {running ? null : (
-          <RetryButton onRetry={onRetry} topUpUrl={overview.subscribeUrl} />
+          <RetryButton
+            onRetry={onRetry}
+            topUp={topUp}
+            subscribe={subscribe}
+            skip={skip}
+          />
         )}
       </div>
     </section>
@@ -267,17 +344,26 @@ function Planning({ overview, starting, onRetry }: PlanningProps) {
 interface WriteNeededProps {
   overview: CmoOverview;
   onWrite: () => Promise<string | null>;
+  topUp: StartTopUp | null;
+  subscribe: StartTopUp | null;
+  skip: SkipSubscription | null;
 }
 
 /** Brand is confirmed and nothing writes the plan: one button does. */
-function WriteNeeded({ overview, onWrite }: WriteNeededProps) {
+function WriteNeeded({
+  overview,
+  onWrite,
+  topUp,
+  subscribe,
+  skip,
+}: WriteNeededProps) {
   const [pending, startTransition] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
   return (
-    <section className="panel ob-wait">
-      <div className="card card-focus ob-says">
-        <CusoAvatar pose="reporting" size={96} />
-        <h1 className="ob-h1">Ready to write your plan</h1>
+    <section className="ob-wait">
+      <div className="ob-lead">
+        <CusoScene scene="planning" />
+        <h1 className="ob-h1">Ready to write your strategy</h1>
         <p className="muted">
           I build it from your Brand Brain and your answers.
         </p>
@@ -295,11 +381,16 @@ function WriteNeeded({ overview, onWrite }: WriteNeededProps) {
             })
           }
         >
-          {pending ? "Starting…" : "Write my plan"}
+          {pending ? "Starting…" : "Write my strategy"}
           {pending ? null : <ArrowRight size={16} aria-hidden="true" />}
         </button>
         {refusal ? (
-          <Refusal text={refusal} topUpUrl={overview.subscribeUrl} />
+          <Refusal
+            text={refusal}
+            topUp={topUp}
+            subscribe={subscribe}
+            skip={skip}
+          />
         ) : null}
       </div>
     </section>
@@ -316,6 +407,8 @@ export function PlanReview({
   overview,
   readOnly = false,
   initialTab = "plan",
+  measureError = null,
+  onConsumeMeasureError,
   onRequest,
   onSetAds,
   onAnswer,
@@ -323,9 +416,38 @@ export function PlanReview({
   onApprove,
   onConnectMeasurement,
   ahead,
+  topUp = null,
+  subscribe = null,
+  skip = null,
 }: PlanReviewProps) {
   const strategy = overview.strategy as Strategy;
-  const [tab, setTab] = useState<PlanTab>(initialTab);
+  const [tabState, setTabState] = useState({
+    tab: initialTab,
+    measureError,
+  });
+  const { tab } = tabState;
+  // Leaving Results consumes its one-shot measurement return notice so
+  // switching back later does not show it again.
+  function selectTab(next: PlanTab) {
+    if (tabState.tab === next) return;
+    const leavingResults = tabState.tab === "results";
+    setTabState((current) =>
+      current.tab === next
+        ? current
+        : {
+            tab: next,
+            measureError:
+              current.tab === "results" ? null : current.measureError,
+          },
+    );
+    if (leavingResults) {
+      onConsumeMeasureError?.();
+    }
+  }
+  // The plan's detail, folded until asked for; a measurement return opens it.
+  // On the app's Strategy page the plan is the page, so it starts open.
+  const [full, setFull] = useState(readOnly || initialTab === "results");
+  const fullHead = useRef<HTMLHeadingElement>(null);
   const [open, setOpen] = useState<Entry | null>(null);
   const [asking, setAsking] = useState(false);
   const [note, setNote] = useState("");
@@ -335,7 +457,6 @@ export function PlanReview({
   const changing = sending !== null;
   const [going, startGoing] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
-  const [budgetOpen, setBudgetOpen] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const work = overview.work;
   const writing = work?.kind === "strategy" && work.status === "running";
@@ -354,10 +475,9 @@ export function PlanReview({
     ...overview,
     strategy: { ...strategy, questions },
   });
-  const pieces = strategy.calendar.length;
-  const pages =
-    overview.brandMedia?.pages.filter((page) => page.device === "desktop")
-      .length ?? 0;
+  const month = monthLabel(strategy.calendar);
+  // Core refuses to approve a month short of what it promises.
+  const short = overview.strategyShort;
 
   // Plain async, not a transition: React holds a transition's state updates
   // until it ends, and the re-planning screen must show on the tap. A refusal
@@ -387,13 +507,24 @@ export function PlanReview({
     );
   }
 
-  const written = strategy.contentLanguage
-    ? ` Written in ${strategy.contentLanguage}.`
-    : "";
-  const line =
-    pages > 0
-      ? `${AGENT_NAME} · built from your answers and ${pages} ${pages === 1 ? "page" : "pages"} of your site.${written}`
-      : `${AGENT_NAME} · ${pieces} ${pieces === 1 ? "piece" : "pieces"} for the next four weeks.${written}${approved ? "" : " Nothing goes out until you approve the plan."}`;
+  // Same path as a change, and not in a transition (which would hold the
+  // waiting screen back): the plan waits while Cuso refits it.
+  const update = () => {
+    setRefusal(null);
+    send("Fitting your strategy to your answers", onUpdate).catch(() => {});
+  };
+
+  // What it rests on and the language of the posts, in plain words. No page
+  // count: the screenshots Core keeps are not the pages Cuso read.
+  const line = [
+    `${month} for the next four weeks, built from your website and your answers.`,
+    strategy.contentLanguage
+      ? `The posts are written in ${strategy.contentLanguage}.`
+      : null,
+    approved ? null : "Nothing goes out until you approve the strategy.",
+  ]
+    .filter(Boolean)
+    .join(" ");
   // The short goal is the headline; the long sentence sits under it.
   const sentence = strategy.idea?.sentence ?? strategy.summary;
   const goal = outcomeLine(strategy) || firstClause(sentence);
@@ -403,8 +534,20 @@ export function PlanReview({
       Continue to {ahead.label}
       <ArrowRight size={16} aria-hidden="true" />
     </button>
-  ) : locked ? null : !overview.viewerCanApprove && !unfitted ? (
-    <p className="muted">An owner or admin approves the plan.</p>
+  ) : locked ? null : short && !busy ? (
+    <button
+      type="button"
+      className="button"
+      onClick={() => {
+        setRefusal(null);
+        send("Writing your strategy again", () => onRequest()).catch(() => {});
+      }}
+    >
+      Write it again
+      <ArrowRight size={16} aria-hidden="true" />
+    </button>
+  ) : !overview.viewerCanApprove && !unfitted ? (
+    <p className="muted">An owner or admin approves the strategy.</p>
   ) : (
     <button
       type="button"
@@ -412,10 +555,8 @@ export function PlanReview({
       disabled={going || busy}
       onClick={() => {
         setRefusal(null);
-        // Same path as a change, and not in a transition (which would hold
-        // the waiting screen back): the plan waits while Cuso refits it.
         if (unfitted) {
-          send("Fitting your plan to your answers", onUpdate).catch(() => {});
+          update();
           return;
         }
         // A refused approval (a new version on its way) stays here.
@@ -433,13 +574,13 @@ export function PlanReview({
       ) : writing ? (
         <>
           <Loader2 size={16} className="spin" aria-hidden="true" />
-          {asked
+          {asked || work?.change
             ? `${AGENT_NAME} is changing it`
             : `${AGENT_NAME} is finishing`}
         </>
       ) : (
         <>
-          {unfitted ? "Update plan" : "Approve plan"}
+          {unfitted ? "Update strategy" : "Approve strategy"}
           <ArrowRight size={16} aria-hidden="true" />
         </>
       )}
@@ -447,37 +588,36 @@ export function PlanReview({
   );
 
   const ads = strategy.ads;
-  const pace = PACES.find((option) => option.level === strategy.pace?.level);
   const hasChecks = questions.length > 0 || strategy.pace || ads;
+  // An approval covers what the owner said yes or no to, not what stayed open.
+  const answers = approved
+    ? questions.filter(
+        (question) => question.answer === "yes" || question.answer === "no",
+      )
+    : questions;
 
   return (
     <section className="ob-plan">
-      <div className="ob-title-row">
-        <CusoAvatar pose="reporting" size={48} />
-        <div className="ob-title-copy">
-          <p className="muted">{line}</p>
-        </div>
-        <div className="ob-title-action">
-          {locked ? null : (
-            <button
-              type="button"
-              className="button button-secondary"
-              aria-expanded={asking}
-              disabled={busy}
-              onClick={() => {
-                setAsking(!asking);
-                if (!asking) window.setTimeout(() => input.current?.focus(), 0);
-              }}
-            >
-              Ask for a change
-            </button>
-          )}
-          {primary}
-        </div>
+      <div className="ob-lead">
+        {/* Cuso leads the hiring step; the app's Strategy page has its own head. */}
+        {readOnly ? null : (
+          <CusoScene
+            scene="planning"
+            now={
+              writing
+                ? asked
+                  ? "Changing your strategy"
+                  : "Finishing your strategy"
+                : null
+            }
+          />
+        )}
+        {/* The app's page opens on the goal; the line follows it there. */}
+        {readOnly ? null : <p className="muted">{line}</p>}
       </div>
 
       {asking && !locked ? (
-        <div className="panel">
+        <div>
           <form
             className="card ob-change"
             onSubmit={(event) => {
@@ -525,29 +665,43 @@ export function PlanReview({
       ) : null}
 
       {refusal ? (
-        <Refusal text={refusal} topUpUrl={overview.subscribeUrl} />
+        <Refusal
+          text={refusal}
+          topUp={topUp}
+          subscribe={subscribe}
+          skip={skip}
+        />
+      ) : null}
+      {short && !busy && !locked ? (
+        <p className="alert" role="status">
+          {short.promised > short.planned
+            ? `This strategy plans ${short.planned} posts, but it promises about ${short.promised}.`
+            : "This strategy promises more than its calendar holds."}{" "}
+          {AGENT_NAME} couldn't fill the month, so it can't be approved. Ask him
+          to write it again.
+        </p>
       ) : null}
       {stopped ? (
         <p className="alert" role="alert">
           {asked
             ? "That change didn't go through. Ask again."
-            : `${AGENT_NAME} stopped before he finished. Ask him to finish the plan.`}
+            : `${AGENT_NAME} stopped before he finished. Ask him to finish the strategy.`}
         </p>
       ) : null}
 
       {replanning ? (
-        <div className="panel">
-          <div className="card ob-replanning" role="status">
+        <div>
+          <div className="ob-replanning" role="status">
             <Loader2 size={20} className="spin" aria-hidden="true" />
             <p className="ob-value">{AGENT_NAME} is re-planning your month</p>
             <p className="muted">
-              {replanning}. About two minutes; your new plan opens here.
+              {replanning}. About two minutes; your new strategy opens here.
             </p>
           </div>
         </div>
       ) : null}
 
-      <div className="ob-plan-body panel" hidden={replanning !== null}>
+      <div className="ob-plan-body" hidden={replanning !== null}>
         <GoalBlock
           label="The goal"
           headline
@@ -555,6 +709,7 @@ export function PlanReview({
           statement={sentence !== goal ? sentence : undefined}
           facts={goalFacts(strategy)}
         />
+        {readOnly ? <p className="note ob-plan-built">{line}</p> : null}
 
         {changes.length > 0 && !writing ? (
           <div className="card ob-changed">
@@ -567,41 +722,33 @@ export function PlanReview({
           </div>
         ) : null}
 
-        {locked && hasChecks ? (
-          <div className="card ob-checks">
-            <h2>{approved ? "What you approved" : "Your answers"}</h2>
-            <ul className="ob-approved">
-              {questions.map((question) => (
-                <li key={question.id}>
-                  {question.question}{" "}
-                  <b>{ANSWER_WORDS[question.answer ?? ""]}</b>
-                  {question.answer === "no" && question.note
-                    ? `: ${question.note}`
-                    : ""}
-                </li>
-              ))}
-              {pace ? (
-                <li>
-                  Pace: <b>{pace.name}</b>, {pace.does.toLowerCase()}
-                </li>
-              ) : null}
-              {ads ? (
-                <li>
-                  {ads.monthly > 0
-                    ? `${money(ads.monthly, ads.currency)} a month for ads`
-                    : "No ads"}
-                </li>
-              ) : null}
-            </ul>
-          </div>
+        {locked ? (
+          answers.length > 0 || ads ? (
+            <div className="card ob-checks">
+              <h2>{approved ? "What you approved" : "Your answers"}</h2>
+              <ul className="ob-approved">
+                {answers.map((question) => (
+                  <li key={question.id}>
+                    {question.question}{" "}
+                    <b>{ANSWER_WORDS[question.answer ?? ""]}</b>
+                    {question.answer === "no" && question.note
+                      ? `: ${question.note}`
+                      : ""}
+                  </li>
+                ))}
+
+                {ads ? (
+                  <li>
+                    {ads.monthly > 0
+                      ? `${money(ads.monthly, ads.currency)} a month for ads`
+                      : "No ads"}
+                  </li>
+                ) : null}
+              </ul>
+            </div>
+          ) : null
         ) : hasChecks ? (
-          <div
-            className={
-              questions.some((question) => !question.answer)
-                ? "card card-focus ob-checks"
-                : "card ob-checks"
-            }
-          >
+          <div className="card ob-checks">
             <h2>Check these</h2>
             {questions.map((question) => (
               <PlanQuestionChip
@@ -610,98 +757,169 @@ export function PlanReview({
                 onAnswer={(value, text) => answer(question.id, value, text)}
               />
             ))}
-            {strategy.pace ? (
-              <div className="ob-pace">
-                <PacePicker
-                  pace={strategy.pace}
-                  onAsk={(text, label) =>
-                    send(label ?? text, () => onRequest(text))
-                  }
-                />
+            {unfitted ? (
+              <div className="ob-unfitted" role="status">
+                <p>This strategy still shows your old answer.</p>
+                <button
+                  type="button"
+                  className="button button-secondary button-small"
+                  disabled={busy}
+                  onClick={update}
+                >
+                  Update strategy
+                </button>
               </div>
+            ) : null}
+            {strategy.pace ? (
+              <p className="ob-pace note">
+                This month is written at the most a plan makes. Next you pick
+                your plan, and with it how much of the month {AGENT_NAME} makes.
+              </p>
             ) : null}
             {ads ? (
               <div className="ob-budget">
-                <div className="ob-budget-row">
-                  <p>
-                    {ads.monthly > 0
-                      ? `${money(ads.monthly, ads.currency)} a month for ads`
-                      : "No ads"}
-                  </p>
-                  <button
-                    type="button"
-                    className="button button-ghost button-small"
-                    aria-expanded={budgetOpen}
-                    onClick={() => setBudgetOpen(!budgetOpen)}
-                  >
-                    {ads.monthly > 0 ? "Change" : "Add a budget"}
-                  </button>
-                </div>
-                {budgetOpen ? (
-                  <AdBudget
-                    ads={ads}
-                    onSetAds={(monthly, currency) =>
-                      send(`Ad budget: ${currency} ${monthly} a month`, () =>
-                        onSetAds(monthly, currency),
-                      )
-                    }
-                  />
-                ) : null}
+                <AdsChoice
+                  ads={ads}
+                  onSetAds={(monthly, currency) =>
+                    send(
+                      monthly > 0
+                        ? `Ad budget: ${currency} ${monthly} a month`
+                        : "No ads",
+                      () => onSetAds(monthly, currency),
+                    )
+                  }
+                />
               </div>
             ) : null}
           </div>
         ) : null}
 
-        <div className="ob-tabs" role="tablist" aria-label="Plan">
-          {TABS.map((candidate, index) => (
+        <div className="ob-fullplan" data-open={full}>
+          <h2 ref={fullHead} className="ob-fullplan-head">
             <button
-              key={candidate.id}
               type="button"
-              role="tab"
-              id={`ob-tab-${candidate.id}`}
-              aria-selected={tab === candidate.id}
-              aria-controls={`ob-tabpanel-${candidate.id}`}
-              tabIndex={tab === candidate.id ? 0 : -1}
-              onClick={() => setTab(candidate.id)}
-              onKeyDown={(event) => {
-                const next = planTabAfterKey(event, index);
-                if (next === null) return;
-                event.preventDefault();
-                setTab(TABS[next]!.id);
-                document.getElementById(`ob-tab-${TABS[next]!.id}`)?.focus();
-              }}
+              aria-expanded={full}
+              aria-controls="ob-fullplan-body"
+              onClick={() => setFull(!full)}
             >
-              {candidate.label}
+              <span>The full strategy</span>
+              <span className="ob-small">
+                {TABS.map((candidate) => candidate.label).join(" · ")}
+              </span>
             </button>
-          ))}
-        </div>
-        <div
-          className="card ob-tabpanel"
-          role="tabpanel"
-          id={`ob-tabpanel-${tab}`}
-          aria-labelledby={`ob-tab-${tab}`}
-        >
-          {tab === "plan" ? (
-            <PlanPanel
-              overview={overview}
-              strategy={strategy}
-              onAsk={
-                locked
-                  ? undefined
-                  : (text, label) => send(label ?? text, () => onRequest(text))
-              }
-            />
-          ) : tab === "month" ? (
-            <MonthPanel strategy={strategy} onOpen={setOpen} />
-          ) : (
-            <ResultsPanel
-              overview={overview}
-              strategy={strategy}
-              onConnectMeasurement={onConnectMeasurement}
-            />
-          )}
+          </h2>
+          {/* Stays mounted, so opening only has to grow it. */}
+          <MotionConfig reducedMotion="user">
+            <motion.div
+              id="ob-fullplan-body"
+              className="ob-fullplan-body"
+              inert={!full}
+              initial={false}
+              animate={{ height: full ? "auto" : 0, opacity: full ? 1 : 0 }}
+              transition={{ type: "spring", bounce: 0, duration: 0.5 }}
+            >
+              <div className="ob-tabs" role="tablist" aria-label="Strategy">
+                {TABS.map((candidate, index) => (
+                  <button
+                    key={candidate.id}
+                    type="button"
+                    role="tab"
+                    id={`ob-tab-${candidate.id}`}
+                    aria-selected={tab === candidate.id}
+                    aria-controls={`ob-tabpanel-${candidate.id}`}
+                    tabIndex={tab === candidate.id ? 0 : -1}
+                    onClick={() => selectTab(candidate.id)}
+                    onKeyDown={(event) => {
+                      const next = planTabAfterKey(event, index);
+                      if (next === null) return;
+                      event.preventDefault();
+                      selectTab(TABS[next]!.id);
+                      document
+                        .getElementById(`ob-tab-${TABS[next]!.id}`)
+                        ?.focus();
+                    }}
+                  >
+                    {candidate.label}
+                  </button>
+                ))}
+              </div>
+              <div
+                className="ob-tabpanel"
+                role="tabpanel"
+                id={`ob-tabpanel-${tab}`}
+                aria-labelledby={`ob-tab-${tab}`}
+              >
+                {tab === "plan" ? (
+                  <PlanPanel
+                    overview={overview}
+                    strategy={strategy}
+                    onAsk={
+                      locked
+                        ? undefined
+                        : (text, label) =>
+                            send(label ?? text, () => onRequest(text))
+                    }
+                  />
+                ) : tab === "month" ? (
+                  <MonthPanel
+                    strategy={strategy}
+                    onOpen={setOpen}
+                    pending={!approved}
+                  />
+                ) : (
+                  <ResultsPanel
+                    overview={overview}
+                    strategy={strategy}
+                    onConnectMeasurement={onConnectMeasurement}
+                    measureError={tabState.measureError}
+                  />
+                )}
+              </div>
+              <button
+                type="button"
+                className="button button-ghost button-small ob-fullplan-hide"
+                onClick={() => {
+                  setFull(false);
+                  // The body goes inert, so focus moves to the row that reopens it.
+                  fullHead.current?.querySelector("button")?.focus({
+                    preventScroll: true,
+                  });
+                  fullHead.current?.scrollIntoView({
+                    block: "center",
+                    behavior: window.matchMedia(
+                      "(prefers-reduced-motion: reduce)",
+                    ).matches
+                      ? "auto"
+                      : "smooth",
+                  });
+                }}
+              >
+                Hide the full strategy
+              </button>
+            </motion.div>
+          </MotionConfig>
         </div>
       </div>
+
+      {locked && !primary ? null : (
+        <div className="ob-bar">
+          {locked ? null : (
+            <button
+              type="button"
+              className="button button-secondary"
+              aria-expanded={asking}
+              disabled={busy}
+              onClick={() => {
+                setAsking(!asking);
+                if (!asking) window.setTimeout(() => input.current?.focus(), 0);
+              }}
+            >
+              Ask for a change
+            </button>
+          )}
+          {primary}
+        </div>
+      )}
 
       <AnimatePresence>
         {open ? (
@@ -731,14 +949,14 @@ function goalFacts(strategy: Strategy): { term: string; value: string }[] {
   const where = strategy.channels
     .map((channel) => channelLabel(channel.channel))
     .join(", ");
-  const pieces = strategy.calendar.length;
+  const pieces = monthPostCount(strategy.calendar);
   const facts = [
     { term: "Who", value: who },
     { term: "The offer", value: offer },
     { term: "Where", value: where },
     {
       term: "This month",
-      value: pieces > 0 ? `${pieces} ${pieces === 1 ? "piece" : "pieces"}` : "",
+      value: pieces > 0 ? monthLabel(strategy.calendar) : "",
     },
   ];
   return facts.filter((fact): fact is { term: string; value: string } =>

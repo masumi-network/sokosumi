@@ -1,11 +1,17 @@
 import { randomUUID } from "node:crypto";
-import { TaskStatus, TaskVisibility } from "@sokosumi/database";
+import { type Prisma, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { lockTaskRows } from "@/helpers/calendar-locks";
 import { errorHandler } from "@/helpers/error-handler";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import mountGetTasks from "../../get";
 import mountPostTaskRestore from "./post";
+
+// The flow publishes over Ably; the test env has no real key.
+vi.mock("@/lib/ably/client", async () =>
+  (await import("@/test/ably-client")).fakeAblyClientModule(),
+);
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -25,6 +31,11 @@ const organizationId = randomUUID();
 const workspaceId = randomUUID();
 const adaPersonalWorkspaceId = randomUUID();
 const bobPersonalWorkspaceId = randomUUID();
+
+// Long enough that the restore detects the deadlock first.
+const BLOCKER_DEADLOCK_TIMEOUT = "30s";
+const LOCK_WAIT_POLL_MS = 20;
+const LOCK_WAIT_ATTEMPTS = 250;
 
 const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000);
 
@@ -54,6 +65,27 @@ function createApp(userId: string) {
   mountGetTasks(app);
   mountPostTaskRestore(app);
   return app;
+}
+
+/**
+ * Resolves once a backend waits on a lock that the `blocker` transaction
+ * holds. Only that backend counts, so a test file that runs at the same time
+ * cannot open the gate early.
+ */
+async function waitForLockWaiter(
+  blocker: Prisma.TransactionClient,
+): Promise<void> {
+  const [{ pid: blockerPid }] = await blocker.$queryRaw<[{ pid: number }]>`
+    SELECT pg_backend_pid() AS pid`;
+  for (let attempt = 0; attempt < LOCK_WAIT_ATTEMPTS; attempt += 1) {
+    const [row] = await prisma.$queryRaw<Array<{ waiting: number }>>`
+      SELECT count(*)::int AS waiting FROM pg_stat_activity
+      WHERE ${blockerPid}::int = ANY(pg_blocking_pids(pid))
+    `;
+    if (row && row.waiting > 0) return;
+    await new Promise((resolve) => setTimeout(resolve, LOCK_WAIT_POLL_MS));
+  }
+  throw new Error("No transaction started waiting for a lock");
 }
 
 async function restore(userId: string, taskId: string) {
@@ -196,5 +228,44 @@ describe.skipIf(!enabled)("archived Tasks", () => {
 
   it("answers 404 for a Task that is not archived", async () => {
     expect((await restore(adaId, ids.live)).status).toBe(404);
+  });
+
+  it("retries a sub-task restore that Postgres broke off to end a deadlock", async () => {
+    const parent = await prisma.task.create({
+      data: { workspaceId, ownerId: adaId, name: "Deadlock parent" },
+    });
+    const subtask = await prisma.task.create({
+      data: {
+        workspaceId,
+        ownerId: adaId,
+        parentTaskId: parent.id,
+        position: 1,
+        name: "Deadlock sub-task",
+        archivedAt: daysAgo(1),
+      },
+    });
+
+    // The restore locks the parent, then the sub-task. This transaction takes
+    // the sub-task first, then the parent, and waits long enough that the
+    // restore is the one Postgres breaks off.
+    let restoring: Promise<Response> | undefined;
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRawUnsafe(
+          `SET LOCAL deadlock_timeout = '${BLOCKER_DEADLOCK_TIMEOUT}'`,
+        );
+        await lockTaskRows(tx, [subtask.id]);
+        restoring = restore(adaId, subtask.id);
+        await waitForLockWaiter(tx);
+        await lockTaskRows(tx, [parent.id]);
+      },
+      { timeout: 30_000 },
+    );
+
+    expect((await restoring)?.status).toBe(200);
+    const restored = await prisma.task.findUniqueOrThrow({
+      where: { id: subtask.id },
+    });
+    expect(restored.archivedAt).toBeNull();
   });
 });

@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth/auth.client";
 import {
+  type CompanyQuery,
   type ContactQuery,
   contactsService,
 } from "@/lib/services/contacts.client";
@@ -19,6 +20,8 @@ export const CONTACT_MAP_KEY = ["contact-map"] as const;
 export const CONTACT_COMPANY_KEY = ["contact-company"] as const;
 export const CONTACT_BREAKDOWN_KEY = ["contact-breakdown"] as const;
 export const CONTACT_DUPLICATES_KEY = ["contact-duplicates"] as const;
+export const COMPANIES_KEY = ["contact-companies"] as const;
+export const COMPANY_LISTS_KEY = ["contact-company-lists"] as const;
 export const contactKey = (id: string) => ["contact", id] as const;
 
 const PAGE_SIZE = 50;
@@ -34,13 +37,21 @@ function useWorkspace(): string | null {
   return session.session.activeOrganizationId ?? session.user.id;
 }
 
-/** Keeps the previous result while loading, but never across workspaces. */
-function sameWorkspace<T>(
+/**
+ * Keeps the previous result while loading, but never across workspaces, nor
+ * between live and archived contacts: a live row must not offer Restore, an
+ * archived one must not reach the editable grid.
+ */
+function keepPrevious<T>(
   previous: T | undefined,
   query: { queryKey: readonly unknown[] } | undefined,
   workspace: string | null,
+  archived?: string,
 ): T | undefined {
-  return query?.queryKey[1] === workspace ? previous : undefined;
+  const filters = query?.queryKey[2] as { archived?: string } | undefined;
+  return query?.queryKey[1] === workspace && filters?.archived === archived
+    ? previous
+    : undefined;
 }
 
 type ContactPage = Awaited<ReturnType<typeof contactsService.list>>;
@@ -59,7 +70,7 @@ export function useContactRows(query: ContactQuery, enabled = true) {
     initialPageParam: null as string | null,
     getNextPageParam: (page) => page.nextCursor,
     placeholderData: (previous, last) =>
-      sameWorkspace(previous, last, workspace),
+      keepPrevious(previous, last, workspace, query.archived),
   });
 }
 
@@ -75,7 +86,7 @@ export function useContactMap(query: ContactQuery, enabled = true) {
     queryKey: [...CONTACT_MAP_KEY, workspace, filters],
     queryFn: () => contactsService.map(filters),
     placeholderData: (previous, last) =>
-      sameWorkspace(previous, last, workspace),
+      keepPrevious(previous, last, workspace, filters.archived),
     refetchInterval: ({ state }) =>
       (state.data?.pending ?? 0) > 0 && state.dataUpdateCount < MAP_POLLS
         ? 2_000
@@ -105,6 +116,27 @@ export function useContactLists() {
   });
 }
 
+/** The Companies table: one row per company, by `query`. */
+export function useCompanies(query: CompanyQuery, enabled: boolean) {
+  const workspace = useWorkspace();
+  return useQuery({
+    enabled: enabled && workspace !== null,
+    queryKey: [...COMPANIES_KEY, workspace, query],
+    queryFn: () => contactsService.companies(query),
+    placeholderData: (previous, last) =>
+      keepPrevious(previous, last, workspace),
+  });
+}
+
+export function useCompanyLists() {
+  const workspace = useWorkspace();
+  return useQuery({
+    enabled: workspace !== null,
+    queryKey: [...COMPANY_LISTS_KEY, workspace],
+    queryFn: () => contactsService.companyLists(),
+  });
+}
+
 /** The biggest companies, or Core's matches for `search` among all of them. */
 export function useContactOrganizations(search: string) {
   const workspace = useWorkspace();
@@ -113,7 +145,7 @@ export function useContactOrganizations(search: string) {
     queryKey: [...CONTACT_ORGANIZATIONS_KEY, workspace, search],
     queryFn: () => contactsService.organizations(search || undefined),
     placeholderData: (previous, last) =>
-      sameWorkspace(previous, last, workspace),
+      keepPrevious(previous, last, workspace),
   });
 }
 
@@ -134,7 +166,7 @@ export function useContactBreakdown(query: ContactQuery, enabled: boolean) {
     queryKey: [...CONTACT_BREAKDOWN_KEY, workspace, filters],
     queryFn: () => contactsService.breakdown(filters, OVERVIEW),
     placeholderData: (previous, last) =>
-      sameWorkspace(previous, last, workspace),
+      keepPrevious(previous, last, workspace),
   });
 }
 
@@ -200,8 +232,8 @@ export function writeContact(cache: QueryClient, contact: Contact) {
         })),
       },
   );
-  cache.setQueryData<ContactDetail>(
-    contactKey(contact.id),
+  cache.setQueriesData<ContactDetail>(
+    { queryKey: contactKey(contact.id) },
     (detail) => detail && { ...detail, ...contact },
   );
 }
@@ -216,6 +248,8 @@ export async function refreshContacts(cache: QueryClient, contactId?: string) {
     cache.invalidateQueries({ queryKey: CONTACT_COMPANY_KEY }),
     cache.invalidateQueries({ queryKey: CONTACT_BREAKDOWN_KEY }),
     cache.invalidateQueries({ queryKey: CONTACT_DUPLICATES_KEY }),
+    cache.invalidateQueries({ queryKey: COMPANIES_KEY }),
+    cache.invalidateQueries({ queryKey: COMPANY_LISTS_KEY }),
     contactId
       ? cache.invalidateQueries({ queryKey: contactKey(contactId) })
       : null,

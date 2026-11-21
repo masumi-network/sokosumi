@@ -19,6 +19,8 @@ const {
   resolvePurchaseMock,
   prismaTransactionMock,
   claimActionCreateMock,
+  transactionCreateMock,
+  cusoUpdateManyMock,
 } = vi.hoisted(() => ({
   claimFindUniqueMock: vi.fn(),
   claimFindFirstMock: vi.fn(),
@@ -33,6 +35,8 @@ const {
   resolvePurchaseMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   claimActionCreateMock: vi.fn(),
+  transactionCreateMock: vi.fn(),
+  cusoUpdateManyMock: vi.fn(),
 }));
 
 vi.mock("@sentry/node", () => ({
@@ -66,6 +70,7 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+import { expectCoreLog } from "@/test/core-log";
 import {
   createTaskPaymentClaim,
   markTaskPaymentClaimPurchased,
@@ -104,8 +109,12 @@ describe("task payment claims", () => {
             updateMany: refundClaimUpdateManyMock,
             update: claimUpdateMock,
           },
+          transaction: { create: transactionCreateMock },
+          sokoBot: { updateMany: cusoUpdateManyMock },
         }),
     );
+    transactionCreateMock.mockResolvedValue({ id: "refund-1" });
+    cusoUpdateManyMock.mockResolvedValue({ count: 1 });
   });
 
   it("creates the durable claim through the charge transaction", async () => {
@@ -150,7 +159,7 @@ describe("task payment claims", () => {
     });
   });
 
-  it("refunds a failed purchase once into a non-expiring bucket", async () => {
+  it("refunds a failed purchase once into non-expiring buckets split by scope", async () => {
     refundClaimUpdateManyMock.mockResolvedValue({ count: 1 });
     claimFindUniqueMock.mockResolvedValue({
       id: "claim-1",
@@ -159,7 +168,10 @@ describe("task payment claims", () => {
         amount: -500n,
         userId: "user-1",
         organizationId: "organization-1",
-        creditConsumptions: [{ bucket: { projectId: "project-1" } }],
+        creditConsumptions: [
+          { amount: 10n, bucket: { projectId: "project-1" } },
+          { amount: 490n, bucket: { projectId: null } },
+        ],
       },
     });
     claimUpdateMock.mockResolvedValue(undefined);
@@ -177,16 +189,20 @@ describe("task payment claims", () => {
         processingToken: null,
       },
     });
-    const update = claimUpdateMock.mock.calls[0]?.[0];
-    expect(update.where).toEqual({ id: "claim-1" });
-    const refund = update.data.refundTransaction.create;
-    expect(refund.amount).toBe(500n);
+    expect(claimUpdateMock).toHaveBeenCalledExactlyOnceWith({
+      where: { id: "claim-1" },
+      data: { refundTransaction: { connect: { id: "refund-1" } } },
+    });
+    const [refund, poolRefund] = transactionCreateMock.mock.calls.map(
+      ([args]) => args.data,
+    );
+    expect(refund.amount).toBe(10n);
     expect(refund.user).toBeUndefined();
     expect(refund.userId).toBeNull();
     expect(refund.organizationId).toBe("organization-1");
     expect(refund.organization).toBeUndefined();
     expect(refund.sourceCreditBucket.create).toMatchObject({
-      amount: 500n,
+      amount: 10n,
       referenceId: "task-payment:claim-1",
       referenceType: CreditBucketReferenceType.REFUND,
       expiresAt: null,
@@ -196,6 +212,11 @@ describe("task payment claims", () => {
       projectId: "project-1",
     });
     expect(refund.sourceCreditBucket.create.user).toBeUndefined();
+    // The pool part of the charge goes back to the pool.
+    expect(poolRefund.sourceCreditBucket.create).toMatchObject({
+      amount: 490n,
+      projectId: null,
+    });
   });
 
   it("stamps a personal claim refund bucket with the actor", async () => {
@@ -216,8 +237,7 @@ describe("task payment claims", () => {
       await refundFailedTaskPaymentClaim("claim-1", "node rejected request"),
     ).toBe(true);
 
-    const refund =
-      claimUpdateMock.mock.calls[0]?.[0].data.refundTransaction.create;
+    const refund = transactionCreateMock.mock.calls[0]?.[0].data;
     expect(refund.userId).toBe("user-1");
     expect(refund.organizationId).toBeNull();
     expect(refund.sourceCreditBucket.create.userId).toBe("user-1");
@@ -656,9 +676,10 @@ describe("task payment claims", () => {
   });
 
   it("keeps draining the batch when acquisition itself throws", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const errors = expectCoreLog(
+      "error",
+      "Could not process a task payment claim",
+    );
     claimFindManyMock.mockResolvedValue([
       { id: "claim-boom" },
       { id: "claim-ok" },
@@ -671,15 +692,11 @@ describe("task payment claims", () => {
       .mockRejectedValueOnce(new Error("connection terminated"))
       .mockResolvedValue({ count: 0 });
 
-    try {
-      await expect(syncPendingTaskPaymentClaims()).resolves.toEqual({
-        processed: 1,
-        eligible: 2,
-        reviewRequired: 0,
-      });
-    } finally {
-      consoleErrorSpy.mockRestore();
-    }
+    await expect(syncPendingTaskPaymentClaims()).resolves.toEqual({
+      processed: 1,
+      eligible: 2,
+      reviewRequired: 0,
+    });
 
     // Nothing is escalated here on purpose: the lease was never acquired, so
     // the row is untouched and the next tick retries it normally.
@@ -696,12 +713,20 @@ describe("task payment claims", () => {
         extra: { claimId: "claim-boom" },
       }),
     );
+    expect(errors[0]).toMatchObject({ why: "Processing the claim threw" });
+    expect(errors[0]?.event.error).toMatchObject({
+      cause: { message: "connection terminated" },
+    });
+    expect(errors[0]?.event).toMatchObject({
+      taskPaymentClaim: { id: "claim-boom" },
+    });
   });
 
   it("escalates under its own lease token when processing throws after acquisition", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const errors = expectCoreLog(
+      "error",
+      "Could not process a task payment claim",
+    );
     claimFindManyMock.mockResolvedValue([{ id: "claim-boom" }]);
     claimCountMock.mockResolvedValueOnce(1).mockResolvedValueOnce(0);
     claimUpdateManyMock.mockResolvedValue({ count: 1 });
@@ -716,11 +741,7 @@ describe("task payment claims", () => {
     // never sees, so nothing would otherwise back the row off.
     createPurchaseMock.mockRejectedValue(new Error("socket hang up"));
 
-    try {
-      await syncPendingTaskPaymentClaims();
-    } finally {
-      consoleErrorSpy.mockRestore();
-    }
+    await syncPendingTaskPaymentClaims();
 
     const escalation = claimUpdateManyMock.mock.calls.find(
       (call) =>
@@ -739,6 +760,10 @@ describe("task payment claims", () => {
     expect(escalationArgs.data).toMatchObject({
       processingStartedAt: null,
       processingToken: null,
+    });
+    expect(errors[0]).toMatchObject({ why: "Processing the claim threw" });
+    expect(errors[0]?.event.error).toMatchObject({
+      cause: { message: "socket hang up" },
     });
   });
 

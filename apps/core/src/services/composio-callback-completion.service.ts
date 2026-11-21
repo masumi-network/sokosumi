@@ -35,6 +35,8 @@ export async function completeComposioCallback(input: {
   sessionUri: string;
   userId: string;
 }): Promise<void> {
+  if (input.connectionId.startsWith("zernio:"))
+    throw notFound("Unknown or expired connection");
   const intent = await prisma.projectSocialConnectionIntent.findUnique({
     where: { connectionId: input.connectionId },
     select: {
@@ -107,5 +109,9 @@ export async function completeComposioCallback(input: {
     return;
   }
 
+  const { completeSeoConnectionCallback } = await import(
+    "@/services/seo-connection-oauth.service"
+  );
+  if (await completeSeoConnectionCallback(input)) return;
   throw notFound("Unknown or expired connection");
 }

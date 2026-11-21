@@ -1,10 +1,31 @@
 import { describe, expect, it } from "vitest";
 
+import { SOKO_BOT_FROM_HOME_ROUTE } from "@/lib/soko-bot/constants";
 import {
   resolveMobileAppBackTarget,
   shouldShowMobileBottomNav,
   shouldShowMobileBrandLeading,
+  withYouEntry,
 } from "./mobile-app-chrome";
+
+const FROM_YOU = new URLSearchParams("from=you");
+
+describe("withYouEntry", () => {
+  it("marks a You row link and keeps its project", () => {
+    expect(withYouEntry("/contacts")).toBe("/contacts?from=you");
+    expect(withYouEntry("/tiktok-studio?project=p1")).toBe(
+      "/tiktok-studio?project=p1&from=you",
+    );
+  });
+
+  it("leaves rows that are not You row lists alone", () => {
+    expect(withYouEntry("/seo")).toBe("/seo");
+    expect(withYouEntry("/account/notifications")).toBe(
+      "/account/notifications",
+    );
+    expect(withYouEntry("/newsletter")).toBe("/newsletter");
+  });
+});
 
 describe("mobile-app-chrome", () => {
   it.each([
@@ -76,6 +97,65 @@ describe("mobile-app-chrome", () => {
       });
     });
 
+    const YOU_ROWS = [
+      "/history",
+      "/agents",
+      "/schedules",
+      "/calendar",
+      "/studio",
+      "/tiktok-studio",
+      "/social",
+      "/contacts",
+      "/drive",
+    ];
+
+    it.each(YOU_ROWS)("sends %s opened from You back to You", (pathname) => {
+      expect(resolveMobileAppBackTarget(pathname, FROM_YOU)).toEqual({
+        href: "/you",
+        labelKey: "backToYou",
+      });
+    });
+
+    it("keeps a project-scoped page opened from You going back to You", () => {
+      expect(
+        resolveMobileAppBackTarget(
+          "/tiktok-studio",
+          new URLSearchParams(
+            withYouEntry("/tiktok-studio?project=p1").split("?")[1],
+          ),
+        ),
+      ).toEqual({ href: "/you", labelKey: "backToYou" });
+    });
+
+    // A project's post preview links to its Social accounts: not from You.
+    it("keeps Social opened from a project going back to Home", () => {
+      expect(
+        resolveMobileAppBackTarget(
+          "/social",
+          new URLSearchParams("projectId=p1&tab=accounts"),
+        ),
+      ).toEqual({ href: "/", labelKey: "back" });
+    });
+
+    // Soko Bot setup uses `from=home`; only `from=you` on a You row counts.
+    it("ignores other from values and the marker on other pages", () => {
+      expect(
+        resolveMobileAppBackTarget("/agents", new URLSearchParams("from=home")),
+      ).toEqual({ href: "/", labelKey: "back" });
+      expect(resolveMobileAppBackTarget("/tasks", FROM_YOU)).toBeNull();
+    });
+
+    it("keeps nested pages of a You row going back to their list", () => {
+      expect(resolveMobileAppBackTarget("/agents/a1", FROM_YOU)).toEqual({
+        href: "/agents",
+        labelKey: "back",
+      });
+      expect(resolveMobileAppBackTarget("/schedules/s1", FROM_YOU)).toEqual({
+        href: "/schedules",
+        labelKey: "back",
+      });
+    });
+
     it("sends nested studio paths back to the studio root", () => {
       expect(resolveMobileAppBackTarget("/studio/x")).toEqual({
         href: "/studio",
@@ -103,6 +183,13 @@ describe("mobile-app-chrome", () => {
         href: "/chat",
         labelKey: "backToChats",
       });
+    });
+
+    it("sends Soko Bot setup opened from Home back to Home", () => {
+      const fromHome = new URL(SOKO_BOT_FROM_HOME_ROUTE, "https://x.test");
+      expect(
+        resolveMobileAppBackTarget(fromHome.pathname, fromHome.searchParams),
+      ).toEqual({ href: "/", labelKey: "goHome" });
     });
 
     it("sends an agent's jobs back to that agent, not the catalog", () => {
@@ -149,35 +236,99 @@ describe("mobile-app-chrome", () => {
       });
       expect(resolveMobileAppBackTarget("/you/developer")).toEqual({
         href: "/you",
-        labelKey: "back",
+        labelKey: "backToYou",
       });
       expect(resolveMobileAppBackTarget("/you/help")).toEqual({
         href: "/you",
-        labelKey: "back",
+        labelKey: "backToYou",
       });
       expect(resolveMobileAppBackTarget("/you/legal")).toEqual({
         href: "/you",
-        labelKey: "back",
+        labelKey: "backToYou",
       });
     });
 
     it("returns null outside the main hub tree", () => {
       expect(resolveMobileAppBackTarget("/chat")).toBeNull();
       expect(resolveMobileAppBackTarget("/chat/rooms/r1")).toBeNull();
-      expect(resolveMobileAppBackTarget("/developer/docs")).toBeNull();
       expect(resolveMobileAppBackTarget("/accounts")).toBeNull();
       expect(resolveMobileAppBackTarget(null)).toBeNull();
     });
 
-    it.each(["/account", "/account/notifications", "/billing", "/connections"])(
-      "sends You page row %s back to You",
+    it.each([
+      "/developer",
+      "/developer/docs",
+      "/developer/oauth-clients",
+      "/developer/api-keys",
+      "/developer/vendors",
+      "/developer/coworkers",
+      "/developer/tasks",
+    ])("sends Developer section %s back to the Developer menu", (pathname) => {
+      expect(resolveMobileAppBackTarget(pathname)).toEqual({
+        href: "/you/developer",
+        labelKey: "back",
+      });
+    });
+
+    it.each([
+      ["/developer/coworkers/c1", "/developer/coworkers"],
+      ["/developer/tasks/t1", "/developer/tasks"],
+      ["/developer/vendors/v1", "/developer/vendors"],
+    ])("sends Developer detail %s back to its list", (pathname, href) => {
+      expect(resolveMobileAppBackTarget(pathname)).toEqual({
+        href,
+        labelKey: "back",
+      });
+    });
+
+    it.each([
+      "/account",
+      "/account/notifications",
+      "/billing",
+      "/connections",
+      // Phones open SEO and Ads from the You page.
+      "/seo",
+      "/ads",
+    ])("sends You page row %s back to You", (pathname) => {
+      expect(resolveMobileAppBackTarget(pathname)).toEqual({
+        href: "/you",
+        labelKey: "backToYou",
+      });
+    });
+
+    it.each(["/ads/campaigns/c1", "/ads/campaigns/c1/edit"])(
+      "sends Ads page %s back to its project, account and range",
       (pathname) => {
-        expect(resolveMobileAppBackTarget(pathname)).toEqual({
-          href: "/you",
+        expect(
+          resolveMobileAppBackTarget(
+            pathname,
+            new URLSearchParams("projectId=p1&accountId=a1&range=7d"),
+          ),
+        ).toEqual({
+          href: "/ads?projectId=p1&tab=campaigns&account=a1&range=7d",
           labelKey: "back",
         });
       },
     );
+
+    it("drops an unknown range from the Ads list it goes back to", () => {
+      expect(
+        resolveMobileAppBackTarget(
+          "/ads/campaigns/c1",
+          new URLSearchParams("projectId=p1&accountId=a1&range=1y"),
+        ),
+      ).toEqual({
+        href: "/ads?projectId=p1&tab=campaigns&account=a1",
+        labelKey: "back",
+      });
+    });
+
+    it("sends an Ads page with no project or account back to Ads", () => {
+      expect(resolveMobileAppBackTarget("/ads/campaigns/c1")).toEqual({
+        href: "/ads",
+        labelKey: "back",
+      });
+    });
   });
 
   describe("shouldShowMobileBottomNav", () => {
@@ -261,5 +412,13 @@ describe("mobile-app-chrome", () => {
       expect(shouldShowMobileBrandLeading("/personal-assistant")).toBe(false);
       expect(shouldShowMobileBrandLeading("/account")).toBe(false);
     });
+
+    it.each(["/history", "/schedules", "/calendar", "/contacts", "/drive"])(
+      "swaps brand for back to You on %s opened from You",
+      (pathname) => {
+        expect(shouldShowMobileBrandLeading(pathname)).toBe(true);
+        expect(shouldShowMobileBrandLeading(pathname, FROM_YOU)).toBe(false);
+      },
+    );
   });
 });

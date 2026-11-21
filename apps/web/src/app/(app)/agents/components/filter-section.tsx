@@ -2,14 +2,10 @@
 
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
-import { useDebouncedCallback } from "use-debounce";
 
 import Categories from "@/app/agents/components/categories";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useSidebar } from "@/components/ui/sidebar";
-import { getEnvPublicConfig } from "@/config/env.public";
 import useGalleryFilter from "@/hooks/use-gallery-filter";
 import {
   GALLERY_AGENT_KINDS,
@@ -22,13 +18,13 @@ interface FilterSectionProps {
   categories: Category[];
 }
 
+/** The catalog's own filters. Search is the page's one field, in the hero. */
 export default function FilterSection({ categories }: FilterSectionProps) {
   const t = useTranslations("App.Agents.FilterSection");
   const {
-    query,
+    catalogQuery: query,
     categories: appliedCategories,
     kind,
-    setQuery,
     setCategories: setAppliedCategories,
     setKind,
     resetFilters,
@@ -39,19 +35,6 @@ export default function FilterSection({ categories }: FilterSectionProps) {
   const hasActiveFilters =
     Boolean(query) || appliedCategories.length > 0 || kind !== "all";
 
-  const [searchValue, setSearchValue] = useState(query);
-
-  const debouncedSetQuery = useDebouncedCallback((value: string) => {
-    void setQuery(value);
-  }, getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME);
-
-  // Keep the input aligned with URL-driven query changes (back/forward, Reset).
-  // Cancel any pending debounce so a stale keystroke cannot reapply the old value.
-  useEffect(() => {
-    debouncedSetQuery.cancel();
-    setSearchValue(query);
-  }, [query, debouncedSetQuery]);
-
   function handleKindChange(next: GalleryAgentKindFilter) {
     void setKind(next);
     if (next === "x402" && appliedCategories.length > 0) {
@@ -59,25 +42,9 @@ export default function FilterSection({ categories }: FilterSectionProps) {
     }
   }
 
-  function handleReset() {
-    debouncedSetQuery.cancel();
-    setSearchValue("");
-    resetFilters();
-  }
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <Input
-          className="max-w-full min-w-36 shrink-0 md:max-w-64"
-          placeholder={t("searchPlaceholder")}
-          value={searchValue}
-          onChange={(e) => {
-            const next = e.target.value;
-            setSearchValue(next);
-            debouncedSetQuery(next);
-          }}
-        />
         <div className="flex flex-wrap gap-2">
           {GALLERY_AGENT_KINDS.map((option) => (
             <Button
@@ -98,7 +65,8 @@ export default function FilterSection({ categories }: FilterSectionProps) {
         {hasActiveFilters ? (
           <Button
             variant="ghost"
-            onClick={handleReset}
+            onClick={resetFilters}
+            aria-label={t("reset")}
             className="shrink-0 gap-2 text-lg sm:ml-auto"
           >
             {!isMobile && t("reset")}

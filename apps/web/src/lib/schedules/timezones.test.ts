@@ -119,7 +119,8 @@ describe("formatTimezoneLabel", () => {
     expect(
       formatTimezoneLabel("Europe/Prague", "en", new Date(Number.NaN)),
     ).toBe("Europe/Prague");
-    vi.spyOn(Intl, "DateTimeFormat").mockImplementation(() => {
+    // A function, not an arrow: the code calls it with `new`.
+    vi.spyOn(Intl, "DateTimeFormat").mockImplementation(function () {
       throw new RangeError("Intl unavailable");
     });
     expect(formatTimezoneLabel("America/New_York", "en", SUMMER)).toBe(

@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { cmoOverview } from "../test-fixtures/cmo";
 import { PlanPanel } from "./onboarding/plan-tabs";
 import { planPieces } from "./phone-feeds";
-import { goalLine } from "./strategy-reveal";
+import { goalLine, plural } from "./strategy-reveal";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
@@ -178,7 +178,7 @@ describe("strategy reveal", () => {
     );
     expect(planned).toContain("What the posts are about");
     expect(planned).toContain("Shows setup takes minutes");
-    expect(planned).toContain("4 pieces planned");
+    expect(planned).toContain("4 posts planned");
     expect(planned).not.toContain("% made");
 
     const made = {
@@ -198,6 +198,8 @@ describe("strategy reveal", () => {
           ],
           rewriting: true,
         },
+        level: "all_in" as const,
+        beyondPlan: [],
       },
     };
     const html = renderToStaticMarkup(
@@ -206,4 +208,43 @@ describe("strategy reveal", () => {
     expect(html).toContain("75% made · 60% planned");
     expect(html).toContain("Cuso is rewriting them now.");
   });
+});
+
+describe("plural", () => {
+  it("counts the post in a name that goes on after it", () => {
+    expect(plural("Post with a reply", 8)).toBe("8 posts with a reply");
+    expect(plural("Post with a reply", 1)).toBe("1 post with a reply");
+  });
+
+  it("still counts a plain name", () => {
+    expect(plural("Image post", 13)).toBe("13 image posts");
+    expect(plural("YouTube Short", 2)).toBe("2 YouTube Shorts");
+  });
+});
+
+it("counts a talking video on YouTube too, and names a network left out with its reason", async () => {
+  const { richPlan } = await import("../test-fixtures/onboarding");
+  const { ChannelPlan } = await import("./strategy-reveal");
+  const html = renderToStaticMarkup(<ChannelPlan strategy={richPlan} />);
+  // YouTube has no entry of its own: its piece is LinkedIn's talking video.
+  const youtube = html.slice(html.indexOf("YouTube</p>"));
+  expect(youtube.slice(0, youtube.indexOf("</li>"))).toMatch(
+    /1 a week.*1 talking video/i,
+  );
+  expect(html).toContain(
+    "<b>Not on Facebook.</b> Product teams do not follow software vendors on Facebook.",
+  );
+  // A network left out is not offered again as one Cuso could add.
+  expect(html).not.toMatch(/can also run[^<]*Facebook[,. ]/);
+});
+
+it("says what Cuso does for the owner's site, which is never on the calendar", async () => {
+  const { richPlan } = await import("../test-fixtures/onboarding");
+  const { ChannelPlan } = await import("./strategy-reveal");
+  const html = renderToStaticMarkup(<ChannelPlan strategy={richPlan} />);
+  expect(html).toContain("Your website and Google search");
+  expect(html).toContain(
+    "A weekly audit of your site, page fixes, and articles",
+  );
+  expect(html).toContain("You put them on your site.");
 });

@@ -1,5 +1,15 @@
 import type { WritingSkill } from "./types.js";
 
+/**
+ * What opens a LinkedIn post: Jev's month review reads it, and Core asks it
+ * of a cmo-v8 post's first line before the save. Calibrated on 31
+ * hand-labelled cal.com and NMKR first lines (2026-11-20): right on all of
+ * them at 0.35, where the earlier "first two lines … a number" passed a count
+ * of features and an unnamed reviewer's praise.
+ */
+export const LINKEDIN_HOOK_RULE =
+  "The first line is a hook that makes people tap 'see more': a result with its number, a price or another number from the business, a named customer and what they did, or a decision that sounds surprising. Advice, a definition, company history, a list or count of features, a rating or an unnamed reviewer's praise is not.";
+
 export const SOCIAL_WRITING_SKILLS: readonly WritingSkill[] = [
   {
     id: "x",
@@ -7,6 +17,8 @@ export const SOCIAL_WRITING_SKILLS: readonly WritingSkill[] = [
     name: "X",
     description:
       "Read before any X post: one sharp thought, short, the link in the reply.",
+    audience:
+      "People who follow a field's news and opinions as it happens: founders, developers, investors, tech and crypto communities, journalists. A main channel when the business's buyers talk shop in public there (software, developer tools, crypto, media). For a restaurant, shop or local service it is a side channel at most, serving the trade and the press: launches, numbers, opinions.",
     channels: ["x"],
     content: `# X
 
@@ -72,6 +84,8 @@ The guide we use with every client is in the reply.
     name: "LinkedIn",
     description:
       "Read before any LinkedIn post: a hook before 'see more', short paragraphs, a lesson from experience.",
+    audience:
+      "People at work: buyers inside companies, job candidates, partners, investors and the press. A main channel for a business that sells to companies (B2B software, agencies, consulting, services for teams). For a restaurant, shop or consumer brand it is a side channel that serves its business buyers and its team: catering, group and corporate events, partnerships, hiring and company milestones, never the dishes or products sold to individuals.",
     channels: ["linkedin"],
     content: `# LinkedIn
 
@@ -86,7 +100,7 @@ LinkedIn rewards posts that teach something from real experience: a lesson, a re
 - **End with a question or a one-line takeaway.**
 - **Length**: a text post reads best at 800 to 1,500 characters. Shorter is fine when the idea is done.
 - **Links** go in firstComment; the post can say "Link in the first comment."
-- **Hashtags**: 3 to 5 specific ones on the last line, or none.
+- **Hashtags** add little: usually none, at most 3 specific ones on the last line.
 
 ## Formats
 
@@ -147,9 +161,7 @@ What would you stop making if you looked at your numbers?
 - Tagging people or companies who are not in the story
 - A link in the post body`,
     checklist: [
-      {
-        rule: "The first two lines (about 140 characters) are a hook that makes people tap 'see more': a result, a number, a named customer or a surprising decision, not advice or a definition.",
-      },
+      { rule: LINKEDIN_HOOK_RULE },
       {
         rule: "Short paragraphs of one or two sentences with blank lines between them.",
       },
@@ -157,14 +169,11 @@ What would you stop making if you looked at your numbers?
         rule: "It is built on one real experience, result or decision, the business's or a named customer's, not generic tips or a list of things to check.",
       },
       {
-        rule: "It ends with a question or a one-line takeaway, not 'Agree?' or 'Thoughts?'.",
-      },
-      {
         rule: "Multi-image post: the text introduces one story told across the images and tells people to swipe.",
         formats: ["images"],
       },
       {
-        rule: "Text post at most about 1,500 characters, image or video post about 900; no link in the body; 3 to 5 hashtags or none.",
+        rule: "Text post at most about 1,500 characters, image or video post about 900; no link in the body; at most 3 hashtags.",
         counted: true,
       },
     ],
@@ -175,6 +184,8 @@ What would you stop making if you looked at your numbers?
     name: "Instagram",
     description:
       "Read before any Instagram post: the picture leads, the caption's first line stops the scroll, people save and share.",
+    audience:
+      "Consumers who follow what they want to see: food, places, products, style, events and creators. A main channel for restaurants, shops, consumer brands, venues and anything visual. For B2B software it is a side channel that serves the people behind the brand: the team, its culture and product moments that look good.",
     channels: ["instagram"],
     content: `# Instagram
 
@@ -253,6 +264,8 @@ Save this for the next bunch you buy.
     name: "Facebook",
     description:
       "Read before any Facebook post: short and neighbourly, something people answer in a comment.",
+    audience:
+      "Local communities, groups, event-goers and consumers over 35. A main channel for local businesses, events and consumer brands whose buyers are older. For a business that sells to companies it is a side channel for community and events at most.",
     channels: ["facebook"],
     content: `# Facebook
 
@@ -296,7 +309,10 @@ What should we teach next: brakes or gears?
       {
         rule: "It asks something people can easily answer, or invites them to something.",
       },
-      { rule: "No engagement bait ('Like if', 'Tag a friend')." },
+      {
+        rule: "No engagement bait ('Like if', 'Tag a friend').",
+        counted: true,
+      },
       {
         rule: "Link post: the post gives the reason to click and says the link is in the comments.",
         formats: ["link"],
@@ -310,6 +326,8 @@ What should we teach next: brakes or gears?
     name: "YouTube Shorts",
     description:
       "Read before any YouTube Short: a title that names the viewer's question, a short searchable description.",
+    audience:
+      "People searching how to do something, or settling in to watch a longer story. A main channel when the business teaches or demonstrates (software tutorials, recipes, courses, product reviews). Otherwise a side channel: a few videos that answer its buyers' searches or tell the brand's story.",
     channels: ["youtube"],
     content: `# YouTube Shorts
 
@@ -366,6 +384,8 @@ No bowl? A spray bottle with soapy water works too.
     name: "TikTok",
     description:
       "Read before any TikTok caption: one or two lines with the words people search for.",
+    audience:
+      "Younger consumers discovering products, places and trends. A main channel for consumer brands, food, fashion and venues that reach people under 35. Rarely right for a business that sells to companies.",
     channels: ["tiktok"],
     content: `# TikTok
 

@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   nudge: vi.fn(),
   taskFindMany: vi.fn(),
   taskUpdate: vi.fn(),
+  eventCreate: vi.fn(),
+  queryRaw: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -17,6 +19,8 @@ vi.mock("@/lib/db/prisma", () => ({
     projectImageAsset: { findFirst: mocks.assetFindFirst },
     fileResource: { findUnique: mocks.fileFindUnique },
     task: { findMany: mocks.taskFindMany, update: mocks.taskUpdate },
+    adEvent: { create: mocks.eventCreate },
+    $queryRaw: mocks.queryRaw,
   },
 }));
 vi.mock("@/services/image-studio-assets.service", () => ({
@@ -45,7 +49,9 @@ import {
   moveLegacyStudioFolderTasks,
   publishStudioAssetToFiles,
   studioAssetFileName,
+  studioVideoOfMedia,
 } from "@/services/image-studio-drive.service";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 
 const INPUT = {
   projectId: "project-1",
@@ -125,6 +131,7 @@ describe("publishStudioAssetToFiles", () => {
 
   it("saves a new image in the Content Studio folder, not a Task", async () => {
     await publishStudioAssetToFiles({
+      assetId: INPUT.assetId,
       jobId: INPUT.jobId,
       workspaceId: INPUT.workspaceId,
       organizationId: INPUT.organizationId,
@@ -141,12 +148,57 @@ describe("publishStudioAssetToFiles", () => {
       scope: "organization",
       ownerId: "org-1",
     });
+    expect(mocks.eventCreate).toHaveBeenCalledWith({
+      data: {
+        workspaceId: INPUT.workspaceId,
+        assetId: INPUT.assetId,
+        userId: INPUT.userId,
+        type: "copied_to_files",
+        meta: {
+          pathname:
+            "drive/organizations/org-1/Content Studio/a-purple-robot-logo-00000001.png",
+        },
+      },
+    });
+  });
+
+  it("does not record a copy when the file could not be activated", async () => {
+    mocks.activate.mockResolvedValueOnce(null);
+    await publishStudioAssetToFiles({
+      ...INPUT,
+      bytes: new Uint8Array([1]),
+      contentType: "image/png",
+    });
+    expect(mocks.eventCreate).not.toHaveBeenCalled();
+  });
+
+  it("keeps the copy when recording the signal fails", async () => {
+    mocks.eventCreate.mockRejectedValueOnce(
+      new Error("event store unavailable"),
+    );
+    await expect(
+      publishStudioAssetToFiles({
+        ...INPUT,
+        bytes: new Uint8Array([1]),
+        contentType: "image/png",
+      }),
+    ).resolves.toBeUndefined();
+    expect(mocks.activate).toHaveBeenCalled();
   });
 
   it("never fails settlement when Files is unavailable", async () => {
-    mocks.reserve.mockRejectedValue(new Error("down"));
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Could not add a generated image to Files",
+      ["Writing the image into the Content Studio folder failed"],
+    );
+    // The file name comes from the prompt, and an error can quote it.
+    mocks.reserve.mockRejectedValue(
+      new Error("down: a-SECRET-PROMPT-SENTINEL-3f2a9c1d.png"),
+    );
     await expect(
       publishStudioAssetToFiles({
+        assetId: INPUT.assetId,
         jobId: INPUT.jobId,
         workspaceId: INPUT.workspaceId,
         organizationId: null,
@@ -156,6 +208,14 @@ describe("publishStudioAssetToFiles", () => {
         contentType: "image/png",
       }),
     ).resolves.toBeUndefined();
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "image_job_settle",
+      imageJobs: [{ failure: { errorName: "Error" } }],
+    });
+    expect(warnings[0]?.cause).toBeUndefined();
+    expect(JSON.stringify(coreLogEvents())).not.toContain(
+      "SECRET-PROMPT-SENTINEL",
+    );
   });
 });
 
@@ -238,6 +298,11 @@ describe("moveLegacyStudioFolderTasks", () => {
   });
 
   it("keeps the Task when a file cannot be copied", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Could not move an old studio folder Task to Files",
+      ["Copying its files into the Content Studio folder failed"],
+    );
     mocks.taskFindMany.mockResolvedValueOnce([folderTask]);
     vi.stubGlobal(
       "fetch",
@@ -250,6 +315,10 @@ describe("moveLegacyStudioFolderTasks", () => {
     expect(mocks.taskUpdate).not.toHaveBeenCalledWith(
       expect.objectContaining({ data: { archivedAt: expect.any(Date) } }),
     );
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "image_studio_legacy_folder_move",
+      tasks: [{ id: "task-1", failure: expect.any(Object) }],
+    });
   });
 
   it("stops looking once no folder Task is left", async () => {
@@ -257,5 +326,55 @@ describe("moveLegacyStudioFolderTasks", () => {
     await moveLegacyStudioFolderTasks(5);
     await moveLegacyStudioFolderTasks(5);
     expect(mocks.taskFindMany).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("studioVideoOfMedia", () => {
+  const video = {
+    pathname: "workspace/Content Studio/booking-link-9cc6c00f.mp4",
+    name: "booking-link-9cc6c00f.mp4",
+    kind: "video",
+  };
+
+  it("asks the database only for studio videos, by their job suffix", async () => {
+    mocks.queryRaw.mockResolvedValueOnce([
+      { talking: true, vertical: true, seconds: 22 },
+    ]);
+    await expect(studioVideoOfMedia("project-1", [video])).resolves.toEqual({
+      talking: true,
+      reel: true,
+    });
+    expect(mocks.queryRaw.mock.calls[0]?.slice(1)).toEqual([
+      "project-1",
+      ["9cc6c00f"],
+    ]);
+
+    mocks.queryRaw.mockClear();
+    await expect(
+      studioVideoOfMedia("project-1", [
+        { ...video, kind: "image" },
+        { ...video, pathname: "workspace/Uploads/booking-link-9cc6c00f.mp4" },
+      ]),
+    ).resolves.toEqual({ talking: false, reel: false });
+    expect(mocks.queryRaw).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a wide video", { talking: false, vertical: false, seconds: 10 }],
+    [
+      "one longer than a Reel",
+      { talking: false, vertical: true, seconds: 120 },
+    ],
+    ["one shorter than a Reel", { talking: false, vertical: true, seconds: 2 }],
+    [
+      "one of unknown length",
+      { talking: false, vertical: true, seconds: null },
+    ],
+  ])("does not call %s a Reel", async (_name, row) => {
+    mocks.queryRaw.mockResolvedValueOnce([row]);
+    await expect(studioVideoOfMedia("project-1", [video])).resolves.toEqual({
+      talking: false,
+      reel: false,
+    });
   });
 });

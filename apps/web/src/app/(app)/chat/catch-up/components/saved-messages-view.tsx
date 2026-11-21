@@ -4,7 +4,7 @@ import type { ChatRoom, ChatSavedMessageListItem } from "@sokosumi/core-client";
 import { Bookmark, BookmarkX } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   listSavedMessagesAction,
@@ -16,11 +16,16 @@ import { useRoomDisplayName } from "@/app/chat/components/use-room-display-name"
 import { roomMentionNames } from "@/app/chat/utils/room-mention-names";
 import { formatUnreadThreadsPreview } from "@/app/chat/utils/unread-threads-preview";
 import { useLiveChatRooms } from "@/components/chat/use-live-chat-rooms";
+import {
+  usePageListSearch,
+  usePageSearchPagination,
+} from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
+import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
@@ -69,32 +74,57 @@ export function SavedMessagesView({
     setItems(initialPage?.items ?? []);
     setNextCursor(initialPage?.nextCursor ?? null);
   }
-  const currentPage = useRef(initialPage);
-  useEffect(() => {
-    currentPage.current = initialPage;
-  }, [initialPage]);
+  const currentPage = useLatestRef(initialPage);
 
   const [loadingOlder, setLoadingOlder] = useState(false);
-  const [removingId, setRemovingId] = useState<string | null>(null);
+  // Saves with an unsave on its way to Core. They are off the list at once
+  // and return, in place, when the write fails.
+  const [removing, setRemoving] = useState<ReadonlySet<string>>(new Set());
   // Live rooms are the reader's access now: a row whose room left the
   // sidebar (membership lost) goes at once, before Core is asked again.
-  const visibleItems = sawLiveRooms.current
-    ? items.filter((item) => roomsById.has(item.message.roomId))
-    : items;
+  const visibleItems = items.filter(
+    (item) =>
+      !removing.has(item.messageId) &&
+      (!sawLiveRooms.current || roomsById.has(item.message.roomId)),
+  );
+
+  const matching = usePageListSearch(visibleItems, ({ message }) => {
+    const room = roomsById.get(message.roomId);
+    return {
+      primary: [
+        formatUnreadThreadsPreview(
+          message.content,
+          roomMentionNames(room, tChannels("MentionAll.label")),
+        ),
+      ],
+      secondary: [
+        messageSender(message).name,
+        room && roomDisplayName(room, currentUserId),
+      ],
+    };
+  });
 
   async function handleRemove(messageId: string) {
-    setRemovingId(messageId);
-    const result = await unsaveRoomMessageAction(messageId);
-    setRemovingId(null);
-    if (!result.ok) {
-      toast.error(result.error.message);
-      return;
+    setRemoving((current) => new Set(current).add(messageId));
+    // A rejected call is a failed write too: the row must not stay off the
+    // list when Core never removed the save.
+    const result = await unsaveRoomMessageAction(messageId).catch(() => null);
+    if (result?.ok) {
+      setItems((current) =>
+        current.filter((item) => item.messageId !== messageId),
+      );
+      toast.success(t("removed"));
+    } else {
+      toast.error(result?.error.message ?? t("removeError"));
     }
-    setItems((current) =>
-      current.filter((item) => item.messageId !== messageId),
-    );
-    toast.success(t("removed"));
+    setRemoving((current) => {
+      const next = new Set(current);
+      next.delete(messageId);
+      return next;
+    });
   }
+
+  usePageSearchPagination(nextCursor, loadingOlder, handleLoadOlder);
 
   async function handleLoadOlder() {
     if (!nextCursor) return;
@@ -139,7 +169,7 @@ export function SavedMessagesView({
             </div>
           ) : (
             <ul className="flex flex-col gap-0.5" data-testid="saved-messages">
-              {visibleItems.map(({ messageId, savedAt, message }) => {
+              {matching.map(({ messageId, savedAt, message }) => {
                 const room = roomsById.get(message.roomId);
                 const roomName = room
                   ? room.kind === "channel"
@@ -190,8 +220,13 @@ export function SavedMessagesView({
                       className="text-muted-foreground relative z-[1] size-10 shrink-0 md:size-8"
                       aria-label={t("remove")}
                       title={t("remove")}
-                      loading={removingId === messageId}
-                      onClick={() => void handleRemove(messageId)}
+                      onClick={(event) => {
+                        // The rows below move up when this one leaves. The
+                        // second click of a double-click would land on the
+                        // next row's button and remove that save too.
+                        if (event.detail > 1) return;
+                        void handleRemove(messageId);
+                      }}
                     >
                       <BookmarkX className="size-4" aria-hidden />
                     </Button>

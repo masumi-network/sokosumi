@@ -5,14 +5,18 @@ import {
   type SokoBotTurn,
   SokoBotTurnStatus,
 } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
 import {
   applyVersionCapabilities,
+  CMO_PRODUCTION_TURN_PREFIX,
   capabilitiesForClassification,
   composeSokoBotVersionNotice,
   createEmptySokoBotMemory,
   getSokoBotVersion,
   type IndexedRuntimeEvent,
+  isSokoBotAnnouncementCapability,
   isSokoBotCapability,
+  isSokoBotCompetitorCapability,
   isSokoBotNewsletterCapability,
   limitSokoBotWrites,
   redactSokoBotSensitiveText,
@@ -37,7 +41,11 @@ import {
   failOpenChatRoomMentions,
   publishChatRoomMentionStatuses,
 } from "@/helpers/chat-room-mention-status";
-import { forfeitCusoProjectCredits } from "@/helpers/cuso-project-credits";
+import { notifyCusoLowCreditsAfterCharge } from "@/helpers/cuso-low-credit-notification";
+import {
+  forfeitCusoProjectCredits,
+  forfeitCusoProjectCreditsIfLeavingCmo,
+} from "@/helpers/cuso-project-credits";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { jsonInput } from "@/helpers/prisma-json";
 import { isPersonalSokoBot, isSharedSokoBot } from "@/helpers/soko-bot-kind";
@@ -61,8 +69,25 @@ import {
   sokoBotSharedScopeOf,
   sokoBotTurnReader,
 } from "@/helpers/task-visibility";
+import {
+  AI_BUDGET_EXCEEDED,
+  AI_BUDGET_EXCEEDED_MESSAGE,
+} from "@/lib/ai-gateway-budget";
+import {
+  aiGatewayBudgetScope,
+  GATEWAY_INTERNAL_SERVER_ERROR,
+} from "@/lib/ai-gateway-budget-error";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import {
+  createCoreLogger,
+  emitCoreWarning,
+  recordCoreError,
+  recordCoreWarning,
+  runAsBackgroundWork,
+} from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   sokoBotActingUserId,
   sokoBotScheduleActingUserId,
@@ -94,29 +119,44 @@ import {
   evaluationEvidence,
   withEvaluationActor,
 } from "@/lib/soko-bot/evaluation-dispatch";
+import { safeEventText, safeReasoningSummary } from "@/lib/soko-bot/event-text";
 import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
 import {
   capturePreference,
   MIN_PREFERENCE_CONFIDENCE,
 } from "@/lib/soko-bot/preference-capture";
+import {
+  reportSokoBotReconciliationLeaseLoss,
+  SokoBotReconciliationLeaseLostError,
+} from "@/lib/soko-bot/reconciliation-lease";
 import { logSokoBotRouteOutcome } from "@/lib/soko-bot/route-outcome";
 import { isRetryableSokoBotRuntimeError } from "@/lib/soko-bot/runtime-errors";
 import {
   matchSokoBotRuntimeTurnBoundary,
+  SETTLEMENT_TRIGGER_EVENT_TYPES,
   shouldPersistSokoBotRuntimeEvent,
 } from "@/lib/soko-bot/runtime-stream";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
 import {
-  systemScheduleRoute,
+  matchesReservedTurnMessage,
+  PERSON_SCHEDULE_CAPABILITIES,
   withOwnScheduleTools,
 } from "@/lib/soko-bot/system-routes";
 import type {
   SokoBotTurnStartResult,
   StartSokoBotTurnInput,
 } from "@/lib/soko-bot/turn-start";
+import { ONBOARDING_TURN_PREFIX } from "@/services/cmo-cuso.service";
+import { competitorChecksOnFor } from "@/services/competitors.service";
+import { STRATEGY_TURN_PREFIX } from "@/services/marketing-strategy.service";
 import { isNewsletterDraftAvailable } from "@/services/newsletter-draft.service";
+import {
+  revokeCusoSubscription,
+  revokeCusoSubscriptionIfLeavingCmo,
+  revokeSubscriptionsLeftByEnding,
+} from "@/services/polar-subscription-end.service";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
-import { claimAvatar } from "@/services/soko-bot-avatar.service";
+import { giveNewSokoBotAvatar } from "@/services/soko-bot-avatar-code.service";
 import {
   notifySokoBotOutOfCredits,
   recordSokoBotTurnUsage,
@@ -129,6 +169,7 @@ import {
   invalidateSokoBotIntentOutcomes,
   sokoBotOutcomeSummary,
 } from "@/services/soko-bot-outcome.service";
+import { isAnnouncementBot } from "@/services/soko-bot-runtime/dispatch-announcements";
 import {
   type CreateSokoBotScheduleInput,
   createSokoBotSchedule,
@@ -148,6 +189,9 @@ import {
 import { prepareTurnActionResultPreviews } from "@/services/turn-action-result-previews.service";
 import { enqueueSokoBotDelivery } from "./soko-bot-delivery.service";
 
+/** Context for the control plane's standalone events. */
+const TURN_LOG = { operation: "soko_bot_turn" };
+
 const TURN_DEADLINE_MS = 15 * 60 * 1_000;
 /**
  * A person can ask for work that takes a while — three years of mail into a
@@ -160,9 +204,11 @@ const BACKGROUND_RUN_DEADLINE_MS = 6 * 60 * 60 * 1_000;
 export const MAX_ACTIVE_BACKGROUND_RUNS = 3;
 /** The bot's chat: every turn except background runs. */
 export const FOREGROUND_TURN = { parentTurnId: null } as const;
-const TURN_LEASE_MS = 16 * 60 * 1_000;
+export const TURN_LEASE_MS = 16 * 60 * 1_000;
 const RECONCILER_HEARTBEAT_MS = 15_000;
-export const SOKO_BOT_START_RECOVERY_GRACE_MS = 120_000;
+/** A heartbeat this old means its writer is dead. */
+export const SOKO_BOT_TURN_STALE_HEARTBEAT_MS = 45_000;
+
 /** How far back a bare "yes" can reach for the reply it answers. */
 const PREVIOUS_REPLY_WINDOW_MS = 12 * 60 * 60 * 1_000;
 
@@ -197,8 +243,34 @@ async function translateScheduleErrors<T>(run: () => Promise<T>): Promise<T> {
 }
 export class SokoBotIdempotencyConflictError extends Error {}
 export class SokoBotRetryableStartError extends Error {}
-class SokoBotReconciliationLeaseLostError extends Error {}
 export class SokoBotStartAbortedError extends Error {}
+
+function observedStartResult(
+  turn: SokoBotTurn,
+  fallbackSessionId: string | null,
+  duplicate = true,
+): SokoBotTurnStartResult {
+  if (
+    duplicate &&
+    ACTIVE_TURN_STATUSES.some((status) => status === turn.status)
+  ) {
+    createCoreLogger({
+      operation: "soko_bot_turn_start",
+      turn: { id: turn.id },
+      outcome: "observed_duplicate",
+    }).emit();
+  }
+  return {
+    turnId: turn.id,
+    sokoBotId: turn.sokoBotId,
+    sessionId: turn.eveSessionId ?? fallbackSessionId ?? "",
+    status: turn.status,
+    route: turn.route ?? "CLARIFY",
+    capabilities: turn.capabilityNames as SokoBotCapability[],
+    duplicate,
+    errorKind: turn.errorKind,
+  };
+}
 
 function contextMemoryVersion(packet: Prisma.JsonValue): number {
   const parsed = sokoBotContextPacketSchema.safeParse(packet);
@@ -227,7 +299,7 @@ export interface CreateSokoBotInput {
   workspaceId: string;
   name: string;
   avatarSeed?: string | null;
-  avatarId?: string | null;
+  avatarCode?: string | null;
   personalityTone?: number | null;
   personalityDetail?: number | null;
   personalityStyle?: number | null;
@@ -331,12 +403,29 @@ export function safeMemoryRevision<
   return { ...revision, markdown, hash: memoryHash(markdown) };
 }
 
+function safeRuntimeDiagnostic(value: string, maxLength?: number): string;
+function safeRuntimeDiagnostic(
+  value: string | null | undefined,
+  maxLength?: number,
+): string | undefined;
 function safeRuntimeDiagnostic(
   value: string | null | undefined,
   maxLength = 1_000,
 ): string | undefined {
   if (value === null || value === undefined) return undefined;
   return redactSokoBotSensitiveText(value).slice(0, maxLength);
+}
+
+function runtimeFailureCode(data: Record<string, unknown>) {
+  if (
+    GATEWAY_INTERNAL_SERVER_ERROR === data.code &&
+    aiGatewayBudgetScope(data.message)
+  ) {
+    return AI_BUDGET_EXCEEDED;
+  }
+  return typeof data.code === "string"
+    ? safeRuntimeDiagnostic(data.code, 120)
+    : undefined;
 }
 
 interface SokoBotUsageBySource {
@@ -426,27 +515,9 @@ function addTurnUsage(
   };
 }
 
-const EVENT_TEXT_LIMIT = 800;
-const REASONING_TEXT_LIMIT = 4_000;
 const EVENT_INPUT_LIMIT = 1_200;
 /** A sandbox tool's output: enough to show every search result's source. */
 const EVENT_OUTPUT_LIMIT = 8_000;
-
-/** Model-authored text, bounded and secret-scrubbed, for the owner's explain view. */
-function safeEventText(
-  value: unknown,
-  limit = EVENT_TEXT_LIMIT,
-): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.replaceAll("\u0000", "").trim();
-  if (!trimmed) return null;
-  const scrubbed = redactSokoBotSensitiveText(trimmed);
-  // A cut inside an emoji leaves half of it; Postgres refused that and the
-  // turn never settled ("invalid input syntax for type json").
-  return (
-    scrubbed.length > limit ? `${scrubbed.slice(0, limit - 1)}…` : scrubbed
-  ).toWellFormed();
-}
 
 function safeEventJson(
   value: unknown,
@@ -487,13 +558,12 @@ export function safeEventProjection(
   data: Record<string, unknown>,
 ) {
   if (type === "reasoning.completed") {
-    // A provider reasoning summary; the chat shows it as the bot's Thought,
-    // so it keeps more than a one-line event summary.
-    const text = safeEventText(
-      data.text ?? data.reasoning ?? data.message,
-      REASONING_TEXT_LIMIT,
-    );
-    return { summary: text ?? "Reasoning update", payload: undefined };
+    // The chat shows it as the bot's Thought, so it keeps more than a
+    // one-line event summary.
+    return {
+      summary: safeReasoningSummary(data) ?? "Reasoning update",
+      payload: undefined,
+    };
   }
   if (type.startsWith("reasoning.")) {
     return { summary: "Reasoning update", payload: undefined };
@@ -551,10 +621,7 @@ export function safeEventProjection(
     };
   }
   if (type.endsWith(".failed")) {
-    const code =
-      typeof data.code === "string"
-        ? safeRuntimeDiagnostic(data.code, 120)
-        : undefined;
+    const code = runtimeFailureCode(data);
     return {
       summary: code ?? "Runtime failure",
       payload: jsonInput({ code: code ?? "unknown" }),
@@ -590,14 +657,40 @@ function actionRequested(
   );
 }
 
-/** A turn the bot decided to take rather than one a person asked for. */
-function unpromptedTurn(turn: { source: string; chainDepth: number }): boolean {
-  return (
-    turn.source === "SCHEDULE" ||
-    turn.source === "EVENT" ||
-    turn.source === "INGEST" ||
-    turn.chainDepth > 0
+export function staleTurnLeaseWhere(now: Date): Prisma.SokoBotTurnWhereInput {
+  const staleBefore = new Date(
+    now.getTime() - SOKO_BOT_TURN_STALE_HEARTBEAT_MS,
   );
+  return {
+    OR: [
+      { reconcilerHeartbeatAt: { lte: staleBefore } },
+      {
+        reconcilerHeartbeatAt: null,
+        OR: [
+          { status: { not: "STARTING" } },
+          { errorKind: "runtime_start_ambiguous" },
+          { createdAt: { lte: staleBefore } },
+        ],
+      },
+    ],
+  };
+}
+
+export function startRecoveryEligibility(): Prisma.SokoBotTurnWhereInput {
+  const prompted = {
+    source: { notIn: ["SCHEDULE", "EVENT", "INGEST"] },
+    chainDepth: { lte: 0 },
+  } satisfies Prisma.SokoBotTurnWhereInput;
+  return {
+    sokoBot: {
+      archivedAt: null,
+      adminPausedAt: null,
+      status: { not: "PAUSED" },
+    },
+    ...(getEnv().SOKO_BOT_PROACTIVE_PAUSED
+      ? prompted
+      : { OR: [prompted, { sokoBot: { proactivePaused: false } }] }),
+  };
 }
 
 /** How Jev read a stored turn's relation to its pending proposal, if at all. */
@@ -644,29 +737,121 @@ export class SokoBotControlPlane {
         reason: "Soko Bot prior turn completed",
       });
     } catch (error) {
-      console.warn("Soko Bot old runtime session cleanup failed", {
-        sokoBotId: input.bot.id,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      recordCoreWarning(
+        TURN_LOG,
+        {
+          message: "Could not reset a Soko Bot's previous runtime session",
+          why: "The runtime refused the reset",
+          fix: "Nothing to do: the new turn runs in its own session and the old one ages out at the runtime.",
+        },
+        {
+          sokoBot: { id: input.bot.id },
+          turn: { id: input.turnId },
+          failure: messageSafeErrorFields(error),
+        },
+      );
     }
   }
 
-  private async retainStartLease(
+  private async renewTurnLease(
     turnId: string,
     leaseToken: string,
+    client: Prisma.TransactionClient,
+    where: Prisma.SokoBotTurnWhereInput,
   ): Promise<boolean> {
-    const retained = await prisma.sokoBotTurn.updateMany({
+    const now = await databaseNow(client);
+    const retained = await client.sokoBotTurn.updateMany({
       where: {
+        ...where,
         id: turnId,
-        status: { in: ["STARTING", "CANCEL_REQUESTED"] },
         leaseToken,
       },
       data: {
-        leaseExpiresAt: new Date(Date.now() + TURN_LEASE_MS),
-        reconcilerHeartbeatAt: new Date(),
+        leaseExpiresAt: new Date(now.getTime() + TURN_LEASE_MS),
+        reconcilerHeartbeatAt: now,
       },
     });
     return retained.count === 1;
+  }
+
+  private retainStartLease(
+    turnId: string,
+    leaseToken: string,
+  ): Promise<boolean> {
+    return this.renewTurnLease(turnId, leaseToken, prisma, {
+      status: { in: ["STARTING", "CANCEL_REQUESTED"] },
+      startedAt: null,
+    });
+  }
+
+  private async requireAcknowledgedStartLease(
+    turnId: string,
+    leaseToken: string,
+    sessionId: string,
+    acknowledgementError: unknown,
+  ): Promise<void> {
+    // Cleanup uses the original acknowledgement error when proof is unavailable.
+    const retained = await this.renewTurnLease(turnId, leaseToken, prisma, {
+      status: { in: ["RUNNING", "CANCEL_REQUESTED"] },
+      startedAt: { not: null },
+      eveSessionId: sessionId,
+    }).catch(() => false);
+    if (!retained) throw acknowledgementError;
+  }
+
+  private holdTurnLease(turnId: string, leaseToken: string): () => void {
+    let renewing = false;
+    const timer = setInterval(async () => {
+      if (renewing) return;
+      renewing = true;
+      try {
+        // Release clears the heartbeat, fencing out an in-flight tick.
+        // Sample the clock after acquiring the lock, in the same statement.
+        const updated = await prisma.$executeRaw`
+          WITH renewal AS MATERIALIZED (
+            SELECT "id", clock_timestamp() AT TIME ZONE 'UTC' AS stamp
+            FROM (
+              SELECT "id"
+              FROM "soko_bot_turn"
+              WHERE "id" = ${turnId}::uuid
+                AND "leaseToken" = ${leaseToken}
+                AND "status"::text IN (${PrismaRaw.join(ACTIVE_TURN_STATUSES)})
+                AND "reconcilerHeartbeatAt" IS NOT NULL
+              FOR NO KEY UPDATE
+            ) AS held_turn
+          )
+          UPDATE "soko_bot_turn" AS turn
+          SET "reconcilerHeartbeatAt" = renewal.stamp,
+              "leaseExpiresAt" = renewal.stamp + ${TURN_LEASE_MS} * interval '1 millisecond',
+              "updatedAt" = renewal.stamp
+          FROM renewal
+          WHERE turn."id" = renewal."id"
+        `;
+        if (updated === 0) clearInterval(timer);
+      } catch {
+        // Fenced writes stay authoritative if the database cannot renew the lease.
+      } finally {
+        renewing = false;
+      }
+    }, RECONCILER_HEARTBEAT_MS);
+    timer.unref();
+    return () => clearInterval(timer);
+  }
+
+  private async releaseStartLease(
+    turnId: string,
+    leaseToken: string,
+    errorDetail: string,
+  ): Promise<void> {
+    await prisma.sokoBotTurn.updateMany({
+      where: { id: turnId, status: "STARTING", leaseToken },
+      data: {
+        reconcilerHeartbeatAt: null,
+        leaseExpiresAt: null,
+        errorKind: "runtime_start_ambiguous",
+        errorDetail,
+      },
+    });
   }
 
   private async bindScheduleReservation(
@@ -804,6 +989,23 @@ export class SokoBotControlPlane {
     message: string,
   ): Promise<void> {
     if (!input.scheduleReservation && !input.adminScheduleReservation) return;
+    const reservation = input.adminScheduleReservation;
+    if (
+      input.presetRoute?.meetingPrepSlot &&
+      reservation?.kind === "TERMINAL"
+    ) {
+      // The same operation won the race and bound the turn in its transaction.
+      // Verify that binding instead of spending another attempt.
+      input = {
+        ...input,
+        adminScheduleReservation: {
+          kind: "BOUND_REPLAY",
+          runId: reservation.runId,
+          boundTurnId: turnId,
+          attempt: reservation.expectedAttempt + 1,
+        },
+      };
+    }
     await serializableTransaction(
       (tx) => this.bindTurnReservation(tx, input, sokoBotId, turnId, message),
       "Soko Bot schedule occurrence lease was replaced",
@@ -911,9 +1113,10 @@ export class SokoBotControlPlane {
           status: "COMPLETED",
           disposition: receipt ? "ALREADY_SATISFIED" : "UNKNOWN",
           verification: "NONE",
-          replayedReceiptId: receipt?.id,
+          ...(receipt
+            ? { replayedReceiptId: receipt.id, targetId: receipt.targetId }
+            : {}),
           actorBotId: turn.sokoBotId,
-          targetId: receipt?.targetId,
           result: { confirmedDecisionId: decision.id },
         },
         update: {},
@@ -933,16 +1136,25 @@ export class SokoBotControlPlane {
   private async resumeAmbiguousStart(
     bot: ResolvedSokoBotRow,
     turn: SokoBotTurn,
-  ): Promise<SokoBotTurnStartResult> {
-    if (!turn.leaseToken) {
+  ): Promise<SokoBotTurnStartResult | null> {
+    const leaseToken = turn.leaseToken;
+    if (!leaseToken) {
       throw new SokoBotRetryableStartError(
         "Ambiguous Soko Bot start has no reconciliation lease",
       );
     }
+    if (turn.deadlineAt <= (await databaseNow())) return null;
+    if (turn.source === "SCHEDULE" || turn.source === "ADMIN_RETRY") {
+      const { meetingReplayRefusal } = await import(
+        "./soko-bot-admin-retry.service"
+      );
+      const refusal = await meetingReplayRefusal(turn);
+      if (refusal) throw new SokoBotValidationError(refusal);
+    }
     if (
       turn.intentId &&
       storedContinuation(turn.classification) === "CONTINUE" &&
-      (await this.settleOwnerConfirmation(turn.id, turn.leaseToken))
+      (await this.settleOwnerConfirmation(turn.id, leaseToken))
     ) {
       const completed = await prisma.sokoBotTurn.findUniqueOrThrow({
         where: { id: turn.id },
@@ -957,21 +1169,6 @@ export class SokoBotControlPlane {
         duplicate: true,
         errorKind: completed.errorKind,
       };
-    }
-    if (turn.deadlineAt <= new Date()) {
-      throw new SokoBotRetryableStartError(
-        "Ambiguous Soko Bot start reached its deadline",
-      );
-    }
-    // Same rule as crash recovery: an unprompted turn is not resumed once the
-    // owner has paused that work.
-    if (
-      unpromptedTurn(turn) &&
-      (bot.proactivePaused || getEnv().SOKO_BOT_PROACTIVE_PAUSED)
-    ) {
-      throw new SokoBotBusyError(
-        "This Soko Bot's owner has paused unprompted work",
-      );
     }
     const snapshot = await prisma.sokoBotContextSnapshot.findUnique({
       where: { turnId: turn.id },
@@ -1005,11 +1202,13 @@ export class SokoBotControlPlane {
       turnId: turn.id,
     };
     let runtimeTurn;
+    if (turn.deadlineAt <= (await databaseNow())) return null;
     try {
       runtimeTurn = await this.startRuntimeWithAcceptanceRetry({
         ...tokenScope,
         sessionId: null,
         message: turn.userMessage,
+        reconciliationLeaseToken: leaseToken,
       });
     } catch (error) {
       if (isAmbiguousRuntimeAcceptance(error)) {
@@ -1028,18 +1227,19 @@ export class SokoBotControlPlane {
           WHERE "id" = ${bot.id}::uuid
           FOR UPDATE
         `;
+        const acknowledgedAt = await databaseNow(tx);
         const updatedTurn = await tx.sokoBotTurn.updateMany({
           where: {
             id: turn.id,
             status: "STARTING",
-            leaseToken: turn.leaseToken,
+            leaseToken,
           },
           data: {
             status: "RUNNING",
             eveSessionId: runtimeTurn.sessionId,
             runtimeVersion: runtimeTurn.runtimeVersion,
-            startedAt: new Date(runtimeTurn.acceptedAt),
-            reconcilerHeartbeatAt: new Date(),
+            startedAt: acknowledgedAt,
+            reconcilerHeartbeatAt: acknowledgedAt,
             errorKind: null,
             errorDetail: null,
           },
@@ -1070,42 +1270,41 @@ export class SokoBotControlPlane {
             "Soko Bot turn stopped before replay acknowledgement",
           );
         }
-      }, "Soko Bot replay collided with pause or cancellation");
+      }, "Soko Bot replay collided with pause or cancellation").catch(
+        (error: unknown) =>
+          this.requireAcknowledgedStartLease(
+            turn.id,
+            leaseToken,
+            runtimeTurn.sessionId,
+            error,
+          ),
+      );
     } catch (error) {
-      if (error instanceof SokoBotStartAbortedError) {
-        const concurrentlyAcknowledged = await prisma.sokoBotTurn.findUnique({
+      if (!(await this.retainStartLease(turn.id, leaseToken))) {
+        const current = await prisma.sokoBotTurn.findUnique({
           where: { id: turn.id },
         });
-        if (concurrentlyAcknowledged?.eveSessionId === runtimeTurn.sessionId) {
-          return {
-            turnId: concurrentlyAcknowledged.id,
-            sokoBotId: concurrentlyAcknowledged.sokoBotId,
-            sessionId: runtimeTurn.sessionId,
-            status: concurrentlyAcknowledged.status,
-            route: concurrentlyAcknowledged.route ?? "CLARIFY",
-            capabilities:
-              concurrentlyAcknowledged.capabilityNames as SokoBotCapability[],
-            duplicate: true,
-            errorKind: concurrentlyAcknowledged.errorKind,
-            reconciliationLeaseToken:
-              concurrentlyAcknowledged.leaseToken ?? undefined,
-          };
-        }
-        if (
-          concurrentlyAcknowledged?.leaseToken !== turn.leaseToken ||
-          !(await this.retainStartLease(turn.id, turn.leaseToken))
-        ) {
-          throw error;
-        }
-        try {
-          await this.runtime.resetSession({
-            sessionId: runtimeTurn.sessionId,
-            reason: "Soko Bot replay acknowledgement failed",
-          });
-        } catch {
-          // Durable STARTING/CANCEL_REQUESTED state remains recoverable.
-        }
+        if (current) return observedStartResult(current, bot.eveSessionId);
+        throw error;
       }
+      try {
+        await this.runtime.resetSession({
+          sessionId: runtimeTurn.sessionId,
+          reason: "Soko Bot replay acknowledgement failed",
+        });
+      } catch {
+        // Durable STARTING/CANCEL_REQUESTED state remains recoverable.
+        throw error;
+      }
+      await prisma.sokoBotTurn.updateMany({
+        where: {
+          id: turn.id,
+          status: "STARTING",
+          leaseToken,
+          eveSessionId: runtimeTurn.sessionId,
+        },
+        data: { eveSessionId: null },
+      });
       throw error;
     }
 
@@ -1127,99 +1326,94 @@ export class SokoBotControlPlane {
       capabilities,
       duplicate: true,
       errorKind: null,
-      reconciliationLeaseToken: turn.leaseToken,
+      reconciliationLeaseToken: leaseToken,
     };
   }
 
   /**
-   * Replays a durable STARTING turn after its creating process disappeared.
-   * The lease CAS elects one recovery worker; Eve create is idempotent on the
-   * immutable Core turn id, so even a late original request cannot duplicate
-   * work.
+   * Replays a durable STARTING turn after its owner releases it or stops renewing.
+   * The lease CAS elects one recovery worker to replay the immutable Core turn
+   * id. Acknowledgement and settlement are fenced by the new token.
    */
   async recoverStartingTurn(
     turnId: string,
   ): Promise<SokoBotTurnStartResult | null> {
+    const checkedAt = await databaseNow();
     const turn = await prisma.sokoBotTurn.findFirst({
-      where: { id: turnId, status: "STARTING", eveSessionId: null },
-      include: { sokoBot: true },
+      where: {
+        id: turnId,
+        status: "STARTING",
+        OR: [{ eveSessionId: null }, { errorKind: "runtime_start_ambiguous" }],
+        deadlineAt: { gt: checkedAt },
+        AND: [staleTurnLeaseWhere(checkedAt), startRecoveryEligibility()],
+      },
     });
     if (!turn) return null;
-    const recoveryActivityAt =
-      turn.reconcilerHeartbeatAt ?? turn.createdAt ?? null;
-    if (
-      recoveryActivityAt instanceof Date &&
-      recoveryActivityAt.getTime() >
-        Date.now() - SOKO_BOT_START_RECOVERY_GRACE_MS
-    ) {
-      return null;
-    }
-    if (
-      turn.sokoBot.archivedAt ||
-      turn.sokoBot.adminPausedAt ||
-      turn.sokoBot.status === "PAUSED"
-    ) {
-      return null;
-    }
-    // A turn nobody asked for, stranded by a crash, must not be resumed after
-    // the owner has since paused unprompted work — the pause would look
-    // ignored, and this turn can still spend.
-    if (
-      unpromptedTurn(turn) &&
-      (turn.sokoBot.proactivePaused || getEnv().SOKO_BOT_PROACTIVE_PAUSED)
-    ) {
-      return null;
-    }
 
     const leaseToken = randomUUID();
-    const claimedAt = new Date();
-    // The pause is part of the claim rather than a read before it: any check
-    // that happens first is stale by the time the row is won, and this turn
-    // can spend. A pause committed mid-flight now loses the claim outright.
-    if (unpromptedTurn(turn) && getEnv().SOKO_BOT_PROACTIVE_PAUSED) {
-      return null;
-    }
-    const claimed = await prisma.sokoBotTurn.updateMany({
-      where: {
-        id: turn.id,
-        status: "STARTING",
-        eveSessionId: null,
-        leaseToken: turn.leaseToken,
-        ...(unpromptedTurn(turn)
-          ? { sokoBot: { is: { proactivePaused: false } } }
-          : {}),
-        leaseExpiresAt: turn.leaseExpiresAt,
-        reconcilerHeartbeatAt: turn.reconcilerHeartbeatAt,
-      },
-      data: {
-        leaseToken,
-        leaseExpiresAt: new Date(claimedAt.getTime() + TURN_LEASE_MS),
-        reconcilerHeartbeatAt: claimedAt,
-        errorKind: "runtime_start_ambiguous",
-        errorDetail: "Recovering durable start after process interruption",
-      },
+    const claimed = await prisma.$transaction(async (tx) => {
+      // Pause and archive lock the bot before they touch a turn.
+      await tx.$queryRaw`
+        SELECT "id" FROM "soko_bot" WHERE "id" = ${turn.sokoBotId}::uuid FOR UPDATE
+      `;
+      // Foreground settlement can already hold the turn and need the bot.
+      const locked = await tx.$queryRaw<{ id: string }[]>`
+        SELECT "id" FROM "soko_bot_turn" WHERE "id" = ${turn.id}::uuid
+        FOR NO KEY UPDATE SKIP LOCKED
+      `;
+      if (!locked.length) return null;
+      const claimedAt = await databaseNow(tx);
+      const { count } = await tx.sokoBotTurn.updateMany({
+        where: {
+          id: turn.id,
+          status: "STARTING",
+          eveSessionId: turn.eveSessionId,
+          errorKind: turn.errorKind,
+          leaseToken: turn.leaseToken,
+          leaseExpiresAt: turn.leaseExpiresAt,
+          reconcilerHeartbeatAt: turn.reconcilerHeartbeatAt,
+          deadlineAt: { gt: claimedAt },
+          AND: [staleTurnLeaseWhere(claimedAt), startRecoveryEligibility()],
+        },
+        data: {
+          leaseToken,
+          leaseExpiresAt: new Date(claimedAt.getTime() + TURN_LEASE_MS),
+          reconcilerHeartbeatAt: claimedAt,
+          errorKind: "runtime_start_ambiguous",
+          errorDetail: "Recovering durable start after process interruption",
+        },
+      });
+      if (!count) return null;
+      // Make a serializable pause/archive with an older snapshot retry its check.
+      await tx.$executeRaw`
+        UPDATE "soko_bot" SET "updatedAt" = "updatedAt" WHERE "id" = ${turn.sokoBotId}::uuid
+      `;
+      return tx.sokoBot.findUniqueOrThrow({ where: { id: turn.sokoBotId } });
     });
-    if (claimed.count !== 1) return null;
+    if (!claimed) return null;
 
+    const stopRenewing = this.holdTurnLease(turn.id, leaseToken);
     try {
-      return await this.resumeAmbiguousStart(turn.sokoBot, {
+      return await this.resumeAmbiguousStart(claimed, {
         ...turn,
         leaseToken,
       });
     } catch (error) {
-      if (error instanceof SokoBotRetryableStartError) {
-        await prisma.sokoBotTurn.updateMany({
-          where: { id: turn.id, status: "STARTING", leaseToken },
-          data: {
-            reconcilerHeartbeatAt: null,
-            errorKind: "runtime_start_ambiguous",
-            errorDetail: safeRuntimeDiagnostic(error.message),
-          },
-        });
-      } else if (!(error instanceof SokoBotStartAbortedError)) {
+      if (
+        error instanceof SokoBotRetryableStartError ||
+        error instanceof SokoBotStartAbortedError
+      ) {
+        await this.releaseStartLease(
+          turn.id,
+          leaseToken,
+          safeRuntimeDiagnostic(error.message),
+        );
+      } else {
         await this.failStartedTurn(turn.id, error, leaseToken);
       }
       throw error;
+    } finally {
+      stopRenewing();
     }
   }
 
@@ -1234,6 +1428,21 @@ export class SokoBotControlPlane {
     // only, so this is read once at creation and then pinned.
     const defaultVersionId = await getDefaultSokoBotVersionId();
 
+    const profile = {
+      name,
+      ...(input.avatarSeed !== undefined
+        ? { avatarSeed: input.avatarSeed }
+        : {}),
+      ...(input.personalityTone !== undefined
+        ? { personalityTone: input.personalityTone }
+        : {}),
+      ...(input.personalityDetail !== undefined
+        ? { personalityDetail: input.personalityDetail }
+        : {}),
+      ...(input.personalityStyle !== undefined
+        ? { personalityStyle: input.personalityStyle }
+        : {}),
+    };
     const created = await prisma.$transaction(async (tx) => {
       // Only a live row: a deleted bot is a tombstone kept for provenance and
       // must never be reactivated into the owner's new assistant.
@@ -1250,19 +1459,15 @@ export class SokoBotControlPlane {
         const updated = await tx.sokoBot.update({
           where: { id: existing.id },
           data: {
-            archivedAt: isReactivation ? null : undefined,
-            name,
-            avatarSeed: input.avatarSeed,
-            personalityTone: input.personalityTone,
-            personalityDetail: input.personalityDetail,
-            personalityStyle: input.personalityStyle,
+            ...(isReactivation ? { archivedAt: null } : {}),
+            ...profile,
             // Owner reactivation must not clear a durable administrator pause.
-            status:
-              isReactivation && existing.adminPausedAt === null
-                ? "IDLE"
-                : undefined,
-            memoryVersion: needsInitialMemory ? 1 : undefined,
-            memoryHash: needsInitialMemory ? hash : undefined,
+            ...(isReactivation && existing.adminPausedAt === null
+              ? { status: "IDLE" }
+              : {}),
+            ...(needsInitialMemory
+              ? { memoryVersion: 1, memoryHash: hash }
+              : {}),
           },
         });
         if (needsInitialMemory) {
@@ -1276,7 +1481,6 @@ export class SokoBotControlPlane {
             },
           });
         }
-        if (input.avatarId) await claimAvatar(updated.id, input.avatarId, tx);
         return updated;
       }
 
@@ -1285,17 +1489,15 @@ export class SokoBotControlPlane {
           userId: input.userId,
           createdByUserId: input.userId,
           workspaceId: input.workspaceId,
-          name,
+          ...profile,
           // Pin the version a bot was created on rather than leaving it null
           // and relying on the runtime fallback: the console can then show
           // what each bot actually runs, and an older bot keeps its version
           // when the default moves on.
           versionId: defaultVersionId,
-          ingestTimezone: input.timezone,
-          avatarSeed: input.avatarSeed,
-          personalityTone: input.personalityTone,
-          personalityDetail: input.personalityDetail,
-          personalityStyle: input.personalityStyle,
+          ...(input.timezone !== undefined
+            ? { ingestTimezone: input.timezone }
+            : {}),
           memoryVersion: 1,
           memoryHash: hash,
         },
@@ -1309,9 +1511,13 @@ export class SokoBotControlPlane {
           source: "created",
         },
       });
-      if (input.avatarId) await claimAvatar(bot.id, input.avatarId, tx);
       return bot;
     });
+    // Outside the transaction: it uploads to Blob.
+    if (!created.avatarCode) {
+      const look = await giveNewSokoBotAvatar(created.id, input.avatarCode);
+      if (look) Object.assign(created, look);
+    }
     const { ensureSystemSchedules } = await import(
       "@/services/soko-bot-proactive.service"
     );
@@ -1321,10 +1527,17 @@ export class SokoBotControlPlane {
       workspaceId: input.workspaceId,
       ingestTimezone: created.ingestTimezone,
     }).catch((error) => {
-      console.error("Soko Bot system schedules failed", {
-        sokoBotId: created.id,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      // Awaited inside the create request; an eval lane creates outside one.
+      recordCoreError(
+        TURN_LOG,
+        {
+          message: "Created a Soko Bot without its built-in rhythms",
+          why: "Creating the system schedules failed",
+          fix: "The bot works without them. The owner can add the rhythms on the bot's Schedules page.",
+          cause: error,
+        },
+        { sokoBot: { id: created.id } },
+      );
     });
     return created;
   }
@@ -1457,14 +1670,29 @@ export class SokoBotControlPlane {
     // low-balance check publishes over realtime and must not run for a
     // charge that rolled back. Reset per attempt: a serialization retry
     // starts over and must not carry the rolled-back attempt's charge.
-    let chargedUserId: string | null = null;
+    let chargedWallet: {
+      userId: string;
+      organizationId: string | null;
+    } | null = null;
+    // A Cuso's charge gets his own notice, on his Project (SOKD-246).
+    let chargedCusoProjectId: string | null = null;
+    // A CMO research or plan turn that ended: Cuso's first plan, or the
+    // next fix the owner asked for meanwhile, may start now.
+    let cmoTurnEnded: {
+      sokoBotId: string;
+      userId: string | null;
+      clientTurnId: string | null;
+    } | null = null;
 
     return serializableTransaction(async (tx) => {
-      chargedUserId = null;
+      chargedWallet = null;
+      chargedCusoProjectId = null;
+      cmoTurnEnded = null;
       const turn = await tx.sokoBotTurn.findUnique({
         where: { id: input.turnId },
         select: {
           sokoBotId: true,
+          clientTurnId: true,
           requestedByUserId: true,
           sokoBot: { select: { userId: true } },
           workspaceId: true,
@@ -1511,8 +1739,23 @@ export class SokoBotControlPlane {
         },
         tx,
       );
-      if (usageCharge.chargedCents > 0n) {
-        chargedUserId = sokoBotActingUserId(turn);
+      const chargedUserId = sokoBotActingUserId(turn);
+      if (usageCharge.chargedCents > 0n && usageCharge.cusoProjectId) {
+        chargedCusoProjectId = usageCharge.cusoProjectId;
+      }
+      // A Cuso's charge drew on his Project credits first: the pool's
+      // notice, which sends people to Sokosumi's top-up, is not his.
+      if (
+        usageCharge.chargedCents > 0n &&
+        chargedUserId &&
+        !usageCharge.cusoProjectId
+      ) {
+        // The wallet the turn drew on: a bot in an Organization workspace
+        // bills the Organization, not the member's personal wallet.
+        chargedWallet = {
+          userId: chargedUserId,
+          organizationId: usageCharge.organizationId,
+        };
       }
       // Runtime work already happened before settlement. A late billing
       // shortfall must be visible and block later funded turns, but discarding
@@ -1524,12 +1767,22 @@ export class SokoBotControlPlane {
           input.providerCompletedAt >= turn.cancellationRequestedAt);
       const settledStatus: TerminalSokoBotTurnStatus =
         completionLostToCancellation ? "CANCELLED" : input.status;
-      const errorKind = usageCharge.shortfall
-        ? "insufficient_credits"
-        : safeRuntimeDiagnostic(input.errorKind, 120);
-      const errorDetail = usageCharge.shortfall
-        ? "Available credits were exhausted while settling this Soko Bot turn"
-        : safeRuntimeDiagnostic(input.errorDetail);
+      const budgetExceeded =
+        settledStatus === "FAILED" &&
+        runtimeFailureCode({
+          code: input.errorKind,
+          message: input.errorDetail,
+        }) === AI_BUDGET_EXCEEDED;
+      const errorKind = budgetExceeded
+        ? AI_BUDGET_EXCEEDED
+        : usageCharge.shortfall
+          ? "insufficient_credits"
+          : safeRuntimeDiagnostic(input.errorKind, 120);
+      const errorDetail = budgetExceeded
+        ? AI_BUDGET_EXCEEDED_MESSAGE
+        : usageCharge.shortfall
+          ? "Available credits were exhausted while settling this Soko Bot turn"
+          : safeRuntimeDiagnostic(input.errorDetail);
 
       const responseContract =
         settledStatus === "COMPLETED"
@@ -1547,7 +1800,7 @@ export class SokoBotControlPlane {
                 : undefined,
             )
           : null;
-      const now = new Date();
+      const now = await databaseNow(tx);
       const settled = await tx.sokoBotTurn.updateMany({
         where: {
           id: input.turnId,
@@ -1559,7 +1812,7 @@ export class SokoBotControlPlane {
           status: settledStatus,
           completedAt: now,
           durationMs: turn.startedAt
-            ? now.getTime() - turn.startedAt.getTime()
+            ? Math.max(0, now.getTime() - turn.startedAt.getTime())
             : null,
           errorKind: errorKind ?? null,
           errorDetail: errorDetail ?? null,
@@ -1570,6 +1823,25 @@ export class SokoBotControlPlane {
         },
       });
       if (settled.count === 0) return false;
+      // Once any foreground turn of Cuso ends, his first plan or the next
+      // fix the owner asked for meanwhile may start (one turn per bot); once
+      // a production run ends, the month's next one. A turn the owner
+      // stopped starts nothing.
+      if (
+        settledStatus !== "CANCELLED" &&
+        (turn.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX) ||
+          turn.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX) ||
+          turn.clientTurnId?.startsWith(CMO_PRODUCTION_TURN_PREFIX) ||
+          (turn.parentTurnId === null &&
+            turn.versionId !== undefined &&
+            getSokoBotVersion(turn.versionId).profile === "cmo"))
+      ) {
+        cmoTurnEnded = {
+          sokoBotId: turn.sokoBotId,
+          userId: turn.requestedByUserId,
+          clientTurnId: turn.clientTurnId,
+        };
+      }
       const outcome = await assessSokoBotIntentOutcome(tx, input.turnId);
       const outcomeSummary = sokoBotOutcomeSummary(outcome);
       // The owner reads the model's own words; the claim check has already
@@ -1598,30 +1870,28 @@ export class SokoBotControlPlane {
               ? { eveSessionId: turn.eveSessionId }
               : {}),
           },
-          data:
-            settledStatus === "FAILED"
+          data: {
+            ...(input.clearSession ? { eveSessionId: null } : {}),
+            ...(settledStatus === "FAILED"
               ? {
                   status: "ERROR",
-                  eveSessionId: input.clearSession ? null : undefined,
                   lastFailedAt: now,
                   consecutiveTurnFailures: { increment: 1 },
                 }
               : settledStatus === "COMPLETED"
                 ? {
                     status: "IDLE",
-                    eveSessionId: input.clearSession ? null : undefined,
                     lastSucceededAt: now,
                     consecutiveTurnFailures: 0,
                   }
-                : {
-                    status: "IDLE",
-                    eveSessionId: input.clearSession ? null : undefined,
-                  },
+                : { status: "IDLE" }),
+          },
         });
 
       const scheduleRun = turn.scheduleRun;
       if (scheduleRun) {
         const completed = settledStatus === "COMPLETED";
+        const scheduleErrorDetail = completed ? null : errorDetail;
         const scheduleRunUpdate = await tx.sokoBotScheduleRun.updateMany({
           where: {
             id: scheduleRun.id,
@@ -1637,7 +1907,9 @@ export class SokoBotControlPlane {
             errorKind: completed
               ? null
               : (errorKind ?? settledStatus.toLowerCase()),
-            errorDetail: completed ? null : errorDetail,
+            ...(scheduleErrorDetail !== undefined
+              ? { errorDetail: scheduleErrorDetail }
+              : {}),
           },
         });
         if (scheduleRunUpdate.count === 1) {
@@ -1654,30 +1926,67 @@ export class SokoBotControlPlane {
       async (settled) => {
         // On the charge alone: a settlement that lost its lease after the
         // usage was recorded still committed that charge.
-        if (chargedUserId) {
-          await notifyLowBalanceAfterCharge({
-            userId: chargedUserId,
-            organizationId: null,
-          });
+        if (chargedWallet) {
+          await notifyLowBalanceAfterCharge(chargedWallet);
         }
-        if (settled) {
+        if (chargedCusoProjectId) {
+          await notifyCusoLowCreditsAfterCharge(chargedCusoProjectId);
+        }
+        if (settled && cmoTurnEnded) {
+          const ended: {
+            sokoBotId: string;
+            userId: string | null;
+            clientTurnId: string | null;
+          } = cmoTurnEnded;
           waitUntil(
-            logSokoBotRouteOutcome(input.turnId).catch(() => undefined),
-          );
-          waitUntil(
-            import("@/services/soko-bot-delivery.service")
-              .then(({ deliverSokoBotTurnOutbox }) =>
-                deliverSokoBotTurnOutbox(input.turnId),
-              )
-              .catch((error) => {
-                console.warn(
-                  "Soko Bot inline delivery failed; durable retry remains pending",
+            import("@/services/cmo-strategy.service")
+              .then(({ afterCmoTurn }) => afterCmoTurn(ended))
+              .catch((error: unknown) => {
+                // After the response: a standalone event, redacted and drained.
+                emitCoreWarning(
+                  { operation: "cmo_next_run" },
                   {
-                    turnId: input.turnId,
-                    error: error instanceof Error ? error.message : "unknown",
+                    message: "CMO's next run did not start",
+                    why: "Starting the first plan or a queued brand fix threw after Cuso's turn settled",
+                    fix: "It starts again when Cuso's next turn ends. If it keeps failing, read the failure and the Cuso's credits.",
+                  },
+                  {
+                    sokoBot: { id: ended.sokoBotId },
+                    clientTurnId: ended.clientTurnId,
+                    failure: messageSafeErrorFields(error),
                   },
                 );
               }),
+          );
+        }
+        if (settled) {
+          waitUntil(
+            runAsBackgroundWork(() =>
+              logSokoBotRouteOutcome(input.turnId).catch(() => undefined),
+            ),
+          );
+          waitUntil(
+            runAsBackgroundWork(() =>
+              import("@/services/soko-bot-delivery.service")
+                .then(({ deliverSokoBotTurnOutbox }) =>
+                  deliverSokoBotTurnOutbox(input.turnId),
+                )
+                .catch((error) => {
+                  emitCoreWarning(
+                    TURN_LOG,
+                    {
+                      message:
+                        "Could not deliver a settled Soko Bot turn right away",
+                      why: "The inline delivery threw",
+                      fix: "Nothing to do: the delivery outbox keeps it and the soko-bot-turns sync delivers it.",
+                    },
+                    {
+                      turn: { id: input.turnId },
+                      failure: messageSafeErrorFields(error),
+                    },
+                  );
+                }),
+            ),
           );
         }
         return settled;
@@ -1685,23 +1994,53 @@ export class SokoBotControlPlane {
     );
   }
 
-  async settleUndeliverableCancellation(turnId: string): Promise<boolean> {
-    const turn = await prisma.sokoBotTurn.findFirst({
-      where: {
-        id: turnId,
-        status: "CANCEL_REQUESTED",
-        eveSessionId: null,
-      },
-      select: { leaseToken: true },
+  private async settleOwnedTurn(
+    input: Parameters<SokoBotControlPlane["settleTurn"]>[0] & {
+      leaseToken: string;
+    },
+  ): Promise<void> {
+    if (await this.settleTurn(input)) return;
+    const active = await prisma.sokoBotTurn.findFirst({
+      where: { id: input.turnId, status: { in: [...ACTIVE_TURN_STATUSES] } },
+      select: { id: true },
     });
-    if (!turn?.leaseToken) return false;
+    if (active) {
+      throw new SokoBotReconciliationLeaseLostError(
+        "Soko Bot settlement lost its lease",
+      );
+    }
+  }
+
+  async settleUndeliverableCancellation(turnId: string): Promise<boolean> {
+    const leaseToken = randomUUID();
+    const claimed = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT "id" FROM "soko_bot_turn" WHERE "id" = ${turnId}::uuid
+        FOR NO KEY UPDATE
+      `;
+      const now = await databaseNow(tx);
+      return tx.sokoBotTurn.updateMany({
+        where: {
+          id: turnId,
+          status: "CANCEL_REQUESTED",
+          eveSessionId: null,
+          ...staleTurnLeaseWhere(now),
+        },
+        data: {
+          leaseToken,
+          leaseExpiresAt: new Date(now.getTime() + TURN_LEASE_MS),
+          reconcilerHeartbeatAt: now,
+        },
+      });
+    });
+    if (!claimed.count) return false;
     return this.settleTurn({
       turnId,
       status: "CANCELLED",
       errorKind: "cancelled_before_runtime_start",
       errorDetail: "Soko Bot turn was cancelled before runtime acceptance",
       clearSession: true,
-      leaseToken: turn.leaseToken,
+      leaseToken,
       requireMissingEveSession: true,
     });
   }
@@ -1740,9 +2079,13 @@ export class SokoBotControlPlane {
     return true;
   }
 
-  async expireTurn(turnId: string): Promise<boolean> {
+  async expireTurn(turnId: string, leaseToken?: string): Promise<boolean> {
     const turn = await prisma.sokoBotTurn.findFirst({
-      where: { id: turnId, status: { in: [...ACTIVE_TURN_STATUSES] } },
+      where: {
+        id: turnId,
+        status: { in: [...ACTIVE_TURN_STATUSES] },
+        ...(leaseToken !== undefined ? { leaseToken } : {}),
+      },
       select: {
         id: true,
         requestedByUserId: true,
@@ -1757,10 +2100,16 @@ export class SokoBotControlPlane {
       try {
         await this.deliverRuntimeCancellation(turn);
       } catch (error) {
-        console.warn("Soko Bot deadline cancellation failed", {
-          turnId,
-          error: error instanceof Error ? error.message : "unknown",
-        });
+        // Crons expire turns, and so do CMO status reads inside a request.
+        recordCoreWarning(
+          TURN_LOG,
+          {
+            message: "Could not cancel an expired Soko Bot turn at the runtime",
+            why: "The runtime refused the cancel",
+            fix: "The turn is still settled as failed; the runtime stops it at its own limit.",
+          },
+          { turn: { id: turnId }, failure: messageSafeErrorFields(error) },
+        );
       }
     }
     return this.settleTurn({
@@ -1771,6 +2120,7 @@ export class SokoBotControlPlane {
       // A deadline is an uncertain boundary. Never attach a later turn to the
       // same Eve session, even when cancellation acknowledgement was lost.
       clearSession: true,
+      leaseToken,
     });
   }
 
@@ -1866,22 +2216,9 @@ export class SokoBotControlPlane {
         },
       },
     });
-    const duplicateResult = (
-      existing: NonNullable<typeof duplicate>,
-    ): SokoBotTurnStartResult => ({
-      turnId: existing.id,
-      sokoBotId: existing.sokoBotId,
-      sessionId: existing.eveSessionId ?? bot.eveSessionId ?? "",
-      status: existing.status,
-      route: existing.route ?? "CLARIFY",
-      capabilities: existing.capabilityNames as SokoBotCapability[],
-      duplicate: true,
-      errorKind: existing.errorKind,
-      reconciliationLeaseToken: existing.leaseToken ?? undefined,
-    });
     if (duplicate) {
       if (
-        duplicate.userMessage !== message ||
+        !matchesReservedTurnMessage(duplicate, message, input.presetRoute) ||
         duplicate.workspaceId !== input.workspaceId ||
         duplicate.source !== source
       ) {
@@ -1893,21 +2230,12 @@ export class SokoBotControlPlane {
         input,
         bot.id,
         duplicate.id,
-        message,
+        duplicate.userMessage,
       );
       if (
         duplicate.status === "STARTING" &&
-        duplicate.errorKind === "runtime_start_ambiguous" &&
-        bot.status !== "PAUSED" &&
-        bot.adminPausedAt === null
-      ) {
-        return this.resumeAmbiguousStart(bot, duplicate);
-      }
-      if (
-        duplicate.status === "STARTING" &&
-        duplicate.eveSessionId === null &&
-        duplicate.createdAt.getTime() <=
-          Date.now() - SOKO_BOT_START_RECOVERY_GRACE_MS &&
+        (duplicate.eveSessionId === null ||
+          duplicate.errorKind === "runtime_start_ambiguous") &&
         bot.status !== "PAUSED" &&
         bot.adminPausedAt === null
       ) {
@@ -1916,9 +2244,9 @@ export class SokoBotControlPlane {
         const current = await prisma.sokoBotTurn.findUnique({
           where: { id: duplicate.id },
         });
-        if (current) return duplicateResult(current);
+        if (current) return observedStartResult(current, bot.eveSessionId);
       }
-      return duplicateResult(duplicate);
+      return observedStartResult(duplicate, bot.eveSessionId);
     }
     if (bot.status === "PAUSED" || bot.adminPausedAt !== null) {
       throw new SokoBotBusyError("Soko Bot is paused");
@@ -1951,14 +2279,29 @@ export class SokoBotControlPlane {
     } catch (error) {
       // A chat turn's sender sees the refusal; a self-started one has nobody
       // watching, so the owner hears about it in their chat instead.
-      if (error instanceof SokoBotBillingAccessError && source !== "CHAT") {
+      // A paused Cuso is not out of credits; CMO shows why he is paused.
+      if (
+        error instanceof SokoBotBillingAccessError &&
+        error.reason !== "cmo_paused" &&
+        source !== "CHAT"
+      ) {
         await notifySokoBotOutOfCredits(bot.id).catch(
           (noticeError: unknown) => {
-            console.warn("Soko Bot out-of-credits notice failed", {
-              sokoBotId: bot.id,
-              error:
-                noticeError instanceof Error ? noticeError.name : "unknown",
-            });
+            recordCoreWarning(
+              TURN_LOG,
+              {
+                message:
+                  "Could not tell a Soko Bot's owner that it is out of credits",
+                why: "Posting the out-of-credits notice in the owner's chat failed",
+                fix: "The turn is still refused. The owner sees the balance on the billing page; the next self-started turn posts the notice again.",
+              },
+              // The name only: the notice's text is about the owner.
+              {
+                sokoBot: { id: bot.id },
+                errorName:
+                  noticeError instanceof Error ? noticeError.name : "unknown",
+              },
+            );
           },
         );
       }
@@ -2022,7 +2365,7 @@ export class SokoBotControlPlane {
               ...intentScope,
               ...memberAnswerableIntentWhere(bot),
               state: "AWAITING_CONFIRMATION",
-              expiresAt: { gt: new Date() },
+              expiresAt: { gt: await databaseNow() },
             },
             take: 3,
             select: {
@@ -2059,9 +2402,11 @@ export class SokoBotControlPlane {
               workspaceId: input.workspaceId,
               source: "CHAT",
               createdAt: {
-                gte: new Date(Date.now() - PREVIOUS_REPLY_WINDOW_MS),
+                gte: new Date(
+                  (await databaseNow()).getTime() - PREVIOUS_REPLY_WINDOW_MS,
+                ),
               },
-              askedByUserId,
+              ...(askedByUserId !== undefined ? { askedByUserId } : {}),
               ...(conversationMention?.message.roomId
                 ? {
                     chatMention: {
@@ -2248,6 +2593,13 @@ export class SokoBotControlPlane {
         workspaceId: input.workspaceId,
         projectId: bot.projectId,
       }));
+    const competitorsAvailable =
+      version.profile === "cmo" ||
+      (routeCapabilities.some(isSokoBotCompetitorCapability) &&
+        (await competitorChecksOnFor({
+          projectId: bot.projectId,
+          workspaceId: input.workspaceId,
+        })));
     const capabilities = applyVersionCapabilities(
       version,
       (input.chat?.askedByBot
@@ -2257,12 +2609,17 @@ export class SokoBotControlPlane {
           : routeCapabilities) as readonly SokoBotCapability[],
     ).filter(
       (capability) =>
+        input.presetRoute?.systemKey !== "meeting-prep" &&
         (!isSokoBotNewsletterCapability(capability) || newsletterAvailable) &&
+        (!isSokoBotCompetitorCapability(capability) || competitorsAvailable) &&
+        (!isSokoBotAnnouncementCapability(capability) ||
+          isAnnouncementBot(bot.id)) &&
         // Without a key `search_exa` refuses on every call; offer web_search only.
         (capability !== "search_exa" || Boolean(getEnv().EXA_API_KEY)),
     ) as readonly SokoBotCapability[];
+    const startNow = (await databaseNow()).getTime();
     const deadlineAt = new Date(
-      Date.now() +
+      startNow +
         (input.background
           ? BACKGROUND_RUN_DEADLINE_MS
           : personAsked || input.personStarted
@@ -2270,7 +2627,6 @@ export class SokoBotControlPlane {
             : TURN_DEADLINE_MS),
     );
     const leaseToken = randomUUID();
-    const leaseExpiresAt = new Date(Date.now() + TURN_LEASE_MS);
     // Eve only offers create-operation idempotency. A fresh session per Core
     // turn makes ambiguous retries exactly-once; Context carries bounded prior
     // conversation and durable memory supplies continuity across sessions.
@@ -2345,6 +2701,9 @@ export class SokoBotControlPlane {
           WHERE "id" = ${bot.id}::uuid
           FOR UPDATE
         `;
+        // One sample under the bot lock: the daily cap's day start and the
+        // new turn's createdAt and initial lease share it.
+        const reservedAt = await databaseNow(tx);
         const currentBot = await tx.sokoBot.findUnique({
           where: { id: bot.id },
           select: {
@@ -2384,7 +2743,7 @@ export class SokoBotControlPlane {
             where: {
               sokoBotId: bot.id,
               createdAt: {
-                gte: localDayStart(new Date(), currentBot.ingestTimezone),
+                gte: localDayStart(reservedAt, currentBot.ingestTimezone),
               },
               clientTurnId: { not: { startsWith: "lab:" } },
               OR: [
@@ -2448,24 +2807,31 @@ export class SokoBotControlPlane {
             route: classification.classification.route,
             clientTurnId,
             versionId: version.id,
+            createdAt: reservedAt,
             userMessage: message,
             destinationRoomId: destinationRoom?.id ?? null,
-            destinationAudience: destinationAudience
+            ...(destinationAudience
               ? {
-                  userIds: destinationAudience.userMembers
-                    .map((m) => m.userId)
-                    .sort(),
-                  coworkerIds: destinationAudience.coworkerMembers
-                    .map((m) => m.coworkerId)
-                    .sort(),
-                  botIds: destinationAudience.sokoBotMembers
-                    .map((m) => m.sokoBotId)
-                    .sort(),
+                  destinationAudience: {
+                    userIds: destinationAudience.userMembers
+                      .map((m) => m.userId)
+                      .sort(),
+                    coworkerIds: destinationAudience.coworkerMembers
+                      .map((m) => m.coworkerId)
+                      .sort(),
+                    botIds: destinationAudience.sokoBotMembers
+                      .map((m) => m.sokoBotId)
+                      .sort(),
+                  },
                 }
-              : undefined,
-            chatMentionId: input.chat?.mentionId,
-            chatResponseMessageId: input.chat?.responseMessageId,
-            askedByUserId,
+              : {}),
+            ...(input.chat?.mentionId !== undefined
+              ? { chatMentionId: input.chat.mentionId }
+              : {}),
+            ...(input.chat?.responseMessageId !== undefined
+              ? { chatResponseMessageId: input.chat.responseMessageId }
+              : {}),
+            ...(askedByUserId !== undefined ? { askedByUserId } : {}),
             chainDepth: input.chat?.chainDepth ?? 0,
             parentTurnId: input.background?.parentTurnId ?? null,
             backgroundTitle: input.background?.title ?? null,
@@ -2498,7 +2864,8 @@ export class SokoBotControlPlane {
             eveStreamIndex: -1,
             deadlineAt,
             leaseToken,
-            leaseExpiresAt,
+            leaseExpiresAt: new Date(reservedAt.getTime() + TURN_LEASE_MS),
+            reconcilerHeartbeatAt: reservedAt,
             contextSnapshot: {
               create: {
                 id: contextSnapshotId,
@@ -2540,7 +2907,9 @@ export class SokoBotControlPlane {
               data: {
                 lastSeenStatus: occurrence.status,
                 lastSeenEventId: occurrence.eventId,
-                lastSeenEventAt: occurrence.delegationEventAt,
+                ...(occurrence.delegationEventAt !== undefined
+                  ? { lastSeenEventAt: occurrence.delegationEventAt }
+                  : {}),
               },
             });
           }
@@ -2594,7 +2963,7 @@ export class SokoBotControlPlane {
               ...intentScope,
               ...memberAnswerableIntentWhere(bot),
               state: "AWAITING_CONFIRMATION",
-              expiresAt: { gt: new Date() },
+              expiresAt: { gt: await databaseNow(tx) },
             },
           });
           if (!selected)
@@ -2721,7 +3090,11 @@ export class SokoBotControlPlane {
       });
       if (racedDuplicate) {
         if (
-          racedDuplicate.userMessage !== message ||
+          !matchesReservedTurnMessage(
+            racedDuplicate,
+            message,
+            input.presetRoute,
+          ) ||
           racedDuplicate.workspaceId !== input.workspaceId ||
           racedDuplicate.source !== source
         ) {
@@ -2733,16 +3106,15 @@ export class SokoBotControlPlane {
           input,
           bot.id,
           racedDuplicate.id,
-          message,
+          racedDuplicate.userMessage,
         );
-        return duplicateResult(racedDuplicate);
+        return observedStartResult(racedDuplicate, bot.eveSessionId);
       }
       throw error;
     }
 
-    let acceptedRuntime:
-      | { sessionId: string; createdSession: boolean }
-      | undefined;
+    let acceptedSessionId: string | undefined;
+    const stopRenewing = this.holdTurnLease(turn.id, leaseToken);
     try {
       if (
         classification.classification.selectedIntentId &&
@@ -2755,7 +3127,7 @@ export class SokoBotControlPlane {
         const completed = await prisma.sokoBotTurn.findUniqueOrThrow({
           where: { id: turn.id },
         });
-        return { ...duplicateResult(completed), duplicate: false };
+        return observedStartResult(completed, bot.eveSessionId, false);
       }
       const expectedSessionId = sessionIdForTurn ?? `pending:${turn.id}`;
       const tokenScope = {
@@ -2769,11 +3141,9 @@ export class SokoBotControlPlane {
         ...tokenScope,
         sessionId: sessionIdForTurn,
         message,
+        reconciliationLeaseToken: leaseToken,
       });
-      acceptedRuntime = {
-        sessionId: runtimeTurn.sessionId,
-        createdSession: true,
-      };
+      acceptedSessionId = runtimeTurn.sessionId;
       await serializableTransaction(async (tx) => {
         await tx.$queryRaw`
           SELECT "id"
@@ -2781,6 +3151,7 @@ export class SokoBotControlPlane {
           WHERE "id" = ${bot.id}::uuid
           FOR UPDATE
         `;
+        const acknowledgedAt = await databaseNow(tx);
         const acknowledged = await tx.sokoBotTurn.updateMany({
           where: {
             id: turn.id,
@@ -2791,8 +3162,8 @@ export class SokoBotControlPlane {
             status: "RUNNING",
             eveSessionId: runtimeTurn.sessionId,
             runtimeVersion: runtimeTurn.runtimeVersion,
-            startedAt: new Date(runtimeTurn.acceptedAt),
-            reconcilerHeartbeatAt: new Date(),
+            startedAt: acknowledgedAt,
+            reconcilerHeartbeatAt: acknowledgedAt,
           },
         });
         if (acknowledged.count === 0) {
@@ -2821,8 +3192,16 @@ export class SokoBotControlPlane {
             "Soko Bot was paused before runtime acknowledgement",
           );
         }
-      }, "Soko Bot acknowledgement collided with pause or cancellation");
-      acceptedRuntime = undefined;
+      }, "Soko Bot acknowledgement collided with pause or cancellation").catch(
+        (error: unknown) =>
+          this.requireAcknowledgedStartLease(
+            turn.id,
+            leaseToken,
+            runtimeTurn.sessionId,
+            error,
+          ),
+      );
+      acceptedSessionId = undefined;
       // A background run starts beside the chat: the chat's session is live.
       if (!input.background)
         await this.resetSupersededRuntimeSession({
@@ -2845,37 +3224,46 @@ export class SokoBotControlPlane {
     } catch (error) {
       let acceptedSessionWasReset = false;
       let currentAfterAcknowledgementFailure: SokoBotTurn | null = null;
-      if (acceptedRuntime) {
+      if (acceptedSessionId !== undefined) {
+        const retained = await this.retainStartLease(turn.id, leaseToken);
         currentAfterAcknowledgementFailure =
           await prisma.sokoBotTurn.findUnique({
             where: { id: turn.id },
           });
+        if (!currentAfterAcknowledgementFailure) throw error;
+        // The cleanup CAS checks startedAt so it cannot touch an acknowledged
+        // turn, even after cancellation or takeover. A re-read conveys the state.
         if (
-          currentAfterAcknowledgementFailure?.eveSessionId ===
-          acceptedRuntime.sessionId
+          !retained ||
+          currentAfterAcknowledgementFailure.leaseToken !== leaseToken
         ) {
-          return duplicateResult(currentAfterAcknowledgementFailure);
-        }
-        if (
-          currentAfterAcknowledgementFailure?.leaseToken !== leaseToken ||
-          !(await this.retainStartLease(turn.id, leaseToken))
-        ) {
-          throw error;
+          return observedStartResult(
+            currentAfterAcknowledgementFailure,
+            bot.eveSessionId,
+          );
         }
       }
-      if (acceptedRuntime?.createdSession) {
+      if (acceptedSessionId !== undefined) {
         try {
           await this.runtime.resetSession({
-            sessionId: acceptedRuntime.sessionId,
+            sessionId: acceptedSessionId,
             reason: "Soko Bot start acknowledgement failed",
           });
           acceptedSessionWasReset = true;
         } catch (cleanupError) {
-          console.warn("Soko Bot unacknowledged runtime cleanup failed", {
-            turnId: turn.id,
-            error:
-              cleanupError instanceof Error ? cleanupError.message : "unknown",
-          });
+          recordCoreWarning(
+            TURN_LOG,
+            {
+              message:
+                "Could not reset the runtime session of a turn whose start was not acknowledged",
+              why: "The runtime refused the reset",
+              fix: "Nothing to do: the session ages out at the runtime, and the start is retried or fails on its own.",
+            },
+            {
+              turn: { id: turn.id },
+              failure: messageSafeErrorFields(cleanupError),
+            },
+          );
         }
       }
       if (error instanceof SokoBotStartAbortedError) {
@@ -2890,7 +3278,9 @@ export class SokoBotControlPlane {
               leaseToken,
             },
             data: {
-              eveSessionId: acceptedRuntime?.sessionId,
+              ...(acceptedSessionId !== undefined
+                ? { eveSessionId: acceptedSessionId }
+                : {}),
               errorKind: "start_aborted",
               errorDetail: safeRuntimeDiagnostic(error.message),
               reconcilerHeartbeatAt: null,
@@ -2908,66 +3298,179 @@ export class SokoBotControlPlane {
         }
       } else if (
         isAmbiguousRuntimeAcceptance(error) ||
-        (acceptedRuntime !== undefined &&
-          (!acceptedRuntime.createdSession || !acceptedSessionWasReset))
+        (acceptedSessionId !== undefined && !acceptedSessionWasReset)
       ) {
-        await prisma.sokoBotTurn.updateMany({
-          where: { id: turn.id, status: "STARTING", leaseToken },
-          data: {
-            errorKind: "runtime_start_ambiguous",
-            errorDetail:
-              error instanceof Error
-                ? safeRuntimeDiagnostic(error.message)
-                : "Eve acceptance response was lost",
-            reconcilerHeartbeatAt: null,
-          },
-        });
+        await this.releaseStartLease(
+          turn.id,
+          leaseToken,
+          error instanceof Error
+            ? safeRuntimeDiagnostic(error.message)
+            : "Eve acceptance response was lost",
+        );
       } else {
         await this.failStartedTurn(turn.id, error, leaseToken);
       }
       throw error;
+    } finally {
+      stopRenewing();
     }
+  }
+
+  /**
+   * The last persisted settlement trigger of a turn and the outcome the
+   * events before it give, read with the row from one snapshot.
+   */
+  private async persistedSettlement(turnId: string) {
+    const { row, events } = await prisma.$transaction(
+      async (tx) => ({
+        row: await tx.sokoBotTurn.findUnique({
+          where: { id: turnId },
+          select: {
+            leaseToken: true,
+            errorKind: true,
+            errorDetail: true,
+          },
+        }),
+        events: await tx.sokoBotEvent.findMany({
+          where: {
+            turnId,
+            type: {
+              in: [
+                "turn.completed",
+                "turn.cancelled",
+                "turn.failed",
+                ...SETTLEMENT_TRIGGER_EVENT_TYPES,
+              ],
+            },
+          },
+          orderBy: { sequence: "asc" },
+          select: { type: true, providerAt: true, payload: true },
+        }),
+      }),
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+    const triggerAt = events.findLastIndex((event) =>
+      SETTLEMENT_TRIGGER_EVENT_TYPES.has(event.type),
+    );
+    if (!row || triggerAt < 0) return null;
+    const before = events.slice(0, triggerAt + 1);
+    const outcomeEvent = before.findLast((event) =>
+      event.type.startsWith("turn."),
+    );
+    const failure = before.findLast((event) => event.type.endsWith(".failed"));
+    // The projection keeps a failure's code; a later stream interruption can
+    // overwrite the row's diagnostics, so the row's detail only goes with it.
+    const code = (failure?.payload as { code?: unknown } | null)?.code;
+    const failureKind = failure
+      ? typeof code === "string" && code !== "unknown"
+        ? code
+        : "runtime_failed"
+      : undefined;
+    return {
+      trigger: events[triggerAt].type,
+      leaseToken: row.leaseToken,
+      status:
+        outcomeEvent?.type === "turn.failed"
+          ? ("FAILED" as const)
+          : outcomeEvent?.type === "turn.cancelled"
+            ? ("CANCELLED" as const)
+            : outcomeEvent?.type === "turn.completed"
+              ? ("COMPLETED" as const)
+              : null,
+      completedAt:
+        outcomeEvent?.type === "turn.completed"
+          ? (outcomeEvent.providerAt ?? undefined)
+          : undefined,
+      errorKind: failureKind ?? row.errorKind ?? undefined,
+      errorDetail:
+        !failureKind || row.errorKind === failureKind
+          ? (row.errorDetail ?? undefined)
+          : undefined,
+    };
+  }
+
+  async reconcileRuntimeCompletion(
+    turnId: string,
+    sessionId: string,
+    launchLeaseToken: string,
+  ): Promise<void> {
+    const leaseToken = randomUUID();
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT "id" FROM "soko_bot_turn" WHERE "id" = ${turnId}::uuid
+        FOR NO KEY UPDATE
+      `;
+      const now = await databaseNow(tx);
+      // Close can take its own launch grant or a drain that stopped renewing.
+      return tx.sokoBotTurn.updateMany({
+        where: {
+          id: turnId,
+          status: { in: ["STARTING", "RUNNING", "CANCEL_REQUESTED"] },
+          eveSessionId: sessionId,
+          OR: [{ leaseToken: launchLeaseToken }, staleTurnLeaseWhere(now)],
+        },
+        data: {
+          leaseToken,
+          leaseExpiresAt: new Date(now.getTime() + TURN_LEASE_MS),
+          reconcilerHeartbeatAt: now,
+        },
+      });
+    });
+    if (!updated.count) {
+      throw new SokoBotReconciliationLeaseLostError(
+        "Soko Bot runtime completion did not win the lease",
+      );
+    }
+    await this.reconcileTurn(turnId, undefined, leaseToken);
   }
 
   async reconcileTurn(
     turnId: string,
-    signal?: AbortSignal,
-    expectedLeaseToken?: string,
+    signal: AbortSignal | undefined,
+    leaseToken: string,
   ): Promise<void> {
     const turn = await prisma.sokoBotTurn.findUnique({ where: { id: turnId } });
-    if (!turn?.eveSessionId || !turn.leaseToken) {
-      throw new SokoBotNotFoundError("Runtime turn not found");
+    // When a caller has settled the turn and cleared the lease, nothing is
+    // left for another drain that was already queued under that same lease.
+    if (
+      turn &&
+      !turn.leaseToken &&
+      (turn.status === "COMPLETED" ||
+        turn.status === "CANCELLED" ||
+        turn.status === "FAILED")
+    ) {
+      return;
     }
-    const eveSessionId = turn.eveSessionId;
-    const leaseToken = expectedLeaseToken ?? turn.leaseToken;
-    if (turn.leaseToken !== leaseToken) {
+    if (turn && turn.leaseToken !== leaseToken) {
       throw new SokoBotReconciliationLeaseLostError(
         "Soko Bot reconciliation lease was replaced",
       );
     }
+    // Legacy observers can read the turn before the first caller's runtime
+    // acknowledged it. That caller reconciles once it has a session. Only the
+    // first start, under its live lease: a recovery claim sets the heartbeat
+    // and errorKind. Before renewal was introduced, the first start only
+    // stamped createdAt.
+    if (
+      turn?.status === "STARTING" &&
+      !turn.eveSessionId &&
+      turn.errorKind === null &&
+      turn.leaseExpiresAt !== null
+    ) {
+      const now = await databaseNow();
+      if (
+        turn.leaseExpiresAt > now &&
+        (turn.reconcilerHeartbeatAt ?? turn.createdAt).getTime() >
+          now.getTime() - SOKO_BOT_TURN_STALE_HEARTBEAT_MS
+      ) {
+        return;
+      }
+    }
+    if (!turn?.eveSessionId || !turn.leaseToken) {
+      throw new SokoBotNotFoundError("Runtime turn not found");
+    }
+    const eveSessionId = turn.eveSessionId;
 
-    let aggregateUsage = parseTurnUsage(turn.usage);
-    let aggregateCostUsdMicros = turn.costUsdMicros ?? 0n;
-    const priorTerminalEvent = await prisma.sokoBotEvent.findFirst({
-      where: {
-        turnId: turn.id,
-        type: { in: ["turn.completed", "turn.cancelled", "turn.failed"] },
-      },
-      orderBy: { sequence: "desc" },
-      select: { type: true, providerAt: true },
-    });
-    let pendingStatus: TerminalSokoBotTurnStatus | null =
-      priorTerminalEvent?.type === "turn.failed"
-        ? "FAILED"
-        : priorTerminalEvent?.type === "turn.cancelled"
-          ? "CANCELLED"
-          : priorTerminalEvent?.type === "turn.completed"
-            ? "COMPLETED"
-            : null;
-    let pendingCompletedAt =
-      priorTerminalEvent?.type === "turn.completed"
-        ? (priorTerminalEvent.providerAt ?? undefined)
-        : undefined;
     let pendingErrorKind = turn.errorKind ?? undefined;
     let pendingErrorDetail = turn.errorDetail ?? undefined;
     let boundEveTurnId = turn.eveTurnId;
@@ -2977,50 +3480,93 @@ export class SokoBotControlPlane {
       if (!boundEveTurnId) return;
       const current = await prisma.sokoBotTurn.findUnique({
         where: { id: turn.id },
-        select: { status: true },
+        select: { status: true, leaseToken: true },
       });
       if (current?.status !== "CANCEL_REQUESTED") return;
+      if (current.leaseToken !== leaseToken) {
+        throw new SokoBotReconciliationLeaseLostError(
+          "Soko Bot reconciliation lease was lost",
+        );
+      }
       try {
         await this.runtime.cancelTurn({
           sessionId: eveSessionId,
           eveTurnId: boundEveTurnId,
         });
       } catch (error) {
-        console.warn("Soko Bot cancellation redelivery failed", {
-          turnId: turn.id,
-          error: error instanceof Error ? error.message : "unknown",
-        });
+        emitCoreWarning(
+          TURN_LOG,
+          {
+            message:
+              "Could not redeliver a Soko Bot turn's cancellation to the runtime",
+            why: "The runtime refused the cancel",
+            fix: "The next reconcile redelivers it, and the turn's deadline ends it otherwise.",
+          },
+          { turn: { id: turn.id }, failure: messageSafeErrorFields(error) },
+        );
       }
     };
 
-    const heartbeat = async (): Promise<void> => {
-      const updated = await prisma.sokoBotTurn.updateMany({
-        where: {
-          id: turn.id,
-          leaseToken,
-          status: { in: [...ACTIVE_TURN_STATUSES] },
-        },
-        data: {
-          reconcilerHeartbeatAt: new Date(),
-          leaseExpiresAt: new Date(Date.now() + TURN_LEASE_MS),
-        },
+    // Inside an event write it is the fence: the UPDATE locks the turn row,
+    // so the usage read after it sees what a previous event writer committed.
+    const heartbeat = async (
+      client: Prisma.TransactionClient = prisma,
+    ): Promise<void> => {
+      const held = await this.renewTurnLease(turn.id, leaseToken, client, {
+        status: { in: [...ACTIVE_TURN_STATUSES] },
       });
-      if (updated.count === 0) {
+      if (!held) {
         throw new SokoBotReconciliationLeaseLostError(
           "Soko Bot reconciliation lease was lost",
         );
       }
     };
 
+    // A writer that lags behind replays a lower index: it never moves the
+    // cursor back.
+    const advanceCursor = (tx: Prisma.TransactionClient, streamIndex: number) =>
+      tx.sokoBotTurn.updateMany({
+        where: { id: turn.id, eveStreamIndex: { lt: streamIndex } },
+        data: { eveStreamIndex: streamIndex },
+      });
+
+    // Adds a step's usage to the locked row's totals, never to a copy read
+    // before another writer added its own step.
+    const usageAfterStep = async (
+      tx: Prisma.TransactionClient,
+      event: IndexedRuntimeEvent["event"],
+    ): Promise<Prisma.SokoBotTurnUpdateInput> => {
+      const current = await tx.sokoBotTurn.findUnique({
+        where: { id: turn.id },
+        select: { usage: true, costUsdMicros: true },
+      });
+      const nextUsage = addTurnUsage(
+        parseTurnUsage(current?.usage),
+        event.data.usage,
+        event.data.modelId,
+      );
+      if (!nextUsage) return {};
+      return {
+        usage: jsonInput(nextUsage),
+        costUsdMicros:
+          (current?.costUsdMicros ?? 0n) +
+          BigInt(
+            Math.round(
+              nonnegativeNumber(
+                (event.data.usage as Record<string, unknown>).costUsd,
+              ) * 1_000_000,
+            ),
+          ),
+      };
+    };
+
     const persistEvent = async (
       indexed: IndexedRuntimeEvent,
-      data: Prisma.SokoBotTurnUpdateManyMutationInput = {},
+      data: Prisma.SokoBotTurnUpdateInput = {},
     ): Promise<boolean> => {
       return prisma.$transaction(async (tx) => {
-        const projection = safeEventProjection(
-          indexed.event.type,
-          indexed.event.data,
-        );
+        const { summary, payload, toolName, toolCallId, toolStatus } =
+          safeEventProjection(indexed.event.type, indexed.event.data);
         const persisted = await tx.sokoBotEvent.createMany({
           data: [
             {
@@ -3031,73 +3577,151 @@ export class SokoBotControlPlane {
               eveStartIndex: indexed.startIndex,
               sequence: indexed.startIndex,
               type: indexed.event.type,
-              summary: projection.summary,
-              payload: projection.payload,
-              toolName: projection.toolName,
-              toolCallId: projection.toolCallId,
-              toolStatus: projection.toolStatus,
+              summary,
+              ...(payload !== undefined ? { payload } : {}),
+              ...(toolName !== undefined ? { toolName } : {}),
+              ...(toolCallId !== undefined ? { toolCallId } : {}),
+              ...(toolStatus !== undefined ? { toolStatus } : {}),
               providerAt: new Date(indexed.event.meta.at),
             },
           ],
           skipDuplicates: true,
         });
-        const updated = await tx.sokoBotTurn.updateMany({
-          where: {
-            id: turn.id,
-            leaseToken,
-            status: { in: [...ACTIVE_TURN_STATUSES] },
-          },
-          data: {
-            ...(persisted.count === 1 ? data : {}),
-            eveStreamIndex: indexed.startIndex,
-            reconcilerHeartbeatAt: new Date(),
-            leaseExpiresAt: new Date(Date.now() + TURN_LEASE_MS),
-          },
+        // Insert, then fence: the order every release writes in, so a writer
+        // from the release before cannot deadlock with this one. A failed
+        // fence rolls the insert back.
+        await heartbeat(tx);
+        const persistedNew = persisted.count === 1;
+        if (persistedNew) {
+          const update = {
+            ...data,
+            ...(indexed.event.type === "step.completed"
+              ? await usageAfterStep(tx, indexed.event)
+              : {}),
+          };
+          if (Object.keys(update).length > 0)
+            await tx.sokoBotTurn.update({
+              where: { id: turn.id },
+              data: update,
+            });
+        }
+        await advanceCursor(tx, indexed.startIndex);
+        return persistedNew;
+      });
+    };
+
+    const advancePastUnownedEvent = (streamIndex: number) =>
+      prisma.$transaction(async (tx) => {
+        await heartbeat(tx);
+        await advanceCursor(tx, streamIndex);
+      });
+
+    // Settles on a runtime marker that ends the turn: the one the stream
+    // just yielded, or one a drain persisted before it died.
+    const settleOnTrigger = async (
+      type: string,
+      outcome: {
+        status: TerminalSokoBotTurnStatus | null;
+        completedAt?: Date;
+        errorKind?: string;
+        errorDetail?: string;
+      },
+    ): Promise<void> => {
+      if (type === "input.requested") {
+        try {
+          await this.runtime.cancelTurn({
+            sessionId: eveSessionId,
+            eveTurnId: boundEveTurnId ?? undefined,
+          });
+        } catch (error) {
+          emitCoreWarning(
+            TURN_LOG,
+            {
+              message:
+                "Could not cancel a Soko Bot turn that asked for input it cannot get",
+              why: "The runtime refused the cancel",
+              fix: "The turn is still settled as failed; the runtime stops it at its own limit.",
+            },
+            { turn: { id: turn.id }, failure: messageSafeErrorFields(error) },
+          );
+        }
+        await this.settleOwnedTurn({
+          turnId: turn.id,
+          status: "FAILED",
+          errorKind: "runtime_input_unsupported",
+          errorDetail:
+            "Eve requested interactive input outside the Soko Bot decision protocol",
+          clearSession: true,
+          leaseToken,
         });
-        if (updated.count === 0) {
+        return;
+      }
+      if (type === "session.waiting") {
+        await this.settleOwnedTurn({
+          turnId: turn.id,
+          status: outcome.status ?? "COMPLETED",
+          errorKind: outcome.errorKind,
+          errorDetail: outcome.errorDetail,
+          providerCompletedAt: outcome.completedAt,
+          leaseToken,
+        });
+        return;
+      }
+      await this.settleOwnedTurn({
+        turnId: turn.id,
+        status:
+          type === "session.failed"
+            ? "FAILED"
+            : (outcome.status ?? "COMPLETED"),
+        errorKind: outcome.errorKind,
+        errorDetail: outcome.errorDetail,
+        providerCompletedAt: outcome.completedAt,
+        clearSession: true,
+        leaseToken,
+      });
+    };
+
+    // Fenced writes below remain authoritative. Timer failures surface on
+    // next event or watchdog takeover without creating an unhandled task.
+    const stopRenewing = this.holdTurnLease(turn.id, leaseToken);
+    try {
+      await heartbeat();
+      const checkpoint = await this.persistedSettlement(turn.id);
+      if (checkpoint) {
+        if (checkpoint.leaseToken !== leaseToken) {
           throw new SokoBotReconciliationLeaseLostError(
             "Soko Bot reconciliation lease was lost",
           );
         }
-        return persisted.count === 1;
-      });
-    };
-
-    const advancePastUnownedEvent = async (streamIndex: number) => {
-      const updated = await prisma.sokoBotTurn.updateMany({
-        where: {
-          id: turn.id,
-          leaseToken,
-          status: { in: [...ACTIVE_TURN_STATUSES] },
-        },
-        data: {
-          eveStreamIndex: streamIndex,
-          reconcilerHeartbeatAt: new Date(),
-          leaseExpiresAt: new Date(Date.now() + TURN_LEASE_MS),
-        },
-      });
-      if (updated.count === 0) {
-        throw new SokoBotReconciliationLeaseLostError(
-          "Soko Bot reconciliation lease was lost",
-        );
+        await settleOnTrigger(checkpoint.trigger, checkpoint);
+        return;
       }
-    };
-
-    const heartbeatTimer = setInterval(() => {
-      void heartbeat().catch(() => {
-        // Fenced writes below remain authoritative. Timer failures surface on
-        // next event or watchdog takeover without creating an unhandled task.
+      const priorTerminalEvent = await prisma.sokoBotEvent.findFirst({
+        where: {
+          turnId: turn.id,
+          type: { in: ["turn.completed", "turn.cancelled", "turn.failed"] },
+        },
+        orderBy: { sequence: "desc" },
+        select: { type: true, providerAt: true },
       });
-    }, RECONCILER_HEARTBEAT_MS);
-    heartbeatTimer.unref();
-
-    try {
-      await heartbeat();
+      let pendingStatus: TerminalSokoBotTurnStatus | null =
+        priorTerminalEvent?.type === "turn.failed"
+          ? "FAILED"
+          : priorTerminalEvent?.type === "turn.cancelled"
+            ? "CANCELLED"
+            : priorTerminalEvent?.type === "turn.completed"
+              ? "COMPLETED"
+              : null;
+      let pendingCompletedAt =
+        priorTerminalEvent?.type === "turn.completed"
+          ? (priorTerminalEvent.providerAt ?? undefined)
+          : undefined;
       await deliverBoundCancellation();
       for await (const indexed of this.runtime.streamEvents({
         sessionId: turn.eveSessionId,
         startIndex: turn.eveStreamIndex + 1,
         signal,
+        reconciliation: { turnId, leaseToken },
       })) {
         if (!boundEveTurnId) {
           if (indexed.event.type === "turn.started") {
@@ -3150,35 +3774,13 @@ export class SokoBotControlPlane {
         // later durable event advances the cursor across all skipped deltas.
         if (!shouldPersistSokoBotRuntimeEvent(indexed.event.type)) continue;
 
-        const turnData: Prisma.SokoBotTurnUpdateManyMutationInput = {};
-        let nextAggregateUsage: SokoBotTurnUsage | null = null;
-        let nextAggregateCostUsdMicros: bigint | null = null;
+        // A step's usage is added inside persistEvent, from the locked row.
+        const turnData: Prisma.SokoBotTurnUpdateInput = {};
         if (
           indexed.event.type === "step.started" &&
           typeof indexed.event.data.modelId === "string"
         ) {
           turnData.modelId = indexed.event.data.modelId.slice(0, 240);
-        } else if (indexed.event.type === "step.completed") {
-          const nextUsage = addTurnUsage(
-            aggregateUsage,
-            indexed.event.data.usage,
-            indexed.event.data.modelId,
-          );
-          if (nextUsage) {
-            nextAggregateUsage = nextUsage;
-            nextAggregateCostUsdMicros =
-              aggregateCostUsdMicros +
-              BigInt(
-                Math.round(
-                  nonnegativeNumber(
-                    (indexed.event.data.usage as Record<string, unknown>)
-                      .costUsd,
-                  ) * 1_000_000,
-                ),
-              );
-            turnData.usage = jsonInput(nextAggregateUsage);
-            turnData.costUsdMicros = nextAggregateCostUsdMicros;
-          }
         }
         if (indexed.event.type === "message.completed") {
           if (typeof indexed.event.data.message === "string") {
@@ -3195,92 +3797,47 @@ export class SokoBotControlPlane {
         ) {
           pendingStatus = "FAILED";
           pendingErrorKind =
-            typeof indexed.event.data.code === "string"
-              ? safeRuntimeDiagnostic(indexed.event.data.code, 120)
-              : "runtime_failed";
+            runtimeFailureCode(indexed.event.data) ?? "runtime_failed";
           pendingErrorDetail =
-            typeof indexed.event.data.message === "string"
-              ? safeRuntimeDiagnostic(indexed.event.data.message)
-              : undefined;
+            pendingErrorKind === AI_BUDGET_EXCEEDED
+              ? AI_BUDGET_EXCEEDED_MESSAGE
+              : typeof indexed.event.data.message === "string"
+                ? safeRuntimeDiagnostic(indexed.event.data.message)
+                : undefined;
           turnData.errorKind = pendingErrorKind;
-          turnData.errorDetail = pendingErrorDetail;
+          if (pendingErrorDetail !== undefined)
+            turnData.errorDetail = pendingErrorDetail;
         }
         const eventWasNew = await persistEvent(indexed, turnData);
         if (
           eventWasNew &&
           turn.chatResponseMessageId &&
           (indexed.event.type === "actions.requested" ||
-            indexed.event.type === "action.result")
+            indexed.event.type === "action.result" ||
+            indexed.event.type === "reasoning.completed")
         ) {
           const { publishSokoBotChatProgress } = await import(
             "@/services/soko-bot-chat.service"
           );
           await publishSokoBotChatProgress(turn.id).catch((error) => {
-            console.warn("Soko Bot chat progress publish failed", {
-              turnId: turn.id,
-              error: error instanceof Error ? error.message : "unknown",
-            });
+            emitCoreWarning(
+              TURN_LOG,
+              {
+                message:
+                  "Could not publish a Soko Bot turn's progress to its chat",
+                why: "Publishing the progress failed",
+                fix: "Nothing to do: the chat shows the answer when the turn settles.",
+              },
+              { turn: { id: turn.id }, failure: messageSafeErrorFields(error) },
+            );
           });
         }
-        if (
-          eventWasNew &&
-          nextAggregateUsage &&
-          nextAggregateCostUsdMicros !== null
-        ) {
-          aggregateUsage = nextAggregateUsage;
-          aggregateCostUsdMicros = nextAggregateCostUsdMicros;
-        }
-
-        if (indexed.event.type === "input.requested") {
-          try {
-            await this.runtime.cancelTurn({
-              sessionId: turn.eveSessionId,
-              eveTurnId: boundEveTurnId ?? undefined,
-            });
-          } catch (error) {
-            console.warn("Soko Bot unsupported input cancellation failed", {
-              turnId: turn.id,
-              error: error instanceof Error ? error.message : "unknown",
-            });
-          }
-          await this.settleTurn({
-            turnId: turn.id,
-            status: "FAILED",
-            errorKind: "runtime_input_unsupported",
-            errorDetail:
-              "Eve requested interactive input outside the Soko Bot decision protocol",
-            clearSession: true,
-            leaseToken,
-          });
-          break;
-        }
-
-        if (indexed.event.type === "session.waiting") {
-          await this.settleTurn({
-            turnId: turn.id,
-            status: pendingStatus ?? "COMPLETED",
+        if (SETTLEMENT_TRIGGER_EVENT_TYPES.has(indexed.event.type)) {
+          await settleOnTrigger(indexed.event.type, {
+            status: pendingStatus,
+            completedAt: pendingCompletedAt,
             errorKind: pendingErrorKind,
             errorDetail: pendingErrorDetail,
-            providerCompletedAt: pendingCompletedAt,
-            leaseToken,
-          });
-          break;
-        }
-        if (
-          indexed.event.type === "session.failed" ||
-          indexed.event.type === "session.completed"
-        ) {
-          await this.settleTurn({
-            turnId: turn.id,
-            status:
-              indexed.event.type === "session.failed"
-                ? "FAILED"
-                : (pendingStatus ?? "COMPLETED"),
-            errorKind: pendingErrorKind,
-            errorDetail: pendingErrorDetail,
-            providerCompletedAt: pendingCompletedAt,
-            clearSession: true,
-            leaseToken,
           });
           break;
         }
@@ -3291,11 +3848,16 @@ export class SokoBotControlPlane {
         error instanceof Error
           ? safeRuntimeDiagnostic(error.message)
           : "Unknown runtime stream error";
-      const expired = turn.deadlineAt.getTime() <= Date.now();
+      const now = await databaseNow();
+      const expired = turn.deadlineAt <= now;
       if (expired) {
-        await this.expireTurn(turn.id);
+        if (!(await this.expireTurn(turn.id, leaseToken))) {
+          throw new SokoBotReconciliationLeaseLostError(
+            "Soko Bot reconciliation lease was lost",
+          );
+        }
       } else {
-        await prisma.sokoBotTurn.updateMany({
+        const updated = await prisma.sokoBotTurn.updateMany({
           where: {
             id: turn.id,
             leaseToken,
@@ -3304,13 +3866,18 @@ export class SokoBotControlPlane {
           data: {
             errorKind: "runtime_stream_interrupted",
             errorDetail: detail,
-            reconcilerHeartbeatAt: new Date(),
+            reconcilerHeartbeatAt: now,
           },
         });
+        if (!updated.count) {
+          throw new SokoBotReconciliationLeaseLostError(
+            "Soko Bot reconciliation lease was lost",
+          );
+        }
       }
       throw error;
     } finally {
-      clearInterval(heartbeatTimer);
+      stopRenewing();
     }
   }
 
@@ -3409,12 +3976,19 @@ export class SokoBotControlPlane {
         "Cuso runs CMO's own version, which cannot be changed here",
       );
     }
-    const updated = await prisma.sokoBot.updateMany({
-      where: { id: bot.id, archivedAt: null },
-      data: { versionId },
-    });
-    if (updated.count === 0)
-      throw new SokoBotNotFoundError("Soko Bot not found");
+    // Leaving CMO ends Cuso: Polar stops charging before anything is
+    // written (ADR 0068). A revoke Polar fails is owed to the sync job.
+    await revokeCusoSubscriptionIfLeavingCmo(bot.id, versionId);
+    await serializableTransaction(async (tx) => {
+      await forfeitCusoProjectCreditsIfLeavingCmo(bot.id, versionId, tx);
+      const updated = await tx.sokoBot.updateMany({
+        where: { id: bot.id, archivedAt: null },
+        data: { versionId },
+      });
+      if (updated.count === 0)
+        throw new SokoBotNotFoundError("Soko Bot not found");
+    }, "Soko Bot version changed concurrently");
+    await revokeSubscriptionsLeftByEnding(bot.projectId);
   }
 
   /**
@@ -3543,10 +4117,25 @@ export class SokoBotControlPlane {
           content: notice,
           key: `version:${runId}:${bot.id}`,
         }).catch((error: unknown) => {
-          console.warn("Soko Bot version notice failed", {
-            sokoBotId: bot.id,
-            error: error instanceof Error ? error.name : "unknown",
-          });
+          // The admin's migrate request is awaiting this.
+          recordCoreWarning(
+            TURN_LOG,
+            {
+              message:
+                "Could not tell a Soko Bot's owner about its version move",
+              why: "Posting the version notice in the owner's chat failed",
+              fix: "The move stands and is counted as not notified; tell the owner another way if they need to know.",
+            },
+            // The name only: the notice's text is about the owner.
+            {
+              versionNoticeFailures: [
+                {
+                  sokoBotId: bot.id,
+                  errorName: error instanceof Error ? error.name : "unknown",
+                },
+              ],
+            },
+          );
           return null;
         });
         if (posted) notified += 1;
@@ -3562,12 +4151,24 @@ export class SokoBotControlPlane {
     };
   }
 
+  /** A person writing a schedule in the console; see PERSON_SCHEDULE_CAPABILITIES. */
   async createSchedule(input: CreateSokoBotScheduleInput) {
-    return translateScheduleErrors(() => createSokoBotSchedule(input));
+    return translateScheduleErrors(() =>
+      createSokoBotSchedule({
+        ...input,
+        capabilityNames: PERSON_SCHEDULE_CAPABILITIES,
+      }),
+    );
   }
 
   async updateSchedule(input: UpdateSokoBotScheduleInput) {
-    return translateScheduleErrors(() => updateSokoBotSchedule(input));
+    return translateScheduleErrors(() =>
+      updateSokoBotSchedule(
+        input.prompt === undefined
+          ? input
+          : { ...input, capabilityNames: PERSON_SCHEDULE_CAPABILITIES },
+      ),
+    );
   }
 
   /** `bot` reaches a shared bot's schedule the caller did not write. */
@@ -3855,6 +4456,8 @@ export class SokoBotControlPlane {
       action: input.action,
       targetId: resolvedTargetId,
       reason,
+      ...(requestId !== undefined ? { requestId } : {}),
+      ...(traceId !== undefined ? { traceId } : {}),
     };
 
     if (!existing) {
@@ -3865,8 +4468,6 @@ export class SokoBotControlPlane {
             status: "ATTEMPTED",
             ...intent,
             before: jsonInput(before),
-            requestId,
-            traceId,
           },
         });
       } catch (error) {
@@ -3918,18 +4519,24 @@ export class SokoBotControlPlane {
             status: "FAILED",
             ...intent,
             before: jsonInput(before),
-            after: after ? jsonInput(after) : undefined,
+            ...(after ? { after: jsonInput(after) } : {}),
             ...failure,
-            requestId,
-            traceId,
           },
         });
       } catch (auditError) {
         if (!isPrismaUniqueViolation(auditError)) {
-          console.error("Failed to append Soko Bot admin action outcome", {
-            operationId,
-            sokoBotId: bot.id,
-          });
+          // Admin actions run inside the admin's request.
+          recordCoreError(
+            TURN_LOG,
+            {
+              message:
+                "Could not record the outcome of a failed Soko Bot admin action",
+              why: "Writing the audit row failed",
+              fix: "The action's intent is recorded; add the FAILED outcome for this operationId by hand if the audit trail needs it.",
+              cause: auditError,
+            },
+            { adminAction: { operationId }, sokoBot: { id: bot.id } },
+          );
         }
       }
     };
@@ -4005,8 +4612,6 @@ export class SokoBotControlPlane {
               ...intent,
               before: jsonInput(before),
               after: jsonInput(adminActionSnapshot(updated)),
-              requestId,
-              traceId,
             },
           });
           return activeTurn;
@@ -4018,11 +4623,21 @@ export class SokoBotControlPlane {
       if (active) {
         try {
           await this.deliverRuntimeCancellation(active);
-        } catch {
-          console.warn("Soko Bot runtime cancellation failed during pause", {
-            sokoBotId: bot.id,
-            turnId: active.id,
-          });
+        } catch (error) {
+          recordCoreWarning(
+            TURN_LOG,
+            {
+              message:
+                "Could not cancel a paused Soko Bot's running turn at the runtime",
+              why: "The runtime refused the cancel",
+              fix: "The bot is paused; the next reconcile or the turn's deadline ends the turn.",
+            },
+            {
+              sokoBot: { id: bot.id },
+              turn: { id: active.id },
+              failure: messageSafeErrorFields(error),
+            },
+          );
         }
       }
     } else if (input.action === "RESUME") {
@@ -4084,8 +4699,6 @@ export class SokoBotControlPlane {
               ...intent,
               before: jsonInput(before),
               after: jsonInput(adminActionSnapshot(updated)),
-              requestId,
-              traceId,
             },
           });
         }, "Soko Bot resume collided with another control action");
@@ -4125,8 +4738,6 @@ export class SokoBotControlPlane {
               ...intent,
               before: jsonInput(before),
               after: jsonInput(adminActionSnapshot(updated)),
-              requestId,
-              traceId,
             },
           });
         }, "Soko Bot memory changed concurrently");
@@ -4137,6 +4748,9 @@ export class SokoBotControlPlane {
     } else if (input.action === "SET_VERSION") {
       const versionId = input.versionId as string;
       try {
+        // Before the transaction, which is retried: Polar is called once
+        // (ADR 0068). A revoke Polar fails is owed to the sync job.
+        await revokeCusoSubscriptionIfLeavingCmo(bot.id, versionId);
         await serializableTransaction(async (tx) => {
           const current = await tx.sokoBot.findUnique({
             where: { id: bot.id },
@@ -4144,6 +4758,8 @@ export class SokoBotControlPlane {
           if (!current || current.archivedAt) {
             throw new SokoBotNotFoundError("Soko Bot not found");
           }
+          // Leaving CMO ends Cuso, so his Project credits end too (ADR 0067).
+          await forfeitCusoProjectCreditsIfLeavingCmo(bot.id, versionId, tx);
           const updated = await tx.sokoBot.update({
             where: { id: bot.id },
             data: { versionId },
@@ -4155,11 +4771,10 @@ export class SokoBotControlPlane {
               ...intent,
               before: jsonInput(before),
               after: jsonInput(adminActionSnapshot(updated)),
-              requestId,
-              traceId,
             },
           });
         }, "Soko Bot version changed concurrently");
+        await revokeSubscriptionsLeftByEnding(bot.projectId);
       } catch (error) {
         await recordFailure(error);
         throw error;
@@ -4194,28 +4809,35 @@ export class SokoBotControlPlane {
               status: { in: [...ACTIVE_TURN_STATUSES] },
             },
             orderBy: { createdAt: "desc" },
-            select: { id: true, status: true, eveSessionId: true },
+            select: {
+              id: true,
+              status: true,
+              eveSessionId: true,
+              leaseToken: true,
+              reconcilerHeartbeatAt: true,
+            },
           });
           const resetLeaseToken = activeTurn ? randomUUID() : null;
           if (activeTurn && resetLeaseToken) {
+            const now = await databaseNow(tx);
             const fenced = await tx.sokoBotTurn.updateMany({
-              where: {
-                id: activeTurn.id,
-                status: activeTurn.status,
-              },
+              where: activeTurn,
               data: {
                 status: "CANCEL_REQUESTED",
-                cancellationRequestedAt:
-                  activeTurn.status === "CANCEL_REQUESTED"
-                    ? undefined
-                    : new Date(),
+                ...(activeTurn.status !== "CANCEL_REQUESTED"
+                  ? { cancellationRequestedAt: now }
+                  : {}),
                 leaseToken: resetLeaseToken,
+                leaseExpiresAt: new Date(now.getTime() + TURN_LEASE_MS),
+                reconcilerHeartbeatAt: now,
               },
             });
             if (fenced.count === 0) {
-              throw new SokoBotBusyError(
+              const error = new SokoBotReconciliationLeaseLostError(
                 "Active Soko Bot turn changed while reset was being prepared",
               );
+              reportSokoBotReconciliationLeaseLoss(activeTurn.id, error);
+              throw error;
             }
           }
           const sessionTurn = intent.targetId
@@ -4259,29 +4881,44 @@ export class SokoBotControlPlane {
           };
         }, "Soko Bot session reset collided with turn start");
       } catch (error) {
+        if (error instanceof SokoBotReconciliationLeaseLostError)
+          throw new SokoBotBusyError(error.message);
         await recordFailure(error);
         throw error;
       }
 
-      if (intent.targetId && resetPreparation.sessionTurn) {
-        const resetTurn = resetPreparation.sessionTurn;
-        // RESET_SESSION is idempotent. Any failure leaves ATTEMPTED open and
-        // the bot fenced PAUSED; exact operation replay resumes it.
-        await this.runtime.resetSession({
-          sessionId: resetTurn.eveSessionId,
-          reason,
-        });
-      }
-
-      if (resetPreparation.activeTurn) {
-        await this.settleTurn({
-          turnId: resetPreparation.activeTurn.id,
-          status: "CANCELLED",
-          errorKind: "session_reset",
-          errorDetail: "Runtime session was reset by an administrator",
-          clearSession: true,
-          leaseToken: resetPreparation.activeTurn.leaseToken,
-        });
+      const { activeTurn, sessionTurn } = resetPreparation;
+      const stopRenewing = activeTurn
+        ? this.holdTurnLease(activeTurn.id, activeTurn.leaseToken)
+        : undefined;
+      try {
+        if (intent.targetId && sessionTurn) {
+          // RESET_SESSION is idempotent. Any failure leaves ATTEMPTED open and
+          // the bot fenced PAUSED; exact operation replay resumes it.
+          await this.runtime.resetSession({
+            sessionId: sessionTurn.eveSessionId,
+            reason,
+          });
+        }
+        if (activeTurn) {
+          await this.settleOwnedTurn({
+            turnId: activeTurn.id,
+            status: "CANCELLED",
+            errorKind: "session_reset",
+            errorDetail: "Runtime session was reset by an administrator",
+            clearSession: true,
+            leaseToken: activeTurn.leaseToken,
+          });
+        }
+      } catch (error) {
+        if (
+          activeTurn &&
+          reportSokoBotReconciliationLeaseLoss(activeTurn.id, error)
+        )
+          throw new SokoBotBusyError("Soko Bot session reset lost its lease");
+        throw error;
+      } finally {
+        stopRenewing?.();
       }
 
       try {
@@ -4313,8 +4950,6 @@ export class SokoBotControlPlane {
               ...intent,
               before: jsonInput(before),
               after: jsonInput(adminActionSnapshot(updated)),
-              requestId,
-              traceId,
             },
           });
         }, "Soko Bot session reset finalization collided");
@@ -4350,8 +4985,6 @@ export class SokoBotControlPlane {
                 ...before,
                 schedule: { id: schedule.id, enabled: false },
               }),
-              requestId,
-              traceId,
             },
           });
         });
@@ -4368,23 +5001,10 @@ export class SokoBotControlPlane {
         throw error;
       }
       const retryClientTurnId = `admin-schedule-retry:${input.targetId}:${adminRetryOperationKey(operationId)}`;
-      const scheduleRun = await prisma.sokoBotScheduleRun.findFirst({
-        where: {
-          id: input.targetId,
-          schedule: { sokoBotId: bot.id },
-        },
-        include: {
-          schedule: true,
-          turn: {
-            select: {
-              id: true,
-              source: true,
-              clientTurnId: true,
-              status: true,
-            },
-          },
-        },
-      });
+      const { loadAdminScheduleRun, scheduleRetryInput } = await import(
+        "./soko-bot-admin-retry.service"
+      );
+      const scheduleRun = await loadAdminScheduleRun(bot.id, input.targetId);
       const durableRetryTurn = await prisma.sokoBotTurn.findUnique({
         where: {
           sokoBotId_clientTurnId: {
@@ -4421,8 +5041,11 @@ export class SokoBotControlPlane {
       }
       let retry: SokoBotTurnStartResult;
       try {
-        const occurrencePrompt =
-          scheduleRun.prompt ?? scheduleRun.schedule.prompt;
+        const retryInput = await scheduleRetryInput(
+          bot,
+          scheduleRun,
+          boundReplayTurnId,
+        );
         retry = await this.startTurn({
           userId: sokoBotScheduleActingUserId({
             requestedByUserId: scheduleRun.schedule.requestedByUserId,
@@ -4432,9 +5055,8 @@ export class SokoBotControlPlane {
           sokoBotId: bot.id,
           workspaceId: scheduleRun.schedule.workspaceId,
           clientTurnId: retryClientTurnId,
-          message: occurrencePrompt,
+          ...retryInput,
           source: "ADMIN_RETRY",
-          presetRoute: systemScheduleRoute(scheduleRun.schedule.systemKey),
           adminScheduleReservation: boundReplayTurnId
             ? {
                 kind: "BOUND_REPLAY",
@@ -4466,8 +5088,6 @@ export class SokoBotControlPlane {
                 : scheduleRun.turnId,
               retryTurnId: retry.turnId,
             }),
-            requestId,
-            traceId,
           },
         });
       } catch (error) {
@@ -4491,6 +5111,7 @@ export class SokoBotControlPlane {
         if (!reservationKnown) await recordFailure(error);
         throw error;
       }
+      return retry;
     } else if (input.action === "RETRY_LAST_FAILED") {
       const failed = intent.targetId
         ? await prisma.sokoBotTurn.findFirst({
@@ -4508,48 +5129,16 @@ export class SokoBotControlPlane {
       }
       let retry: SokoBotTurnStartResult;
       try {
-        // A replay acts only for the person the failed turn acted for.
-        retry = await this.startTurn({
-          userId: sokoBotActingUserId({
-            requestedByUserId: failed.requestedByUserId,
-            sokoBot: bot,
-          }),
-          sokoBotId: bot.id,
-          workspaceId: failed.workspaceId,
-          clientTurnId: `admin-retry:${failed.id}:${adminRetryOperationKey(operationId)}`,
-          message: failed.userMessage,
-          source: "ADMIN_RETRY",
-          // Replays on the route the failed turn had, never a wider one.
-          presetRoute: failed.route
-            ? {
-                route: failed.route,
-                writeScope: storedWriteScope(failed.classification),
-                reason: "Operator retry on the failed turn's route.",
-                sandbox: failed.capabilityNames.includes("bash"),
-                // The failed turn's own writes: a stand-up's narrower set,
-                // not its route's.
-                writes: failed.capabilityNames.filter(isSokoBotCapability),
-              }
-            : undefined,
-          // A retry replays untrusted text, so it must not replay it with a
-          // wider grant than the turn that failed. Dropping these turned a
-          // failed depth-1 turn another assistant asked for — read-only, and
-          // its message written by that assistant — into an owner-audience
-          // turn holding the whole route ceiling.
-          ...(failed.chainDepth > 0 ||
-          (failed.askedByUserId &&
-            failed.askedByUserId !== failed.requestedByUserId)
-            ? {
-                chat: {
-                  mentionId: failed.chatMentionId ?? "",
-                  responseMessageId: failed.chatResponseMessageId ?? "",
-                  askedByUserId: failed.askedByUserId,
-                  askedByBot: failed.chainDepth > 0,
-                  chainDepth: failed.chainDepth,
-                },
-              }
-            : {}),
-        });
+        const { failedRetryInput } = await import(
+          "./soko-bot-admin-retry.service"
+        );
+        retry = await this.startTurn(
+          await failedRetryInput(
+            bot,
+            failed,
+            `admin-retry:${failed.id}:${adminRetryOperationKey(operationId)}`,
+          ),
+        );
       } catch (error) {
         await recordFailure(error);
         throw error;
@@ -4567,10 +5156,9 @@ export class SokoBotControlPlane {
             ...adminActionSnapshot(afterBot),
             retryTurnId: retry.turnId,
           }),
-          requestId,
-          traceId,
         },
       });
+      return retry;
     }
   }
 
@@ -4578,8 +5166,16 @@ export class SokoBotControlPlane {
   async performAdminAction(
     input: Parameters<SokoBotControlPlane["applyAdminAction"]>[0],
   ) {
-    await this.applyAdminAction(input);
-    return this.getForAdmin(input.sokoBotId);
+    const started = await this.applyAdminAction(input);
+    return {
+      detail: await this.getForAdmin(input.sokoBotId),
+      reconciliation: started?.reconciliationLeaseToken
+        ? {
+            turnId: started.turnId,
+            leaseToken: started.reconciliationLeaseToken,
+          }
+        : undefined,
+    };
   }
 
   async archive(
@@ -4587,6 +5183,15 @@ export class SokoBotControlPlane {
     workspaceId: string,
     selector: SokoBotSelector = ME_SOKO_BOT,
   ): Promise<void> {
+    // Polar stops charging for a live Cuso before he is archived (ADR 0068).
+    // It is called here, once, because the transaction below is retried; the
+    // role check runs first so only someone who may archive ends it. A
+    // revoke Polar fails is owed to the sync job; the archive goes on.
+    const candidate = await memberSokoBot(userId, workspaceId, selector);
+    if (candidate) {
+      await assertSokoBotManagement(userId, candidate, "archive");
+      await revokeCusoSubscription(candidate.id);
+    }
     const archived = await serializableTransaction(async (tx) => {
       const bot = await memberSokoBot(userId, workspaceId, selector, tx);
       if (!bot) return null;
@@ -4649,17 +5254,28 @@ export class SokoBotControlPlane {
       });
       return { activeTurn, mentionMessageIds };
     }, "Soko Bot archive collided with active work");
+    await revokeSubscriptionsLeftByEnding(candidate?.projectId ?? null);
     if (!archived) return;
     await publishChatRoomMentionStatuses(archived.mentionMessageIds);
     if (!archived.activeTurn) return;
     try {
       await this.deliverRuntimeCancellation(archived.activeTurn);
     } catch (error) {
-      console.warn("Soko Bot runtime cancellation failed during archive", {
-        sokoBotId: archived.activeTurn.sokoBotId,
-        turnId: archived.activeTurn.id,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      // Archiving runs inside the delete request (Web or CMO).
+      recordCoreWarning(
+        TURN_LOG,
+        {
+          message:
+            "Could not cancel an archived Soko Bot's running turn at the runtime",
+          why: "The runtime refused the cancel",
+          fix: "The bot is archived; the next reconcile or the turn's deadline ends the turn.",
+        },
+        {
+          sokoBot: { id: archived.activeTurn.sokoBotId },
+          turn: { id: archived.activeTurn.id },
+          failure: messageSafeErrorFields(error),
+        },
+      );
     }
   }
 }

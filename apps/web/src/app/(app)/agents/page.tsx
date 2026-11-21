@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
@@ -10,17 +9,14 @@ import {
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { AgentsNotAvailable, AgentsSkeleton } from "@/components/agents/agents";
 import { CoworkerGallerySection } from "@/components/agents/coworker-gallery-section";
-import {
-  GALLERY_PAGE_SECTIONS_CLASS,
-  GALLERY_SECTION_HEADLINE_CLASS,
-} from "@/components/agents/gallery-page-classes";
+import { GALLERY_PAGE_SECTIONS_CLASS } from "@/components/agents/gallery-page-classes";
+import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { mapAgentListItemToCatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
 import { mapCoreCategoriesToCategories } from "@/lib/agents/core-dto-mappers";
-import { getAllCoreAgents, getCoreCategories } from "@/lib/agents/core-loaders";
-import { coworkerService } from "@/lib/services/coworker.service";
 import type { AgentRatingStats } from "@/lib/types/core-dto";
 
+import { loadAgentsCatalog, loadAgentsCoworkers } from "./agents-page-data";
 import FilteredAgents from "./components/filtered-agents";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -30,12 +26,6 @@ export async function generateMetadata(): Promise<Metadata> {
     title: t("title"),
     description: t("description"),
   };
-}
-
-function logAgentsCatalogFetchFailure(scope: string, error: unknown): void {
-  console.warn(`[agents] ${scope} fetch failed`, {
-    message: error instanceof Error ? error.message : String(error),
-  });
 }
 
 function CoworkersTierFallback() {
@@ -67,13 +57,7 @@ function AgentsCatalogFallback() {
 }
 
 async function CoworkersTier() {
-  // Defer before any cookies()/headers()-bound work so PPR shell probing does
-  // not soft-reject dynamic APIs while filling this Suspense hole.
-  await connection();
-
-  const coworkers = await coworkerService
-    .listCoworkers("tasks")
-    .catch(() => []);
+  const coworkers = await loadAgentsCoworkers();
   const coworkerOptions = getCoworkerOptions(coworkers);
 
   return (
@@ -89,22 +73,13 @@ async function CoworkersTier() {
  * gallery, not a blocked wait on every catalog page.
  *
  * Catalog loaders are cookie-free (`'use cache'`) and share across users at
- * runtime. Still `await connection()` first so build/PPR probing does not
- * statically fill the cache when Core is unreachable (CI `next build`).
- * Translations also need request locale via cookies/headers.
+ * runtime. They load through a browser-only cache, so a link prefetch carries
+ * the catalog and a build with Core unreachable bakes nothing in.
+ * Translations read the request locale, so they stay outside that cache.
  */
 async function AllAgentsTier() {
-  await connection();
-
-  const [listItems, categories, t] = await Promise.all([
-    getAllCoreAgents().catch((error) => {
-      logAgentsCatalogFetchFailure("agent catalog", error);
-      return [];
-    }),
-    getCoreCategories().catch((error) => {
-      logAgentsCatalogFetchFailure("categories", error);
-      return [];
-    }),
+  const [[listItems, categories], t] = await Promise.all([
+    loadAgentsCatalog(),
     getTranslations("App.Agents"),
   ]);
 
@@ -120,27 +95,20 @@ async function AllAgentsTier() {
   );
 
   return (
-    <section className="space-y-8">
-      <div className="space-y-2">
-        <h2 className={GALLERY_SECTION_HEADLINE_CLASS}>
-          {t("allAgentsTitle")}
-        </h2>
-        <p className="text-muted-foreground text-sm md:text-base">
-          {t("allAgentsSubtitle")}
-        </p>
-      </div>
-      <FilteredAgents
-        agents={agents}
-        ratingStatsMap={ratingStatsMap}
-        categories={mappedCategories}
-      />
-    </section>
+    <FilteredAgents
+      agents={agents}
+      ratingStatsMap={ratingStatsMap}
+      categories={mappedCategories}
+      title={t("allAgentsTitle")}
+      subtitle={t("allAgentsSubtitle")}
+    />
   );
 }
 
 export default function GalleryPage() {
   return (
     <div className="w-full">
+      <RefreshPrefetchedPage />
       <div className={GALLERY_PAGE_SECTIONS_CLASS}>
         <Suspense fallback={<CoworkersTierFallback />}>
           <CoworkersTier />

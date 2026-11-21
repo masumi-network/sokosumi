@@ -6,6 +6,10 @@ on:
   workflow_dispatch:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  # The merge queue runs the required checks again on its group commit
+  # (`main` plus the queued PRs), under the same check names.
+  merge_group:
+    types: [checks_requested]
 
 concurrency:
   # A new push to the same PR cancels the queued or running run for the old commit.
@@ -69,6 +73,10 @@ jobs:
           # same reason.
           predicate-quantifier: "every"
           filters: .github/js-paths-filter.yml
+          # A merge group diffs its commit against the `main` it was built
+          # on. Both are empty on pull_request, where the PR diff is used.
+          base: ${{ github.event.merge_group.base_sha }}
+          ref: ${{ github.event.merge_group.head_sha }}
 
   # One job, not Vitest shards. The organization's plan runs 20 jobs at once
   # across every repository, and three web shards, three Core shards and the
@@ -101,11 +109,13 @@ jobs:
       - name: Run Tests
         run: pnpm exec turbo run test:ci --filter=web --filter=cmo
 
-  # One job for the same reason as `web`: migrations, the unit suite, then
-  # the PostgreSQL suites, on a database that boots during checkout and
-  # Setup.
-  core:
-    name: Test Core
+  # Core's PostgreSQL suites in a job of their own, beside the unit suite in
+  # `Test Core` instead of after it: the unit suite no longer waits ~100s on
+  # them, and a failure in one does not hide the other. Migrations and the
+  # drift check come along, on a database that boots during checkout and
+  # Setup. Same `core` path filter and draft guard as `Test Core`.
+  core-postgres:
+    name: Test Core PostgreSQL
     needs: changes
     if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.core != 'false' }}
     runs-on: ubuntu-latest
@@ -123,6 +133,13 @@ jobs:
 
       - *checkout
       - *setup
+
+      # Builds what the PostgreSQL suites need from their workspace
+      # dependencies; `pnpm --filter core test` below runs vitest directly and
+      # builds nothing itself. Same command as `write-openapi-snapshot`. Runs
+      # while the database finishes booting.
+      - name: Build Core dependencies
+        run: pnpm exec turbo run build prisma:generate --filter=@sokosumi/core^... --output-logs=errors-only
 
       # TCP, not the socket: the image's init server listens on the socket
       # only and restarts before the real server comes up.
@@ -143,11 +160,6 @@ jobs:
       - name: Check Prisma schema matches migrations
         env: *migrated-db
         run: pnpm prisma:check-drift
-
-      # Builds what `test:ci`'s `^build` needs, which the PostgreSQL suites
-      # below reuse.
-      - name: Run Tests
-        run: pnpm exec turbo run test:ci --filter=@sokosumi/core
 
       # `optInDbExclude` in apps/core/vitest.config.ts keeps every
       # `src/**/*.postgres.test.ts` out of `test:ci`, so these files run
@@ -207,13 +219,34 @@ jobs:
       # (`apps/core/src/test/postgres-worker-databases.ts`), so the files
       # run in parallel, each worker on its own copy.
       - name: Test against PostgreSQL
-        # Reports on its own when the unit suite above fails.
-        if: ${{ !cancelled() }}
+        # No `if: ${{ !cancelled() }}`: this job holds no unit suite whose
+        # failure it would have to report past, so a failed migration or drift
+        # check stops it here.
         env: *migrated-db
         run: |
           RUN_DATABASE_INTEGRATION_TESTS=true POSTGRES_TEST_DATABASE_PER_WORKER=true \
             pnpm --filter core --fail-if-no-match test .postgres.test.ts \
             --passWithNoTests=false
+
+  # One job for the same reason as `web`: the unit suite, behind the same
+  # `Setup`. Its PostgreSQL suites, migrations and drift check run beside it
+  # in `Test Core PostgreSQL`, so neither waits on the other.
+  core:
+    name: Test Core
+    needs: changes
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.core != 'false' }}
+    runs-on: ubuntu-latest
+    permissions: *turbo-permissions
+    steps:
+      - *checkout
+      - *setup
+
+      # The PostgreSQL suites run in `Test Core PostgreSQL`:
+      # `optInDbExclude` in apps/core/vitest.config.ts keeps every
+      # `src/**/*.postgres.test.ts` out of `test:ci`, so that job runs them or
+      # they run nowhere.
+      - name: Run Tests
+        run: pnpm exec turbo run test:ci --filter=@sokosumi/core
 
   packages:
     name: Test Packages
@@ -222,7 +255,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: *turbo-permissions
     steps:
-      # Booted in the background, as in `core` above. The unit tests run
+      # Booted in the background, as in `core-postgres` above. The unit tests run
       # first, so it is long up by the time the job sync test needs it.
       - *start-postgres
 
@@ -250,6 +283,7 @@ jobs:
       # folder a PR adds must be stamped after the newest one on its base
       # branch. On pull_request, HEAD is the PR merge commit. Its first parent
       # is that base, and it holds every base folder the PR did not remove.
+      # A merge group compares with the `main` commit the group was built on.
       # workflow_dispatch has no merge commit, so it compares with the default
       # branch tip. It still runs the check, because its result goes on the
       # same head commit as the PR run's result and could replace a failure.
@@ -258,6 +292,7 @@ jobs:
         if: ${{ !cancelled() }}
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
             if [ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ] || ! git rev-parse --verify --quiet "HEAD^2" >/dev/null; then
@@ -265,6 +300,9 @@ jobs:
               exit 1
             fi
             base="HEAD^1"
+          elif [ "$GITHUB_EVENT_NAME" = merge_group ]; then
+            git fetch --no-tags --depth=1 origin "$MERGE_GROUP_BASE_SHA"
+            base="$MERGE_GROUP_BASE_SHA"
           else
             git fetch --no-tags --depth=1 origin "+refs/heads/$DEFAULT_BRANCH:refs/remotes/origin/$DEFAULT_BRANCH"
             echo "::notice::Compared with origin/$DEFAULT_BRANCH. If this branch is behind it, its newer folders show as removed. Merge it first."
@@ -383,7 +421,7 @@ jobs:
     timeout-minutes: 10
     permissions: *turbo-permissions
     steps:
-      # Booted in the background, as in `core` above.
+      # Booted in the background, as in `core-postgres` above.
       - *start-postgres
       - *checkout
       - *setup
@@ -417,7 +455,12 @@ jobs:
     if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.js != 'false' }}
     runs-on: ubuntu-latest
     steps:
-      - *checkout
+      # Depth 2 fetches the PR merge commit's base parent (`HEAD^1`) so the
+      # effect baseline check below can reject baseline increases.
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
 
       # Biome is one binary with no workspace dependencies: nested
       # biome.json files extend the root and the Grit plugin is a repo
@@ -430,6 +473,31 @@ jobs:
 
       - name: Run Biome checks
         run: biome check .
+
+      # Required here because `Test CI config` is advisory. Plain Node, no
+      # install. Apple-only PRs get the same rule from SwiftLint.
+      - name: Check for sparkle icons
+        run: node --test scripts/ci/__tests__/no-sparkles.test.mjs
+
+      - name: Check direct effect baseline
+        env:
+          MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            if ! git rev-parse --verify --quiet HEAD^1 >/dev/null; then
+              echo "::error::HEAD^1 is missing on pull_request (fetch-depth: 2 is required so the effect baseline can compare against the base branch)."
+              exit 1
+            fi
+            export EFFECT_BASELINE_BASE_REF="HEAD^1"
+          elif [ "$GITHUB_EVENT_NAME" = merge_group ]; then
+            if [ -z "$MERGE_GROUP_BASE_SHA" ]; then
+              echo "::error::MERGE_GROUP_BASE_SHA is empty on merge_group."
+              exit 1
+            fi
+            git fetch --no-tags --depth=1 origin "$MERGE_GROUP_BASE_SHA"
+            export EFFECT_BASELINE_BASE_REF="$MERGE_GROUP_BASE_SHA"
+          fi
+          node --test scripts/ci/__tests__/no-direct-effects.test.mjs
 
   typecheck:
     name: Typecheck

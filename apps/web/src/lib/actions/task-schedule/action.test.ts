@@ -70,6 +70,24 @@ describe("runTaskScheduleNow", () => {
     expect(revalidatePathMock).not.toHaveBeenCalled();
   });
 
+  it("returns the private workspace repair reason without passing the upstream message to the schedule", async () => {
+    runNowMock.mockRejectedValue(
+      new CoreApiRequestError("private account access details", {
+        status: 409,
+        kind: CORE_API_ERROR_KINDS.SEO_GSC_PROPERTY,
+      }),
+    );
+    const result = await run();
+    expect(result).toMatchObject({
+      ok: false,
+      error: { kind: "failed", coverage: "property" },
+    });
+    expect(JSON.stringify(result)).not.toContain(
+      "private account access details",
+    );
+    expect(revalidatePathMock).not.toHaveBeenCalled();
+  });
+
   it("fails when Core reports no Task for the Run", async () => {
     runNowMock.mockResolvedValue({
       revision: 4,

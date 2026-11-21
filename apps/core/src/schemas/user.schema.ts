@@ -24,20 +24,30 @@ const creditBucketBreakdownItemSchema = z
       description: "When this bucket expires; null if it does not expire",
       example: "2026-07-01T00:00:00.000Z",
     }),
+    project: z
+      .object({
+        id: z.string(),
+        name: z.string().nullable(),
+      })
+      .optional()
+      .openapi({
+        description:
+          "Set on Project credits: only that Project's work spends them, and they are left out of the organization's totals",
+      }),
   })
   .openapi("CreditBucketBreakdown");
 
-/** Rollup of non-subscription credits (sums over `extra.buckets` lines). */
+/** Rollup of non-subscription credits (sums over `extra.buckets` lines without a `project`). */
 const creditsResponseExtraCreditsSchema = z
   .object({
     total: z.number().openapi({
       description:
-        "Sum of original amounts granted across non-subscription buckets listed in `extra.buckets`",
+        "Sum of original amounts granted across non-subscription buckets listed in `extra.buckets`, leaving out Project credits (lines with a `project`)",
       example: 25,
     }),
     remaining: z.number().openapi({
       description:
-        "Sum of remaining balances across those buckets (matches sum of each line’s `remaining`)",
+        "Sum of remaining balances across those buckets (matches sum of each of their lines’ `remaining`)",
       example: 12.5,
     }),
     used: z.number().openapi({
@@ -67,7 +77,7 @@ const creditsResponseExtraSchema = z
     }),
     buckets: z.array(creditBucketBreakdownItemSchema).openapi({
       description:
-        "Non-subscription buckets with remaining balance (subscription-period and enterprise pool buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id",
+        "Non-subscription buckets with remaining balance (subscription-period and enterprise pool buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id. In the organization's own view, every Project's credits follow as their own rows with `project` set; `credits` leaves them out",
     }),
     enterprise: creditsResponseEnterpriseSchema.nullable().openapi({
       deprecated: true,
@@ -310,7 +320,7 @@ export const creditsResponseSchema = z.object({
   }),
   extra: creditsResponseExtraSchema.openapi({
     description:
-      "`extra.credits`: non-subscription totals (sums over `extra.buckets`). `extra.buckets`: per-bucket lines.",
+      "`extra.credits`: non-subscription totals (sums over `extra.buckets` lines without a `project`). `extra.buckets`: per-bucket lines, Project credits included.",
   }),
   enterprise: creditsResponseEnterpriseWalletSchema.nullable().openapi({
     description:

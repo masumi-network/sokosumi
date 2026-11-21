@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 
 import { StatusDisc } from "../status";
 import { SubmitButton } from "../submit-button";
+import type { SkipSubscription, StartTopUp } from "../top-up";
 import { Refusal } from "./refusal";
 
 /**
@@ -15,7 +16,7 @@ interface AssumptionChipProps {
   question: string;
   yes: { label?: string; pressed?: boolean; onClick: () => void };
   other: { label?: string; pressed?: boolean; onClick: () => void };
-  /** A third answer, as a text button. */
+  /** A third answer. */
   unsure?: { pressed?: boolean; onClick: () => void };
   /** Below the chip: a note field after a No. */
   children?: ReactNode;
@@ -31,7 +32,11 @@ export function AssumptionChip({
   return (
     <div className="ob-chip">
       <div className="ob-chip-row">
-        <StatusDisc status="warn" />
+        <StatusDisc
+          status={
+            yes.pressed || other.pressed || unsure?.pressed ? "ok" : "warn"
+          }
+        />
         <p className="ob-chip-question">{question}</p>
         <div className="ob-chip-actions">
           <button
@@ -44,7 +49,7 @@ export function AssumptionChip({
           </button>
           <button
             type="button"
-            className="button button-ghost button-small"
+            className="button button-secondary button-small"
             aria-pressed={other.pressed ?? false}
             onClick={other.onClick}
           >
@@ -53,7 +58,7 @@ export function AssumptionChip({
           {unsure ? (
             <button
               type="button"
-              className="button button-ghost button-small"
+              className="button button-secondary button-small"
               aria-pressed={unsure.pressed ?? false}
               onClick={unsure.onClick}
             >
@@ -133,6 +138,9 @@ export function NoteField({ initial, onSave }: NoteFieldProps) {
   );
 }
 
+/** How long a tapped answer stays down before the next question opens. */
+export const PRESS_MS = 250;
+
 const ANSWERS: { value: Answer; label: string }[] = [
   { value: "yes", label: "Yes" },
   { value: "no", label: "No" },
@@ -141,7 +149,8 @@ const ANSWERS: { value: Answer; label: string }[] = [
 
 /**
  * Cuso's questions, one at a time: where the founder is in them, the topic,
- * the question, and Yes, No or Not sure. A no can say what is true instead.
+ * the question, and Yes, No or Not sure. A tap answers at once; details are
+ * optional and go with the next tap.
  */
 interface QuestionCardProps {
   topic: string;
@@ -161,17 +170,25 @@ export function QuestionCard({
   onAnswer,
   onSkip,
 }: QuestionCardProps) {
-  const [correcting, setCorrecting] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [details, setDetails] = useState("");
   const [failed, setFailed] = useState(false);
-  const save = (answer: Answer, note?: string) => {
+  // The tapped answer stays pressed down for a beat, then the next question
+  // opens: the tap is seen before the card changes.
+  const [down, setDown] = useState<Answer | null>(null);
+  const save = (answer: Answer) => {
+    if (down) return;
     setFailed(false);
-    setCorrecting(false);
-    onAnswer(answer, note).catch(() => setFailed(true));
+    setDown(answer);
+    setTimeout(() => {
+      onAnswer(answer, details.trim() || undefined)
+        .catch(() => setFailed(true))
+        .finally(() => setDown(null));
+    }, PRESS_MS);
   };
-  const chosen = correcting ? "no" : question.answer;
 
   return (
-    <section className="ob-question card card-focus" aria-label="Quick read">
+    <section className="ob-question card" aria-label="Quick read">
       <div className="ob-question-head">
         <span className="ob-question-title">Quick read</span>
         <span className="ob-question-count num">
@@ -194,20 +211,29 @@ export function QuestionCard({
           <button
             key={value}
             type="button"
-            className="button button-secondary"
-            aria-pressed={chosen === value}
-            onClick={() => (value === "no" ? setCorrecting(true) : save(value))}
+            className={
+              down === value
+                ? "button button-secondary button-down"
+                : "button button-secondary"
+            }
+            aria-pressed={down ? down === value : question.answer === value}
+            onClick={() => save(value)}
           >
             {label}
           </button>
         ))}
       </div>
-      {correcting ? (
-        <NoteField
-          initial={question.note ?? ""}
-          onSave={(note) => save("no", note)}
+      {adding ? (
+        <input
+          className="ob-question-details"
+          value={details}
+          onChange={(event) => setDetails(event.target.value)}
+          placeholder="Add details, then pick your answer"
+          maxLength={400}
+          aria-label="More details"
+          autoFocus
         />
-      ) : question.answer === "no" && question.note ? (
+      ) : question.note ? (
         <p className="ob-question-said">{question.note}</p>
       ) : null}
       {failed ? (
@@ -215,26 +241,47 @@ export function QuestionCard({
           That didn't save. Try again.
         </p>
       ) : null}
-      {onSkip ? (
-        <button
-          type="button"
-          className="button button-ghost button-small ob-skip"
-          onClick={onSkip}
-        >
-          Skip for now
-        </button>
-      ) : null}
+      <div className="ob-question-more">
+        {adding ? null : (
+          <button
+            type="button"
+            className="button button-ghost button-small"
+            onClick={() => setAdding(true)}
+          >
+            Add more details
+          </button>
+        )}
+        {onSkip ? (
+          <button
+            type="button"
+            className="button button-ghost button-small"
+            onClick={onSkip}
+          >
+            Skip for now
+          </button>
+        ) : null}
+      </div>
     </section>
   );
 }
 
 interface RetryButtonProps {
   onRetry: () => Promise<string | null>;
-  topUpUrl: string;
+  /** The top-up checkout, or null when this Cuso may not top up. */
+  topUp: StartTopUp | null;
+  /** The plan checkout, set when Cuso is paused without a CMO plan. */
+  subscribe?: StartTopUp | null;
+  /** Continues without a subscription, for a tester Core allows it. */
+  skip?: SkipSubscription | null;
 }
 
 /** Starts the work again; a refusal (such as no credits) comes back as text. */
-export function RetryButton({ onRetry, topUpUrl }: RetryButtonProps) {
+export function RetryButton({
+  onRetry,
+  topUp,
+  subscribe = null,
+  skip = null,
+}: RetryButtonProps) {
   const [pending, startTransition] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
   return (
@@ -251,7 +298,14 @@ export function RetryButton({ onRetry, topUpUrl }: RetryButtonProps) {
       >
         {pending ? "Starting…" : "Try again"}
       </button>
-      {refusal ? <Refusal text={refusal} topUpUrl={topUpUrl} /> : null}
+      {refusal ? (
+        <Refusal
+          text={refusal}
+          topUp={topUp}
+          subscribe={subscribe}
+          skip={skip}
+        />
+      ) : null}
     </div>
   );
 }

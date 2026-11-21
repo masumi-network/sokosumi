@@ -10,6 +10,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { convertCentsToCredits } from "@sokosumi/utils";
 import { DAY_MS } from "@/config/constants";
+import { taskOwnerLabel } from "@/helpers/soko-bot-owner";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 import prisma from "@/lib/db/prisma";
@@ -232,11 +233,23 @@ function actorLocale(metadata: string | null): string | null {
     : null;
 }
 
-function actorTimezone(metadata: string | null): string | null {
-  const timezone = sanitizeText(
-    readMetadataString(metadata, ["timezone", "timeZone"]),
-    TEXT_LIMITS.timezone,
+/**
+ * The owner's IANA zone: their saved one, else the bot's own, which setup took
+ * from the owner's browser. The bot uses it for a reminder whose zone the owner
+ * did not name, instead of asking.
+ */
+function actorTimezone(
+  metadata: string | null,
+  botTimezone: string | null,
+): string | null {
+  return (
+    validTimezone(readMetadataString(metadata, ["timezone", "timeZone"])) ??
+    validTimezone(botTimezone)
   );
+}
+
+function validTimezone(value: string | null): string | null {
+  const timezone = sanitizeText(value, TEXT_LIMITS.timezone);
   if (!timezone || !/^[a-z0-9_+.-]+(?:\/[a-z0-9_+.-]+)*$/i.test(timezone)) {
     return null;
   }
@@ -499,7 +512,7 @@ export class ContextPacketBuilder {
           select: {
             name: true,
             members: {
-              where: { userId: input.userId ?? undefined },
+              ...(input.userId !== null && { where: { userId: input.userId } }),
               select: { role: true },
               take: 1,
             },
@@ -581,6 +594,7 @@ export class ContextPacketBuilder {
       pendingDecisionCount,
       recentTurnCount,
       asker,
+      bot,
     ] = await Promise.all([
       input.userId === null
         ? null
@@ -644,6 +658,8 @@ export class ContextPacketBuilder {
               name: true,
               description: true,
               status: true,
+              ownerId: true,
+              owner: { select: { name: true } },
               projectId: true,
               assigneeId: true,
               assigneeSokoBotId: true,
@@ -825,6 +841,10 @@ export class ContextPacketBuilder {
             select: { name: true },
           })
         : null,
+      prisma.sokoBot.findUnique({
+        where: { id: input.sokoBotId },
+        select: { ingestTimezone: true },
+      }),
     ]);
 
     const namedOnly =
@@ -915,7 +935,10 @@ export class ContextPacketBuilder {
         id: boundedIdentifier(user?.id ?? null),
         name: sanitizeText(user?.name ?? null, TEXT_LIMITS.actorName),
         locale: actorLocale(user?.metadata ?? null),
-        timezone: actorTimezone(user?.metadata ?? null),
+        // Null with the actor: a shared bot acting on its own has no owner.
+        timezone: user
+          ? actorTimezone(user.metadata, bot?.ingestTimezone ?? null)
+          : null,
         workspaceId: boundedIdentifier(workspace.id),
         organizationId: boundedIdentifier(workspace.organizationId),
         organizationName: sanitizeText(
@@ -985,6 +1008,7 @@ export class ContextPacketBuilder {
         name: sanitizeText(task.name, TEXT_LIMITS.name),
         summary: sanitizeText(task.description, TEXT_LIMITS.summary),
         status: task.status,
+        owner: taskOwnerLabel(task, input.userId),
         priority: null,
         dueAt: null,
         runAt: task.runAt?.toISOString() ?? null,

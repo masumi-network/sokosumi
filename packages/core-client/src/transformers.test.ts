@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getCmoCompetitorsForProjectResponseTransformer,
   getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponseTransformer,
   getProjectsByIdAdsMarketAdsResponseTransformer,
   getProjectsByIdAdsMarketResponseTransformer,
+  getProjectsByIdCalendarResponseTransformer,
   getProjectsByIdSocialPostsByPostIdResponseTransformer,
+  getSeoAuditWorkspaceResponseTransformer,
+  getStudioComparePairResponseTransformer,
+  getWorkspacesCalendarResponseTransformer,
   postProjectsByIdAdsConnectionsFinalizeResponseTransformer,
 } from "./generated/transformers.gen.js";
 
@@ -69,6 +74,31 @@ it("revives X thread part dates and preserves unpublished parts", async () => {
 });
 
 describe("generated response transformers keep nullable objects null-safe", () => {
+  it("Studio compare: an exhausted batch keeps its pair null", async () => {
+    const result = await getStudioComparePairResponseTransformer({
+      data: { pair: null },
+      meta,
+    });
+
+    expect(result.data.pair).toBeNull();
+    expect(result.meta.timestamp).toBeInstanceOf(Date);
+  });
+
+  it("Studio compare: a pair revives both asset dates", async () => {
+    const result = await getStudioComparePairResponseTransformer({
+      data: {
+        pair: {
+          a: { createdAt: meta.timestamp, sourceJob: null },
+          b: { createdAt: meta.timestamp, sourceJob: null },
+        },
+      },
+      meta,
+    });
+
+    expect(result.data.pair?.a.createdAt).toBeInstanceOf(Date);
+    expect(result.data.pair?.b.createdAt).toBeInstanceOf(Date);
+  });
+
   it("finalize ad connection: connection null (account reaches no ad accounts)", async () => {
     const result =
       await postProjectsByIdAdsConnectionsFinalizeResponseTransformer({
@@ -186,4 +216,90 @@ describe("generated response transformers keep nullable objects null-safe", () =
 
     expect(result.data.ad).toBeNull();
   });
+});
+
+it.each([null, { observedAt: meta.timestamp, rows: [] }])(
+  "keeps an SEO workspace without saved query rows readable (%j)",
+  async (searchQueries) => {
+    const empty = {
+      pages: [],
+      observations: [],
+      keywords: [],
+      competitors: [],
+      findings: [],
+      actions: [],
+      metrics: [],
+      timeline: [],
+      analyses: [],
+      monitors: [],
+    };
+    const result = await getSeoAuditWorkspaceResponseTransformer({
+      data: { ...empty, searchQueries },
+      meta: { ...meta },
+    });
+    if (searchQueries)
+      expect(result.data.searchQueries?.observedAt).toEqual(
+        new Date(meta.timestamp),
+      );
+    else expect(result.data.searchQueries).toBeNull();
+  },
+);
+
+it.each([
+  getWorkspacesCalendarResponseTransformer,
+  getProjectsByIdCalendarResponseTransformer,
+])(
+  "revives a Soko Bot run's originalAt on the Calendar (%#)",
+  async (transform) => {
+    const result = await transform({
+      data: [
+        {
+          kind: "sokoBotRun",
+          scheduledAt: "2030-01-03T14:00:00.000Z",
+          originalAt: "2030-01-04T09:00:00.000Z",
+        },
+      ],
+      meta: { ...meta },
+    });
+    expect(result.data[0]?.scheduledAt).toEqual(
+      new Date("2030-01-03T14:00:00.000Z"),
+    );
+    expect(result.data[0]?.originalAt).toEqual(
+      new Date("2030-01-04T09:00:00.000Z"),
+    );
+  },
+);
+
+it("keeps a scoreboard cell without data null and revives the rest of the Competitors page", async () => {
+  const cell = {
+    value: 12,
+    sourceUrl: "https://www.instagram.com/calendly/",
+    observedAt: meta.timestamp,
+  };
+  const row = {
+    competitorId: null,
+    name: "cal.com",
+    postsPerWeek: null,
+    engagementPerPost: null,
+    followers: null,
+    followerGrowth: null,
+  };
+  const result = await getCmoCompetitorsForProjectResponseTransformer({
+    data: {
+      competitors: [],
+      feed: null,
+      limit: 5,
+      signals: [],
+      scoreboard: [row, { ...row, name: "Calendly", followers: cell }],
+      topPosts: [],
+      check: { lastCheckedAt: null, nextCheckAt: null },
+    },
+    meta: { ...meta },
+  });
+  expect(result.data.feed).toBeNull();
+  expect(result.data.scoreboard[0]?.followers).toBeNull();
+  expect(result.data.scoreboard[1]?.followers?.observedAt).toEqual(
+    new Date(meta.timestamp),
+  );
+  expect(result.data.check.lastCheckedAt).toBeNull();
 });

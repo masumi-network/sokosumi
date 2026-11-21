@@ -32,7 +32,7 @@ Root [`AGENTS.md`](../AGENTS.md) is the loading table and trigger list. Task-spe
 
 ## Features
 
-- [`features/task-tags.md`](./features/task-tags.md) — Core task-tag vocabulary, `/sync/task-tags` worker (50 queued + 200 historical), spend bounds, and production-log caution
+- Task tag vocabulary, workspace presets, and limits on queued classification. [Task tags](./features/task-tags.md)
 - [`features/ads-management.md`](./features/ads-management.md) — Project Google Ads and Meta Ads through Composio, plus market keywords
 - [`intelligent-files/implementation-plan.md`](./intelligent-files/implementation-plan.md) — shipped Files catalog (`FileResource` / `FileVersion` / `FileChunk`; Core Jev; `FILES_JEV_ENABLED` default `"true"`)
 

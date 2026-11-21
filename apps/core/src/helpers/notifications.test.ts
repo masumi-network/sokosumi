@@ -5,9 +5,13 @@ import {
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import prisma from "@/lib/db/prisma";
-
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
+import { inRequest } from "@/test/in-request";
 import {
   type CreateNotificationInput,
   createNotification,
@@ -80,7 +84,7 @@ vi.mock("@/helpers/notification-email-dispatch", () => ({
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => promise,
+  waitUntil: vi.fn((promise: Promise<unknown>) => promise),
 }));
 
 const { schedulePublishMock } = vi.hoisted(() => ({
@@ -141,6 +145,8 @@ function createNotificationRecord(
 
 function createPrismaMock() {
   return {
+    projectSeoAnalysis: { findFirst: vi.fn() },
+    projectSeoObservation: { findFirst: vi.fn().mockResolvedValue(null) },
     $executeRaw: vi.fn().mockResolvedValue(0),
     $queryRaw: vi.fn().mockResolvedValue([]),
     notification: {
@@ -165,6 +171,58 @@ function createUniqueViolation() {
 }
 
 describe("createNotification", () => {
+  it.each(["failed", "requested", "completed"])(
+    "keeps a %s import eligible for a later lookup without promising a ready report",
+    async (status) => {
+      const db = createPrismaMock();
+      db.projectSeoAnalysis.findFirst.mockResolvedValue({ status });
+      db.notification.create.mockResolvedValue(createNotificationRecord());
+      await createNotification(
+        { ...notificationInput, workspaceId: "workspace_123" },
+        db as unknown as typeof prisma,
+      );
+      const { metadata, messageParams } =
+        db.notification.create.mock.calls[0][0].data;
+      expect(JSON.parse(metadata).seoResult).toBeNull();
+      expect(JSON.parse(messageParams).seoResult).not.toBe(true);
+    },
+  );
+  it("marks a completed SEO analysis for its own workspace without exposing its audit id", async () => {
+    const db = createPrismaMock();
+    db.projectSeoAnalysis.findFirst.mockResolvedValue({
+      id: "private-analysis-id",
+      status: "completed",
+    });
+    db.projectSeoObservation.findFirst.mockResolvedValue({ id: "imported" });
+    db.notification.create.mockResolvedValue(createNotificationRecord());
+    await createNotification(
+      { ...notificationInput, workspaceId: "workspace_123" },
+      db as unknown as typeof prisma,
+    );
+    const where = db.projectSeoAnalysis.findFirst.mock.calls[0]?.[0]?.where;
+    expect(where).toEqual({
+      taskId: notificationInput.referenceId,
+      OR: [
+        {
+          audit: {
+            workspaceId: "workspace_123",
+            deletedAt: null,
+            archivedAt: null,
+          },
+        },
+        { project: { workspaceId: "workspace_123" } },
+      ],
+    });
+    const { metadata, messageParams } =
+      db.notification.create.mock.calls[0][0].data;
+    expect(JSON.parse(metadata)).toEqual({
+      projectId: "project_123",
+      seoResult: true,
+    });
+    expect(JSON.parse(messageParams).seoResult).toBe(true);
+    expect(metadata).not.toContain("private-analysis-id");
+  });
+
   it("creates a notification and serializes structured fields", async () => {
     publishNotificationEventMock.mockResolvedValue(undefined);
     const notification = createNotificationRecord();
@@ -758,6 +816,12 @@ describe("createNotification push gating", () => {
   });
 
   it("queues unknown push consent for retry when the opt-in read fails", async () => {
+    expectCoreLogWhys(
+      "error",
+      "Failed to read the notification preferences; skipping push",
+      ["Reading the user's notification preferences failed"],
+      ["db down"],
+    );
     const notification = createChatRecord();
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(notification);
@@ -782,6 +846,25 @@ describe("createNotification email", () => {
     dispatchNotificationEmailMock.mockReset();
     publishNotificationEventMock.mockReset();
     publishNotificationEventMock.mockResolvedValue(undefined);
+  });
+
+  it("hands the row to the email dispatch as background work, so a failure inside it is not put on the request's event", async () => {
+    expectBackgroundProbe("dispatchNotificationEmail");
+    dispatchNotificationEmailMock.mockImplementationOnce(async () =>
+      probeBackgroundFailure("dispatchNotificationEmail"),
+    );
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(
+      createNotificationRecord(),
+    );
+
+    await inRequest(() =>
+      createNotification(
+        notificationInput,
+        prismaMock as unknown as typeof prisma,
+        { inApp: true, osBanner: false, email: true },
+      ),
+    );
   });
 
   it("hands a new row to the email dispatch when the delivery says inbox", async () => {
@@ -970,6 +1053,29 @@ describe("deletePendingVendorGrantNotifications", () => {
         kind: NotificationKind.SYSTEM,
       },
     });
+  });
+
+  it("takes the emails back as background work, so a failure inside it is not put on the request's event", async () => {
+    expectBackgroundProbe("cancelNotificationEmails");
+    cancelNotificationEmailsMock.mockImplementationOnce(async () =>
+      probeBackgroundFailure("cancelNotificationEmails"),
+    );
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.findMany.mockResolvedValue([
+      {
+        id: "notification_admin",
+        emailId: "email_admin",
+        emailScheduledAt: new Date("2026-09-19T10:05:00.000Z"),
+      },
+    ]);
+    prismaMock.notification.deleteMany.mockResolvedValue({ count: 1 });
+
+    await inRequest(() =>
+      deletePendingVendorGrantNotifications(
+        "grant_123",
+        prismaMock as unknown as typeof prisma,
+      ),
+    );
   });
 
   it("takes back the emails still scheduled for the rows it deletes", async () => {
@@ -1593,7 +1699,34 @@ describe("chat room arrival count", () => {
    * The banner matters more than the number on it. A failed count must not
    * cost the reader the interruption itself.
    */
+  it("keeps a failed publish's text, which can quote the notification, out of the log", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "A notification was not published over Ably",
+      ["The Ably publish of the notification failed"],
+    );
+    publishNotificationEventMock.mockRejectedValue(
+      new Error("rejected payload: 'Ada private note'"),
+    );
+
+    await publishNotificationRow(chatRecord(), {
+      inApp: true,
+      osBanner: false,
+      email: false,
+    });
+
+    expect(errors[0]?.cause).toBeUndefined();
+    expect(errors[0]?.event).toMatchObject({ failure: { errorName: "Error" } });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("Ada private note");
+  });
+
   it("still publishes when the arrivals cannot be counted", async () => {
+    expectCoreLogWhys(
+      "error",
+      "Failed to count the room's unread notifications",
+      ["Reading the room's unread notification rows failed"],
+      ["database gone"],
+    );
     notificationFindManyMock.mockRejectedValue(new Error("database gone"));
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(chatRecord());

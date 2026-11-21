@@ -4,7 +4,10 @@ import type {
   TaskEvent,
   TaskListItem,
 } from "@sokosumi/core-client";
-import { removeTaskContextAttachmentLinks } from "@sokosumi/utils";
+import {
+  removeSeoTaskRequest,
+  removeTaskContextAttachmentLinks,
+} from "@sokosumi/utils";
 import type {
   TaskAssigneeView,
   TaskWithCoworker,
@@ -19,6 +22,15 @@ import {
 
 function getCommentsCount(events: TaskEvent[]): number {
   return events.filter((event) => Boolean(event.comment)).length;
+}
+
+/** When the latest status event happened, else `fallback`. */
+export function latestStatusChange(events: TaskEvent[], fallback: Date): Date {
+  return events.reduce(
+    (latest, event) =>
+      event.status && event.createdAt > latest ? event.createdAt : latest,
+    fallback,
+  );
 }
 
 function parseAgentMentions(
@@ -77,7 +89,7 @@ function replaceMentionsWithAgentNames(
   return result;
 }
 
-function mapTaskAssignee(
+export function mapTaskAssignee(
   task: TaskListItem | Task,
   coworkersById: Map<string, Coworker>,
   personalAssistantFallback: string,
@@ -165,7 +177,9 @@ export function mapTaskToTaskWithCoworker(
     namedDescription === null
       ? null
       : stripMarkdownToText(
-          removeTaskContextAttachmentLinks(namedDescription),
+          removeSeoTaskRequest(
+            removeTaskContextAttachmentLinks(namedDescription),
+          ),
         )?.slice(0, 200);
   // Context-only descriptions strip to "". Treat that as absent so cards do
   // not render blank space and lists do not skip the "—" fallback.
@@ -173,6 +187,10 @@ export function mapTaskToTaskWithCoworker(
   const createdAt = task.createdAt.toISOString();
   const updatedAt = task.updatedAt.toISOString();
   const runAt = task.runAt?.toISOString() ?? null;
+  const statusSince =
+    "statusSince" in task
+      ? task.statusSince
+      : latestStatusChange(task.events, task.createdAt);
 
   return {
     id: task.id,
@@ -188,6 +206,11 @@ export function mapTaskToTaskWithCoworker(
     updatedAt,
     runAt,
     dueOn: task.dueOn,
+    statusSince: statusSince.toISOString(),
+    subtaskProgress: task.subtaskProgress,
+    openSubtasks: "openSubtasks" in task ? task.openSubtasks : undefined,
+    hasUnansweredMention:
+      "hasUnansweredMention" in task && task.hasUnansweredMention === true,
     jobsCount: "jobsCount" in task ? task.jobsCount : task.jobs.length,
     assignee,
     participants: task.participants.map(({ user }) => ({
@@ -204,7 +227,10 @@ export function mapTaskToTaskWithCoworker(
         : getCommentsCount(task.events),
     columnId: getColumnId(task.status),
     tags: task.tags,
-    description: task.description ?? null,
+    workspaceTags: task.workspaceTags,
+    // A board or list row shows no description. The Task page maps
+    // a full Task, which has events, and keeps the text.
+    description: "events" in task ? (task.description ?? null) : null,
     descriptionPlain,
     events: "events" in task ? task.events : [],
   };

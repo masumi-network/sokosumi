@@ -75,10 +75,14 @@ function useSocialPostStatusCopy(item: SocialPostCalendarItem) {
 export function SocialPostStatusDot({
   status,
   className,
+  partiallyPublished,
+  waitingForQuotedPost,
 }: {
   status: SocialPostCalendarItem["status"];
   /** Replaces the status hue, e.g. on a selected day. */
   className?: string;
+  partiallyPublished?: boolean;
+  waitingForQuotedPost?: boolean;
 }) {
   return (
     <span
@@ -88,7 +92,13 @@ export function SocialPostStatusDot({
         status === "FAILED" || status === "MISSED"
           ? "rotate-45 rounded-xs"
           : "rounded-full",
-        className ?? getToneStyle(socialPostStatusTone(status)).dot,
+        className ??
+          getToneStyle(
+            socialPostStatusTone(status, {
+              partiallyPublished,
+              waitingForQuotedPost,
+            }),
+          ).dot,
       )}
       data-testid="calendar-social-post-dot"
     />
@@ -454,7 +464,7 @@ function SocialPostCalendarChip({
     useSocialPostCalendarCopy(item, timeZone, showProject);
   const movable = isChangeableSocialPost(item);
   const reschedule = movable ? onReschedule : undefined;
-  const tone = getToneStyle(socialPostStatusTone(item.status));
+  const tone = getToneStyle(socialPostStatusTone(item.status, item));
   const week = density === "week";
   const time = formatter.dateTime(item.scheduledAt, "time", { timeZone });
   const className = cn(
@@ -702,7 +712,7 @@ function SocialPostCalendarPreview({
         <>
           <img
             alt=""
-            className="size-full object-cover"
+            className="size-full object-contain"
             decoding="async"
             loading="lazy"
             src={media.fileUrl}

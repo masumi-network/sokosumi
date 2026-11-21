@@ -11,7 +11,9 @@ import { toast } from "sonner";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 
+import { useOptimisticTaskStatus } from "./task-detail-optimistic";
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
+import { TaskStatusAge } from "./task-status-age";
 import { TaskStatusPicker } from "./task-status-picker";
 
 export interface TaskMetadataStatusFieldLabels {
@@ -20,13 +22,7 @@ export interface TaskMetadataStatusFieldLabels {
   statusLabels: Record<TaskStatus, string>;
   changeStatus: string;
   noStatusMatches: string;
-  reopenToReadyTitle: string;
-  reopenToReadyDescription: string;
-  reopenToReadyCommentLabel: string;
-  reopenToReadyCommentPlaceholder: string;
   reopenToReadyCommentRequired: string;
-  reopenToReadyConfirm: string;
-  cancel: string;
   updateStatusSuccess: string;
   updateStatusError: string;
 }
@@ -36,6 +32,10 @@ interface TaskMetadataStatusFieldProps {
   status: TaskStatus;
   /** Statuses Core lets this viewer move the Task to (ADR 0029). */
   selectableStatuses: readonly TaskStatus[];
+  /** ISO time the saved status began. */
+  statusSince?: string;
+  /** The Coworker or Soko Bot assigned, or null for a person's Task. */
+  agentAssigneeName: string | null;
   labels: TaskMetadataStatusFieldLabels;
 }
 
@@ -43,22 +43,22 @@ export function TaskMetadataStatusField({
   taskId,
   status,
   selectableStatuses,
+  statusSince,
+  agentAssigneeName,
   labels,
 }: TaskMetadataStatusFieldProps) {
   const router = useRouter();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
-  const [currentStatus, setCurrentStatus] = useState(status);
+  const [currentStatus, showStatus, isStatusChanging] =
+    useOptimisticTaskStatus(status);
   const [isPending, startTransition] = useTransition();
-  const [pendingStatus, setPendingStatus] = useState<TaskStatus | null>(null);
   const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
   const [reopenComment, setReopenComment] = useState("");
 
   function applyStatusChange(desiredStatus: TaskStatus, comment?: string) {
-    const previousStatus = currentStatus;
-    setPendingStatus(desiredStatus);
-    setCurrentStatus(desiredStatus);
-
     startTransition(async () => {
+      // Shown here and in the header menu until the write has its answer.
+      showStatus(desiredStatus);
       try {
         const result = await setTaskStatusFromDrag({
           taskId,
@@ -66,7 +66,6 @@ export function TaskMetadataStatusField({
           comment,
         });
         if (!result.ok) {
-          setCurrentStatus(previousStatus);
           if (
             result.error.kind === CORE_API_ERROR_KINDS.STATUS_NOT_SELECTABLE
           ) {
@@ -79,14 +78,10 @@ export function TaskMetadataStatusField({
           showCalendarClientUpgradeModal();
           return;
         }
-        router.refresh();
         toast.success(labels.updateStatusSuccess);
       } catch (error) {
         console.error("Failed to update task status", error);
-        setCurrentStatus(previousStatus);
         toast.error(labels.updateStatusError);
-      } finally {
-        setPendingStatus(null);
       }
     });
   }
@@ -94,7 +89,13 @@ export function TaskMetadataStatusField({
   function handleStatusSelect(nextStatus: TaskStatus) {
     if (nextStatus === currentStatus) return;
 
-    if (userTaskStatusTransitionRequiresComment(currentStatus, nextStatus)) {
+    if (
+      userTaskStatusTransitionRequiresComment(
+        currentStatus,
+        nextStatus,
+        agentAssigneeName !== null,
+      )
+    ) {
       setReopenComment("");
       setIsReopenDialogOpen(true);
       return;
@@ -115,26 +116,41 @@ export function TaskMetadataStatusField({
     setReopenComment("");
   }
 
-  const displayStatus =
-    isPending && pendingStatus ? pendingStatus : currentStatus;
+  function handleReopenAsDraft() {
+    setIsReopenDialogOpen(false);
+    applyStatusChange(TaskStatus.DRAFT);
+    setReopenComment("");
+  }
 
   return (
     <>
       <TaskStatusPicker
-        value={displayStatus}
+        value={currentStatus}
         options={selectableStatuses}
         labels={{
           statusLabels: labels.statusLabels,
-          ariaLabel: `${labels.status}: ${labels.statusLabels[displayStatus]}`,
+          ariaLabel: `${labels.status}: ${labels.statusLabels[currentStatus]}`,
           searchPlaceholder: labels.changeStatus,
           noResults: labels.noStatusMatches,
         }}
         onSelect={handleStatusSelect}
-        isPending={isPending}
+        // Also while the header menu changes the status: a pick now would
+        // be judged against a status Core has not confirmed.
+        isPending={isPending || isStatusChanging}
         openShortcutKey="s"
         align="start"
         variant="row"
       />
+      {statusSince ? (
+        <TaskStatusAge
+          status={currentStatus}
+          // A status shown before Core confirms it starts its clock now.
+          statusSince={
+            isStatusChanging ? new Date().toISOString() : statusSince
+          }
+          variant="row"
+        />
+      ) : null}
 
       <TaskReopenToReadyDialog
         open={isReopenDialogOpen}
@@ -144,18 +160,18 @@ export function TaskMetadataStatusField({
             setReopenComment("");
           }
         }}
-        labels={{
-          title: labels.reopenToReadyTitle,
-          description: labels.reopenToReadyDescription,
-          commentLabel: labels.reopenToReadyCommentLabel,
-          commentPlaceholder: labels.reopenToReadyCommentPlaceholder,
-          confirm: labels.reopenToReadyConfirm,
-          cancel: labels.cancel,
-        }}
+        assigneeName={agentAssigneeName ?? ""}
         comment={reopenComment}
         onCommentChange={setReopenComment}
         onConfirm={handleReopenConfirm}
-        isPending={isPending && pendingStatus === TaskStatus.READY}
+        // Only a finished Task reopens; an Input Required one is still running.
+        onReopenAsDraft={
+          currentStatus === TaskStatus.COMPLETED ||
+          currentStatus === TaskStatus.CANCELED
+            ? handleReopenAsDraft
+            : undefined
+        }
+        isPending={isPending && currentStatus === TaskStatus.READY}
       />
     </>
   );

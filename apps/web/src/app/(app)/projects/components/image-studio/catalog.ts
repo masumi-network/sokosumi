@@ -19,6 +19,8 @@ import type {
  * catalog does not list is not offered. That is the whole point of the shared
  * capability catalog — the UI must not be a second, unverified source of what
  * the provider supports.
+ * Auto now prefers the curated image/video ids below, only when present in
+ * that catalog; every capability and provider endpoint still comes from Core.
  */
 
 /** What a finished image says about how it was made. */
@@ -70,6 +72,19 @@ export function videoModelsFor(
   return catalog.videoModels.filter((model) => model.input === input);
 }
 
+/** The same curated family for prompt video and animation. */
+export function defaultVideoModel(
+  catalog: StudioCatalog,
+  input: StudioVideoModel["input"],
+): StudioVideoModel | null {
+  const models = videoModelsFor(catalog, input);
+  const preferred =
+    input === "image"
+      ? catalog.defaultAnimateModelId
+      : catalog.defaultVideoModelId;
+  return models.find((model) => model.id === preferred) ?? models[0] ?? null;
+}
+
 /**
  * What one video costs in credits, by the function Core charges with.
  * Null when no verified figure covers these settings.
@@ -89,15 +104,29 @@ export function modelById(
   return catalog.models.find((model) => model.id === id) ?? null;
 }
 
-/** Whether the original model can make a variation using this image. */
-export function supportsVariation(
+/** Resolve the automatic route for a repeat before offering or submitting it. */
+export function imageRepeatRoute(
   catalog: StudioCatalog,
-  endpoint: string | null | undefined,
-): boolean {
-  const model = modelById(catalog, resolveModel(catalog, endpoint).id);
-  return (
-    model !== null && model.editEndpoint !== null && model.maxReferences >= 1
-  );
+  source: Pick<StudioAsset, "model" | "lettering">,
+  referenceCount: number,
+) {
+  const letterExistingBackdrop =
+    source.lettering === "ideogram" &&
+    resolveModel(catalog, source.model).id === "ideogram-v3";
+  const model = letterExistingBackdrop
+    ? modelById(catalog, "ideogram-v3")
+    : defaultModel(catalog);
+  const references = letterExistingBackdrop
+    ? Math.max(referenceCount, 1)
+    : referenceCount;
+  if (
+    !model ||
+    (references > 0 &&
+      (!model.editEndpoint || references > model.maxReferences))
+  ) {
+    return null;
+  }
+  return { model, letterExistingBackdrop };
 }
 
 /**
@@ -111,32 +140,6 @@ export function defaultModel(catalog: StudioCatalog): StudioModel | null {
   return (
     modelById(catalog, catalog.defaultModelId) ?? catalog.models[0] ?? null
   );
-}
-
-/**
- * The models the studio opens with.
- *
- * Core's `curatedRank` names a shortlist of five hand-picked for range rather
- * than for price — a general image model, a stronger one, a photographic one,
- * one that handles typography, and one for vector and brand work. One brief
- * across all five is the thing this composer is for, so it is what a person
- * lands on rather than something they have to assemble first.
- *
- * Read off the catalog and sorted by the rank Core gave, never held here: a
- * shortlist copied into the browser is a second opinion about which models are
- * good, and it would go stale the moment fal withdrew one of them. `models`
- * already arrives curated-first, but this does not rely on that either.
- *
- * Falls back to the catalog's own default when no row is ranked, so a catalog
- * without a shortlist still opens on something rather than on nothing.
- */
-export function curatedModels(catalog: StudioCatalog): StudioModel[] {
-  const ranked = catalog.models
-    .filter((model) => model.curatedRank !== null)
-    .sort((a, b) => (a.curatedRank ?? 0) - (b.curatedRank ?? 0));
-  if (ranked.length > 0) return ranked;
-  const fallback = defaultModel(catalog);
-  return fallback ? [fallback] : [];
 }
 
 /**
@@ -263,20 +266,4 @@ export function settingsOf(
     outputFormat: source?.settings?.outputFormat ?? "png",
     seed: source?.settings?.seed ?? null,
   };
-}
-
-/**
- * The model id to reuse when repeating a piece of work.
- *
- * Falls back to the catalog default when the original endpoint is not in the
- * catalog: a retry has to name *some* model, and the alternative is refusing
- * to retry work that predates the catalog.
- */
-export function modelIdForRepeat(
-  catalog: StudioCatalog,
-  endpoint: string | null | undefined,
-): string | null {
-  return (
-    resolveModel(catalog, endpoint).id ?? defaultModel(catalog)?.id ?? null
-  );
 }

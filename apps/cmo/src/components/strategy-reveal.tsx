@@ -108,7 +108,7 @@ export function Mix({
               <b>{APPROACHES[part.approach].name}</b>
               <span className="num">
                 {mine.length > 0
-                  ? `${mine.length} ${mine.length === 1 ? "piece" : "pieces"}`
+                  ? `${mine.length} ${mine.length === 1 ? "post" : "posts"}`
                   : `${part.share}%`}
               </span>
             </div>
@@ -156,8 +156,8 @@ export function Pillars({
       {made ? (
         <p className="note">
           {made.rewriting
-            ? `Some pieces read as another topic than planned. ${AGENT_NAME} is rewriting them now.`
-            : `${AGENT_NAME} read every piece he made and counted what each one is really about.`}
+            ? `Some posts read as another topic than planned. ${AGENT_NAME} is rewriting them now.`
+            : `${AGENT_NAME} read every post he made and counted what each one is really about.`}
         </p>
       ) : null}
       <ul className="bb-mix">
@@ -196,7 +196,7 @@ export function Pillars({
               </span>
               {pillar.why ? <span>{pillar.why}</span> : null}
               <span className="note">
-                {mine.length} {mine.length === 1 ? "piece" : "pieces"} planned
+                {mine.length} {mine.length === 1 ? "post" : "posts"} planned
                 {mine[0] ? `, such as “${withoutLabel(mine[0].title)}”` : ""}
               </span>
             </li>
@@ -209,11 +209,16 @@ export function Pillars({
 
 const GROUP_ORDER: ChannelGroup[] = ["social", "ads", "email", "search"];
 
-/** "Image post" reads "3 image posts"; a name such as "YouTube Short" keeps its capitals. */
-function plural(name: string, count: number): string {
+/**
+ * "Image post" reads "3 image posts" and "Post with a reply" reads "3 posts
+ * with a reply"; a name such as "YouTube Short" keeps its capitals.
+ */
+export function plural(name: string, count: number): string {
   const lower = /[a-z][A-Z]/.test(name) ? name : name.toLowerCase();
   if (count === 1) return `1 ${lower}`;
-  return `${count} ${/(x|s|sh|ch)$/.test(lower) ? `${lower}es` : `${lower}s`}`;
+  const [noun, ...rest] = lower.split(/ (?=with )/);
+  const many = /(x|s|sh|ch)$/.test(noun) ? `${noun}es` : `${noun}s`;
+  return [count, many, ...rest].join(" ");
 }
 
 interface ChannelPlanProps {
@@ -237,11 +242,23 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
         GROUP_ORDER.indexOf(channelInfo(b.key)?.group ?? "social"),
     );
   const used = new Set(channels.map((channel) => channel.key));
+  // Networks Cuso left out because they do not fit the buyer, with his reason.
+  const leftOut = (strategy.leftOut ?? []).flatMap((item) => {
+    const key = channelKey(item.channel);
+    const info = key && !used.has(key) ? channelInfo(key) : null;
+    return key && info ? [{ key, name: info.name, why: item.why }] : [];
+  });
+  const skipped = new Set(leftOut.map((item) => item.key));
   const more = (Object.keys(CMO_CHANNELS) as (keyof typeof CMO_CHANNELS)[])
-    .filter((key) => CMO_CHANNELS[key].status === "live" && !used.has(key))
+    .filter(
+      (key) =>
+        CMO_CHANNELS[key].status === "live" &&
+        !used.has(key) &&
+        !skipped.has(key),
+    )
     .map((key) => CMO_CHANNELS[key].name);
   const soon = (Object.keys(CMO_CHANNELS) as (keyof typeof CMO_CHANNELS)[])
-    .filter((key) => CMO_CHANNELS[key].status === "soon")
+    .filter((key) => (CMO_CHANNELS[key].status as string) === "soon")
     .map((key) => CMO_CHANNELS[key].name);
   return (
     <>
@@ -249,10 +266,14 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
         {channels.map((channel) => {
           const info = channelInfo(channel.key);
           if (!info) return null;
+          // A talking video counts on every network it also goes out on:
+          // YouTube's pieces are only those.
           const entries = strategy.calendar.filter(
             (entry) =>
-              channelKey(entry.channel) === channel.key &&
-              entry.status !== "skipped",
+              entry.status !== "skipped" &&
+              [entry.channel, ...(entry.alsoOn ?? [])].some(
+                (network) => channelKey(network) === channel.key,
+              ),
           );
           const formats = new Map<string, number>();
           for (const entry of entries) {
@@ -298,11 +319,46 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
             </li>
           );
         })}
+        {/* SEO runs beside the strategy, never on its calendar, so it is said here. */}
+        <li className="cw-card">
+          <div className="cw-head">
+            <span className="cw-icon">
+              <ChannelIcon channel="seo" size={22} />
+            </span>
+            <div>
+              <p className="cw-name">Your website and Google search</p>
+              <p className="note">Every week, on the SEO page</p>
+            </div>
+          </div>
+          <p className="cw-makes">
+            A weekly audit of your site, page fixes, and articles for the
+            searches your buyers make when you ask
+          </p>
+          <p className="cw-you">
+            {AGENT_NAME} writes them. You put them on your site.
+          </p>
+        </li>
       </ul>
-      {more.length > 0 ? (
+      {leftOut.length > 0 ? (
+        <ul className="cw-left-out">
+          {leftOut.map((item) => (
+            <li key={item.key}>
+              <ChannelIcon channel={item.key} size={16} />
+              <span>
+                <b>Not on {item.name}.</b> {item.why}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {more.length > 0 || soon.length > 0 ? (
         <p className="note">
-          {AGENT_NAME} can also run {joinNames(more)}. Ask him to add one below.
-          {soon.length > 0 ? ` ${joinNames(soon)} is coming soon.` : ""}
+          {more.length > 0
+            ? `${AGENT_NAME} can also run ${joinNames(more)}. Ask him to add one below.`
+            : ""}
+          {soon.length > 0
+            ? `${more.length > 0 ? " " : ""}${joinNames(soon)} is coming soon.`
+            : ""}
         </p>
       ) : null}
     </>

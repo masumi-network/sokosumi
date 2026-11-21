@@ -158,14 +158,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const updated = await prisma.enterpriseContract.update({
       where: { id },
       data: {
-        periodCount: body.periods,
-        seats: body.seats,
-        centsPerMonth,
-        oneTimeCents,
-        oneTimeExpiresAt: body.oneTimeExpiresAt,
-        paymentReference: body.paymentReference,
-        notes: body.notes,
-        externalReference: body.externalReference,
+        ...(body.periods !== undefined && { periodCount: body.periods }),
+        ...(body.seats !== undefined && { seats: body.seats }),
+        ...(centsPerMonth !== undefined && { centsPerMonth }),
+        ...(oneTimeCents !== undefined && { oneTimeCents }),
+        ...(body.oneTimeExpiresAt !== undefined && {
+          oneTimeExpiresAt: body.oneTimeExpiresAt,
+        }),
+        ...(body.paymentReference !== undefined && {
+          paymentReference: body.paymentReference,
+        }),
+        ...(body.notes !== undefined && { notes: body.notes }),
+        ...(body.externalReference !== undefined && {
+          externalReference: body.externalReference,
+        }),
       },
       include: enterpriseContractOrganizationSelect,
     });

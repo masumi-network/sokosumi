@@ -1,7 +1,9 @@
-import type { CmoOverview } from "@sokosumi/core-client";
+import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 
+import type { BrandSectionKey } from "../../lib/brand-sections";
 import type { CusoMessage } from "../../lib/chat-messages";
 import type { AdActions } from "../ads";
+import type { StartTopUp } from "../top-up";
 import type { Answer } from "./questions";
 
 /** One answer to one of Cuso's questions, with what is true instead after a no. */
@@ -32,6 +34,11 @@ export interface OnboardingBrandActions {
   saveBrandBrain: (
     brandBrain: NonNullable<CmoOverview["brandBrain"]>,
   ) => Promise<CmoOverview>;
+  /** A fix on one section, which Cuso makes after his current turn; Core's refusal or null. */
+  fixBrandSection: (
+    section: BrandSectionKey,
+    note: string,
+  ) => Promise<string | null>;
 }
 
 /** Ask for, check, and approve the plan. */
@@ -55,27 +62,50 @@ export interface OnboardingPlanActions {
 
 /** Connect accounts and leave hiring for the app. */
 export interface OnboardingConnectActions {
-  /** Records that the founder launched, so the app opens on the chat next. */
+  /** Records that the founder launched, so the checkout or the chat opens next. */
   finishAccounts: () => Promise<never>;
   connectChannel: (
-    provider: "x" | "linkedin" | "instagram" | "facebook" | "youtube",
+    provider:
+      | "x"
+      | "linkedin"
+      | "instagram"
+      | "facebook"
+      | "youtube"
+      | "tiktok",
   ) => Promise<{ url: string | null; error: string | null }>;
   connectMeasurement: (
     provider: CmoOverview["measurement"][number]["provider"],
-    from: "onboarding" | "app",
+    from: "onboarding" | "launch" | "app",
   ) => Promise<{ url: string | null; error: string | null }>;
   connectAds: AdActions["connectAds"];
+  /** The owner's photo for talking videos, base64 JPEG, with their consent. */
+  setPresenter: (photo: string) => Promise<{ error: string | null }>;
+  clearPresenter: () => Promise<{ error: string | null }>;
 }
 
-/** Account menu: start over or sign out. */
+/** Pay for a CMO plan, the last step of hiring. */
+export interface OnboardingCheckoutActions {
+  /** Starts Polar's checkout; the browser goes to the returned URL. */
+  startPlanCheckout: (
+    interval: CmoSubscriptionPlan["interval"],
+    /** The plan Polar opens on; without one, the cheapest. */
+    tier?: string,
+  ) => Promise<{ url: string | null; error: string | null }>;
+}
+
+/** Account menu: start over or sign out; and the top-up a refusal offers. */
 export interface OnboardingAccountActions {
   /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
   startOver: () => Promise<string | null>;
+  /** Starts the checkout for a Project top-up of this Cuso. */
+  startTopUp: StartTopUp;
+  /** A tester continues without a subscription; a refusal comes back as text. */
+  skipSubscription: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
 /**
- * Everything the onboarding flow can ask of Core. Split into the five
+ * Everything the onboarding flow can ask of Core. Split into the six
  * capability ports above so a caller can learn one group at a time; the flow
  * still takes the full bag.
  */
@@ -83,6 +113,7 @@ export type OnboardingActions = OnboardingResearchActions &
   OnboardingBrandActions &
   OnboardingPlanActions &
   OnboardingConnectActions &
+  OnboardingCheckoutActions &
   OnboardingAccountActions;
 
 /**
@@ -110,13 +141,19 @@ export function inertOnboardingActions(
     answerBrandQuestion: same,
     skipBrandQuestions: same,
     saveBrandBrain: same,
+    fixBrandSection: async () => null,
     answerPlanQuestion: same,
     applyPlanAnswers: result,
     finishAccounts: () => new Promise<never>(() => {}),
     connectChannel: unavailable,
     connectMeasurement: unavailable,
     connectAds: unavailable,
+    setPresenter: async () => ({ error: null }),
+    clearPresenter: async () => ({ error: null }),
+    startPlanCheckout: unavailable,
     startOver: async () => null,
+    startTopUp: unavailable,
+    skipSubscription: async () => ({ error: null }),
     signOut: async () => {},
   };
 }

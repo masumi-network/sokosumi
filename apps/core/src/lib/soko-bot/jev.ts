@@ -1,5 +1,6 @@
 import { experimental_evaluate, gateway } from "ai";
 import { z } from "zod";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import { wellFormed } from "@/lib/soko-bot/well-formed";
 
 import { gatewayCostUsd } from "./gateway-cost";
@@ -49,6 +50,8 @@ export async function evaluateWithJev(options: {
   state: JevState;
   questions: Record<string, JevQuestion>;
   timeoutMs: number;
+  /** Confidence-based suggestions require the model's reported probability for its choice. */
+  requireChoiceProbability?: boolean;
 }): Promise<{ answers: Map<string, JevAnswer>; costUsd: number }> {
   const result = await experimental_evaluate({
     model: gateway.evaluationModel(SOKO_BOT_JEV_MODEL),
@@ -58,7 +61,7 @@ export async function evaluateWithJev(options: {
     abortSignal: AbortSignal.timeout(options.timeoutMs),
     maxRetries: 1,
     providerOptions: JEV_PROVIDER_OPTIONS,
-  });
+  }).catch(rethrowAiGatewayFailure);
   const answers = new Map<string, JevAnswer>();
   for (const [key, raw] of Object.entries(
     (result.answers ?? {}) as Record<string, unknown>,
@@ -72,6 +75,8 @@ export async function evaluateWithJev(options: {
     if (
       question.type === "choice" &&
       "choice" in answer &&
+      (!options.requireChoiceProbability ||
+        answer.probabilities?.[answer.choice] !== undefined) &&
       Object.hasOwn(question.criteria, answer.choice)
     )
       answers.set(key, {

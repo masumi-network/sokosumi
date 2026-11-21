@@ -1,15 +1,20 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render as renderTree, screen } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { type ReactNode, Suspense, use } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import messages from "@/../messages/en.json";
 
 const {
-  loadWorkspaceCalendarPageMock,
+  connectionMock,
+  readWorkspaceCalendarPageMock,
   notFoundMock,
   projectServiceMock,
   sokoBotGetMineMock,
 } = vi.hoisted(() => ({
+  connectionMock: vi.fn(async () => undefined),
   sokoBotGetMineMock: vi.fn(),
-  loadWorkspaceCalendarPageMock: vi.fn(),
+  readWorkspaceCalendarPageMock: vi.fn(),
   notFoundMock: vi.fn(() => {
     throw new Error("NEXT_NOT_FOUND");
   }),
@@ -19,7 +24,27 @@ const {
     listSocialConnections: vi.fn(),
     listSocialPosts: vi.fn(),
     listSocialQueueSlots: vi.fn(),
+    listWorkspaceSocialPosts: vi.fn(),
   },
+}));
+
+vi.mock("./components/social-all-projects-attention", () => ({
+  SocialAllProjectsAttention: (props: {
+    items: { post: { id: string } }[];
+    hasMore: boolean;
+  }) => (
+    <div
+      data-testid="social-all-attention"
+      data-has-more={String(props.hasMore)}
+      data-posts={props.items.map(({ post }) => post.id).join(",")}
+    />
+  ),
+}));
+
+vi.mock("@/app/projects/components/social-posts/social-load-error", () => ({
+  SocialLoadError: ({ kind }: { kind: string }) => (
+    <div data-testid={`social-load-error-${kind}`} />
+  ),
 }));
 
 vi.mock("./components/social-calendar-preview", () => ({
@@ -30,11 +55,20 @@ vi.mock("./components/social-calendar-preview", () => ({
   }) => <>{children}</>,
 }));
 
-vi.mock("next/server", () => ({ connection: async () => undefined }));
+vi.mock("next/server", () => ({ connection: connectionMock }));
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
+vi.mock("@/lib/auth/auth.server", async () => {
+  const { ok } = await import("neverthrow");
+  return {
+    getSessionResult: async () => ok(SESSION),
+    getSession: async () => SESSION,
+  };
+});
 
 vi.mock("next/navigation", () => ({
   notFound: notFoundMock,
   useSearchParams: () => new URLSearchParams("tab=accounts"),
+  useRouter: () => ({ refresh: vi.fn() }),
   unstable_rethrow: (error: unknown) => {
     if (
       error instanceof Error &&
@@ -56,7 +90,8 @@ vi.mock("@/lib/services/project.service", () => ({
 }));
 
 vi.mock("@/app/calendar/load-calendar-page", () => ({
-  loadWorkspaceCalendarPage: loadWorkspaceCalendarPageMock,
+  readWorkspaceCalendarPage: readWorkspaceCalendarPageMock,
+  requestCalendarTimezone: async () => "UTC",
 }));
 
 vi.mock("@/app/calendar/components/workspace-calendar", () => ({
@@ -149,6 +184,8 @@ vi.mock("@/app/projects/components/project-posting-instructions", () => ({
 vi.mock("./components/social-all-projects-tabs", () => ({
   SocialAllProjectsTabs: (props: {
     actions: React.ReactNode;
+    attention: React.ReactNode;
+    attentionCount?: number | string;
     calendar: React.ReactNode;
     notice?: string;
     projectFailed?: boolean;
@@ -156,9 +193,11 @@ vi.mock("./components/social-all-projects-tabs", () => ({
   }) => (
     <div
       data-testid="social-all-projects-tabs"
+      data-attention-count={String(props.attentionCount ?? "")}
       data-workspace={props.workspaceId}
     >
       {props.actions}
+      {props.attention}
       {props.calendar}
       {props.projectFailed ? (
         <div data-testid="social-project-load-error">project failed</div>
@@ -202,6 +241,11 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
   sokoBotService: { getMine: sokoBotGetMineMock },
 }));
 
+const SESSION = {
+  user: { id: "user-1" },
+  session: { activeOrganizationId: "org-1" },
+};
+
 const PROJECT = {
   id: "project-1",
   name: "Launch plan",
@@ -231,6 +275,16 @@ function page(cursor: string | null = null) {
   return { posts: [], nextCursor: cursor };
 }
 
+function render(node: ReactNode) {
+  return renderTree(
+    <NuqsTestingAdapter>
+      <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+        {node}
+      </NextIntlClientProvider>
+    </NuqsTestingAdapter>,
+  );
+}
+
 async function visit(
   searchParams: Record<string, string | undefined> = {},
 ): Promise<void> {
@@ -251,8 +305,12 @@ describe("SocialPage", () => {
       timezone: null,
       slots: [],
     });
-    loadWorkspaceCalendarPageMock.mockResolvedValue(CALENDAR);
+    readWorkspaceCalendarPageMock.mockResolvedValue(CALENDAR);
     sokoBotGetMineMock.mockResolvedValue({ id: "bot-1" });
+    projectServiceMock.listWorkspaceSocialPosts.mockResolvedValue({
+      items: [],
+      hasMore: false,
+    });
   });
 
   it.each([
@@ -387,8 +445,47 @@ describe("SocialPage", () => {
     expect(screen.queryByTestId("social-posts")).not.toBeInTheDocument();
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
     expect(projectServiceMock.listSocialPosts).not.toHaveBeenCalled();
-    const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
-    await expect(searchParams).resolves.toMatchObject({ view: "week" });
+    const [{ requested }] = readWorkspaceCalendarPageMock.mock.lastCall!;
+    expect(requested).toMatchObject({ view: "week" });
+  });
+
+  it("lists every project's failed, missed and approval posts under Needs attention", async () => {
+    projectServiceMock.listWorkspaceSocialPosts.mockResolvedValue({
+      items: [
+        { post: { id: "failed" }, projectName: "Launch plan" },
+        { post: { id: "approval" }, projectName: "Autumn menu" },
+      ],
+      hasMore: true,
+    });
+    await visit();
+
+    expect(projectServiceMock.listWorkspaceSocialPosts).toHaveBeenCalledWith(
+      ["FAILED", "MISSED", "NEEDS_APPROVAL"],
+      false,
+    );
+    const list = screen.getByTestId("social-all-attention");
+    expect(list).toHaveAttribute("data-posts", "failed,approval");
+    expect(list).toHaveAttribute("data-has-more", "true");
+    expect(screen.getByTestId("social-all-projects-tabs")).toHaveAttribute(
+      "data-attention-count",
+      "2+",
+    );
+  });
+
+  it("keeps Social up when every project's Needs attention fails to load", async () => {
+    projectServiceMock.listWorkspaceSocialPosts.mockRejectedValue(
+      new Error("Core down"),
+    );
+    await visit();
+
+    expect(
+      screen.getByTestId("social-load-error-attention"),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("social-calendar")).toBeInTheDocument();
+    expect(screen.getByTestId("social-all-projects-tabs")).toHaveAttribute(
+      "data-attention-count",
+      "",
+    );
   });
 
   it("offers Soko Bot as not set up when the reader has none", async () => {
@@ -424,8 +521,8 @@ describe("SocialPage", () => {
         tab: "calendar",
       });
 
-      const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
-      await expect(searchParams).resolves.toEqual({
+      const [{ requested }] = readWorkspaceCalendarPageMock.mock.lastCall!;
+      expect(requested).toEqual({
         projectId,
         assigneeId: undefined,
         assigneeUserId: undefined,
@@ -466,8 +563,8 @@ describe("SocialPage", () => {
     expect(notFoundMock).not.toHaveBeenCalled();
     expect(projectServiceMock.listSocialPosts).not.toHaveBeenCalled();
     // The lost id must not narrow the all-projects calendar to nothing.
-    const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
-    await expect(searchParams).resolves.toMatchObject({ projectId: undefined });
+    const [{ requested }] = readWorkspaceCalendarPageMock.mock.lastCall!;
+    expect(requested).toMatchObject({ projectId: undefined });
   });
 
   it("stays on all-projects when that project fails to load", async () => {
@@ -485,8 +582,8 @@ describe("SocialPage", () => {
     expect(screen.getByTestId("social-calendar")).toBeInTheDocument();
     expect(screen.queryByTestId("social-posts")).not.toBeInTheDocument();
     expect(projectServiceMock.listSocialPosts).not.toHaveBeenCalled();
-    const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
-    await expect(searchParams).resolves.toMatchObject({ projectId: undefined });
+    const [{ requested }] = readWorkspaceCalendarPageMock.mock.lastCall!;
+    expect(requested).toMatchObject({ projectId: undefined });
   });
 
   // The loader drops a stale view=agenda for Social posts alone.
@@ -498,7 +595,7 @@ describe("SocialPage", () => {
 
     await visit({ ...query, view: "agenda" });
 
-    const [{ types }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
+    const [{ types }] = readWorkspaceCalendarPageMock.mock.lastCall!;
     expect(types).toEqual(["social"]);
   });
 
@@ -546,7 +643,7 @@ describe("SocialPage", () => {
 
   it("keeps Social up when the calendar fails to load", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
-    loadWorkspaceCalendarPageMock.mockRejectedValue(new Error("core down"));
+    readWorkspaceCalendarPageMock.mockRejectedValue(new Error("core down"));
 
     await visit({ projectId: "project-1" });
 
@@ -561,9 +658,7 @@ describe("SocialPage", () => {
 
   it("still 404s when the calendar loader cannot find the project", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
-    loadWorkspaceCalendarPageMock.mockRejectedValue(
-      Object.assign(new Error("NEXT_NOT_FOUND"), { digest: "NEXT_NOT_FOUND" }),
-    );
+    readWorkspaceCalendarPageMock.mockResolvedValue(null);
 
     const { default: SocialPage } = await import("./page");
 
@@ -572,6 +667,19 @@ describe("SocialPage", () => {
         searchParams: Promise.resolve({ projectId: "project-1" }),
       }),
     ).rejects.toThrow("NEXT_NOT_FOUND");
+  });
+
+  // The Social reads are cached, so a link prefetch carries the page.
+  it.each([
+    ["the scoped project", { projectId: "project-1" }],
+    ["every project", {}],
+  ])("renders %s without deferring to the request", async (_label, query) => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+
+    await visit(query);
+
+    expect(screen.getByTestId("social-calendar")).toBeInTheDocument();
+    expect(connectionMock).not.toHaveBeenCalled();
   });
 
   it("keeps Social up when one list page fails", async () => {
@@ -635,11 +743,92 @@ describe("SocialPage", () => {
     expect(projectServiceMock.listSocialPosts).toHaveBeenCalled();
   });
 
+  it("shows accounts when the posting queue is not open to the user", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    projectServiceMock.listSocialQueueSlots.mockResolvedValue(null);
+
+    await visit({ projectId: "project-1" });
+
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-accounts-failed",
+      "false",
+    );
+  });
+
   /**
    * Social's calendar is Social's, not the workspace calendar with a filter
    * left over from the last visit. Task runs never appear on it, so the lock
    * is a prop rather than a toggle the reader has to find and keep set.
    */
+  it("pages only the searched tab and passes matching posts to the client", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    projectServiceMock.listSocialPosts.mockImplementation(
+      async (_id, { statuses, cursor }) => ({
+        posts: [
+          { id: cursor ?? statuses[0], text: cursor ? "Launch" : "Unrelated" },
+        ],
+        nextCursor: cursor ? null : statuses[0] + "-next",
+      }),
+    );
+    await visit({ projectId: PROJECT.id, tab: "drafts", q: "launch" });
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-order",
+      "DRAFT-next",
+    );
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-affected",
+      "",
+    );
+    expect(
+      projectServiceMock.listSocialPosts.mock.calls
+        .map(([, request]) => request.cursor)
+        .filter(Boolean),
+    ).toEqual(["DRAFT-next"]);
+    expect(readWorkspaceCalendarPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ complete: false, projectId: PROJECT.id }),
+      expect.anything(),
+    );
+  });
+
+  it("ranks workspace attention posts on the server without draining the hidden calendar", async () => {
+    projectServiceMock.listWorkspaceSocialPosts.mockResolvedValue({
+      items: [
+        { post: { id: "metadata", text: "Checklist" }, projectName: "Launch" },
+        {
+          post: { id: "unrelated", text: "Weekly update" },
+          projectName: "Other",
+        },
+        { post: { id: "primary", text: "Launch day" }, projectName: "Other" },
+      ],
+      hasMore: false,
+    });
+    await visit({ tab: "attention", q: "launch" });
+    expect(screen.getByTestId("social-all-attention")).toHaveAttribute(
+      "data-posts",
+      "primary,metadata",
+    );
+    expect(projectServiceMock.listWorkspaceSocialPosts).toHaveBeenCalledWith(
+      expect.anything(),
+      true,
+    );
+    expect(readWorkspaceCalendarPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ complete: false }),
+      expect.anything(),
+    );
+  });
+
+  it("completes only the calendar when a workspace search opens on its default tab", async () => {
+    await visit({ q: "launch" });
+    expect(projectServiceMock.listWorkspaceSocialPosts).toHaveBeenCalledWith(
+      expect.anything(),
+      false,
+    );
+    expect(readWorkspaceCalendarPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ complete: true }),
+      expect.anything(),
+    );
+  });
+
   it("loads later attention and scheduled pages for complete account counts", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
     projectServiceMock.listSocialPosts.mockImplementation(
@@ -671,8 +860,9 @@ describe("SocialPage", () => {
     const calendar = screen.getByTestId("social-calendar");
     expect(calendar).toHaveAttribute("data-types", "social");
     expect(calendar).toHaveAttribute("data-locked-project", "project-1");
-    expect(loadWorkspaceCalendarPageMock).toHaveBeenCalledWith(
+    expect(readWorkspaceCalendarPageMock).toHaveBeenCalledWith(
       expect.objectContaining({ projectId: "project-1" }),
+      SESSION,
     );
   });
 

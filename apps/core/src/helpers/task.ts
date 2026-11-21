@@ -27,9 +27,11 @@ import {
   sokoBotSummaryFromLoadedRelation,
   userSummaryFromLoadedRelation,
 } from "./loaded-relation-summaries";
+import { mapTaskFollowerRows } from "./task-follower-rows";
 import { mapTaskLinksForTask } from "./task-link";
 import { mapOwnerSummary, mapWorkCreator } from "./work-creator";
 import { mapWorkspaceSummary } from "./workspace";
+import { workspaceLabelTopicId } from "./workspace-label";
 
 type TaskFileForMapping = TaskWithIncludes["files"][number];
 
@@ -380,6 +382,17 @@ function mapTaskAssignee(task: TaskListItemWithIncludes | TaskWithIncludes) {
   return null;
 }
 
+// Fixtures and narrow selects may omit the relation; that reads as none.
+function mapSubtaskProgress(
+  subtasks: readonly { status: TaskStatus }[] | undefined,
+) {
+  const rows = subtasks ?? [];
+  return {
+    completed: rows.filter((row) => row.status === TaskStatus.COMPLETED).length,
+    total: rows.length,
+  };
+}
+
 function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
   const taskOrganizationSummary = organizationSummaryFromLoadedRelation(
     `Task ${task.id}`,
@@ -396,6 +409,7 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     id: task.id,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
+    workspaceId: task.workspace.id,
     ownerId: task.ownerId,
     owner: taskOwnerSummary,
     // Deprecated aliases — keep until clients migrate.
@@ -419,11 +433,23 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     // Deprecated aliases for legacy sokoBot-created tasks.
     sokoBotId: creator?.type === "sokoBot" ? creator.id : null,
     sokoBot: creator?.type === "sokoBot" ? creator.sokoBot : null,
+    archivedAt: task.archivedAt,
     number: task.number,
     identifier: formatTaskIdentifier(task.project?.identifier, task.number),
     name: task.name,
     description: task.description,
     tags: mapTaskTags(task),
+    workspaceTags: task.workspaceTags?.map(({ label, state }) => ({
+      id: label.id,
+      displayName: label.displayName,
+      color: label.color,
+      customColor: label.customColor,
+      taskTopicId: workspaceLabelTopicId(label),
+      source: state === "JEV_ADDED" ? ("jev" as const) : ("manual" as const),
+    })),
+    workspaceTagSuggestions: task.workspaceTagDecisions?.map(
+      ({ label }) => label,
+    ),
     status: task.status,
     priority: task.priority,
     // DB default is PUBLIC; coalesce for incomplete test fixtures / selects.
@@ -441,6 +467,9 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     runAt: task.runAt ?? null,
     // A `@db.Date` reads back as UTC midnight, so its ISO day is the stored day.
     dueOn: task.dueOn ? task.dueOn.toISOString().slice(0, 10) : null,
+    parentTaskId: task.parentTaskId ?? null,
+    position: task.position ?? null,
+    subtaskProgress: mapSubtaskProgress(task.subtasks),
     scheduleId: task.scheduleId ?? null,
     workspace: mapWorkspaceSummary(task.workspace),
     participants: mapTaskParticipants(task),
@@ -500,14 +529,33 @@ export function mapTask(
     share: task.share,
     links,
     files: files.map(mapTaskFile),
+    followers: mapTaskFollowerRows(task, task.followers ?? []),
     selectableStatuses: getSelectableTaskStatuses(task, authContext),
   };
 }
+
+/** How many open sub-tasks a list item names; the counter covers the rest. */
+export const OPEN_SUBTASKS_LIMIT = 3;
 
 export function mapTaskListItem(task: TaskListItemWithIncludes) {
   return {
     ...mapTaskSummary(task),
     jobsCount: task._count.jobs,
     commentsCount: task._count.events,
+    statusSince: task.events[0]?.createdAt ?? task.createdAt,
+    // Open means not COMPLETED, the same rule as `subtaskProgress`.
+    openSubtasks: (task.subtasks ?? [])
+      .filter((subtask) => subtask.status !== TaskStatus.COMPLETED)
+      .slice(0, OPEN_SUBTASKS_LIMIT)
+      .map((subtask) => ({
+        id: subtask.id,
+        // A sub-task always shares its parent's Project.
+        identifier: formatTaskIdentifier(
+          task.project?.identifier,
+          subtask.number,
+        ),
+        name: subtask.name,
+        status: subtask.status,
+      })),
   };
 }

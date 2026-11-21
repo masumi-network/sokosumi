@@ -1,31 +1,31 @@
 import { randomUUID } from "node:crypto";
-
 import { SokoBotTurnStatus } from "@sokosumi/database";
-
 import { getEnv } from "@/config/env";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import {
-  SOKO_BOT_START_RECOVERY_GRACE_MS,
+  ACTIVE_TURN_STATUSES,
   sokoBotControlPlane,
+  staleTurnLeaseWhere,
+  startRecoveryEligibility,
+  TURN_LEASE_MS,
 } from "@/services/soko-bot-control-plane.service";
 
 const BATCH_SIZE = 20;
-const TURN_LEASE_MS = 16 * 60 * 1_000;
-export const SOKO_BOT_TURN_STALE_HEARTBEAT_MS = 45_000;
-export const SOKO_BOT_TURN_STARTING_GRACE_MS = 30_000;
-export const SOKO_BOT_TURN_STARTING_ABANDON_MS =
-  SOKO_BOT_START_RECOVERY_GRACE_MS;
 
-const ACTIVE_STATUSES = [
-  SokoBotTurnStatus.QUEUED,
-  SokoBotTurnStatus.STARTING,
-  SokoBotTurnStatus.RUNNING,
-  SokoBotTurnStatus.CANCEL_REQUESTED,
-] as const;
+interface TurnLeaseClaim {
+  id: string;
+  leaseToken: string;
+}
 
 export interface SokoBotTurnsSyncInput {
   abortSignal: AbortSignal;
   shouldContinue: () => boolean;
+  /** Only these bots' turns; every bot's when left out. */
+  sokoBotIds?: readonly string[];
 }
 
 export interface SokoBotTurnsSyncResult {
@@ -33,6 +33,32 @@ export interface SokoBotTurnsSyncResult {
   reconciled: number;
   expired: number;
   interrupted: number;
+}
+
+/**
+ * The turns cron runs after its response, so each turn it could not pick up
+ * is its own event. The turn stays active; the next tick tries again.
+ */
+function logInterrupted(
+  turnId: string | undefined,
+  reason: unknown,
+  warning: { message: string; why: string },
+): void {
+  const log = createCoreLogger({
+    operation: "soko_bot_turns_sync",
+    turn: { id: turnId },
+  });
+  logCoreWarning(
+    log,
+    {
+      message: warning.message,
+      why: warning.why,
+      fix: "The next soko-bot-turns sync tries the turn again, and its deadline expires it if it never recovers.",
+    },
+    // Only safe fields: turn work can echo its prompt.
+    { failure: messageSafeErrorFields(reason) },
+  );
+  log.emit();
 }
 
 export class SokoBotTurnsSyncService {
@@ -48,11 +74,15 @@ export class SokoBotTurnsSyncService {
     if (!getEnv().SOKO_BOT_ENABLED) return result;
     if (!input.shouldContinue()) return result;
 
-    const now = new Date();
+    const scope = input.sokoBotIds
+      ? { sokoBotId: { in: [...input.sokoBotIds] } }
+      : {};
+    const now = await databaseNow();
     result.expired += await this.expireTurns(
       await prisma.sokoBotTurn.findMany({
         where: {
-          status: { in: [...ACTIVE_STATUSES] },
+          ...scope,
+          status: { in: [...ACTIVE_TURN_STATUSES] },
           deadlineAt: { lte: now },
         },
         select: { id: true },
@@ -66,8 +96,10 @@ export class SokoBotTurnsSyncService {
     result.expired += await this.settleUndeliverableCancellations(
       await prisma.sokoBotTurn.findMany({
         where: {
+          ...scope,
           status: SokoBotTurnStatus.CANCEL_REQUESTED,
           eveSessionId: null,
+          ...staleTurnLeaseWhere(now),
         },
         select: { id: true },
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
@@ -80,16 +112,14 @@ export class SokoBotTurnsSyncService {
     // A process can disappear after committing STARTING but before Eve create.
     // Replay these turns with their immutable turn id instead of expiring the
     // user's message. recoverStartingTurn owns the lease CAS.
-    const abandonBefore = new Date(
-      now.getTime() - SOKO_BOT_TURN_STARTING_ABANDON_MS,
-    );
+    const recoveryNow = await databaseNow();
     const abandonedStarts = await prisma.sokoBotTurn.findMany({
       where: {
+        ...scope,
         status: SokoBotTurnStatus.STARTING,
         eveSessionId: null,
-        reconcilerHeartbeatAt: null,
-        createdAt: { lte: abandonBefore },
-        deadlineAt: { gt: now },
+        deadlineAt: { gt: recoveryNow },
+        AND: [staleTurnLeaseWhere(recoveryNow), startRecoveryEligibility()],
       },
       select: { id: true },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
@@ -105,97 +135,128 @@ export class SokoBotTurnsSyncService {
         sokoBotControlPlane.recoverStartingTurn(turn.id),
       ),
     );
-    for (const outcome of recoveredStarts) {
+    const recoveredClaims: TurnLeaseClaim[] = [];
+    for (const [index, outcome] of recoveredStarts.entries()) {
       if (outcome.status === "fulfilled") {
-        if (outcome.value) {
-          result.claimed += 1;
-          result.reconciled += 1;
+        if (outcome.value?.reconciliationLeaseToken) {
+          recoveredClaims.push({
+            id: outcome.value.turnId,
+            leaseToken: outcome.value.reconciliationLeaseToken,
+          });
         }
         continue;
       }
+      const turnId = startsToRecover[index]?.id;
+      if (
+        turnId &&
+        reportSokoBotReconciliationLeaseLoss(turnId, outcome.reason)
+      )
+        continue;
       result.interrupted += 1;
-      console.warn("Soko Bot durable start recovery interrupted", {
-        error:
-          outcome.reason instanceof Error ? outcome.reason.message : "unknown",
+      logInterrupted(turnId, outcome.reason, {
+        message: "Could not recover a Soko Bot turn whose start was abandoned",
+        why: "Recovering the start threw",
       });
     }
 
-    if (!input.shouldContinue()) return result;
+    const recoveredDrain = this.drainClaims(
+      recoveredClaims,
+      input.abortSignal,
+      result,
+    );
+    try {
+      if (input.shouldContinue()) {
+        const staleClaims = await this.claimStaleTurns(scope, input);
+        await this.drainClaims(staleClaims, input.abortSignal, result);
+      }
+    } finally {
+      await recoveredDrain;
+    }
+    return result;
+  }
 
-    const staleBefore = new Date(
-      now.getTime() - SOKO_BOT_TURN_STALE_HEARTBEAT_MS,
-    );
-    const graceBefore = new Date(
-      now.getTime() - SOKO_BOT_TURN_STARTING_GRACE_MS,
-    );
+  private async claimStaleTurns(
+    scope: { sokoBotId?: { in: string[] } },
+    input: SokoBotTurnsSyncInput,
+  ): Promise<TurnLeaseClaim[]> {
+    const drainScanAt = await databaseNow();
     const stale = await prisma.sokoBotTurn.findMany({
       where: {
-        status: { in: [...ACTIVE_STATUSES] },
-        deadlineAt: { gt: now },
+        ...scope,
+        status: { in: [...ACTIVE_TURN_STATUSES] },
+        deadlineAt: { gt: drainScanAt },
         eveSessionId: { not: null },
-        NOT: {
-          status: SokoBotTurnStatus.STARTING,
-          createdAt: { gt: graceBefore },
-        },
-        OR: [
-          { reconcilerHeartbeatAt: { lte: staleBefore } },
-          {
-            reconcilerHeartbeatAt: null,
-            status: { not: SokoBotTurnStatus.STARTING },
-          },
-          {
-            reconcilerHeartbeatAt: null,
-            status: SokoBotTurnStatus.STARTING,
-            createdAt: { lte: graceBefore },
-          },
-        ],
+        ...staleTurnLeaseWhere(drainScanAt),
       },
-      select: { id: true, reconcilerHeartbeatAt: true },
+      select: {
+        id: true,
+        eveSessionId: true,
+        leaseToken: true,
+        reconcilerHeartbeatAt: true,
+      },
       orderBy: [{ reconcilerHeartbeatAt: "asc" }, { id: "asc" }],
       take: BATCH_SIZE,
     });
 
-    const claimed: { id: string; leaseToken: string }[] = [];
+    const claimed: TurnLeaseClaim[] = [];
     for (const turn of stale) {
       if (!input.shouldContinue()) break;
-      const claimedAt = new Date();
       const leaseToken = randomUUID();
-      const updated = await prisma.sokoBotTurn.updateMany({
-        where: {
-          id: turn.id,
-          status: { in: [...ACTIVE_STATUSES] },
-          reconcilerHeartbeatAt: turn.reconcilerHeartbeatAt,
-        },
-        data: {
-          leaseToken,
-          leaseExpiresAt: new Date(claimedAt.getTime() + TURN_LEASE_MS),
-          reconcilerHeartbeatAt: claimedAt,
-        },
+      const updated = await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`
+          SELECT "id" FROM "soko_bot_turn" WHERE "id" = ${turn.id}::uuid
+          FOR NO KEY UPDATE
+        `;
+        const claimedAt = await databaseNow(tx);
+        return tx.sokoBotTurn.updateMany({
+          where: {
+            ...turn,
+            status: { in: [...ACTIVE_TURN_STATUSES] },
+            deadlineAt: { gt: claimedAt },
+            ...staleTurnLeaseWhere(claimedAt),
+          },
+          data: {
+            leaseToken,
+            leaseExpiresAt: new Date(claimedAt.getTime() + TURN_LEASE_MS),
+            reconcilerHeartbeatAt: claimedAt,
+          },
+        });
       });
       if (updated.count === 0) continue;
       claimed.push({ id: turn.id, leaseToken });
     }
+    return claimed;
+  }
+
+  private async drainClaims(
+    claimed: TurnLeaseClaim[],
+    abortSignal: AbortSignal,
+    result: SokoBotTurnsSyncResult,
+  ): Promise<void> {
     result.claimed += claimed.length;
-    if (claimed.length === 0) return result;
 
     const outcomes = await Promise.allSettled(
       claimed.map(({ id, leaseToken }) =>
-        sokoBotControlPlane.reconcileTurn(id, input.abortSignal, leaseToken),
+        sokoBotControlPlane.reconcileTurn(id, abortSignal, leaseToken),
       ),
     );
-    for (const outcome of outcomes) {
+    for (const [index, outcome] of outcomes.entries()) {
       if (outcome.status === "fulfilled") {
         result.reconciled += 1;
         continue;
       }
+      const turnId = claimed[index]?.id;
+      if (
+        turnId &&
+        reportSokoBotReconciliationLeaseLoss(turnId, outcome.reason)
+      )
+        continue;
       result.interrupted += 1;
-      console.warn("Soko Bot watchdog reconciliation interrupted", {
-        error:
-          outcome.reason instanceof Error ? outcome.reason.message : "unknown",
+      logInterrupted(turnId, outcome.reason, {
+        message: "Could not resume a stalled Soko Bot turn",
+        why: "Turn reconciliation threw",
       });
     }
-
-    return result;
   }
 
   private async expireTurns(turns: Array<{ id: string }>): Promise<number> {

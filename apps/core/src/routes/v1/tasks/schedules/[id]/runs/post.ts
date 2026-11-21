@@ -11,17 +11,15 @@ import {
   taskScheduleParamsSchema,
   taskScheduleRunUpdateSchema,
 } from "@/schemas/task-schedule.schema";
-import {
-  mapTaskScheduleRun,
-  runTaskScheduleNow,
-} from "@/services/task-schedule.service";
+import { runTaskScheduleNow } from "@/services/task-schedule.service";
+import { mapTaskScheduleRun } from "@/services/task-schedule-read.service";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "post",
     path: "/schedules/{id}/runs",
     description:
-      "Run now: create one extra Run of an Active or Paused Task Schedule, which creates its Task at once. The rule and its planned Runs stay as they are, and the Run does not count toward an end-after-N rule. Revision-checked.",
+      "Run now: create one extra Run of an Active or Paused Task Schedule, which creates its Task at once. The rule and its planned Runs stay as they are, and the Run does not count toward an end-after-N rule. Revision-checked. Full SEO audits verify Search Console before release. An owner can select a property or explicitly approve a limited audit for this Run.",
     tags: ["Task Schedules"],
     request: {
       params: taskScheduleParamsSchema,

@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { coreLogEvents, expectCoreLog } from "@/test/core-log";
+
 const {
   createOrganizationCustomerMock,
   createUserCustomerMock,
@@ -75,7 +77,7 @@ function createSyncExecutionOptions(
 
 describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
 
     pLimitMock.mockImplementation(() => (task: () => Promise<void>) => task());
 
@@ -219,7 +221,7 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
         () =>
           new Promise((resolve) => {
             resolveFirstCreate = () => {
-              resolve(undefined);
+              resolve({ id: "cus_user_1" });
             };
           }),
       )
@@ -259,5 +261,73 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
         timeout: expect.any(Number),
       },
     );
+  });
+
+  it("logs one error event per user whose Stripe customer could not be created, and keeps going", async () => {
+    const errors = expectCoreLog(
+      "error",
+      "Could not create a Stripe customer for a user",
+    );
+    const stripeCustomerSyncService = await getStripeCustomerSyncService();
+    createUserCustomerMock.mockImplementation(
+      async ({ userId }: { userId: string }) => {
+        if (userId === "user-1") throw new Error("Stripe answered 500");
+        return { id: `cus_${userId}` };
+      },
+    );
+
+    await stripeCustomerSyncService.syncAllStripeCustomers(
+      createSyncExecutionOptions(),
+    );
+
+    expect(createUserCustomerMock).toHaveBeenCalledTimes(2);
+    const summaries = coreLogEvents().filter(
+      (event) => event.stripeCustomerSync !== undefined,
+    );
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0]).toMatchObject({
+      level: "info",
+      operation: "stripe_customer_sync",
+      stripeCustomerSync: {
+        pending: { users: 2, organizations: 1 },
+        created: { users: 1, organizations: 1 },
+        failed: { users: 1, organizations: 0 },
+      },
+    });
+    expect(summaries[0]?.stripeCustomerSync).toHaveProperty("stopped", null);
+    expect(errors[0]).toMatchObject({
+      why: "Stripe did not create the customer",
+      fix: expect.stringContaining("next stripe-customers sync"),
+      cause: expect.objectContaining({ message: "Stripe answered 500" }),
+    });
+    expect(errors[0]?.event).toMatchObject({
+      operation: "stripe_customer_sync",
+      user: { id: "user-1" },
+    });
+  });
+
+  it("logs an error event for an organization whose Stripe customer could not be created", async () => {
+    const errors = expectCoreLog(
+      "error",
+      "Could not create a Stripe customer for an organization",
+    );
+    const stripeCustomerSyncService = await getStripeCustomerSyncService();
+    createOrganizationCustomerMock.mockRejectedValueOnce(
+      new Error("Stripe timed out"),
+    );
+
+    await stripeCustomerSyncService.syncAllStripeCustomers(
+      createSyncExecutionOptions(),
+    );
+
+    expect(errors[0]).toMatchObject({
+      why: "Stripe did not create the customer",
+      fix: expect.stringContaining("next stripe-customers sync"),
+      cause: expect.objectContaining({ message: "Stripe timed out" }),
+    });
+    expect(errors[0]?.event).toMatchObject({
+      operation: "stripe_customer_sync",
+      organization: { id: "org-1" },
+    });
   });
 });

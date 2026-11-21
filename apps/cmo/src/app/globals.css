@@ -13,9 +13,17 @@
   --card: light-dark(#ffffff, #0c0c0c);
   --foreground: light-dark(#171717, #fafafa);
   --muted: light-dark(#525252, #a3a3a3);
-  /* Ink line on what you act on; hairline for structure. */
-  --line: light-dark(#0c0c0c, #a3a3a3);
+  /* The ink line: black on a light page, white on a dark one. */
+  --line: light-dark(#0c0c0c, #fafafa);
   --border: light-dark(#e5e5e5, #262626);
+  /*
+   * One scale, shared with the landing page. Every outlined thing (cards,
+   * frames, Cuso's picture, inputs, buttons) takes the line; chips, tags,
+   * small buttons and avatar circles the small one. A 1px hairline is only
+   * for structure inside a card.
+   */
+  --line-width: 3px;
+  --line-width-small: 2px;
   /* Iris is a fill, never text or a thin mark. */
   --primary: light-dark(#ff51ff, #d141d1);
   --primary-hover: #ff51ff;
@@ -24,22 +32,52 @@
   /* Green and yellow are fills under a primary-foreground glyph. */
   --ok: #00d43b;
   --warn: #ffd300;
-  /* The one hard shadow: 3px offset, no blur. */
-  --shadow-hard: 3px 3px 0 light-dark(#0c0c0c, #fafafa);
-  /* The selected tile in a grid takes Iris in place of the ink shadow. */
-  --shadow-iris: 3px 3px 0 var(--primary);
+  /*
+   * Network fills: a light, solid tint of each network's colour under a
+   * primary-foreground glyph, the same in both themes, so a post's network
+   * reads at a glance. Fills only, never text or a line.
+   */
+  --net-linkedin: #cfe3f8;
+  --net-x: #e5e5e5;
+  --net-facebook: #d6e4ff;
+  --net-instagram: #ffd6ee;
+  --net-youtube: #ffd9d6;
+  --net-tiktok: #c8f6f4;
+  --net-newsletter: #fff0a8;
+  --net-seo: #d4f5dc;
+  --net-ads: #ffe2c4;
+  /*
+   * Hard shadows: an offset, no blur, nothing above 6px. The shadow sits
+   * under anything you can click or type in; the big one only under the one
+   * card that needs the owner now and the hire screen's button. What you
+   * cannot click has a line and no shadow. A pressed element moves by its own
+   * offset and drops the shadow.
+   */
+  --offset: 4px;
+  --offset-big: 6px;
+  --shadow: var(--offset) var(--offset) 0 var(--line);
+  --shadow-big: var(--offset-big) var(--offset-big) 0 var(--line);
+  /* The same shadow in Iris: the picked tile, and a second button on a strip. */
+  --shadow-iris: var(--offset) var(--offset) 0 var(--primary);
+  /* A strip: the black band that crosses a page. It inverts in dark. */
+  --strip: light-dark(#0c0c0c, #fafafa);
+  --strip-foreground: light-dark(#ffffff, #0c0c0c);
+  --shadow-on-strip: var(--offset) var(--offset) 0 var(--strip-foreground);
   /* Cuso's avatar circle stays light in both themes so his outline reads. */
   --stage: #f5f5f5;
-  --radius-mark: 6px;
-  --radius-control: 8px;
-  --radius-card: 10px;
-  --radius-panel: 14px;
+  /* Headings: PP Mori SemiBold, pulled tight. */
+  --tracking-heading: -0.03em;
+  --radius-mark: 8px;
+  --radius-control: 12px;
+  --radius-card: 20px;
+  /* Tags, badges, step markers, tabs and filters. */
+  --radius-pill: 999px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-6: 24px;
   --cuso-picker-width: 640px;
-  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-sans: var(--font-mori), system-ui, sans-serif;
   --scrim: rgb(0 0 0 / 0.3);
   /* Channels' own marks keep their networks' colours. */
   /* Fully see-through, for fades and masks. */
@@ -97,12 +135,37 @@ body {
   padding: 24px 16px;
 }
 
-/* The CMO.XYZ wordmark (design-system.md, Logo): 16px high in a header, in the text colour. */
+/* The CMO.XYZ lockups (design-system.md, Logo): the file approved on white on a light page, the one approved on black on a dark page. The header's is 46px tall, 121px wide, above the brand guide's 120px minimum. */
 .logo {
+  display: inline-flex;
+}
+
+.logo img {
   display: block;
-  height: 1rem;
   width: auto;
-  color: var(--foreground);
+  height: 46px;
+}
+
+.logo .logo-on-dark {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .logo .logo-on-light {
+    display: none;
+  }
+
+  :root:not([data-theme="light"]) .logo .logo-on-dark {
+    display: block;
+  }
+}
+
+:root[data-theme="dark"] .logo .logo-on-light {
+  display: none;
+}
+
+:root[data-theme="dark"] .logo .logo-on-dark {
+  display: block;
 }
 
 .hero {
@@ -110,6 +173,7 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: center;
+  align-content: center;
   gap: 32px;
   width: 100%;
   max-width: 1120px;
@@ -125,12 +189,24 @@ body {
   max-width: 560px;
 }
 
-/* Small on a phone, so the copy and both buttons fit on the first screen. */
-.hero .hero-mascot {
+/*
+ * A page that leads with a lockup (sign in, error, 404) shows it in place of
+ * the header's. Small on a phone, so the copy and both buttons fit on the
+ * first screen, and never under the guide's 120px.
+ */
+body:has(.hero-logo) > .site-header {
+  display: none;
+}
+
+.hero .hero-logo {
   order: -1;
   justify-self: center;
-  width: min(170px, 45vw);
-  margin-bottom: 0;
+  width: max(120px, min(220px, 55vw));
+}
+
+.hero .hero-logo img {
+  width: 100%;
+  height: auto;
 }
 
 @media (min-width: 900px) {
@@ -139,10 +215,9 @@ body {
     gap: 48px;
   }
 
-  .hero .hero-mascot {
+  .hero .hero-logo {
     order: 0;
-    width: min(480px, 100%);
-    margin-bottom: 48px;
+    width: min(440px, 100%);
   }
 }
 
@@ -150,9 +225,9 @@ h1 {
   text-wrap: balance;
   margin: 0;
   font-size: clamp(2.25rem, 6vw, 4.5rem);
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1;
-  letter-spacing: -0.035em;
+  letter-spacing: var(--tracking-heading);
   overflow-wrap: anywhere;
 }
 
@@ -179,14 +254,14 @@ p {
   justify-content: center;
   min-height: 44px;
   padding: 0 18px;
-  border: 1px solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-control);
   background: var(--primary);
-  box-shadow: var(--shadow-hard);
+  box-shadow: var(--shadow);
   color: var(--primary-foreground);
   font: inherit;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
   /* Links styled as buttons (Back) look like the buttons beside them. */
   text-decoration: none;
   cursor: pointer;
@@ -200,8 +275,9 @@ p {
 }
 
 /* Pressed: pushed flat, the shadow gone. */
-.button:active:not(:disabled) {
-  transform: translate(3px, 3px);
+.button:active:not(:disabled),
+.button-down {
+  transform: translate(var(--offset), var(--offset));
   box-shadow: none;
 }
 
@@ -212,7 +288,6 @@ p {
 
 .button-secondary {
   background: var(--card);
-  box-shadow: none;
   color: var(--foreground);
 }
 
@@ -279,7 +354,7 @@ button[aria-busy="true"] {
   min-height: 44px;
   padding: 0 16px;
   /* The ink line keeps a control's edge above 3:1 (WCAG 1.4.11). */
-  border: 1px solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-control);
   background: var(--card);
   color: var(--foreground);
@@ -305,7 +380,7 @@ button[aria-busy="true"] {
 [role="alert"] {
   width: 100%;
   padding: 12px 16px;
-  border: 1px solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface);
   font-weight: 500;
@@ -318,12 +393,14 @@ button[aria-busy="true"] {
   overflow-wrap: anywhere;
 }
 
-.note a {
+.note a,
+.muted a {
   color: var(--foreground);
   text-underline-offset: 3px;
 }
 
-.note a:hover {
+.note a:hover,
+.muted a:hover {
   text-decoration-thickness: 2px;
 }
 
@@ -334,7 +411,7 @@ button[aria-busy="true"] {
   gap: 4px;
   width: 100%;
   padding: 20px;
-  border: 1px solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface);
 }
@@ -345,45 +422,8 @@ button[aria-busy="true"] {
   overflow-wrap: anywhere;
 }
 
-.mascot {
-  margin-bottom: 48px;
-  position: relative;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: var(--stage);
-}
-
-.mascot-still,
-.mascot-stage {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  transition: opacity 400ms;
-}
-
-.mascot-stage canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.mascot-stage {
-  opacity: 0;
-}
-
-.mascot[data-ready="true"] .mascot-stage {
-  opacity: 1;
-}
-
-.mascot[data-ready="true"] .mascot-still {
-  opacity: 0;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .button,
-  .mascot-still,
-  .mascot-stage {
+  .button {
     transition: none;
   }
 
@@ -426,17 +466,17 @@ body:has(.app) .site-header {
   flex: 1;
 }
 
-/* Small is always the secondary look: hairline edge, no shadow, never Iris. */
+/* Small is always the secondary look: the pill line and the pill shadow. */
 .button-small {
   gap: 6px;
   min-height: 32px;
   padding: 0 12px;
-  border-color: var(--border);
+  border-width: var(--line-width-small);
   background: var(--card);
-  box-shadow: none;
+  box-shadow: var(--shadow);
   color: var(--foreground);
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .button-small:hover:not(.button-ghost) {
@@ -444,15 +484,14 @@ body:has(.app) .site-header {
 }
 
 .button-small:active:not(:disabled) {
-  transform: none;
+  transform: translate(var(--offset), var(--offset));
 }
 
-/* Selection is the ink inversion; Iris means now. */
+/* The picked one of a set is filled with Iris. */
 .button-secondary[aria-pressed="true"],
 .button-small[aria-pressed="true"]:not(.button-ghost) {
-  border-color: var(--line);
-  background: var(--foreground);
-  color: var(--background);
+  background: var(--primary);
+  color: var(--primary-foreground);
 }
 
 .start-over {
@@ -490,8 +529,8 @@ body:has(.app) .site-header {
 
 /* The text button: underlined muted, no box. */
 .button-ghost {
-  border-color: transparent;
-  background: transparent;
+  border-color: var(--clear);
+  background: var(--clear);
   box-shadow: none;
   color: var(--muted);
   text-decoration: underline;
@@ -499,7 +538,7 @@ body:has(.app) .site-header {
 }
 
 .button-ghost:hover {
-  background: transparent;
+  background: var(--clear);
   color: var(--foreground);
 }
 
@@ -528,14 +567,20 @@ a.button {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 8px;
-  border-radius: var(--radius-mark);
-  border: 1px solid var(--border);
+  padding: 2px 10px;
+  border: 0;
+  border-radius: var(--radius-pill);
   background: var(--surface);
-  color: var(--muted);
+  color: var(--foreground);
   font-size: 0.75rem;
   font-weight: 500;
   white-space: nowrap;
+}
+
+/* A tag is a label, never pressed: a flat fill and no ink line. On the
+   panel's own grey it takes the hairline so it still reads. */
+.tag {
+  box-shadow: inset 0 0 0 1px var(--border);
 }
 
 /* Status is a glyph disc, not a wash: the tags stay neutral and the
@@ -553,14 +598,14 @@ a.button {
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
-  border-radius: var(--radius-mark);
+  border-radius: var(--radius-pill);
   background: var(--foreground);
   color: var(--background);
   font-size: 0.6875rem;
-  font-weight: 500;
+  font-weight: 600;
 }
 
-/* Inside an ink-inverted toggle the badge inverts back. */
+/* Inside a picked toggle the badge sits on Iris as a card. */
 [aria-pressed="true"] > .count {
   background: var(--background);
   color: var(--foreground);
@@ -589,19 +634,33 @@ a.button {
 }
 
 .chip {
-  padding: 4px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  background: var(--surface);
+  padding: 4px 14px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  box-shadow: var(--shadow);
   color: var(--foreground);
   font: inherit;
   font-size: 0.875rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color 150ms;
+  transition:
+    background-color 150ms,
+    transform 150ms;
 }
 
 .chip:hover {
-  background: var(--card);
+  background: var(--surface);
+}
+
+.chip:active {
+  transform: translate(var(--offset), var(--offset));
+  box-shadow: none;
+}
+
+.chip[aria-pressed="true"] {
+  background: var(--primary);
+  color: var(--primary-foreground);
 }
 
 /* The business's own mark, shared by onboarding and the app. */
@@ -629,20 +688,16 @@ a.button {
   flex: none;
   place-items: center;
   padding: 4px;
-  border: 1px solid var(--line);
+  border: var(--line-width-small) solid var(--line);
   border-radius: 50%;
   background: var(--stage);
 }
 
-.cuso-avatar :is(img, video) {
-  width: 100%;
-  height: 100%;
+/* Smaller than the circle, so the drawing's corners stay inside it. */
+.cuso-avatar img {
+  width: 84%;
+  height: 84%;
   object-fit: contain;
-}
-
-/* The clip is opaque on the stage grey; the circle keeps its corners in. */
-.cuso-avatar video {
-  border-radius: 50%;
 }
 
 .status-disc {
@@ -651,7 +706,7 @@ a.button {
   place-items: center;
   width: 20px;
   height: 20px;
-  border: 1px solid var(--line);
+  border: var(--line-width-small) solid var(--line);
   border-radius: 50%;
   color: var(--primary-foreground);
   font-size: 0.75rem;
@@ -676,6 +731,22 @@ a.button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+/* A state in words: no line and no fill, so it never reads as a button. */
+.state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.state .status-disc {
+  width: 16px;
+  height: 16px;
 }
 
 /* ── Landing ── */
@@ -706,16 +777,31 @@ input,
 textarea {
   font: inherit;
   padding: 10px 12px;
-  border: 1px solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-control);
   background: var(--card);
   color: var(--foreground);
 }
 
+/* A field you type in casts the shadow; a radio, checkbox or slider does not. */
+input:not([type="radio"], [type="checkbox"], [type="range"]),
+textarea {
+  box-shadow: var(--shadow);
+}
+
 /* ── Shell ── */
+/*
+ * The app: the sidebar, then the page. The page keeps a gutter on its left
+ * (`--gutter`) where the sidebar's Cuso leans in, so he never covers it.
+ */
 .app {
+  --side-width: 280px;
+  --gutter: 80px;
+  --page-x: 48px;
+  --page-left: calc(var(--gutter) + var(--page-x));
+
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr) 300px;
+  grid-template-columns: var(--side-width) minmax(0, 1fr);
   height: 100dvh;
   overflow: hidden;
   font-size: 0.875rem;
@@ -759,153 +845,137 @@ textarea {
   color: var(--foreground);
 }
 
-.app.upnext-closed {
-  grid-template-columns: 240px minmax(0, 1fr) 0;
-}
-
 .side {
+  position: relative;
+  z-index: 3;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-right: 1px solid var(--border);
+  border-right: var(--line-width) solid var(--line);
   background: var(--surface);
 }
 
+/* The Business this Cuso works for, and the person: their avatar opens the account menu. */
 .side-head {
   display: flex;
   flex: none;
   align-items: center;
-  height: 64px;
-  padding: 0 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-/* The workspace, a card on the panel. */
-.business {
-  display: flex;
-  flex: none;
-  align-items: center;
   gap: 10px;
-  margin: 12px 12px 0;
-  padding: 10px 12px;
+  padding: 20px 20px 8px;
 }
 
-.business-text {
+.side-name {
   display: flex;
+  flex: 1;
   flex-direction: column;
   min-width: 0;
-  line-height: 1.3;
+  line-height: 1.25;
 }
 
-.business-name {
+.side-name b,
+.side-name a {
   overflow: hidden;
-  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.business-text .note {
-  overflow: hidden;
-  font-size: 0.75rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.side-name b {
+  font-size: 1rem;
 }
 
-.nav {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px;
-}
-
-.nav a {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 40px;
-  padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-control);
-  background: transparent;
-  color: var(--foreground);
-  font: inherit;
-  font-size: 0.875rem;
-  text-align: left;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.nav a svg {
-  flex: none;
+.side-name a {
   color: var(--muted);
+  font-size: 0.75rem;
+  text-decoration: none;
 }
 
-.nav a:hover {
-  background: var(--card);
-}
-
-.nav a.active {
-  border-color: var(--line);
-  background: var(--card);
-  font-weight: 500;
-}
-
-.nav a.active svg {
+.side-name a:hover {
   color: var(--foreground);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
-/* Cuso's status card, above the person row. */
-.cuso-status {
-  display: flex;
+.side .ob-who {
+  position: relative;
   flex: none;
-  align-items: center;
-  gap: 10px;
-  margin: 0 12px 12px;
-  padding: 10px 12px;
 }
 
-button.cuso-status {
-  color: inherit;
-  font: inherit;
-  text-align: left;
+.who-button {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
   cursor: pointer;
 }
 
-.cuso-status-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  line-height: 1.3;
+.who-button:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
 }
 
-/* Needs you: the one pose labelled on Iris. */
-.cuso-status-iris {
-  align-self: flex-start;
-  padding: 0 6px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-mark);
+/*
+ * The person: a plain 36px avatar, their picture or their initial on a light
+ * disc. It opens a menu, so it gives on hover and shows focus, with no shadow.
+ */
+.avatar-ring {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  transition: background-color 150ms;
+}
+
+.who-button:hover .avatar-ring,
+.who-button[aria-expanded="true"] .avatar-ring {
+  background: var(--border);
+}
+
+/* Settings is open: the picked page's fill, around the avatar. */
+.avatar-ring-active,
+.who-button:hover .avatar-ring-active {
   background: var(--primary);
+}
+
+.who-button .avatar {
+  width: 36px;
+  height: 36px;
+  box-sizing: border-box;
+  border: var(--line-width-small) solid var(--line);
+}
+
+.who-button .avatar-initial {
+  background: var(--stage);
   color: var(--primary-foreground);
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.875rem;
 }
 
-.cuso-status-name {
-  font-weight: 600;
+.who-button .avatar-photo {
+  object-fit: cover;
+  background: var(--stage);
 }
 
-.cuso-status-text .note {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.side .ob-who-menu {
+  top: calc(100% + 6px);
+  right: 0;
+  left: auto;
+  z-index: 4;
+  width: 260px;
 }
 
-.who {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  border-top: 1px solid var(--border);
+.ob-who-person {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+
+.ob-who-person .note {
+  color: var(--muted);
 }
 
 .avatar,
@@ -922,26 +992,228 @@ button.cuso-status {
   font-weight: 600;
 }
 
-.who-text {
+/* The pages: what the owner opens daily, then a quiet group for the brand. */
+.nav {
   display: flex;
+  flex: 0 1 auto;
   flex-direction: column;
-  min-width: 0;
-  line-height: 1.3;
+  min-height: 0;
+  padding: 12px 16px 16px;
+  overflow-y: auto;
 }
 
-.who-name,
-.who-text .note {
-  overflow: hidden;
-  text-overflow: ellipsis;
+.nav-main,
+.nav-brand {
+  display: grid;
+  gap: 4px;
+}
+
+.nav-group {
+  margin: 0;
+  padding: 16px 14px 6px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.nav a {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+  height: 48px;
+  padding: 0 14px;
+  border: var(--line-width) solid var(--clear);
+  border-radius: var(--radius-control);
+  color: var(--foreground);
+  font-size: 1rem;
+  text-decoration: none;
   white-space: nowrap;
 }
 
-.who-name {
-  font-weight: 500;
+.nav-brand a {
+  height: 40px;
 }
 
-.who-text .note {
-  font-size: 0.75rem;
+.nav-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav a:hover {
+  background: var(--card);
+}
+
+/* The page you are on: a white card on its line with the hard shadow. */
+.nav a.active {
+  border-color: var(--line);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-weight: 600;
+}
+
+/*
+ * Cuso on every page: on an Iris stage at the foot of the sidebar, in a
+ * light porthole, reaching out over the sidebar's edge into the page's
+ * gutter (`--gutter`), where no page puts anything. His status pill opens
+ * Today. He grows and shrinks with the room the stage has, and leaves it to
+ * the pill when the window is too short.
+ */
+.cuso-status {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 72px;
+  max-height: 440px;
+  border-top: var(--line-width) solid var(--line);
+  background: var(--primary);
+  container: stage / size;
+}
+
+/*
+ * His status line: a small dark pill at the stage's top left. It opens
+ * Today (on Today itself it is only words), so it carries a focus ring.
+ */
+.cuso-says {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 32px);
+  margin: 0;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--strip);
+  color: var(--strip-foreground);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+}
+
+a.cuso-says {
+  text-decoration: none;
+}
+
+a.cuso-says:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+a.cuso-says:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+/* A filled disc says what he is about: yellow while he needs the owner. */
+.cuso-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+}
+
+.cuso-status[data-pose="needs-you"] .cuso-dot {
+  background: var(--warn);
+}
+
+.cuso-says .ob-box-dot {
+  flex: none;
+}
+
+/*
+ * The porthole: a light circle (--cuso-size, up to 240px) centred on the
+ * stage under the pill. Cuso stands whole in it, his feet and their shadow
+ * inside its foot; only his pointing hand reaches over the rim and a little
+ * past the sidebar's edge into the page's gutter, never further.
+ */
+.cuso-figure {
+  --cuso-size: min(240px, calc(100cqh - 88px));
+
+  position: absolute;
+  bottom: max(10px, calc((100cqh - 60px - var(--cuso-size)) / 2));
+  left: calc(50% - var(--cuso-size) / 2);
+  width: var(--cuso-size);
+  height: var(--cuso-size);
+  pointer-events: none;
+  transition:
+    opacity 200ms,
+    transform 200ms;
+}
+
+/* His black line needs a light ground in both themes. */
+.cuso-ground {
+  position: absolute;
+  inset: 0;
+  border: var(--line-width) solid var(--line);
+  border-radius: 50%;
+  background: var(--stage);
+}
+
+.cuso-figure img {
+  position: absolute;
+  bottom: calc(var(--cuso-size) * 0.07);
+  left: calc(var(--cuso-size) * 0.245);
+  width: auto;
+  height: calc(var(--cuso-size) * 0.92);
+}
+
+@container stage (height < 200px) {
+  .cuso-figure {
+    display: none;
+  }
+}
+
+/* A sheet or dialog is open: he steps back so nothing sits on it. */
+.app:has(.sheet-scrim, [role="dialog"]) .cuso-figure {
+  opacity: 0;
+  transform: translateY(24px);
+}
+
+/* A short window: tighter rows, so the stage keeps room for him. */
+@media (max-height: 820px) {
+  .side-head {
+    padding-top: 14px;
+  }
+
+  .nav {
+    padding-top: 8px;
+  }
+
+  .nav a {
+    height: 40px;
+  }
+
+  .nav-brand a {
+    height: 34px;
+  }
+
+  .nav-group {
+    padding-top: 10px;
+  }
+}
+
+/* He arrives in each new pose, then breathes. */
+@media (prefers-reduced-motion: no-preference) {
+  .cuso-figure img {
+    animation:
+      cuso-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both,
+      cuso-bob 3.2s ease-in-out 520ms infinite alternate;
+  }
+}
+
+@keyframes cuso-bob {
+  to {
+    transform: translateY(-5px);
+  }
 }
 
 .main {
@@ -949,23 +1221,6 @@ button.cuso-status {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-}
-
-.vhead {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 12px;
-  height: 64px;
-  padding: 0 24px;
-  border-bottom: 1px solid var(--border);
-}
-
-.vhead h2 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.25;
 }
 
 .status {
@@ -979,7 +1234,7 @@ button.cuso-status {
 .scroll {
   flex: 1;
   min-height: 0;
-  padding: 32px;
+  padding: 40px var(--page-x) 48px var(--page-left);
   overflow-y: auto;
 }
 
@@ -988,9 +1243,9 @@ button.cuso-status {
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  padding: 12px 24px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  padding: 12px var(--page-x) 12px var(--page-left);
+  background: var(--strip);
+  color: var(--strip-foreground);
   font-size: 0.875rem;
 }
 
@@ -1003,12 +1258,23 @@ button.cuso-status {
 }
 
 /* ── Chat: rows like Sokosumi's chat rooms, no bubbles ── */
+/* The chat scrolls right down to the composer: no empty band above it. */
+.scroll.chat {
+  padding: 24px var(--page-x) 12px var(--page-left);
+}
+
 .thread {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  max-width: 720px;
-  margin: 0 auto;
+  gap: 12px;
+  max-width: 880px;
+}
+
+/* The chat's lead stays put over the thread, on its line. */
+.main > .page-lead {
+  flex: none;
+  padding: 32px var(--page-x) 20px var(--page-left);
+  border-bottom: var(--line-width) solid var(--line);
 }
 
 .msg {
@@ -1032,7 +1298,7 @@ button.cuso-status {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -1056,7 +1322,7 @@ button.cuso-status {
   font-size: 0.875rem;
   max-width: 62ch;
   white-space: pre-wrap;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .txt a {
@@ -1072,7 +1338,7 @@ button.cuso-status {
 .typing {
   display: inline-flex;
   gap: 4px;
-  padding: 6px 0;
+  padding: 4px 0;
 }
 
 .typing i {
@@ -1097,17 +1363,121 @@ button.cuso-status {
   }
 }
 
-/* Every card: the 1px ink line. Hairlines are for structure inside it. */
+/* Cuso at work: the step he is on, and the model's reasoning in a quiet line. */
+.working {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 62ch;
+}
+
+.working-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+.working-step .typing {
+  flex: none;
+}
+
+.working-why {
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  white-space: pre-wrap;
+}
+
+.working-why b {
+  font-weight: 600;
+}
+
+/* While he works the line stays short; the fold under his reply has it all. */
+.working > .working-why,
+.ob-lead > .working-why {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* "How I got here": a fold under a reply. Quiet, since only its row opens. */
+.trace {
+  max-width: 62ch;
+}
+
+.trace > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.trace > summary::-webkit-details-marker {
+  display: none;
+}
+
+.trace > summary:hover {
+  color: var(--foreground);
+}
+
+.trace > summary:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.trace > summary::after {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 150ms;
+}
+
+.trace[open] > summary::after {
+  transform: rotate(45deg);
+}
+
+.trace-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0 4px 12px;
+  border-left: 1px solid var(--border);
+}
+
+.trace-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  list-style: none;
+}
+
+/* Every card: the thick ink line. Hairlines are for structure inside it. */
 .card {
   overflow: hidden;
-  border: 1px solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--card);
 }
 
-/* Look here: the card in focus, or one that needs the owner now. */
-.card-focus {
-  box-shadow: var(--shadow-hard);
+/* The post that is open on the Calendar: a button, so it may cast the big shadow. */
+button.card-focus {
+  box-shadow: var(--shadow-big);
 }
 
 .card .ch,
@@ -1226,6 +1596,57 @@ button.cuso-status {
   gap: 8px;
 }
 
+/* A post Cuso made outside the month: flat, its buttons carry the shadow. */
+.draft {
+  width: 100%;
+  max-width: 480px;
+}
+
+.draft .ch {
+  min-height: 44px;
+}
+
+.draft textarea {
+  width: 100%;
+  font-size: 1rem;
+  resize: vertical;
+}
+
+/* The owner's confirmation of one TikTok video: a plain column in the card's foot. */
+.tiktok-confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.tiktok-confirm legend {
+  padding: 0;
+  font-weight: 600;
+}
+
+/* A fixed box before the file loads, so nothing under it jumps. */
+.draft-media {
+  display: block;
+  align-self: flex-start;
+  width: min(100%, 360px);
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  object-fit: contain;
+}
+
+/* Cuso's videos are vertical. */
+video.draft-media {
+  width: min(100%, 248px);
+  aspect-ratio: 9 / 16;
+}
+
 /* Month calendar */
 .cal {
   display: grid;
@@ -1293,11 +1714,11 @@ button.cuso-status {
 }
 
 .k.article {
-  border: 1px solid var(--line);
+  border: var(--line-width-small) solid var(--line);
 }
 
 .k.news {
-  border: 1px solid var(--line);
+  border: var(--line-width-small) solid var(--line);
   border-radius: 50%;
 }
 
@@ -1372,6 +1793,32 @@ button.cuso-status {
   margin-left: auto;
 }
 
+/* A big competitor move in the week's card: what it means, and the move. */
+.week-called {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+/* Settings: the time zone, with its one-tap suggestion and the full list. */
+.time-zone-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.time-zone select {
+  max-width: 100%;
+  font: inherit;
+  padding: 6px 10px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--card);
+  color: var(--foreground);
+}
+
 .list.reverted .grow {
   color: var(--muted);
   text-decoration: line-through;
@@ -1379,15 +1826,15 @@ button.cuso-status {
 
 .composer-wrap {
   flex: none;
-  padding: 8px 24px 20px;
+  padding: 4px var(--page-x) 24px var(--page-left);
 }
 
 .suggest {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  max-width: 720px;
-  margin: 0 auto 10px;
+  max-width: 880px;
+  margin: 0 0 8px;
 }
 
 .suggest:empty {
@@ -1397,17 +1844,18 @@ button.cuso-status {
 .composer {
   display: flex;
   flex-direction: column;
-  max-width: 720px;
-  margin: 0 auto;
-  border: 1px solid var(--line);
+  max-width: 880px;
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--card);
   transition: border-color 150ms;
+  box-shadow: var(--shadow);
 }
 
+/* Focus thickens the one line: a ring set apart would read as a second box. */
 .composer:focus-within {
   outline: 2px solid var(--foreground);
-  outline-offset: 2px;
+  outline-offset: 0;
 }
 
 /* The composer's frame draws the ring; forced-colors mode still shows this one. */
@@ -1419,6 +1867,7 @@ button.cuso-status {
   min-width: 0;
   padding: 14px 16px 4px;
   border: 0;
+  box-shadow: none;
   resize: none;
   background: transparent;
   line-height: 1.5;
@@ -1455,99 +1904,6 @@ button.cuso-status {
   outline-offset: 2px;
 }
 
-/* ── Up next: a column like the task board's ── */
-.upnext {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-  border-left: 1px solid var(--border);
-  background: var(--surface);
-}
-
-.app.upnext-closed .upnext {
-  border-left: 0;
-}
-
-.uh {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 8px;
-  height: 64px;
-  padding: 0 12px 0 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-.uh b {
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-.ub {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 20px;
-  padding: 16px 12px;
-  overflow-y: auto;
-}
-
-.ugroup {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.ugroup .label {
-  margin: 0 4px 2px;
-}
-
-.uitem {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-  background: var(--background);
-  font-size: 0.875rem;
-}
-
-.uitem .top {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.uchannel {
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-
-.utitle {
-  font-size: 0.875rem;
-  font-weight: 500;
-  line-height: 1.4;
-}
-
-.uitem .when {
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-
-.uitem .acts .button-small {
-  min-height: 28px;
-  padding: 0 8px;
-  font-size: 0.75rem;
-}
-
-.uitem.paused {
-  opacity: 0.55;
-}
-
 .empty {
   display: flex;
   flex-direction: column;
@@ -1566,8 +1922,106 @@ button.cuso-status {
   border-radius: 50%;
 }
 
-.scrim {
-  display: none;
+/* ── SEO tab ── */
+.seo-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.seo-head h3 {
+  margin: 0;
+}
+
+.seo-item {
+  align-items: flex-start;
+}
+
+.seo-item p {
+  margin: 0;
+}
+
+/* Under about 500px the actions drop below the text instead of squeezing it. */
+.seo-item > .grow {
+  flex: 1 1 280px;
+}
+
+.seo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.seo-evidence {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The exact new text to paste: a quiet box, the copy button is what acts. */
+.seo-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
+.seo-search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.seo-search input {
+  flex: 1 1 220px;
+  font-size: 1rem;
+}
+
+.seo-recent {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.seo-table-wrap {
+  overflow-x: auto;
+}
+
+.seo-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.seo-table th {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-align: left;
+}
+
+.seo-table th,
+.seo-table td {
+  padding: 8px 12px 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+/* A table Cuso wrote in the chat: as wide as his words, scrolling inside. */
+.chat-table {
+  max-width: 62ch;
+}
+
+.seo-table td.num {
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Pages ── */
@@ -1577,7 +2031,8 @@ button.cuso-status {
   flex-direction: column;
   gap: 12px;
   padding: 12px;
-  border-radius: var(--radius-panel);
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
   background: var(--surface);
 }
 
@@ -1596,8 +2051,107 @@ button.cuso-status {
 }
 
 .page-body > .alert {
-  border: 1px solid var(--line);
+  border: var(--line-width) solid var(--line);
   background: var(--card);
+}
+
+/*
+ * An app page: a light lead that answers what the owner came for, then its
+ * sections, in one column from the gutter's edge.
+ */
+.page {
+  display: grid;
+  gap: 28px;
+  width: 100%;
+  max-width: 1040px;
+}
+
+.page-lead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+
+.page-lead-text {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.page-kicker,
+.page-line {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.375;
+}
+
+.page-kicker {
+  color: var(--muted);
+}
+
+.page-title {
+  margin: 0;
+  font-size: clamp(2.25rem, 4vw, 2.75rem);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: var(--tracking-heading);
+  text-wrap: balance;
+}
+
+/* Strategy's goal is its headline, set under the lead like every page's. */
+.page-strategy {
+  gap: 6px;
+}
+
+.page-strategy .ob-plan .ob-goal {
+  justify-items: start;
+  text-align: left;
+}
+
+.page-strategy .ob-goal-label {
+  display: none;
+}
+
+.page-strategy .ob-goal-headline {
+  font-size: clamp(2.25rem, 4vw, 2.75rem);
+  line-height: 1.05;
+}
+
+.page-strategy .ob-fullplan-body > .ob-tabs {
+  justify-content: flex-start;
+}
+
+.app .cal-waits {
+  max-width: none;
+}
+
+.page-lead-aside {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.page h3 {
+  margin: 0 0 2px;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.page .page-body {
+  gap: 16px;
+}
+
+.page .page-body > .card,
+.page .cal-head {
+  border-radius: var(--radius-card);
+}
+
+.page .page-body > .card {
+  padding: 20px 24px;
 }
 
 /* A section of an app page: one card on the panel. */
@@ -1623,14 +2177,16 @@ button.cuso-status {
   gap: 12px;
 }
 
+/* A number to read, not a field to type in: no box around it. */
 .kpi {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 14px 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--card);
+  padding: 4px 0;
+}
+
+.page-body > .grid4 {
+  padding: 0 24px;
 }
 
 .kpi .label {
@@ -1655,69 +2211,22 @@ button.cuso-status {
 
 .quote {
   padding-left: 12px;
-  border-left: 1px solid var(--line);
+  border-left: var(--line-width) solid var(--line);
   color: var(--muted);
 }
 
 @media (max-width: 860px) {
-  .app,
-  .app.upnext-closed {
+  /* A phone: the page, and the tab bar under the thumb; Cuso lives in his tab. */
+  .app {
+    --gutter: 0px;
+    --page-x: 16px;
+
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
   }
 
   .side {
-    flex-direction: row;
-    align-items: center;
-    overflow-x: auto;
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .side-head,
-  .side .grow,
-  .cuso-status,
-  .who {
     display: none;
-  }
-
-  .business {
-    flex: none;
-    margin: 8px 0 8px 8px;
-    padding: 6px 10px;
-  }
-
-  .business-text .note {
-    display: none;
-  }
-
-  .nav {
-    flex-direction: row;
-    padding: 8px;
-  }
-
-  .upnext {
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 30;
-    width: min(320px, 88vw);
-    transform: translateX(100%);
-    transition: transform 200ms cubic-bezier(0.25, 1, 0.5, 1);
-  }
-
-  .app.upnext-open .upnext {
-    transform: none;
-  }
-
-  .app.upnext-open .scrim {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: 25;
-    border: 0;
-    background: var(--scrim);
   }
 
   .grid4,
@@ -1726,20 +2235,27 @@ button.cuso-status {
   }
 
   .scroll {
-    padding: 16px;
+    padding-top: 24px;
+    padding-bottom: 24px;
   }
 
-  .vhead {
-    height: 56px;
-    padding: 0 16px;
+  .scroll.chat {
+    padding-top: 16px;
   }
 
-  .banner {
-    padding: 12px 16px;
+  .main > .page-lead {
+    padding-top: 16px;
+    padding-bottom: 12px;
+  }
+
+  /* The chat leaves the phone's height to the thread. */
+  .main > .page-lead .page-title {
+    font-size: 1.5rem;
   }
 
   .composer-wrap {
-    padding: 8px 16px 16px;
+    padding-top: 8px;
+    padding-bottom: 16px;
   }
 }
 
@@ -1751,14 +2267,14 @@ button.cuso-status {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .trace > summary::after {
+    transition: none;
+  }
+
   .typing i,
   .step.run .dot,
   .spin {
     animation: none;
-  }
-
-  .upnext {
-    transition: none;
   }
 }
 
@@ -1779,7 +2295,7 @@ button.cuso-status {
   width: min(480px, calc(100vw - 16px));
   padding: 20px;
   overflow-y: auto;
-  border: 1px solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--card);
 }
@@ -1867,6 +2383,79 @@ button.cuso-status {
 .sheet > p {
   margin: 0 0 12px;
   line-height: 1.55;
+}
+
+/* A social post as it will look on its network: who, the words, the picture. */
+.post-wrap {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.post {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--card);
+}
+
+.post-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.post-who {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.post-text {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.post-text > .draft-text > :last-child {
+  margin-bottom: 0;
+}
+
+.post-media {
+  display: block;
+  width: 100%;
+  max-height: 60vh;
+  border-radius: var(--radius-mark);
+  background: var(--surface);
+  object-fit: contain;
+}
+
+.post .sheet-slides {
+  margin: 0;
+}
+
+.post-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.sheet-state {
+  margin: 0 0 12px;
+}
+
+/* A network the month's written posts wait for: says so, with the way out. */
+.cal-waits {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  max-width: none;
+  margin: 0;
 }
 
 .sheet > .sheet-when {
@@ -2417,8 +3006,8 @@ button.cuso-status {
   bottom: 0;
   width: 25%;
   overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-panel);
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
   background: var(--background);
 }
 
@@ -2433,6 +3022,8 @@ button.cuso-status {
 /* What research found on the site: key pages, then its pictures */
 .bm-gallery {
   display: grid;
+  /* A swipeable row must not widen the column it sits in. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
 
@@ -2530,6 +3121,80 @@ button.cuso-status {
   }
 }
 
+/* A page's sections: the same row, each named under its picture. */
+.bm-sections a {
+  display: grid;
+  gap: 6px;
+  max-width: 420px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.bm-sections img {
+  object-position: top;
+}
+
+.bm-about {
+  /* As wide as its picture, never wider: the words must not set the width. */
+  width: 0;
+  min-width: 100%;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The logo on the page's own ground; its dark version on the strip. */
+.bm-logos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bm-logos li {
+  display: grid;
+  place-items: center;
+  height: 88px;
+  padding: 16px 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--card);
+}
+
+.bm-logos li.bm-logo-dark {
+  background: var(--strip);
+}
+
+.bm-logos img {
+  display: block;
+  max-width: 220px;
+  max-height: 56px;
+}
+
+.bm-logos li.bm-logo-mark img {
+  max-width: 56px;
+}
+
+.bm-gallery h3 {
+  margin: 0 0 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.ob-found .bm-gallery {
+  padding-top: 16px;
+}
+
+@media (max-width: 600px) {
+  .bm-sections a {
+    max-width: 280px;
+  }
+}
+
 /* Competitors with their homepages */
 .bm-rivals {
   grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
@@ -2568,7 +3233,7 @@ button.cuso-status {
 .bb-quote {
   margin: 0;
   padding-left: 16px;
-  border-left: 1px solid var(--line);
+  border-left: var(--line-width) solid var(--line);
   font-size: 1rem;
   line-height: 1.45;
 }
@@ -2767,6 +3432,28 @@ button.cuso-status {
   font-size: 0.875rem;
 }
 
+/* The networks left out of the strategy, each with Cuso's reason. */
+.cw-left-out {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.cw-left-out li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  max-width: none;
+}
+
+.cw-left-out svg {
+  margin-top: 2px;
+}
+
 .bb-offers {
   display: grid;
   gap: 8px;
@@ -2883,7 +3570,7 @@ button.cuso-status {
   font-weight: 500;
 }
 
-/* Up next: how much of the month Cuso has made */
+/* How much of the month Cuso has made */
 .uprogress {
   display: block;
   height: 4px;
@@ -2920,7 +3607,7 @@ button.cuso-status {
   min-width: 0;
   height: 36px;
   padding: 0 12px;
-  border: 1px solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--background);
   color: var(--foreground);
@@ -2965,15 +3652,20 @@ button.cuso-status {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-mark);
-  background: var(--background);
-  color: var(--muted);
+  padding: 4px 12px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  color: var(--foreground);
   font: inherit;
   font-size: 0.875rem;
+  box-shadow: var(--shadow);
+  font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
+  transition:
+    background-color 150ms,
+    transform 150ms;
 }
 
 .cal-filter:hover {
@@ -2981,16 +3673,28 @@ button.cuso-status {
   color: var(--foreground);
 }
 
-/* Selection is the ink inversion; Iris means now. */
+.cal-filter:active {
+  transform: translate(var(--offset), var(--offset));
+  box-shadow: none;
+}
+
+/* Every filter is a button and casts the shadow; the picked one is filled. */
 .cal-filter[aria-pressed="true"] {
-  border-color: var(--line);
-  background: var(--foreground);
-  color: var(--background);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 600;
 }
 
 .cal-week {
   display: flex;
   flex-direction: column;
+  gap: 12px;
+}
+
+.cal-waiting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 12px;
 }
 
@@ -3007,7 +3711,6 @@ button.cuso-status {
 .cal-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  align-items: start;
   gap: 12px;
   margin: 0;
   padding: 0;
@@ -3021,14 +3724,19 @@ button.cuso-status {
   height: 100%;
   overflow: hidden;
   padding: 8px;
-  border: 1px solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--card);
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color 150ms cubic-bezier(0.25, 1, 0.5, 1);
+  transition: box-shadow 150ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* A piece you can open takes the hard shadow. */
+button.cal-card:hover {
+  box-shadow: var(--shadow);
 }
 
 .cal-thumb {
@@ -3039,6 +3747,22 @@ button.cuso-status {
   overflow: hidden;
   border-radius: var(--radius-control);
   background: var(--surface);
+}
+
+/* A post without a picture leads with its opening words in the same box:
+   six whole lines, so the last one ends on a whole word. A line clamp cut
+   words in half to fit its ellipsis, and kept writing under it. */
+.cal-words {
+  display: block;
+  padding: 16px;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.cal-words > span {
+  display: block;
+  max-height: calc(1.25em * 6);
+  overflow: hidden;
 }
 
 .cal-thumb img,
@@ -3094,6 +3818,39 @@ button.cuso-status {
   font-weight: 500;
 }
 
+/* A piece still being made: dashed, quiet lines where its words will be. */
+.cal-card.cal-making {
+  border-style: dashed;
+  border-color: var(--border);
+  cursor: default;
+}
+
+.cal-making .cal-thumb {
+  background: none;
+}
+
+.cal-making-lines {
+  display: grid;
+  gap: 6px;
+  width: 60%;
+}
+
+.cal-making-lines span {
+  height: 8px;
+  border-radius: var(--radius-mark);
+  background: var(--border);
+}
+
+.cal-making-lines span:last-child {
+  width: 60%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cal-making .ob-box-dot {
+    animation: ob-working 1.2s ease-in-out infinite alternate;
+  }
+}
+
 .cal-title {
   font-weight: 600;
   line-height: 1.3;
@@ -3109,7 +3866,7 @@ button.cuso-status {
   -webkit-line-clamp: 3;
 }
 
-.cal-body .tag {
+.cal-body .state {
   margin-top: auto;
 }
 
@@ -3141,7 +3898,7 @@ button.cuso-status {
   gap: 8px;
   max-width: 520px;
   padding: 16px;
-  border: 1px solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--background);
 }
@@ -3167,6 +3924,139 @@ button.cuso-status {
   margin: 0;
 }
 
+/* What Cuso makes in the chat: a frame that waits, then the file itself. */
+.made {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.made-frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 200px;
+  padding: 16px;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  text-align: center;
+}
+
+.made-frame .note {
+  margin: 0;
+}
+
+.made-media {
+  display: block;
+  width: 100%;
+  max-height: 60vh;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  object-fit: contain;
+}
+
+.made-audio {
+  display: block;
+  width: 100%;
+}
+
+/* A file Cuso wrote, or work he handed on: where it stands, and its words. */
+.made-words {
+  max-width: 520px;
+  padding: 16px;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--background);
+}
+
+.made-words .note {
+  margin: 0;
+}
+
+.made-title {
+  font-weight: 600;
+}
+
+.made-text {
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.made-read {
+  width: 100%;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.made-files {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.made-table {
+  max-width: 62ch;
+}
+
+.made-table .seo-table-wrap {
+  width: 100%;
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.made-table th {
+  white-space: nowrap;
+}
+
+.made-people {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.made-people li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.made-files a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.made-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.made-acts:empty {
+  display: none;
+}
+
 .sheet-head > span:not(.sheet-steps) {
   flex: 1;
   min-width: 0;
@@ -3174,4 +4064,1385 @@ button.cuso-status {
 
 .sheet-steps .note {
   white-space: nowrap;
+}
+
+/* Avatar lab: test bench at /avatar-lab, not linked from the app. */
+.lab {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 16px 16px 64px;
+}
+
+.lab-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 560px;
+}
+
+.lab-title {
+  font-size: clamp(2.25rem, 6vw, 4.5rem);
+}
+
+.lab-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+
+@media (min-width: 640px) {
+  .lab-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lab-controls {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 1040px) {
+  .lab-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(0, 0.8fr);
+  }
+
+  .lab-controls {
+    grid-column: auto;
+  }
+}
+
+.lab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.lab-stage {
+  display: grid;
+  place-items: center;
+  min-height: 360px;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.lab-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.lab-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 0.875rem;
+}
+
+.lab-field legend,
+.lab-field > span {
+  margin-bottom: 8px;
+  padding: 0;
+  color: var(--muted);
+}
+
+.lab-field input[type="range"] {
+  accent-color: var(--foreground);
+}
+
+.lab-segments {
+  display: flex;
+  gap: 8px;
+}
+
+.lab-segment {
+  position: relative;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  text-transform: capitalize;
+}
+
+.lab-segment:has(input:checked) {
+  border-color: var(--line);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.lab-segment:has(input:focus-visible) {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.lab-segment input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lab-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+}
+
+.lab-check input {
+  accent-color: var(--foreground);
+}
+
+.lab-sizes {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.lab-size-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 24px;
+}
+
+.lab-size-label {
+  width: 80px;
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.lab-size {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* Flat Cuso: black and white only. Line and solid flip with the theme. */
+.flat-cuso {
+  --cuso-ink: var(--foreground);
+  --cuso-paper: var(--background);
+  overflow: visible;
+}
+
+.flat-cuso-body,
+.flat-cuso-shoe {
+  fill: var(--cuso-paper);
+  stroke: var(--cuso-ink);
+}
+
+.flat-cuso-limb,
+.flat-cuso-ring {
+  stroke: var(--cuso-ink);
+}
+
+.flat-cuso-hand,
+.flat-cuso-eyes {
+  fill: var(--cuso-ink);
+}
+
+.flat-cuso-stage {
+  fill: var(--surface);
+}
+
+.flat-cuso[data-variant="solid"] .flat-cuso-body {
+  fill: var(--cuso-ink);
+}
+
+.flat-cuso[data-variant="solid"] .flat-cuso-eyes {
+  fill: var(--cuso-paper);
+}
+
+.flat-cuso-eyes {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: translate(var(--gaze-x, 0), var(--gaze-y, 0));
+  transition: transform 120ms ease-out;
+}
+
+.flat-cuso-eyes[data-lively] {
+  animation: flat-cuso-blink 4.2s infinite;
+}
+
+@keyframes flat-cuso-blink {
+  0%,
+  92%,
+  100% {
+    scale: 1 1;
+  }
+  95% {
+    scale: 1 0.1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flat-cuso-eyes,
+  .flat-cuso-eyes[data-lively] {
+    animation: none;
+    transform: none;
+  }
+}
+
+/* Text for screen readers only. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── Competitors ── */
+.comp-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.comp-moves,
+.comp-open {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.comp-move {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+
+.comp-move:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.comp-move p {
+  margin: 0;
+}
+
+.comp-move .label {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.comp-fact {
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.comp-open {
+  gap: 4px;
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+/* A source or a number that says where it comes from, in a note beside it. */
+.sourced {
+  display: inline-block;
+}
+
+/* A 32px tap height that leaves the line of text as it was. */
+.source-chip,
+.source-number {
+  margin: -8px -4px;
+  padding: 8px 4px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.75rem;
+  text-decoration: underline dashed;
+  text-underline-offset: 4px;
+  cursor: help;
+}
+
+/* Two sources of one sentence stay two. */
+.sourced + .sourced {
+  margin-left: 8px;
+}
+
+.source-number {
+  color: var(--foreground);
+  font-size: 0.875rem;
+}
+
+.source-chip:focus-visible,
+.source-number:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: -4px;
+}
+
+/* In the top layer, so no table or card clips it; it flips to stay on screen. */
+.source-pop {
+  position: fixed;
+  inset: auto;
+  position-area: block-end span-inline-end;
+  position-try-fallbacks:
+    flip-inline,
+    flip-block,
+    flip-block flip-inline;
+  flex-direction: column;
+  gap: 8px;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  margin: 0;
+  padding: 12px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+}
+
+.source-pop:popover-open {
+  display: flex;
+}
+
+.source-pop q {
+  color: var(--muted);
+}
+
+.source-pop a {
+  color: inherit;
+}
+
+/* A card may be narrower than its table: the table scrolls inside it. */
+.comp-page,
+.comp-page > .card {
+  min-width: 0;
+}
+
+.comp-table {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.comp-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.comp-table th,
+.comp-table td {
+  padding: 12px 12px 12px 0;
+  border-top: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.comp-table thead th {
+  border-top: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.comp-table tbody th {
+  font-weight: 600;
+}
+
+.cell-empty {
+  display: inline-block;
+  width: 16px;
+  border-top: 1px solid var(--muted);
+  vertical-align: middle;
+}
+
+/* On a phone the source goes under the finding rather than beside it. */
+@media (max-width: 640px) {
+  .comp-found {
+    flex-wrap: wrap;
+  }
+
+  .comp-found > .grow {
+    flex-basis: 60%;
+  }
+}
+
+.comp-posts {
+  display: grid;
+  gap: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.comp-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.comp-form > [role="alert"],
+.comp-form-acts {
+  grid-column: 1 / -1;
+}
+
+.comp-form-acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+
+/* Loading: dashed hairline boxes with hairline bars, never a shimmer. */
+.comp-skeleton {
+  display: grid;
+  gap: 12px;
+  padding: 20px 24px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-card);
+}
+
+.comp-skeleton span {
+  height: 8px;
+  border-radius: var(--radius-mark);
+  background: var(--border);
+}
+
+.comp-skeleton span:first-child {
+  width: 30%;
+}
+
+.comp-skeleton span:last-child {
+  width: 60%;
+}
+
+/* ── Network fills ── */
+.net-linkedin {
+  background: var(--net-linkedin);
+}
+.net-x {
+  background: var(--net-x);
+}
+.net-facebook {
+  background: var(--net-facebook);
+}
+.net-instagram {
+  background: var(--net-instagram);
+}
+.net-youtube {
+  background: var(--net-youtube);
+}
+.net-tiktok {
+  background: var(--net-tiktok);
+}
+.net-newsletter {
+  background: var(--net-newsletter);
+}
+.net-seo {
+  background: var(--net-seo);
+}
+.net-meta_ads,
+.net-google_ads {
+  background: var(--net-ads);
+}
+.net-other {
+  background: var(--surface);
+}
+
+[class*="net-"]:not(.net-other) {
+  color: var(--primary-foreground);
+}
+
+/*
+ * ── Today: home ──
+ * The greeting, the month, the week filling the height, and what needs the
+ * owner last, where the sidebar's Cuso points.
+ */
+.page-today {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.today {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.today-month {
+  display: grid;
+  gap: 12px;
+  padding: 20px 24px;
+}
+
+.today-month .month {
+  padding: 0;
+  border: 0;
+}
+
+.today-week {
+  flex: 1 0 auto;
+  grid-template-rows: auto minmax(200px, 1fr);
+}
+
+.today-needs {
+  margin-top: auto;
+}
+
+/* A short laptop screen: tighter, so what needs the owner stays in view. */
+@media (min-width: 861px) and (max-height: 820px) {
+  .page-today {
+    margin-top: -12px;
+  }
+
+  .today {
+    gap: 18px;
+  }
+
+  .today-says {
+    font-size: 1rem;
+    line-height: 1.375rem;
+  }
+
+  .today-month {
+    gap: 8px;
+    padding: 14px 20px;
+  }
+
+  .today-month .month {
+    gap: 8px;
+  }
+
+  .today-week {
+    grid-template-rows: auto minmax(120px, 1fr);
+  }
+
+  .today .page-title {
+    font-size: 2.25rem;
+  }
+
+  .today .week-post-title {
+    -webkit-line-clamp: 1;
+  }
+
+  .today .week-nets,
+  .today .week-post-extra,
+  .today .more-wide {
+    display: none;
+  }
+
+  .today .more-short {
+    display: inline;
+  }
+
+  .today .week button.week-more.week-more-short {
+    display: grid;
+  }
+
+  .needs .needs-row {
+    padding: 10px 16px;
+  }
+}
+
+.today-hello {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.today-hello h1 {
+  margin: 0;
+}
+
+.today-says {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 300;
+  line-height: 1.75rem;
+  letter-spacing: -0.005em;
+}
+
+.today-section {
+  display: grid;
+  gap: 12px;
+}
+
+.today-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.today-section-head h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.today-section-head .button-ghost {
+  margin-left: auto;
+}
+
+/* What needs the owner: one yellow card, a row each. */
+.needs {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--warn);
+  color: var(--primary-foreground);
+  list-style: none;
+}
+
+.needs .needs-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  max-width: none;
+  padding: 16px 20px;
+}
+
+.needs-row + .needs-row {
+  border-top: 1px solid var(--line);
+}
+
+.needs-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.needs-text {
+  display: grid;
+  flex: 1 1 220px;
+  gap: 2px;
+  min-width: 0;
+}
+
+.needs-text .note {
+  color: var(--primary-foreground);
+}
+
+.needs .button-secondary {
+  margin-left: auto;
+}
+
+/*
+ * The week: seven days side by side, today on Iris. A day counts its posts
+ * per network and shows three; the rest open with "+N more".
+ */
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  list-style: none;
+}
+
+.week .week-day {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  max-width: none;
+  padding: 10px 8px 12px;
+}
+
+.week-day + .week-day {
+  border-left: 1px solid var(--border);
+}
+
+.week-today {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* The date opens the whole day: navigation, like a nav row, so no shadow. */
+button.week-date {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.week-date b {
+  font-size: 1.5rem;
+  font-weight: 300;
+  line-height: 1.75rem;
+}
+
+.week-label {
+  font-weight: 600;
+}
+
+/* The day's count: the phone's date row only. */
+.week-total {
+  display: none;
+}
+
+.week-none {
+  color: var(--muted);
+}
+
+.week-today .week-none {
+  color: var(--primary-foreground);
+}
+
+.week-nets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.week .week-net {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: none;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.week-posts {
+  display: grid;
+  gap: 6px;
+}
+
+/* A post: its mark and its title in two lines; the phone adds the time. */
+button.week-post {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  padding: 4px 6px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow);
+  font: inherit;
+  font-size: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 150ms;
+}
+
+button.week-post:active {
+  transform: translate(var(--offset), var(--offset));
+  box-shadow: none;
+}
+
+button.week-post svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.week-post .num {
+  display: none;
+}
+
+.week-post-title {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 500;
+  line-height: 1.3;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* The short window's count; the full one shows elsewhere. */
+.more-short,
+button.week-more.week-more-short {
+  display: none;
+}
+
+button.week-more {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* The month as one bar. */
+.month {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+.month-lead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+}
+
+.month-lead .value {
+  font-size: 1.5rem;
+  font-weight: 300;
+  line-height: 1.75rem;
+}
+
+.month-bar {
+  display: flex;
+  gap: 4px;
+  height: 20px;
+}
+
+.month-part {
+  min-width: 8px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-pill);
+  transform-origin: left center;
+}
+
+.month-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 0;
+  padding: 0;
+  font-size: 0.75rem;
+  list-style: none;
+}
+
+.month-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.month-swatch {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+
+.month-out {
+  background: var(--ok);
+}
+.month-scheduled {
+  background: var(--primary);
+}
+.month-written {
+  background: var(--warn);
+}
+.month-planned {
+  background: var(--surface);
+}
+
+/* Pieces settle in one after another, from where they rest. */
+@media (prefers-reduced-motion: no-preference) {
+  .today > * {
+    animation: today-in 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .today > :nth-child(2) {
+    animation-delay: 60ms;
+  }
+  .today > :nth-child(3) {
+    animation-delay: 120ms;
+  }
+  .today > :nth-child(4) {
+    animation-delay: 180ms;
+  }
+
+  .month-part {
+    animation: month-grow 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both 200ms;
+  }
+}
+
+@keyframes today-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes month-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@media (max-width: 860px) {
+  .today-says {
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.375rem;
+  }
+
+  /*
+   * The week as a row of dates over one day: today at first, or the date
+   * tapped. Each date is one of a set to pick from, so it casts the shadow.
+   */
+  .today-week {
+    grid-template-rows: auto auto;
+  }
+
+  .week {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+    padding: 8px;
+  }
+
+  .week .week-day {
+    display: contents;
+  }
+
+  .week-today {
+    background: none;
+    color: inherit;
+  }
+
+  button.week-date {
+    grid-row: 1;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0;
+    min-height: 64px;
+    padding: 4px 0;
+    border: var(--line-width-small) solid var(--line);
+    border-radius: var(--radius-control);
+    background: var(--card);
+    box-shadow: var(--shadow);
+    font-size: 0.6875rem;
+  }
+
+  .week-day[data-shown] button.week-date {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  .week-date b {
+    font-size: 1rem;
+    line-height: 1.375rem;
+  }
+
+  .week-label {
+    display: none;
+  }
+
+  .week-today button.week-date b {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+  }
+
+  .week-total {
+    display: block;
+    min-height: 1em;
+    font-weight: 600;
+  }
+
+  .week-day:not([data-shown]) > :not(.week-date) {
+    display: none;
+  }
+
+  .week-day[data-shown] > :not(.week-date) {
+    grid-column: 1 / -1;
+    margin-top: 8px;
+  }
+
+  .week-day[data-shown] .week-none {
+    color: var(--muted);
+  }
+
+  button.week-post {
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    font-size: 0.875rem;
+  }
+
+  button.week-post svg {
+    margin-top: 0;
+  }
+
+  .week-post .num {
+    display: inline;
+  }
+
+  .week-post-title {
+    -webkit-line-clamp: 1;
+  }
+}
+
+/* ── Tab bar: the phone's navigation ── */
+.tabbar {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .tabbar {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    border-top: var(--line-width) solid var(--line);
+    background: var(--surface);
+  }
+}
+
+.tab {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-height: 52px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: var(--clear);
+}
+
+/* The icon sits on a pill; the page you are on fills it with Iris. */
+.tab-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 30px;
+  border: var(--line-width-small) solid var(--clear);
+  border-radius: var(--radius-pill);
+  transition:
+    background-color 150ms,
+    transform 150ms;
+}
+
+.tab.active {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.tab.active .tab-icon {
+  border-color: var(--line);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* Pressed: the pill gives under the thumb at once. */
+.tab:active .tab-icon {
+  transform: scale(0.92);
+}
+
+/* Cuso's own tab: his pose for his state, on his light disc. */
+.tab-cuso {
+  width: 26px;
+  height: 26px;
+  padding: 2px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: 50%;
+  background: var(--stage);
+  object-fit: contain;
+}
+
+.tab-icon .count {
+  position: absolute;
+  top: -6px;
+  right: 2px;
+}
+
+.tabbar-more {
+  position: absolute;
+  right: 8px;
+  bottom: calc(100% + 8px);
+  left: 8px;
+  z-index: 20;
+  display: grid;
+  padding: 6px;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--card);
+  transform-origin: bottom right;
+}
+
+.tabbar-more a,
+.tabbar-more-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.tabbar-more a:hover,
+.tabbar-more-item:hover {
+  background: var(--surface);
+}
+
+.tabbar-more a.active {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 600;
+}
+
+.tabbar-more form {
+  border-top: 1px solid var(--border);
+}
+
+.tab:focus-visible,
+.tabbar-more a:focus-visible,
+.tabbar-more-item:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tabbar-more {
+    animation: more-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+}
+
+@keyframes more-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+/* ── A post approved: Cuso's thumbs-up on green ── */
+.card .cf.draft-done {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 12px;
+  background: var(--ok);
+  color: var(--primary-foreground);
+}
+
+.draft-done-cuso {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  padding: 4px 3px 0;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: 50%;
+  background: var(--stage);
+  object-fit: contain;
+  object-position: 50% 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .draft-done {
+    animation: done-in 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  /* He pops up from where the button was, with a little overshoot. */
+  .draft-done-cuso {
+    animation: cuso-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both 80ms;
+  }
+}
+
+@keyframes done-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes cuso-pop {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.6) rotate(-8deg);
+  }
+}
+
+/* ── Calendar: this week and today ── */
+.cal-now {
+  padding: 2px 10px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 0.75rem;
+}
+
+.cal-this-week {
+  scroll-margin-top: 16px;
+}
+
+.cal-when-today {
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 600;
+}
+
+/* ── Results: the month by network ── */
+.results-month {
+  display: grid;
+  gap: 16px;
+}
+
+.results-month .month {
+  padding: 0;
+  border: 0;
+}
+
+.netbars {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.netbars li {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr) 64px;
+  align-items: center;
+  gap: 12px;
+  max-width: none;
+}
+
+.netbars-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+/* The whole month is the outline; what is out fills it in its colour. */
+.netbars-track {
+  display: flex;
+  height: 20px;
+  overflow: hidden;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-pill);
+}
+
+.netbars-out {
+  border-right: var(--line-width-small) solid var(--line);
+  transform-origin: left center;
+}
+
+.netbars-count {
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-align: right;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .netbars-out {
+    animation: month-grow 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both 200ms;
+  }
+}
+
+@media (max-width: 560px) {
+  .netbars li {
+    grid-template-columns: 96px minmax(0, 1fr) 52px;
+    gap: 8px;
+  }
+}
+
+.legal-notice a {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.site-disclosures {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.site-disclosures .foot-ai {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.site-disclosures .foot-ai img,
+.site-disclosures .foot-pref svg {
+  flex: none;
+}
+.site-disclosures .foot-ai p {
+  margin: 0;
+}
+.site-disclosures .foot-pref {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.site-disclosures .foot-ai img {
+  background: var(--primary-foreground);
 }

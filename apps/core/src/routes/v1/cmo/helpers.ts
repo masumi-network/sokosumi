@@ -1,5 +1,6 @@
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { isAPIError } from "better-auth/api";
+import { HTTPException } from "hono/http-exception";
 import { ComposioConfigError } from "@/clients/composio.client";
 import {
   conflict,
@@ -20,7 +21,7 @@ import {
   type CmoOverview,
   getCmoOverview,
 } from "@/services/cmo-overview.service";
-import { SokoBotIntegrationError } from "@/services/soko-bot-integrations.service";
+import { SokoBotIntegrationError } from "@/services/composio-integration-tools.service";
 
 function mapOverview(overview: CmoOverview) {
   const { cuso } = overview;
@@ -36,10 +37,13 @@ function mapOverview(overview: CmoOverview) {
     botStatus: overview.botStatus,
     learning: overview.learning,
     work: overview.work,
+    activity: overview.activity,
     brandVisual: overview.brandVisual,
     projectLogo: overview.projectLogo,
+    presenterSet: overview.presenterSet,
     onboardingStep: overview.onboardingStep,
     routines: overview.routines,
+    timeZone: overview.timeZone,
     subscriptionActive: overview.subscriptionActive,
     viewerCanApprove: overview.viewerCanApprove,
     brandBrain: overview.brandBrain,
@@ -47,33 +51,33 @@ function mapOverview(overview: CmoOverview) {
     brandBrainConfirmedAt: cuso.brandBrainConfirmedAt,
     brandMedia: overview.brandMedia,
     strategy: overview.strategy,
+    strategyShort: overview.strategyShort,
     approvedStrategy: overview.approvedStrategy,
     media: overview.media,
+    postRevisions: overview.postRevisions,
     strategyVersion: overview.strategyVersions[0] ?? null,
     strategyVersions: overview.strategyVersions,
     hiredAt: overview.hiredAt,
     updates: overview.updates.map(
-      ({ previousVersionId, versionId, revertedAt, ...update }) => ({
+      ({ previousVersionId, versionId, revertedAt, turnId, ...update }) => ({
         ...update,
         revertible: !!previousVersionId && !!versionId && !revertedAt,
         revertedAt: revertedAt ?? null,
       }),
     ),
-    channels: overview.channels.map((channel) => ({
-      id: channel.id,
-      provider: channel.provider,
-      handle: channel.externalHandle,
-      displayName: channel.displayName,
-      status: channel.status,
+    drafts: overview.drafts,
+    // Every field of the row, so a field the schema gains is never dropped here.
+    channels: overview.channels.map(({ externalHandle, ...channel }) => ({
+      ...channel,
+      handle: externalHandle,
     })),
     upNext: overview.upNext,
     connectChannelUrl: overview.connectChannelUrl,
+    tiktokEnabled: overview.tiktokEnabled,
     adProviders: overview.adProviders,
-    connectAdsUrl: overview.connectAdsUrl,
     measurement: overview.measurement,
     production: overview.production,
     mailingListSize: overview.mailingListSize,
-    subscribeUrl: overview.subscribeUrl,
     billing: overview.billing,
     posts: {
       draft: overview.posts.DRAFT ?? 0,
@@ -95,7 +99,9 @@ export async function requireOverview(target: CusoTarget) {
 
 export function rethrow(error: unknown): never {
   const kind =
-    error instanceof CmoError && error.kind ? { kind: error.kind } : undefined;
+    error instanceof CmoError && error.kind
+      ? { kind: error.kind, extensions: error.extensions }
+      : undefined;
   if (error instanceof CmoNotFoundError) throw notFound(error.message, kind);
   if (error instanceof CmoConflictError) throw conflict(error.message, kind);
   if (error instanceof CmoForbiddenError) throw forbidden(error.message, kind);
@@ -121,6 +127,16 @@ export function rethrow(error: unknown): never {
       "Connecting is not working right now. Try again later.",
     );
   }
-  // Cuso busy, paused or out of credits: as on the Soko Bot routes.
-  mapControlPlaneError(error);
+  // Cuso busy, paused or out of credits: as on the Soko Bot routes, in the
+  // words of CMO.xyz, whose members only know Cuso.
+  try {
+    mapControlPlaneError(error);
+  } catch (mapped) {
+    if (!(mapped instanceof HTTPException)) throw mapped;
+    const message = mapped.message.replace(SOKO_BOT, "Cuso");
+    if (message === mapped.message) throw mapped;
+    throw new HTTPException(mapped.status, { message, cause: mapped.cause });
+  }
 }
+
+const SOKO_BOT = /\b(?:(?:this|the|a) )?(?:shared )?Soko Bot\b/gi;

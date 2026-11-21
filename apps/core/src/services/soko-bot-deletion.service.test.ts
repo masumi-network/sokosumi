@@ -17,6 +17,10 @@ const {
   revokeIntegrationsMock,
   txIntegrationsFindManyMock,
   forfeitMock,
+  revokeSubscriptionMock,
+  txSocialPostFindManyMock,
+  txSocialPostUpdateManyMock,
+  flagQuotesMock,
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
@@ -36,15 +40,30 @@ const {
     uploadedTaskFile: 0,
     taskSchedule: 0,
     job: 0,
+    socialPost: 0,
   },
   deleteManyCalls: [] as string[],
   revokeIntegrationsMock: vi.fn(),
   txIntegrationsFindManyMock: vi.fn(),
   forfeitMock: vi.fn(),
+  revokeSubscriptionMock: vi.fn(),
+  txSocialPostFindManyMock: vi.fn(),
+  txSocialPostUpdateManyMock: vi.fn(),
+  flagQuotesMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/social-post-quote", () => ({
+  QUOTED_POST_CANCELLED: "The quoted post was cancelled",
+  flagSocialPostQuotes: flagQuotesMock,
 }));
 
 vi.mock("@/helpers/cuso-project-credits", () => ({
   forfeitCusoProjectCredits: forfeitMock,
+}));
+
+vi.mock("@/services/polar-subscription-end.service", () => ({
+  revokeCusoSubscription: revokeSubscriptionMock,
+  revokeSubscriptionsLeftByEnding: vi.fn(),
 }));
 
 vi.mock("@/helpers/chat-room-mention-status", () => ({
@@ -112,6 +131,11 @@ vi.mock("@/lib/db/transaction", () => ({
       taskFile: { count: vi.fn(async () => counts.uploadedTaskFile) },
       taskSchedule: { count: vi.fn(async () => counts.taskSchedule) },
       job: { count: vi.fn(async () => counts.job) },
+      socialPost: {
+        findMany: txSocialPostFindManyMock,
+        updateMany: txSocialPostUpdateManyMock,
+        count: vi.fn(async () => counts.socialPost),
+      },
     }),
   ),
 }));
@@ -139,6 +163,45 @@ describe("deleteSokoBot", () => {
     failOpenMentionsMock.mockResolvedValue([]);
     publishMentionStatusesMock.mockResolvedValue(undefined);
     txSokoBotMemberDeleteManyMock.mockResolvedValue({ count: 0 });
+    txSocialPostFindManyMock.mockResolvedValue([]);
+    txSocialPostUpdateManyMock.mockResolvedValue({ count: 0 });
+  });
+
+  it("cancels every Social post it made that has not gone out", async () => {
+    txSocialPostFindManyMock.mockResolvedValue([
+      { id: "post_1" },
+      { id: "post_2" },
+    ]);
+    counts.socialPost = 3;
+
+    const result = await deleteSokoBot(BOT_ID);
+
+    expect(txSocialPostFindManyMock).toHaveBeenCalledWith({
+      where: {
+        creatorSokoBotId: BOT_ID,
+        status: {
+          in: ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED", "FAILED", "MISSED"],
+        },
+      },
+      select: { id: true },
+    });
+    expect(txSocialPostUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: { in: ["post_1", "post_2"] } },
+      data: expect.objectContaining({
+        status: "CANCELED",
+        canceledAt: expect.any(Date),
+      }),
+    });
+    expect(flagQuotesMock).toHaveBeenCalledTimes(2);
+    expect(flagQuotesMock).toHaveBeenCalledWith(
+      "post_1",
+      "The quoted post was cancelled",
+      expect.any(Object),
+    );
+    // Its posts stay as history, and their creator FK restricts a hard delete.
+    expect(result.outcome).toBe("tombstoned");
+    expect(result.retained.socialPosts).toBe(3);
+    expect(txBotDeleteMock).not.toHaveBeenCalled();
   });
 
   it("removes the row outright when nothing references the bot", async () => {
@@ -227,6 +290,7 @@ describe("deleteSokoBot", () => {
     const data = txBotUpdateMock.mock.calls[0]?.[0]?.data;
     expect(data.deletedAt).toBeInstanceOf(Date);
     expect(data.name).toBeNull();
+    expect(data.avatarCode).toBeNull(); // a deleted bot frees its look
   });
 
   it("erases everything the bot owned on either path", async () => {
@@ -346,6 +410,25 @@ describe("deleteSokoBot", () => {
       );
     },
   );
+
+  it("ends Cuso's subscription at Polar before the write-off", async () => {
+    await deleteSokoBot(BOT_ID);
+
+    expect(revokeSubscriptionMock).toHaveBeenCalledExactlyOnceWith(BOT_ID);
+    expect(revokeSubscriptionMock.mock.invocationCallOrder[0]).toBeLessThan(
+      forfeitMock.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  it("deletes nothing and writes nothing off when Polar refuses", async () => {
+    revokeSubscriptionMock.mockRejectedValueOnce(new Error("polar refused"));
+
+    await expect(deleteSokoBot(BOT_ID)).rejects.toThrow("polar refused");
+
+    expect(forfeitMock).not.toHaveBeenCalled();
+    expect(txBotDeleteMock).not.toHaveBeenCalled();
+    expect(txBotUpdateMock).not.toHaveBeenCalled();
+  });
 
   it("keeps a tombstone when the assistant uploaded a task file", async () => {
     // The file outlives the bot on the Task and its uploader FK is

@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { coreEvlogMiddleware } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 import mountPostRoomMessage from "./post";
 
@@ -167,6 +173,7 @@ vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtime: vi.fn().mockResolvedValue(undefined),
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -241,8 +248,12 @@ const tx = {
   },
 };
 
-function createApp(authContext: AuthVariables["authContext"]) {
+function createApp(
+  authContext: AuthVariables["authContext"],
+  options: { evlog?: boolean } = {},
+) {
   const app = new OpenAPIHonoWithAuth();
+  if (options.evlog) app.use("*", coreEvlogMiddleware());
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -414,6 +425,7 @@ function createdMessage(
           name: "Nora",
           avatarImageUrl: null,
           avatarSeed: null,
+          avatarCode: null,
           sharedRoomId: null,
           userId: USER_ID,
           user: { name: "Patrick" },
@@ -570,6 +582,13 @@ describe("POST /chats/rooms/{id}/messages", () => {
   );
 
   it("keeps invalidation independent of failed notification discovery", async () => {
+    expectCoreLogWhys(
+      "error",
+      "A chat message's notifications or reader refresh failed",
+      [
+        "Notifying the room's members of a new message failed after it was saved",
+      ],
+    );
     const publishing = Promise.withResolvers<void>();
     publishChatRoomsChangedMock.mockReturnValueOnce(publishing.promise);
     userFindManyMock.mockRejectedValueOnce(
@@ -640,6 +659,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
   );
 
   it("publishes no invalidation when message creation rolls back", async () => {
+    expectConsole("error", "Error: transaction rolled back");
     prismaTransactionMock.mockRejectedValueOnce(
       new Error("transaction rolled back"),
     );
@@ -1171,7 +1191,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
   });
 
   describe("thread replies", () => {
-    it("delivers a user thread reply to coworkers already in the thread", async () => {
+    it("does not wake coworkers already in the thread without a mention", async () => {
       roomFindFirstMock.mockResolvedValue(
         roomWithMembers({
           userMembers: [
@@ -1184,26 +1204,10 @@ describe("POST /chats/rooms/{id}/messages", () => {
         id: PARENT_MESSAGE_ID,
         parentMessageId: null,
       });
-      messageFindManyMock.mockResolvedValue([
-        { senderCoworkerId: COWORKER_ID, mentionsAsSource: [] },
-        {
-          senderCoworkerId: null,
-          mentionsAsSource: [{ coworkerId: "coworker_not_in_room" }],
-        },
-      ]);
       messageCreateMock.mockResolvedValue(
         createdMessage({
           senderUserId: USER_ID,
           parentMessageId: PARENT_MESSAGE_ID,
-          mentionsAsSource: [
-            {
-              id: MENTION_ID,
-              coworkerId: COWORKER_ID,
-              sokoBotId: null,
-              status: "pending",
-              responseMessageId: null,
-            },
-          ],
         }),
       );
 
@@ -1235,18 +1239,17 @@ describe("POST /chats/rooms/{id}/messages", () => {
         }),
       );
 
-      // The thread coworker became a mention target without an @mention;
-      // the non-member coworker id from the thread was filtered out.
+      // A coworker that wrote in the thread is not a mention target: it
+      // answers only a reply that names it.
+      expect(messageFindManyMock).not.toHaveBeenCalled();
       expect(messageCreateMock).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            mentionsAsSource: {
-              create: [{ coworkerId: COWORKER_ID, sokoBotId: null }],
-            },
+            mentionsAsSource: { create: [] },
           }),
         }),
       );
-      expect(dispatchMock).toHaveBeenCalledWith(MENTION_ID);
+      expect(dispatchMock).not.toHaveBeenCalled();
       await Promise.all(waitUntilMock.mock.calls.map(([promise]) => promise));
       expect(publishChatRoomsChangedMock).toHaveBeenCalledExactlyOnceWith({
         userIds: [USER_ID, ALICE_ID],
@@ -2558,5 +2561,112 @@ describe("POST /chats/rooms/{id}/messages", () => {
         }),
       );
     });
+  });
+
+  describe("background work", () => {
+    // Each start below reaches shared code whose `recordCoreError` would
+    // otherwise find this request still live and write on its event.
+    it.each([
+      {
+        target: "emitChatHumanMentionNotifications",
+        mock: emitChatHumanMentionNotificationsMock,
+      },
+      { target: "scheduleChatRoomMessageUnfurls", mock: scheduleUnfurlsMock },
+      {
+        target: "emitChatDirectMessageNotifications",
+        mock: emitChatDirectMessageNotificationsMock,
+      },
+      {
+        target: "emitChatRoomMessageCreatedEffects",
+        mock: emitChatRoomMessageCreatedEffectsMock,
+      },
+    ])(
+      "runs a coworker post's $target as background work, off the request's event",
+      async ({ target, mock }) => {
+        expectBackgroundProbe(target);
+        mock.mockImplementationOnce(async () => probeBackgroundFailure(target));
+        roomFindFirstMock.mockResolvedValue({
+          id: ROOM_ID,
+          name: "Hannah",
+          kind: "direct",
+          organizationId: "org_1",
+        });
+        membershipFindManyMock.mockResolvedValue([
+          { userId: ALICE_ID },
+          { userId: BOB_ID },
+        ]);
+        persistChatHumanMentionsMock.mockResolvedValueOnce([ALICE_ID]);
+        messageCreateMock.mockResolvedValue(
+          createdMessage({
+            content: `@${ALICE_ID} please check`,
+            senderCoworkerId: COWORKER_ID,
+          }),
+        );
+
+        const response = await createApp(coworkerAuthContext, {
+          evlog: true,
+        }).request(`/${ROOM_ID}/messages`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ content: `@${ALICE_ID} please check` }),
+        });
+
+        expect(response.status).toBe(201);
+      },
+    );
+
+    it.each([
+      {
+        target: "emitChatMentionNotifications",
+        mock: emitChatMentionNotificationsMock,
+      },
+      {
+        target: "emitChatDirectMessageNotifications",
+        mock: emitChatDirectMessageNotificationsMock,
+      },
+      {
+        target: "emitChatRoomMessageCreatedEffects",
+        mock: emitChatRoomMessageCreatedEffectsMock,
+      },
+      { target: "scheduleChatRoomMessageUnfurls", mock: scheduleUnfurlsMock },
+      {
+        target: "enqueueChatMessageSignal",
+        mock: enqueueChatMessageSignalMock,
+      },
+    ])(
+      "runs a person's post's $target as background work, off the request's event",
+      async ({ target, mock }) => {
+        expectBackgroundProbe(target);
+        mock.mockImplementationOnce(async () => probeBackgroundFailure(target));
+        roomFindFirstMock.mockResolvedValue(
+          roomWithMembers({
+            kind: "direct",
+            name: "Alice",
+            userMembers: [
+              { userId: USER_ID, user: { name: "Patrick" } },
+              { userId: ALICE_ID, user: { name: "Alice" } },
+            ],
+            coworkerMembers: [],
+            sokoBotMembers: [],
+          }),
+        );
+        messageCreateMock.mockResolvedValue(
+          createdMessage({ senderUserId: USER_ID }),
+        );
+
+        const response = await createApp(userAuthContext, {
+          evlog: true,
+        }).request(`/${ROOM_ID}/messages`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            content: "ping",
+            mentionedUserIds: [ALICE_ID],
+          }),
+        });
+
+        expect(response.status).toBe(201);
+      },
+    );
   });
 });

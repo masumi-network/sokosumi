@@ -12,12 +12,19 @@ import { toast } from "sonner";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { NotificationsSkeletonRows } from "@/app/notifications/components/notifications-loading-view";
 import { NotificationCenterRow } from "@/components/notifications/notification-center-row";
+import { useNeedsYouDataRoomQuestions } from "@/components/notifications/notification-data-room-questions";
 import { NotificationEmptyState } from "@/components/notifications/notification-empty-state";
 import { NotificationOlderBoundaryRow } from "@/components/notifications/notification-older-boundary-row";
 import { useNeedsYouTasks } from "@/components/notifications/notification-waiting-tasks";
+import {
+  usePageListSearch,
+  usePageSearchPagination,
+  usePageSearchQuery,
+} from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
+import { usePrefersReducedMotion } from "@/hooks/effects/use-media-query";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 import {
@@ -59,8 +66,8 @@ export function NotificationCenterList({
   const { handleSelectWorkspace } = useWorkspaceSwitcher();
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const { notice } = useAccountNotice();
-  const { data: waitingTasks, isLoading: isLoadingWaitingTasks } =
-    useNeedsYouTasks();
+  const { data: waitingQuestions, isLoading: isLoadingWaitingQuestions } =
+    useNeedsYouDataRoomQuestions();
   const {
     notifications,
     unreadCount,
@@ -75,6 +82,9 @@ export function NotificationCenterList({
     olderStatus,
     loadOlder,
   } = useNotifications();
+  const search = usePageSearchQuery();
+  const { data: waitingTasks, isLoading: isLoadingWaitingTasks } =
+    useNeedsYouTasks(view === "needs-action" && Boolean(search));
   const [pendingNotificationId, setPendingNotificationId] = useState<
     string | null
   >(null);
@@ -120,6 +130,23 @@ export function NotificationCenterList({
             )
           : notifications;
 
+  const matchingNotifications = usePageListSearch(
+    visibleNotifications,
+    (notification) => ({
+      primary: [
+        formatMessage(
+          notification.messageKey,
+          notification.messageParams ?? {},
+        ),
+      ],
+      secondary: [
+        formatPreview(
+          notification.messageKey,
+          notification.messageParams ?? {},
+        ),
+      ],
+    }),
+  );
   const handleNotificationClick = (notification: NotificationItem) => {
     // Immediate paint: pending state + optimistic read. Network and navigation
     // stay off the interaction's critical path for INP.
@@ -177,6 +204,12 @@ export function NotificationCenterList({
   const showOlderBoundary =
     hasMore && oldest !== undefined && narrowedCount !== 0;
 
+  usePageSearchPagination(
+    showOlderBoundary ? oldest.id : null,
+    olderStatus !== "idle",
+    loadOlder,
+  );
+
   if (visibleNotifications.length === 0) {
     if (isLoading) {
       return <NotificationsSkeletonRows />;
@@ -218,15 +251,18 @@ export function NotificationCenterList({
       );
     }
 
-    // On Needs you an account notice or a waiting Task above the list
-    // already gives the frame something to say, and "Nothing needs you"
-    // under it would read as a contradiction. The other views show neither.
-    // While the Tasks are still loading, the answer is not known yet.
+    // On Needs you an account notice, a waiting Task or a data room
+    // question above the list already gives the frame something to say, and
+    // "Nothing needs you" under it would read as a contradiction. The other
+    // views show none. While those are still loading, the answer is not
+    // known yet.
     if (
       view === "needs-action" &&
       (notice !== null ||
         isLoadingWaitingTasks ||
-        (waitingTasks?.count ?? 0) > 0)
+        isLoadingWaitingQuestions ||
+        (waitingTasks?.count ?? 0) > 0 ||
+        (waitingQuestions?.pages[0]?.total ?? 0) > 0)
     ) {
       return null;
     }
@@ -244,7 +280,7 @@ export function NotificationCenterList({
   return (
     <>
       <div className="divide-border divide-y">
-        {visibleNotifications.map((notification) => (
+        {matchingNotifications.map((notification) => (
           <LeavingRow
             key={notification.id}
             notificationId={notification.id}
@@ -313,15 +349,13 @@ function LeavingRow({
 }: LeavingRowProps) {
   const [isPointerInside, setIsPointerInside] = useState(false);
   const [isFocusInside, setIsFocusInside] = useState(false);
+  const reduceMotion = usePrefersReducedMotion();
   const isCollapsed = isLeaving && !isPointerInside && !isFocusInside;
 
   // The hide waits for the fold to finish. A row put back to unread mid
   // fold is no longer collapsed, and the cleanup drops the pending hide.
   useEffect(() => {
     if (!isCollapsed) return;
-    const reduceMotion =
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduceMotion) {
       onDeparted(notificationId);
       return;
@@ -331,7 +365,7 @@ function LeavingRow({
     }, LEAVE_DURATION_MS);
 
     return () => window.clearTimeout(timer);
-  }, [isCollapsed, notificationId, onDeparted]);
+  }, [isCollapsed, notificationId, onDeparted, reduceMotion]);
 
   return (
     <div

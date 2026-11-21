@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { askJevMock } = vi.hoisted(() => ({ askJevMock: vi.fn() }));
 vi.mock("./jev", () => ({ askJev: askJevMock }));
 
+import { expectCoreLogWhys } from "@/test/core-log";
 import { unattendedChaseRefusal } from "./unattended-comment";
 
 const event = { source: "EVENT", chainDepth: 0 };
@@ -42,6 +43,11 @@ describe("unattendedChaseRefusal", () => {
   });
 
   it("lets the comment through when the check fails", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Could not check whether a Soko Bot comment chases people",
+      ["Jev, the judging model, failed or timed out"],
+    );
     askJevMock.mockRejectedValue(new Error("timeout"));
     await expect(
       unattendedChaseRefusal({ turn: event, comment: chase, shared: false }),

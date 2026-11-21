@@ -1,12 +1,40 @@
-import { TaskStatus, TaskVisibility } from "@sokosumi/core-client";
+import { TaskStatus, TaskTagId, TaskVisibility } from "@sokosumi/core-client";
+
+import { isUuidString } from "@/lib/utils/uuid";
+import { parseTasksSort, type TasksSort } from "./task-sort";
 
 export const TASKS_SCOPE_VALUES = ["owned", "workspace"] as const;
 
 export type TasksScope = (typeof TASKS_SCOPE_VALUES)[number];
 
+/** Core's scope for Tasks the reader owns or is the assignee of. */
+export const NEEDS_ME_SCOPE = "mine" as const;
+
+/**
+ * The scope a Task query runs with. Needs me reads the reader's own Tasks.
+ * Mentions reads the whole workspace, because a mention is often on a
+ * teammate's Task.
+ */
+export function tasksQueryScope(
+  scope: "workspace" | "owned",
+  { needsMe, mentions }: { needsMe?: boolean; mentions?: boolean },
+): "workspace" | "owned" | typeof NEEDS_ME_SCOPE {
+  return needsMe ? NEEDS_ME_SCOPE : mentions ? "workspace" : scope;
+}
+
 export type TasksVisibilityFilter = typeof TaskVisibility.PRIVATE | null;
 
+// Core bounds the search before it builds the paginated result.
+export const TASK_SEARCH_MAX_LENGTH = 200;
+
+export function normalizeTaskSearch(raw: unknown): string | undefined {
+  return typeof raw === "string"
+    ? raw.trim().slice(0, TASK_SEARCH_MAX_LENGTH) || undefined
+    : undefined;
+}
+
 export interface TasksFilters {
+  search?: string;
   scope: TasksScope;
   assigneeId: string | null;
   assigneeSokoBotId: string | null;
@@ -14,6 +42,38 @@ export interface TasksFilters {
   status: TaskStatus | null;
   projectId: string | null;
   visibility: TasksVisibilityFilter;
+  /** A workspace tag UUID or a built-in topic ID. */
+  tag?: string;
+  /** Only Tasks that have sat in a waiting status for {@link STUCK_AFTER_DAYS} days or more. */
+  stuck: boolean;
+  /**
+   * Only Tasks that wait on the reader: an input-required status, and the
+   * reader owns the Task or is its assignee.
+   */
+  needsMe?: boolean;
+  /**
+   * Only Tasks where a comment mentions the reader and the reader has not
+   * commented since, anywhere in the workspace.
+   */
+  mentions?: boolean;
+  /**
+   * The order the reader picked. Left out, each layout keeps its own default.
+   * A view setting, not a filter: clearing filters keeps it.
+   */
+  sort?: TasksSort;
+  /**
+   * Open sub-tasks listed under each Task. A view setting like `sort`:
+   * clearing filters keeps it, and it does not change which Tasks load.
+   */
+  subtasks?: boolean;
+}
+
+/** Days in one status after which a waiting Task counts as stuck. */
+export const STUCK_AFTER_DAYS = 3;
+
+/** Statuses go back this far before a Task counts as stuck. */
+export function stuckCutoff(now: Date): Date {
+  return new Date(now.getTime() - STUCK_AFTER_DAYS * 24 * 60 * 60 * 1000);
 }
 
 export interface ProjectFilterOption {
@@ -31,6 +91,7 @@ export interface ProjectFilterOption {
 export type TasksFilterQueryParam = string | string[] | undefined;
 
 export interface TasksFiltersSearchParams {
+  q?: TasksFilterQueryParam;
   scope?: TasksFilterQueryParam;
   assigneeId?: TasksFilterQueryParam;
   assigneeSokoBotId?: TasksFilterQueryParam;
@@ -40,6 +101,12 @@ export interface TasksFiltersSearchParams {
   status?: TasksFilterQueryParam;
   projectId?: TasksFilterQueryParam;
   visibility?: TasksFilterQueryParam;
+  stuck?: TasksFilterQueryParam;
+  needsMe?: TasksFilterQueryParam;
+  subtasks?: TasksFilterQueryParam;
+  mentions?: TasksFilterQueryParam;
+  tag?: TasksFilterQueryParam;
+  sort?: TasksFilterQueryParam;
 }
 
 export const TASKS_FILTER_PARAM_KEYS = {
@@ -52,7 +119,46 @@ export const TASKS_FILTER_PARAM_KEYS = {
   status: "status",
   projectId: "projectId",
   visibility: "visibility",
+  stuck: "stuck",
+  needsMe: "needsMe",
+  subtasks: "subtasks",
+  mentions: "mentions",
+  tag: "tag",
+  sort: "sort",
 } as const;
+
+/**
+ * The keys a saved Tasks view holds: every filter, the sort and sub-tasks.
+ * Not the project: the project switcher owns it.
+ */
+const TASKS_VIEW_PARAM_KEYS: readonly string[] = Object.values(
+  TASKS_FILTER_PARAM_KEYS,
+).filter((key) => key !== TASKS_FILTER_PARAM_KEYS.projectId);
+
+/**
+ * True when the URL names a view. The toolbar always writes `scope`, so only
+ * a plain entry (the sidebar, a project link) names none and opens the saved view.
+ */
+export function hasTasksViewParams(
+  params: URLSearchParams | Record<string, unknown>,
+): boolean {
+  return TASKS_VIEW_PARAM_KEYS.some((key) =>
+    params instanceof URLSearchParams
+      ? params.has(key)
+      : params[key] !== undefined,
+  );
+}
+
+/** The view part of a Tasks URL, as a query string to save. */
+export function pickTasksViewQuery(params: URLSearchParams): string {
+  const picked = new URLSearchParams();
+  for (const [key, value] of params) {
+    if (TASKS_VIEW_PARAM_KEYS.includes(key)) picked.append(key, value);
+  }
+  // One order for client and server, so equal views compare equal.
+  picked.sort();
+  return picked.toString();
+}
 
 type SearchParamsLike = Pick<URLSearchParams, "toString">;
 const UUID_PATTERN =
@@ -109,6 +215,23 @@ export function sanitizeProjectIdFilterInput(raw: unknown): string | null {
 
   const normalized = raw.trim();
   return UUID_PATTERN.test(normalized) ? normalized : null;
+}
+
+/** Built-in topic IDs and workspace label UUIDs are disjoint. */
+export function getTaskTagQuery(raw: unknown): {
+  workspaceTagId?: string;
+  topicTagId?: TaskTagId;
+} {
+  if (typeof raw !== "string") return {};
+  const tag = raw.trim();
+  const topicTagId = Object.values(TaskTagId).find((topic) => topic === tag);
+  if (topicTagId) return { topicTagId };
+  return isUuidString(tag) ? { workspaceTagId: tag.toLowerCase() } : {};
+}
+
+export function sanitizeTaskTagFilter(raw: unknown): string | undefined {
+  const { workspaceTagId, topicTagId } = getTaskTagQuery(raw);
+  return workspaceTagId ?? topicTagId;
 }
 
 export function sanitizeTasksVisibilityInput(
@@ -174,6 +297,7 @@ export function getTasksFiltersFromSearchParams(
 ): TasksFilters {
   const parsed = parseTasksFilters(
     {
+      q: searchParams.get("q") ?? undefined,
       scope: searchParams.get(TASKS_FILTER_PARAM_KEYS.scope) ?? undefined,
       assigneeId:
         searchParams.get(TASKS_FILTER_PARAM_KEYS.assigneeId) ?? undefined,
@@ -189,6 +313,12 @@ export function getTasksFiltersFromSearchParams(
         searchParams.get(TASKS_FILTER_PARAM_KEYS.projectId) ?? undefined,
       visibility:
         searchParams.get(TASKS_FILTER_PARAM_KEYS.visibility) ?? undefined,
+      tag: searchParams.get(TASKS_FILTER_PARAM_KEYS.tag) ?? undefined,
+      stuck: searchParams.get(TASKS_FILTER_PARAM_KEYS.stuck) ?? undefined,
+      needsMe: searchParams.get(TASKS_FILTER_PARAM_KEYS.needsMe) ?? undefined,
+      subtasks: searchParams.get(TASKS_FILTER_PARAM_KEYS.subtasks) ?? undefined,
+      mentions: searchParams.get(TASKS_FILTER_PARAM_KEYS.mentions) ?? undefined,
+      sort: searchParams.get(TASKS_FILTER_PARAM_KEYS.sort) ?? undefined,
     },
     activeOrganizationId,
   );
@@ -273,22 +403,41 @@ export function parseTasksFilters(
     status,
     projectId,
     visibility,
+    search: normalizeTaskSearch(firstQueryString(searchParams.q)),
+    tag: sanitizeTaskTagFilter(firstQueryString(searchParams.tag)),
+    stuck: sanitizeTasksStuckInput(firstQueryString(searchParams.stuck)),
+    // Left out when off, like `tag`.
+    ...(sanitizeTasksStuckInput(firstQueryString(searchParams.needsMe))
+      ? { needsMe: true }
+      : {}),
+    ...(sanitizeTasksStuckInput(firstQueryString(searchParams.mentions))
+      ? { mentions: true }
+      : {}),
+    ...withTasksSort(parseTasksSort(firstQueryString(searchParams.sort))),
+    ...(sanitizeTasksStuckInput(firstQueryString(searchParams.subtasks))
+      ? { subtasks: true }
+      : {}),
   };
+}
+
+/** Left out when unset, so a filter set without a sort keeps its shape. */
+function withTasksSort(sort: TasksSort | undefined): { sort?: TasksSort } {
+  return sort ? { sort } : {};
+}
+
+/** `stuck=1` in the URL, or `true` from server-action JSON. */
+export function sanitizeTasksStuckInput(raw: unknown): boolean {
+  return raw === true || raw === "1";
 }
 
 export function buildTasksFiltersSearchParams(
   currentSearchParams: URLSearchParams | SearchParamsLike,
   filters: TasksFilters,
-  activeOrganizationId: string | null,
 ): URLSearchParams {
   const nextSearchParams = new URLSearchParams(currentSearchParams.toString());
-  const defaultScope = getDefaultTasksScope(activeOrganizationId);
-
-  if (filters.scope === defaultScope) {
-    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.scope);
-  } else {
-    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.scope, filters.scope);
-  }
+  // Written even when it is the default: a URL the toolbar wrote names a
+  // view, so the saved view does not replace it (see hasTasksViewParams).
+  nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.scope, filters.scope);
 
   // Always drop the legacy key when writing so URLs migrate forward.
   nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.coworkerId);
@@ -335,6 +484,45 @@ export function buildTasksFiltersSearchParams(
     );
   }
 
+  if (filters.search) nextSearchParams.set("q", filters.search);
+  else nextSearchParams.delete("q");
+
+  if (filters.tag) {
+    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.tag, filters.tag);
+  } else {
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.tag);
+  }
+
+  if (filters.stuck) {
+    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.stuck, "1");
+  } else {
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.stuck);
+  }
+
+  if (filters.needsMe) {
+    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.needsMe, "1");
+  } else {
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.needsMe);
+  }
+
+  if (filters.mentions) {
+    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.mentions, "1");
+  } else {
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.mentions);
+  }
+
+  if (filters.subtasks) {
+    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.subtasks, "1");
+  } else {
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.subtasks);
+  }
+
+  if (filters.sort) {
+    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.sort, filters.sort);
+  } else {
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.sort);
+  }
+
   return applyProjectIdSearchParam(nextSearchParams, filters.projectId);
 }
 
@@ -357,13 +545,14 @@ export function getTasksFiltersResetKey(
   filters: TasksFilters,
   activeOrganizationId: string | null,
 ): string {
-  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}`;
+  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}:${filters.stuck ? "stuck" : "any"}:${filters.tag ?? "all"}${filters.needsMe ? ":needs-me" : ""}${filters.mentions ? ":mentions" : ""}${filters.sort ? `:sort-${filters.sort}` : ""}${filters.search ? `:search-${filters.search}` : ""}`;
 }
 
 /**
  * True when the Filters menu narrows the board past its defaults: a
- * non-default scope, an assignee, a status or private visibility. These are
- * what the removable chips show and what Clear filters resets.
+ * non-default scope, an assignee, a status, private visibility, Stuck,
+ * Needs me or Mentions.
+ * Clear filters resets these.
  */
 export function hasClearableTasksFilters(
   filters: TasksFilters,
@@ -372,11 +561,16 @@ export function hasClearableTasksFilters(
   return (
     filters.scope !== getDefaultTasksScope(activeOrganizationId) ||
     Boolean(
-      filters.assigneeId ||
+      filters.search ||
+        filters.assigneeId ||
         filters.assigneeSokoBotId ||
         filters.assigneeUserId ||
         filters.status ||
-        filters.visibility,
+        filters.visibility ||
+        filters.tag ||
+        filters.stuck ||
+        filters.needsMe ||
+        filters.mentions,
     )
   );
 }
@@ -389,11 +583,16 @@ export function clearTasksFilters(
   return {
     ...filters,
     scope: getDefaultTasksScope(activeOrganizationId),
+    search: undefined,
     assigneeId: null,
     assigneeSokoBotId: null,
     assigneeUserId: null,
     status: null,
     visibility: null,
+    tag: undefined,
+    stuck: false,
+    needsMe: undefined,
+    mentions: undefined,
   };
 }
 
@@ -404,10 +603,11 @@ export function clearTasksFilters(
  * - Organization boards: Show the dot when `scope` is "owned" or "workspace"
  *   (either explicit choice signals the board is scoped — "My Tasks" or "All
  *   workspace tasks" — as opposed to a hypothetical unfiltered view). The
- *   default here is "workspace". Also show when assigneeId or status is set.
+ *   default here is "workspace". Also show when assigneeId, status or
+ *   Stuck is set.
  *   `projectId` is owned by the project switcher, not the Filters panel.
  * - Personal boards: Show the dot only when a non-default filter is applied
- *   (assigneeId or status). The default "owned" scope alone does
+ *   (assigneeId, status or Stuck). The default "owned" scope alone does
  *   not show the dot, as there's no workspace context to distinguish from.
  */
 export function hasActiveTasksFilters(
@@ -419,6 +619,8 @@ export function hasActiveTasksFilters(
       filters.assigneeSokoBotId ||
       filters.assigneeUserId ||
       filters.status ||
+      filters.tag ||
+      filters.stuck ||
       filters.visibility === TaskVisibility.PRIVATE,
   );
 

@@ -4,6 +4,7 @@ import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { isProjectIdentifierUniqueConstraintError } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
+import { recordCoreWarning } from "@/lib/evlog";
 import {
   deleteProjectBriefingBlob,
   ensureProjectFilesToken,
@@ -50,7 +51,9 @@ export async function createProject(
       data: {
         workspaceId,
         name: input.name,
-        identifier: input.identifier,
+        ...(input.identifier !== undefined
+          ? { identifier: input.identifier }
+          : {}),
         filesToken,
         briefing,
         websiteUrl: input.websiteUrl ?? null,
@@ -122,9 +125,15 @@ export async function updateProject(
       );
       data.briefingUrl = briefingUrl;
       if (!briefingUrl) {
-        console.warn("Project briefing saved without a Blob URL", {
-          projectId: id,
-        });
+        recordCoreWarning(
+          { operation: "project_update" },
+          {
+            message: "Saved a project's briefing without its file",
+            why: "The project briefing upload to Blob storage returned no URL",
+            fix: "The briefing text is saved; saving the project again uploads the file. If it keeps happening, check Blob storage.",
+          },
+          { project: { id } },
+        );
       }
       if (existing.briefingUrl !== briefingUrl) {
         briefingUrlToDelete = existing.briefingUrl;

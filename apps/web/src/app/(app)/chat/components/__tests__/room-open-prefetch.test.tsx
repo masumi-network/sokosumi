@@ -1,15 +1,35 @@
 import "./rooms-client-harness";
 import type { ChatRoomMessage } from "@sokosumi/core-client";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { ForesightManager } from "js.foresight";
 import type { ReactNode } from "react";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ROOM_APPROACH_REUSE_MS } from "@/app/chat/utils/room-transcript-cache";
+import { makeRoom } from "@/components/chat/__tests__/chat-room-fixtures";
+import {
+  clearMembershipVisibleRoomsSnapshot,
+  publishMembershipVisibleRooms,
+} from "@/components/chat/membership-visible-rooms-store";
+import { approachElement } from "@/test/approach-element";
 import { TestQueryProvider } from "@/test/query-provider";
 import {
   PersistentRoomView,
   RoomRouteBootstrap,
 } from "../persistent-room-view";
-import { RoomCacheProvider } from "../room-cache-provider";
 import {
+  RoomCacheProvider,
+  useChromePathname,
+  useRoomIntentPrefetch,
+} from "../room-cache-provider";
+import {
+  mockPathname,
   roomsClientBaseProps,
   sampleMessage,
   useChatRoomRealtimeMock,
@@ -93,6 +113,7 @@ describe("room open read started on click", () => {
   });
   afterEach(() => {
     vi.unstubAllGlobals();
+    clearMembershipVisibleRoomsSnapshot();
   });
 
   it("reads history once, from the click, and fills the list without flashing", async () => {
@@ -167,5 +188,218 @@ describe("room open read started on click", () => {
 
     expect(roomBReads()).toBe(1);
     expect(recorder.states.slice(recorder.states.indexOf("B"))).toEqual(["B"]);
+  });
+
+  it("starts the read when the reader heads for the room, and the click takes it", async () => {
+    const b = { ...sampleMessage("room B row"), id: "b1", roomId: "room-b" };
+    const historyB = deferred<Response>();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => historyB.promise),
+    );
+    const propsB = roomsClientBaseProps({
+      loadHistoryOnClient: true,
+      selectedRoomId: "room-b",
+      rooms: [
+        { ...roomsClientBaseProps().rooms[0], id: "room-b", name: "Channel B" },
+      ],
+    });
+    function OpenB() {
+      return (
+        <a
+          href="/chat/rooms/room-b"
+          onClick={(e) => e.preventDefault()}
+          ref={useRoomIntentPrefetch("/chat/rooms/room-b", true)}
+        >
+          Open B
+        </a>
+      );
+    }
+    function Page({ open }: { open: boolean }) {
+      return (
+        <>
+          <OpenB />
+          {open ? (
+            <PersistentRoomView>
+              <RoomRouteBootstrap {...propsB} />
+            </PersistentRoomView>
+          ) : null}
+        </>
+      );
+    }
+    const view = render(<Page open={false} />, { wrapper: CacheWrapper });
+    expect(fetch).not.toHaveBeenCalled();
+
+    const link = screen.getByText("Open B");
+    await act(() => approachElement(link));
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(String(vi.mocked(fetch).mock.calls[0][0])).toContain("room-b");
+
+    // An approach the cap turned down must be able to try again this soon.
+    expect(
+      ForesightManager.instance.registeredElements.get(link)?.reactivateAfter,
+    ).toBe(ROOM_APPROACH_REUSE_MS);
+
+    fireEvent.click(link);
+    view.rerender(<Page open />);
+    await act(async () =>
+      historyB.resolve(
+        new Response(
+          JSON.stringify({
+            data: [b],
+            meta: { pagination: { nextCursor: null } },
+          }),
+        ),
+      ),
+    );
+    expect(await screen.findByText("room B row")).toBeTruthy();
+    for (let tick = 0; tick < 10; tick++) await act(async () => {});
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts both reads for an approach to a room that opens at its Unread divider", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Promise<Response>(() => {})),
+    );
+    publishMembershipVisibleRooms(
+      [makeRoom({ id: "room-b", unreadCount: 3, channelUnreadCount: 3 })],
+      "org-1",
+      "user-1",
+    );
+    function OpenB() {
+      return (
+        <a
+          href="/chat/rooms/room-b"
+          ref={useRoomIntentPrefetch("/chat/rooms/room-b", true)}
+        >
+          Open B
+        </a>
+      );
+    }
+    render(<OpenB />, { wrapper: CacheWrapper });
+
+    await act(() => approachElement(screen.getByText("Open B")));
+
+    const urls = vi.mocked(fetch).mock.calls.map(([url]) => String(url));
+    expect(urls).toHaveLength(2);
+    expect(
+      urls.filter((url) => url.includes("openAtUnread=true")),
+    ).toHaveLength(1);
+  });
+});
+
+describe("app chrome while a room paints ahead of its route", () => {
+  beforeEach(() => {
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              data: [],
+              meta: { pagination: { nextCursor: null } },
+            }),
+          ),
+      ),
+    );
+    publishMembershipVisibleRooms(
+      [makeRoom({ id: "room-b", name: "Channel B" })],
+      "org-1",
+      "user-1",
+    );
+    window.history.replaceState(null, "", "/chat");
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    clearMembershipVisibleRoomsSnapshot();
+    window.history.replaceState(null, "", "/");
+  });
+
+  function ChromePath() {
+    return <output data-testid="chrome-path">{useChromePathname()}</output>;
+  }
+  const chromePath = () => screen.getByTestId("chrome-path").textContent;
+
+  function Page() {
+    return (
+      <>
+        <ChromePath />
+        <a href="/chat/rooms/room-b" onClick={(e) => e.preventDefault()}>
+          Open B
+        </a>
+        <a href="/chat" onClick={(e) => e.preventDefault()}>
+          Back to chats
+        </a>
+        <PersistentRoomView>
+          <div>Chats list</div>
+        </PersistentRoomView>
+      </>
+    );
+  }
+
+  // The tab bar and top bar read this path: a tab bar over an open room.
+  it("describes the room on screen before the route commits it", async () => {
+    mockPathname.mockImplementation(() => "/chat");
+    render(<Page />, { wrapper: CacheWrapper });
+    expect(chromePath()).toBe("/chat");
+
+    fireEvent.click(screen.getByText("Open B"));
+
+    await waitFor(() => expect(chromePath()).toBe("/chat/rooms/room-b"));
+    expect(mockPathname()).toBe("/chat");
+  });
+
+  // Back while the room's route still loads: the URL is already the list, so
+  // the replace Back makes changes no pathname.
+  it("drops a room still ahead of its route when Back leads to the list", async () => {
+    mockPathname.mockImplementation(() => "/chat");
+    render(<Page />, { wrapper: CacheWrapper });
+    fireEvent.click(screen.getByText("Open B"));
+    await waitFor(() => expect(chromePath()).toBe("/chat/rooms/room-b"));
+
+    fireEvent.click(screen.getByText("Back to chats"));
+
+    await waitFor(() => expect(chromePath()).toBe("/chat"));
+    expect(screen.getByText("Chats list")).toBeVisible();
+  });
+
+  // A swipe back drops the room at once; the route catches up after.
+  it("describes the list on screen once a swipe back leaves the room", async () => {
+    mockPathname.mockImplementation(() => "/chat/rooms/room-b");
+    window.history.replaceState(null, "", "/chat/rooms/room-b");
+    render(<Page />, { wrapper: CacheWrapper });
+    await waitFor(() => expect(chromePath()).toBe("/chat/rooms/room-b"));
+
+    act(() => {
+      window.history.pushState(null, "", "/chat");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+
+    await waitFor(() => expect(chromePath()).toBe("/chat"));
+    expect(mockPathname()).toBe("/chat/rooms/room-b");
+  });
+
+  // A room URL opened directly renders on the server first; a throw there
+  // drops the page to client rendering (React error 419).
+  it("renders on the server", () => {
+    mockPathname.mockImplementation(() => "/chat/rooms/room-b");
+
+    const html = renderToString(
+      <CacheWrapper>
+        <ChromePath />
+      </CacheWrapper>,
+    );
+
+    expect(html).toContain("/chat/rooms/room-b");
+  });
+
+  it("follows the route outside a painted room", () => {
+    mockPathname.mockImplementation(() => "/tasks");
+    render(<ChromePath />, { wrapper: CacheWrapper });
+
+    expect(chromePath()).toBe("/tasks");
   });
 });

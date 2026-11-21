@@ -12,7 +12,7 @@ import {
   notificationRequestActionClassName,
 } from "@/components/notifications/notification-request-row";
 import { Button } from "@/components/ui/button";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import useIsClient from "@/hooks/use-is-client";
 import {
   getPushRepairOutcome,
   getServerPushRepairOutcome,
@@ -22,10 +22,10 @@ import {
 import { getPushTeardownVersion } from "@/lib/ably/push-work-queue.client";
 import { useSession } from "@/lib/auth/auth.client";
 import {
-  type BrowserNotificationPermission,
   getBrowserNotificationPermission,
+  getServerBrowserNotificationPermission,
   requestBrowserNotificationPermission,
-  subscribeBrowserNotificationPermission,
+  subscribeBrowserNotificationPermissionStore,
 } from "@/lib/utils/browser-notification";
 import {
   isPushInstallable,
@@ -71,9 +71,13 @@ export function NotificationBrowserPermissionPrimer({
   onNavigate,
 }: NotificationBrowserPermissionPrimerProps) {
   const t = useTranslations("Components.NotificationCenter");
-  const [permission, setPermission] =
-    useState<BrowserNotificationPermission | null>(null);
-  const [capability, setCapability] = useState<PrimerCapability>("none");
+  const isClient = useIsClient();
+  const permission = useSyncExternalStore(
+    subscribeBrowserNotificationPermissionStore,
+    getBrowserNotificationPermission,
+    getServerBrowserNotificationPermission,
+  );
+  const capability: PrimerCapability = isClient ? readCapability() : "none";
   const [isRequesting, setIsRequesting] = useState(false);
   const { data: session } = useSession();
   /**
@@ -153,14 +157,6 @@ export function NotificationBrowserPermissionPrimer({
           }),
       );
   };
-
-  useMountEffect(() => {
-    // Both reads need `window`, and they land together, so the `permission`
-    // gate below covers the render before either has an answer.
-    setPermission(getBrowserNotificationPermission());
-    setCapability(readCapability());
-    return subscribeBrowserNotificationPermission(setPermission);
-  });
 
   if (
     permission === null ||
@@ -274,11 +270,9 @@ export function NotificationBrowserPermissionPrimer({
     }
 
     setIsRequesting(true);
-    void requestBrowserNotificationPermission()
-      .then(setPermission)
-      .finally(() => {
-        setIsRequesting(false);
-      });
+    void requestBrowserNotificationPermission().finally(() => {
+      setIsRequesting(false);
+    });
   };
 
   // No push here, so the settings page has nothing to offer this reader: its

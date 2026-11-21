@@ -2,17 +2,19 @@ vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({ data: null, isPending: false }),
 }));
 
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { pathnameRef, searchRef } = vi.hoisted(() => ({
+const { pathnameRef, searchRef, routerPrefetchMock } = vi.hoisted(() => ({
   pathnameRef: { current: "/" },
   searchRef: { current: "" },
+  routerPrefetchMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => pathnameRef.current,
   useSearchParams: () => new URLSearchParams(searchRef.current),
+  useRouter: () => ({ prefetch: routerPrefetchMock }),
 }));
 
 // Core's answer for the scoped project, without a fetch. "gone" is a project
@@ -87,7 +89,11 @@ vi.mock("next/link", () => ({
 }));
 
 import MenuItems from "@/app/components/sidebar/components/menu-items";
+import { NavigationProgress } from "@/components/navigation-progress.client";
+import { HOVER_DWELL_MS } from "@/components/resting-intent-link";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
+import { approachElement } from "@/test/approach-element";
+import { startNavigation } from "@/test/pending-navigation";
 import { TestQueryProvider } from "@/test/query-provider";
 
 let sidebarIsMobile = true;
@@ -268,7 +274,6 @@ describe("MenuItems groups", () => {
 
     expect(destinationsUnder("groups.work")).toEqual([
       "home",
-      "projects",
       "exploreAgents",
       "taskManager",
       "schedules",
@@ -277,8 +282,11 @@ describe("MenuItems groups", () => {
     expect(destinationsUnder("groups.records")).toEqual(["contacts", "drive"]);
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
+      "tiktokStudio",
       "social",
+      "seo",
       "ads",
+      "competitors",
     ]);
   });
 
@@ -334,7 +342,6 @@ describe("MenuItems groups", () => {
     renderMenu(true, true);
 
     expect(destinationsUnder("groups.work")).toEqual([
-      "projects",
       "exploreAgents",
       "taskManager",
       "schedules",
@@ -344,8 +351,11 @@ describe("MenuItems groups", () => {
     expect(destinationsUnder("groups.records")).toEqual(["contacts"]);
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
+      "tiktokStudio",
       "social",
+      "seo",
       "ads",
+      "competitors",
     ]);
   });
 });
@@ -393,8 +403,11 @@ describe("MenuItems newsletter", () => {
 
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
+      "tiktokStudio",
       "social",
+      "seo",
       "ads",
+      "competitors",
       "newsletter",
     ]);
   });
@@ -470,6 +483,57 @@ function markedHrefs() {
   );
 }
 
+describe("MenuItems during a navigation", () => {
+  it("marks the row a click is heading for, then the page on screen again", async () => {
+    pathnameRef.current = "/tasks";
+    searchRef.current = "";
+    sidebarIsMobile = false;
+    render(
+      <NavigationProgress>
+        <TestQueryProvider>
+          <OrganizationSeatContext value>
+            <MenuItems />
+          </OrganizationSeatContext>
+        </TestQueryProvider>
+      </NavigationProgress>,
+    );
+    expect(markedHrefs()).toEqual(["/tasks"]);
+
+    const arrive = await startNavigation("/calendar");
+    try {
+      expect(markedHrefs()).toEqual(["/calendar"]);
+    } finally {
+      await arrive();
+    }
+
+    // The mocked pathname stays on Tasks, as after a navigation that failed.
+    expect(markedHrefs()).toEqual(["/tasks"]);
+  });
+
+  it("keeps the mark on Overview while a click switches to another project", async () => {
+    pathnameRef.current = "/projects/p1";
+    searchRef.current = "";
+    sidebarIsMobile = false;
+    render(
+      <NavigationProgress>
+        <TestQueryProvider>
+          <OrganizationSeatContext value>
+            <MenuItems />
+          </OrganizationSeatContext>
+        </TestQueryProvider>
+      </NavigationProgress>,
+    );
+    expect(markedHrefs()).toEqual(["/projects/p1"]);
+
+    const arrive = await startNavigation("/projects/p2");
+    try {
+      expect(markedHrefs()).toEqual(["/projects/p1"]);
+    } finally {
+      await arrive();
+    }
+  });
+});
+
 describe("MenuItems project scope", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -477,55 +541,32 @@ describe("MenuItems project scope", () => {
     searchRef.current = "";
   });
 
-  it("puts Projects, to the Projects list, right under Home with no project selected", () => {
-    renderMenu(true, false);
-
-    expect(destinationsUnder("groups.work")[1]).toBe("projects");
-    expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
-      "href",
-      "/projects",
-    );
-    expect(screen.queryByRole("link", { name: "overview" })).toBeNull();
-  });
-
-  it("marks Projects current on the Projects list", () => {
+  it("leaves the workspace project list to the project picker", () => {
     pathnameRef.current = "/projects";
     renderMenu(true, false);
 
-    expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    expect(screen.queryByRole("link", { name: "projects" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "overview" })).toBeNull();
+    expect(markedHrefs()).toEqual([]);
   });
 
-  it("keeps Projects and adds Overview, with the project's avatar, once one is selected", () => {
+  it("puts the selected project's Overview and avatar under Home", () => {
     searchRef.current = "projectId=p-1";
     renderMenu(true, false);
 
-    const projects = screen.getByRole("link", { name: "projects" });
-    expect(projects).toHaveAttribute("href", "/projects");
     const overview = screen.getByRole("link", { name: "overview" });
     expect(overview).toHaveAttribute("href", "/projects/p-1");
-    // Projects right under Home, then Overview. Its text starts with the
-    // avatar's hidden initial.
-    expect(screen.getAllByRole("link").slice(1, 3)).toEqual([
-      projects,
-      overview,
-    ]);
+    expect(screen.getAllByRole("link")[1]).toBe(overview);
     const slot = overview.querySelector('[data-slot="sidebar-row-slot"]');
     expect(
       slot?.querySelector('[data-testid="project-avatar"]'),
     ).toHaveTextContent("A");
   });
 
-  it("keeps Projects when Core does not know the scoped project", () => {
+  it("omits Overview when Core does not know the scoped project", () => {
     searchRef.current = "projectId=gone";
     renderMenu(true, false);
 
-    expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
-      "href",
-      "/projects",
-    );
     expect(screen.queryByRole("link", { name: "overview" })).toBeNull();
   });
 
@@ -542,14 +583,14 @@ describe("MenuItems project scope", () => {
     expect(markedHrefs()).toEqual(["/projects/p-1"]);
   });
 
-  it("shows Projects and Overview on the phone sheet too", () => {
+  it("shows the selected project's Overview first on the phone sheet", () => {
     searchRef.current = "projectId=p-1";
     renderMenu(true, true);
 
-    expect(screen.getAllByRole("link").slice(0, 2)).toEqual([
-      screen.getByRole("link", { name: "projects" }),
+    expect(screen.getAllByRole("link")[0]).toBe(
       screen.getByRole("link", { name: "overview" }),
-    ]);
+    );
+    expect(screen.queryByRole("link", { name: "projects" })).toBeNull();
   });
 
   it("keeps plain destination links in the workspace view", () => {
@@ -558,6 +599,8 @@ describe("MenuItems project scope", () => {
     for (const [name, href] of [
       ["taskManager", "/tasks"],
       ["schedules", "/schedules"],
+      ["ads", "/ads"],
+      ["seo", "/seo"],
       ["calendar", "/calendar"],
       ["contacts", "/contacts"],
       ["contentStudio", "/studio"],
@@ -595,6 +638,129 @@ describe("MenuItems project scope", () => {
     expect(screen.getByRole("link", { name: "taskManager" })).toHaveAttribute(
       "href",
       "/tasks?projectId=p-1",
+    );
+  });
+});
+
+describe("MenuItems prefetch", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    pathnameRef.current = "/";
+    searchRef.current = "";
+    vi.useFakeTimers();
+    return () => {
+      vi.useRealTimers();
+    };
+  });
+
+  function restOn(name: RegExp) {
+    fireEvent.pointerEnter(screen.getByRole("link", { name }), {
+      pointerType: "mouse",
+    });
+    vi.advanceTimersByTime(HOVER_DWELL_MS);
+  }
+
+  // Tasks reads are private-cached, so its prefetch carries the page.
+  it("loads the Tasks page content on a resting hover", () => {
+    renderMenu(true, false);
+
+    restOn(/taskManager/);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
+      "/tasks",
+      expect.objectContaining({ kind: "full" }),
+    );
+  });
+
+  // These pages' reads are private-cached too.
+  it.each([
+    ["schedules", "/schedules"],
+    ["ads", "/ads"],
+    ["seo", "/seo"],
+    ["calendar", "/calendar"],
+    ["social", "/social"],
+    ["exploreAgents", "/agents"],
+    ["contentStudio", "/studio"],
+  ])("loads the %s page content on a resting hover", (label, href) => {
+    renderMenu(true, false);
+
+    restOn(new RegExp(`^${label}$`));
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
+      href,
+      expect.objectContaining({ kind: "full" }),
+    );
+  });
+
+  it("loads the Home content on a resting hover from another page", () => {
+    pathnameRef.current = "/tasks";
+    renderMenu(true, false);
+
+    restOn(/^home$/);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
+      "/",
+      expect.objectContaining({ kind: "full" }),
+    );
+  });
+
+  it("loads the selected project's Overview content on a resting hover", () => {
+    pathnameRef.current = "/tasks";
+    searchRef.current = "projectId=p-1";
+    renderMenu(true, false);
+
+    restOn(/^overview$/);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
+      "/projects/p-1",
+      expect.objectContaining({ kind: "full" }),
+    );
+  });
+
+  // A page whose reads are not cached would render on the server for nothing.
+  it("loads only the shell for a page without cached reads", () => {
+    renderMenu(true, false);
+
+    restOn(/^contacts$/);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/contacts");
+  });
+
+  // The page on screen would render on the server again for nothing.
+  it("loads only the shell for the Tasks page already on screen", () => {
+    pathnameRef.current = "/tasks";
+    renderMenu(true, false);
+
+    restOn(/taskManager/);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith("/tasks");
+  });
+
+  // The cursor's path predicts the click, so the page is ready before the
+  // pointer arrives.
+  it("loads the Tasks page content when the reader heads for it", async () => {
+    renderMenu(true, false);
+
+    await act(() =>
+      approachElement(screen.getByRole("link", { name: /taskManager/ })),
+    );
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
+      "/tasks",
+      expect.objectContaining({ kind: "full" }),
+    );
+  });
+
+  // Back to the list from a task is the common way to reach it.
+  it("loads the Tasks page content from a task detail page", () => {
+    pathnameRef.current = "/tasks/task-1";
+    renderMenu(true, false);
+
+    restOn(/taskManager/);
+
+    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
+      "/tasks",
+      expect.objectContaining({ kind: "full" }),
     );
   });
 });

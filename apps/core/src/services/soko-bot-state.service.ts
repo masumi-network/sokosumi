@@ -49,6 +49,11 @@ export async function getSokoBotActivity(
   activeTurnId: string | null;
   lastTurnAt: Date | null;
   lastActivityAt: Date | null;
+  id: string;
+  userId: string | null;
+  avatarSeed: string | null;
+  avatarImageUrl: string | null;
+  avatarCode: string | null;
 } | null> {
   const where = await stateWhere(viewerUserId, workspaceId, selector);
   if (!where) return null;
@@ -62,6 +67,11 @@ export async function getSokoBotActivity(
       status: true,
       lastTurnAt: true,
       lastActivityAt: true,
+      id: true,
+      userId: true,
+      avatarSeed: true,
+      avatarImageUrl: true,
+      avatarCode: true,
       turns: {
         where: {
           ...FOREGROUND_TURN,
@@ -79,6 +89,11 @@ export async function getSokoBotActivity(
     activeTurnId: bot.turns[0]?.id ?? null,
     lastTurnAt: bot.lastTurnAt,
     lastActivityAt: bot.lastActivityAt,
+    id: bot.id,
+    userId: bot.userId,
+    avatarSeed: bot.avatarSeed,
+    avatarImageUrl: bot.avatarImageUrl,
+    avatarCode: bot.avatarCode,
   };
 }
 
@@ -143,6 +158,7 @@ export async function listSharedSokoBots(
       projectId: true,
       avatarSeed: true,
       avatarImageUrl: true,
+      avatarCode: true,
       status: true,
       archivedAt: true,
       sharedRoomId: true,
@@ -167,4 +183,46 @@ export async function listSharedSokoBots(
       viewerCanManage,
     }),
   );
+}
+
+/**
+ * Where the bot's last failed foreground turn happened, for the person
+ * reading it. A failed chat reply returns its message and room only when the
+ * reader is a member of that room and the reply still exists; anything else
+ * (scheduled or event work, a room they cannot open) returns nulls.
+ */
+export async function getSokoBotLastFailure(
+  sokoBotId: string,
+  viewerUserId: string,
+): Promise<{ roomId: string | null; messageId: string | null } | null> {
+  const turn = await prisma.sokoBotTurn.findFirst({
+    where: { sokoBotId, parentTurnId: null, status: "FAILED" },
+    orderBy: { createdAt: "desc" },
+    select: {
+      source: true,
+      destinationRoomId: true,
+      chatResponseMessageId: true,
+    },
+  });
+  if (!turn) return null;
+  const reply =
+    turn.source === "CHAT" &&
+    turn.chatResponseMessageId &&
+    turn.destinationRoomId
+      ? await prisma.chatRoomMessage.findFirst({
+          where: {
+            id: turn.chatResponseMessageId,
+            roomId: turn.destinationRoomId,
+            deletedAt: null,
+            room: {
+              archivedAt: null,
+              userMembers: { some: { userId: viewerUserId } },
+            },
+          },
+          select: { id: true, roomId: true },
+        })
+      : null;
+  return reply
+    ? { roomId: reply.roomId, messageId: reply.id }
+    : { roomId: null, messageId: null };
 }

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 import {
   applyOrganizationExitChatRevocation,
   listOrganizationExitChatRoomIdsForAbly,
@@ -401,8 +401,13 @@ describe("publishOrganizationExitChatRevocation", () => {
   });
 
   it("swallows individual publish failures", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not publish every chat effect of leaving an organization",
+      ["A realtime publish failed after the member's room access was revoked"],
+    );
     publishChatMembershipRevokedMock
-      .mockRejectedValueOnce(new Error("ably down"))
+      .mockRejectedValueOnce(new Error("ably down 'Ada private note'"))
       .mockResolvedValueOnce(undefined);
 
     await expect(
@@ -411,6 +416,17 @@ describe("publishOrganizationExitChatRevocation", () => {
         statusMessages: [],
       }),
     ).resolves.toBeUndefined();
+    expect(errors[0]?.event).toMatchObject({
+      userId: "user_1",
+      failures: [
+        {
+          effect: "membership_revoked",
+          roomId: "room-a",
+          failure: { errorName: "Error" },
+        },
+      ],
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("Ada private note");
   });
 });
 

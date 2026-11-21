@@ -26,7 +26,8 @@ Organization context: pass `--organization-slug` on every organization Task call
 - **Spec source:** `task.description` from `tasks get`. Long specs were written with `--description-file` while the Task was `DRAFT` or `READY`.
 - **Link a PR only from the Task it implements.** Put the PR URL in a `tasks comment`. Parent / feature Tasks name merged docs by path (`GLOSSARY.md`, `docs/adr/…`).
 - **One assignee:** a person (`--assignee-user-id` from `auth whoami`) or a Coworker (`--coworker-id`). Not both.
-- **Links:** `tasks link` / `relink` / `unlink` with `--relation` (`child`, `parent`, `blocked_by`, `blocks`, `related`, `duplicate`). Web shows a `child` link's peer as the parent.
+- **Links:** `tasks link` / `relink` / `unlink` with `--relation` (`blocked_by`, `blocks`, `related`, `duplicate`).
+- **Parent:** a parent is a sub-task's parent, not a link. Use `tasks create --parent PARENT`, or `tasks move TASK --parent PARENT` for an existing Task. `tasks move TASK --detach` removes the parent. `tasks subtasks PARENT` lists the sub-tasks in order.
 - **Progress:** one `tasks comment --status` per transition (`RUNNING`, `AWAITING_EXTERNAL`, `COMPLETED`, `CANCELED`), with the PR link or blocker in the comment body.
 
 ## Team Task statuses
@@ -54,7 +55,7 @@ sokosumi --api-url https://api.sokosumi.com tasks create \
   --json
 ```
 
-`--project-id` comes from `projectId` on any Task already in that project (`tasks get SOK-1 --json` on mainnet). Without a project the Task has no short identifier. Confirm the brief and write authorization before creating. Do not invent Tasks during implement work unless the user explicitly asked to file one.
+`--project-id` comes from `projectId` on any Task already in that project (`tasks get SOK-1 --json` on mainnet). Without a project the Task has no short identifier. Confirm the brief and write authorization before creating. Before filing or scoping a Task, also run `gh pr list --state all --search "<topic>"`: in-flight work often has no Task, and a PR closed as folded into another points at the live one. Do not invent Tasks during implement work unless the user explicitly asked to file one.
 
 ## When a skill says "fetch the relevant ticket"
 
@@ -66,11 +67,11 @@ sokosumi --api-url https://api.sokosumi.com tasks get TASK_ID --organization-slu
 
 ## Wayfinding operations
 
-Used by `/wayfinder`. The **map** is a single Sokosumi Task; its **child** tickets are Tasks linked with `--relation child`.
+Used by `/wayfinder`. The **map** is a single Sokosumi Task; its **child** tickets are its sub-tasks.
 
 - **Map:** create a Task whose description holds Notes / Decisions-so-far / Fog. Put `wayfinder:map` in the name or the first line of the description so agents can find it (`tasks list --search "wayfinder:map"`).
-- **Child ticket:** `tasks create` then `tasks link CHILD --relation child --to MAP`. Once claimed, assign with `--assignee-user-id`.
+- **Child ticket:** `tasks create --parent MAP`. For an existing Task, use `tasks move CHILD --parent MAP`. Once claimed, assign with `--assignee-user-id`.
 - **Blocking:** `tasks link TICKET --relation blocked_by --to BLOCKER`. A ticket is unblocked when every blocker is `COMPLETED` or `CANCELED`.
-- **Frontier query:** `tasks links MAP --json` — the map's children. Drop any with an assignee or an open `blocked_by`. First in link order wins.
+- **Frontier query:** `tasks subtasks MAP --json` lists the map's children in order. Drop any with an assignee or an open `blocked_by` (`tasks links CHILD`). The first in sub-task order wins.
 - **Claim:** `tasks update TICKET --assignee-user-id USER_ID`, the session's first write.
 - **Resolve:** `tasks comment TICKET --status COMPLETED --comment "…"`, then append a context pointer (gist + Task id) to the map's Decisions-so-far via `tasks update MAP --description-file …`.

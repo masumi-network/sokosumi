@@ -1,0 +1,27 @@
+# Setup: Strategy
+
+**Steps**
+
+1. Reads the strategy while it's written: the one-sentence idea, the funnel (Awareness, Interest, Desire, Action) with what Cuso and they do at each stage, channels, pillars, the month day by day.
+2. Sees every network CMO offers under "Where Cuso works" (X, LinkedIn, Instagram, Facebook, YouTube, TikTok), also the ones they have no account on, marked "New"; a network Cuso left out is named with his reason.
+3. Asks for a change in words if they want one. There is no pace to pick: the month is written at the most a plan makes, and the plan they buy next decides how much of it is made.
+4. Answers "Do you want ads?" with Yes or No. No is the start; after Yes they set a monthly budget, which is extra to their plan, and Cuso plans the ads around it. A budget set while Cuso is still writing or changing the strategy waits, and he plans it as soon as he is done.
+5. Says no to an assumption chip if it's wrong; Cuso updates the strategy.
+6. Optionally connects measurement accounts in "How we know it works" (Results). If they cancel OAuth, they return to Results and see the error once; leaving Results (to another tab or step) and coming back shows no error.
+7. Approves. If Cuso could not fill the month to what the strategy itself promises, in volume or in the videos its funnel names (he gets two short turns to add what is missing), there is no Approve button: a plain line says how many posts it plans against how many it promises, and "Write it again" asks for a new strategy.
+
+**They expect**
+
+- A month they could picture: how many posts, where, about what, how many videos.
+- The month they approve holds as many posts as its own pace and channel cadences say, and every video its funnel promises.
+- Changes reflected without starting over.
+- A "No" or a correction reaches the whole strategy: the goal, the funnel, the questions, the ads line and every post title that rested on it, and the Brand Brain's summary, audience and offers say the corrected thing too. Nothing still names what they said no to (cmo-v8).
+- Every post makes its own point: no two posts in a week argue the same thing, and no point comes back more than three times in the month (cmo-v8).
+- To understand what they will have to do themselves.
+- No ads, no ad budget and no question about ads unless they said yes.
+- To see what Cuso does for their website (the weekly audit, page fixes, articles when they ask), though it is not on the calendar, and to find it in the funnel.
+- Questions that check an assumption with a yes or no, never whether they can count or share something.
+- Posts planned everywhere their buyers could be, not only where they already have an account; the ones for a network they have not connected wait finished on the Calendar.
+- Cancelling a measurement OAuth connection shows the error in Results, and leaving Results and returning shows no error.
+
+**Missing today:** TikTok is planned only once it is open for posting. A Cuso hired before cmo-v5 still plans only the networks the business has an account on.

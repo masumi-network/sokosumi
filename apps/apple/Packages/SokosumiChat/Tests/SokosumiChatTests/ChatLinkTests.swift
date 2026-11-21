@@ -5,6 +5,31 @@ import Testing
 struct ChatLinkTests {
   private let base = URL(string: "https://app.sokosumi.com")!
 
+  @Test(arguments: ["", "&workspace=018f0000-0000-7000-8000-000000000002"])
+  func contactLinksInRenderedMessagesResolveOnTheirPreview(_ scope: String) throws {
+    let preview = try #require(URL(string: "https://preview.sokosumi.localhost"))
+    let contact = "/contacts?contact=018f0000-0000-7000-8000-000000000001"
+    let document = MessageMarkdown("[Guest](\(contact)\(scope))", baseURL: preview)
+    let target = try #require(document.blocks.first?.text.runs.compactMap(\.link).first)
+    guard case let .contact(mention) = ChatLink(url: target, webBaseURL: preview) else {
+      Issue.record("Expected a contact popover destination")
+      return
+    }
+    #expect(mention.id == "018f0000-0000-7000-8000-000000000001")
+    #expect(mention.workspaceId == (scope.isEmpty ? nil : "018f0000-0000-7000-8000-000000000002"))
+    #expect(mention.url == target)
+    #expect(ChatLink(url: target, webBaseURL: base) == nil)
+  }
+
+  @Test(arguments: [
+    "/contacts", "/contacts?contact=unconfirmed", "/contacts?contact=&workspace=018f0000-0000-7000-8000-000000000002",
+    "/contacts?contact=018f0000-0000-7000-8000-000000000001&workspace=unknown",
+    "/contacts?contact=018f0000-0000-7000-8000-000000000001&contact=018f0000-0000-7000-8000-000000000002",
+    "/contacts?contact=018f0000-0000-7000-8000-000000000001&sort=name"
+  ]) func ambiguousOrUnrelatedDestinationsDoNotReadAContact(_ path: String) throws {
+    #expect(try ChatLink(url: #require(URL(string: path, relativeTo: base)), webBaseURL: base) == nil)
+  }
+
   @Test func buildsRoomAndMessageURL() throws {
     let url = try #require(ChatLink.href(roomId: "room", messageId: "old", webBaseURL: base))
     #expect(url.absoluteString == "https://app.sokosumi.com/chat/rooms/room?message=old")

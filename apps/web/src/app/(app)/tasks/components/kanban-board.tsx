@@ -1,12 +1,14 @@
+import { TASKS_BOARD_MIN_HEIGHT_CLASS } from "@/app/tasks/constants";
 import {
   COLUMN_STATUS_COLORS,
   type KanbanColumnDefinition,
   type KanbanColumnId,
   type TaskWithCoworker,
 } from "@/app/tasks/types/task-board";
-import { compareTasksDesc } from "@/app/tasks/utils/task-sort";
+import { COLUMN_MAIN_STATUS } from "@/app/tasks/utils/task-column";
+import { compareTasks, type TasksSort } from "@/app/tasks/utils/task-sort";
 import type { TaskStatus } from "@/lib/types/core-dto";
-
+import { cn } from "@/lib/utils";
 import { DragScrollContainer } from "./drag-scroll-container";
 import { KanbanColumn } from "./kanban-column";
 import { TaskCard } from "./task-card";
@@ -31,6 +33,10 @@ interface KanbanBoardProps {
   canDragTask?: (task: TaskWithCoworker) => boolean;
   compact?: boolean;
   statusLabels?: Record<TaskStatus, string>;
+  /** The order inside each column; the board's default is last updated. */
+  sort?: TasksSort;
+  /** Search results arrive in relevance order, with the chosen sort within each rank. */
+  preserveSearchOrder?: boolean;
 }
 
 export function KanbanBoard({
@@ -43,19 +49,27 @@ export function KanbanBoard({
   canDragTask = () => true,
   compact = false,
   statusLabels,
+  sort = "updatedAt",
+  preserveSearchOrder = false,
 }: KanbanBoardProps) {
+  const compare = compareTasks(sort);
   return (
-    <DragScrollContainer className="-mx-2 flex size-full min-h-[calc(100dvh-8.5rem)] min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 app-scrollbar">
+    <DragScrollContainer
+      className={cn(
+        "-mx-2 flex size-full min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 app-scrollbar",
+        TASKS_BOARD_MIN_HEIGHT_CLASS,
+      )}
+    >
       {columns.map((column) => {
-        const columnTasks = tasks
-          .filter((task) => task.columnId === column.id)
-          .sort(compareTasksDesc);
+        const columnTasks = tasks.filter((task) => task.columnId === column.id);
+        if (!preserveSearchOrder) columnTasks.sort(compare);
         const isDraggableColumn = isDragEnabled && isDnDDragColumn(column.id);
         const isDropTargetColumn = isDragEnabled && isDnDDropColumn(column.id);
 
         const columnContent = (
           <KanbanColumn
             key={column.id}
+            id={column.id}
             title={labels.columns[column.id]}
             statusColor={COLUMN_STATUS_COLORS[column.id]}
             tasks={columnTasks}
@@ -75,6 +89,7 @@ export function KanbanBoard({
                       dragHandleProps={dragHandleProps}
                       compact={compact}
                       statusLabels={statusLabels}
+                      quietStatus={COLUMN_MAIN_STATUS[column.id]}
                     />
                   )}
                 </DraggableTask>
@@ -84,6 +99,7 @@ export function KanbanBoard({
                   task={task}
                   compact={compact}
                   statusLabels={statusLabels}
+                  quietStatus={COLUMN_MAIN_STATUS[column.id]}
                 />
               )
             }

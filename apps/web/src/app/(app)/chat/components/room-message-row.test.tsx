@@ -59,6 +59,9 @@ vi.mock("next-intl", () => ({
       if (key === "position" && values) {
         return `${values.current} / ${values.total}`;
       }
+      if (key === "aiAgentSender" && values) {
+        return `${values.name} (AI agent)`;
+      }
       if (key === "MentionAll.label") {
         return "Everyone";
       }
@@ -146,7 +149,7 @@ vi.mock("@/components/ui/tooltip", () => ({
   TooltipTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-vi.mock("@/hooks/use-clipboard", () => ({
+vi.mock("@/hooks/effects/use-clipboard", () => ({
   copyTextWithToast: copyMock,
   useClipboard: () => ({
     copied: false,
@@ -247,6 +250,7 @@ function renderRow({
   onRemoveOutbound,
   onJumpToQuotedMessage,
   onSendToSelf,
+  isSelfDirect,
   showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
@@ -254,6 +258,7 @@ function renderRow({
   onCancelEdit,
   onSaveEdit,
   isSavingEdit = false,
+  isSaving,
   coworkersById = new Map(),
   usersById,
   isPinned,
@@ -276,6 +281,7 @@ function renderRow({
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
   onJumpToQuotedMessage?: (messageId: string) => void;
   onSendToSelf?: (message: ChatRoomMessage) => void;
+  isSelfDirect?: boolean;
   showOutboundSentTick?: boolean;
   isEditing?: boolean;
   editDraft?: string;
@@ -283,6 +289,7 @@ function renderRow({
   onCancelEdit?: () => void;
   onSaveEdit?: (content?: string) => void;
   isSavingEdit?: boolean;
+  isSaving?: boolean;
   coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
   usersById?: Map<string, { id: string; name: string }>;
 } = {}) {
@@ -305,6 +312,7 @@ function renderRow({
       onRemoveOutbound={onRemoveOutbound}
       onJumpToQuotedMessage={onJumpToQuotedMessage}
       onSendToSelf={onSendToSelf}
+      isSelfDirect={isSelfDirect}
       showOutboundSentTick={showOutboundSentTick}
       isEditing={isEditing}
       editDraft={editDraft}
@@ -312,6 +320,7 @@ function renderRow({
       onCancelEdit={onCancelEdit}
       onSaveEdit={onSaveEdit}
       isSavingEdit={isSavingEdit}
+      isSaving={isSaving}
       isContinuation={isContinuation}
       isFirstOfDay={isFirstOfDay}
       isPinned={isPinned}
@@ -370,42 +379,53 @@ describe("ChatMessageRow", () => {
     expect(markdownRenders.count).toBe(rendersAfterMount);
   });
 
-  it("shows coworker bot badge on avatar, not beside name", () => {
-    renderRow({ message: coworkerMessage() });
+  it.each([
+    ["Jamal", coworkerMessage],
+    ["Joseph", sokoBotMessage],
+  ])("marks %s as an AI agent before the sender name", (name, message) => {
+    renderRow({ message: message() });
 
-    // File mock returns i18n keys (not English copy); label is coworkerBadge
-    const badge = screen.getByRole("img", { name: "coworkerBadge" });
-    expect(badge).toHaveAttribute("data-testid", "coworker-avatar-badge");
-    // Single labeled chip — catches a residual name-row Bot with the same label
-    expect(screen.getAllByRole("img", { name: "coworkerBadge" })).toHaveLength(
-      1,
-    );
-
-    const name = screen.getByText("Jamal");
-    expect(name).toHaveTextContent("Jamal");
-    // Badge is under the avatar trigger, not under the name hover trigger
-    expect(name.parentElement).not.toContainElement(badge);
-
-    // HoverCard merges self-start/shrink-0 onto this trigger; size-8 keeps absolute badge on avatar
-    const avatarWrap = screen.getByTestId("message-sender-avatar");
-    expect(avatarWrap).toHaveClass(
-      "relative",
-      "size-8",
-      "shrink-0",
-      "self-start",
-    );
-    expect(avatarWrap).toContainElement(badge);
-  });
-
-  it("does not show coworker bot badge for human senders", () => {
-    renderRow({ message: userMessage() });
-
+    const sender = screen.getByRole("button", { name: `${name} (AI agent)` });
+    const icon = sender.querySelector("svg");
+    expect(icon).toBeInTheDocument();
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+    expect(icon?.nextElementSibling).toHaveTextContent(name);
     expect(
       screen.queryByTestId("coworker-avatar-badge"),
     ).not.toBeInTheDocument();
+  });
+
+  it("draws a Soko Bot's live avatar without a ring", () => {
+    const message = sokoBotMessage();
+    if (message.sender.type !== "sokoBot") throw new Error("fixture");
+    message.sender.sokoBot = {
+      ...message.sender.sokoBot,
+      image: "https://blob/avatar.webp",
+      avatarCode: "v1.robot.scarlet.white.ink.r.M",
+    };
+    render(
+      <ChatMessageRow
+        message={message}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        onToggleReaction={vi.fn()}
+        liveFace
+      />,
+    );
+
+    const avatar = screen.getByTestId("message-sender-avatar");
+    expect(avatar.querySelector(".ring-1")).toBeNull();
+  });
+
+  it("keeps a human sender's name free of the AI agent mark", () => {
+    renderRow({ message: userMessage() });
+
     expect(
-      screen.queryByRole("img", { name: "coworkerBadge" }),
+      screen.queryByRole("button", { name: /AI agent/ }),
     ).not.toBeInTheDocument();
+    const sender = screen.getByText("Ada").closest('[role="button"]');
+    expect(sender).toHaveAccessibleName("Ada");
+    expect(sender?.querySelector("svg")).not.toBeInTheDocument();
   });
 
   it("keeps sender attribution on continuation rows", () => {
@@ -473,8 +493,10 @@ describe("ChatMessageRow", () => {
     );
 
     expect(screen.getByRole("tooltip")).toHaveTextContent("Ada, Bob");
+    // Named by what it shows, so a screen reader hears the count, and
+    // pressed because tapping it again takes the reader's reaction back.
     expect(
-      screen.getByRole("button", { name: "Reactions.toggle" }),
+      screen.getByRole("button", { name: "👍 2", pressed: true }),
     ).toBeInTheDocument();
   });
 
@@ -526,6 +548,17 @@ describe("ChatMessageRow", () => {
     expect(article).toHaveClass("mt-0");
     expect(article).not.toHaveClass("mt-2");
     expect(article).not.toHaveClass("mt-3");
+  });
+
+  it("marks the row as saving only while a change waits for Core", () => {
+    renderRow({ isSaving: true });
+    expect(screen.getByRole("article")).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("article")).toHaveClass("opacity-60");
+
+    cleanup();
+    renderRow();
+    expect(screen.getByRole("article")).not.toHaveAttribute("aria-busy");
+    expect(screen.getByRole("article")).not.toHaveClass("opacity-60");
   });
 
   it("exposes message id for quote jump targets", () => {
@@ -707,7 +740,7 @@ describe("ChatMessageRow", () => {
 
     // The existing Reaction still says who reacted, but cannot be toggled.
     expect(
-      screen.getByRole("button", { name: "Reactions.toggle" }),
+      screen.getByRole("button", { name: "👍 1", pressed: false }),
     ).toHaveAttribute("aria-disabled", "true");
 
     await user.click(screen.getByRole("button", { name: "Actions.more" }));
@@ -2625,6 +2658,35 @@ describe("ChatMessageRow", () => {
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 
+  it("asks to delete a private note in the Self Direct", async () => {
+    const user = userEvent.setup();
+
+    renderRow({
+      currentUserId: "user-1",
+      onDelete: vi.fn(),
+      onQuote: vi.fn(),
+      isSelfDirect: true,
+    });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Message.delete",
+      }),
+    );
+
+    const confirmDialog = await screen.findByRole("alertdialog");
+    expect(
+      within(confirmDialog).getByText("Message.deleteNoteTitle"),
+    ).toBeInTheDocument();
+    expect(
+      within(confirmDialog).getByText("Message.deleteNoteConfirm"),
+    ).toBeInTheDocument();
+    expect(
+      within(confirmDialog).queryByText("Message.deleteConfirm"),
+    ).not.toBeInTheDocument();
+  });
+
   it("cancels delete without calling onDelete", async () => {
     const user = userEvent.setup();
     const onDelete = vi.fn();
@@ -3219,7 +3281,7 @@ describe("ChatMessageRow coworker Thought", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows failed caption on the coworker shell with no elapsed clock", () => {
+  it("says a coworker couldn't reply, with no elapsed clock", () => {
     renderRow({
       message: coworkerMessage({
         content: "",
@@ -3230,19 +3292,119 @@ describe("ChatMessageRow coworker Thought", () => {
       }),
     });
 
-    expect(screen.getByTestId("coworker-thought-sparkle")).toHaveTextContent(
-      "MentionStatus.failed",
-    );
+    const card = screen.getByTestId("coworker-mention-failed");
+    expect(card).toHaveTextContent("MentionStatus.failed");
+    // No source message on the shell: nothing proves the message was kept.
+    expect(card).toHaveTextContent("MentionStatus.failedBody");
+    expect(card).not.toHaveTextContent("MentionStatus.failedSaved");
     expect(screen.queryByTestId("live-stream-elapsed")).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("coworker-thought-trace"),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByTestId("coworker-mention-failed"),
-    ).not.toBeInTheDocument();
-    expect(
       screen.queryByTestId("coworker-mention-retry"),
     ).not.toBeInTheDocument();
+  });
+
+  it("explains that a Soko Bot hit its usage limit", () => {
+    renderRow({
+      message: sokoBotMessage({
+        content: "",
+        metadata: {
+          mention_id: "mention_1",
+          mention_failed: true,
+          mention_failure: { kind: "ai_budget_exceeded" },
+        },
+      }),
+    });
+
+    expect(screen.getByTestId("coworker-mention-failed")).toHaveTextContent(
+      "aiBudgetExceeded",
+    );
+  });
+
+  it("shows the generic failure copy for an unclassified Soko Bot reply", () => {
+    renderRow({
+      message: sokoBotMessage({
+        content: "",
+        metadata: {
+          mention_id: "mention_1",
+          mention_failed: true,
+          mention_failure: {
+            kind: "GatewayInternalServerError",
+            message: "Raw provider diagnostic",
+          },
+        },
+      }),
+    });
+
+    const card = screen.getByTestId("coworker-mention-failed");
+    expect(card).not.toHaveTextContent("Raw provider diagnostic");
+    expect(card).toHaveTextContent("generic");
+  });
+
+  it("uses the translated failure copy for a background run", () => {
+    renderRow({
+      message: sokoBotMessage({
+        content: "Raw provider diagnostic",
+        metadata: {
+          soko_bot: {
+            turn_id: "turn-1",
+            background_run_title: "Review",
+            background_failure_kind: "unknown",
+          },
+        },
+      }),
+    });
+
+    expect(
+      screen.queryByText("Raw provider diagnostic"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("backgroundFailed generic")).toBeInTheDocument();
+  });
+
+  it("keeps the owner mention on a translated background failure", () => {
+    renderRow({
+      message: sokoBotMessage({
+        content: "@owner Raw provider diagnostic",
+        metadata: {
+          soko_bot: {
+            turn_id: "turn-1",
+            background_run_title: "Review",
+            background_failure_kind: "unknown",
+          },
+        },
+      }),
+      usersById: new Map([["owner", { id: "owner", name: "Ada Owner" }]]),
+    });
+
+    const mention = screen.getByText(
+      /data-direct-kind="human" data-direct-id="owner">@Ada Owner<\/span>/,
+    );
+    const copy = screen.getByText("backgroundFailed generic");
+    expect(mention.compareDocumentPosition(copy)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(
+      screen.queryByText("Raw provider diagnostic"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the stopped-reply copy when a Soko Bot reply is cancelled", () => {
+    renderRow({
+      message: sokoBotMessage({
+        content: "",
+        metadata: {
+          mention_id: "mention_1",
+          mention_failed: true,
+          mention_failure: { kind: "turn_cancelled" },
+        },
+      }),
+    });
+
+    const card = screen.getByTestId("coworker-mention-failed");
+    expect(card).toHaveTextContent("MentionStatus.failedBody");
+    expect(card).not.toHaveTextContent("generic");
   });
 
   it("shows a Soko Bot's live Thinking with its latest step and elapsed clock", () => {
@@ -3264,7 +3426,7 @@ describe("ChatMessageRow coworker Thought", () => {
     expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
   });
 
-  it("shows Failed to reply on a failed Soko Bot shell", () => {
+  it("says a Soko Bot couldn't reply and the message is saved", () => {
     renderRow({
       message: sokoBotMessage({
         content: "",
@@ -3277,9 +3439,10 @@ describe("ChatMessageRow coworker Thought", () => {
       }),
     });
 
-    expect(screen.getByTestId("coworker-thought-sparkle")).toHaveTextContent(
-      "MentionStatus.failed",
-    );
+    const card = screen.getByTestId("coworker-mention-failed");
+    expect(card).toHaveAttribute("role", "status");
+    expect(card).toHaveTextContent("MentionStatus.failed");
+    expect(card).toHaveTextContent("messageSaved");
   });
 
   it("shows Retry on a failed mention shell for the mentioner", async () => {
@@ -3296,7 +3459,7 @@ describe("ChatMessageRow coworker Thought", () => {
 
     renderRow({ message, onRetryMention });
 
-    expect(screen.getByTestId("coworker-thought-sparkle")).toHaveTextContent(
+    expect(screen.getByTestId("coworker-mention-failed")).toHaveTextContent(
       "MentionStatus.failed",
     );
     await user.click(screen.getByTestId("coworker-mention-retry"));
@@ -3306,7 +3469,7 @@ describe("ChatMessageRow coworker Thought", () => {
     );
   });
 
-  it("shows the Thought sparkle on empty stream overlay, not the pixel grid", () => {
+  it("shows the Thought header on empty stream overlay, not the pixel grid", () => {
     renderRow({
       message: coworkerMessage({
         id: "stream:asst-1",

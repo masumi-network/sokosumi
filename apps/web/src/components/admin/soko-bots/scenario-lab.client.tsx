@@ -11,13 +11,16 @@ import {
   SOKO_BOT_SCENARIOS,
   type SokoBotScenario,
 } from "@sokosumi/soko-bot";
+import { useQuery } from "@tanstack/react-query";
 import { Check, Play, X } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, useQueryState } from "nuqs";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatUsd } from "@/components/soko-bot/format";
 import { Button } from "@/components/ui/button";
+import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   judgeSokoBotLabTurnAction,
   listSokoBotLabRunsAction,
@@ -87,7 +90,7 @@ interface LiveRun {
 
 async function fetchTurn(turnId: string): Promise<ChatTurnDetail | null> {
   const response = await fetch(
-    `/api/personal-assistant/turns/${encodeURIComponent(turnId)}`,
+    `/api/admin/soko-bots/turns/${encodeURIComponent(turnId)}`,
     { credentials: "same-origin", cache: "no-store" },
   );
   if (!response.ok) return null;
@@ -105,9 +108,11 @@ const FINAL_STATUSES = new Set(["COMPLETED", "FAILED", "CANCELLED"]);
 async function watchTurn(
   turnId: string,
   onProgress: (turn: ChatTurnDetail) => void,
+  isMounted: () => boolean,
 ): Promise<ChatTurnDetail | null> {
   const deadline = Date.now() + TIMEOUT_MS;
-  while (Date.now() < deadline) {
+  // A lab closed mid-run stops polling instead of until the deadline.
+  while (Date.now() < deadline && isMounted()) {
     const turn = await fetchTurn(turnId);
     if (turn) {
       onProgress(turn);
@@ -236,7 +241,6 @@ export function ScenarioLab({
   onTurnFinished?: () => void;
 }) {
   const t = useTranslations("App.Admin.SokoBots.Lab");
-  const [history, setHistory] = useState<History>({});
   const [activeVersion, setActiveVersion] = useState<string | null>(versionId);
   const activeVersionRef = useRef<string | null>(versionId);
   const [requestedVersionId, setRequestedVersionId] = useQueryState(
@@ -313,6 +317,13 @@ export function ScenarioLab({
   // One at a time: turns share the bot's session lock, so this is the run the
   // whole page is waiting on rather than one of several.
   const [live, setLive] = useState<LiveRun | null>(null);
+  const mountedRef = useRef(false);
+  useMountEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  });
   /** Where a Run all has got to, so the wait has a denominator. */
   const [batch, setBatch] = useState<{
     done: number;
@@ -320,16 +331,26 @@ export function ScenarioLab({
     startedAt: number;
   } | null>(null);
 
-  const loadHistory = useCallback(async () => {
-    const result = await listSokoBotLabRunsAction({});
-    if (result.ok) setHistory(toHistory(result.value));
-  }, []);
-
-  useEffect(() => {
-    void loadHistory();
-  }, [loadHistory]);
+  const historyQuery = useQuery({
+    queryKey: ["admin", "soko-bot-lab-runs"],
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+    networkMode: "always",
+    refetchOnWindowFocus: false,
+    queryFn: async (): Promise<History> => {
+      const result = await listSokoBotLabRunsAction({});
+      if (!result.ok) {
+        throw new Error(result.error.message ?? "Failed to load lab runs");
+      }
+      return toHistory(result.value);
+    },
+  });
+  const history = historyQuery.data ?? {};
 
   async function run(scenario: SokoBotScenario) {
+    // A closed lab starts nothing: each start is a real server action.
+    if (!mountedRef.current) return;
     setRunning((current) => new Set(current).add(scenario.id));
     setFailures(({ [scenario.id]: _dropped, ...rest }) => rest);
     setLive({
@@ -404,19 +425,24 @@ export function ScenarioLab({
           ? { ...current, phase: "queued", turnId }
           : current,
       );
-      const turn = await watchTurn(turnId, (progress) => {
-        setLive((current) =>
-          current?.scenarioId === scenario.id
-            ? {
-                ...current,
-                phase: FINAL_STATUSES.has(progress.status)
-                  ? "judging"
-                  : "running",
-                turn: progress,
-              }
-            : current,
-        );
-      });
+      const turn = await watchTurn(
+        turnId,
+        (progress) => {
+          setLive((current) =>
+            current?.scenarioId === scenario.id
+              ? {
+                  ...current,
+                  phase: FINAL_STATUSES.has(progress.status)
+                    ? "judging"
+                    : "running",
+                  turn: progress,
+                }
+              : current,
+          );
+        },
+        () => mountedRef.current,
+      );
+      if (!mountedRef.current) return;
       if (!turn) {
         setFailures((current) => ({
           ...current,
@@ -436,7 +462,7 @@ export function ScenarioLab({
           },
         },
       });
-      await loadHistory();
+      await historyQuery.refetch();
       onTurnFinished?.();
     } finally {
       setRunning((current) => {
@@ -459,6 +485,7 @@ export function ScenarioLab({
     });
     try {
       for (const scenario of SOKO_BOT_SCENARIOS) {
+        if (!mountedRef.current) return;
         await run(scenario);
         setBatch((current) =>
           current ? { ...current, done: current.done + 1 } : current,
@@ -477,8 +504,10 @@ export function ScenarioLab({
     });
     try {
       for (const version of versions) {
+        if (!mountedRef.current) return;
         await chooseVersion(version.id);
         for (const scenario of SOKO_BOT_SCENARIOS) {
+          if (!mountedRef.current) return;
           await run(scenario);
           setBatch((current) =>
             current ? { ...current, done: current.done + 1 } : current,
@@ -679,10 +708,10 @@ function ScenarioRow({
   // A Run all works through twenty-two scenarios; without this the one being
   // run is usually somewhere off-screen.
   const isLive = live !== null;
-  useEffect(() => {
-    if (!isLive) return;
-    rowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [isLive]);
+  useScrollIntoViewWhen(rowRef, isLive, {
+    block: "nearest",
+    behavior: "smooth",
+  });
 
   return (
     <li ref={rowRef} className="px-4 py-3">

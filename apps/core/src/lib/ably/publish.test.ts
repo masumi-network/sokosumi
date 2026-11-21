@@ -6,7 +6,11 @@ import {
   SokosumiJobStatus,
 } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import {
+  causeMessage,
+  expectCoreLog,
+  expectCoreLogWhys,
+} from "@/test/core-log";
 import {
   MAX_PUSH_PARAM_LENGTH,
   publishCalendarAccessRevoked,
@@ -565,6 +569,32 @@ describe("publishChatMembershipRevoked", () => {
     );
   });
 
+  it("logs one error naming each user a revoke did not reach", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not send a realtime update to some users",
+      ["Ably rejected the publish to their channels"],
+      ["denied"],
+    );
+    publishMock
+      .mockRejectedValueOnce(new Error("denied"))
+      .mockRejectedValueOnce(new Error("denied"));
+
+    await publishChatMembershipRevokedToUsers(
+      "660e8400-e29b-41d4-a716-446655440000",
+      ["user_a", "user_b"],
+      "removed",
+    );
+
+    expect(errors[0]?.event).toMatchObject({
+      ablyPublish: { label: "chat membership revoke" },
+      ablyPublishFailures: [
+        { userId: "user_a", errorName: "Error" },
+        { userId: "user_b", errorName: "Error" },
+      ],
+    });
+  });
+
   it("no-ops when fan-out user list is empty", async () => {
     publishMock.mockClear();
     getMock.mockClear();
@@ -576,6 +606,9 @@ describe("publishChatMembershipRevoked", () => {
     expect(publishMock).not.toHaveBeenCalled();
   });
 });
+
+const ROOMS_CHANGED =
+  "Could not tell some users' apps that their chat rooms changed";
 
 describe("publishChatRoomsChanged", () => {
   beforeEach(() => {
@@ -639,7 +672,9 @@ describe("publishChatRoomsChanged", () => {
 
   it("logs per-channel failures without replaying successful channels", async () => {
     const error = new Error("denied");
-    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const errors = expectCoreLogWhys("error", ROOMS_CHANGED, [
+      "Ably rejected the publish on some channels, or a batch request failed",
+    ]);
     batchPublishMock.mockResolvedValueOnce({
       successCount: 1,
       failureCount: 1,
@@ -654,16 +689,18 @@ describe("publishChatRoomsChanged", () => {
       roomId: null,
     });
     expect(batchPublishMock).toHaveBeenCalledTimes(1);
-    expect(log).toHaveBeenCalledWith(
-      "Failed to publish chat rooms changed to channel",
-      "chat_control:user_b",
-      error,
-    );
-    log.mockRestore();
+    expect(causeMessage(errors[0]?.cause)).toBe("denied");
+    expect(errors[0]?.event).toMatchObject({
+      chatRoomsChangedFailures: [
+        { channel: "chat_control:user_b", errorName: "Error" },
+      ],
+    });
   });
 
   it("attempts remaining batches when one request rejects", async () => {
-    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const errors = expectCoreLogWhys("error", ROOMS_CHANGED, [
+      "Ably rejected the publish on some channels, or a batch request failed",
+    ]);
     batchPublishMock.mockRejectedValueOnce(new Error("unavailable"));
     await expect(
       publishChatRoomsChanged({
@@ -686,8 +723,9 @@ describe("publishChatRoomsChanged", () => {
         },
       ],
     });
-    expect(log).toHaveBeenCalledTimes(1);
-    log.mockRestore();
+    expect(errors[0]?.event).toMatchObject({
+      chatRoomsChangedFailures: [{ batch: 0, errorName: "Error" }],
+    });
   });
 
   it("does not publish for an empty audience", async () => {
@@ -703,7 +741,12 @@ describe("publishChatRoomsChanged", () => {
     getRestClientMock.mockImplementationOnce(() => {
       throw new Error("no ably");
     });
-    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    expectCoreLogWhys(
+      "error",
+      ROOMS_CHANGED,
+      ["Creating the Ably client or sending the publish failed"],
+      ["no ably"],
+    );
     await expect(
       publishChatRoomsChanged({
         userIds: ["a"],
@@ -711,8 +754,6 @@ describe("publishChatRoomsChanged", () => {
         roomId: null,
       }),
     ).resolves.toBeUndefined();
-    expect(log).toHaveBeenCalled();
-    log.mockRestore();
   });
 });
 
@@ -722,7 +763,7 @@ describe("chat room invalidation reporting", () => {
     async (failure) => {
       vi.mocked(Sentry.captureException).mockClear();
       const error = new Error("invalidation failed");
-      const log = vi.spyOn(console, "error").mockImplementation(() => {});
+      expectCoreLog("error", ROOMS_CHANGED);
       if (failure === "channel") {
         batchPublishMock.mockResolvedValueOnce({
           results: [{ channel: "chat_control:user_a", error }],
@@ -748,7 +789,6 @@ describe("chat room invalidation reporting", () => {
             ? { roomId: "room", channel: "chat_control:user_a" }
             : { roomId: "room" },
       });
-      log.mockRestore();
     },
   );
 });

@@ -2,7 +2,9 @@
 
 import { type TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
 import {
+  Copy,
   Ellipsis,
+  FolderInput,
   Pause,
   Pencil,
   Play,
@@ -14,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { seoAuditHref, seoProjectHref } from "@/app/seo/seo-href";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import {
@@ -47,6 +50,7 @@ import {
 } from "@/lib/actions/task-schedule/action";
 import type { TaskScheduleStateAction } from "@/lib/clients/core.shared";
 import type { CoworkerOption } from "@/lib/types/coworker";
+import { TaskScheduleCopyProjectPicker } from "./task-schedule-copy-project-picker";
 import { TaskScheduleDialog } from "./task-schedule-dialog";
 
 interface TaskScheduleActionsProps {
@@ -60,7 +64,14 @@ interface TaskScheduleActionsProps {
    */
   canDeleteUnowned?: boolean;
   onChanged?: () => void;
+  /**
+   * Runs inside the transition of a pause or resume, before the request, so
+   * the owner of `schedule` can show the new state at once.
+   */
+  onStateChanging?: (action: ScheduleToggleAction) => void;
 }
+
+export type ScheduleToggleAction = Exclude<TaskScheduleStateAction, "end">;
 
 const STATE_ACTION_TOAST = {
   pause: "paused",
@@ -69,9 +80,10 @@ const STATE_ACTION_TOAST = {
 } as const satisfies Record<TaskScheduleStateAction, string>;
 
 /**
- * Edit, run now, pause, resume, end, and delete, for whoever Core says may
- * change the schedule (`canWrite`). An Ended schedule is final: it can only be
- * deleted.
+ * Edit, copy (in place or to another Project), run now, pause, resume, end,
+ * and delete, for whoever Core says may change the schedule (`canWrite`). An
+ * Ended schedule is final: it can only be deleted, or copied into a new
+ * schedule.
  */
 export function TaskScheduleActions({
   schedule,
@@ -80,19 +92,28 @@ export function TaskScheduleActions({
   canCreatePrivate,
   canDeleteUnowned = false,
   onChanged,
+  onStateChanging,
 }: TaskScheduleActionsProps) {
   const t = useTranslations("App.Tasks.Schedules");
   const tActions = useTranslations("App.Tasks.Schedules.Actions");
+  const tCoverage = useTranslations("App.Seo.analysis.coverage");
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [isEditOpen, setIsEditOpen] = useState(false);
+  // "pick" asks for the destination Project first; then the form opens there.
+  // A picked Project may be past the capped `projectOptions`; it rides along
+  // so the form can still name it.
+  const [copy, setCopy] = useState<
+    "pick" | { projectId: string | null; project?: ProjectFilterOption } | null
+  >(null);
   const [confirming, setConfirming] = useState<"end" | "delete" | null>(null);
   const isEnded = schedule.state === TaskScheduleState.ENDED;
   const canDelete = schedule.ownerId !== null || canDeleteUnowned;
 
   function refreshAfterChange() {
-    if (onChanged) onChanged();
-    else router.refresh();
+    // The schedule actions revalidate, so their response already carries the
+    // page. A parent that keeps extra client state resets it in `onChanged`.
+    onChanged?.();
   }
 
   function reportError(error: TaskScheduleActionError) {
@@ -103,6 +124,8 @@ export function TaskScheduleActions({
 
   function handleStateAction(action: TaskScheduleStateAction) {
     startTransition(async () => {
+      // End is not shown early: its dialog stays open until the answer.
+      if (action !== "end") onStateChanging?.(action);
       const result = await changeTaskScheduleState({
         scheduleId: schedule.id,
         action,
@@ -118,12 +141,32 @@ export function TaskScheduleActions({
   }
 
   function handleRunNow() {
+    if (!schedule.canRunNow) return;
     startTransition(async () => {
       const result = await runTaskScheduleNow({
         scheduleId: schedule.id,
         expectedRevision: schedule.revision,
       });
       if (!result.ok) {
+        if (result.error.coverage) {
+          const workspace = schedule.seoMonitor?.auditId
+            ? seoAuditHref(schedule.seoMonitor.auditId, schedule.projectId)
+            : schedule.projectId && seoProjectHref(schedule.projectId);
+          toast.error(tCoverage(result.error.coverage), {
+            duration: Infinity,
+            closeButton: true,
+            action: {
+              label: tCoverage("reviewMonitor"),
+              onClick: () =>
+                router.push(
+                  workspace
+                    ? `${workspace}&tab=agent#seo-monitor-${schedule.id}`
+                    : "/seo",
+                ),
+            },
+          });
+          return;
+        }
         reportError(result.error);
         return;
       }
@@ -153,25 +196,23 @@ export function TaskScheduleActions({
     });
   }
 
-  if (isEnded && !canDelete) {
-    return null;
-  }
-
   const isActive = schedule.state === TaskScheduleState.ACTIVE;
 
   return (
     <div className="flex shrink-0 items-center gap-1">
       {isEnded ? null : (
         <>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRunNow}
-            disabled={isPending}
-          >
-            <Zap aria-hidden />
-            {tActions("runNow")}
-          </Button>
+          {schedule.canRunNow ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRunNow}
+              disabled={isPending}
+            >
+              <Zap aria-hidden />
+              {tActions("runNow")}
+            </Button>
+          ) : null}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -203,22 +244,52 @@ export function TaskScheduleActions({
             <Ellipsis aria-hidden />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-40">
+        <DropdownMenuContent align="end" className="w-56">
           {isEnded ? null : (
             <>
-              <DropdownMenuItem onSelect={() => setIsEditOpen(true)}>
-                <Pencil aria-hidden />
-                {tActions("edit")}
+              {schedule.canEditPlan ? (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    if (schedule.canEditPlan) setIsEditOpen(true);
+                  }}
+                >
+                  <Pencil aria-hidden />
+                  {tActions("edit")}
+                </DropdownMenuItem>
+              ) : null}
+            </>
+          )}
+          {schedule.canEditPlan ? (
+            <>
+              <DropdownMenuItem
+                onSelect={() => {
+                  if (schedule.canEditPlan) {
+                    setCopy({ projectId: schedule.projectId });
+                  }
+                }}
+              >
+                <Copy aria-hidden />
+                {tActions("copy")}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setConfirming("end")}>
-                <Square aria-hidden />
-                {tActions("end")}
+              <DropdownMenuItem
+                onSelect={() => {
+                  if (schedule.canEditPlan) setCopy("pick");
+                }}
+              >
+                <FolderInput aria-hidden />
+                {tActions("copyToProject")}
               </DropdownMenuItem>
             </>
+          ) : null}
+          {isEnded ? null : (
+            <DropdownMenuItem onSelect={() => setConfirming("end")}>
+              <Square aria-hidden />
+              {tActions("end")}
+            </DropdownMenuItem>
           )}
           {canDelete ? (
             <>
-              {isEnded ? null : <DropdownMenuSeparator />}
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 variant="destructive"
                 onSelect={() => setConfirming("delete")}
@@ -274,7 +345,7 @@ export function TaskScheduleActions({
         </AlertDialogContent>
       </AlertDialog>
 
-      {isEditOpen ? (
+      {isEditOpen && schedule.canEditPlan ? (
         <TaskScheduleDialog
           schedule={schedule}
           coworkerOptions={coworkerOptions}
@@ -282,6 +353,29 @@ export function TaskScheduleActions({
           canCreatePrivate={canCreatePrivate}
           onClose={() => setIsEditOpen(false)}
           onSaved={onChanged}
+        />
+      ) : null}
+      {schedule.canEditPlan && copy === "pick" ? (
+        <TaskScheduleCopyProjectPicker
+          currentProjectId={schedule.projectId}
+          onSelect={(project) => setCopy({ projectId: project.id, project })}
+          onClose={() => setCopy(null)}
+        />
+      ) : schedule.canEditPlan && copy && copy !== "pick" ? (
+        <TaskScheduleDialog
+          copyOf={{ ...schedule, projectId: copy.projectId }}
+          coworkerOptions={coworkerOptions}
+          projectOptions={
+            copy.project &&
+            !projectOptions.some((option) => option.id === copy.projectId)
+              ? [copy.project, ...projectOptions]
+              : projectOptions
+          }
+          canCreatePrivate={canCreatePrivate}
+          onClose={() => setCopy(null)}
+          onSaved={(scheduleId) =>
+            router.push(`${TASK_SCHEDULES_PATH}/${scheduleId}`)
+          }
         />
       ) : null}
     </div>

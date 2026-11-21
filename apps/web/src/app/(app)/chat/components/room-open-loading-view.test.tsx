@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/hooks/use-keyboard-open", () => ({
+vi.mock("@/hooks/effects/use-keyboard-open", () => ({
   useKeyboardOpen: () => false,
 }));
 
@@ -26,7 +26,7 @@ describe("RoomOpenLoadingView", () => {
     const { container, getByTestId } = render(<RoomOpenLoadingView />);
 
     expect(getByTestId("chat-room-loading")).toBeTruthy();
-    expect(container.querySelector("main")).toBeTruthy();
+    expect(container.querySelector("main")).toBeNull();
     expect(container.querySelector("section")).toBeTruthy();
     expect(getByTestId("room-message-list-skeleton")).toBeTruthy();
     expect(container.querySelector(".flex-row-reverse")).toBeNull();
@@ -38,9 +38,19 @@ describe("RoomOpenLoadingView", () => {
     expect(container.querySelector("form")).toBeTruthy();
     expect(container.querySelector("form")?.closest("[inert]")).toBeTruthy();
     expect(container.querySelector("[data-placeholder]")).toBeTruthy();
+    expect(getByTestId("room-typing-line")).toHaveClass(
+      "min-h-5",
+      "md:absolute",
+    );
     expect(container.querySelector('[role="toolbar"]')).toBeTruthy();
     expect(container.querySelectorAll("button").length).toBeGreaterThan(5);
     expect(container.querySelector(".animate-spin")).toBeNull();
+    const list = container.querySelector('[data-chat-message-list="room"]');
+    const composer =
+      container.querySelector("form")?.parentElement?.parentElement;
+    expect(list?.className).toContain("var(--room-composer-h,0px)");
+    expect(composer?.className).toContain("absolute inset-x-0 bottom-0");
+    expect(composer?.parentElement).toBe(list?.parentElement?.parentElement);
   });
 });
 

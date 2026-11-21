@@ -1,10 +1,12 @@
+import { createHash } from "node:crypto";
 import { isSocialProviderEnabled } from "@sokosumi/utils";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   PROJECT_SOCIAL_PROVIDERS,
   type ProjectSocialProvider,
 } from "@/config/social-providers";
+import { socialAccountChoiceId } from "@/helpers/social-account-choice";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 const {
   deleteSocialAccountAvatarIfOwnedMock,
@@ -71,6 +73,14 @@ vi.mock("@/clients/composio.client", async (importOriginal) => ({
   revokeComposioConnectedAccount: revokeComposioConnectedAccountMock,
 }));
 
+const zernioRequest = vi.hoisted(() => vi.fn());
+vi.mock("@/clients/zernio.client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/clients/zernio.client")>()),
+  zernioRequest,
+}));
+const expiredIntentFindMany = vi.hoisted(() => vi.fn());
+const expiredIntentClaim = vi.hoisted(() => vi.fn());
+
 vi.mock("@/lib/social-account-avatar", () => ({
   deleteSocialAccountAvatarIfOwned: deleteSocialAccountAvatarIfOwnedMock,
   snapshotSocialAccountAvatar: snapshotSocialAccountAvatarMock,
@@ -124,6 +134,8 @@ vi.mock("@/lib/db/prisma", () => ({
       update: socialConnectionAuditUpdateMock,
     },
     projectSocialConnectionIntent: {
+      findMany: expiredIntentFindMany,
+      updateMany: expiredIntentClaim,
       deleteMany: socialConnectionIntentDeleteMock,
       create: socialConnectionIntentCreateMock,
       findUnique: socialConnectionIntentFindUniqueMock,
@@ -220,6 +232,471 @@ describe("project social connections service", () => {
       async (callback: (tx: typeof transactionClient) => Promise<unknown>) =>
         callback(transactionClient),
     );
+  });
+
+  describe("Zernio LinkedIn", () => {
+    const profileId = "0123456789abcdef01234567";
+    const accountId = "abcdef0123456789abcdef01";
+    const connectionId = `zernio:${profileId}`;
+    const proof = "callback-proof";
+    const input = {
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+    };
+    const intent = {
+      ...createIntent("connect"),
+      connectionId,
+      provider: "linkedin",
+      authConfigId: createHash("sha256").update(proof).digest("hex"),
+      callbackRedeemedAt: null,
+    };
+    const pending = {
+      platform: "linkedin",
+      profileId,
+      tempToken: "temp-token",
+      userProfile: { id: "member-1", displayName: "Alice Doe" },
+      organizations: [
+        { id: "42", urn: "urn:li:organization:42", name: "Acme" },
+      ],
+    };
+
+    const utxo = {
+      id: PROJECT_ID,
+      workspace: {
+        id: "03d70dc0-f302-45d5-a161-86beb31d2448",
+        organization: { slug: "utxo" },
+      },
+    };
+
+    beforeEach(() => {
+      vi.stubEnv("NETWORK", "Mainnet");
+      projectFindFirstMock.mockResolvedValue(utxo);
+      getEnvMock.mockReturnValue({
+        ZERNIO_API_KEY: "configured",
+        COMPOSIO_LINKEDIN_AUTH_CONFIG_ID: "ac_linkedin",
+      });
+      socialConnectionIntentFindUniqueMock.mockResolvedValue(intent);
+      socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(
+        intent,
+      );
+      socialConnectionCreateMock.mockResolvedValue({
+        ...socialConnection,
+        provider: "linkedin",
+        composioConnectedAccountId: `zernio:${accountId}`,
+        zernioProfileId: profileId,
+        status: "active",
+      });
+    });
+
+    it("signs in through Zernio, headless, when the caller lets the owner pick", async () => {
+      zernioRequest
+        .mockResolvedValueOnce({ profile: { _id: profileId } })
+        .mockResolvedValueOnce({
+          authUrl: "https://www.linkedin.com/oauth/v2/authorization",
+        });
+      const { initiateProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+      await initiateProjectSocialConnection({
+        ...input,
+        action: "connect",
+        provider: "linkedin",
+        accountChoice: true,
+        callbackUrl: "https://app.cmo.xyz/connect/callback?project=p1",
+      });
+      const [path] = zernioRequest.mock.calls[1];
+      expect(path.startsWith("/connect/linkedin?")).toBe(true);
+      const params = new URL(path, "https://zernio.com").searchParams;
+      expect(params.get("headless")).toBe("true");
+      expect(params.get("scopes")).toBe("posting,analytics,comments");
+      const callback = new URL(params.get("redirect_url")!);
+      expect(callback.pathname).toBe("/zernio/callback");
+      expect(callback.searchParams.get("pendingDataOnly")).toBe("true");
+      expect(initiateComposioConnectionMock).not.toHaveBeenCalled();
+    });
+
+    afterEach(() => vi.unstubAllEnvs());
+
+    it("signs in through Zernio for a Project in any organization", async () => {
+      projectFindFirstMock.mockResolvedValue({
+        ...utxo,
+        workspace: { id: "ws-other", organization: { slug: "acme" } },
+      });
+      zernioRequest
+        .mockResolvedValueOnce({ profile: { _id: profileId } })
+        .mockResolvedValueOnce({
+          authUrl: "https://www.linkedin.com/oauth/v2/authorization",
+        });
+      const { initiateProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+      await initiateProjectSocialConnection({
+        ...input,
+        action: "connect",
+        provider: "linkedin",
+        accountChoice: true,
+      });
+      expect(zernioRequest.mock.calls[1][0]).toMatch(/^\/connect\/linkedin\?/);
+      expect(initiateComposioConnectionMock).not.toHaveBeenCalled();
+    });
+
+    it("stays on Composio where Core holds no Zernio key", async () => {
+      getEnvMock.mockReturnValue({
+        COMPOSIO_LINKEDIN_AUTH_CONFIG_ID: "ac_linkedin",
+      });
+      const { initiateProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+      await initiateProjectSocialConnection({
+        ...input,
+        action: "connect",
+        provider: "linkedin",
+        accountChoice: true,
+      });
+      expect(initiateComposioConnectionMock).toHaveBeenCalled();
+      expect(zernioRequest).not.toHaveBeenCalled();
+    });
+
+    it("stays on Composio for a caller with no picker", async () => {
+      const { initiateProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+      await initiateProjectSocialConnection({
+        ...input,
+        action: "connect",
+        provider: "linkedin",
+      });
+      expect(initiateComposioConnectionMock).toHaveBeenCalled();
+      expect(zernioRequest).not.toHaveBeenCalled();
+    });
+
+    it("keeps nothing until the owner picked, then connects the Page", async () => {
+      zernioRequest.mockResolvedValueOnce(pending);
+      const { finalizeProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+      const signIn = {
+        ...input,
+        connectionId,
+        callbackProof: proof,
+        pendingDataToken: "pending-token",
+        connectToken: "connect-token",
+        offerChoice: true,
+      };
+      await expect(
+        finalizeProjectSocialConnection(signIn),
+      ).rejects.toMatchObject({ name: "SocialAccountChoiceRequiredError" });
+      expect(socialConnectionCreateMock).not.toHaveBeenCalled();
+
+      zernioRequest.mockResolvedValueOnce(pending).mockResolvedValueOnce({
+        account: { accountId, username: "acme", displayName: "Acme" },
+      });
+      await finalizeProjectSocialConnection({
+        ...signIn,
+        accountChoiceId: socialAccountChoiceId(
+          connectionId,
+          "urn:li:organization:42",
+        ),
+      });
+      expect(socialConnectionCreateMock).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          provider: "linkedin",
+          composioConnectedAccountId: `zernio:${accountId}`,
+          externalAccountId: "urn:li:organization:42",
+          externalHandle: "acme",
+          displayName: "Acme",
+          zernioProfileId: profileId,
+        }),
+      });
+    });
+
+    it("connects the account Zernio kept at once when there was nothing to pick", async () => {
+      zernioRequest.mockResolvedValueOnce({
+        accounts: [
+          {
+            _id: accountId,
+            platform: "linkedin",
+            profileId,
+            isActive: true,
+            platformUserId: "member-1",
+            username: "alice",
+            displayName: "Alice Doe",
+          },
+        ],
+      });
+      const { finalizeProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+      await finalizeProjectSocialConnection({
+        ...input,
+        connectionId,
+        callbackProof: proof,
+        offerChoice: true,
+      });
+      expect(zernioRequest.mock.calls[0][0]).toContain(
+        `/accounts?profileId=${profileId}`,
+      );
+      expect(socialConnectionCreateMock).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          composioConnectedAccountId: `zernio:${accountId}`,
+          externalAccountId: "member-1",
+          displayName: "Alice Doe",
+        }),
+      });
+    });
+
+    it("refuses a callback without the sign-in's tokens or with a wrong proof", async () => {
+      const { finalizeProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+      await expect(
+        finalizeProjectSocialConnection({
+          ...input,
+          connectionId,
+          callbackProof: proof,
+          pendingDataToken: "pending-token",
+        }),
+      ).rejects.toMatchObject({ status: 404 });
+      await expect(
+        finalizeProjectSocialConnection({
+          ...input,
+          connectionId,
+          callbackProof: "forged",
+          pendingDataToken: "pending-token",
+          connectToken: "connect-token",
+        }),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(zernioRequest).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Zernio TikTok", () => {
+    const profileId = "0123456789abcdef01234567";
+    const accountId = "abcdef0123456789abcdef01";
+    const connectionId = `zernio:${profileId}`;
+    const proof = "callback-proof";
+    const input = {
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+    };
+    const intent = {
+      ...createIntent("connect"),
+      connectionId,
+      provider: "tiktok",
+      authConfigId: createHash("sha256").update(proof).digest("hex"),
+      callbackRedeemedAt: null,
+    };
+    const account = {
+      _id: accountId,
+      platform: "tiktok",
+      profileId: { _id: profileId },
+      platformUserId: "tiktok-open-id",
+      isActive: true,
+      username: "pilot",
+    };
+    const saved = {
+      ...socialConnection,
+      provider: "tiktok",
+      composioConnectedAccountId: `zernio:${accountId}`,
+      zernioProfileId: profileId,
+      status: "active",
+    };
+
+    beforeEach(() => {
+      vi.stubEnv("NETWORK", "Mainnet");
+      vi.stubEnv("ZERNIO_API_KEY", "configured");
+      getEnvMock.mockReturnValue({ ZERNIO_API_KEY: "configured" });
+      // Any workspace: TikTok through Zernio is public.
+      projectFindFirstMock.mockResolvedValue({
+        id: PROJECT_ID,
+        workspace: { id: WORKSPACE_ID, organization: { slug: "acme" } },
+      });
+      socialConnectionIntentFindUniqueMock.mockResolvedValue(intent);
+      socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(
+        intent,
+      );
+      socialConnectionCreateMock.mockResolvedValue(saved);
+    });
+    afterEach(() => vi.unstubAllEnvs());
+
+    it("refuses to reauthorize a connection of our own TikTok app outside utxo's workspace", async () => {
+      socialConnectionFindFirstMock.mockResolvedValue({
+        ...socialConnection,
+        provider: "tiktok",
+        composioConnectedAccountId: "ca_own_app",
+        status: "reauthorization_required",
+      });
+      const { initiateProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+      await expect(
+        initiateProjectSocialConnection({
+          ...input,
+          action: "reconnect",
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+        }),
+      ).rejects.toThrow("This TikTok connection is no longer supported");
+      expect(initiateComposioConnectionMock).not.toHaveBeenCalled();
+      expect(zernioRequest).not.toHaveBeenCalled();
+    });
+
+    it("creates an isolated profile and only sends its callback proof through the provider", async () => {
+      zernioRequest
+        .mockResolvedValueOnce({ profile: { _id: profileId } })
+        .mockResolvedValueOnce({
+          authUrl: "https://business-api.tiktok.com/portal/auth",
+        });
+      const { initiateProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+      const result = await initiateProjectSocialConnection({
+        ...input,
+        action: "connect",
+        provider: "tiktok",
+        callbackUrl: "https://preview.sokosumi.com/zernio/callback",
+      });
+      expect(result).toEqual({
+        connectionId,
+        redirectUrl: "https://business-api.tiktok.com/portal/auth",
+      });
+      const params = new URL(
+        zernioRequest.mock.calls[1][0],
+        "https://zernio.com",
+      ).searchParams;
+      expect(params.get("profileId")).toBe(profileId);
+      const callback = new URL(params.get("redirect_url")!);
+      expect(callback.origin + callback.pathname).toBe(
+        "https://preview.sokosumi.com/zernio/callback",
+      );
+      expect(callback.searchParams.get("connection")).toBe(connectionId);
+      const secret = callback.searchParams.get("proof")!;
+      expect(secret).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(socialConnectionIntentCreateMock).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          connectionId,
+          provider: "tiktok",
+          initiatingUserId: USER_ID,
+          authConfigId: createHash("sha256").update(secret).digest("hex"),
+        }),
+      });
+      expect(initiateComposioConnectionMock).not.toHaveBeenCalled();
+    });
+
+    it("finalizes the active provider identity on the bound profile", async () => {
+      zernioRequest.mockResolvedValue({ accounts: [account] });
+      const { finalizeProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+      await finalizeProjectSocialConnection({
+        ...input,
+        connectionId,
+        callbackProof: proof,
+      });
+      expect(socialConnectionCreateMock).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          composioConnectedAccountId: `zernio:${accountId}`,
+          externalAccountId: "tiktok-open-id",
+          externalHandle: "pilot",
+          zernioProfileId: profileId,
+        }),
+      });
+      expect(getComposioConnectedAccountMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { callbackProof: undefined },
+      { callbackProof: "wrong" },
+      { userId: "other-user" },
+      { projectId: "other-project" },
+    ])(
+      "rejects an unbound callback before provider access: %j",
+      async (changes) => {
+        const { finalizeProjectSocialConnection } = await import(
+          "./project-social-connections.service"
+        );
+        await expect(
+          finalizeProjectSocialConnection({
+            ...input,
+            connectionId,
+            callbackProof: proof,
+            ...changes,
+          }),
+        ).rejects.toThrow("Unknown or expired connection");
+        expect(zernioRequest).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      [{ ...account, profileId: accountId }],
+      [account, account],
+      [{ ...account, isActive: false }],
+      [{ ...account, needsReconnection: true }],
+    ])(
+      "rejects accounts outside the live single-account binding",
+      async (...accounts) => {
+        zernioRequest.mockResolvedValue({ accounts });
+        const { finalizeProjectSocialConnection } = await import(
+          "./project-social-connections.service"
+        );
+        await expect(
+          finalizeProjectSocialConnection({
+            ...input,
+            connectionId,
+            callbackProof: proof,
+          }),
+        ).rejects.toThrow();
+        expect(socialConnectionCreateMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it("disconnects a Zernio grant then removes its dedicated profile", async () => {
+      socialConnectionFindFirstMock
+        .mockResolvedValueOnce(saved)
+        .mockResolvedValueOnce(null);
+      socialConnectionFindUniqueMock.mockResolvedValue(saved);
+      const { disconnectProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+      await expect(
+        disconnectProjectSocialConnection({
+          ...input,
+          socialConnectionId: saved.id,
+        }),
+      ).resolves.toMatchObject({ providerRevocation: "succeeded" });
+      expect(zernioRequest.mock.calls.map(([path]) => path)).toEqual([
+        `/accounts/${accountId}`,
+        `/profiles/${profileId}`,
+      ]);
+      expect(revokeComposioConnectedAccountMock).not.toHaveBeenCalled();
+    });
+    it("cleans abandoned consent and skips a concurrently finalized intent", async () => {
+      expiredIntentFindMany.mockResolvedValue([
+        { connectionId },
+        { connectionId: "zernio:second" },
+      ]);
+      expiredIntentClaim
+        .mockResolvedValueOnce({ count: 1 })
+        .mockResolvedValueOnce({ count: 0 });
+      zernioRequest.mockResolvedValueOnce({ accounts: [account] });
+      const { cleanExpiredZernioIntents } = await import(
+        "./project-social-connections.service"
+      );
+      await expect(
+        cleanExpiredZernioIntents({
+          signal: new AbortController().signal,
+          shouldContinue: () => true,
+        }),
+      ).resolves.toEqual({ cleaned: 1, failed: 0 });
+      expect(socialConnectionIntentDeleteMock).toHaveBeenCalledExactlyOnceWith({
+        where: { connectionId },
+      });
+      expect(zernioRequest.mock.calls.slice(1).map(([path]) => path)).toEqual([
+        `/accounts/${accountId}`,
+        `/profiles/${profileId}`,
+      ]);
+    });
   });
 
   const providers = Object.keys(
@@ -407,6 +884,10 @@ describe("project social connections service", () => {
             socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(
               intent,
             );
+            // A Facebook reconnect first reads the Page the row holds, to keep it.
+            if (provider === "facebook" && action === "reconnect") {
+              socialConnectionFindFirstMock.mockResolvedValueOnce(target);
+            }
             socialConnectionFindFirstMock
               .mockResolvedValueOnce(target)
               .mockResolvedValueOnce(null);
@@ -437,6 +918,10 @@ describe("project social connections service", () => {
               provider,
               connectedAccountId: CONNECTION_ID,
               executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+              // A Facebook reconnect keeps the Page the row already holds.
+              ...(provider === "facebook" && action === "reconnect"
+                ? { pick: { externalAccountId: target.externalAccountId } }
+                : {}),
             });
           }
         },
@@ -798,7 +1283,13 @@ describe("project social connections service", () => {
         id: true,
         closingAt: true,
         closedAt: true,
-        workspace: { select: { organization: { select: { slug: true } } } },
+        testCopyOfProjectId: true,
+        workspace: {
+          select: {
+            organization: { select: { slug: true } },
+            id: true,
+          },
+        },
       },
     });
     expect(initiateComposioConnectionMock).toHaveBeenCalledWith({
@@ -1236,6 +1727,7 @@ describe("project social connections service", () => {
       where: { id: SOCIAL_CONNECTION_ID },
       data: {
         composioConnectedAccountId: CONNECTION_ID,
+        zernioProfileId: null,
         connectorUserId: `sokosumi:user:${USER_ID}`,
         externalHandle: "sokosumi",
         displayName: null,
@@ -1814,9 +2306,14 @@ describe("project social connections service", () => {
     expect(revokeComposioConnectedAccountMock).not.toHaveBeenCalled();
     expect(socialConnectionFindFirstMock).toHaveBeenLastCalledWith({
       where: {
-        composioConnectedAccountId: "ca_old",
-        status: { not: "disconnected" },
-        NOT: { id: SOCIAL_CONNECTION_ID },
+        OR: [
+          { id: SOCIAL_CONNECTION_ID, executorProjectId: { not: null } },
+          {
+            composioConnectedAccountId: "ca_old",
+            status: { not: "disconnected" },
+            NOT: { id: SOCIAL_CONNECTION_ID },
+          },
+        ],
       },
       select: { id: true },
     });
@@ -1899,6 +2396,7 @@ describe("project social connections service", () => {
         status: "active",
         connectedAt: new Date("2026-09-03T10:00:00.000Z"),
         disconnectedAt: null,
+        personalProfile: false,
       },
     ]);
   });
@@ -2140,12 +2638,20 @@ describe("backfillLinkedInAccountProfile", () => {
 
   it("never throws when the lookup fails", async () => {
     getConnectedSocialIdentityMock.mockRejectedValue(new Error("down"));
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Could not backfill a LinkedIn account's profile photo",
+      ["Reading the LinkedIn identity or storing its photo failed"],
+    );
     const { backfillLinkedInAccountProfile } = await import(
       "./project-social-connections.service"
     );
 
     await expect(backfillLinkedInAccountProfile(linkedIn)).resolves.toBe(false);
-    warn.mockRestore();
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "linkedin_profile_backfill",
+      // evlog masks all-digit UUID segments until ticket 14 lands.
+      socialConnection: { id: expect.any(String) },
+    });
   });
 });

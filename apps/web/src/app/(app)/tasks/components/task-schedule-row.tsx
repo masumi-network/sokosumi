@@ -1,8 +1,9 @@
 "use client";
 
-import type { TaskSchedule } from "@sokosumi/core-client";
+import { type TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
+import { useOptimistic } from "react";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
@@ -23,7 +24,10 @@ import type { CoworkerOption } from "@/lib/types/coworker";
 import type { SchedulesViewMode } from "@/lib/ui-preferences/schedules-view-mode";
 import { cn } from "@/lib/utils";
 
-import { TaskScheduleActions } from "./task-schedule-actions";
+import {
+  type ScheduleToggleAction,
+  TaskScheduleActions,
+} from "./task-schedule-actions";
 import { TaskScheduleStateBadge } from "./task-schedule-state-badge";
 
 interface TaskScheduleRowProps {
@@ -57,7 +61,7 @@ function toAssigneeView(option: CoworkerOption): TaskAssigneeView {
  * detail page.
  */
 export function TaskScheduleRow({
-  schedule,
+  schedule: savedSchedule,
   viewMode = "list",
   assigneeDisplayOptions,
   coworkerOptions,
@@ -69,6 +73,15 @@ export function TaskScheduleRow({
   const t = useTranslations("App.Tasks.Schedules");
   const tSchedule = useTranslations("App.Tasks.Schedule");
   const formatter = useFormatter();
+  // A pause or resume shows at once. React drops this value when the action
+  // ends: with the revalidated schedule, or alone when the change failed.
+  const [schedule, showStateChange] = useOptimistic(
+    savedSchedule,
+    (current, action: ScheduleToggleAction): TaskSchedule =>
+      action === "pause"
+        ? { ...current, state: TaskScheduleState.PAUSED, nextRunAt: null }
+        : { ...current, state: TaskScheduleState.ACTIVE },
+  );
 
   const assigneeId = taskScheduleAssigneeId(schedule);
   const assignee = assigneeId
@@ -85,6 +98,11 @@ export function TaskScheduleRow({
     assigneeDisplayOptions,
     { unassigned: t("unassigned"), unavailable: t("unavailableAssignee") },
   );
+  // Core works out the next run of a resumed schedule, and may end it. Say
+  // nothing about the next run until that answer is here, but keep its line
+  // so the row does not change height.
+  const isResuming =
+    schedule !== savedSchedule && schedule.state === TaskScheduleState.ACTIVE;
   // Every time reads on the schedule's own clock, as its rule does.
   const nextRun = schedule.nextRunAt
     ? formatTaskScheduleTime(
@@ -93,14 +111,16 @@ export function TaskScheduleRow({
         formatter,
       )
     : null;
-  const nextRunLabel = !nextRun
-    ? t("noNextRun")
-    : nextRun.local
-      ? t("nextRunWithLocal", {
-          datetime: nextRun.schedule,
-          local: nextRun.local,
-        })
-      : t("nextRun", { datetime: nextRun.schedule });
+  const nextRunLabel = isResuming
+    ? "\u00a0"
+    : !nextRun
+      ? t("noNextRun")
+      : nextRun.local
+        ? t("nextRunWithLocal", {
+            datetime: nextRun.schedule,
+            local: nextRun.local,
+          })
+        : t("nextRun", { datetime: nextRun.schedule });
 
   return (
     <li
@@ -171,6 +191,7 @@ export function TaskScheduleRow({
         <div className="relative z-10 shrink-0">
           <TaskScheduleActions
             onChanged={onChanged}
+            onStateChanging={showStateChange}
             schedule={schedule}
             coworkerOptions={coworkerOptions}
             projectOptions={projectOptions}

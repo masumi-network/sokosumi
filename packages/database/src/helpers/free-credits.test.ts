@@ -55,6 +55,13 @@ describe("grantFreeCredits", () => {
 
     assert.deepEqual(result, { bucketId: "bucket-1" });
     assert.equal(
+      Object.hasOwn(
+        createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create,
+        "projectId",
+      ),
+      false,
+    );
+    assert.equal(
       createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.referenceId,
       "user:user-1:free:grant-1",
     );
@@ -118,6 +125,32 @@ describe("grantFreeCredits", () => {
     );
     assert.equal(createMock.mock.calls[0]?.[0].data.userId, null);
     assert.equal(createMock.mock.calls[0]?.[0].data.organizationId, "org-1");
+  });
+
+  it("scopes an organization grant to a Project", async () => {
+    const createMock = vi.fn().mockResolvedValue({
+      sourceCreditBucket: { id: "bucket-project" },
+    });
+
+    await grantFreeCredits(
+      {
+        credits: 10_000,
+        expiresAt: null,
+        grantId: "grant-project",
+        organizationId: "org-1",
+        projectId: "project-1",
+        referenceNote: null,
+        targetId: "org-1",
+        targetType: "organization",
+        transactionUserId: null,
+      },
+      { transaction: { create: createMock } } as never,
+    );
+
+    assert.equal(
+      createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.projectId,
+      "project-1",
+    );
   });
 
   it("rejects non-positive credits", async () => {

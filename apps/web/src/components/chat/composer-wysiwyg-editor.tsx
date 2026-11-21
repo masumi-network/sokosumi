@@ -48,6 +48,8 @@ import {
   UNKNOWN_MENTION_CLASSNAME,
   VIEWPORT_PADDING_PX,
 } from "@/components/ui/mention-textarea-utils";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
+import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import { cn } from "@/lib/utils";
 import {
   type ComposerActiveFormats,
@@ -84,7 +86,7 @@ import {
   matchExactEmojiShortcodeClosed,
 } from "@/lib/utils/emoji-shortcodes";
 import { normalizeUrl } from "@/lib/utils/markdown-editor-utils";
-import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
+import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 
 type SuggestionUiState =
   | { open: false }
@@ -99,6 +101,8 @@ export interface ComposerWysiwygEditorHandle {
   focus: () => void;
   focusAtEnd: () => void;
   insertText: (text: string) => void;
+  /** Add `text` after the whole draft, with a space after a word. */
+  appendText: (text: string) => void;
   /** Remove the last occurrence of `text`; false when it is not in the editor. */
   removeLastText: (text: string) => boolean;
   openMentions: () => void;
@@ -135,7 +139,6 @@ interface ComposerWysiwygEditorProps<TData = unknown> {
   ariaLabel?: string;
   onLinkShortcut?: () => void;
   onActiveFormatsChange?: (formats: ComposerActiveFormats) => void;
-  onSelectedKeysChange?: (selectedKeys: string[]) => void;
   renderMentionItem?: (
     mention: NormalizedMention<TData>,
     isActive: boolean,
@@ -232,11 +235,17 @@ export function ComposerWysiwygEditor<TData = unknown>({
   ariaLabel,
   onLinkShortcut,
   onActiveFormatsChange,
-  onSelectedKeysChange,
   renderMentionItem,
   groupMentions,
 }: ComposerWysiwygEditorProps<TData>) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const [editorElement, setEditorElement] = useState<HTMLDivElement | null>(
+    null,
+  );
+  const setEditorNode = useCallback((node: HTMLDivElement | null) => {
+    editorRef.current = node;
+    setEditorElement(node);
+  }, []);
   const listRef = useRef<HTMLDivElement>(null);
   const isSelectingRef = useRef(false);
   const isInternalChange = useRef(false);
@@ -280,14 +289,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
     const map = new Map<string, string>();
     for (const mention of normalizedMentions) {
       if (mention.slug) map.set(mention.slug, mention.value);
-    }
-    return map;
-  }, [normalizedMentions]);
-
-  const slugToKey = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const mention of normalizedMentions) {
-      if (mention.slug) map.set(mention.slug, mention.key);
     }
     return map;
   }, [normalizedMentions]);
@@ -355,39 +356,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
       : suggestionKind === "channel"
         ? channelMatches.length
         : selectableMentions.length;
-
-  const selectedKeys = useMemo(() => {
-    const parsed = parseMentions(value);
-    const uniqueKeys: string[] = [];
-    const seenKeys = new Set<string>();
-    for (const mention of parsed) {
-      const directKey = keyToValue.has(mention.id) ? mention.id : null;
-      const slugKey =
-        slugToKey.get(mention.slug) ??
-        slugToKey.get(slugifyMentionValue(mention.id));
-      const resolvedKey = directKey ?? slugKey ?? null;
-      if (!resolvedKey) continue;
-      if (seenKeys.has(resolvedKey)) continue;
-      seenKeys.add(resolvedKey);
-      uniqueKeys.push(resolvedKey);
-    }
-    return uniqueKeys;
-  }, [keyToValue, slugToKey, value]);
-
-  const lastSelectedKeysRef = useRef<string[]>([]);
-  useEffect(() => {
-    if (!onSelectedKeysChange) return;
-    const previousKeys = lastSelectedKeysRef.current;
-    if (
-      previousKeys.length === selectedKeys.length &&
-      previousKeys.every((key, index) => key === selectedKeys[index])
-    ) {
-      return;
-    }
-
-    lastSelectedKeysRef.current = selectedKeys;
-    onSelectedKeysChange(selectedKeys);
-  }, [onSelectedKeysChange, selectedKeys]);
 
   const openSuggestions = useCallback(
     ({
@@ -819,6 +787,18 @@ export function ComposerWysiwygEditor<TData = unknown>({
       handleInput();
     },
     [handleInput],
+  );
+
+  const appendText = useCallback(
+    (text: string) => {
+      const editor = editorRef.current;
+      if (!editor) return;
+      const draft = serializeEditorText(editor);
+      // No saved caret: insertText puts the caret at the end.
+      savedCaretOffsetRef.current = null;
+      insertText(draft.length === 0 || /\s$/.test(draft) ? text : ` ${text}`);
+    },
+    [insertText],
   );
 
   const removeLastText = useCallback(
@@ -1303,42 +1283,33 @@ export function ComposerWysiwygEditor<TData = unknown>({
     tryFlushTrailingEmoticon,
   ]);
 
-  useEffect(() => {
-    const onSelectionChange = () => {
-      publishActiveFormats();
-      const editor = editorRef.current;
-      if (!editor) return;
-      const caretOffset = getCaretOffset(editor);
-      if (caretOffset != null) {
-        savedCaretOffsetRef.current = caretOffset;
-      }
-    };
-    document.addEventListener("selectionchange", onSelectionChange);
-    return () => {
-      document.removeEventListener("selectionchange", onSelectionChange);
-    };
-  }, [publishActiveFormats]);
+  useEventListener("document", "selectionchange", () => {
+    publishActiveFormats();
+    const editor = editorRef.current;
+    if (!editor) return;
+    const caretOffset = getCaretOffset(editor);
+    if (caretOffset != null) {
+      savedCaretOffsetRef.current = caretOffset;
+    }
+  });
 
   useEffect(() => {
     if (!onActiveFormatsChange) return;
     publishActiveFormats();
   }, [onActiveFormatsChange, publishActiveFormats]);
 
-  useEffect(() => {
-    if (!isOpen || !listRef.current) return;
-    const activeItem = listRef.current.querySelector(
-      `[data-index="${activeIndex}"]`,
-    );
-    activeItem?.scrollIntoView({ block: "nearest" });
-  }, [activeIndex, isOpen]);
+  useScrollIntoViewWhen(
+    () => listRef.current?.querySelector(`[data-index="${activeIndex}"]`),
+    isOpen,
+    { block: "nearest", resetKey: activeIndex },
+  );
 
-  useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor) return;
-
-    // Capture-phase listener: contentEditable arrow keys are more reliable
-    // here than React's delegated onKeyDown alone.
-    function onNativeKeyDown(event: KeyboardEvent) {
+  // Capture-phase listener: contentEditable arrow keys are more reliable
+  // here than React's delegated onKeyDown alone.
+  useEventListener(
+    editorElement,
+    "keydown",
+    (event) => {
       const currentEditor = editorRef.current;
       if (!currentEditor) return;
       if (event.defaultPrevented || event.isComposing) return;
@@ -1359,13 +1330,9 @@ export function ComposerWysiwygEditor<TData = unknown>({
       requestAnimationFrame(() => {
         publishActiveFormats();
       });
-    }
-
-    editor.addEventListener("keydown", onNativeKeyDown, true);
-    return () => {
-      editor.removeEventListener("keydown", onNativeKeyDown, true);
-    };
-  }, [handleInput, publishActiveFormats]);
+    },
+    true,
+  );
 
   useEffect(() => {
     return () => {
@@ -1394,6 +1361,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
         selection.addRange(range);
       },
       insertText,
+      appendText,
       removeLastText,
       openMentions,
       applyFormat,
@@ -1405,6 +1373,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
     }),
     [
       applyFormat,
+      appendText,
       insertLink,
       insertText,
       openMentions,
@@ -1416,7 +1385,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
   return (
     <>
       <div
-        ref={editorRef}
+        ref={setEditorNode}
         id={id}
         contentEditable={!disabled}
         suppressContentEditableWarning

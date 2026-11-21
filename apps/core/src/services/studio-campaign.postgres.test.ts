@@ -15,6 +15,11 @@ const external = vi.hoisted(() => ({
   driveHead: vi.fn(),
 }));
 
+// The flow publishes over Ably; the test env has no real key.
+vi.mock("@/lib/ably/client", async () =>
+  (await import("@/test/ably-client")).fakeAblyClientModule(),
+);
+
 vi.mock("@/config/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/config/env")>();
   return {
@@ -75,6 +80,7 @@ import {
   studioWebsiteDraftSchema,
 } from "@/schemas/studio-brand-kit.schema";
 import { settleWithMedia } from "@/services/image-studio-jobs.service";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -156,7 +162,7 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
     });
     projectId = project.id;
     const grant = await prisma.transaction.create({
-      data: { userId, amount: convertCreditsToCents(100) },
+      data: { userId, amount: convertCreditsToCents(300) },
     });
     await prisma.creditBucket.create({
       data: { userId, amount: grant.amount, sourceTransactionId: grant.id },
@@ -397,7 +403,7 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
         batchId,
         product: { id: product.id, name: product.name },
         exportHeadline: index === 0 ? approvedLine : secondApprovedLine,
-        modelId: "muse-image",
+        lettering: "overlay",
         settings: { aspectRatio },
         prompt: productBrief(product),
         idempotencyKey: randomUUID(),
@@ -592,7 +598,6 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       prompt: "Use a darker background and keep the layout.",
       parentAssetId: firstAd.id,
       referenceAssetIds: [firstAd.id],
-      modelId: "muse-image",
     };
     const fromAssistant = () =>
       studio.request("/image-studio-agent/generations", {
@@ -601,6 +606,7 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
         body: JSON.stringify({
           ...refinement,
           aspectRatio: "9:16",
+          lettering: "overlay",
           idempotencyKey: randomUUID(),
         }),
       });
@@ -617,6 +623,7 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
           referenceAssetIds: [parentAssetId],
           batchId: explicitBatchId,
           product,
+          lettering: "overlay",
           settings: { aspectRatio: "9:16" },
           idempotencyKey: randomUUID(),
         }),
@@ -737,6 +744,11 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
   });
 
   it("composites a verified product cutout into the delivered artwork and checks the file again", async () => {
+    // Refused twice before it is accepted: no transparency, then a changed file.
+    expectCoreLogWhys("warn", "An image generation failed before it was sent", [
+      "Preparing the request for the image provider threw",
+      "Preparing the request for the image provider threw",
+    ]);
     const path = `/${projectId}/image-studio`;
     const studio = app();
     const width = 20;
@@ -800,7 +812,6 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
           `${path}/jobs`,
           json("POST", {
             prompt: "A clean studio tabletop for a coffee ad.",
-            modelId: "muse-image",
             useProductCutout: true,
             referenceFileIds: [file.id],
             idempotencyKey: randomUUID(),
@@ -873,7 +884,6 @@ describe.skipIf(!enabled)("Studio campaign from website to export", () => {
       ) => {
         const payload = {
           prompt: "Make the backdrop darker.",
-          modelId: "muse-image",
           parentAssetId,
           referenceAssetIds: [parentAssetId],
           idempotencyKey: randomUUID(),

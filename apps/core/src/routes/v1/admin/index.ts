@@ -2,6 +2,7 @@ import { createMiddleware } from "hono/factory";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireAdminAuthContext } from "@/middleware/auth";
+import adEvalsRouter from "./ad-evals/index.js";
 import agentsRouter from "./agents/index.js";
 import badgeCampaignsRouter from "./badge-campaigns/index.js";
 import creditsRouter from "./credits/index.js";
@@ -10,6 +11,7 @@ import invoicesRouter from "./invoices/index.js";
 import matchedChannelsRouter from "./matched-channels/index.js";
 import organizationsRouter from "./organizations/index.js";
 import searchRouter from "./search/index.js";
+import mountSeoAlerts from "./seo-alerts/get.js";
 import sokoBotsRouter from "./soko-bots/index.js";
 import taskPaymentClaimsRouter from "./task-payment-claims/index.js";
 import taskX402PaymentsRouter from "./task-x402-payments/index.js";
@@ -29,6 +31,7 @@ const requireAdmin = createMiddleware(async (c, next) => {
 const app = new OpenAPIHonoWithAuth();
 
 app.use("*", requireAdmin);
+mountSeoAlerts(app);
 app.route("/agents", agentsRouter);
 app.route("/badge-campaigns", badgeCampaignsRouter);
 app.route("/search", searchRouter);
@@ -39,6 +42,7 @@ app.route("/organizations", organizationsRouter);
 app.route("/invoices", invoicesRouter);
 app.route("/credits", creditsRouter);
 app.route("/evals", evalsRouter);
+app.route("/ad-evals", adEvalsRouter);
 app.route("/tasks", tasksRouter);
 app.route("/task-payment-claims", taskPaymentClaimsRouter);
 app.route("/task-x402-payments", taskX402PaymentsRouter);

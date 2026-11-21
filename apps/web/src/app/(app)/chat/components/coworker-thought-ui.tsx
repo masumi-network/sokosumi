@@ -45,48 +45,6 @@ function useLiveElapsedMs(startedAtMs: number): number {
   return Math.max(0, now - startedAtMs);
 }
 
-function ThoughtSparkle({ working }: { working: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden
-      className="size-3 shrink-0"
-      fill={
-        working
-          ? "var(--muted-foreground)"
-          : "color-mix(in oklab, var(--muted-foreground) 70%, transparent)"
-      }
-    >
-      <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
-    </svg>
-  );
-}
-
-/** Settled Thought header for a failed mention shell. */
-export function CoworkerFailedThoughtSparkle({
-  label,
-  className,
-}: {
-  label: string;
-  className?: string;
-}) {
-  return (
-    <div
-      className={cn(
-        "-mx-1 flex min-h-6 w-fit max-w-full items-center gap-1.5 rounded-md px-1 py-0.5",
-        className,
-      )}
-      data-testid="coworker-thought-sparkle"
-      role="status"
-    >
-      <ThoughtSparkle working={false} />
-      <span className="text-muted-foreground truncate text-xs font-medium whitespace-nowrap">
-        {label}
-      </span>
-    </div>
-  );
-}
-
 /**
  * Expandable Thought header + optional prose body (Beautiful UI Thinking · Reasoning).
  * - Live: working shimmer "Thinking" + optional live beat in expanded body
@@ -163,7 +121,6 @@ export function CoworkerThoughtTrace({
           !hasBody && "cursor-default",
         )}
       >
-        <ThoughtSparkle working={working} />
         {working ? (
           <span className="bui-shimmer-text truncate text-xs font-medium whitespace-nowrap">
             {headerLabel}
@@ -243,8 +200,8 @@ export function CoworkerThoughtTrace({
 }
 
 /**
- * Live Thought: sparkle header from silent think through beats so the icon
- * does not swap when the first step arrives.
+ * Live Thought: one header from silent think through beats, so it does not
+ * change when the first step arrives.
  */
 export function CoworkerLiveThought({
   label,

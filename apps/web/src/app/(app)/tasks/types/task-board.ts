@@ -1,13 +1,18 @@
 import type {
   ProjectSummary,
+  Task,
   TaskEvent,
+  TaskOpenSubtask,
   TaskPriority,
   TaskShare,
+  TaskSubtaskProgress,
   TaskTags,
   TaskVisibility,
   UserSummary,
 } from "@sokosumi/core-client";
 import type { CoreAgentDto, TaskStatus } from "@/lib/types/core-dto";
+
+export type TaskWorkspaceTag = NonNullable<Task["workspaceTags"]>[number];
 
 export interface TaskAssigneeView {
   id: string;
@@ -25,6 +30,8 @@ export interface TaskAssigneeView {
  */
 export interface TaskWithCoworker {
   id: string;
+  /** A create request is on the wire: the row has no page and cannot move. */
+  isPending?: boolean;
   /** Short id such as SOK-12; null for tasks without a project. */
   identifier: string | null;
   name: string;
@@ -44,6 +51,7 @@ export interface TaskWithCoworker {
   commentsCount: number;
   columnId: KanbanColumnId;
   tags?: TaskTags;
+  workspaceTags?: TaskWorkspaceTag[];
   description?: string | null;
   descriptionPlain?: string | null;
   events: TaskEvent[];
@@ -52,6 +60,14 @@ export interface TaskWithCoworker {
   runAt?: string | null;
   /** `YYYY-MM-DD` the Task should be done by. */
   dueOn?: string | null;
+  /** ISO time the Task last changed status, or was created. */
+  statusSince?: string;
+  /** Direct sub-tasks done of all. Absent on saved chat result snapshots. */
+  subtaskProgress?: TaskSubtaskProgress;
+  /** The first open direct sub-tasks. Absent from Cores that predate it. */
+  openSubtasks?: TaskOpenSubtask[];
+  /** A comment mentions the reader and the reader has not commented since. */
+  hasUnansweredMention?: boolean;
 }
 
 export type KanbanColumnId =

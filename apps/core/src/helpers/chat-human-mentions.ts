@@ -12,6 +12,7 @@ import {
 import { emitChatRoomMessageNotifications } from "@/helpers/chat-room-message-created-effects";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import prisma from "@/lib/db/prisma";
+import { readLegacyBackgroundFailure } from "@/lib/soko-bot/background-failure";
 import { resolveMentionedUserIds } from "@/routes/v1/chats/rooms/helpers";
 
 /**
@@ -117,6 +118,12 @@ interface EmitChatMessageNotificationsParams {
   throwOnError?: boolean;
   messageId: string;
   mentionedUserIds: readonly string[];
+  /**
+   * Push when the reader stored no push row for this category, instead of the
+   * category default. A stored row still wins. Task interest messages only:
+   * someone who follows a Task asked to hear about it.
+   */
+  osBannerDefaultOn?: boolean;
 }
 
 /**
@@ -161,6 +168,7 @@ async function emitStoredMessageNotifications(
       where: { id: params.messageId },
       select: {
         content: true,
+        metadata: true,
         deletedAt: true,
         parentMessageId: true,
         senderCoworker: { select: { name: true } },
@@ -189,12 +197,15 @@ async function emitStoredMessageNotifications(
     const authorName = message.senderSokoBot
       ? sokoBotDisplayName(message.senderSokoBot)
       : (message.senderCoworker?.name ?? "Someone");
+    const legacyFailure = message.senderSokoBot
+      ? readLegacyBackgroundFailure(message.content, message.metadata)
+      : null;
     const common = {
       roomId: message.room.id,
       roomName: message.room.groupName ?? message.room.name,
       organizationId: message.room.organizationId,
       messageId: params.messageId,
-      content: message.content,
+      content: legacyFailure?.content ?? message.content,
       authorUserId: null,
       authorName,
       ...(params.throwOnError ? { throwOnError: true } : {}),
@@ -213,6 +224,7 @@ async function emitStoredMessageNotifications(
             parentMessageId: message.parentMessageId,
             recipientUserIds: memberUserIds,
             mentionedUserIds: params.mentionedUserIds,
+            ...(params.osBannerDefaultOn ? { osBannerDefaultOn: true } : {}),
           }),
         );
       } else {

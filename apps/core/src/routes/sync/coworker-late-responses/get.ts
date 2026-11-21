@@ -15,8 +15,9 @@ export default function mount(app: Hono) {
         const result = await syncLateCoworkerResponses({
           shouldContinue: context.shouldContinue,
         });
-        console.info("[sync/coworker-late-responses] Completed sync", result);
+        context.log.set({ result });
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }

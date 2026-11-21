@@ -1,10 +1,6 @@
 "use client";
 
-import type {
-  TaskEvent,
-  TaskFile,
-  TaskParticipant,
-} from "@sokosumi/core-client";
+import type { TaskEvent, TaskFile } from "@sokosumi/core-client";
 import {
   BlobStatus,
   Channel,
@@ -18,7 +14,6 @@ import {
 } from "@sokosumi/utils";
 import { ArrowDown } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type ReactNode,
@@ -67,11 +62,12 @@ import {
 import { getInitials } from "@/lib/utils/text";
 import { getFileNameFromUrl } from "@/lib/utils/url";
 import { TaskActivityComposer } from "./task-activity-composer";
-import { TaskActivitySubscribeControl } from "./task-activity-subscribe";
+import { useTaskResultTableComponents } from "./task-result-table-action";
 import {
   getTaskStatusDotColorClass,
   TaskStatusInline,
 } from "./task-status-badge";
+import { TaskTableEvent } from "./task-table-event";
 
 interface TaskActivityProps {
   taskId: string;
@@ -109,8 +105,15 @@ interface TaskActivityProps {
   canComment?: boolean;
   /** Workspace members the composer offers for `@`; mentions add them as Task participants. */
   mentionableUsers?: readonly MentionableUser[];
-  /** Task participants in join order. */
-  participants?: TaskParticipant[];
+  /** Sits in the header beside Jump to latest: follow and participant controls. */
+  headerAction?: ReactNode;
+  /** The Task's name and project: tables in the activity offer Save as table to a reader who can comment. */
+  tableSource?: {
+    taskId: string;
+    workspaceId: string;
+    title: string;
+    projectId: string | null;
+  };
 }
 
 export interface MentionableUser {
@@ -119,7 +122,6 @@ export interface MentionableUser {
 }
 
 const NO_MENTIONABLE_USERS: readonly MentionableUser[] = [];
-const NO_PARTICIPANTS: TaskParticipant[] = [];
 
 function isNewOptimisticEventId(id: string): boolean {
   return id.startsWith("optimistic:");
@@ -191,7 +193,11 @@ function matchTaskFile(
   return undefined;
 }
 
-export function TaskActivitySection({
+export function TaskActivitySection(props: TaskActivityProps) {
+  return <TaskActivityContent key={props.taskId} {...props} />;
+}
+
+function TaskActivityContent({
   taskId,
   title,
   placeholder,
@@ -218,15 +224,18 @@ export function TaskActivitySection({
   viewerPlan = null,
   canComment = true,
   mentionableUsers = NO_MENTIONABLE_USERS,
-  participants = NO_PARTICIPANTS,
+  headerAction,
+  tableSource,
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
+  const markdownComponents = useTaskResultTableComponents(
+    canComment ? (tableSource ?? null) : null,
+  );
   const tStatus = useTranslations("App.Tasks.Filters.statusOptions");
   const resolvedAgentNameById = useMemo(
     () => agentNameById ?? new Map<string, string>(),
     [agentNameById],
   );
-  const router = useRouter();
   const [isSending, startSending] = useTransition();
   const [, startExpandTransition] = useTransition();
   const [localEvents, setLocalEvents] = useState<TaskEvent[]>(events);
@@ -258,27 +267,19 @@ export function TaskActivitySection({
     return names;
   }, [userById, mentionableUsers, viewerId]);
 
-  useEffect(() => {
-    setCommentsExpanded(false);
-    setPendingJumpId(null);
-  }, [taskId]);
-
-  useEffect(() => {
+  const [syncedEvents, setSyncedEvents] = useState(events);
+  if (syncedEvents !== events) {
+    setSyncedEvents(events);
     // Same task: merge so expanded older pages survive truncated refresh.
     // Drop optimistic rows — the refreshed prop carries the persisted event.
-    // Different task: replace the feed entirely.
-    setLocalEvents((prev) => {
-      const sameTask =
-        prev.length > 0 && prev.every((event) => event.taskId === taskId);
-      if (!sameTask) {
-        return events;
-      }
-      return mergeTaskActivityEvents(
+    // Switching taskId remounts this subtree via key, so state resets cleanly.
+    setLocalEvents((prev) =>
+      mergeTaskActivityEvents(
         prev.filter((event) => !event.id.startsWith("optimistic:")),
         events,
-      );
-    });
-  }, [events, taskId]);
+      ),
+    );
+  }
 
   const localCommentCount = localEvents.filter(
     (event) => event.comment != null,
@@ -427,7 +428,6 @@ export function TaskActivitySection({
       startSending(async () => {
         try {
           await createTaskComment({ taskId, comment, mentionedUserIds });
-          router.refresh();
           resolve(true);
         } catch {
           setLocalEvents((prev) =>
@@ -456,14 +456,7 @@ export function TaskActivitySection({
               {t("jumpToRecent")}
             </Button>
           ) : null}
-          <TaskActivitySubscribeControl
-            taskId={taskId}
-            viewerId={currentUser?.id ?? null}
-            viewerName={currentUser?.name ?? null}
-            viewerImage={currentUser?.image ?? null}
-            participants={participants}
-            canComment={canComment}
-          />
+          {headerAction}
         </div>
       </div>
 
@@ -526,6 +519,19 @@ export function TaskActivitySection({
             const originFromLabel = t("originFromApp", {
               appName: channelAppName,
             });
+            // "from Unknown" tells the reader nothing, so name no origin.
+            const origin =
+              event.channel === Channel.UNKNOWN ? null : (
+                <span className="whitespace-nowrap">
+                  {originFromLabel}
+                  <ChannelIcon
+                    className="text-muted-foreground ml-1 inline size-3.5 align-text-bottom"
+                    role="img"
+                    aria-label={originFromLabel}
+                    data-testid={`origin-icon-${event.id}`}
+                  />
+                </span>
+              );
             const isNewOptimisticEvent = isNewOptimisticEventId(event.id);
             const chargePresentation = getTaskEventChargePresentation(event);
             const formattedComment = chargePresentation.hasComment
@@ -682,20 +688,7 @@ export function TaskActivitySection({
                         </span>
                         <span className="max-sm:order-3 max-sm:basis-full sm:contents">
                           <span className="text-muted-foreground text-xs">
-                            <span>{action}</span>{" "}
-                            {!taskStatus ? (
-                              <>
-                                <span className="whitespace-nowrap">
-                                  {originFromLabel}
-                                  <ChannelIcon
-                                    className="text-muted-foreground ml-1 inline size-3.5 align-text-bottom"
-                                    role="img"
-                                    aria-label={originFromLabel}
-                                    data-testid={`origin-icon-${event.id}`}
-                                  />
-                                </span>
-                              </>
-                            ) : null}
+                            <span>{action}</span> {taskStatus ? null : origin}
                           </span>
                           {taskStatus ? (
                             <>
@@ -705,15 +698,7 @@ export function TaskActivitySection({
                                 label={tStatus(taskStatus)}
                               />{" "}
                               <span className="text-muted-foreground text-xs">
-                                <span className="whitespace-nowrap">
-                                  {originFromLabel}
-                                  <ChannelIcon
-                                    className="text-muted-foreground ml-1 inline size-3.5 align-text-bottom"
-                                    role="img"
-                                    aria-label={originFromLabel}
-                                    data-testid={`origin-icon-${event.id}`}
-                                  />
-                                </span>
+                                {origin}
                               </span>
                             </>
                           ) : null}
@@ -725,14 +710,19 @@ export function TaskActivitySection({
                       />
                     </div>
                     {formattedComment ? (
-                      <ExpandableMarkdown
-                        content={formattedComment}
-                        className="prose-sm text-foreground text-sm"
-                        expandLabel={expandLabel}
-                        collapseLabel={collapseLabel}
-                        fadeClassName="to-transparent"
-                        defaultOpen={shouldHighlightDoneBorder}
-                      />
+                      <TaskTableEvent
+                        value={isNewOptimisticEvent ? null : event.id}
+                      >
+                        <ExpandableMarkdown
+                          content={formattedComment}
+                          className="prose-sm text-foreground text-sm"
+                          expandLabel={expandLabel}
+                          collapseLabel={collapseLabel}
+                          fadeClassName="to-transparent"
+                          defaultOpen={shouldHighlightDoneBorder}
+                          components={markdownComponents}
+                        />
+                      </TaskTableEvent>
                     ) : null}
                     {shouldShowBillingPlaceholder ? (
                       <p className="text-foreground text-sm">

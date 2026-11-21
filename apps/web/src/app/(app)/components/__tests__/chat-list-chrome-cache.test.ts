@@ -10,8 +10,9 @@ vi.mock("@/lib/services/chat-room.service", () => ({
     listArchivedRooms: (...args: unknown[]) => listArchivedRoomsMock(...args),
   },
 }));
-vi.mock("@/lib/services/user.service", () => ({
-  userService: {
+vi.mock("@/lib/clients/core.client", () => ({
+  coreClient: {},
+  coreClientNoRedirect: {
     getMyMembersWithOrganizations: (...args: unknown[]) =>
       getMyMembersWithOrganizationsMock(...args),
   },
@@ -19,7 +20,7 @@ vi.mock("@/lib/services/user.service", () => ({
 
 const EMPTY_PAGE = { rooms: [], nextCursor: null };
 
-describe("loadChatListChromeData", () => {
+describe("chat list chrome loaders", () => {
   beforeEach(() => {
     listRoomsMock.mockReset();
     listArchivedRoomsMock.mockReset();
@@ -32,43 +33,47 @@ describe("loadChatListChromeData", () => {
       rooms: [{ id: "archived-1" }],
       nextCursor: null,
     });
-    getMyMembersWithOrganizationsMock.mockResolvedValue([
-      { organizationId: "org-1", role: "owner" },
-    ]);
+    getMyMembersWithOrganizationsMock.mockResolvedValue({
+      data: [{ organizationId: "org-1", role: "owner" }],
+    });
   });
 
-  it("issues one rooms + archived + members fetch per loadChatListChromeData call", async () => {
-    // Proves the shared body is a single fan-out, not N service calls per field.
-    // In-request SSR dedupe of sidebar+page is Next private-cache runtime (not
-    // exercisable here); dual call-site wiring is locked by the contract tests.
-    const { loadChatListChromeData } = await import(
-      "@/app/components/private-sidebar-cache"
-    );
+  it("loads membership rooms and archived members as separate reads", async () => {
+    const { loadChatListArchivedAndMembers, loadMembershipVisibleRooms } =
+      await import("@/app/components/private-sidebar-cache");
 
-    const result = await loadChatListChromeData("org-1");
+    const [rooms, archivedAndMembers] = await Promise.all([
+      loadMembershipVisibleRooms(),
+      loadChatListArchivedAndMembers("org-1"),
+    ]);
 
     expect(listRoomsMock).toHaveBeenCalledTimes(1);
     expect(listRoomsMock).toHaveBeenCalledWith();
     expect(listArchivedRoomsMock).toHaveBeenCalledTimes(1);
     expect(getMyMembersWithOrganizationsMock).toHaveBeenCalledTimes(1);
-    expect(result.chatRoomsPage.rooms).toEqual([{ id: "room-1" }]);
-    expect(result.archivedChatRoomsPage.rooms).toEqual([{ id: "archived-1" }]);
-    expect(result.members).toEqual([
+    expect(rooms.rooms).toEqual([{ id: "room-1" }]);
+    expect(archivedAndMembers.archivedChatRoomsPage.rooms).toEqual([
+      { id: "archived-1" },
+    ]);
+    expect(archivedAndMembers.members).toEqual([
       { organizationId: "org-1", role: "owner" },
     ]);
   });
 
   it("skips archived rooms Core fetch when no active organization", async () => {
-    const { loadChatListChromeData } = await import(
-      "@/app/components/private-sidebar-cache"
-    );
+    const { loadChatListArchivedAndMembers, loadMembershipVisibleRooms } =
+      await import("@/app/components/private-sidebar-cache");
 
-    const result = await loadChatListChromeData(null);
+    const [rooms, archivedAndMembers] = await Promise.all([
+      loadMembershipVisibleRooms(),
+      loadChatListArchivedAndMembers(null),
+    ]);
 
     expect(listRoomsMock).toHaveBeenCalledTimes(1);
     expect(listArchivedRoomsMock).not.toHaveBeenCalled();
     expect(getMyMembersWithOrganizationsMock).toHaveBeenCalledTimes(1);
-    expect(result.archivedChatRoomsPage).toEqual(EMPTY_PAGE);
+    expect(rooms.rooms).toEqual([{ id: "room-1" }]);
+    expect(archivedAndMembers.archivedChatRoomsPage).toEqual(EMPTY_PAGE);
   });
 
   it("returns empty pages when room fetches fail", async () => {
@@ -77,15 +82,17 @@ describe("loadChatListChromeData", () => {
     getMyMembersWithOrganizationsMock.mockRejectedValueOnce(
       new Error("members down"),
     );
-    const { loadChatListChromeData } = await import(
-      "@/app/components/private-sidebar-cache"
-    );
+    const { loadChatListArchivedAndMembers, loadMembershipVisibleRooms } =
+      await import("@/app/components/private-sidebar-cache");
 
-    const result = await loadChatListChromeData("org-1");
+    const [rooms, archivedAndMembers] = await Promise.all([
+      loadMembershipVisibleRooms(),
+      loadChatListArchivedAndMembers("org-1"),
+    ]);
 
-    expect(result.chatRoomsPage).toEqual(EMPTY_PAGE);
-    expect(result.archivedChatRoomsPage).toEqual(EMPTY_PAGE);
-    expect(result.members).toEqual([]);
+    expect(rooms).toEqual(EMPTY_PAGE);
+    expect(archivedAndMembers.archivedChatRoomsPage).toEqual(EMPTY_PAGE);
+    expect(archivedAndMembers.members).toEqual([]);
   });
 });
 
@@ -137,7 +144,21 @@ describe("chat list chrome single-source composition contract", () => {
       "utf8",
     );
 
-    expect(sidebar).toMatch(/getPrivateCachedChatListChrome/);
+    // The sidebar takes the same two slices, rooms first.
+    expect(sidebar).toMatch(/loadSidebarChatList/);
+    const sidebarLoaderStart = cacheSource.indexOf(
+      "function loadSidebarChatList",
+    );
+    const sidebarLoader = cacheSource.slice(
+      sidebarLoaderStart,
+      cacheSource.indexOf("\n}\n", sidebarLoaderStart),
+    );
+    expect(sidebarLoader).toMatch(
+      /getPrivateCachedMembershipVisibleRooms\(args\)/,
+    );
+    expect(sidebarLoader).toMatch(
+      /getPrivateCachedChatListArchivedAndMembers\(args\)/,
+    );
     // Chats awaits membership rooms, then Suspense-streams archived+members.
     expect(chatsPage).toMatch(/getPrivateCachedMembershipVisibleRooms/);
     expect(chatsPage).toMatch(/getPrivateCachedChatListArchivedAndMembers/);
@@ -151,7 +172,7 @@ describe("chat list chrome single-source composition contract", () => {
     expect(chatsPage).not.toMatch(
       /userService\s*\.\s*getMyMembersWithOrganizations\s*\(/,
     );
-    // Composer still exists for the sidebar; rooms + deferred are separate
+    // Composer still exists for the account footer and `/you`; rooms + deferred are separate
     // private-cache entries with the same tags (SOK-779).
     expect(cacheSource).toMatch(
       /function getPrivateCachedMembershipVisibleRooms/,

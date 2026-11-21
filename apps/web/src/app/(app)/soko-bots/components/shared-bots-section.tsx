@@ -2,6 +2,7 @@ import { type SharedSokoBotSummary, SokoBotScope } from "@sokosumi/core-client";
 import { ArrowRight, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { PageSearchRows } from "@/components/page-list-search";
 
 import { BotFace, botFaceSeed } from "@/components/soko-bot/bot-face";
 import { Button } from "@/components/ui/button";
@@ -156,15 +157,21 @@ export async function SharedBotsSection({
       <div className={cn(HOLDER_CLASS, "flex flex-col gap-2")}>
         {bots.length > 0 ? (
           <ul className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(16.25rem,1fr))]">
-            {bots.map((bot) => (
-              <SharedBotCard
-                key={bot.id}
-                bot={bot}
-                projects={projects}
-                t={t}
-                tStatus={tStatus}
-              />
-            ))}
+            <PageSearchRows
+              rows={bots.map((bot) => ({
+                primary: [bot.name, bot.id],
+                secondary: [tStatus(bot.status), scopeLabel(bot, projects, t)],
+                content: (
+                  <SharedBotCard
+                    key={bot.id}
+                    bot={bot}
+                    projects={projects}
+                    t={t}
+                    tStatus={tStatus}
+                  />
+                ),
+              }))}
+            />
           </ul>
         ) : (
           <p className="text-muted-foreground px-2 py-1 text-sm">

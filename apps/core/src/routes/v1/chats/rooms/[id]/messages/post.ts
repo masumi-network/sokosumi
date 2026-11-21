@@ -18,6 +18,7 @@ import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -162,16 +163,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       if (mentionedUserIds.length > 0) {
         waitUntil(
-          emitChatHumanMentionNotifications({
-            messageId: message.id,
-            mentionedUserIds,
-          }),
+          runAsBackgroundWork(() =>
+            emitChatHumanMentionNotifications({
+              messageId: message.id,
+              mentionedUserIds,
+            }),
+          ),
         );
       }
 
       await publishChatRoomMessageRealtime(message, "create");
 
-      waitUntil(scheduleChatRoomMessageUnfurls(message.id));
+      waitUntil(
+        runAsBackgroundWork(() => scheduleChatRoomMessageUnfurls(message.id)),
+      );
 
       // Only a direct room needs the roster here, to count the humans in it.
       // A channel leaves the read to the emitter, which runs after the
@@ -204,38 +209,42 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const recipientUserIds = memberUserIds;
         if (recipientUserIds.length > 0) {
           waitUntil(
-            emitChatDirectMessageNotifications({
-              roomId: room.id,
-              roomName: room.name,
-              organizationId: room.organizationId,
-              messageId: message.id,
-              parentMessageId: message.parentMessageId,
-              content: message.content,
-              authorUserId: null,
-              authorName,
-              recipientUserIds,
-              mentionedUserIds,
-            }),
+            runAsBackgroundWork(() =>
+              emitChatDirectMessageNotifications({
+                roomId: room.id,
+                roomName: room.name,
+                organizationId: room.organizationId,
+                messageId: message.id,
+                parentMessageId: message.parentMessageId,
+                content: message.content,
+                authorUserId: null,
+                authorName,
+                recipientUserIds,
+                mentionedUserIds,
+              }),
+            ),
           );
         }
       }
 
       waitUntil(
-        emitChatRoomMessageCreatedEffects({
-          roomId: room.id,
-          roomName: room.name,
-          roomKind: room.kind,
-          organizationId: room.organizationId,
-          messageId: message.id,
-          parentMessageId: message.parentMessageId,
-          content: message.content,
-          authorUserId: null,
-          authorName,
-          // Already read for the direct-message decision, so the emitter is
-          // not asked to read the same roster again.
-          memberUserIds,
-          mentionedUserIds,
-        }),
+        runAsBackgroundWork(() =>
+          emitChatRoomMessageCreatedEffects({
+            roomId: room.id,
+            roomName: room.name,
+            roomKind: room.kind,
+            organizationId: room.organizationId,
+            messageId: message.id,
+            parentMessageId: message.parentMessageId,
+            content: message.content,
+            authorUserId: null,
+            authorName,
+            // Already read for the direct-message decision, so the emitter is
+            // not asked to read the same roster again.
+            memberUserIds,
+            mentionedUserIds,
+          }),
+        ),
       );
 
       return created(
@@ -342,42 +351,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           quote,
         );
 
-        // A thread reply goes to every coworker already part of the thread —
-        // as a sender or a mention target — without requiring a fresh @mention.
-        let threadCoworkerIds: string[] = [];
-        let threadSokoBotIds: string[] = [];
-        if (parentMessageId) {
-          const threadMessages = await tx.chatRoomMessage.findMany({
-            where: {
-              roomId: room.id,
-              OR: [{ id: parentMessageId }, { parentMessageId }],
-            },
-            select: {
-              senderCoworkerId: true,
-              senderSokoBotId: true,
-              mentionsAsSource: {
-                select: { coworkerId: true, sokoBotId: true },
-              },
-            },
-          });
-          threadCoworkerIds = threadMessages.flatMap((threadMessage) => [
-            ...(threadMessage.senderCoworkerId
-              ? [threadMessage.senderCoworkerId]
-              : []),
-            ...threadMessage.mentionsAsSource.flatMap((mention) =>
-              mention.coworkerId ? [mention.coworkerId] : [],
-            ),
-          ]);
-          threadSokoBotIds = threadMessages.flatMap((threadMessage) => [
-            ...(threadMessage.senderSokoBotId
-              ? [threadMessage.senderSokoBotId]
-              : []),
-            ...threadMessage.mentionsAsSource.flatMap((mention) =>
-              mention.sokoBotId ? [mention.sokoBotId] : [],
-            ),
-          ]);
-        }
-
+        // A thread reply reaches a coworker or assistant only when it names
+        // them: one that was part of the thread answered questions meant for
+        // someone else.
         const mentionedCoworkerIds = skipCoworkerMentions
           ? []
           : resolveMentionedCoworkerIds({
@@ -385,7 +361,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               explicitCoworkerIds: [
                 ...(body.mentionedCoworkerIds ?? []),
                 ...directCoworkerIds,
-                ...threadCoworkerIds,
               ],
               roomCoworkers: room.coworkerMembers.map(({ coworker }) => ({
                 id: coworker.id,
@@ -398,7 +373,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           explicitSokoBotIds: [
             ...(body.mentionedSokoBotIds ?? []),
             ...directSokoBotIds,
-            ...threadSokoBotIds,
           ],
           roomSokoBots: room.sokoBotMembers.map(({ sokoBot }) => ({
             id: sokoBot.id,
@@ -537,26 +511,31 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (didCreate) {
       for (const mentionId of mentionIds) {
-        waitUntil(dispatchChatRoomMention(mentionId));
+        // Background work: its events never land on this request's event.
+        waitUntil(
+          runAsBackgroundWork(() => dispatchChatRoomMention(mentionId)),
+        );
       }
 
       if (mentionedUserIds.length > 0) {
         waitUntil(
-          emitChatMentionNotifications({
-            roomId: room.id,
-            roomName: room.name,
-            roomShape: chatMentionRoomShape({
-              kind: room.kind,
-              memberUserIds: room.memberUserIds,
-              nonHumanMemberCount: room.nonHumanMemberCount,
+          runAsBackgroundWork(() =>
+            emitChatMentionNotifications({
+              roomId: room.id,
+              roomName: room.name,
+              roomShape: chatMentionRoomShape({
+                kind: room.kind,
+                memberUserIds: room.memberUserIds,
+                nonHumanMemberCount: room.nonHumanMemberCount,
+              }),
+              organizationId: room.organizationId,
+              messageId: message.id,
+              content: message.content,
+              authorUserId: userContext.userId,
+              authorName: message.senderUser?.name ?? "Someone",
+              mentionedUserIds,
             }),
-            organizationId: room.organizationId,
-            messageId: message.id,
-            content: message.content,
-            authorUserId: userContext.userId,
-            authorName: message.senderUser?.name ?? "Someone",
-            mentionedUserIds,
-          }),
+          ),
         );
       }
 

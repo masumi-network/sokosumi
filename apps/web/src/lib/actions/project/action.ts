@@ -9,6 +9,7 @@ import type {
   ProjectCloseStatus,
   ProjectContextMd,
   ProjectSocialConnection,
+  SocialAccountChoices,
   SocialPost,
   SocialPostMediaRef,
 } from "@sokosumi/core-client";
@@ -52,7 +53,8 @@ interface CreateProjectParameters extends AuthenticatedRequest {
 
 interface UpdateProjectParameters extends AuthenticatedRequest {
   projectId: string;
-  name: string;
+  /** Omit to leave the name alone, e.g. a website-only save. */
+  name?: string;
   identifier?: string;
   briefing?: string | null;
   websiteUrl?: string | null;
@@ -93,14 +95,24 @@ interface InitiateProjectSocialConnectionParameters
   extends AuthenticatedRequest {
   projectId: string;
   action: InitiateProjectSocialConnectionRequest["action"];
+  callbackUrl?: string;
   provider?: ProjectSocialConnection["provider"];
   socialConnectionId?: string;
+  /** The person picks the account a sign-in that reaches several connects. */
+  accountChoice?: boolean;
 }
 
 interface FinalizeProjectSocialConnectionParameters
   extends AuthenticatedRequest {
   projectId: string;
   connectionId: string;
+  callbackProof?: string;
+  pendingDataToken?: string;
+  connectToken?: string;
+  /** The `SocialAccountChoice.id` the person picked. */
+  accountChoiceId?: string;
+  /** Answer with the accounts to pick from instead of refusing several. */
+  offerChoice?: boolean;
 }
 
 interface DisconnectProjectSocialConnectionParameters
@@ -184,6 +196,7 @@ interface RecycleProjectSocialAccountPostParameters
 }
 
 interface PublishProjectSocialPostParameters extends AuthenticatedRequest {
+  tikTokSettings?: import("@sokosumi/core-client").TikTokPostSettings;
   projectId: string;
   postId: string;
   revision: number;
@@ -221,6 +234,8 @@ function normalizeOptionalWebsiteUrl(
 function revalidateProjectMutationRoutes(projectId: string) {
   revalidatePath("/projects");
   revalidatePath(`/projects/${projectId}`);
+  // The Brand card also lives here and reads the website.
+  revalidatePath(`/projects/${projectId}/design-md`);
 }
 
 function revalidateProjectCloseRoutes(projectId: string) {
@@ -347,11 +362,12 @@ export const updateProject = withSession<
   ProjectMutationResult<{ projectId: string }>
 >(async ({ projectId, name, identifier, briefing, websiteUrl, logo }) => {
   const normalizedProjectId = projectId.trim();
-  const normalizedName = normalizeProjectName(name);
+  const normalizedName =
+    name !== undefined ? normalizeProjectName(name) : undefined;
   if (!normalizedProjectId) {
     throw new Error("Project required");
   }
-  if (!normalizedName) {
+  if (normalizedName === "") {
     throw new Error("Name required");
   }
 
@@ -367,7 +383,7 @@ export const updateProject = withSession<
 
   try {
     await projectService.patchProject(normalizedProjectId, {
-      name: normalizedName,
+      ...(normalizedName !== undefined ? { name: normalizedName } : {}),
       ...(normalizedIdentifier ? { identifier: normalizedIdentifier } : {}),
       ...(briefing !== undefined
         ? { briefing: normalizeProjectBriefing(briefing) }
@@ -557,53 +573,62 @@ export const cancelProjectCloseOwedWork = withSession<
 export const initiateProjectSocialConnection = withSession<
   InitiateProjectSocialConnectionParameters,
   ActionResultDto<InitiateProjectSocialConnectionResponse, ActionError>
->(async ({ projectId, action, socialConnectionId, provider }) => {
-  const normalizedProjectId = projectId.trim();
-  if (!normalizedProjectId) {
-    return toActionResult(
-      err({ code: CommonErrorCode.BAD_INPUT, message: "Project required" }),
-    );
-  }
-
-  let input: InitiateProjectSocialConnectionRequest;
-  if (action === "connect") {
-    if (!provider) {
+>(
+  async ({
+    projectId,
+    action,
+    socialConnectionId,
+    provider,
+    callbackUrl,
+    accountChoice,
+  }) => {
+    const normalizedProjectId = projectId.trim();
+    if (!normalizedProjectId) {
       return toActionResult(
-        err({
-          code: CommonErrorCode.BAD_INPUT,
-          message: "Social provider required",
-        }),
+        err({ code: CommonErrorCode.BAD_INPUT, message: "Project required" }),
       );
     }
-    input = { action, provider };
-  } else {
-    const normalizedSocialConnectionId = socialConnectionId?.trim();
-    if (!normalizedSocialConnectionId) {
-      return toActionResult(
-        err({
-          code: CommonErrorCode.BAD_INPUT,
-          message: "Social connection required",
-        }),
-      );
-    }
-    input = { action, socialConnectionId: normalizedSocialConnectionId };
-  }
 
-  try {
-    const connection = await projectService.initiateSocialConnection(
-      normalizedProjectId,
-      input,
-    );
-    return toActionResult(ok(connection));
-  } catch (error) {
-    return toActionResult(err(toCoreApiActionError(error)));
-  }
-});
+    let input: InitiateProjectSocialConnectionRequest;
+    if (action === "connect") {
+      if (!provider) {
+        return toActionResult(
+          err({
+            code: CommonErrorCode.BAD_INPUT,
+            message: "Social provider required",
+          }),
+        );
+      }
+      input = { action, provider };
+    } else {
+      const normalizedSocialConnectionId = socialConnectionId?.trim();
+      if (!normalizedSocialConnectionId) {
+        return toActionResult(
+          err({
+            code: CommonErrorCode.BAD_INPUT,
+            message: "Social connection required",
+          }),
+        );
+      }
+      input = { action, socialConnectionId: normalizedSocialConnectionId };
+    }
+
+    try {
+      const connection = await projectService.initiateSocialConnection(
+        normalizedProjectId,
+        { ...input, callbackUrl, accountChoice },
+      );
+      return toActionResult(ok(connection));
+    } catch (error) {
+      return toActionResult(err(toCoreApiActionError(error)));
+    }
+  },
+);
 
 export const finalizeProjectSocialConnection = withSession<
   FinalizeProjectSocialConnectionParameters,
-  ActionResultDto<ProjectSocialConnection, ActionError>
->(async ({ projectId, connectionId }) => {
+  ActionResultDto<ProjectSocialConnection | SocialAccountChoices, ActionError>
+>(async ({ projectId, connectionId, ...signIn }) => {
   const normalizedProjectId = projectId.trim();
   const normalizedConnectionId = connectionId.trim();
   if (!normalizedProjectId || !normalizedConnectionId) {
@@ -618,7 +643,7 @@ export const finalizeProjectSocialConnection = withSession<
   try {
     const connection = await projectService.finalizeSocialConnection(
       normalizedProjectId,
-      normalizedConnectionId,
+      { ...signIn, connectionId: normalizedConnectionId },
     );
     revalidateProjectSocialConnectionMutationRoutes(normalizedProjectId);
     return toActionResult(ok(connection));
@@ -661,6 +686,7 @@ const isoTimestamp = z.iso.datetime({ offset: true });
 const revisionSchema = z.number().int().nonnegative();
 
 const socialPostMediaRefSchema = z.object({
+  aiGenerated: z.boolean().optional(),
   pathname: z.string().min(1),
   fileUrl: z.string().url(),
   name: z.string().min(1),
@@ -1131,12 +1157,27 @@ export const recycleProjectSocialAccountPost = withSession<
 export const publishProjectSocialPost = withSession<
   PublishProjectSocialPostParameters,
   ActionResultDto<SocialPost, ActionError>
->(async ({ projectId, postId, revision }) => {
-  const parsed = publishProjectSocialPostSchema.safeParse({
-    projectId,
-    postId,
-    revision,
-  });
+>(async ({ projectId, postId, revision, tikTokSettings }) => {
+  const parsed = publishProjectSocialPostSchema
+    .extend({
+      tikTokSettings: z
+        .object({
+          privacyLevel: z.enum(["SELF_ONLY", "PUBLIC_TO_EVERYONE"]),
+          allowComment: z.boolean(),
+          allowDuet: z.boolean(),
+          allowStitch: z.boolean(),
+          promotesOwnBrand: z.boolean(),
+          acceptedMusicUsage: z.literal(true),
+          previewConsent: z.literal(true).optional(),
+        })
+        .optional(),
+    })
+    .safeParse({
+      projectId,
+      postId,
+      tikTokSettings,
+      revision,
+    });
   if (!parsed.success) {
     return badSocialPostInput(parsed);
   }
@@ -1145,7 +1186,12 @@ export const publishProjectSocialPost = withSession<
     const post = await projectService.publishSocialPost(
       parsed.data.projectId,
       parsed.data.postId,
-      { revision: parsed.data.revision },
+      {
+        revision: parsed.data.revision,
+        ...(parsed.data.tikTokSettings
+          ? { tikTokSettings: parsed.data.tikTokSettings }
+          : {}),
+      },
     );
     revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
     return toActionResult(ok(post));

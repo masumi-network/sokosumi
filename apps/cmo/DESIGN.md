@@ -6,9 +6,9 @@ name: CMO.XYZ
 description: "An AI agent that automates a business's marketing, end to end, in one system."
 typography:
   h1:
-    fontFamily: Inter
+    fontFamily: PP Mori
   body-md:
-    fontFamily: Inter
+    fontFamily: PP Mori
 ---
 
 ## Overview
@@ -41,7 +41,7 @@ Solo founders, small businesses with no marketing and wanting to put it on autop
 
 ### Agent naming
 
-CMO.XYZ is the product name. Each user names their own agent inside the product (the demo used "June" as an example). Every screen needs to support whatever name the user picks. Never hardcode one agent name for everyone.
+CMO.XYZ is the product name. The agent is always called Cuso. People cannot name or rename him.
 
 ### Voice and tone
 
@@ -53,6 +53,8 @@ Rules for any copy: onboarding, messages inside the app, marketing site, ads, er
 - Light banter is fine. Not stiff and corporate, not crude.
 - No long, rambling sentences. Minimal fluff.
 - Minimal to no em dashes or hyphens.
+- The month of marketing the agent writes is the strategy, never the plan. A plan is a paid CMO plan.
+- What Cuso makes is a post, or an ad, an article or an email when it is one. Never a piece.
 - Banned words and phrases: none locked yet. Flag anything that reads as hype or invented confidence for review.
 
 Example prompt responses, from the current live build:
@@ -78,13 +80,13 @@ Layout and application specs will cover the website, the app, and the print flie
 
 ## Typography
 
-The brand typeface is **Inter** (since 2026-11-05; PP Mori was chosen first, but its files were never delivered). Sizes, weights and tracking are the type scale in [`design-system.md`](design-system.md).
+The brand typeface is **PP Mori** (Regular and SemiBold, the cuts the marketing site ships; Inter stood in from 2026-11-05 to 2026-11-15). Sizes, weights and tracking are the type scale in [`design-system.md`](design-system.md).
 
 ## Do's and Don'ts
 
 - Do tie every claim the agent makes to actual data or prior context. Don't state anything with confidence that has no data behind it.
 - Do ask for missing information, framed as getting "better aligned." Don't hedge with "I'm not sure" or "I think."
-- Do support whatever agent name the user picks on every screen. Don't hardcode one agent name for everyone.
+- Do call the agent Cuso on every screen. Don't offer a way to name him.
 - Do keep copy plain and short. Don't write long, rambling sentences or lean on em dashes and hyphens.
 - Do take every color, size, shape and shadow from [`design-system.md`](design-system.md) through the tokens in `src/app/globals.css`.
 - Don't build the newsletter for Token2049. It is roadmap.

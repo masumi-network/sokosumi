@@ -25,7 +25,7 @@ vi.mock("@/services/sync-lock.service", () => ({
   syncLockService: { acquireLock: acquire, releaseLock: release },
 }));
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (work: Promise<unknown>) => pending.push(work),
+  waitUntil: vi.fn((work: Promise<unknown>) => pending.push(work)),
 }));
 
 import mount from "./get";
@@ -88,6 +88,7 @@ describe("task tag sync", () => {
     "fixtureTaskId=invalid&fixtureOwnerId=fixture-owner",
     `fixtureTaskId=${taskId}&fixtureOwnerId=`,
     `${query}&unexpected=true`,
+    `${query}&fixtureBackfill=true`,
     `${query}&fixtureBackfill=false`,
     `${query}&fixtureBackfill=true&fixtureBackfill=true`,
     "fixtureBackfill=true",
@@ -135,45 +136,5 @@ describe("task tag sync", () => {
     ).toBe(409);
     expect(fixture).not.toHaveBeenCalled();
     expect(classify).not.toHaveBeenCalled();
-  });
-  it("prepares history only through an authenticated exact preview scope", async () => {
-    expect(
-      (
-        await app().request(`/task-tags?${query}&fixtureBackfill=true`, {
-          headers,
-        })
-      ).status,
-    ).toBe(200);
-    await Promise.all(pending);
-    expect(fixture).toHaveBeenCalledExactlyOnceWith(expect.any(Object), {
-      taskId,
-      ownerId: "fixture-owner",
-      backfill: true,
-    });
-    expect(classify).not.toHaveBeenCalled();
-  });
-
-  it.each(["production", "development"])(
-    "forbids backfill preparation in %s",
-    async (environment) => {
-      env.VERCEL_ENV = environment;
-      expect(
-        (
-          await app().request(`/task-tags?${query}&fixtureBackfill=true`, {
-            headers,
-          })
-        ).status,
-      ).toBe(403);
-      expect(fixture).not.toHaveBeenCalled();
-      expect(acquire).not.toHaveBeenCalled();
-    },
-  );
-
-  it("requires cron authentication before backfill preparation", async () => {
-    expect(
-      (await app().request(`/task-tags?${query}&fixtureBackfill=true`)).status,
-    ).toBe(401);
-    expect(fixture).not.toHaveBeenCalled();
-    expect(acquire).not.toHaveBeenCalled();
   });
 });

@@ -47,8 +47,6 @@ export interface DataRoomTreeRow {
   /** "1", "1.2", "1.2.3": the index a data room is read and cited by. */
   number: string;
   file?: DataRoomFile;
-  /** Changed since the viewer's previous visit. */
-  isNew: boolean;
 }
 
 export function dataRoomPrefix(
@@ -151,7 +149,7 @@ export function buildDataRoomTree(input: {
   files: readonly DataRoomFile[];
   /** The owner's order: position by path; unlisted paths sort after, by name. */
   order: ReadonlyMap<string, number>;
-  member?: Pick<DataRoomMember, "folderPaths" | "previousVisitAt">;
+  member?: Pick<DataRoomMember, "folderPaths">;
 }): DataRoomTreeRow[] {
   const root: TreeNode = { name: "", path: "", children: new Map() };
   for (const file of input.files) {
@@ -173,10 +171,8 @@ export function buildDataRoomTree(input: {
     });
   }
 
-  const since = input.member?.previousVisitAt ?? null;
   const rows: DataRoomTreeRow[] = [];
-  const walk = (node: TreeNode, depth: number, prefix: string): boolean => {
-    let anyNew = false;
+  const walk = (node: TreeNode, depth: number, prefix: string): void => {
     const children = [...node.children.values()].sort((a, b) => {
       const folderFirst = Number(Boolean(a.file)) - Number(Boolean(b.file));
       if (folderFirst !== 0) return folderFirst;
@@ -188,8 +184,6 @@ export function buildDataRoomTree(input: {
     children.forEach((child, index) => {
       const number = prefix ? `${prefix}.${index + 1}` : String(index + 1);
       if (child.file) {
-        const isNew = since !== null && child.file.updatedAt > since;
-        anyNew ||= isNew;
         rows.push({
           kind: "file",
           path: child.path,
@@ -197,23 +191,18 @@ export function buildDataRoomTree(input: {
           depth,
           number,
           file: child.file,
-          isNew,
         });
         return;
       }
-      const row: DataRoomTreeRow = {
+      rows.push({
         kind: "folder",
         path: child.path,
         name: child.name,
         depth,
         number,
-        isNew: false,
-      };
-      rows.push(row);
-      row.isNew = walk(child, depth + 1, number);
-      anyNew ||= row.isNew;
+      });
+      walk(child, depth + 1, number);
     });
-    return anyNew;
   };
   walk(root, 0, "");
   return rows;
@@ -282,6 +271,25 @@ async function viewerBytes(input: {
   };
 }
 
+const XLSX_TYPE =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+/**
+ * Whether the room viewer can show this file in the page. A spreadsheet is
+ * read into a table by the viewer itself, so it is served for viewing too,
+ * though never inline: the browser cannot render it on its own.
+ */
+export function viewableInRoom(file: {
+  mimeType: string | null;
+  name: string;
+}) {
+  return (
+    isInlineRenderable(file.mimeType) ||
+    file.mimeType === XLSX_TYPE ||
+    file.name.toLowerCase().endsWith(".xlsx")
+  );
+}
+
 /**
  * One file for a signed-in viewer: only what their access covers, only
  * downloaded when the room allows it, stamped when the room says so, and
@@ -298,7 +306,7 @@ export async function openDataRoomFile(input: {
   const file = await findDataRoomFile(input.room, input.resourceId);
   if (!file || !memberSeesPath(input.member, file.path))
     throw notFound("File not found");
-  const viewable = isInlineRenderable(file.mimeType);
+  const viewable = viewableInRoom(file);
   if ((input.download || !viewable) && !input.room.allowDownload)
     throw forbidden(
       viewable
@@ -320,7 +328,7 @@ export async function openDataRoomFile(input: {
   return {
     ...content,
     name: file.name,
-    inline: !input.download && viewable,
+    inline: !input.download && isInlineRenderable(file.mimeType),
   };
 }
 

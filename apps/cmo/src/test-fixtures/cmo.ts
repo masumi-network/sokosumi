@@ -1,4 +1,8 @@
-import type { ChatRoomMessage, CmoOverview } from "@sokosumi/core-client";
+import type {
+  ChatRoomMessage,
+  CmoOverview,
+  CmoSubscriptionPlan,
+} from "@sokosumi/core-client";
 
 /** The overview's one Marketing strategy version, approved at `approvedAt` or a draft. */
 export function cmoStrategyVersion(
@@ -45,6 +49,49 @@ export const cmoStrategy: NonNullable<CmoOverview["strategy"]> = {
   ],
 };
 
+const cmoPlan = (
+  name: string,
+  interval: CmoSubscriptionPlan["interval"],
+  credits: number,
+  dollars: number,
+): CmoSubscriptionPlan => ({
+  tier: name.toLowerCase(),
+  name,
+  interval,
+  credits,
+  priceAmount: dollars * 100,
+  currency: "usd",
+});
+
+/** ADR 0068's CMO plans, as Core lists them: monthly first, each by credits. */
+export const cmoPlans: CmoSubscriptionPlan[] = [
+  cmoPlan("Starter", "month", 10_000, 200),
+  cmoPlan("Growth", "month", 25_000, 500),
+  cmoPlan("Scale", "month", 50_000, 1_000),
+  cmoPlan("Starter", "year", 10_000, 2_000),
+  cmoPlan("Growth", "year", 25_000, 5_000),
+  cmoPlan("Scale", "year", 50_000, 10_000),
+];
+
+/** A Cuso nobody subscribed yet, with 40 credits to spend. */
+export function cmoBilling(
+  patch: Partial<CmoOverview["billing"]> = {},
+): CmoOverview["billing"] {
+  return {
+    tier: null,
+    interval: null,
+    status: null,
+    periodEnd: null,
+    cancelAtPeriodEnd: false,
+    pendingTier: null,
+    availableCredits: 40,
+    viewerCanManage: true,
+    hasTesterCredits: false,
+    maySkipSubscription: false,
+    ...patch,
+  };
+}
+
 export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
   return {
     businessName: "Acme",
@@ -58,11 +105,14 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     botStatus: "IDLE",
     learning: "done",
     work: null,
+    activity: null,
     brandVisual: null,
     brandMedia: null,
     brandBrainConfirmedAt: null,
     projectLogo: null,
+    presenterSet: false,
     onboardingStep: "done",
+    timeZone: "Europe/Berlin",
     routines: [
       {
         key: "cmo-daily-run",
@@ -73,7 +123,8 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
         timezone: "Europe/Berlin",
       },
     ],
-    subscriptionActive: false,
+    // Cuso may work unless a test pauses him.
+    subscriptionActive: true,
     viewerCanApprove: true,
     brandBrain: {
       summary: "Acme sells rockets.",
@@ -85,15 +136,18 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     },
     brandBrainUpdatedAt: new Date("2026-10-01T09:01:00Z"),
     strategy: cmoStrategy,
+    strategyShort: null,
     approvedStrategy: null,
     media: [],
+    postRevisions: {},
     ...cmoStrategyVersion(null, new Date("2026-10-01T09:02:00Z")),
     updates: [],
+    drafts: [],
     channels: [],
     upNext: [],
     connectChannelUrl: "http://web/social?projectId=project-1",
+    tiktokEnabled: false,
     adProviders: [],
-    connectAdsUrl: "http://web/ads?projectId=project-1",
     production: {
       state: "waiting",
       ready: 0,
@@ -103,6 +157,8 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
       needPictures: 0,
       finishedAt: null,
       pillars: null,
+      level: "all_in",
+      beyondPlan: [],
     },
     measurement: [
       {
@@ -125,8 +181,7 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
       },
     ],
     mailingListSize: 0,
-    subscribeUrl: "http://web/billing",
-    billing: { plan: null, subscriptionStatus: null, availableCredits: 40 },
+    billing: cmoBilling(),
     posts: { draft: 2, scheduled: 1, published: 0, failed: 0 },
     createdAt: new Date("2026-10-01T09:00:00Z"),
     ...patch,
@@ -141,7 +196,7 @@ export function cmoChatMessage(
     id: "m1",
     roomId: "room-1",
     parentMessageId: null,
-    content: "Plan is ready.",
+    content: "Strategy is ready.",
     createdAt: new Date("2026-10-01T09:03:00Z"),
     deletedAt: null,
     editedAt: null,

@@ -1,7 +1,7 @@
 import { Prisma } from "@sokosumi/database";
 import { getSokoBotIntegrationProvider } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
-
+import { createError } from "evlog";
 import { getComposio } from "@/clients/composio.client";
 import { adProviderForToolkit } from "@/config/ads-providers";
 import { getEnv } from "@/config/env";
@@ -15,15 +15,21 @@ import {
   type SokoBotSelector,
 } from "@/helpers/soko-bot-resolver";
 import prisma from "@/lib/db/prisma";
-import { scheduleContactCapture } from "@/services/contact-capture.service";
-import type { SokoBotIntegrationView } from "@/services/soko-bot-integration-list.service";
+import {
+  createCoreLogger,
+  recordCoreError,
+  runAsBackgroundWork,
+} from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   composioEntityId,
   requireComposio,
-  resolveProvider,
   SokoBotIntegrationError,
   withComposio,
-} from "@/services/soko-bot-integrations.service";
+} from "@/services/composio-integration-tools.service";
+import { scheduleContactCapture } from "@/services/contact-capture.service";
+import type { SokoBotIntegrationView } from "@/services/soko-bot-integration-list.service";
+import { resolveProvider } from "@/services/soko-bot-integrations.service";
 
 async function lookupToolkit(
   slug: string,
@@ -91,6 +97,9 @@ export async function connectSokoBotIntegration(input: {
   selector?: SokoBotSelector;
 }): Promise<{ redirectUrl: string }> {
   const provider = resolveProvider(input.provider);
+  if (provider.id === "tiktok") {
+    throw new SokoBotIntegrationError("Connect TikTok in Project Social");
+  }
   const adProvider = adProviderForToolkit(provider.id);
   if (adProvider) {
     throw new SokoBotIntegrationError(
@@ -270,7 +279,7 @@ export async function finalizeSokoBotIntegration(input: {
     },
     data: {
       status,
-      connectedAt: status === "ACTIVE" ? new Date() : undefined,
+      ...(status === "ACTIVE" ? { connectedAt: new Date() } : {}),
       lastError:
         status === "FAILED" || status === "REVOKED"
           ? (account.statusReason ?? account.status)
@@ -301,24 +310,47 @@ export async function finalizeSokoBotIntegration(input: {
       provider: provider.id,
       reset: replacing,
     }).catch((error: unknown) => {
-      console.error("Scheduling contact capture failed", {
-        integrationId: row.id,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      // Awaited inside the finalize request: its event carries this.
+      recordCoreError(
+        { operation: "soko_bot_integration_finalize" },
+        {
+          message:
+            "Connected an app but could not schedule its contact capture",
+          why: "Scheduling the capture failed",
+          fix: "The app is connected. Contacts from it start filling once a capture is scheduled; reconnect the app, or schedule the capture for this integration by hand.",
+          cause: error,
+        },
+        { integration: { id: row.id, provider: provider.id } },
+      );
     });
   // The request that needed this app is finished now, without asking again.
   if (status === "ACTIVE")
     waitUntil(
-      import("@/services/soko-bot-watches.service")
-        .then(({ followUpConnectedApp }) =>
-          followUpConnectedApp(bot.id, provider.id),
-        )
-        .catch((error: unknown) => {
-          console.error("Soko Bot app-connected follow-up failed", {
-            sokoBotId: bot.id,
-            error: error instanceof Error ? error.message : "unknown",
-          });
-        }),
+      runAsBackgroundWork(() =>
+        import("@/services/soko-bot-watches.service")
+          .then(({ followUpConnectedApp }) =>
+            followUpConnectedApp(bot.id, provider.id),
+          )
+          .catch((error: unknown) => {
+            // After the response: its own event.
+            const log = createCoreLogger({
+              operation: "soko_bot_app_connected_follow_up",
+              sokoBot: { id: bot.id },
+              integration: { provider: provider.id },
+            });
+            log.error(
+              createError({
+                message:
+                  "Could not resume the Soko Bot request that waited for this app",
+                why: "The follow-up threw",
+                fix: "The app is connected; the owner can ask the bot again. The wait expires on its own.",
+              }),
+              // Only safe fields: the follow-up runs a turn on the user's request.
+              { failure: messageSafeErrorFields(error) },
+            );
+            log.emit();
+          }),
+      ),
     );
   // Preserve the existing replacement policy, but only revoke after the new
   // account is active and persisted. Never delete unrelated upstream accounts.

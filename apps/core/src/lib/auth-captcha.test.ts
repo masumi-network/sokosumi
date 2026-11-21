@@ -3,14 +3,17 @@ import { memoryAdapter } from "better-auth/adapters/memory";
 import { betterAuth } from "better-auth/minimal";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { afterEach, describe, expect, it, vi } from "vitest";
-
+import { expectCoreLog } from "@/test/core-log";
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
+import { pendingEmailChange } from "./auth-pending-email-change.js";
+import { betterAuthLogger } from "./evlog-library-logs.js";
 
 function createTestAuth(
   { secretKey }: { secretKey?: string } = { secretKey: "test-secret" },
 ) {
   const sendEmail = vi.fn();
   const auth = betterAuth({
+    logger: betterAuthLogger,
     baseURL: "https://auth.example.com",
     basePath: "/auth",
     secret: "test-secret-that-is-long-enough-for-better-auth",
@@ -37,6 +40,10 @@ function createTestAuth(
     plugins: [
       createAuthCaptchaPlugin(secretKey),
       emailOTP({ sendVerificationOTP: sendEmail }),
+      pendingEmailChange({
+        expiresIn: 3600,
+        accountUrl: "https://app.example.com/account",
+      }),
     ],
     rateLimit: { enabled: false },
   });
@@ -119,6 +126,7 @@ describe("auth email abuse protection", () => {
   it.each(["invalid-input-response", "timeout-or-duplicate"])(
     "rejects %s tokens",
     async (code) => {
+      expectCoreLog("warn", "Cloudflare Turnstile verification failed");
       vi.stubGlobal(
         "fetch",
         vi
@@ -167,15 +175,18 @@ describe("auth email abuse protection", () => {
       origin: "https://auth.example.com",
       "content-type": "application/json",
     };
-    const request = new Request("https://auth.example.com/auth/change-email", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ newEmail: "another@example.com" }),
-    });
+    const request = new Request(
+      "https://auth.example.com/auth/email-change/request",
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ newEmail: "another@example.com" }),
+      },
+    );
     expect((await auth.handler(request)).status).toBe(400);
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const verifiedRequest = new Request(
-      "https://auth.example.com/auth/change-email",
+      "https://auth.example.com/auth/email-change/request",
       {
         method: "POST",
         headers: { ...headers, "x-captcha-response": "change-token" },
@@ -187,6 +198,7 @@ describe("auth email abuse protection", () => {
   });
 
   it("rejects a real secret when siteverify omits action", async () => {
+    expectCoreLog("warn", "Cloudflare Turnstile verification failed");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(Response.json({ success: true })),
@@ -199,6 +211,7 @@ describe("auth email abuse protection", () => {
   });
 
   it("rejects a valid token from a different action", async () => {
+    expectCoreLog("warn", "Cloudflare Turnstile verification failed");
     vi.stubGlobal(
       "fetch",
       vi
@@ -215,6 +228,7 @@ describe("auth email abuse protection", () => {
   });
 
   it("does not send mail when Cloudflare is unavailable", async () => {
+    expectCoreLog("error", "CAPTCHA service unavailable");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(new Response("Unavailable", { status: 503 })),

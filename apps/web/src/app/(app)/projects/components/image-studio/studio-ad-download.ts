@@ -1,11 +1,16 @@
 import type { StudioLogoPosition } from "@sokosumi/core-client";
-import { renderStudioHeadline } from "./studio-ad-headline";
+import {
+  renderStudioHeadline,
+  type StudioHeadlineLook,
+} from "./studio-ad-headline";
+import { usesExactFontOverlay } from "./studio-lettering";
 import {
   assetContentUrl,
   assetFileExtension,
   isVideoAsset,
   type StudioAdRenderOptions,
   type StudioAsset,
+  type StudioJob,
 } from "./types";
 
 export const MAX_ARCHIVE_IMAGES = 12;
@@ -45,6 +50,8 @@ export async function createStudioAdArchive(
   assets: StudioAsset[],
   logo?: StudioLogoPosition,
   headlines?: Readonly<Record<string, string>>,
+  jobs: readonly StudioJob[] = [],
+  looks?: Readonly<Record<string, StudioHeadlineLook>>,
 ): Promise<ArrayBuffer> {
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
@@ -52,11 +59,19 @@ export async function createStudioAdArchive(
 
   // Fetch one image at a time to limit simultaneous reads of private files.
   for (const [index, asset] of assets.entries()) {
-    const headline = !isVideoAsset(asset) ? headlines?.[asset.id] : undefined;
-    const response = await fetchStudioAd(asset, { logo });
+    const headline =
+      !isVideoAsset(asset) && usesExactFontOverlay(asset, jobs)
+        ? headlines?.[asset.id]
+        : undefined;
+    const response = await fetchStudioAd(asset, { logo, download: true });
     const source = await response.blob();
     const image = headline
-      ? await renderStudioHeadline(source, headline, logo)
+      ? await renderStudioHeadline(
+          source,
+          headline,
+          logo,
+          looks?.[asset.projectId],
+        )
       : source;
     bytes += image.size;
     if (bytes > MAX_ARCHIVE_BYTES) throw new Error("Studio archive too large");

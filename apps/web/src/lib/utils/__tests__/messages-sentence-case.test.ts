@@ -19,17 +19,26 @@ const PROPER_PHRASES = [
   "Soko Bot",
   "Soko Bots",
   "Content Studio",
+  "TikTok Studio",
   "Sokosumi Projects",
   "Agent Identities",
   // Ad platforms.
   "Google Ads",
   "Google Search",
+  "Google Analytics",
+  "Google Trends",
+  "Search Console",
   "Display Network",
+  // Google's spreadsheet product, which Files links.
+  "Google Sheets",
+  "Google Sheet",
   "Meta Ads",
   // The Files area, named as a destination ("Copy to Files").
   "to Files",
   "from Files",
   "From Files",
+  // The You tab, named as a destination ("Back to You").
+  "to You",
   // The Ads Market tab, named as a destination ("Add from Market").
   "from Market",
   // Legal documents, capitalised as titles in the sign-up consent copy too.
@@ -41,11 +50,16 @@ const PROPER_PHRASES = [
   "Data Processing Agreement",
   // Other names.
   "Mistral Medium",
+  "Gemini Pro",
   "Florian Haller",
   "Serviceplan Group",
   "Acme Inc.",
   "Times New Roman",
   "Google Domains",
+  // The Google News app and site, a Search Console search type.
+  "Google News",
+  // Google's search feature; replaceAll also covers "AI Overviews".
+  "AI Overview",
   // Example organization name in a placeholder.
   "My Organization",
   // Example brands in the Ads and Newsletter no-project backdrops.
@@ -56,6 +70,7 @@ const PROPER_PHRASES = [
   "Field Notes Studio",
   "Field Notes",
   "Studio Weekly",
+  "Advanced Web Ranking",
 ];
 
 /** Longest first, so "Soko Bots" is not stripped as "Soko Bot" plus a stray "s". */
@@ -75,7 +90,13 @@ const PROPER_WORDS = new Set([
   "LinkedIn",
   "Claude",
   "Eve",
+  "Jev",
   "YouTube",
+  "TikTok",
+  // AI assistants that GA4 counts in its AI Assistant channel.
+  "ChatGPT",
+  "Gemini",
+  "Copilot",
   "Slack",
   "Notion",
   "Linear",
@@ -84,6 +105,8 @@ const PROPER_WORDS = new Set([
   "Office",
   "Drive",
   "Social",
+  // The rank data provider, named in the rank source line.
+  "DataForSEO",
   // Task status, quoted as the board column's name ("Reopen to Ready").
   "Ready",
 ]);

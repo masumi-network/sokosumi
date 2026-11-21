@@ -17,9 +17,14 @@ export interface ResetPasswordEmailProps extends LocalizedEmailProps {
   resetLink: string;
 }
 
+/** A product that signs people in through Sokosumi and mails under its own name. */
+export type EmailBrand = "cmo";
+
 export interface EmailCodeEmailProps extends LocalizedEmailProps {
   code: string;
   expiresInMinutes: number;
+  /** The product the code was asked for from, when it is not Sokosumi. */
+  brand?: EmailBrand | undefined;
 }
 
 export interface OrganizationInvitationEmailProps extends LocalizedEmailProps {
@@ -127,7 +132,9 @@ export interface ProjectUpdateEmailProps extends NotificationEmailProps {
 }
 
 /** A task that finished (SOK-1090). */
-export type TaskCompletedEmailProps = TaskEmailProps;
+export interface TaskCompletedEmailProps extends TaskEmailProps {
+  seoResult?: boolean;
+}
 
 /**
  * Unread messages wait in a room the reader is in (SOK-1142).
@@ -181,6 +188,15 @@ export interface TaskFollowUpEmailProps extends TaskEmailProps {
 /** A wallet that ran low. Stripe has no email for Sokosumi credits. */
 export interface BillingLowBalanceEmailProps extends NotificationEmailProps {
   credits: number;
+}
+
+/** A Cuso's Project credits ran low (SOKD-246); the action opens CMO. */
+export interface CusoLowCreditsEmailProps extends NotificationEmailProps {
+  businessName: string;
+  credits: number;
+  cusoName: string;
+  /** When his plan grants its next month; null when none is coming. */
+  nextGrantAt: Date | null;
 }
 
 /** Payment failures stay in-app; Stripe already mailed those. */

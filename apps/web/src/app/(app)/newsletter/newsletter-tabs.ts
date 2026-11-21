@@ -1,4 +1,3 @@
-import { calendarUrl } from "@/app/calendar/calendar-url";
 import { PROJECT_SCOPE_PARAM } from "@/app/components/project-scope/project-scope-href";
 import type { ProjectTab } from "@/app/projects/components/project-tabs";
 
@@ -10,7 +9,7 @@ export function newsletterHref(path: string, projectId: string): string {
 /**
  * The newsletter section's tabs, in one place so a new section is added here.
  * Until the newsletter exists only Settings, where it is created, is there.
- * Calendar is the Calendar page filtered to Newsletter issues. A CMO Project
+ * Calendar lists this newsletter's issues by date. A CMO Project
  * (`cmo`) has read-only Settings and Signup form once it has a newsletter (ADR 0066).
  */
 export function getNewsletterTabs(
@@ -33,7 +32,7 @@ export function getNewsletterTabs(
     },
     {
       id: "calendar",
-      href: calendarUrl({ types: "newsletter", projectId }),
+      href: newsletterHref("/newsletter/calendar", projectId),
       label: t("Calendar.title"),
     },
     {

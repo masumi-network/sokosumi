@@ -11,6 +11,7 @@ import {
   taskVisibilitySchema,
 } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
+import { seoAnalysisKindSchema } from "@/schemas/project-seo.schema";
 import {
   workCreatorField,
   workOwnerIdSchema,
@@ -232,8 +233,35 @@ export const taskScheduleSchema = z
     updatedAt: dateTimeSchema,
     canWrite: z.boolean().openapi({
       description:
-        "Whether the caller may edit, pause, resume, end, delete, or run this schedule and change its Runs (ADR 0048).",
+        "Whether the caller has permission to manage this schedule and its Runs (ADR 0048). State and operation-specific flags can further limit writes.",
     }),
+    canRunNow: z.boolean().openapi({
+      description:
+        "Whether the caller may release an extra manual Run now. It does not count toward an end-after-N rule.",
+    }),
+    canEditPlan: z.boolean().openapi({
+      description:
+        "Whether the caller may edit the schedule blueprint and rule here. An SEO monitor is false: its rule is edited in the SEO workspace with only `rule` and `expectedRevision`; pause and end use canWrite.",
+    }),
+    seoMonitor: z
+      .union([
+        z
+          .object({
+            kind: seoAnalysisKindSchema,
+            pageCount: z.number().int().nonnegative(),
+            auditId: z.uuid().optional().openapi({
+              description:
+                "The saved audit the monitor owner can open to review a full audit Run.",
+            }),
+          })
+          .openapi("TaskScheduleSeoMonitor"),
+        z.null(),
+      ])
+      .optional()
+      .openapi({
+        description:
+          "The check and page count of an SEO monitor, so a client can write its plan sentence in the reader's language. Null for another schedule or a saved plan that no longer parses.",
+      }),
   })
   .openapi("TaskSchedule");
 
@@ -352,7 +380,15 @@ export const updateTaskScheduleRunRequestSchema = z
   .openapi("UpdateTaskScheduleRunRequest");
 
 export const createTaskScheduleRunRequestSchema = z
-  .object(runChangePrecondition)
+  .object({
+    ...runChangePrecondition,
+    searchConsolePropertyId: z.string().trim().min(1).max(500).optional(),
+    allowLimitedAudit: z.literal(true).optional(),
+  })
+  .refine(
+    (input) => !(input.searchConsolePropertyId && input.allowLimitedAudit),
+    "Choose a property or approve a limited audit for this Run",
+  )
   .openapi("CreateTaskScheduleRunRequest");
 
 export const taskScheduleRunUpdateSchema = z

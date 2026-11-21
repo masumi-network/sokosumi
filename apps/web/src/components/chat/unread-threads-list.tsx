@@ -9,6 +9,8 @@ import { resolveUnreadThreadsAttention } from "@/components/chat/room-attention"
 import { ThreadListLoadMore } from "@/components/chat/thread-list-load-more";
 import { ThreadGroupEmpty } from "@/components/chat/thread-list-row";
 import { UnreadThreadLink } from "@/components/chat/unread-thread-link";
+import { useThreadSearchRows } from "@/components/chat/use-thread-search-rows";
+import { usePageSearchPagination } from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 import type { ChatUnreadThreadsPage } from "@/lib/services/chat-room.service";
 
@@ -115,7 +117,6 @@ export function UnreadThreadsList({
 }: UnreadThreadsListProps) {
   const t = useTranslations("App.Channels.ThreadsView");
   const tGroups = useTranslations("App.Channels.UnreadThreads");
-  const roomsById = new Map(rooms.map((room) => [room.id, room]));
   const { threadCount } = resolveUnreadThreadsAttention(rooms);
   // Live rooms at zero already answer: nothing to ask Core. An empty roster
   // that is not a live answer is a gap, not caught up, so it waits.
@@ -127,28 +128,23 @@ export function UnreadThreadsList({
     enabled: !roomsSayCaughtUp && !waitingForRooms,
   });
 
-  const seen = new Set<string>();
   const fetched = (query.data?.pages ?? []).flatMap((page) => page.threads);
-  const threads = fetched.filter((thread) => {
-    // A room muted or left since the page was read lists nothing here, as
-    // it lists nothing in the sidebar.
-    const room = roomsById.get(thread.roomId);
-    if (!room || room.mutedAt != null || seen.has(thread.parentMessageId)) {
-      return false;
-    }
-    seen.add(thread.parentMessageId);
-    return true;
-  });
+  const { rows, matching } = useThreadSearchRows(fetched, rooms, currentUserId);
   // The rooms are the faster signal: the view drains the moment their count
   // does, without waiting on Core to agree. Before any room has loaded, only
   // Core's own empty answer says so.
   const caughtUp =
     roomsSayCaughtUp ||
     (query.isSuccess &&
-      threads.length === 0 &&
+      rows.length === 0 &&
       // A page whose rows were all dropped says nothing while another follows.
       !query.hasNextPage &&
       (fetched.length === 0 || rooms.length > 0));
+  usePageSearchPagination(
+    query.data?.pages.at(-1)?.nextCursor,
+    query.isFetching,
+    () => query.fetchNextPage(),
+  );
 
   return (
     <>
@@ -161,7 +157,7 @@ export function UnreadThreadsList({
         ) : (
           <ThreadGroupEmpty>{tGroups("groupUnreadEmpty")}</ThreadGroupEmpty>
         )
-      ) : query.isError && threads.length === 0 ? (
+      ) : query.isError && rows.length === 0 ? (
         <div className="flex flex-col items-start gap-2">
           <p className="text-muted-foreground text-sm">{t("loadError")}</p>
           <Button
@@ -185,22 +181,15 @@ export function UnreadThreadsList({
             className="flex flex-col gap-0.5"
             data-testid="unread-threads-list"
           >
-            {threads.map((thread) => {
-              const room = roomsById.get(thread.roomId);
-              return room ? (
-                <li key={thread.parentMessageId}>
-                  <UnreadThreadLink
-                    thread={thread}
-                    room={room}
-                    currentUserId={currentUserId}
-                  />
-                </li>
-              ) : null;
-            })}
+            {matching.map((row) => (
+              <li key={row.thread.parentMessageId}>
+                <UnreadThreadLink {...row} />
+              </li>
+            ))}
           </ul>
           {query.hasNextPage ? (
             <ThreadListLoadMore
-              boundaryKey={threads.at(-1)?.parentMessageId ?? ""}
+              boundaryKey={rows.at(-1)?.thread.parentMessageId ?? ""}
               status={
                 query.isFetchingNextPage
                   ? "loading"

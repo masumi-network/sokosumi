@@ -161,7 +161,14 @@ export async function executeComposioTool(input: {
   }>(response, input.context);
   const toolResult = record(result.data);
   const providerResult = record(toolResult?.data) ?? toolResult;
-  const toolError = result.error ?? toolResult?.error;
+  const providerError = input.toolSlug.startsWith("TIKTOK_")
+    ? providerResult?.error
+    : undefined;
+  const reportedError = result.error ?? toolResult?.error ?? providerError;
+  const toolError =
+    input.toolSlug.startsWith("TIKTOK_") && record(reportedError)?.code === "ok"
+      ? null
+      : reportedError;
   const isXImageUpload = input.context === "upload X image";
   if (
     toolError ||
@@ -183,7 +190,7 @@ export async function executeComposioTool(input: {
     throw new ComposioToolError({
       message: imageFailure?.message ?? input.refused,
       providerMessage: imageFailure?.reason ?? toolErrorMessage(toolError),
-      providerStatus,
+      providerStatus: imageFailure?.status ?? providerStatus,
     });
   }
   return record(providerResult?.data) ?? providerResult;
@@ -228,7 +235,7 @@ export async function stageSocialPublishFile(input: {
   file: SocialPostMediaBytes;
   signal?: AbortSignal;
 }): Promise<string> {
-  const name = input.file.name ?? "attachment";
+  const name = input.file.name || "attachment";
   const stagingResponse = await projectComposioFetch(
     "/api/v3.1/files/upload/request",
     {

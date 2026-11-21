@@ -150,6 +150,7 @@ off-guide): Iris Flower measures 7.3:1 on Neutral 950 against 2.7:1 on white, so
 about three times louder in dark. It is a **fill**: the label on it is always
 `--primary-foreground` (Neutral 950; 7.33:1 on Iris Flower, 5:1 on Dark Iris). It is never
 text, a border or a thin mark on the page, where it measures 2.67:1 on white.
+The one exception is the navigation progress bar (see **Motion**).
 `--primary-hover` is Iris Flower in both themes, so a dark primary lifts to full Iris on
 hover and a light one keeps its fill.
 
@@ -324,9 +325,10 @@ Borders first (guide 5.5). No glow, no blur. Shadows stop at `shadow-lg`.
   `backdrop-blur` and `blur-*` are out everywhere; the guard fails on them. A floating chip
   over content is `bg-popover border`, opaque. Mobile chrome is opaque `bg-background`.
 - **Z-index:** no formal ladder. **`z-50` is the standard overlay layer** (dropdowns, popovers,
-  modals); `z-10` for local stacking. Two surfaces sit above it on purpose: the mobile search
-  takeover (`z-[60]`, over the `z-50` header) and the cookie banner (`z-[100]`, over every
-  overlay). Nothing else goes above `z-50`; the guard holds that list.
+  modals); `z-10` for local stacking. Three surfaces sit above it on purpose: the mobile search
+  takeover (`z-[60]`, over the `z-50` header), the workspace sweep (`z-[70]`, over the dialog it
+  closes) and the cookie banner (`z-[100]`, over every overlay). Nothing else goes above `z-50`;
+  the guard holds that list.
 
 ## Shapes
 
@@ -375,8 +377,10 @@ prop/state-driven.
   draws `ButtonLoadingBar`.
 - **Input** — h-10, `rounded-md border-input bg-transparent`, `text-base md:text-sm`
   (via `withEditableTextSize`).
-- **Badge** — 4 variants (default/secondary/destructive/outline), `px-2 py-0.5 text-xs
+- **Badge** — 5 variants (default/secondary/muted/destructive/outline), `px-2 py-0.5 text-xs
   font-medium rounded-md`, SVG `size-3`. A badge labels a state; it never answers the pointer.
+  `muted` (`bg-quaternary`, shows in both themes) is the quiet fill for descriptive labels,
+  such as a file's category.
 - **Card** — `bg-card rounded-xl border py-6`, with Header/Title(`font-semibold`)/Description
   (`text-muted-foreground text-sm`)/Content/Footer; `px-6` insets.
 - **Dialog** — centered, `max-w-[calc(100%-2rem)] sm:max-w-lg`, `rounded-lg border p-6`; overlay
@@ -437,6 +441,14 @@ prop/state-driven.
 - **Enter and feedback:** `content-in` / `content-rise` (200ms fade, small rise) for page and list
   arrival, `check-pop` for copy/save confirmation, `scroll-edge-y` for scroll-edge fades. Opacity and
   transform only. Under reduced motion overlays cross-fade in place.
+- **Navigation progress bar:** `NavigationProgress`, in the root layout, draws a 3px Iris bar
+  along the top of every page while a link, `router.push` or `replace`, or back and forward
+  loads another page, and the sidebar row it heads for is current from the click. The phone tab
+  bar moves its mark on arrival. The bar waits 120ms, so a page that opens faster shows none: that
+  covers a page the router already holds. A chat room the room cache paints ahead of its route
+  shows none either (`markPageOnScreen`), nor does a search-param change on the same page or a
+  Server Action's `redirect()`.
+  Under reduced motion the full bar fades in and holds still.
 - **Reduced motion:** respected — heavy/ambient motion slows rather than dies;
   `agent-card-roll-up` disables under `prefers-reduced-motion`. Use `motion-safe:`/`motion-reduce:`
   for flourishes. Never animate a focus ring's appearance.
@@ -460,6 +472,11 @@ prop/state-driven.
 - **No glow or blur** (guide 5.5): depth comes from borders and, for floating overlays, a shadow up to `shadow-lg`.
 - **Generative art** is on-brand (agents create visuals from words). **Photography** is organic
   and natural — abstract macro, grain, brand-tinted, depth-of-field softness; avoid harsh stock.
+- **Home gradient** (`GradientBackground`) is the one generative surface in product chrome: behind
+  the Home greeting only, fading to the white page before the day's list. Big soft blobs that
+  drift slowly, don't react to the pointer, and hold still under reduced motion. The workspace
+  sweep is a band of the same gradient. Colours are the `--gradient-*` tokens; don't add it to
+  other pages.
 - **Decorative grid** lines may appear subtly on calm backgrounds; never compete with ink.
 - In product: offer previews are **content-aware mocks** (slide/doc/chart/checklist/code/
   wireframe/video/text), not fake content; coworker avatars are shown whole.
@@ -487,6 +504,12 @@ prop/state-driven.
   transition (no `transition`, `transition-all` or `transition-shadow` on a focusable
   element). Never fade it with a modifier. Guard:
   `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts`.
+
+  On a row with `[content-visibility:auto]`, paint containment clips a child's outline, and
+  forced-colors mode drops the ring. Put a transparent outline on the row itself
+  (`has-[>a:focus-visible]:outline-2 has-[>a:focus-visible]:outline-transparent`, as in
+  `project-list-item.tsx`), and use `outline-hidden` on the link: unlike `outline-none`, it
+  keeps an outline in forced colors.
 - **Decorative icons:** lucide-react adds `aria-hidden="true"` to any icon that has no
   accessibility prop, so don't pass it by hand. `react-icons` glyphs do need `aria-hidden`.
 - **Icon-only / unlabeled controls:** because the icon is hidden, every icon-only control needs

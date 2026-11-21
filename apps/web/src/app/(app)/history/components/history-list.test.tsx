@@ -12,6 +12,9 @@ vi.mock("./history-soko-bot-group", () => ({
     <span>{`group of ${items.length}`}</span>
   ),
 }));
+vi.mock("@/app/components/new-task-button.client", () => ({
+  NewTaskButton: () => <button type="button">New task</button>,
+}));
 vi.mock("@/lib/utils/datetime.client", () => ({
   useLocalizedDateTime: () => ({
     formatMonthYear: (date: string | Date) =>
@@ -59,7 +62,13 @@ describe("HistoryList month headings", () => {
         ]}
         nextCursor={null}
         filterResetKey="k"
-        filters={{ q: null, scope: "owned", type: null, projectId: null }}
+        filters={{
+          q: null,
+          scope: "owned",
+          type: null,
+          projectId: null,
+          taskId: null,
+        }}
         labels={labels}
         activeOrganizationId={null}
       />,
@@ -72,6 +81,8 @@ describe("HistoryList month headings", () => {
     ]);
     const list = screen.getByRole("list");
     expect(within(list).getAllByText(/^[abc]$/)).toHaveLength(3);
+    // A list may only hold list items; a presentation child fails axe "list".
+    expect(list.querySelector(":scope > [role=presentation]")).toBeNull();
   });
 });
 
@@ -93,7 +104,13 @@ describe("HistoryList Soko Bot days", () => {
         ]}
         nextCursor={null}
         filterResetKey="k"
-        filters={{ q: null, scope: "owned", type: null, projectId: null }}
+        filters={{
+          q: null,
+          scope: "owned",
+          type: null,
+          projectId: null,
+          taskId: null,
+        }}
         labels={labels}
         activeOrganizationId={null}
       />,
@@ -101,6 +118,77 @@ describe("HistoryList Soko Bot days", () => {
     const rows = within(screen.getByRole("list"))
       .getAllByRole("listitem")
       .map((row) => row.textContent);
-    expect(rows).toEqual(["group of 3", "task"]);
+    expect(rows).toEqual(["October 2026", "group of 3", "task"]);
+  });
+});
+
+describe("HistoryList empty states", () => {
+  const filters = {
+    q: "invoice",
+    scope: "owned" as const,
+    type: null,
+    projectId: null,
+    taskId: null,
+  };
+
+  it("offers to clear the filters when they match nothing", () => {
+    render(
+      <HistoryList
+        history={[]}
+        nextCursor={null}
+        filterResetKey="k"
+        filters={filters}
+        labels={labels}
+        clearFilters={{ href: "/history", label: "Clear filters" }}
+        activeOrganizationId={null}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "Clear filters" })).toHaveAttribute(
+      "href",
+      "/history",
+    );
+    expect(screen.queryByRole("button", { name: "New task" })).toBeNull();
+  });
+
+  it("offers a new task when there is nothing to clear", () => {
+    render(
+      <HistoryList
+        history={[]}
+        nextCursor={null}
+        filterResetKey="k"
+        filters={{ ...filters, q: null }}
+        labels={labels}
+        clearFilters={null}
+        activeOrganizationId={null}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "New task" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a searched query as text and wraps it inside the panel", () => {
+    render(
+      <HistoryList
+        history={[]}
+        nextCursor={null}
+        filterResetKey="k"
+        filters={filters}
+        labels={{
+          ...labels,
+          empty: { title: 'No results for "<b>x</b>"', description: "" },
+        }}
+        clearFilters={{ href: "/history", label: "Clear filters" }}
+        activeOrganizationId={null}
+      />,
+    );
+
+    const heading = screen.getByRole("heading", {
+      name: 'No results for "<b>x</b>"',
+    });
+    expect(heading.querySelector("b")).toBeNull();
+    expect(heading.closest(".wrap-anywhere")).not.toBeNull();
   });
 });

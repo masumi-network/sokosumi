@@ -35,6 +35,12 @@ export const TIME = {
  * Rate limits and capacity constraints
  */
 export const LIMITS = {
+  /**
+   * Levels of sub-tasks below a Task (SOKD-279). The `task_subtask_guard`
+   * trigger in migration 20261118140000_task_subtasks enforces the same 5.
+   */
+  MAX_SUBTASK_DEPTH: 5,
+
   /** Maximum API key requests per minute */
   API_KEY_MAX_REQUESTS_PER_MINUTE: 100,
 
@@ -77,6 +83,13 @@ export const LIMITS = {
   IMAGE_STUDIO_CONCURRENT_JOBS_PER_PROJECT: 3,
 
   /**
+   * Generations Core's month media may have in flight for one Project. The
+   * approved plan bounds how many a month makes; fal queues what is over the
+   * account's own limit instead of refusing it.
+   */
+  CMO_MONTH_CONCURRENT_JOBS_PER_PROJECT: 6,
+
+  /**
    * Image-studio generations one user may start per hour, across all projects.
    * Bounds what a single account can spend if a prompt loop goes wrong.
    */
@@ -96,6 +109,8 @@ export const LIMITS = {
 
   /** Largest generated video the studio will store. 15 s at 768P is ~10 MB. */
   IMAGE_STUDIO_MAX_VIDEO_BYTES: 64 * 1024 * 1024,
+  /** A talking video is 1080p at about 1.5 MB a second, up to some 45 seconds. */
+  IMAGE_STUDIO_MAX_TALKING_VIDEO_BYTES: 128 * 1024 * 1024,
 
   /**
    * Maximum pending guest invitations per external channel. Bounds email blast

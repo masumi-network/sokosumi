@@ -1,19 +1,19 @@
 # Calendar
 
-Calendar is a destination of its own (`/calendar`, a **Calendar** row in the sidebar's Work group after **Schedules**). It shows everything with a date in Month / Week / Agenda: Tasks (Runs and Run at), Social posts, Newsletter issues, Contact follow-ups and the Marketing plan. Each feature is a filter, chosen with **Show**.
+Calendar is a destination of its own (`/calendar`, a **Calendar** row in the sidebar's Work group after **Schedules**). It shows everything with a date in Month / Week / Agenda: Tasks (Runs and Run at), Social posts, Newsletter issues, Contact follow-ups, the Marketing plan, and Soko Bot runs. Each feature is a filter, chosen with **Show**.
 
 ## Sub-features
 
 - `calendar-open` loads `/calendar` while authenticated. The URL may gain `?timezone=…`.
 - `calendar-shell` shows Month / Week / Agenda tabs, the **Show** filter and the period grid (empty copy **Nothing scheduled matches these filters.** is valid).
-- `calendar-show` is the **Show** menu: one checkbox per feature (**Newsletter** only where the workspace has it). It writes `types=…` to the URL (absent means every feature).
+- `calendar-show` is the **Show** menu: one checkbox per feature the workspace offers (**Newsletter** only where the workspace has it; **Soko Bot** is one of the rest). It writes `types=…` to the URL (absent means every offered feature).
 - `calendar-gated` is covered by the shared app auth gate (anonymous users bounce to sign-in).
 
 ## How to get to it (user POV)
 
 - Choose **Calendar** in the sidebar (Work group, after **Schedules**). It follows the header's Project scope (`?projectId=`); **All projects** shows the workspace.
 - Open `/calendar` directly.
-- Old links still work: `/tasks?tab=calendar` and `socialOnly=true` open `/calendar` (the latter as `types=social`), and `/newsletter/calendar` opens `/calendar?types=newsletter` for the Project in scope.
+- Old links still work: `/tasks?tab=calendar` and `socialOnly=true` open `/calendar` (the latter as `types=social`). `/newsletter/calendar` is not that redirect. When the beta is on it is the newsletter issue calendar, and **Open full calendar** links to `/calendar?types=newsletter`. Outside the beta it is the same 404 as `/newsletter`.
 
 ## Driving it with agent-browser
 

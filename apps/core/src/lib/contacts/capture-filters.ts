@@ -137,6 +137,10 @@ export type CaptureSkipReason =
 
 const EMAIL_PATTERN = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/;
 
+export function isProviderEmail(email: string): boolean {
+  return email.length <= 320 && EMAIL_PATTERN.test(email);
+}
+
 export function emailDomain(email: string): string {
   return email.slice(email.lastIndexOf("@") + 1).toLowerCase();
 }
@@ -175,8 +179,7 @@ export function classifyAddress(
   options: { ownerInitiated: boolean },
 ): AddressVerdict {
   const email = rawEmail.trim().toLowerCase();
-  if (!EMAIL_PATTERN.test(email) || email.length > 320)
-    return { ok: false, reason: "invalid_address" };
+  if (!isProviderEmail(email)) return { ok: false, reason: "invalid_address" };
   if (identity.ownerEmails.has(email)) return { ok: false, reason: "self" };
   if (identity.teammateEmails.has(email))
     return { ok: false, reason: "teammate" };

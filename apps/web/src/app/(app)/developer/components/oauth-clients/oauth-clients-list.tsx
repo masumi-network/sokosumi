@@ -8,6 +8,7 @@ import { KeyRound, Pencil, Trash2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { DeveloperSectionRowsSkeleton } from "@/app/developer/components/developer-loading-view";
+import { usePageListSearch } from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 
 import type { OAuthClientsListProps } from "./types";
@@ -24,6 +25,21 @@ export function OAuthClientsList({
 }: OAuthClientsListProps) {
   const t = useTranslations("App.Account.OAuthClients");
   const format = useFormatter();
+
+  const visible = usePageListSearch(clients, (client) => ({
+    primary: [client.client_name, client.client_id],
+    secondary: [
+      ...(client.redirect_uris ?? []),
+      t(isPublicOAuthClient(client) ? "Status.public" : "Status.confidential"),
+      t(
+        hasCoreApiOAuthScope(client.scope)
+          ? "Status.apiAccess"
+          : "Status.identityOnly",
+      ),
+      hasOfflineAccessOAuthScope(client.scope) ? t("Status.refresh") : null,
+      client.disabled ? t("Status.disabled") : null,
+    ],
+  }));
 
   if (isInitialLoading) {
     return <DeveloperSectionRowsSkeleton />;
@@ -53,7 +69,7 @@ export function OAuthClientsList({
 
   return (
     <div className="space-y-3">
-      {clients.map((client) => {
+      {visible.map((client) => {
         const name = client.client_name || client.client_id;
         const issuedAt = client.client_id_issued_at
           ? format.dateTime(new Date(client.client_id_issued_at * 1000), {
@@ -67,11 +83,13 @@ export function OAuthClientsList({
         return (
           <div
             key={client.client_id}
-            className="flex items-start justify-between gap-4 rounded-lg border p-4"
+            // Phones: a full-width card with the actions at its foot. From md the
+            // actions sit beside the details.
+            className="flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-start md:justify-between md:gap-4"
           >
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="truncate font-semibold">{name}</p>
+                <p className="min-w-0 font-semibold break-words">{name}</p>
                 <span className="bg-muted text-muted-foreground inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium">
                   {isPublic ? t("Status.public") : t("Status.confidential")}
                 </span>
@@ -111,10 +129,12 @@ export function OAuthClientsList({
                 </p>
               ) : null}
             </div>
-            <div className="flex shrink-0 items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1 border-t pt-3 md:border-t-0 md:pt-0">
               <Button
                 size="sm"
                 variant="ghost"
+                // DESIGN.md touch targets: 40px below md, 32px from md up.
+                className="size-10 md:size-8"
                 onClick={() => onEditClick(client)}
                 title={t("Actions.editTooltip")}
                 aria-label={t("Actions.editTooltip")}
@@ -125,6 +145,7 @@ export function OAuthClientsList({
                 <Button
                   size="sm"
                   variant="ghost"
+                  className="size-10 md:size-8"
                   onClick={() => onRotateClick(client)}
                   title={t("Actions.rotateTooltip")}
                   aria-label={t("Actions.rotateTooltip")}
@@ -135,6 +156,7 @@ export function OAuthClientsList({
               <Button
                 size="sm"
                 variant="ghost"
+                className="ms-auto size-10 md:ms-0 md:size-8"
                 onClick={() => onDeleteClick(client)}
                 title={t("Actions.deleteTooltip")}
                 aria-label={t("Actions.deleteTooltip")}

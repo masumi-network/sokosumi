@@ -1,8 +1,15 @@
 import type { Task } from "@sokosumi/core-client";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
-import { Building2, FolderKanban, Lock, Repeat, UserRound } from "lucide-react";
+import {
+  Building2,
+  CalendarClock,
+  FolderKanban,
+  Lock,
+  Repeat,
+  UserRound,
+} from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -26,6 +33,8 @@ import {
   type TaskMetadataStatusFieldLabels,
 } from "./task-metadata-status-field";
 import { TaskPriorityIcon } from "./task-priority-icon";
+import { TaskRunAtBadge } from "./task-run-at-badge";
+import { TaskStatusAge } from "./task-status-age";
 import { getTaskStatusMarker } from "./task-status-badge";
 
 interface TaskMetadataLabels {
@@ -33,10 +42,12 @@ interface TaskMetadataLabels {
   status: string;
   statusLabels: Record<TaskStatus, string>;
   organization: string;
+  organizationReadOnly: string;
   personalWorkspace: string;
   project: string;
   noProject: string;
   schedule: string;
+  startsAt: string;
   assignee: string;
   noAssignee: string;
   memberFallback: string;
@@ -51,6 +62,10 @@ interface TaskMetadataTask {
   selectableStatuses: Task["selectableStatuses"];
   organization: Task["organization"];
   assignee: Task["assignee"];
+  /** ISO start time; shown while the task waits for it (Scheduled). */
+  runAt?: string | null;
+  /** ISO time the Task took its status. */
+  statusSince?: string;
 }
 
 interface PersonDisplay {
@@ -100,6 +115,14 @@ interface TaskMetadataProps {
   project: { id: string; name: string } | null;
   /** Rendered in a Schedule row when the Task came from a Task Schedule. */
   schedule?: ReactNode;
+  /** A row of its own (see {@link PropertyRow}): what the Task has cost. */
+  credits?: ReactNode;
+  /** A row of its own: the Task's participants, after the assignee. */
+  participants?: ReactNode;
+  /** Replaces the read-only Assignee row when the viewer may change it. */
+  assigneeField?: ReactNode;
+  /** Replaces the read-only Project row when the viewer may change it. */
+  projectField?: ReactNode;
   labels: TaskMetadataLabels;
   statusFieldLabels: TaskMetadataStatusFieldLabels;
   priorityLabels: TaskPriorityLabels;
@@ -116,6 +139,10 @@ export function TaskMetadata({
   task,
   project,
   schedule,
+  credits,
+  participants,
+  assigneeField,
+  projectField,
   labels,
   statusFieldLabels,
   priorityLabels,
@@ -142,22 +169,48 @@ export function TaskMetadata({
             taskId={taskId}
             status={task.status}
             selectableStatuses={task.selectableStatuses}
+            statusSince={task.statusSince}
+            agentAssigneeName={
+              task.assignee?.type === "user" ? null : (assignee?.name ?? null)
+            }
             labels={statusFieldLabels}
           />
         ) : (
-          <PropertyRow
-            label={labels.status}
-            value={statusLabel}
-            icon={
-              <StatusMarker
-                spec={statusMarker}
-                tone={getToneStyle(statusMarker.tone).onSurface}
+          <>
+            <PropertyRow
+              label={labels.status}
+              value={statusLabel}
+              icon={
+                <StatusMarker
+                  spec={statusMarker}
+                  tone={getToneStyle(statusMarker.tone).onSurface}
+                />
+              }
+            >
+              <span className="truncate">{statusLabel}</span>
+            </PropertyRow>
+            {task.statusSince ? (
+              <TaskStatusAge
+                status={task.status}
+                statusSince={task.statusSince}
+                variant="row"
               />
-            }
-          >
-            <span className="truncate">{statusLabel}</span>
-          </PropertyRow>
+            ) : null}
+          </>
         )}
+
+        {task.status === "QUEUED" && task.runAt ? (
+          <PropertyRow
+            label={labels.startsAt}
+            icon={<CalendarClock className="text-muted-foreground size-4" />}
+          >
+            <TaskRunAtBadge
+              runAt={task.runAt}
+              showIcon={false}
+              className="text-foreground text-sm"
+            />
+          </PropertyRow>
+        ) : null}
 
         {editable ? (
           <TaskMetadataPriorityField
@@ -200,52 +253,57 @@ export function TaskMetadata({
           </div>
         ) : null}
 
-        <PropertyRow
-          label={labels.assignee}
-          value={assignee?.name ?? labels.noAssignee}
-          icon={
-            assignee ? (
-              <PersonAvatar person={assignee} />
-            ) : (
-              <UserRound className="text-muted-foreground size-4" />
-            )
-          }
-        >
-          {assignee ? (
-            <span className="truncate">{assignee.name}</span>
-          ) : (
-            <span className="text-muted-foreground truncate">
-              {labels.noAssignee}
-            </span>
-          )}
-        </PropertyRow>
-
-        <PropertyRow
-          label={labels.organization}
-          value={organizationName}
-          icon={<Building2 className="text-muted-foreground size-4" />}
-        >
-          <span className="truncate">{organizationName}</span>
-        </PropertyRow>
-
-        <PropertyRow
-          label={labels.project}
-          value={project?.name ?? labels.noProject}
-          icon={<FolderKanban className="text-muted-foreground size-4" />}
-        >
-          {project ? (
-            <Link
-              href={`/projects/${project.id}`}
-              className="hover:text-foreground truncate transition-colors"
+        {/* Each slot gets its own key: callers key their fields by Task id
+            to reset them on a new Task, and same-keyed siblings duplicated
+            rows when the status changed. */}
+        <Fragment key="assignee">
+          {assigneeField ?? (
+            <PropertyRow
+              label={labels.assignee}
+              value={assignee?.name ?? labels.noAssignee}
+              icon={
+                assignee ? (
+                  <PersonAvatar person={assignee} />
+                ) : (
+                  <UserRound className="text-muted-foreground size-4" />
+                )
+              }
             >
-              {project.name}
-            </Link>
-          ) : (
-            <span className="text-muted-foreground truncate">
-              {labels.noProject}
-            </span>
+              {assignee ? (
+                <span className="truncate">{assignee.name}</span>
+              ) : (
+                <span className="text-muted-foreground truncate">
+                  {labels.noAssignee}
+                </span>
+              )}
+            </PropertyRow>
           )}
-        </PropertyRow>
+        </Fragment>
+
+        <Fragment key="participants">{participants}</Fragment>
+
+        <Fragment key="project">
+          {projectField ?? (
+            <PropertyRow
+              label={labels.project}
+              value={project?.name ?? labels.noProject}
+              icon={<FolderKanban className="text-muted-foreground size-4" />}
+            >
+              {project ? (
+                <Link
+                  href={`/projects/${project.id}`}
+                  className="hover:text-foreground truncate transition-colors"
+                >
+                  {project.name}
+                </Link>
+              ) : (
+                <span className="text-muted-foreground truncate">
+                  {labels.noProject}
+                </span>
+              )}
+            </PropertyRow>
+          )}
+        </Fragment>
 
         {schedule ? (
           <PropertyRow
@@ -264,6 +322,25 @@ export function TaskMetadata({
             <span className="truncate">{labels.privateBadge}</span>
           </PropertyRow>
         ) : null}
+
+        {/* Last and set apart: the workspace owns it, so it never edits here.
+            The workspace's credits for this Task sit under its name. */}
+        <div className="border-t pt-1">
+          <PropertyRow
+            label={labels.organization}
+            value={`${organizationName} (${labels.organizationReadOnly})`}
+            icon={<Building2 className="text-muted-foreground size-4" />}
+          >
+            <span className="text-muted-foreground truncate">
+              {organizationName}
+            </span>
+            <Lock
+              className="text-muted-foreground ml-auto size-3.5 shrink-0"
+              aria-hidden
+            />
+          </PropertyRow>
+          {credits}
+        </div>
       </div>
     </section>
   );
@@ -277,7 +354,12 @@ interface PropertyRowProps {
   children: ReactNode;
 }
 
-function PropertyRow({ label, value, icon, children }: PropertyRowProps) {
+export function PropertyRow({
+  label,
+  value,
+  icon,
+  children,
+}: PropertyRowProps) {
   const description = value ? `${label}: ${value}` : label;
   return (
     <Tooltip>

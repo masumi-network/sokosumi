@@ -4,11 +4,16 @@ import {
   unescapeMarkdownLinkUrl,
 } from "@sokosumi/utils";
 
+import { classifyFilePreview } from "@/lib/utils/file-preview";
+import { splitVoiceTranscript } from "@/lib/utils/voice-message";
+
 export interface RoomMessageFileLink {
   url: string;
   fileName: string;
   index: number;
   matchLength: number;
+  /** The message's transcript, on its first audio link. */
+  transcript?: string;
 }
 
 export interface RoomMessageTextSegment {
@@ -55,9 +60,31 @@ function standaloneLinks(
   });
 }
 
+/**
+ * A `transcript` fence belongs to the message's first audio card and leaves
+ * the text; without an audio card it stays an ordinary code block.
+ */
 export function segmentRoomMessageContent(
   content: string,
 ): RoomMessageSegment[] {
+  const { content: body, transcript } = splitVoiceTranscript(content);
+  if (transcript !== null) {
+    const segments = segmentContent(body);
+    for (const segment of segments) {
+      if (segment.kind !== "files") continue;
+      const audio = segment.links.find(
+        (link) => classifyFilePreview(link.url, link.fileName).isAudio,
+      );
+      if (audio) {
+        audio.transcript = transcript;
+        return segments;
+      }
+    }
+  }
+  return segmentContent(content);
+}
+
+function segmentContent(content: string): RoomMessageSegment[] {
   const candidates: RoomMessageFileLink[] = [];
   for (const match of findMarkdownLinks(content)) {
     const url = unescapeMarkdownLinkUrl(match.rawUrl);

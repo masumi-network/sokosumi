@@ -3,7 +3,8 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Pin, Table2, Users } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import { useRef, useState } from "react";
+import { useState } from "react";
+import { useDebounce } from "use-debounce";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import {
   driveItemArticleClass,
@@ -15,41 +16,72 @@ import {
   driveItemsListClass,
   driveItemsPanelClass,
 } from "@/app/drive/components/drive-view-layout";
+import { PageSearchField } from "@/components/page-search-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { getEnvPublicConfig } from "@/config/env.public";
 import { contactsService } from "@/lib/services/contacts.client";
 import { dataTableService } from "@/lib/services/data-table.client";
 import { cn } from "@/lib/utils";
 import { tableError } from "./table-value";
 
-export function TableList({
-  workspaceId,
-  archived,
-}: {
+interface TableListProps {
   workspaceId: string | null;
   archived: boolean;
-}) {
+}
+
+export function TableList({ workspaceId, archived }: TableListProps) {
+  const t = useTranslations("App.Tables");
+  const [value, setValue] = useState("");
+  const [search] = useDebounce(
+    value.trim(),
+    getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
+  );
+  return (
+    <div className="flex flex-col gap-4">
+      <PageSearchField
+        placeholder={t("searchPlaceholder")}
+        value={value}
+        onValueChange={setValue}
+        maxLength={200}
+      />
+      <TableListResults
+        key={JSON.stringify([archived, search])}
+        workspaceId={workspaceId}
+        archived={archived}
+        search={search}
+      />
+    </div>
+  );
+}
+
+function TableListResults({
+  workspaceId,
+  archived,
+  search,
+}: TableListProps & { search: string }) {
   const t = useTranslations("App.Tables");
   const format = useFormatter();
   const [cursor, setCursor] = useState<string>();
-  const previousArchivedRef = useRef(archived);
-  if (previousArchivedRef.current !== archived) {
-    previousArchivedRef.current = archived;
-    setCursor(undefined);
-  }
   const query = useQuery({
-    queryKey: ["data-tables", workspaceId, archived, cursor],
+    queryKey: ["data-tables", workspaceId, archived, search, cursor],
     queryFn: () =>
-      dataTableService.list({ archived: archived ? "true" : "false", cursor }),
+      dataTableService.list({
+        archived: archived ? "true" : "false",
+        cursor,
+        search: search || undefined,
+      }),
     // Always revalidate on mount and focus, so a table changed elsewhere moves
     // up; the cached page stays on screen meanwhile instead of a loader.
     staleTime: 0,
     placeholderData: keepPreviousData,
   });
+  const showContacts =
+    !archived && t("contactsName").toLowerCase().includes(search.toLowerCase());
   const contacts = useQuery({
     queryKey: ["contacts-count", workspaceId],
     queryFn: () => contactsService.list({ limit: 1 }),
-    enabled: !archived,
+    enabled: showContacts,
     staleTime: 0,
   });
   if (query.isPending) return <DriveListSkeleton viewMode="list" />;
@@ -75,22 +107,24 @@ export function TableList({
           </AlertDescription>
         </Alert>
       )}
-      {query.data?.items.length === 0 && (
+      {query.data?.items.length === 0 && (!search || !showContacts) && (
         <div className="py-12 text-center">
           <Table2
             aria-hidden
             className="text-muted-foreground mx-auto mb-3 size-8"
           />
-          <h3 className="font-medium">{t("empty")}</h3>
-          <p className="text-muted-foreground mt-2 text-sm">
-            {t("emptyDescription")}
-          </p>
+          <h3 className="font-medium">{t(search ? "noMatches" : "empty")}</h3>
+          {!search && (
+            <p className="text-muted-foreground mt-2 text-sm">
+              {t("emptyDescription")}
+            </p>
+          )}
         </div>
       )}
       {/* A table is a Files item, so it wears the Files item row: the same
       helpers the drive cards use, not a lookalike. */}
       <div className={driveItemsListClass("list")}>
-        {!archived && (
+        {showContacts && (
           <Link
             href="/contacts"
             className={cn(

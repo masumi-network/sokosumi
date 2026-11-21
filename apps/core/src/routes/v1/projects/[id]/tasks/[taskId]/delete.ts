@@ -5,6 +5,11 @@ import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { requireSeoTaskExecutionUnchanged } from "@/helpers/seo-task-execution";
+import {
+  requireNotSubtask,
+  requireSubtreeCanChangeProject,
+} from "@/helpers/task-subtasks";
 import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
@@ -75,6 +80,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ...buildHumanTaskVisibilityWhere(userContext.userId),
       },
       select: {
+        parentTaskId: true,
         pendingVendorGrantId: true,
         status: true,
         workspaceId: true,
@@ -85,6 +91,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     requireTaskNotParked(task);
+    requireNotSubtask(task);
 
     await prisma.$transaction(async (tx) => {
       if (
@@ -100,6 +107,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!(await lockTaskRows(tx, [taskId]))) {
         throw notFound("Project or task link not found");
       }
+      const current = await tx.task.findFirst({
+        where: {
+          id: taskId,
+          projectId,
+          workspaceId,
+          archivedAt: null,
+          ...buildHumanTaskVisibilityWhere(userContext.userId),
+        },
+      });
+      if (!current) throw notFound("Project or task link not found");
+      await requireSeoTaskExecutionUnchanged(tx, current, { projectId: null });
+      await requireSubtreeCanChangeProject(tx, current.id);
       const unlinkResult = await tx.task.updateMany({
         where: {
           id: taskId,

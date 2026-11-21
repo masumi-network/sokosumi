@@ -27,6 +27,8 @@ const room = {
   storage: "private" as const,
   token: "tok",
   title: null,
+  welcomeNote: null,
+  company: null,
   logoFileId: null,
   allowedDomains: [],
   expiresAt: null,

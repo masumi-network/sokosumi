@@ -1,0 +1,182 @@
+/// Who put a tracked competitor on the list.
+enum TrackedCompetitorSource {
+  /// Brand Brain research named it (the market map's players first).
+  RESEARCH
+  /// A member added it.
+  MEMBER
+}
+
+/// A page of a competitor that the weekly check reads and compares.
+enum CompetitorPageKind {
+  WEBSITE
+  PRICING
+}
+
+/// What a competitor signal is about.
+enum CompetitorSignalKind {
+  /// Its homepage says something new.
+  WEBSITE_CHANGE
+  /// A published price or plan changed.
+  PRICE_CHANGE
+  /// A news article or launch from the last week.
+  NEWS
+  /// An ad that started running in the EU (Meta Ad Library).
+  AD
+  /// One week of its Instagram account: followers, posts, top posts.
+  SOCIAL
+}
+
+/// A competitor a Project watches every week, at most five live ones per
+/// Project (Core enforces the cap). Brand Brain research fills the list;
+/// members add, change and remove entries, and what a member set is never
+/// overwritten by later research.
+model TrackedCompetitor {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  name            String
+  /// The name in lower case without punctuation: one row per competitor,
+  /// however research spells it next time.
+  nameKey         String
+  /// The name key research added it under. A member's rename keeps it, so
+  /// research still knows the competitor by the name it found.
+  researchKey     String?
+  websiteUrl      String?
+  pricingUrl      String?
+  /// Without the "@".
+  instagramHandle String?
+  facebookHandle  String?
+
+  source         TrackedCompetitorSource
+  /// When a member last changed it. Research leaves such a row alone.
+  memberEditedAt DateTime?
+  /// When a member removed it. The row stays, so research does not add the
+  /// same competitor back, and its signals stay readable.
+  removedAt      DateTime?
+
+  pages   CompetitorPageSnapshot[]
+  signals CompetitorSignal[]
+
+  @@unique([projectId, nameKey])
+  @@index([projectId, removedAt])
+  @@map("tracked_competitor")
+}
+
+/// The text of one competitor page as the last weekly check read it. The
+/// next check compares against it, then replaces it.
+model CompetitorPageSnapshot {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  competitorId String            @db.Uuid
+  competitor   TrackedCompetitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+
+  kind      CompetitorPageKind
+  /// The address that was read. A changed address starts over without a
+  /// signal: two different pages are not a change.
+  url       String
+  /// The page as text, one statement per line, noise removed.
+  text      String
+  fetchedAt DateTime
+
+  @@unique([competitorId, kind])
+  @@map("competitor_page_snapshot")
+}
+
+/// One thing a weekly check found about a competitor. Written once and never
+/// changed: what Cuso tells the owner must point at a row here.
+model CompetitorSignal {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  competitorId String            @db.Uuid
+  competitor   TrackedCompetitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+  /// The competitor's Project, so a Project's week is one indexed read.
+  projectId    String            @db.Uuid
+  project      Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  kind            CompetitorSignalKind
+  /// What happened, in one line ("Pro plan $12 -> $10").
+  summary         String
+  /// When it happened or was first seen.
+  observedAt      DateTime
+  /// Where it can be read: the page, the article, the ad, the profile.
+  sourceUrl       String?
+  sourceTitle     String?
+  /// Who published the source ("TechCrunch", "Meta Ad Library").
+  sourcePublisher String?
+  /// The source's own words that back the summary, copied, never rewritten.
+  quote           String?
+  /// Everything the check read for it.
+  raw             Json
+  /// What makes it the same finding on a second read (the article's address,
+  /// the ad's id, the week of a social reading).
+  dedupeKey       String
+
+  @@unique([competitorId, dedupeKey])
+  @@index([projectId, observedAt])
+  @@map("competitor_signal")
+}
+
+/// One weekly check of a Project's competitors: what each source answered,
+/// what it cost and what was charged.
+model CompetitorCheck {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  /// When it started.
+  createdAt DateTime @default(now())
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  /// The UTC day it started ("2026-11-17"): two callers on one day start one
+  /// check.
+  day             String
+  finishedAt      DateTime?
+  competitorCount Int       @default(0)
+  signalCount     Int       @default(0)
+  /// Per source (pages, news, ads, social): its status, and why when it is
+  /// not "ok". Validated by `competitorCheckSourcesSchema` in Core.
+  sources         Json?
+  /// What Exa and the summary model cost, in US dollars.
+  costUsd         Float     @default(0)
+  /// Credits charged to the Project's payer, in cents (base 10^10).
+  chargedCents    BigInt    @default(0)
+  /// The debit, for a Project that turned the check on itself: it marks the
+  /// check as charged, so a check that is run again is charged once. Null
+  /// for a Cuso's check, which is charged as his Soko Bot usage.
+  transactionId   String?   @unique
+  transaction     Transaction? @relation("TransactionCompetitorCheck", fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@unique([projectId, day])
+  @@index([projectId, createdAt])
+  @@map("competitor_check")
+}
+
+/// Cuso's "This week" for a Project: the competitor moves he wrote from one
+/// check's signals, each fact citing the signals it rests on (Core checks it
+/// on save), and what the sources could not settle. One per check; a later
+/// save in the same week replaces it.
+model CompetitorFeed {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  /// The UTC day of the check it was written from ("2026-11-17").
+  checkDay        String
+  /// The moves, validated by `competitorFeedItemSchema` in
+  /// `@sokosumi/soko-bot`.
+  items         Json
+  openQuestions String[] @default([])
+  /// The turn that wrote it.
+  authorTurnId  String?  @db.Uuid
+
+  @@unique([projectId, checkDay])
+  @@index([projectId, createdAt])
+  @@map("competitor_feed")
+}

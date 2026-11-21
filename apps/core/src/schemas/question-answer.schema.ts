@@ -11,6 +11,8 @@ export const questionAnswerRequestSchema = z
       .trim()
       .max(400)
       .optional()
-      .describe("After a no: what is true instead, in the member's words."),
+      .describe(
+        "The member's own words. After a no: what is true instead. A Brand Brain question keeps them with any answer; a strategy question only with a no.",
+      ),
   })
   .openapi("QuestionAnswerRequest");

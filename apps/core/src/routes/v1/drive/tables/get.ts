@@ -29,6 +29,7 @@ const route = withCoworkerContextHeaderParameters(
         cursor: z.uuid().optional(),
         archived: z.enum(["true", "false"]).optional(),
         projectId: z.uuid().optional(),
+        search: z.string().trim().min(1).max(200).optional(),
       }),
     },
     responses: {

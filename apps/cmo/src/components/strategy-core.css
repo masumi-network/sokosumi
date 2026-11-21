@@ -1,24 +1,3 @@
-/* The strategy's four parts under its sentence */
-.sc-parts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px 24px;
-  margin: 12px 0 0;
-  padding-top: 20px;
-  border-top: 1px solid var(--border);
-}
-
-.sc-parts dt {
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-
-.sc-parts dd {
-  margin: 2px 0 0;
-  font-weight: 500;
-  line-height: 1.35;
-}
-
 /* The offer ladder: first step, main offer, then */
 .sc-ladder {
   display: grid;
@@ -43,142 +22,197 @@
   border-color: var(--line);
 }
 
-/* The funnel: stages narrow toward the sale */
+/*
+ * The funnel: each stage is a slice of one shape that narrows toward the
+ * sale, with what happens at the stage beside it (under it on a phone).
+ */
 .sc-funnel {
   display: grid;
-  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* The app holds a list item to reading width; a stage spans the panel. */
+.sc-funnel > .sc-stage {
+  max-width: none;
 }
 
 .sc-stage {
   display: grid;
-  gap: 10px;
-  margin-inline: calc(var(--sc-step, 0) * 20px);
-  padding: 20px 24px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  background: var(--surface);
+  grid-template-columns: minmax(220px, 30%) minmax(0, 1fr);
+  gap: 0 32px;
 }
 
-.sc-stage.you {
-  border-style: dashed;
-  background: var(--background);
+.sc-segment {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 148px;
+  padding: 16px calc(var(--sc-inset) + 12px);
+  color: var(--primary-foreground);
+  text-align: center;
 }
 
-@media (max-width: 640px) {
-  .sc-stage {
-    margin-inline: 0;
-    padding: 16px;
-  }
+.sc-segment svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
 
-.sc-stage-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 4px 12px;
+.sc-segment polygon {
+  fill: var(--primary);
+  stroke: var(--line);
+  stroke-width: var(--line-width);
+  stroke-linejoin: round;
+}
+
+.sc-segment.paper {
+  color: var(--foreground);
+}
+
+.sc-segment.paper polygon {
+  fill: var(--card);
+}
+
+.sc-segment.yellow polygon {
+  fill: var(--warn);
+}
+
+.sc-segment.green polygon {
+  fill: var(--ok);
+}
+
+.sc-segment-text {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+
+.sc-stage-number {
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .sc-stage-name {
+  margin: 0;
   font-size: 1rem;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  line-height: 1.25rem;
 }
 
-.sc-owner {
-  padding: 2px 8px;
-  border-radius: var(--radius-mark);
-  background: var(--surface);
+.sc-stage-people {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  text-wrap: balance;
+}
+
+.sc-stage-body {
+  display: grid;
+  align-content: center;
+  gap: 16px;
+  padding: 24px 0;
+}
+
+.sc-stage + .sc-stage .sc-stage-body {
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 760px) {
+  .sc-stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sc-segment {
+    min-height: 76px;
+    padding-block: 10px;
+  }
+
+  .sc-stage-body {
+    padding: 16px 0 24px;
+  }
+
+  .sc-stage + .sc-stage .sc-stage-body {
+    border-top: 0;
+  }
+}
+
+.sc-goal {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 300;
+  line-height: 1.75rem;
+  letter-spacing: -0.005em;
+  text-wrap: pretty;
+}
+
+/* The same three answers at every stage, so the columns line up down the page. */
+.sc-stage-parts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px 24px;
+  margin: 0;
+}
+
+.sc-stage-parts dt {
+  margin-bottom: 6px;
   color: var(--muted);
   font-size: 0.75rem;
   font-weight: 500;
 }
 
-.sc-owner.you,
-.sc-owner.shared {
-  background: var(--foreground);
-  color: var(--background);
-}
-
-.sc-goal {
+.sc-stage-parts dd,
+.sc-stage-parts p {
   margin: 0;
-  color: var(--muted);
 }
 
-.sc-plays {
+/* Cuso's or the owner's sentence, above the lines that detail it. */
+.sc-stage-parts .sc-says {
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.sc-plays,
+.sc-ideas {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.sc-plays li {
+.sc-plays li,
+.sc-ideas li {
   display: grid;
-  grid-template-columns: 16px max-content minmax(0, 1fr) auto;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.sc-plays svg {
-  align-self: center;
+  gap: 2px;
 }
 
 .sc-play-channel {
-  font-weight: 500;
-}
-
-.sc-cadence {
-  color: var(--muted);
-  font-size: 0.875rem;
-  white-space: nowrap;
-}
-
-@media (max-width: 640px) {
-  .sc-plays li {
-    grid-template-columns: 16px minmax(0, 1fr);
-  }
-
-  .sc-plays li > span:not(.sc-play-channel) {
-    grid-column: 2;
-  }
-}
-
-.sc-fixes {
-  display: grid;
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  margin: 0;
-  padding: 12px 16px;
-  border-radius: var(--radius-card);
-  background: var(--surface);
-  list-style: none;
-}
-
-.sc-fixes li {
-  display: grid;
+  font-weight: 600;
 }
 
 .sc-measure {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 10px;
-  margin: 0;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
-  font-size: 0.875rem;
+  display: grid;
+  justify-items: start;
+  gap: 2px;
 }
 
-.sc-basis {
-  color: var(--muted);
-  font-size: 0.75rem;
+.sc-measure b {
+  font-size: 1.5rem;
+  font-weight: 300;
+  line-height: 1.75rem;
 }
 
-.sc-basis.measured {
-  color: var(--foreground);
+@media (max-width: 640px) {
+  .sc-stage-parts {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Before and after, one row a channel */
@@ -233,68 +267,9 @@
   }
 }
 
-/* Pace: three choices, Cuso's pick marked */
-.sc-pace {
-  display: grid;
-  gap: 10px;
-}
-
-.sc-pace-options {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.sc-pace-option {
-  display: grid;
-  gap: 2px;
-  padding: 14px 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--background);
-  color: var(--foreground);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 150ms;
-}
-
-.sc-pace-option span {
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-
-.sc-pace-option:hover:not(:disabled) {
-  border-color: var(--foreground);
-}
-
-/* Selection is the ink inversion. */
-.sc-pace-option.current {
-  border-color: var(--line);
-  background: var(--foreground);
-  color: var(--background);
-  cursor: default;
-}
-
-.sc-pace-option.current span {
-  color: var(--background);
-}
-
-.sc-pace-option:disabled:not(.current) {
-  cursor: default;
-  opacity: 0.6;
-}
-
-.sc-pace-option:focus-visible,
 .sc-link:focus-visible {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
-}
-
-@media (max-width: 640px) {
-  .sc-pace-options {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* Ad budget */
@@ -305,6 +280,10 @@
 
 .sc-ads p {
   margin: 0;
+}
+
+.sc-ads-question {
+  font-weight: 600;
 }
 
 .sc-ads-amount b {

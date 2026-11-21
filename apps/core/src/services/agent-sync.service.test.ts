@@ -5,11 +5,15 @@ import {
   PricingType,
 } from "@sokosumi/database";
 import { err, ok } from "neverthrow";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { CARDANO_V2_RAIL_READINESS_KEY } from "@/helpers/agent";
 import { REDACTED_SECRET } from "@/lib/secret-redaction";
-
+import {
+  causeMessage,
+  coreLogEvents,
+  expectCoreLog,
+  expectCoreLogWhys,
+} from "@/test/core-log";
 import { READINESS_BUDGET } from "./agent-sync.readiness.js";
 
 const {
@@ -312,6 +316,32 @@ function createV2AgentIdentifier(version: number): string {
 const ENV_SECRET = "sok1011-registry-secret-value";
 process.env.SOK_1011_REGISTRY_API_KEY = ENV_SECRET;
 
+/** `times` failed readiness attempts, each naming its attempt (1–3 per check), with the node's error under cause. */
+function expectReadinessAttempts(times: number, nodeError: string) {
+  return expectCoreLogWhys(
+    "warn",
+    "A Cardano V2 rail readiness check attempt failed",
+    Array.from(
+      { length: times },
+      (_, index) =>
+        `Attempt ${(index % 3) + 1} got no answer from the payment node`,
+    ),
+    Array(times).fill(nodeError),
+  );
+}
+
+/** One failed readiness check per item; each names the node's error under cause. */
+function expectReadinessCheckFailures(nodeErrors: readonly string[]) {
+  return expectCoreLogWhys(
+    "warn",
+    "The Cardano V2 rail readiness check failed",
+    nodeErrors.map(
+      () => "The payment node did not answer the rail-readiness check",
+    ),
+    nodeErrors,
+  );
+}
+
 describe("agentSyncService.syncRegistryAgents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -362,7 +392,8 @@ describe("agentSyncService.syncRegistryAgents", () => {
     agentCreateMock.mockResolvedValue(undefined);
     agentUpdateMock.mockResolvedValue(undefined);
     agentUpdateManyMock.mockResolvedValue({ count: 0 });
-    agentPricingFindUniqueMock.mockResolvedValue({ agentFixedPricingId: null });
+    // No pricing row yet: the first sync populates it, which is not a reprice.
+    agentPricingFindUniqueMock.mockResolvedValue(null);
     agentPricingUpdateMock.mockResolvedValue(undefined);
     unitValueDeleteManyMock.mockResolvedValue({ count: 0 });
     agentFixedPricingDeleteMock.mockResolvedValue(undefined);
@@ -795,6 +826,11 @@ describe("agentSyncService.syncRegistryAgents", () => {
   });
 
   it("skips a malformed V2 entry whose full-string identity collides with a canonical row", async () => {
+    expectCoreLog("warn", "A V2 registry entry has an invalid version suffix");
+    const collisions = expectCoreLog(
+      "warn",
+      "Skipped a malformed V2 registry entry that collides",
+    );
     // 114 hex chars: V2 policy prefix but no version suffix, so parsing fails
     // and the FULL string doubles as the (colliding) registryIdentity.
     const malformedIdentifier = V2_AGENT_ROOT;
@@ -831,6 +867,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(agentUpdateMock).not.toHaveBeenCalled();
     // …and the cursor still advances past the skipped entry.
     expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+    expect(collisions[0]?.event).toMatchObject({
+      operation: "agent_registry_sync",
+      agent: { identifier: V2_AGENT_ROOT },
+    });
   });
 
   it("replaces collections and summary when metadataVersion moves without a promotion", async () => {
@@ -928,6 +968,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
   });
 
   it("does not write data when registry diff fails", async () => {
+    const errors = expectCoreLog(
+      "error",
+      "Could not read the agent registry diff",
+    );
     const agentSyncService = await getAgentSyncService();
     getAgentsDiffMock.mockResolvedValue(err("registry unavailable"));
 
@@ -939,6 +983,15 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(tagUpsertMock).not.toHaveBeenCalled();
     expect(agentCreateMock).not.toHaveBeenCalled();
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
+    expect(causeMessage(errors[0]?.cause)).toBe("registry unavailable");
+    expect(errors[0]).toMatchObject({
+      why: "The registry did not return the agent diff",
+      fix: expect.stringContaining("retries from the same cursor"),
+    });
+    expect(errors[0]?.event).toMatchObject({
+      operation: "agent_registry_sync",
+      agentRegistrySync: { batches: 0, processed: 0 },
+    });
   });
 
   it("masks an env secret echoed in the registry diff error", async () => {
@@ -948,23 +1001,22 @@ describe("agentSyncService.syncRegistryAgents", () => {
     getAgentsDiffMock.mockResolvedValue(
       err(`502 upstream rejected token=${ENV_SECRET}`),
     );
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const errors = expectCoreLog(
+      "error",
+      "Could not read the agent registry diff",
+    );
 
-    try {
-      await agentSyncService.syncRegistryAgents(
-        AGENTS_SYNC_METADATA_KEY,
-        createSyncExecutionOptions(),
-      );
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
 
-      const logged = errorSpy.mock.calls.find(
-        (call) => call[0] === "[sync/agents] Error in diff sync operation:",
-      );
-      expect(logged).toBeDefined();
-      expect(String(logged?.[1])).not.toContain(ENV_SECRET);
-      expect(String(logged?.[1])).toContain(REDACTED_SECRET);
-    } finally {
-      errorSpy.mockRestore();
-    }
+    const diffError = causeMessage(errors[0]?.cause);
+    expect(diffError).toContain("502 upstream rejected");
+    expect(diffError).not.toContain(ENV_SECRET);
+    expect(diffError).toContain(REDACTED_SECRET);
+    expect(JSON.stringify(errors[0]?.event)).not.toContain(ENV_SECRET);
+    expect(JSON.stringify(errors[0]?.event)).not.toContain(ENV_SECRET);
   });
 
   it("stops downstream writes when cancellation is requested mid-run", async () => {
@@ -1010,6 +1062,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
   });
 
   it("creates agents/tags for every entry and persists cursor metadata", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "A registry entry has an invalid fixed price",
+    );
     const agentSyncService = await getAgentSyncService();
     const lastStatusUpdatedAt = "2026-02-24T16:00:00.000Z";
     const entries = [
@@ -1125,9 +1181,30 @@ describe("agentSyncService.syncRegistryAgents", () => {
         lastSyncedAt: new Date(lastStatusUpdatedAt),
       },
     });
+    expect(warnings[0]?.event).toMatchObject({
+      agent: { identifier: "identifier-entry-3" },
+    });
+    const summaries = coreLogEvents().filter(
+      (event) => event.agentRegistrySync !== undefined,
+    );
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0]).toMatchObject({
+      level: "info",
+      operation: "agent_registry_sync",
+      agentRegistrySync: {
+        metadataKey: AGENTS_SYNC_METADATA_KEY,
+        cursorReset: false,
+        batches: 1,
+        processed: 3,
+        quarantined: 0,
+        deferred: 0,
+        stopped: null,
+      },
+    });
   });
 
   it("maps fixed pricing with empty amounts to UNKNOWN", async () => {
+    expectCoreLog("warn", "A registry entry has an invalid fixed price");
     const entries = [
       createRegistryEntry("entry-empty-fixed", {
         AgentPricing: {
@@ -1155,6 +1232,11 @@ describe("agentSyncService.syncRegistryAgents", () => {
   });
 
   it("ingests V2 entries with pricing projected from the matching Cardano V2 source", async () => {
+    // Both units the source prices in are billable.
+    creditCostFindManyMock.mockResolvedValue([
+      { unit: "lovelace" },
+      { unit: "policyid.usdm" },
+    ]);
     const entries = [
       createRegistryEntry("entry-v2", {
         agentIdentifier: createV2AgentIdentifier(1),
@@ -1294,6 +1376,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
   });
 
   it("keeps V2 agents with source-dependent prices unavailable", async () => {
+    expectCoreLog(
+      "warn",
+      "A V2 registry entry's Cardano sources disagree on price",
+    );
     const policyId = V2_AGENT_ROOT.slice(0, 56);
     syncMetadataFindUniqueMock.mockImplementation(
       async ({ where }: { where: { key: string } }) =>
@@ -1346,6 +1432,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
   });
 
   it("keeps V2 agents with disagreeing unready source prices unavailable", async () => {
+    expectCoreLog(
+      "warn",
+      "A V2 registry entry's Cardano sources disagree on price",
+    );
     // No source is purchase-ready, so there is no basis for preferring one
     // price over another — advertising the first would be arbitrary.
     syncMetadataFindUniqueMock.mockImplementation(
@@ -1925,9 +2015,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
   });
 
   it("stores a malformed V2 identifier as unavailable", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    const warnings = expectCoreLog(
+      "warn",
+      "A V2 registry entry has an invalid version suffix",
+    );
     // V2 policy prefix with a non-hex version suffix: policy membership is
     // what triggers version parsing now, not the payment type.
     const malformedIdentifier = `67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b${"ab".repeat(26)}nothex`;
@@ -1952,11 +2043,11 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(createCall.data.registryIdentity).toBe(malformedIdentifier);
     expect(createCall.data.registryVersion).toBe(0);
     expect(createCall.data.status).toBe(AgentStatus.INVALID);
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Invalid V2 version suffix"),
-    );
-
-    consoleWarnSpy.mockRestore();
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "agent_registry_sync",
+      agent: { identifier: malformedIdentifier },
+    });
+    expect(warnings[0]?.fix).toContain("registry owner");
   });
 
   it("defers rows the previous release cannot read until the rail is ready", async () => {
@@ -2187,9 +2278,6 @@ describe("agentSyncService.syncRegistryAgents", () => {
   });
 
   it("stores entries with null AgentPricing as UNKNOWN pricing without warning", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
     const entries = [
       createRegistryEntry("entry-null-pricing", {
         AgentPricing: null,
@@ -2211,15 +2299,13 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(createCall.data.paymentType).toBe(PaymentType.WEB3_CARDANO_V1);
     expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
     // Null pricing is legitimate for V2/pointer entries — no warning.
-    expect(consoleWarnSpy).not.toHaveBeenCalled();
-
-    consoleWarnSpy.mockRestore();
   });
 
   it("stores fixed-pricing entries with non-numeric amounts as UNKNOWN pricing", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    const warnings = expectCoreLog(
+      "warn",
+      "A registry entry has an invalid fixed price",
+    );
     const entries = [
       createRegistryEntry("entry-bad-amount", {
         AgentPricing: {
@@ -2244,10 +2330,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
       PricingType.UNKNOWN,
     );
     expect(createCall.data.pricing.create.fixedPricing).toBeUndefined();
-    expect(consoleWarnSpy).toHaveBeenCalled();
+    expect(warnings[0]?.event).toMatchObject({
+      agent: { identifier: "identifier-entry-bad-amount" },
+    });
     expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
-
-    consoleWarnSpy.mockRestore();
   });
 
   it("records an audit entry when a registry sync reprices a live agent", async () => {
@@ -2655,9 +2741,11 @@ describe("agentSyncService.syncRegistryAgents", () => {
   });
 
   it("quarantines storage-unsafe entries and advances past them", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    expectCoreLog(
+      "error",
+      "Quarantined a registry entry that cannot be stored",
+      3,
+    );
     const entries = [
       createRegistryEntry("entry-v2-overflow-amount", {
         agentIdentifier: createV2AgentIdentifier(1),
@@ -2728,14 +2816,13 @@ describe("agentSyncService.syncRegistryAgents", () => {
         },
       }),
     );
-
-    consoleErrorSpy.mockRestore();
   });
 
   it("validates malformed entries before the rollback fence", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const unquarantined = expectCoreLog(
+      "error",
+      "Could not quarantine a registry entry that cannot be stored, because it has no agent identifier",
+    );
     getAgentsDiffMock.mockResolvedValue(
       ok([
         createRegistryEntry("entry-missing-identifier", {
@@ -2755,6 +2842,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
       "Registry entry rejected before database persistence",
       expect.anything(),
     );
+    expect(unquarantined[0]?.why).toBe(
+      "The registry entry has a value Core cannot store",
+    );
+    expect(unquarantined[0]?.event.registryIssue).toEqual(expect.any(String));
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
         update: {
@@ -2763,13 +2854,13 @@ describe("agentSyncService.syncRegistryAgents", () => {
         },
       }),
     );
-    consoleErrorSpy.mockRestore();
   });
 
   it("parks at invalid cursor data after advancing a valid prefix", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    expectCoreLog(
+      "error",
+      "A registry entry has invalid cursor fields, so the batch stopped",
+    );
     getAgentsDiffMock.mockResolvedValue(
       ok([
         createRegistryEntry("entry-valid-prefix", {
@@ -2800,7 +2891,6 @@ describe("agentSyncService.syncRegistryAgents", () => {
         },
       }),
     );
-    consoleErrorSpy.mockRestore();
   });
 
   it("ingests entries from a registry that predates the V2 surface", async () => {
@@ -2832,9 +2922,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
   });
 
   it("quarantines null nested payment-source shapes without parking the cursor", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const quarantines = expectCoreLog(
+      "error",
+      "Quarantined a registry entry that cannot be stored",
+    );
     getAgentsDiffMock.mockResolvedValue(
       ok([
         createRegistryEntry("entry-null-source", {
@@ -2862,13 +2953,23 @@ describe("agentSyncService.syncRegistryAgents", () => {
         },
       }),
     );
-    consoleErrorSpy.mockRestore();
+    expect(quarantines[0]?.event).toMatchObject({
+      operation: "agent_registry_sync",
+      agent: { identifier: "identifier-entry-null-source" },
+      // Where the entry is invalid is a field; the why is Core's own sentence.
+      registryIssue: expect.stringContaining("SupportedPaymentSources"),
+    });
+    expect(quarantines[0]?.why).toBe(
+      "The registry entry has a value Core cannot store",
+    );
+    expect(quarantines[0]?.fix).toContain("registry owner");
   });
 
   it("does not hide a newer canonical revision for malformed older data", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    expectCoreLog(
+      "error",
+      "Quarantined a registry entry that cannot be stored",
+    );
     getAgentsDiffMock.mockResolvedValue(
       ok([
         createRegistryEntry("entry-v2-old-malformed", {
@@ -2899,16 +3000,17 @@ describe("agentSyncService.syncRegistryAgents", () => {
       },
       data: { status: AgentStatus.INVALID },
     });
-    consoleErrorSpy.mockRestore();
   });
 
   it("stops the batch without advancing the cursor when the first create fails", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    expectCoreLog(
+      "warn",
+      "The agents sync processed no registry entry, so its cursor did not move",
+    );
+    const upsertErrors = expectCoreLog(
+      "error",
+      "Could not save an agent from the registry, so the batch stopped",
+    );
     const entries = [
       createRegistryEntry("entry-1"),
       createRegistryEntry("entry-2"),
@@ -2926,15 +3028,20 @@ describe("agentSyncService.syncRegistryAgents", () => {
     const createCall = agentCreateMock.mock.calls[0]?.[0];
     expect(createCall.data.blockchainIdentifier).toBe("identifier-entry-1");
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
-
-    consoleErrorSpy.mockRestore();
-    consoleWarnSpy.mockRestore();
+    // The failure that ends the run sits on the run's own event.
+    expect(upsertErrors[0]?.event).toMatchObject({
+      operation: "agent_registry_sync",
+      agent: { identifier: "identifier-entry-1" },
+      agentRegistrySync: { processed: 0 },
+    });
+    expect(upsertErrors[0]?.fix).toContain("next agents sync retries");
   });
 
   it("advances the cursor only past the last successful entry when a later create fails", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const upsertErrors = expectCoreLog(
+      "error",
+      "Could not save an agent from the registry, so the batch stopped",
+    );
     const entries = [
       createRegistryEntry("entry-1", {
         statusUpdatedAt: "2026-02-24T15:00:00.000Z",
@@ -2969,8 +3076,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
         lastSyncedAt: new Date("2026-02-24T15:00:00.000Z"),
       },
     });
-
-    consoleErrorSpy.mockRestore();
+    expect(upsertErrors[0]?.event).toMatchObject({
+      agent: { identifier: "identifier-entry-2" },
+      agentRegistrySync: { processed: 1 },
+    });
   });
 });
 
@@ -3143,9 +3252,10 @@ describe("agentSyncService.syncAgentSummaries", () => {
   it("continues summary processing when one generation fails", async () => {
     const agentSyncService = await getAgentSyncService();
     const options = createSyncExecutionOptions();
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const summaryErrors = expectCoreLog(
+      "error",
+      "Could not generate a summary for an agent",
+    );
 
     agentFindManyMock.mockResolvedValue([
       {
@@ -3170,8 +3280,82 @@ describe("agentSyncService.syncAgentSummaries", () => {
       where: { id: "agent-2" },
       data: { summary: "Summary two" },
     });
+    expect(summaryErrors[0]?.event).toMatchObject({
+      operation: "agent_summary_sync",
+      agent: { id: "agent-1" },
+    });
+    const summaries = coreLogEvents().filter(
+      (event) => event.agentSummarySync !== undefined,
+    );
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0]).toMatchObject({
+      level: "info",
+      agentSummarySync: { failed: 1, stopped: null },
+    });
+  });
 
-    consoleErrorSpy.mockRestore();
+  it("logs a summary failure without the agent's description or the generated summary", async () => {
+    const errors = expectCoreLog(
+      "error",
+      "Could not generate a summary for an agent",
+    );
+    const agentSyncService = await getAgentSyncService();
+    agentFindManyMock.mockResolvedValue([
+      {
+        id: "agent-1",
+        description: "Private seller pitch",
+        metadataOverride: null,
+      },
+    ]);
+    openrouterGenerateAgentSummaryMock.mockResolvedValue({
+      kind: "summary",
+      text: "Generated summary text",
+    });
+    // The update's error quotes what it tried to write, like Prisma does.
+    agentUpdateMock.mockRejectedValueOnce(
+      Object.assign(
+        new Error(
+          "Invalid update: summary 'Generated summary text' for 'Private seller pitch'",
+        ),
+        { code: "P2000" },
+      ),
+    );
+
+    await agentSyncService.syncAgentSummaries(createSyncExecutionOptions());
+
+    expect(errors[0]).toMatchObject({
+      why: "Generating or saving the summary failed",
+      cause: undefined,
+    });
+    expect(errors[0]?.event).toMatchObject({
+      agent: { id: "agent-1" },
+      failure: { errorName: "Error", code: "P2000" },
+    });
+    const drained = JSON.stringify(errors[0]?.event);
+    expect(drained).not.toContain("Private seller pitch");
+    expect(drained).not.toContain("Generated summary text");
+  });
+
+  it("times the summary run from its start", async () => {
+    const agentSyncService = await getAgentSyncService();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    agentFindManyMock.mockResolvedValue([
+      { id: "agent-1", description: "Description one", metadataOverride: null },
+    ]);
+    openrouterGenerateAgentSummaryMock.mockImplementation(async () => {
+      vi.setSystemTime(Date.now() + 2_500);
+      return { kind: "summary", text: "Summary one" };
+    });
+
+    await agentSyncService.syncAgentSummaries(createSyncExecutionOptions());
+
+    const summary = coreLogEvents().find(
+      (event) => event.agentSummarySync !== undefined,
+    );
+    expect(summary?.duration).toBe("2.50s");
   });
 });
 
@@ -3253,9 +3437,11 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
   });
 
   it("caches an empty list when no source is purchase-ready", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    const emptyWarnings = expectCoreLog(
+      "warn",
+      "No Cardano V2 payment source is purchase-ready",
+      2,
+    );
     const agentSyncService = await getAgentSyncService();
     getCardanoV2RailReadinessMock.mockResolvedValue(ok([]));
 
@@ -3285,14 +3471,16 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     });
     await agentSyncService.syncCardanoV2RailReadiness();
     expect(captureMessageMock).not.toHaveBeenCalled();
-
-    consoleWarnSpy.mockRestore();
+    expect(emptyWarnings[0]?.event).toMatchObject({
+      level: "warn",
+      operation: "agent_cardano_v2_readiness",
+      cardanoV2Readiness: { changed: true },
+    });
   });
 
   it("keeps the last cached value when the readiness check fails", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    expectReadinessAttempts(3, "payment node unavailable");
+    expectCoreLog("warn", "The Cardano V2 rail readiness check failed");
     const agentSyncService = await getAgentSyncService();
     getCardanoV2RailReadinessMock.mockResolvedValue(
       err("payment node unavailable"),
@@ -3311,14 +3499,15 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
       ],
       skipDuplicates: true,
     });
-
-    consoleWarnSpy.mockRestore();
   });
 
   it("does not crash registry sync when the failure marker cannot be stored", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    expectReadinessAttempts(3, "payment node unavailable");
+    expectCoreLog("warn", "The Cardano V2 rail readiness check failed");
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not record the Cardano V2 readiness failure",
+    );
     const agentSyncService = await getAgentSyncService();
     getCardanoV2RailReadinessMock.mockResolvedValue(
       err("payment node unavailable"),
@@ -3330,17 +3519,19 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     ).resolves.toBe(false);
 
     expect(captureExceptionMock).not.toHaveBeenCalled();
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      "[sync/agents] Failed to persist Cardano V2 readiness failure marker:",
-      expect.any(Error),
-    );
-    consoleWarnSpy.mockRestore();
+    expect(causeMessage(warnings[0]?.cause)).toBe("database down");
+    // Every warning of the check sits on its one event.
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "agent_cardano_v2_readiness",
+      cardanoV2Readiness: { changed: false },
+    });
   });
 
   it("does not crash registry sync when the readiness cache cannot be read", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not save the Cardano V2 rail readiness",
+    );
     const agentSyncService = await getAgentSyncService();
     getCardanoV2RailReadinessMock.mockResolvedValue(ok(readySources));
     syncMetadataFindUniqueMock.mockRejectedValue(new Error("database down"));
@@ -3350,17 +3541,14 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     ).resolves.toBe(false);
 
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      "[sync/agents] Failed to persist Cardano V2 rail readiness:",
-      expect.any(Error),
-    );
-    consoleWarnSpy.mockRestore();
+    expect(causeMessage(warnings[0]?.cause)).toBe("database down");
   });
 
   it("does not crash registry sync when the readiness cache cannot be written", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not save the Cardano V2 rail readiness",
+    );
     const agentSyncService = await getAgentSyncService();
     getCardanoV2RailReadinessMock.mockResolvedValue(ok(readySources));
     syncMetadataUpsertMock.mockRejectedValue(new Error("database down"));
@@ -3370,17 +3558,14 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     ).resolves.toBe(false);
 
     expect(syncMetadataDeleteManyMock).not.toHaveBeenCalled();
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      "[sync/agents] Failed to persist Cardano V2 rail readiness:",
-      expect.any(Error),
-    );
-    consoleWarnSpy.mockRestore();
+    expect(causeMessage(warnings[0]?.cause)).toBe("database down");
   });
 
   it("keeps a readiness change when failure-marker cleanup fails", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not clear the Cardano V2 readiness failure marker",
+    );
     const agentSyncService = await getAgentSyncService();
     getCardanoV2RailReadinessMock.mockResolvedValue(ok(readySources));
     syncMetadataDeleteManyMock.mockRejectedValue(new Error("database down"));
@@ -3390,11 +3575,7 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     ).resolves.toBe(true);
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      "[sync/agents] Failed to clear Cardano V2 readiness failure marker:",
-      expect.any(Error),
-    );
-    consoleWarnSpy.mockRestore();
+    expect(causeMessage(warnings[0]?.cause)).toBe("database down");
   });
 
   it("forwards the caller's abort into the readiness attempt", async () => {
@@ -3419,9 +3600,10 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
   });
 
   it("retries a fast failure and keeps the recovered result", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    const warnings = expectReadinessAttempts(
+      2,
+      "rail-readiness unknown: ECONNREFUSED",
+    );
     const agentSyncService = await getAgentSyncService();
     getCardanoV2RailReadinessMock
       .mockResolvedValueOnce(err("rail-readiness unknown: ECONNREFUSED"))
@@ -3432,9 +3614,10 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
 
     expect(getCardanoV2RailReadinessMock).toHaveBeenCalledTimes(3);
     // The log names the attempt that FAILED, not the one about to start.
-    expect(consoleWarnSpy).toHaveBeenNthCalledWith(
-      1,
-      "[sync/agents] Cardano V2 rail readiness attempt 1 failed; retrying:",
+    expect(warnings[0]?.why).toBe(
+      "Attempt 1 got no answer from the payment node",
+    );
+    expect(causeMessage(warnings[0]?.cause)).toBe(
       "rail-readiness unknown: ECONNREFUSED",
     );
     // A cycle that recovered is not a failed cycle: it caches, and it must
@@ -3442,14 +3625,11 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
     expect(syncMetadataCreateManyMock).not.toHaveBeenCalled();
     expect(captureExceptionMock).not.toHaveBeenCalled();
-
-    consoleWarnSpy.mockRestore();
   });
 
   it("gives up after four attempts and reports the streak once", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    expectReadinessAttempts(3, "rail-readiness unknown: ECONNREFUSED");
+    expectCoreLog("warn", "The Cardano V2 rail readiness check failed");
     const agentSyncService = await getAgentSyncService();
     getCardanoV2RailReadinessMock.mockResolvedValue(
       err("rail-readiness unknown: ECONNREFUSED"),
@@ -3460,14 +3640,14 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     expect(getCardanoV2RailReadinessMock).toHaveBeenCalledTimes(4);
     // Retries are not extra alerts. The whole cycle is still one failure.
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
-
-    consoleWarnSpy.mockRestore();
   });
 
   it("stops retrying the moment the caller aborts", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    expectReadinessAttempts(3, "rail-readiness unknown: ECONNREFUSED");
+    const checkFailures = expectReadinessCheckFailures([
+      "rail-readiness unknown: ECONNREFUSED",
+      "rail-readiness unknown: AbortError",
+    ]);
     const agentSyncService = await getAgentSyncService();
 
     // Establish the contrast first, or this test cannot fail: the same
@@ -3494,14 +3674,15 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     });
 
     expect(getCardanoV2RailReadinessMock).toHaveBeenCalledTimes(1);
-
-    consoleWarnSpy.mockRestore();
+    expect(checkFailures.map((entry) => causeMessage(entry.cause))).toEqual([
+      "rail-readiness unknown: ECONNREFUSED",
+      "rail-readiness unknown: AbortError",
+    ]);
   });
 
   it("waits between retries so a blip has time to clear", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    expectReadinessAttempts(3, "rail-readiness unknown: ECONNREFUSED");
+    expectCoreLog("warn", "The Cardano V2 rail readiness check failed");
     const agentSyncService = await getAgentSyncService();
     const waits: number[] = [];
     getCardanoV2RailReadinessMock.mockResolvedValue(
@@ -3518,14 +3699,11 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     // milliseconds all land inside the same millisecond and survive no blip
     // at all. The wait is the whole point of the retry.
     expect(waits).toEqual([250, 1_000, 2_000]);
-
-    consoleWarnSpy.mockRestore();
   });
 
   it("gives every attempt its own deadline", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    expectReadinessAttempts(3, "rail-readiness unknown: ECONNREFUSED");
+    expectCoreLog("warn", "The Cardano V2 rail readiness check failed");
     const agentSyncService = await getAgentSyncService();
     const seen: (AbortSignal | undefined)[] = [];
     getCardanoV2RailReadinessMock.mockImplementation(
@@ -3547,8 +3725,6 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
       expect(signal).toBeInstanceOf(AbortSignal);
       expect(signal?.aborted).toBe(false);
     }
-
-    consoleWarnSpy.mockRestore();
   });
 
   it("ships the budget this rail was tuned for", () => {
@@ -3566,9 +3742,8 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
   });
 
   it("holds at the last backoff step when the budget runs short of retries", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    expectReadinessAttempts(3, "rail-readiness unknown: ECONNREFUSED");
+    expectCoreLog("warn", "The Cardano V2 rail readiness check failed");
     const agentSyncService = await getAgentSyncService();
     const waits: number[] = [];
     getCardanoV2RailReadinessMock.mockResolvedValue(
@@ -3588,14 +3763,11 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     // every later retry waits on `undefined`, which setTimeout reads as zero:
     // the retries survive no blip and nothing else would notice.
     expect(waits).toEqual([1, 5, 5]);
-
-    consoleWarnSpy.mockRestore();
   });
 
   it("stops a hanging node at the ceiling, not at the attempt count", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    expectReadinessAttempts(1, "rail-readiness unknown: AbortError");
+    expectCoreLog("warn", "The Cardano V2 rail readiness check failed");
     const agentSyncService = await getAgentSyncService();
     // A node that never answers on its own. Only a deadline ends this.
     getCardanoV2RailReadinessMock.mockImplementation(
@@ -3636,14 +3808,11 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     // deadline only AFTER sleeping would burn a second backoff on the way
     // out, which is up to 2s of the cron's budget spent on nothing.
     expect(waits).toEqual([1]);
-
-    consoleWarnSpy.mockRestore();
   });
 
   it("does not spend an attempt on a deadline that died during the wait", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    expectReadinessAttempts(1, "rail-readiness unknown: ECONNREFUSED");
+    expectCoreLog("warn", "The Cardano V2 rail readiness check failed");
     const agentSyncService = await getAgentSyncService();
     const controller = new AbortController();
     getCardanoV2RailReadinessMock
@@ -3669,14 +3838,10 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
       }),
       expect.anything(),
     );
-
-    consoleWarnSpy.mockRestore();
   });
 
   it("backs off for real when the caller injects no sleep", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    expectReadinessAttempts(1, "rail-readiness unknown: ECONNREFUSED");
     const agentSyncService = await getAgentSyncService();
     getCardanoV2RailReadinessMock
       .mockResolvedValueOnce(err("rail-readiness unknown: ECONNREFUSED"))
@@ -3693,14 +3858,11 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     // the backoff exists.
     expect(getCardanoV2RailReadinessMock).toHaveBeenCalledTimes(2);
     expect(elapsedMs).toBeGreaterThanOrEqual(firstBackoffMs - 5);
-
-    consoleWarnSpy.mockRestore();
   });
 
   it("reports a readiness failure to Sentry once per failure streak", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    expectReadinessAttempts(6, "payment node unavailable");
+    expectReadinessCheckFailures(Array(2).fill("payment node unavailable"));
     const agentSyncService = await getAgentSyncService();
 
     // Warm: readiness HAS been recorded, so readers keep serving the last
@@ -3732,14 +3894,11 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
     await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
-
-    consoleWarnSpy.mockRestore();
   });
 
   it("keeps paging while no readiness row has ever been written", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    expectReadinessAttempts(6, "payment node unavailable");
+    expectReadinessCheckFailures(Array(2).fill("payment node unavailable"));
     const agentSyncService = await getAgentSyncService();
 
     // Cold start: no readiness row has ever been written, so
@@ -3782,14 +3941,11 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
         tags: { cardano_v2_readiness: "hidden" },
       }),
     );
-
-    consoleWarnSpy.mockRestore();
   });
 
   it("escalates a stale streak to an error once it outlives the threshold", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    expectReadinessAttempts(3, "payment node unavailable");
+    expectCoreLog("warn", "The Cardano V2 rail readiness check failed");
     const agentSyncService = await getAgentSyncService();
 
     // Sources are recorded and still served, so every tick of this streak is
@@ -3839,14 +3995,11 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     expect(Date.now() - where.lastSyncedAt.lt.getTime()).toBeGreaterThanOrEqual(
       30 * 60 * 1000,
     );
-
-    consoleWarnSpy.mockRestore();
   });
 
   it("stays quiet while a stale streak is still short", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    expectReadinessAttempts(3, "payment node unavailable");
+    expectCoreLog("warn", "The Cardano V2 rail readiness check failed");
     const agentSyncService = await getAgentSyncService();
 
     syncMetadataFindUniqueMock.mockResolvedValue({
@@ -3868,14 +4021,11 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     // silence is the whole point of this branch, and the escalation above
     // must not undo it.
     expect(captureExceptionMock).not.toHaveBeenCalled();
-
-    consoleWarnSpy.mockRestore();
   });
 
   it("escalates once per streak, not once per tick", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    expectReadinessAttempts(9, "payment node unavailable");
+    expectReadinessCheckFailures(Array(3).fill("payment node unavailable"));
     const agentSyncService = await getAgentSyncService();
 
     syncMetadataFindUniqueMock.mockResolvedValue({
@@ -3900,14 +4050,11 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
     await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
-
-    consoleWarnSpy.mockRestore();
   });
 
   it("does not try to escalate on the tick that starts the streak", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    expectReadinessAttempts(3, "payment node unavailable");
+    expectCoreLog("warn", "The Cardano V2 rail readiness check failed");
     const agentSyncService = await getAgentSyncService();
 
     syncMetadataFindUniqueMock.mockResolvedValue({
@@ -3933,14 +4080,11 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
         tags: { cardano_v2_readiness: "stale" },
       }),
     );
-
-    consoleWarnSpy.mockRestore();
   });
 
   it("treats a recorded empty source set as hidden, not stale", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    expectReadinessAttempts(6, "payment node unavailable");
+    expectReadinessCheckFailures(Array(2).fill("payment node unavailable"));
     const agentSyncService = await getAgentSyncService();
 
     // A tick where the node reported nothing purchase-ready still upserts a
@@ -3978,14 +4122,11 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
     await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
-
-    consoleWarnSpy.mockRestore();
   });
 
   it("re-arms the Sentry report after a successful check", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
+    expectReadinessAttempts(6, "payment node unavailable");
+    expectReadinessCheckFailures(Array(2).fill("payment node unavailable"));
     const agentSyncService = await getAgentSyncService();
 
     getCardanoV2RailReadinessMock.mockResolvedValue(
@@ -4006,7 +4147,5 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     );
     await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
     expect(captureExceptionMock).toHaveBeenCalledTimes(2);
-
-    consoleWarnSpy.mockRestore();
   });
 });

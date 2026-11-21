@@ -8,6 +8,7 @@ import type { ChannelLinkTarget } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { type MutableRefObject, type ReactNode, useMemo, useRef } from "react";
 import type { Components } from "react-markdown";
+import { ContactMentionScope } from "@/components/contact-mention-card";
 import Markdown from "@/components/markdown";
 
 import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
@@ -138,8 +139,11 @@ export function RoomMessageMarkdown({
       span: (props) => (
         <RoomMentionHoverSpan {...props} lookupsRef={lookupsRef} />
       ),
+      // Non-interactive text sits inside a button (a quote's jump target),
+      // where a link would nest one control inside another.
+      ...(hoverInteractive ? {} : { a: ({ children }) => <>{children}</> }),
     }),
-    [],
+    [hoverInteractive],
   );
 
   if (!content.trim()) {
@@ -147,22 +151,24 @@ export function RoomMessageMarkdown({
   }
 
   return (
-    <Markdown
-      enableMermaid={enableMermaid}
-      className={markdownClassName}
-      components={components}
-    >
-      {formatRoomMarkdownContent({
-        content,
-        coworkersById,
-        coworkersBySlug,
-        sokoBotsById,
-        sokoBotsBySlug,
-        usersById,
-        usersBySlug,
-        channelLinks,
-        mentionAllLabel: t("MentionAll.label"),
-      })}
-    </Markdown>
+    <ContactMentionScope>
+      <Markdown
+        enableMermaid={enableMermaid}
+        className={markdownClassName}
+        components={components}
+      >
+        {formatRoomMarkdownContent({
+          content,
+          coworkersById,
+          coworkersBySlug,
+          sokoBotsById,
+          sokoBotsBySlug,
+          usersById,
+          usersBySlug,
+          channelLinks,
+          mentionAllLabel: t("MentionAll.label"),
+        })}
+      </Markdown>
+    </ContactMentionScope>
   );
 }

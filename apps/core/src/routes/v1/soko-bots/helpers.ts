@@ -16,6 +16,7 @@ import {
 import type { EnvVariables } from "@/lib/hono";
 import { isSokoBotAuthContext, isUserAuthContext } from "@/middleware/auth";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
+import { SokoBotIntegrationError } from "@/services/composio-integration-tools.service";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { SokoBotBillingAccessError } from "@/services/soko-bot-billing.service";
 import {
@@ -27,7 +28,6 @@ import {
   SokoBotValidationError,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
-import { SokoBotIntegrationError } from "@/services/soko-bot-integrations.service";
 import {
   SokoBotRuntimeAuthorizationError,
   SokoBotRuntimeConflictError,
@@ -110,10 +110,16 @@ type TurnWithAttribution = Awaited<
  * Flatten the mention → message → room chain into `chatRoom`. The teammate
  * who asked (`askedBy`) is `requestedBy` on the wire.
  */
-export function mapTurn<T extends Partial<TurnWithAttribution>>(turn: T) {
-  const { askedBy, chatMention, ...rest } = turn;
+export function mapTurn<T extends Partial<TurnWithAttribution>>(
+  turn: T & { toolCalls?: readonly { errorDetail: string | null }[] },
+) {
+  const { askedBy, chatMention, toolCalls, ...rest } = turn;
   return {
     ...rest,
+    errorDetail: null,
+    ...(toolCalls && {
+      toolCalls: toolCalls.map((call) => ({ ...call, errorDetail: null })),
+    }),
     chatRoom: chatMention?.message?.room ?? null,
     requestedBy: askedBy,
   };

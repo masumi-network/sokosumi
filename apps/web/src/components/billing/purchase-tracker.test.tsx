@@ -15,10 +15,9 @@ vi.mock("@/lib/gtm-events", () => ({
   },
 }));
 
-import {
-  PurchaseTracker,
-  resetFiredPurchaseSessionIdsForTests,
-} from "./purchase-tracker";
+import { expectConsole } from "@sokosumi/utils/test-console";
+import { resetFiredPurchaseSessionIdsForTests } from "@/hooks/effects/use-track-purchase";
+import { PurchaseTracker } from "./purchase-tracker";
 
 const checkoutSession: CheckoutSessionAnalytics = {
   sessionId: "cs_once",
@@ -145,8 +144,8 @@ describe("PurchaseTracker", () => {
   });
 
   it("does not mark the session when dispatch throws", () => {
+    expectConsole("error", "[purchase-tracker] purchase dispatch failed");
     writeConsent({ analytics: true, marketing: false });
-    vi.spyOn(console, "error").mockImplementation(() => {});
     purchaseMock.mockImplementationOnce(() => {
       throw new Error("dataLayer unavailable");
     });
@@ -158,7 +157,6 @@ describe("PurchaseTracker", () => {
     render(<PurchaseTracker checkoutSession={checkoutSession} />);
 
     expect(purchaseMock).toHaveBeenCalledTimes(2);
-    vi.mocked(console.error).mockRestore();
   });
 
   it("stops listening after unmount", () => {

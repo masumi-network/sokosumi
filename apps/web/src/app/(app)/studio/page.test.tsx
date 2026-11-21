@@ -1,9 +1,18 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { consumeStudioWebsiteDraftRequest } from "@/app/projects/components/image-studio/studio-website-intent";
 
 const {
+  connectionMock,
   imageStudioServiceMock,
   projectServiceMock,
   openProjectScopeMock,
@@ -11,19 +20,30 @@ const {
   setScopeCreateOpenMock,
   useHasAnyScopeProjectMock,
 } = vi.hoisted(() => ({
+  connectionMock: vi.fn(async () => undefined),
   openProjectScopeMock: vi.fn(),
   openScopeCreateMock: vi.fn(),
   setScopeCreateOpenMock: vi.fn(),
   useHasAnyScopeProjectMock: vi.fn(),
   imageStudioServiceMock: {
     getCatalog: vi.fn(),
+    getRecentProjects: vi.fn(),
     getState: vi.fn(),
     getWorkspaceState: vi.fn(),
   },
   projectServiceMock: { getProjectById: vi.fn() },
 }));
 
-vi.mock("next/server", () => ({ connection: async () => undefined }));
+vi.mock("server-only", () => ({}));
+
+vi.mock("next/server", () => ({ connection: connectionMock }));
+
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
+
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
 
 vi.mock("next-intl/server", () => ({
   getTranslations: async (namespace: string) => (key: string) =>
@@ -31,8 +51,12 @@ vi.mock("next-intl/server", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: (namespace: string) => (key: string) =>
-    `${namespace}.${key}`,
+  useTranslations:
+    (namespace: string) => (key: string, values?: { count?: number }) =>
+      values?.count === undefined
+        ? `${namespace}.${key}`
+        : `${namespace}.${key}:${values.count}`,
+  useFormatter: () => ({ dateTime: () => "Nov 11" }),
 }));
 
 vi.mock("@/lib/services/project.service", () => ({
@@ -63,6 +87,7 @@ vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
     initialSelectedAssetId: string | null;
     projectId: string | null;
     projectScopePrompt?: React.ReactNode;
+    recentProjects?: React.ReactNode;
     initialState: { assets: unknown[] };
   }) => (
     <div
@@ -72,6 +97,7 @@ vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
       data-project={props.projectId ?? "workspace"}
       data-selected={props.initialSelectedAssetId ?? ""}
     >
+      {props.recentProjects}
       {props.projectScopePrompt}
     </div>
   ),
@@ -85,9 +111,35 @@ vi.mock("@/app/components/project-scope/sidebar-project-scope-state", () => ({
   setScopeCreateOpen: setScopeCreateOpenMock,
 }));
 
+vi.mock("@/app/components/project-scope/use-project-scope", () => ({
+  useProjectScopeSwitch: () => ({ select: vi.fn() }),
+}));
+
 vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
   useHasAnyScopeProject: useHasAnyScopeProjectMock,
 }));
+
+// happy-dom fetches no image, so every <img> reads as finished and empty: a
+// failed load. A browser still loading it says `complete: false`.
+const IMAGE_COMPLETE = Object.getOwnPropertyDescriptor(
+  HTMLImageElement.prototype,
+  "complete",
+);
+beforeAll(() => {
+  Object.defineProperty(HTMLImageElement.prototype, "complete", {
+    configurable: true,
+    get: () => false,
+  });
+});
+afterAll(() => {
+  if (IMAGE_COMPLETE) {
+    Object.defineProperty(
+      HTMLImageElement.prototype,
+      "complete",
+      IMAGE_COMPLETE,
+    );
+  }
+});
 
 const PROJECT = {
   id: "project-1",
@@ -113,6 +165,7 @@ describe("StudioPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     imageStudioServiceMock.getCatalog.mockResolvedValue(CATALOG);
+    imageStudioServiceMock.getRecentProjects.mockResolvedValue([]);
     useHasAnyScopeProjectMock.mockReturnValue({
       isPending: false,
       hasProjects: true,
@@ -149,7 +202,7 @@ describe("StudioPage", () => {
     expect(openProjectScopeMock).toHaveBeenCalledWith({
       required: true,
       reason: "App.Studio.pickBody",
-      onSelect: undefined,
+      onSelect: expect.any(Function),
       onCreated: expect.any(Function),
     });
     expect(openScopeCreateMock).not.toHaveBeenCalled();
@@ -178,7 +231,7 @@ describe("StudioPage", () => {
     expect(openProjectScopeMock).toHaveBeenCalledWith({
       required: true,
       reason: "App.Studio.pickBody",
-      onSelect: undefined,
+      onSelect: expect.any(Function),
       onCreated: expect.any(Function),
     });
     expect(openScopeCreateMock).toHaveBeenCalledExactlyOnceWith(button);
@@ -255,7 +308,7 @@ describe("StudioPage", () => {
     expect(openProjectScopeMock).toHaveBeenCalledWith({
       required: true,
       reason: "App.Studio.pickUnavailable",
-      onSelect: undefined,
+      onSelect: expect.any(Function),
       onCreated: expect.any(Function),
     });
     expect(openScopeCreateMock).not.toHaveBeenCalled();
@@ -352,6 +405,59 @@ describe("StudioPage", () => {
     );
   });
 
+  // The reads are cached, so a link prefetch carries the page.
+  // connection() would drop it back to the skeleton.
+  it("renders the scoped project without deferring to the request", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    imageStudioServiceMock.getState.mockResolvedValue(studioState());
+
+    const { default: StudioPage } = await import("./page");
+
+    render(
+      await StudioPage({
+        searchParams: Promise.resolve({ projectId: "project-1" }),
+      }),
+    );
+
+    expect(screen.getByTestId("image-studio")).toHaveAttribute(
+      "data-project",
+      "project-1",
+    );
+    expect(connectionMock).not.toHaveBeenCalled();
+  });
+
+  // A prefetch must not keep a failed read as the page the click opens.
+  it("renders a failed catalog read fresh on the click", async () => {
+    imageStudioServiceMock.getCatalog
+      .mockRejectedValueOnce(new Error("Core answered 503"))
+      .mockResolvedValue(CATALOG);
+
+    const { default: StudioPage } = await import("./page");
+
+    render(await StudioPage({ searchParams: Promise.resolve({}) }));
+
+    expect(connectionMock).toHaveBeenCalledOnce();
+    expect(screen.getByTestId("image-studio")).toHaveAttribute(
+      "data-catalog-models",
+      "1",
+    );
+  });
+
+  // A Core 401 on a read the page can do without must still sign the reader
+  // out, instead of hiding the shortcut.
+  it("keeps a sign-in redirect from the recent projects read", async () => {
+    const { redirect } = await import("next/navigation");
+    imageStudioServiceMock.getRecentProjects.mockImplementation(async () =>
+      redirect("/signin"),
+    );
+
+    const { default: StudioPage } = await import("./page");
+
+    await expect(
+      StudioPage({ searchParams: Promise.resolve({}) }),
+    ).rejects.toThrow("NEXT_REDIRECT");
+  });
+
   it("reads the creative catalog for a scope this workspace lost", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(null);
     const { default: StudioPage } = await import("./page");
@@ -382,6 +488,67 @@ describe("StudioPage", () => {
     );
 
     expect(screen.getByTestId("image-studio")).toBeInTheDocument();
+  });
+
+  it("leads All projects with the newest Studio projects, each linking to its gallery", async () => {
+    imageStudioServiceMock.getRecentProjects.mockResolvedValue([
+      {
+        projectId: "project-1",
+        projectName: "Autumn menu",
+        imageCount: 24,
+        latestAt: new Date("2026-11-11T10:00:00.000Z"),
+        latestImageId: "asset-9",
+      },
+    ]);
+    const { default: StudioPage } = await import("./page");
+
+    render(await StudioPage({ searchParams: Promise.resolve({}) }));
+
+    expect(
+      screen.getByRole("heading", { name: "App.Studio.RecentProjects.title" }),
+    ).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: /Autumn menu/ });
+    expect(link).toHaveAttribute("href", "/studio?projectId=project-1");
+    expect(link).toHaveTextContent(
+      "App.Studio.RecentProjects.imageCount:24 · Nov 11",
+    );
+    expect(link.querySelector("img")).toHaveAttribute(
+      "src",
+      "/api/projects/project-1/image-studio/assets/asset-9/content",
+    );
+    // Picking a project from here is still possible.
+    expect(screen.getByTestId("studio-no-project")).toBeInTheDocument();
+  });
+
+  it("keeps the first-ad screen when recent projects are empty or unavailable", async () => {
+    expectConsole("warn", "Image studio: recent projects unavailable");
+    imageStudioServiceMock.getRecentProjects.mockRejectedValue(
+      new Error("Core down"),
+    );
+    const { default: StudioPage } = await import("./page");
+
+    render(await StudioPage({ searchParams: Promise.resolve({}) }));
+
+    expect(
+      screen.queryByRole("heading", {
+        name: "App.Studio.RecentProjects.title",
+      }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("image-studio")).toBeInTheDocument();
+  });
+
+  it("does not ask for recent projects inside a project", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    imageStudioServiceMock.getState.mockResolvedValue(studioState());
+    const { default: StudioPage } = await import("./page");
+
+    render(
+      await StudioPage({
+        searchParams: Promise.resolve({ projectId: "project-1" }),
+      }),
+    );
+
+    expect(imageStudioServiceMock.getRecentProjects).not.toHaveBeenCalled();
   });
 
   it("names the page in the document title", async () => {
@@ -416,8 +583,15 @@ describe("StudioPage", () => {
   });
 
   it("survives a selection Core will not accept, instead of taking the page down", async () => {
+    expectConsole(
+      "warn",
+      "Image studio: ignoring an unusable selection from the URL",
+    );
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    // Once-only answers: clearAllMocks keeps an implementation, and a lasting
+    // one would leak into later tests.
     imageStudioServiceMock.getState
+      .mockRejectedValueOnce(new Error("Invalid uuid"))
       .mockRejectedValueOnce(new Error("Invalid uuid"))
       .mockResolvedValueOnce(studioState());
 
@@ -435,16 +609,13 @@ describe("StudioPage", () => {
     // A `?v=` from a saved link can name a deleted asset, another project's
     // asset, or no asset at all. Asking for it is an optimisation, so a
     // refusal costs one more round trip and nothing else.
-    expect(imageStudioServiceMock.getState).toHaveBeenNthCalledWith(
-      1,
-      "project-1",
-      { assetId: "not-an-id" },
-    );
-    expect(imageStudioServiceMock.getState).toHaveBeenNthCalledWith(
-      2,
-      "project-1",
-      {},
-    );
+    // The prefetch cache keeps no fallback: the open studio keeps its first
+    // state, so a refresh could not repair one. The click reads fresh, and
+    // only that read falls back to the newest page.
+    expect(connectionMock).toHaveBeenCalledOnce();
+    expect(
+      imageStudioServiceMock.getState.mock.calls.map(([, query]) => query),
+    ).toEqual([{ assetId: "not-an-id" }, { assetId: "not-an-id" }, {}]);
     expect(screen.getByTestId("image-studio")).toHaveAttribute(
       "data-selected",
       "",

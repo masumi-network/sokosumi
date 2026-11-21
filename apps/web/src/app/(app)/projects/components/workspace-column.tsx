@@ -2,18 +2,19 @@ import type {
   NotificationItem,
   ProjectActivityItem,
 } from "@sokosumi/core-client";
+import { connection } from "next/server";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { projectService } from "@/lib/services/project.service";
-import { getNotificationHref } from "@/lib/utils/notification-href";
 import { formatNotificationTimeLabel } from "@/lib/utils/notification-time-label";
 
-import { type ColumnProject, NeedsYouPanelList } from "./needs-you-panel-list";
-import { WorkspaceColumnPanel } from "./workspace-column-panel";
 import {
-  WorkspaceColumnProjectAvatar,
-  WorkspaceColumnRow,
-} from "./workspace-column-row";
+  type ColumnProject,
+  type NeedsYouLead,
+  NeedsYouPanelList,
+} from "./needs-you-panel-list";
+import { ProjectActivityRow } from "./project-activity-row";
+import { WorkspaceColumnPanel } from "./workspace-column-panel";
 import { WorkspaceColumnPanelSkeleton } from "./workspace-column-skeleton";
 
 /** Null when the feed failed: the panel says so instead of failing the page. */
@@ -25,6 +26,20 @@ export function panelFeed<T>(promise: Promise<T[]>): PanelFeed<T> {
     console.warn("Workspace column feed failed", { error });
     return null;
   });
+}
+
+/**
+ * {@link panelFeed} for a read that starts in the page body. It waits for the
+ * request first, so a link prefetch leaves the panel as a hole: an uncached
+ * Core read started while a prefetch renders would cut that prefetch short.
+ */
+export function requestPanelFeed<T>(read: () => Promise<T[]>): PanelFeed<T> {
+  // A prefetch ends with `connection()` rejected. That is no failed feed, so
+  // it logs nothing.
+  return connection().then(
+    () => panelFeed(read()),
+    () => null,
+  );
 }
 
 interface WorkspaceColumnProps {
@@ -129,19 +144,29 @@ export async function NeedsYouPanel({
   feed,
   projects,
   quiet = false,
+  lead,
 }: {
   feed: PanelFeed<NotificationItem>;
-  projects: WorkspaceColumnProps["projects"];
+  /** A read still in flight is awaited next to the feed, not after it. */
+  projects:
+    | WorkspaceColumnProps["projects"]
+    | Promise<WorkspaceColumnProps["projects"]>;
   /** Home's quiet list instead of the column's panel. */
   quiet?: boolean;
+  /** A row above the notifications, such as your bot's failed reply. */
+  lead?: NeedsYouLead;
 }) {
-  const [notifications, t, timeLabel] = await Promise.all([
+  // A hole in a link prefetch: the time labels read the clock, and a clock
+  // read, or an uncached Core read, would cut that prefetch short.
+  await connection();
+  const [notifications, t, timeLabel, gridProjects] = await Promise.all([
     feed,
     getTranslations("App.Projects.column.needsYou"),
     loadTimeLabel(),
+    projects,
   ]);
   const rows = notifications ?? [];
-  const projectByNotificationId = await resolveRowProjects(rows, projects);
+  const projectByNotificationId = await resolveRowProjects(rows, gridProjects);
 
   return (
     <NeedsYouPanelList
@@ -156,31 +181,9 @@ export async function NeedsYouPanel({
         showAll: t("showAll"),
       }}
       quiet={quiet}
+      lead={lead}
     />
   );
-}
-
-function activityHref(item: ProjectActivityItem): string {
-  switch (item.kind) {
-    case "task":
-      return getNotificationHref({
-        kind: "TASK",
-        referenceId: item.taskId,
-        metadata: null,
-      });
-    case "job":
-      return getNotificationHref({
-        kind: "JOB",
-        referenceId: item.jobId,
-        metadata: { agentId: item.agentId },
-      });
-    case "project":
-      return getNotificationHref({
-        kind: "PROJECT",
-        referenceId: item.project.id,
-        metadata: null,
-      });
-  }
 }
 
 export async function RecentActivityPanel({
@@ -190,31 +193,13 @@ export async function RecentActivityPanel({
   feed: WorkspaceColumnProps["activity"];
   projectScoped?: boolean;
 }) {
+  // A hole in a link prefetch, as in Needs you above.
+  await connection();
   const [items, t, timeLabel] = await Promise.all([
     feed,
     getTranslations("App.Projects.column.activity"),
     loadTimeLabel(),
   ]);
-
-  function describe(item: ProjectActivityItem) {
-    switch (item.kind) {
-      case "task":
-        return {
-          title: item.title,
-          event: t("task", { status: item.status ?? "COMMENT" }),
-        };
-      case "job":
-        return {
-          title: item.title ?? t("untitledJob"),
-          event: t("job", { status: item.status }),
-        };
-      case "project":
-        return {
-          title: item.project.name,
-          event: t("project", { event: item.event }),
-        };
-    }
-  }
 
   return (
     <WorkspaceColumnPanel
@@ -222,30 +207,12 @@ export async function RecentActivityPanel({
       title={t("title")}
       empty={items ? t(projectScoped ? "emptyProject" : "empty") : t("error")}
       action={{ kind: "expand", label: t("showAll") }}
-      rows={(items ?? []).map((item) => {
-        const { title, event } = describe(item);
-        return {
-          key: item.id,
-          node: (
-            <WorkspaceColumnRow
-              leading={
-                <WorkspaceColumnProjectAvatar
-                  name={item.project.name}
-                  logo={item.project.logo}
-                />
-              }
-              title={title}
-              detail={
-                item.kind === "project"
-                  ? event
-                  : t("detail", { project: item.project.name, event })
-              }
-              time={timeLabel(item.createdAt)}
-              target={{ href: activityHref(item) }}
-            />
-          ),
-        };
-      })}
+      rows={(items ?? []).map((item) => ({
+        key: item.id,
+        node: (
+          <ProjectActivityRow item={item} time={timeLabel(item.createdAt)} />
+        ),
+      }))}
     />
   );
 }

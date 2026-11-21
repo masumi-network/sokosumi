@@ -5,6 +5,7 @@ import {
   redactSokoBotSensitiveText,
 } from "@sokosumi/soko-bot";
 import { jsonInput } from "@/helpers/prisma-json";
+import { calendarMailboxReferences } from "@/lib/soko-bot/calendar-contact-links";
 import { urlsIn } from "@/lib/soko-bot/citations";
 
 const PERSISTED_VALUE_MAX_DEPTH = 8;
@@ -101,11 +102,32 @@ function truncatedSources(value: unknown): string[] {
   return sources;
 }
 
+const KEPT_WHEN_TRUNCATED = ["projectId", "id", "name", "status"] as const;
+
+// Reserve at least half the audit preview for the original event data.
+function compactCalendarReferences(value: unknown) {
+  let remainingBytes = TOOL_RESULT_MAX_BYTES / 2;
+  const unique = new Set<string>();
+  const kept = [];
+  for (const ref of calendarMailboxReferences(value)) {
+    const encoded = JSON.stringify(ref);
+    if (unique.has(encoded)) continue;
+    remainingBytes -= Buffer.byteLength(encoded, "utf8") + 1;
+    if (remainingBytes < 0) break;
+    unique.add(encoded);
+    kept.push(ref);
+  }
+  return kept.length ? { calendarContactReferences: kept } : {};
+}
+
 /**
  * A tool input or result as stored on its row: sanitized, and at most 16 KB,
  * plus the addresses of one that had to be cut.
  */
-export function persistedToolResult(value: unknown): Prisma.InputJsonValue {
+export function persistedToolResult(
+  value: unknown,
+  capability?: string,
+): Prisma.InputJsonValue {
   const sanitized = sanitizePersistedValue(value);
   const serialized = JSON.stringify(sanitized);
   if (Buffer.byteLength(serialized, "utf8") <= TOOL_RESULT_MAX_BYTES) {
@@ -113,14 +135,24 @@ export function persistedToolResult(value: unknown): Prisma.InputJsonValue {
   }
   const sources = truncatedSources(sanitized);
   // A long Social post or thread passes the cap; result cards and post links
-  // still read its projectId back.
-  const kept =
-    sanitized &&
-    typeof sanitized === "object" &&
-    !Array.isArray(sanitized) &&
-    typeof sanitized.projectId === "string"
-      ? { projectId: sanitized.projectId.slice(0, 200) }
+  // still read its projectId back. A Task with a long comment thread keeps
+  // its name and status, so the reply can still say what the bot read.
+  const fields =
+    sanitized && typeof sanitized === "object" && !Array.isArray(sanitized)
+      ? Object.fromEntries(
+          KEPT_WHEN_TRUNCATED.flatMap((key) => {
+            const field = sanitized[key];
+            return typeof field === "string"
+              ? [[key, field.slice(0, 200)]]
+              : [];
+          }),
+        )
       : {};
+  const kept = {
+    ...fields,
+    ...(capability === "list_calendar_events" &&
+      compactCalendarReferences(sanitized)),
+  };
   const emptyWrapper = JSON.stringify({
     truncated: true,
     ...kept,

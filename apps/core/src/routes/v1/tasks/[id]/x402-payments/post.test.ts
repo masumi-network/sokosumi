@@ -130,9 +130,9 @@ vi.mock("@/lib/ably/publish", () => ({
 }));
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => {
+  waitUntil: vi.fn((promise: Promise<unknown>) => {
     waitUntilCapturedPromises.push(promise);
-  },
+  }),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -194,6 +194,7 @@ const SOKO_BOT_CONTEXT: AuthenticationContext = {
 };
 
 interface TxMock {
+  projectSeoAnalysis: { findFirst: ReturnType<typeof vi.fn> };
   $queryRaw: ReturnType<typeof vi.fn>;
   taskX402Payment: {
     findUnique: ReturnType<typeof vi.fn>;
@@ -203,6 +204,8 @@ interface TxMock {
   };
   taskX402PaymentAction: { createMany: ReturnType<typeof vi.fn> };
   taskEvent: { create: ReturnType<typeof vi.fn> };
+  // The refund's own Transaction (createCompensatingRefund).
+  transaction: { create: ReturnType<typeof vi.fn> };
   task: { updateMany: ReturnType<typeof vi.fn> };
   agent: {
     findFirst: ReturnType<typeof vi.fn>;
@@ -488,6 +491,7 @@ function createTxMock(): TxMock {
   return {
     // VERIFIED replay takes FOR UPDATE before returning the stored header.
     $queryRaw: vi.fn().mockResolvedValue([{ "?column?": 1 }]),
+    projectSeoAnalysis: { findFirst: vi.fn().mockResolvedValue(null) },
     taskX402Payment: {
       findUnique: vi
         .fn()
@@ -509,6 +513,7 @@ function createTxMock(): TxMock {
       createMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     taskEvent: { create: vi.fn().mockResolvedValue({ id: "evt_charge_1" }) },
+    transaction: { create: vi.fn().mockResolvedValue({ id: "refund_txn_1" }) },
     task: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
     agent: {
       findFirst: vi.fn().mockResolvedValue(createAgentRow()),
@@ -1729,6 +1734,17 @@ describe("POST /{id}/x402-payments", () => {
       expect(body.message).toContain("trusted EIP-712 domain");
     });
 
+    it("rejects a separate x402 purchase on a full audit that pays only at completion", async () => {
+      tx.projectSeoAnalysis.findFirst.mockResolvedValue({ id: TASK_ID });
+      const response = await postPayment(
+        createApp(COWORKER_AGENT_CONTEXT),
+        validBody(),
+      );
+      expect(response.status).toBe(422);
+      expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
+      expect(payX402Mock).not.toHaveBeenCalled();
+    });
+
     it("charges a demand priced exactly at maxCredits", async () => {
       // The fence is a ceiling, not a strict inequality: the demand this test
       // sends prices at exactly 0.5 credits.
@@ -2438,6 +2454,21 @@ describe("POST /{id}/x402-payments", () => {
           failureReason: "node_refused_operational",
         },
       });
+      expect(tx.transaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            amount: CENTS_FOR_DEMAND,
+            sourceCreditBucket: {
+              create: expect.objectContaining({
+                amount: CENTS_FOR_DEMAND,
+                referenceId: `task-x402-payment:${PAYMENT_ID}`,
+                referenceType: "REFUND",
+                expiresAt: null,
+              }),
+            },
+          }),
+        }),
+      );
       expect(tx.taskX402Payment.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: PAYMENT_ID },
@@ -2445,19 +2476,7 @@ describe("POST /{id}/x402-payments", () => {
             // Labelled at the mint: this refund is the AUTOMATED node-refusal
             // one, never an operator quality signal in the admin rollup.
             refundKind: "NODE_REFUSAL",
-            refundTransaction: {
-              create: expect.objectContaining({
-                amount: CENTS_FOR_DEMAND,
-                sourceCreditBucket: {
-                  create: expect.objectContaining({
-                    amount: CENTS_FOR_DEMAND,
-                    referenceId: `task-x402-payment:${PAYMENT_ID}`,
-                    referenceType: "REFUND",
-                    expiresAt: null,
-                  }),
-                },
-              }),
-            },
+            refundTransaction: { connect: { id: "refund_txn_1" } },
           }),
         }),
       );

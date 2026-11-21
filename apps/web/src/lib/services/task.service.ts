@@ -4,15 +4,18 @@ import type {
   CreateTaskContext,
   GetWorkspacesCalendarData,
   GetWorkspacesCalendarSourcesData,
+  MoveTaskRequest,
   Task,
   TaskActivitySummary,
   TaskContact,
   TaskEvent,
   TaskEventsPaginationMetadata,
+  TaskFollower,
   TaskLink,
   TaskLinkDeleted,
   TaskParticipant,
   TaskPriority,
+  TaskTagId,
   TaskWorkspace,
   UserWritableTaskLinkRelation,
   WorkspaceCalendarEntry,
@@ -27,21 +30,33 @@ interface ListTasksParams {
   assigneeSokoBotId?: string;
   assigneeUserId?: string;
   projectId?: string;
+  workspaceTagId?: string;
+  topicTagId?: TaskTagId;
   q?: string;
+  search?: string;
   scope?: "workspace" | "owned" | "mine";
   visibility?: "PUBLIC" | "PRIVATE";
   cursor?: string | null;
   limit?: number;
-  sort?: "createdAt" | "updatedAt" | "dueOn";
+  sort?: "createdAt" | "updatedAt" | "priority" | "dueOn";
   /** Only the Tasks this Task Schedule created. */
   scheduleId?: string;
   /** Only Tasks due on or before this day, `YYYY-MM-DD`. */
   dueOnTo?: string;
+  /** Only Tasks whose status has not changed since this time. */
+  statusBefore?: Date;
   /** Archived Tasks instead, most recently archived first. */
   archived?: boolean;
+  /** Only this Task's direct sub-tasks, in their order. */
+  parentTaskId?: string;
+  /** Only Tasks with a mention of the caller that the caller has not answered. */
+  unansweredMention?: boolean;
 }
 
 interface CreateTaskInput {
+  workspaceTagIds?: string[];
+  dismissedWorkspaceTagIds?: string[];
+  dismissedTopicIds?: TaskTagId[];
   tagSuggestionReceipt?: string;
   name?: string;
   description: string | null;
@@ -56,9 +71,18 @@ interface CreateTaskInput {
   visibility?: "PUBLIC" | "PRIVATE";
   /** Contacts to tag on the Task. */
   contactIds?: string[];
+  /** Makes the Task a sub-task of this one, last or after `afterTaskId`. */
+  parentTaskId?: string;
+  afterTaskId?: string;
+  /** `YYYY-MM-DD`. */
+  dueOn?: string | null;
 }
 
 interface PatchTaskInput {
+  expectedWorkspaceTagIds?: string[];
+  workspaceTagIds?: string[];
+  dismissedWorkspaceTagIds?: string[];
+  dismissedTopicIds?: TaskTagId[];
   name?: string;
   description?: string | null;
   assigneeId?: string | null;
@@ -154,10 +178,18 @@ export const taskService = (() => {
           ? { assigneeUserId: params.assigneeUserId }
           : { assigneeId: params.assigneeId }),
       projectId: params.projectId,
+      parentTaskId: params.parentTaskId,
+      workspaceTagId: params.workspaceTagId,
+      topicTagId: params.topicTagId,
       scheduleId: params.scheduleId,
       dueOnTo: params.dueOnTo,
+      statusBefore: params.statusBefore,
       ...(params.archived ? { archived: "true" as const } : {}),
+      ...(params.unansweredMention
+        ? { unansweredMention: "true" as const }
+        : {}),
       q: params.q,
+      search: params.search,
       scope: params.scope,
       ...(params.visibility ? { visibility: params.visibility } : {}),
       cursor: params.cursor ?? undefined,
@@ -199,6 +231,16 @@ export const taskService = (() => {
     }
   }
 
+  /** An archived Task, read-only; null when there is none to read. */
+  async function getArchivedTask(taskId: string): Promise<Task | null> {
+    try {
+      const result = await coreClient.getTaskById(taskId, { archived: "true" });
+      return result.data;
+    } catch {
+      return null;
+    }
+  }
+
   async function listTaskEvents(
     taskId: string,
     params: { cursor?: string | null; limit?: number } = {},
@@ -214,61 +256,6 @@ export const taskService = (() => {
     return {
       events: result.data,
       pagination: result.meta.pagination,
-    };
-  }
-
-  /**
-   * Load every TaskEvent page (oldest → newest) for Activities.
-   */
-  async function listAllTaskEvents(taskId: string): Promise<{
-    events: TaskEvent[];
-    pagination: TaskEventsPaginationMetadata;
-  }> {
-    const events: TaskEvent[] = [];
-    let cursor: string | undefined;
-    let pagination: TaskEventsPaginationMetadata | null = null;
-
-    for (;;) {
-      const page = await listTaskEvents(taskId, {
-        cursor,
-        limit: 100,
-      });
-      events.push(...page.events);
-      pagination = page.pagination;
-      const next = page.pagination.nextCursor;
-      if (!next || next === cursor) {
-        break;
-      }
-      cursor = next;
-    }
-
-    if (!pagination) {
-      throw new Error("Failed to list task events");
-    }
-
-    return { events, pagination };
-  }
-
-  /**
-   * Initial Activities window: all non-comment events + the newest 5 comments.
-   * Older comments load on expand via `listTaskEventsBefore`.
-   */
-  async function listTaskActivityFeed(taskId: string): Promise<{
-    events: TaskEvent[];
-    pagination: TaskEventsPaginationMetadata;
-  }> {
-    const { events, pagination } = await listAllTaskEvents(taskId);
-    if (pagination.commentCount <= 5) {
-      return { events, pagination };
-    }
-
-    const comments = events.filter((event) => event.comment != null);
-    const keepCommentIds = new Set(comments.slice(-5).map((event) => event.id));
-    return {
-      events: events.filter(
-        (event) => event.comment == null || keepCommentIds.has(event.id),
-      ),
-      pagination,
     };
   }
 
@@ -337,6 +324,14 @@ export const taskService = (() => {
     return result.data;
   }
 
+  async function moveSubtask(
+    taskId: string,
+    move: MoveTaskRequest,
+  ): Promise<Task> {
+    const result = await coreClient.moveSubtask(taskId, move);
+    return result.data;
+  }
+
   async function createTaskEvent(
     taskId: string,
     input: CreateTaskEventInput,
@@ -365,6 +360,35 @@ export const taskService = (() => {
 
     if (!result.data) {
       throw new Error("Failed to update task");
+    }
+
+    return result.data;
+  }
+
+  /**
+   * Re-dates the reader's overdue Tasks (as of their `today`) to `to` in the
+   * active workspace. Core picks them and re-checks each under lock; what it
+   * moved comes back with the data Undo needs.
+   */
+  async function moveOverdueTasks(input: { today: string; to: string }) {
+    const result = await coreClient.moveOverdueTasks(input);
+
+    if (!result.data) {
+      throw new Error("Failed to move overdue tasks");
+    }
+
+    return result.data;
+  }
+
+  /** Puts moved Tasks back, each only while untouched since the move. */
+  async function undoMoveOverdueTasks(input: {
+    to: string;
+    tasks: { id: string; from: string; version: string }[];
+  }) {
+    const result = await coreClient.undoMoveOverdueTasks(input);
+
+    if (!result.data) {
+      throw new Error("Failed to undo moving overdue tasks");
     }
 
     return result.data;
@@ -440,6 +464,26 @@ export const taskService = (() => {
     return result.data.participants;
   }
 
+  async function followTask(taskId: string): Promise<TaskFollower[]> {
+    const result = await coreClient.followTask(taskId);
+
+    if (!result.data) {
+      throw new Error("Failed to follow task");
+    }
+
+    return result.data.followers;
+  }
+
+  async function unfollowTask(taskId: string): Promise<TaskFollower[]> {
+    const result = await coreClient.unfollowTask(taskId);
+
+    if (!result.data) {
+      throw new Error("Failed to stop following task");
+    }
+
+    return result.data.followers;
+  }
+
   async function subscribeTaskParticipant(
     taskId: string,
   ): Promise<TaskParticipant[]> {
@@ -484,25 +528,41 @@ export const taskService = (() => {
     }
   }
 
+  /** The saved Tasks page query, or null when the person never chose one. */
+  async function getSavedTasksViewQuery(): Promise<string | null> {
+    const result = await coreClient.getTasksView();
+    return result.data?.query ?? null;
+  }
+
+  async function saveTasksViewQuery(query: string): Promise<void> {
+    await coreClient.putTasksView(query);
+  }
+
   return {
+    getSavedTasksViewQuery,
+    saveTasksViewQuery,
     getActivitySummary,
     getWorkspaceCalendar,
     getWorkspaceCalendarSources,
     listTasks,
     getTaskById,
+    getArchivedTask,
     getTaskWorkspace,
     listTaskEvents,
-    listAllTaskEvents,
-    listTaskActivityFeed,
     listTaskEventsBefore,
     createTask,
+    moveSubtask,
     suggestTaskTags,
     createTaskLink,
     createTaskEvent,
     deleteTaskLink,
     removeTaskParticipant,
     subscribeTaskParticipant,
+    followTask,
+    unfollowTask,
     moveTaskToWorkspace,
+    moveOverdueTasks,
+    undoMoveOverdueTasks,
     patchTask,
     listTaskContacts,
     listTaskLinks,

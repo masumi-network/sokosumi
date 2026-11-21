@@ -12,7 +12,7 @@ import {
 } from "./notification-read.js";
 import { createNotification } from "./notifications.js";
 
-function taskNotificationPayload(task: {
+export function taskNotificationPayload(task: {
   name: string | null;
   projectId: string | null;
   workspaceId: string | null;
@@ -362,8 +362,8 @@ export async function notifyTaskParticipantsAdded(
 
 /**
  * Null when the Task is archived or settled after the mentioning event.
- * Missing TaskEvent (self-join synthetic eventId) still alerts when the Task
- * is not archived and its current status is not settled.
+ * A missing TaskEvent still alerts when the Task is not archived and its
+ * current status is not settled.
  */
 async function findTaskForParticipantAlert(
   taskId: string,
@@ -509,16 +509,49 @@ export async function markTaskArchivedRead(task: {
   ownerId: string | null;
   assigneeUserId: string | null;
 }): Promise<void> {
-  for (const readerId of taskReaderIds(task)) {
-    await markAttentionRead(
-      readerId,
-      NotificationKind.TASK,
-      task.id,
-      TASK_ATTENTION_MESSAGE_KEYS,
-      "task-archived-read",
-    );
+  // Its sub-tasks were archived with it and can no longer be opened either.
+  const subtasks = await subtasksArchivedWith(task.id).catch((error) => {
+    Sentry.captureException(error, {
+      extra: { taskId: task.id, notificationType: "task-archived-read" },
+    });
+    return [];
+  });
+  for (const archived of [task, ...subtasks]) {
+    for (const readerId of taskReaderIds(archived)) {
+      await markAttentionRead(
+        readerId,
+        NotificationKind.TASK,
+        archived.id,
+        TASK_ATTENTION_MESSAGE_KEYS,
+        "task-archived-read",
+      );
+    }
+    await markParticipantAddedRead(archived.id);
   }
-  await markParticipantAddedRead(task.id);
+}
+
+/** Descendants archived in the same write as `taskId`: they share its time. */
+async function subtasksArchivedWith(taskId: string) {
+  const parent = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: { archivedAt: true },
+  });
+  if (!parent?.archivedAt) return [];
+  const found: {
+    id: string;
+    ownerId: string | null;
+    assigneeUserId: string | null;
+  }[] = [];
+  let level = [taskId];
+  while (level.length > 0) {
+    const subtasks = await prisma.task.findMany({
+      where: { parentTaskId: { in: level }, archivedAt: parent.archivedAt },
+      select: { id: true, ownerId: true, assigneeUserId: true },
+    });
+    found.push(...subtasks);
+    level = subtasks.map((subtask) => subtask.id);
+  }
+  return found;
 }
 
 async function markParticipantAddedRead(taskId: string): Promise<void> {

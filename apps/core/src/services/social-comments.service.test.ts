@@ -31,7 +31,7 @@ vi.mock("@/clients/social-post-providers/comments", async (importOriginal) => ({
   replyToComment: provider.reply,
 }));
 vi.mock("@/services/project-social-connections.service", () => ({
-  projectExecutorUserId: () => "exec-1",
+  connectionExecutorUserId: () => "exec-1",
 }));
 
 import {
@@ -70,6 +70,21 @@ describe("handleSocialComment", () => {
       composioConnectedAccountId: "ca-1",
       externalAccountId: "brand-1",
     });
+  });
+
+  it("never replies from a test copy, and leaves the comment new", async () => {
+    db.commentFindFirst.mockResolvedValue(
+      comment({
+        socialPost: {
+          socialConnectionId: "conn-1",
+          provider: "instagram",
+          project: { testCopyOfProjectId: "p-source" },
+        },
+      }),
+    );
+    await expect(reply()).rejects.toThrow("A test copy sends nothing at once");
+    expect(provider.reply).not.toHaveBeenCalled();
+    expect(db.commentUpdateMany).not.toHaveBeenCalled();
   });
 
   it("posts the reply and records it", async () => {
@@ -185,6 +200,11 @@ describe("collectNewSocialComments", () => {
     const now = new Date("2026-10-28T12:00:00.000Z");
     const since = new Date("2026-10-25T12:00:00.000Z");
     await collectNewSocialComments({ projectId: "p-1", now });
+    expect(db.commentCount.mock.lastCall?.[0]?.where).toStrictEqual({
+      projectId: "p-1",
+      status: "REPLIED",
+      handledAt: { gte: new Date("2026-10-27T12:00:00.000Z") },
+    });
     expect(db.commentFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {

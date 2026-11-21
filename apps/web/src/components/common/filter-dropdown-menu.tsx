@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ListFilter, type LucideIcon } from "lucide-react";
+import { Check, ListFilter, type LucideIcon, RotateCcw } from "lucide-react";
 import { type ReactElement, type ReactNode, useMemo, useState } from "react";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -16,6 +16,8 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -40,6 +42,7 @@ export interface FilterDropdownMenuOption {
   label: string;
   /** Compact selected value; the full label wraps in the options and appears in a tooltip. */
   shortLabel?: string;
+  mark?: ReactNode;
   avatarLabel?: string;
   image?: string | null;
   useAgentIcon?: boolean;
@@ -71,7 +74,19 @@ interface FilterDropdownMenuProps {
   searchPlaceholder: string;
   emptyResultsLabel: string;
   sections: FilterDropdownMenuSection[];
+  /** Direct choices appear above the expandable filter sections. */
+  quickFilters?: { menu: ReactNode; sheet: ReactNode };
+  dropdownOpen?: boolean;
+  onDropdownOpenChange?: (open: boolean) => void;
+  showMobileLabel?: boolean;
   showActiveIndicator?: boolean;
+  /**
+   * The trigger edge the desktop menu lines up with. `start` for a trigger at
+   * the left of its toolbar, where `end` would open the menu over the sidebar.
+   */
+  align?: "start" | "end";
+  /** How many filters are set, shown on the trigger; `label` reads it out ("2 active"). */
+  activeCount?: { count: number; label: string };
   /**
    * Extra classes for the desktop and mobile triggers. Toolbars that set their
    * own control height need it: `size="sm"` is `h-8` at every width, which is
@@ -83,6 +98,8 @@ interface FilterDropdownMenuProps {
   hideMobileTrigger?: boolean;
   sheetOpen?: boolean;
   onSheetOpenChange?: (open: boolean) => void;
+  /** A last item that resets every filter in the menu; omit it when none is set. */
+  resetAction?: { label: string; onReset: () => void };
 }
 
 const ALL_FILTER_VALUE = "__all__";
@@ -94,13 +111,26 @@ export function FilterDropdownMenu({
   searchPlaceholder,
   emptyResultsLabel,
   sections,
+  quickFilters,
+  dropdownOpen: dropdownOpenProp,
+  onDropdownOpenChange,
+  showMobileLabel = false,
   showActiveIndicator = false,
+  align = "end",
+  activeCount,
   triggerClassName,
   hideMobileTrigger = false,
   sheetOpen: sheetOpenProp,
   onSheetOpenChange,
+  resetAction,
 }: FilterDropdownMenuProps) {
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [uncontrolledDropdownOpen, setUncontrolledDropdownOpen] =
+    useState(false);
+  const dropdownOpen = dropdownOpenProp ?? uncontrolledDropdownOpen;
+  function setDropdownOpen(open: boolean) {
+    if (dropdownOpenProp === undefined) setUncontrolledDropdownOpen(open);
+    onDropdownOpenChange?.(open);
+  }
   const [uncontrolledSheetOpen, setUncontrolledSheetOpen] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
@@ -114,9 +144,21 @@ export function FilterDropdownMenu({
     onSheetOpenChange?.(open);
   }
 
-  if (sections.length === 0) {
+  if (sections.length === 0 && !quickFilters) {
     return null;
   }
+
+  const triggerLabel = activeCount
+    ? `${buttonLabel}, ${activeCount.label}`
+    : buttonLabel;
+  const countBadge = activeCount ? (
+    <span
+      aria-hidden
+      className="bg-foreground text-background inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-2xs font-medium tabular-nums"
+    >
+      {activeCount.count}
+    </span>
+  ) : null;
 
   const handleClose = () => {
     setDropdownOpen(false);
@@ -126,17 +168,18 @@ export function FilterDropdownMenu({
 
   return (
     <>
-      {/* Desktop dropdown - hidden on mobile */}
       <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
         <DropdownMenuTrigger asChild className="hidden sm:flex">
           <Button
             variant="outline"
             size="sm"
             className={cn("relative gap-2", triggerClassName)}
+            aria-label={activeCount ? triggerLabel : undefined}
           >
             <ListFilter className="size-4" aria-hidden />
             <span>{buttonLabel}</span>
-            {showActiveIndicator ? (
+            {countBadge}
+            {showActiveIndicator && !activeCount ? (
               <span
                 aria-hidden
                 className="absolute top-1 right-1 size-1.5 rounded-full bg-foreground ring-2 ring-background"
@@ -144,7 +187,11 @@ export function FilterDropdownMenu({
             ) : null}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuContent align={align} className="w-64">
+          {quickFilters?.menu}
+          {quickFilters && sections.length > 0 ? (
+            <DropdownMenuSeparator />
+          ) : null}
           {sections.map((section) => (
             <FilterDropdownMenuSectionItem
               key={section.id}
@@ -154,6 +201,20 @@ export function FilterDropdownMenu({
               onSelect={handleClose}
             />
           ))}
+          {resetAction ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={() => {
+                  resetAction.onReset();
+                  handleClose();
+                }}
+              >
+                <RotateCcw aria-hidden />
+                {resetAction.label}
+              </DropdownMenuItem>
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -162,11 +223,13 @@ export function FilterDropdownMenu({
           variant="outline"
           size="sm"
           className={cn("relative gap-2 sm:hidden", triggerClassName)}
-          aria-label={buttonLabel}
+          aria-label={triggerLabel}
           onClick={() => setSheetOpen(true)}
         >
           <ListFilter className="size-4" aria-hidden />
-          {showActiveIndicator ? (
+          {showMobileLabel ? <span>{buttonLabel}</span> : null}
+          {countBadge}
+          {showActiveIndicator && !activeCount ? (
             <span
               aria-hidden
               className="absolute top-1 right-1 size-1.5 rounded-full bg-foreground ring-2 ring-background"
@@ -188,6 +251,7 @@ export function FilterDropdownMenu({
             className="h-[calc(80dvh-5rem)] min-w-0 w-full px-4"
           >
             <div className="mt-4 w-full min-w-0 space-y-4">
+              {quickFilters?.sheet}
               {sections.map((section) => (
                 <FilterDropdownMenuSectionMobile
                   key={section.id}
@@ -203,6 +267,19 @@ export function FilterDropdownMenu({
                   onSelect={handleClose}
                 />
               ))}
+              {resetAction ? (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    resetAction.onReset();
+                    handleClose();
+                  }}
+                >
+                  <RotateCcw aria-hidden />
+                  {resetAction.label}
+                </Button>
+              ) : null}
             </div>
           </ScrollArea>
         </SheetContent>
@@ -416,9 +493,10 @@ function FilterDropdownMenuOptionAvatar({
 }: {
   option: Pick<
     FilterDropdownMenuOption,
-    "avatarLabel" | "image" | "useAgentIcon"
+    "avatarLabel" | "image" | "useAgentIcon" | "mark"
   >;
 }) {
+  if (option.mark) return option.mark;
   if (!option.avatarLabel) {
     return null;
   }

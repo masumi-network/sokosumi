@@ -1,11 +1,40 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+interface MockRealtimeClient {
+  close: ReturnType<typeof vi.fn>;
+  connection: {
+    state: string;
+    listeners: Set<() => void>;
+    on: ReturnType<typeof vi.fn>;
+    off: ReturnType<typeof vi.fn>;
+    emitState: (state: string) => void;
+  };
+}
 
 const { RealtimeMock, PushMock } = vi.hoisted(() => ({
   RealtimeMock: vi.fn(function Realtime(
-    this: { close: ReturnType<typeof vi.fn> },
+    this: MockRealtimeClient,
     _options: unknown,
   ) {
+    const listeners = new Set<() => void>();
+    const connection = {
+      state: "initialized",
+      listeners,
+      on: vi.fn((listener: () => void) => {
+        listeners.add(listener);
+      }),
+      off: vi.fn((listener: () => void) => {
+        listeners.delete(listener);
+      }),
+      emitState(state: string) {
+        connection.state = state;
+        for (const listener of [...listeners]) {
+          listener();
+        }
+      },
+    };
     this.close = vi.fn();
+    this.connection = connection;
     return this;
   }),
   PushMock: { name: "ably-push-plugin" },
@@ -25,8 +54,8 @@ vi.mock("./ably-client-instance-id", () => ({
   getOrCreateAblyClientInstanceId: () => "inst_test01",
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { getNotificationServiceWorkerUrl } from "@/lib/utils/notification-service-worker";
-
 import {
   getAblyConnectionHealthy,
   reportAblyConnectionConnected,
@@ -53,9 +82,7 @@ interface RealtimeClientOptions {
   echoMessages?: boolean;
 }
 
-function getConstructedRealtimeClient(index = 0): {
-  close: ReturnType<typeof vi.fn>;
-} {
+function getConstructedRealtimeClient(index = 0): MockRealtimeClient {
   const constructed = RealtimeMock.mock.instances[index];
   if (!constructed) {
     throw new Error("Ably.Realtime was not constructed");
@@ -112,10 +139,6 @@ function fetchMockValue(response: unknown): void {
 }
 
 describe("getAblyRealtimeClient", () => {
-  const consoleErrorMock = vi
-    .spyOn(console, "error")
-    .mockImplementation(() => undefined);
-
   beforeEach(() => {
     globalThis.__sokosumiAblyRealtimeClient = undefined;
     // The retired client is module state, so drop the previous test's pointer.
@@ -124,12 +147,7 @@ describe("getAblyRealtimeClient", () => {
     setAblyConnectionHealthy(false);
     RealtimeMock.mockClear();
     fetchMock.mockReset();
-    consoleErrorMock.mockClear();
     vi.stubGlobal("fetch", fetchMock);
-  });
-
-  afterAll(() => {
-    consoleErrorMock.mockRestore();
   });
 
   it("does not echo the publisher's own messages back on the shared client", () => {
@@ -172,6 +190,7 @@ describe("getAblyRealtimeClient", () => {
   });
 
   it("keeps the shared client when /api/ably/auth returns 401", async () => {
+    const errorCalls = expectConsole("error", "Ably auth request failed");
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -205,23 +224,24 @@ describe("getAblyRealtimeClient", () => {
     expect(authResult.token).toBeNull();
     expect(authResult.error).toEqual(expect.any(String));
     // The status is the only signal that tells a real logout from an outage.
-    expect(consoleErrorMock).toHaveBeenCalledWith(
+    expect(errorCalls).toContainEqual([
       "Ably auth request failed",
       expect.objectContaining({ status: 401 }),
-    );
+    ]);
     // close() is terminal for the instance AblyProvider already holds.
     // Production mixed 401 with 200 on this route in the same minute; treating
     // 401 as logout killed realtime until a page reload.
     expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
     expect(getConstructedRealtimeClient().close).not.toHaveBeenCalled();
-    expect(consoleErrorMock).toHaveBeenCalledWith(
+    expect(errorCalls).toContainEqual([
       "Ably auth request failed",
       expect.objectContaining({ status: 401 }),
-    );
+    ]);
     expect(getAblyConnectionHealthy()).toBe(false);
   });
 
   it("does not clear the singleton when /api/ably/auth returns 502", async () => {
+    const errorCalls = expectConsole("error", "Ably auth request failed");
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -249,11 +269,12 @@ describe("getAblyRealtimeClient", () => {
     expect(authResult.error).toEqual(expect.stringMatching(/502/));
     expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
     expect(getConstructedRealtimeClient().close).not.toHaveBeenCalled();
-    expect(consoleErrorMock).toHaveBeenCalled();
+    expect(errorCalls).not.toHaveLength(0);
     expect(getAblyConnectionHealthy()).toBe(false);
   });
 
   it("reuses the same client after a 401 instead of building a second one", async () => {
+    expectConsole("error", "Ably auth request failed");
     mockUnauthorized();
 
     const client = getAblyRealtimeClient();
@@ -295,6 +316,7 @@ describe("getAblyRealtimeClient", () => {
    * /api/ably/auth every 30s for the life of the page.
    */
   it("retires the client once 401s prove the session is really gone", async () => {
+    expectConsole("error", "Ably auth request failed", 3);
     mockUnauthorized();
 
     const client = getAblyRealtimeClient();
@@ -312,6 +334,7 @@ describe("getAblyRealtimeClient", () => {
   });
 
   it("does not count a 502 towards the session-loss limit", async () => {
+    expectConsole("error", "Ably auth request failed", 4);
     fetchMockValue({
       ok: false,
       status: 502,
@@ -330,6 +353,7 @@ describe("getAblyRealtimeClient", () => {
   });
 
   it("forgets earlier 401s once a token comes back", async () => {
+    expectConsole("error", "Ably auth request failed", 4);
     const client = getAblyRealtimeClient();
 
     mockUnauthorized();
@@ -380,6 +404,7 @@ describe("getAblyRealtimeClient", () => {
    * and a counter left armed retires that replacement on its first failure.
    */
   it("does not let a late 401 from a retired client close its replacement", async () => {
+    expectConsole("error", "Ably auth request failed");
     // The identity change is the retire that leaves a replacement to protect.
     // A lost session keeps its own client in the global, so nothing is built
     // behind it.
@@ -416,6 +441,7 @@ describe("getAblyRealtimeClient", () => {
    * unhealthy and start the fallback polling for a client that is fine.
    */
   it("does not report health for a failure that lands after the retire", async () => {
+    expectConsole("error", "Ably auth request failed");
     mockTokenFor("user-a:inst_test01");
 
     getAblyRealtimeClient();
@@ -458,6 +484,7 @@ describe("getAblyRealtimeClient", () => {
   });
 
   it("does not rebuild for a signed-out browser", async () => {
+    expectConsole("error", "Ably auth request failed", 3);
     mockUnauthorized();
 
     const client = getAblyRealtimeClient();
@@ -488,6 +515,7 @@ describe("getAblyRealtimeClient", () => {
    * logout-and-back-in loop can happen without a reload.
    */
   it("rebuilds after a sign-in in the same document", async () => {
+    expectConsole("error", "Ably auth request failed", 3);
     mockUnauthorized();
 
     const client = getAblyRealtimeClient();
@@ -576,5 +604,49 @@ describe("getAblyRealtimeClient", () => {
     expect(renewal.error).toBeNull();
     expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
     expect(getConstructedRealtimeClient().close).not.toHaveBeenCalled();
+  });
+
+  it("mirrors TCP connection state into the health store only alongside successful auth", async () => {
+    mockTokenFor("user-a:inst_test01");
+
+    getAblyRealtimeClient();
+    const constructed = getConstructedRealtimeClient();
+
+    constructed.connection.emitState("connected");
+    expect(getAblyConnectionHealthy()).toBe(false);
+
+    await invokeAuthCallback();
+    expect(getAblyConnectionHealthy()).toBe(true);
+
+    constructed.connection.emitState("suspended");
+    expect(getAblyConnectionHealthy()).toBe(false);
+
+    constructed.connection.emitState("connected");
+    expect(getAblyConnectionHealthy()).toBe(true);
+  });
+
+  it("detaches connection health and marks unhealthy when the client retires", async () => {
+    mockTokenFor("user-a:inst_test01");
+
+    getAblyRealtimeClient();
+    const retired = getConstructedRealtimeClient();
+    retired.connection.emitState("connected");
+    await invokeAuthCallback();
+    expect(getAblyConnectionHealthy()).toBe(true);
+
+    mockTokenFor("user-b:inst_test01");
+    await invokeAuthCallback();
+
+    expect(retired.connection.off).toHaveBeenCalled();
+    expect(getAblyConnectionHealthy()).toBe(false);
+
+    getAblyRealtimeClient();
+    const replacement = getConstructedRealtimeClient(1);
+    replacement.connection.emitState("connected");
+    expect(getAblyConnectionHealthy()).toBe(true);
+
+    // Late state changes on the retired instance must not flip replacement health.
+    retired.connection.emitState("suspended");
+    expect(getAblyConnectionHealthy()).toBe(true);
   });
 });

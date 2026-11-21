@@ -3,6 +3,22 @@ import { describe, expect, it, vi } from "vitest";
 import type { Prisma } from "../generated/prisma/client.js";
 import { jobPurchaseRepository } from "./job-purchase.repository.js";
 
+it("creates a purchase with the default action and preserves explicit nulls", async () => {
+  const create = vi.fn();
+  const tx = { jobPurchase: { create } } as never;
+  await jobPurchaseRepository.createJobPurchase(
+    { jobId: "job_1", externalId: "purchase_1", resultHash: null },
+    tx,
+  );
+
+  expect(create.mock.lastCall?.[0].data).toStrictEqual({
+    externalId: "purchase_1",
+    job: { connect: { id: "job_1" } },
+    nextAction: "NONE",
+    resultHash: null,
+  });
+});
+
 function createTx(update = vi.fn()) {
   return {
     tx: { jobPurchase: { update } } as unknown as Prisma.TransactionClient,

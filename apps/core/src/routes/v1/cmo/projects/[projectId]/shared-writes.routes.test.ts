@@ -2,6 +2,7 @@ import type { MarketingStrategy } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
+import { SocialAccountChoiceRequiredError } from "@/helpers/social-account-choice";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
@@ -29,6 +30,7 @@ const m = vi.hoisted(() => ({
   getBrandBrain: vi.fn(),
   confirmBrandBrain: vi.fn(),
   answerBrandBrainQuestion: vi.fn(),
+  requestBrandBrainFix: vi.fn(),
   answerMarketingStrategyQuestion: vi.fn(),
   strategyFindFirst: vi.fn(),
   startCmoProductionForProject: vi.fn(),
@@ -61,6 +63,7 @@ vi.mock("@/lib/db/prisma", () => {
       },
     },
     sokoBot: {
+      findUnique: async () => ({ versionId: "cmo-v5" }),
       findFirst: async () =>
         m.hasCuso
           ? {
@@ -91,6 +94,7 @@ vi.mock("@/services/brand-brain.service", async (importOriginal) => ({
   getBrandBrain: m.getBrandBrain,
   confirmBrandBrain: m.confirmBrandBrain,
   answerBrandBrainQuestion: m.answerBrandBrainQuestion,
+  requestBrandBrainFix: m.requestBrandBrainFix,
 }));
 // Approving stays real: its owner-or-admin check is what the tests prove.
 vi.mock("@/services/marketing-strategy.service", async (importOriginal) => ({
@@ -199,6 +203,14 @@ const WRITES = [
     reaches: m.answerBrandBrainQuestion,
   },
   {
+    name: "Brand Brain section fix",
+    method: "POST",
+    path: `${BASE}/brand/fix`,
+    body: { section: "pricing", note: "From 19 dollars." },
+    status: 201,
+    reaches: m.requestBrandBrainFix,
+  },
+  {
     name: "strategy approve",
     method: "POST",
     path: `${BASE}/marketing-strategies/${STRATEGY_ID}/approve`,
@@ -255,6 +267,11 @@ beforeEach(() => {
   m.hasCuso = true;
   m.getBrandBrain.mockResolvedValue(null);
   m.confirmBrandBrain.mockResolvedValue(null);
+  // The answered question; a yes starts no fix.
+  m.answerBrandBrainQuestion.mockResolvedValue({
+    asked: {},
+    answered: { answer: "yes" },
+  });
   m.strategyFindFirst.mockResolvedValue(strategyVersion());
   m.answerMarketingStrategyQuestion.mockResolvedValue(strategyVersion());
   m.initiateProjectSocialConnection.mockResolvedValue({
@@ -306,7 +323,35 @@ describe("CMO's own routes for its writes on the Cuso's Project", () => {
       userId: "user-1",
       action: "connect",
       provider: "x",
+      accountChoice: true,
     });
+  });
+
+  it("answers the accounts to pick from when a sign-in reaches several", async () => {
+    const choices = [
+      {
+        id: "choice-page",
+        name: "Acme",
+        handle: "acme",
+        kind: "page" as const,
+      },
+      {
+        id: "choice-profile",
+        name: "Alice Doe",
+        handle: null,
+        kind: "profile" as const,
+      },
+    ];
+    m.finalizeProjectSocialConnection.mockRejectedValueOnce(
+      new SocialAccountChoiceRequiredError(choices),
+    );
+    const response = await send(named("social connection finalize"));
+    expect(response.status).toBe(201);
+    expect((await response.json()).data).toEqual({ state: "choose", choices });
+    expect(m.finalizeProjectSocialConnection).toHaveBeenCalledWith(
+      expect.objectContaining({ offerChoice: true }),
+    );
+    expect(m.scheduleSocialAccountRefresh).not.toHaveBeenCalled();
   });
 
   it("lets a plain member answer the strategy but not approve it (ADR 0061)", async () => {

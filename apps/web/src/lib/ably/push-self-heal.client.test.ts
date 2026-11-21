@@ -42,6 +42,7 @@ vi.mock("./push-activation.client", () => ({
   activatePush: (...args: unknown[]) => activatePushMock(...args),
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { healPushSubscription } from "./push-self-heal.client";
 
 const USER_ID = "user_alice";
@@ -99,6 +100,7 @@ describe("healPushSubscription", () => {
   /** The reader asked for nothing, so a failure leaves them where they were
    * rather than reaching them as an error. */
   it("reports false instead of throwing when the repair fails", async () => {
+    expectConsole("error", "Failed to restore the push subscription");
     activatePushMock.mockRejectedValue(new Error("activation failed"));
 
     await expect(healPushSubscription(USER_ID)).resolves.toBe(false);
@@ -189,13 +191,15 @@ it("returns false when teardown cancels activation", async () => {
  */
 it("keeps its answer when recording the outcome throws", async () => {
   repairable();
-  const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+  const consoleError = expectConsole(
+    "error",
+    "Failed to record the push repair outcome",
+  );
   hasWebPushSubscriptionMock.mockRejectedValue(new Error("storage is blocked"));
 
   await expect(healPushSubscription(USER_ID)).resolves.toBe(true);
 
-  expect(consoleError).toHaveBeenCalled();
-  consoleError.mockRestore();
+  expect(consoleError).not.toHaveLength(0);
 });
 
 // SOK-1120: repair eligibility survives loss of SDK credentials.

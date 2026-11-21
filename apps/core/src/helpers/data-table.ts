@@ -4,6 +4,7 @@ import { PrismaRaw } from "@sokosumi/database/client";
 import {
   createDataTableSchema,
   tableBatchSchema,
+  tableColumnInputSchema,
   tableEvidenceSchema,
   tableInsertRowSchema,
   tableMutationSchema,
@@ -12,6 +13,10 @@ import {
   tableViewDefinitionSchema,
 } from "@sokosumi/utils";
 import { z } from "zod";
+import {
+  type DataTableListOptions,
+  readDataTablePage,
+} from "@/helpers/data-table-list";
 import { validateTableValues } from "@/helpers/data-table-values";
 import {
   conflict,
@@ -20,12 +25,12 @@ import {
   unprocessableEntity,
 } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
   dataTableSchema,
-  dataTableSummarySchema,
   tableBatchResultSchema,
   tableColumnSchema,
   tableRowSchema,
@@ -39,6 +44,12 @@ export interface TableActor {
   taskId?: string;
   /** Set only by the authenticated in-process owner-chat runtime, never HTTP input. */
   ownerChat?: boolean;
+  /**
+   * A Project's shared Soko Bot works in its Project alone: it lists, reads
+   * and writes only that Project's tables, and a table it creates is the
+   * Project's. Set by the runtime from the bot's own scope, never from input.
+   */
+  projectScope?: string;
 }
 const tableInclude = {
   columns: { orderBy: { position: "asc" as const } },
@@ -91,7 +102,11 @@ export async function requireDataTable(
   tx: Prisma.TransactionClient = prisma,
 ) {
   const table = await tx.dataTable.findFirst({
-    where: { id, workspaceId: actor.workspaceId },
+    where: {
+      id,
+      workspaceId: actor.workspaceId,
+      ...(actor.projectScope ? { projectId: actor.projectScope } : {}),
+    },
     include: tableInclude,
   });
   if (!table) throw notFound("Table not found");
@@ -99,9 +114,6 @@ export async function requireDataTable(
   return table;
 }
 
-function json(value: unknown): Prisma.InputJsonValue {
-  return JSON.parse(JSON.stringify(value));
-}
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
   if (value && typeof value === "object")
@@ -200,7 +212,7 @@ async function operation<T>(
           key,
           requestHash,
           tableId,
-          result: json(result),
+          result: jsonInput(result),
         },
       });
       await complete?.(tx, { tableId, result, replayed: false });
@@ -257,12 +269,12 @@ function changeData(
     batchId,
     actorId: actor.actorId,
     actorKind: actor.actorKind,
-    taskId: actor.taskId,
-    rowId,
-    columnId,
-    before: json({ value: before }),
-    after: json({ value: after }),
-    evidence: json(evidence),
+    ...(actor.taskId !== undefined && { taskId: actor.taskId }),
+    ...(rowId !== undefined && { rowId }),
+    ...(columnId !== undefined && { columnId }),
+    before: jsonInput({ value: before }),
+    after: jsonInput({ value: after }),
+    evidence: jsonInput(evidence),
   };
 }
 
@@ -298,10 +310,36 @@ function assertUnique(ids: string[], label: string) {
   if (new Set(ids).size !== ids.length)
     throw unprocessableEntity(`Duplicate ${label}`);
 }
-function suppliedIds(rows: readonly { id?: string }[]): string[] {
+function suppliedIds(rows: readonly { id?: string | undefined }[]): string[] {
   const ids: string[] = [];
   for (const row of rows) if (typeof row.id === "string") ids.push(row.id);
   return ids;
+}
+
+function columnData({
+  id,
+  width,
+  wrap,
+  ...column
+}: z.output<typeof tableColumnInputSchema>) {
+  return {
+    ...column,
+    id: id ?? randomUUID(),
+    ...(width !== undefined && { width }),
+    ...(wrap !== undefined && { wrap }),
+  };
+}
+
+function rowData({
+  id,
+  values,
+  evidence,
+}: z.output<typeof tableInsertRowSchema>) {
+  return {
+    ...(id !== undefined && { id }),
+    values: jsonInput(values),
+    evidence: jsonInput(evidence),
+  };
 }
 function assertEditable(table: { archivedAt: Date | null }) {
   if (table.archivedAt) throw conflict("Restore this table before editing");
@@ -345,6 +383,13 @@ export async function createDataTable(
   ).parse(input);
   if (actor.actorKind !== "user" && !actor.ownerChat && !actor.taskId)
     throw forbidden("Creating a table requires an assigned task context");
+  if (
+    actor.projectScope &&
+    body.projectId &&
+    body.projectId !== actor.projectScope
+  )
+    throw forbidden("This table can only be created in the bot's own Project");
+  const projectId = actor.projectScope ?? body.projectId;
   if (actor.taskId) await scopeForTask(actor, "", prisma);
   if (
     actor.taskId &&
@@ -360,10 +405,10 @@ export async function createDataTable(
     async (tx, batchId) => {
       if (actor.taskId) await scopeForTask(actor, "", tx);
       if (
-        body.projectId &&
+        projectId &&
         !(await tx.project.findFirst({
           where: {
-            id: body.projectId,
+            id: projectId,
             workspaceId: actor.workspaceId,
             closedAt: null,
           },
@@ -371,8 +416,7 @@ export async function createDataTable(
       )
         throw notFound("Project not found");
       const columns = body.columns.map((column, position) => ({
-        ...column,
-        id: column.id ?? randomUUID(),
+        ...columnData(column),
         position,
       }));
       assertUnique(
@@ -383,7 +427,7 @@ export async function createDataTable(
       const table = await tx.dataTable.create({
         data: {
           workspaceId: actor.workspaceId,
-          projectId: body.projectId,
+          ...(projectId !== undefined && { projectId }),
           title: body.title,
           description: body.description,
           createdBy: actor.actorId,
@@ -399,7 +443,7 @@ export async function createDataTable(
         const created = await tx.tableRow.createManyAndReturn({
           data: body.rows
             .slice(start, start + 200)
-            .map((row) => ({ ...row, tableId: table.id })),
+            .map((row) => ({ ...rowData(row), tableId: table.id })),
         });
         await persistChanges(
           tx,
@@ -419,58 +463,10 @@ export async function createDataTable(
 /** Most recently changed first; the cursor is the last table ID of a page. */
 export async function listDataTables(
   actor: TableActor,
-  options: {
-    cursor?: string;
-    limit?: number;
-    archived?: boolean;
-    projectId?: string;
-    search?: string;
-  } = {},
+  options: DataTableListOptions = {},
 ) {
   const scope = await scopeForTask(actor, null, prisma);
-  const limit = Math.min(options.limit ?? 50, 100);
-  const search = options.search?.trim();
-  const where: Prisma.DataTableWhereInput = {
-    workspaceId: actor.workspaceId,
-    ...(scope ? { id: scope.tableId } : {}),
-    archivedAt: options.archived ? { not: null } : null,
-    ...(options.projectId ? { projectId: options.projectId } : {}),
-    ...(search ? { title: { contains: search, mode: "insensitive" } } : {}),
-  };
-  const cursor = options.cursor
-    ? await prisma.dataTable.findFirst({
-        where: { id: options.cursor, workspaceId: actor.workspaceId },
-        select: { id: true, updatedAt: true },
-      })
-    : null;
-  if (options.cursor && !cursor)
-    throw unprocessableEntity("Invalid table cursor");
-  const [tables, total] = await Promise.all([
-    prisma.dataTable.findMany({
-      where: cursor
-        ? {
-            ...where,
-            OR: [
-              { updatedAt: { lt: cursor.updatedAt } },
-              { updatedAt: cursor.updatedAt, id: { lt: cursor.id } },
-            ],
-          }
-        : where,
-      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-      take: limit + 1,
-      include: { _count: { select: { columns: true } } },
-    }),
-    prisma.dataTable.count({ where }),
-  ]);
-  return {
-    total,
-    items: tables
-      .slice(0, limit)
-      .map(({ _count, ...table }) =>
-        dataTableSummarySchema.parse({ ...table, columnCount: _count.columns }),
-      ),
-    nextCursor: tables.length > limit ? tables[limit - 1].id : null,
-  };
+  return readDataTablePage(actor, options, scope?.tableId);
 }
 
 export async function mutateDataTable(
@@ -514,10 +510,7 @@ export async function mutateDataTable(
       }
       if (body.columns) {
         assertEditable(table);
-        const columns = body.columns.map((column) => ({
-          ...column,
-          id: column.id ?? randomUUID(),
-        }));
+        const columns = body.columns.map(columnData);
         assertUnique(
           columns.map((column) => column.id),
           "column IDs",
@@ -578,14 +571,13 @@ export async function mutateDataTable(
       const updated = await tx.dataTable.update({
         where: { id },
         data: {
-          title: body.title,
-          description: body.description,
-          archivedAt:
-            body.archived === undefined
-              ? undefined
-              : body.archived
-                ? new Date()
-                : null,
+          ...(body.title !== undefined && { title: body.title }),
+          ...(body.description !== undefined && {
+            description: body.description,
+          }),
+          ...(body.archived !== undefined && {
+            archivedAt: body.archived ? new Date() : null,
+          }),
           version: { increment: 1 },
         },
         include: tableInclude,
@@ -815,7 +807,8 @@ export async function batchTableRows(
   const body = tableBatchSchema.parse(input);
   if (actor.taskId && body.taskId && actor.taskId !== body.taskId)
     throw forbidden("Task context mismatch");
-  const scopedActor = { ...actor, taskId: actor.taskId ?? body.taskId };
+  const taskId = actor.taskId ?? body.taskId;
+  const scopedActor = taskId === undefined ? actor : { ...actor, taskId };
   await scopeForTask(scopedActor, id, prisma);
   return operation(
     scopedActor,
@@ -848,7 +841,7 @@ export async function batchTableRows(
       for (const row of body.insert) {
         validateTableValues(columns, row.values, row.evidence);
         const created = await tx.tableRow.create({
-          data: { ...row, tableId: id },
+          data: { ...rowData(row), tableId: id },
         });
         audit.push(
           changeData(scopedActor, id, batchId, null, created, created.id),
@@ -921,16 +914,13 @@ export async function batchTableRows(
         const updated = await tx.tableRow.update({
           where: { id: previous.id },
           data: {
-            values,
-            evidence,
-            position,
+            values: jsonInput(values),
+            evidence: jsonInput(evidence),
+            ...(position !== undefined && { position }),
             version: { increment: 1 },
-            archivedAt:
-              patch.archived === undefined
-                ? undefined
-                : patch.archived
-                  ? new Date()
-                  : null,
+            ...(patch.archived !== undefined && {
+              archivedAt: patch.archived ? new Date() : null,
+            }),
           },
         });
         if (patch.archived !== undefined)
@@ -1090,13 +1080,22 @@ export async function saveTableView(
         : null;
       if (input.id && (!previous || previous.version !== input.version))
         throw conflict("View changed. Reload before saving.");
+      const storedDefinition = jsonInput(definition);
       const result = previous
         ? await tx.tableView.update({
             where: { id: previous.id },
-            data: { name: input.name, definition, version: { increment: 1 } },
+            data: {
+              name: input.name,
+              definition: storedDefinition,
+              version: { increment: 1 },
+            },
           })
         : await tx.tableView.create({
-            data: { tableId: id, name: input.name, definition },
+            data: {
+              tableId: id,
+              name: input.name,
+              definition: storedDefinition,
+            },
           });
       await change(tx, actor, id, batchId, previous, result);
       return { tableId: id, result };
@@ -1223,13 +1222,12 @@ export async function undoTableBatch(
             await tx.tableRow.update({
               where: { id: row.id },
               data: {
-                values,
-                evidence,
+                values: jsonInput(values),
+                evidence: jsonInput(evidence),
                 archivedAt,
-                position:
-                  moveAfter === undefined
-                    ? undefined
-                    : await positionAfter(tx, id, row.id, moveAfter),
+                ...(moveAfter !== undefined && {
+                  position: await positionAfter(tx, id, row.id, moveAfter),
+                }),
                 version: { increment: 1 },
               },
             }),

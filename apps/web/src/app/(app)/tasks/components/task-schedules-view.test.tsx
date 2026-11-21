@@ -1,6 +1,14 @@
 import type { TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
@@ -53,7 +61,7 @@ vi.mock("@/app/tasks/actions", () => ({
   loadMoreTaskSchedules: loadMoreTaskSchedulesMock,
 }));
 
-vi.mock("@/hooks/use-load-when-visible", () => ({
+vi.mock("@/hooks/effects/use-load-when-visible", () => ({
   useLoadWhenVisible: (
     _ref: unknown,
     options: { armed: boolean; boundaryKey: string; onVisible: () => void },
@@ -118,6 +126,8 @@ function schedule(overrides: Partial<TaskSchedule>): TaskSchedule {
     createdAt: new Date("2030-01-01T00:00:00.000Z"),
     updatedAt: new Date("2030-01-01T00:00:00.000Z"),
     canWrite: true,
+    canRunNow: true,
+    canEditPlan: true,
     ...overrides,
   };
 }
@@ -149,6 +159,13 @@ function renderView(
       canCreate
       canCreatePrivate={false}
     />,
+    {
+      wrapper: ({ children }) => (
+        <NuqsTestingAdapter searchParams={searchParamsRef.current}>
+          {children}
+        </NuqsTestingAdapter>
+      ),
+    },
   );
 }
 
@@ -156,6 +173,34 @@ describe("TaskSchedulesView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     searchParamsRef.current = new URLSearchParams();
+  });
+
+  it("ranks a title from a later page above a description match in the selected project and state", async () => {
+    loadMoreTaskSchedulesMock.mockResolvedValueOnce({
+      schedules: [schedule({ id: "later-schedule", name: "Payroll" })],
+      nextCursor: null,
+    });
+    renderView(
+      [
+        schedule({ name: "Weekly reminder", description: "Review payroll" }),
+        schedule({ id: "other", name: "Design review" }),
+      ],
+      { nextCursor: "next", projectId: "selected", state: "ACTIVE" },
+    );
+    fireEvent.change(screen.getByRole("searchbox"), {
+      target: { value: "payroll" },
+    });
+    await waitFor(() => {
+      const rows = screen.getAllByRole("listitem");
+      expect(rows).toHaveLength(2);
+      expect(rows[0]).toHaveTextContent("Payroll");
+      expect(rows[1]).toHaveTextContent("Weekly reminder");
+    });
+    expect(loadMoreTaskSchedulesMock).toHaveBeenCalledWith({
+      cursor: "next",
+      projectId: "selected",
+      state: "ACTIVE",
+    });
   });
 
   it("lists each schedule with its rule, next Run, state, and assignee", () => {
@@ -199,7 +244,9 @@ describe("TaskSchedulesView", () => {
       "aria-checked",
       "true",
     );
-    await user.click(screen.getByRole("button", { name: "loadMore" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "loadMore" }));
+    });
     await user.click(screen.getByRole("radio", { name: "viewGrid" }));
     expect(document.cookie).toContain("schedules_view_mode=grid");
     expect(screen.getByRole("list")).toHaveAttribute("data-view", "grid");
@@ -220,6 +267,31 @@ describe("TaskSchedulesView", () => {
     await user.click(screen.getByRole("tab", { name: "state.PAUSED" }));
 
     expect(replaceMock).toHaveBeenCalledWith("/schedules?scheduleState=PAUSED");
+  });
+
+  it("keeps the typed search when a state change remounts the schedule list", async () => {
+    const user = userEvent.setup();
+    const view = renderView([schedule({})]);
+    fireEvent.change(screen.getByRole("searchbox"), {
+      target: { value: "weekly" },
+    });
+    await user.click(screen.getByRole("tab", { name: "state.PAUSED" }));
+    const [href] = replaceMock.mock.lastCall!;
+    searchParamsRef.current = new URL(
+      href,
+      window.location.origin,
+    ).searchParams;
+    expect(searchParamsRef.current.get("q")).toBe("weekly");
+    view.unmount();
+    renderView(
+      [
+        schedule({ state: "PAUSED" }),
+        schedule({ id: "other", name: "Other", state: "PAUSED" }),
+      ],
+      { state: "PAUSED" },
+    );
+    expect(screen.getByRole("searchbox")).toHaveValue("weekly");
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
   });
 
   it("names a stored member without adding them to the create picker", async () => {
@@ -375,7 +447,6 @@ describe("TaskSchedulesView", () => {
   });
 
   it("loads more of the same project and state", async () => {
-    const user = userEvent.setup();
     const projectId = "33333333-3333-4333-8333-333333333333";
     searchParamsRef.current = new URLSearchParams(
       `projectId=${projectId}&scheduleState=PAUSED`,
@@ -395,7 +466,9 @@ describe("TaskSchedulesView", () => {
       state: "PAUSED",
     });
 
-    await user.click(screen.getByRole("button", { name: "loadMore" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "loadMore" }));
+    });
 
     expect(loadMoreTaskSchedulesMock).toHaveBeenCalledWith({
       cursor: "cursor-1",
@@ -409,7 +482,6 @@ describe("TaskSchedulesView", () => {
   });
 
   it("reloads appended pages after changing a schedule", async () => {
-    const user = userEvent.setup();
     const older = schedule({
       id: "older",
       name: "Older schedule",
@@ -420,11 +492,17 @@ describe("TaskSchedulesView", () => {
       nextCursor: null,
     });
     renderView([schedule({})], { nextCursor: "cursor-1" });
-    await user.click(screen.getByRole("button", { name: "loadMore" }));
+    // Loading more and pausing start async transitions; let them settle
+    // inside act.
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "loadMore" }));
+    });
     const link = await screen.findByRole("link", { name: "Older schedule" });
     const row = link.closest("li");
     if (!row) throw new Error("Missing schedule row");
-    await user.click(within(row).getByRole("button", { name: "pause" }));
+    await act(async () => {
+      fireEvent.click(within(row).getByRole("button", { name: "pause" }));
+    });
     expect(changeTaskScheduleStateMock).toHaveBeenCalledWith({
       scheduleId: "older",
       action: "pause",
@@ -436,7 +514,9 @@ describe("TaskSchedulesView", () => {
       schedules: [{ ...older, state: "PAUSED" }],
       nextCursor: null,
     });
-    await user.click(screen.getByRole("button", { name: "loadMore" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "loadMore" }));
+    });
     const refreshed = (
       await screen.findByRole("link", { name: "Older schedule" })
     ).closest("li");
@@ -447,11 +527,10 @@ describe("TaskSchedulesView", () => {
   });
 
   it("uses the refreshed first-page cursor after invalidating appended pages", async () => {
-    const user = userEvent.setup();
     const initial = [schedule({})];
     const view = renderView(initial, { nextCursor: "old-cursor" });
     await act(async () => {
-      await user.click(screen.getByRole("button", { name: "pause" }));
+      fireEvent.click(screen.getByRole("button", { name: "pause" }));
     });
     view.rerender(
       <TaskSchedulesView
@@ -470,7 +549,9 @@ describe("TaskSchedulesView", () => {
       schedules: [],
       nextCursor: null,
     });
-    await user.click(screen.getByRole("button", { name: "loadMore" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "loadMore" }));
+    });
     expect(loadMoreTaskSchedulesMock).toHaveBeenCalledWith({
       cursor: "new-cursor",
       projectId: null,
@@ -506,11 +587,12 @@ describe("TaskSchedulesView", () => {
   });
 
   it("stops asking on its own once a page fails, and keeps a retry", async () => {
-    const user = userEvent.setup();
     loadMoreTaskSchedulesMock.mockRejectedValue(new Error("nope"));
     renderView([schedule({})], { nextCursor: "cursor-1" });
 
-    await user.click(screen.getByRole("button", { name: "loadMore" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "loadMore" }));
+    });
 
     expect(await screen.findByRole("alert")).toHaveTextContent("loadMoreError");
     expect(loadWhenVisibleMock.mock.calls.at(-1)?.[0].armed).toBe(false);

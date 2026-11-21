@@ -8,6 +8,7 @@ import {
 import {
   extractFileLikeLinks,
   extractHttpLinks,
+  removeSeoTaskRequest,
   removeTaskContextAttachmentLinks,
 } from "@sokosumi/utils";
 import { ArrowUpRight } from "lucide-react";
@@ -73,7 +74,11 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
     );
   // Contacts are private to the workspace: readers get names, not links.
   const publicDescription = task.description
-    ? unlinkContacts(removeTaskContextAttachmentLinks(task.description))
+    ? unlinkContacts(
+        removeSeoTaskRequest(
+          removeTaskContextAttachmentLinks(task.description),
+        ),
+      )
     : "";
 
   const propertiesPanel = (
@@ -172,6 +177,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
             files={task.files ?? []}
             expandLabel={tTaskDetail("expand")}
             collapseLabel={tTaskDetail("collapse")}
+            downloadAllName={stripInlineMarkdown(task.name)}
           />
 
           {task.jobs.length > 0 ? (

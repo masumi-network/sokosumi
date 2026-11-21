@@ -29,8 +29,6 @@ const LINEAR_ASSIGNEE = null; // omit on create unless user overrides
 const LINEAR_LABELS = ["Feature", "Bug", "Improvement"] as const;
 ```
 
-Also in repo: `.linear.toml` → `project_id = "sokosumi-6357694ddd23"`.
-
 ## Required on create (never omit)
 
 Every `save_issue` **create** call (no `id`) must include **all** of:

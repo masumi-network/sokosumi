@@ -206,6 +206,15 @@ describe("SignUpForm with a password", () => {
     return submitSignUpForm("Passw0rd!");
   }
 
+  it("gives Add a password a target at least 24px tall", async () => {
+    renderForm();
+
+    // WCAG 2.5.8: a bare text-sm link is 20px tall on a phone.
+    expect(
+      await screen.findByRole("button", { name: "addPassword" }),
+    ).toHaveClass("min-h-6");
+  });
+
   it("asks for the names and the code, with updates as the only checkbox", async () => {
     renderForm();
 

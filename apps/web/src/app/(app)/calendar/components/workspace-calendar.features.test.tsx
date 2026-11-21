@@ -3,9 +3,14 @@ import type {
   MarketingPieceCalendarItem,
   NewsletterIssueCalendarItem,
   SocialPostCalendarItem,
+  SokoBotRunCalendarItem,
   WorkspaceCalendarItem,
   WorkspaceCalendarSource,
 } from "@sokosumi/core-client";
+import {
+  getProjectsByIdCalendarResponseTransformer,
+  getWorkspacesCalendarResponseTransformer,
+} from "@sokosumi/core-client/transformers";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter, type UrlUpdateEvent } from "nuqs/adapters/testing";
@@ -32,10 +37,13 @@ interface FullCalendarProps {
   }>;
 }
 
-const { fullCalendarMock, filterDropdownMenuMock } = vi.hoisted(() => ({
-  fullCalendarMock: vi.fn(),
-  filterDropdownMenuMock: vi.fn(),
-}));
+const { fullCalendarMock, changeRunMock, toastSuccessMock } = vi.hoisted(
+  () => ({
+    fullCalendarMock: vi.fn(),
+    changeRunMock: vi.fn(),
+    toastSuccessMock: vi.fn(),
+  }),
+);
 
 vi.mock("@/lib/ably/calendar-realtime-bridge", () => ({
   CalendarRealtimeBridge: () => null,
@@ -83,11 +91,12 @@ vi.mock("@/app/tasks/components/create-task-modal", () => ({
   useCreateTaskModal: () => ({ handleOpenWithDefaults: vi.fn() }),
 }));
 
-vi.mock("@/components/common/filter-dropdown-menu", () => ({
-  FilterDropdownMenu: (props: unknown) => {
-    filterDropdownMenuMock(props);
-    return <div data-testid="calendar-filters" />;
-  },
+vi.mock("@/lib/actions/soko-bot/action", () => ({
+  changeSokoBotScheduleRunAction: changeRunMock,
+}));
+
+vi.mock("sonner", () => ({
+  toast: { error: vi.fn(), info: vi.fn(), success: toastSuccessMock },
 }));
 
 vi.mock("@/lib/clients/core.browser.client", () => ({
@@ -197,6 +206,42 @@ const PIECE: MarketingPieceCalendarItem = {
   sourceType: "PROJECT",
 };
 
+const BOT_RUN: SokoBotRunCalendarItem = {
+  kind: "sokoBotRun",
+  id: "sokobot:schedule-1:2030-01-04T09:00:00.000Z",
+  scheduledAt: new Date("2030-01-04T09:00:00.000Z"),
+  scheduleId: "schedule-1",
+  name: "Morning brief",
+  sokoBotId: "bot-1",
+  botName: "Pip",
+  shared: false,
+  projectName: null,
+  runState: "upcoming",
+  originalAt: new Date("2030-01-04T09:00:00.000Z"),
+  canChange: false,
+  sourceId: "workspace:workspace-1",
+  sourceProjectId: null,
+  sourceWorkspaceId: "workspace-1",
+  sourceType: "WORKSPACE",
+};
+
+const SHARED_BOT_RUN: SokoBotRunCalendarItem = {
+  ...BOT_RUN,
+  id: "sokobot:schedule-2:2030-01-03T16:00:00.000Z",
+  scheduledAt: new Date("2030-01-03T16:00:00.000Z"),
+  scheduleId: "schedule-2",
+  originalAt: new Date("2030-01-03T16:00:00.000Z"),
+  name: "Launch check",
+  sokoBotId: "bot-2",
+  botName: "Launch bot",
+  shared: true,
+  projectName: "Launch",
+  runState: "failed",
+  sourceId: "project:project-1",
+  sourceProjectId: "project-1",
+  sourceType: "PROJECT",
+};
+
 const SOURCES: WorkspaceCalendarSource[] = [
   {
     sourceId: "project:project-1",
@@ -236,8 +281,14 @@ function renderedTitles(): string[] {
   return renderedEvents().map((event) => event.title);
 }
 
+function desktopShowTrigger() {
+  return screen
+    .getAllByRole("button", { name: /^showAndFilter/ })
+    .find((button) => button.hasAttribute("aria-haspopup"))!;
+}
+
 async function openShowFilter(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByTestId("calendar-show"));
+  await user.click(desktopShowTrigger());
   return screen.getByRole("menu");
 }
 
@@ -280,6 +331,181 @@ describe("WorkspaceCalendar features", () => {
       expect(
         screen.getByRole("link", { name: "Launch article, show.marketing" }),
       ).toHaveAttribute("href", "/drive/files/file-1");
+    });
+
+    it("opens a Soko Bot run on its schedule in the Soko Bot console", () => {
+      renderCalendar({ items: [BOT_RUN] });
+
+      const link = screen.getByRole("link", {
+        name: "Morning brief, show.sokoBot",
+      });
+      expect(link).toHaveAttribute(
+        "href",
+        "/personal-assistant?schedule=schedule-1",
+      );
+      expect(link).toHaveTextContent("9:00 AM");
+      expect(renderedEvents()[0]).toMatchObject({
+        allDay: false,
+        startEditable: false,
+      });
+    });
+
+    it("names a shared bot's run, says how it went, and opens that bot's console", () => {
+      renderCalendar({ items: [SHARED_BOT_RUN] });
+
+      const link = screen.getByRole("link", {
+        name: "Launch check, show.sokoBot",
+      });
+      expect(link).toHaveAttribute(
+        "href",
+        "/soko-bots/bot-2?schedule=schedule-2",
+      );
+      expect(link).toHaveTextContent("Launch");
+      expect(link).toHaveTextContent("Launch bot · botRun.failed");
+    });
+
+    it("skips a later Soko Bot run from its menu and Undo restores it", async () => {
+      const user = userEvent.setup();
+      changeRunMock.mockResolvedValue({ ok: true, value: undefined });
+      renderCalendar({ items: [{ ...BOT_RUN, canChange: true }] });
+
+      await user.click(
+        screen.getByRole("button", { name: "Morning brief, show.sokoBot" }),
+      );
+      expect(
+        screen.queryByRole("menuitem", { name: "event.restoreRun" }),
+      ).not.toBeInTheDocument();
+      await user.click(screen.getByRole("menuitem", { name: "event.skipRun" }));
+
+      expect(changeRunMock).toHaveBeenCalledWith({
+        botId: undefined,
+        input: {
+          scheduleId: "schedule-1",
+          originalAt: BOT_RUN.originalAt,
+          expectedAt: BOT_RUN.scheduledAt,
+          change: { action: "skip" },
+        },
+      });
+      await vi.waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
+      toastSuccessMock.mock.lastCall?.[1].action.onClick();
+      expect(changeRunMock).toHaveBeenLastCalledWith({
+        botId: undefined,
+        input: {
+          scheduleId: "schedule-1",
+          originalAt: BOT_RUN.originalAt,
+          expectedAt: null,
+          change: { action: "restore" },
+        },
+      });
+    });
+
+    it.each([
+      ["workspace", getWorkspacesCalendarResponseTransformer],
+      ["Project", getProjectsByIdCalendarResponseTransformer],
+    ])(
+      "draws and restores a moved run straight from the %s Calendar's JSON",
+      async (_endpoint, transform) => {
+        const user = userEvent.setup();
+        changeRunMock.mockResolvedValue({ ok: true, value: undefined });
+        // The wire carries ISO strings; the generated client revives dates.
+        const raw = JSON.parse(
+          JSON.stringify({
+            data: [
+              {
+                ...BOT_RUN,
+                canChange: true,
+                scheduledAt: new Date("2030-01-03T14:00:00.000Z"),
+              },
+            ],
+            meta: { timestamp: "2030-01-01T00:00:00.000Z" },
+          }),
+        );
+        const { data } = await transform(raw);
+        expect(data[0]?.originalAt).toEqual(BOT_RUN.originalAt);
+        renderCalendar({ items: data });
+
+        await user.click(
+          screen.getByRole("button", { name: "Morning brief, show.sokoBot" }),
+        );
+        await user.click(
+          screen.getByRole("menuitem", { name: "event.restoreRun" }),
+        );
+        expect(changeRunMock).toHaveBeenCalledWith({
+          botId: undefined,
+          input: {
+            scheduleId: "schedule-1",
+            originalAt: BOT_RUN.originalAt,
+            expectedAt: new Date("2030-01-03T14:00:00.000Z"),
+            change: { action: "restore" },
+          },
+        });
+      },
+    );
+
+    it("moves a shared bot's run through the move dialog", async () => {
+      const user = userEvent.setup();
+      changeRunMock.mockResolvedValue({ ok: true, value: undefined });
+      renderCalendar({
+        items: [{ ...SHARED_BOT_RUN, runState: "upcoming", canChange: true }],
+      });
+
+      await user.click(
+        screen.getByRole("button", { name: "Launch check, show.sokoBot" }),
+      );
+      await user.click(screen.getByRole("menuitem", { name: "event.moveRun" }));
+      const input = screen.getByLabelText("runMove.label");
+      await user.clear(input);
+      await user.type(input, "2030-01-03T18:30");
+      await user.click(screen.getByRole("button", { name: "runMove.confirm" }));
+
+      expect(changeRunMock).toHaveBeenCalledWith({
+        botId: "bot-2",
+        input: {
+          scheduleId: "schedule-2",
+          originalAt: SHARED_BOT_RUN.originalAt,
+          expectedAt: SHARED_BOT_RUN.scheduledAt,
+          change: {
+            action: "move",
+            scheduledAt: new Date("2030-01-03T18:30:00.000Z"),
+          },
+        },
+      });
+    });
+
+    it("restores a moved run to its own time", async () => {
+      const user = userEvent.setup();
+      changeRunMock.mockResolvedValue({ ok: true, value: undefined });
+      const moved = {
+        ...BOT_RUN,
+        canChange: true,
+        scheduledAt: new Date("2030-01-03T14:00:00.000Z"),
+      };
+      renderCalendar({ items: [moved] });
+
+      await user.click(
+        screen.getByRole("button", { name: "Morning brief, show.sokoBot" }),
+      );
+      await user.click(
+        screen.getByRole("menuitem", { name: "event.restoreRun" }),
+      );
+
+      expect(changeRunMock).toHaveBeenCalledWith({
+        botId: undefined,
+        input: {
+          scheduleId: "schedule-1",
+          originalAt: BOT_RUN.originalAt,
+          expectedAt: moved.scheduledAt,
+          change: { action: "restore" },
+        },
+      });
+    });
+
+    it("offers no move or skip on a run the viewer may not change", () => {
+      renderCalendar({ items: [BOT_RUN] });
+
+      expect(
+        screen.queryByRole("button", { name: "Morning brief, show.sokoBot" }),
+      ).not.toBeInTheDocument();
     });
 
     it("shows a Marketing piece with no file yet, without a link", () => {
@@ -406,6 +632,7 @@ describe("WorkspaceCalendar features", () => {
         "show.social",
         "show.newsletter",
         "show.contacts",
+        "show.sokoBot",
       ]);
     });
 
@@ -420,7 +647,7 @@ describe("WorkspaceCalendar features", () => {
       );
 
       expect(onUrlUpdate.mock.lastCall?.[0].searchParams.get("types")).toBe(
-        "social,newsletter,contacts,marketing",
+        "social,newsletter,contacts,marketing,sokoBot",
       );
     });
 
@@ -441,6 +668,9 @@ describe("WorkspaceCalendar features", () => {
       );
       await user.click(
         screen.getByRole("menuitemcheckbox", { name: "show.marketing" }),
+      );
+      await user.click(
+        screen.getByRole("menuitemcheckbox", { name: "show.sokoBot" }),
       );
 
       expect(onUrlUpdate.mock.lastCall?.[0].searchParams.has("types")).toBe(
@@ -475,14 +705,86 @@ describe("WorkspaceCalendar features", () => {
         "show.social",
         "show.contacts",
         "show.marketing",
+        "show.sokoBot",
       ]);
+    });
+
+    it("opens directly on feature choices in the mobile filter sheet", async () => {
+      const user = userEvent.setup();
+      const onUrlUpdate = vi.fn();
+      render(
+        <NuqsTestingAdapter
+          hasMemory
+          searchParams="?timezone=UTC&view=week&types=tasks,social"
+          onUrlUpdate={onUrlUpdate}
+        >
+          <WorkspaceCalendar initialDate="2030-01-03" items={ALL} />
+        </NuqsTestingAdapter>,
+      );
+      const trigger = screen
+        .getAllByRole("button", { name: /^showAndFilter/ })
+        .find((button) => !button.hasAttribute("aria-haspopup"))!;
+      await user.click(trigger);
+      const sheet = screen.getByRole("dialog");
+      await user.click(
+        within(sheet).getByRole("checkbox", { name: "show.social" }),
+      );
+      expect(onUrlUpdate.mock.lastCall?.[0].searchParams.get("types")).toBe(
+        "tasks",
+      );
+      expect(
+        within(sheet).getByRole("checkbox", { name: "show.tasks" }),
+      ).toBeDisabled();
+      expect(
+        within(sheet).getByRole("checkbox", { name: "show.social" }),
+      ).not.toBeChecked();
+      await user.click(
+        within(sheet).getByRole("button", { name: /statusLabel/ }),
+      );
+      await user.click(
+        within(sheet).getByRole("option", { name: "statusOptions.COMPLETED" }),
+      );
+      const params = onUrlUpdate.mock.lastCall?.[0].searchParams;
+      expect(params?.get("types")).toBe("tasks");
+      expect(params?.get("status")).toBe("COMPLETED");
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("keeps Show open when new server results remount the calendar data", async () => {
+      const user = userEvent.setup();
+      function page(calendarKey: string) {
+        return (
+          <NuqsTestingAdapter searchParams="?timezone=UTC&view=week">
+            <WorkspaceCalendar
+              calendarKey={calendarKey}
+              initialDate="2030-01-03"
+              items={ALL}
+            />
+          </NuqsTestingAdapter>
+        );
+      }
+      const { rerender } = render(page("tasks,social"));
+      await openShowFilter(user);
+      rerender(page("tasks"));
+      expect(
+        await screen.findByRole("menuitemcheckbox", { name: "show.tasks" }),
+      ).toBeVisible();
+    });
+
+    it("places search immediately before the view selector in the local controls", () => {
+      renderCalendar({
+        searchField: <input aria-label="Calendar search" type="search" />,
+      });
+      expect(screen.getByRole("searchbox").nextElementSibling).toBe(
+        screen.getByTestId("calendar-views"),
+      );
     });
 
     it("is named, and reached and opened from the keyboard", async () => {
       const user = userEvent.setup();
       renderCalendar();
 
-      const show = screen.getByRole("button", { name: "show.label" });
+      const show = desktopShowTrigger();
       for (
         let presses = 0;
         presses < 12 && document.activeElement !== show;

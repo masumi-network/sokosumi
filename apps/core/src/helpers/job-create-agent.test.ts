@@ -4,10 +4,9 @@ import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
 import { HTTPException } from "hono/http-exception";
 import { err, ok } from "neverthrow";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
-
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 import { createAgentJobForUser } from "./job";
 
 const {
@@ -134,7 +133,7 @@ vi.mock("@sokosumi/database/repositories", () => ({
     prepareConsumption: creditBucketPrepareConsumptionMock,
   },
   jobPurchaseRepository: {
-    createJobPurchase: vi.fn(),
+    createJobPurchase: vi.fn().mockResolvedValue({ id: "purchase_1" }),
   },
 }));
 
@@ -276,8 +275,21 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     // A PurchaseFailure shape, not a bare string: registerJobPurchase retries
     // an `ambiguous` verdict, and these tests assert the payload the node
     // receives rather than the retry policy, which has its own tests.
+    // The node accepts the purchase now: a refusal here made every hiring
+    // test take the registration-failure path. Refusals are tested in
+    // `job-purchase-registration.test.ts`.
     createPurchaseMock.mockResolvedValue(
-      err({ kind: "permanent", message: "payment unavailable" }),
+      ok({
+        id: "node-purchase",
+        onChainState: null,
+        resultHash: null,
+        NextAction: {
+          requestedAction: "None",
+          errorType: null,
+          errorNote: null,
+        },
+        CurrentTransaction: null,
+      }),
     );
     agentFindFirstMock.mockResolvedValue(createAgentRecord());
     projectFindFirstMock.mockResolvedValue({ id: "project_1" });
@@ -421,7 +433,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
 
       await createAgentJobForUser(
         createInput({ creator: { kind: "soko_bot", sokoBotId: "bot_1" } }),
-      ).catch(() => undefined);
+      );
 
       const { data } = txJobCreateMock.mock.calls[0]?.[0] ?? {};
       expect(data.creatorSokoBot).toEqual({ connect: { id: "bot_1" } });
@@ -443,9 +455,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
         startPaidAgentJob: sellerResponding(paidV1JobResponse),
       });
 
-      await createAgentJobForUser(createInput({ creator })).catch(
-        () => undefined,
-      );
+      await createAgentJobForUser(createInput({ creator }));
 
       expect(requireAssignedOrganizationSeat).toHaveBeenCalledWith(
         "user_1",
@@ -498,7 +508,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
         },
         creator: { kind: "soko_bot", sokoBotId: "bot_1" },
       }),
-    ).catch(() => undefined);
+    );
 
     const { data } = txJobCreateMock.mock.calls[0]?.[0] ?? {};
     expect(data.owner).toBeUndefined();
@@ -535,7 +545,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
         creator: { kind: "soko_bot", sokoBotId: "bot_1" },
         creditProjectId: "project_cuso",
       }),
-    ).catch(() => undefined);
+    );
 
     const scope = { projectId: "project_cuso" };
     expect(txJobCreateMock.mock.calls[0]?.[0].data.project).toBeUndefined();
@@ -709,7 +719,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
         createInput({
           agentInput: { ...createInput().agentInput, projectId: PROJECT_ID },
         }),
-      ).catch(() => undefined);
+      );
 
       expectCreditProject(PROJECT_ID);
     });
@@ -720,7 +730,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
           agentInput: { ...createInput().agentInput, projectId: PROJECT_ID },
           creditProjectId: "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
         }),
-      ).catch(() => undefined);
+      );
 
       expectCreditProject("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb");
     });
@@ -731,13 +741,13 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
           agentInput: { ...createInput().agentInput, projectId: PROJECT_ID },
           creditProjectId: null,
         }),
-      ).catch(() => undefined);
+      );
 
       expectCreditProject(null);
     });
 
     it("sees only the pool for a Job with no Project", async () => {
-      await createAgentJobForUser(createInput()).catch(() => undefined);
+      await createAgentJobForUser(createInput());
 
       expectCreditProject(null);
     });
@@ -914,6 +924,20 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   });
 
   it("hires a legacy agent that returns V2-shaped payment fields", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "A legacy agent's seller returned V2 payment fields",
+      [
+        "The seller of a V1 agent echoed V2 payment fields, as an upgraded seller SDK does",
+      ],
+    );
+    onTestFinished(() => {
+      expect(warnings[0]?.event).toMatchObject({
+        agentId: "agent_1",
+        paymentSourceType: "Web3CardanoV2",
+        supportedPaymentSourceIndex: 0,
+      });
+    });
     // A V1 seller upgrading its SDK may echo V2 fields. main ignored them;
     // rejecting would break those agents mid-rollout, and only after
     // start_job already created a job on the seller side.
@@ -1102,9 +1126,11 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   });
 
   it("reports an orphaned seller job when the seller echoes another agent", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const errors = expectCoreLogWhys(
+      "error",
+      "A seller started a job that Sokosumi will not track",
+      ["The seller returned a different agent identifier"],
+    );
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
     createAgentClientMock.mockReturnValue({
       startPaidAgentJob: sellerResponding({
@@ -1117,28 +1143,24 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       "Paid agent job returned a different agent identifier",
     );
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "Seller-side job orphaned after start_job: seller returned a different agent identifier",
-      ),
-      expect.objectContaining({
-        agentId: "agent_1",
-        expectedAgentIdentifier: "agent-chain",
-        receivedAgentIdentifier: "different-agent-chain",
-      }),
-    );
+    expect(errors[0]?.event).toMatchObject({
+      agentId: "agent_1",
+      expectedAgentIdentifier: "agent-chain",
+      receivedAgentIdentifier: "different-agent-chain",
+    });
     expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
     expect(sentryCaptureExceptionMock.mock.calls[0]?.[0]).toMatchObject({
       message: expect.stringContaining("Seller-side job orphaned"),
     });
     expect(txJobCreateMock).not.toHaveBeenCalled();
-    consoleErrorSpy.mockRestore();
   });
 
   it("reports an orphaned seller job when the seller echoes a different purchaser identifier", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const errors = expectCoreLogWhys(
+      "error",
+      "A seller started a job that Sokosumi will not track",
+      ["The seller returned a different purchaser identifier"],
+    );
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
     createAgentClientMock.mockReturnValue({
       // Ignores the nonce we sent and returns its own.
@@ -1153,26 +1175,27 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       "Paid agent job returned a different purchaser identifier",
     );
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "Seller-side job orphaned after start_job: seller returned a different purchaser identifier",
-      ),
-      expect.objectContaining({
-        agentId: "agent_1",
-        agentJobId: "agent_job_1",
-        receivedIdentifierFromPurchaser: "not-ours",
-      }),
-    );
+    expect(errors[0]?.event).toMatchObject({
+      agentId: "agent_1",
+      agentJobId: "agent_job_1",
+      receivedIdentifierFromPurchaser: "not-ours",
+    });
     expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
     expect(sentryCaptureExceptionMock.mock.calls[0]?.[0]).toMatchObject({
       message: expect.stringContaining("Seller-side job orphaned"),
     });
     expect(txJobCreateMock).not.toHaveBeenCalled();
     expect(createPurchaseMock).not.toHaveBeenCalled();
-    consoleErrorSpy.mockRestore();
   });
 
   it("reports a stranded seller job when start_job answers 2xx with an off-contract body", async () => {
+    expectCoreLogWhys(
+      "error",
+      "A seller started a job that Sokosumi will not track",
+      [
+        "The seller accepted start_job but returned a response that does not match the MIP-003 contract",
+      ],
+    );
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
     createAgentClientMock.mockReturnValue({
       // The seller accepted the job and is working on it, but omitted the
@@ -1199,6 +1222,18 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   });
 
   it("stays silent when start_job transport fails after dispatch", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "A seller's start_job call failed",
+      ["The seller's start_job call timed out or failed after it was sent"],
+    );
+    onTestFinished(() => {
+      expect(warnings[0]?.event).toMatchObject({
+        startJob: { kind: "ambiguous" },
+      });
+      // The seller's text can echo the job's input.
+      expect(JSON.stringify(coreLogEvents())).not.toContain("connection reset");
+    });
     // A timeout or 5xx after dispatch is indistinguishable from ordinary
     // seller flakiness and is the most common way a hire fails. No credits
     // have been charged at this point, so the user simply sees a failed hire.
@@ -1222,6 +1257,13 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   });
 
   it("pages when the seller accepted the job but returned an unusable body", async () => {
+    expectCoreLogWhys(
+      "error",
+      "A seller started a job that Sokosumi will not track",
+      [
+        "The seller accepted start_job but returned a response that does not match the MIP-003 contract",
+      ],
+    );
     // 2xx means the seller took the job and started work. We cannot record
     // it and MIP-003 has no cancel, so this one is a definite strand.
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
@@ -1246,6 +1288,9 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   });
 
   it("stays silent when the seller never accepted the job", async () => {
+    expectCoreLogWhys("warn", "A seller's start_job call failed", [
+      "The seller could not be reached or refused the job",
+    ]);
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
     createAgentClientMock.mockReturnValue({
       // Explicit non-2xx: nothing was accepted, so an ordinary failed hire
@@ -1325,6 +1370,11 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   });
 
   it("reports an orphaned seller job when the response selects an unknown payment source", async () => {
+    expectCoreLogWhys(
+      "error",
+      "A seller started a job that Sokosumi will not track",
+      ["The seller returned an unexpected payment source"],
+    );
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
     createAgentClientMock.mockReturnValue({
       startPaidAgentJob: sellerResponding({
@@ -1379,6 +1429,11 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   });
 
   it("still requires the index when a V2 agent has several sources", async () => {
+    expectCoreLogWhys(
+      "error",
+      "A seller started a job that Sokosumi will not track",
+      ["The seller returned an unexpected payment source"],
+    );
     // Two registered sources: only the seller knows which it will settle
     // through, and guessing would bill from the wrong price.
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
@@ -1426,6 +1481,11 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   });
 
   it("reports an orphaned seller job when the seller selects a non-ready source", async () => {
+    expectCoreLogWhys(
+      "error",
+      "A seller started a job that Sokosumi will not track",
+      ["The seller selected a payment source that is not purchase-ready"],
+    );
     // One ready source, one not. Seller echoes the non-ready index after
     // start_job — refuse payment and page the orphan.
     const agent = createPaidV2AgentRecord();
@@ -1496,9 +1556,6 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   });
 
   it("rejects an unbillable ready source before starting seller work", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
     calculateCentsFromMasumiAmountStringsMock.mockImplementation(() => {
       throw new Error("Credit cost not found for unit some-token");
@@ -1511,17 +1568,12 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       "Paid V2 agent has a purchase-ready source with unbillable units",
     );
 
-    expect(consoleErrorSpy).not.toHaveBeenCalled();
     expect(createAgentClientMock).not.toHaveBeenCalled();
     expect(txJobCreateMock).not.toHaveBeenCalled();
     expect(createPurchaseMock).not.toHaveBeenCalled();
-    consoleErrorSpy.mockRestore();
   });
 
   it("rejects a ready source above the buyer cap before starting seller work", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
     // Source 2 exceeds the cap. Preflight rejects before seller work starts.
     calculateCentsFromMasumiAmountStringsMock.mockImplementation(
@@ -1545,10 +1597,8 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       ),
     ).rejects.toThrow("Credit cost exceeds maximum accepted credits");
 
-    expect(consoleErrorSpy).not.toHaveBeenCalled();
     expect(createAgentClientMock).not.toHaveBeenCalled();
     expect(txJobCreateMock).not.toHaveBeenCalled();
-    consoleErrorSpy.mockRestore();
   });
 
   it("omits the optional V1 price guard when metadata has more than seven units", async () => {

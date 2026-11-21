@@ -1,3 +1,5 @@
+import { readCookieValue } from "@/lib/ui-preferences/cookie-header";
+
 export type TasksViewMode = "board" | "list";
 
 export const TASKS_VIEW_MODE_COOKIE_NAME = "tasks_view_mode";
@@ -18,13 +20,18 @@ export function parseTasksViewMode(
 }
 
 /**
- * Cookie preference wins. Without one, mobile/tablet UA defaults to list;
- * desktop defaults to board.
+ * A view the link asks for (`?view=board`) wins for that visit only; the
+ * saved preference stays. Then the cookie preference. Without one,
+ * mobile/tablet UA defaults to list; desktop defaults to board.
  */
 export function resolveDefaultTasksViewMode(options: {
+  requested?: TasksViewMode | null;
   persisted: TasksViewMode | null;
   preferList: boolean;
 }): TasksViewMode {
+  if (options.requested) {
+    return options.requested;
+  }
   if (options.persisted) {
     return options.persisted;
   }
@@ -64,11 +71,9 @@ export function preferTasksListFromUserAgent(
 export function parseTasksViewModeCookieHeader(
   documentCookie: string,
 ): TasksViewMode | null {
-  const match = documentCookie.match(
-    new RegExp(`(?:^|;\\s*)${TASKS_VIEW_MODE_COOKIE_NAME}=([^;]*)`),
+  return parseTasksViewMode(
+    readCookieValue(documentCookie, TASKS_VIEW_MODE_COOKIE_NAME),
   );
-
-  return parseTasksViewMode(match?.[1]);
 }
 
 /**

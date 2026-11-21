@@ -31,7 +31,7 @@ import {
   transcriptRowKey,
 } from "@/app/chat/utils/transcript-viewport-model";
 import { Button } from "@/components/ui/button";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useAbortController } from "@/hooks/effects/use-abort-controller";
 
 /**
  * Rows mounted beyond the viewport. Deep above, shallow below: a row is
@@ -171,6 +171,12 @@ function openingIndex(
   return saved && !saved.atLiveEdge ? retainedPositionIndex(rows, saved) : -1;
 }
 
+function readTranscriptViewportHeight(scroller: HTMLElement): number {
+  const bottomInset =
+    Number.parseFloat(getComputedStyle(scroller).scrollPaddingBottom) || 0;
+  return Math.max(scroller.clientHeight - bottomInset, 0);
+}
+
 /**
  * A transcript, mounting only the rows near the viewport.
  *
@@ -259,11 +265,8 @@ export function TranscriptViewport({
   const hold = held !== false || holdOffBottom;
   const holdRef = useRef(hold);
   holdRef.current = hold;
-  const landingRef = useRef(0);
   // Unmount ends a landing still polling for its row.
-  useMountEffect(() => () => {
-    landingRef.current += 1;
-  });
+  const landingAbort = useAbortController();
 
   // Where the list starts inside the scroller: the shell pads above it, and
   // pushes a short list to the bottom. The virtualizer needs that offset so
@@ -276,6 +279,8 @@ export function TranscriptViewport({
   const [atEnd, setAtEndState] = useState(
     !initialPosition || initialPosition.atLiveEdge,
   );
+  // A held jump follows measured growth only at the exact live edge.
+  const [atExactEnd, setAtExactEnd] = useState(atEnd);
   const atEndCallbackRef = useRef(onAtEndChange);
   atEndCallbackRef.current = onAtEndChange;
   // What the room hears: at the end, and no landing still placing its
@@ -283,14 +288,14 @@ export function TranscriptViewport({
   // measurement and on every change after it.
   const reachRef = useRef<{
     atEnd: boolean;
-    placingLanding: number;
+    placingLanding: AbortController | null;
     reported?: boolean;
-  }>({ atEnd, placingLanding: 0 });
+  }>({ atEnd, placingLanding: null });
   const updateReach = (
-    change: { atEnd: boolean } | { placingLanding: number },
+    change: { atEnd: boolean } | { placingLanding: AbortController | null },
   ) => {
     const reach = Object.assign(reachRef.current, change);
-    const reported = reach.atEnd && reach.placingLanding === 0;
+    const reported = reach.atEnd && reach.placingLanding === null;
     if (reported === reach.reported) return;
     reach.reported = reported;
     atEndCallbackRef.current?.(reported);
@@ -393,10 +398,12 @@ export function TranscriptViewport({
     );
     distanceFromEndRef.current = distance;
     setAtEnd(distance <= STICK_TO_BOTTOM_NEAR_PX);
+    setAtExactEnd(distance === 0);
     if (!restoreRef.current && distance <= STICK_TO_BOTTOM_NEAR_PX)
       setHeld((current) => (current === "opening" ? false : current));
     if (restoreRef.current || !positionCallbackRef.current) return;
     const edge = element.getBoundingClientRect();
+    const visibleBottom = edge.top + readTranscriptViewportHeight(element);
     // Persist measured DOM coordinates, not estimates that can lag a
     // direct virtualizer layout update by one frame.
     const visible = Array.from(
@@ -411,7 +418,7 @@ export function TranscriptViewport({
         ({ row, rect }) =>
           row?.kind === "message" &&
           rect.bottom > edge.top &&
-          rect.top < edge.bottom,
+          rect.top < visibleBottom,
       );
     const anchor = visible[0];
     const position: TranscriptPosition = {
@@ -493,7 +500,13 @@ export function TranscriptViewport({
     followOnAppend: !hold,
     // A hold also stops a growing row from pulling the view to the end. Only
     // a view already exactly at the end keeps following growth then.
-    scrollEndThreshold: hold ? 0 : STICK_TO_BOTTOM_NEAR_PX,
+    // Growth uses the virtual total, which excludes the shell's bottom padding.
+    // Disable it outside the DOM live edge so composer clearance cannot widen it.
+    scrollEndThreshold: (hold ? atExactEnd : atEnd)
+      ? hold
+        ? 0
+        : STICK_TO_BOTTOM_NEAR_PX
+      : -1,
     // The end of a scroll from the browser, where it has it. The fallback
     // is a timer that re-reports the offset it saw at the last scroll event,
     // and that stale offset lands on top of a hold set in between.
@@ -573,6 +586,9 @@ export function TranscriptViewport({
       if (!followResize(scroller)) recordDistance(scroller);
     });
     scrollerResize.observe(scroller);
+    // An overlaid composer changes list padding without resizing the scroller.
+    if (scroller.firstElementChild)
+      scrollerResize.observe(scroller.firstElementChild);
     scroller.addEventListener("scroll", record, { passive: true });
     scroller.addEventListener("scrollend", settle, { passive: true });
     scroller.addEventListener("touchstart", touchStart, { passive: true });
@@ -626,11 +642,11 @@ export function TranscriptViewport({
       return;
     }
     virtualizer.scrollToIndex(index, { align: "start" });
-    const landing = ++landingRef.current;
+    const landing = landingAbort.start();
     let frames = 0;
     let settledFrames = 0;
     const finishRestore = () => {
-      if (landing !== landingRef.current) return;
+      if (landing.signal.aborted) return;
       const currentIndex = retainedPositionIndex(rowsRef.current, saved);
       const anchor = scroller.querySelector<HTMLElement>(
         `[data-index="${currentIndex}"]`,
@@ -642,7 +658,7 @@ export function TranscriptViewport({
         ? anchor.getBoundingClientRect().top -
           scroller.getBoundingClientRect().top +
           saved.offset -
-          (saved.viewportShare ?? 0) * scroller.clientHeight
+          (saved.viewportShare ?? 0) * readTranscriptViewportHeight(scroller)
         : null;
       // Too little history above or below cannot put the anchor in its
       // place: a scroller already at that edge has gone as far as it can.
@@ -673,13 +689,13 @@ export function TranscriptViewport({
     () => ({
       scrollToBottom: () => {
         restoreRef.current = undefined;
-        landingRef.current += 1;
+        landingAbort.abort();
         setHeld(false);
         virtualizer.scrollToEnd();
       },
       pinToBottomAfterOwnSend: () => {
         restoreRef.current = undefined;
-        landingRef.current += 1;
+        landingAbort.abort();
         // Immediate + rAF: the appended row commits after this call, and the
         // rAF puts the view on it once it exists.
         virtualizer.scrollToEnd();
@@ -689,7 +705,7 @@ export function TranscriptViewport({
       },
       suppressStickToBottom: () => {
         restoreRef.current = undefined;
-        landingRef.current += 1;
+        landingAbort.abort();
         setHeld("jump");
       },
       releaseStickToBottomSuppress: () => {
@@ -701,19 +717,19 @@ export function TranscriptViewport({
         if (index < 0) {
           return false;
         }
-        landingRef.current += 1;
-        const landing = landingRef.current;
+        const landing = landingAbort.start();
         updateReach({ placingLanding: landing });
         const placed = () => {
+          landingAbort.release(landing);
           if (reachRef.current.placingLanding === landing)
-            updateReach({ placingLanding: 0 });
+            updateReach({ placingLanding: null });
         };
         virtualizer.scrollToIndex(index, { align: "center" });
         // The row mounts a render after the scroll. Poll frames for it; a
         // later landing replaces this one, which stops the poll.
         let frames = 0;
         const tryMark = () => {
-          if (landing !== landingRef.current) {
+          if (landing.signal.aborted) {
             placed();
             return;
           }
@@ -733,7 +749,7 @@ export function TranscriptViewport({
       },
       scrollToMessage: (messageId) => {
         restoreRef.current = undefined;
-        landingRef.current += 1;
+        const landing = landingAbort.start();
         const index = findTranscriptRowIndex(rowsRef.current, messageId);
         if (index < 0) {
           return false;
@@ -742,10 +758,30 @@ export function TranscriptViewport({
           align: "center",
           behavior: "smooth",
         });
+        if (
+          scroller &&
+          readTranscriptViewportHeight(scroller) < scroller.clientHeight
+        ) {
+          // Native centering honors scroll-padding after the virtual row mounts.
+          let frames = 0;
+          const reveal = () => {
+            if (landing.signal.aborted) return;
+            const target = containerRef.current?.querySelector<HTMLElement>(
+              `[data-message-id="${CSS.escape(messageId)}"]`,
+            );
+            if (target) {
+              virtualizer.cancelScroll();
+              target.scrollIntoView({ block: "center", behavior: "smooth" });
+            } else if (++frames < LANDING_FRAMES) {
+              requestAnimationFrame(reveal);
+            }
+          };
+          requestAnimationFrame(reveal);
+        }
         return true;
       },
     }),
-    [list, virtualizer],
+    [landingAbort, list, scroller, virtualizer],
   );
 
   // Stable: an inline callback is detached and reattached on every render,
@@ -788,7 +824,7 @@ export function TranscriptViewport({
           from the transcript, and the control hangs above it, pinned over
           the bottom of the scroller while the reader is anywhere above. */}
       {atEnd ? null : (
-        <div className="pointer-events-none sticky bottom-3 z-10 h-0">
+        <div className="pointer-events-none sticky bottom-[calc(var(--room-composer-h,0px)+var(--spacing)*3)] z-10 h-0">
           <Button
             type="button"
             variant="outline"
@@ -798,7 +834,7 @@ export function TranscriptViewport({
               // Ends a restore still placing its anchor, which would pull
               // the view back up.
               restoreRef.current = undefined;
-              landingRef.current += 1;
+              landingAbort.abort();
               setHeld(false);
               virtualizer.scrollToEnd();
             }}

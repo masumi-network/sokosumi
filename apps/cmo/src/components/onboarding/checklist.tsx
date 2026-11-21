@@ -2,10 +2,11 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import { Check } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useInterval } from "../../hooks/effects/use-interval";
 
 /** Done (green, check), working (dashed, dot) or not yet (hairline). */
-interface ChecklistItem {
+export interface ChecklistItem {
   label: string;
   state: "done" | "working" | "next";
 }
@@ -48,11 +49,7 @@ export function useElapsed(
   running: boolean,
 ): string | null {
   const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!running) return;
-    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
-    return () => window.clearInterval(timer);
-  }, [running]);
+  useInterval(() => setNow(Date.now()), running ? 1_000 : null);
   if (!running || !since) return null;
   return elapsedLabel(
     Math.max(0, Math.round((now - new Date(since).getTime()) / 1_000)),
@@ -113,6 +110,17 @@ export function workChecklist(
     if (first) first.state = "working";
   }
   return items;
+}
+
+/** What Cuso is doing right now: his live step, else the working phase. */
+export function workNow(
+  steps: Work["steps"],
+  items: ChecklistItem[],
+): string | null {
+  const live = steps.findLast((step) => step.status === "running");
+  return (
+    live?.label ?? items.find((item) => item.state === "working")?.label ?? null
+  );
 }
 
 /** A section Cuso has not saved yet: a dashed outline, never a shimmer. */

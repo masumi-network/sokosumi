@@ -3,12 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { notFound } from "@/helpers/error";
 import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
-
-import {
-  createTaskForActor,
-  restoreTaskRecord,
-  updateTaskForActor,
-} from "./task-domain.service";
+import { createTaskForActor, updateTaskForActor } from "./task-domain.service";
+import { restoreTaskRecord } from "./task-domain-archive";
 
 const access = vi.hoisted(() => ({ requireTaskWriteAccess: vi.fn() }));
 vi.mock("@/helpers/access-control", async (importOriginal) => ({
@@ -197,8 +193,14 @@ describe("a Soko Bot archiving a Task", () => {
     updatedAt,
   } as unknown as Task;
   const tx = {
-    task: { updateMany: vi.fn(), findUniqueOrThrow: vi.fn() },
+    task: {
+      updateMany: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
+    },
     taskEvent: { create: vi.fn() },
+    // The archive locks the Task before it reads its sub-tasks.
+    $queryRaw: vi.fn(),
   };
   const archive = () =>
     updateTaskForActor(
@@ -218,7 +220,9 @@ describe("a Soko Bot archiving a Task", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     tx.task.updateMany.mockResolvedValue({ count: 1 });
+    tx.task.findMany.mockResolvedValue([]);
     tx.task.findUniqueOrThrow.mockResolvedValue(teammateTask);
+    tx.$queryRaw.mockResolvedValue([{ id: "locked" }]);
   });
 
   it("archives a teammate's Task its owner could archive in the app", async () => {
@@ -471,6 +475,7 @@ describe("restoreTaskRecord", () => {
       tx: {
         task: { updateMany },
         taskEvent: { create: eventCreate },
+        projectSeoAnalysis: { findUnique: vi.fn().mockResolvedValue(null) },
       } as never,
       updateMany,
       eventCreate,

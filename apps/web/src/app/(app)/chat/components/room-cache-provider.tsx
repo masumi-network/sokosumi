@@ -1,6 +1,6 @@
 "use client";
 
-import { useQueryClient } from "@tanstack/react-query";
+import { notifyManager, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import {
   createContext,
@@ -9,14 +9,27 @@ import {
   useEffect,
   useEffectEvent,
   useState,
+  useSyncExternalStore,
 } from "react";
-import { roomIdFromPath } from "@/app/chat/utils/chat-route-base";
-import { RoomTranscriptCache } from "@/app/chat/utils/room-transcript-cache";
+import {
+  chatRoomHref,
+  isChatRoomPathname,
+  isChatShellPathname,
+  roomIdFromPath,
+} from "@/app/chat/utils/chat-route-base";
+import {
+  ROOM_APPROACH_REUSE_MS,
+  RoomTranscriptCache,
+  type RoomTranscriptEntry,
+} from "@/app/chat/utils/room-transcript-cache";
 import { getLatestMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
 import {
   ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
   type OrganizationChatRoomsChangedDetail,
 } from "@/components/chat/organization-chat-events";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
+import { useIntentPrefetch } from "@/hooks/effects/use-intent-prefetch";
+import { markPageOnScreen } from "@/lib/navigation/navigation-start";
 import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 import { shouldUseCoworkerRoomStream } from "./room-helpers";
 import type { RoomsClientProps } from "./rooms-client";
@@ -87,12 +100,149 @@ export function useRoomSelection() {
   return useContext(RoomSelectionContext);
 }
 
-const RoomCacheContext = createContext<{
+/**
+ * The room on screen, owned here so the room view (`PersistentRoomView`) and
+ * the app chrome derive from one source. `roomId` is the room painted;
+ * `requestedId` the room the selection asks for, which paints once ready.
+ */
+interface PaintedRoom {
+  roomId: string | undefined;
+  requestedId: string | undefined;
+  bootstrap: RoomsClientProps | null;
+  register: (props: RoomsClientProps) => void;
+}
+const PaintedRoomContext = createContext<PaintedRoom | null>(null);
+export function usePaintedRoom(): PaintedRoom | null {
+  return useContext(PaintedRoomContext);
+}
+
+/**
+ * The path the app chrome (top bar, tab bar) describes. A room paints ahead
+ * of its route on a click, and leaves ahead of it on a swipe back, so the
+ * chrome follows the room on screen and not `usePathname` alone: otherwise
+ * the tab bar shows over a room that just opened.
+ */
+export function useChromePathname(): string {
+  const pathname = usePathname();
+  const painted = useContext(PaintedRoomContext);
+  const target = useContext(RoomSelectionContext);
+  if (painted?.roomId) return chatRoomHref(painted.roomId);
+  if (painted && !painted.requestedId && isChatRoomPathname(pathname) && target)
+    return target.split("?")[0];
+  return pathname;
+}
+
+/** Cached room, or the page bootstrap that just registered this room. */
+function roomCanPaint(
+  cache: RoomTranscriptCache,
+  roomId: string,
+  bootstrap: RoomsClientProps | null,
+): boolean {
+  if (!cache.available(roomId)) return false;
+  if (cache.get(roomId)?.bootstrap.selectedRoomId === roomId) return true;
+  return bootstrap?.selectedRoomId === roomId;
+}
+
+function PaintedRoomProvider({
+  cache,
+  target,
+  children,
+}: {
+  cache: RoomTranscriptCache;
+  target: string;
+  children: ReactNode;
+}) {
+  // Reads the cache's mutable availability during render. React Compiler
+  // would keep that read until the cache object changes, so a cache that
+  // comes back from a clear (a hidden app shell, a session end) never paints.
+  "use no memo";
+  const [registered, setRegistered] = useState<RoomsClientProps | null>(null);
+  // A page registered before a workspace switch never paints in the next one.
+  const bootstrap =
+    registered &&
+    cache.matchesScope(
+      registered.currentUserId,
+      registered.activeOrganization?.id ?? null,
+    )
+      ? registered
+      : null;
+  const requestedId = roomIdFromPath(target);
+  // The click's read can seed the target before its page registers. Read as
+  // an external store, not a query observer: an observer here, above every
+  // route, would keep the room's transcript from ever expiring.
+  useSyncExternalStore(
+    // Batched as `useQuery` does: rooms write the cache while rendering.
+    (notify) =>
+      cache.client.getQueryCache().subscribe(notifyManager.batchCalls(notify)),
+    () =>
+      requestedId
+        ? cache.client.getQueryData<RoomTranscriptEntry>(cache.key(requestedId))
+        : undefined,
+    // The server and hydration have no click read to wait for.
+    () => undefined,
+  );
+  const [paintedId, setPaintedId] = useState(requestedId);
+  // A click updates the target before the next page can register. Painting
+  // that id immediately unmounts the open room onto a page that renders null.
+  const targetRevoked = Boolean(requestedId && !cache.available(requestedId));
+  const targetReady = Boolean(
+    requestedId && roomCanPaint(cache, requestedId, bootstrap),
+  );
+  const roomId = !requestedId
+    ? undefined
+    : targetReady || targetRevoked
+      ? requestedId
+      : paintedId;
+  if (roomId !== paintedId) setPaintedId(roomId);
+  return (
+    <PaintedRoomContext
+      value={{ roomId, requestedId, bootstrap, register: setRegistered }}
+    >
+      {children}
+    </PaintedRoomContext>
+  );
+}
+
+interface RoomCacheSessionValue {
   cache: RoomTranscriptCache;
   generation: number;
-} | null>(null);
+  currentUserId: string;
+  workspaceId: string | null;
+}
+
+const RoomCacheContext = createContext<RoomCacheSessionValue | null>(null);
 export function useRoomCache() {
   return useContext(RoomCacheContext)?.cache ?? null;
+}
+
+/**
+ * Ref for a room link. It starts the room's open reads when the reader heads
+ * for the link: the cursor's path, a Tab stop close by, or a touch. The click
+ * then takes those reads instead of starting them. Nothing paints from them
+ * before the click, so a reader who turns away leaves no room behind.
+ */
+export function useRoomIntentPrefetch(href: string, enabled: boolean) {
+  const session = useContext(RoomCacheContext);
+  return useIntentPrefetch<HTMLAnchorElement>(
+    () => {
+      if (!session) return;
+      const url = new URL(href, window.location.origin);
+      const roomId = roomIdFromPath(url.pathname);
+      if (!roomId) return;
+      session.cache.approach(
+        roomId,
+        clickOpensAtUnread(
+          url,
+          roomId,
+          session.currentUserId,
+          session.workspaceId,
+        ),
+      );
+    },
+    // An approach that read nothing, for the cap or a throttle, may try again
+    // this soon. The cache turns down a repeat for a room it did read.
+    { reactivateAfter: ROOM_APPROACH_REUSE_MS, enabled },
+  );
 }
 
 export function RoomCacheProvider({
@@ -141,18 +291,23 @@ function RoomCacheSession({
   );
   if (!cache.matchesScope(currentUserId, workspaceId))
     setCache(cache.forWorkspace(workspaceId, roomIdFromPath(pathname)));
-  useEffect(() => {
-    const select = (url: URL) => {
-      setNavigation({ pathname, target: url.pathname + url.search });
-      const roomId = roomIdFromPath(url.pathname);
-      if (!roomId) return;
-      cache.prefetch(roomId, () =>
-        provisionalRoomBootstrap(roomId, currentUserId, workspaceId),
-      );
-      if (clickOpensAtUnread(url, roomId, currentUserId, workspaceId))
-        cache.prefetchUnreadWindow(roomId);
-    };
-    const clicked = (event: MouseEvent) => {
+  const select = (url: URL) => {
+    setNavigation({ pathname, target: url.pathname + url.search });
+    const roomId = roomIdFromPath(url.pathname);
+    if (!roomId) return;
+    // Chat's room view paints a cached room at once, ahead of its route.
+    if (isChatShellPathname(pathname) && roomCanPaint(cache, roomId, null))
+      markPageOnScreen(url.pathname);
+    cache.prefetch(roomId, () =>
+      provisionalRoomBootstrap(roomId, currentUserId, workspaceId),
+    );
+    if (clickOpensAtUnread(url, roomId, currentUserId, workspaceId))
+      cache.prefetchUnreadWindow(roomId);
+  };
+  useEventListener(
+    "window",
+    "click",
+    (event) => {
       if (
         event.button !== 0 ||
         event.metaKey ||
@@ -173,22 +328,26 @@ function RoomCacheSession({
       )
         return;
       const url = new URL(link.href);
+      if (url.origin !== window.location.origin) return;
+      // A room link selects the room. A link to the page already under a
+      // room painted ahead of its route (Back while the room still loads)
+      // selects that page: its navigation changes no pathname to reset on.
       if (
-        url.origin === window.location.origin &&
-        /^\/chat\/rooms\/[^/]+\/?$/.test(url.pathname)
+        /^\/chat\/rooms\/[^/]+\/?$/.test(url.pathname) ||
+        url.pathname === window.location.pathname
       )
         select(url);
-    };
-    const popped = () => select(new URL(window.location.href));
-    window.addEventListener("click", clicked, true);
-    window.addEventListener("popstate", popped);
-    return () => {
-      window.removeEventListener("click", clicked, true);
-      window.removeEventListener("popstate", popped);
-    };
-  }, [cache, currentUserId, pathname, workspaceId]);
+    },
+    true,
+  );
+  useEventListener("window", "popstate", () =>
+    select(new URL(window.location.href)),
+  );
   useEffect(() => {
-    cache.activate();
+    // Next hides the app shell in an Activity while a flow outside it is
+    // open, which runs the cleanup below. A room opened as the shell comes
+    // back rendered against the cleared cache and would wait on it forever.
+    if (cache.activate()) setGeneration((value) => value + 1);
     const ended = () => {
       cache.clear();
       setGeneration((value) => value + 1);
@@ -219,8 +378,12 @@ function RoomCacheSession({
     };
   }, [cache]);
   return (
-    <RoomCacheContext value={{ cache, generation }}>
-      <RoomSelectionContext value={target}>{children}</RoomSelectionContext>
+    <RoomCacheContext value={{ cache, generation, currentUserId, workspaceId }}>
+      <RoomSelectionContext value={target}>
+        <PaintedRoomProvider cache={cache} target={target}>
+          {children}
+        </PaintedRoomProvider>
+      </RoomSelectionContext>
     </RoomCacheContext>
   );
 }

@@ -1,7 +1,18 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  render as rtlRender,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
+import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TestQueryProvider } from "@/test/query-provider";
+
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: TestQueryProvider });
+}
 
 import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
 import {
@@ -31,6 +42,9 @@ const {
   sizes: new Map<string, { width: number; height: number }>(),
   pickState: { file: null as null | Record<string, unknown> },
 }));
+
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
 
 vi.mock("sonner", () => ({
   toast: {

@@ -1,0 +1,49 @@
+"use client";
+
+import { type ReactNode, useContext } from "react";
+import {
+  PageListSearchContext,
+  usePageSearchPagination,
+} from "@/components/page-list-search";
+import { useMediaQuery } from "@/hooks/effects/use-media-query";
+import { cn } from "@/lib/utils";
+import type { StudioStateHook } from "./use-studio-state";
+
+// At Tailwind's lg breakpoint the assistant sits beside the gallery. Below it, the assistant replaces it.
+const SPLIT_VIEW = "(min-width: 64rem)";
+
+export function StudioGalleryColumn({
+  assistantOpen,
+  showsNothing,
+  studio,
+  children,
+}: {
+  assistantOpen: boolean;
+  showsNothing: boolean;
+  studio: StudioStateHook;
+  children: ReactNode;
+}) {
+  const search = useContext(PageListSearchContext);
+  const wide = useMediaQuery(SPLIT_VIEW);
+  const hidden = assistantOpen && !wide;
+  usePageSearchPagination(
+    !hidden && studio.hasOlder ? studio.state.nextCursor?.id : null,
+    studio.isRefreshing,
+    studio.loadOlder,
+  );
+  return (
+    <PageListSearchContext.Provider value={hidden ? null : search}>
+      <div
+        hidden={hidden}
+        className={cn(
+          "min-h-0 min-w-0 flex-1 flex-col",
+          assistantOpen ? "hidden lg:flex" : "flex",
+          showsNothing &&
+            "relative isolate overflow-y-auto max-md:overflow-y-auto",
+        )}
+      >
+        {children}
+      </div>
+    </PageListSearchContext.Provider>
+  );
+}

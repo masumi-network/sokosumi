@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { CmoOverview } from "@sokosumi/core-client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -14,22 +16,25 @@ import { toCusoMessages } from "../lib/chat-messages";
 import { buildThread, cusoStatus } from "../lib/thread";
 import { VIEW_PATHS, viewFromPath } from "../lib/views";
 import {
+  cmoBilling,
   cmoChatMessage,
   cmoStrategyVersion,
   cmoOverview as overview,
   cmoStrategy as strategy,
 } from "../test-fixtures/cmo";
-import { SearchAdControl } from "./ads";
+import { AdsPanel, SearchAdControl } from "./ads";
 import { CalendarPage } from "./app/calendar-page";
 import {
+  CompetitorWeekCard,
   LearningCard,
   learningSteps,
   StrategyCard,
   UpdateCard,
 } from "./app/cards";
 import { renderInline } from "./app/cmo-app";
-import { ChannelsPage, ResultsPage } from "./app/pages";
+import { ChannelsPage, ResultsLead, ResultsPage } from "./app/pages";
 import { StrategyPage, StrategyVersions } from "./app/strategy-page";
+import { voiceDetail } from "./brand-profile";
 import { Onboarding } from "./onboarding";
 import { StartOver } from "./start-over";
 
@@ -39,6 +44,13 @@ const noop = {
   retryLearning: async () => null,
   compose: () => {},
   open: () => {},
+  topUp: null,
+  drafts: {
+    approve: async () => null,
+    decline: async () => null,
+    edit: async () => null,
+    tikTokCreator: async () => ({ creator: null, error: null }),
+  },
 };
 
 describe("Onboarding", () => {
@@ -140,6 +152,8 @@ describe("thread", () => {
       changes: [],
       revertible: false,
       revertedAt: null,
+      posts: [],
+      media: [],
     };
     const thread = buildThread(overview({ updates: [update] }), messages);
     expect(thread.map((item) => item.kind)).toEqual([
@@ -173,6 +187,8 @@ describe("thread", () => {
       changes: [],
       revertible: false,
       revertedAt: null,
+      posts: [],
+      media: [],
     });
     const thread = buildThread(
       overview({
@@ -186,6 +202,8 @@ describe("thread", () => {
           needPictures: 0,
           finishedAt: null,
           pillars: null,
+          level: "all_in",
+          beyondPlan: [],
         },
         updates: [
           round("r1", "2026-10-01T10:00:00Z"),
@@ -260,11 +278,7 @@ describe("thread", () => {
       cusoStatus(
         overview({
           ...cmoStrategyVersion(new Date()),
-          billing: {
-            plan: null,
-            subscriptionStatus: null,
-            availableCredits: 0,
-          },
+          billing: cmoBilling({ availableCredits: 0 }),
         }),
       ),
     ).toBe("Paused");
@@ -291,17 +305,58 @@ describe("learning steps", () => {
 });
 
 describe("cards", () => {
+  it("shows the competitors' week as one card: a line per move, the big one called out", () => {
+    const html = renderToStaticMarkup(
+      <CompetitorWeekCard
+        actions={noop}
+        week={{
+          checkDay: "2026-11-16",
+          moves: [
+            {
+              competitor: "Calendly",
+              text: "Calendly raised Standard from $10 to $12 per seat.",
+              source: {
+                label: "Calendly",
+                url: "https://calendly.com/pricing",
+              },
+              big: true,
+              meaning: "Your Teams plan is now the cheaper one.",
+              move: "Lead your pricing page with the price per seat.",
+            },
+            {
+              competitor: "Zcal",
+              text: "Zcal added team pages.",
+              source: { label: "zcal.co", url: "https://zcal.co/blog/teams" },
+              big: false,
+              meaning: "Never shown in chat.",
+              move: "Never shown in chat.",
+            },
+          ],
+        }}
+      />,
+    );
+    expect(html.match(/class="card"/g)).toHaveLength(1);
+    expect(html.match(/<li/g)).toHaveLength(2);
+    expect(html).toContain("What your competitors did this week");
+    expect(html).toContain('href="https://calendly.com/pricing"');
+    expect(html).toContain("Your Teams plan is now the cheaper one.");
+    expect(html).not.toContain("Never shown in chat.");
+    expect(html).toContain(">See every move<");
+  });
+
   it("offers Change and Pause on what is up next only after approval", () => {
     const update = {
       id: "u0",
       at: new Date("2026-10-05T09:00:00Z"),
-      kind: "request" as const,
+      kind: "daily" as const,
       headline: "Plan updated",
       done: [],
       upNext: ["Draft the first LinkedIn post"],
       changes: [],
       revertible: false,
       revertedAt: null,
+      posts: [],
+      media: [],
     };
     const before = renderToStaticMarkup(
       <UpdateCard update={update} actions={noop} approved={false} />,
@@ -318,6 +373,41 @@ describe("cards", () => {
     expect(history).not.toContain("Draft the first LinkedIn post");
   });
 
+  it("shows what Cuso did on a request as his own words, flat", () => {
+    const html = renderToStaticMarkup(
+      <UpdateCard
+        update={{
+          id: "u0",
+          at: new Date("2026-11-17T09:00:00Z"),
+          kind: "request",
+          headline: "X-Post mit Bild zur Freigabe bereit",
+          done: ["Bild erstellt", "X-Post entworfen"],
+          upNext: ["Post nach deiner Freigabe planen"],
+          changes: [],
+          revertible: false,
+          revertedAt: null,
+          posts: [],
+          media: [],
+        }}
+        actions={noop}
+        approved
+      />,
+    );
+    expect(
+      html
+        .replace(/<[^>]+>/g, "|")
+        .split("|")
+        .filter(Boolean),
+    ).toEqual([
+      "X-Post mit Bild zur Freigabe bereit",
+      "Bild erstellt",
+      "X-Post entworfen",
+      "Post nach deiner Freigabe planen",
+    ]);
+    expect(html).not.toContain("card");
+    expect(html).not.toContain("<button");
+  });
+
   it("offers to revert a monthly strategy, not a Brand Brain refresh", () => {
     const base = {
       id: "u1",
@@ -327,6 +417,8 @@ describe("cards", () => {
       upNext: [],
       changes: ["Two LinkedIn posts a week instead of three"],
       revertedAt: null,
+      posts: [],
+      media: [],
     };
     const monthly = renderToStaticMarkup(
       <UpdateCard
@@ -398,6 +490,8 @@ describe("cards", () => {
       results: "No provider metrics yet.",
       revertible: true,
       revertedAt: null,
+      posts: [],
+      media: [],
     };
     expect(
       renderToStaticMarkup(
@@ -418,7 +512,8 @@ describe("cards", () => {
 
 describe("pages", () => {
   it("gives every page its own address", () => {
-    expect(viewFromPath("/")).toBe("chat");
+    expect(viewFromPath("/")).toBe("today");
+    expect(viewFromPath("/chat")).toBe("chat");
     expect(viewFromPath("/brand-brain")).toBe("brain");
     expect(viewFromPath("/strategy/")).toBe("strategy");
     expect(viewFromPath("/brain")).toBeNull();
@@ -455,6 +550,7 @@ describe("pages", () => {
         overview={overview()}
         compose={() => {}}
         openUpdate={() => {}}
+        openView={() => {}}
         connectMeasurement={async () => ({ url: null, error: null })}
         ads={{
           loadAdCampaigns: async () => [],
@@ -463,10 +559,134 @@ describe("pages", () => {
         onChange={() => {}}
       />,
     );
-    expect(html).toContain("Drafts");
+    expect(html).toContain("Published");
+    // The fixture's one written post waits for LinkedIn, so it is no draft.
+    expect(html).toContain("Waiting");
     expect(html).toContain("Shopify");
     expect(html).toContain("once you connect an account");
     expect(html).not.toContain("Sokosumi");
+  });
+
+  it("says every week and names the next check's real day, never Monday", () => {
+    const approved = overview({
+      ...cmoStrategyVersion(new Date("2026-11-02T09:00:00Z")),
+      updates: [],
+      routines: [
+        {
+          key: "cmo-weekly-review",
+          name: "Weekly review",
+          when: "Mondays at 09:00",
+          description: "",
+          // Monday 03:00 in Berlin is still Sunday in New York.
+          nextRunAt: new Date("2026-11-23T02:00:00Z"),
+          timezone: "America/New_York",
+        },
+      ],
+    });
+    const results = (data: typeof approved) =>
+      renderToStaticMarkup(
+        <>
+          <ResultsLead overview={data} />
+          <ResultsPage
+            overview={data}
+            compose={() => {}}
+            openUpdate={() => {}}
+            openView={() => {}}
+            connectMeasurement={async () => ({ url: null, error: null })}
+            ads={{
+              loadAdCampaigns: async () => [],
+              setAdCampaignStatus: async () => ({
+                overview: null,
+                error: null,
+              }),
+            }}
+            onChange={() => {}}
+          />
+        </>,
+      );
+    const html = results(approved);
+    expect(html).toContain("checked every week");
+    expect(html).toContain("Next check: <time");
+    // The day with its time: the site audit runs on another day.
+    expect(html).toContain("Sunday 22 November at 21:00");
+    expect(html).toContain("The first weekly report arrives on");
+    expect(html).not.toContain("Monday");
+    // Before approval no review is due, so no day is promised.
+    const waiting = results(
+      overview({ ...approved, ...cmoStrategyVersion(null) }),
+    );
+    expect(waiting).not.toContain("Next check");
+    expect(waiting).toContain("in the week after you approve the strategy");
+  });
+
+  it("links the Ads card to Channels while no ad account is connected", () => {
+    const html = renderToStaticMarkup(
+      <AdsPanel
+        overview={overview({ adProviders: [] })}
+        actions={{
+          loadAdCampaigns: async () => [],
+          setAdCampaignStatus: async () => ({ overview: null, error: null }),
+        }}
+        onChange={() => {}}
+        openView={() => {}}
+      />,
+    );
+    expect(html).toContain('<a href="/channels">Channels</a>');
+  });
+
+  it("lists only answered questions as approved", () => {
+    const html = renderToStaticMarkup(
+      <StrategyPage
+        overview={overview({
+          ...cmoStrategyVersion(new Date("2026-11-02T09:00:00Z")),
+          strategy: {
+            ...strategy,
+            questions: [
+              {
+                id: "q1",
+                question: "Sell to teams?",
+                statement: "",
+                answer: "yes",
+              },
+              {
+                id: "q2",
+                question: "Ship weekly?",
+                statement: "",
+                answer: "unsure",
+              },
+              { id: "q3", question: "Buyers on X?", statement: "" },
+            ],
+          },
+        })}
+        onOpenCalendar={() => {}}
+        connectMeasurement={async () => ({ url: null, error: null })}
+      />,
+    );
+    expect(html).toContain("What you approved");
+    expect(html).toContain("Sell to teams?");
+    expect(html).not.toContain("Ship weekly?");
+    expect(html).not.toContain("Buyers on X?");
+    expect(html).not.toContain("Not sure");
+    expect(html).not.toContain("Not answered");
+  });
+
+  it("describes the brand's voice, never a bare rule for Cuso", () => {
+    expect(
+      voiceDetail({
+        tone: "Direct. Plain words.",
+        do: ["Name the product or feature"],
+        dont: [],
+        examples: [],
+      }),
+    ).toBe("How you write: Plain words.");
+    expect(
+      voiceDetail({
+        tone: "Direct.",
+        do: ["Name the product or feature"],
+        dont: [],
+        examples: [],
+      }),
+    ).toBe("How you write: Name the product or feature");
   });
 
   it("marks connected accounts and offers to connect the rest", () => {
@@ -480,6 +700,7 @@ describe("pages", () => {
               handle: "@acme",
               displayName: null,
               status: "ACTIVE",
+              personalProfile: false,
             },
           ],
         })}
@@ -487,11 +708,68 @@ describe("pages", () => {
         connect={async () => ({ url: null, error: null })}
         connectAds={async () => ({ url: null, error: null })}
         addMailingList={async () => ({ overview: null, error: null })}
+        openSeo={() => {}}
+        connectSearchConsole={async () => ({ url: null, error: null })}
         onChange={() => {}}
       />,
     );
     expect(html).toContain("@acme");
     expect(html).toContain("Connected");
+    expect(html).not.toContain("Change");
+  });
+
+  it("says when LinkedIn posts as the person, and lets the owner change the account", () => {
+    const page = (personalProfile: boolean) =>
+      renderToStaticMarkup(
+        <ChannelsPage
+          overview={overview({
+            channels: [
+              {
+                id: "c1",
+                provider: "linkedin",
+                handle: personalProfile ? "Alice Doe" : "acme",
+                displayName: null,
+                status: "ACTIVE",
+                personalProfile,
+              },
+            ],
+          })}
+          compose={() => {}}
+          connect={async () => ({ url: null, error: null })}
+          change={async () => ({ url: null, error: null })}
+          connectAds={async () => ({ url: null, error: null })}
+          addMailingList={async () => ({ overview: null, error: null })}
+          openSeo={() => {}}
+          connectSearchConsole={async () => ({ url: null, error: null })}
+          onChange={() => {}}
+        />,
+      );
+    expect(page(true)).toContain("Alice Doe · your personal profile");
+    expect(page(true)).toContain("Change");
+    expect(page(false)).not.toContain("personal profile");
+  });
+
+  it("offers TikTok only where Core allows connecting it", () => {
+    const page = (tiktokEnabled: boolean) =>
+      renderToStaticMarkup(
+        <ChannelsPage
+          overview={overview({ tiktokEnabled })}
+          compose={() => {}}
+          connect={async () => ({ url: null, error: null })}
+          connectAds={async () => ({ url: null, error: null })}
+          addMailingList={async () => ({ overview: null, error: null })}
+          openSeo={() => {}}
+          connectSearchConsole={async () => ({ url: null, error: null })}
+          onChange={() => {}}
+        />,
+      );
+    const row = (html: string) => {
+      const from = html.slice(html.indexOf("<b>TikTok</b>"));
+      return from.slice(0, from.indexOf("</li>"));
+    };
+    expect(row(page(true))).toContain("<button");
+    // Where Core holds no key for it, there is no row to press.
+    expect(page(false)).not.toContain("<b>TikTok</b>");
   });
 
   it("offers ad accounts to everyone", () => {
@@ -502,6 +780,8 @@ describe("pages", () => {
         connect={async () => ({ url: null, error: null })}
         connectAds={async () => ({ url: null, error: null })}
         addMailingList={async () => ({ overview: null, error: null })}
+        openSeo={() => {}}
+        connectSearchConsole={async () => ({ url: null, error: null })}
         onChange={() => {}}
       />,
     );
@@ -519,6 +799,8 @@ describe("pages", () => {
           connect={async () => ({ url: null, error: null })}
           connectAds={async () => ({ url: null, error: null })}
           addMailingList={async () => ({ overview: null, error: null })}
+          openSeo={() => {}}
+          connectSearchConsole={async () => ({ url: null, error: null })}
           onChange={() => {}}
         />,
       );
@@ -658,18 +940,32 @@ describe("renderInline", () => {
     );
   });
 
-  it("opens Core's relative links in Sokosumi", () => {
+  it("never opens Sokosumi, whatever Core or Cuso linked", () => {
     const html = renderToStaticMarkup(
       <p>
         {renderInline(
-          "Updated social post ([Open post](/social?postId=p1)).",
+          [
+            "Started image ([Open in Content Studio](/studio?projectId=p1)).",
+            "Updated social post ([Open post](/social?projectId=p1&postId=s1)).",
+            "Created task [Launch](/tasks/t1) → Elena.",
+            "Uploaded file [hero.png](/drive/files/f1).",
+            "Die Grafik: [Fee Clarity](https://sokosumi.com/drive/files/f2).",
+            `It is [here](${web}/projects/p1) and live on [x.com](https://x.com/acme).`,
+          ].join("\n"),
           web,
         )}
       </p>,
     );
-    expect(html).toContain('href="https://app.sokosumi.com/social?postId=p1"');
-    expect(html).toContain(">Open post</a>");
-    expect(html).not.toContain("](");
+    expect(html).toBe(
+      [
+        "<p>Started image.",
+        "Updated social post.",
+        "Created task Launch → Elena.",
+        "Uploaded file hero.png.",
+        "Die Grafik: Fee Clarity.",
+        'It is here and live on <a href="https://x.com/acme" target="_blank" rel="noreferrer">x.com</a>.</p>',
+      ].join("\n"),
+    );
   });
 
   it("drops links that are not web links", () => {
@@ -687,6 +983,7 @@ describe("start over", () => {
         className="button"
         label="Use another website"
         startOver={async () => null}
+        subscribed={false}
       />,
     );
     expect(html).toContain("Use another website");
@@ -696,14 +993,45 @@ describe("start over", () => {
 describe("calendar", () => {
   it("shows every piece as a card by week, with its words and state", () => {
     const html = renderToStaticMarkup(
-      <CalendarPage overview={overview()} onAsk={async () => {}} />,
+      <CalendarPage
+        overview={overview()}
+        drafts={noop.drafts}
+        onAsk={async () => {}}
+      />,
     );
     const live = strategy.calendar.filter(
       (entry) => entry.status !== "skipped",
     );
     for (const entry of live) expect(html).toContain(entry.title);
     expect(html).toContain("Week 1");
-    expect(html).toContain(`${live.length} pieces this month`);
+    expect(html).toContain(
+      `${live.length} ${live.length === 1 ? "post" : "posts"} this month`,
+    );
     expect(html).toContain('aria-pressed="true"');
+    // Where a post stands is words, not a pill that looks like a button.
+    expect(html).toContain('class="state"');
+    expect(html).not.toContain('class="tag');
+    // Every card leads with the same box, so each row is even.
+    expect(html.split('class="cal-thumb').length - 1).toBe(live.length);
+  });
+});
+
+describe("CMO's own words", () => {
+  /**
+   * The owner works with Cuso in CMO.xyz, so no screen names Sokosumi. Every
+   * `.tsx` file is a screen or a part of one; comments carry no copy.
+   */
+  it("never name Sokosumi on a screen", () => {
+    const src = join(import.meta.dirname, "..");
+    const named = readdirSync(src, { recursive: true, encoding: "utf8" })
+      .filter((file) => file.endsWith(".tsx") && !file.includes(".test."))
+      .filter((file) =>
+        /sokosumi(?![\w/-])/i.test(
+          readFileSync(join(src, file), "utf8")
+            .replace(/\/\*[\s\S]*?\*\//g, "")
+            .replace(/^\s*\/\/.*$/gm, ""),
+        ),
+      );
+    expect(named).toEqual([]);
   });
 });

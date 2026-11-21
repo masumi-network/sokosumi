@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
+import { coreEvlogMiddleware, recordCoreError } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 import { dispatchChatRoomMention } from "@/services/chat-room-coworker-dispatch.service";
+import { expectCoreLog } from "@/test/core-log";
 
 import mountRetryChatRoomMention from "./post";
 
@@ -25,7 +27,11 @@ const {
   mentionFindFirstMock,
   prismaTransactionMock,
   waitUntilMock,
+  turnFindUniqueMock,
+  turnUpdateManyMock,
 } = vi.hoisted(() => ({
+  turnFindUniqueMock: vi.fn(),
+  turnUpdateManyMock: vi.fn(),
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
@@ -82,10 +88,18 @@ const tx = {
     updateMany: mentionUpdateManyMock,
     findFirst: mentionFindFirstMock,
   },
+  sokoBotTurn: {
+    findUnique: turnFindUniqueMock,
+    updateMany: turnUpdateManyMock,
+  },
 };
 
-function createApp(authContext: AuthVariables["authContext"]) {
+function createApp(
+  authContext: AuthVariables["authContext"],
+  options: { evlog?: boolean } = {},
+) {
   const app = new OpenAPIHonoWithAuth();
+  if (options.evlog) app.use("*", coreEvlogMiddleware());
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -190,6 +204,65 @@ describe("POST /chats/rooms/:id/messages/:messageId/mentions/:mentionId/retry", 
     mentionFindFirstMock.mockResolvedValue(null);
     messageFindUniqueOrThrowMock.mockResolvedValue(mappedMessage);
     waitUntilMock.mockImplementation(() => {});
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnUpdateManyMock.mockResolvedValue({ count: 1 });
+  });
+
+  it("lets go of the failed Soko Bot turn so the retry starts its own", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      id: "turn_failed",
+      status: "FAILED",
+      deliveries: [],
+    });
+
+    const response = await retryMention();
+
+    expect(response.status).toBe(200);
+    expect(turnUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        id: "turn_failed",
+        chatMentionId: MENTION_ID,
+        status: "FAILED",
+      },
+      data: { chatMentionId: null },
+    });
+    expect(dispatchChatRoomMention).toHaveBeenCalledWith(MENTION_ID);
+  });
+
+  it.each([
+    ["completed", { status: "COMPLETED", deliveries: [] }],
+    ["still delivering", { status: "FAILED", deliveries: [{ id: "d1" }] }],
+    ["still running", { status: "RUNNING", deliveries: [] }],
+  ])("keeps a turn that is %s on the mention", async (_label, turn) => {
+    turnFindUniqueMock.mockResolvedValue({ id: "turn_1", ...turn });
+
+    const response = await retryMention();
+
+    expect(response.status).toBe(200);
+    expect(turnUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("runs the redispatch as background work, so a failure inside it is not put on the retry request's event", async () => {
+    const errors = expectCoreLog("error", "Probe failure inside the dispatch");
+    // Real dispatch reaches shared code (the calendar prune) whose
+    // `recordCoreError` would otherwise find this request still live.
+    vi.mocked(dispatchChatRoomMention).mockImplementationOnce(async () => {
+      recordCoreError(
+        { operation: "chat_room_mention_dispatch" },
+        { message: "Probe failure inside the dispatch", why: "A probe" },
+      );
+    });
+
+    const response = await createApp(userAuthContext, { evlog: true }).request(
+      `/${ROOM_ID}/messages/${MESSAGE_ID}/mentions/${MENTION_ID}/retry`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(errors[0]?.event).toMatchObject({
+      operation: "chat_room_mention_dispatch",
+    });
+    expect(errors[0]?.event.method).toBeUndefined();
   });
 
   it("resets a failed mention to pending, publishes status, and redispatches", async () => {

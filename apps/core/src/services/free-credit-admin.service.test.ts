@@ -127,6 +127,35 @@ describe("freeCreditAdminService.grantFreeCredits", () => {
     });
   });
 
+  it("grants Project credits and resumes only that Project's Tasks", async () => {
+    getOrganizationWithRelationsByIdMock.mockResolvedValue({
+      id: "org-1",
+      name: "Acme",
+    });
+
+    await freeCreditAdminService.grantFreeCredits({
+      target: { targetType: "organization", targetId: "org-1" },
+      projectId: "project-1",
+      credits: 10_000,
+      ttlDays: null,
+      referenceNote: null,
+    });
+
+    expect(grantFreeCreditsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org-1",
+        projectId: "project-1",
+      }),
+      expect.anything(),
+    );
+    expect(markOutOfCreditsTasksAsToppedUpMock).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      projectId: "project-1",
+      tx: expect.anything(),
+      userId: null,
+    });
+  });
+
   it("throws when the user is not found", async () => {
     getUserByIdMock.mockResolvedValue(null);
 

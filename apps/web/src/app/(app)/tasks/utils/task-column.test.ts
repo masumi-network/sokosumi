@@ -1,6 +1,7 @@
 import { TaskStatus } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import {
+  COLUMN_MAIN_STATUS,
   getColumnId,
   getColumnListQueryOptions,
 } from "@/app/tasks/utils/task-column";
@@ -19,7 +20,28 @@ describe("getColumnId", () => {
   });
 });
 
+describe("COLUMN_MAIN_STATUS", () => {
+  it("names a status that sits in its own column", () => {
+    // A card hides the word for this status, so a status from another column
+    // here would leave a card with no readable status.
+    const entries = Object.entries(COLUMN_MAIN_STATUS);
+    expect(entries.length).toBeGreaterThan(0);
+    for (const [columnId, status] of entries) {
+      expect(getColumnId(status)).toBe(columnId);
+    }
+  });
+});
+
 describe("getColumnListQueryOptions", () => {
+  it("lists only the input-required column under Needs me", () => {
+    expect(getColumnListQueryOptions("todo", null, false, true)).toEqual({
+      statuses: [],
+    });
+    expect(
+      getColumnListQueryOptions("input-required", null, false, true).statuses,
+    ).toContain(TaskStatus.APPROVAL_REQUIRED);
+  });
+
   it("returns todo column statuses", () => {
     expect(getColumnListQueryOptions("todo", null)).toEqual({
       statuses: [TaskStatus.READY, TaskStatus.CREDITS_TOPPED_UP],
@@ -51,6 +73,18 @@ describe("getColumnListQueryOptions", () => {
       getColumnListQueryOptions("input-required", TaskStatus.INPUT_REQUIRED),
     ).toEqual({
       statuses: [TaskStatus.INPUT_REQUIRED],
+    });
+  });
+
+  it("keeps only waiting columns under Stuck", () => {
+    expect(getColumnListQueryOptions("backlog", null, true)).toEqual({
+      statuses: [],
+    });
+    expect(getColumnListQueryOptions("done", null, true)).toEqual({
+      statuses: [],
+    });
+    expect(getColumnListQueryOptions("todo", null, true)).toEqual({
+      statuses: [TaskStatus.READY, TaskStatus.CREDITS_TOPPED_UP],
     });
   });
 });

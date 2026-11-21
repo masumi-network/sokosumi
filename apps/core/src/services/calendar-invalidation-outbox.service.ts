@@ -7,6 +7,7 @@ import {
   publishCalendarInvalidationToUsers,
 } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
+import { recordCoreError } from "@/lib/evlog";
 
 const INVALIDATION_BATCH_SIZE = 25;
 const INVALIDATION_LEASE_MS = 60_000;
@@ -113,7 +114,16 @@ async function prunePublishedInvalidations(): Promise<void> {
       )
     `;
   } catch (error) {
-    console.error("Failed to prune Calendar invalidations", error);
+    // The request's event when a request delivers; standalone for the cron.
+    recordCoreError(
+      { operation: "calendar_invalidation_prune" },
+      {
+        message: "Could not delete old published Calendar invalidations",
+        why: "The database delete failed",
+        fix: "Nothing is lost: the next Calendar invalidation sync deletes them. If it fails every run, read the database error under error.cause.",
+        cause: error,
+      },
+    );
   }
 }
 

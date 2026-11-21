@@ -158,8 +158,12 @@ describe("DELETE /projects/{id}/tasks/{taskId}", () => {
     lockTaskRowsMock.mockResolvedValue(true);
     prismaTransactionMock.mockImplementation(async (callback) =>
       callback({
+        projectSeoAnalysis: { findUnique: async () => null },
         task: {
+          findFirst: taskFindFirstMock,
           updateMany: taskUpdateManyMock,
+          // No sub-tasks follow the Task to another Project.
+          findMany: async () => [],
         },
       }),
     );

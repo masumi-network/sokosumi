@@ -3,6 +3,9 @@ import { SOKO_BOT_TURN_TOKEN_HEADER } from "@sokosumi/soko-bot";
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { badRequest, unauthorized, unprocessableEntity } from "@/helpers/error";
+import { databaseNow } from "@/lib/db/database-now";
+import { tryUseLogger } from "@/lib/evlog";
+import { runnerDiagnostic } from "@/lib/soko-bot/runner-log-events";
 import {
   type TurnTokenClaims,
   verifyTurnToken,
@@ -14,6 +17,7 @@ import {
   proxySandboxModelCall,
   recordSandboxAction,
   recordSandboxActionResult,
+  recordSandboxReasoning,
   runSandboxTool,
   sandboxFileSource,
   startSandboxTurn,
@@ -49,21 +53,26 @@ const uploadSchema = z.object({
 const completeSchema = z.object({
   text: z.string().max(200_000),
   finishReason: z.string().max(64),
-  /** The provider's reasoning summary, when the model returned one. */
-  reasoning: z.string().max(20_000).optional(),
 });
+/** One model step's reasoning summary, as the provider returned it. */
+const reasoningSchema = z.object({ text: z.string().min(1).max(20_000) });
 const failSchema = z.object({
   code: z.string().max(100),
   message: z.string().max(2_000),
+  /** Checked on its own: a bad diagnostic must not keep the turn running. */
+  diagnostic: z.unknown().optional(),
 });
 
 app.use("/turns/:turnId/*", async (c, next) => {
-  const claims = verifyTurnToken(
+  const claims = await verifyTurnToken(
     c.req.header(SOKO_BOT_TURN_TOKEN_HEADER),
     c.req.param("turnId"),
+    async () => (await databaseNow()).getTime(),
   );
   if (!claims) throw unauthorized();
   c.set("turn", claims);
+  // Verified, so the request's event joins the runner's own by turn.
+  tryUseLogger()?.set({ turnId: claims.turnId });
   await next();
 });
 
@@ -129,6 +138,12 @@ app.post("/turns/:turnId/actions/result", async (c) => {
   return c.json({ ok: true });
 });
 
+app.post("/turns/:turnId/reasoning", async (c) => {
+  const { text } = await parseJsonBody(c, reasoningSchema);
+  await recordSandboxReasoning(c.get("turn"), text);
+  return c.json({ ok: true });
+});
+
 app.post("/turns/:turnId/gateway/language-model", async (c) => {
   const proxied = await proxySandboxModelCall(c.get("turn"), {
     headers: c.req.raw.headers,
@@ -149,7 +164,14 @@ app.post("/turns/:turnId/complete", async (c) => {
 });
 
 app.post("/turns/:turnId/fail", async (c) => {
-  await failSandboxTurn(c.get("turn"), await parseJsonBody(c, failSchema));
+  const { diagnostic, ...failure } = await parseJsonBody(c, failSchema);
+  // Anything in the sandbox can post here, user code included: a diagnostic
+  // off the closed sets is dropped whole, and the turn still fails.
+  await failSandboxTurn(
+    c.get("turn"),
+    failure,
+    runnerDiagnostic(diagnostic) ?? undefined,
+  );
   return c.json({ ok: true });
 });
 

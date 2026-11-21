@@ -32,8 +32,6 @@ describe("chats routes OpenAPI contract", () => {
   it("exposes the chat signal reads and corrections", () => {
     const doc = chatsRouter.getOpenAPI31Document(openApiInfo);
 
-    expect(doc.paths?.["/signals/needs-you"]?.get).toBeDefined();
-    expect(doc.paths?.["/signals/open-loops"]?.get).toBeDefined();
     expect(doc.paths?.["/signals/summary"]?.get).toBeDefined();
     expect(doc.paths?.["/signals/rooms/{id}/catch-up"]?.get).toBeDefined();
     expect(doc.paths?.["/signals/rooms/{id}/decisions"]?.get).toBeDefined();
