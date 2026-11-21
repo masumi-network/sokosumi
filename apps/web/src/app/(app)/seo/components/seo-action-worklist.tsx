@@ -41,7 +41,8 @@ import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
 
 type WorklistItem = ProjectSeoAction | SeoEvidenceAction;
 const VISIBLE_ACTIONS = 6;
-const ORDER = { high: 0, low: 1, suggestions: 2 };
+const ORDER = { high: 0, low: 2, suggestions: 3 };
+const TEST_IDEA_ORDER = 1;
 
 /** The rail of a row has the color of the impact mark; a suggestion has the grey of a quiet line. */
 const RAIL: Record<SeoActionBucket, string> = {
@@ -58,10 +59,12 @@ export function SeoActionWorklist({
   actions,
   evidence = [],
   severity,
+  isExperiment = (action) => Boolean(action.decision),
   model,
 }: {
   actions: ProjectSeoAction[];
   evidence?: SeoEvidenceAction[];
+  isExperiment?: (action: ProjectSeoAction) => boolean;
   severity: (action: ProjectSeoAction) => SeoIssueSeverity | null;
   model: SeoWorkspaceModel;
 }) {
@@ -81,9 +84,15 @@ export function SeoActionWorklist({
     action.kind === "evidence"
       ? action.bucket
       : seoActionBucket(action, severity(action));
-  const ordered = [...actions, ...evidence].sort(
-    (a, b) => ORDER[bucket(a)] - ORDER[bucket(b)],
-  );
+  // An idea with evidence to test stands after the major fixes and before the minor cleanup.
+  const order = (action: WorklistItem) =>
+    action.kind !== "evidence" &&
+    action.status === "recommended" &&
+    isExperiment(action) &&
+    bucket(action) !== "high"
+      ? TEST_IDEA_ORDER
+      : ORDER[bucket(action)];
+  const ordered = [...actions, ...evidence].sort((a, b) => order(a) - order(b));
   const { counts, filters, rows: rowsFor } = seoActionWorklist(ordered, bucket);
   const [expanded, setExpanded] = useState(false);
   const [led, setLed] = useState(false);
@@ -202,6 +211,7 @@ export function SeoActionWorklist({
             <SeoWorklistRow
               key={seoActionKey(action)}
               action={action}
+              recommendedTest={isExperiment(action)}
               severity={severity(action)}
               rail={RAIL[bucket(action)]}
               model={model}
@@ -252,12 +262,14 @@ export function SeoActionWorklist({
 function SeoWorklistRow({
   action,
   severity,
+  recommendedTest,
   rail,
   model,
   onOpen,
 }: {
   action: ProjectSeoAction;
   severity: SeoIssueSeverity | null;
+  recommendedTest: boolean;
   rail: string;
   model: SeoWorkspaceModel;
   onOpen: () => void;
@@ -308,6 +320,9 @@ function SeoWorklistRow({
             lang="en"
             className="flex flex-wrap items-center gap-1.5 max-sm:mt-1"
           >
+            {recommendedTest && action.status === "recommended" && (
+              <SeoState>{t("actions.testRecommendation")}</SeoState>
+            )}
             {action.followUpReview && action.status !== "needs_review" && (
               <SeoState>{t("actions.reviewAgain")}</SeoState>
             )}

@@ -444,6 +444,26 @@ export const setSokoBotFollowBoardAction = withSession<
   }
 });
 
+export const setSokoBotTeamStandupAction = withSession<
+  BotScopedParams & { enabled: unknown },
+  ActionResultDto<SokoBot, ActionError>
+>(async ({ enabled, botId }) => {
+  const parsed = z.boolean().safeParse(enabled);
+  const parsedBot = botIdSchema.safeParse(botId);
+  if (!parsed.success || !parsedBot.success)
+    return toActionResult(err(invalidInput()));
+  try {
+    const bot = await sokoBotService.setJoinsTeamStandup(
+      parsed.data,
+      parsedBot.data,
+    );
+    revalidate(parsedBot.data);
+    return toActionResult(ok(bot));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
 export const renameSokoBotAction = withSession<
   BotScopedParams & { name: unknown },
   ActionResultDto<SokoBot, ActionError>

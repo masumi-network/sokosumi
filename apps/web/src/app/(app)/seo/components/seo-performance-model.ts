@@ -1,4 +1,7 @@
-import type { ProjectSeoMetric } from "@sokosumi/core-client";
+import type {
+  ProjectSeoMetric,
+  ProjectSeoWorkspace,
+} from "@sokosumi/core-client";
 
 /** Days in each compared window. */
 export const SEO_COMPARE_DAYS = 7;
@@ -192,4 +195,17 @@ export function seoShownValue(value: number, unit: ProjectSeoMetric["unit"]) {
   }).format(value);
   const shown = Number(text.replace("%", ""));
   return unit === "ratio" ? shown / 100 : shown;
+}
+
+/** Compare changes within the same pages before attributing a site average to a content change. */
+export function landingEngagementTest(
+  change: NonNullable<ProjectSeoWorkspace["landingEngagementChange"]>,
+) {
+  const time = change.engagementSecondsPerSession;
+  const views = change.viewsPerSession;
+  if (time.withinPageChange === 0 && views.withinPageChange === 0)
+    return time.mixChange || views.mixChange ? "testMix" : null;
+  if (time.withinPageChange < 0 && views.withinPageChange < 0)
+    return "testJourney";
+  return "testCompletion";
 }

@@ -69,6 +69,7 @@ import { ScheduleRowActions } from "../schedule-row-actions.client";
 import { ShellSetupSection } from "../shell-setup-section.client";
 import { SkillsSection } from "../skills-section.client";
 import { SokoBotTargetContext } from "../soko-bot-target";
+import { TeamStandupToggle } from "../team-standup-toggle.client";
 import { ActivityList } from "./activity-list.client";
 import { AutomationChecks } from "./automation-checks";
 import { BotProfileAvatar } from "./bot-profile-avatar.client";
@@ -578,6 +579,9 @@ export function SokoBotConsole({
                           />
                           <FollowBoardToggle
                             initial={bot.followWholeBoard ?? false}
+                          />
+                          <TeamStandupToggle
+                            initial={bot.joinsTeamStandup ?? false}
                           />
                           <MailAutoReadToggle
                             initial={bot.mailAutoRead ?? false}
