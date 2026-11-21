@@ -1,6 +1,6 @@
 import { type createGateway, type LanguageModel, stepCountIs } from "ai";
 
-import { modelCallTelemetryFor } from "@/lib/soko-bot/model-calls";
+import { modelCallTelemetryFor } from "./model-call-roles";
 import { streamModelCall } from "./stream-model-call";
 
 type Gateway = Pick<ReturnType<typeof createGateway>, "tools">;

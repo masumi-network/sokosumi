@@ -5,6 +5,10 @@ import prisma from "@/lib/db/prisma";
 import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { gatewayCostUsd } from "./gateway-cost";
+import { type ModelCallRole, modelCallRoleOf } from "./model-call-roles";
+
+export { modelCallTelemetryFor } from "./model-call-roles";
+export type { ModelCallRole };
 
 /**
  * Every AI Gateway call made for a turn lands in `soko_bot_model_call`: what
@@ -13,14 +17,6 @@ import { gatewayCostUsd } from "./gateway-cost";
  * own check, a media job) are not recorded.
  */
 const turnStorage = new AsyncLocalStorage<{ turnId: string }>();
-
-export type ModelCallRole =
-  | "agent"
-  | "classifier"
-  | "judge"
-  | "check"
-  | "search"
-  | "embedding";
 
 export function withModelCallTurn<T>(turnId: string, run: () => T): T {
   registerModelCallTelemetry();
@@ -176,25 +172,6 @@ export async function recordModelCall(record: ModelCallRecord): Promise<void> {
   }
 }
 
-/** `telemetry.functionId` of the calls that are not checks, by role. */
-const FUNCTION_ROLES = {
-  "soko-bot-agent": "agent",
-  "cmo-month-writer": "agent",
-  "soko-bot-judge": "judge",
-  "soko-bot-search": "search",
-} as const satisfies Record<string, ModelCallRole>;
-
-/** Tags a call for `telemetry`, so its record carries the right role. */
-export function modelCallTelemetryFor(functionId: keyof typeof FUNCTION_ROLES) {
-  return { functionId };
-}
-
-function roleOf(functionId: string | undefined): ModelCallRole {
-  return functionId && Object.hasOwn(FUNCTION_ROLES, functionId)
-    ? FUNCTION_ROLES[functionId as keyof typeof FUNCTION_ROLES]
-    : "check";
-}
-
 /**
  * The AI SDK reports every language-model and Jev call here, whichever code
  * made it, so no call inside a turn goes unrecorded. Embeddings report no
@@ -204,7 +181,7 @@ export const modelCallTelemetry: Telemetry = {
   onLanguageModelCallEnd(event) {
     const usage = event.usage;
     return recordModelCall({
-      role: roleOf(event.functionId),
+      role: modelCallRoleOf(event.functionId),
       label: event.functionId,
       requestedModel: event.modelId,
       providerMetadata: event.providerMetadata,
