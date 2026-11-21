@@ -16,14 +16,17 @@ const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 const CSV = ["Item,Price", "Sourdough,6.50", "Rye loaf,5.80"].join("\n");
 // Long enough to scroll a preview. PRICES_CSV has a blank third label;
-// NOTES_CSV a seven-line first label, too tall to pin over the rows.
+// NOTES_CSV a first label of three long lines that wrap: short enough to pin
+// at normal size, too tall once the window shrinks and the text is enlarged.
 const ROWS = Array.from(
   { length: 60 },
   (_, i) => `Bread ${i + 1},${i + 1}.50,x`,
 );
 const PRICES_CSV = ["Item,Price,", ...ROWS].join("\n");
-const TALL_LABEL = "Item\nname\nas\nwritten\nby\nthe\nbakery";
-const NOTES_CSV = [`"${TALL_LABEL}",Price,Note`, ...ROWS].join("\n");
+const WRAP_LABEL = Array.from({ length: 3 }, () => "W ".repeat(19) + "W").join(
+  "\n",
+);
+const NOTES_CSV = [`"${WRAP_LABEL}",Price,Note`, ...ROWS].join("\n");
 
 const PROJECTS = [
   { name: "phone", width: 375, height: 812, isMobile: true },
@@ -43,16 +46,27 @@ async function scrollPreview(page: Page) {
     const firstRow = scroller.querySelector("tbody tr") as HTMLElement;
     const firstHead = th.parentElement?.firstElementChild as HTMLElement;
     const top = () => scroller.getBoundingClientRect().top;
-    const firstRowStartsInView =
-      firstRow.getBoundingClientRect().bottom <= top() + scroller.clientHeight;
+    // A few frames for a resize to reach the observer and re-render.
+    const settle = () =>
+      new Promise((done) =>
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => requestAnimationFrame(done)),
+        ),
+      );
+    scroller.scrollTop = 0;
+    await settle();
     scroller.scrollTop = 600;
-    await new Promise((done) =>
-      requestAnimationFrame(() => requestAnimationFrame(done)),
-    );
+    await settle();
     const head = th.getBoundingClientRect();
+    const port = scroller.getBoundingClientRect();
+    const atBottom = document.elementFromPoint(
+      port.left + port.width / 2,
+      port.bottom - 8,
+    );
     return {
       scrolled: scroller.scrollTop > 0,
-      firstRowStartsInView,
+      // The rows are what shows at the foot of the preview, not the header.
+      bodyAtFoot: Boolean(atBottom?.closest("tbody")),
       headerAtTop: Math.abs(head.top - top()) <= 1,
       headerScrolledAway: head.bottom <= top(),
       firstRowUnderHeader:
@@ -64,31 +78,30 @@ async function scrollPreview(page: Page) {
   });
 }
 
-/** A normal header names every column and stays pinned over the rows. */
-async function expectPinnedHeader(page: Page) {
-  await page.getByRole("columnheader", { name: "Column 3" }).waitFor();
+/** The header stays pinned over the rows and its first label reads whole. */
+async function expectPinnedHeader(page: Page, firstLabel: string) {
   assert.deepEqual(await scrollPreview(page), {
     scrolled: true,
-    firstRowStartsInView: true,
+    bodyAtFoot: true,
     headerAtTop: true,
     headerScrolledAway: false,
     firstRowUnderHeader: true,
     firstLabelWhole: true,
-    firstLabel: "Item",
+    firstLabel,
   });
 }
 
-/** A too-tall header shows whole above the rows, then scrolls away with them. */
-async function expectTallHeaderInFlow(page: Page) {
+/** A header too tall to pin reads whole above the rows, then scrolls away. */
+async function expectHeaderInFlow(page: Page, firstLabel: string) {
   assert.deepEqual(await scrollPreview(page), {
     scrolled: true,
-    firstRowStartsInView: true,
+    bodyAtFoot: true,
     headerAtTop: false,
     headerScrolledAway: true,
     // In the flow, the rows follow the header instead of passing under it.
     firstRowUnderHeader: false,
     firstLabelWhole: true,
-    firstLabel: TALL_LABEL,
+    firstLabel,
   });
 }
 
@@ -192,18 +205,34 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       // Both CSV previews, the viewer and the file's own page, read the first
       // row as column headers that stay pinned while the rows scroll.
       await fileLink.click();
-      await expectPinnedHeader(page);
+      await page.getByRole("columnheader", { name: "Column 3" }).waitFor();
+      await expectPinnedHeader(page, "Item");
       await shot(page, size, "1b-csv-viewer");
       await page.getByRole("link", { name: "Details" }).click();
       await page.waitForURL(/\/drive\/files\//);
-      await expectPinnedHeader(page);
+      await expectPinnedHeader(page, "Item");
       await shot(page, size, "1c-csv-file-page");
       await page.goto(folderUrl);
 
-      // A header too tall to pin reads whole, then scrolls away with the rows.
+      // Pinning follows the header's rendered height: a wrapping label pins at
+      // normal size, scrolls with the rows once a small window and 200% text
+      // make it tall, and pins again when both are back. On the file's page,
+      // so the resize closes no dialog.
       await notesLink.click();
-      await expectTallHeaderInFlow(page);
+      await page.getByRole("link", { name: "Details" }).click();
+      await page.waitForURL(/\/drive\/files\//);
+      await expectPinnedHeader(page, WRAP_LABEL);
+      await page.setViewportSize({ width: 320, height: 256 });
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = "32px";
+      });
+      await expectHeaderInFlow(page, WRAP_LABEL);
       await shot(page, size, "1d-csv-tall-header");
+      await page.setViewportSize(viewport);
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = "";
+      });
+      await expectPinnedHeader(page, WRAP_LABEL);
       await page.goto(folderUrl);
 
       // The folder becomes a data room; its Company tab checks emails.
