@@ -6,7 +6,9 @@ import { useId, useRef } from "react";
 import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
+import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { useMountEffect } from "@/hooks/use-mount-effect";
+import { cn } from "@/lib/utils";
 
 import {
   openProjectScope,
@@ -108,7 +110,11 @@ export function ProjectScopeRequired({
       className={
         variant === "action"
           ? "flex flex-wrap justify-center gap-2"
-          : "flex w-full min-w-0 flex-col items-center py-10 text-center sm:py-16"
+          : // A panel, so the tile and the backdrop's cards sit on a surface, not the page.
+            cn(
+              HOLDER_CLASS,
+              "flex w-full min-w-0 flex-col items-center py-10 text-center sm:py-16",
+            )
       }
       data-testid={testId}
     >
