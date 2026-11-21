@@ -62,6 +62,7 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-mobile` (`useIsMobile`, `useIsMobileMedia`, `MOBILE_BREAKPOINT`) — mobile viewport media query
 - `use-media-query` (`useMediaQuery`, `usePrefersReducedMotion`, `matchesMediaQuery`, `subscribeMediaQuery`) — generic CSS media query and live `prefers-reduced-motion` subscriptions (CMO has `useMediaQuery` under `apps/cmo/src/hooks/effects/use-media-query.ts`)
 - `use-animation-frame` (`useAnimationFrame`) — `requestAnimationFrame` loop with elapsed seconds per frame
+- `use-animation-frame-batch` (`useAnimationFrameBatch`) — batches handler-pushed items into a single `requestAnimationFrame` callback with unmount cancel
 - `use-event-listener` (`useEventListener`) — typed window, document, or element DOM event listener using the latest handler (CMO has `useEventListener` under `apps/cmo/src/hooks/effects/use-event-listener.ts`)
 - `use-interval` (`useInterval`) — repeating timer paused on `null` delay (CMO has `useInterval` under `apps/cmo/src/hooks/effects/use-interval.ts`)
 - `use-timeout` (`useTimeout`) — one-shot timer paused on `null` delay with optional `resetKey` (CMO has `useTimeout` under `apps/cmo/src/hooks/effects/use-timeout.ts`)
@@ -75,9 +76,12 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-resize-observer` (`useResizeObserver`, `useLayoutResizeObserver`) — live-element `ResizeObserver` subscriptions with unmount disconnect
 - `use-mutation-observer` (`useMutationObserver`, `useLayoutMutationObserver`) — live-node / `"body"` / `"documentElement"` `MutationObserver` subscriptions with unmount disconnect
 - `use-drag-to-scroll` (`useDragToScroll`) — horizontal pointer drag scrolling
-- `use-focus-when` (`useFocusWhen`, `useLayoutFocusWhen`) — focus `targetRef.current` when a condition turns true (reads the ref at effect time; optional `preventScroll`, `deferToFrame`, and `resetKey`)
+- `use-focus-when` (`useFocusWhen`, `useLayoutFocusWhen`) — focus a ref or getter target when a condition turns true (reads the target at effect time; optional `preventScroll`, `deferToFrame`, and `resetKey`)
+- `use-focus-form-field-on-mount` (`useFocusFormFieldOnMount`) — focus a `react-hook-form` field once on mount (or Activity reveal)
+- `use-message-edit-composer-focus` (`useMessageEditComposerFocus`) — focus `MessageEditComposer` at the end of its content once on mount (or Activity reveal)
 - `use-scroll-into-view-when` (`useScrollIntoViewWhen`) — scroll a ref or getter target into view when a condition turns true (reads the target at effect time; optional reduced-motion downgrade and `resetKey`; CMO has `useScrollIntoViewWhen` under `apps/cmo/src/hooks/effects/use-scroll-into-view-when.ts`)
-- `use-scroll-to-end` (`useScrollToEnd`) — scroll `targetRef.current` to its vertical or horizontal end when a trigger changes
+- `use-scroll-child-into-view-x` (`useScrollChildIntoViewX`) — horizontally scroll a container's `scrollLeft` just enough to reveal a matched child without moving vertical page scroll
+- `use-scroll-to-end` (`useScrollToEnd`) — scroll `targetRef.current` to its vertical or horizontal end when a trigger changes (CMO also has `useFocusFirstInvalid` under `apps/cmo/src/hooks/effects/use-focus-first-invalid.ts`, `useOnboardingStepScroll` under `apps/cmo/src/hooks/effects/use-onboarding-step-scroll.ts`, and `useSidePanelFocus` under `apps/cmo/src/hooks/effects/use-side-panel-focus.ts`)
 - `use-page-search-shortcut` (`usePageSearchShortcut`) — Cmd/Ctrl+F search input focus shortcut
 - `use-prevent-enter-submit` (`usePreventEnterSubmit`) — form Enter submission guard
 - `use-intent-prefetch` (`useIntentPrefetch`) — ForesightJS pointer-intent route prefetching
@@ -102,6 +106,8 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-flash-toast` (`queueFlashSuccessToast`, `useFlashToast`) — shows a one-time `sessionStorage` success toast once on the next document mount
 - `use-mark-agent-unavailable` (`useMarkAgentUnavailable`, `useIsAgentUnavailable`) — ref-counted unavailable-agent external store for mobile header back fallback
 - `use-project-scope-marker` (`useProjectScopeMarker`, `useMarkedProjectSnapshot`) — detail-page project scope marker store keyed by detail path
+- `use-compose-draft` (`usePersistComposeDraft`) — debounced `localStorage` chat compose draft hydration and unmount/key-change flush
+- `use-room-cache-dirty` (`useMarkRoomCacheDirtyOnExit`) — marks a retained room cache entry dirty when leaving the room or switching caches
 - `use-personal-assistant-chrome-visible` (`usePersonalAssistantChromeVisible`) — records session visibility of Personal Assistant sidebar chrome for Instant `/chat`
 - `use-failed-soko-bot-id-publisher` (`useFailedSokoBotIdPublisher`) — before-paint failed Soko Bot id publishing to synchronize sidebar and Direct rows
 - `use-remember-pinned-rooms` (`useRememberPinnedRooms`) — persists the sidebar's Pinned chat rooms in session memory across workspace switches
@@ -119,6 +125,23 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-gradient-background-canvas` (`useGradientBackgroundCanvas`) — WebGL Home gradient canvas lifecycle with theme token observation, reduced motion, and off-screen pause
 - `use-thinking-orb-canvas` (`useThinkingOrbCanvas`) — `thinking-orbs` 2D canvas animation with reduced-motion static frame fallback
 - `use-studio-wall-paint` (`useStudioWallPaint`, `applyStudioWallTransform`) — before-paint Studio template wall layout transform synchronization
+- `use-document-locale-lang` (`useDocumentLocaleLang`) — before-paint `document.documentElement.lang` synchronization with the active locale
+- `use-agent-fullbleed-body` (`useAgentFullbleedBody`) — `data-agent-fullbleed="true"` toggle on `<body>` while the agent jobs layout is mounted
+- `use-soko-bot-creating-body` (`useSokoBotCreatingBody`) — `data-soko-bot-creating="true"` toggle on `<body>` while the Soko Bot creation flow is mounted
+- `use-seo-ask-button-toast-offset` (`useSeoAskButtonToastOffset`) — `--toast-bottom-offset` toggle on `document.documentElement` while the SEO ask button is mounted
+- `use-chat-unreads-filter` (`useChatUnreadsFilter`) — browser-remembered Unreads filter cookie store and before-paint boot attribute cleanup
+- `use-dynamic-type-root-cap` (`useDynamicTypeRootCap`) — Apple Dynamic Type root `fontSize` cap on mount, `pageshow`, and `visibilitychange`
+- `use-browser-time-format-sync` (`useBrowserTimeFormatSync`) — browser 12h/24h time-format cookie sync and Auto route refresh
+- `use-browser-time-zone-sync` (`useBrowserTimeZoneSync`) — browser IANA time-zone cookie sync and route refresh
+- `use-canonical-history-path` (`useCanonicalHistoryPath`) — post-render `window.history.replaceState` pathname canonicalization preserving state, search, and hash
+- `use-internal-traffic-gate` (`useInternalTrafficGate`) — internal-traffic cookie sync, `?internal` URL stripping, and Google tags gating
+- `use-url-timezone` (`useUrlTimezone`) — seeds the browser's IANA time zone into a calendar URL that lacks a valid one
+- `use-push-preference` (`usePushPreference`) — browser Web Push capability, permission, subscription, and repair state synchronization
+- `use-record-project-visit` (`useRecordProjectVisit`) — records visited project IDs in the per-user/per-workspace `localStorage` visit log
+- `use-record-page-visit` (`useRecordPageVisit`) — increments the per-pathname likely-pages visit counter on mount
+- `use-remembered-project-scope` (`useRememberedProjectScope`) — `sessionStorage` external store and workspace-switch-guarded project scope synchronization
+- `use-tasks-restored-view-url` (`useTasksRestoredViewUrl`, `rememberSavedTasksView`, `forgetSavedTasksView`, `withTasksView`) — before-paint restored Tasks view URL synchronization via `history.replaceState` / `router.replace`
+- `use-calendar-week-row-label` (`useCalendarWeekRowLabel`) — sets localized ISO week `aria-label` on FullCalendar month week rows
 - `use-studio-chat-draft` (`useStudioChatDraft`) — `sessionStorage`-backed Image Studio conversation draft restore, persistence, and failed-send recovery
 - `use-studio-chat-intent` (`useStudioChatIntent`) — `sessionStorage`-backed Image Studio first-message create intent restore, claim, and release
 - `use-studio-website-draft-request` (`useStudioWebsiteDraftRequest`) — one-shot Studio website-draft auto-prepare request consumption on mount

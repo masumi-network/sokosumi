@@ -1,8 +1,7 @@
 "use client";
 
 import { isValidTimezone } from "@sokosumi/utils";
-
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useEffect } from "react";
 
 /**
  * Puts the browser's zone in a calendar URL that has none.
@@ -23,12 +22,12 @@ export function useUrlTimezone(
     options: { shallow: boolean },
   ) => unknown,
 ) {
-  useMountEffect(() => {
+  useEffect(() => {
     if (!isValidTimezone(urlTimezone)) {
       void write(
         { timezone: timeZone },
         { shallow: timeZone === renderedTimezone },
       );
     }
-  });
+  }, []);
 }

@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import { recordProjectVisit } from "@/hooks/use-recent-projects";
+import { useRecordProjectVisit } from "@/hooks/effects/use-record-project-visit";
 import { useSession } from "@/lib/auth/auth.client";
 
 /**
@@ -16,10 +15,7 @@ export function RecordProjectVisit({ projectId }: { projectId: string }) {
   const userId = session?.user.id;
   const organizationId = session?.session.activeOrganizationId ?? null;
 
-  useEffect(() => {
-    if (!userId) return;
-    recordProjectVisit(projectId, { userId, organizationId });
-  }, [projectId, userId, organizationId]);
+  useRecordProjectVisit(projectId, userId, organizationId);
 
   return null;
 }

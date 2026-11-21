@@ -31,7 +31,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useFocusFormFieldOnMount } from "@/hooks/effects/use-focus-form-field-on-mount";
 import { signIn } from "@/lib/auth/auth.client";
 import { buildAuthPageUrl, readAuthPageContext } from "@/lib/auth/auth.utils";
 import { rememberAuthEmailHintOnClick } from "@/lib/auth/auth-email-hint";
@@ -136,9 +136,7 @@ export default function SignInForm({
   });
 
   // The step replaced the one the person was typing in, so focus follows.
-  useMountEffect(() => {
-    form.setFocus(isCodeStep ? "code" : "currentPassword");
-  });
+  useFocusFormFieldOnMount(form, isCodeStep ? "code" : "currentPassword");
 
   const handleCodeSubmit = async (values: Values) => {
     track("Sign In", { provider: "email-otp" });

@@ -173,6 +173,42 @@ describe("useFocusWhen", () => {
     expect(focusSpy).toHaveBeenCalledTimes(2);
   });
 
+  it("resolves a getter target at effect time without re-running on unrelated renders", () => {
+    const first = document.createElement("input");
+    const second = document.createElement("input");
+    document.body.append(first, second);
+    const firstFocus = vi.spyOn(first, "focus");
+    const secondFocus = vi.spyOn(second, "focus");
+
+    const { rerender } = renderHook(
+      ({
+        allow,
+        target,
+        when,
+      }: {
+        allow: boolean;
+        target: HTMLInputElement;
+        when: boolean;
+      }) => useFocusWhen(() => (allow ? target : null), when),
+      { initialProps: { allow: false, target: first, when: true } },
+    );
+
+    expect(firstFocus).not.toHaveBeenCalled();
+
+    // Changing only values read by the getter does not re-run the effect.
+    rerender({ allow: true, target: first, when: true });
+    expect(firstFocus).not.toHaveBeenCalled();
+
+    // Turning `when` false -> true reads the latest getter value.
+    rerender({ allow: true, target: second, when: false });
+    rerender({ allow: true, target: second, when: true });
+    expect(firstFocus).not.toHaveBeenCalled();
+    expect(secondFocus).toHaveBeenCalledTimes(1);
+
+    first.remove();
+    second.remove();
+  });
+
   it("does not throw during SSR", () => {
     function Probe() {
       const ref = useRef<HTMLDivElement>(null);

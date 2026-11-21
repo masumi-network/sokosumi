@@ -65,7 +65,7 @@ vi.mock("@/lib/clients/core.preferences.browser.client", () => ({
   },
 }));
 
-vi.mock("@/lib/ably/use-push-preference", () => ({
+vi.mock("@/hooks/effects/use-push-preference", () => ({
   usePushPreference: () => ({
     isAccountEnabled,
     isDeviceEnabled,
