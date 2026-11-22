@@ -8,13 +8,18 @@ import {
   type OrganizationChatRoomsChangedDetail,
 } from "@/components/chat/organization-chat-events";
 
+export type RoomCacheLifecycleTarget = Pick<
+  RoomTranscriptCache,
+  "activate" | "clear" | "joined" | "evict"
+>;
+
 /**
  * Activates `RoomTranscriptCache` for `RoomCacheSession`, subscribes to
  * `chat-session-ended` and `organization-chat-rooms-changed` window events,
  * and clears the cache on unmount or cache swap.
  */
 export function useRoomCacheSessionLifecycle(
-  cache: RoomTranscriptCache,
+  cache: RoomCacheLifecycleTarget,
   router: Pick<ReturnType<typeof useRouter>, "replace">,
 ): number {
   const replace = useEffectEvent((href: string) => router.replace(href));

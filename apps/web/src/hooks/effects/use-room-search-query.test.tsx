@@ -1,5 +1,6 @@
 import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { act, render, screen, waitFor } from "@testing-library/react";
+import { useRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getMessagesMock = vi.hoisted(() => vi.fn());
@@ -21,11 +22,13 @@ function Probe({
   open: boolean;
   debouncedQuery: string;
 }) {
+  const requestIdRef = useRef(0);
   const { results, error, isLoading, resetSearch } = useRoomSearchQuery(
     roomId,
     open,
     debouncedQuery,
     LABELS,
+    requestIdRef,
   );
   return (
     <div>

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChatRoomMessage } from "@sokosumi/core-client";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { type RefObject, useEffect, useEffectEvent, useState } from "react";
 import { coreClient } from "@/lib/clients/core.browser.client";
 
 const SEARCH_PAGE_SIZE = 50;
@@ -16,12 +16,12 @@ export function useRoomSearchQuery(
   open: boolean,
   debouncedQuery: string,
   labels: { error: string },
+  requestIdRef: RefObject<number>,
 ) {
   const [results, setResults] = useState<ChatRoomMessage[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const requestIdRef = useRef(0);
 
   const searchMessages = useEffectEvent(async (searchQuery: string) => {
     const requestId = ++requestIdRef.current;

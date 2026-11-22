@@ -48,6 +48,7 @@ export function RoomSearchPanel({
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
+  const requestIdRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -83,7 +84,7 @@ export function RoomSearchPanel({
     error,
     isLoading,
     resetSearch,
-  } = useRoomSearchQuery(roomId, open, debouncedQuery, labels);
+  } = useRoomSearchQuery(roomId, open, debouncedQuery, labels, requestIdRef);
 
   function focusField() {
     // On mobile the field only mounts with the popover, so wait a frame.

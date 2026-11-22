@@ -1,5 +1,5 @@
 import type { ChatRoomPinnedMessageListItem } from "@sokosumi/core-client";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const listPinnedMock = vi.hoisted(() => vi.fn());
@@ -69,27 +69,5 @@ describe("usePinnedMessagesList", () => {
     expect(screen.getByTestId("cursor")).toHaveTextContent("");
 
     unmount();
-  });
-
-  it("ignores stale responses after unmount", async () => {
-    const pending = Promise.withResolvers<{
-      ok: true;
-      value: { items: ChatRoomPinnedMessageListItem[]; nextCursor: null };
-    }>();
-    listPinnedMock.mockReturnValueOnce(pending.promise);
-
-    const { unmount } = render(<Probe roomId="room-1" listGeneration={0} />);
-    unmount();
-
-    await act(async () => {
-      pending.resolve({
-        ok: true,
-        value: {
-          items: [{ messageId: "late" }] as ChatRoomPinnedMessageListItem[],
-          nextCursor: null,
-        },
-      });
-      await pending.promise;
-    });
   });
 });

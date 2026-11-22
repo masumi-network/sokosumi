@@ -1,15 +1,17 @@
 import { act, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { RoomTranscriptCache } from "@/app/chat/utils/room-transcript-cache";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
-import { useRoomCacheSessionLifecycle } from "./use-room-cache-session-lifecycle";
+import {
+  type RoomCacheLifecycleTarget,
+  useRoomCacheSessionLifecycle,
+} from "./use-room-cache-session-lifecycle";
 
 function Probe({
   cache,
   router,
 }: {
-  cache: RoomTranscriptCache;
+  cache: RoomCacheLifecycleTarget;
   router: { replace: (href: string) => void };
 }) {
   const generation = useRoomCacheSessionLifecycle(cache, router);
@@ -18,12 +20,12 @@ function Probe({
 
 describe("useRoomCacheSessionLifecycle", () => {
   it("activates cache, handles session-ended and room join/remove events, and clears on unmount", () => {
-    const cache = {
+    const cache: RoomCacheLifecycleTarget = {
       activate: vi.fn(() => true),
       clear: vi.fn(),
       joined: vi.fn(),
       evict: vi.fn(),
-    } as unknown as RoomTranscriptCache;
+    };
     const router = { replace: vi.fn() };
 
     window.history.replaceState(null, "", "/chat/rooms/r-gone");
