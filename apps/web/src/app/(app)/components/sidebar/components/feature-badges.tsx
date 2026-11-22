@@ -22,7 +22,7 @@ import {
 import { CHAT_THREADS_PATH } from "@/app/chat/utils/chat-route-base";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import { fetchBackgroundJson } from "@/components/chat/fetch-background-json";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useFeatureBadgesLifecycle } from "@/hooks/effects/use-feature-badges-lifecycle";
 import { markBadgeCampaignSeenAction } from "@/lib/actions/badge-campaign/action";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { isPathActive } from "@/lib/utils/is-path-active";
@@ -104,15 +104,7 @@ export function FeatureBadgesProvider({
   const requestedIds = useRef(new Set<string>());
   const exitTimers = useRef(new Map<string, number[]>());
   const mounted = useRef(true);
-  useMountEffect(() => {
-    mounted.current = true;
-    const timers = exitTimers.current;
-    return () => {
-      mounted.current = false;
-      for (const ids of timers.values()) ids.forEach(window.clearTimeout);
-      timers.clear();
-    };
-  });
+  useFeatureBadgesLifecycle(mounted, exitTimers);
 
   const scheduleExit = useCallback(({ id, feature }: BadgeCampaignSummary) => {
     if (exitTimers.current.has(id)) return;

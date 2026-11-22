@@ -20,8 +20,8 @@ import { useEffect, useRef, useState } from "react";
 import { formatUsd } from "@/components/soko-bot/format";
 import { Button } from "@/components/ui/button";
 import { useInterval } from "@/hooks/effects/use-interval";
+import { useScenarioLabMountedRef } from "@/hooks/effects/use-scenario-lab-mounted-ref";
 import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   judgeSokoBotLabTurnAction,
   listSokoBotLabRunsAction,
@@ -317,12 +317,7 @@ export function ScenarioLab({
   // whole page is waiting on rather than one of several.
   const [live, setLive] = useState<LiveRun | null>(null);
   const mountedRef = useRef(false);
-  useMountEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  });
+  useScenarioLabMountedRef(mountedRef);
   /** Where a Run all has got to, so the wait has a denominator. */
   const [batch, setBatch] = useState<{
     done: number;
