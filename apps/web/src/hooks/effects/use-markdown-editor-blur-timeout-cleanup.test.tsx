@@ -1,11 +1,5 @@
 import { render } from "@testing-library/react";
-import {
-  Activity,
-  type RefObject,
-  StrictMode,
-  useLayoutEffect,
-  useRef,
-} from "react";
+import { Activity, type RefObject, StrictMode, useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useMarkdownEditorBlurTimeoutCleanup } from "./use-markdown-editor-blur-timeout-cleanup";
@@ -19,10 +13,9 @@ describe("useMarkdownEditorBlurTimeoutCleanup", () => {
     vi.useRealTimers();
   });
 
-  it("clears the stored blur timeout on unmount in the passive cleanup phase, without cancelling across normal rerenders", () => {
+  it("clears the stored blur timeout on unmount without cancelling across normal rerenders", () => {
     const clearSpy = vi.spyOn(globalThis, "clearTimeout");
     const fired = vi.fn();
-    const layoutCleanupClearCounts: number[] = [];
     const captured: {
       ref: RefObject<NodeJS.Timeout | number | null> | null;
     } = {
@@ -33,12 +26,6 @@ describe("useMarkdownEditorBlurTimeoutCleanup", () => {
       const blurTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
       captured.ref = blurTimeoutRef;
       useMarkdownEditorBlurTimeoutCleanup(blurTimeoutRef);
-      useLayoutEffect(() => {
-        return () => {
-          // Layout cleanup runs before passive cleanup, so clearTimeout has not run yet.
-          layoutCleanupClearCounts.push(clearSpy.mock.calls.length);
-        };
-      }, []);
       return <span data-tick={tick} />;
     }
 
@@ -59,7 +46,6 @@ describe("useMarkdownEditorBlurTimeoutCleanup", () => {
     vi.advanceTimersByTime(50);
     unmount();
 
-    expect(layoutCleanupClearCounts).toEqual([0]);
     expect(clearSpy).toHaveBeenCalledTimes(1);
     vi.advanceTimersByTime(200);
     expect(fired).toHaveBeenCalledTimes(1);

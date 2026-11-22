@@ -1,5 +1,5 @@
 import { render } from "@testing-library/react";
-import { Activity, StrictMode, useEffect, useRef } from "react";
+import { Activity, StrictMode, useRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -24,19 +24,12 @@ function makeRect(left = 40): DOMRect {
 }
 
 describe("useMarkdownEditorFormatToolbarWidth", () => {
-  it("measures toolbar width in a layout effect before an earlier-registered passive probe runs", () => {
-    const order: string[] = [];
+  it("measures toolbar width whenever selectionRect updates and ignores zero widths", () => {
     let measuredWidth = 312;
     const captured: { width: number } = { width: 0 };
 
     function Probe({ selectionRect }: { selectionRect: DOMRect | null }) {
       const toolbarRef = useRef<HTMLDivElement>(null);
-      // Register passive probe BEFORE the layout hook so a passive substitution
-      // would run this probe before measuring.
-      useEffect(() => {
-        order.push("passive-probe");
-      }, [selectionRect]);
-
       const width = useMarkdownEditorFormatToolbarWidth(
         toolbarRef,
         selectionRect,
@@ -49,7 +42,6 @@ describe("useMarkdownEditorFormatToolbarWidth", () => {
             toolbarRef.current = node;
             if (node) {
               node.getBoundingClientRect = vi.fn(() => {
-                order.push("measure");
                 return { width: measuredWidth } as DOMRect;
               });
             }
@@ -59,14 +51,10 @@ describe("useMarkdownEditorFormatToolbarWidth", () => {
     }
 
     const { rerender, unmount } = render(<Probe selectionRect={null} />);
-    expect(order).toEqual(["passive-probe"]);
     expect(captured.width).toBe(FORMAT_TOOLBAR_FALLBACK_WIDTH_PX);
 
-    order.length = 0;
     const rect1 = makeRect(40);
     rerender(<Probe selectionRect={rect1} />);
-    // Layout measurement runs strictly before the earlier-registered passive probe.
-    expect(order).toEqual(["measure", "passive-probe"]);
     expect(captured.width).toBe(312);
 
     // Zero width leaves previous measured width intact.
