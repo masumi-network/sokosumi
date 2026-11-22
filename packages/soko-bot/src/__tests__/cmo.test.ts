@@ -47,6 +47,7 @@ import {
   cmoReportsSeo,
 } from "../versions/cmo-v12-skills.js";
 import { CMO_PART_PATCH_STRATEGY_SKILL } from "../versions/cmo-v13-skills.js";
+import { CMO_CHANNEL_FIT_STRATEGY_SKILL } from "../versions/cmo-v14-skills.js";
 import {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
@@ -179,10 +180,9 @@ describe("CMO version", () => {
     );
   });
 
-  // Owner, 2026-11-21: one Cuso with the stronger model, picked pictures,
-  // weekly SEO reports and part patches.
-  it("makes cmo-v13 the version a new hire gets", () => {
-    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v13");
+  // Owner, 2026-11-21: each network at its own rate, short video daily.
+  it("makes cmo-v14 the version a new hire gets", () => {
+    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v14");
   });
 
   it("has cmo-v8 build on cmo-v7 with claims, varied pictures and LinkedIn openings", () => {
@@ -347,6 +347,32 @@ describe("CMO version", () => {
     const strategy = getSokoBotSkill(CMO_PART_PATCH_STRATEGY_SKILL).content;
     expect(strategy).toContain("never the whole calendar");
     expect(strategy).toContain("claim:");
+  });
+
+  // Owner, 2026-11-21, on NMKR's month: too few on X, too many on LinkedIn,
+  // not enough pictures, TikToks or Reels, and the platforms' own names.
+  it("has cmo-v14 be cmo-v13 with each network at its own rate", () => {
+    const v13 = getSokoBotVersion("cmo-v13");
+    const v14 = getSokoBotVersion("cmo-v14");
+    expect(v14.systemPrompt).toBe(v13.systemPrompt);
+    expect(v14.strongModel).toBe(v13.strongModel);
+    expect(v14.skills).toEqual(
+      v13.skills.map((skill) =>
+        skill === CMO_PART_PATCH_STRATEGY_SKILL
+          ? CMO_CHANNEL_FIT_STRATEGY_SKILL
+          : skill,
+      ),
+    );
+    const strategy = getSokoBotSkill(CMO_CHANNEL_FIT_STRATEGY_SKILL).content;
+    expect(strategy).toContain("six a day on X");
+    expect(strategy).toContain("one a day on LinkedIn, never more");
+    expect(strategy).toContain("three TikToks a day");
+    expect(strategy).toContain("never the whole calendar");
+    expect(strategy).toContain(
+      "A network the business has connected is never left out",
+    );
+    expect(strategy).not.toContain("three a day on X");
+    expect(strategy).not.toContain("plan at most four a month, only where");
   });
 
   it("keeps a piece's claim on its plan entry and its Social post", () => {

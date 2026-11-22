@@ -189,34 +189,34 @@ describe("CheckoutStep", () => {
   });
 
   it("says what each plan makes of the strategy, and marks the smallest that makes all of it", async () => {
-    // Three X posts a day for a week: Starter makes one a day, Growth two, Scale three.
+    // Six X posts a day for a week: Starter makes three a day, Growth four, Scale six.
     const week: Strategy = {
       ...strategy,
-      channels: [{ channel: "x", cadence: "3 a day", role: "main" }],
+      channels: [{ channel: "x", cadence: "6 a day", role: "main" }],
       calendar: Array.from({ length: 7 }, (_, day) =>
-        ["a", "b", "c"].map((slot, place) => ({
+        ["a", "b", "c", "d", "e", "f"].map((slot, place) => ({
           id: `x-${day}-${slot}`,
           date: `2026-10-${String(5 + day).padStart(2, "0")}`,
           channel: "x",
           title: `Post ${day} ${slot}`,
-          format: place === 2 ? "image" : "post",
+          format: place >= 4 ? "image" : "post",
           status: "idea" as const,
         })),
       ).flat(),
     };
     await render({ plan: week });
     expect(cards()[0]).toContain(
-      "7 posts, 0 pictures and 0 videos a month from your strategy",
+      "21 posts, 0 pictures and 0 videos a month from your strategy",
     );
     expect(cards()[1]).toContain(
-      "14 posts, 0 pictures and 0 videos a month from your strategy",
+      "28 posts, 0 pictures and 0 videos a month from your strategy",
     );
     expect(cards()[2]).toContain(
-      "21 posts, 7 pictures and 0 videos a month from your strategy",
+      "42 posts, 14 pictures and 0 videos a month from your strategy",
     );
     // Each plan says what it makes on each network.
-    expect(cards()[0]).toContain("X 7");
-    expect(cards()[2]).toContain("X 21");
+    expect(cards()[0]).toContain("X 21");
+    expect(cards()[2]).toContain("X 42");
     expect(cards()[2]).toContain("Makes all of it");
     expect(cards()[1]).not.toContain("Makes all of it");
     expect(button("Start Scale for $1,000 a month")).toBeTruthy();

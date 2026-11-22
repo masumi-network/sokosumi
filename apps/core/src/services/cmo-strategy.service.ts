@@ -504,7 +504,11 @@ async function startCmoMonthFinish(
       : [
           `Finish ${cuso.businessName}'s marketing strategy: its calendar does not hold what the strategy promises.`,
           ...gaps.map((gap) => `- ${gap}`),
-          `Add the missing pieces with save_strategy part patch, one week a call (only that week's new entries, new ids), until every week holds the pace's perWeek pieces and each channel its cadence, in the mix and pillar shares, and each video the funnel promises goes out where it says. Never lower the pace or a posting network's cadence to match: the plan the owner buys decides how much of the month is made. The month keeps at most ${CMO_MAX_VIDEOS_PER_MONTH} videos: for a video network or a play that promises video, first add the network to the alsoOn of talking videos already planned (part patch, same id); YouTube or TikTok may take a cadence that matches those videos, and a play may drop the video in its words (part plan). Change nothing else already saved.`,
+          `Add the missing pieces with save_strategy part patch, one week a call (only that week's new entries, new ids), until every week holds the pace's perWeek pieces and each channel its cadence, in the mix and pillar shares, and each video the funnel promises goes out where it says. Never lower the pace or a posting network's cadence to match: the plan the owner buys decides how much of the month is made. ${
+            rules.channelFit
+              ? "A video network or a play that promises video gets short videos of its own on that network (a TikTok, a Reel, a YouTube Short) at its cadence; the month keeps at most four talking videos."
+              : `The month keeps at most ${CMO_MAX_VIDEOS_PER_MONTH} videos: for a video network or a play that promises video, first add the network to the alsoOn of talking videos already planned (part patch, same id); YouTube or TikTok may take a cadence that matches those videos, and a play may drop the video in its words (part plan).`
+          } Change nothing else already saved.`,
         ]
     )
       .concat([
@@ -906,8 +910,13 @@ function ownerAnswers(brain: BrandBrain): string[] {
 
 /** Matches the calendar slice in the turn packet. A full plan with drafts does not fit. */
 export const CMO_VISIBLE_CALENDAR_DAYS = 31;
-/** All-in on three networks with seo is about 200 pieces a month (cmo-v3). */
-const CMO_CALENDAR_LIMIT = 240;
+/**
+ * cmo-v14's top volume on every live network is 504 pieces a month
+ * (`CMO_NETWORK_VOLUME.all_in`: six X posts a day, three TikToks, two
+ * picture posts and two Reels on Instagram, two on Facebook, two YouTube
+ * Shorts, one on LinkedIn), plus newsletter issues and room to spare.
+ */
+const CMO_CALENDAR_LIMIT = 560;
 
 export function calendarBounds(
   now: Date,

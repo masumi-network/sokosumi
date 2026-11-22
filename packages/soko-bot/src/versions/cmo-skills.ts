@@ -32,6 +32,7 @@ import {
 } from "./cmo-v11-skills.js";
 import { seoReports } from "./cmo-v12-skills.js";
 import { partPatchStrategy } from "./cmo-v13-skills.js";
+import { channelFitStrategy } from "./cmo-v14-skills.js";
 import type { SokoBotSkill } from "./skills.js";
 
 const nearestTen = (credits: number): number => Math.round(credits / 10) * 10;
@@ -726,4 +727,5 @@ export const CMO_SKILLS: readonly SokoBotSkill[] = [
   claims,
   seoReports(seo),
   partPatchStrategy(claims),
+  channelFitStrategy(partPatchStrategy(claims)),
 ];

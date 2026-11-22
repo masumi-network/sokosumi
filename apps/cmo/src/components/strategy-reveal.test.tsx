@@ -234,7 +234,7 @@ it("counts a talking video on YouTube too, and names a network left out with its
   // YouTube has no entry of its own: its piece is LinkedIn's talking video.
   const youtube = html.slice(html.indexOf("YouTube</p>"));
   expect(youtube.slice(0, youtube.indexOf("</li>"))).toMatch(
-    /1 a week.*1 talking video/i,
+    /1 a week.*1 talking YouTube Short/i,
   );
   expect(html).toContain(
     "<b>Not on Facebook.</b> Product teams do not follow software vendors on Facebook.",

@@ -9,24 +9,66 @@ import { CMO_CHANNELS } from "./cmo-channels.js";
 export const CMO_VOLUME_LEVELS = ["steady", "active", "all_in"] as const;
 export type CmoVolumeLevel = (typeof CMO_VOLUME_LEVELS)[number];
 
-/** Posts a day on a main network; X's feed moves fastest. */
-const MAIN_PER_DAY: Record<CmoVolumeLevel, { x: number; other: number }> = {
-  steady: { x: 1, other: 1 },
-  active: { x: 2, other: 2 },
-  all_in: { x: 3, other: 2 },
+/** The social networks a CMO plan sets a rate for. */
+export type CmoVolumeNetwork =
+  | "x"
+  | "linkedin"
+  | "instagram"
+  | "facebook"
+  | "tiktok"
+  | "youtube";
+
+/**
+ * One network's rate at a plan: `posts` a day or a week (X counts a day,
+ * its feed moves fastest), and where a network splits them, `videos` (Reels,
+ * YouTube Shorts, TikToks, talking videos) a week on their own. Without
+ * `videos` a video counts as one of the posts.
+ */
+export interface CmoNetworkRate {
+  posts: number;
+  per: "day" | "week";
+  videos?: number;
+}
+
+/**
+ * What each plan makes per network (owner, 2026-11-21: "more on every plan,
+ * the top truly over the top"). Cuso writes every strategy at all_in (Scale
+ * and Tester credits make all of it); Starter and Growth make their share.
+ */
+export const CMO_NETWORK_VOLUME: Record<
+  CmoVolumeLevel,
+  Record<CmoVolumeNetwork, CmoNetworkRate>
+> = {
+  steady: {
+    x: { posts: 3, per: "day" },
+    linkedin: { posts: 5, per: "week" },
+    instagram: { posts: 7, per: "week", videos: 5 },
+    facebook: { posts: 5, per: "week" },
+    tiktok: { posts: 0, per: "week", videos: 7 },
+    youtube: { posts: 0, per: "week", videos: 5 },
+  },
+  active: {
+    x: { posts: 4, per: "day" },
+    linkedin: { posts: 7, per: "week" },
+    instagram: { posts: 7, per: "week", videos: 7 },
+    facebook: { posts: 7, per: "week" },
+    tiktok: { posts: 0, per: "week", videos: 14 },
+    youtube: { posts: 0, per: "week", videos: 7 },
+  },
+  all_in: {
+    x: { posts: 6, per: "day" },
+    linkedin: { posts: 7, per: "week" },
+    instagram: { posts: 14, per: "week", videos: 14 },
+    facebook: { posts: 14, per: "week" },
+    tiktok: { posts: 0, per: "week", videos: 21 },
+    youtube: { posts: 0, per: "week", videos: 14 },
+  },
 };
-/** Posts a week on a side network, or one the business has no account on yet. */
-const SIDE_PER_WEEK: Record<CmoVolumeLevel, number> = {
-  steady: 1,
-  active: 2,
-  all_in: 3,
-};
-/** Videos a month, talking or moving: each costs as much as many pictures. */
-const VIDEOS_PER_MONTH: Record<CmoVolumeLevel, number> = {
-  steady: 1,
-  active: 2,
-  all_in: 4,
-};
+
+/** A network's pieces in a 28-day month at a plan. */
+export function cmoNetworkMonth(rate: CmoNetworkRate): number {
+  return rate.posts * (rate.per === "day" ? 28 : 4) + (rate.videos ?? 0) * 4;
+}
 
 interface VolumeEntry {
   id: string;
@@ -36,11 +78,6 @@ interface VolumeEntry {
   status?: string;
   /** A talking video's post on another network: it goes with its video. */
   videoOf?: string;
-}
-
-interface VolumeChannel {
-  channel: string;
-  role?: "main" | "side";
 }
 
 export interface CmoMonthVolume {
@@ -65,24 +102,23 @@ function channelOf(key: string) {
 const DAY_MS = 86_400_000;
 
 /**
- * The part of a month a level makes. A piece that is not a social post (an
- * ad, a newsletter issue) is always made: ads follow the owner's budget and
- * a newsletter its list. Videos are counted across the month, whatever
- * network they start on; the earliest ones are kept, so a bigger plan adds
- * to the month and never swaps a piece.
+ * The part of a month a level makes. The top level makes all of it. A piece
+ * that is not a social post (an ad, a newsletter issue) is always made: ads
+ * follow the owner's budget and a newsletter its list. The earliest pieces
+ * are kept, so a bigger plan adds to the month and never swaps a piece.
  */
 export function cmoMonthAtLevel(
   calendar: readonly VolumeEntry[],
-  channels: readonly VolumeChannel[],
   level: CmoVolumeLevel,
 ): CmoMonthVolume {
   const live = calendar
     .filter((entry) => entry.status !== "skipped")
     .toSorted((a, b) => a.date.localeCompare(b.date));
   const start = Date.parse(live[0]?.date ?? "");
-  const roles = new Map(
-    channels.map((channel) => [channel.channel.toLowerCase(), channel.role]),
-  );
+  const rates =
+    level === "all_in"
+      ? null
+      : (CMO_NETWORK_VOLUME[level] as Record<string, CmoNetworkRate>);
   const made = new Set<string>();
   const taken = new Map<string, number>();
   const take = (slot: string, most: number, entry: VolumeEntry) => {
@@ -98,20 +134,16 @@ export function cmoMonthAtLevel(
     const key = entry.channel.toLowerCase();
     const channel = channelOf(key);
     const format = channel?.formats[entry.format];
-    if (channel?.owner !== "connect") {
+    const week = Math.floor((Date.parse(entry.date) - start) / DAY_MS / 7);
+    const rate = rates?.[key];
+    if (!rate || channel?.owner !== "connect") {
       made.add(entry.id);
-    } else if (format?.video) {
-      take("video", VIDEOS_PER_MONTH[level], entry);
-    } else if (roles.get(key) === "side") {
-      const week = Math.floor((Date.parse(entry.date) - start) / DAY_MS / 7);
-      take(`${key}:week:${week}`, SIDE_PER_WEEK[level], entry);
+    } else if (format?.video && rate.videos !== undefined) {
+      take(`${key}:video:${week}`, rate.videos, entry);
+    } else if (rate.per === "day") {
+      take(`${key}:${entry.date}`, rate.posts, entry);
     } else {
-      const perDay = MAIN_PER_DAY[level];
-      take(
-        `${key}:${entry.date}`,
-        key === "x" ? perDay.x : perDay.other,
-        entry,
-      );
+      take(`${key}:week:${week}`, rate.posts, entry);
     }
     if (!made.has(entry.id)) continue;
     if (channel?.owner === "connect") posts += 1;
@@ -127,9 +159,9 @@ export function cmoMonthAtLevel(
 }
 
 /**
- * The level a CMO plan makes, by its tier: Starter one post a day on a main
- * network, Growth two, Scale up to three. Tester credits and a tier this
- * build does not know make the whole month.
+ * The level a CMO plan makes, by its tier: Starter and Growth their rates in
+ * `CMO_NETWORK_VOLUME`, Scale the whole month. Tester credits and a tier
+ * this build does not know make the whole month.
  */
 export function cmoVolumeLevelForTier(tier: string | null): CmoVolumeLevel {
   const level = TIER_LEVELS[tier?.trim().toLowerCase() ?? ""];

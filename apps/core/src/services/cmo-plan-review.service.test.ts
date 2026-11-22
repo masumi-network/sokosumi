@@ -20,10 +20,12 @@ vi.mock("@/lib/soko-bot/jev", () => ({
 import {
   cmoCalendarLanguage,
   cmoCalendarRepeats,
+  cmoChannelFitProblems,
   cmoDistinctClaims,
   cmoDraftProblems,
   cmoFollowCadenceChange,
   cmoFunnelPlanProblems,
+  cmoLeftOutProblems,
   cmoMonthShortfall,
   cmoNewNetworkProblems,
   cmoPlanDrift,
@@ -1170,6 +1172,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       everyNetwork: true,
       claims: false,
       partPatch: false,
+      channelFit: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-weekly"])).toEqual({
       weekly: true,
@@ -1177,6 +1180,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       everyNetwork: false,
       claims: false,
       partPatch: false,
+      channelFit: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-part-patch"])).toEqual({
       weekly: true,
@@ -1184,6 +1188,15 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       everyNetwork: true,
       claims: true,
       partPatch: true,
+      channelFit: false,
+    });
+    expect(cmoStrategyRules(["cmo-strategy-channel-fit"])).toEqual({
+      weekly: true,
+      aida: true,
+      everyNetwork: true,
+      claims: true,
+      partPatch: true,
+      channelFit: true,
     });
     expect(cmoStrategyRules(["cmo-strategy-patches"])).toEqual({
       weekly: false,
@@ -1191,6 +1204,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       everyNetwork: false,
       claims: false,
       partPatch: false,
+      channelFit: false,
     });
   });
 
@@ -1801,7 +1815,8 @@ describe("a pace or cadence only the owner lowers", () => {
         top,
         "Can we post a bit less overall?",
       ).channels.map((item) => item.setByOwner ?? false),
-    ).toEqual([true, true, false]);
+      // cmo-v14 holds a side network to its network's rate too.
+    ).toEqual([true, true, true]);
     expect(
       cmoWithOwnerPace(xLess, top, "Add a post about our launch").channels.map(
         (item) => item.setByOwner ?? false,
@@ -1862,6 +1877,7 @@ describe("claims", () => {
       everyNetwork: true,
       claims: true,
       partPatch: false,
+      channelFit: false,
     });
     const strategy = plan({
       calendar: [
@@ -2196,5 +2212,217 @@ describe("cmoFollowCadenceChange", () => {
 
   it("leaves a calendar alone when no cadence changed", () => {
     expect(cmoFollowCadenceChange(before, before)).toBe(before);
+  });
+});
+
+// Owner, 2026-11-21, on NMKR's month: too few on X, too many on LinkedIn,
+// not enough pictures, TikToks or Reels, and the platforms' own names.
+describe("each network at its own rate, for a Cuso on cmo-v14", () => {
+  const fit = { everyNetwork: true, channelFit: true } as const;
+  const days = (count: number, make: (day: string, index: number) => object) =>
+    Array.from({ length: count }, (_, index) =>
+      make(
+        new Date(Date.UTC(2026, 10, 2 + (index % 28)))
+          .toISOString()
+          .slice(0, 10),
+        index,
+      ),
+    );
+  const stage = (
+    name: string,
+    plays: { channel: string; what: string }[],
+    cusoDoes = "I post on X.",
+  ) => ({
+    stage: name,
+    goal: "g",
+    channels: [],
+    metric: "Visits",
+    cusoDoes,
+    plays,
+  });
+  const funnel = [
+    stage("awareness", [
+      { channel: "x", what: "Launch decisions" },
+      { channel: "linkedin", what: "Launch stories" },
+    ]),
+    stage("interest", [{ channel: "linkedin", what: "Walkthroughs" }]),
+    stage("desire", [{ channel: "x", what: "Customer results" }]),
+    stage("action", [{ channel: "x", what: "The free-account offer" }]),
+  ] as MarketingStrategyPlan["funnel"];
+  const channels = [
+    { channel: "x", cadence: "4 a day", why: "Builders", role: "main" },
+    { channel: "linkedin", cadence: "1 a day", why: "Leads", role: "main" },
+  ] as MarketingStrategyPlan["channels"];
+
+  it("asks for a picture on one X post in two and on most other posts", () => {
+    const calendar = [
+      ...days(20, (date, index) => ({
+        ...entry(`x-${index}`, "x", index < 4 ? "image" : "post"),
+        date,
+      })),
+      ...days(12, (date, index) => ({
+        ...entry(`li-${index}`, "linkedin", index < 6 ? "image" : "post"),
+        date,
+      })),
+    ] as MarketingStrategyPlan["calendar"];
+    expect(cmoChannelFitProblems(plan({ channels, funnel, calendar }))).toEqual(
+      [
+        "x has 4 of 20 posts with a picture; give at least one X post in two a picture you make (format image). People stop for pictures.",
+        "linkedin has 6 of 12 posts without a picture or video; give most of them a picture, several pictures or a video, at most one in four words only.",
+      ],
+    );
+  });
+
+  it("puts every main network at awareness, proof at desire and Cuso's offer posts at action", () => {
+    const problems = cmoChannelFitProblems(
+      plan({
+        channels,
+        funnel: [
+          stage("awareness", [{ channel: "x", what: "Launch decisions" }]),
+          stage("interest", [{ channel: "linkedin", what: "Walkthroughs" }]),
+          stage("desire", [{ channel: "newsletter", what: "One decision" }]),
+          stage("action", [], "Nothing here: accounts start on your site."),
+        ] as MarketingStrategyPlan["funnel"],
+      }),
+    );
+    expect(problems).toEqual([
+      expect.stringContaining(
+        "linkedin is a main network but not at awareness",
+      ),
+      expect.stringContaining("the desire stage rests on newsletter"),
+      expect.stringContaining("the action stage has no work of yours"),
+    ]);
+    expect(cmoChannelFitProblems(plan({ channels, funnel }))).toEqual([]);
+  });
+
+  it("asks for the platforms' own names, never talking or short video", () => {
+    const problems = cmoChannelFitProblems(
+      plan({
+        channels,
+        funnel: funnel.map((item) =>
+          item.stage === "interest"
+            ? {
+                ...item,
+                plays: [
+                  { channel: "linkedin", what: "Short walkthrough videos" },
+                ],
+              }
+            : item,
+        ),
+      }),
+    );
+    expect(problems).toEqual([]);
+    expect(
+      cmoChannelFitProblems(
+        plan({
+          channels,
+          funnel: funnel.map((item) =>
+            item.stage === "interest"
+              ? {
+                  ...item,
+                  plays: [
+                    { channel: "linkedin", what: "Weekly talking videos" },
+                  ],
+                }
+              : item,
+          ),
+        }),
+      ),
+    ).toEqual([
+      expect.stringContaining('"Weekly talking videos" names a format'),
+    ]);
+  });
+
+  it("never leaves a connected network out", () => {
+    const strategy = plan({
+      leftOut: [{ channel: "facebook", why: "Crypto builders, not locals" }],
+    });
+    expect(
+      cmoLeftOutProblems(strategy, { ...fit, connectedNetworks: ["facebook"] }),
+    ).toEqual([
+      "leftOut leaves facebook out, but the business has connected its facebook account: its audience is already there. Plan facebook.",
+    ]);
+    expect(
+      cmoLeftOutProblems(strategy, { connectedNetworks: ["facebook"] }),
+    ).toEqual([]);
+  });
+
+  it("takes each network's own top rate", () => {
+    expect(
+      cmoTopVolumeProblems(
+        plan({
+          pace: { level: "all_in", why: "w", perWeek: 70 },
+          channels: [
+            { channel: "x", cadence: "3 a day", why: "w", role: "main" },
+            { channel: "linkedin", cadence: "1 a day", why: "w", role: "main" },
+            { channel: "tiktok", cadence: "1 a week", why: "w", role: "main" },
+          ] as MarketingStrategyPlan["channels"],
+        }),
+        fit,
+      ),
+    ).toEqual([
+      'x has the cadence "3 a day"; at the top volume a main x takes 6 a day. Set it and plan its pieces, unless the owner asked for less.',
+      'tiktok has the cadence "1 a week"; at the top volume a main tiktok takes 3 TikToks a day. Set it and plan its pieces, unless the owner asked for less.',
+    ]);
+  });
+
+  it("refuses LinkedIn twice a day, allows TikToks every day and keeps four talking videos", () => {
+    const calendar = [
+      ...days(56, (date, index) => ({
+        ...entry(`li-${index}`, "linkedin", "image"),
+        date,
+      })),
+      ...days(56, (date, index) => ({
+        ...entry(`tt-${index}`, "tiktok", "video"),
+        date,
+      })),
+      ...days(5, (date, index) => ({
+        ...entry(`tv-${index}`, "instagram", "talking_video"),
+        date,
+      })),
+    ] as MarketingStrategyPlan["calendar"];
+    const problems = cmoPlanProblems(plan({ calendar }), fit);
+    expect(problems).toContain(
+      "linkedin has 56 pieces, more than 1 a day; spread the pace over every network in the strategy instead.",
+    );
+    expect(problems.some((problem) => problem.startsWith("tiktok has"))).toBe(
+      false,
+    );
+    expect(problems).toContainEqual(
+      expect.stringContaining("calendar has 5 talking videos"),
+    );
+    expect(
+      problems.some((problem) => problem.includes("plan at most 4 a month.")),
+    ).toBe(false);
+    // The same month on cmo-v13 holds too many videos.
+    expect(
+      cmoPlanProblems(plan({ calendar }), { everyNetwork: true }),
+    ).toContainEqual(expect.stringContaining("plan at most 4 a month"));
+  });
+
+  it("lets the whole top month through: 504 pieces, 196 of them videos", () => {
+    const rates: [string, string, number][] = [
+      ["x", "image", 168],
+      ["linkedin", "image", 28],
+      ["instagram", "carousel", 56],
+      ["instagram", "reel", 56],
+      ["facebook", "image", 56],
+      ["tiktok", "video", 84],
+      ["youtube", "short", 56],
+    ];
+    const calendar = rates.flatMap(([network, format, count]) =>
+      days(count, (date, index) => ({
+        ...entry(`${network}-${format}-${index}`, network, format),
+        date,
+      })),
+    ) as MarketingStrategyPlan["calendar"];
+    expect(calendar).toHaveLength(504);
+    const problems = cmoPlanProblems(plan({ calendar }), fit);
+    expect(
+      problems.filter((problem) => / has \d+ pieces, more than /.test(problem)),
+    ).toEqual([]);
+    expect(
+      problems.filter((problem) => problem.includes("videos; plan at most")),
+    ).toEqual([]);
   });
 });

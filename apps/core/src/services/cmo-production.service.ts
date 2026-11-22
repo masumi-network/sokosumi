@@ -739,7 +739,7 @@ export async function readCmoProduction(
   // The month is written at the top volume; the plan bought decides how much
   // of it is made, and a bigger plan makes more of the same month.
   const level = await cmoPlanLevel(cuso.projectId, now);
-  const inPlan = cmoMonthAtLevel(strategy.calendar, strategy.channels, level);
+  const inPlan = cmoMonthAtLevel(strategy.calendar, level);
   const beyondPlan = strategy.calendar
     .filter(
       (entry) =>

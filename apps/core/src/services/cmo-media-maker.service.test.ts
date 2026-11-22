@@ -729,14 +729,14 @@ describe("advanceCmoMedia", () => {
 
   it("starts each piece's picture once, within the month's limit, from the brand's pictures", async () => {
     jobFindMany.mockResolvedValue([]);
-    jobCount.mockResolvedValue(4);
+    jobCount.mockResolvedValue(10);
     await advanceCmoMedia(context, [
       piece({ id: "a", socialPostId: "a" }),
       piece({ id: "b", socialPostId: "b", visualFileIds: ["f-photo"] }),
       piece({ id: "c", socialPostId: "c" }),
       piece({ id: "d", socialPostId: "d", visual: undefined }),
     ]);
-    // Four jobs already run in the Project: two more fit of the month's six.
+    // Ten jobs already run in the Project: two more fit of the month's twelve.
     expect(createImageJob).toHaveBeenCalledTimes(2);
     expect(createImageJob.mock.calls[0]?.[0]).toMatchObject({
       userId: "runner-1",
@@ -1729,7 +1729,7 @@ describe("a cmo-v11 picture", () => {
       expect(calls.every((input) => input.styleLayoutOnly)).toBe(true);
       expect(calls[0].idempotencyKey).toMatch(/:image:[0-9a-f]{10}:p1$/);
       expect(calls[0].prompt).toContain("Image 1 is a block map of a layout");
-      expect(calls[0].monthConcurrency).toBe(15);
+      expect(calls[0].monthConcurrency).toBe(25);
     });
 
     it("checks each alternative, picks among those that passed, records why, and posts the winner", async () => {

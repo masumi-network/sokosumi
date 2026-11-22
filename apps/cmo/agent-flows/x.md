@@ -2,7 +2,7 @@
 
 **Cuso does**
 
-- About three posts a day from the month's themes; one in three with a picture.
+- About three posts a day from the month's themes; one in three with a picture. From cmo-v14: six a day at the top plan, at least one in two with a picture (Starter makes three a day, Growth four).
 - A same-day reaction to industry news or a competitor's move.
 - Turns a post that did well into a thread, or into a LinkedIn post.
 

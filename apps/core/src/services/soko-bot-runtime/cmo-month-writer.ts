@@ -84,7 +84,11 @@ import { type RuntimeOperations } from "./operations";
  * a model call, the saves, the month's checks and the repair each stop in
  * time to answer; what it did not save stays pending for the next call.
  */
-const PIECES_PER_CALL = 40;
+/**
+ * Sixty a call, six chunks at once under the same deadline: cmo-v14's top
+ * month (504 pieces) takes nine calls instead of thirteen.
+ */
+const PIECES_PER_CALL = 60;
 const PIECES_PER_CHUNK = 10;
 const MODEL_TIMEOUT_MS = 75_000;
 /** What the writer leaves of its tool timeout to answer and log. */
