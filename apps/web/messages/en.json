@@ -11004,8 +11004,6 @@
         "failures": "Failures",
         "disabled": "disabled",
         "yourTime": "({datetime} your time)",
-        "enable": "Enable {name}",
-        "disable": "Disable {name}",
         "delete": "Delete",
         "deleteNamed": "Delete {name}",
         "deleteTitle": "Delete {name}?",

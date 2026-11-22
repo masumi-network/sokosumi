@@ -124,19 +124,24 @@ for (const { name, ...viewport } of PROJECTS) {
         .getByRole("button", { name: "Delete", exact: true })
         .boundingBox();
       assert.ok(archive && remove);
+      // gap-2: 8px apart in one row, or 8px below when Delete wraps.
+      const sameRow = Math.abs(remove.y - archive.y) < 1;
       assert.ok(
-        remove.y > archive.y || remove.x - (archive.x + archive.width) >= 8,
+        sameRow
+          ? remove.x - (archive.x + archive.width) >= 8
+          : remove.y - (archive.y + archive.height) >= 8,
         "Archive and Delete touch",
       );
       await shot("3-settings");
 
       // Each schedule's controls carry its name, so a cut-off row is clear.
       await page.goto(`${BASE_URL}/personal-assistant`);
-      await main.getByRole("switch", { name: "Disable Dreaming" }).waitFor();
-      assert.equal(
-        await main.getByRole("switch", { name: "Disable schedule" }).count(),
-        0,
-      );
+      const dreaming = main.getByRole("switch", {
+        name: "Dreaming",
+        exact: true,
+      });
+      await dreaming.waitFor();
+      assert.equal(await dreaming.getAttribute("aria-checked"), "true");
       await shot("4-schedules");
 
       await context.close();

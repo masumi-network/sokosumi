@@ -171,7 +171,7 @@ function ScheduleRow({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           {/* Wraps: on a phone the controls leave room for a few letters. */}
-          <p className="text-sm font-medium break-words">
+          <p className="text-sm font-medium wrap-anywhere">
             {schedule.name}
             {schedule.systemKey ? (
               <span className="text-muted-foreground ml-1.5 text-2xs whitespace-nowrap">

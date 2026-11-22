@@ -114,15 +114,12 @@ describe("ScheduleRowActions", () => {
       <ScheduleRowActions scheduleId="s1" name="Dreaming" enabled />,
     );
 
-    expect(
-      screen.getByRole("switch", { name: "disable Dreaming" }),
-    ).toBeInTheDocument();
+    // One name in both states; the checked state says on or off.
+    expect(screen.getByRole("switch", { name: "Dreaming" })).toBeChecked();
     rerender(
       <ScheduleRowActions scheduleId="s1" name="Dreaming" enabled={false} />,
     );
-    expect(
-      screen.getByRole("switch", { name: "enable Dreaming" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Dreaming" })).not.toBeChecked();
 
     fireEvent.click(
       screen.getByRole("button", { name: "deleteNamed Dreaming" }),

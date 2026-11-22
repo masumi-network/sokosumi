@@ -97,7 +97,8 @@ export function ScheduleRowActions({
         checked={shown}
         onCheckedChange={toggle}
         disabled={isPending}
-        aria-label={shown ? t("disable", { name }) : t("enable", { name })}
+        // One name in both states (ARIA switch); its checked state says on or off.
+        aria-label={name}
       />
       {deletable ? (
         <AlertDialog>
@@ -115,7 +116,10 @@ export function ScheduleRowActions({
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>{t("deleteTitle", { name })}</AlertDialogTitle>
+              {/* wrap-anywhere: a long unbroken name would widen the dialog past the screen. */}
+              <AlertDialogTitle className="wrap-anywhere">
+                {t("deleteTitle", { name })}
+              </AlertDialogTitle>
               <AlertDialogDescription>
                 {t("deleteDescription")}
               </AlertDialogDescription>

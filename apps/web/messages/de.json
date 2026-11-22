@@ -11004,8 +11004,6 @@
         "failures": "Fehler",
         "disabled": "deaktiviert",
         "yourTime": "({datetime} bei dir)",
-        "enable": "{name} aktivieren",
-        "disable": "{name} deaktivieren",
         "delete": "Löschen",
         "deleteNamed": "{name} löschen",
         "deleteTitle": "{name} löschen?",
