@@ -2,12 +2,14 @@
 
 import { Play } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
+import { useSeoAgentLeadFocusRecovery } from "@/hooks/effects/use-seo-agent-lead-focus-recovery";
+import { useSeoAgentVerdictFocus } from "@/hooks/effects/use-seo-agent-verdict-focus";
 import {
   useSeoResultFormatter,
   useSeoResultTranslations,
@@ -117,10 +119,7 @@ function SeoAgentPanel({
   // The button that started the check leaves with the setup card. Focus that
   // fell to the page moves to the result; focus anywhere else is left alone.
   const verdict = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
-    if (checkSeen && !checkRunning && document.activeElement === document.body)
-      verdict.current?.focus();
-  }, [checkSeen, checkRunning]);
+  useSeoAgentVerdictFocus(verdict, checkSeen, checkRunning);
   // The action whose card is open in the dialog. It is read from the data, so a Task for it shows in the card.
   const [dialogKey, setDialogKey] = useState<string | null>(null);
   const dialogRow = useRef<HTMLButtonElement | null>(null);
@@ -191,15 +190,7 @@ function SeoAgentPanel({
       : lead.kind
     : null;
   // Only focus that was in the list of steps counts: a page nobody has entered also has its focus on the body.
-  const leadSeen = useRef(leadKey);
-  const leadFocused = useRef(false);
-  useEffect(() => {
-    if (leadSeen.current === leadKey) return;
-    leadSeen.current = leadKey;
-    if (leadFocused.current && document.activeElement === document.body)
-      verdict.current?.focus();
-    leadFocused.current = false;
-  }, [leadKey]);
+  const leadFocused = useSeoAgentLeadFocusRecovery(verdict, leadKey);
   const periodId = useId();
   const numbers = seoSummary(model.data);
   // The headline carries the severities, so the Agent tab needs no issues tile.

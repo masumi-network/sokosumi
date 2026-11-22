@@ -2,7 +2,7 @@
 
 import { RotateCw } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -12,6 +12,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSeoChatThreadScroll } from "@/hooks/effects/use-seo-chat-thread-scroll";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
@@ -30,8 +31,6 @@ import { useSeoChat } from "./use-seo-chat";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 const SEO_CHAT_SHEET_INPUT_ID = "seo-chat-question";
-/** Room above a reply that just landed, so its question is not on the edge. */
-const LANDED_INSET_PX = 16;
 
 type Chat = ReturnType<typeof useSeoChat>;
 
@@ -80,13 +79,7 @@ function SeoChatThread({
   const landed =
     Boolean(newest) && newest === sent && newest?.status !== "running";
   const follow = `${newest?.id}:${newest?.status}:${chat.pending !== null}`;
-  useEffect(() => {
-    const box = thread.current;
-    if (!box) return;
-    const last = box.querySelector<HTMLElement>("article:last-of-type");
-    box.scrollTop =
-      landed && last ? last.offsetTop - LANDED_INSET_PX : box.scrollHeight;
-  }, [follow, landed]);
+  useSeoChatThreadScroll(thread, follow, landed);
   // Spoken, and short: the question this panel sent is out, its reply has
   // landed, or its turn failed after the send. Old turns stay quiet, and a
   // send that fails speaks through the composer's alert.

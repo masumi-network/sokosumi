@@ -1,4 +1,4 @@
-import type { TaskEvent } from "@sokosumi/core-client";
+import { Channel, type TaskEvent } from "@sokosumi/core-client";
 import { act, render } from "@testing-library/react";
 import { Activity, StrictMode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -13,7 +13,23 @@ vi.mock("@/app/chat/utils/room-message-highlight", () => ({
 import { useTaskActivityJumpHighlight } from "./use-task-activity-jump-highlight";
 
 function makeEvent(id: string): TaskEvent {
-  return { id } as unknown as TaskEvent;
+  return {
+    id,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    taskId: "task-1",
+    status: null,
+    comment: null,
+    authenticationUrl: null,
+    channel: Channel.SOKOSUMI,
+    origin: Channel.SOKOSUMI,
+    actor: null,
+    userId: null,
+    user: null,
+    coworkerId: null,
+    transactionId: null,
+    credits: null,
+  };
 }
 
 describe("useTaskActivityJumpHighlight", () => {

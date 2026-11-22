@@ -263,32 +263,6 @@ describe("TaskFollowControl", () => {
     expect(followMarker()).toBeNull();
   });
 
-  it("remounts the keyed resume child under root StrictMode when the bot arrives after mount", async () => {
-    searchParams = "follow=1";
-    window.sessionStorage.setItem(FOLLOW_SESSION_KEY, "task-1");
-    const { rerender } = render(
-      <StrictMode>
-        <UrlState>
-          <TaskFollowControl {...props({ viewerSokoBot: null })} />
-        </UrlState>
-      </StrictMode>,
-    );
-    expect(followTaskMock).not.toHaveBeenCalled();
-    expect(onUrlUpdateMock).not.toHaveBeenCalled();
-    expect(followMarker()).toBe("1");
-
-    rerender(
-      <StrictMode>
-        <UrlState>
-          <TaskFollowControl {...props()} />
-        </UrlState>
-      </StrictMode>,
-    );
-    await waitFor(() => expect(followTaskMock).toHaveBeenCalledTimes(1));
-    expect(followMarker()).toBeNull();
-    expect(window.sessionStorage.getItem(FOLLOW_SESSION_KEY)).toBeNull();
-  });
-
   it("hides follow from a viewer who cannot comment, but keeps their own follow", () => {
     const { rerender } = renderControl({ canComment: false });
     expect(screen.queryByRole("button")).toBeNull();

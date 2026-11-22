@@ -10,21 +10,21 @@ import type { SubtaskRow } from "@/app/tasks/utils/task-subtask-row";
  */
 export function useTaskSubtasksCacheSync(
   queryClient: QueryClient,
-  queryKey: readonly ["task-subtasks", string],
+  parentTaskId: string,
   initialRows: SubtaskRow[],
   renderedAt: number,
 ): void {
-  const parentTaskId = queryKey[1];
   // The cache outlives the page. A refresh brings newer page rows; Back can
   // replay older ones, so only newer rows replace it. A change in flight
   // keeps its optimistic order.
   useEffect(() => {
-    const cachedAt = queryClient.getQueryState(queryKey)?.dataUpdatedAt ?? 0;
+    const key = ["task-subtasks", parentTaskId] as const;
+    const cachedAt = queryClient.getQueryState(key)?.dataUpdatedAt ?? 0;
     if (
       renderedAt > cachedAt &&
-      queryClient.isMutating({ mutationKey: queryKey }) === 0
+      queryClient.isMutating({ mutationKey: key }) === 0
     )
-      queryClient.setQueryData(queryKey, initialRows, {
+      queryClient.setQueryData(key, initialRows, {
         updatedAt: renderedAt,
       });
   }, [queryClient, parentTaskId, initialRows, renderedAt]);

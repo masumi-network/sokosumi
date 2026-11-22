@@ -204,7 +204,7 @@ export function useTaskSubtasks({
   // The cache outlives the page. A refresh brings newer page rows; Back can
   // replay older ones, so only newer rows replace it. A change in flight
   // keeps its optimistic order.
-  useTaskSubtasksCacheSync(queryClient, queryKey, initialRows, renderedAt);
+  useTaskSubtasksCacheSync(queryClient, parentTaskId, initialRows, renderedAt);
 
   // Changes overlap: a quick second toggle starts before the first settles.
   const lastInFlight = () =>

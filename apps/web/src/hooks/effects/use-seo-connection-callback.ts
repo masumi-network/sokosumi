@@ -1,7 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useEffect, useRef, useState } from "react";
 import { toActionRejectionError } from "@/lib/actions/errors/action-error";
 import { finalizeSeoStatisticsAction } from "@/lib/actions/seo-connections/action";
 import {
@@ -90,13 +89,13 @@ export function useSeoConnectionCallback(
       if (alive.current) setBusy(false);
     }
   }
-  useMountEffect(() => {
+  useEffect(() => {
     alive.current = true;
     void complete();
     return () => {
       alive.current = false;
     };
-  });
+  }, []);
   const canRetry =
     error !== null &&
     ["activationPending", "temporarilyUnavailable", "connectFailed"].includes(

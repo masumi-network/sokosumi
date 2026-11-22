@@ -1,10 +1,13 @@
 "use client";
 
-import type { UserWritableTaskLinkRelation } from "@sokosumi/core-client";
+import type {
+  GetTasksResponse,
+  UserWritableTaskLinkRelation,
+} from "@sokosumi/core-client";
 import type { LucideIcon } from "lucide-react";
 import { Link2, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   CommandDialog,
   CommandEmpty,
@@ -13,10 +16,15 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { useTaskLinkPickerTasks } from "@/hooks/effects/use-task-link-picker-tasks";
 import { useTimeout } from "@/hooks/effects/use-timeout";
+import { coreClient } from "@/lib/clients/core.browser.client";
 
-import type { TaskPickerTask } from "./task-detail-api-types";
+import {
+  mapTaskListItemToTaskPickerTask,
+  type TaskPickerTask,
+} from "./task-detail-api-types";
+
+const TASK_PICKER_PAGE_SIZE = 20;
 
 /** What a picked Task is for: a link relation, or a sub-task move. */
 export interface TaskPickerOption {
@@ -87,6 +95,91 @@ function TaskPickerBody<TOption extends TaskPickerOption>({
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
   const [taskPickerQuery, setTaskPickerQuery] = useState("");
   const [debouncedTaskPickerQuery, setDebouncedTaskPickerQuery] = useState("");
+  const [taskPickerResults, setTaskPickerResults] = useState<TaskPickerTask[]>(
+    [],
+  );
+  const [taskPickerNextCursor, setTaskPickerNextCursor] = useState<
+    string | null
+  >(null);
+  const [taskPickerError, setTaskPickerError] = useState<string | null>(null);
+  const [isTaskPickerLoading, setIsTaskPickerLoading] = useState(false);
+  const [isTaskPickerLoadingMore, setIsTaskPickerLoadingMore] = useState(false);
+  const taskPickerRequestIdRef = useRef(0);
+
+  const loadTaskPickerTasks = useEffectEvent(
+    async ({
+      query,
+      cursor,
+      append,
+    }: {
+      query: string;
+      cursor?: string | null;
+      append: boolean;
+    }) => {
+      const requestId = ++taskPickerRequestIdRef.current;
+
+      if (append) {
+        setIsTaskPickerLoadingMore(true);
+      } else {
+        setIsTaskPickerLoading(true);
+      }
+
+      setTaskPickerError(null);
+
+      try {
+        const response = (await coreClient.getTasks({
+          q: query || undefined,
+          cursor: cursor ?? undefined,
+          limit: TASK_PICKER_PAGE_SIZE,
+          ...(selectedOption?.includeSubtasks
+            ? { includeSubtasks: "true" as const }
+            : {}),
+        })) as GetTasksResponse;
+
+        if (requestId !== taskPickerRequestIdRef.current) {
+          return;
+        }
+
+        const nextTasks = response.data
+          .map(mapTaskListItemToTaskPickerTask)
+          .filter(
+            (taskOption) =>
+              taskOption.id !== taskId &&
+              !excludeTaskIds.includes(taskOption.id),
+          );
+
+        setTaskPickerResults((currentResults) =>
+          append ? [...currentResults, ...nextTasks] : nextTasks,
+        );
+        setTaskPickerNextCursor(response.meta?.pagination?.nextCursor ?? null);
+      } catch (_error) {
+        if (requestId !== taskPickerRequestIdRef.current) {
+          return;
+        }
+
+        const message = append
+          ? tDetailActions("taskPickerLoadMoreError")
+          : tDetailActions("taskPickerError");
+
+        if (!append) {
+          setTaskPickerResults([]);
+          setTaskPickerNextCursor(null);
+        }
+
+        setTaskPickerError(message);
+      } finally {
+        if (requestId !== taskPickerRequestIdRef.current) {
+          return;
+        }
+
+        if (append) {
+          setIsTaskPickerLoadingMore(false);
+        } else {
+          setIsTaskPickerLoading(false);
+        }
+      }
+    },
+  );
 
   useTimeout(
     () => {
@@ -96,20 +189,28 @@ function TaskPickerBody<TOption extends TaskPickerOption>({
     taskPickerQuery,
   );
 
-  const {
-    results: taskPickerResults,
-    nextCursor: taskPickerNextCursor,
-    error: taskPickerError,
-    isLoading: isTaskPickerLoading,
-    isLoadingMore: isTaskPickerLoadingMore,
-    loadMore: handleLoadMoreTaskOptions,
-  } = useTaskLinkPickerTasks({
-    taskId,
-    debouncedQuery: debouncedTaskPickerQuery,
-    includeSubtasks: Boolean(selectedOption?.includeSubtasks),
-    excludeTaskIds,
-    tDetailActions,
-  });
+  useEffect(() => {
+    void loadTaskPickerTasks({
+      query: debouncedTaskPickerQuery,
+      append: false,
+    });
+  }, [debouncedTaskPickerQuery]);
+
+  function handleLoadMoreTaskOptions() {
+    if (
+      !taskPickerNextCursor ||
+      isTaskPickerLoadingMore ||
+      isTaskPickerLoading
+    ) {
+      return;
+    }
+
+    void loadTaskPickerTasks({
+      query: debouncedTaskPickerQuery,
+      cursor: taskPickerNextCursor,
+      append: true,
+    });
+  }
 
   return (
     <>

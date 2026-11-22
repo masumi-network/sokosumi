@@ -32,7 +32,7 @@ describe("useTaskSubtasksCacheSync", () => {
       rows: SubtaskRow[];
       renderedAt: number;
     }) {
-      useTaskSubtasksCacheSync(queryClient, key, rows, renderedAt);
+      useTaskSubtasksCacheSync(queryClient, "parent-1", rows, renderedAt);
       return null;
     }
 
@@ -72,7 +72,7 @@ describe("useTaskSubtasksCacheSync", () => {
       rows: SubtaskRow[];
       renderedAt: number;
     }) {
-      useTaskSubtasksCacheSync(queryClient, key, rows, renderedAt);
+      useTaskSubtasksCacheSync(queryClient, "parent-1", rows, renderedAt);
       return null;
     }
 
