@@ -106,8 +106,13 @@ for (const { name: size, isMobile, ...viewport } of SIZES) {
       await card.getByRole("button", { name: "More actions" }).click();
       await page.getByRole("menuitem", { name: "Hide" }).click();
       await card.waitFor({ state: "detached" });
+      // The card leaves at once; "No open projects" only renders once the
+      // Hide is saved and the page re-reads Core (an optimistic empty list
+      // still says "No projects yet"). Then a reload shows it was kept.
+      const noOpen = page.getByRole("heading", { name: "No open projects" });
+      await noOpen.waitFor();
       await page.reload();
-      await page.getByRole("heading", { name: "No open projects" }).waitFor();
+      await noOpen.waitFor();
       assert.equal(
         await page.getByRole("heading", { name: "No projects yet" }).count(),
         0,
