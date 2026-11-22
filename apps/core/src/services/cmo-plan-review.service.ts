@@ -733,18 +733,30 @@ export function cmoPromiseGaps(
 }
 
 /**
- * A month that does not hold what it promises, in numbers the owner reads:
- * the pieces it plans and about how many its pace and cadences promise
- * (the same when only a video is missing). Null when it holds all of it.
+ * A month whose calendar does not hold what its own strategy says: weeks,
+ * pace and cadences, in numbers the owner reads (the pieces it plans and
+ * about how many its pace and cadences promise). The top volume and the
+ * video a funnel play names are Cuso's to finish (finish turns), never a
+ * reason the owner cannot approve: Core fits the strategy to its calendar
+ * once those turns are spent (`cmoFitMonthToCalendar`). Null when it holds.
  */
 export function cmoMonthShortfall(
   strategy: MarketingStrategyPlan,
   options: PlanReviewOptions = {},
 ): { planned: number; promised: number } | null {
-  if (cmoPromiseGaps(strategy, options).length === 0) return null;
   const pieces = strategy.calendar.filter(
     (entry) => entry.status !== "skipped",
   );
+  const weeks = options.weekly
+    ? cmoCalendarWeeks(pieces)
+    : pieces.length > 0
+      ? 4
+      : 0;
+  if (
+    volumeShortfalls(strategy, pieces, weeks, options.channelFit === true)
+      .length === 0
+  )
+    return null;
   const missing = strategy.channels.reduce((sum, channel) => {
     const low = cadenceRange(channel.cadence)?.[0] ?? 0;
     const count = pieces.filter((entry) =>
@@ -758,6 +770,73 @@ export function cmoMonthShortfall(
       (strategy.pace?.perWeek ?? 0) * 4,
       pieces.length + missing,
     ),
+  };
+}
+
+/** The cadence a month's count of pieces meets: "3 a day", "13 a week", "2 a month". */
+function cadenceFor(count: number): string {
+  const perWeek = Math.floor(count / 4);
+  if (perWeek === 0) return `${count} a month`;
+  // A busy feed reads by the day, rounded down so its pieces still meet it.
+  if (perWeek >= 14 || perWeek % 7 === 0)
+    return `${Math.floor(perWeek / 7)} a day`;
+  return `${perWeek} a week`;
+}
+
+/**
+ * The strategy fitted to the calendar Cuso saved, once his finish turns are
+ * spent (owner, 2026-11-22: "this generation should never fail"): each
+ * channel whose cadence promises more than its pieces says what they hold,
+ * a channel with none leaves the strategy, and the pace says the calendar's
+ * pieces a week. Nothing in the calendar changes, so the plan the owner buys
+ * still decides how much of it is made.
+ */
+export function cmoFitMonthToCalendar(
+  strategy: MarketingStrategyPlan,
+): MarketingStrategyPlan {
+  const pieces = strategy.calendar.filter(
+    (entry) => entry.status !== "skipped",
+  );
+  const counts = new Map(
+    strategy.channels.map((channel) => [
+      channel.channel,
+      pieces.filter((entry) => goesOutOn(entry, channel.channel)).length,
+    ]),
+  );
+  const empty = strategy.channels.filter(
+    (channel) =>
+      counts.get(channel.channel) === 0 &&
+      isSocialChannel(channel.channel) &&
+      cadenceRange(channel.cadence) !== null,
+  );
+  const channels = strategy.channels
+    .filter((channel) => !empty.includes(channel))
+    .map((channel) => {
+      const range = cadenceRange(channel.cadence);
+      const count = counts.get(channel.channel) ?? 0;
+      return range && count < range[0]
+        ? { ...channel, cadence: cadenceFor(count) }
+        : channel;
+    });
+  const weeks = Math.max(1, Math.min(4, cmoCalendarWeeks(pieces)));
+  const perWeek = Math.floor(pieces.length / weeks);
+  return {
+    ...strategy,
+    channels,
+    ...(empty.length > 0
+      ? {
+          leftOut: [
+            ...(strategy.leftOut ?? []),
+            ...empty.map((channel) => ({
+              channel: channel.channel,
+              why: "Not planned this month.",
+            })),
+          ],
+        }
+      : {}),
+    ...(strategy.pace && strategy.pace.perWeek > perWeek
+      ? { pace: { ...strategy.pace, perWeek } }
+      : {}),
   };
 }
 

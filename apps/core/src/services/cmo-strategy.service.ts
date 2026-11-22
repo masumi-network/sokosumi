@@ -54,6 +54,7 @@ import {
 import {
   CMO_MAX_VIDEOS_PER_MONTH,
   cmoCalendarWeeks,
+  cmoFitMonthToCalendar,
   cmoFollowCadenceChange,
   cmoMonthShortfall,
   cmoPlanRulesBrokenSince,
@@ -489,11 +490,20 @@ async function startCmoMonthFinish(
   const most = rules.channelFit
     ? CMO_CHANNEL_FIT_FINISH_TURNS
     : CMO_MONTH_FINISH_TURNS;
-  if (round >= most) return null;
   const plan = version?.approvedAt ? null : parseMarketingPlan(version?.plan);
-  if (!plan) return null;
+  if (!version || !plan) return null;
   const gaps = cmoPromiseGaps(plan, rules);
   if (gaps.length === 0) return null;
+  if (round >= most) {
+    // The turns are spent: the strategy says what its calendar holds, so the
+    // owner can always approve it.
+    if (cmoMonthShortfall(plan, rules))
+      await prisma.marketingStrategy.update({
+        where: { id: version.id },
+        data: { plan: jsonInput(cmoFitMonthToCalendar(plan)) },
+      });
+    return null;
+  }
   const userId = input.userId ?? (await cmoRunnerUserId(cuso));
   if (!userId) return null;
   const weeks = cmoCalendarWeeks(plan.calendar);
@@ -1665,7 +1675,7 @@ export async function requireCmoStrategyFitted(
   }
   if (cmoStrategyShortfall(bot?.versionId ?? null, version.plan)) {
     throw new CmoConflictError(
-      "This strategy promises more than its calendar holds. Ask Cuso to write it again, then approve it.",
+      "Cuso is still filling this month. Approve it once he is done.",
     );
   }
 }

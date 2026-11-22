@@ -1,5 +1,5 @@
 import type { CmoOverview } from "@sokosumi/core-client";
-import { channelInfo } from "./channels";
+import { channelInfo, channelKey } from "./channels";
 
 /** Whether the newest strategy version is approved, so Cuso carries it out. */
 export function strategyApproved(
@@ -78,4 +78,32 @@ export function monthLabel(calendar: readonly CalendarEntry[]): string {
  */
 export function planChosen(overview: Pick<CmoOverview, "billing">): boolean {
   return overview.billing.tier !== null || overview.billing.hasTesterCredits;
+}
+
+/**
+ * The posts a plan makes on each network, busiest first: X 84, LinkedIn 28.
+ * `made` is the plan's share from `cmoMonthAtLevel`; a talking video not yet
+ * split into its copies counts on each network it goes out on. Ads and
+ * newsletter issues are made on every plan, so they stay out.
+ */
+export function madeByNetwork(
+  calendar: readonly CalendarEntry[],
+  made: ReadonlySet<string>,
+): { key: string; posts: number }[] {
+  const counts = new Map<string, number>();
+  for (const entry of calendar) {
+    if (!made.has(entry.id)) continue;
+    const split = calendar.some((copy) => copy.videoOf === entry.id);
+    for (const network of [
+      entry.channel,
+      ...(split ? [] : (entry.alsoOn ?? [])),
+    ]) {
+      const key = channelKey(network) ?? network;
+      if (channelInfo(key)?.owner !== "connect") continue;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+  }
+  return [...counts]
+    .map(([key, posts]) => ({ key, posts }))
+    .sort((a, b) => b.posts - a.posts);
 }

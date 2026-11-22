@@ -912,7 +912,9 @@ it("leaves the volume to the plan: no pace to tap on the strategy", async () => 
     async () => null,
   );
   expect(() => button("All-in")).toThrow();
-  expect(text()).toContain("This month is written at the most a plan makes.");
+  // What each plan makes, per network, instead of a pace.
+  expect(text()).toContain("What each plan makes");
+  expect(text()).toContain("StarterGrowthScale");
 });
 
 it("re-plans on a new ad budget at once, and keeps the amount when it is refused", async () => {
@@ -1324,10 +1326,7 @@ it("updates the plan after a No with a note, and shows it fitting", async () => 
   await act(async () => fitting.answer(null));
 });
 
-it("offers no approval for a month short of what it promises, only a new strategy", async () => {
-  const actions = planActions({
-    requestStrategy: vi.fn(async () => ({ overview: null, error: null })),
-  });
+it("never blocks approval on a short month: one line, one number, Approve", async () => {
   await act(async () =>
     root.render(
       <OnboardingFlow
@@ -1336,18 +1335,16 @@ it("offers no approval for a month short of what it promises, only a new strateg
           strategyShort: { planned: 64, promised: 172 },
         }}
         messages={[]}
-        actions={actions}
+        actions={planActions()}
       />,
     ),
   );
+  expect(text()).not.toContain("promises about");
+  expect(text()).not.toContain("Write it again");
   expect(text()).toContain(
-    // The page's own count (the lead's), not Core's entry count.
-    "This strategy plans 3 posts, but it promises about 172.",
+    "Up to 3 posts a month. Nothing goes out until you approve.",
   );
-  expect(text()).not.toContain("Approve strategy");
-  await press("Write it again");
-  expect(actions.requestStrategy).toHaveBeenCalledWith(undefined);
-  expect(actions.approveStrategy).not.toHaveBeenCalled();
+  expect(text()).toContain("Approve strategy");
 });
 
 it("lets the owner start over with a whole new strategy from Ask for a change", async () => {
@@ -1368,25 +1365,6 @@ it("lets the owner start over with a whole new strategy from Ask for a change", 
   // No note: Core writes a fresh strategy, as for a new hire.
   expect(actions.requestStrategy).toHaveBeenCalledWith(undefined);
   expect(actions.approveStrategy).not.toHaveBeenCalled();
-});
-
-it("says a month promises more than it holds when only a video is missing", async () => {
-  await act(async () =>
-    root.render(
-      <OnboardingFlow
-        overview={{
-          ...planOverview(),
-          strategyShort: { planned: 80, promised: 80 },
-        }}
-        messages={[]}
-        actions={planActions()}
-      />,
-    ),
-  );
-  expect(text()).toContain(
-    "This strategy promises more than its calendar holds.",
-  );
-  expect(text()).not.toContain("Approve strategy");
 });
 
 it("approves the plan and lands on Launch", async () => {

@@ -16,6 +16,7 @@ import {
 } from "../../lib/strategy";
 import { CusoAvatar } from "../cuso";
 import { EntrySheet } from "../entry-sheet";
+import { PlanSizes } from "../plan-sizes";
 import { AdsChoice, money } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
 import { SubmitButton } from "../submit-button";
@@ -480,8 +481,6 @@ export function PlanReview({
   // Before a plan is picked the month is the most a plan makes: "Up to …".
   const atMost = !planChosen(overview);
   const month = atMost ? `Up to ${count.label}` : count.label;
-  // Core refuses to approve a month short of what it promises.
-  const short = overview.strategyShort;
 
   // Plain async, not a transition: React holds a transition's state updates
   // until it ends, and the re-planning screen must show on the tap. A refusal
@@ -518,21 +517,10 @@ export function PlanReview({
     send("Fitting your strategy to your answers", onUpdate).catch(() => {});
   };
 
-  // What it rests on and the language of the posts, in plain words. No page
-  // count: the screenshots Core keeps are not the pages Cuso read.
-  const line = [
-    atMost
-      ? `${month} for the next four weeks on the biggest plan, built from your website and your answers. The plan you pick decides how many ${AGENT_NAME} makes.`
-      : count.inPlan < count.planned
-        ? `For the next four weeks: ${month}. Built from your website and your answers.`
-        : `${month} for the next four weeks, built from your website and your answers.`,
-    strategy.contentLanguage
-      ? `The posts are written in ${strategy.contentLanguage}.`
-      : null,
-    approved ? null : "Nothing goes out until you approve the strategy.",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  // One short line, one number (owner, 2026-11-22: "too much text").
+  const line = approved
+    ? `${month} this month.`
+    : `${month} a month. Nothing goes out until you approve.`;
   // The short goal is the headline; the long sentence sits under it.
   const sentence = strategy.idea?.sentence ?? strategy.summary;
   const goal = outcomeLine(strategy) || firstClause(sentence);
@@ -542,19 +530,7 @@ export function PlanReview({
       Continue to {ahead.label}
       <ArrowRight size={16} aria-hidden="true" />
     </button>
-  ) : locked ? null : short && !busy ? (
-    <button
-      type="button"
-      className="button"
-      onClick={() => {
-        setRefusal(null);
-        send("Writing your strategy again", () => onRequest()).catch(() => {});
-      }}
-    >
-      Write it again
-      <ArrowRight size={16} aria-hidden="true" />
-    </button>
-  ) : !overview.viewerCanApprove && !unfitted ? (
+  ) : locked ? null : !overview.viewerCanApprove && !unfitted ? (
     <p className="muted">An owner or admin approves the strategy.</p>
   ) : (
     <button
@@ -704,16 +680,6 @@ export function PlanReview({
           skip={skip}
         />
       ) : null}
-      {short && !busy && !locked ? (
-        <p className="alert" role="status">
-          {/* The page's own count, so the lead and this line say one number. */}
-          {short.promised > short.planned
-            ? `This strategy plans ${count.planned} posts, but it promises about ${short.promised}.`
-            : "This strategy promises more than its calendar holds."}{" "}
-          {AGENT_NAME} couldn't fill the month, so it can't be approved. Ask him
-          to write it again.
-        </p>
-      ) : null}
       {stopped ? (
         <p className="alert" role="alert">
           {asked
@@ -741,9 +707,10 @@ export function PlanReview({
           headline
           goal={goal}
           statement={sentence !== goal ? sentence : undefined}
-          facts={goalFacts(strategy, month)}
+          facts={goalFacts(strategy)}
         />
         {readOnly ? <p className="note ob-plan-built">{line}</p> : null}
+        {approved ? null : <PlanSizes strategy={strategy} />}
 
         {changes.length > 0 && !writing ? (
           <div className="card ob-changed">
@@ -804,12 +771,6 @@ export function PlanReview({
                   Update strategy
                 </button>
               </div>
-            ) : null}
-            {strategy.pace ? (
-              <p className="ob-pace note">
-                This month is written at the most a plan makes. Next you pick
-                your plan and see what each one makes on every network.
-              </p>
             ) : null}
             {ads ? (
               <div className="ob-budget">
@@ -976,10 +937,7 @@ function firstClause(text: string): string {
 }
 
 /** Who, what, where and how much, from whatever the plan fills in. */
-function goalFacts(
-  strategy: Strategy,
-  month: string,
-): { term: string; value: string }[] {
+function goalFacts(strategy: Strategy): { term: string; value: string }[] {
   const who =
     strategy.focus?.segment ?? strategy.idea?.who ?? strategy.audience;
   const offer =
@@ -987,15 +945,10 @@ function goalFacts(
   const where = strategy.channels
     .map((channel) => channelLabel(channel.channel))
     .join(", ");
-  const pieces = monthPostCount(strategy.calendar);
   const facts = [
     { term: "Who", value: who },
     { term: "The offer", value: offer },
     { term: "Where", value: where },
-    {
-      term: "This month",
-      value: pieces > 0 ? month : "",
-    },
   ];
   return facts.filter((fact): fact is { term: string; value: string } =>
     Boolean(fact.value),

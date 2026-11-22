@@ -8,7 +8,7 @@
 4. Answers "Do you want ads?" with Yes or No. No is the start; after Yes they set a monthly budget, which is extra to their plan, and Cuso plans the ads around it. A budget set while Cuso is still writing or changing the strategy waits, and he plans it as soon as he is done.
 5. Says no to an assumption chip if it's wrong; Cuso updates the strategy.
 6. Optionally connects measurement accounts in "How we know it works" (Results). If they cancel OAuth, they return to Results and see the error once; leaving Results (to another tab or step) and coming back shows no error.
-7. Approves. If Cuso could not fill the month to what the strategy itself promises, in volume or in the videos its funnel names (he gets two short turns to add what is missing), there is no Approve button: a plain line says how many posts it plans against how many it promises, and "Write it again" asks for a new strategy.
+7. Sees what each plan makes per network (Starter, Growth, Scale) and approves. A strategy can always be approved: Cuso gets short turns to fill what is missing (six on cmo-v14), and then Core fits the strategy to what its calendar holds.
 
 **They expect**
 

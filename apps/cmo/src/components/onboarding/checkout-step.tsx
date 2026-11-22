@@ -8,7 +8,11 @@ import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
 import { channelInfo, channelKey, formatMedia } from "../../lib/channels";
 import { joinNames } from "../../lib/names";
-import { monthAdCount, monthPostCount } from "../../lib/strategy";
+import {
+  madeByNetwork,
+  monthAdCount,
+  monthPostCount,
+} from "../../lib/strategy";
 import { LegalNotice } from "../legal-notice";
 import { money } from "../strategy-core";
 import { type SkipSubscription, SkipSubscriptionButton } from "../top-up";
@@ -34,33 +38,6 @@ function makesLine({
   const counted = (count: number, one: string, many: string) =>
     `${count} ${count === 1 ? one : many}`;
   return `${counted(posts, "post", "posts")}, ${counted(pictures, "picture", "pictures")} and ${counted(videos, "video", "videos")} a month from your strategy`;
-}
-
-/**
- * The posts a plan makes on each network, busiest first: "X 84 · LinkedIn
- * 28". Ads and newsletter issues are made on every plan, so they stay out.
- */
-export function madeByNetwork(
-  strategy: Strategy,
-  made: ReadonlySet<string>,
-): { network: string; posts: number }[] {
-  const counts = new Map<string, number>();
-  for (const entry of strategy.calendar) {
-    if (!made.has(entry.id)) continue;
-    // A talking video not yet split into its copies goes out on each network.
-    const split = strategy.calendar.some((copy) => copy.videoOf === entry.id);
-    for (const network of [
-      entry.channel,
-      ...(split ? [] : (entry.alsoOn ?? [])),
-    ]) {
-      const key = channelKey(network) ?? network;
-      if (channelInfo(key)?.owner !== "connect") continue;
-      counts.set(key, (counts.get(key) ?? 0) + 1);
-    }
-  }
-  return [...counts]
-    .map(([network, posts]) => ({ network: channelLabel(network), posts }))
-    .sort((a, b) => b.posts - a.posts);
 }
 
 /** What each plan posts, as the landing page says it, when there is no strategy yet. */
@@ -329,11 +306,13 @@ export function CheckoutStep({
                     </span>
                     <span className="ob-small ob-plan-networks">
                       {madeByNetwork(
-                        strategy,
+                        strategy.calendar,
                         (makes.get(plan.tier) as ReturnType<typeof planMakes>)
                           .made,
                       )
-                        .map(({ network, posts }) => `${network} ${posts}`)
+                        .map(
+                          ({ key, posts }) => `${channelLabel(key)} ${posts}`,
+                        )
                         .join(" · ")}
                     </span>
                   </>

@@ -23,6 +23,7 @@ import {
   cmoChannelFitProblems,
   cmoDistinctClaims,
   cmoDraftProblems,
+  cmoFitMonthToCalendar,
   cmoFollowCadenceChange,
   cmoFunnelPlanProblems,
   cmoLeftOutProblems,
@@ -475,6 +476,59 @@ describe("the funnel strategy", () => {
     });
     expect(cmoPromiseGaps(whole, options)).toEqual([]);
     expect(cmoMonthShortfall(whole, options)).toBeNull();
+  });
+
+  it("ends a top-plan month approvable, fitted to what its calendar holds", () => {
+    // NMKR's cmo-v14 rewrite, 2026-11-22: cadences at the top plan, a
+    // calendar at about half of them, Facebook planned with no pieces.
+    const counts: [string, string, number][] = [
+      ["x", "image", 89],
+      ["instagram", "carousel", 55],
+      ["tiktok", "video", 40],
+      ["youtube", "short", 31],
+      ["linkedin", "image", 23],
+    ];
+    const calendar = counts.flatMap(([network, format, count]) =>
+      Array.from({ length: count }, (_, index) => ({
+        ...entry(`${network}-${index}`, network, format),
+        date: `2026-11-${String(2 + (index % 28)).padStart(2, "0")}`,
+      })),
+    );
+    const top = plan({
+      calendar,
+      pace: { level: "all_in", why: "Every feed", perWeek: 126 },
+      channels: [
+        { channel: "x", cadence: "6 a day", role: "main" },
+        { channel: "linkedin", cadence: "1 a day", role: "main" },
+        { channel: "instagram", cadence: "4 a day", role: "main" },
+        { channel: "facebook", cadence: "2 a day", role: "main" },
+        { channel: "tiktok", cadence: "3 a day", role: "main" },
+        { channel: "youtube", cadence: "2 a day", role: "main" },
+      ],
+    });
+    const options = { weekly: true, everyNetwork: true, channelFit: true };
+    expect(cmoMonthShortfall(top, options)).not.toBeNull();
+
+    const fitted = cmoFitMonthToCalendar(top);
+    expect(cmoMonthShortfall(fitted, options)).toBeNull();
+    expect(
+      Object.fromEntries(
+        fitted.channels.map((channel) => [channel.channel, channel.cadence]),
+      ),
+    ).toEqual({
+      x: "3 a day",
+      linkedin: "5 a week",
+      instagram: "13 a week",
+      tiktok: "10 a week",
+      youtube: "1 a day",
+    });
+    expect(fitted.leftOut).toContainEqual({
+      channel: "facebook",
+      why: "Not planned this month.",
+    });
+    expect(fitted.pace?.perWeek).toBe(59);
+    // Nothing in the calendar changes.
+    expect(fitted.calendar).toBe(top.calendar);
   });
 
   it("holds a weekly Cuso's side channels to a buyer and three a week", () => {
@@ -1616,11 +1670,9 @@ describe("a cmo-v5 month at the top volume, whose funnel says what it plans", ()
     expect(cmoPromiseGaps(month, options)).toEqual([
       'the funnel\'s interest play on instagram promises video ("Moments, including weekly video"), but no talking video in the calendar goes out on instagram; plan one with instagram in its alsoOn, or take video out of the play.',
     ]);
-    // Only a video is missing: the owner reads no count.
-    expect(cmoMonthShortfall(month, options)).toEqual({
-      planned: 8,
-      promised: 8,
-    });
+    // Only a video is missing: Cuso's finish turns add it, and the owner
+    // can approve the month as it is.
+    expect(cmoMonthShortfall(month, options)).toBeNull();
     const withVideo = {
       ...month,
       calendar: [...month.calendar, { ...video(1), alsoOn: ["instagram"] }],
