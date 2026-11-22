@@ -43,6 +43,7 @@ function daily(
   format: string,
   perDay: number,
   pillar: string,
+  alsoOn?: string[],
 ): Strategy["calendar"] {
   return Array.from({ length: 28 }, (_, day) =>
     Array.from({ length: perDay }, (_, slot) => ({
@@ -53,32 +54,33 @@ function daily(
       title: `${pillar} ${day + 1}.${slot + 1}`,
       status: "idea" as const,
       pillar,
+      ...(alsoOn ? { alsoOn } : {}),
     })),
   ).flat();
 }
 
 /**
  * A month as cmo-v14 writes it, at the top plan's rates: six X posts a day,
- * one on LinkedIn, two picture posts and two Reels on Instagram, three
- * TikToks and two YouTube Shorts. Each plan makes its share.
+ * one on LinkedIn, two picture posts on Instagram, and seven short videos a
+ * day, each one file on TikTok, Reels and Shorts. Each plan makes its share.
  */
 const fullMonth: Strategy = {
   ...richPlan,
   channels: [
     { channel: "x", cadence: "6 a day", role: "main" },
     { channel: "linkedin", cadence: "1 a day", role: "main" },
-    { channel: "instagram", cadence: "4 a day", role: "main" },
-    { channel: "tiktok", cadence: "3 a day", role: "main" },
-    { channel: "youtube", cadence: "2 a day", role: "main" },
+    { channel: "instagram", cadence: "9 a day", role: "main" },
+    { channel: "tiktok", cadence: "7 a day", role: "main" },
+    { channel: "youtube", cadence: "7 a day", role: "main" },
   ],
   calendar: [
     ...daily("x", "post", 3, "How we build"),
     ...daily("x", "image", 3, "Launch stories"),
     ...daily("linkedin", "image", 1, "Launch stories"),
     ...daily("instagram", "carousel", 2, "How we build"),
-    ...daily("instagram", "reel", 2, "Launch stories"),
-    ...daily("tiktok", "video", 3, "How we build"),
-    ...daily("youtube", "short", 2, "Launch stories"),
+    ...daily("tiktok", "video", 4, "How we build", ["instagram", "youtube"]),
+    ...daily("instagram", "reel", 2, "Launch stories", ["tiktok", "youtube"]),
+    ...daily("youtube", "short", 1, "Launch stories", ["tiktok", "instagram"]),
   ],
 };
 

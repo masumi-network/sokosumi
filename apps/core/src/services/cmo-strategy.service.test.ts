@@ -1161,6 +1161,76 @@ describe("saving versions", () => {
     expect(plan(running)).toEqual(strategy);
   });
 
+  describe("a short video made once for TikTok, Reels and Shorts", () => {
+    beforeEach(() => {
+      cusoFind.mockResolvedValue(HIRE);
+      seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
+    });
+
+    it("plans a Reel and a Short of the one TikTok, each in its own format", async () => {
+      await saveCmoStrategy(
+        { sokoBotId: "bot-1" },
+        {
+          calendar: [
+            {
+              id: "sv",
+              date: "2026-10-23",
+              channel: "tiktok",
+              title: "Mint in three taps",
+              format: "video",
+              status: "draft" as const,
+              visual: "A phone screen minting an NFT in three taps",
+              alsoOn: ["instagram", "youtube"],
+            },
+          ],
+        },
+        { turnId: "turn-2", part: "pieces" },
+      );
+      const drafts = postCreateMany.mock.calls[0]?.[0].data;
+      expect(
+        drafts.map(
+          (draft: {
+            provider: string;
+            planning: { id: string; format: string; videoOf?: string };
+          }) => [
+            draft.provider,
+            draft.planning.id,
+            draft.planning.format,
+            draft.planning.videoOf ?? null,
+          ],
+        ),
+      ).toEqual([
+        ["tiktok", "sv", "video", null],
+        ["instagram", "sv@instagram", "reel", "sv"],
+        ["youtube", "sv@youtube", "short", "sv"],
+      ]);
+    });
+
+    it("refuses a short video's alsoOn outside TikTok, Reels and Shorts", async () => {
+      await expect(
+        saveCmoStrategy(
+          { sokoBotId: "bot-1" },
+          {
+            calendar: [
+              {
+                id: "sv",
+                date: "2026-10-23",
+                channel: "tiktok",
+                title: "Mint in three taps",
+                format: "video",
+                status: "draft" as const,
+                alsoOn: ["x"],
+              },
+            ],
+          },
+          { turnId: "turn-2", part: "pieces" },
+        ),
+      ).rejects.toThrow(
+        /sv cannot also go out on x: alsoOn takes instagram, youtube/,
+      );
+    });
+  });
+
   describe("a talking video that also goes out on other networks", () => {
     const video = {
       id: "tv",
@@ -1312,7 +1382,7 @@ describe("saving versions", () => {
       [
         "a network without talking videos",
         { ...video, alsoOn: ["youtube", "x"] },
-        /tv cannot also go out on x: alsoOn takes other live networks with a talking_video format \(linkedin, facebook, youtube, tiktok\)/,
+        /tv cannot also go out on x: alsoOn takes linkedin, facebook, youtube, tiktok, never its own channel/,
       ],
       [
         "its own channel",
@@ -1322,7 +1392,7 @@ describe("saving versions", () => {
       [
         "a piece that is not a talking video",
         { ...video, format: "image", script: undefined },
-        /tv lists alsoOn, which only a talking_video takes/,
+        /tv lists alsoOn, which only a video takes/,
       ],
     ])("refuses %s, writing nothing", async (_name, entry, message) => {
       await expect(

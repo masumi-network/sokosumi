@@ -547,7 +547,7 @@ describe("cmoProductionMessage", () => {
     });
     expect(message).toContain("(write its script)");
     expect(message).toContain(
-      "(the talking video of tv on youtube: write only this post's own caption for youtube; its script stays on tv)",
+      "(the talking video of tv on youtube: the same file, so write only this post's own caption, in youtube's own format; its script stays on tv)",
     );
     expect(message).not.toContain("(write its visual)");
   });

@@ -289,6 +289,34 @@ export function isCmoChannelFormat(channel: string, format: string): boolean {
   return Boolean(entry && entry.status === "live" && format in entry.formats);
 }
 
+/**
+ * The networks one short video goes out on together (owner, 2026-11-22:
+ * "made once and posted to TikTok, Instagram Reels and YouTube Shorts"),
+ * each with its own short-video format.
+ */
+export const CMO_SHORT_VIDEO_FORMATS = {
+  tiktok: "video",
+  instagram: "reel",
+  youtube: "short",
+} as const;
+
+/** The short-video format of a network that shares short videos, or null. */
+export function cmoShortVideoFormat(network: string): string | null {
+  return (
+    (CMO_SHORT_VIDEO_FORMATS as Record<string, string>)[
+      network.toLowerCase()
+    ] ?? null
+  );
+}
+
+/** Whether a piece is a short video that goes out on the other short-video networks. */
+export function isCmoShortVideoFormat(
+  channel: string,
+  format: string,
+): boolean {
+  return cmoShortVideoFormat(channel) === format;
+}
+
 /** Whether a format is a talking video: a presenter speaking a script. */
 export function isCmoTalkingFormat(channel: string, format: string): boolean {
   const entry = (

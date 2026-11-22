@@ -15,6 +15,9 @@ import {
 } from "@sokosumi/soko-bot";
 import {
   CMO_CHANNELS,
+  CMO_SHORT_VIDEO_FORMATS,
+  cmoShortVideoFormat,
+  isCmoShortVideoFormat,
   isCmoTalkingFormat,
   SOCIAL_POST_TEXT_LIMITS,
   type SocialPostMediaRef,
@@ -483,22 +486,39 @@ export function plannedAt(
 }
 
 /**
- * The other networks a talking video also goes out on: live social networks
- * with a talking video format, each once, never the entry's own.
+ * The other networks a video also goes out on: for a talking video, live
+ * social networks with a talking video format; for a short video (a TikTok,
+ * a Reel, a YouTube Short), the other short-video networks (owner,
+ * 2026-11-22: one file on TikTok, Reels and Shorts). Each once, never the
+ * entry's own.
  */
 export function cmoVideoNetworks(
   entry: Pick<CmoCalendarEntry, "channel" | "format" | "alsoOn">,
 ): SocialPostProvider[] {
-  if (!isCmoTalkingFormat(entry.channel, entry.format)) return [];
+  const talking = isCmoTalkingFormat(entry.channel, entry.format);
+  if (!talking && !isCmoShortVideoFormat(entry.channel, entry.format))
+    return [];
   const networks = (entry.alsoOn ?? []).flatMap((network) => {
     const provider = socialPostProvider(network);
     return provider &&
       provider !== entry.channel &&
-      isCmoTalkingFormat(provider, entry.format)
+      (talking
+        ? isCmoTalkingFormat(provider, entry.format)
+        : cmoShortVideoFormat(provider) !== null)
       ? [provider]
       : [];
   });
   return [...new Set(networks)];
+}
+
+/** The format a video's post on another network takes there. */
+function copyFormat(
+  entry: { channel: string; format: string },
+  network: string,
+) {
+  return isCmoShortVideoFormat(entry.channel, entry.format)
+    ? (cmoShortVideoFormat(network) ?? entry.format)
+    : entry.format;
 }
 
 /** Why an entry's `alsoOn` cannot be carried out, or null. */
@@ -506,22 +526,23 @@ export function cmoAlsoOnProblem(
   entry: Pick<CmoCalendarEntry, "id" | "channel" | "format" | "alsoOn">,
 ): string | null {
   if (!entry.alsoOn?.length) return null;
-  if (!isCmoTalkingFormat(entry.channel, entry.format))
-    return `${entry.id} lists alsoOn, which only a talking_video takes: one video shown on several networks. Remove alsoOn or make it a talking_video.`;
+  const talking = isCmoTalkingFormat(entry.channel, entry.format);
+  if (!talking && !isCmoShortVideoFormat(entry.channel, entry.format))
+    return `${entry.id} lists alsoOn, which only a video takes: a talking_video, or a short video (a TikTok, a Reel, a YouTube Short) shown on the other short-video networks. Remove alsoOn or make it one.`;
   const allowed = cmoVideoNetworks(entry) as string[];
   const refused = entry.alsoOn.filter((network) => !allowed.includes(network));
-  return refused.length > 0
-    ? `${entry.id} cannot also go out on ${refused.join(", ")}: alsoOn takes other live networks with a talking_video format (${Object.entries(
-        CMO_CHANNELS,
+  const offered = talking
+    ? Object.keys(CMO_CHANNELS).filter(
+        (key) =>
+          key !== entry.channel &&
+          socialPostProvider(key) &&
+          isCmoTalkingFormat(key, entry.format),
       )
-        .filter(
-          ([key]) =>
-            key !== entry.channel &&
-            socialPostProvider(key) &&
-            isCmoTalkingFormat(key, entry.format),
-        )
-        .map(([key]) => key)
-        .join(", ")}), never its own channel.`
+    : Object.keys(CMO_SHORT_VIDEO_FORMATS).filter(
+        (key) => key !== entry.channel,
+      );
+  return refused.length > 0
+    ? `${entry.id} cannot also go out on ${refused.join(", ")}: alsoOn takes ${offered.join(", ")}, never its own channel.`
     : null;
 }
 
@@ -598,6 +619,9 @@ export async function planMarketingStrategyPosts(
         // own caption and plan only.
         ...(stored?.videoOf && !copies.has(entry)
           ? {
+              // A short video's copy is the same file: its picture plan too.
+              visual: stored.visual,
+              visualFileIds: stored.visualFileIds,
               script: stored.script,
               presenter: stored.presenter,
               voice: stored.voice,
@@ -621,6 +645,10 @@ export async function planMarketingStrategyPosts(
           ...planning,
           id: videoCopyId(planning.id, network),
           channel: network,
+          format: copyFormat(
+            { channel: provider, format: planning.format ?? entry.format },
+            network,
+          ),
           alsoOn: undefined,
           videoOf: planning.id,
           draft: undefined,

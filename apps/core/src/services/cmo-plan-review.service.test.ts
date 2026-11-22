@@ -2436,7 +2436,7 @@ describe("each network at its own rate, for a Cuso on cmo-v14", () => {
       ),
     ).toEqual([
       'x has the cadence "3 a day"; at the top volume a main x takes 6 a day. Set it and plan its pieces, unless the owner asked for less.',
-      'tiktok has the cadence "1 a week"; at the top volume a main tiktok takes 3 TikToks a day. Set it and plan its pieces, unless the owner asked for less.',
+      'tiktok has the cadence "1 a week"; at the top volume a main tiktok takes 7 TikToks a day. Set it and plan its pieces, unless the owner asked for less.',
     ]);
   });
 

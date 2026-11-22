@@ -1196,6 +1196,72 @@ describe("advanceCmoMedia", () => {
     });
   });
 
+  it("puts a TikTok's one video on its Reel and Short, starting nothing of their own", async () => {
+    const tiktok = piece({
+      id: "tt-1",
+      socialPostId: "tt-1",
+      channel: "tiktok",
+      format: "video",
+      visual: "A phone screen minting an NFT in three taps",
+    });
+    const copy = (network: string, format: string) =>
+      piece({
+        ...tiktok,
+        id: `tt-1@${network}`,
+        socialPostId: `tt-1@${network}`,
+        channel: network,
+        format,
+        videoOf: "tt-1",
+      });
+    const key = cmoVisualKey(tiktok);
+    jobFindMany.mockResolvedValue([
+      {
+        id: "job-still",
+        idempotencyKey: `cmo-media:version-1:tt-1:0:still:${key}:1`,
+        status: "SUCCEEDED",
+        prompt: "still",
+        asset: { id: "still-asset" },
+      },
+      {
+        id: "job-video",
+        idempotencyKey: `cmo-media:version-1:tt-1:0:video:${key}:1`,
+        status: "SUCCEEDED",
+        prompt: "video",
+        asset: { id: "video-asset" },
+      },
+    ]);
+    ensureDriveFile.mockResolvedValue({
+      id: "file-1",
+      name: "mint.mp4",
+      pathname: "drive/mint.mp4",
+      mimeType: "video/mp4",
+      size: 10,
+    });
+    postFindUnique.mockImplementation(async ({ where }) => ({
+      id: where.id,
+      provider: where.id.split("@")[1] ?? "tiktok",
+      text: "Mint in three taps.",
+      media: [],
+      revision: 1,
+      status: "DRAFT",
+      scheduledAt: null,
+      planning: { title: "Mint in three taps" },
+    }));
+    updateSocialPost.mockResolvedValue({
+      media: [{ pathname: "drive/mint.mp4" }],
+      revision: 2,
+    });
+    await advanceCmoMedia(context, [
+      copy("instagram", "reel"),
+      copy("youtube", "short"),
+    ]);
+    expect(createImageJob).not.toHaveBeenCalled();
+    expect(updateSocialPost.mock.calls.map(([input]) => input.postId)).toEqual([
+      "tt-1@instagram",
+      "tt-1@youtube",
+    ]);
+  });
+
   it("puts a finished picture on its post and schedules it on a connected network", async () => {
     jobFindMany.mockResolvedValue([
       {

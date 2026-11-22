@@ -5,7 +5,12 @@ import "./phone-feeds.css";
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ImageIcon, Play } from "lucide-react";
 
-import { channelInfo, channelKey, formatHasVideo } from "../lib/channels";
+import {
+  channelInfo,
+  channelKey,
+  formatHasVideo,
+  formatOn,
+} from "../lib/channels";
 import { BusinessMark, businessDisplayName } from "./business-mark";
 import { ChannelIcon } from "./channel-icon";
 import { plainText } from "./draft-text";
@@ -118,6 +123,7 @@ function onEveryNetwork(pieces: Entry[]): Entry[] {
             ...entry,
             id: `${entry.id}@${channel}`,
             channel,
+            format: formatOn(entry, channel),
           })),
         ],
   );
