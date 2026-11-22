@@ -1457,3 +1457,34 @@ it("B1: a single-select column turns the rows into a board, and Move to saves th
   // One refresh per move: rows, table and history once each.
   await waitFor(() => expect(f.invalidate).toHaveBeenCalledTimes(3));
 });
+
+it("B2: a move in flight still blocks moves after switching to Table and back", async () => {
+  const { default: userEvent } = await import("@testing-library/user-event");
+  const stage = {
+    ...f.score,
+    id: "00000000-0000-4000-8000-000000000007",
+    name: "Stage",
+    type: "single_select" as const,
+    options: ["Lead", "Won"],
+  };
+  f.columns = [f.column, stage];
+  f.shown = [{ ...f.row, values: { ...f.row.values, [stage.id]: "Lead" } }];
+  const write = Promise.withResolvers<object>();
+  f.batch.mockReturnValue(write.promise);
+  render(<TableEditor id={f.column.tableId} />);
+  await userEvent.click(screen.getByRole("radio", { name: "board.board" }));
+  await userEvent.click(screen.getByRole("button", { name: "board.moveCard" }));
+  await userEvent.click(
+    await screen.findByRole("menuitemradio", { name: "Won" }),
+  );
+  await userEvent.click(screen.getByRole("radio", { name: "board.table" }));
+  await userEvent.click(screen.getByRole("radio", { name: "board.board" }));
+  // The new board reads the rows from before the write.
+  await userEvent.click(screen.getByRole("button", { name: "board.moveCard" }));
+  expect(
+    await screen.findByRole("menuitemradio", { name: "Won" }),
+  ).toHaveAttribute("aria-disabled", "true");
+  expect(f.batch).toHaveBeenCalledTimes(1);
+  await userEvent.keyboard("{Escape}");
+  await act(async () => write.resolve({}));
+});

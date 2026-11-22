@@ -1131,13 +1131,15 @@ function TableWorkspace({
         </Alert>
       )}
       {showBoard && (
-        <div className={cn(DRIVE_SURFACE_PANEL_CLASS, "min-w-0")}>
+        // Lanes are the panels, as on the Tasks board: no panel around them.
+        <div className="min-w-0">
           <TableBoard
             table={table}
             column={boardColumn}
             columns={columns}
             definition={definition}
             readOnly={!!table.archivedAt}
+            writing={pending}
             onMove={(row, value) => {
               const slot = `cell:${row.id}:${boardColumn.id}`;
               // `run` refreshes once after the write; `handleCell` would again.

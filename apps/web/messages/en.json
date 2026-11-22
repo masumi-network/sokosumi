@@ -11906,7 +11906,7 @@
         "emptyLane": "No rows",
         "truncated": "Showing the first {count} rows. Switch to Table to see the rest.",
         "loadError": "Couldn't load the board. Check your connection and try again.",
-        "dropped": "{item} moved to {target}.",
+        "dropped": "Moving {item} to {target}.",
         "dndInstructions": "To move a card, drag it to another lane, or open its Move button and pick a lane."
       }
     },

@@ -5,16 +5,13 @@ import { after, before, describe, test } from "node:test";
 import { type Browser, chromium } from "playwright";
 
 import { resolveBaseUrl } from "./base-url.ts";
+import { signUpWithOrganization } from "./sign-up.ts";
 
-/**
- * A Files Table as a board, end to end: import a small invented pipeline,
- * add a Stage option column, switch to Board, move a card with its Move to
- * menu and see the cell changed back in Table. Needs a Playwright storage
- * state for a test account in E2E_STORAGE_STATE (create it per run, never
- * commit it); without one the spec is skipped.
- */
-const STORAGE_STATE = process.env.E2E_STORAGE_STATE?.trim();
-const BASE_URL = STORAGE_STATE ? resolveBaseUrl(process.env) : "";
+// A Files Table as a board, end to end, for a new user per size (disposable
+// mail.tm inbox): import a small invented pipeline with Stage as an option
+// column, switch to Board, move the unset card to Won from its Move menu, and
+// see the cell read Won back in Table.
+const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 const CSV = [
   "Company,Contact,Stage",
@@ -30,26 +27,25 @@ const PROJECTS = [
 
 let browser: Browser;
 before(async () => {
-  if (!STORAGE_STATE) return;
   mkdirSync(RESULTS_DIR, { recursive: true });
   browser = await chromium.launch();
 });
-after(() => browser?.close());
+after(() => browser.close());
 
 for (const { name: size, isMobile, ...viewport } of PROJECTS) {
-  describe(`table board ${size}`, { skip: !STORAGE_STATE }, () => {
+  describe(`table board ${size}`, () => {
     test("moves a row between options on the board", async () => {
       const context = await browser.newContext({
         viewport,
         isMobile,
         hasTouch: isMobile,
-        storageState: STORAGE_STATE,
       });
       const page = await context.newPage();
       page.setDefaultTimeout(30_000);
       const errors: string[] = [];
       page.on("pageerror", (e) => errors.push(e.message));
 
+      await signUpWithOrganization(page, BASE_URL);
       await page.goto(`${BASE_URL}/drive?view=tables`);
       await page.getByRole("button", { name: "New table" }).click();
       const create = page.getByRole("dialog", { name: "New table" });
@@ -85,17 +81,18 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
         .getByText("Orbit Cycles")
         .waitFor();
       await page.screenshot({ path: `${RESULTS_DIR}table-board-${size}.png` });
-
-      await page.getByRole("radio", { name: "Table" }).click();
-      await page.getByRole("gridcell", { name: /^Won/ }).waitFor();
-
+      // Lanes scroll inside the board, never the page.
       const overflow = await page.evaluate(
         () =>
           document.documentElement.scrollWidth -
           document.documentElement.clientWidth,
       );
+      assert.equal(overflow, 0, `board overflows the page by ${overflow}px`);
+
+      await page.getByRole("radio", { name: "Table" }).click();
+      await page.getByRole("gridcell", { name: /^Won/ }).waitFor();
+
       await context.close();
-      assert.equal(overflow, 0, `page overflows by ${overflow}px`);
       assert.deepEqual(errors, []);
     });
   });

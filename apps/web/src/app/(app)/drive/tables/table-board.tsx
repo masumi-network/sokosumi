@@ -29,6 +29,10 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  HOLDER_ITEM_CLASS,
+  HOLDER_ITEM_HOVER_CLASS,
+} from "@/components/ui/holder-surface";
 import { dataTableService } from "@/lib/services/data-table.client";
 import { cn } from "@/lib/utils";
 import {
@@ -72,6 +76,7 @@ export function TableBoard({
   columns,
   definition,
   readOnly = false,
+  writing = false,
   onMove,
 }: {
   table: Pick<DataTable, "id">;
@@ -81,6 +86,11 @@ export function TableBoard({
   columns: TableColumn[];
   definition: TableView["definition"];
   readOnly?: boolean;
+  /**
+   * A write the editor still waits for. The editor outlives a switch to
+   * Table and back, so its pending write blocks moves on a new board too.
+   */
+  writing?: boolean;
   onMove: (row: TableRow, value: Value) => Promise<void>;
 }) {
   const t = useTranslations("App.Tables");
@@ -94,7 +104,8 @@ export function TableBoard({
   const [moves, setMoves] = useState<Record<string, Value>>({});
   // One move at a time: the next write needs the row version this one returns.
   const moving = useRef(false);
-  const [busy, setBusy] = useState(false);
+  const [moveRunning, setMoveRunning] = useState(false);
+  const busy = writing || moveRunning;
   const boardRef = useRef<HTMLDivElement>(null);
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
@@ -136,16 +147,17 @@ export function TableBoard({
     });
   }
   async function move(row: TableRow, value: Value, fromMenu = false) {
-    if (moving.current || (row.values[column.id] ?? null) === value) return;
+    if (busy || moving.current || (row.values[column.id] ?? null) === value)
+      return;
     moving.current = true;
-    setBusy(true);
+    setMoveRunning(true);
     setMoves((current) => ({ ...current, [row.id]: value }));
     if (fromMenu) keepFocus(row.id);
     try {
       await onMove(row, value);
     } finally {
       moving.current = false;
-      setBusy(false);
+      setMoveRunning(false);
       setMoves(({ [row.id]: _, ...rest }) => rest);
       if (fromMenu) keepFocus(row.id);
     }
@@ -159,7 +171,7 @@ export function TableBoard({
   function handleDragEnd({ active, over }: DragEndEvent) {
     const row = rows.find((item) => item.id === active.id);
     const value = (over?.data.current as Lane | undefined)?.value ?? null;
-    if (row && over && canTake(value)) void move(row, value);
+    if (row && over) void move(row, value);
   }
 
   if (!board.data && board.isError)
@@ -182,7 +194,12 @@ export function TableBoard({
       </p>
     );
   return (
-    <div ref={boardRef} tabIndex={-1} className="min-w-0 outline-none">
+    <div
+      ref={boardRef}
+      tabIndex={-1}
+      aria-label={t("board.board")}
+      className="focus-visible:ring-ring min-w-0 rounded-xl outline-none focus-visible:ring-2"
+    >
       {board.data?.truncated && (
         <p role="status" className="text-muted-foreground px-3 pt-3 text-sm">
           {t("board.truncated", { count: BOARD_ROW_LIMIT })}
@@ -208,7 +225,7 @@ export function TableBoard({
                   })
                 : undefined,
             onDragEnd: ({ active, over }) =>
-              over
+              over && !busy
                 ? t("board.dropped", {
                     item: cardName(active.id),
                     target: targetName(over.data.current),
@@ -219,12 +236,14 @@ export function TableBoard({
           },
         }}
       >
-        <div className="flex min-w-0 gap-3 overflow-x-auto overscroll-x-contain p-3">
+        <div className="flex min-w-0 gap-3 overflow-x-auto overscroll-x-contain pb-2">
           {lanes.map((lane) => (
             <BoardLane
               key={lane.value ?? ""}
               lane={lane}
               name={laneName(lane.value)}
+              // A value no option names any more shows, but takes no card.
+              disabled={readOnly || !canTake(lane.value)}
             >
               {lane.rows.map((row) => (
                 <BoardCard
@@ -293,16 +312,19 @@ export function TableBoard({
 function BoardLane({
   lane,
   name,
+  disabled,
   children,
 }: {
   lane: Lane;
   name: string;
+  disabled: boolean;
   children: React.ReactNode;
 }) {
   const t = useTranslations("App.Tables");
   const { setNodeRef, isOver } = useDroppable({
     id: `lane:${lane.value ?? ""}`,
     data: lane,
+    disabled,
   });
   return (
     <section
@@ -310,8 +332,9 @@ function BoardLane({
       aria-label={name}
       className={cn(
         // Lanes share the width and scroll sideways only when they do not fit.
-        "bg-muted flex w-64 min-w-52 shrink-0 flex-col gap-2 rounded-lg p-2 transition-colors md:w-auto md:flex-1 md:basis-0",
-        isOver && "bg-quinary",
+        "bg-card-background flex w-64 min-w-52 shrink-0 flex-col gap-2 rounded-xl p-2 md:w-auto md:flex-1 md:basis-0",
+        // The Tasks board's drop mark.
+        isOver && "ring-ring ring-2 ring-inset",
       )}
     >
       <h2 className="flex items-center justify-between gap-2 px-1 text-sm font-medium">
@@ -358,7 +381,9 @@ function BoardCard({
           : undefined
       }
       className={cn(
-        "bg-background flex items-start gap-2 rounded-md border p-2 text-sm",
+        HOLDER_ITEM_CLASS,
+        HOLDER_ITEM_HOVER_CLASS,
+        "flex items-start gap-2 p-2 text-sm",
         !disabled && "cursor-grab active:cursor-grabbing",
         isDragging && "relative z-10 shadow-md",
       )}
