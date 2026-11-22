@@ -88,6 +88,10 @@ describe("TaskForOtherProjects", () => {
       { ...input, projectId: "p3", status: "DRAFT" },
     ]);
     expect(screen.getAllByRole("link", { name: /openTask/ })).toHaveLength(2);
+    // Nothing to report but the drafts: no zero counts.
+    expect(screen.getByRole("status").textContent).toBe(
+      'allCreated {"count":2}',
+    );
   });
 
   it("retries only the Projects Core refused", async () => {

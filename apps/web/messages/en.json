@@ -2382,17 +2382,18 @@
           "keepOpen": "Keep this open until it says Task created."
         },
         "OtherProjects": {
-          "open": "Also for other Projects",
-          "title": "Make a draft of this Task in",
-          "hint": "Same name and brief, one draft per Project, up to 10. Each draft uses its own Project's briefing, memory and brand, unless you picked a custom brand. Nothing runs until you start it.",
+          "open": "Also for other projects",
+          "title": "Make a draft of this task in",
+          "hint": "Same name and brief, one draft per project, up to 10. Each draft uses its own project's briefing, memory and brand, unless you picked a custom brand. Nothing runs until you start it.",
           "failed": "Not created",
           "openTask": "Open",
           "summary": "{created} created, {failed} failed, {unknown} to check",
-          "create": "{count, plural, =0 {Choose Projects} one {Create 1 draft} other {Create # drafts}}",
+          "create": "{count, plural, =0 {Choose projects} one {Create 1 draft} other {Create # drafts}}",
           "retry": "{count, plural, one {Try 1 again} other {Try # again}}",
           "unknown": "May be created",
-          "checkProject": "Check Project",
-          "sending": "Creating {done} of {total}…"
+          "checkProject": "Check project",
+          "sending": "Creating {done} of {total}…",
+          "allCreated": "{count, plural, one {1 draft created} other {# drafts created}}"
         }
       },
       "EditTask": {

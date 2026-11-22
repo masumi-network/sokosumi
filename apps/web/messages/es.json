@@ -2392,7 +2392,8 @@
           "retry": "{count, plural, one {Reintentar 1} other {Reintentar #}}",
           "unknown": "Puede que se haya creado",
           "checkProject": "Revisar proyecto",
-          "sending": "Creando {done} de {total}…"
+          "sending": "Creando {done} de {total}…",
+          "allCreated": "{count, plural, one {1 borrador creado} other {# borradores creados}}"
         }
       },
       "EditTask": {

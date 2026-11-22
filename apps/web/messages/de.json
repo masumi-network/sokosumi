@@ -2392,7 +2392,8 @@
           "retry": "{count, plural, one {1 erneut versuchen} other {# erneut versuchen}}",
           "unknown": "Vielleicht angelegt",
           "checkProject": "Projekt prüfen",
-          "sending": "Lege {done} von {total} an…"
+          "sending": "Lege {done} von {total} an…",
+          "allCreated": "{count, plural, one {1 Entwurf angelegt} other {# Entwürfe angelegt}}"
         }
       },
       "EditTask": {

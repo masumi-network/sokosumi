@@ -31,8 +31,9 @@ export type TaskCopyHandler = (
  */
 type Outcome = { href: string } | "failed" | "unknown";
 
+// The pseudo-element gives the small link a 32px-tall hit area on touch.
 const LINK_CLASS =
-  "text-foreground inline-flex shrink-0 items-center gap-1 text-xs underline-offset-4 hover:underline";
+  "text-foreground relative inline-flex shrink-0 items-center gap-1 text-xs underline-offset-4 after:absolute after:-inset-x-2 after:-inset-y-2 hover:underline";
 
 interface TaskForOtherProjectsProps {
   /** The brief as the first Task was created, without Project or status. */
@@ -201,9 +202,11 @@ export function TaskForOtherProjects({
         <p role="status" className="text-muted-foreground text-xs">
           {sending
             ? t("sending", { done: sending.done + 1, total: sending.total })
-            : Object.keys(outcomes).length > 0
-              ? t("summary", counts)
-              : ""}
+            : Object.keys(outcomes).length === 0
+              ? ""
+              : counts.failed + counts.unknown === 0
+                ? t("allCreated", { count: counts.created })
+                : t("summary", counts)}
         </p>
         {toSend.length > 0 || Object.keys(outcomes).length === 0 ? (
           <Button

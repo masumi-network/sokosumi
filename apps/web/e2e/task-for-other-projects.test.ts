@@ -107,7 +107,7 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await newTask.getByRole("button", { name: "Create task" }).click();
 
       const toggle = newTask.getByRole("button", {
-        name: "Also for other Projects",
+        name: "Also for other projects",
       });
       await toggle.click({ timeout: 120_000 });
       assert.equal(await toggle.getAttribute("aria-expanded"), "true");
@@ -121,10 +121,7 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
 
       const open = newTask.getByRole("link", { name: "Open South Bakery" });
       await open.waitFor({ timeout: 60_000 });
-      await newTask
-        .getByRole("status")
-        .getByText("1 created, 0 failed, 0 to check")
-        .waitFor();
+      await newTask.getByRole("status").getByText("1 draft created").waitFor();
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - window.innerWidth,
       );
