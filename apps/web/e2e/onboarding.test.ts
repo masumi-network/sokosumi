@@ -266,7 +266,12 @@ for (const { name, ...viewport } of PROJECTS) {
       await orgName.fill("Ada Test Studio");
       await website.fill("example.com");
       await dialog.getByRole("button", { name: "Continue" }).click();
-      await dialog.getByRole("button", { name: "Skip for now" }).click();
+      // The logo step reads "Skip for now", or "Continue" once the site's icon
+      // resolves first. Wait for the step so the name step's Continue is gone.
+      await dialog.getByRole("heading", { name: "Your logo" }).waitFor();
+      await dialog
+        .getByRole("button", { name: /^(Skip for now|Continue)$/ })
+        .click();
       await dialog.getByRole("button", { name: "Finish setup" }).click();
       await dialog.getByRole("button", { name: "Go to workspace" }).click();
 
