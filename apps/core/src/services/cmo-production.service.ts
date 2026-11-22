@@ -1123,6 +1123,10 @@ export async function syncCmoProduction(
   now: Date = new Date(),
 ): Promise<{ checked: number }> {
   await pauseSeoAuditsOfEndedCusos();
+  // A hiring strategy left short gets its next finish turn (or its fit).
+  await import("@/services/cmo-strategy.service")
+    .then(({ resumeCmoMonthFinishes }) => resumeCmoMonthFinishes(now))
+    .catch(() => undefined);
   const hires = cmoSyncOrder(await listCusosWithApprovedStrategy(), now);
   // In the background from the start, so it has the whole run.
   await scheduleMissingCmoBrandIndex(hires).catch(() => undefined);

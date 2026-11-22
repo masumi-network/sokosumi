@@ -444,6 +444,55 @@ export async function afterCmoTurn(input: {
   );
 }
 
+/** How far back the sync looks for a hiring strategy left short. */
+const FINISH_RESUME_WINDOW_MS = 3 * 60 * 60_000;
+/** A plan turn's follow-up normally starts within seconds of its end. */
+const FINISH_RESUME_AFTER_MS = 2 * 60_000;
+
+/**
+ * Starts the follow-up a draft strategy's last plan turn should have had:
+ * NMKR's fresh plan turn (2026-11-22 02:56 UTC) ended at one day of four
+ * weeks and its finish turn threw on start, so the month stayed short with
+ * nothing left to finish it. Called by the CMO production sync for each Cuso
+ * whose plan turn ended in the last three hours; the round count and the
+ * fit after the last one stay startCmoMonthFinish's.
+ */
+export async function resumeCmoMonthFinishes(
+  now: Date = new Date(),
+): Promise<number> {
+  const turns = await prisma.sokoBotTurn.findMany({
+    where: {
+      clientTurnId: { startsWith: STRATEGY_TURN_PREFIX },
+      createdAt: { gte: new Date(now.getTime() - FINISH_RESUME_WINDOW_MS) },
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      ...TURN_ROW_SELECT,
+      sokoBotId: true,
+      userId: true,
+      updatedAt: true,
+    },
+  });
+  const newest = new Map<string, (typeof turns)[number]>();
+  for (const turn of turns)
+    if (!newest.has(turn.sokoBotId)) newest.set(turn.sokoBotId, turn);
+  let started = 0;
+  for (const turn of newest.values()) {
+    if (cmoChangeKind(turn.clientTurnId) !== null) continue;
+    if (now.getTime() - turn.updatedAt.getTime() < FINISH_RESUME_AFTER_MS)
+      continue;
+    if ((await settledTurnStatus(turn)) === "running") continue;
+    const cuso = await findCusoForBot(turn.sokoBotId);
+    if (!cuso) continue;
+    const resumed = await startCmoMonthFinish(
+      { userId: turn.userId, clientTurnId: turn.clientTurnId },
+      cuso,
+    ).catch(() => null);
+    if (resumed) started += 1;
+  }
+  return started;
+}
+
 const FINISH_KIND = "finish";
 
 /** Finish turns in a row after a plan turn, so a month that cannot be finished still ends. */
