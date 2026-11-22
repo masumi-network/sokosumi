@@ -2,9 +2,10 @@
 
 import { Check, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
 import type { OrbState } from "thinking-orbs";
 
+import { useElapsedTimerClock } from "@/hooks/effects/use-elapsed-timer-clock";
+import { useTurnProgressClock } from "@/hooks/effects/use-turn-progress-clock";
 import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 import { cn } from "@/lib/utils";
 
@@ -23,11 +24,7 @@ export function useToolLabel() {
 
 /** Live `Ns` counter since the turn started. */
 export function ElapsedTimer({ startedAt }: { startedAt: number }) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
+  const now = useElapsedTimerClock();
   const secs = Math.max(0, Math.floor((now - startedAt) / 1000));
   const label =
     secs < 60
@@ -61,12 +58,7 @@ export function TurnProgress({
   const thinkingMessages = orderedMessageList(
     t.raw("thinkingMessages") as Record<string, string>,
   );
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!startedAt) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [startedAt]);
+  const now = useTurnProgressClock(startedAt);
   const secs = startedAt
     ? Math.max(0, Math.floor((now - startedAt) / 1000))
     : 0;
