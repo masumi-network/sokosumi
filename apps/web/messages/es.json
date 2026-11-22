@@ -2803,6 +2803,10 @@
           "title": "No hay proyectos ocultos",
           "description": "Oculta desde su menú un proyecto que no es tuyo. Sale de Abiertos, del selector de proyectos y de la actividad reciente, y queda aquí."
         },
+        "noOpen": {
+          "title": "No hay proyectos abiertos",
+          "description": "Tus otros proyectos están en otra vista."
+        },
         "onlyClosed": {
           "title": "Todos los proyectos están cerrados",
           "description": "Los proyectos cerrados conservan su historial en la vista Cerrados.",

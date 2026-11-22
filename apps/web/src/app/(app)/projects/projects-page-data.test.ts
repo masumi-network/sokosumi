@@ -113,6 +113,29 @@ describe("loadProjectsPageData", () => {
     );
   });
 
+  it("names the views that hold projects when the unfiltered Open view is empty", async () => {
+    listProjectsMock.mockImplementation(
+      async ({ state }: { state?: string }) =>
+        state === "hidden"
+          ? { projects: [{ id: "spring" }], pagination: null }
+          : { projects: [], pagination: null },
+    );
+
+    const data = await loadProjectsPageData({ query: "", state: "open" });
+
+    expect(data.otherViews).toEqual(["hidden"]);
+    expect(data.otherMatches).toEqual([]);
+  });
+
+  it("looks for other views only from an empty, unfiltered Open view", async () => {
+    listProjectsMock.mockResolvedValue({ projects: [], pagination: null });
+
+    const data = await loadProjectsPageData({ query: "", state: "hidden" });
+
+    expect(data.otherViews).toEqual([]);
+    expect(listProjectsMock).toHaveBeenCalledOnce();
+  });
+
   it("looks in no other view without a filter or with matches here", async () => {
     listProjectsMock.mockResolvedValue(PAGE);
 
