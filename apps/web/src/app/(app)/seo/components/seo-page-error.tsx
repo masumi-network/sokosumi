@@ -30,7 +30,7 @@ export function SeoPageError({
 }) {
   const t = useTranslations("App.Seo");
   const router = useRouter();
-  useSeoPageErrorRefresh(askPage);
+  useSeoPageErrorRefresh(askPage, router);
   const model = seoLoadRecovery({
     status,
     invalidFilters,

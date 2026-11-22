@@ -1,5 +1,11 @@
 import { render } from "@testing-library/react";
-import { Activity, type RefObject, StrictMode, useEffect } from "react";
+import {
+  Activity,
+  type RefObject,
+  StrictMode,
+  useEffect,
+  useLayoutEffect,
+} from "react";
 import { describe, expect, it } from "vitest";
 
 import { useSeoConnectionAlive } from "./use-seo-connection-alive";
@@ -32,11 +38,62 @@ describe("useSeoConnectionAlive", () => {
     expect(observed).toEqual([true, true, false]);
   });
 
-  it("survives StrictMode replay and flips across React Activity hide and reveal", () => {
+  it("restores alive.current before a sibling layout effect on Activity reveal and clears it before sibling layout cleanup on hide", () => {
+    const siblingLayoutSetup: boolean[] = [];
+    const siblingLayoutCleanup: boolean[] = [];
     const captured: { ref: RefObject<boolean> | null } = { ref: null };
 
     function Probe() {
-      captured.ref = useSeoConnectionAlive();
+      const alive = useSeoConnectionAlive();
+      captured.ref = alive;
+      useLayoutEffect(() => {
+        siblingLayoutSetup.push(alive.current);
+        return () => {
+          siblingLayoutCleanup.push(alive.current);
+        };
+      }, [alive]);
+      return null;
+    }
+
+    const { rerender, unmount } = render(
+      <Activity mode="visible">
+        <Probe />
+      </Activity>,
+    );
+    expect(captured.ref?.current).toBe(true);
+    expect(siblingLayoutSetup).toEqual([true]);
+
+    rerender(
+      <Activity mode="hidden">
+        <Probe />
+      </Activity>,
+    );
+    expect(captured.ref?.current).toBe(false);
+    expect(siblingLayoutCleanup).toEqual([false]);
+
+    rerender(
+      <Activity mode="visible">
+        <Probe />
+      </Activity>,
+    );
+    expect(captured.ref?.current).toBe(true);
+    expect(siblingLayoutSetup).toEqual([true, true]);
+
+    unmount();
+    expect(captured.ref?.current).toBe(false);
+    expect(siblingLayoutCleanup).toEqual([false, false]);
+  });
+
+  it("survives StrictMode replay across mount, Activity hide/reveal, and unmount", () => {
+    const siblingLayoutSetup: boolean[] = [];
+    const captured: { ref: RefObject<boolean> | null } = { ref: null };
+
+    function Probe() {
+      const alive = useSeoConnectionAlive();
+      captured.ref = alive;
+      useLayoutEffect(() => {
+        siblingLayoutSetup.push(alive.current);
+      }, [alive]);
       return null;
     }
 
@@ -48,6 +105,7 @@ describe("useSeoConnectionAlive", () => {
       </StrictMode>,
     );
     expect(captured.ref?.current).toBe(true);
+    expect(siblingLayoutSetup).toEqual([true, true]);
 
     rerender(
       <StrictMode>
@@ -66,6 +124,7 @@ describe("useSeoConnectionAlive", () => {
       </StrictMode>,
     );
     expect(captured.ref?.current).toBe(true);
+    expect(siblingLayoutSetup).toEqual([true, true, true, true]);
 
     unmount();
     expect(captured.ref?.current).toBe(false);

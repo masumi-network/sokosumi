@@ -162,6 +162,37 @@ describe("useSeoConnectionCallback", () => {
     unmount();
   });
 
+  it("ignores late completion after unmount without broadcasting or closing the popup", async () => {
+    const pending = Promise.withResolvers<typeof CONNECTED_RESULT>();
+    mocks.finalize.mockReturnValueOnce(pending.promise);
+
+    const captured: {
+      latest: ReturnType<typeof useSeoConnectionCallback> | null;
+    } = { latest: null };
+    function Probe({
+      context,
+    }: {
+      context: SeoConnectionCallbackContext | null;
+    }) {
+      captured.latest = useSeoConnectionCallback(context);
+      return null;
+    }
+
+    const { unmount } = render(<Probe context={sampleContext()} />);
+    expect(mocks.finalize).toHaveBeenCalledTimes(1);
+
+    unmount();
+
+    await act(async () => {
+      pending.resolve(CONNECTED_RESULT);
+      await pending.promise;
+    });
+
+    expect(captured.latest?.connected).toBe(false);
+    expect(mocks.publish).not.toHaveBeenCalled();
+    expect(window.close).not.toHaveBeenCalled();
+  });
+
   it("supports explicit retry after a temporary failure and skips invalid/failed contexts", async () => {
     mocks.finalize
       .mockResolvedValueOnce({
