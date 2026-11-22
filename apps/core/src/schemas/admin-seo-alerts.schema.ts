@@ -33,6 +33,7 @@ const reason = z.enum([
   "seasonalFailed",
   "explorationFailed",
   "investigationFailed",
+  "speedPagesFailed",
   "editorialGemini",
   "editorialCodex",
   "editorialValidation",

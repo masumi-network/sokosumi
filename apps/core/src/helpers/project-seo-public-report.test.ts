@@ -53,9 +53,10 @@ it("retains only typed failed specialist stages from a bound report and counts o
         "exploration",
         "sensitive error",
         "searchInvestigation",
+        "speedPages",
       ],
     }),
-  ).toEqual(["seasonal", "exploration", "searchInvestigation"]);
+  ).toEqual(["seasonal", "exploration", "searchInvestigation", "speedPages"]);
   expect(
     failedSeoSpecialists({ ...good, notes: ["exploration failed"] }),
   ).toEqual([]);
@@ -81,6 +82,7 @@ it("records the standalone exploration failure as an admin issue", () => {
       specialistFailures: [
         "exploration",
         "searchInvestigation",
+        "speedPages",
         "provider details",
       ],
     }),

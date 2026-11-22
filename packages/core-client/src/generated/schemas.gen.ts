@@ -411,6 +411,7 @@ export const AdminSeoAlertsSchema = {
                                 'seasonalFailed',
                                 'explorationFailed',
                                 'investigationFailed',
+                                'speedPagesFailed',
                                 'editorialGemini',
                                 'editorialCodex',
                                 'editorialValidation',
