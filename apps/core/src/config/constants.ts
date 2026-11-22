@@ -85,14 +85,16 @@ export const LIMITS = {
   /**
    * Generations Core's month media may have in flight for one Project. The
    * approved plan bounds how many a month makes; fal queues what is over the
-   * account's own limit instead of refusing it.
+   * account's own limit instead of refusing it. Twelve since cmo-v14's top
+   * month holds about 196 videos and 224 pictures.
    */
-  CMO_MONTH_CONCURRENT_JOBS_PER_PROJECT: 6,
+  CMO_MONTH_CONCURRENT_JOBS_PER_PROJECT: 12,
   /**
-   * cmo-v11 makes five alternatives of every picture at once; 15 keeps three
-   * pictures in flight, the throughput of the 6 above, fal queueing the rest.
+   * cmo-v11 makes five alternatives of every picture at once; 25 keeps five
+   * pictures in flight, about the throughput of the 12 above, fal queueing
+   * the rest.
    */
-  CMO_PICKED_MONTH_CONCURRENT_JOBS_PER_PROJECT: 15,
+  CMO_PICKED_MONTH_CONCURRENT_JOBS_PER_PROJECT: 25,
 
   /**
    * Image-studio generations one user may start per hour, across all projects.

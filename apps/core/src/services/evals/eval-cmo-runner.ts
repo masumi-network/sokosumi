@@ -1357,7 +1357,7 @@ export async function pollCmoCase(
       checks.push(...(await claimChecks(strategy)));
     if (evalCase.brand.testerCredits && strategy) {
       const level = await cmoPlanLevel(projectId, await databaseNow());
-      const made = cmoMonthAtLevel(strategy.calendar, strategy.channels, level);
+      const made = cmoMonthAtLevel(strategy.calendar, level);
       const live = strategy.calendar.filter(
         (entry) => entry.status !== "skipped",
       );

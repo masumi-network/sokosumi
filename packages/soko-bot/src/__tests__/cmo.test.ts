@@ -364,9 +364,9 @@ describe("CMO version", () => {
       ),
     );
     const strategy = getSokoBotSkill(CMO_CHANNEL_FIT_STRATEGY_SKILL).content;
-    expect(strategy).toContain("four a day on X");
+    expect(strategy).toContain("six a day on X");
     expect(strategy).toContain("one a day on LinkedIn, never more");
-    expect(strategy).toContain("two TikToks a day");
+    expect(strategy).toContain("three TikToks a day");
     expect(strategy).toContain("never the whole calendar");
     expect(strategy).toContain(
       "A network the business has connected is never left out",

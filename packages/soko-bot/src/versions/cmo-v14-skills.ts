@@ -26,27 +26,27 @@ const REVISIONS: readonly (readonly [string, string])[] = [
   ],
   [
     "all_in: three a day on X and two a day on LinkedIn, Facebook and Instagram.",
-    "all_in: each network at its own rate, because each feed moves at its own speed: four a day on X, at least one in two with a picture; one a day on LinkedIn, never more, because its feed buries a company that posts often; two a day on Instagram, a picture post or carousel and a Reel; one a day on Facebook, pictures and Reels; two TikToks a day; and one YouTube Short a day.",
+    "all_in: each network at its own rate, because each feed moves at its own speed: six a day on X, at least one in two with a picture; one a day on LinkedIn, never more, because its feed buries a company that posts often; four a day on Instagram, two picture posts or carousels and two Reels; two a day on Facebook, pictures and Reels; three TikToks a day; and two YouTube Shorts a day. A side network (another buyer) takes its network's rate too.",
   ],
   [
     "(the strategy review refuses more than three a day on X or two on another network, and more than three a week on a side channel)",
-    "(the strategy review refuses more than a network's top rate, and more than three a week on a side channel)",
+    "(the strategy review refuses more than a network's top rate)",
   ],
   [
     "So every main network takes its top rate (three a day on X, two on LinkedIn, Facebook and Instagram) and every side channel three a week;",
-    "So every main network takes its top rate (four a day on X, one on LinkedIn, two on Instagram, one on Facebook, two TikToks and one YouTube Short) and every side channel three a week;",
+    "So every network takes its top rate (six a day on X, one on LinkedIn, four on Instagram, two on Facebook, three TikToks and two YouTube Shorts), a side network too;",
   ],
   [
     "(all_in with Instagram as the main channel and LinkedIn as a side channel: 14 + 3 = 17)",
-    "(all_in on X, LinkedIn, Instagram, TikTok and YouTube: 28 + 7 + 14 + 14 + 7 = 70)",
+    "(all_in on X, LinkedIn, Instagram, TikTok and YouTube: 42 + 7 + 28 + 21 + 14 = 112)",
   ],
   [
     "(all_in on two main networks and a side channel is about 33 a week, not 7)",
-    "(all_in on X, LinkedIn, Instagram, TikTok and YouTube is about 70 a week, not 17)",
+    "(all_in on X, LinkedIn, Instagram, TikTok and YouTube is about 112 a week, not 17)",
   ],
   [
     "A video costs about 30 credits, as much as four pictures, so plan at most four a month, only where movement shows what a still picture cannot: a product in use, a before and after, a screen changing. The strategy review refuses more.",
-    "A video costs about 30 credits, as much as four pictures, and short video is where people watch most: plan them every day at each video network's rate (two TikToks, a Reel on Instagram, a YouTube Short), each showing something that moves: a product in use, a before and after, a screen changing, one step of a how-to.",
+    "A video costs about 30 credits, as much as four pictures, and short video is where people watch most: plan them every day at each video network's rate (three TikToks, two Reels on Instagram, two YouTube Shorts), each showing something that moves: a product in use, a before and after, a screen changing, one step of a how-to.",
   ],
   [
     "It counts as one of the four videos and costs about",

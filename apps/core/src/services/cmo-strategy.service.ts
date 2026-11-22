@@ -911,11 +911,12 @@ function ownerAnswers(brain: BrandBrain): string[] {
 /** Matches the calendar slice in the turn packet. A full plan with drafts does not fit. */
 export const CMO_VISIBLE_CALENDAR_DAYS = 31;
 /**
- * cmo-v14's top volume on every live network is about 300 pieces a month
- * (four X posts a day, two TikToks, a picture and a Reel on Instagram, and
- * one a day on LinkedIn, Facebook and YouTube).
+ * cmo-v14's top volume on every live network is 504 pieces a month
+ * (`CMO_NETWORK_VOLUME.all_in`: six X posts a day, three TikToks, two
+ * picture posts and two Reels on Instagram, two on Facebook, two YouTube
+ * Shorts, one on LinkedIn), plus newsletter issues and room to spare.
  */
-const CMO_CALENDAR_LIMIT = 320;
+const CMO_CALENDAR_LIMIT = 560;
 
 export function calendarBounds(
   now: Date,

@@ -69,7 +69,6 @@ describe("a talking video's posts on other networks", () => {
     );
     const { made } = cmoMonthAtLevel(
       posts.map((post) => post.entry),
-      [],
       "steady",
     );
     expect([...made].sort()).toEqual([

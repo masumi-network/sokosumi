@@ -1210,10 +1210,10 @@ describe("syncCmoProduction", () => {
 });
 
 describe("the month the plan bought", () => {
-  /** Three X posts a day for two days, and a talking video shown on YouTube too. */
+  /** Four X posts a day for two days, and a talking video shown on YouTube too. */
   const month = [
     ...["2026-11-10", "2026-11-11"].flatMap((date) =>
-      ["a", "b", "c"].map((slot) =>
+      ["a", "b", "c", "d"].map((slot) =>
         post({ id: `x-${date}-${slot}`, date, channel: "x", format: "post" }),
       ),
     ),
@@ -1240,29 +1240,31 @@ describe("the month the plan bought", () => {
     });
   };
 
-  it("makes two X posts a day on Starter, and the rest waits for a bigger plan", async () => {
+  it("makes three X posts a day on Starter, and the rest waits for a bigger plan", async () => {
     const { status, pieces } = await read("starter");
     expect(status.level).toBe("steady");
     expect(pieces.map((piece) => piece.id)).toEqual([
       "x-2026-11-10-a",
       "x-2026-11-10-b",
+      "x-2026-11-10-c",
       "x-2026-11-11-a",
       "x-2026-11-11-b",
+      "x-2026-11-11-c",
       "v1",
       "v1@youtube",
     ]);
-    expect(status.total).toBe(6);
-    expect(status.beyondPlan).toEqual(["x-2026-11-10-c", "x-2026-11-11-c"]);
+    expect(status.total).toBe(8);
+    expect(status.beyondPlan).toEqual(["x-2026-11-10-d", "x-2026-11-11-d"]);
   });
 
   it("makes more of the same month on Growth, and all of it on Scale", async () => {
     expect((await read("growth")).status).toMatchObject({
       level: "active",
-      total: 8,
+      total: 10,
     });
     expect((await read("scale")).status).toMatchObject({
       level: "all_in",
-      total: 8,
+      total: 10,
       beyondPlan: [],
     });
   });
@@ -1270,7 +1272,7 @@ describe("the month the plan bought", () => {
   it("makes all of it on Tester credits, with no plan bought", async () => {
     expect((await read(null)).status).toMatchObject({
       level: "all_in",
-      total: 8,
+      total: 10,
     });
   });
 });

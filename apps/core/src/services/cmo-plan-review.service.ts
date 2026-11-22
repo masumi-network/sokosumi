@@ -6,7 +6,12 @@ import {
   CMO_PART_PATCH_STRATEGY_SKILL,
   type MarketingStrategyPlan,
 } from "@sokosumi/soko-bot";
-import { CMO_CHANNELS } from "@sokosumi/utils";
+import {
+  CMO_CHANNELS,
+  CMO_NETWORK_VOLUME,
+  type CmoNetworkRate,
+  cmoNetworkMonth,
+} from "@sokosumi/utils";
 
 import { z } from "zod";
 
@@ -54,11 +59,12 @@ export const CMO_SHARE_TOLERANCE = 7;
 export const CMO_MAX_VIDEOS_PER_MONTH = 4;
 /**
  * cmo-v14 plans short video every day (owner, 2026-11-21: "multiple tiktoks
- * a day"): a five-second video costs about 30 credits, so the cap moves to
- * the month's top volume, and the talking videos (120 to 250 credits each)
+ * a day"; the top month holds 196: 56 Reels, 84 TikToks, 56 YouTube Shorts):
+ * a five-second video costs about 30 credits, so the cap moves to the
+ * month's top volume, and the talking videos (120 to 250 credits each)
  * keep the old four.
  */
-export const CMO_CHANNEL_FIT_MAX_VIDEOS = 150;
+export const CMO_CHANNEL_FIT_MAX_VIDEOS = 200;
 export const CMO_MAX_TALKING_VIDEOS_PER_MONTH = 4;
 
 function isVideoFormat(entry: { channel: string; format: string }): boolean {
@@ -255,7 +261,14 @@ export function cmoPlanProblems(
     if (weeks >= 4)
       problems.push(...cadenceProblems(strategy.channels, pieces, "over"));
     if (options.weekly)
-      problems.push(...roleProblems(strategy.channels, pieces, weeks));
+      problems.push(
+        ...roleProblems(
+          strategy.channels,
+          pieces,
+          weeks,
+          options.channelFit === true,
+        ),
+      );
     problems.push(...crowdedNetworks(pieces, options.channelFit === true));
     problems.push(...storyProblems(pieces, options.claims === true));
     if (options.claims) problems.push(...claimProblems(pieces));
@@ -597,28 +610,43 @@ interface Volume {
 }
 
 /**
- * The top volume per main network on cmo-v14 (owner, 2026-11-21: "too few
- * on X, too many on LinkedIn, not enough tiktoks, not enough instagram
- * reels"): X several a day, LinkedIn at most one, Instagram a picture and a
- * Reel a day, and short video every day on TikTok and YouTube Shorts. A side
- * network keeps three a week.
+ * The top volume per network on cmo-v14, from the plan table every plan
+ * reads (`CMO_NETWORK_VOLUME.all_in`; owner, 2026-11-21: "the top truly over
+ * the top"): X six a day, LinkedIn one, Instagram two picture posts or
+ * carousels and two Reels, Facebook two, three TikToks and two YouTube
+ * Shorts a day. A side network (another buyer) takes its network's rate too.
  */
-export const CHANNEL_FIT_TOP: Record<string, Volume> = {
-  x: { pieces: 4 * 28, cadence: "4 a day" },
-  linkedin: { pieces: 28, cadence: "1 a day" },
-  instagram: { pieces: 2 * 28, cadence: "2 a day" },
-  facebook: { pieces: 28, cadence: "1 a day" },
-  youtube: { pieces: 28, cadence: "1 a day" },
-  tiktok: { pieces: 2 * 28, cadence: "2 a day" },
-};
+export const CHANNEL_FIT_TOP: Record<string, Volume> = Object.fromEntries(
+  Object.entries(CMO_NETWORK_VOLUME.all_in).map(([key, rate]) => [
+    key,
+    { pieces: cmoNetworkMonth(rate), cadence: cmoRateCadence(key, rate) },
+  ]),
+);
+
+/** "6 a day", "2 picture posts or carousels and 2 Reels a day", "3 TikToks a day". */
+function cmoRateCadence(key: string, rate: CmoNetworkRate): string {
+  const daily = (count: number, per: "day" | "week") =>
+    per === "day" ? count : count / 7;
+  const posts = daily(rate.posts, rate.per);
+  const videos = rate.videos === undefined ? 0 : rate.videos / 7;
+  const name: Record<string, string> = {
+    instagram: "Reels",
+    facebook: "Reels",
+    youtube: "YouTube Shorts",
+    tiktok: "TikToks",
+  };
+  if (posts === 0) return `${videos} ${name[key] ?? "videos"} a day`;
+  if (videos === 0) return `${posts} a day`;
+  return `${posts} picture posts or carousels and ${videos} ${name[key] ?? "videos"} a day`;
+}
 
 function topVolume(
   channel: MarketingStrategyPlan["channels"][number],
   channelFit = false,
 ): Volume {
   const key = channel.channel.toLowerCase();
-  if (channel.role === "side") return TOP_VOLUME.side;
   if (channelFit) return CHANNEL_FIT_TOP[key] ?? TOP_VOLUME.main;
+  if (channel.role === "side") return TOP_VOLUME.side;
   return key === "x" ? TOP_VOLUME.x : TOP_VOLUME.main;
 }
 
@@ -1097,6 +1125,8 @@ function roleProblems(
   channels: MarketingStrategyPlan["channels"],
   pieces: MarketingStrategyPlan["calendar"],
   weeks: number,
+  /** cmo-v14: a side network takes its network's rate; side names the buyer. */
+  channelFit = false,
 ): string[] {
   return channels.flatMap((channel) => {
     if (!isSocialChannel(channel.channel)) return [];
@@ -1114,7 +1144,7 @@ function roleProblems(
       goesOutOn(entry, channel.channel),
     ).length;
     const most = CMO_SIDE_CHANNEL_PER_WEEK * weeks;
-    if (count > most)
+    if (!channelFit && count > most)
       problems.push(
         `${channel.channel} is a side channel with ${count} pieces over ${weeks} ${weeks === 1 ? "week" : "weeks"}; a side channel takes at most ${CMO_SIDE_CHANNEL_PER_WEEK} a week. Drop pieces or make it a main channel.`,
       );

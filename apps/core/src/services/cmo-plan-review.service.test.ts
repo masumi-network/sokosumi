@@ -1815,7 +1815,8 @@ describe("a pace or cadence only the owner lowers", () => {
         top,
         "Can we post a bit less overall?",
       ).channels.map((item) => item.setByOwner ?? false),
-    ).toEqual([true, true, false]);
+      // cmo-v14 holds a side network to its network's rate too.
+    ).toEqual([true, true, true]);
     expect(
       cmoWithOwnerPace(xLess, top, "Add a post about our launch").channels.map(
         (item) => item.setByOwner ?? false,
@@ -2360,8 +2361,8 @@ describe("each network at its own rate, for a Cuso on cmo-v14", () => {
         fit,
       ),
     ).toEqual([
-      'x has the cadence "3 a day"; at the top volume a main x takes 4 a day. Set it and plan its pieces, unless the owner asked for less.',
-      'tiktok has the cadence "1 a week"; at the top volume a main tiktok takes 2 a day. Set it and plan its pieces, unless the owner asked for less.',
+      'x has the cadence "3 a day"; at the top volume a main x takes 6 a day. Set it and plan its pieces, unless the owner asked for less.',
+      'tiktok has the cadence "1 a week"; at the top volume a main tiktok takes 3 TikToks a day. Set it and plan its pieces, unless the owner asked for less.',
     ]);
   });
 
@@ -2397,5 +2398,31 @@ describe("each network at its own rate, for a Cuso on cmo-v14", () => {
     expect(
       cmoPlanProblems(plan({ calendar }), { everyNetwork: true }),
     ).toContainEqual(expect.stringContaining("plan at most 4 a month"));
+  });
+
+  it("lets the whole top month through: 504 pieces, 196 of them videos", () => {
+    const rates: [string, string, number][] = [
+      ["x", "image", 168],
+      ["linkedin", "image", 28],
+      ["instagram", "carousel", 56],
+      ["instagram", "reel", 56],
+      ["facebook", "image", 56],
+      ["tiktok", "video", 84],
+      ["youtube", "short", 56],
+    ];
+    const calendar = rates.flatMap(([network, format, count]) =>
+      days(count, (date, index) => ({
+        ...entry(`${network}-${format}-${index}`, network, format),
+        date,
+      })),
+    ) as MarketingStrategyPlan["calendar"];
+    expect(calendar).toHaveLength(504);
+    const problems = cmoPlanProblems(plan({ calendar }), fit);
+    expect(
+      problems.filter((problem) => / has \d+ pieces, more than /.test(problem)),
+    ).toEqual([]);
+    expect(
+      problems.filter((problem) => problem.includes("videos; plan at most")),
+    ).toEqual([]);
   });
 });

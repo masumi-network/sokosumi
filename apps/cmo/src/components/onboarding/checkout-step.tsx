@@ -23,11 +23,7 @@ type Strategy = NonNullable<CmoOverview["strategy"]>;
  * top volume, and each plan makes its share of it (Core makes the same).
  */
 function planMakes(strategy: Strategy, tier: string) {
-  return cmoMonthAtLevel(
-    strategy.calendar,
-    strategy.channels,
-    cmoVolumeLevelForTier(tier),
-  );
+  return cmoMonthAtLevel(strategy.calendar, cmoVolumeLevelForTier(tier));
 }
 
 function makesLine({
