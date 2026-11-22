@@ -192,6 +192,13 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-rooms-client-scroll-on-history-loaded` (`useRoomsClientScrollOnHistoryLoaded`) — pins `RoomsClient` to the bottom in layout when message history transitions from pending to loaded
 - `use-rooms-client-transcript-active` (`useRoomsClientTranscriptActive`) — before-paint active/mounted ref lifecycle for `RetainedRoomsClient` and its `positionChanged` guard
 - `use-unread-thread-reply-counts` (`useUnreadThreadReplyCounts`) — debounced unread thread reply count reader per room with local `clear` override
+- `use-task-activity-composer-upload-cleanup` (`useTaskActivityComposerUploadCleanup`) — tracks unmounting/hidden state and aborts active attachment uploads on passive cleanup for `TaskActivityComposer`
+- `use-task-activity-jump-highlight` (`useTaskActivityJumpHighlight`) — tracks and highlights a pending "Jump to latest" message once rendered in `TaskActivitySection`
+- `use-task-files-expanded` (`useTaskFilesExpanded`) — owns `TaskFiles` expansion state and resets it before paint on unmount or React `<Activity>` hide
+- `use-task-subtask-move-focus` (`useTaskSubtaskMoveFocus`) — restores focus to the moved sub-task's drag handle after `TaskSubtaskList` reorders rows
+- `use-task-title-heading-focus` (`useTaskTitleHeadingFocus`) — focuses `TaskTitleHeading` with `preventScroll` on client task navigation while skipping fresh task-URL loads and active controls
+- `use-tasks-export-run` (`useTasksExportRun`) — tracks active CSV export run generation across `TasksExportDialog` close and unmount transitions
+- `use-task-subtasks-cache-sync` (`useTaskSubtasksCacheSync`) — syncs newer server-rendered sub-task rows into the React Query cache for `useTaskSubtasks` when idle
 
 ### React Query in migrations
 
