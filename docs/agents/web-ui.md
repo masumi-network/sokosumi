@@ -55,7 +55,7 @@ Before reaching for an effect, read React's [You Might Not Need an Effect](https
 - **External store subscriptions**: use `useSyncExternalStore` for browser state (`matchMedia`, `visualViewport`, `localStorage`, hydration checks).
 - **Latest callback or prop inside an effect**: use `useEffectEvent`, and call it only from that effect or from callbacks the effect registers (its timers, listeners, subscriptions). A callback registered outside an effect (a JSX event handler, a library callback, a timer started in a handler) that needs the latest committed value uses `useLatestRef` from `src/hooks/effects/`. Render logic reads current props and state directly, never a ref.
 
-When you genuinely need to synchronize with an external system, call an existing named hook from `src/hooks/effects/` (or add one there — one job per hook, covered by a Vitest behaviour test, and never taking a general effect-callback parameter). Tests, test fixtures, and Web's vendored `src/components/ui/**` are exempt.
+When you genuinely need to synchronize with an external system, host the effect in a **single-site, owner-named hook** under `src/hooks/effects/` (one job per hook, named for its owner and job, covered by a Vitest behaviour test, and never taking a general effect-callback or setter-forwarding parameter). Single-site owner-named hooks are the standard way to host an effect: do not generalize a single-site effect into a reusable API, and reach for a shared hook from `src/hooks/effects/` (`useEventListener`, `useInterval`, `useTimeout`, observer hooks) only when its semantics match the site identically (for example, `useEventListener` and `useInterval` always call the latest handler rather than binding a callback at effect setup). Tests, test fixtures, and Web's vendored `src/components/ui/**` are exempt.
 
 Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/src/hooks/effects/`):
 
@@ -173,6 +173,14 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-email-change-return-notice` (`useEmailChangeReturnNotice`) — one-shot email-change return link toast, Core acknowledgement, and query parameter strip
 - `use-invalidate-project-scope-on-navigation` (`useInvalidateProjectScopeOnNavigation`) — invalidates the selected project-scope query when `pathname` changes after mount
 - `use-notification-service-worker-bridge` (`useNotificationServiceWorkerBridge`) — installs the notification service worker on mount when granted and wires click and banner-query handlers
+- `use-seo-agent-verdict-focus` (`useSeoAgentVerdictFocus`) — focuses the SEO Agent verdict heading when a check that ran during the visit ends and focus fell to `document.body`
+- `use-seo-agent-lead-focus-recovery` (`useSeoAgentLeadFocusRecovery`) — moves focus to the SEO Agent verdict heading when the lead step changes while focus was in the steps list and fell to `document.body`
+- `use-seo-chat-thread-scroll` (`useSeoChatThreadScroll`) — scrolls the SEO chat thread to its end while following a question, or aligns the latest `<article>` when a sent reply lands
+- `use-seo-page-error-refresh` (`useSeoPageErrorRefresh`) — refreshes the SEO page route when `SeoPageError` asks the server page to resolve the Audit's workspace
+- `use-seo-connection-alive` (`useSeoConnectionAlive`) — before-paint active/mounted ref lifecycle for `useSeoConnection` across unmount and React `<Activity>` hide/reveal
+- `use-seo-focus-handoff-target` (`useSeoFocusHandoffTarget`) — focuses the SEO focus-handoff status target with `preventScroll` when armed, visible, and focus fell to `document.body`
+- `use-seo-focus-handoff-dialog-return` (`useSeoFocusHandoffDialogReturn`) — returns focus to the first control button in the SEO focus-handoff container when its dialog closes without replacing the control
+- `use-seo-connection-callback` (`useSeoConnectionCallback`) — completes the native SEO OAuth connection callback on mount, broadcasts completion, closes the popup, and supports explicit retry
 - `use-chat-landing-notice` (`useChatLandingNotice`) — shows the room-unavailable toast and clears `?notice=room-unavailable` on Welcome (`/`)
 - `use-coworker-thought-live-elapsed` (`useCoworkerThoughtLiveElapsed`) — live 100ms elapsed timer for `CoworkerLiveThought` starting from deterministic `startedAtMs`
 - `use-coworker-thought-line-height` (`useCoworkerThoughtLineHeight`) — before-paint `offsetHeight` measurement for the `CoworkerThoughtTrace` rail
@@ -182,7 +190,7 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-rooms-client-classic-outbound-cleanup` (`useRoomsClientClassicOutboundCleanup`) — drops classic channel and thread outbound queues on room switch, Activity hide, and unmount
 - `use-rooms-client-reopen-active-stream-thread` (`useRoomsClientReopenActiveStreamThread`) — re-opens the thread panel in `RoomsClient` when a coworker thread stream is active or resumed
 - `use-rooms-client-scroll-on-history-loaded` (`useRoomsClientScrollOnHistoryLoaded`) — pins `RoomsClient` to the bottom in layout when message history transitions from pending to loaded
-- `use-rooms-client-transcript-active` (`useRoomsClientTranscriptActive`) — before-paint active/mounted ref lifecycle for `useRetainedTranscript` in `RoomsClient`
+- `use-rooms-client-transcript-active` (`useRoomsClientTranscriptActive`) — before-paint active/mounted ref lifecycle for `RetainedRoomsClient` and its `positionChanged` guard
 - `use-unread-thread-reply-counts` (`useUnreadThreadReplyCounts`) — debounced unread thread reply count reader per room with local `clear` override
 
 ### React Query in migrations

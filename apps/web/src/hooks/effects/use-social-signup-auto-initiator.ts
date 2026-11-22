@@ -3,7 +3,7 @@
 import { isUrlString } from "@sokosumi/utils";
 import { track } from "@vercel/analytics";
 import type { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { toast } from "sonner";
 
 import { useEventListener } from "@/hooks/effects/use-event-listener";
@@ -32,6 +32,9 @@ export function useSocialSignupAutoInitiator({
 }: UseSocialSignupAutoInitiatorOptions) {
   const [error, setError] = useState<string | null>(null);
   const [isInitiating, setIsInitiating] = useState(true);
+  const getFallbackErrorMessage = useEffectEvent(() =>
+    t(`${messageKey}.error`),
+  );
 
   useEffect(() => {
     const initiateOAuth = async () => {
@@ -54,13 +57,13 @@ export function useSocialSignupAutoInitiator({
           window.location.replace(providerUrl);
         } else {
           const errorMessage =
-            result.error?.message ?? t(`${messageKey}.error`);
+            result.error?.message ?? getFallbackErrorMessage();
           setError(errorMessage);
           toast.error(errorMessage);
           setIsInitiating(false);
         }
       } catch {
-        const errorMessage = t(`${messageKey}.error`);
+        const errorMessage = getFallbackErrorMessage();
         setError(errorMessage);
         toast.error(errorMessage);
         setIsInitiating(false);
@@ -68,7 +71,7 @@ export function useSocialSignupAutoInitiator({
     };
 
     initiateOAuth();
-  }, [provider, messageKey, effectiveReturnUrl, t]);
+  }, [provider, effectiveReturnUrl]);
 
   // A page restored from the back/forward cache does not run the effect
   // again; offer the retry instead of a spinner with nothing behind it.
