@@ -83,7 +83,7 @@ export default async function OrganizationInformation({
   return (
     <OrganizationMetadataProvider organization={organization}>
       <Card className="shadow-none">
-        <CardHeader className="gap-6">
+        <CardHeader className="gap-6 max-sm:gap-x-0">
           <div className="flex items-center gap-4 sm:gap-5">
             <Avatar className="bg-muted size-16 items-center justify-center rounded-2xl">
               <OrganizationLogo organization={organization} size={28} />

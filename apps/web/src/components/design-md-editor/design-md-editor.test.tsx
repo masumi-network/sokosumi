@@ -24,6 +24,8 @@ vi.mock("@/lib/actions/design-md/action", () => ({
 }));
 
 // A plain field in place of the rich editor, which happy-dom cannot drive.
+// Its Cancel leaves at once: the Discard dialog lives in the real editor and
+// is covered by `e2e/organization-design-md.test.ts`.
 vi.mock("./full-page-markdown-editor", () => ({
   FullPageMarkdownEditor: ({
     onCancel,
@@ -74,7 +76,7 @@ beforeEach(() => {
 });
 
 describe("DesignMdEditor", () => {
-  it("opens from the saved file after Discard, not from the discarded edit", () => {
+  it("opens from the saved file on a new visit, not from the left draft", () => {
     const { rerender } = render(<EditRoute />);
     fireEvent.change(screen.getByLabelText("Edit DESIGN.md"), {
       target: { value: "# Saved brand\n\nDISCARDED" },
