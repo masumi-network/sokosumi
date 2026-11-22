@@ -181,6 +181,11 @@ export {
 } from "./cmo-competitor-week.js";
 export { withoutSokosumiLinks } from "./cmo-links.js";
 export {
+  CMO_PLAIN_WORDS,
+  cmoJargonIn,
+  cmoPlainWordsLine,
+} from "./cmo-plain-words.js";
+export {
   CMO_NETWORK_VOLUME,
   CMO_SHORT_VIDEOS_PER_WEEK,
   CMO_VOLUME_LEVELS,
