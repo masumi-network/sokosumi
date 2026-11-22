@@ -33,6 +33,9 @@ import { SeoGettingStarted } from "./seo-getting-started";
 import { SeoAutomation } from "./seo-monitors";
 import { seoOverviewModel } from "./seo-overview-model";
 import { seoRarelyShown } from "./seo-performance-model";
+import { SeoPlanMessage } from "./seo-plan-message";
+import { seoPlanMessage } from "./seo-plan-message-model";
+import { SeoPlanPdfLink } from "./seo-plan-pdf-link";
 import { SeoPropertyPerformance } from "./seo-property-performance";
 import { SeoReportPlan } from "./seo-report-plan";
 import { seoRunsDateCheck } from "./seo-runs-model";
@@ -126,6 +129,13 @@ function SeoAgentPanel({
     : undefined;
   // An action that leaves the data closes its dialog for good: a later refetch that brings it back opens nothing.
   if (dialogKey && !dialogAction) setDialogKey(null);
+  const openAction = (
+    action: Parameters<typeof seoActionKey>[0],
+    button: HTMLButtonElement,
+  ) => {
+    dialogRow.current = button;
+    setDialogKey(seoActionKey(action));
+  };
   // Missing search statistics are a banner over the result, not one of the steps.
   const statisticsStep = brief.steps.find(
     (step) => step.kind === "connect" && step.provider === "search_console",
@@ -138,13 +148,21 @@ function SeoAgentPanel({
   // Until the first check has a result, the setup card is the one thing to do: no step shows with it. A failed
   // sync has its alert and Retry in the verdict card, so the refresh step would say it twice.
   const selectedPlan = useSelectedSeoPlan(model);
+  const { actionSeverity, actions } = seoOverviewModel(model.data);
+  // The plan the SEO worker wrote for the report in view. It takes the place of the plan block and of the verdict
+  // with its figures and its actions. An earlier report keeps the plan block: its actions may be gone.
+  const message =
+    setup || selectedPlan.historical
+      ? null
+      : seoPlanMessage(model.data, selectedPlan.report, actionSeverity);
   const steps = setup
     ? []
     : brief.steps.filter(
         (step) =>
           !(
             step.kind === "action" &&
-            selectedPlan.actionKeys.has(seoActionKey(step.action))
+            // The written plan names its actions and counts the rest.
+            (message || selectedPlan.actionKeys.has(seoActionKey(step.action)))
           ) &&
           step !== statisticsStep &&
           step !== analyticsStep &&
@@ -163,8 +181,8 @@ function SeoAgentPanel({
             ? false
             : step.kind !== "action" || (canEdit && !step.action.taskId),
       );
-  // The lead step opens the list of steps in the verdict card.
-  const lead = primary === -1 ? undefined : steps[primary];
+  // The lead step opens the list of steps in the verdict card. With a written plan there is no verdict card.
+  const lead = message || primary === -1 ? undefined : steps[primary];
   // A Task for the lead action takes it out of the card, and its button with it. Focus that fell to the
   // page moves to the verdict, where the next first step now stands.
   const leadKey = lead
@@ -195,7 +213,6 @@ function SeoAgentPanel({
         ),
       )}`
     : "";
-  const { actionSeverity, actions } = seoOverviewModel(model.data);
   const evidence = seoWorklistEvidence(
     model.data,
     currentDiscoveryResult(
@@ -309,19 +326,51 @@ function SeoAgentPanel({
       {/* The pictures come first: the keyword searches say what the site can win before the verdict says
           what to fix. */}
       {setup ? null : <SeoAgentGraphics model={model} />}
-      {!setup && (
+      {setup ? null : message ? (
+        <SeoPlanMessage
+          selected={selectedPlan}
+          model={model}
+          message={message}
+          titleRef={verdict}
+          onOpen={openAction}
+          pdf={
+            selectedPlan.report?.sourceTaskId ? (
+              <SeoPlanPdfLink
+                key={selectedPlan.report.id}
+                model={model}
+                taskId={selectedPlan.report.sourceTaskId}
+                observedAt={selectedPlan.report.observedAt}
+              />
+            ) : null
+          }
+          status={
+            <>
+              <SeoCheckRunning workspace={model.data} />
+              {upkeep}
+            </>
+          }
+          figures={
+            <>
+              {auditReport && <SeoPropertyPerformance evidence={auditReport} />}
+              <SeoAgentFigures
+                model={model}
+                traffic={traffic}
+                periodId={periodId}
+                trafficLead={false}
+              />
+            </>
+          }
+        />
+      ) : (
         <SeoReportPlan
           selected={selectedPlan}
           model={model}
-          onOpen={(action, button) => {
-            dialogRow.current = button;
-            setDialogKey(seoActionKey(action));
-          }}
+          onOpen={openAction}
         />
       )}
       {setup ? (
         <SeoSetupCard model={model} setup={setup} />
-      ) : (
+      ) : message ? null : (
         <div className={cn(HOLDER_ITEM_CLASS, "content-rise space-y-2 p-4")}>
           <h3
             lang="en"
@@ -436,7 +485,8 @@ function SeoAgentPanel({
           verdict card. */}
       {lead || ((setup || banner) && !steps.length) ? null : steps.length ? (
         <div className="space-y-2">
-          {brief.issues ? null : (
+          {/* The verdict names the issues its steps fix. A written plan has no verdict, so the list has its title. */}
+          {brief.issues && !message ? null : (
             <h3 lang="en" className="px-2 text-sm font-semibold">
               {report("agent.nextTitle")}
             </h3>
@@ -449,7 +499,8 @@ function SeoAgentPanel({
             {steps.map((step, index) => stepItem(step, index))}
           </ul>
         </div>
-      ) : selectedPlan.plan ||
+      ) : message ||
+        selectedPlan.plan ||
         (analyticsStep &&
           (!analyticsLine.hidden || analyticsLine.analytics !== "unknown")) ||
         statisticsSync.state === "failed" ||
