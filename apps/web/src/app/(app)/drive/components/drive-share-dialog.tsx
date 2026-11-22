@@ -4,7 +4,7 @@ import type { DriveShare } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { Check, Copy, Link2, Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,11 +18,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useClipboard } from "@/hooks/effects/use-clipboard";
+import { useDriveShareLoader } from "@/hooks/effects/use-drive-share-loader";
 import {
   type DriveShareTarget,
   driveShareUrl,
   type FileStore,
-  fetchDriveShare,
   revokeDriveShare,
   saveDriveShare,
 } from "@/lib/utils/file-search.client";
@@ -44,8 +44,6 @@ export function DriveShareDialog({
 }) {
   const t = useTranslations("App.Drive.Share");
   const passwordId = useId();
-  const [share, setShare] = useState<DriveShare | null | undefined>(undefined);
-  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   // Read through a ref so a new `t` never refetches the link.
   const loadFailedMessage = useRef(t("loadFailed"));
@@ -54,24 +52,11 @@ export function DriveShareDialog({
     copySuccessMessage: t("copied"),
     copyErrorMessage: t("copyFailed"),
   });
-
-  useEffect(() => {
-    if (!item) return;
-    let current = true;
-    setShare(undefined);
-    setPassword("");
-    fetchDriveShare({ store, target: item.target })
-      .then((found) => {
-        if (current) setShare(found);
-      })
-      .catch(() => {
-        if (current) setShare(null);
-        toast.error(loadFailedMessage.current);
-      });
-    return () => {
-      current = false;
-    };
-  }, [item, store]);
+  const { share, setShare, password, setPassword } = useDriveShareLoader(
+    item,
+    store,
+    loadFailedMessage,
+  );
 
   async function run(action: () => Promise<DriveShare | null>, done: string) {
     setBusy(true);
