@@ -11895,7 +11895,17 @@
       "contactsPinned": "Angeheftet",
       "contactsCount": "{count, plural, =1 {1 Kontakt} other {# Kontakte}}",
       "searchPlaceholder": "Tabellen durchsuchen",
-      "noMatches": "Keine passenden Tabellen"
+      "noMatches": "Keine passenden Tabellen",
+      "board": {
+        "layout": "Ansicht",
+        "table": "Tabelle",
+        "board": "Board",
+        "noValue": "Kein Wert für {column}",
+        "moveTo": "Verschieben nach",
+        "moveCard": "{row} verschieben",
+        "emptyLane": "Keine Zeilen",
+        "truncated": "Die ersten {count} Zeilen werden angezeigt. Wechsle zu Tabelle, um den Rest zu sehen."
+      }
     },
     "ProjectScope": {
       "clearSearch": "Suche löschen",

@@ -11895,7 +11895,17 @@
       "contactsPinned": "Pinned",
       "contactsCount": "{count, plural, =1 {1 contact} other {# contacts}}",
       "searchPlaceholder": "Search tables",
-      "noMatches": "No matching tables"
+      "noMatches": "No matching tables",
+      "board": {
+        "layout": "Layout",
+        "table": "Table",
+        "board": "Board",
+        "noValue": "No {column}",
+        "moveTo": "Move to",
+        "moveCard": "Move {row}",
+        "emptyLane": "No rows",
+        "truncated": "Showing the first {count} rows. Switch to Table to see the rest."
+      }
     },
     "ProjectScope": {
       "clearSearch": "Clear search",

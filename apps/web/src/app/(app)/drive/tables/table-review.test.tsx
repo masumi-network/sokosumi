@@ -1418,3 +1418,33 @@ it("opens Find and replace from the table menu, not on an archived table", async
     screen.queryByRole("menuitem", { name: "findReplace.title" }),
   ).not.toBeInTheDocument();
 });
+
+it("B1: a single-select column turns the rows into a board, and Move to saves the cell", async () => {
+  const { default: userEvent } = await import("@testing-library/user-event");
+  const stage = {
+    ...f.score,
+    id: "00000000-0000-4000-8000-000000000006",
+    name: "Stage",
+    type: "single_select" as const,
+    options: ["Lead", "Won"],
+  };
+  f.columns = [f.column, stage];
+  f.shown = [{ ...f.row, values: { ...f.row.values, [stage.id]: "Lead" } }];
+  f.batch.mockResolvedValue({});
+  render(<TableEditor id={f.column.tableId} />);
+  await userEvent.click(screen.getByRole("radio", { name: "board.board" }));
+  expect(screen.getByRole("grid").closest(".hidden")).not.toBeNull();
+  expect(screen.getByRole("region", { name: "Lead" })).toHaveTextContent(
+    "Original",
+  );
+  await userEvent.click(screen.getByRole("button", { name: "board.moveCard" }));
+  await userEvent.click(
+    await screen.findByRole("menuitemradio", { name: "Won" }),
+  );
+  await waitFor(() =>
+    expect(f.batch).toHaveBeenCalledWith(f.column.tableId, {
+      patch: [{ id: f.row.id, version: 1, values: { [stage.id]: "Won" } }],
+      key: expect.any(String),
+    }),
+  );
+});

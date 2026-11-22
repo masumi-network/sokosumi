@@ -27,6 +27,8 @@ import {
   Bot,
   Clock,
   GripVertical,
+  LayoutGrid,
+  List,
   ListFilter,
   MoreHorizontal,
   Plus,
@@ -92,6 +94,7 @@ import {
   TableRow as TableRowShell,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
 import { useSession } from "@/lib/auth/auth.client";
@@ -99,6 +102,7 @@ import { dataTableService } from "@/lib/services/data-table.client";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { moveIdToSlot } from "@/lib/utils/move-id";
+import { TableBoard } from "./table-board";
 import { TableCell, TableUpdatedCell } from "./table-cell";
 import { TableColumnDialog } from "./table-column-dialog";
 import { TableFindReplace } from "./table-find-replace";
@@ -332,6 +336,12 @@ function TableWorkspace({
     tableValueText(view?.definition.filters?.[0]?.value ?? null),
   );
   const [archivedRows, setArchivedRows] = useState(false);
+  const [layout, setLayout] = useQueryState("layout");
+  // The board's lanes are the first single-select column's options.
+  const boardColumn = table.columns.find(
+    (column) => column.type === "single_select" && column.options?.length,
+  );
+  const showBoard = layout === "board" && !!boardColumn && !archivedRows;
   const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [retryAction, setRetryAction] = useState<
@@ -941,6 +951,27 @@ function TableWorkspace({
             </DropdownMenu>
           );
         })}
+        {boardColumn && !archivedRows && (
+          <ToggleGroup
+            type="single"
+            aria-label={t("board.layout")}
+            value={showBoard ? "board" : "table"}
+            onValueChange={(next) => {
+              if (!next) return;
+              setSelected([]);
+              void setLayout(next === "board" ? "board" : null);
+            }}
+          >
+            <ToggleGroupItem value="table" className={EDITOR_TOOLBAR_CONTROL}>
+              <List aria-hidden className="size-4" />
+              {t("board.table")}
+            </ToggleGroupItem>
+            <ToggleGroupItem value="board" className={EDITOR_TOOLBAR_CONTROL}>
+              <LayoutGrid aria-hidden className="size-4" />
+              {t("board.board")}
+            </ToggleGroupItem>
+          </ToggleGroup>
+        )}
         <Button
           size="sm"
           className={EDITOR_TOOLBAR_CONTROL}
@@ -1097,8 +1128,31 @@ function TableWorkspace({
           </AlertDescription>
         </Alert>
       )}
+      {showBoard && (
+        <div className={cn(DRIVE_SURFACE_PANEL_CLASS, "min-w-0")}>
+          <TableBoard
+            table={table}
+            column={boardColumn}
+            columns={columns}
+            definition={definition}
+            readOnly={!!table.archivedAt}
+            onMove={(row, value) =>
+              run(
+                () => handleCell(row, boardColumn, row.version, value),
+                `cell:${row.id}:${boardColumn.id}`,
+              )
+            }
+          />
+        </div>
+      )}
+      {/* Hidden, not unmounted, under the board: a draft or a page the
+      grid holds survives a switch to the board and back. */}
       <div
-        className={cn(DRIVE_SURFACE_PANEL_CLASS, "min-w-0")}
+        className={cn(
+          DRIVE_SURFACE_PANEL_CLASS,
+          "min-w-0",
+          showBoard && "hidden",
+        )}
         style={
           {
             "--sheet-sticky": `${ROW_NUMBER_WIDTH + (columns[0] ? columnWidth(columns[0]) : 0)}px`,

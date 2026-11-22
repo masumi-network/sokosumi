@@ -11895,7 +11895,17 @@
       "contactsPinned": "Fijado",
       "contactsCount": "{count, plural, =1 {1 contacto} other {# contactos}}",
       "searchPlaceholder": "Buscar tablas",
-      "noMatches": "Ninguna tabla coincide"
+      "noMatches": "Ninguna tabla coincide",
+      "board": {
+        "layout": "Vista",
+        "table": "Tabla",
+        "board": "Tablero",
+        "noValue": "Sin {column}",
+        "moveTo": "Mover a",
+        "moveCard": "Mover {row}",
+        "emptyLane": "Sin filas",
+        "truncated": "Se muestran las primeras {count} filas. Cambia a Tabla para ver el resto."
+      }
     },
     "ProjectScope": {
       "clearSearch": "Borrar búsqueda",
