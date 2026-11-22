@@ -163,6 +163,7 @@ function overview() {
     brandMedia: null,
     projectLogo: null,
     presenterSet: false,
+    upgrade: null,
     routines: [],
     timeZone: "Europe/Berlin",
     updates: [

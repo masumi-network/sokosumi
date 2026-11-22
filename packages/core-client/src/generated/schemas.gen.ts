@@ -56522,6 +56522,32 @@ export const CmoOverviewSchema = {
         presenterSet: {
             type: 'boolean'
         },
+        upgrade: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        versionId: {
+                            type: 'string'
+                        },
+                        lines: {
+                            type: 'array',
+                            items: {
+                                type: 'string'
+                            }
+                        }
+                    },
+                    required: [
+                        'versionId',
+                        'lines'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Cuso was moved onto a newer version and this member has not closed the dialog that says what changed: the version and its plain lines. Null otherwise.'
+        },
         onboardingStep: {
             type: 'string',
             enum: [
@@ -59198,6 +59224,7 @@ export const CmoOverviewSchema = {
         'brandVisual',
         'projectLogo',
         'presenterSet',
+        'upgrade',
         'onboardingStep',
         'routines',
         'timeZone',
@@ -63408,6 +63435,20 @@ export const CmoTimeZoneSchema = {
     },
     required: [
         'timeZone'
+    ]
+} as const;
+
+export const CmoUpgradeSeenSchema = {
+    type: 'object',
+    properties: {
+        versionId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64
+        }
+    },
+    required: [
+        'versionId'
     ]
 } as const;
 

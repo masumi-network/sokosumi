@@ -5925,3 +5925,34 @@ button.week-more {
   gap: var(--space-1);
   min-width: 0;
 }
+
+/* ── What changed when Cuso moved onto a newer version, once per move ── */
+.upgrade-notice {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 41;
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+  width: min(420px, calc(100vw - 32px));
+  padding: var(--space-6);
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--card);
+  transform: translate(-50%, -50%);
+}
+
+.upgrade-notice h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-heading);
+}
+
+.upgrade-notice ul {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: 1.1em;
+}

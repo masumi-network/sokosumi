@@ -14,7 +14,7 @@ import {
 } from "./fixtures";
 
 /** Actions that change nothing: every call hands the same overview back. */
-const actions: CmoAppActions = {
+export const fixtureActions: CmoAppActions = {
   // The same data every time, so the app's polling never changes the screen.
   loadState: async () => ({ overview, messages }),
   loadChatWork: async () => [],
@@ -100,6 +100,7 @@ const actions: CmoAppActions = {
   // Both would leave the preview.
   startOver: async () => null,
   setTimeZone: async () => null,
+  markUpgradeSeen: async () => undefined,
   startTopUp: async () => ({ url: null, error: null }),
   subscribe: async () => ({ url: null, error: null }),
   changePlan: async () => ({ change: null, error: null }),
@@ -124,8 +125,16 @@ interface FixtureAppProps {
    * stuck: the day's runs ended with the month half made.
    * busy: a full month, five or six posts a day.
    * quiet: no posts yet, nothing that needs the owner, a long business name.
+   * upgraded: Cuso was just moved onto a newer version.
    */
-  state?: "empty" | "loading" | "blocked" | "stuck" | "busy" | "quiet";
+  state?:
+    | "empty"
+    | "loading"
+    | "blocked"
+    | "stuck"
+    | "busy"
+    | "quiet"
+    | "upgraded";
 }
 
 export function FixtureApp({ view, state }: FixtureAppProps) {
@@ -174,7 +183,22 @@ export function FixtureApp({ view, state }: FixtureAppProps) {
               },
             },
           }
-        : shown;
+        : state === "upgraded"
+          ? {
+              ...shown,
+              overview: {
+                ...shown.overview,
+                upgrade: {
+                  versionId: "cmo-v15",
+                  lines: [
+                    "Your strategy and Cuso's messages now use plain words, without marketing jargon.",
+                    "More posts on the networks that suit your business, at the pace each one likes.",
+                    "Short videos, each made once and shared on TikTok, Instagram Reels and YouTube Shorts.",
+                  ],
+                },
+              },
+            }
+          : shown;
   const loadCompetitors =
     state === "loading"
       ? () => new Promise<null>(() => {})
@@ -192,7 +216,7 @@ export function FixtureApp({ view, state }: FixtureAppProps) {
       plans={cmoPlans}
       mayHire
       actions={{
-        ...actions,
+        ...fixtureActions,
         loadState: async () => data,
         ...(state === "blocked"
           ? {
@@ -202,7 +226,7 @@ export function FixtureApp({ view, state }: FixtureAppProps) {
             }
           : {}),
         loadChatWork: async () => (view === "chat" ? chat.work : []),
-        competitors: { ...actions.competitors, loadCompetitors },
+        competitors: { ...fixtureActions.competitors, loadCompetitors },
       }}
     />
   );

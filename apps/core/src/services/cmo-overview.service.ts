@@ -58,6 +58,7 @@ import {
   listCmoReports,
 } from "@/services/cmo-reports.service";
 import { cmoStrategyShortfall } from "@/services/cmo-strategy.service";
+import { type CmoUpgrade, cmoUpgradeFor } from "@/services/cmo-upgrade.service";
 import { contactListNameKey } from "@/services/contact-lists.service";
 import {
   approvedMarketingStrategy,
@@ -142,6 +143,8 @@ export interface CmoOverview {
   projectLogo: string | null;
   /** The owner gave their photo, with consent, to front talking videos. */
   presenterSet: boolean;
+  /** Cuso's newest version move, while this member has not closed its dialog. */
+  upgrade: CmoUpgrade | null;
   /** What Cuso does when, for Settings. */
   routines: {
     key: string;
@@ -481,6 +484,11 @@ export async function getCmoOverview(
     presenterSet: Boolean(
       project.presenterFileId && project.presenterConsentAt,
     ),
+    upgrade: await cmoUpgradeFor({
+      sokoBotId: cuso.sokoBotId,
+      versionId: bot.versionId,
+      userId,
+    }),
     routines,
     timeZone: bot.ingestTimezone,
     organizationSlug: organization?.slug ?? null,

@@ -46,4 +46,10 @@ export interface SokoBotVersion {
    * omit to fall back to `summary`.
    */
   releaseNote?: string;
+  /**
+   * CMO only: what a Cuso owner reads in the app's "Cuso got better" dialog
+   * after an administrator moves their Cuso onto this version. One short,
+   * plain line each, for a founder who is not a marketer.
+   */
+  whatsNew?: readonly string[];
 }

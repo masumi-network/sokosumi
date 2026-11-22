@@ -732,6 +732,17 @@ export const cmoOverviewSchema = z
     projectLogo: z.union([z.string(), z.null()]),
     /** The owner gave their photo, with consent, to front talking videos. */
     presenterSet: z.boolean(),
+    upgrade: z
+      .union([
+        z.object({
+          versionId: z.string(),
+          lines: z.array(z.string()),
+        }),
+        z.null(),
+      ])
+      .describe(
+        "Cuso was moved onto a newer version and this member has not closed the dialog that says what changed: the version and its plain lines. Null otherwise.",
+      ),
     onboardingStep: z
       .enum(CMO_ONBOARDING_STEPS)
       .describe(

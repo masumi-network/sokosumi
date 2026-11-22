@@ -125,6 +125,7 @@ export const overview: CmoOverview = cmoOverview({
   websiteUrl: "https://acme.io",
   projectLogo: PICTURE,
   presenterSet: false,
+  upgrade: null,
   brandBrain: {
     ...richBrain,
     questions: [],
