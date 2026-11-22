@@ -112,4 +112,32 @@ describe("useSocialSignupAutoInitiator", () => {
 
     expect(result.current.isInitiating).toBe(false);
   });
+
+  it("does not restart OAuth when t changes identity on rerender", async () => {
+    const nextT = ((key: string) => key) as unknown as ReturnType<
+      typeof useTranslations<"Auth.Pages.SignUp">
+    >;
+    const { rerender } = renderHook(
+      ({ translate }) =>
+        useSocialSignupAutoInitiator({
+          provider: "google",
+          messageKey: "Google",
+          effectiveReturnUrl: "/chat",
+          t: translate,
+        }),
+      { initialProps: { translate: t } },
+    );
+
+    await waitFor(() => {
+      expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
+    });
+
+    rerender({ translate: nextT });
+
+    await waitFor(() => {
+      expect(mockLocationReplace).toHaveBeenCalledTimes(1);
+    });
+    expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
+    expect(track).toHaveBeenCalledTimes(1);
+  });
 });
