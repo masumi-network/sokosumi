@@ -6,6 +6,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
+import { Activity, StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import en from "../../../messages/en.json";
@@ -191,5 +192,52 @@ describe("Mermaid lifecycle", () => {
       );
       expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:diagram");
     });
+  });
+  it("never renders a revoked object URL across Activity hide/reveal and StrictMode", async () => {
+    let nextId = 0;
+    const revoked = new Set<string>();
+    vi.mocked(URL.createObjectURL).mockImplementation(
+      () => `blob:diagram-${++nextId}`,
+    );
+    vi.mocked(URL.revokeObjectURL).mockImplementation((url) => {
+      revoked.add(url);
+    });
+
+    const { rerender, unmount } = render(
+      <StrictMode>
+        <Activity mode="visible">{block("flowchart LR\nA --> B")}</Activity>
+      </StrictMode>,
+    );
+
+    const firstImg = await screen.findByRole("img");
+    const firstUrl = firstImg.getAttribute("src");
+    expect(firstUrl).toMatch(/^blob:diagram-/);
+    expect(revoked.has(firstUrl!)).toBe(false);
+
+    // Pause any second renderMermaid call so a stale revoked URL cannot be
+    // masked by an instant async re-render after reveal.
+    renderDiagram.mockImplementation(() => new Promise(() => {}));
+
+    rerender(
+      <StrictMode>
+        <Activity mode="hidden">{block("flowchart LR\nA --> B")}</Activity>
+      </StrictMode>,
+    );
+    expect(revoked.has(firstUrl!)).toBe(true);
+
+    rerender(
+      <StrictMode>
+        <Activity mode="visible">{block("flowchart LR\nA --> B")}</Activity>
+      </StrictMode>,
+    );
+
+    const revealedImg = await screen.findByRole("img");
+    const revealedUrl = revealedImg.getAttribute("src");
+    expect(revealedUrl).toMatch(/^blob:diagram-/);
+    expect(revealedUrl).not.toBe(firstUrl);
+    expect(revoked.has(revealedUrl!)).toBe(false);
+
+    unmount();
+    expect(revoked.has(revealedUrl!)).toBe(true);
   });
 });
