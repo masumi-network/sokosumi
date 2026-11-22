@@ -4,7 +4,7 @@ import type { DriveShare } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { Check, Copy, Link2, Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +45,9 @@ export function DriveShareDialog({
   const t = useTranslations("App.Drive.Share");
   const passwordId = useId();
   const [busy, setBusy] = useState(false);
+  // Read through a ref so a new `t` never refetches the link.
+  const loadFailedMessage = useRef(t("loadFailed"));
+  loadFailedMessage.current = t("loadFailed");
   const { copied, copy } = useClipboard({
     copySuccessMessage: t("copied"),
     copyErrorMessage: t("copyFailed"),
@@ -52,7 +55,7 @@ export function DriveShareDialog({
   const { share, setShare, password, setPassword } = useDriveShareLoader(
     item,
     store,
-    t("loadFailed"),
+    loadFailedMessage,
   );
 
   async function run(action: () => Promise<DriveShare | null>, done: string) {

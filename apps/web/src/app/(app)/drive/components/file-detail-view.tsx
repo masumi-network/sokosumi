@@ -4,7 +4,13 @@ import type { FileResource } from "@sokosumi/core-client";
 import { Check, Loader2, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useCallback, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { DriveFilePreview } from "@/app/drive/components/drive-file-preview";
 import { DriveFileSnippet } from "@/app/drive/components/drive-file-snippet";
@@ -12,7 +18,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { FileTypeIcon } from "@/components/ui/file-icon";
-import { useFileDetailLoad } from "@/hooks/effects/use-file-detail-load";
 import { useSession } from "@/lib/auth/auth.client";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import {
@@ -153,7 +158,13 @@ export function FileDetailView({
     // suppresses nothing only looks like protection.
   }, [resourceId, store.scope, store.organizationId]);
 
-  useFileDetailLoad(load, sessionPending);
+  useEffect(() => {
+    // Waiting costs a moment of the loading state. Not waiting asks for the
+    // file in the personal drive before the active organization is known,
+    // which is a request we already know the answer to.
+    if (sessionPending) return;
+    void load();
+  }, [load, sessionPending]);
 
   async function decide(suggestionId: string, decision: "accept" | "reject") {
     if (!resource) return;

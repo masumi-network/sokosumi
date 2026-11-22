@@ -33,12 +33,13 @@ describe("useDriveShareLoader", () => {
     vi.resetAllMocks();
   });
 
-  it("loads the share for item, resets password on item change, and does not refetch when loadFailedText changes", async () => {
+  it("loads the share for item, resets password on item change, and reads loadFailedMessage through the caller ref", async () => {
     fetchDriveShareMock.mockResolvedValue(SHARE);
+    const loadFailedMessage = { current: "Failed" };
 
     const { result, rerender } = renderHook(
-      ({ item, text }) => useDriveShareLoader(item, STORE, text),
-      { initialProps: { item: ITEM as typeof ITEM | null, text: "Failed" } },
+      ({ item }) => useDriveShareLoader(item, STORE, loadFailedMessage),
+      { initialProps: { item: ITEM as typeof ITEM | null } },
     );
 
     await waitFor(() => expect(result.current.share).toEqual(SHARE));
@@ -49,7 +50,8 @@ describe("useDriveShareLoader", () => {
     });
     expect(result.current.password).toBe("secret");
 
-    rerender({ item: ITEM, text: "Updated failure message" });
+    loadFailedMessage.current = "Updated failure message";
+    rerender({ item: ITEM });
     expect(fetchDriveShareMock).toHaveBeenCalledTimes(1);
 
     const nextItem = {
@@ -57,18 +59,19 @@ describe("useDriveShareLoader", () => {
       name: "notes.md",
     };
     fetchDriveShareMock.mockResolvedValueOnce(null);
-    rerender({ item: nextItem, text: "Updated failure message" });
+    rerender({ item: nextItem });
 
     await waitFor(() => expect(result.current.share).toBeNull());
     expect(result.current.password).toBe("");
     expect(fetchDriveShareMock).toHaveBeenCalledTimes(2);
   });
 
-  it("toasts loadFailedText and falls back to null when loading fails", async () => {
+  it("toasts loadFailedMessage.current and falls back to null when loading fails", async () => {
     fetchDriveShareMock.mockRejectedValueOnce(new Error("boom"));
+    const loadFailedMessage = { current: "Could not load link" };
 
     const { result } = renderHook(() =>
-      useDriveShareLoader(ITEM, STORE, "Could not load link"),
+      useDriveShareLoader(ITEM, STORE, loadFailedMessage),
     );
 
     await waitFor(() => expect(result.current.share).toBeNull());

@@ -96,6 +96,7 @@ import {
   type DrivePrimaryView,
   DriveViewTabs,
 } from "@/app/drive/components/drive-view-tabs";
+import { driveNavParams } from "@/app/drive/drive-nav-params";
 import { TableCreateDialog } from "@/app/drive/tables/table-create-dialog";
 import { TableList } from "@/app/drive/tables/table-list";
 import { PROJECTS_LIST_CARD_MIN_H_CLASS } from "@/app/projects/constants";
@@ -131,9 +132,7 @@ import { Input } from "@/components/ui/input";
 import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { useAbortController } from "@/hooks/effects/use-abort-controller";
-import { useDriveItemsErrorToast } from "@/hooks/effects/use-drive-items-error-toast";
 import { useDriveOrganizationName } from "@/hooks/effects/use-drive-organization-name";
-import { useDriveTasksItemsLoad } from "@/hooks/effects/use-drive-tasks-items-load";
 import { useDriveWorkspaceSwitchUrlReset } from "@/hooks/effects/use-drive-workspace-switch-url-reset";
 import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { useIsMobile } from "@/hooks/effects/use-mobile";
@@ -183,30 +182,6 @@ import {
 
 const filesSortByParser = parseAsStringLiteral([...FILES_SORT_BY_VALUES]);
 const filesSortOrderParser = parseAsStringLiteral([...FILES_SORT_ORDER_VALUES]);
-
-function withoutLegacyDriveScopeParam(
-  params: URLSearchParams,
-): URLSearchParams {
-  const next = new URLSearchParams(params.toString());
-  next.delete("scope");
-  return next;
-}
-
-/**
- * The query a drive navigation should carry forward.
- *
- * Drops the legacy `scope`, and `archived` — which only the Tables list reads.
- * Every caller here rebuilds the query from the current URL and then navigates
- * into browse or tasks, so without this a `?archived=true` left over from the
- * Tables tab rides along into views that ignore it and ends up in shared links.
- * `navigateToPrimaryView` clears it through nuqs for the same reason.
- */
-function driveNavParams(params: URLSearchParams): URLSearchParams {
-  const next = withoutLegacyDriveScopeParam(params);
-  next.delete("archived");
-  next.delete("tags");
-  return next;
-}
 
 type ExploreItem =
   | ({ kind: "blob-file" | "blob-folder" } & DriveItem)
@@ -531,7 +506,7 @@ function DrivePageWorkspace({
    * destinations and the folder actions read, and what an upload invalidates,
    * so it stays — it just stopped being a second list on the page.
    */
-  const driveItemsQuery = useQuery({
+  useQuery({
     ...getDriveItemsQueryOptions({
       store: driveStore,
       folder: currentFolder,
@@ -542,8 +517,6 @@ function DrivePageWorkspace({
   });
   // The catalog renders its own skeleton, so the Workspace tab never uses this.
   const loading = isTasksView ? tasksLoading : false;
-
-  useDriveItemsErrorToast(driveItemsQuery.isError, driveItemsQuery.error, t);
 
   async function refreshDriveItems() {
     await queryClient.invalidateQueries({ queryKey: DRIVE_ITEMS_QUERY_KEY });
@@ -762,7 +735,11 @@ function DrivePageWorkspace({
     t,
   ]);
 
-  useDriveTasksItemsLoad(isTasksView, loadTasksItems);
+  useEffect(() => {
+    if (isTasksView) {
+      void loadTasksItems();
+    }
+  }, [isTasksView, loadTasksItems]);
 
   useEffect(() => {
     if (!isTasksView) {

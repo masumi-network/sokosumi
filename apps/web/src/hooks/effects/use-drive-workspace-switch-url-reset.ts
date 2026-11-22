@@ -2,6 +2,7 @@
 
 import type { ReadonlyURLSearchParams, useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
+import { driveNavParams } from "@/app/drive/drive-nav-params";
 
 type DriveRouter = Pick<ReturnType<typeof useRouter>, "replace">;
 
@@ -37,10 +38,7 @@ export function useDriveWorkspaceSwitchUrlReset(
     ) {
       return;
     }
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("scope");
-    params.delete("archived");
-    params.delete("tags");
+    const params = driveNavParams(searchParams);
     params.delete("folder");
     params.delete("view");
     params.delete("projectId");

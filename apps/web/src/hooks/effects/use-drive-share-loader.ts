@@ -1,7 +1,7 @@
 "use client";
 
 import type { DriveShare } from "@sokosumi/core-client";
-import { useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { DriveShareItem } from "@/app/drive/components/drive-share-dialog";
 import {
@@ -16,13 +16,10 @@ import {
 export function useDriveShareLoader(
   item: DriveShareItem | null,
   store: FileStore,
-  loadFailedText: string,
+  loadFailedMessage: RefObject<string>,
 ) {
   const [share, setShare] = useState<DriveShare | null | undefined>(undefined);
   const [password, setPassword] = useState("");
-  // Read through a ref so a new `t` never refetches the link.
-  const loadFailedMessage = useRef(loadFailedText);
-  loadFailedMessage.current = loadFailedText;
 
   useEffect(() => {
     if (!item) return;
