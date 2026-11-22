@@ -183,6 +183,23 @@ describe("requestCmoStrategy", () => {
     expect(strategyRows).toHaveLength(1);
   });
 
+  it("starts a new strategy over a draft from an empty month, keeping the draft", async () => {
+    cusoFind.mockResolvedValue(cuso);
+    const draft = seedStrategy(strategy);
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+
+    await requestCmoStrategy({ projectId: "project-1", userId: "user-1" });
+
+    expect(strategyRows).toHaveLength(2);
+    const fresh = strategyRows.find((row) => row.id !== draft.id);
+    expect((fresh?.plan as unknown as MarketingStrategyPlan).calendar).toEqual(
+      [],
+    );
+    expect((draft.plan as unknown as MarketingStrategyPlan).calendar).toEqual(
+      strategy.calendar,
+    );
+  });
+
   it("has Cuso correct each section the owner said no to before he plans", async () => {
     const question = {
       id: "q1",

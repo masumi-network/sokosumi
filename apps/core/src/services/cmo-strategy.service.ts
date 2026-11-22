@@ -522,13 +522,18 @@ async function startCmoMonthFinish(
             ? "Save week one with save_strategy part calendar, then each later week with part patch (only that week's entries, new ids)."
             : "Save each missing week with save_strategy part patch, one week a call (only that week's entries, new ids), until the calendar covers four weeks from its first day.",
           "Every week holds the pace's perWeek pieces at each channel's cadence and role, in the mix and pillar shares. Change nothing already saved.",
+          ...(rules.channelFit
+            ? [
+                "A short video is one entry on TikTok (format video), Instagram (format reel) or YouTube (format short) that lists the other two in alsoOn: it counts on all three networks, so seven such entries a day give TikTok, Reels and Shorts seven each.",
+              ]
+            : []),
         ]
       : [
           `Finish ${cuso.businessName}'s marketing strategy: its calendar does not hold what the strategy promises.`,
           ...gaps.map((gap) => `- ${gap}`),
           `Add the missing pieces with save_strategy part patch, one week a call (only that week's new entries, new ids), until every week holds the pace's perWeek pieces and each channel its cadence, in the mix and pillar shares, and each video the funnel promises goes out where it says. Never lower the pace or a posting network's cadence to match: the plan the owner buys decides how much of the month is made. ${
             rules.channelFit
-              ? "A video network or a play that promises video gets short videos of its own on that network (a TikTok, a Reel, a YouTube Short) at its cadence; the month keeps at most four talking videos."
+              ? "A short video is one entry on TikTok (format video), Instagram (format reel) or YouTube (format short) that lists the other two in alsoOn: it counts on all three networks, so seven such entries a day give TikTok, Reels and Shorts seven each. To make room, you may turn a short video entry already saved into a shared one (part patch, same id, add alsoOn) and skip its duplicates on the other two networks (status skipped). The month keeps at most four talking videos."
               : `The month keeps at most ${CMO_MAX_VIDEOS_PER_MONTH} videos: for a video network or a play that promises video, first add the network to the alsoOn of talking videos already planned (part patch, same id); YouTube or TikTok may take a cadence that matches those videos, and a play may drop the video in its words (part plan).`
           } Change nothing else already saved.`,
         ]
@@ -655,6 +660,25 @@ export async function startNextCmoChange(
   return startStrategyTurn(cuso, { userId, kind: "fix", sent: newest });
 }
 
+/**
+ * Starts a draft's month over as a new version without its calendar, so a
+ * fresh strategy turn writes every week; an approved month and an empty one
+ * stay as they are.
+ */
+async function clearDraftCalendar(cuso: Cuso): Promise<void> {
+  const draft = await newestMarketingStrategy(cuso.projectId);
+  if (!draft || draft.approvedAt) return;
+  const plan = parseMarketingPlan(draft.plan);
+  if (!plan || plan.calendar.length === 0) return;
+  await prisma.marketingStrategy.create({
+    data: {
+      projectId: cuso.projectId,
+      authorSokoBotId: cuso.sokoBotId,
+      plan: jsonInput({ ...plan, calendar: [] }),
+    },
+  });
+}
+
 async function startCmoStrategy(
   cuso: Cuso,
   userId: string,
@@ -662,6 +686,10 @@ async function startCmoStrategy(
   /** The site's language when the caller knows it; detected otherwise. */
   siteLanguage?: string,
 ): Promise<{ turnId: string }> {
+  // A new strategy over a draft starts from an empty month: NMKR's
+  // "Write a new strategy" (2026-11-22) kept the draft's 296 pieces, and Cuso
+  // only patched around them. The draft stays as the version before.
+  if (!change) await clearDraftCalendar(cuso);
   try {
     return await startStrategyTurn(
       cuso,
