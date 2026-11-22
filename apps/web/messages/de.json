@@ -13570,7 +13570,7 @@
         "failed": "Fehlgeschlagen",
         "invalid": "Prüfe Seiten, Keywords, Markt und Geräte. Vollständige Audits erlauben ein Keyword und beide Geräte.",
         "keywordsHelp": "Gib bis zu 20 Keywords mit jeweils bis zu 80 Zeichen ein.",
-        "relatedPages": "Prüft auch die Indexierung relevanter Seiten dieser Website, insgesamt bis zu {count} Seiten. Vollständige Audits prüfen nur ausgewählte Seiten.",
+        "relatedPages": "{added, plural, =0 {Das Audit prüft die ausgewählten Seiten.} one {Das Audit prüft die ausgewählten Seiten und kann # weitere Seite dieser Website ergänzen, die zu deinem Ziel passt.} other {Das Audit prüft die ausgewählten Seiten und kann bis zu # weitere Seiten dieser Website ergänzen, die zu deinem Ziel passen.}} Es prüft außerdem die Indexierung weiterer relevanter Seiten, insgesamt bis zu {count} Seiten.",
         "fullHelp": "Vollständige Audits erlauben ein Keyword und beide Geräte. Alle ausgewählten Seiten verwenden denselben Markt.",
         "serviceUnavailable": "Prüfungen sind in diesem Arbeitsbereich nicht verfügbar. Kehre zum Audit zurück.",
         "returnToAudit": "Zurück zum Audit",
@@ -14285,7 +14285,7 @@
           "title": "Aktionen aus der Keyword-Strategie",
           "more": "{count, plural, one {# weitere Aktion anzeigen} other {# weitere Aktionen anzeigen}}",
           "limit": "Grenze",
-          "prompt": "Das Website-Audit empfiehlt: „{title}“. Entwirf einen Plan mit den Schritten in Reihenfolge.{hasLimit, select, yes { Halte diese Grenze ein: {limit}} other {}}{count, plural, =0 {} one { Der Ort: {targets}} other { Die Orte: {targets}}}",
+          "prompt": "Das SEO-Audit empfiehlt: „{title}“. Entwirf einen Plan mit den Schritten in Reihenfolge.{hasLimit, select, yes { Halte diese Grenze ein: {limit}} other {}}{count, plural, =0 {} one { Der Ort: {targets}} other { Die Orte: {targets}}}",
           "place": "Ort"
         },
         "placeForm": {
@@ -14298,11 +14298,11 @@
         },
         "places": {
           "title": "Orte für Werbung",
-          "help": "Warum das Website-Audit für einige Orte keine Aktion oder keinen fertigen Text hat. Die Hinweise sind auf Englisch."
+          "help": "Warum das Audit für einige Orte keine Aktion oder keinen fertigen Text hat. Die Hinweise sind auf Englisch."
         },
         "draft": {
           "title": "Textvorschlag",
-          "help": "Das Website-Audit hat diesen Text geschrieben. Lies ihn und die Regeln des Ortes, bevor du ihn veröffentlichst.",
+          "help": "Das Audit hat diesen Text geschrieben. Lies ihn und die Regeln des Ortes, bevor du ihn veröffentlichst.",
           "copy": "Text kopieren",
           "copied": "Text kopiert",
           "copyError": "Der Text konnte nicht kopiert werden"

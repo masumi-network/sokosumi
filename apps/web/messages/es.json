@@ -13570,7 +13570,7 @@
         "failed": "Fallida",
         "invalid": "Revisa las páginas, palabras clave, mercado y dispositivos. Las auditorías completas admiten una palabra clave y ambos dispositivos.",
         "keywordsHelp": "Introduce hasta 20 palabras clave, con un máximo de 80 caracteres cada una.",
-        "relatedPages": "También comprueba la indexación de páginas relevantes de este sitio, hasta {count} páginas en total. Las auditorías completas cubren solo las páginas seleccionadas.",
+        "relatedPages": "{added, plural, =0 {La auditoría cubre las páginas seleccionadas.} one {La auditoría cubre las páginas seleccionadas y puede añadir # página más de este sitio que encaje con tu objetivo.} other {La auditoría cubre las páginas seleccionadas y puede añadir hasta # páginas más de este sitio que encajen con tu objetivo.}} También comprueba la indexación de otras páginas relevantes, hasta {count} páginas en total.",
         "fullHelp": "Las auditorías completas admiten una palabra clave y ambos dispositivos. Todas las páginas seleccionadas usan el mismo mercado.",
         "serviceUnavailable": "Las comprobaciones no están disponibles en este espacio de trabajo. Vuelve a la auditoría.",
         "returnToAudit": "Volver a la auditoría",
@@ -14285,7 +14285,7 @@
           "title": "Acciones de la estrategia de palabras clave",
           "more": "{count, plural, one {Mostrar # acción más} other {Mostrar # acciones más}}",
           "limit": "Límite",
-          "prompt": "La auditoría del sitio recomienda: «{title}». Redacta un plan con los pasos en orden.{hasLimit, select, yes { Respeta este límite: {limit}} other {}}{count, plural, =0 {} one { El lugar: {targets}} other { Los lugares: {targets}}}",
+          "prompt": "La auditoría SEO recomienda: «{title}». Redacta un plan con los pasos en orden.{hasLimit, select, yes { Respeta este límite: {limit}} other {}}{count, plural, =0 {} one { El lugar: {targets}} other { Los lugares: {targets}}}",
           "place": "Lugar"
         },
         "placeForm": {
@@ -14298,11 +14298,11 @@
         },
         "places": {
           "title": "Lugares de promoción",
-          "help": "Por qué la auditoría del sitio no tiene acción ni texto listo para algunos lugares. Las notas están en inglés."
+          "help": "Por qué la auditoría no tiene acción ni texto listo para algunos lugares. Las notas están en inglés."
         },
         "draft": {
           "title": "Texto sugerido",
-          "help": "La auditoría del sitio escribió este texto. Léelo y lee las normas del lugar antes de publicarlo.",
+          "help": "La auditoría escribió este texto. Léelo y lee las normas del lugar antes de publicarlo.",
           "copy": "Copiar texto",
           "copied": "Texto copiado",
           "copyError": "No se pudo copiar el texto"

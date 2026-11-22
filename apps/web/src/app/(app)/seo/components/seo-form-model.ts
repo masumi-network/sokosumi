@@ -97,7 +97,7 @@ export const SEO_MAX_KEYWORDS = 20;
 export const SEO_MAX_KEYWORD_LENGTH = 80;
 export const SEO_MAX_PROVIDER_CALLS = 100;
 /**
- * The limits every multi-page full audit sends. The reader does not see them: the price shows in credits, and the
+ * The limits every full audit sends, also one of a single page. The reader does not see them: the price shows in credits, and the
  * time limit only keeps a stuck check from running on (owner, 2026-11-13).
  */
 export const SEO_FULL_AUDIT_LIMITS = {
@@ -358,13 +358,9 @@ export function analysisSeoBody(
     devices,
     competitorUrls,
     ...(kind === "audit_lite" ? { analyses } : {}),
-    ...(kind === "audit_full" && workspace.scope.pageIds.length > 1
-      ? {
-          fullAuditLimits: { ...SEO_FULL_AUDIT_LIMITS },
-        }
-      : kind === "audit_full"
-        ? {}
-        : { maxProviderCalls }),
+    ...(kind === "audit_full"
+      ? { fullAuditLimits: { ...SEO_FULL_AUDIT_LIMITS } }
+      : { maxProviderCalls }),
   };
 }
 

@@ -6629,7 +6629,7 @@ describe("SEO workspace integration", () => {
     expect(checkType()).toHaveTextContent("Full audit");
     expect(
       screen.getByText(
-        "Also checks indexing for relevant pages from this site, up to 10 pages total. Full audits cover selected pages only.",
+        "The audit covers the pages you selected and can add up to 4 more pages of this site that fit your goal. It also checks indexing for other relevant pages, up to 10 pages total.",
       ),
     ).toBeVisible();
     // A full audit takes one keyword, so the form does not open on a list it would refuse.
@@ -6640,7 +6640,7 @@ describe("SEO workspace integration", () => {
     await user.click(screen.getByRole("option", { name: "Keyword positions" }));
     expect(
       screen.queryByText(
-        "Also checks indexing for relevant pages from this site, up to 10 pages total. Full audits cover selected pages only.",
+        "The audit covers the pages you selected and can add up to 4 more pages of this site that fit your goal. It also checks indexing for other relevant pages, up to 10 pages total.",
       ),
     ).toBeNull();
     expect(keywords()).toHaveValue("stablecoins\nstablecoin wallet");
@@ -7003,7 +7003,7 @@ describe("SEO workspace integration", () => {
     expect(
       within(await screen.findByRole("dialog")).getByLabelText("Your question"),
     ).toHaveValue(
-      "The site audit recommends: “Write a comparison page for “battery app alternative””. Draft a plan with the steps in order.",
+      "The SEO audit recommends: “Write a comparison page for “battery app alternative””. Draft a plan with the steps in order.",
     );
     await user.keyboard("{Escape}");
     await user.click(
@@ -7014,7 +7014,7 @@ describe("SEO workspace integration", () => {
     expect(
       within(await screen.findByRole("dialog")).getByLabelText("Your question"),
     ).toHaveValue(
-      "The site audit recommends: “Write a comparison page for “battery app alternative””. Draft a plan with the steps in order.\n\nThe site audit recommends: “Ask to be added to these lists of products”. Draft a plan with the steps in order. Keep to this limit: Ask on the product's merits only. The place: https://lists.example/best",
+      "The SEO audit recommends: “Write a comparison page for “battery app alternative””. Draft a plan with the steps in order.\n\nThe SEO audit recommends: “Ask to be added to these lists of products”. Draft a plan with the steps in order. Keep to this limit: Ask on the product's merits only. The place: https://lists.example/best",
     );
     expect(asked).toEqual([]);
   });
@@ -7279,7 +7279,7 @@ describe("SEO workspace integration", () => {
     expect(
       within(await screen.findByRole("dialog")).getByLabelText("Your question"),
     ).toHaveValue(
-      "The site audit recommends: “Answer in r/macapps”. Draft a plan with the steps in order. Keep to this limit: Ask on the product's merits only. The place: https://www.reddit.com/r/macapps/",
+      "The SEO audit recommends: “Answer in r/macapps”. Draft a plan with the steps in order. Keep to this limit: Ask on the product's merits only. The place: https://www.reddit.com/r/macapps/",
     );
   });
 
