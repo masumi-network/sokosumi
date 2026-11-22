@@ -5,7 +5,7 @@ import { BarChart2, Download, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/common/empty-state";
 import { PerformanceDateRange } from "@/components/performance/performance-date-range";
@@ -38,7 +38,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useSocialPostStatisticsAutoSync } from "@/hooks/effects/use-social-post-statistics-auto-sync";
+import { useSocialPostStatisticsMountedRef } from "@/hooks/effects/use-social-post-statistics-mounted-ref";
 import {
   recycleProjectSocialAccountPost,
   refreshProjectSocialAccountStatistics,
@@ -358,12 +359,7 @@ export function SocialPostStatistics(
   const autoRequestedIdsRef = useRef(new Set<string>());
   const [enqueueingId, setEnqueueingId] = useState<string | null>(null);
   const [syncErrors, setSyncErrors] = useState<Record<string, string>>({});
-  useMountEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  });
+  useSocialPostStatisticsMountedRef(mountedRef);
 
   async function enqueueRefresh(
     targets: Account[],
@@ -413,22 +409,13 @@ export function SocialPostStatistics(
     .map((account) => account.id)
     .toSorted()
     .join(",");
-  useEffect(() => {
-    if (!query.isSuccess) return;
-    for (const account of accounts) {
-      if (!account.sync?.mayAutoRequest)
-        autoRequestedIdsRef.current.delete(account.id);
-    }
-    const stale = accounts.filter(
-      (account) =>
-        account.status === "active" &&
-        account.sync?.mayAutoRequest &&
-        !autoRequestedIdsRef.current.has(account.id),
-    );
-    if (stale.length === 0) return;
-    for (const account of stale) autoRequestedIdsRef.current.add(account.id);
-    void enqueueRefresh(stale, { silent: true });
-  }, [autoRequestKey, query.isSuccess]);
+  useSocialPostStatisticsAutoSync({
+    accounts,
+    autoRequestKey,
+    autoRequestedIdsRef,
+    enqueueRefresh,
+    isSuccess: query.isSuccess,
+  });
 
   function exportHref(format: "csv" | "xlsx") {
     const params = new URLSearchParams({ format });

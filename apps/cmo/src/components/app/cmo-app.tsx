@@ -6,8 +6,9 @@ import "../onboarding/onboarding.css";
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { ArrowUp, CalendarDays } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useRef, useState, useTransition } from "react";
 import { useCmoAppInitialUrl } from "../../hooks/effects/use-cmo-app-initial-url";
+import { useCmoAppPoll } from "../../hooks/effects/use-cmo-app-poll";
 import { useEventListener } from "../../hooks/effects/use-event-listener";
 import { useScrollIntoViewWhen } from "../../hooks/effects/use-scroll-into-view-when";
 import { AGENT_NAME } from "../../lib/agent";
@@ -60,8 +61,6 @@ import { type ChangePlan, type OpenPortal } from "./subscription-card";
 import { TabBar } from "./tab-bar";
 import { TodayPage } from "./today-page";
 import { UpgradeNotice } from "./upgrade-notice";
-
-const POLL_MS = 4_000;
 
 export interface CmoAppActions
   extends AdActions,
@@ -319,17 +318,7 @@ export function CmoApp({
     setMessages(state.messages);
   }, [actions]);
 
-  useEffect(() => {
-    const poll = () => {
-      if (document.visibilityState === "visible") void refresh();
-    };
-    const timer = window.setInterval(poll, POLL_MS);
-    document.addEventListener("visibilitychange", poll);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", poll);
-    };
-  }, [refresh]);
+  useCmoAppPoll(refresh);
 
   const thread = buildThread(overview, messages, work);
   const threadLength = thread.length;
