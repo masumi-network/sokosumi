@@ -2384,12 +2384,15 @@
         "OtherProjects": {
           "open": "Auch für andere Projekte",
           "title": "Entwurf dieser Aufgabe anlegen in",
-          "hint": "Gleicher Name und gleiches Briefing, ein Entwurf pro Projekt, bis zu 10. Jeder Entwurf nutzt Marke, Briefing und Gedächtnis seines eigenen Projekts. Nichts läuft, bis du es startest.",
+          "hint": "Gleicher Name und gleiches Briefing, ein Entwurf pro Projekt, bis zu 10. Jeder Entwurf nutzt Briefing, Gedächtnis und Marke seines eigenen Projekts, außer du hast eine eigene Marke gewählt. Nichts läuft, bis du es startest.",
           "failed": "Nicht angelegt",
           "openTask": "Öffnen",
-          "summary": "{created} angelegt, {failed} fehlgeschlagen",
+          "summary": "{created} angelegt, {failed} fehlgeschlagen, {unknown} zu prüfen",
           "create": "{count, plural, =0 {Projekte wählen} one {1 Entwurf anlegen} other {# Entwürfe anlegen}}",
-          "retry": "{count, plural, one {1 erneut versuchen} other {# erneut versuchen}}"
+          "retry": "{count, plural, one {1 erneut versuchen} other {# erneut versuchen}}",
+          "unknown": "Vielleicht angelegt",
+          "checkProject": "Projekt prüfen",
+          "sending": "Lege {done} von {total} an…"
         }
       },
       "EditTask": {

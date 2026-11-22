@@ -175,7 +175,21 @@ export function useTaskFormSubmission(
                 ? labels.statusDraft
                 : labels.statusReady,
           scheduleLabel: runAtLabel ?? undefined,
-          brief,
+          // Copies keep Core's name, so a blank name is not named again
+          // per Project. "default" is this Project's fallback to the
+          // workspace brand; a copy asks for its own Project's brand, which
+          // Core falls back from the same way.
+          brief: {
+            ...brief,
+            ...(createdTask.name.trim() ? { name: createdTask.name } : {}),
+            context: {
+              ...context,
+              brand:
+                context.brand.source === "default"
+                  ? { ...context.brand, source: "project" }
+                  : context.brand,
+            },
+          },
           projectId: hasProjectSelection ? (projectId ?? null) : null,
         });
         onCreated?.(createdTask.taskId);

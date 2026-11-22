@@ -1,8 +1,10 @@
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { TaskForOtherProjects } from "./task-for-other-projects";
+import type { TaskFormCreateHandler } from "./task-form-types";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
@@ -27,17 +29,51 @@ const input = {
   },
 };
 
-function created(id: string) {
+function created(projectId: string | null | undefined) {
   return {
     ok: true as const,
-    value: { taskId: `t-${id}`, identifier: null, name: "Plan" },
+    value: { taskId: `t-${projectId}`, identifier: null, name: "Plan" },
   };
 }
 
+const rejected = {
+  ok: false as const,
+  error: { kind: CORE_API_ERROR_KINDS.STATUS_NOT_SELECTABLE },
+};
+
+async function choose(names: string[]) {
+  await userEvent.click(screen.getByRole("button", { name: "open" }));
+  for (const name of names)
+    await userEvent.click(screen.getByRole("checkbox", { name }));
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: `create ${JSON.stringify({ count: names.length })}`,
+    }),
+  );
+}
+
 describe("TaskForOtherProjects", () => {
+  it("opens as a disclosure that keeps its button", async () => {
+    render(
+      <TaskForOtherProjects
+        input={input}
+        projects={projects}
+        onCreateTask={vi.fn<TaskFormCreateHandler>()}
+      />,
+    );
+    const toggle = screen.getByRole("button", { name: "open" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+
+    await userEvent.click(toggle);
+
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("group", { name: "title" })).toBeTruthy();
+    expect(screen.getByRole("status")).toBeTruthy();
+  });
+
   it("makes one Draft per chosen Project with the same brief", async () => {
-    const onCreateTask = vi.fn(async (i: { projectId?: string | null }) =>
-      created(i.projectId ?? ""),
+    const onCreateTask = vi.fn<TaskFormCreateHandler>(async (i) =>
+      created(i.projectId),
     );
     render(
       <TaskForOtherProjects
@@ -46,12 +82,7 @@ describe("TaskForOtherProjects", () => {
         onCreateTask={onCreateTask}
       />,
     );
-    await userEvent.click(screen.getByRole("button", { name: "open" }));
-    await userEvent.click(screen.getByRole("checkbox", { name: "Alpha" }));
-    await userEvent.click(screen.getByRole("checkbox", { name: "Gamma" }));
-    await userEvent.click(
-      screen.getByRole("button", { name: 'create {"count":2}' }),
-    );
+    await choose(["Alpha", "Gamma"]);
 
     expect(onCreateTask.mock.calls.map(([call]) => call)).toEqual([
       { ...input, projectId: "p1", status: "DRAFT" },
@@ -60,28 +91,23 @@ describe("TaskForOtherProjects", () => {
     expect(screen.getAllByRole("link", { name: /openTask/ })).toHaveLength(2);
   });
 
-  it("retries only the Projects that failed", async () => {
-    let failBeta = true;
-    const onCreateTask = vi.fn(async (i: { projectId?: string | null }) => {
-      if (i.projectId === "p2" && failBeta) {
-        failBeta = false;
-        return { ok: false as const, error: { kind: "UNKNOWN" } };
+  it("retries only the Projects Core refused", async () => {
+    let refuseBeta = true;
+    const onCreateTask = vi.fn<TaskFormCreateHandler>(async (i) => {
+      if (i.projectId === "p2" && refuseBeta) {
+        refuseBeta = false;
+        return rejected;
       }
-      return created(i.projectId ?? "");
+      return created(i.projectId);
     });
     render(
       <TaskForOtherProjects
         input={input}
         projects={projects}
-        onCreateTask={onCreateTask as never}
+        onCreateTask={onCreateTask}
       />,
     );
-    await userEvent.click(screen.getByRole("button", { name: "open" }));
-    await userEvent.click(screen.getByRole("checkbox", { name: "Alpha" }));
-    await userEvent.click(screen.getByRole("checkbox", { name: "Beta" }));
-    await userEvent.click(
-      screen.getByRole("button", { name: 'create {"count":2}' }),
-    );
+    await choose(["Alpha", "Beta"]);
 
     expect(screen.getByText("failed")).toBeTruthy();
     expect(screen.getByRole("checkbox", { name: "Alpha" })).toHaveProperty(
@@ -101,10 +127,12 @@ describe("TaskForOtherProjects", () => {
     expect(screen.getAllByRole("link", { name: /openTask/ })).toHaveLength(2);
   });
 
-  it("counts a thrown create as failed and keeps going", async () => {
-    const onCreateTask = vi.fn(async (i: { projectId?: string | null }) => {
+  it("never resends a create whose answer was lost", async () => {
+    // Core may have saved the Draft before the answer was lost, so a resend
+    // could make a second one.
+    const onCreateTask = vi.fn<TaskFormCreateHandler>(async (i) => {
       if (i.projectId === "p1") throw new Error("network");
-      return created(i.projectId ?? "");
+      return created(i.projectId);
     });
     render(
       <TaskForOtherProjects
@@ -113,17 +141,20 @@ describe("TaskForOtherProjects", () => {
         onCreateTask={onCreateTask}
       />,
     );
-    await userEvent.click(screen.getByRole("button", { name: "open" }));
-    await userEvent.click(screen.getByRole("checkbox", { name: "Alpha" }));
-    await userEvent.click(screen.getByRole("checkbox", { name: "Beta" }));
-    await userEvent.click(
-      screen.getByRole("button", { name: 'create {"count":2}' }),
-    );
+    await choose(["Alpha", "Beta"]);
 
     expect(onCreateTask).toHaveBeenCalledTimes(2);
-    expect(screen.getByText("failed")).toBeTruthy();
+    expect(screen.getByText("unknown")).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: /checkProject/ }).getAttribute("href"),
+    ).toBe("/tasks?projectId=p1");
+    expect(screen.getByRole("checkbox", { name: "Alpha" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    expect(screen.queryByRole("button", { name: /retry/ })).toBeNull();
     expect(screen.getByRole("status").textContent).toBe(
-      'summary {"created":1,"failed":1}',
+      'summary {"created":1,"failed":0,"unknown":1}',
     );
   });
 });

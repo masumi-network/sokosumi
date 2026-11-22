@@ -2384,12 +2384,15 @@
         "OtherProjects": {
           "open": "También para otros proyectos",
           "title": "Crear un borrador de esta tarea en",
-          "hint": "Mismo nombre e instrucciones, un borrador por proyecto, hasta 10. Cada borrador usa la marca, el briefing y la memoria de su propio proyecto. Nada se ejecuta hasta que lo inicies.",
+          "hint": "Mismo nombre e instrucciones, un borrador por proyecto, hasta 10. Cada borrador usa el briefing, la memoria y la marca de su propio proyecto, salvo que hayas elegido una marca propia. Nada se ejecuta hasta que lo inicies.",
           "failed": "No creada",
           "openTask": "Abrir",
-          "summary": "{created} creadas, {failed} fallidas",
+          "summary": "{created} creadas, {failed} fallidas, {unknown} por revisar",
           "create": "{count, plural, =0 {Elige proyectos} one {Crear 1 borrador} other {Crear # borradores}}",
-          "retry": "{count, plural, one {Reintentar 1} other {Reintentar #}}"
+          "retry": "{count, plural, one {Reintentar 1} other {Reintentar #}}",
+          "unknown": "Puede que se haya creado",
+          "checkProject": "Revisar proyecto",
+          "sending": "Creando {done} de {total}…"
         }
       },
       "EditTask": {

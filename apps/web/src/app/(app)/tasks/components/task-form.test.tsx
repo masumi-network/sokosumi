@@ -3274,6 +3274,7 @@ describe("TaskForm", () => {
   it("copies the brief as a Draft into another Project after creating", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
+    // No name typed: Core names the Task, and every copy keeps that name.
     createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
 
     render(
@@ -3283,7 +3284,7 @@ describe("TaskForm", () => {
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
         projectOptions={projectOptions}
-        initialValues={{ projectId: "project-1", assigneeId: "coworker-2" }}
+        initialValues={{ projectId: "project-2", assigneeId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -3293,20 +3294,27 @@ describe("TaskForm", () => {
     await user.click(await screen.findByRole("button", { name: "open" }));
 
     expect(
-      screen.queryByRole("checkbox", { name: "Alpha Project" }),
+      screen.queryByRole("checkbox", { name: "Beta Project" }),
     ).not.toBeInTheDocument();
-    await user.click(screen.getByRole("checkbox", { name: "Beta Project" }));
+    await user.click(screen.getByRole("checkbox", { name: "Alpha Project" }));
     await user.click(screen.getByRole("button", { name: "create" }));
 
     const [first, copy] = createTaskMock.mock.calls.map(([input]) => input);
+    // Beta has no brand of its own, so the first Task took the workspace one.
+    expect(first?.name).toBeUndefined();
+    expect(first?.context?.brand.source).toBe("default");
     expect(copy).toEqual({
-      name: first?.name,
+      name: "Task one",
       description: first?.description,
       assigneeId: first?.assigneeId,
       assigneeSokoBotId: first?.assigneeSokoBotId,
       assigneeUserId: first?.assigneeUserId,
-      context: first?.context,
-      projectId: "project-2",
+      // Alpha's own brand, not the workspace one the first Task fell back to.
+      context: {
+        ...first?.context,
+        brand: { ...first?.context?.brand, source: "project" },
+      },
+      projectId: "project-1",
       status: "DRAFT",
     });
   });
