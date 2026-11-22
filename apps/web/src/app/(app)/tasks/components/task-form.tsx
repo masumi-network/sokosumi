@@ -34,6 +34,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { withBoardPreview } from "@/hooks/effects/use-pending-created-tasks";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 import { AgentSpotlight } from "./agent-spotlight";
@@ -43,6 +44,7 @@ import { TaskContextAttachmentsField } from "./task-context-attachments";
 import { TaskCreateProgress } from "./task-create-progress";
 import { TaskCreatedCelebration } from "./task-created-celebration";
 import { TaskDraftTags } from "./task-draft-tags";
+import { TaskForOtherProjects } from "./task-for-other-projects";
 import { TaskFormModalHeaderStart } from "./task-form-modal";
 import type { TaskFormProps } from "./task-form-types";
 import { TaskProjectSelect } from "./task-project-select";
@@ -169,6 +171,14 @@ function TaskFormContent({
     handleGoToTask,
   } = model;
   if (createdTask) {
+    // Copies go through the plain create only: a custom create (a linked
+    // Task) would link every copy too.
+    const otherProjects =
+      shouldShowProjectSelect && !props.onCreateTask
+        ? localProjectOptions.filter(
+            (project) => !project.cmo && project.id !== createdTask.projectId,
+          )
+        : [];
     return (
       <TaskCreatedCelebration
         name={createdTask.name}
@@ -183,7 +193,15 @@ function TaskFormContent({
         }}
         onGoToTask={handleGoToTask}
         onCreateAnother={onCreateAnother}
-      />
+      >
+        {otherProjects.length > 0 ? (
+          <TaskForOtherProjects
+            input={createdTask.brief}
+            projects={otherProjects}
+            onCreateTask={withBoardPreview()}
+          />
+        ) : null}
+      </TaskCreatedCelebration>
     );
   }
 

@@ -28,6 +28,8 @@ interface TaskCreatedCelebrationProps {
   };
   onGoToTask: () => void;
   onCreateAnother?: () => void;
+  /** More things to do with the new Task, under the buttons. */
+  children?: React.ReactNode;
 }
 
 // A 3-column slice of the real kanban board (matching its column dot colors).
@@ -70,6 +72,7 @@ export function TaskCreatedCelebration({
   labels,
   onGoToTask,
   onCreateAnother,
+  children,
 }: TaskCreatedCelebrationProps) {
   const reduceMotion = useReducedMotion();
   const targetIndex = STATUS_COLUMN_INDEX[status];
@@ -233,6 +236,7 @@ export function TaskCreatedCelebration({
             {labels.createAnother}
           </Button>
         ) : null}
+        {children}
       </motion.div>
     </div>
   );

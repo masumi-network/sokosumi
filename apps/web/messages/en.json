@@ -2380,6 +2380,16 @@
           "tagsReady": "Tags suggested",
           "saving": "Save the task",
           "keepOpen": "Keep this open until it says Task created."
+        },
+        "OtherProjects": {
+          "open": "Also for other Projects",
+          "title": "Make a draft of this Task in",
+          "hint": "Same name and brief, one draft per Project, up to 10. Each draft uses its own Project's brand, briefing and memory. Nothing runs until you start it.",
+          "failed": "Not created",
+          "openTask": "Open",
+          "summary": "{created} created, {failed} failed",
+          "create": "{count, plural, =0 {Choose Projects} one {Create 1 draft} other {Create # drafts}}",
+          "retry": "{count, plural, one {Try 1 again} other {Try # again}}"
         }
       },
       "EditTask": {

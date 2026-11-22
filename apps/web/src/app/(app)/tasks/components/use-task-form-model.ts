@@ -30,7 +30,11 @@ import {
   type TaskContextAttachmentsSelection,
   withProjectBrandSource,
 } from "./task-context-attachments";
-import type { TaskFormLabels, TaskFormProps } from "./task-form-types";
+import type {
+  TaskFormCreateInput,
+  TaskFormLabels,
+  TaskFormProps,
+} from "./task-form-types";
 import { useTaskFormAttachments } from "./use-task-form-attachments";
 import { useTaskFormWorkspaceTags } from "./use-task-form-workspace-tags";
 import { useTaskTagSuggestions } from "./use-task-tag-suggestions";
@@ -283,6 +287,9 @@ export function useTaskFormModel(
     status: "DRAFT" | "QUEUED" | "READY";
     statusLabel: string;
     scheduleLabel?: string;
+    /** What a copy in another Project reuses; see TaskForOtherProjects. */
+    brief: Omit<TaskFormCreateInput, "projectId" | "status">;
+    projectId: string | null;
   };
   const [createdTask, setCreatedTaskState] =
     useState<CreatedTaskSnapshot | null>(null);

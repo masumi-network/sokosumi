@@ -123,12 +123,10 @@ export function useTaskFormSubmission(
               description: trimmedDescription,
             }) ?? labels.untitledTask,
         });
-        const result = await createTaskHandler({
-          ...(workspaceTagIds ? { workspaceTagIds } : {}),
-          ...(dismissedWorkspaceTagIds ? { dismissedWorkspaceTagIds } : {}),
-          ...(dismissedTopicIds ? { dismissedTopicIds } : {}),
-          ...(tagSuggestionReceipt ? { tagSuggestionReceipt } : {}),
-          ...(copyOfTaskId ? { copyOfTaskId } : {}),
+        // The brief copies in other Projects reuse. Context is only which
+        // Project files to attach, so each copy reads its own Project's.
+        // Tags, status and Run at stay with this Task.
+        const brief = {
           ...(trimmedName ? { name: trimmedName } : {}),
           description: trimmedDescription,
           ...assigneeFields,
@@ -139,6 +137,14 @@ export function useTaskFormSubmission(
               }
             : {}),
           context,
+        };
+        const result = await createTaskHandler({
+          ...(workspaceTagIds ? { workspaceTagIds } : {}),
+          ...(dismissedWorkspaceTagIds ? { dismissedWorkspaceTagIds } : {}),
+          ...(dismissedTopicIds ? { dismissedTopicIds } : {}),
+          ...(tagSuggestionReceipt ? { tagSuggestionReceipt } : {}),
+          ...(copyOfTaskId ? { copyOfTaskId } : {}),
+          ...brief,
           ...(hasProjectSelection ? { projectId } : {}),
           status,
           ...(runAt ? { runAt } : {}),
@@ -169,6 +175,8 @@ export function useTaskFormSubmission(
                 ? labels.statusDraft
                 : labels.statusReady,
           scheduleLabel: runAtLabel ?? undefined,
+          brief,
+          projectId: hasProjectSelection ? (projectId ?? null) : null,
         });
         onCreated?.(createdTask.taskId);
         return;

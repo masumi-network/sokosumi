@@ -3271,6 +3271,72 @@ describe("TaskForm", () => {
     );
   });
 
+  it("copies the brief as a Draft into another Project after creating", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        initialValues={{ projectId: "project-1", assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+    await user.click(await screen.findByRole("button", { name: "open" }));
+
+    expect(
+      screen.queryByRole("checkbox", { name: "Alpha Project" }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: "Beta Project" }));
+    await user.click(screen.getByRole("button", { name: "create" }));
+
+    const [first, copy] = createTaskMock.mock.calls.map(([input]) => input);
+    expect(copy).toEqual({
+      name: first?.name,
+      description: first?.description,
+      assigneeId: first?.assigneeId,
+      assigneeSokoBotId: first?.assigneeSokoBotId,
+      assigneeUserId: first?.assigneeUserId,
+      context: first?.context,
+      projectId: "project-2",
+      status: "DRAFT",
+    });
+  });
+
+  it("offers no copies when a custom create links the Task", async () => {
+    const user = userEvent.setup();
+    const onCreateTask = vi
+      .fn()
+      .mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        initialValues={{ projectId: "project-1", assigneeId: "coworker-2" }}
+        onCreateTask={onCreateTask}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    await screen.findByRole("button", { name: baseLabels.goToTask });
+    expect(screen.queryByRole("button", { name: "open" })).toBeNull();
+  });
+
   it("submits a locked project without showing the project picker", async () => {
     const user = userEvent.setup();
     const onCreateTask = vi

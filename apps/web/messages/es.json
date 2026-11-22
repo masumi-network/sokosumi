@@ -2380,6 +2380,16 @@
           "tagsReady": "Etiquetas sugeridas",
           "saving": "Guardar la tarea",
           "keepOpen": "Mantén esto abierto hasta que diga Tarea creada."
+        },
+        "OtherProjects": {
+          "open": "También para otros proyectos",
+          "title": "Crear un borrador de esta tarea en",
+          "hint": "Mismo nombre e instrucciones, un borrador por proyecto, hasta 10. Cada borrador usa la marca, el briefing y la memoria de su propio proyecto. Nada se ejecuta hasta que lo inicies.",
+          "failed": "No creada",
+          "openTask": "Abrir",
+          "summary": "{created} creadas, {failed} fallidas",
+          "create": "{count, plural, =0 {Elige proyectos} one {Crear 1 borrador} other {Crear # borradores}}",
+          "retry": "{count, plural, one {Reintentar 1} other {Reintentar #}}"
         }
       },
       "EditTask": {
