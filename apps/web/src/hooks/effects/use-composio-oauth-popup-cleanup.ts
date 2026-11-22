@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { type RefObject, useCallback, useEffect } from "react";
 
 import type { ComposioOAuthPopupWaitResult } from "@/lib/composio/use-composio-oauth-popup";
 
@@ -21,13 +21,14 @@ function closePopup(popup: Window): void {
 }
 
 /**
- * Owns the active Composio OAuth popup flow refs and tears down any open popup
- * and listener when `useComposioOAuthPopup` unmounts or hides.
+ * Tears down any open Composio OAuth popup and listener when
+ * `useComposioOAuthPopup` unmounts or hides, returning the shared `cleanupFlow`
+ * handler for caller-managed teardown.
  */
-export function useComposioOAuthPopupCleanup() {
-  const activeFlowRef = useRef<ActiveComposioPopupFlow | null>(null);
-  const inFlightRef = useRef(false);
-
+export function useComposioOAuthPopupCleanup(
+  activeFlowRef: RefObject<ActiveComposioPopupFlow | null>,
+  inFlightRef: RefObject<boolean>,
+) {
   const cleanupFlow = useCallback((flow: ActiveComposioPopupFlow | null) => {
     if (!flow) return;
     flow.cancelled = true;
@@ -41,5 +42,5 @@ export function useComposioOAuthPopupCleanup() {
 
   useEffect(() => () => cleanupFlow(activeFlowRef.current), []);
 
-  return { activeFlowRef, inFlightRef, cleanupFlow };
+  return cleanupFlow;
 }

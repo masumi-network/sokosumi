@@ -1,11 +1,12 @@
 import { act, render, screen } from "@testing-library/react";
-import { Activity, StrictMode } from "react";
+import { Activity, StrictMode, useRef } from "react";
 import { describe, expect, it } from "vitest";
 
 import { useWorkspaceCalendarRenderEpoch } from "./use-workspace-calendar-render-epoch";
 
 function EpochProbe() {
-  const epoch = useWorkspaceCalendarRenderEpoch();
+  const hasActivatedRef = useRef(false);
+  const epoch = useWorkspaceCalendarRenderEpoch(hasActivatedRef);
   return <span data-testid="epoch">{epoch}</span>;
 }
 

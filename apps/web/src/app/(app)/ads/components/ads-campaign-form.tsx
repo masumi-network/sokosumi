@@ -89,7 +89,8 @@ export function useSaveCampaign({
   onStartOver,
 }: SaveCampaignOptions) {
   const [refusal, setRefusal] = useState<Refusal | null>(null);
-  const { saved, markSaved } = useAdsCampaignSavedReset(onStartOver);
+  const savedRef = useRef(false);
+  const { saved, markSaved } = useAdsCampaignSavedReset(savedRef, onStartOver);
 
   async function save(
     send: () => Promise<ActionResultDto<unknown, ActionError>>,

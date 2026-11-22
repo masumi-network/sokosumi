@@ -1112,6 +1112,7 @@ function WorkspaceCalendarView({
   );
   const { moveBotRun, restoreBotRun, skipBotRun } = useBotRunChanges();
   const calendarAccessGeneration = useRef(0);
+  const hasActivatedRef = useRef(false);
 
   // Reset on a new server page during render, not in an effect, so a stale
   // (possibly cleared/rescheduled) item never commits for a frame before
@@ -1134,7 +1135,7 @@ function WorkspaceCalendarView({
     setLoadMoreError(false);
   }
 
-  const calendarRenderEpoch = useWorkspaceCalendarRenderEpoch();
+  const calendarRenderEpoch = useWorkspaceCalendarRenderEpoch(hasActivatedRef);
 
   const requestedDate = parseCalendarDate(
     state.date ?? initialDate,

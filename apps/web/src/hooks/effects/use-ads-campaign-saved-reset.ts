@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useState } from "react";
 
-export function useAdsCampaignSavedReset(onStartOver?: () => void) {
+export function useAdsCampaignSavedReset(
+  savedRef: RefObject<boolean>,
+  onStartOver?: () => void,
+) {
   const [saved, setSaved] = useState(false);
-  const savedRef = useRef(false);
 
   // Next keeps a visited page mounted but hidden and re-runs its effects when
   // it shows again. After a save, the page starts over (a create empty, an

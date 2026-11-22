@@ -1,6 +1,6 @@
 import { render } from "@testing-library/react";
-import { Activity } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { Activity, type RefObject } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   type ActiveComposioPopupFlow,
@@ -8,11 +8,20 @@ import {
 } from "./use-composio-oauth-popup-cleanup";
 
 describe("useComposioOAuthPopupCleanup", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("cancels and closes the active popup flow and resets refs on Activity hide and unmount", () => {
-    let exposed: ReturnType<typeof useComposioOAuthPopupCleanup> | null = null;
+    const activeFlowRef: RefObject<ActiveComposioPopupFlow | null> = {
+      current: null,
+    };
+    const inFlightRef: RefObject<boolean> = { current: false };
+    const popup: Window = window;
+    const closeSpy = vi.spyOn(popup, "close").mockImplementation(() => {});
 
     function Probe() {
-      exposed = useComposioOAuthPopupCleanup();
+      useComposioOAuthPopupCleanup(activeFlowRef, inFlightRef);
       return null;
     }
 
@@ -23,16 +32,15 @@ describe("useComposioOAuthPopupCleanup", () => {
     );
 
     const cancelWait = vi.fn();
-    const close = vi.fn();
     const flow: ActiveComposioPopupFlow = {
       cancelled: false,
       cancelWait,
       nonce: "nonce-1",
-      popup: { close } as unknown as Window,
+      popup,
       waitPromise: null,
     };
-    exposed!.activeFlowRef.current = flow;
-    exposed!.inFlightRef.current = true;
+    activeFlowRef.current = flow;
+    inFlightRef.current = true;
 
     rerender(
       <Activity mode="hidden">
@@ -42,9 +50,9 @@ describe("useComposioOAuthPopupCleanup", () => {
 
     expect(flow.cancelled).toBe(true);
     expect(cancelWait).toHaveBeenCalledTimes(1);
-    expect(close).toHaveBeenCalledTimes(1);
-    expect(exposed!.activeFlowRef.current).toBeNull();
-    expect(exposed!.inFlightRef.current).toBe(false);
+    expect(closeSpy).toHaveBeenCalledTimes(1);
+    expect(activeFlowRef.current).toBeNull();
+    expect(inFlightRef.current).toBe(false);
 
     rerender(
       <Activity mode="visible">
@@ -53,23 +61,22 @@ describe("useComposioOAuthPopupCleanup", () => {
     );
 
     const secondCancelWait = vi.fn();
-    const secondClose = vi.fn();
     const secondFlow: ActiveComposioPopupFlow = {
       cancelled: false,
       cancelWait: secondCancelWait,
       nonce: "nonce-2",
-      popup: { close: secondClose } as unknown as Window,
+      popup,
       waitPromise: null,
     };
-    exposed!.activeFlowRef.current = secondFlow;
-    exposed!.inFlightRef.current = true;
+    activeFlowRef.current = secondFlow;
+    inFlightRef.current = true;
 
     unmount();
 
     expect(secondFlow.cancelled).toBe(true);
     expect(secondCancelWait).toHaveBeenCalledTimes(1);
-    expect(secondClose).toHaveBeenCalledTimes(1);
-    expect(exposed!.activeFlowRef.current).toBeNull();
-    expect(exposed!.inFlightRef.current).toBe(false);
+    expect(closeSpy).toHaveBeenCalledTimes(2);
+    expect(activeFlowRef.current).toBeNull();
+    expect(inFlightRef.current).toBe(false);
   });
 });

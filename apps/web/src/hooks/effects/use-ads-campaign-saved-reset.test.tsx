@@ -1,11 +1,12 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { Activity } from "react";
+import { Activity, useRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { useAdsCampaignSavedReset } from "./use-ads-campaign-saved-reset";
 
 function SavedResetProbe({ onStartOver }: { onStartOver?: () => void }) {
-  const { saved, markSaved } = useAdsCampaignSavedReset(onStartOver);
+  const savedRef = useRef(false);
+  const { saved, markSaved } = useAdsCampaignSavedReset(savedRef, onStartOver);
   return (
     <div>
       <span data-testid="saved">{String(saved)}</span>

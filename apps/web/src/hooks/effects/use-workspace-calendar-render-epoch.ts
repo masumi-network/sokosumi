@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useState } from "react";
 
-export function useWorkspaceCalendarRenderEpoch(): number {
+export function useWorkspaceCalendarRenderEpoch(
+  hasActivatedRef: RefObject<boolean>,
+): number {
   const [calendarRenderEpoch, setCalendarRenderEpoch] = useState(0);
-  const hasActivatedRef = useRef(false);
 
   useEffect(() => {
     // Defer past React StrictMode's synchronous setup -> cleanup -> setup

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 
 import {
   type ActiveComposioPopupFlow,
@@ -129,8 +129,9 @@ function waitForOAuthCallback(
 
 /** Owns the browser-only lifecycle shared by Composio OAuth popup flows. */
 export function useComposioOAuthPopup() {
-  const { activeFlowRef, inFlightRef, cleanupFlow } =
-    useComposioOAuthPopupCleanup();
+  const activeFlowRef = useRef<ActiveComposioPopupFlow | null>(null);
+  const inFlightRef = useRef(false);
+  const cleanupFlow = useComposioOAuthPopupCleanup(activeFlowRef, inFlightRef);
 
   const runPopupOAuth = useCallback(
     async <T>(
