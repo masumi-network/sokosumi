@@ -103,8 +103,13 @@ for (const { name, ...viewport } of PROJECTS) {
       await page.goto(`${BASE_URL}/personal-assistant?view=advanced`);
       const main = page.getByRole("main");
       await main.getByRole("heading", { name: "Memory" }).waitFor();
-      await main.getByText("No memory yet.").waitFor();
-      assert.equal(await main.getByText("None", { exact: true }).count(), 0);
+      // Scoped to Memory: the MCP servers form's hidden native select has a
+      // "None" option of its own.
+      const memory = main.locator("section", {
+        has: page.getByRole("heading", { name: "Memory" }),
+      });
+      await memory.getByText("No memory yet.").waitFor();
+      assert.equal(await memory.getByText("None", { exact: true }).count(), 0);
       await shot("2-empty-memory");
 
       // The text beside the Daily limit once squeezed it to one digit on a
