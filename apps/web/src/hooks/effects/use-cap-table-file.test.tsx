@@ -38,7 +38,7 @@ describe("useCapTableFile", () => {
     vi.unstubAllGlobals();
   });
 
-  it("fetches and parses cap table, aborts on url change, handles failures, and aborts on unmount", async () => {
+  it("fetches and parses cap table, aborts on url change, and aborts on unmount", async () => {
     const first = deferred<Response>();
     const second = deferred<Response>();
     const signals: AbortSignal[] = [];

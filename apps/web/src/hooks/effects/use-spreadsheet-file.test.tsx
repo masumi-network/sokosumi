@@ -38,7 +38,7 @@ describe("useSpreadsheetFile", () => {
     vi.unstubAllGlobals();
   });
 
-  it("fetches and parses spreadsheets, aborts on url/kind change, marks empty sheets failed, and aborts on unmount", async () => {
+  it("fetches and parses spreadsheets, aborts on url/kind change, and aborts on unmount", async () => {
     const first = deferred<Response>();
     const second = deferred<Response>();
     const signals: AbortSignal[] = [];

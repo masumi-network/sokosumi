@@ -43,7 +43,7 @@ describe("useTeamFile", () => {
     vi.unstubAllGlobals();
   });
 
-  it("fetches and parses team JSON, aborts on url change, handles invalid data, and aborts on unmount", async () => {
+  it("fetches and parses team JSON, aborts on url change, and aborts on unmount", async () => {
     const first = deferred<Response>();
     const second = deferred<Response>();
     const signals: AbortSignal[] = [];

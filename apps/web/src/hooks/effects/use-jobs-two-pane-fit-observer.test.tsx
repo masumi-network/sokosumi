@@ -3,10 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { useJobsTwoPaneFitObserver } from "./use-jobs-two-pane-fit-observer";
 
 describe("useJobsTwoPaneFitObserver", () => {
-  const originalResizeObserver = globalThis.ResizeObserver;
-
   afterEach(() => {
-    globalThis.ResizeObserver = originalResizeObserver;
+    vi.unstubAllGlobals();
     document.body.innerHTML = "";
     vi.restoreAllMocks();
   });
@@ -44,11 +42,11 @@ describe("useJobsTwoPaneFitObserver", () => {
       }
     }
 
-    globalThis.ResizeObserver = FakeResizeObserver;
+    vi.stubGlobal("ResizeObserver", FakeResizeObserver);
 
     const captured: { fits: boolean | null } = { fits: null };
     function Probe() {
-      captured.fits = useJobsTwoPaneFitObserver("data-jobs-panes", 896);
+      captured.fits = useJobsTwoPaneFitObserver();
       return null;
     }
 

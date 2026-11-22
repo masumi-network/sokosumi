@@ -3,21 +3,30 @@
 import { useEffect, useState } from "react";
 
 /**
- * Measures the `[data-jobs-panes]` row via `ResizeObserver` for
- * `useJobsTwoPaneFit` and returns whether its width meets `minWidth` (or
- * `null` until measured).
+ * Narrowest panes row that still leaves the detail pane readable:
+ * 18rem list + 1rem gap + 2rem of gutters + 33rem detail.
+ *
+ * Keep in step with the `@4xl/jobs-panes` variants in the jobs layout — 56rem
+ * is that variant's width. `jobs-two-pane-fit.test.ts` asserts the pair.
  */
-export function useJobsTwoPaneFitObserver(
-  panesAttribute: string,
-  minWidth: number,
-): boolean | null {
+export const JOBS_TWO_PANE_MIN_WIDTH = 896;
+
+/** Attribute on the panes row, so the measurement and the container query read one box. */
+export const JOBS_PANES_ATTRIBUTE = "data-jobs-panes";
+
+/**
+ * Measures the `[data-jobs-panes]` row via `ResizeObserver` for
+ * `useJobsTwoPaneFit` and returns whether its width meets
+ * `JOBS_TWO_PANE_MIN_WIDTH` (or `null` until measured).
+ */
+export function useJobsTwoPaneFitObserver(): boolean | null {
   const [fits, setFits] = useState<boolean | null>(null);
 
   // Effect is necessary: subscribes to an external system (element geometry).
   useEffect(() => {
     // Both callers render inside the jobs layout, which commits the row in the
     // same pass, so the row is present by the time this effect runs.
-    const row = document.querySelector(`[${panesAttribute}]`);
+    const row = document.querySelector(`[${JOBS_PANES_ATTRIBUTE}]`);
     if (!row) {
       return;
     }
@@ -27,7 +36,7 @@ export function useJobsTwoPaneFitObserver(
       if (!entry) {
         return;
       }
-      setFits(entry.contentRect.width >= minWidth);
+      setFits(entry.contentRect.width >= JOBS_TWO_PANE_MIN_WIDTH);
     });
 
     observer.observe(row);
