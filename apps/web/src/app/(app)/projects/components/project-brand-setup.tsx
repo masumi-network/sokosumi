@@ -12,7 +12,7 @@ import {
   type DesignMdOwner,
 } from "@/components/design-md/types";
 import { useDesignMdGeneration } from "@/components/design-md/use-design-md-generation";
-import { useProjectBrandSetupStart } from "@/hooks/effects/use-project-brand-setup-start";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   resolveProjectSiteIcon,
   updateProject,
@@ -136,11 +136,10 @@ function BrandSetup({
     owner,
   });
 
-  useProjectBrandSetupStart({
-    generate: brand.generate,
-    resolveIcon,
-    viewerId,
-    websiteUrl,
+  useMountEffect(() => {
+    resolveIcon();
+    if (!viewerId) return;
+    void brand.generate({ url: websiteUrl });
   });
 
   const isBusy = isResolvingLogo || brand.isRunning || brand.status === "idle";

@@ -26,11 +26,6 @@ interface UseProjectBrandAutoSetupOptions {
   websiteUrl: string | null | undefined;
 }
 
-/**
- * Resumes a pending background DESIGN.md job left by the project wizard, or
- * kicks off background brand generation once when a project has a website and
- * no DESIGN.md yet.
- */
 export function useProjectBrandAutoSetup({
   autoStart,
   backgroundGenerationAttempted,

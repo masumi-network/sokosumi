@@ -7,10 +7,6 @@ import {
   takeStudioBriefFor,
 } from "@/app/projects/components/image-studio/studio-workspace-brief";
 
-/**
- * Owns the Image Studio prompt and carries a brief typed in the All-projects
- * view across the remount that picks or creates a project.
- */
 export function useImageStudioWorkspaceBrief(projectId: string | null) {
   const [prompt, setPrompt] = useState("");
   const latestPrompt = useRef(prompt);

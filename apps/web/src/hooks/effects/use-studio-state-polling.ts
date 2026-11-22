@@ -5,10 +5,6 @@ import { useEffect } from "react";
 const IDLE_POLL_MS = 15_000;
 const ACTIVE_POLL_MS = 3_000;
 
-/**
- * Polls Image Studio state on an interval that tightens while jobs are active
- * and relaxes when idle.
- */
 export function useStudioStatePolling(
   projectId: string | null,
   hasActive: boolean,
