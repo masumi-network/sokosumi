@@ -11816,7 +11816,7 @@
         "reading": "Leyendo el archivo y comprobando la tabla…",
         "ambiguous": "Estas columnas del CSV podrían ir a más de una columna de la tabla, o comparten una: {columns}. Da a cada columna su propio nombre y vuelve a elegir el archivo.",
         "full": "{room, plural, =0 {Esta tabla está llena: tiene 10.000 filas, incluidas las archivadas.} one {Esta tabla tiene espacio para # fila más (10.000 como máximo, incluidas las archivadas).} other {Esta tabla tiene espacio para # filas más (10.000 como máximo, incluidas las archivadas).}} El CSV añade {count}. No se ha añadido nada.",
-        "stopped": "Se detuvo tras añadir {added} de {count} filas. Reintentar añade el resto; las filas ya añadidas no se duplican."
+        "stopped": "{added, plural, one {Se detuvo. Sokosumi confirmó # de {count} filas como añadidas.} other {Se detuvo. Sokosumi confirmó # de {count} filas como añadidas.}} La tabla muestra lo que se guardó. Reintentar añade el resto sin duplicar ninguna fila."
       },
       "findReplace": {
         "title": "Buscar y reemplazar",
@@ -11861,6 +11861,7 @@
       "enrichmentRequired": "Introduce una instrucción (hasta 4.000 caracteres), elige un agente y al menos una columna de salida.",
       "errors": {
         "number": "Introduce un número válido.",
+        "numberPrecision": "Usa un número simple con hasta 15 cifras significativas, como 1234.5. Los números más largos se redondearían.",
         "checkbox": "Usa true o false.",
         "option": "Elige una opción definida para esta columna.",
         "date": "Usa una fecha válida en formato AAAA-MM-DD.",

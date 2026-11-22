@@ -11816,7 +11816,7 @@
         "reading": "Reading the file and checking the table…",
         "ambiguous": "These CSV columns could go into more than one table column, or share one: {columns}. Give each column its own name, then choose the file again.",
         "full": "{room, plural, =0 {This table is full: it holds 10,000 rows, archived rows included.} one {This table has room for # more row (10,000 at most, archived rows included).} other {This table has room for # more rows (10,000 at most, archived rows included).}} The CSV adds {count}. Nothing was added.",
-        "stopped": "Stopped after adding {added} of {count} rows. Retry adds the rest; rows already added are not added twice."
+        "stopped": "{added, plural, one {Stopped. Sokosumi confirmed # of {count} rows as added.} other {Stopped. Sokosumi confirmed # of {count} rows as added.}} The table shows what was saved. Retry adds the rest without adding any row twice."
       },
       "findReplace": {
         "title": "Find and replace",
@@ -11861,6 +11861,7 @@
       "enrichmentRequired": "Enter an instruction (up to 4,000 characters), choose an agent and at least one output column.",
       "errors": {
         "number": "Enter a valid number.",
+        "numberPrecision": "Use a plain number with up to 15 significant digits, like 1234.5. Longer numbers would be rounded.",
         "checkbox": "Use true or false.",
         "option": "Choose an option defined for this column.",
         "date": "Use a valid date in YYYY-MM-DD format.",

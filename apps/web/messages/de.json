@@ -11816,7 +11816,7 @@
         "reading": "Datei wird gelesen und Tabelle geprüft…",
         "ambiguous": "Diese CSV-Spalten passen zu mehr als einer Tabellenspalte oder teilen sich eine: {columns}. Gib jeder Spalte einen eigenen Namen und wähle die Datei erneut.",
         "full": "{room, plural, =0 {Diese Tabelle ist voll: Sie enthält 10.000 Zeilen, archivierte eingeschlossen.} one {Diese Tabelle hat Platz für # weitere Zeile (höchstens 10.000, archivierte eingeschlossen).} other {Diese Tabelle hat Platz für # weitere Zeilen (höchstens 10.000, archivierte eingeschlossen).}} Die CSV fügt {count} hinzu. Es wurde nichts hinzugefügt.",
-        "stopped": "Nach {added} von {count} Zeilen angehalten. Erneut versuchen fügt den Rest hinzu; bereits hinzugefügte Zeilen kommen nicht doppelt."
+        "stopped": "{added, plural, one {Angehalten. Sokosumi hat # von {count} Zeilen als hinzugefügt bestätigt.} other {Angehalten. Sokosumi hat # von {count} Zeilen als hinzugefügt bestätigt.}} Die Tabelle zeigt, was gespeichert wurde. Erneut versuchen fügt den Rest hinzu, ohne eine Zeile doppelt anzulegen."
       },
       "findReplace": {
         "title": "Suchen und ersetzen",
@@ -11861,6 +11861,7 @@
       "enrichmentRequired": "Gib eine Anweisung (bis zu 4.000 Zeichen) ein und wähle einen Agenten und mindestens eine Ausgabespalte.",
       "errors": {
         "number": "Gib eine gültige Zahl ein.",
+        "numberPrecision": "Verwende eine einfache Zahl mit höchstens 15 signifikanten Stellen, etwa 1234.5. Längere Zahlen würden gerundet.",
         "checkbox": "Verwende true oder false.",
         "option": "Wähle eine für diese Spalte definierte Option.",
         "date": "Verwende ein gültiges Datum im Format JJJJ-MM-TT.",

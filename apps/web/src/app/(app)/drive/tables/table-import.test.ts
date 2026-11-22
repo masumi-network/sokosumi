@@ -168,3 +168,19 @@ it("refuses a header that could fill two columns, or a column two headers fill",
   expect(twice.ambiguous).toEqual(["Name", "name "]);
   expect(twice.newRows).toEqual([]);
 });
+
+it("refuses a Number cell a float cannot hold exactly, before comparing rows", () => {
+  for (const value of ["9007199254740993", `0.${"0".repeat(330)}1`]) {
+    expect(() =>
+      planCsvAppend(
+        [amount],
+        [["Amount"], [value]],
+        [{ values: { [amount.id]: Number(value) } }],
+        (row, error) => `Row ${row}: ${(error as Error).message}`,
+      ),
+    ).toThrow("Row 2: Number loses precision");
+  }
+  expect(
+    planCsvAppend([amount], [["Amount"], ["123456789012345"]], []).rows,
+  ).toEqual([{ values: { [amount.id]: 123456789012345 }, evidence: {} }]);
+});

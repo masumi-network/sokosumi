@@ -211,6 +211,51 @@ describe("TableAppendCsv", () => {
     expect(keys.slice(2)).toEqual(keys.slice(0, 2));
   });
 
+  it("refreshes and retries the same batch when the first answer is lost", async () => {
+    holds([]);
+    f.batch
+      .mockRejectedValueOnce(new Error("Network down"))
+      .mockResolvedValue({});
+    const onChanged = vi.fn();
+    const onDone = vi.fn();
+    render(
+      <TableAppendCsv
+        table={table}
+        onChanged={onChanged}
+        onClose={vi.fn()}
+        onDone={onDone}
+      />,
+    );
+    choose("Name\nAda\n");
+    fireEvent.click(
+      await screen.findByRole("button", { name: 'appendCsv.add {"count":1}' }),
+    );
+
+    expect(
+      await screen.findByText('appendCsv.stopped {"added":0,"count":1}'),
+    ).toBeTruthy();
+    expect(onChanged).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "retry" }));
+
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(1));
+    expect(f.batch.mock.calls[1][1].key).toBe(f.batch.mock.calls[0][1].key);
+  });
+
+  it("keeps its live status in the accessibility tree when it is empty", () => {
+    holds([]);
+    render(
+      <TableAppendCsv
+        table={table}
+        onChanged={vi.fn()}
+        onClose={vi.fn()}
+        onDone={vi.fn()}
+      />,
+    );
+    const status = screen.getByRole("status");
+    expect(status.textContent).toBe("");
+    expect(status.className).not.toContain("empty:hidden");
+  });
+
   it("hides Close while it reads the file", async () => {
     f.query.mockReturnValue(new Promise(() => {}));
     render(

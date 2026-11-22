@@ -124,7 +124,8 @@ export function TableAppendCsv({
       onDone(rows.length);
       onClose();
     } catch (error) {
-      if (written) onChanged();
+      // A batch can commit even when its answer is lost: always reload.
+      onChanged();
       setError(tableError(error, t));
     } finally {
       setBusy(undefined);
@@ -132,6 +133,12 @@ export function TableAppendCsv({
   }
 
   const locked = !!busy || !!key;
+  const status = appendStatus(
+    t,
+    busy,
+    added,
+    key && error ? rows.length : null,
+  );
   const problem =
     error || (full ? t("appendCsv.full", { room, count: rows.length }) : "");
 
@@ -178,9 +185,9 @@ export function TableAppendCsv({
           )}
           <p
             role="status"
-            className="text-muted-foreground text-sm empty:hidden"
+            className={status ? "text-muted-foreground text-sm" : "sr-only"}
           >
-            {appendStatus(t, busy, added, key && error ? rows.length : null)}
+            {status}
           </p>
         </div>
         <DialogFooter>

@@ -56,16 +56,17 @@ export function isNumericCsvColumn(header: string, values: string[]): boolean {
   const name = header.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
   if (IDENTIFIER_HEADER.test(name)) return false;
   const filled = values.map((value) => value.trim()).filter(Boolean);
+  return filled.length > 0 && filled.every(isExactCsvNumber);
+}
+
+/** A plain decimal a float holds exactly: see {@link isNumericCsvColumn}. */
+function isExactCsvNumber(value: string): boolean {
   return (
-    filled.length > 0 &&
-    filled.every(
-      (value) =>
-        PLAIN_NUMBER.test(value) &&
-        value.replace(/^-?0*|\./g, "").replace(/^0+/, "").length <= 15 &&
-        // A nonzero value below the smallest normal double underflows to
-        // zero or loses digits as a subnormal.
-        (!/[1-9]/.test(value) || Math.abs(Number(value)) >= MIN_NORMAL),
-    )
+    PLAIN_NUMBER.test(value) &&
+    value.replace(/^-?0*|\./g, "").replace(/^0+/, "").length <= 15 &&
+    // A nonzero value below the smallest normal double underflows to
+    // zero or loses digits as a subnormal.
+    (!/[1-9]/.test(value) || Math.abs(Number(value)) >= MIN_NORMAL)
   );
 }
 
@@ -113,10 +114,16 @@ export function planCsvAppend(
         try {
           const row = tableInsertRowSchema.parse({
             values: Object.fromEntries(
-              pairs.map(({ column, index }) => [
-                column.id,
-                parseTableInput(column, cells[index]),
-              ]),
+              pairs.map(({ column, index }) => {
+                const value = parseTableInput(column, cells[index]);
+                // Number() rounds what a float cannot hold; refuse it instead.
+                if (
+                  typeof value === "number" &&
+                  !isExactCsvNumber(cells[index].trim())
+                )
+                  throw new Error("Number loses precision");
+                return [column.id, value];
+              }),
             ),
           });
           validateTableValues(
