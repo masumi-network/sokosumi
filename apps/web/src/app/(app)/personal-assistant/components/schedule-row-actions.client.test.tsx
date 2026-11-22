@@ -12,7 +12,8 @@ vi.mock("@/lib/actions/soko-bot/action", () => ({
   deleteSokoBotScheduleAction: deleteMock,
 }));
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: { name?: string }) =>
+    values?.name ? `${key} ${values.name}` : key,
 }));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: toastErrorMock },
@@ -45,7 +46,7 @@ describe("ScheduleRowActions", () => {
 
   it("moves the switch before Core answers and moves it back when the write is refused", async () => {
     const write = holdOpen(updateMock);
-    render(<ScheduleRowActions scheduleId="s1" enabled />);
+    render(<ScheduleRowActions scheduleId="s1" name="Dreaming" enabled />);
 
     fireEvent.click(screen.getByRole("switch"));
     expect(screen.getByRole("switch")).not.toBeChecked();
@@ -57,7 +58,9 @@ describe("ScheduleRowActions", () => {
 
   it("moves the switch back when the call itself fails", async () => {
     const write = holdOpen(updateMock);
-    render(<ScheduleRowActions scheduleId="s1" enabled={false} />);
+    render(
+      <ScheduleRowActions scheduleId="s1" name="Dreaming" enabled={false} />,
+    );
 
     fireEvent.click(screen.getByRole("switch"));
     expect(screen.getByRole("switch")).toBeChecked();
@@ -69,7 +72,7 @@ describe("ScheduleRowActions", () => {
 
   it("keeps the switch where it is when Core saves the write", async () => {
     const write = holdOpen(updateMock);
-    render(<ScheduleRowActions scheduleId="s1" enabled />);
+    render(<ScheduleRowActions scheduleId="s1" name="Dreaming" enabled />);
 
     fireEvent.click(screen.getByRole("switch"));
     await write.answer({ ok: true, value: null });
@@ -80,22 +83,53 @@ describe("ScheduleRowActions", () => {
 
   it("goes back to the newest server state, not to the state before the click", async () => {
     const write = holdOpen(updateMock);
-    const { rerender } = render(<ScheduleRowActions scheduleId="s1" enabled />);
+    const { rerender } = render(
+      <ScheduleRowActions scheduleId="s1" name="Dreaming" enabled />,
+    );
 
     fireEvent.click(screen.getByRole("switch"));
     // Core saved the write and a read shows it, but the call's answer is lost.
-    rerender(<ScheduleRowActions scheduleId="s1" enabled={false} />);
+    rerender(
+      <ScheduleRowActions scheduleId="s1" name="Dreaming" enabled={false} />,
+    );
     await write.reject();
 
     expect(screen.getByRole("switch")).not.toBeChecked();
   });
 
   it("follows the server when it reports another state", () => {
-    const { rerender } = render(<ScheduleRowActions scheduleId="s1" enabled />);
+    const { rerender } = render(
+      <ScheduleRowActions scheduleId="s1" name="Dreaming" enabled />,
+    );
 
-    rerender(<ScheduleRowActions scheduleId="s1" enabled={false} />);
+    rerender(
+      <ScheduleRowActions scheduleId="s1" name="Dreaming" enabled={false} />,
+    );
 
     expect(screen.getByRole("switch")).not.toBeChecked();
+  });
+
+  it("names the switch, Delete and its dialog after the schedule", async () => {
+    const { rerender } = render(
+      <ScheduleRowActions scheduleId="s1" name="Dreaming" enabled />,
+    );
+
+    expect(
+      screen.getByRole("switch", { name: "disable Dreaming" }),
+    ).toBeInTheDocument();
+    rerender(
+      <ScheduleRowActions scheduleId="s1" name="Dreaming" enabled={false} />,
+    );
+    expect(
+      screen.getByRole("switch", { name: "enable Dreaming" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "deleteNamed Dreaming" }),
+    );
+    expect(
+      await screen.findByRole("alertdialog", { name: "deleteTitle Dreaming" }),
+    ).toBeInTheDocument();
   });
 
   it.each([
@@ -112,12 +146,15 @@ describe("ScheduleRowActions", () => {
       render(
         <ScheduleRowActions
           scheduleId="s1"
+          name="Dreaming"
           enabled
           onRemovedChange={onRemovedChange}
         />,
       );
 
-      fireEvent.click(screen.getByRole("button", { name: "delete" }));
+      fireEvent.click(
+        screen.getByRole("button", { name: "deleteNamed Dreaming" }),
+      );
       fireEvent.click(
         await screen.findByRole("button", { name: "deleteConfirm" }),
       );

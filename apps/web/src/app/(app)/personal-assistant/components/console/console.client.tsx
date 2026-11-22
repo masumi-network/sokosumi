@@ -170,10 +170,11 @@ function ScheduleRow({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="flex items-center gap-1.5 truncate text-sm font-medium">
-            <span className="truncate">{schedule.name}</span>
+          {/* Wraps: on a phone the controls leave room for a few letters. */}
+          <p className="text-sm font-medium break-words">
+            {schedule.name}
             {schedule.systemKey ? (
-              <span className="text-muted-foreground shrink-0 text-2xs">
+              <span className="text-muted-foreground ml-1.5 text-2xs whitespace-nowrap">
                 {t("Schedules.builtIn")}
               </span>
             ) : null}
@@ -188,6 +189,7 @@ function ScheduleRow({
         {readOnly ? null : (
           <ScheduleRowActions
             scheduleId={schedule.id}
+            name={schedule.name}
             enabled={schedule.enabled}
             deletable={!schedule.systemKey}
             onRemovedChange={setRemoved}
@@ -598,10 +600,12 @@ export function SokoBotConsole({
                               ? t("Settings.sharedArchiveDescription")
                               : t("Settings.archiveDescription")}
                           </p>
-                          <ArchiveSokoBotButton />
-                          <DeleteSokoBotButton
-                            botName={state.bot.name ?? null}
-                          />
+                          <div className="flex flex-wrap gap-2">
+                            <ArchiveSokoBotButton />
+                            <DeleteSokoBotButton
+                              botName={state.bot.name ?? null}
+                            />
+                          </div>
                         </div>
                       ) : null}
                     </div>
