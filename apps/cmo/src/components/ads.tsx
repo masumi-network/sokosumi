@@ -252,7 +252,7 @@ export function AdsPanel({
                     {campaign.clicks} clicks
                     {campaign.conversions === null
                       ? ""
-                      : ` · ${campaign.conversions} conversions`}{" "}
+                      : ` · ${campaign.conversions} sign-ups or sales`}{" "}
                     · last 7 days
                   </span>
                 </span>

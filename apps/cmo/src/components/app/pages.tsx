@@ -117,21 +117,21 @@ export function ResultsPage({
         openView={openView}
       />
       <section className="card">
-        <h3>Reach and clicks</h3>
+        <h3>Views and clicks</h3>
         <p className="muted">
           {connected ? (
             review ? (
               <>
-                No numbers yet: your networks report reach and clicks after a
+                No numbers yet: your networks report views and clicks after a
                 post has been out for a while. The first ones arrive with the
                 weekly report on{" "}
                 <LocalDay at={review.at} serverZone={review.zone} time />.
               </>
             ) : (
-              `Your networks haven't reported reach or clicks yet. ${AGENT_NAME} says so in each weekly report instead of guessing.`
+              `Your networks haven't reported views or clicks yet. ${AGENT_NAME} says so in each weekly report instead of guessing.`
             )
           ) : (
-            `Reach and clicks show here once you connect an account and ${AGENT_NAME}'s posts go out. Until then there is nothing to measure.`
+            `Views and clicks show here once you connect an account and ${AGENT_NAME}'s posts go out. Until then there is nothing to measure.`
           )}
         </p>
         <ComingUp

@@ -89,7 +89,9 @@ it("shows each stage's classic step, Cuso's part, the owner's part and its numbe
   expect(html).toMatch(
     /Profile visits.*About 400 a month.*Cuso&#x27;s estimate/,
   );
-  expect(html).toMatch(/Trial starts.*Not measured yet/);
+  expect(html).toMatch(
+    /Trial starts.*Counted once your accounts are connected/,
+  );
 });
 
 it("names each tracked step by its classic stage, never a name of Cuso's own", () => {

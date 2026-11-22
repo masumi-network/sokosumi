@@ -17,7 +17,7 @@ function iconKey(name: string): string {
 type Channel = NonNullable<Today["channels"]>[number];
 
 function cadence(channel: Channel): string {
-  if (channel.postsPerMonth === undefined) return "Cadence not visible";
+  if (channel.postsPerMonth === undefined) return "Can't tell how often";
   if (channel.postsPerMonth === 0) return "No posts in the last month";
   return `${channel.postsPerMonth} ${channel.postsPerMonth === 1 ? "post" : "posts"} a month`;
 }

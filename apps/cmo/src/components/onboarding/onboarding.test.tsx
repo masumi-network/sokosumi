@@ -793,7 +793,7 @@ describe("Plan", () => {
 
   it("asks the plan's questions as chips with Yes and No", () => {
     const html = plan(questionsOn([undefined, "yes"]));
-    expect(html).toContain("Check these");
+    expect(html).toContain("Did I get these right?");
     expect(html).toContain("Do you sell 0 things?");
     expect(html).toContain("Do you sell 1 things?");
     expect(html.match(/>Yes</g)).toHaveLength(2);

@@ -375,13 +375,13 @@ export const overview: CmoOverview = cmoOverview({
     {
       provider: "google_analytics",
       name: "Google Analytics",
-      measures: "Visits, where they come from and conversions",
+      measures: "Visits, where they come from, and sign-ups or sales",
       status: "connected",
     },
     {
       provider: "google_search_console",
       name: "Google Search Console",
-      measures: "Searches, clicks and rankings",
+      measures: "What people search on Google, and where you show up",
       status: "none",
     },
     {

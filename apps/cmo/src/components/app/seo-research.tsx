@@ -6,7 +6,13 @@ import { useState } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { SubmitButton } from "../submit-button";
 import type { SeoActions } from "./seo-page";
-import { count, day, NOT_KNOWN, pagePath } from "./seo-research-format";
+import {
+  count,
+  day,
+  intentWords,
+  NOT_KNOWN,
+  pagePath,
+} from "./seo-research-format";
 
 export function SearchConsoleCard({
   seo,
@@ -79,7 +85,7 @@ export function SearchConsoleCard({
               <span className="note num">
                 {row.position === null
                   ? ""
-                  : `position ${row.position.toFixed(1)} · `}
+                  : `place ${row.position.toFixed(1)} on Google · `}
                 seen {count(row.impressions)} · {count(row.clicks)} clicks
               </span>
             </li>
@@ -128,10 +134,10 @@ function KeywordResults({ search }: { search: CmoKeywordSearch }) {
             <thead>
               <tr>
                 <th scope="col">Search</th>
-                <th scope="col">A month</th>
-                <th scope="col">Difficulty</th>
-                <th scope="col">Intent</th>
-                <th scope="col">You rank</th>
+                <th scope="col">Searches a month</th>
+                <th scope="col">How hard to rank, of 100</th>
+                <th scope="col">What they want</th>
+                <th scope="col">Your place on Google</th>
               </tr>
             </thead>
             <tbody>
@@ -158,7 +164,7 @@ function KeywordResults({ search }: { search: CmoKeywordSearch }) {
                       : count(idea.searchVolume)}
                   </td>
                   <td className="num">{idea.difficulty ?? NOT_KNOWN}</td>
-                  <td>{idea.intent ?? NOT_KNOWN}</td>
+                  <td>{idea.intent ? intentWords(idea.intent) : NOT_KNOWN}</td>
                   <td className="num">
                     {idea.position === null ? "Not yet" : idea.position}
                     {idea.impressions ? (
@@ -195,7 +201,7 @@ export function KeywordSearch({
   const [error, setError] = useState<string | null>(null);
   return (
     <section className="card">
-      <h3>Keyword search</h3>
+      <h3>What people search for</h3>
       <p className="muted">
         Type a topic and see what people search for: searches a month, how hard
         it is to rank, what they want, and where you rank today. You can also
