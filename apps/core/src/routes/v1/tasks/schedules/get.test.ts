@@ -122,6 +122,7 @@ describe("GET /tasks/schedules", () => {
     ["50%", "Sale 50% off", "Sale 500 club"],
     ["a_b", "Report a_b", "Report axb"],
     ["c:\\d", "Backup c:\\d", "Backup c:d"],
+    ["v1.0 (beta)", "Release v1.0 (beta)", "Release v100 (beta)"],
   ])("treats %s as typed, not as a wildcard", async (q, name, other) => {
     const match = seedTaskSchedule({ name });
     seedTaskSchedule({ name: other });

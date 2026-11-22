@@ -237,10 +237,10 @@ function likeContains(text: string, ignoreCase: boolean): RegExp {
     const char = text[i] as string;
     if (char === "\\" && i + 1 < text.length) {
       i++;
-      pattern += (text[i] as string).replace(/[.*+?^${}()|[\]\\]/u, "\\$&");
+      pattern += RegExp.escape(text[i] as string);
     } else if (char === "%") pattern += ".*";
     else if (char === "_") pattern += ".";
-    else pattern += char.replace(/[.*+?^${}()|[\]\\]/u, "\\$&");
+    else pattern += RegExp.escape(char);
   }
   return new RegExp(pattern, ignoreCase ? "isu" : "su");
 }
