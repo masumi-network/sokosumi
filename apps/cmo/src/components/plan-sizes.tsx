@@ -4,7 +4,7 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { type CmoVolumeLevel, cmoMonthAtLevel } from "@sokosumi/utils";
 
 import { channelLabel } from "../lib/calendar";
-import { madeByNetwork } from "../lib/strategy";
+import { madeByNetwork, newsletterIssues } from "../lib/strategy";
 import { ChannelIcon } from "./channel-icon";
 import "./plan-sizes.css";
 
@@ -25,15 +25,16 @@ const PLANS: { level: CmoVolumeLevel; name: string }[] = [
 export function PlanSizes({ strategy }: { strategy: Strategy }) {
   const plans = PLANS.map(({ level, name }) => {
     const made = cmoMonthAtLevel(strategy.calendar, level).made;
-    return {
-      name,
-      counts: new Map(
-        madeByNetwork(strategy.calendar, made).map(({ key, posts }) => [
-          key,
-          posts,
-        ]),
-      ),
-    };
+    const counts = new Map(
+      madeByNetwork(strategy.calendar, made).map(({ key, posts }) => [
+        key,
+        posts,
+      ]),
+    );
+    // Issues count as posts in "Up to N posts", so the total matches it.
+    const issues = newsletterIssues(strategy.calendar, made);
+    if (issues > 0) counts.set("newsletter", issues);
+    return { name, counts };
   });
   const top = plans.at(-1);
   if (!top || top.counts.size === 0) return null;
@@ -43,7 +44,9 @@ export function PlanSizes({ strategy }: { strategy: Strategy }) {
   return (
     <section className="card plan-sizes" aria-labelledby="plan-sizes-head">
       <h2 id="plan-sizes-head">What each plan makes</h2>
-      <p className="note">Posts a month. The plan you pick decides which.</p>
+      <p className="note">
+        Posts a month on each plan. You pick your plan in the next step.
+      </p>
       <table className="plan-sizes-table">
         <thead>
           <tr>

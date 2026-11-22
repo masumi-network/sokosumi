@@ -107,3 +107,62 @@ export function madeByNetwork(
     .map(([key, posts]) => ({ key, posts }))
     .sort((a, b) => b.posts - a.posts);
 }
+
+/** Newsletter issues in a plan's share: made on every plan, never a network's post. */
+export function newsletterIssues(
+  calendar: readonly CalendarEntry[],
+  made: ReadonlySet<string>,
+): number {
+  return calendar.filter(
+    (entry) => made.has(entry.id) && channelKey(entry.channel) === "newsletter",
+  ).length;
+}
+
+/**
+ * The posts a plan's share sends out: one on every network a piece goes out
+ * on, plus newsletter issues. At the top plan it is `monthPostCount`, so the
+ * strategy's "Up to N posts", the plan table and Subscribe say one number.
+ */
+export function postsGoingOut(
+  calendar: readonly CalendarEntry[],
+  made: ReadonlySet<string>,
+): number {
+  return (
+    madeByNetwork(calendar, made).reduce((sum, { posts }) => sum + posts, 0) +
+    newsletterIssues(calendar, made)
+  );
+}
+
+const DAY_MS = 86_400_000;
+
+/** The days the month's calendar spans, first piece to last; 28 when unknown. */
+export function calendarDays(calendar: readonly CalendarEntry[]): number {
+  const days = calendar
+    .filter((entry) => entry.status !== "skipped")
+    .map((entry) => Date.parse(entry.date))
+    .filter((at) => !Number.isNaN(at));
+  if (days.length === 0) return 28;
+  return Math.max(
+    7,
+    Math.round((Math.max(...days) - Math.min(...days)) / DAY_MS) + 1,
+  );
+}
+
+/**
+ * How often, counted from the calendar: "About 3 a day", "5 a week",
+ * "2 this month". Cuso's own cadence text once said "7 Reels daily" beside
+ * 32 Reels in the month, so the page counts instead of quoting him.
+ */
+export function postRate(count: number, days: number): string {
+  const perDay = count / days;
+  if (perDay >= 1) {
+    const rounded = Math.round(perDay);
+    return `${rounded === perDay ? "" : "About "}${rounded} a day`;
+  }
+  const perWeek = (count * 7) / days;
+  if (perWeek >= 1) {
+    const rounded = Math.round(perWeek);
+    return `${rounded === perWeek ? "" : "About "}${rounded} a week`;
+  }
+  return `${count} this month`;
+}

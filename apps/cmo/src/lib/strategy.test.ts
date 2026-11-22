@@ -1,7 +1,15 @@
 import { expect, it } from "vitest";
 
 import { cmoBilling } from "../test-fixtures/cmo";
-import { monthLabel, monthPostCount, planChosen, planCount } from "./strategy";
+import {
+  calendarDays,
+  monthLabel,
+  monthPostCount,
+  planChosen,
+  planCount,
+  postRate,
+  postsGoingOut,
+} from "./strategy";
 
 const entry = (id: string, extra: Record<string, unknown> = {}) =>
   ({
@@ -59,4 +67,33 @@ it("knows a plan is chosen only with a CMO plan or Tester credits", () => {
   expect(
     planChosen({ billing: cmoBilling({ tier: null, hasTesterCredits: true }) }),
   ).toBe(true);
+});
+
+it("counts a shared short video once on each network, and newsletter issues, like the month's total", () => {
+  const calendar = [
+    entry("x1"),
+    entry("t1", {
+      channel: "tiktok",
+      format: "video",
+      alsoOn: ["instagram", "youtube"],
+    }),
+    entry("n1", { channel: "newsletter", format: "issue" }),
+    entry("skip", { status: "skipped" }),
+  ];
+  const made = new Set(["x1", "t1", "n1"]);
+  expect(postsGoingOut(calendar, made)).toBe(5);
+  expect(postsGoingOut(calendar, made)).toBe(monthPostCount(calendar));
+});
+
+it("says how often from the calendar's own count", () => {
+  expect(postRate(89, 28)).toBe("About 3 a day");
+  expect(postRate(56, 28)).toBe("2 a day");
+  expect(postRate(23, 28)).toBe("About 6 a week");
+  expect(postRate(2, 28)).toBe("2 this month");
+  expect(
+    calendarDays([
+      entry("a", { date: "2026-11-23" }),
+      entry("b", { date: "2026-12-20" }),
+    ]),
+  ).toBe(28);
 });

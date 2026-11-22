@@ -12,6 +12,7 @@ import {
   madeByNetwork,
   monthAdCount,
   monthPostCount,
+  postsGoingOut,
 } from "../../lib/strategy";
 import { LegalNotice } from "../legal-notice";
 import { money } from "../strategy-core";
@@ -30,13 +31,15 @@ function planMakes(strategy: Strategy, tier: string) {
   return cmoMonthAtLevel(strategy.calendar, cmoVolumeLevelForTier(tier));
 }
 
-function makesLine({
-  posts,
-  pictures,
-  videos,
-}: ReturnType<typeof planMakes>): string {
+function makesLine(
+  strategy: Strategy,
+  { made, pictures, videos }: ReturnType<typeof planMakes>,
+): string {
   const counted = (count: number, one: string, many: string) =>
     `${count} ${count === 1 ? one : many}`;
+  // Posts as they go out, like "Up to N posts" above: a short video is a
+  // post on each network it goes out on.
+  const posts = postsGoingOut(strategy.calendar, made);
   return `${counted(posts, "post", "posts")}, ${counted(pictures, "picture", "pictures")} and ${counted(videos, "video", "videos")} a month from your strategy`;
 }
 
@@ -301,6 +304,7 @@ export function CheckoutStep({
                   <>
                     <span className="ob-small">
                       {makesLine(
+                        strategy,
                         makes.get(plan.tier) as ReturnType<typeof planMakes>,
                       )}
                     </span>

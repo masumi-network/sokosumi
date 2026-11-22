@@ -225,6 +225,12 @@ describe("plural", () => {
     expect(plural("Image post", 13)).toBe("13 image posts");
     expect(plural("YouTube Short", 2)).toBe("2 YouTube Shorts");
   });
+
+  it("keeps the platforms' format names", () => {
+    expect(plural("Reel", 31)).toBe("31 Reels");
+    expect(plural("Talking Reel", 1)).toBe("1 Talking Reel");
+    expect(plural("Talking YouTube Short", 1)).toBe("1 Talking YouTube Short");
+  });
 });
 
 it("counts a talking video on YouTube too, and names a network left out with its reason", async () => {
@@ -234,7 +240,7 @@ it("counts a talking video on YouTube too, and names a network left out with its
   // YouTube has no entry of its own: its piece is LinkedIn's talking video.
   const youtube = html.slice(html.indexOf("YouTube</p>"));
   expect(youtube.slice(0, youtube.indexOf("</li>"))).toMatch(
-    /1 a week.*1 talking YouTube Short/i,
+    /1 this month.*1 Talking YouTube Short/,
   );
   expect(html).toContain(
     "<b>Not on Facebook.</b> Product teams do not follow software vendors on Facebook.",
