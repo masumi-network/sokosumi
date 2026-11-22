@@ -34,6 +34,8 @@ export const toolCallFindMany = vi.fn();
 export const toolCallFindFirst = vi.fn();
 export const connectionFindMany = vi.fn();
 export const workspaceFindUnique = vi.fn();
+/** Other Projects of the organization (another Cuso for the same site). */
+export const projectFindMany = vi.fn(async (): Promise<unknown[]> => []);
 export const postFindFirst = vi.fn();
 export const postFindMany = vi.fn();
 /** Reference library rows a save's style ids are looked up in. */
@@ -243,6 +245,8 @@ const client = {
     create: projectCreate,
     delete: projectDelete,
     findUnique: projectFindUnique,
+    // Other Cusos for the same website: none unless a test says so.
+    findMany: projectFindMany,
     update: projectUpdate,
     updateMany: projectUpdateMany,
     // Cuso's Project lives in the business's organization (ADR 0065); the
