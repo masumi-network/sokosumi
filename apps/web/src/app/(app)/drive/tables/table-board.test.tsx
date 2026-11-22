@@ -3,7 +3,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
-import { boardLanes, TableBoard } from "./table-board";
+import { TableBoard } from "./table-board";
+import { boardLanes } from "./table-board-lanes";
 
 const query = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/services/data-table.client", () => ({
@@ -105,6 +106,89 @@ it("moves a card to another option from its Move to menu", async () => {
   );
 });
 
+it("says the board failed to load, not that every lane is empty, and retries", async () => {
+  query.mockRejectedValueOnce(new Error("down")).mockResolvedValue({
+    rows: [row("a", { name: "Acme", stage: "Lead" })],
+    nextCursor: null,
+  });
+  renderBoard(vi.fn());
+  const alert = await screen.findByRole("alert");
+  expect(alert).toHaveTextContent("board.loadError");
+  expect(screen.queryByText("board.emptyLane")).toBeNull();
+  await userEvent.click(within(alert).getByRole("button", { name: "retry" }));
+  expect(
+    within(await screen.findByRole("region", { name: "Lead" })).getByText(
+      "Acme",
+    ),
+  ).toBeInTheDocument();
+});
+
+it("fails the whole board when a later page fails", async () => {
+  query
+    .mockResolvedValueOnce({
+      rows: [row("a", { name: "Acme", stage: "Lead" })],
+      nextCursor: "a",
+    })
+    .mockRejectedValueOnce(new Error("down"));
+  renderBoard(vi.fn());
+  expect(await screen.findByRole("alert")).toHaveTextContent("board.loadError");
+  expect(screen.queryByRole("region", { name: "Lead" })).toBeNull();
+});
+
+it("takes one move at a time: a second gesture waits for the first write", async () => {
+  query.mockResolvedValue({
+    rows: [
+      row("a", { name: "Acme", stage: "Lead" }),
+      row("b", { name: "Beta", stage: "Lead" }),
+    ],
+    nextCursor: null,
+  });
+  const write = Promise.withResolvers<void>();
+  const onMove = vi.fn(() => write.promise);
+  renderBoard(onMove);
+  await userEvent.click(
+    await screen.findByRole("button", { name: "board.moveCard:Acme" }),
+  );
+  await userEvent.click(
+    await screen.findByRole("menuitemradio", { name: "Won" }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "board.moveCard:Beta" }),
+  );
+  const won = await screen.findByRole("menuitemradio", { name: "Won" });
+  expect(won).toHaveAttribute("aria-disabled", "true");
+  await userEvent.click(won);
+  expect(onMove).toHaveBeenCalledTimes(1);
+  await userEvent.keyboard("{Escape}");
+  await act(async () => write.resolve());
+});
+
+it("keeps keyboard focus on the moved card's Move button", async () => {
+  query.mockResolvedValue({
+    rows: [row("a", { name: "Acme", stage: "Lead" })],
+    nextCursor: null,
+  });
+  const write = Promise.withResolvers<void>();
+  renderBoard(vi.fn(() => write.promise));
+  const trigger = await screen.findByRole("button", {
+    name: "board.moveCard:Acme",
+  });
+  act(() => trigger.focus());
+  await userEvent.keyboard("{Enter}");
+  const won = await screen.findByRole("menuitemradio", { name: "Won" });
+  act(() => won.focus());
+  await userEvent.keyboard("{Enter}");
+  await waitFor(() =>
+    expect(document.activeElement).toHaveAccessibleName("board.moveCard:Acme"),
+  );
+  expect(
+    within(screen.getByRole("region", { name: "Won" })).getByRole("button", {
+      name: "board.moveCard:Acme",
+    }),
+  ).toBe(document.activeElement);
+  await act(async () => write.resolve());
+});
+
 it("says when the board shows only the first rows", async () => {
   let page = 0;
   query.mockImplementation(async () => {
@@ -121,8 +205,11 @@ it("says when the board shows only the first rows", async () => {
 });
 
 function renderBoard(onMove: () => Promise<void>) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider client={client}>
       <TableBoard
         table={table}
         column={stage}

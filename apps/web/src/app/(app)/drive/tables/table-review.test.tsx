@@ -58,6 +58,7 @@ const f = vi.hoisted(() => {
     push: vi.fn(),
     views: [] as TableView[],
     rowsKey: [] as unknown[],
+    gridEnabled: undefined as boolean | undefined,
     score: {
       id: "00000000-0000-4000-8000-000000000005",
       tableId: "00000000-0000-4000-8000-000000000002",
@@ -99,10 +100,14 @@ vi.mock("@tanstack/react-query", () => ({
   useQuery: ({
     queryKey,
     refetchInterval,
+    enabled,
   }: {
     queryKey: string[];
     refetchInterval?: () => number | false;
+    enabled?: boolean;
   }) => {
+    if (queryKey[0] === "table-rows" && queryKey[2] !== "board")
+      f.gridEnabled = enabled;
     if (queryKey[0] === "table-rows") {
       f.rowsKey = queryKey;
       if (refetchInterval) f.rowsPoll = refetchInterval;
@@ -1433,6 +1438,8 @@ it("B1: a single-select column turns the rows into a board, and Move to saves th
   f.batch.mockResolvedValue({});
   render(<TableEditor id={f.column.tableId} />);
   await userEvent.click(screen.getByRole("radio", { name: "board.board" }));
+  // The hidden grid stops reading while the board shows.
+  expect(f.gridEnabled).toBe(false);
   expect(screen.getByRole("grid").closest(".hidden")).not.toBeNull();
   expect(screen.getByRole("region", { name: "Lead" })).toHaveTextContent(
     "Original",
@@ -1447,4 +1454,6 @@ it("B1: a single-select column turns the rows into a board, and Move to saves th
       key: expect.any(String),
     }),
   );
+  // One refresh per move: rows, table and history once each.
+  await waitFor(() => expect(f.invalidate).toHaveBeenCalledTimes(3));
 });

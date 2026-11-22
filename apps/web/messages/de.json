@@ -11904,7 +11904,10 @@
         "moveTo": "Verschieben nach",
         "moveCard": "{row} verschieben",
         "emptyLane": "Keine Zeilen",
-        "truncated": "Die ersten {count} Zeilen werden angezeigt. Wechsle zu Tabelle, um den Rest zu sehen."
+        "truncated": "Die ersten {count} Zeilen werden angezeigt. Wechsle zu Tabelle, um den Rest zu sehen.",
+        "loadError": "Das Board konnte nicht geladen werden. Prüfe deine Verbindung und versuche es erneut.",
+        "dropped": "{item} nach {target} verschoben.",
+        "dndInstructions": "Ziehe eine Karte in eine andere Spalte oder öffne ihren Verschieben-Button und wähle eine Spalte."
       }
     },
     "ProjectScope": {

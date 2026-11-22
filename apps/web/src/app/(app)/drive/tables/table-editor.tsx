@@ -422,6 +422,8 @@ function TableWorkspace({
         limit: 50,
         archived: archivedRows,
       }),
+    // The board reads its own rows; the hidden grid stops reading.
+    enabled: !showBoard,
     // A poll during a move or archive would read the rows from before it.
     refetchInterval: () => (moveInFlight.current ? false : 3000),
   });
@@ -1136,12 +1138,27 @@ function TableWorkspace({
             columns={columns}
             definition={definition}
             readOnly={!!table.archivedAt}
-            onMove={(row, value) =>
-              run(
-                () => handleCell(row, boardColumn, row.version, value),
-                `cell:${row.id}:${boardColumn.id}`,
-              )
-            }
+            onMove={(row, value) => {
+              const slot = `cell:${row.id}:${boardColumn.id}`;
+              // `run` refreshes once after the write; `handleCell` would again.
+              return run(
+                () =>
+                  mutate(
+                    slot,
+                    {
+                      patch: [
+                        {
+                          id: row.id,
+                          version: row.version,
+                          values: { [boardColumn.id]: value },
+                        },
+                      ],
+                    },
+                    (body) => dataTableService.batch(table.id, body),
+                  ),
+                slot,
+              );
+            }}
           />
         </div>
       )}

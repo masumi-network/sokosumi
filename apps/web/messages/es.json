@@ -11904,7 +11904,10 @@
         "moveTo": "Mover a",
         "moveCard": "Mover {row}",
         "emptyLane": "Sin filas",
-        "truncated": "Se muestran las primeras {count} filas. Cambia a Tabla para ver el resto."
+        "truncated": "Se muestran las primeras {count} filas. Cambia a Tabla para ver el resto.",
+        "loadError": "No se pudo cargar el tablero. Revisa tu conexión e inténtalo de nuevo.",
+        "dropped": "{item} movido a {target}.",
+        "dndInstructions": "Para mover una tarjeta, arrástrala a otra columna o abre su botón Mover y elige una columna."
       }
     },
     "ProjectScope": {

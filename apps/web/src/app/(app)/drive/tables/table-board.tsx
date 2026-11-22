@@ -18,7 +18,7 @@ import type {
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRightLeft } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,37 +31,21 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { dataTableService } from "@/lib/services/data-table.client";
 import { cn } from "@/lib/utils";
+import {
+  boardLanes,
+  type BoardLane as Lane,
+  type BoardValue as Value,
+} from "./table-board-lanes";
 import { tableValueText } from "./table-value";
 
 /** Rows a board loads at most; past this it says so instead of hiding work. */
 const BOARD_ROW_LIMIT = 500;
 const PAGE_SIZE = 100;
-
-type Value = string | null;
-interface Lane {
-  value: Value;
-  rows: TableRow[];
-}
-
-/** One lane per option in option order, then values no option names, then unset. */
-export function boardLanes(
-  rows: TableRow[],
-  column: Pick<TableColumn, "id" | "options">,
-): Lane[] {
-  const lanes = new Map<Value, TableRow[]>(
-    (column.options ?? []).map((option) => [option, []]),
-  );
-  const unset: TableRow[] = [];
-  for (const row of rows) {
-    const value = row.values[column.id];
-    if (typeof value !== "string" || !value) unset.push(row);
-    else lanes.set(value, [...(lanes.get(value) ?? []), row]);
-  }
-  return [
-    ...[...lanes].map(([value, rows]) => ({ value, rows })),
-    { value: null, rows: unset },
-  ];
-}
+/**
+ * A full board is up to five page reads, so it polls far less often than the
+ * grid's one page; a move refreshes it at once.
+ */
+const BOARD_POLL_MS = 15_000;
 
 async function loadBoardRows(
   tableId: string,
@@ -104,10 +88,14 @@ export function TableBoard({
     // Under the grid's key, so the editor's refresh after a write reloads it.
     queryKey: ["table-rows", table.id, "board", definition],
     queryFn: () => loadBoardRows(table.id, definition),
-    refetchInterval: 3000,
+    refetchInterval: BOARD_POLL_MS,
   });
   // A moved card shows in its new lane until the write and reload settle.
   const [moves, setMoves] = useState<Record<string, Value>>({});
+  // One move at a time: the next write needs the row version this one returns.
+  const moving = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const boardRef = useRef<HTMLDivElement>(null);
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
     useSensor(TouchSensor, {
@@ -131,35 +119,104 @@ export function TableBoard({
   const cardTitle = (row: TableRow) =>
     (fields[0] && tableValueText(row.values[fields[0].id])) || t("row");
 
-  async function move(row: TableRow, value: Value) {
-    if ((row.values[column.id] ?? null) === value) return;
+  /**
+   * A move takes the card to another lane, which unmounts the Move button
+   * that had focus. Put focus on the card's new button, or on the board when
+   * the card left it, so the keyboard user keeps their place.
+   */
+  function keepFocus(rowId: string) {
+    requestAnimationFrame(() => {
+      const root = boardRef.current;
+      const active = document.activeElement;
+      if (!root || (active && active !== document.body && active.isConnected))
+        return;
+      (
+        root.querySelector<HTMLElement>(`[data-move-row="${rowId}"]`) ?? root
+      ).focus();
+    });
+  }
+  async function move(row: TableRow, value: Value, fromMenu = false) {
+    if (moving.current || (row.values[column.id] ?? null) === value) return;
+    moving.current = true;
+    setBusy(true);
     setMoves((current) => ({ ...current, [row.id]: value }));
+    if (fromMenu) keepFocus(row.id);
     try {
       await onMove(row, value);
     } finally {
+      moving.current = false;
+      setBusy(false);
       setMoves(({ [row.id]: _, ...rest }) => rest);
+      if (fromMenu) keepFocus(row.id);
     }
   }
+  const cardName = (id: unknown) => {
+    const row = rows.find((item) => item.id === id);
+    return row ? cardTitle(row) : t("row");
+  };
+  const targetName = (data: unknown) =>
+    laneName((data as Lane | undefined)?.value ?? null);
   function handleDragEnd({ active, over }: DragEndEvent) {
     const row = rows.find((item) => item.id === active.id);
     const value = (over?.data.current as Lane | undefined)?.value ?? null;
     if (row && over && canTake(value)) void move(row, value);
   }
 
-  if (board.isPending)
+  if (!board.data && board.isError)
+    return (
+      <div role="alert" className="space-y-3 p-6 text-sm">
+        <p>{t("board.loadError")}</p>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => void board.refetch()}
+        >
+          {t("retry")}
+        </Button>
+      </div>
+    );
+  if (!board.data)
     return (
       <p role="status" className="p-6 text-sm">
         {t("loading")}
       </p>
     );
   return (
-    <div className="min-w-0">
+    <div ref={boardRef} tabIndex={-1} className="min-w-0 outline-none">
       {board.data?.truncated && (
         <p role="status" className="text-muted-foreground px-3 pt-3 text-sm">
           {t("board.truncated", { count: BOARD_ROW_LIMIT })}
         </p>
       )}
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        onDragEnd={handleDragEnd}
+        accessibility={{
+          screenReaderInstructions: {
+            draggable: t("board.dndInstructions"),
+          },
+          announcements: {
+            onDragStart: ({ active }) =>
+              t("dnd.pickedUp", { item: cardName(active.id) }),
+            onDragOver: ({ active, over }) =>
+              over
+                ? t("dnd.over", {
+                    item: cardName(active.id),
+                    target: targetName(over.data.current),
+                  })
+                : undefined,
+            onDragEnd: ({ active, over }) =>
+              over
+                ? t("board.dropped", {
+                    item: cardName(active.id),
+                    target: targetName(over.data.current),
+                  })
+                : t("dnd.cancelled", { item: cardName(active.id) }),
+            onDragCancel: ({ active }) =>
+              t("dnd.cancelled", { item: cardName(active.id) }),
+          },
+        }}
+      >
         <div className="flex min-w-0 gap-3 overflow-x-auto overscroll-x-contain p-3">
           {lanes.map((lane) => (
             <BoardLane
@@ -174,9 +231,12 @@ export function TableBoard({
                   title={cardTitle(row)}
                   details={fields
                     .slice(1, 3)
-                    .map((field) => tableValueText(row.values[field.id]))
-                    .filter(Boolean)}
-                  disabled={readOnly}
+                    .map((field) => ({
+                      id: field.id,
+                      text: tableValueText(row.values[field.id]),
+                    }))
+                    .filter((detail) => detail.text)}
+                  disabled={readOnly || busy}
                 >
                   {!readOnly && (
                     <DropdownMenu>
@@ -185,6 +245,7 @@ export function TableBoard({
                           size="icon"
                           variant="ghost"
                           className="hit-area size-8 shrink-0"
+                          data-move-row={row.id}
                           aria-label={t("board.moveCard", {
                             row: cardTitle(row),
                           })}
@@ -199,7 +260,7 @@ export function TableBoard({
                         <DropdownMenuRadioGroup
                           value={lane.value ?? ""}
                           onValueChange={(value) =>
-                            void move(row, value || null)
+                            void move(row, value || null, true)
                           }
                         >
                           {lanes
@@ -208,6 +269,7 @@ export function TableBoard({
                               <DropdownMenuRadioItem
                                 key={target.value ?? ""}
                                 value={target.value ?? ""}
+                                disabled={busy}
                               >
                                 {laneName(target.value)}
                               </DropdownMenuRadioItem>
@@ -237,7 +299,7 @@ function BoardLane({
 }) {
   const t = useTranslations("App.Tables");
   const { setNodeRef, isOver } = useDroppable({
-    id: lane.value ?? "",
+    id: `lane:${lane.value ?? ""}`,
     data: lane,
   });
   return (
@@ -275,7 +337,7 @@ function BoardCard({
 }: {
   row: TableRow;
   title: string;
-  details: string[];
+  details: { id: string; text: string }[];
   disabled: boolean;
   children: React.ReactNode;
 }) {
@@ -300,13 +362,9 @@ function BoardCard({
     >
       <div className="min-w-0 flex-1">
         <p className="font-medium break-words">{title}</p>
-        {details.map((detail, index) => (
-          <p
-            // Values can repeat; their place is the column order.
-            key={index}
-            className="text-muted-foreground truncate"
-          >
-            {detail}
+        {details.map((detail) => (
+          <p key={detail.id} className="text-muted-foreground truncate">
+            {detail.text}
           </p>
         ))}
       </div>
