@@ -71,4 +71,57 @@ describe("BillingPortalErrorToast", () => {
       expect(replaceMock).not.toHaveBeenCalled();
     });
   });
+
+  it("toasts and cleans the URL again when a second billingPortalError arrives on the same preserved page", async () => {
+    mockSearchParams = new URLSearchParams(
+      "billingPortalError=general&tab=subscription",
+    );
+
+    const { rerender } = render(
+      <BillingPortalErrorToast
+        generalMessage="Failed to open Stripe"
+        unauthorizedMessage="Not allowed"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledTimes(1);
+      expect(replaceMock).toHaveBeenCalledWith("/billing?tab=subscription");
+    });
+
+    // Re-rendering while the same param is still clearing must not duplicate the toast.
+    rerender(
+      <BillingPortalErrorToast
+        generalMessage="Failed to open Stripe"
+        unauthorizedMessage="Not allowed"
+      />,
+    );
+    expect(toastErrorMock).toHaveBeenCalledTimes(1);
+
+    // URL clears after router.replace, then a second failure returns with the param again.
+    mockSearchParams = new URLSearchParams("tab=subscription");
+    rerender(
+      <BillingPortalErrorToast
+        generalMessage="Failed to open Stripe"
+        unauthorizedMessage="Not allowed"
+      />,
+    );
+
+    mockSearchParams = new URLSearchParams(
+      "billingPortalError=general&tab=subscription",
+    );
+    rerender(
+      <BillingPortalErrorToast
+        generalMessage="Failed to open Stripe"
+        unauthorizedMessage="Not allowed"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledTimes(2);
+      expect(replaceMock).toHaveBeenCalledTimes(2);
+    });
+    expect(toastErrorMock).toHaveBeenLastCalledWith("Failed to open Stripe");
+    expect(replaceMock).toHaveBeenLastCalledWith("/billing?tab=subscription");
+  });
 });

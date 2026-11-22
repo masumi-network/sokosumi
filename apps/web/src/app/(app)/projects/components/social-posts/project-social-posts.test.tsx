@@ -20,6 +20,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { useQueryState } from "nuqs";
 import { NuqsTestingAdapter, type UrlUpdateEvent } from "nuqs/adapters/testing";
+import { Activity } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
 import {
@@ -7664,6 +7665,61 @@ describe("ProjectSocialPosts", () => {
       }),
     );
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("does not replay the missing-post toast on Activity reveal", async () => {
+    const connections = [buildConnection()];
+    const posts = [buildPost()];
+
+    const { rerender } = render(
+      <Activity mode="visible">
+        <ProjectSocialPosts
+          connections={connections}
+          posts={posts}
+          projectId={PROJECT_ID}
+          requestedPostId="post-gone"
+        />
+      </Activity>,
+    );
+
+    await waitFor(() => expect(toastErrorMock).toHaveBeenCalledTimes(1));
+
+    rerender(
+      <Activity mode="hidden">
+        <ProjectSocialPosts
+          connections={connections}
+          posts={posts}
+          projectId={PROJECT_ID}
+          requestedPostId="post-gone"
+        />
+      </Activity>,
+    );
+    rerender(
+      <Activity mode="visible">
+        <ProjectSocialPosts
+          connections={connections}
+          posts={posts}
+          projectId={PROJECT_ID}
+          requestedPostId="post-gone"
+        />
+      </Activity>,
+    );
+
+    expect(toastErrorMock).toHaveBeenCalledTimes(1);
+
+    // Navigating to another missing post still shows the toast.
+    rerender(
+      <Activity mode="visible">
+        <ProjectSocialPosts
+          connections={connections}
+          posts={posts}
+          projectId={PROJECT_ID}
+          requestedPostId="post-gone-2"
+        />
+      </Activity>,
+    );
+
+    await waitFor(() => expect(toastErrorMock).toHaveBeenCalledTimes(2));
   });
 
   it("does not toast when the named post is present", () => {

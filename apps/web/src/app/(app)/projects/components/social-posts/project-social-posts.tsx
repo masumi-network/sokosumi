@@ -351,9 +351,16 @@ export function ProjectSocialPosts({
     setPreviewOpen(Boolean(linkedPost));
   }
 
+  const toastedMissingPostIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     // A failed load is not a missing post; the inline error says so instead.
-    if (!requestedPostId || selectedPostId || selectedPostFailed) return;
+    if (!requestedPostId || selectedPostId || selectedPostFailed) {
+      toastedMissingPostIdRef.current = null;
+      return;
+    }
+    if (toastedMissingPostIdRef.current === requestedPostId) return;
+    toastedMissingPostIdRef.current = requestedPostId;
     toast.error(t("toasts.missingPost"), {
       duration: Infinity,
       closeButton: true,
