@@ -192,14 +192,6 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-rooms-client-scroll-on-history-loaded` (`useRoomsClientScrollOnHistoryLoaded`) — pins `RoomsClient` to the bottom in layout when message history transitions from pending to loaded
 - `use-rooms-client-transcript-active` (`useRoomsClientTranscriptActive`) — before-paint active/mounted ref lifecycle for `RetainedRoomsClient` and its `positionChanged` guard
 - `use-unread-thread-reply-counts` (`useUnreadThreadReplyCounts`) — debounced unread thread reply count reader per room with local `clear` override
-- `use-create-task-modal-data` (`useCreateTaskModalData`) — lazily loads agent names, design.md attachment, and project options when `CreateTaskModal` opens without caller-owned data
-- `use-markdown-editor-value-sync` (`useMarkdownEditorValueSync`) — syncs external `value` prop updates into `MarkdownEditor`'s `contentEditable` DOM while avoiding cursor jumps on focused edits
-- `use-markdown-editor-blur-timeout-cleanup` (`useMarkdownEditorBlurTimeoutCleanup`) — clears any pending `MarkdownEditor` mention-dropdown blur timeout on passive unmount or `<Activity>` hide
-- `use-markdown-editor-selection-toolbar` (`useMarkdownEditorSelectionToolbar`) — tracks the active selection rectangle via `document` `selectionchange` for `MarkdownEditor`'s floating `"document"` format toolbar
-- `use-markdown-editor-format-toolbar-width` (`useMarkdownEditorFormatToolbarWidth`) — measures `MarkdownEditor`'s floating format toolbar width before paint when `selectionRect` updates
-- `use-task-schedule-copy-projects` (`useTaskScheduleCopyProjects`, `isCopyDestination`) — loads and paginates eligible copy-destination projects for `TaskScheduleCopyProjectPicker` with request-id stale response filtering
-- `use-task-schedules-show-all-focus` (`useTaskSchedulesShowAllFocus`) — moves focus to the All tab when `TaskSchedulesView` remounts at the URL armed by a "Show all schedules" click
-- `use-task-schedules-pagination` (`useTaskSchedulesPagination`) — owns `TaskSchedulesView` pagination state, refresh invalidation, and search-driven auto-paging across remaining cursor pages
 
 ### React Query in migrations
 
