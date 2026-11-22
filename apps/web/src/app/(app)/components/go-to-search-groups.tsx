@@ -301,10 +301,16 @@ function CoworkerResults({
           value={`coworker:${coworker.id}`}
           onSelect={() => onNewTaskWith(coworker.id)}
         >
-          <Avatar aria-hidden className="size-4">
+          {/* As the New task assignee avatar: two letters, a ring edge for
+              light rows. 20px fits two letters; -mx-0.5 keeps the label in
+              line with the 16px icons of the other groups. */}
+          <Avatar
+            aria-hidden
+            className="ring-border -mx-0.5 size-5 shrink-0 rounded-full ring-1"
+          >
             <AvatarImage src={getCoworkerImage(coworker) ?? undefined} alt="" />
-            <AvatarFallback className="text-2xs">
-              {coworker.name.charAt(0)}
+            <AvatarFallback className="text-2xs rounded-full font-medium">
+              {coworker.name.slice(0, 2).toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <span className="truncate">{coworker.name}</span>
