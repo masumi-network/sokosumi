@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  type Coworker,
-  getCoworkers,
-  getProjectsById,
-  getTasksById,
-} from "@sokosumi/core-client";
+import { getTasksById } from "@sokosumi/core-client";
 import { Bot, FolderKanban, ListCheck } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -13,6 +8,8 @@ import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
+import { useDriveTasksFilterCoworkers } from "@/hooks/effects/use-drive-tasks-filter-coworkers";
+import { useDriveTasksFilterSelectedProjectName } from "@/hooks/effects/use-drive-tasks-filter-selected-project-name";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import { fetchDriveTasksPage } from "@/lib/utils/drive-tasks-list.client";
@@ -120,7 +117,6 @@ export function DriveTasksFilters({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [coworkers, setCoworkers] = useState<Coworker[]>([]);
   const [projects, setProjects] = useState<DriveTasksProjectFilterOption[]>([]);
   const [projectsNextCursor, setProjectsNextCursor] = useState<string | null>(
     null,
@@ -129,36 +125,11 @@ export function DriveTasksFilters({
   const [tasks, setTasks] = useState<DriveTasksTaskFilterOption[]>([]);
   const [tasksNextCursor, setTasksNextCursor] = useState<string | null>(null);
   const [tasksLoadingMore, setTasksLoadingMore] = useState(false);
-  const [selectedProjectName, setSelectedProjectName] = useState<string | null>(
-    null,
-  );
   const [selectedTaskName, setSelectedTaskName] = useState<string | null>(null);
   const loadMoreProjectsAbortRef = useRef<AbortController | null>(null);
   const loadMoreTasksAbortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadCoworkers() {
-      try {
-        const response = await getCoworkers({
-          client: getBrowserCoreClient(),
-          query: { scope: "available", capability: ["tasks"] },
-        });
-        if (!controller.signal.aborted) {
-          setCoworkers(response.data?.data ?? []);
-        }
-      } catch {
-        if (!controller.signal.aborted) {
-          setCoworkers([]);
-        }
-      }
-    }
-    void loadCoworkers();
-    return () => {
-      controller.abort();
-    };
-  }, [activeOrganizationId]);
+  const coworkers = useDriveTasksFilterCoworkers(activeOrganizationId);
 
   useEffect(() => {
     const store = driveStoreForActiveWorkspace(activeOrganizationId);
@@ -201,40 +172,11 @@ export function DriveTasksFilters({
     };
   }, [activeOrganizationId, assigneeId, labels.noProjectLabel]);
 
-  useEffect(() => {
-    if (!projectId || projectId === "null") {
-      setSelectedProjectName(
-        projectId === "null" ? labels.noProjectLabel : null,
-      );
-      return;
-    }
-
-    if (projects.some((project) => project.id === projectId)) {
-      setSelectedProjectName(null);
-      return;
-    }
-
-    const selectedProjectId = projectId;
-
-    async function fetchSelectedProject() {
-      try {
-        const response = await getProjectsById({
-          client: getBrowserCoreClient(),
-          path: { id: selectedProjectId },
-          throwOnError: true,
-        });
-        const selectedProject = response.data?.data;
-        if (!selectedProject?.name) {
-          return;
-        }
-        setSelectedProjectName(selectedProject.name);
-      } catch {
-        setSelectedProjectName(null);
-      }
-    }
-
-    void fetchSelectedProject();
-  }, [projectId, projects, labels.noProjectLabel]);
+  const selectedProjectName = useDriveTasksFilterSelectedProjectName(
+    projectId,
+    projects,
+    labels.noProjectLabel,
+  );
 
   useEffect(() => {
     if (!projectId) {

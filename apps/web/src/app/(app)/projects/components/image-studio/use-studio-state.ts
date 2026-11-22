@@ -1,7 +1,6 @@
 "use client";
 
 import type { StudioAssetRating } from "@sokosumi/core-client";
-import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useCallback, useRef, useState } from "react";
 
 import { useStudioStatePolling } from "@/hooks/effects/use-studio-state-polling";
@@ -71,10 +70,7 @@ export function useStudioState(options: {
 }): StudioStateHook {
   const { projectId, initialState, initialSelectedAssetId } = options;
   const [state, setState] = useState<StudioState>(initialState);
-  const [sort, setQuerySort] = useQueryState(
-    "sort",
-    parseAsStringLiteral(["newest", "best"]).withDefault("newest"),
-  );
+  const [sort, setSort] = useState<"newest" | "best">("newest");
   const sortRef = useRef(sort);
   sortRef.current = sort;
   const pendingOlder = useRef<string | null>(null);
@@ -269,13 +265,7 @@ export function useStudioState(options: {
   const activeJobs = shownState.jobs.filter(isActive);
   const hasActive = activeJobs.length > 0;
 
-  useStudioStatePolling(
-    projectId,
-    hasActive,
-    refresh,
-    sort,
-    loadedSortRef.current !== sort,
-  );
+  useStudioStatePolling(projectId, hasActive, refresh);
 
   /**
    * Fetch the next page of older versions and keep what is already shown.
@@ -381,9 +371,10 @@ export function useStudioState(options: {
     (nextSort: "newest" | "best") => {
       if (nextSort === sortRef.current) return;
       sortRef.current = nextSort;
-      void setQuerySort(nextSort);
+      setSort(nextSort);
+      void refresh();
     },
-    [setQuerySort],
+    [refresh],
   );
 
   const selectAsset = useCallback(

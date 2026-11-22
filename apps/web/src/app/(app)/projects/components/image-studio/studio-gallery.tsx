@@ -14,7 +14,8 @@ import {
   Shuffle,
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { useEffect, useState, useTransition } from "react";
 import {
   usePageListSearch,
   usePageSearchQuery,
@@ -617,6 +618,14 @@ function GallerySort({
   onSortChange: (sort: "newest" | "best") => void;
 }) {
   const t = useTranslations("App.Studio.Rating");
+  const [querySort, setQuerySort] = useQueryState(
+    "sort",
+    parseAsStringLiteral(["newest", "best"]).withDefault("newest"),
+  );
+  // Back/forward and shared URLs select the same Core ordering as this control.
+  useEffect(() => {
+    onSortChange(querySort);
+  }, [querySort, onSortChange]);
   return (
     <select
       aria-label={t("sort")}
@@ -624,6 +633,7 @@ function GallerySort({
       onChange={(event) => {
         const next = event.target.value === "best" ? "best" : "newest";
         onSortChange(next);
+        void setQuerySort(next);
       }}
       value={sort}
     >

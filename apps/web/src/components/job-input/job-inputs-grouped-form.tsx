@@ -3,7 +3,7 @@
 import type { InputGroupSchemaType } from "@sokosumi/masumi/schemas";
 import { useTranslations } from "next-intl";
 import type React from "react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { GroupedInputTabs } from "@/components/common/grouped-input-tabs";
 import {
@@ -15,7 +15,6 @@ import { cn } from "@/lib/utils";
 import {
   type FormFooterProps,
   JobInputsFormBuilder,
-  type JobInputsFormBuilderHandle,
 } from "./job-inputs-form-builder";
 
 interface JobInputsGroupedFormProps {
@@ -52,7 +51,6 @@ export function JobInputsGroupedForm({
   const t = useTranslations("Library.JobInput.Form");
 
   const groupsKey = useMemo(() => groups.map((g) => g.id).join(","), [groups]);
-  const groupHandlesRef = useRef(new Map<string, JobInputsFormBuilderHandle>());
   const [collectedGroupValues, setCollectedGroupValues] =
     useState<JobInputsFormSchemaType>({});
   const [prevGroupsKey, setPrevGroupsKey] = useState(groupsKey);
@@ -73,21 +71,10 @@ export function JobInputsGroupedForm({
 
   const handleGroupSubmit = useCallback(
     (lastGroupValues: JobInputsFormSchemaType) => {
-      const mountedValues: JobInputsFormSchemaType = {};
-      for (const group of groups) {
-        const handle = groupHandlesRef.current.get(group.id);
-        if (handle) {
-          Object.assign(mountedValues, handle.getValues());
-        }
-      }
-      const allValues = {
-        ...collectedGroupValues,
-        ...mountedValues,
-        ...lastGroupValues,
-      };
+      const allValues = { ...collectedGroupValues, ...lastGroupValues };
       customOnSubmit(allValues);
     },
-    [collectedGroupValues, customOnSubmit, groups],
+    [collectedGroupValues, customOnSubmit],
   );
 
   const getGroupDefaultValues = useCallback(
@@ -112,20 +99,19 @@ export function JobInputsGroupedForm({
 
   const handleTabChange = useCallback(
     (groupId: string) => {
-      const currentGroup = groups[activeGroupIndex];
-      const currentHandle = currentGroup
-        ? groupHandlesRef.current.get(currentGroup.id)
-        : undefined;
-      if (currentHandle) {
-        const snapshot = currentHandle.getValues();
-        setCollectedGroupValues((prev) => ({ ...prev, ...snapshot }));
-      }
       const index = groups.findIndex((g) => g.id === groupId);
       if (index >= 0) {
         goToGroup(index);
       }
     },
-    [activeGroupIndex, groups, goToGroup],
+    [groups, goToGroup],
+  );
+
+  const handleGroupValuesChange = useCallback(
+    (groupValues: JobInputsFormSchemaType) => {
+      setCollectedGroupValues((prev) => ({ ...prev, ...groupValues }));
+    },
+    [],
   );
 
   return (
@@ -138,16 +124,10 @@ export function JobInputsGroupedForm({
       renderGroup={(group, index, isLast) => (
         <JobInputsFormBuilder
           key={group.id}
-          ref={(handle) => {
-            if (handle) {
-              groupHandlesRef.current.set(group.id, handle);
-            } else {
-              groupHandlesRef.current.delete(group.id);
-            }
-          }}
           inputFields={group.input_data}
           defaultValues={getGroupDefaultValues(index)}
           onSubmit={isLast ? handleGroupSubmit : handleGroupNext}
+          onValuesChange={handleGroupValuesChange}
           renderFooter={(props) =>
             customRenderGroupFooter(props, isLast, index)
           }

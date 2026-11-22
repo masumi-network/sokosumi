@@ -53,13 +53,4 @@ describe("useStudioStatePolling", () => {
     vi.advanceTimersByTime(30_000);
     expect(nextRefresh).toHaveBeenCalledTimes(1);
   });
-
-  it("refreshes immediately when the requested sort differs from the loaded sort", () => {
-    const refresh = vi.fn(async () => {});
-    renderHook(() =>
-      useStudioStatePolling("proj-1", false, refresh, "best", true),
-    );
-
-    expect(refresh).toHaveBeenCalledTimes(1);
-  });
 });

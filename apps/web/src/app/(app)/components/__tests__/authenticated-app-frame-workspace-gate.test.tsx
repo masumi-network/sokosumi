@@ -55,11 +55,7 @@ vi.mock("@/lib/services/user.service", () => ({
 }));
 
 vi.mock("@/lib/clients/core.client", () => ({
-  coreClient: {
-    getMyBadgeCampaigns: async () => [],
-    getMyCredits: async () => null,
-    getPendingNotices: async () => [],
-  },
+  coreClient: { getMyBadgeCampaigns: async () => [] },
 }));
 
 vi.mock("@/lib/newsletter-access.server", () => ({
@@ -132,6 +128,9 @@ vi.mock("../private-cached-app-sidebar", () => ({
   },
 }));
 vi.mock("../header", () => ({
+  default: () => null,
+}));
+vi.mock("../app-shell-overlays", () => ({
   default: () => null,
 }));
 vi.mock("../app-mobile-chrome.client", () => ({

@@ -1,27 +1,19 @@
 import type { Notice } from "@sokosumi/core-client";
-import { NoticeKind } from "@sokosumi/core-client";
-import { hasAdminRole, type SessionUser } from "@sokosumi/utils";
+import { hasAdminRole } from "@sokosumi/utils";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { AuthenticatedRoomCache } from "@/app/chat/components/authenticated-room-cache";
-import {
-  type AccountNotice,
-  resolveAccountNotice,
-} from "@/app/components/account-notice-state";
 import { HistorySearchDialogProvider } from "@/app/components/history-search-dialog-provider";
-import { mapAccountCreditsChrome } from "@/app/components/sidebar";
 import { SidebarEdgeHandle } from "@/app/components/sidebar/components/sidebar-edge-handle.client";
 import { WorkspaceSwitcherProvider } from "@/app/components/workspace-switcher/workspace-switcher.client";
 import { EmergencyDialog } from "@/components/emergency-dialog/emergency-dialog";
 import { ImpersonationBanner } from "@/components/impersonation/impersonation-banner";
 import { WarmLikelyPages } from "@/components/warm-likely-pages.client";
-import { getEnvPublicConfig } from "@/config/env.public";
 import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
 import { NotificationProvider } from "@/contexts/notification-provider";
 import { OrgPresenceProvider } from "@/contexts/org-presence-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { SocialProviderAvailabilityProvider } from "@/contexts/social-provider-availability-context";
-import { getPendingNoticesAction } from "@/lib/actions/notice/action";
 import { getRequestPath, signInRedirectPath } from "@/lib/auth/auth.server";
 import { readRouteSession } from "@/lib/auth/route-session";
 import { coreClient } from "@/lib/clients/core.client";
@@ -32,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { isWorkspaceReady, workspaceGatePath } from "@/lib/workspace-gate";
 import { AccountNoticeToast } from "./account-notice-toast.client";
 import { AppMobileChrome } from "./app-mobile-chrome.client";
+import AppShellOverlays from "./app-shell-overlays";
 import {
   APP_MAIN_MOBILE_PT_CLASS,
   APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS,
@@ -41,13 +34,9 @@ import { AuthSessionHydrator } from "./auth-session-hydrator.client";
 import { CoreUnavailableNotice } from "./core-unavailable-notice.client";
 import Header from "./header";
 import { NewTaskWizardProvider } from "./new-task-wizard-provider";
-import {
-  NoticeDialogProvider,
-  type PendingNoticeGroups,
-} from "./notice-dialog-context";
+import { NoticeDialogProvider } from "./notice-dialog-context";
 import { NotificationToaster } from "./notification-toaster.client";
 import PrivateCachedAppSidebar from "./private-cached-app-sidebar";
-import { getCachedMyCredits } from "./private-sidebar-cache";
 import {
   type BadgeCampaignSummary,
   FeatureBadgesProvider,
@@ -61,46 +50,6 @@ function loadBadgeCampaigns(): Promise<BadgeCampaignSummary[]> {
     console.error("Failed to load badge campaigns for the sidebar", error);
     return [];
   });
-}
-
-/** Never rejects: shares the request-scoped credits read with SidebarDeferredAccount. */
-function loadAccountNotice(
-  sessionUser: SessionUser,
-): Promise<AccountNotice | null> {
-  const lowCreditsThreshold =
-    getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD;
-  return getCachedMyCredits()
-    .then((creditsResult) => {
-      const credits = mapAccountCreditsChrome(creditsResult);
-      return resolveAccountNotice({
-        credits: credits.totalCredits,
-        currentPlan: credits.creditScope === null ? null : credits.currentPlan,
-        email: sessionUser.email,
-        emailVerified: sessionUser.emailVerified,
-        threshold: lowCreditsThreshold,
-      });
-    })
-    .catch(() => null);
-}
-
-/** Never rejects: pending notices stream in without blocking app chrome. */
-function loadPendingNotices(): Promise<PendingNoticeGroups> {
-  return getPendingNoticesAction()
-    .then((result) => {
-      const pendingNotices = result.ok ? result.value : [];
-      return {
-        legalNotices: pendingNotices.filter(
-          (notice: Notice) => notice.kind === NoticeKind.LEGAL_TERMS,
-        ),
-        announcementNotices: pendingNotices.filter(
-          (notice: Notice) => notice.kind === NoticeKind.ANNOUNCEMENT,
-        ),
-      };
-    })
-    .catch(() => ({
-      legalNotices: EMPTY_NOTICES,
-      announcementNotices: EMPTY_NOTICES,
-    }));
 }
 
 interface AuthenticatedAppFrameProps {
@@ -174,15 +123,10 @@ export default async function AuthenticatedAppFrame({
           sessionCreatedAt={new Date(session.session.createdAt).getTime()}
         >
           <OrgPresenceProvider organizationId={activeOrganizationId}>
-            <AccountNoticeProvider
-              notice={null}
-              noticePromise={loadAccountNotice(session.user)}
-              sessionId={session.session.id}
-            >
+            <AccountNoticeProvider notice={null} sessionId={session.session.id}>
               <NoticeDialogProvider
                 legalNotices={EMPTY_NOTICES}
                 announcementNotices={EMPTY_NOTICES}
-                pendingNoticesPromise={loadPendingNotices()}
               >
                 <NotificationToaster />
                 <AccountNoticeToast />
@@ -219,6 +163,9 @@ export default async function AuthenticatedAppFrame({
                         {/* Right after the sidebar: it follows the sidebar's
                           `data-state` as its peer. */}
                         <SidebarEdgeHandle />
+                        <Suspense fallback={null}>
+                          <AppShellOverlays />
+                        </Suspense>
                         {/* Reads the project scope from the URL's search
                             params, which wait for the request. */}
                         <Suspense fallback={null}>

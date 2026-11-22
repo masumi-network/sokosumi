@@ -48,6 +48,8 @@ import {
   UNKNOWN_MENTION_CLASSNAME,
   VIEWPORT_PADDING_PX,
 } from "@/components/ui/mention-textarea-utils";
+import { useComposerBlurTimeoutCleanup } from "@/hooks/effects/use-composer-blur-timeout-cleanup";
+import { useComposerExternalValueSync } from "@/hooks/effects/use-composer-external-value-sync";
 import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import { cn } from "@/lib/utils";
@@ -57,10 +59,7 @@ import {
   getComposerActiveFormats,
 } from "@/lib/utils/composer-active-formats";
 import { matchEmoticonClosedAtBoundary } from "@/lib/utils/composer-emoticons";
-import {
-  htmlToMarkdown,
-  markdownToHtml,
-} from "@/lib/utils/composer-markdown-dom";
+import { htmlToMarkdown } from "@/lib/utils/composer-markdown-dom";
 import {
   composerPastedHtmlToPlainText,
   stripComposerInlineTextColors,
@@ -165,17 +164,6 @@ const EDITOR_PROSE_CLASSNAME = cn(
   "[&_span[data-mention-key]]:text-foreground [&_span[data-mention-key]]:cursor-pointer [&_span[data-mention-key]]:font-semibold [&_span[data-mention-key]]:hover:underline",
   "[&_span[data-channel-label]]:text-foreground [&_span[data-channel-label]]:cursor-pointer [&_span[data-channel-label]]:font-semibold [&_span[data-channel-label]]:hover:underline",
 );
-
-function isComposerEditorDomEmpty(editor: HTMLElement): boolean {
-  const html = editor.innerHTML;
-  return (
-    html === "" ||
-    html === "<br>" ||
-    html === "<div><br></div>" ||
-    html === "<p><br></p>" ||
-    (editor.textContent ?? "").replace(/\u200b/g, "").trim() === ""
-  );
-}
 
 function restoreCaretAtOffset(root: HTMLElement, offset: number): void {
   const selection = window.getSelection();
@@ -419,42 +407,13 @@ export function ComposerWysiwygEditor<TData = unknown>({
     notify(getComposerActiveFormats(editorRef.current));
   }, []);
 
-  useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor) {
-      isInternalChange.current = false;
-      return;
-    }
-
-    const isExternalClear = value.trim().length === 0;
-    // Clears must win over isInternalChange: a same-turn clear after input
-    // otherwise leaves stale DOM because this effect will not re-run for "".
-    if (isInternalChange.current && !isExternalClear) {
-      isInternalChange.current = false;
-      return;
-    }
-
-    const currentHtml = editor.innerHTML;
-    const newHtml = markdownToHtml(value, resolveMentionDisplay, {
-      channelLinks: channels.map((channel) => ({
-        name: channel.name,
-        slug: channel.slug,
-      })),
-      wrapUnknownMentions: false,
-    });
-    const isFocused = editor.contains(document.activeElement);
-    const editorLooksEmpty = isComposerEditorDomEmpty(editor);
-
-    // Focused non-clear updates skip to keep the caret; still apply into an
-    // empty editor (restore after failed send cleared DOM first).
-    if (
-      currentHtml !== newHtml &&
-      (!isFocused || isExternalClear || editorLooksEmpty)
-    ) {
-      editor.innerHTML = newHtml || "";
-    }
-    isInternalChange.current = false;
-  }, [channels, resolveMentionDisplay, value]);
+  useComposerExternalValueSync({
+    editorRef,
+    isInternalChange,
+    value,
+    channels,
+    resolveMentionDisplay,
+  });
 
   const handleInput = useCallback(() => {
     if (!editorRef.current) return;
@@ -1330,13 +1289,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
     true,
   );
 
-  useEffect(() => {
-    return () => {
-      if (blurTimeoutRef.current) {
-        clearTimeout(blurTimeoutRef.current);
-      }
-    };
-  }, []);
+  useComposerBlurTimeoutCleanup(blurTimeoutRef);
 
   useImperativeHandle(
     ref,

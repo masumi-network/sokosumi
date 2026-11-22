@@ -2,6 +2,7 @@
 
 import { Plug, RotateCw } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/lib/auth/auth.client";
@@ -25,13 +26,17 @@ type ConnectionButtonProps = {
   variant?: "primary" | "outline";
   /** The first connection's button text, where one step covers more than this provider. */
   connectLabel?: string;
+  /**
+   * The view shows a failed action itself, in a place that does not move the
+   * layout. The control then adds no line of its own. Pass a stable function.
+   */
+  onError?: (message: string | null) => void;
   /** The source's name is already in view: labels leave it out. */
   compact?: boolean;
   /**
-   * The connection of a view that also changes this source (the account card's menu) or
-   * shows failed actions in its own slot. One model means one approval at a time: a busy
-   * switch disables this button too. That view shows the errors and runs its own follow-up:
-   * `onConnected` does not apply.
+   * The connection of a view that also changes this source (the account card's menu). One
+   * model means one approval at a time: a busy switch disables this button too. That view
+   * shows the errors and runs its own follow-up: `onConnected` does not apply.
    */
   model?: SeoConnection;
 };
@@ -41,6 +46,7 @@ export function SeoConnectionButton({
   onConnected,
   variant = "outline",
   connectLabel,
+  onError,
   compact,
   model,
 }: ConnectionButtonProps) {
@@ -57,6 +63,7 @@ export function SeoConnectionButton({
       onConnected={onConnected}
       variant={variant}
       connectLabel={connectLabel}
+      onError={onError}
       compact={compact}
       model={model}
     />
@@ -68,16 +75,25 @@ function SeoConnectionControl({
   onConnected,
   variant,
   connectLabel,
+  onError,
   compact,
   model: shared,
 }: ConnectionButtonProps) {
   const t = useTranslations("App.Seo");
-  const own = useSeoConnection(provider, onConnected, !shared);
+  const own = useSeoConnection(provider, onConnected);
   const model = shared ?? own;
   const { data } = model.status;
   const { error } = model;
+  // The view shows an error next to a button that can try again. A control
+  // without that button, and a control that left the view, report none.
+  const reported = data?.status === "unavailable" ? null : error;
+  useEffect(() => {
+    onError?.(reported);
+    return () => onError?.(null);
+  }, [onError, reported]);
+  // The view that takes the error shows it; here it would add a line and move the layout.
   // A shared model belongs to a view that shows its errors already.
-  const ownError = shared ? null : error;
+  const ownError = onError || shared ? null : error;
   const name = t(`statistics.${provider}`);
   // Only the pressed button loads; the others wait.
   const state = (action: SeoConnectionAction) => ({

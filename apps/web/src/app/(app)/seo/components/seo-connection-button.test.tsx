@@ -12,7 +12,7 @@ import messages from "../../../../../messages/en.json";
 import { SeoStepRow } from "./seo-agent-steps";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { seoTestWorkspace } from "./seo-test-fixture";
-import { useSeoConnection, useSeoConnectionStatus } from "./use-seo-connection";
+import { useSeoConnectionStatus } from "./use-seo-connection";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 const m = vi.hoisted(() => ({
@@ -207,49 +207,31 @@ describe("native SEO connection consent", () => {
     ).toBeEnabled();
   });
 
-  it("shows a lifted model error in the view and clears it when the control leaves", async () => {
+  it("gives its error to the view that shows it, and takes it back when it leaves", async () => {
     m.popup.mockResolvedValue({ kind: "popup_blocked" });
+    const onError = vi.fn();
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
     clients.push(client);
-    function View({ show }: { show: boolean }) {
-      const connection = useSeoConnection("search_console", undefined, show);
-      const error =
-        show && connection.status.data?.status !== "unavailable"
-          ? connection.error
-          : null;
-      return (
-        <div>
-          {error ? <p data-testid="view-error">{error}</p> : null}
-          {show ? (
-            <SeoConnectionButton provider="search_console" model={connection} />
-          ) : null}
-        </div>
-      );
-    }
-    const { rerender } = render(
+    const { unmount } = render(
       <QueryClientProvider client={client}>
         <NextIntlClientProvider locale="en" messages={messages}>
-          <View show />
+          <SeoConnectionButton provider="search_console" onError={onError} />
         </NextIntlClientProvider>
       </QueryClientProvider>,
     );
     await userEvent.click(await connectButton());
-    expect(await screen.findByTestId("view-error")).toHaveTextContent(
-      "Allow popups to connect Search Console, then try again.",
+    await waitFor(() =>
+      expect(onError).toHaveBeenLastCalledWith(
+        "Allow popups to connect Search Console, then try again.",
+      ),
     );
     // The view has the one copy of the message.
     expect(screen.queryByRole("alert")).toBeNull();
-    // Leaving the connect state clears the lifted error.
-    rerender(
-      <QueryClientProvider client={client}>
-        <NextIntlClientProvider locale="en" messages={messages}>
-          <View show={false} />
-        </NextIntlClientProvider>
-      </QueryClientProvider>,
-    );
-    expect(screen.queryByTestId("view-error")).toBeNull();
+    // A control that is gone can clear nothing later: it clears on its way out.
+    unmount();
+    expect(onError).toHaveBeenLastCalledWith(null);
   });
 
   it("reports blocked popups without creating an authorization attempt", async () => {

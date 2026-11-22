@@ -9,20 +9,15 @@ export function useStudioStatePolling(
   projectId: string | null,
   hasActive: boolean,
   refresh: () => Promise<void>,
-  sort?: "newest" | "best",
-  shouldRefreshImmediately = false,
 ): void {
   // Synchronizing with a server is exactly what an Effect is for. The interval
   // tightens while something is in flight and relaxes when nothing is.
   useEffect(() => {
     if (!projectId) return;
-    if (shouldRefreshImmediately) {
-      void refresh();
-    }
     const period = hasActive ? ACTIVE_POLL_MS : IDLE_POLL_MS;
     const timer = setInterval(() => {
       void refresh();
     }, period);
     return () => clearInterval(timer);
-  }, [projectId, hasActive, refresh, sort, shouldRefreshImmediately]);
+  }, [projectId, hasActive, refresh]);
 }

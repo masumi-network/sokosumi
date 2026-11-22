@@ -71,7 +71,6 @@ export type SeoConnection = ReturnType<typeof useSeoConnection>;
 export function useSeoConnection(
   provider: SeoConnectionProvider,
   onConnected?: () => void,
-  enabled = true,
 ) {
   const t = useTranslations("App.Seo.connections");
   const { data: session } = useSession();
@@ -80,24 +79,13 @@ export function useSeoConnection(
   // The action in flight, so only the pressed button shows and announces progress.
   const [busy, setBusy] = useState<SeoConnectionAction | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const scopeKey = JSON.stringify([
-    session?.user.id,
-    session?.session.activeOrganizationId,
-    provider,
-    enabled,
-  ]);
-  const [errorScopeKey, setErrorScopeKey] = useState(scopeKey);
-  if (errorScopeKey !== scopeKey) {
-    setErrorScopeKey(scopeKey);
-    if (error !== null) setError(null);
-  }
   const busyRef = useRef(false);
   const alive = useSeoConnectionAlive();
   const actor = {
     viewerId: session?.user.id ?? "",
     organizationId: session?.session.activeOrganizationId ?? null,
   };
-  const { status, queryKey } = useSeoConnectionStatus(provider, enabled);
+  const { status, queryKey } = useSeoConnectionStatus(provider);
   async function connect() {
     if (busyRef.current) return;
     busyRef.current = true;

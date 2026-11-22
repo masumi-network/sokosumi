@@ -175,7 +175,6 @@ import { useRoomsClientTranscriptActive } from "@/hooks/effects/use-rooms-client
 import { useScheduledTimeoutMap } from "@/hooks/effects/use-scheduled-timeout";
 import { useSelectedRoomChannelHealth } from "@/hooks/effects/use-selected-room-channel-health";
 import { useUnreadThreadReplyCounts } from "@/hooks/effects/use-unread-thread-reply-counts";
-import { useDeferredPromise } from "@/hooks/use-deferred-promise";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import {
   chatRoomMessageIdEnvelopeAction,
@@ -252,6 +251,7 @@ import {
   ROOM_SHELL_ROOT_CLASSNAME,
   RoomShellLayout,
 } from "./room-shell-layout";
+import { RoomShellRosterHydrator } from "./room-shell-roster-hydrator";
 import { RoomStatusRow } from "./room-status-row";
 import { RoomTypingProvider } from "./room-typing-provider";
 import { SokoBotConnectPrompt } from "./soko-bot-connect-prompt.client";
@@ -559,13 +559,6 @@ function RetainedRoomsClient({
   );
 }
 
-const FAILED_ROSTER_PAGE: RoomShellRosterPage = {
-  organizationMembers: [],
-  membersLoadFailed: true,
-  coworkers: [],
-  sokoBots: [],
-};
-
 function RoomView({
   activeOrganization,
   rooms,
@@ -716,8 +709,9 @@ function RoomView({
     useState(messageLoadFailed);
   const [syncedMessagesPromise, setSyncedMessagesPromise] =
     useState(messagesPromise);
-  const deferredRoster =
-    useDeferredPromise(rosterPromise, FAILED_ROSTER_PAGE) ?? null;
+  const [deferredRoster, setDeferredRoster] =
+    useState<RoomShellRosterPage | null>(null);
+  const [syncedRosterPromise, setSyncedRosterPromise] = useState(rosterPromise);
   const [syncedHistoryRoomId, setSyncedHistoryRoomId] =
     useState(selectedRoomId);
   const [editChannelOpen, setEditChannelOpen] = useState(false);
@@ -779,6 +773,9 @@ function RoomView({
       setDeferredHistoryPending(true);
       effectiveDeferredHistoryPending = true;
     }
+    if (rosterPromise != null) {
+      setDeferredRoster(null);
+    }
   }
   if (messagesPromise !== syncedMessagesPromise) {
     setSyncedMessagesPromise(messagesPromise);
@@ -789,6 +786,12 @@ function RoomView({
       setDeferredHistoryPending(false);
       effectiveDeferredHistoryPending = false;
       setMessageLoadFailedState(messageLoadFailed);
+    }
+  }
+  if (rosterPromise !== syncedRosterPromise) {
+    setSyncedRosterPromise(rosterPromise);
+    if (rosterPromise == null) {
+      setDeferredRoster(null);
     }
   }
   const organizationMembers =
@@ -895,6 +898,13 @@ function RoomView({
     setDeferredHistoryPending(false);
     if (!page.failed) noteUnreadDivider(page);
   }, []);
+
+  const handleDeferredRosterResolved = useCallback(
+    (page: RoomShellRosterPage) => {
+      setDeferredRoster(page);
+    },
+    [],
+  );
 
   const [threadListOpen, setThreadListOpen] = useState(false);
   // Every event that can change how many threads in this room are unread: a
@@ -3188,6 +3198,12 @@ function RoomView({
     }
     const openRoomListBody = (
       <>
+        {rosterPromise ? (
+          <RoomShellRosterHydrator
+            promise={rosterPromise}
+            onResolved={handleDeferredRosterResolved}
+          />
+        ) : null}
         {messagesPromise ? (
           <RoomMessagesHydrator
             promise={messagesPromise}

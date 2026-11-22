@@ -2,24 +2,19 @@
 
 import type { Notice } from "@sokosumi/core-client";
 import { NoticeKind } from "@sokosumi/core-client";
-import { createContext, useContext, useMemo, useState } from "react";
-import { useDeferredPromise } from "@/hooks/use-deferred-promise";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 import {
   acknowledgeNoticeAction,
   getPendingNoticesAction,
 } from "@/lib/actions/notice/action";
 
 import { NoticeDialog } from "./notice-dialog";
-
-export interface PendingNoticeGroups {
-  legalNotices: Notice[];
-  announcementNotices: Notice[];
-}
-
-const EMPTY_PENDING_NOTICES: PendingNoticeGroups = {
-  legalNotices: [],
-  announcementNotices: [],
-};
 
 interface NoticeDialogContextValue {
   openNotice: (notice: Notice) => void;
@@ -31,59 +26,48 @@ interface NoticeDialogContextValue {
 const NoticeDialogContext = createContext<NoticeDialogContextValue | null>(
   null,
 );
+const NoticeDialogHydrationContext = createContext<
+  | ((notices: {
+      announcementNotices: Notice[];
+      legalNotices: Notice[];
+    }) => void)
+  | null
+>(null);
 
 interface NoticeDialogProviderProps {
   children: React.ReactNode;
   legalNotices: Notice[];
   announcementNotices: Notice[];
-  pendingNoticesPromise?: Promise<PendingNoticeGroups>;
 }
 
 export function NoticeDialogProvider({
   children,
   legalNotices: initialLegalNotices,
   announcementNotices: initialAnnouncementNotices,
-  pendingNoticesPromise,
 }: NoticeDialogProviderProps) {
-  const hydratedNotices = useDeferredPromise(
-    pendingNoticesPromise,
-    EMPTY_PENDING_NOTICES,
-  );
-  const [overrideNotices, setOverrideNotices] =
-    useState<PendingNoticeGroups | null>(null);
-  const [dismissedIds, setDismissedIds] = useState<ReadonlySet<string>>(
-    () => new Set(),
+  // Hydrate path owns updates after mount — avoid prop→state effects that
+  // wipe notices when layout re-passes fresh empty arrays.
+  const [legalNotices, setLegalNotices] = useState(initialLegalNotices);
+  const [announcementNotices, setAnnouncementNotices] = useState(
+    initialAnnouncementNotices,
   );
   const [noticeToShow, setNoticeToShow] = useState<Notice | null>(null);
 
-  const legalNotices =
-    overrideNotices?.legalNotices ??
-    hydratedNotices?.legalNotices ??
-    initialLegalNotices;
-  const rawAnnouncementNotices =
-    overrideNotices?.announcementNotices ??
-    hydratedNotices?.announcementNotices ??
-    initialAnnouncementNotices;
-  const announcementNotices = useMemo(
-    () =>
-      dismissedIds.size === 0
-        ? rawAnnouncementNotices
-        : rawAnnouncementNotices.filter(
-            (notice) => !dismissedIds.has(notice.id),
-          ),
-    [rawAnnouncementNotices, dismissedIds],
+  const hydrateNotices = useCallback(
+    (notices: { announcementNotices: Notice[]; legalNotices: Notice[] }) => {
+      setLegalNotices(notices.legalNotices);
+      setAnnouncementNotices(notices.announcementNotices);
+    },
+    [],
   );
 
   const value = useMemo<NoticeDialogContextValue>(
     () => ({
       openNotice: (notice) => setNoticeToShow(notice),
       dismissNotice: (notice) => {
-        setDismissedIds((current) => {
-          if (current.has(notice.id)) return current;
-          const next = new Set(current);
-          next.add(notice.id);
-          return next;
-        });
+        setAnnouncementNotices((current) =>
+          current.filter((pending) => pending.id !== notice.id),
+        );
         void acknowledgeNoticeAction(notice.id);
       },
       announcementNotices,
@@ -99,29 +83,47 @@ export function NoticeDialogProvider({
     const result = await getPendingNoticesAction();
     if (result.ok) {
       const pendingNotices = result.value;
-      setDismissedIds(new Set());
-      setOverrideNotices({
-        legalNotices: pendingNotices.filter(
+      setLegalNotices(
+        pendingNotices.filter(
           (notice) => notice.kind === NoticeKind.LEGAL_TERMS,
         ),
-        announcementNotices: pendingNotices.filter(
+      );
+      setAnnouncementNotices(
+        pendingNotices.filter(
           (notice) => notice.kind === NoticeKind.ANNOUNCEMENT,
         ),
-      });
+      );
     }
   }
 
   return (
-    <NoticeDialogContext.Provider value={value}>
-      {children}
-      <NoticeDialog
-        pendingNotices={legalNotices}
-        noticeToShow={noticeToShow}
-        onNoticeClose={handleNoticeClose}
-        onNoticeAcknowledged={handleNoticeAcknowledged}
-      />
-    </NoticeDialogContext.Provider>
+    <NoticeDialogHydrationContext.Provider value={hydrateNotices}>
+      <NoticeDialogContext.Provider value={value}>
+        {children}
+        <NoticeDialog
+          pendingNotices={legalNotices}
+          noticeToShow={noticeToShow}
+          onNoticeClose={handleNoticeClose}
+          onNoticeAcknowledged={handleNoticeAcknowledged}
+        />
+      </NoticeDialogContext.Provider>
+    </NoticeDialogHydrationContext.Provider>
   );
+}
+
+export function useNoticeDialogHydration(): (notices: {
+  announcementNotices: Notice[];
+  legalNotices: Notice[];
+}) => void {
+  const hydrateNotices = useContext(NoticeDialogHydrationContext);
+
+  if (!hydrateNotices) {
+    throw new Error(
+      "useNoticeDialogHydration must be used within a NoticeDialogProvider.",
+    );
+  }
+
+  return hydrateNotices;
 }
 
 export function useNoticeDialog() {
