@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { dateTimeSchema } from "@/helpers/datetime";
+import { seoAuditPlanSchema } from "./seo-audit-plan.schema";
 import { seoIdSchema, seoUrlSchema } from "./seo-page.schema";
 import { seoPageSpeed } from "./seo-page-speed.schema";
 import {
@@ -106,6 +107,8 @@ export const seoObservationSchema = z
     issues: z.number().int().nonnegative(),
     planCandidates: z.array(seoReportPlanCandidate).optional(),
     planSignals: z.array(seoReportPlanSignal).optional(),
+    /** The SEO worker's plan for this audit, when the view holds every page it names. */
+    auditPlan: seoAuditPlanSchema.optional(),
     checklistBreakdown: seoChecklistBreakdown.optional(),
     pageSpeed: seoPageSpeed.optional(),
     pageSpeedRecoveryFileId: seoIdSchema.optional(),

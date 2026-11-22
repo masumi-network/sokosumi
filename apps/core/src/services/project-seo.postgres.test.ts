@@ -2511,6 +2511,69 @@ describe.skipIf(!enabled)(
       expect(nextTask.taskId).not.toBe(link.taskId);
     });
 
+    it("stores the worker's plan with the audit and shows it on the audit's report", async () => {
+      const project = await prisma.project.create({
+        data: { workspaceId, name: "Audit plan" },
+      });
+      const owner: SeoActor = {
+        ...actor,
+        owner: { kind: "project", id: project.id },
+      };
+      const task = await prisma.task.create({
+        data: {
+          name: "Completed audit",
+          ownerId: userId,
+          workspaceId,
+          projectId: project.id,
+          status: "COMPLETED",
+          assigneeId: coworkerId,
+        },
+      });
+      const base = legacyReport();
+      const step = {
+        pageUrl: base.request.url,
+        action: "Add a title",
+        why: "The page has no title.",
+        nextCheck: "The next audit reads a title.",
+      };
+      const body = JSON.stringify({
+        ...base,
+        recommendedPlan: {
+          ...step,
+          summary: "The audit found one issue.",
+          links: [{ pageUrl: base.request.url, findings: ["finding"] }],
+          // The second step is not readable: the plan ends before it, and the audit is still stored.
+          nextSteps: [{ ...step, why: 7 }],
+        },
+      });
+      const file = await prisma.taskFile.create({
+        data: {
+          taskId: task.id,
+          name: `seo-report-${task.id}.json`,
+          fileUrl: `https://seo-test.public.blob.vercel-storage.com/tasks/${task.id}/report.json`,
+          mimeType: "application/json",
+          size: BigInt(Buffer.byteLength(body)),
+          uploadedByCoworkerId: coworkerId,
+        },
+      });
+      const observation = await importProjectSeoAudit(
+        owner,
+        { taskId: task.id, fileId: file.id },
+        { fetchImpl: async () => new Response(body) },
+      );
+      const workspace = await getProjectSeoWorkspace(owner);
+      const plan = workspace.observations[0]?.auditPlan;
+      expect(plan).toMatchObject({
+        summary: "The audit found one issue.",
+        steps: [{ action: "Add a title", actionIds: ["1"] }],
+      });
+      expect(
+        workspace.actions.some(
+          (row) => row.observationId === observation.id && row.id === "1",
+        ),
+      ).toBe(true);
+    });
+
     it("recovers page speed once from the exact saved report without changing earlier conclusions", async () => {
       const project = await prisma.project.create({
         data: { workspaceId, name: "Page speed recovery" },

@@ -27,6 +27,7 @@ import {
   parsePublicSeoArtifact,
   skippedPages,
 } from "@/helpers/project-seo-report";
+import { readAuditPlan } from "@/helpers/seo-audit-plan";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { SeoActor } from "@/schemas/project-seo.schema";
@@ -243,6 +244,9 @@ export async function importProjectSeoAudit(
   )
     raw = withoutApprovedSearchConsole(raw);
   const payload = parsePublicSeoArtifact(raw);
+  // The worker's plan binds to the audit's own pages and actions. A plan that is not readable is left out.
+  const plan = readAuditPlan(raw, payload);
+  if (plan) payload.plan = plan;
   if (input.recoverPageSpeed && payload.kind !== "audit_full")
     throw conflict("The saved report is not a full audit");
   if (input.recoverMarkets && reportObject(raw)?.kind !== "site")

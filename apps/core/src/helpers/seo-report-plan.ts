@@ -7,6 +7,7 @@ import {
 import type { PublicSeoPayload } from "./project-seo-report";
 import { seasonalPayloadActions } from "./project-seo-seasonal";
 import { auditedSeoPageKey } from "./project-seo-site-findings";
+import { scopedAuditPlan } from "./seo-audit-plan";
 import { scopedPageMarketEvidence } from "./seo-page-market-evidence";
 import {
   reportPlanSignals,
@@ -321,6 +322,7 @@ export function scopedReportEvidence(
   }
   const rank = (item: Candidate) =>
     item.severity ? severities.indexOf(item.severity) : severities.length;
+  const auditPlan = scopedAuditPlan(data.plan, reportPage);
   const planCandidates = [...groups.values()].flatMap((group) =>
     group.sort((a, b) => rank(a) - rank(b)),
   );
@@ -328,5 +330,6 @@ export function scopedReportEvidence(
     ...scopedPageMarketEvidence(data, selected),
     planCandidates,
     planSignals: reportPlanSignals(data, reportPage),
+    ...(auditPlan && { auditPlan }),
   };
 }
