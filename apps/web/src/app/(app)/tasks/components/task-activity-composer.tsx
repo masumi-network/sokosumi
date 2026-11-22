@@ -30,7 +30,7 @@ import {
   FileUploadTrigger,
 } from "@/components/ui/file-upload";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useTaskActivityComposerUploadCleanup } from "@/hooks/effects/use-task-activity-composer-upload-cleanup";
 import { cn } from "@/lib/utils";
 import {
   type ComposerActiveFormats,
@@ -88,17 +88,10 @@ export function TaskActivityComposer({
   const [linkInitialText, setLinkInitialText] = useState("");
   const [drivePickerOpen, setDrivePickerOpen] = useState(false);
 
-  useMountEffect(() => {
-    isUnmountingRef.current = false;
-    const controllers = activeUploadControllersRef.current;
-    return () => {
-      isUnmountingRef.current = true;
-      for (const controller of controllers) {
-        controller.abort();
-      }
-      controllers.clear();
-    };
-  });
+  useTaskActivityComposerUploadCleanup(
+    activeUploadControllersRef,
+    isUnmountingRef,
+  );
 
   const isUploading = uploadingCount > 0;
   const content = buildRoomComposerMessageContent(

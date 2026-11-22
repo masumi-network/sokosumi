@@ -173,6 +173,15 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-email-change-return-notice` (`useEmailChangeReturnNotice`) — one-shot email-change return link toast, Core acknowledgement, and query parameter strip
 - `use-invalidate-project-scope-on-navigation` (`useInvalidateProjectScopeOnNavigation`) — invalidates the selected project-scope query when `pathname` changes after mount
 - `use-notification-service-worker-bridge` (`useNotificationServiceWorkerBridge`) — installs the notification service worker on mount when granted and wires click and banner-query handlers
+- `use-task-activity-composer-upload-cleanup` (`useTaskActivityComposerUploadCleanup`) — tracks unmounting/hidden state and aborts active attachment uploads on passive cleanup for `TaskActivityComposer`
+- `use-task-activity-jump-highlight` (`useTaskActivityJumpHighlight`) — tracks and highlights a pending "Jump to latest" message once rendered in `TaskActivitySection`
+- `use-task-files-expanded` (`useTaskFilesExpanded`) — owns `TaskFiles` expansion state and resets it before paint on unmount or React `<Activity>` hide
+- `use-task-follow-resume-after-setup` (`useTaskFollowResumeAfterSetup`, `rememberFollowAfterSetup`, `FOLLOW_AFTER_SETUP_SESSION_KEY`) — consumes the one-shot post-setup follow hand-off when `TaskFollowControl`'s keyed resume child mounts
+- `use-task-link-picker-tasks` (`useTaskLinkPickerTasks`) — loads and paginates linkable tasks for `TaskLinkTaskPickerDialog` with request-id stale response filtering
+- `use-task-subtask-move-focus` (`useTaskSubtaskMoveFocus`) — restores focus to the moved sub-task's drag handle after `TaskSubtaskList` reorders rows
+- `use-task-title-heading-focus` (`useTaskTitleHeadingFocus`) — focuses `TaskTitleHeading` with `preventScroll` on client task navigation while skipping fresh task-URL loads and active controls
+- `use-tasks-export-run` (`useTasksExportRun`) — tracks active CSV export run generation across `TasksExportDialog` close and unmount transitions
+- `use-task-subtasks-cache-sync` (`useTaskSubtasksCacheSync`) — syncs newer server-rendered sub-task rows into the React Query cache for `useTaskSubtasks` when idle
 
 ### React Query in migrations
 

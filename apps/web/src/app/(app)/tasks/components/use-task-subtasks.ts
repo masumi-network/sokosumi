@@ -8,7 +8,6 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
 import { toast } from "sonner";
 import { resolveTaskAssigneeFields } from "@/app/tasks/utils/coworker-options";
 import {
@@ -16,6 +15,7 @@ import {
   type SubtaskRow,
   toSubtaskRow,
 } from "@/app/tasks/utils/task-subtask-row";
+import { useTaskSubtasksCacheSync } from "@/hooks/effects/use-task-subtasks-cache-sync";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
@@ -204,15 +204,7 @@ export function useTaskSubtasks({
   // The cache outlives the page. A refresh brings newer page rows; Back can
   // replay older ones, so only newer rows replace it. A change in flight
   // keeps its optimistic order.
-  useEffect(() => {
-    const key = taskSubtasksQueryKey(parentTaskId);
-    const cachedAt = queryClient.getQueryState(key)?.dataUpdatedAt ?? 0;
-    if (
-      renderedAt > cachedAt &&
-      queryClient.isMutating({ mutationKey: key }) === 0
-    )
-      queryClient.setQueryData(key, initialRows, { updatedAt: renderedAt });
-  }, [queryClient, parentTaskId, initialRows, renderedAt]);
+  useTaskSubtasksCacheSync(queryClient, queryKey, initialRows, renderedAt);
 
   // Changes overlap: a quick second toggle starts before the first settles.
   const lastInFlight = () =>
