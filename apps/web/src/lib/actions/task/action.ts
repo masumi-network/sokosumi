@@ -8,6 +8,7 @@ import {
   type UserWritableTaskLinkRelation,
 } from "@sokosumi/core-client";
 import {
+  type Session,
   taskContextSelectionAttachesAnything,
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
@@ -20,12 +21,14 @@ import {
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
 import { taskService } from "@/lib/services/task.service";
+import type { TaskMutationErrorKind } from "@/lib/utils/task-mutation-error-kinds";
 import { normalizeTaskNameForCoreApi } from "@/lib/utils/task-transformer";
 import {
   type AuthenticatedRequest,
   withSession,
 } from "@/middleware/auth-middleware";
 import {
+  isClientCoreApiError,
   normalizeOptionalProjectId,
   resolveAssigneeWrite,
   rethrowTaskActionError,
@@ -182,57 +185,67 @@ function normalizeLinkNote(note?: string | null): string | null | undefined {
   return trimmedNote ? trimmedNote : null;
 }
 
-export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
-  async ({
-    name,
-    tagSuggestionReceipt,
-    workspaceTagIds,
-    dismissedTopicIds,
-    dismissedWorkspaceTagIds,
-    copyOfTaskId,
-    description,
-    assigneeId,
-    assigneeSokoBotId,
-    assigneeUserId,
-    projectId,
-    session,
-    context,
-    status,
-    runAt,
-    visibility,
-  }) => {
-    try {
-      const task = await createTaskFromDescription({
-        ...(name ? { name } : {}),
-        description,
-        tagSuggestionReceipt,
-        workspaceTagIds,
-        dismissedTopicIds,
-        dismissedWorkspaceTagIds,
-        copyOfTaskId,
-        assigneeId,
-        assigneeSokoBotId,
-        assigneeUserId,
-        projectId,
-        userId: session.user.id,
-        context,
-        status,
-        runAt,
-        visibility,
-      });
+/** Creates the Task; a known Core refusal comes back as a result, anything
+ *  else is thrown for the caller to classify. */
+async function createTaskOrFailure({
+  name,
+  tagSuggestionReceipt,
+  workspaceTagIds,
+  dismissedTopicIds,
+  dismissedWorkspaceTagIds,
+  copyOfTaskId,
+  description,
+  assigneeId,
+  assigneeSokoBotId,
+  assigneeUserId,
+  projectId,
+  session,
+  context,
+  status,
+  runAt,
+  visibility,
+}: CreateTaskParameters & { session: Session }): Promise<CreateTaskResult> {
+  try {
+    const task = await createTaskFromDescription({
+      ...(name ? { name } : {}),
+      description,
+      tagSuggestionReceipt,
+      workspaceTagIds,
+      dismissedTopicIds,
+      dismissedWorkspaceTagIds,
+      copyOfTaskId,
+      assigneeId,
+      assigneeSokoBotId,
+      assigneeUserId,
+      projectId,
+      userId: session.user.id,
+      context,
+      status,
+      runAt,
+      visibility,
+    });
 
-      revalidatePath("/tasks");
-      revalidatePath("/projects");
-      return taskMutationSuccess({
-        taskId: task.id,
-        name: task.name,
-        identifier: task.identifier,
-      });
+    revalidatePath("/tasks");
+    revalidatePath("/projects");
+    return taskMutationSuccess({
+      taskId: task.id,
+      name: task.name,
+      identifier: task.identifier,
+    });
+  } catch (error) {
+    const mutationErrorKind = toTaskMutationErrorKind(error);
+    if (mutationErrorKind) {
+      return taskMutationFailure(mutationErrorKind);
+    }
+    throw error;
+  }
+}
+
+export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
+  async (params) => {
+    try {
+      return await createTaskOrFailure(params);
     } catch (error) {
-      const mutationErrorKind = toTaskMutationErrorKind(error);
-      if (mutationErrorKind) {
-        return taskMutationFailure(mutationErrorKind);
-      }
       rethrowTaskActionError(
         error,
         "Failed to create task",
@@ -241,6 +254,36 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
     }
   },
 );
+
+export type CreateTaskCopyResult = ActionResultDto<
+  { taskId: string; name: string; identifier: string | null },
+  { kind: TaskMutationErrorKind | "REJECTED" }
+>;
+
+/**
+ * A copy of a Task in another Project. Unlike `createTask`, a Core 4xx comes
+ * back as `REJECTED`: Core refuses those before it writes, so the caller may
+ * send it again. A thrown error (a lost answer, a Core 5xx) may follow a
+ * saved write, so the caller must not resend it blindly.
+ */
+export const createTaskCopy = withSession<
+  CreateTaskParameters,
+  CreateTaskCopyResult
+>(async (params) => {
+  try {
+    return await createTaskOrFailure(params);
+  } catch (error) {
+    if (isClientCoreApiError(error)) {
+      console.error("Failed to create task copy", error);
+      return toActionResult(err({ kind: "REJECTED" as const }));
+    }
+    rethrowTaskActionError(
+      error,
+      "Failed to create task",
+      "Failed to create task copy",
+    );
+  }
+});
 
 export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
   async ({

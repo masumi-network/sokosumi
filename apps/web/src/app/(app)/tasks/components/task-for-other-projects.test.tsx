@@ -1,10 +1,11 @@
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { TaskForOtherProjects } from "./task-for-other-projects";
-import type { TaskFormCreateHandler } from "./task-form-types";
+import {
+  type TaskCopyHandler,
+  TaskForOtherProjects,
+} from "./task-for-other-projects";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
@@ -36,10 +37,8 @@ function created(projectId: string | null | undefined) {
   };
 }
 
-const rejected = {
-  ok: false as const,
-  error: { kind: CORE_API_ERROR_KINDS.STATUS_NOT_SELECTABLE },
-};
+// What `createTaskCopy` returns for a Core 4xx, such as a deleted Project.
+const rejected = { ok: false as const, error: { kind: "REJECTED" as const } };
 
 async function choose(names: string[]) {
   await userEvent.click(screen.getByRole("button", { name: "open" }));
@@ -58,7 +57,7 @@ describe("TaskForOtherProjects", () => {
       <TaskForOtherProjects
         input={input}
         projects={projects}
-        onCreateTask={vi.fn<TaskFormCreateHandler>()}
+        onCreateTask={vi.fn<TaskCopyHandler>()}
       />,
     );
     const toggle = screen.getByRole("button", { name: "open" });
@@ -72,7 +71,7 @@ describe("TaskForOtherProjects", () => {
   });
 
   it("makes one Draft per chosen Project with the same brief", async () => {
-    const onCreateTask = vi.fn<TaskFormCreateHandler>(async (i) =>
+    const onCreateTask = vi.fn<TaskCopyHandler>(async (i) =>
       created(i.projectId),
     );
     render(
@@ -93,7 +92,7 @@ describe("TaskForOtherProjects", () => {
 
   it("retries only the Projects Core refused", async () => {
     let refuseBeta = true;
-    const onCreateTask = vi.fn<TaskFormCreateHandler>(async (i) => {
+    const onCreateTask = vi.fn<TaskCopyHandler>(async (i) => {
       if (i.projectId === "p2" && refuseBeta) {
         refuseBeta = false;
         return rejected;
@@ -130,7 +129,7 @@ describe("TaskForOtherProjects", () => {
   it("never resends a create whose answer was lost", async () => {
     // Core may have saved the Draft before the answer was lost, so a resend
     // could make a second one.
-    const onCreateTask = vi.fn<TaskFormCreateHandler>(async (i) => {
+    const onCreateTask = vi.fn<TaskCopyHandler>(async (i) => {
       if (i.projectId === "p1") throw new Error("network");
       return created(i.projectId);
     });

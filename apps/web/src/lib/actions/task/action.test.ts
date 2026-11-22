@@ -256,6 +256,63 @@ describe("task link actions", () => {
     );
   });
 
+  describe("createTaskCopy", () => {
+    const copyInput = {
+      name: "Plan",
+      description: "Write the plan",
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      projectId: "project-gone",
+      context: {
+        brand: { enabled: true, source: "project" as const },
+        briefingEnabled: true,
+        contextMdEnabled: true,
+      },
+      status: TaskStatus.DRAFT,
+    };
+
+    it("reports a Project Core refused as rejected, so a retry is safe", async () => {
+      // Core looks the Project up before it writes anything.
+      expectConsole("error", "Failed to create task copy");
+      const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+      taskServiceMock.createTask.mockRejectedValue(
+        new CoreApiRequestError("Project not found", { status: 404 }),
+      );
+      const { createTask, createTaskCopy } = await import("./action");
+
+      await expect(createTaskCopy(copyInput)).resolves.toEqual({
+        ok: false,
+        error: { kind: "REJECTED" },
+      });
+
+      // The ordinary New task create keeps throwing it.
+      expectConsole("error", "Failed to create task");
+      await expect(createTask(copyInput)).rejects.toThrow("Project not found");
+    });
+
+    it("throws when the answer was lost, since Core may have saved it", async () => {
+      expectConsole("error", "Failed to create task copy");
+      taskServiceMock.createTask.mockRejectedValue(
+        new TypeError("fetch failed"),
+      );
+      const { createTaskCopy } = await import("./action");
+
+      await expect(createTaskCopy(copyInput)).rejects.toThrow("fetch failed");
+    });
+
+    it("throws for a Core server error after a possible write", async () => {
+      expectConsole("error", "Failed to create task copy");
+      const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+      taskServiceMock.createTask.mockRejectedValue(
+        new CoreApiRequestError("Internal error", { status: 500 }),
+      );
+      const { createTaskCopy } = await import("./action");
+
+      await expect(createTaskCopy(copyInput)).rejects.toThrow("Internal error");
+    });
+  });
+
   it("rejects non-adhoc or non-https custom brand URLs", async () => {
     expectConsole("error", "Failed to create task", 4);
     taskServiceMock.createTask.mockResolvedValue(buildTask());

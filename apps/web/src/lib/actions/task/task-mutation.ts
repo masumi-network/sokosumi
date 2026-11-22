@@ -44,7 +44,9 @@ export function toTaskMutationErrorKind(
   return TASK_MUTATION_ERROR_KINDS.find((kind) => kind === error.kind) ?? null;
 }
 
-function isClientCoreApiError(error: unknown): error is CoreApiRequestError {
+export function isClientCoreApiError(
+  error: unknown,
+): error is CoreApiRequestError {
   return (
     error instanceof CoreApiRequestError &&
     typeof error.status === "number" &&

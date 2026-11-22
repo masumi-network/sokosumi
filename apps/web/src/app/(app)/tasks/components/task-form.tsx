@@ -34,7 +34,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { withBoardPreview } from "@/hooks/effects/use-pending-created-tasks";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 import { AgentSpotlight } from "./agent-spotlight";
@@ -198,7 +197,6 @@ function TaskFormContent({
           <TaskForOtherProjects
             input={createdTask.brief}
             projects={otherProjects}
-            onCreateTask={withBoardPreview()}
           />
         ) : null}
       </TaskCreatedCelebration>

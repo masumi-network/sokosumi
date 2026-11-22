@@ -13,7 +13,11 @@ import userEvent from "@testing-library/user-event";
 import { type ComponentProps, forwardRef, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskForm } from "@/app/tasks/components/task-form";
-import { createTask, updateTask } from "@/lib/actions/task/action";
+import {
+  createTask,
+  createTaskCopy,
+  updateTask,
+} from "@/lib/actions/task/action";
 import { loadTaskWorkspaceTags } from "@/lib/actions/task/load-workspace-tags";
 import {
   createWorkspaceTag,
@@ -63,6 +67,7 @@ vi.mock("@/lib/actions/task/load-workspace-tags", () => ({
 }));
 vi.mock("@/lib/actions/task/action", () => ({
   createTask: vi.fn(),
+  createTaskCopy: vi.fn(),
   updateTask: vi.fn(),
 }));
 
@@ -3276,6 +3281,9 @@ describe("TaskForm", () => {
     const createTaskMock = vi.mocked(createTask);
     // No name typed: Core names the Task, and every copy keeps that name.
     createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+    vi.mocked(createTaskCopy).mockResolvedValue(
+      createTaskSuccess("task-2", "Task one"),
+    );
 
     render(
       <TaskForm
@@ -3299,7 +3307,8 @@ describe("TaskForm", () => {
     await user.click(screen.getByRole("checkbox", { name: "Alpha Project" }));
     await user.click(screen.getByRole("button", { name: "create" }));
 
-    const [first, copy] = createTaskMock.mock.calls.map(([input]) => input);
+    const [first] = createTaskMock.mock.calls.map(([input]) => input);
+    const [copy] = vi.mocked(createTaskCopy).mock.calls.map(([input]) => input);
     // Beta has no brand of its own, so the first Task took the workspace one.
     expect(first?.name).toBeUndefined();
     expect(first?.context?.brand.source).toBe("default");

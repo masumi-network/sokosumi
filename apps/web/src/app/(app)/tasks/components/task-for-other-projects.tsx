@@ -8,20 +8,26 @@ import { useId, useState } from "react";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { createTask } from "@/lib/actions/task/action";
+import {
+  type CreateTaskCopyResult,
+  createTaskCopy,
+} from "@/lib/actions/task/action";
 import { cn } from "@/lib/utils";
-import type {
-  TaskFormCreateHandler,
-  TaskFormCreateInput,
-} from "./task-form-types";
+import type { TaskFormCreateInput } from "./task-form-types";
 
 /** Most Projects one brief is copied to at once. */
 const MAX_PROJECTS = 10;
 
+export type TaskCopyHandler = (
+  input: TaskFormCreateInput,
+) => Promise<CreateTaskCopyResult>;
+
 /**
- * `failed`: Core refused the create, so nothing was saved and Retry is safe.
- * `unknown`: the answer never came back. Core may have saved the Draft, so
- * the row is never sent again; the reader checks the Project instead.
+ * `failed`: Core refused the create (a result, see `createTaskCopy`), so
+ * nothing was saved and Retry is safe.
+ * `unknown`: the create threw. The answer may have been lost after Core
+ * saved the Draft, so the row is never sent again; the reader checks the
+ * Project instead.
  */
 type Outcome = { href: string } | "failed" | "unknown";
 
@@ -32,7 +38,7 @@ interface TaskForOtherProjectsProps {
   /** The brief as the first Task was created, without Project or status. */
   input: Omit<TaskFormCreateInput, "projectId" | "status">;
   projects: ReadonlyArray<{ id: string; name: string }>;
-  onCreateTask?: TaskFormCreateHandler | undefined;
+  onCreateTask?: TaskCopyHandler;
 }
 
 /**
@@ -44,7 +50,7 @@ interface TaskForOtherProjectsProps {
 export function TaskForOtherProjects({
   input,
   projects,
-  onCreateTask = createTask,
+  onCreateTask = createTaskCopy,
 }: TaskForOtherProjectsProps) {
   const t = useTranslations("App.Tasks.NewTask.OtherProjects");
   const panelId = useId();
