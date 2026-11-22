@@ -3,6 +3,7 @@ import {
   DndContext,
   type DragEndEvent,
   MouseSensor,
+  pointerWithin,
   TouchSensor,
   useDraggable,
   useDroppable,
@@ -19,7 +20,6 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowRightLeft } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -190,6 +190,8 @@ export function TableBoard({
       )}
       <DndContext
         sensors={sensors}
+        // A card lands in the lane under the pointer, not the one it overlaps most.
+        collisionDetection={pointerWithin}
         onDragEnd={handleDragEnd}
         accessibility={{
           screenReaderInstructions: {
@@ -307,15 +309,16 @@ function BoardLane({
       ref={setNodeRef}
       aria-label={name}
       className={cn(
-        "bg-muted flex w-64 shrink-0 flex-col gap-2 rounded-lg p-2 transition-colors sm:w-72",
+        // Lanes share the width and scroll sideways only when they do not fit.
+        "bg-muted flex w-64 min-w-52 shrink-0 flex-col gap-2 rounded-lg p-2 transition-colors md:w-auto md:flex-1 md:basis-0",
         isOver && "bg-quinary",
       )}
     >
       <h2 className="flex items-center justify-between gap-2 px-1 text-sm font-medium">
         <span className="truncate">{name}</span>
-        <Badge variant="secondary" className="tabular-nums">
+        <span className="text-muted-foreground font-normal tabular-nums">
           {lane.rows.length}
-        </Badge>
+        </span>
       </h2>
       {lane.rows.length ? (
         <ul className="flex flex-col gap-2">{children}</ul>
