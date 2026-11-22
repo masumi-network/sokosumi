@@ -1,5 +1,6 @@
 import { render } from "@testing-library/react";
 import type { ReadonlyURLSearchParams } from "next/navigation";
+import { Activity, StrictMode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { type RoomUrlAskParams, useRoomUrlAsk } from "./use-room-url-ask";
@@ -159,5 +160,37 @@ describe("useRoomUrlAsk", () => {
 
     expect(props.open).not.toHaveBeenCalled();
     expect(props.replace).not.toHaveBeenCalled();
+  });
+
+  it("opens once under StrictMode replay and stays settled across Activity hide and reveal", () => {
+    const props = makeProps();
+    const { rerender, unmount } = render(
+      <StrictMode>
+        <Activity mode="visible">
+          <Harness {...props} />
+        </Activity>
+      </StrictMode>,
+    );
+    expect(props.open).toHaveBeenCalledTimes(1);
+    expect(props.replace).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <StrictMode>
+        <Activity mode="hidden">
+          <Harness {...props} />
+        </Activity>
+      </StrictMode>,
+    );
+    rerender(
+      <StrictMode>
+        <Activity mode="visible">
+          <Harness {...props} />
+        </Activity>
+      </StrictMode>,
+    );
+    expect(props.open).toHaveBeenCalledTimes(1);
+    expect(props.replace).toHaveBeenCalledTimes(1);
+
+    unmount();
   });
 });

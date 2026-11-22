@@ -173,6 +173,17 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-email-change-return-notice` (`useEmailChangeReturnNotice`) — one-shot email-change return link toast, Core acknowledgement, and query parameter strip
 - `use-invalidate-project-scope-on-navigation` (`useInvalidateProjectScopeOnNavigation`) — invalidates the selected project-scope query when `pathname` changes after mount
 - `use-notification-service-worker-bridge` (`useNotificationServiceWorkerBridge`) — installs the notification service worker on mount when granted and wires click and banner-query handlers
+- `use-chat-landing-notice` (`useChatLandingNotice`) — shows the room-unavailable toast and clears `?notice=room-unavailable` on Welcome (`/`)
+- `use-coworker-thought-live-elapsed` (`useCoworkerThoughtLiveElapsed`) — live 100ms elapsed timer for `CoworkerLiveThought` starting from deterministic `startedAtMs`
+- `use-coworker-thought-line-height` (`useCoworkerThoughtLineHeight`) — before-paint `offsetHeight` measurement for the `CoworkerThoughtTrace` rail
+- `use-message-param-jump` (`useMessageParamJump`) — jumps to a URL-named notification message once per arrival when messages are ready
+- `use-quiet-hover-while-scrolling` (`useQuietHoverWhileScrolling`, `CHAT_SCROLLING_ATTRIBUTE`) — marks a chat transcript scroller with `data-chat-scrolling` while scrolling and clears after settle
+- `use-room-url-ask` (`useRoomUrlAsk`) — opens a room dialog/panel requested by a URL query parameter once roster is ready and strips the parameter
+- `use-rooms-client-classic-outbound-cleanup` (`useRoomsClientClassicOutboundCleanup`) — drops classic channel and thread outbound queues on room switch, Activity hide, and unmount
+- `use-rooms-client-reopen-active-stream-thread` (`useRoomsClientReopenActiveStreamThread`) — re-opens the thread panel in `RoomsClient` when a coworker thread stream is active or resumed
+- `use-rooms-client-scroll-on-history-loaded` (`useRoomsClientScrollOnHistoryLoaded`) — pins `RoomsClient` to the bottom in layout when message history transitions from pending to loaded
+- `use-rooms-client-transcript-active` (`useRoomsClientTranscriptActive`) — before-paint active/mounted ref lifecycle for `useRetainedTranscript` in `RoomsClient`
+- `use-unread-thread-reply-counts` (`useUnreadThreadReplyCounts`) — debounced unread thread reply count reader per room with local `clear` override
 
 ### React Query in migrations
 
