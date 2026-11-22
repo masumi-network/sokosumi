@@ -19,7 +19,6 @@ import { useFormatter, useTranslations } from "next-intl";
 import {
   type ReactElement,
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -57,6 +56,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { Input } from "@/components/ui/input";
+import { useDriveRecentsLoad } from "@/hooks/effects/use-drive-recents-load";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
@@ -233,13 +233,7 @@ export function DriveRecentsPanel({
     tagFilterKey,
   ]);
 
-  useEffect(() => {
-    void loadRecents();
-    return () => {
-      loadAbortRef.current?.abort();
-      loadMoreAbortRef.current?.abort();
-    };
-  }, [loadRecents]);
+  useDriveRecentsLoad(loadRecents, loadAbortRef, loadMoreAbortRef);
 
   async function loadMoreRecents() {
     if (!nextCursor || loadingMore) {
