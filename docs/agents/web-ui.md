@@ -183,13 +183,12 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-seo-connection-callback` (`useSeoConnectionCallback`) — completes the native SEO OAuth connection callback on mount, broadcasts completion, closes the popup, and supports explicit retry
 - `use-outbound-pending-spinner` (`useOutboundPendingSpinner`) — delays showing the pending outbound chat message spinner until `OUTBOUND_PENDING_SPINNER_DELAY_MS` elapses
 - `use-outbound-sent-tick-fade` (`useOutboundSentTickFade`) — starts fading the outbound chat message sent tick halfway through `OUTBOUND_SENT_TICK_MS`
-- `use-thread-mute-status` (`useThreadMuteStatus`) — loads the reader's mute status for the open chat thread while unknown and re-reads when `replyCount` changes
+- `use-thread-mute-status` (`useThreadMuteStatus`) — loads the reader's mute status for the open chat thread while unknown, retrying on `replyCount` changes only while the status is unknown
 - `use-browse-channels-search` (`useBrowseChannelsSearch`) — debounces discoverable channel searches while `BrowseChannelsDialog` is open
 - `use-channel-slug-availability` (`useChannelSlugAvailability`) — debounces channel slug availability checks on the `CreateChannelDialog` create step
 - `use-live-chat-rooms-ownership-settled` (`useLiveChatRoomsOwnershipSettled`, `SIDEBAR_REGISTRATION_WAIT_MS`) — waits for desktop sidebar reader registration before `useLiveChatRoomsRead` starts its own reader
 - `use-organization-chat-rooms-health-stale` (`useOrganizationChatRoomsHealthStale`) — marks the active chat rooms list stale whenever Ably connection health flips
 - `use-other-workspace-rooms-live-sync` (`useOtherWorkspaceRoomsLiveSync`, `OTHER_WORKSPACE_ROOMS_KEY`, `withWorkspaceOf`) — subscribes `OtherWorkspaceRoomsLive` to organization chat room removal, read, and throttled active invalidation events
-- `use-dictation-unmount-cleanup` (`useDictationUnmountCleanup`, `stopDictationStream`) — tracks `DictationButton` mounted state and discards any active recording, timer, and media stream on unmount or `<Activity>` hide
 
 ### React Query in migrations
 

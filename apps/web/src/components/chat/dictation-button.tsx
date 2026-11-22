@@ -6,12 +6,8 @@ import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  type DictationRecording,
-  stopDictationStream,
-  useDictationUnmountCleanup,
-} from "@/hooks/effects/use-dictation-unmount-cleanup";
 import useIsClient from "@/hooks/use-is-client";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 
 /** Dictation stops and turns into text on its own after two minutes. */
 export const DICTATION_MAX_MS = 120_000;
@@ -44,7 +40,18 @@ export function formatVoiceElapsed(ms: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
+function stopStream(stream: MediaStream) {
+  for (const track of stream.getTracks()) track.stop();
+}
+
 const focusOnMount = (node: HTMLButtonElement | null) => node?.focus();
+
+interface Recording {
+  recorder: MediaRecorder;
+  stream: MediaStream;
+  timer: ReturnType<typeof setInterval>;
+  keep: boolean;
+}
 
 interface DictationButtonProps {
   onRecorded: (file: File) => void;
@@ -70,8 +77,9 @@ export function DictationButton({
 }: DictationButtonProps) {
   const t = useTranslations("App.Channels.Toolbar");
   const isClient = useIsClient();
-  const recordingRef = useRef<DictationRecording | null>(null);
+  const recordingRef = useRef<Recording | null>(null);
   const startingRef = useRef(false);
+  const unmountedRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const returnFocusRef = useRef(false);
   const [starting, setStarting] = useState(false);
@@ -84,7 +92,7 @@ export function DictationButton({
     recording.keep = keep;
     clearInterval(recording.timer);
     if (recording.recorder.state !== "inactive") recording.recorder.stop();
-    stopDictationStream(recording.stream);
+    stopStream(recording.stream);
     if (unmountedRef.current) return;
     returnFocusRef.current =
       containerRef.current?.contains(document.activeElement) ?? false;
@@ -92,7 +100,13 @@ export function DictationButton({
     onRecordingChange?.(false);
   }
 
-  const unmountedRef = useDictationUnmountCleanup(recordingRef);
+  useMountEffect(() => {
+    unmountedRef.current = false;
+    return () => {
+      unmountedRef.current = true;
+      finish(false);
+    };
+  });
 
   // Stable so React calls it only when the mic button mounts.
   const micRef = useCallback((node: HTMLButtonElement | null) => {
@@ -121,7 +135,7 @@ export function DictationButton({
     startingRef.current = false;
     // Room switched or thread closed during the permission prompt.
     if (unmountedRef.current) {
-      stopDictationStream(stream);
+      stopStream(stream);
       return;
     }
     setStarting(false);
@@ -129,7 +143,7 @@ export function DictationButton({
     const recorder = new MediaRecorder(stream, { mimeType: format.mimeType });
     const chunks: Blob[] = [];
     const startedAt = Date.now();
-    const recording: DictationRecording = {
+    const recording: Recording = {
       recorder,
       stream,
       keep: false,
