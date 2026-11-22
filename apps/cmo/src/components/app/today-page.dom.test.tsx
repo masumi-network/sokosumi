@@ -54,7 +54,12 @@ it("opens on Today: the greeting, the month, the week, then what needs the owner
     (head) => head.textContent,
   );
   // Needs you comes last, where the sidebar's Cuso points.
-  expect(sections).toEqual(["This month", "This week", "Needs you"]);
+  expect(sections).toEqual([
+    "This month",
+    "This week",
+    "Comments",
+    "Needs you",
+  ]);
   const needs = [...container.querySelectorAll(".needs-row b")].map(
     (row) => row.textContent,
   );
@@ -146,4 +151,21 @@ it("speaks about each page while nothing needs the owner", async () => {
   expect(container.querySelector(".cuso-says")?.textContent).toContain(
     "I'm listening",
   );
+});
+
+it("shows what Cuso answered, and what he left for the owner", async () => {
+  await act(async () => root.render(<FixtureApp view="today" />));
+  const rows = [...container.querySelectorAll(".cmts-row")].map((row) =>
+    row.textContent?.replace(/\s+/g, " ").trim(),
+  );
+  expect(rows[0]).toContain("@wutzebaer1 on X: +1, metadata");
+  expect(rows[0]).toContain("Cuso: Agreed.");
+  expect(rows[1]).toContain("Left for you: Billing question: charged twice");
+  expect(container.querySelector(".today-cmts .note")?.textContent).toBe(
+    "2 answered in 3 days",
+  );
+  // A post on its own network opens there, never inside Sokosumi.
+  const link = container.querySelector<HTMLAnchorElement>(".cmts-row a");
+  expect(link?.href).toBe("https://x.com/acme/status/1");
+  expect(link?.target).toBe("_blank");
 });

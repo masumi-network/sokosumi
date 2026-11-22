@@ -190,6 +190,8 @@ export interface CmoOverview {
   production: import("@/services/cmo-production.service").CmoProductionStatus;
   /** People on the newsletter list. */
   mailingListSize: number;
+  /** Comments Cuso answered or left for the owner in the last few days. */
+  comments: Awaited<ReturnType<typeof recentHandledSocialComments>>;
   /** This person is in Sokosumi's Ads beta, so CMO offers ad connections. */
   /** Cuso's CMO plan (ADR 0068) and what his Project can spend. */
   billing: CmoBilling & {
@@ -294,15 +296,17 @@ export async function getCmoOverview(
     }),
     listCmoChannels(cuso.projectId),
   ]);
-  const [adConnections, mailingListSize, measurement] = await Promise.all([
-    // An ad connection counts once an ad account is attached to it.
-    prisma.projectAdAccount.findMany({
-      where: { projectId: cuso.projectId, connection: { status: "active" } },
-      select: { provider: true },
-    }),
-    cmoMailingListSize(cuso),
-    listCmoMeasurement(cuso.sokoBotId, project?.sitePlatform ?? null),
-  ]);
+  const [adConnections, mailingListSize, measurement, comments] =
+    await Promise.all([
+      // An ad connection counts once an ad account is attached to it.
+      prisma.projectAdAccount.findMany({
+        where: { projectId: cuso.projectId, connection: { status: "active" } },
+        select: { provider: true },
+      }),
+      cmoMailingListSize(cuso),
+      listCmoMeasurement(cuso.sokoBotId, project?.sitePlatform ?? null),
+      recentHandledSocialComments(cuso.projectId, now),
+    ]);
   if (project && project.sitePlatform === null) {
     waitUntil(runAsBackgroundWork(() => learnCmoSitePlatform(cuso)));
   }
@@ -516,6 +520,7 @@ export async function getCmoOverview(
     measurement,
     production: production.status,
     mailingListSize,
+    comments,
     billing: {
       ...billing,
       availableCredits: credits.spendable,
@@ -548,4 +553,43 @@ async function cmoMailingListSize(
       contact: { mergedIntoId: null },
     },
   });
+}
+
+/** Comments Cuso answered or left for the owner in the last few days, newest first. */
+export async function recentHandledSocialComments(
+  projectId: string,
+  now: Date = new Date(),
+) {
+  const rows = await prisma.socialComment.findMany({
+    where: {
+      projectId,
+      status: { in: ["REPLIED", "OWNER"] },
+      handledAt: { gte: new Date(now.getTime() - 3 * 86_400_000) },
+    },
+    orderBy: { handledAt: "desc" },
+    take: 10,
+    select: {
+      id: true,
+      provider: true,
+      status: true,
+      authorName: true,
+      text: true,
+      reply: true,
+      note: true,
+      handledAt: true,
+      socialPost: { select: { publishedUrl: true } },
+    },
+  });
+  return rows.map((row) => ({
+    id: row.id,
+    network: row.provider,
+    status:
+      row.status === "REPLIED" ? ("replied" as const) : ("owner" as const),
+    author: row.authorName,
+    text: row.text.slice(0, 280),
+    reply: row.reply,
+    note: row.note,
+    handledAt: (row.handledAt ?? now).toISOString(),
+    postUrl: row.socialPost.publishedUrl,
+  }));
 }

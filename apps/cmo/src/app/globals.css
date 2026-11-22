@@ -5044,6 +5044,73 @@ button.cal-card:hover {
   margin-left: auto;
 }
 
+/* The latest comments Cuso handled: what was said, then his reply. */
+.cmts {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--card);
+  list-style: none;
+}
+
+.cmts .cmts-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: none;
+  padding: 12px 16px;
+}
+
+.cmts-row .button-ghost {
+  flex: none;
+  align-self: center;
+}
+
+.cmts-row + .cmts-row {
+  border-top: 1px solid var(--line);
+}
+
+.cmts-row > svg {
+  flex: none;
+  margin-top: 3px;
+}
+
+.cmts-text {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cmts-said,
+.cmts-reply {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmts-reply {
+  color: var(--muted);
+}
+
+.cmts-owner {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.today-cmts .today-section-head .note {
+  margin-left: auto;
+}
+
+/* A short laptop screen keeps two, so what needs the owner stays in view. */
+@media (min-width: 861px) and (max-height: 820px) {
+  .cmts-row:nth-child(n + 3) {
+    display: none;
+  }
+}
+
 /*
  * The week: seven days side by side, today on Iris. A day counts its posts
  * per network and shows three; the rest open with "+N more".

@@ -14588,6 +14588,20 @@ export type CmoOverview = {
     production: CmoProduction;
     mailingListSize: number;
     /**
+     * Comments on the brand's posts that Cuso answered (replied) or left for the owner (owner) in the last three days, newest first, at most 10.
+     */
+    comments: Array<{
+        id: string;
+        network: string;
+        status: 'replied' | 'owner';
+        author: string | null;
+        text: string;
+        reply: string | null;
+        note: string | null;
+        handledAt: string;
+        postUrl: string | null;
+    }>;
+    /**
      * Cuso's CMO plan, read from his Project's CMO subscription that has not ended; the plan fields are null without one.
      */
     billing: {

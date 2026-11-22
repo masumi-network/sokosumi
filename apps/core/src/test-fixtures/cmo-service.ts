@@ -278,6 +278,7 @@ const client = {
     updateMany: postUpdateMany,
   },
   referenceImage: { findMany: referenceFindMany },
+  socialComment: { findMany: vi.fn(async (): Promise<unknown[]> => []) },
   // No piece of the approved version is written to Files unless a test says so.
   marketingStrategyFile: { findMany: async () => [] },
   // Calendar times read in UTC unless a test gives Cuso's rhythms a zone.

@@ -2,6 +2,7 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import { useState } from "react";
+import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel, formatDay } from "../../lib/calendar";
 import { channelTone, formatName } from "../../lib/channels";
 import {
@@ -91,6 +92,8 @@ export function TodayPage({
         <WeekStrip entries={entries} today={today} openEntry={openEntry} />
       </section>
 
+      <CommentsList comments={overview.comments} />
+
       {/* Last, under Cuso's pointing hand at the sidebar's foot. */}
       <NeedsYouList items={needs} open={open} openEntry={openEntry} />
     </div>
@@ -138,6 +141,63 @@ function NeedsYouList({
             >
               {item.action}
             </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Comments the list shows; the daily report carries the rest. */
+const COMMENTS_SHOWN = 4;
+
+/** What Cuso did with the latest comments: his reply, or left for the owner. */
+export function CommentsList({
+  comments,
+}: {
+  comments: CmoOverview["comments"];
+}) {
+  if (comments.length === 0) return null;
+  const replied = comments.filter(
+    (comment) => comment.status === "replied",
+  ).length;
+  return (
+    <section className="today-section today-cmts" aria-labelledby="today-cmts">
+      <div className="today-section-head">
+        <h2 id="today-cmts">Comments</h2>
+        <span className="note">
+          {replied === 1 ? "1 answered" : `${replied} answered`} in 3 days
+        </span>
+      </div>
+      <ul className="cmts">
+        {comments.slice(0, COMMENTS_SHOWN).map((comment) => (
+          <li key={comment.id} className="cmts-row">
+            <ChannelIcon channel={comment.network} size={14} />
+            <span className="cmts-text">
+              <span className="cmts-said">
+                <b>{comment.author ?? "Someone"}</b> on{" "}
+                {channelLabel(comment.network)}: {comment.text}
+              </span>
+              {comment.status === "replied" ? (
+                <span className="cmts-reply">
+                  {AGENT_NAME}: {comment.reply}
+                </span>
+              ) : (
+                <span className="cmts-reply cmts-owner">
+                  Left for you{comment.note ? `: ${comment.note}` : ""}
+                </span>
+              )}
+            </span>
+            {comment.postUrl ? (
+              <a
+                className="button button-ghost button-small"
+                href={comment.postUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                View
+              </a>
+            ) : null}
           </li>
         ))}
       </ul>

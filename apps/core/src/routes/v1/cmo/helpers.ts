@@ -78,6 +78,7 @@ function mapOverview(overview: CmoOverview) {
     measurement: overview.measurement,
     production: overview.production,
     mailingListSize: overview.mailingListSize,
+    comments: overview.comments,
     billing: overview.billing,
     posts: {
       draft: overview.posts.DRAFT ?? 0,

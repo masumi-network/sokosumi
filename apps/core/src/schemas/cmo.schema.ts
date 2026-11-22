@@ -822,6 +822,23 @@ export const cmoOverviewSchema = z
       "After approval Cuso makes the whole month at once: how many of its pieces are made.",
     ),
     mailingListSize: z.number().int(),
+    comments: z
+      .array(
+        z.object({
+          id: z.string(),
+          network: z.string(),
+          status: z.enum(["replied", "owner"]),
+          author: z.union([z.string(), z.null()]),
+          text: z.string(),
+          reply: z.union([z.string(), z.null()]),
+          note: z.union([z.string(), z.null()]),
+          handledAt: z.string(),
+          postUrl: z.union([z.string(), z.null()]),
+        }),
+      )
+      .describe(
+        "Comments on the brand's posts that Cuso answered (replied) or left for the owner (owner) in the last three days, newest first, at most 10.",
+      ),
     billing: z
       .object({
         tier: z

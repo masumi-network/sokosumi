@@ -34318,7 +34318,7 @@ export const MarketingStrategySchema = {
                                     'status'
                                 ]
                             },
-                            maxItems: 240
+                            maxItems: 560
                         },
                         previews: {
                             type: 'array',
@@ -34711,7 +34711,7 @@ export const MarketingStrategySchema = {
                                     'was'
                                 ]
                             },
-                            maxItems: 240,
+                            maxItems: 560,
                             default: []
                         }
                     },
@@ -36250,7 +36250,7 @@ export const MarketingStrategyRequestSchema = {
                             'status'
                         ]
                     },
-                    maxItems: 240
+                    maxItems: 560
                 },
                 previews: {
                     type: 'array',
@@ -36643,7 +36643,7 @@ export const MarketingStrategyRequestSchema = {
                             'was'
                         ]
                     },
-                    maxItems: 240,
+                    maxItems: 560,
                     default: []
                 }
             },
@@ -58839,6 +58839,85 @@ export const CmoOverviewSchema = {
         mailingListSize: {
             type: 'integer'
         },
+        comments: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    network: {
+                        type: 'string'
+                    },
+                    status: {
+                        type: 'string',
+                        enum: [
+                            'replied',
+                            'owner'
+                        ]
+                    },
+                    author: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    },
+                    text: {
+                        type: 'string'
+                    },
+                    reply: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    },
+                    note: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    },
+                    handledAt: {
+                        type: 'string'
+                    },
+                    postUrl: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'network',
+                    'status',
+                    'author',
+                    'text',
+                    'reply',
+                    'note',
+                    'handledAt',
+                    'postUrl'
+                ]
+            },
+            description: 'Comments on the brand\'s posts that Cuso answered (replied) or left for the owner (owner) in the last three days, newest first, at most 10.'
+        },
         billing: {
             type: 'object',
             properties: {
@@ -59006,6 +59085,7 @@ export const CmoOverviewSchema = {
         'measurement',
         'production',
         'mailingListSize',
+        'comments',
         'billing',
         'posts',
         'createdAt'
@@ -61112,7 +61192,7 @@ export const CmoPlanSchema = {
                     'status'
                 ]
             },
-            maxItems: 240
+            maxItems: 560
         },
         previews: {
             type: 'array',
@@ -61505,7 +61585,7 @@ export const CmoPlanSchema = {
                     'was'
                 ]
             },
-            maxItems: 240,
+            maxItems: 560,
             default: []
         }
     },
