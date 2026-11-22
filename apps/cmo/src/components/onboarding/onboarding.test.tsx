@@ -814,7 +814,7 @@ describe("Plan", () => {
     expect(html).toContain("Many more");
   });
 
-  it("asks about pace and the ad budget in the same strip", () => {
+  it("asks about the ad budget in the checks strip, with no pace", () => {
     const base = draft();
     const html = plan({
       ...base,
@@ -829,7 +829,6 @@ describe("Plan", () => {
         },
       },
     });
-    expect(html).toContain("written at the most a plan makes");
     expect(html).toContain("Do you want ads?");
     expect(html).toContain("Ads are extra to your plan");
     // The strategy has ads: Yes is picked and the amount can be changed.

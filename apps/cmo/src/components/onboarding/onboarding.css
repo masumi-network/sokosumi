@@ -1639,10 +1639,6 @@ body:has(.ob) .site-header {
   border-top: 1px solid var(--border);
 }
 
-.ob-pace {
-  padding: 14px 20px;
-}
-
 .ob-tabs {
   display: flex;
   flex-wrap: wrap;

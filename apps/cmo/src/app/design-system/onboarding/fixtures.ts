@@ -37,81 +37,48 @@ type Strategy = NonNullable<CmoOverview["strategy"]>;
 const fixtureDay = (index: number) =>
   new Date(Date.UTC(2026, 9, 5 + index)).toISOString().slice(0, 10);
 
+/** `perDay` pieces of one format on one network, every day for 28 days. */
+function daily(
+  channel: string,
+  format: string,
+  perDay: number,
+  pillar: string,
+): Strategy["calendar"] {
+  return Array.from({ length: 28 }, (_, day) =>
+    Array.from({ length: perDay }, (_, slot) => ({
+      id: `${channel}-${format}-${day}-${slot}`,
+      date: fixtureDay(day),
+      channel,
+      format,
+      title: `${pillar} ${day + 1}.${slot + 1}`,
+      status: "idea" as const,
+      pillar,
+    })),
+  ).flat();
+}
+
 /**
- * A month as cmo-v5 writes it, at the top volume: three X posts a day (every
- * third with a picture), LinkedIn and Instagram three times a week, and a
- * talking video a week shown on YouTube and TikTok too. Each plan makes its share.
+ * A month as cmo-v14 writes it, at the top plan's rates: six X posts a day,
+ * one on LinkedIn, two picture posts and two Reels on Instagram, three
+ * TikToks and two YouTube Shorts. Each plan makes its share.
  */
 const fullMonth: Strategy = {
   ...richPlan,
   channels: [
-    { channel: "x", cadence: "3 a day", role: "main" },
-    {
-      channel: "linkedin",
-      cadence: "3 a week",
-      role: "side",
-      buyer: "Founders",
-    },
-    {
-      channel: "instagram",
-      cadence: "3 a week",
-      role: "side",
-      buyer: "Founders",
-    },
-    {
-      channel: "youtube",
-      cadence: "1 a week",
-      role: "side",
-      buyer: "Founders",
-    },
-    {
-      channel: "tiktok",
-      cadence: "1 a week",
-      role: "side",
-      buyer: "Founders",
-    },
+    { channel: "x", cadence: "6 a day", role: "main" },
+    { channel: "linkedin", cadence: "1 a day", role: "main" },
+    { channel: "instagram", cadence: "4 a day", role: "main" },
+    { channel: "tiktok", cadence: "3 a day", role: "main" },
+    { channel: "youtube", cadence: "2 a day", role: "main" },
   ],
   calendar: [
-    ...Array.from({ length: 28 }, (_, day) =>
-      ["a", "b", "c"].map((slot, place) => ({
-        id: `x-${day}-${slot}`,
-        date: fixtureDay(day),
-        channel: "x",
-        format: place === 2 ? "image" : "post",
-        title: `Launch lesson ${day + 1}${slot}`,
-        status: "idea" as const,
-        pillar: place === 0 ? "How we build" : "Launch stories",
-      })),
-    ).flat(),
-    ...[0, 1, 2, 3].flatMap((week) =>
-      [0, 2, 4].flatMap((offset) => [
-        {
-          id: `li-${week}-${offset}`,
-          date: fixtureDay(week * 7 + offset),
-          channel: "linkedin",
-          format: "post",
-          title: `Launch story ${week}-${offset}`,
-          status: "idea" as const,
-        },
-        {
-          id: `ig-${week}-${offset}`,
-          date: fixtureDay(week * 7 + offset + 1),
-          channel: "instagram",
-          format: "image",
-          title: `Behind the build ${week}-${offset}`,
-          status: "idea" as const,
-        },
-      ]),
-    ),
-    ...[0, 1, 2, 3].map((week) => ({
-      id: `talk-${week}`,
-      date: fixtureDay(week * 7 + 6),
-      channel: "instagram",
-      format: "talking_video",
-      title: `Why launches slip, part ${week + 1}`,
-      status: "idea" as const,
-      alsoOn: ["youtube", "tiktok"],
-    })),
+    ...daily("x", "post", 3, "How we build"),
+    ...daily("x", "image", 3, "Launch stories"),
+    ...daily("linkedin", "image", 1, "Launch stories"),
+    ...daily("instagram", "carousel", 2, "How we build"),
+    ...daily("instagram", "reel", 2, "Launch stories"),
+    ...daily("tiktok", "video", 3, "How we build"),
+    ...daily("youtube", "short", 2, "Launch stories"),
   ],
 };
 

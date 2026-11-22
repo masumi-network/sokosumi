@@ -544,6 +544,36 @@ describe("the plan starts when the research ends", () => {
     );
   });
 
+  it("fits a month still short after its last finish turn, so the owner can approve it", async () => {
+    const week = (index: number) => ({
+      ...strategy.calendar[0],
+      id: `w${index}`,
+      date: `2026-10-${String(1 + index * 7).padStart(2, "0")}`,
+    });
+    const short = seedStrategy({
+      ...strategy,
+      calendar: [0, 1, 2, 3].map(week),
+    });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v5" });
+    await expect(requireCmoStrategyFitted(HIRE, short.id)).rejects.toThrow(
+      "Cuso is still filling this month",
+    );
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: "cmo:strategy:bot-1:finish:1795308874573:2",
+      }),
+    ).resolves.toBeNull();
+    expect(startTurn).not.toHaveBeenCalled();
+    const fitted = short.plan as unknown as MarketingStrategyPlan;
+    expect(
+      fitted.channels.find((channel) => channel.channel === "linkedin")
+        ?.cadence,
+    ).toBe("1 a week");
+    await requireCmoStrategyFitted(HIRE, short.id);
+  });
+
   it("finishes a month whose funnel promises video the calendar does not hold", async () => {
     // Four weeks at the owner's "3 a week", and a play that promises video.
     const day = (index: number) => ({
@@ -2316,7 +2346,7 @@ describe("changes after the plan", () => {
     // Three weeks, at steady: short of its weeks and the top volume.
     const short = seedStrategy(wholePlan());
     await expect(requireCmoStrategyFitted(HIRE, short.id)).rejects.toThrow(
-      "This strategy promises more than its calendar holds",
+      "Cuso is still filling this month",
     );
     // A Cuso who saves in two calls has no finish turn to fill it.
     sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v2" });
