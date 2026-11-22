@@ -4,10 +4,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { NEWSLETTER_EMBED_PATH } from "@/config/document-security-headers";
-import {
-  mainChromeLeftPx,
-  useCookieBannerChromeLeftPx,
-} from "@/hooks/effects/use-cookie-banner-chrome-left";
+import { useCookieBannerChromeLeftPx } from "@/hooks/effects/use-cookie-banner-chrome-left";
 import {
   openCookieConsentPreferences,
   useCookieConsentBanner,
@@ -20,8 +17,6 @@ const COOKIE_POLICY_URL = "https://www.sokosumi.com/legal/cookie-policy";
 export function openConsentPreferences() {
   openCookieConsentPreferences();
 }
-
-export { mainChromeLeftPx };
 
 /**
  * Self-built cookie banner (no third-party CMP). Records the visitor's choice

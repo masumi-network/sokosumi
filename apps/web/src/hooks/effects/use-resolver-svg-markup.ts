@@ -13,8 +13,8 @@ export interface ResolvedSvgMarkup {
 
 /**
  * Fetches, sanitizes, and colorizes an SVG URL for `ResolverSVGIcon` with a
- * 5-second abort timeout, returning `null` while loading or on non-SVG/error
- * responses.
+ * 5-second abort timeout. Markup is keyed by URL; the caller ignores markup
+ * for a different URL.
  */
 export function useResolverSvgMarkup(
   svgUrl: string | null,
