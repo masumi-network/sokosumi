@@ -7707,7 +7707,6 @@ describe("ProjectSocialPosts", () => {
 
     expect(toastErrorMock).toHaveBeenCalledTimes(1);
 
-    // Navigating to another missing post still shows the toast.
     rerender(
       <Activity mode="visible">
         <ProjectSocialPosts
@@ -7720,6 +7719,28 @@ describe("ProjectSocialPosts", () => {
     );
 
     await waitFor(() => expect(toastErrorMock).toHaveBeenCalledTimes(2));
+
+    rerender(
+      <Activity mode="visible">
+        <ProjectSocialPosts
+          connections={connections}
+          posts={posts}
+          projectId={PROJECT_ID}
+        />
+      </Activity>,
+    );
+    rerender(
+      <Activity mode="visible">
+        <ProjectSocialPosts
+          connections={connections}
+          posts={posts}
+          projectId={PROJECT_ID}
+          requestedPostId="post-gone-2"
+        />
+      </Activity>,
+    );
+
+    await waitFor(() => expect(toastErrorMock).toHaveBeenCalledTimes(3));
   });
 
   it("does not toast when the named post is present", () => {

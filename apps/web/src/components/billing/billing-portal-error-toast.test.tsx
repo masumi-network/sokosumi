@@ -89,7 +89,6 @@ describe("BillingPortalErrorToast", () => {
       expect(replaceMock).toHaveBeenCalledWith("/billing?tab=subscription");
     });
 
-    // Re-rendering while the same param is still clearing must not duplicate the toast.
     rerender(
       <BillingPortalErrorToast
         generalMessage="Failed to open Stripe"
@@ -98,7 +97,6 @@ describe("BillingPortalErrorToast", () => {
     );
     expect(toastErrorMock).toHaveBeenCalledTimes(1);
 
-    // URL clears after router.replace, then a second failure returns with the param again.
     mockSearchParams = new URLSearchParams("tab=subscription");
     rerender(
       <BillingPortalErrorToast
