@@ -1349,6 +1349,26 @@ it("offers no approval for a month short of what it promises, only a new strateg
   expect(actions.approveStrategy).not.toHaveBeenCalled();
 });
 
+it("lets the owner start over with a whole new strategy from Ask for a change", async () => {
+  const actions = planActions({
+    requestStrategy: vi.fn(async () => ({ overview: null, error: null })),
+  });
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={planOverview()}
+        messages={[]}
+        actions={actions}
+      />,
+    ),
+  );
+  await press("Ask for a change");
+  await press("Write a new strategy");
+  // No note: Core writes a fresh strategy, as for a new hire.
+  expect(actions.requestStrategy).toHaveBeenCalledWith(undefined);
+  expect(actions.approveStrategy).not.toHaveBeenCalled();
+});
+
 it("says a month promises more than it holds when only a video is missing", async () => {
   await act(async () =>
     root.render(

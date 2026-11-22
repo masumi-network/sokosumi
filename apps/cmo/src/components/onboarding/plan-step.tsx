@@ -675,6 +675,23 @@ export function PlanReview({
                 </button>
               ))}
             </div>
+            <p className="ob-small muted">
+              Or start over: {AGENT_NAME} writes a whole new strategy from your
+              Brand Brain.{" "}
+              <button
+                type="button"
+                className="sc-link"
+                disabled={busy}
+                onClick={() => {
+                  setRefusal(null);
+                  send("Writing your strategy again", () => onRequest()).catch(
+                    () => {},
+                  );
+                }}
+              >
+                Write a new strategy
+              </button>
+            </p>
           </form>
         </div>
       ) : null}
