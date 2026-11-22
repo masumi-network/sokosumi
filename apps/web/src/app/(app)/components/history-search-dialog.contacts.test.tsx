@@ -98,7 +98,6 @@ const labels = {
   schedulesGroup: "Schedules",
   coworkersGroup: "Coworkers",
   newTask: "New task",
-  newTaskWith: (name: string) => `New task with ${name}`,
 };
 
 function contact(

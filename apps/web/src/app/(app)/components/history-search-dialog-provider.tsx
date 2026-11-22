@@ -133,7 +133,6 @@ export function HistorySearchDialogProvider({
           schedulesGroup: tSearch("schedulesGroup"),
           coworkersGroup: tSearch("coworkersGroup"),
           newTask: tSearch("newTask"),
-          newTaskWith: (name) => tSearch("newTaskWith", { name }),
         }}
       />
     </HistorySearchContext.Provider>

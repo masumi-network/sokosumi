@@ -38,7 +38,12 @@ async function noSidewaysScroll(page: Page) {
 
 async function openSearch(page: Page, size: string, query: string) {
   if (size === "phone") {
-    await page.getByTestId("header-mobile-search-trigger").tap();
+    // A page change can briefly hold two headers; tap the one on screen.
+    await page
+      .getByTestId("header-mobile-search-trigger")
+      .filter({ visible: true })
+      .first()
+      .tap();
   } else {
     const showSidebar = page.getByRole("button", { name: "Show sidebar" });
     if (await showSidebar.isVisible()) await showSidebar.click();
@@ -115,13 +120,13 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       const again = await openSearch(page, size, "seo");
       const coworker = again
         .getByRole("group", { name: "Coworkers" })
-        .getByRole("option", { name: /^New task with / })
+        .getByRole("option", { name: / New task$/ })
         .first();
       await coworker.waitFor();
-      const name = (await coworker.getAttribute("aria-label"))?.replace(
-        /^New task with /,
-        "",
-      );
+      // The row reads "<Coworker> New task", its visible text.
+      const name = (await coworker.textContent())
+        ?.replace(/New task$/, "")
+        .trim();
       assert.ok(name, "the Coworker row names its Coworker");
       await noSidewaysScroll(page);
       await shot(page, size, "3-coworker-result");

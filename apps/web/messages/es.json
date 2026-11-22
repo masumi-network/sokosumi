@@ -6014,8 +6014,7 @@
       "channelsGroup": "Canales",
       "schedulesGroup": "Programaciones",
       "coworkersGroup": "Coworkers",
-      "newTask": "Nueva tarea",
-      "newTaskWith": "Nueva tarea con {name}"
+      "newTask": "Nueva tarea"
     },
     "NoticeDialog": {
       "defaultTitle": "Aviso",

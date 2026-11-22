@@ -85,7 +85,6 @@ const labels = {
   schedulesGroup: "Schedules",
   coworkersGroup: "Coworkers",
   newTask: "New task",
-  newTaskWith: (name: string) => `New task with ${name}`,
 };
 
 const SCOPE = { userId: "user-1", organizationId: "org-1" };

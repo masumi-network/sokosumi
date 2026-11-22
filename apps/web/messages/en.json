@@ -6014,8 +6014,7 @@
       "channelsGroup": "Channels",
       "schedulesGroup": "Schedules",
       "coworkersGroup": "Coworkers",
-      "newTask": "New task",
-      "newTaskWith": "New task with {name}"
+      "newTask": "New task"
     },
     "NoticeDialog": {
       "defaultTitle": "Notice",

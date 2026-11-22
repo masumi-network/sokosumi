@@ -89,7 +89,6 @@ const labels = {
   schedulesGroup: "Schedules",
   coworkersGroup: "Coworkers",
   newTask: "New task",
-  newTaskWith: (name: string) => `New task with ${name}`,
 };
 
 function coworker(id: string, name: string) {
@@ -157,7 +156,7 @@ describe("HistorySearchDialog Schedules and Coworkers groups", () => {
     expect(screen.queryByText("Seo Bot")).not.toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("option", { name: "New task with SEO Writer" }),
+      screen.getByRole("option", { name: "SEO Writer New task" }),
     );
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(openNewTaskWizardMock).toHaveBeenCalledWith({ assigneeId: "c-1" });

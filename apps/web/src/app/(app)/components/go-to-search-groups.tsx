@@ -128,7 +128,6 @@ export function GoToSearchList({
     schedulesGroup: string;
     coworkersGroup: string;
     newTask: string;
-    newTaskWith: (name: string) => string;
   };
   onSelect: (href: string) => void;
   /** Opens New task with this Coworker; without it, no Coworkers group. */
@@ -290,7 +289,6 @@ function CoworkerResults({
   labels: {
     coworkersGroup: string;
     newTask: string;
-    newTaskWith: (name: string) => string;
   };
   onNewTaskWith: (coworkerId: string) => void;
 }) {
@@ -301,7 +299,6 @@ function CoworkerResults({
         <CommandItem
           key={coworker.id}
           value={`coworker:${coworker.id}`}
-          aria-label={labels.newTaskWith(coworker.name)}
           onSelect={() => onNewTaskWith(coworker.id)}
         >
           <Avatar aria-hidden className="size-4">

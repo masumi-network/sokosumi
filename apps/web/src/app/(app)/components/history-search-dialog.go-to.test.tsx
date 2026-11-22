@@ -81,7 +81,6 @@ const labels = {
   schedulesGroup: "Schedules",
   coworkersGroup: "Coworkers",
   newTask: "New task",
-  newTaskWith: (name: string) => `New task with ${name}`,
 };
 
 function room(id: string, name: string, kind = "channel") {

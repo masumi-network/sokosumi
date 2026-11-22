@@ -76,7 +76,6 @@ interface HistorySearchDialogLabels {
   schedulesGroup: string;
   coworkersGroup: string;
   newTask: string;
-  newTaskWith: (name: string) => string;
 }
 
 interface HistorySearchDialogProps {
