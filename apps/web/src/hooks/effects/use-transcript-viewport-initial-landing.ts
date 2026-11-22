@@ -25,7 +25,7 @@ export interface TranscriptPosition {
   visibleMessageIds: string[];
 }
 
-export function retainedPositionIndex(
+function retainedPositionIndex(
   rows: readonly RoomTranscriptRenderRow[],
   saved: TranscriptPosition,
 ): number {
@@ -78,8 +78,9 @@ interface TranscriptViewportInitialLandingParams {
 }
 
 /**
- * Places `TranscriptViewport` once on initial mount (at the live edge or on a
- * saved reading position, polling frames until the restored anchor settles).
+ * Places `TranscriptViewport` at the live edge or on a saved reading position,
+ * polling frames until the restored anchor settles. Runs on open and again
+ * whenever the viewport rearms landing.
  */
 export function useTranscriptViewportInitialLanding({
   openedRef,
