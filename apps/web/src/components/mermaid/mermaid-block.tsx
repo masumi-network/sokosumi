@@ -50,8 +50,12 @@ const MermaidDiagram = memo(function MermaidDiagram({
   const [result, setResult] = useState<{
     source: string;
     dark: boolean;
-    url?: string;
+    svg?: string;
     failed?: boolean;
+  }>();
+  const [objectUrl, setObjectUrl] = useState<{
+    result: NonNullable<typeof result>;
+    url: string;
   }>();
   const [copyResult, setCopyResult] = useState<{
     source: string;
@@ -62,7 +66,10 @@ const MermaidDiagram = memo(function MermaidDiagram({
   const error = overLimit ? "tooMany" : mermaidSourceError(source);
   const current =
     result?.source === source && result.dark === dark ? result : undefined;
-  const url = complete && !error ? current?.url : undefined;
+  const url =
+    complete && !error && current && objectUrl?.result === current
+      ? objectUrl.url
+      : undefined;
   const status = !complete
     ? "waiting"
     : (error ?? (current?.failed ? "failed" : !url ? "loading" : null));
@@ -70,10 +77,10 @@ const MermaidDiagram = memo(function MermaidDiagram({
   useEffect(() => {
     if (!complete || error) return;
     let controller: AbortController | undefined;
-    let objectUrl: string | undefined;
+    let rendered = false;
     let disposed = false;
     async function start() {
-      if (controller || objectUrl) return;
+      if (controller || rendered) return;
       const attempt = new AbortController();
       controller = attempt;
       try {
@@ -81,10 +88,12 @@ const MermaidDiagram = memo(function MermaidDiagram({
         if (attempt.signal.aborted) return;
         const svg = await renderMermaid(source, dark, attempt.signal);
         if (attempt.signal.aborted) return;
-        objectUrl = URL.createObjectURL(
-          new Blob([svg], { type: "image/svg+xml" }),
+        rendered = true;
+        setResult((prev) =>
+          prev?.source === source && prev.dark === dark && prev.svg === svg
+            ? prev
+            : { source, dark, svg },
         );
-        setResult({ source, dark, url: objectUrl });
         observer.disconnect();
       } catch {
         if (!attempt.signal.aborted) {
@@ -107,7 +116,7 @@ const MermaidDiagram = memo(function MermaidDiagram({
         if (disposed) return;
         if (entries.some((entry) => entry.isIntersecting)) {
           void start();
-        } else if (!objectUrl) {
+        } else if (!rendered) {
           controller?.abort();
           controller = undefined;
         }
@@ -125,11 +134,17 @@ const MermaidDiagram = memo(function MermaidDiagram({
   // Retain the last image until its replacement arrives, including when a
   // streamed block briefly reopens. Never reuse an already revoked URL.
   useEffect(() => {
-    const objectUrl = result?.url;
+    const svg = result?.svg;
+    if (!result || !svg) return;
+    const nextUrl = URL.createObjectURL(
+      new Blob([svg], { type: "image/svg+xml" }),
+    );
+    setObjectUrl({ result, url: nextUrl });
     return () => {
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      URL.revokeObjectURL(nextUrl);
+      setObjectUrl((prev) => (prev?.url === nextUrl ? undefined : prev));
     };
-  }, [result?.url]);
+  }, [result]);
 
   async function handleCopy() {
     try {
