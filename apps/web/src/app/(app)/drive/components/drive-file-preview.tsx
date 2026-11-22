@@ -2,7 +2,6 @@
 
 import { Download, ExternalLink, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
 
 import { GoogleSheetBar } from "@/app/drive/components/google-sheet-bar";
 import { CapTableFileView } from "@/components/cap-table/cap-table-view";
@@ -10,6 +9,7 @@ import Markdown from "@/components/markdown";
 import { SpreadsheetFileView } from "@/components/spreadsheet/spreadsheet-view";
 import { TeamFileView } from "@/components/team/team-view";
 import { Button } from "@/components/ui/button";
+import { useDriveFilePreviewText } from "@/hooks/effects/use-drive-file-preview-text";
 import { isCapTableFileName } from "@/lib/cap-table-file";
 import { spreadsheetKind } from "@/lib/spreadsheet-file";
 import { isTeamFileName } from "@/lib/team-file";
@@ -145,11 +145,6 @@ export function effectiveType(
   return EXTENSION_TYPES[extension] ?? declared;
 }
 
-type TextState =
-  | { kind: "loading" }
-  | { kind: "ready"; text: string }
-  | { kind: "failed" };
-
 export function DriveFilePreview({
   resourceId,
   store,
@@ -178,30 +173,7 @@ export function DriveFilePreview({
   // Played from the same authorized route, so nothing public is handed out.
   const { isVideo, isAudio } = classifyFilePreview(source, displayName, type);
 
-  const [text, setText] = useState<TextState>({ kind: "loading" });
-
-  useEffect(() => {
-    if (!isText) return;
-    let cancelled = false;
-
-    void (async () => {
-      setText({ kind: "loading" });
-      try {
-        const response = await fetch(source);
-        if (!response.ok) throw new Error(String(response.status));
-        const body = await response.text();
-        if (!cancelled) setText({ kind: "ready", text: body });
-      } catch {
-        // A preview that cannot load is not an error screen: the download
-        // below still works, and that is what the reader came for.
-        if (!cancelled) setText({ kind: "failed" });
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isText, source]);
+  const text = useDriveFilePreviewText(isText, source);
 
   const actions = (
     <div className="flex flex-wrap gap-2">

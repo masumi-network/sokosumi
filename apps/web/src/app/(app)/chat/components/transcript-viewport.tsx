@@ -10,7 +10,6 @@ import { useTranslations } from "next-intl";
 import {
   type ReactNode,
   type Ref,
-  startTransition,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -32,6 +31,16 @@ import {
 } from "@/app/chat/utils/transcript-viewport-model";
 import { Button } from "@/components/ui/button";
 import { useAbortController } from "@/hooks/effects/use-abort-controller";
+import {
+  LANDING_FRAMES,
+  openingIndex,
+  readTranscriptViewportHeight,
+  type TranscriptPosition,
+  useTranscriptViewportInitialLanding,
+} from "@/hooks/effects/use-transcript-viewport-initial-landing";
+import { useTranscriptViewportOpened } from "@/hooks/effects/use-transcript-viewport-opened";
+
+export type { TranscriptPosition };
 
 /**
  * Rows mounted beyond the viewport. Deep above, shallow below: a row is
@@ -57,13 +66,6 @@ const OPENING_OVERSCAN_ABOVE = 4;
  */
 const EDITOR_SELECTOR = '[contenteditable="true"]';
 
-/**
- * How many frames a landing waits for its row to mount after the scroll.
- * The virtualizer re-issues a scroll while rows above the target are still
- * being measured, so the wait covers that.
- */
-const LANDING_FRAMES = 90;
-
 export interface TranscriptViewportHandle {
   /** Live edge, whatever the reader was doing. Drops any hold. */
   scrollToBottom: () => void;
@@ -81,19 +83,6 @@ export interface TranscriptViewportHandle {
   landOnMessage: (messageId: string) => boolean;
   /** Smooth scroll to a message with no mark. False when it is not loaded. */
   scrollToMessage: (messageId: string) => boolean;
-}
-
-export interface TranscriptPosition {
-  anchorId: string | null;
-  anchorCreatedAt: number;
-  offset: number;
-  /**
-   * Opens the anchor this share of the scroller's height below its top, on
-   * top of `offset`: the Unread divider sits a third of the way down.
-   */
-  viewportShare?: number;
-  atLiveEdge: boolean;
-  visibleMessageIds: string[];
 }
 
 interface TranscriptViewportProps {
@@ -138,43 +127,6 @@ function transcriptRangeExtractor(range: Range): number[] {
 
 function openingTranscriptRangeExtractor(range: Range): number[] {
   return extractTranscriptRange(range, OPENING_OVERSCAN_ABOVE);
-}
-
-function retainedPositionIndex(
-  rows: readonly RoomTranscriptRenderRow[],
-  saved: TranscriptPosition,
-): number {
-  const exact = saved.anchorId
-    ? findTranscriptRowIndex(rows, saved.anchorId)
-    : -1;
-  if (exact >= 0 || saved.atLiveEdge) return exact;
-  let index = -1;
-  let nearest = Infinity;
-  rows.forEach((row, candidate) => {
-    if (row.kind !== "message") return;
-    const distance = Math.abs(
-      new Date(row.message.createdAt).getTime() - saved.anchorCreatedAt,
-    );
-    if (distance < nearest) {
-      nearest = distance;
-      index = candidate;
-    }
-  });
-  return index;
-}
-
-/** The row a remount reopens on, or -1 when it opens at the live edge. */
-function openingIndex(
-  rows: readonly RoomTranscriptRenderRow[],
-  saved: TranscriptPosition | undefined,
-): number {
-  return saved && !saved.atLiveEdge ? retainedPositionIndex(rows, saved) : -1;
-}
-
-function readTranscriptViewportHeight(scroller: HTMLElement): number {
-  const bottomInset =
-    Number.parseFloat(getComputedStyle(scroller).scrollPaddingBottom) || 0;
-  return Math.max(scroller.clientHeight - bottomInset, 0);
 }
 
 /**
@@ -460,14 +412,7 @@ export function TranscriptViewport({
   const estimateSize = (index: number) =>
     estimateTranscriptRowHeight(rows[index], estimateSpaceRef.current);
   // Deep overscan waits for the frame after the first rows paint.
-  const [opened, setOpened] = useState(false);
-  useEffect(() => {
-    if (!scroller || opened) return;
-    const frame = requestAnimationFrame(() => {
-      startTransition(() => setOpened(true));
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [opened, scroller]);
+  const opened = useTranscriptViewportOpened(scroller);
   const virtualizer = useVirtualizer<HTMLElement, HTMLDivElement>({
     count: rows.length,
     // Off until the scroller exists: the virtualizer keeps the first offset
@@ -624,64 +569,17 @@ export function TranscriptViewport({
     }
   });
 
-  useLayoutEffect(() => {
-    if (openedRef.current || !scroller) return;
-    // A list that cannot scroll never fires a scroll or a measurement, so
-    // the opening tells the room where it is: an empty one where it starts.
-    if (rows.length === 0) {
-      updateReach({ atEnd });
-      return;
-    }
-    openedRef.current = true;
-    const saved = restoreRef.current;
-    const index = openingIndex(rows, saved);
-    if (!saved || index < 0) {
-      restoreRef.current = undefined;
-      virtualizer.scrollToEnd();
-      recordDistance(scroller);
-      return;
-    }
-    virtualizer.scrollToIndex(index, { align: "start" });
-    const landing = landingAbort.start();
-    let frames = 0;
-    let settledFrames = 0;
-    const finishRestore = () => {
-      if (landing.signal.aborted) return;
-      const currentIndex = retainedPositionIndex(rowsRef.current, saved);
-      const anchor = scroller.querySelector<HTMLElement>(
-        `[data-index="${currentIndex}"]`,
-      );
-      if (!anchor && currentIndex >= 0 && currentIndex !== index) {
-        virtualizer.scrollToIndex(currentIndex, { align: "start" });
-      }
-      const correction = anchor
-        ? anchor.getBoundingClientRect().top -
-          scroller.getBoundingClientRect().top +
-          saved.offset -
-          (saved.viewportShare ?? 0) * readTranscriptViewportHeight(scroller)
-        : null;
-      // Too little history above or below cannot put the anchor in its
-      // place: a scroller already at that edge has gone as far as it can.
-      const clamped =
-        correction != null &&
-        (correction < 0
-          ? scroller.scrollTop <= 0
-          : scroller.scrollTop >=
-            scroller.scrollHeight - scroller.clientHeight - 1);
-      if (correction != null && Math.abs(correction) >= 1 && !clamped) {
-        virtualizer.scrollBy(correction);
-        settledFrames = 0;
-      } else {
-        settledFrames = correction == null ? 0 : settledFrames + 1;
-      }
-      if (settledFrames < 3 && ++frames < LANDING_FRAMES) {
-        requestAnimationFrame(finishRestore);
-        return;
-      }
-      restoreRef.current = undefined;
-      recordDistance(scroller);
-    };
-    requestAnimationFrame(finishRestore);
+  useTranscriptViewportInitialLanding({
+    openedRef,
+    scroller,
+    rows,
+    rowsRef,
+    atEnd,
+    updateReach,
+    restoreRef,
+    virtualizer,
+    recordDistance,
+    landingAbort,
   });
 
   useImperativeHandle(
