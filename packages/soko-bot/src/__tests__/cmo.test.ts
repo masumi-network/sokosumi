@@ -367,6 +367,7 @@ describe("CMO version", () => {
     expect(strategy).toContain("six a day on X");
     expect(strategy).toContain("one a day on LinkedIn, never more");
     expect(strategy).toContain("seven short videos a day");
+    expect(strategy).toContain("Never a buyer's inner thought");
     expect(strategy).toContain("never the whole calendar");
     expect(strategy).toContain(
       "Leave a network out only when the owner asked you to",

@@ -42,6 +42,7 @@ import {
   cmoStrategyRules,
   cmoTopVolumeProblems,
   cmoWithOwnerPace,
+  funnelStageProblems,
   mixProblems,
   pillarProblems,
 } from "./cmo-plan-review.service";
@@ -2293,12 +2294,9 @@ describe("each network at its own rate, for a Cuso on cmo-v14", () => {
     plays,
   });
   const funnel = [
-    stage("awareness", [
-      { channel: "x", what: "Launch decisions" },
-      { channel: "linkedin", what: "Launch stories" },
-    ]),
-    stage("interest", [{ channel: "linkedin", what: "Walkthroughs" }]),
-    stage("desire", [{ channel: "x", what: "Customer results" }]),
+    stage("awareness", [{ channel: "x", what: "Launch decisions" }]),
+    stage("interest", []),
+    stage("desire", [{ channel: "linkedin", what: "Customer results" }]),
     stage("action", [{ channel: "x", what: "The free-account offer" }]),
   ] as MarketingStrategyPlan["funnel"];
   const channels = [
@@ -2325,12 +2323,15 @@ describe("each network at its own rate, for a Cuso on cmo-v14", () => {
     );
   });
 
-  it("puts every main network at awareness, proof at desire and Cuso's offer posts at action", () => {
+  it("puts each network at one stage, proof at desire and Cuso's offer posts at action", () => {
     const problems = cmoChannelFitProblems(
       plan({
         channels,
         funnel: [
-          stage("awareness", [{ channel: "x", what: "Launch decisions" }]),
+          stage("awareness", [
+            { channel: "x", what: "Launch decisions" },
+            { channel: "linkedin", what: "Launch stories" },
+          ]),
           stage("interest", [{ channel: "linkedin", what: "Walkthroughs" }]),
           stage("desire", [{ channel: "newsletter", what: "One decision" }]),
           stage("action", [], "Nothing here: accounts start on your site."),
@@ -2338,13 +2339,122 @@ describe("each network at its own rate, for a Cuso on cmo-v14", () => {
       }),
     );
     expect(problems).toEqual([
-      expect.stringContaining(
-        "linkedin is a main network but not at awareness",
-      ),
+      expect.stringContaining("linkedin sits at awareness and interest"),
       expect.stringContaining("the desire stage rests on newsletter"),
       expect.stringContaining("the action stage has no work of yours"),
     ]);
     expect(cmoChannelFitProblems(plan({ channels, funnel }))).toEqual([]);
+  });
+
+  it("refuses NMKR's journey-jargon funnel and passes one that says what happens", () => {
+    // NMKR's cmo-v14 rewrite, 2026-11-22 (Patrick: "the strategy
+    // fundamentally doesnt make sense").
+    const offer = {
+      what: "Free NMKR Studio account",
+      why: "Start with a real asset",
+      proof: [],
+      action: "Open a free Studio account",
+    };
+    const nmkrChannels = [
+      "x",
+      "linkedin",
+      "youtube",
+      "instagram",
+      "facebook",
+      "tiktok",
+    ].map((channel) => ({
+      channel,
+      cadence: "1 a day",
+      why: "Leads",
+      role: "main",
+    })) as MarketingStrategyPlan["channels"];
+    const nmkr = (
+      goals: string[],
+      plays: { channel: string; what: string }[][],
+    ) =>
+      plan({
+        offer,
+        channels: nmkrChannels,
+        funnel: ["awareness", "interest", "desire", "action"].map(
+          (name, index) => ({
+            ...stage(name, plays[index] ?? []),
+            goal: goals[index] ?? "",
+          }),
+        ) as MarketingStrategyPlan["funnel"],
+      });
+    const before = nmkr(
+      [
+        "Project leads see a launch decision they face.",
+        "Leads work out which steps they can hand off.",
+        "Project leads see how their pilot would work.",
+        "Qualified leads create their first projects.",
+      ],
+      [
+        [
+          { channel: "x", what: "Network and cost decisions" },
+          { channel: "linkedin", what: "Budget and release decisions" },
+          { channel: "youtube", what: "YouTube Shorts on the launch workflow" },
+          { channel: "instagram", what: "Carousels and Reels for creators" },
+          { channel: "facebook", what: "Event guidance for community teams" },
+          { channel: "tiktok", what: "TikToks on asset and buying steps" },
+        ],
+        [
+          { channel: "youtube", what: "YouTube Shorts on setup and checkout" },
+          { channel: "seo", what: "A weekly audit of your site" },
+        ],
+        [
+          { channel: "linkedin", what: "Walkthroughs of scope and costs" },
+          { channel: "newsletter", what: "Pilot worksheet" },
+        ],
+        [{ channel: "x", what: "Free-account links" }],
+      ],
+    );
+    const problems = funnelStageProblems(before, () => true);
+    expect(problems).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining(
+          "the awareness stage's goal \"Project leads see a launch decision they face.\" is a buyer's inner thought",
+        ),
+        expect.stringContaining(
+          "the interest stage's goal \"Leads work out which steps they can hand off.\" is a buyer's inner thought",
+        ),
+        expect.stringContaining(
+          'the action stage\'s goal "Qualified leads create their first projects." does not name NMKR or Studio',
+        ),
+        expect.stringContaining("youtube sits at awareness and interest"),
+        expect.stringContaining("linkedin sits at awareness and desire"),
+      ]),
+    );
+    const after = nmkr(
+      [
+        "Project leads planning a token launch find out NMKR exists",
+        "They look at what NMKR Studio does for a launch",
+        "They see teams like theirs launch with NMKR Studio",
+        "They open a free NMKR Studio account",
+      ],
+      [
+        [
+          { channel: "x", what: "Six posts a day on chain and cost choices" },
+          {
+            channel: "tiktok",
+            what: "Seven TikToks a day, one launch step each",
+          },
+        ],
+        [
+          {
+            channel: "youtube",
+            what: "Seven YouTube Shorts a day on Studio setup",
+          },
+          { channel: "instagram", what: "Carousels on asset handoffs" },
+        ],
+        [
+          { channel: "linkedin", what: "Customer launches with their numbers" },
+          { channel: "facebook", what: "Launch results from project teams" },
+        ],
+        [{ channel: "x", what: "The free-account offer with its link" }],
+      ],
+    );
+    expect(funnelStageProblems(after, () => true)).toEqual([]);
   });
 
   it("asks for the platforms' own names, never talking or short video", () => {
@@ -2355,9 +2465,7 @@ describe("each network at its own rate, for a Cuso on cmo-v14", () => {
           item.stage === "interest"
             ? {
                 ...item,
-                plays: [
-                  { channel: "linkedin", what: "Short walkthrough videos" },
-                ],
+                plays: [{ channel: "seo", what: "Short walkthrough videos" }],
               }
             : item,
         ),
@@ -2372,9 +2480,7 @@ describe("each network at its own rate, for a Cuso on cmo-v14", () => {
             item.stage === "interest"
               ? {
                   ...item,
-                  plays: [
-                    { channel: "linkedin", what: "Weekly talking videos" },
-                  ],
+                  plays: [{ channel: "seo", what: "Weekly talking videos" }],
                 }
               : item,
           ),

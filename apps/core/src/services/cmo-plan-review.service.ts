@@ -1039,19 +1039,7 @@ export function cmoChannelFitProblems(
     strategy.funnel.find((item) => item.stage === name);
   const playsOn = (item: MarketingStrategyPlan["funnel"][number] | undefined) =>
     (item?.plays ?? []).map((play) => play.channel.toLowerCase());
-  const awareness = new Set(playsOn(stage("awareness")));
-  const unseen = strategy.channels
-    .filter(
-      (channel) =>
-        channel.role !== "side" &&
-        social(channel.channel.toLowerCase()) &&
-        !awareness.has(channel.channel.toLowerCase()),
-    )
-    .map((channel) => channel.channel.toLowerCase());
-  if (stage("awareness") && unseen.length > 0)
-    problems.push(
-      `${unseen.join(", ")} ${unseen.length === 1 ? "is a main network" : "are main networks"} but not at awareness; most of the month's posts are there, so name ${unseen.length === 1 ? "it" : "each"} with a play at awareness (it may serve a later stage too).`,
-    );
+  problems.push(...funnelStageProblems(strategy, social));
   const desire = stage("desire");
   if (desire && !playsOn(desire).some(social))
     problems.push(
@@ -1075,6 +1063,100 @@ export function cmoChannelFitProblems(
   if (generic)
     problems.push(
       `"${generic}" names a format by a word the platforms do not use; say Reel on Instagram and Facebook, YouTube Short, TikTok, carousel or thread, as the owner sees them in each app.`,
+    );
+  return problems;
+}
+
+/** The stages a network's posts serve; action may repeat one for offer posts. */
+const FUNNEL_WORK_STAGES = ["awareness", "interest", "desire"] as const;
+
+/**
+ * A buyer's inner state in journey words instead of what happens for the
+ * business (owner, 2026-11-22, NMKR: "why is 'Project leads see a launch
+ * decision they face.' awareness?").
+ */
+const ABSTRACT_GOAL =
+  /\b(see (a|an|the|how|what|which|why)|work(s|ing)? out|figur(e|es|ing) out|realiz\w*|understand\w*|feel\w*|face[sd]?|hand(ing)? off|journey|consider\w*|evaluat\w*|weigh\w*)\b/i;
+
+/** Words that name the business's product, from its offer: "NMKR", "Studio". */
+function brandWords(strategy: MarketingStrategyPlan): string[] {
+  const names = [
+    strategy.offer?.what,
+    strategy.idea?.offer,
+    strategy.ladder?.core.what,
+  ].join(" ");
+  return [
+    ...new Set(
+      [...names.matchAll(/\b[A-Z][\w.-]{2,}/g)]
+        .map((match) => match[0])
+        .filter(
+          (word) =>
+            !/^(Free|Account|The|And|With|For|Your|Trial|Plan)$/.test(word),
+        ),
+    ),
+  ];
+}
+
+/**
+ * cmo-v14's funnel reads as what happens for the business: each stage's goal
+ * names the brand or its product and says it plainly, every social network
+ * sits at the one stage its posts serve (awareness, interest or desire; the
+ * offer posts may also go at action), and each of those stages has one.
+ * NMKR's funnel once put every network at awareness and the same YouTube
+ * Shorts at interest, leaving interest with YouTube and SEO only.
+ */
+export function funnelStageProblems(
+  strategy: MarketingStrategyPlan,
+  social: (key: string) => boolean,
+): string[] {
+  const problems: string[] = [];
+  const brand = brandWords(strategy);
+  for (const stage of strategy.funnel) {
+    const goal = stage.goal ?? "";
+    if (ABSTRACT_GOAL.test(goal))
+      problems.push(
+        `the ${stage.stage} stage's goal "${goal}" is a buyer's inner thought; say plainly what happens for the business: awareness, the right people find out ${brand[0] ?? "the business"} exists; interest, they look at what ${brand.at(-1) ?? "it"} does; desire, they want it from proof, customers or results; action, the one thing they do (${strategy.offer?.action ? `"${strategy.offer.action}"` : "sign up, buy or book"}).`,
+      );
+    else if (
+      brand.length > 0 &&
+      !brand.some((word) => goal.toLowerCase().includes(word.toLowerCase()))
+    )
+      problems.push(
+        `the ${stage.stage} stage's goal "${goal}" does not name ${brand.join(" or ")}; name the business or its product and who it is for.`,
+      );
+  }
+  const networks = strategy.channels.filter((channel) =>
+    social(channel.channel.toLowerCase()),
+  ).length;
+  const at = new Map<string, string[]>();
+  for (const name of FUNNEL_WORK_STAGES) {
+    const plays = strategy.funnel
+      .find((item) => item.stage === name)
+      ?.plays.map((play) => play.channel.toLowerCase())
+      .filter(social);
+    if (!plays || plays.length === 0) {
+      // With three networks or more each of these stages gets one.
+      if (networks >= FUNNEL_WORK_STAGES.length)
+        problems.push(
+          `the ${name} stage has no social network; give it the network whose posts do that job.`,
+        );
+      continue;
+    }
+    for (const key of new Set(plays))
+      at.set(key, [...(at.get(key) ?? []), name]);
+  }
+  for (const [key, stages] of at)
+    if (stages.length > 1)
+      problems.push(
+        `${key} sits at ${stages.join(" and ")}; give each network the one stage its posts serve (its offer posts may also go at action), so each stage says what its own posts do.`,
+      );
+  const placed = new Set(at.keys());
+  const unplaced = strategy.channels
+    .map((channel) => channel.channel.toLowerCase())
+    .filter((key) => social(key) && !placed.has(key));
+  if (unplaced.length > 0)
+    problems.push(
+      `${unplaced.join(", ")} ${unplaced.length === 1 ? "is" : "are"} at no stage; name each at the stage its posts serve (awareness, interest or desire).`,
     );
   return problems;
 }
