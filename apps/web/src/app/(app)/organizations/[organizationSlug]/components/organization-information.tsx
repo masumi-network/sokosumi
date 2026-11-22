@@ -112,7 +112,9 @@ export default async function OrganizationInformation({
             </div>
           </div>
           {isOwnerOrAdmin && (
-            <CardAction>
+            // On a phone the name leaves no room beside it, so Edit and
+            // Delete go on their own row instead of past the screen edge.
+            <CardAction className="max-sm:col-start-1 max-sm:row-span-1 max-sm:row-start-auto max-sm:justify-self-start">
               <div className="flex items-center gap-1.5">
                 <OrganizationEditButton
                   organization={organization}
