@@ -4,6 +4,7 @@ import {
   type SubscriptionPlanName,
 } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
+import { seoTaskResultLink } from "@/app/seo/seo-href";
 import {
   type MentionableUser,
   TaskActivitySection,
@@ -106,6 +107,7 @@ export async function TaskActivitySectionContent({
       }
     : knownUserById;
   const agentNameById = buildAgentNameById(agents);
+  const seoResult = seoTaskResultLink(task.seoAudit);
   const canComment = canCommentOnTaskForViewer({
     taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
     taskOwnerId: task.ownerId,
@@ -149,6 +151,18 @@ export async function TaskActivitySectionContent({
       canComment={canComment}
       tableSource={taskTableSource(task)}
       taskName={task.name}
+      resultLink={
+        seoResult
+          ? {
+              href: seoResult.href,
+              label: t(
+                seoResult.kind === "audit"
+                  ? "openSeoAudit"
+                  : "openSeoProjectWorkspace",
+              ),
+            }
+          : undefined
+      }
       headerAction={
         <TaskFollowControl
           taskId={taskId}
