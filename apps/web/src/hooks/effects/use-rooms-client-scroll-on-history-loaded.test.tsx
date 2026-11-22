@@ -18,14 +18,15 @@ describe("useRoomsClientScrollOnHistoryLoaded", () => {
       messagesPending: boolean;
       opensAtUnread: boolean;
     }) {
+      // Registered before the hook so swapping useLayoutEffect for useEffect fails.
+      useEffect(() => {
+        events.push(`passive:${messagesPending}`);
+      }, [messagesPending]);
       useRoomsClientScrollOnHistoryLoaded(
         messagesPending,
         opensAtUnread,
         scrollToBottom,
       );
-      useEffect(() => {
-        events.push(`passive:${messagesPending}`);
-      }, [messagesPending]);
       return null;
     }
 

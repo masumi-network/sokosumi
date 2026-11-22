@@ -19,22 +19,32 @@ describe("useCoworkerThoughtLiveElapsed", () => {
     vi.useRealTimers();
   });
 
-  it("syncs to Date.now on mount, ticks every 100ms, and restarts on startedAtMs change", () => {
+  it("syncs to Date.now on mount, ticks every 100ms, and resyncs immediately with a fresh tick deadline on startedAtMs change", () => {
     const { rerender, unmount } = render(<ElapsedProbe startedAtMs={9_500} />);
     expect(screen.getByTestId("elapsed")).toHaveTextContent("500");
 
+    // Advance partway into the first 100ms tick (40ms): no tick yet, Date.now is 10_040.
     act(() => {
-      vi.advanceTimersByTime(300);
+      vi.advanceTimersByTime(40);
     });
-    expect(screen.getByTestId("elapsed")).toHaveTextContent("800");
+    expect(screen.getByTestId("elapsed")).toHaveTextContent("500");
 
-    rerender(<ElapsedProbe startedAtMs={10_200} />);
-    expect(screen.getByTestId("elapsed")).toHaveTextContent("100");
+    // Changing startedAtMs mid-tick immediately resyncs to Date.now (10_040) and
+    // resets the 100ms interval deadline to 10_140 (not the old 10_100 deadline).
+    rerender(<ElapsedProbe startedAtMs={10_000} />);
+    expect(screen.getByTestId("elapsed")).toHaveTextContent("40");
 
+    // Passing the old 10_100 deadline (+60ms) and up to 10_139 (+99ms) must not tick.
     act(() => {
-      vi.advanceTimersByTime(200);
+      vi.advanceTimersByTime(99);
     });
-    expect(screen.getByTestId("elapsed")).toHaveTextContent("300");
+    expect(screen.getByTestId("elapsed")).toHaveTextContent("40");
+
+    // Reaching the new deadline (10_140, +100ms from resync) ticks to 140.
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(screen.getByTestId("elapsed")).toHaveTextContent("140");
 
     unmount();
   });

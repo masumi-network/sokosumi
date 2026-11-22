@@ -7,7 +7,7 @@ interface ReopenActiveStreamThreadParams {
   isCoworkerStreamRoom: boolean;
   selectedRoom: ChatRoom | null;
   activeStreamParentMessageId: string | null;
-  threadParentMessageId: string | undefined;
+  threadParentMessage: ChatRoomMessage | null;
   topLevelRoomMessages: readonly ChatRoomMessage[];
   loadThreadMessages: (parentMessage: ChatRoomMessage) => unknown;
 }
@@ -21,7 +21,7 @@ export function useRoomsClientReopenActiveStreamThread({
   isCoworkerStreamRoom,
   selectedRoom,
   activeStreamParentMessageId,
-  threadParentMessageId,
+  threadParentMessage,
   topLevelRoomMessages,
   loadThreadMessages,
 }: ReopenActiveStreamThreadParams): void {
@@ -33,7 +33,7 @@ export function useRoomsClientReopenActiveStreamThread({
     ) {
       return;
     }
-    if (threadParentMessageId === activeStreamParentMessageId) {
+    if (threadParentMessage?.id === activeStreamParentMessageId) {
       return;
     }
     const parent =
@@ -48,7 +48,7 @@ export function useRoomsClientReopenActiveStreamThread({
     isCoworkerStreamRoom,
     selectedRoom,
     activeStreamParentMessageId,
-    threadParentMessageId,
+    threadParentMessage?.id,
     topLevelRoomMessages,
   ]);
 }

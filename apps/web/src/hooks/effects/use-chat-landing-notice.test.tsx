@@ -2,93 +2,106 @@ import { render } from "@testing-library/react";
 import { Activity, StrictMode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({
-  router: { replace: vi.fn() },
-  toastError: vi.fn(),
-  t: vi.fn((key: string) => `translated:${key}`),
-}));
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => mocks.router,
-}));
-
-vi.mock("next-intl", () => ({
-  useTranslations: () => mocks.t,
-}));
+const toastError = vi.hoisted(() => vi.fn());
 
 vi.mock("sonner", () => ({
-  toast: { error: mocks.toastError },
+  toast: { error: toastError },
 }));
 
 import { useChatLandingNotice } from "./use-chat-landing-notice";
 
-function NoticeProbe({ notice }: { notice: string | null }) {
-  useChatLandingNotice(notice);
+function NoticeProbe({
+  notice,
+  router,
+  t,
+}: {
+  notice: string | null;
+  router: { replace: (href: string, options?: { scroll?: boolean }) => void };
+  t: (key: "roomUnavailable") => string;
+}) {
+  useChatLandingNotice(notice, router, t);
   return null;
 }
 
 describe("useChatLandingNotice", () => {
   beforeEach(() => {
-    mocks.router.replace.mockClear();
-    mocks.toastError.mockClear();
-    mocks.t.mockClear();
+    toastError.mockClear();
   });
 
-  it("shows the room-unavailable toast and replaces the route only for room-unavailable", () => {
-    const { rerender, unmount } = render(<NoticeProbe notice={null} />);
-    expect(mocks.toastError).not.toHaveBeenCalled();
-    expect(mocks.router.replace).not.toHaveBeenCalled();
+  it("shows the room-unavailable toast and replaces the route only for room-unavailable, and re-runs on translator identity change", () => {
+    const router = { replace: vi.fn() };
+    const tFirst = vi.fn((key: "roomUnavailable") => `translated:${key}`);
+    const tSecond = vi.fn((key: "roomUnavailable") => `translated:${key}`);
 
-    rerender(<NoticeProbe notice="other" />);
-    expect(mocks.toastError).not.toHaveBeenCalled();
-    expect(mocks.router.replace).not.toHaveBeenCalled();
+    const { rerender, unmount } = render(
+      <NoticeProbe notice={null} router={router} t={tFirst} />,
+    );
+    expect(toastError).not.toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
 
-    rerender(<NoticeProbe notice="room-unavailable" />);
-    expect(mocks.toastError).toHaveBeenCalledExactlyOnceWith(
+    rerender(<NoticeProbe notice="other" router={router} t={tFirst} />);
+    expect(toastError).not.toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
+
+    rerender(
+      <NoticeProbe notice="room-unavailable" router={router} t={tFirst} />,
+    );
+    expect(toastError).toHaveBeenCalledExactlyOnceWith(
       "translated:roomUnavailable",
     );
-    expect(mocks.router.replace).toHaveBeenCalledExactlyOnceWith("/", {
+    expect(router.replace).toHaveBeenCalledExactlyOnceWith("/", {
       scroll: false,
     });
+
+    // A new translator identity returning the same string still re-triggers the effect.
+    rerender(
+      <NoticeProbe notice="room-unavailable" router={router} t={tSecond} />,
+    );
+    expect(toastError).toHaveBeenCalledTimes(2);
+    expect(router.replace).toHaveBeenCalledTimes(2);
+    expect(tSecond).toHaveBeenCalledExactlyOnceWith("roomUnavailable");
 
     unmount();
   });
 
   it("matches StrictMode replay and Activity hide/reveal calls", () => {
+    const router = { replace: vi.fn() };
+    const t = vi.fn((key: "roomUnavailable") => `translated:${key}`);
+
     const strict = render(
       <StrictMode>
-        <NoticeProbe notice="room-unavailable" />
+        <NoticeProbe notice="room-unavailable" router={router} t={t} />
       </StrictMode>,
     );
-    expect(mocks.toastError).toHaveBeenCalledTimes(2);
-    expect(mocks.router.replace).toHaveBeenCalledTimes(2);
+    expect(toastError).toHaveBeenCalledTimes(2);
+    expect(router.replace).toHaveBeenCalledTimes(2);
     strict.unmount();
 
-    mocks.toastError.mockClear();
-    mocks.router.replace.mockClear();
+    toastError.mockClear();
+    router.replace.mockClear();
 
     const activity = render(
       <Activity mode="visible">
-        <NoticeProbe notice="room-unavailable" />
+        <NoticeProbe notice="room-unavailable" router={router} t={t} />
       </Activity>,
     );
-    expect(mocks.toastError).toHaveBeenCalledTimes(1);
-    expect(mocks.router.replace).toHaveBeenCalledTimes(1);
+    expect(toastError).toHaveBeenCalledTimes(1);
+    expect(router.replace).toHaveBeenCalledTimes(1);
 
     activity.rerender(
       <Activity mode="hidden">
-        <NoticeProbe notice="room-unavailable" />
+        <NoticeProbe notice="room-unavailable" router={router} t={t} />
       </Activity>,
     );
-    expect(mocks.toastError).toHaveBeenCalledTimes(1);
+    expect(toastError).toHaveBeenCalledTimes(1);
 
     activity.rerender(
       <Activity mode="visible">
-        <NoticeProbe notice="room-unavailable" />
+        <NoticeProbe notice="room-unavailable" router={router} t={t} />
       </Activity>,
     );
-    expect(mocks.toastError).toHaveBeenCalledTimes(2);
-    expect(mocks.router.replace).toHaveBeenCalledTimes(2);
+    expect(toastError).toHaveBeenCalledTimes(2);
+    expect(router.replace).toHaveBeenCalledTimes(2);
     activity.unmount();
   });
 });

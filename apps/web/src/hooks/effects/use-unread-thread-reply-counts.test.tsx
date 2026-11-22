@@ -196,7 +196,28 @@ describe("useUnreadThreadReplyCounts", () => {
         </StrictMode>,
       );
 
-      // StrictMode replay cancels the first timer, so only one action fires after 150ms.
+      // Hiding before the 150ms debounce deadline cancels the queued read.
+      rerender(
+        <StrictMode>
+          <Activity mode="hidden">
+            <Probe roomId="room-1" refreshKey="0:false" />
+          </Activity>
+        </StrictMode>,
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200);
+      });
+      expect(listUnreadThreadReplyCountsAction).not.toHaveBeenCalled();
+
+      // Revealing schedules the read; StrictMode replay cancels the first timer,
+      // so only one action fires after 150ms.
+      rerender(
+        <StrictMode>
+          <Activity mode="visible">
+            <Probe roomId="room-1" refreshKey="0:false" />
+          </Activity>
+        </StrictMode>,
+      );
       await act(async () => {
         await vi.advanceTimersByTimeAsync(150);
       });

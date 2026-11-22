@@ -18,14 +18,14 @@ describe("useRoomsClientReopenActiveStreamThread", () => {
       isCoworkerStreamRoom = true,
       selectedRoom = ROOM as ChatRoom | null,
       activeStreamParentMessageId = "parent-1" as string | null,
-      threadParentMessageId = undefined as string | undefined,
+      threadParentMessage = null as ChatRoomMessage | null,
       topLevelRoomMessages = messages,
       onLoad = loadThreadMessages,
     }: {
       isCoworkerStreamRoom?: boolean;
       selectedRoom?: ChatRoom | null;
       activeStreamParentMessageId?: string | null;
-      threadParentMessageId?: string;
+      threadParentMessage?: ChatRoomMessage | null;
       topLevelRoomMessages?: ChatRoomMessage[];
       onLoad?: (parent: ChatRoomMessage) => void;
     }) {
@@ -33,7 +33,7 @@ describe("useRoomsClientReopenActiveStreamThread", () => {
         isCoworkerStreamRoom,
         selectedRoom,
         activeStreamParentMessageId,
-        threadParentMessageId,
+        threadParentMessage,
         topLevelRoomMessages,
         loadThreadMessages: onLoad,
       });
@@ -54,15 +54,15 @@ describe("useRoomsClientReopenActiveStreamThread", () => {
     rerender(<Probe activeStreamParentMessageId="missing" />);
     expect(loadThreadMessages).not.toHaveBeenCalled();
 
-    rerender(<Probe threadParentMessageId="parent-1" />);
+    rerender(<Probe threadParentMessage={PARENT} />);
     expect(loadThreadMessages).not.toHaveBeenCalled();
 
-    rerender(<Probe threadParentMessageId={undefined} />);
+    rerender(<Probe threadParentMessage={null} />);
     expect(loadThreadMessages).toHaveBeenCalledExactlyOnceWith(PARENT);
 
     // Changing only loadThreadMessages identity does not re-trigger (exact 5-dep parity).
     const nextLoad = vi.fn();
-    rerender(<Probe threadParentMessageId={undefined} onLoad={nextLoad} />);
+    rerender(<Probe threadParentMessage={null} onLoad={nextLoad} />);
     expect(nextLoad).not.toHaveBeenCalled();
     expect(loadThreadMessages).toHaveBeenCalledTimes(1);
 
@@ -78,7 +78,7 @@ describe("useRoomsClientReopenActiveStreamThread", () => {
         isCoworkerStreamRoom: true,
         selectedRoom: ROOM,
         activeStreamParentMessageId: "parent-1",
-        threadParentMessageId: undefined,
+        threadParentMessage: null,
         topLevelRoomMessages: messages,
         loadThreadMessages,
       });

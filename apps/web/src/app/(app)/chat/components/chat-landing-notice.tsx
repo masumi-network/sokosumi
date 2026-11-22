@@ -1,5 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+
 import { useChatLandingNotice } from "@/hooks/effects/use-chat-landing-notice";
 
 /**
@@ -7,7 +10,10 @@ import { useChatLandingNotice } from "@/hooks/effects/use-chat-landing-notice";
  * Query: `?notice=room-unavailable` on Welcome (`/`).
  */
 export function ChatLandingNotice({ notice }: { notice: string | null }) {
-  useChatLandingNotice(notice);
+  const t = useTranslations("App.Channels");
+  const router = useRouter();
+
+  useChatLandingNotice(notice, router, t);
 
   return null;
 }

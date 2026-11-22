@@ -1647,7 +1647,7 @@ function RoomView({
     isCoworkerStreamRoom,
     selectedRoom,
     activeStreamParentMessageId,
-    threadParentMessageId: threadParentMessage?.id,
+    threadParentMessage,
     topLevelRoomMessages,
     loadThreadMessages,
   });
