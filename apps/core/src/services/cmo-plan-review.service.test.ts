@@ -29,6 +29,7 @@ import {
   cmoLeftOutProblems,
   cmoMonthShortfall,
   cmoNewNetworkProblems,
+  cmoPlainWordsProblems,
   cmoPlanDrift,
   cmoPlanProblems,
   cmoPlanProblemsSince,
@@ -1227,6 +1228,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       claims: false,
       partPatch: false,
       channelFit: false,
+      plainWords: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-weekly"])).toEqual({
       weekly: true,
@@ -1235,6 +1237,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       claims: false,
       partPatch: false,
       channelFit: false,
+      plainWords: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-part-patch"])).toEqual({
       weekly: true,
@@ -1243,6 +1246,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       claims: true,
       partPatch: true,
       channelFit: false,
+      plainWords: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-channel-fit"])).toEqual({
       weekly: true,
@@ -1251,6 +1255,16 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       claims: true,
       partPatch: true,
       channelFit: true,
+      plainWords: false,
+    });
+    expect(cmoStrategyRules(["cmo-strategy-plain-words"])).toEqual({
+      weekly: true,
+      aida: true,
+      everyNetwork: true,
+      claims: true,
+      partPatch: true,
+      channelFit: true,
+      plainWords: true,
     });
     expect(cmoStrategyRules(["cmo-strategy-patches"])).toEqual({
       weekly: false,
@@ -1259,6 +1273,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       claims: false,
       partPatch: false,
       channelFit: false,
+      plainWords: false,
     });
   });
 
@@ -1930,6 +1945,7 @@ describe("claims", () => {
       claims: true,
       partPatch: false,
       channelFit: false,
+      plainWords: false,
     });
     const strategy = plan({
       calendar: [
@@ -2498,5 +2514,49 @@ describe("each network at its own rate, for a Cuso on cmo-v14", () => {
     expect(
       problems.filter((problem) => problem.includes("videos; plan at most")),
     ).toEqual([]);
+  });
+});
+
+// Owner, 2026-11-22, on NMKR's cmo-v14 strategy: "crystal clear and
+// understandable for non-marketing people. EASY."
+describe("cmoPlainWordsProblems", () => {
+  it("names each marketing word the owner reads, where it is and what to say", () => {
+    const nmkr = plan({
+      objective: {
+        outcome: "More qualified teams starting their first Studio project",
+        metric: "First projects",
+        target: "",
+      },
+      funnel: [
+        {
+          stage: "awareness",
+          goal: "Project leads see a launch decision they face.",
+          channels: [],
+          metric: "Launch content impressions",
+          plays: [{ channel: "x", what: "Network and cost decisions" }],
+        },
+      ],
+    } as Partial<MarketingStrategyPlan>);
+    const problems = cmoPlainWordsProblems(nmkr);
+    expect(problems).toEqual([
+      expect.stringMatching(/^the goal says "qualified"/),
+      expect.stringMatching(
+        /^the awareness stage's number says "impressions".*how many people saw it/,
+      ),
+    ]);
+    expect(
+      cmoPlanProblems(nmkr, { plainWords: true }).filter((problem) =>
+        problem.includes("not a marketer"),
+      ),
+    ).toHaveLength(2);
+    expect(
+      cmoPlanProblems(nmkr, {}).some((problem) =>
+        problem.includes("not a marketer"),
+      ),
+    ).toBe(false);
+  });
+
+  it("passes the plain base plan, operations leads and all", () => {
+    expect(cmoPlainWordsProblems(plan())).toEqual([]);
   });
 });

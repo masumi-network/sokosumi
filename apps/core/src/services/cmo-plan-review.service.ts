@@ -4,12 +4,14 @@ import {
   CMO_CHANNEL_FIT_STRATEGY_SKILL,
   CMO_CLAIMS_STRATEGY_SKILL,
   CMO_PART_PATCH_STRATEGY_SKILL,
+  CMO_PLAIN_WORDS_STRATEGY_SKILL,
   type MarketingStrategyPlan,
 } from "@sokosumi/soko-bot";
 import {
   CMO_CHANNELS,
   CMO_NETWORK_VOLUME,
   type CmoNetworkRate,
+  cmoJargonIn,
   cmoNetworkMonth,
 } from "@sokosumi/utils";
 
@@ -189,6 +191,7 @@ export function cmoPlanProblems(
       ...askedForNothingProblems(strategy),
     );
   if (options.channelFit) problems.push(...cmoChannelFitProblems(strategy));
+  if (options.plainWords) problems.push(...cmoPlainWordsProblems(strategy));
   if (!strategy.idea)
     problems.push(
       "idea is missing: who you target, how the business is positioned, how people are attracted, the offer, and the sentence that joins them.",
@@ -345,6 +348,8 @@ export interface PlanReviewOptions {
   partPatch?: boolean;
   /** Each network at its own rate, short video daily and real format names (cmo-v14's strategy skill). */
   channelFit?: boolean;
+  /** What the owner reads is in plain words, no marketing jargon (cmo-v15's strategy skill). */
+  plainWords?: boolean;
   /** The social networks the Project has connected, which are never left out. */
   connectedNetworks?: readonly string[];
 }
@@ -357,8 +362,11 @@ export const EVERY_NETWORK_STRATEGY_SKILL = "cmo-strategy-every-network";
 
 /** What the strategy review asks of a Cuso, from the strategy skill his version reads. */
 export function cmoStrategyRules(skills: readonly string[]): PlanReviewOptions {
+  // cmo-v15's strategy skill is cmo-v14's in plain words.
+  const plainWords = skills.includes(CMO_PLAIN_WORDS_STRATEGY_SKILL);
   // cmo-v14's strategy skill is cmo-v13's with each network at its own rate.
-  const channelFit = skills.includes(CMO_CHANNEL_FIT_STRATEGY_SKILL);
+  const channelFit =
+    plainWords || skills.includes(CMO_CHANNEL_FIT_STRATEGY_SKILL);
   // cmo-v13's strategy skill is cmo-v8's with every part change a patch.
   const partPatch =
     channelFit || skills.includes(CMO_PART_PATCH_STRATEGY_SKILL);
@@ -372,6 +380,7 @@ export function cmoStrategyRules(skills: readonly string[]): PlanReviewOptions {
     claims,
     partPatch,
     channelFit,
+    plainWords,
   };
 }
 
@@ -2349,4 +2358,69 @@ export async function cmoSpreadPoints(
         });
   }
   return { pieces: moved, costUsd: costUsd + asked };
+}
+
+/** At most this many words to fix per review, so the rest of the review still reads. */
+const MAX_JARGON_PROBLEMS = 4;
+
+/**
+ * The places the owner reads: the strategy's own words, not the posts their
+ * buyers read (those follow the brand's voice) and not its history.
+ */
+function ownerTexts(plan: MarketingStrategyPlan): [string, string][] {
+  const texts: [string, string | undefined | null][] = [
+    ["the goal", plan.objective?.outcome],
+    ["the summary", plan.summary],
+    ["the strategy sentence", plan.idea?.sentence],
+    ["who it is for", plan.idea?.who],
+    ["what stops people buying", plan.barrier?.text],
+    ["the ads line", plan.ads?.without],
+    ["the main number", plan.measurement?.primary],
+    ...plan.goals.map((goal): [string, string] => ["a goal", goal]),
+    ...plan.funnel.flatMap((stage): [string, string | undefined][] => [
+      [`the ${stage.stage} stage's goal`, stage.goal],
+      [`the ${stage.stage} stage's number`, stage.metric],
+      [`what you do at ${stage.stage}`, stage.cusoDoes],
+      [`what the owner does at ${stage.stage}`, stage.youDo],
+      ...stage.plays.map((play): [string, string] => [
+        `a ${stage.stage} play`,
+        play.what,
+      ]),
+    ]),
+    ...plan.channels.map((channel): [string, string | undefined] => [
+      `${channel.channel}'s why`,
+      channel.why,
+    ]),
+    ...plan.questions.map((question): [string, string] => [
+      "a question",
+      question.question,
+    ]),
+    ...plan.pillars.map((pillar): [string, string | undefined] => [
+      `the pillar ${pillar.name}`,
+      `${pillar.name}. ${pillar.why ?? ""}`,
+    ]),
+  ];
+  return texts.flatMap(([where, text]) =>
+    text?.trim() ? [[where, text.trim()] as [string, string]] : [],
+  );
+}
+
+/**
+ * Marketing words in what the owner reads (cmo-v15; owner, 2026-11-22, on
+ * NMKR's "More qualified teams starting their first Studio project" and
+ * "Launch content impressions"). One problem per word, with where it is and
+ * the plain thing to say.
+ */
+export function cmoPlainWordsProblems(
+  strategy: MarketingStrategyPlan,
+): string[] {
+  const found = new Map<string, string>();
+  for (const [where, text] of ownerTexts(strategy))
+    for (const { term, plain } of cmoJargonIn(text))
+      if (!found.has(term))
+        found.set(
+          term,
+          `${where} says "${term}" ("${text.slice(0, 80)}"); the owner is not a marketer: say ${plain}, naming the business, the buyer and what they do.`,
+        );
+  return [...found.values()].slice(0, MAX_JARGON_PROBLEMS);
 }

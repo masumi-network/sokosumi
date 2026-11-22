@@ -48,6 +48,7 @@ import {
 } from "../versions/cmo-v12-skills.js";
 import { CMO_PART_PATCH_STRATEGY_SKILL } from "../versions/cmo-v13-skills.js";
 import { CMO_CHANNEL_FIT_STRATEGY_SKILL } from "../versions/cmo-v14-skills.js";
+import { CMO_PLAIN_WORDS_STRATEGY_SKILL } from "../versions/cmo-v15-skills.js";
 import {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
@@ -180,9 +181,9 @@ describe("CMO version", () => {
     );
   });
 
-  // Owner, 2026-11-21: each network at its own rate, short video daily.
-  it("makes cmo-v14 the version a new hire gets", () => {
-    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v14");
+  // Owner, 2026-11-22: plain words for founders who are not marketers.
+  it("makes cmo-v15 the version a new hire gets", () => {
+    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v15");
   });
 
   it("has cmo-v8 build on cmo-v7 with claims, varied pictures and LinkedIn openings", () => {
@@ -373,6 +374,38 @@ describe("CMO version", () => {
     );
     expect(strategy).not.toContain("three a day on X");
     expect(strategy).not.toContain("plan at most four a month, only where");
+  });
+
+  // Owner, 2026-11-22, on NMKR's cmo-v14 strategy: "crystal clear and
+  // understandable for non-marketing people. EASY."
+  it("has cmo-v15 be cmo-v14 in plain words, in the strategy and the chat", () => {
+    const v14 = getSokoBotVersion("cmo-v14");
+    const v15 = getSokoBotVersion("cmo-v15");
+    expect(v15.strongModel).toBe(v14.strongModel);
+    expect(v15.skills).toEqual(
+      v14.skills.map((skill) =>
+        skill === CMO_CHANNEL_FIT_STRATEGY_SKILL
+          ? CMO_PLAIN_WORDS_STRATEGY_SKILL
+          : skill,
+      ),
+    );
+    expect(v15.systemPrompt.startsWith(v14.systemPrompt.slice(0, 200))).toBe(
+      true,
+    );
+    expect(v15.systemPrompt).toContain(
+      '"impressions" → how many people saw it',
+    );
+    expect(v15.systemPrompt).toContain(
+      "never ask them to send you the calendar",
+    );
+    const strategy = getSokoBotSkill(CMO_PLAIN_WORDS_STRATEGY_SKILL).content;
+    expect(strategy).toContain(
+      getSokoBotSkill(CMO_CHANNEL_FIT_STRATEGY_SKILL).content,
+    );
+    expect(strategy).toContain("# Words for an owner who is not a marketer");
+    expect(strategy).toContain(
+      '"funnel" → the steps from first hearing of you to buying',
+    );
   });
 
   it("keeps a piece's claim on its plan entry and its Social post", () => {

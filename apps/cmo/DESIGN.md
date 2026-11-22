@@ -55,7 +55,9 @@ Rules for any copy: onboarding, messages inside the app, marketing site, ads, er
 - Minimal to no em dashes or hyphens.
 - The month of marketing the agent writes is the strategy, never the plan. A plan is a paid CMO plan.
 - What Cuso makes is a post, or an ad, an article or an email when it is one. Never a piece.
-- Banned words and phrases: none locked yet. Flag anything that reads as hype or invented confidence for review.
+- **Written for non-marketers.** The owner is a founder who is not a marketer and has two minutes. Every label, message and strategy line says what happens for their business in their words: the brand, the buyer and the concrete action ("Project leads open a free NMKR Studio account"), never the buyer's inner state ("Leads work out which steps they can hand off"). Before shipping copy, read it as that founder: do I get it on first read, is there a word I'd look up, does a number disagree with another screen, could it be half as long?
+- **One number per fact.** The same count reads the same on every screen ("Up to 840 posts" and the plan that makes all of it both say 840).
+- **Marketing words stay out.** The list with what to say instead is `CMO_PLAIN_WORDS` in `packages/utils/src/cmo-plain-words.ts` (impressions, engagement, CTR, conversion, leads, qualified, funnel, cadence, ICP, SERP, KPI, touchpoint, nurture, activation, attribution, retargeting, UGC, CTA…). Cuso's rules quote it from cmo-v15 on, and Core's strategy review refuses it in what the owner reads (`cmoPlainWordsProblems`). Where a term must stay, give it one plain line ("Content pillars: the few topics your posts keep coming back to"). Also flag anything that reads as hype or invented confidence.
 
 Example prompt responses, from the current live build:
 
