@@ -574,6 +574,28 @@ describe("the plan starts when the research ends", () => {
     await requireCmoStrategyFitted(HIRE, short.id);
   });
 
+  it("fits a cmo-v14 month after its sixth finish turn", async () => {
+    const week = (index: number) => ({
+      ...strategy.calendar[0],
+      id: `v14-${index}`,
+      date: `2026-10-${String(1 + index * 7).padStart(2, "0")}`,
+    });
+    const short = seedStrategy({
+      ...strategy,
+      calendar: [0, 1, 2, 3].map(week),
+    });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v14" });
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: "cmo:strategy:bot-1:finish:1795308874573:6",
+      }),
+    ).resolves.toBeNull();
+    expect(startTurn).not.toHaveBeenCalled();
+    await requireCmoStrategyFitted(HIRE, short.id);
+  });
+
   it("finishes a month whose funnel promises video the calendar does not hold", async () => {
     // Four weeks at the owner's "3 a week", and a play that promises video.
     const day = (index: number) => ({

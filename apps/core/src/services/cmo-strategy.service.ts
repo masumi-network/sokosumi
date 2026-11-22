@@ -476,7 +476,8 @@ async function startCmoMonthFinish(
   cuso: Cuso,
 ): Promise<{ turnId: string } | null> {
   const round = finishRound(input.clientTurnId);
-  if (round < 0 || round >= CMO_CHANNEL_FIT_FINISH_TURNS) return null;
+  // The last finish turn still reaches the fit below.
+  if (round < 0) return null;
   const [bot, version] = await Promise.all([
     prisma.sokoBot.findUnique({
       where: { id: cuso.sokoBotId },
