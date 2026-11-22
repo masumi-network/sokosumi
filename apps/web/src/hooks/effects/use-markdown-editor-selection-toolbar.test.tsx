@@ -46,6 +46,22 @@ describe("useMarkdownEditorSelectionToolbar", () => {
       savedRange: Range | null;
     } = { rect: null, savedRange: null };
 
+    const hookListeners = new Set<EventListener>();
+    const hookSelectionAdds = () =>
+      addSpy.mock.calls.filter(
+        ([event, listener]) =>
+          event === "selectionchange" &&
+          typeof listener === "function" &&
+          hookListeners.has(listener),
+      );
+    const hookSelectionRemoves = () =>
+      removeSpy.mock.calls.filter(
+        ([event, listener]) =>
+          event === "selectionchange" &&
+          typeof listener === "function" &&
+          hookListeners.has(listener),
+      );
+
     function Probe({
       variant,
       saveSelectionRange,
@@ -55,12 +71,14 @@ describe("useMarkdownEditorSelectionToolbar", () => {
     }) {
       const editorRef = useRef<HTMLDivElement>(null);
       const savedSelectionRangeRef = useRef<Range | null>(null);
-      const { selectionRect } = useMarkdownEditorSelectionToolbar({
-        editorRef,
-        savedSelectionRangeRef,
-        saveSelectionRange,
-        variant,
-      });
+      const { selectionRect, updateSelectionToolbar } =
+        useMarkdownEditorSelectionToolbar({
+          editorRef,
+          savedSelectionRangeRef,
+          saveSelectionRange,
+          variant,
+        });
+      hookListeners.add(updateSelectionToolbar);
       captured.rect = selectionRect;
       captured.savedRange = savedSelectionRangeRef.current;
       return (
@@ -78,15 +96,11 @@ describe("useMarkdownEditorSelectionToolbar", () => {
     const { rerender, unmount } = render(
       <Probe variant="field" saveSelectionRange={saveA} />,
     );
-    expect(
-      addSpy.mock.calls.filter(([event]) => event === "selectionchange"),
-    ).toHaveLength(0);
+    expect(hookSelectionAdds()).toHaveLength(0);
     expect(captured.rect).toBeNull();
 
     rerender(<Probe variant="document" saveSelectionRange={saveA} />);
-    expect(
-      addSpy.mock.calls.filter(([event]) => event === "selectionchange"),
-    ).toHaveLength(1);
+    expect(hookSelectionAdds()).toHaveLength(1);
 
     const editor = screen.getByTestId("editor");
     act(() => {
@@ -98,12 +112,8 @@ describe("useMarkdownEditorSelectionToolbar", () => {
 
     // Changing saveSelectionRange between events must rebind the listener to the new callback.
     rerender(<Probe variant="document" saveSelectionRange={saveB} />);
-    expect(
-      removeSpy.mock.calls.filter(([event]) => event === "selectionchange"),
-    ).toHaveLength(1);
-    expect(
-      addSpy.mock.calls.filter(([event]) => event === "selectionchange"),
-    ).toHaveLength(2);
+    expect(hookSelectionRemoves()).toHaveLength(1);
+    expect(hookSelectionAdds()).toHaveLength(2);
 
     act(() => {
       document.dispatchEvent(new Event("selectionchange"));
@@ -113,9 +123,7 @@ describe("useMarkdownEditorSelectionToolbar", () => {
 
     // Switching back to field variant detaches listener and clears selectionRect.
     rerender(<Probe variant="field" saveSelectionRange={saveB} />);
-    expect(
-      removeSpy.mock.calls.filter(([event]) => event === "selectionchange"),
-    ).toHaveLength(2);
+    expect(hookSelectionRemoves()).toHaveLength(2);
     expect(captured.rect).toBeNull();
 
     unmount();
@@ -128,16 +136,32 @@ describe("useMarkdownEditorSelectionToolbar", () => {
     const addSpy = vi.spyOn(document, "addEventListener");
     const removeSpy = vi.spyOn(document, "removeEventListener");
     const save = vi.fn();
+    const hookListeners = new Set<EventListener>();
+    const hookSelectionAdds = () =>
+      addSpy.mock.calls.filter(
+        ([event, listener]) =>
+          event === "selectionchange" &&
+          typeof listener === "function" &&
+          hookListeners.has(listener),
+      );
+    const hookSelectionRemoves = () =>
+      removeSpy.mock.calls.filter(
+        ([event, listener]) =>
+          event === "selectionchange" &&
+          typeof listener === "function" &&
+          hookListeners.has(listener),
+      );
 
     function Probe() {
       const editorRef = useRef<HTMLDivElement>(null);
       const savedSelectionRangeRef = useRef<Range | null>(null);
-      useMarkdownEditorSelectionToolbar({
+      const { updateSelectionToolbar } = useMarkdownEditorSelectionToolbar({
         editorRef,
         savedSelectionRangeRef,
         saveSelectionRange: save,
         variant: "document",
       });
+      hookListeners.add(updateSelectionToolbar);
       return (
         <div
           ref={editorRef}
@@ -157,12 +181,8 @@ describe("useMarkdownEditorSelectionToolbar", () => {
         </Activity>
       </StrictMode>,
     );
-    expect(
-      addSpy.mock.calls.filter(([event]) => event === "selectionchange"),
-    ).toHaveLength(2);
-    expect(
-      removeSpy.mock.calls.filter(([event]) => event === "selectionchange"),
-    ).toHaveLength(1);
+    expect(hookSelectionAdds()).toHaveLength(2);
+    expect(hookSelectionRemoves()).toHaveLength(1);
 
     const editor = screen.getByTestId("editor");
     rerender(
@@ -172,9 +192,7 @@ describe("useMarkdownEditorSelectionToolbar", () => {
         </Activity>
       </StrictMode>,
     );
-    expect(
-      removeSpy.mock.calls.filter(([event]) => event === "selectionchange"),
-    ).toHaveLength(2);
+    expect(hookSelectionRemoves()).toHaveLength(2);
 
     // Events while hidden must not invoke the detached listener.
     act(() => {
