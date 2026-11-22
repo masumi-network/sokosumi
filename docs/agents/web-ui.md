@@ -181,6 +181,14 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-seo-focus-handoff-target` (`useSeoFocusHandoffTarget`) — focuses the SEO focus-handoff status target with `preventScroll` when armed, visible, and focus fell to `document.body`
 - `use-seo-focus-handoff-dialog-return` (`useSeoFocusHandoffDialogReturn`) — returns focus to the first control button in the SEO focus-handoff container when its dialog closes without replacing the control
 - `use-seo-connection-callback` (`useSeoConnectionCallback`) — completes the native SEO OAuth connection callback on mount, broadcasts completion, closes the popup, and supports explicit retry
+- `use-create-task-modal-data` (`useCreateTaskModalData`) — lazily loads agent names, design.md attachment, and project options when `CreateTaskModal` opens without caller-owned data
+- `use-markdown-editor-value-sync` (`useMarkdownEditorValueSync`) — syncs external `value` prop updates into `MarkdownEditor`'s `contentEditable` DOM while avoiding cursor jumps on focused edits
+- `use-markdown-editor-blur-timeout-cleanup` (`useMarkdownEditorBlurTimeoutCleanup`) — clears any pending `MarkdownEditor` mention-dropdown blur timeout on passive unmount or `<Activity>` hide
+- `use-markdown-editor-selection-toolbar` (`useMarkdownEditorSelectionToolbar`) — tracks the active selection rectangle via `document` `selectionchange` for `MarkdownEditor`'s floating `"document"` format toolbar
+- `use-markdown-editor-format-toolbar-width` (`useMarkdownEditorFormatToolbarWidth`) — measures `MarkdownEditor`'s floating format toolbar width before paint when `selectionRect` updates
+- `use-task-schedule-copy-projects` (`useTaskScheduleCopyProjects`, `isCopyDestination`) — loads and paginates eligible copy-destination projects for `TaskScheduleCopyProjectPicker` with request-id stale response filtering
+- `use-task-schedules-show-all-focus` (`useTaskSchedulesShowAllFocus`) — moves focus to the All tab when `TaskSchedulesView` remounts at the URL armed by a "Show all schedules" click
+- `use-task-schedules-pagination` (`useTaskSchedulesPagination`) — owns `TaskSchedulesView` pagination state, refresh invalidation, and search-driven auto-paging across remaining cursor pages
 
 ### React Query in migrations
 
