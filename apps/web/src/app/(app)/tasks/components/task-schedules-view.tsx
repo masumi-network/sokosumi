@@ -5,15 +5,7 @@ import { CalendarSync, Plus } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, useQueryState } from "nuqs";
-import {
-  useEffect,
-  useEffectEvent,
-  useOptimistic,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
-import { loadMoreTaskSchedules } from "@/app/tasks/actions";
+import { useOptimistic, useRef, useState, useTransition } from "react";
 import {
   taskScheduleAssigneeId,
   taskSchedulePath,
@@ -37,8 +29,8 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { useLoadWhenVisible } from "@/hooks/effects/use-load-when-visible";
-import { useMountEffect } from "@/hooks/use-mount-effect";
-import type { TaskSchedulesPage } from "@/lib/services/task-schedule.service";
+import { useTaskSchedulesPagination } from "@/hooks/effects/use-task-schedules-pagination";
+import { useTaskSchedulesShowAllFocus } from "@/hooks/effects/use-task-schedules-show-all-focus";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import {
   type SchedulesViewMode,
@@ -50,20 +42,6 @@ import { TaskScheduleDialog } from "./task-schedule-dialog";
 import { TaskScheduleRow } from "./task-schedule-row";
 
 const ALL_STATES = "all";
-
-/**
- * Where a "Show all schedules" click is headed. The button unmounts with the
- * empty state and the new filter remounts this view (the page keys it by
- * filter), so the request to land on the All tab outlives the instance that
- * made it. Only a view mounted at this URL uses it; every mount, any other
- * filter change and leaving for another URL drop it, so a stale request never
- * moves focus (focusing a Radix tab selects it).
- */
-let showAllDestination: string | null = null;
-
-function currentUrl(): string {
-  return `${window.location.pathname}${window.location.search}`;
-}
 
 interface TaskSchedulesViewProps {
   defaultViewMode?: SchedulesViewMode;
@@ -110,20 +88,17 @@ export function TaskSchedulesView({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [more, setMore] = useState<TaskSchedulesPage | null>(null);
-  const additionalPage = more ?? { schedules: [], nextCursor };
-  const pageGeneration = useRef(0);
-  const [isRefreshing, startRefreshing] = useTransition();
-  const [isLoadingMore, startLoadingMore] = useTransition();
-  const [hasFailed, setHasFailed] = useState(false);
   const boundaryRef = useRef<HTMLDivElement | null>(null);
   const allTabRef = useRef<HTMLButtonElement | null>(null);
   // The filter is server state; show the pick until the navigation lands.
   const [shownState, setShownState] = useOptimistic(selectedState);
   const [, startFiltering] = useTransition();
 
+  const { armShowAllFocus, clearShowAllFocus } =
+    useTaskSchedulesShowAllFocus(allTabRef);
+
   function handleStateChange(next: string): string {
-    showAllDestination = null;
+    clearShowAllFocus();
     const params = new URLSearchParams(searchParams.toString());
     // Preserve the latest keystroke even if the shallow URL update is pending.
     if (query) params.set("q", query);
@@ -143,61 +118,26 @@ export function TaskSchedulesView({
     return href;
   }
 
-  useMountEffect(() => {
-    const arrived = showAllDestination === currentUrl();
-    showAllDestination = null;
-    if (arrived) allTabRef.current?.focus();
-    return () => {
-      // Unmounted for anything but the Show all landing: drop the request.
-      if (showAllDestination !== currentUrl()) showAllDestination = null;
-    };
-  });
-
   function handleShowAll() {
-    showAllDestination = handleStateChange(ALL_STATES);
+    armShowAllFocus(handleStateChange(ALL_STATES));
   }
 
-  function handleScheduleChanged() {
-    pageGeneration.current += 1;
-    setHasFailed(false);
-    startRefreshing(() => {
-      setMore(null);
-      router.refresh();
-    });
-  }
-
-  function handleLoadMore() {
-    const cursor = additionalPage.nextCursor;
-    if (!cursor || isRefreshing || isLoadingMore) return;
-    const generation = pageGeneration.current;
-    setHasFailed(false);
-    startLoadingMore(async () => {
-      try {
-        const page = await loadMoreTaskSchedules({
-          cursor,
-          projectId: selectedProjectId,
-          state: selectedState,
-        });
-        if (generation !== pageGeneration.current) return;
-        setMore((current) => ({
-          schedules: [...(current?.schedules ?? []), ...page.schedules],
-          nextCursor: page.nextCursor,
-        }));
-      } catch {
-        // Stop loading on its own until the reader asks again, rather than
-        // hammering a server that just said no.
-        if (generation === pageGeneration.current) setHasFailed(true);
-      }
-    });
-  }
-
-  // A refresh can bring back rows a "Load more" already appended.
-  const loaded = [
-    ...schedules,
-    ...additionalPage.schedules.filter(
-      (extra) => !schedules.some((row) => row.id === extra.id),
-    ),
-  ];
+  const {
+    loaded,
+    nextCursor: additionalNextCursor,
+    isRefreshing,
+    isLoadingMore,
+    hasFailed,
+    handleScheduleChanged,
+    handleLoadMore,
+  } = useTaskSchedulesPagination({
+    schedules,
+    nextCursor,
+    selectedProjectId,
+    selectedState,
+    searching,
+    router,
+  });
 
   const rows = rankPageItems(loaded, query, (schedule) => ({
     primary: [schedule.name],
@@ -210,14 +150,6 @@ export function TaskSchedulesView({
       )?.name,
     ],
   }));
-  const searchNextPage = useEffectEvent(handleLoadMore);
-  const searchCursor =
-    searching && !hasFailed && !isLoadingMore && !isRefreshing
-      ? additionalPage.nextCursor
-      : null;
-  useEffect(() => {
-    if (searchCursor) searchNextPage();
-  }, [searchCursor]);
 
   const shownValue = shownState ?? ALL_STATES;
   // The first-use text stays for a workspace with no schedules at all.
@@ -228,7 +160,7 @@ export function TaskSchedulesView({
   useLoadWhenVisible(boundaryRef, {
     armed:
       !searching &&
-      Boolean(additionalPage.nextCursor) &&
+      Boolean(additionalNextCursor) &&
       !isLoadingMore &&
       !isRefreshing &&
       !hasFailed,
@@ -307,7 +239,7 @@ export function TaskSchedulesView({
             className="text-muted-foreground p-4 text-center text-sm"
             role="status"
           >
-            {additionalPage.nextCursor
+            {additionalNextCursor
               ? hasFailed
                 ? null
                 : tSearch("searching")
@@ -376,7 +308,7 @@ export function TaskSchedulesView({
           </ul>
         )}
 
-        {additionalPage.nextCursor ? (
+        {additionalNextCursor ? (
           // Loads on its own as it scrolls into view, and stays a button so a
           // click works where no observer runs.
           <div
