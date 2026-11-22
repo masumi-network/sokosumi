@@ -15,7 +15,7 @@ function deferred<T>() {
 
 describe("useFileHeadMetadata", () => {
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("fetches HEAD headers for url, aborts on url change, and suppresses late updates after unmount", async () => {
@@ -23,12 +23,11 @@ describe("useFileHeadMetadata", () => {
     const second = deferred<Response>();
     const signals: AbortSignal[] = [];
 
-    const fetchSpy = vi
-      .spyOn(globalThis, "fetch")
-      .mockImplementation((_input, init) => {
-        if (init?.signal) signals.push(init.signal);
-        return signals.length === 1 ? first.promise : second.promise;
-      });
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.signal) signals.push(init.signal);
+      return signals.length === 1 ? first.promise : second.promise;
+    });
+    vi.stubGlobal("fetch", fetchMock);
 
     const captured: { value: FileHeadMetadata | undefined } = {
       value: undefined,
@@ -42,7 +41,7 @@ describe("useFileHeadMetadata", () => {
     const { rerender, unmount } = render(
       <Probe url="https://files.example.com/a.pdf" />,
     );
-    expect(fetchSpy).toHaveBeenCalledWith(
+    expect(fetchMock).toHaveBeenCalledWith(
       "https://files.example.com/a.pdf",
       expect.objectContaining({ method: "HEAD" }),
     );

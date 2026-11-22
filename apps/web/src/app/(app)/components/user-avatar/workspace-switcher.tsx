@@ -2,7 +2,7 @@
 
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   CHAT_WELCOME_PATH,
@@ -264,7 +264,15 @@ export function useWorkspaceSwitcher() {
   const [isActivating, setIsActivating] = useState(false);
   const [isRefreshing, startTransition] = useTransition();
   const isPending = isActivating || isRefreshing;
-  const whenSettled = useWorkspaceSwitchSettlers(isPending);
+  const settlersRef = useRef<Array<() => void>>([]);
+
+  useWorkspaceSwitchSettlers(settlersRef, isPending);
+
+  /** Resolves once the next switch has rendered. Ask before starting it. */
+  const whenSettled = () =>
+    new Promise<void>((resolve) => {
+      settlersRef.current.push(resolve);
+    });
 
   const handleSelectWorkspace = (
     organizationId: string | null,

@@ -1,15 +1,21 @@
 import { render } from "@testing-library/react";
+import { useRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { useWorkspaceSwitchSettlers } from "./use-workspace-switch-settlers";
 
 describe("useWorkspaceSwitchSettlers", () => {
-  it("resolves queued whenSettled promises once isPending transitions back to false", async () => {
+  it("resolves queued settlers once isPending transitions back to false", async () => {
     const captured: { whenSettled: (() => Promise<void>) | null } = {
       whenSettled: null,
     };
 
     function Probe({ isPending }: { isPending: boolean }) {
-      captured.whenSettled = useWorkspaceSwitchSettlers(isPending);
+      const settlersRef = useRef<Array<() => void>>([]);
+      useWorkspaceSwitchSettlers(settlersRef, isPending);
+      captured.whenSettled = () =>
+        new Promise<void>((resolve) => {
+          settlersRef.current.push(resolve);
+        });
       return null;
     }
 

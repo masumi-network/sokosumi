@@ -91,12 +91,14 @@ export function useEmailCodeRefusal({
   const describe = useDescribeEmailCodeError();
   // Pass to the field, so its handed-over code survives a remount.
   const completedCodeRef = useRef("");
-  const requestFocus = useEmailCodeRefusalFocus(focus, isLocked);
+  const focusPending = useRef(false);
+
+  useEmailCodeRefusalFocus(focusPending, focus, isLocked);
 
   /** Clears the field and returns the reason to show beside it. */
   const refuse = (answer: EmailCodeError): string => {
     completedCodeRef.current = "";
-    requestFocus();
+    focusPending.current = true;
     clear();
     return describe(answer);
   };

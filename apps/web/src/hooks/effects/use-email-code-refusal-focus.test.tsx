@@ -1,16 +1,17 @@
-import { act, render } from "@testing-library/react";
+import { render } from "@testing-library/react";
+import { type RefObject, useRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { useEmailCodeRefusalFocus } from "./use-email-code-refusal-focus";
 
 describe("useEmailCodeRefusalFocus", () => {
   it("defers focus while locked and focuses once on the first unlocked render after a refusal", () => {
     const focus = vi.fn();
-    const captured: { requestFocus: (() => void) | null } = {
-      requestFocus: null,
-    };
+    const captured: { ref: RefObject<boolean> | null } = { ref: null };
 
     function Probe({ isLocked, tick }: { isLocked: boolean; tick: number }) {
-      captured.requestFocus = useEmailCodeRefusalFocus(focus, isLocked);
+      const focusPending = useRef(false);
+      captured.ref = focusPending;
+      useEmailCodeRefusalFocus(focusPending, focus, isLocked);
       return <span data-tick={tick} />;
     }
 
@@ -18,15 +19,15 @@ describe("useEmailCodeRefusalFocus", () => {
     expect(focus).not.toHaveBeenCalled();
 
     // Armed while locked: must not focus until unlocked.
-    act(() => {
-      captured.requestFocus?.();
-    });
+    if (!captured.ref) throw new Error("expected focusPending ref");
+    captured.ref.current = true;
     rerender(<Probe isLocked={true} tick={1} />);
     expect(focus).not.toHaveBeenCalled();
 
-    // Unlocking triggers focus exactly once.
+    // Unlocking triggers focus exactly once and clears the pending flag.
     rerender(<Probe isLocked={false} tick={2} />);
     expect(focus).toHaveBeenCalledTimes(1);
+    expect(captured.ref.current).toBe(false);
 
     // Subsequent unlocked rerenders do not re-focus without another refusal.
     rerender(<Probe isLocked={false} tick={3} />);
