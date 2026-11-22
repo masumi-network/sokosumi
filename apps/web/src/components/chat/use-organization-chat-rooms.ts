@@ -8,6 +8,7 @@ import type {
 import type { ChatRoomCollection } from "@sokosumi/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMembershipVisibleRoomsPublisher } from "@/hooks/effects/use-membership-visible-rooms-publisher";
+import { useOrganizationChatRoomsHealthStale } from "@/hooks/effects/use-organization-chat-rooms-health-stale";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import { chatReadThrottleResumeInMs } from "@/lib/chat/chat-read-throttle";
 import { withPinnedOrder } from "./chat-room-activity-sort";
@@ -349,9 +350,7 @@ export function useOrganizationChatRooms({
     return () => window.removeEventListener("online", onOnline);
   }, [scope]);
   // `healthy` is the trigger: either flip can have lost an event.
-  useEffect(() => {
-    staleActiveRef.current.wholeList = true;
-  }, [healthy]);
+  useOrganizationChatRoomsHealthStale(staleActiveRef, healthy);
   const requestActive = useChatRefreshScheduler({
     key: scope && `${scope}:active`,
     refresh: refreshActive,
