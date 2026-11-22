@@ -99,6 +99,7 @@ import { dataTableService } from "@/lib/services/data-table.client";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { moveIdToSlot } from "@/lib/utils/move-id";
+import { TableAppendCsv } from "./table-append-csv";
 import { TableCell, TableUpdatedCell } from "./table-cell";
 import { TableColumnDialog } from "./table-column-dialog";
 import { TableFindReplace } from "./table-find-replace";
@@ -341,6 +342,7 @@ function TableWorkspace({
   const [pending, setPending] = useState(false);
   const [column, setColumn] = useState<TableColumn | "new" | null>(null);
   const [findReplace, setFindReplace] = useState(false);
+  const [appendCsv, setAppendCsv] = useState(false);
   const tableMenu = useRef<HTMLButtonElement>(null);
   const [dialog, setDialog] = useState<
     "views" | "history" | "enrich" | "rename" | "archive" | null
@@ -827,6 +829,11 @@ function TableWorkspace({
               {!table.archivedAt && (
                 <DropdownMenuItem onClick={() => setFindReplace(true)}>
                   {t("findReplace.title")}
+                </DropdownMenuItem>
+              )}
+              {!table.archivedAt && (
+                <DropdownMenuItem onClick={() => setAppendCsv(true)}>
+                  {t("appendCsv.title")}
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={() => void run(handleExport)}>
@@ -1501,6 +1508,17 @@ function TableWorkspace({
           column={column === "new" ? undefined : column}
           onClose={() => setColumn(null)}
           onSaved={() => void refresh()}
+        />
+      )}
+      {appendCsv && (
+        <TableAppendCsv
+          table={table}
+          returnFocus={tableMenu}
+          onClose={() => setAppendCsv(false)}
+          onDone={(count) => {
+            void refresh();
+            toast.success(t("appendCsv.done", { count }));
+          }}
         />
       )}
       {findReplace && (

@@ -1,5 +1,11 @@
-import { tableBatchSchema, type tableInsertRowSchema } from "@sokosumi/utils";
+import type { TableColumn, TableRow } from "@sokosumi/core-client";
+import {
+  tableBatchSchema,
+  tableInsertRowSchema,
+  validateTableValues,
+} from "@sokosumi/utils";
 import type { z } from "zod";
+import { parseTableInput } from "./table-value";
 
 /** Deterministic chunks leave headroom for the Core operation envelope as well as HTTP JSON. */
 export function tableImportBatches(
@@ -61,4 +67,65 @@ export function isNumericCsvColumn(header: string, values: string[]): boolean {
         (!/[1-9]/.test(value) || Math.abs(Number(value)) >= MIN_NORMAL),
     )
   );
+}
+
+/**
+ * Plans adding CSV rows to an existing Table: headers match column names
+ * ignoring case and outer spaces, other headers are skipped, and a Last
+ * updated column fills itself. `newRows` leaves out the rows whose matched
+ * cells equal an existing row's, so overlapping exports can skip them.
+ */
+export function planCsvAppend(
+  columns: Pick<TableColumn, "id" | "name" | "type" | "options">[],
+  csv: string[][],
+  existing: Pick<TableRow, "values">[],
+  describe: (row: number, error: unknown) => string = (_, error) =>
+    error instanceof Error ? error.message : String(error),
+) {
+  const byName = new Map(
+    columns
+      .filter((column) => column.type !== "last_updated")
+      .map((column) => [column.name.trim().toLowerCase(), column]),
+  );
+  const pairs: Array<{ column: (typeof columns)[number]; index: number }> = [];
+  const skipped: string[] = [];
+  csv[0].forEach((header, index) => {
+    const column = byName.get(header.trim().toLowerCase());
+    if (column && !pairs.some((pair) => pair.column === column))
+      pairs.push({ column, index });
+    else skipped.push(header);
+  });
+  const key = (values: TableRow["values"]) =>
+    JSON.stringify(pairs.map(({ column }) => values[column.id] ?? null));
+  const rows = csv.slice(1).map((cells, i) => {
+    try {
+      const row = tableInsertRowSchema.parse({
+        values: Object.fromEntries(
+          pairs.map(({ column, index }) => [
+            column.id,
+            parseTableInput(column, cells[index]),
+          ]),
+        ),
+      });
+      validateTableValues(
+        pairs.map(({ column }) => ({
+          ...column,
+          options: column.options ?? [],
+          description: "",
+        })),
+        row.values,
+        row.evidence,
+      );
+      return row;
+    } catch (error) {
+      throw new Error(describe(i + 2, error));
+    }
+  });
+  const held = new Set(existing.map((row) => key(row.values)));
+  return {
+    matched: pairs.map(({ column }) => column.name),
+    skipped,
+    rows,
+    newRows: rows.filter((row) => !held.has(key(row.values))),
+  };
 }

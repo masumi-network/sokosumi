@@ -1,6 +1,10 @@
 import { tableInsertRowSchema } from "@sokosumi/utils";
 import { expect, it } from "vitest";
-import { isNumericCsvColumn, tableImportBatches } from "./table-import";
+import {
+  isNumericCsvColumn,
+  planCsvAppend,
+  tableImportBatches,
+} from "./table-import";
 
 it("bounds serialized UTF-8, JSON escaping and row count with deterministic keys", () => {
   const values = {
@@ -68,4 +72,71 @@ it("guesses Number only when every filled cell converts without loss", () => {
   ])
     expect(isNumericCsvColumn(header, ["123", "456"])).toBe(false);
   expect(isNumericCsvColumn("Paid", ["123"])).toBe(true);
+});
+
+const name = {
+  id: "00000000-0000-4000-8000-000000000011",
+  name: "Name",
+  type: "text" as const,
+  options: [],
+};
+const amount = {
+  id: "00000000-0000-4000-8000-000000000012",
+  name: "Amount",
+  type: "number" as const,
+  options: [],
+};
+const updated = {
+  id: "00000000-0000-4000-8000-000000000013",
+  name: "Updated",
+  type: "last_updated" as const,
+  options: [],
+};
+
+it("matches CSV headers to columns by name and lists the headers it skips", () => {
+  const plan = planCsvAppend(
+    [name, amount, updated],
+    [
+      [" amount ", "Name", "Notes", "Updated"],
+      ["12", "Ada", "x", "2026-01-01"],
+    ],
+    [],
+  );
+  expect(plan.matched).toEqual(["Amount", "Name"]);
+  expect(plan.skipped).toEqual(["Notes", "Updated"]);
+  expect(plan.rows).toEqual([
+    { values: { [amount.id]: 12, [name.id]: "Ada" }, evidence: {} },
+  ]);
+});
+
+it("counts CSV rows the Table already holds in the matched columns", () => {
+  const plan = planCsvAppend(
+    [name, amount],
+    [
+      ["Name", "Amount"],
+      ["Ada", "12"],
+      ["Bo", ""],
+      ["Cy", "3"],
+    ],
+    [
+      { values: { [name.id]: "Ada", [amount.id]: 12 } },
+      { values: { [name.id]: "Bo" } },
+      { values: { [name.id]: "Cy", [amount.id]: 4 } },
+    ],
+  );
+  expect(plan.rows).toHaveLength(3);
+  expect(plan.newRows).toEqual([
+    { values: { [name.id]: "Cy", [amount.id]: 3 }, evidence: {} },
+  ]);
+});
+
+it("names the CSV row whose value does not fit its column", () => {
+  expect(() =>
+    planCsvAppend(
+      [amount],
+      [["Amount"], ["1"], ["many"]],
+      [],
+      (row, error) => `Row ${row}: ${(error as Error).message}`,
+    ),
+  ).toThrow("Row 3: Invalid number");
 });
