@@ -750,17 +750,17 @@ describe("image studio job submission", () => {
     expect(submitToQueueMock).not.toHaveBeenCalled();
   });
 
-  it("gives Core's month media six at a time and no hourly cap", async () => {
+  it("gives Core's month media twelve at a time and no hourly cap", async () => {
     // The approved plan bounds a month; NMKR's 34 pictures in 37 minutes
     // ran into a person's 40 an hour.
-    jobCountMock.mockResolvedValue(5);
+    jobCountMock.mockResolvedValue(11);
     await createImageJob({ ...BASE_INPUT, forCmoMonth: true });
     expect(jobCreateMock).toHaveBeenCalledTimes(1);
     // Only the project's jobs in flight are counted, never the hour's.
     expect(jobCountMock).toHaveBeenCalledTimes(1);
 
     jobCreateMock.mockClear();
-    jobCountMock.mockResolvedValue(6);
+    jobCountMock.mockResolvedValue(12);
     await expect(
       createImageJob({ ...BASE_INPUT, forCmoMonth: true }),
     ).rejects.toMatchObject({ status: 429 });
