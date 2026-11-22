@@ -1052,9 +1052,12 @@ function TableWorkspace({
       narrows the grid, how many rows match and how to undo it. */}
       {filters.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span role="status" className="text-muted-foreground">
-            {t("matchingRows", { count: rows.data?.total ?? 0 })}
-          </span>
+          {/* The grid's count; on the board the lane counts say it. */}
+          {!showBoard && (
+            <span role="status" className="text-muted-foreground">
+              {t("matchingRows", { count: rows.data?.total ?? 0 })}
+            </span>
+          )}
           {filters.map((filter) => {
             const column = table.columns.find(
               (column) => column.id === filter.columnId,

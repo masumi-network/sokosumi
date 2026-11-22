@@ -1488,3 +1488,30 @@ it("B2: a move in flight still blocks moves after switching to Table and back", 
   await userEvent.keyboard("{Escape}");
   await act(async () => write.resolve({}));
 });
+
+it("B3: a filtered board does not repeat the paused grid's match count", async () => {
+  const { default: userEvent } = await import("@testing-library/user-event");
+  const stage = {
+    ...f.score,
+    id: "00000000-0000-4000-8000-000000000008",
+    name: "Stage",
+    type: "single_select" as const,
+    options: ["Lead", "Won"],
+  };
+  f.columns = [f.column, stage];
+  f.shown = [{ ...f.row, values: { ...f.row.values, [stage.id]: "Lead" } }];
+  render(<TableEditor id={f.column.tableId} />);
+  await userEvent.click(screen.getByRole("radio", { name: "board.board" }));
+  fireEvent.pointerDown(screen.getByRole("button", { name: "quickFilter" }), {
+    button: 0,
+    ctrlKey: false,
+  });
+  fireEvent.click(
+    await screen.findByRole("menuitemcheckbox", { name: "Lead" }),
+  );
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "clearFilters" })).toBeVisible(),
+  );
+  // Lane counts say it; the grid's count is from a query that is not running.
+  expect(screen.queryByText("matchingRows")).toBeNull();
+});

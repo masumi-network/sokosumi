@@ -83,6 +83,11 @@ export async function signUpWithOrganization(page: Page, baseUrl: string) {
   await page.getByRole("button", { name: "Skip for now" }).click();
   await page.getByRole("button", { name: "Finish setup" }).click();
   await page.getByRole("button", { name: "Go to workspace" }).click();
-  await page.getByRole("link", { name: "Later" }).click();
+  // Setup now lands on Home itself; an older build still asks about the
+  // Soko Bot first, with Later to skip it.
+  await page
+    .getByRole("link", { name: "Later" })
+    .click({ timeout: 5_000 })
+    .catch(() => {});
   await page.waitForURL(`${baseUrl}/`);
 }
