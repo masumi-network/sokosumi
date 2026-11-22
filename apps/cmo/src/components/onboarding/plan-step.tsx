@@ -706,8 +706,9 @@ export function PlanReview({
       ) : null}
       {short && !busy && !locked ? (
         <p className="alert" role="status">
+          {/* The page's own count, so the lead and this line say one number. */}
           {short.promised > short.planned
-            ? `This strategy plans ${short.planned} posts, but it promises about ${short.promised}.`
+            ? `This strategy plans ${count.planned} posts, but it promises about ${short.promised}.`
             : "This strategy promises more than its calendar holds."}{" "}
           {AGENT_NAME} couldn't fill the month, so it can't be approved. Ask him
           to write it again.

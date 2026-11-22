@@ -17,8 +17,8 @@ const REVISIONS: readonly (readonly [string, string])[] = [
     'and a why of at most 12 words saying what the pillar is for: the job its pieces do for the business ("Shows buyers setup takes minutes"). Spread each pillar over the networks it fits, and set each share to the pillar\'s real count in the calendar (34 of 144 pieces is 24, not 20).',
   ],
   [
-    "Leave a network out only when it clearly does not fit this buyer",
-    "A network the business has connected is never left out: its audience is already there. Leave a network out only when it clearly does not fit this buyer",
+    "Leave a network out only when it clearly does not fit this buyer (a bakery on X, a payroll tool on Instagram), and then name it in leftOut with its channel key and why in at most 12 words, tied to the Brand Brain.",
+    'Plan every live network at its rate, connected or not: the plan the owner buys decides how much of it is made. Leave a network out only when the owner asked you to, and then name it in leftOut with its channel key and a why that starts with "Owner:" ("Owner: no Facebook for now"); never for its audience or its account.',
   ],
   [
     'YouTube and TikTok take only video: each is in channels with the cadence "1 a week", and its pieces are the month\'s talking videos, which list it in alsoOn (see the talking video rule below); never plan a youtube or tiktok entry of its own beyond them.',

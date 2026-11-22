@@ -1006,8 +1006,11 @@ export const cmoPreviewSchema = z.object({
 });
 export type CmoPreview = z.infer<typeof cmoPreviewSchema>;
 
-/** The most entries a month's calendar holds (cmo-v3's All-in pace). */
-export const CMO_CALENDAR_MAX_ENTRIES = 240;
+/**
+ * The most entries a month's calendar holds: cmo-v14's top month is 504
+ * pieces (`CMO_NETWORK_VOLUME.all_in`), plus newsletter issues and room.
+ */
+export const CMO_CALENDAR_MAX_ENTRIES = 560;
 
 export const marketingStrategyPlanSchema = z.object({
   /** The month the plan covers, YYYY-MM. */

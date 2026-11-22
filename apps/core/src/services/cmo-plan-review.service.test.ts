@@ -2347,6 +2347,28 @@ describe("each network at its own rate, for a Cuso on cmo-v14", () => {
     ).toEqual([]);
   });
 
+  it("leaves a network out only when the owner asked, never for its audience", () => {
+    const elsewhere = plan({
+      leftOut: [
+        {
+          channel: "facebook",
+          why: "NMKR's project leads gather in crypto communities elsewhere.",
+        },
+      ],
+    });
+    expect(cmoLeftOutProblems(elsewhere, fit)).toEqual([
+      expect.stringContaining(
+        'every live network is planned at its rate, 2 a day for facebook. Leave one out only when the owner asked, with a why that starts with "Owner:".',
+      ),
+    ]);
+    // cmo-v13 keeps a buyer-fit reason.
+    expect(cmoLeftOutProblems(elsewhere, { everyNetwork: true })).toEqual([]);
+    const asked = plan({
+      leftOut: [{ channel: "facebook", why: "Owner: no Facebook for now" }],
+    });
+    expect(cmoLeftOutProblems(asked, fit)).toEqual([]);
+  });
+
   it("takes each network's own top rate", () => {
     expect(
       cmoTopVolumeProblems(

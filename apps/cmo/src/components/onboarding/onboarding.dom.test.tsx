@@ -1341,7 +1341,8 @@ it("offers no approval for a month short of what it promises, only a new strateg
     ),
   );
   expect(text()).toContain(
-    "This strategy plans 64 posts, but it promises about 172.",
+    // The page's own count (the lead's), not Core's entry count.
+    "This strategy plans 3 posts, but it promises about 172.",
   );
   expect(text()).not.toContain("Approve strategy");
   await press("Write it again");
