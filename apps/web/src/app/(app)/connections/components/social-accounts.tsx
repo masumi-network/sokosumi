@@ -65,7 +65,7 @@ export function SocialAccounts({ accounts }: SocialAccountsProps) {
   };
 
   return (
-    <div className="flex flex-col divide-y rounded-xl border py-2">
+    <div className="bg-background flex flex-col divide-y rounded-xl border py-2">
       {visible.map(({ provider, account, label }) => (
         <div key={provider} className="flex items-center gap-2 px-4 py-4">
           {SOCIAL_PROVIDER_ICONS[provider]}
