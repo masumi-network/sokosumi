@@ -1,20 +1,25 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { fetchStudioAd } from "./studio-ad-download";
+import { fetchStudioAd } from "@/app/projects/components/image-studio/studio-ad-download";
 import {
   renderStudioHeadline,
   type StudioHeadlineLook,
-} from "./studio-ad-headline";
-import { useStudioHeadlineImage } from "./studio-headline-image";
+} from "@/app/projects/components/image-studio/studio-ad-headline";
 
-vi.mock("./studio-ad-download", () => ({ fetchStudioAd: vi.fn() }));
-vi.mock("./studio-ad-headline", () => ({ renderStudioHeadline: vi.fn() }));
+import { useStudioHeadlineImage } from "./use-studio-headline-image";
+
+vi.mock("@/app/projects/components/image-studio/studio-ad-download", () => ({
+  fetchStudioAd: vi.fn(),
+}));
+vi.mock("@/app/projects/components/image-studio/studio-ad-headline", () => ({
+  renderStudioHeadline: vi.fn(),
+}));
 
 const ASSET = { id: "asset-a", projectId: "project-a" };
 const LOOK = { colors: ["#A33421", "#F5EBDD"], fonts: ["Playfair Display"] };
 
-describe("Studio headline preview image", () => {
+describe("useStudioHeadlineImage", () => {
   beforeEach(() => {
     vi.mocked(fetchStudioAd).mockImplementation(async () => new Response("ad"));
     vi.mocked(renderStudioHeadline).mockResolvedValue(new Blob(["rendered"]));
@@ -73,5 +78,47 @@ describe("Studio headline preview image", () => {
       undefined,
       undefined,
     );
+  });
+
+  it("reports an error and retries when retry() is called", async () => {
+    vi.mocked(fetchStudioAd)
+      .mockRejectedValueOnce(new Error("network"))
+      .mockResolvedValueOnce(new Response("ad"));
+
+    const { result } = renderHook(() =>
+      useStudioHeadlineImage(ASSET, "1:1", undefined, "Retry me"),
+    );
+
+    await waitFor(() => expect(result.current.result?.status).toBe("error"));
+
+    act(() => {
+      result.current.retry();
+    });
+
+    await waitFor(() => expect(result.current.result?.status).toBe("ready"));
+    expect(fetchStudioAd).toHaveBeenCalledTimes(2);
+  });
+
+  it("aborts an in-flight render on unmount without creating an object URL", async () => {
+    let capturedSignal: AbortSignal | undefined;
+    const pending = Promise.withResolvers<Response>();
+    vi.mocked(fetchStudioAd).mockImplementation((_asset, _opts, signal) => {
+      capturedSignal = signal;
+      return pending.promise;
+    });
+
+    const { unmount } = renderHook(() =>
+      useStudioHeadlineImage(ASSET, "1:1", undefined, "Abort me"),
+    );
+    expect(capturedSignal?.aborted).toBe(false);
+
+    unmount();
+    expect(capturedSignal?.aborted).toBe(true);
+
+    await act(async () => {
+      pending.resolve(new Response("ad"));
+      await pending.promise;
+    });
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
 });

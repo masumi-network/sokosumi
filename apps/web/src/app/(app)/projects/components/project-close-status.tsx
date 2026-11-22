@@ -4,7 +4,7 @@ import type { ProjectCloseStatus } from "@sokosumi/core-client";
 import { CircleCheck, CircleX, Clock3 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useProjectCloseStatusPolling } from "@/hooks/effects/use-project-close-status-polling";
 import {
   cancelProjectCloseOwedWork,
   retryProjectClose,
@@ -65,14 +66,12 @@ export function ProjectCloseStatusCard({ status }: ProjectCloseStatusProps) {
   const [reasonError, setReasonError] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    if (status.state !== "CLOSING" || isPending) return;
-
-    const interval = window.setInterval(() => {
-      startTransition(() => router.refresh());
-    }, 5_000);
-    return () => window.clearInterval(interval);
-  }, [status.state, isPending, router]);
+  useProjectCloseStatusPolling(
+    status.state,
+    isPending,
+    startTransition,
+    router,
+  );
 
   const [previousStatusState, setPreviousStatusState] = useState(status.state);
   if (previousStatusState !== status.state) {
