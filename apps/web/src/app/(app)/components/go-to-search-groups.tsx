@@ -36,6 +36,54 @@ const IDLE_GO_TO: GoToSearchState = {
 };
 
 /**
+ * Schedules whose name matches (Core's search, so past the first page) and
+ * the Coworkers this workspace can assign, read once per open and filtered
+ * here since they are few. As the Tasks read, the debounce gap is not
+ * "loading".
+ */
+function useScheduleAndCoworkerSearch({
+  query,
+  activeOrganizationId,
+  withCoworkers,
+}: {
+  query: string;
+  activeOrganizationId: string | null;
+  withCoworkers: boolean;
+}) {
+  const needle = query.trim();
+  const [scheduleNeedle] = useDebounce(needle, SCHEDULE_SEARCH_DEBOUNCE_MS);
+  const scheduleRead = useQuery({
+    queryKey: ["search-schedules", activeOrganizationId, scheduleNeedle],
+    queryFn: async () =>
+      (
+        await coreClient.listTaskSchedules({
+          q: scheduleNeedle,
+          limit: GO_TO_LIMIT,
+        })
+      ).data,
+    enabled: scheduleNeedle.length > 0,
+  });
+  const coworkerRead = useQuery({
+    queryKey: ["search-coworkers", activeOrganizationId],
+    queryFn: async () =>
+      (await coreClient.getTaskScheduleAssignees()).data.coworkers,
+    enabled: withCoworkers,
+  });
+  const typed = needle.length > 0 && scheduleNeedle.length > 0;
+  const lower = needle.toLowerCase();
+  return {
+    schedules: typed ? (scheduleRead.data ?? []) : [],
+    coworkers:
+      needle && withCoworkers
+        ? (coworkerRead.data ?? [])
+            .filter((coworker) => coworker.name.toLowerCase().includes(lower))
+            .slice(0, GO_TO_LIMIT)
+        : [],
+    pending: scheduleRead.isLoading || coworkerRead.isLoading,
+  };
+}
+
+/**
  * Search's result list, led by the Projects and channels whose name matches
  * so Search can jump to them; the dialog's other groups follow as children.
  * Mounted with the open dialog. It renders the dialog's one status region
@@ -91,38 +139,15 @@ export function GoToSearchList({
         room.kind === "channel" && room.name.toLowerCase().includes(needle),
     )
     .slice(0, GO_TO_LIMIT);
-  const [scheduleNeedle] = useDebounce(
-    query.trim(),
-    SCHEDULE_SEARCH_DEBOUNCE_MS,
-  );
-  const scheduleRead = useQuery({
-    queryKey: ["search-schedules", activeOrganizationId, scheduleNeedle],
-    queryFn: async () =>
-      (
-        await coreClient.listTaskSchedules({
-          q: scheduleNeedle,
-          limit: GO_TO_LIMIT,
-        })
-      ).data,
-    enabled: scheduleNeedle.length > 0,
+  const {
+    schedules,
+    coworkers,
+    pending: extraPending,
+  } = useScheduleAndCoworkerSearch({
+    query,
+    activeOrganizationId,
+    withCoworkers: Boolean(onNewTaskWith),
   });
-  const schedules =
-    typed && scheduleNeedle.length > 0 ? (scheduleRead.data ?? []) : [];
-  // One read per open: the assignable Coworkers are few, so they filter here.
-  const coworkerRead = useQuery({
-    queryKey: ["search-coworkers", activeOrganizationId],
-    queryFn: async () =>
-      (await coreClient.getTaskScheduleAssignees()).data.coworkers,
-    enabled: Boolean(onNewTaskWith),
-  });
-  const coworkers =
-    typed && onNewTaskWith
-      ? (coworkerRead.data ?? [])
-          .filter((coworker) => coworker.name.toLowerCase().includes(needle))
-          .slice(0, GO_TO_LIMIT)
-      : [];
-  // As the Tasks read: the debounce gap is not "loading".
-  const extraPending = scheduleRead.isLoading || coworkerRead.isLoading;
 
   return (
     <>
@@ -185,50 +210,90 @@ export function GoToSearchList({
             ))}
           </CommandGroup>
         ) : null}
-        {schedules.length > 0 ? (
-          <CommandGroup heading={labels.schedulesGroup}>
-            {schedules.map((schedule) => (
-              <CommandItem
-                key={schedule.id}
-                value={`schedule:${schedule.id}`}
-                onSelect={() =>
-                  onSelect(`${TASK_SCHEDULES_PATH}/${schedule.id}`)
-                }
-              >
-                <Repeat aria-hidden className="size-4" />
-                <span className="truncate">{schedule.name}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        ) : null}
-        {coworkers.length > 0 && onNewTaskWith ? (
-          <CommandGroup heading={labels.coworkersGroup}>
-            {coworkers.map((coworker) => (
-              <CommandItem
-                key={coworker.id}
-                value={`coworker:${coworker.id}`}
-                aria-label={labels.newTaskWith(coworker.name)}
-                onSelect={() => onNewTaskWith(coworker.id)}
-              >
-                <Avatar aria-hidden className="size-4">
-                  <AvatarImage
-                    src={getCoworkerImage(coworker) ?? undefined}
-                    alt=""
-                  />
-                  <AvatarFallback className="text-2xs">
-                    {coworker.name.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="truncate">{coworker.name}</span>
-                <span className="text-muted-foreground ml-auto shrink-0 text-xs">
-                  {labels.newTask}
-                </span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
+        <ScheduleResults
+          schedules={schedules}
+          heading={labels.schedulesGroup}
+          onSelect={onSelect}
+        />
+        {onNewTaskWith ? (
+          <CoworkerResults
+            coworkers={coworkers}
+            labels={labels}
+            onNewTaskWith={onNewTaskWith}
+          />
         ) : null}
         {children}
       </CommandList>
     </>
+  );
+}
+
+function ScheduleResults({
+  schedules,
+  heading,
+  onSelect,
+}: {
+  schedules: { id: string; name: string }[];
+  heading: string;
+  onSelect: (href: string) => void;
+}) {
+  if (schedules.length === 0) return null;
+  return (
+    <CommandGroup heading={heading}>
+      {schedules.map((schedule) => (
+        <CommandItem
+          key={schedule.id}
+          value={`schedule:${schedule.id}`}
+          onSelect={() => onSelect(`${TASK_SCHEDULES_PATH}/${schedule.id}`)}
+        >
+          <Repeat aria-hidden className="size-4" />
+          <span className="truncate">{schedule.name}</span>
+        </CommandItem>
+      ))}
+    </CommandGroup>
+  );
+}
+
+function CoworkerResults({
+  coworkers,
+  labels,
+  onNewTaskWith,
+}: {
+  coworkers: {
+    id: string;
+    name: string;
+    slug: string;
+    image?: string | null;
+  }[];
+  labels: {
+    coworkersGroup: string;
+    newTask: string;
+    newTaskWith: (name: string) => string;
+  };
+  onNewTaskWith: (coworkerId: string) => void;
+}) {
+  if (coworkers.length === 0) return null;
+  return (
+    <CommandGroup heading={labels.coworkersGroup}>
+      {coworkers.map((coworker) => (
+        <CommandItem
+          key={coworker.id}
+          value={`coworker:${coworker.id}`}
+          aria-label={labels.newTaskWith(coworker.name)}
+          onSelect={() => onNewTaskWith(coworker.id)}
+        >
+          <Avatar aria-hidden className="size-4">
+            <AvatarImage src={getCoworkerImage(coworker) ?? undefined} alt="" />
+            <AvatarFallback className="text-2xs">
+              {coworker.name.charAt(0)}
+            </AvatarFallback>
+          </Avatar>
+          <span className="truncate">{coworker.name}</span>
+          <span className="text-muted-foreground ml-auto shrink-0 text-xs">
+            {labels.newTask}
+          </span>
+        </CommandItem>
+      ))}
+    </CommandGroup>
   );
 }
