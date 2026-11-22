@@ -148,6 +148,7 @@ const publicSeoPayload = z.object({
   /** A site audit's strategy results. Older rows and focused checks have none. */
   strategy: seoStrategyPayloadSchema.optional(),
   strategyDecisions: storedSeoDecisionsSchema.optional(),
+  plan: z.json().optional(), // readAuditPlan writes it, scopedAuditPlan reads it
   articleDates: z.array(seoArticleDates).max(10).optional(),
   topicLaunches: z.array(seoTopicLaunch).max(10).optional(),
   reviewSources: z.array(seoReviewSource).max(10).optional(),

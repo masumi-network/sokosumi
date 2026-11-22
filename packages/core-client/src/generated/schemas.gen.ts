@@ -47704,6 +47704,9 @@ export const ProjectSeoObservationSchema = {
                 ]
             }
         },
+        auditPlan: {
+            $ref: '#/components/schemas/SeoAuditPlan'
+        },
         checklistBreakdown: {
             type: 'object',
             properties: {
@@ -48401,6 +48404,140 @@ export const ProjectSeoObservationSchema = {
         'artifactHash',
         'issues',
         'coverage'
+    ]
+} as const;
+
+export const SeoAuditPlanSchema = {
+    type: 'object',
+    properties: {
+        summary: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 900
+        },
+        strategy: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        },
+        steps: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    pageUrl: {
+                        type: 'string',
+                        maxLength: 4096,
+                        format: 'uri'
+                    },
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'access',
+                            'fix',
+                            'content',
+                            'links',
+                            'offsite',
+                            'measure'
+                        ]
+                    },
+                    action: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 200
+                    },
+                    why: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 700
+                    },
+                    nextCheck: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    order: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    queries: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 200
+                        },
+                        maxItems: 8
+                    },
+                    ideas: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 200
+                        },
+                        maxItems: 4
+                    },
+                    wording: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 300
+                    },
+                    window: {
+                        type: 'string',
+                        pattern: '^\\d{4}-(0[1-9]|1[0-2])$'
+                    },
+                    actionIds: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 200
+                        },
+                        maxItems: 3
+                    }
+                },
+                required: [
+                    'action',
+                    'why',
+                    'nextCheck',
+                    'actionIds'
+                ]
+            },
+            minItems: 1,
+            maxItems: 7
+        },
+        alternative: {
+            type: 'object',
+            properties: {
+                option: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 300
+                },
+                whyNot: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 300
+                }
+            },
+            required: [
+                'option',
+                'whyNot'
+            ]
+        },
+        revisit: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        },
+        source: {
+            type: 'string',
+            maxLength: 200
+        }
+    },
+    required: [
+        'steps'
     ]
 } as const;
 

@@ -13907,6 +13907,37 @@
         "sortBest": "{column}, beste zuerst",
         "sortWorst": "{column}, schlechteste zuerst"
       },
+      "planMessage": {
+        "title": "Dein Plan",
+        "pdf": "Vollständiges Audit als PDF öffnen",
+        "direction": "Richtung:",
+        "steps": "Schritte des Plans",
+        "order": "Warum an dieser Stelle:",
+        "ideas": "Ideen zum Ausprobieren",
+        "wording": "Vorgeschlagener Wortlaut",
+        "check": "Woran du erkennst, dass es gewirkt hat",
+        "stepActions": "Aktionen zu diesem Schritt",
+        "later": "Was ich nicht gewählt habe und warum",
+        "revisit": "Was diesen Plan ändern würde",
+        "window": "Zielmonat: {month}",
+        "rest": "{count, plural, one {# weitere Aktion} other {# weitere Aktionen}}",
+        "more": "Mehr Details",
+        "kinds": {
+          "access": "Zugriff",
+          "fix": "Seitenkorrektur",
+          "content": "Inhalt",
+          "links": "Links",
+          "offsite": "Außerhalb der Website",
+          "measure": "Messung"
+        },
+        "ask": {
+          "title": "Fragen zu diesem Plan",
+          "how": "Wie fange ich an?",
+          "why": "Warum diese Reihenfolge?",
+          "howQuestion": "Wie setze ich den ersten Schritt meines Plans um: „{step}“?",
+          "whyQuestion": "Warum ist „{step}“ der erste Schritt meines Plans, vor den anderen Schritten?"
+        }
+      },
       "reportPlan": {
         "changedShort": "Seit dem letzten Bericht hat sich der erste Schritt geändert.",
         "verify": "Ergebnis prüfen",

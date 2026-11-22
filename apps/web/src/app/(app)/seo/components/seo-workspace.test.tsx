@@ -9255,3 +9255,171 @@ it("opens a report plan on the Agent tab and switches its recommendation and rea
   await user.click(card.getByText("Why this plan?"));
   expect(card.getByText(earlier.planCandidates[0]!.reason)).toBeVisible();
 });
+
+it("shows the worker's written plan in place of the plan block and the verdict, and a step opens its action", async () => {
+  const user = userEvent.setup(),
+    workspace = seoTestCheckedAudit();
+  const audit = workspace.observations[0]!;
+  const pageUrl = workspace.pages[0]!.url;
+  audit.kind = "audit_full";
+  audit.issues = 1;
+  audit.planCandidates = [];
+  audit.auditPlan = {
+    summary: "The audit found two prices on the home page.",
+    strategy: "Make the page say one thing before any new content.",
+    revisit: "A price that changes each week.",
+    steps: [
+      {
+        kind: "fix",
+        pageUrl,
+        action: "Give the page one price",
+        why: "The markup says 6.99 and the page shows 9.99.",
+        order: "A search result can show the wrong price today.",
+        nextCheck: "The next audit reads one price.",
+        actionIds: ["fix-price"],
+      },
+      {
+        action: "Read the next audit",
+        why: "It shows whether the price is right.",
+        nextCheck: "No price finding.",
+        actionIds: [],
+      },
+    ],
+  };
+  const earlier = {
+    ...audit,
+    id: "f1111111-1111-4111-8111-111111111111",
+    artifactHash: "earlier-report",
+    observedAt: new Date("2025-12-03T12:00:00Z"),
+    // An earlier audit keeps its written plan in the data. Its actions may be gone, so the plan block shows it.
+    planCandidates: [
+      {
+        kind: "content" as const,
+        pageUrl,
+        title: "Explain battery condition in Settings.",
+        reason: "The earlier report found setup questions.",
+        evidence: [],
+      },
+    ],
+  };
+  workspace.observations.push(earlier);
+  workspace.findings.push({
+    id: "price",
+    observationId: audit.id,
+    pageUrl,
+    device: "mobile",
+    rowId: "SD-08",
+    title: "Markup matches the visible page",
+    severity: "major",
+    evidence: ["The markup says 6.99, the page shows 9.99."],
+    sourceRef: "html:head",
+    observedAt: audit.observedAt,
+  });
+  const fix = {
+    id: "fix-price",
+    observationId: audit.id,
+    pageUrl,
+    findingIds: ["price"],
+    title: "Make the markup price match the page",
+    why: "The two prices differ.",
+    effort: "low" as const,
+    expectedEffect: "One price.",
+    edit: null,
+    taskId: null,
+    status: "recommended" as const,
+    kind: "fix" as const,
+    evidence: [],
+  };
+  workspace.actions = [
+    fix,
+    { ...fix, id: "other", findingIds: [], title: "Shorten the page title" },
+  ];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      url.endsWith("/chat")
+        ? Response.json({ sharing: "personal", turns: [] })
+        : connectedSeoResponse(workspace, url),
+    ),
+  );
+  renderWorkspace(workspace);
+  const card = within(await screen.findByRole("region", { name: "Your plan" }));
+  expect(
+    card.getByText("The audit found two prices on the home page."),
+  ).toBeVisible();
+  // The written plan is the one result of the tab: no second plan, no verdict, no row for an action.
+  expect(screen.queryByRole("region", { name: "Recommended plan" })).toBeNull();
+  expect(screen.queryByTestId("seo-agent-verdict")).toBeNull();
+  expect(screen.queryByText("Shorten the page title")).toBeNull();
+  // A proposal that is no action stays under the plan, in a list with its title.
+  expect(
+    within(
+      screen.getByRole("list", { name: "The agent proposes" }),
+    ).getAllByRole("listitem"),
+  ).toHaveLength(1);
+  expect(
+    screen.getByRole("heading", { name: "The agent proposes" }),
+  ).toBeVisible();
+  const steps = within(card.getByRole("list", { name: "Steps of the plan" }));
+  expect(
+    steps.getAllByRole("heading").map((heading) => heading.textContent),
+  ).toEqual(["Give the page one price", "Read the next audit"]);
+  expect(
+    steps.getByText("A search result can show the wrong price today."),
+  ).toBeVisible();
+  // The step takes the rating of the issue its action fixes.
+  expect(steps.getByText("High impact")).toBeVisible();
+  // A step that names no action is text.
+  expect(
+    steps.queryByRole("button", { name: "Read the next audit" }),
+  ).toBeNull();
+  const step = steps.getByRole("button", { name: "Give the page one price" });
+  await user.click(step);
+  expect(
+    within(await screen.findByRole("dialog")).getAllByText(
+      "Make the markup price match the page",
+    ).length,
+  ).toBeGreaterThan(0);
+  await user.keyboard("{Escape}");
+  await waitFor(() => expect(step).toHaveFocus());
+  // A question about the plan names its first step. It goes into the chat field: nothing is sent.
+  await user.click(card.getByRole("button", { name: "Why this order?" }));
+  expect(
+    within(await screen.findByRole("dialog")).getByLabelText("Your question"),
+  ).toHaveValue(
+    "Why is “Give the page one price” the first step of my plan, before the other steps?",
+  );
+  await user.keyboard("{Escape}");
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  // An earlier report shows in the plan block, with or without a written plan.
+  await user.click(card.getByRole("combobox"));
+  await user.click(await screen.findByRole("option", { name: /2025/ }));
+  const block = await screen.findByRole("region", { name: "Recommended plan" });
+  expect(block).toBeVisible();
+  expect(screen.queryByRole("region", { name: "Your plan" })).toBeNull();
+  await user.click(within(block).getByRole("combobox"));
+  await user.click(await screen.findByRole("option", { name: /2026/ }));
+  // The action no step names is one press away, on its tab.
+  await user.click(
+    await screen.findByRole("button", { name: "1 more action" }),
+  );
+  expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  expect(screen.getByText("Shorten the page title")).toBeVisible();
+  cleanup();
+  // With a written plan and no other proposal, the tab does not say that nothing waits.
+  workspace.availableActions = {
+    ...workspace.availableActions,
+    canUsePaidSearchData: false,
+    canRequestAnalysis: false,
+    canSyncMetrics: false,
+  };
+  renderWorkspace(workspace);
+  expect(
+    await screen.findByRole("region", { name: "Your plan" }),
+  ).toBeVisible();
+  expect(screen.queryByRole("list", { name: "The agent proposes" })).toBeNull();
+  expect(screen.queryByText(messages.App.Seo.agent.nothingNext)).toBeNull();
+});

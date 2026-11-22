@@ -12365,6 +12365,7 @@ export type ProjectSeoObservation = {
         evidence: string;
         peaks?: Array<string>;
     }>;
+    auditPlan?: SeoAuditPlan;
     checklistBreakdown?: {
         passed: number | null;
         flagged: number | null;
@@ -12477,6 +12478,30 @@ export type ProjectSeoObservation = {
             failedNames?: Array<string>;
         };
     };
+};
+
+export type SeoAuditPlan = {
+    summary?: string;
+    strategy?: string;
+    steps: Array<{
+        pageUrl?: string;
+        kind?: 'access' | 'fix' | 'content' | 'links' | 'offsite' | 'measure';
+        action: string;
+        why: string;
+        nextCheck: string;
+        order?: string;
+        queries?: Array<string>;
+        ideas?: Array<string>;
+        wording?: string;
+        window?: string;
+        actionIds: Array<string>;
+    }>;
+    alternative?: {
+        option: string;
+        whyNot: string;
+    };
+    revisit?: string;
+    source?: string;
 };
 
 export type ProjectSeoKeyword = {

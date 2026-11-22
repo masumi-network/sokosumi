@@ -3592,3 +3592,29 @@ it("keeps every distinct repair and describes the observed slash redirect in its
     "Send them to /de, which already serves the correct language.",
   );
 });
+
+it("shows the worker's audit plan with a step that names an action of the same report", () => {
+  const input = fixture();
+  const payload = parsePublicSeoArtifact(legacyReport());
+  payload.plan = {
+    summary: "The audit found one issue.",
+    steps: [
+      {
+        pageUrl: SEO_TEST_PAGE,
+        action: "Add a title",
+        why: "The page has no title.",
+        nextCheck: "The next audit reads a title.",
+        actionIds: [payload.actions[0]!.id],
+      },
+    ],
+  };
+  const report = observation(input, payload, "2026-11-01T12:00:00Z");
+  input.observations = [report];
+  const workspace = projectSeoProjection(input, now);
+  const [actionId] = workspace.observations[0]!.auditPlan!.steps[0]!.actionIds;
+  expect(
+    workspace.actions.filter(
+      (action) => action.observationId === report.id && action.id === actionId,
+    ),
+  ).toHaveLength(1);
+});

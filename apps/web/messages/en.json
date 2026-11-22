@@ -13907,6 +13907,37 @@
         "sortBest": "{column}, best first",
         "sortWorst": "{column}, worst first"
       },
+      "planMessage": {
+        "title": "Your plan",
+        "pdf": "Open full audit PDF",
+        "direction": "Direction:",
+        "steps": "Steps of the plan",
+        "order": "Why at this position:",
+        "ideas": "Ideas to try",
+        "wording": "Suggested wording",
+        "check": "How you will know it worked",
+        "stepActions": "Actions for this step",
+        "later": "What I did not choose, and why",
+        "revisit": "What would change this plan",
+        "window": "Target month: {month}",
+        "rest": "{count, plural, one {# more action} other {# more actions}}",
+        "more": "More detail",
+        "kinds": {
+          "access": "Access",
+          "fix": "Page fix",
+          "content": "Content",
+          "links": "Links",
+          "offsite": "Off-site",
+          "measure": "Measurement"
+        },
+        "ask": {
+          "title": "Ask about this plan",
+          "how": "How do I start?",
+          "why": "Why this order?",
+          "howQuestion": "How do I do the first step of my plan, “{step}”?",
+          "whyQuestion": "Why is “{step}” the first step of my plan, before the other steps?"
+        }
+      },
       "reportPlan": {
         "changedShort": "Since the previous report, the first step has changed.",
         "verify": "How to check the result",

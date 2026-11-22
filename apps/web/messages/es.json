@@ -13907,6 +13907,37 @@
         "sortBest": "{column}, mejor primero",
         "sortWorst": "{column}, peor primero"
       },
+      "planMessage": {
+        "title": "Tu plan",
+        "pdf": "Abrir el PDF completo de la auditoría",
+        "direction": "Dirección:",
+        "steps": "Pasos del plan",
+        "order": "Por qué en esta posición:",
+        "ideas": "Ideas para probar",
+        "wording": "Texto sugerido",
+        "check": "Cómo sabrás que funcionó",
+        "stepActions": "Acciones de este paso",
+        "later": "Lo que no elegí y por qué",
+        "revisit": "Qué cambiaría este plan",
+        "window": "Mes objetivo: {month}",
+        "rest": "{count, plural, one {# acción más} other {# acciones más}}",
+        "more": "Más detalles",
+        "kinds": {
+          "access": "Acceso",
+          "fix": "Corrección de página",
+          "content": "Contenido",
+          "links": "Enlaces",
+          "offsite": "Fuera del sitio",
+          "measure": "Medición"
+        },
+        "ask": {
+          "title": "Pregunta sobre este plan",
+          "how": "¿Cómo empiezo?",
+          "why": "¿Por qué este orden?",
+          "howQuestion": "¿Cómo hago el primer paso de mi plan, «{step}»?",
+          "whyQuestion": "¿Por qué «{step}» es el primer paso de mi plan, antes que los demás?"
+        }
+      },
       "reportPlan": {
         "changedShort": "El primer paso ha cambiado desde el informe anterior.",
         "verify": "Cómo comprobar el resultado",
