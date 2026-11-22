@@ -18,6 +18,7 @@ import {
   beginRoomAttentionChange,
   settleRoomAttentionChange,
 } from "@/components/chat/room-read-overlay";
+import { useRoomReadAttentionTrigger } from "@/hooks/effects/use-room-read-attention-trigger";
 
 interface RoomReadAttentionOptions {
   room: ChatRoom | null;
@@ -214,19 +215,7 @@ export function useRoomReadAttention(options: RoomReadAttentionOptions) {
     };
   }, [readCurrentRoom]);
 
-  useEffect(() => {
-    void readCurrentRoom();
-  }, [
-    options.room?.id,
-    options.messages,
-    options.openThreadParentId,
-    options.threadMessages,
-    options.messagesPending,
-    options.messageLoadFailed,
-    options.isThreadLoading,
-    options.transcriptAtEnd,
-    readCurrentRoom,
-  ]);
+  useRoomReadAttentionTrigger(options, readCurrentRoom);
 
   return { markThreadRead, syncRoomAttentionAfterThreadLook };
 }

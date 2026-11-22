@@ -181,6 +181,15 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-seo-focus-handoff-target` (`useSeoFocusHandoffTarget`) — focuses the SEO focus-handoff status target with `preventScroll` when armed, visible, and focus fell to `document.body`
 - `use-seo-focus-handoff-dialog-return` (`useSeoFocusHandoffDialogReturn`) — returns focus to the first control button in the SEO focus-handoff container when its dialog closes without replacing the control
 - `use-seo-connection-callback` (`useSeoConnectionCallback`) — completes the native SEO OAuth connection callback on mount, broadcasts completion, closes the popup, and supports explicit retry
+- `use-guest-invite-section-data` (`useGuestInviteSectionData`) — loads pending guest invitations and non-revoked invite links on mount for `GuestInviteSection` with explicit retry
+- `use-pinned-messages-list` (`usePinnedMessagesList`) — loads the initial page of pinned messages for `PinnedMessagesPanel` when room or list generation changes
+- `use-room-cache-session-lifecycle` (`useRoomCacheSessionLifecycle`) — activates `RoomTranscriptCache`, handles `chat-session-ended` and `organization-chat-rooms-changed` events, and clears cache on cleanup
+- `use-room-search-query` (`useRoomSearchQuery`) — runs revision-guarded room message searches while `RoomSearchPanel` is open
+- `use-thread-list-first-page` (`useThreadListFirstPage`) — loads the first page of threads for `ThreadListPanel` on room change and invalidates stale reads on cleanup
+- `use-clamped-overflow-cache-sync` (`useClampedOverflowCacheSync`) — before-paint cache map synchronization for `useClampedOverflow` disclosure state
+- `use-room-read-attention-trigger` (`useRoomReadAttentionTrigger`) — runs `readCurrentRoom` in `useRoomReadAttention` when room, transcript, thread, or live-edge inputs change
+- `use-coworker-stream-overlay-clear-on-disable` (`useCoworkerStreamOverlayClearOnDisable`) — clears cached coworker stream overlay timestamps when streaming is disabled
+- `use-coworker-stream-room-reconnect` (`useCoworkerStreamRoomReconnect`) — clears overlay messages on room exit and resumes Core's active stream on room entry or switch
 
 ### React Query in migrations
 
