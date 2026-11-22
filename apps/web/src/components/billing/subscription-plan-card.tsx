@@ -2,6 +2,7 @@
 
 import type { PaidSubscriptionPlanName } from "@sokosumi/utils";
 import { useFormatter, useTranslations } from "next-intl";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -10,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 import {
   formatPlanPrice,
   resolvePlanFeatureItems,
@@ -66,19 +66,12 @@ export function SubscriptionPlanCard({
     });
 
   return (
-    <Card
-      className={cn(
-        "flex h-full flex-col",
-        plan.isCurrent ? "border-foreground" : undefined,
-      )}
-    >
+    <Card className="flex h-full flex-col">
       <CardHeader className="space-y-2">
         <CardTitle className="flex items-center justify-between">
           <span>{t(`Plans.${translationKey}.name`)}</span>
           {plan.isCurrent ? (
-            <span className="text-foreground text-xs font-medium">
-              {t("currentPlanBadge")}
-            </span>
+            <Badge variant="muted">{t("currentPlanBadge")}</Badge>
           ) : null}
         </CardTitle>
         <CardDescription>
