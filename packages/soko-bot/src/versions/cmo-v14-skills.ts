@@ -22,11 +22,11 @@ const REVISIONS: readonly (readonly [string, string])[] = [
   ],
   [
     'YouTube and TikTok take only video: each is in channels with the cadence "1 a week", and its pieces are the month\'s talking videos, which list it in alsoOn (see the talking video rule below); never plan a youtube or tiktok entry of its own beyond them.',
-    "YouTube and TikTok take only video: TikToks on TikTok (format video) and YouTube Shorts on YouTube (format short), each an entry of its own at its network's rate below, and the month's talking videos list them in alsoOn too.",
+    "YouTube and TikTok take only video. A short video is made once and goes out on TikTok, Instagram Reels and YouTube Shorts together: plan it as one entry on one of them (tiktok format video, instagram format reel or youtube format short) that lists the other two in alsoOn; Core posts the one file on all three, each with its own caption in its network's format. The month's talking videos list them in alsoOn too.",
   ],
   [
     "all_in: three a day on X and two a day on LinkedIn, Facebook and Instagram.",
-    "all_in: each network at its own rate, because each feed moves at its own speed: six a day on X, at least one in two with a picture; one a day on LinkedIn, never more, because its feed buries a company that posts often; four a day on Instagram, two picture posts or carousels and two Reels; two a day on Facebook, pictures and Reels; three TikToks a day; and two YouTube Shorts a day. A side network (another buyer) takes its network's rate too.",
+    "all_in: each network at its own rate, because each feed moves at its own speed: six a day on X, at least one in two with a picture; one a day on LinkedIn, never more, because its feed buries a company that posts often; two picture posts or carousels a day on Instagram; two a day on Facebook, pictures and Reels; and seven short videos a day, each one entry with alsoOn, so TikTok, Instagram Reels and YouTube Shorts each get all seven. A side network (another buyer) takes its network's rate too.",
   ],
   [
     "(the strategy review refuses more than three a day on X or two on another network, and more than three a week on a side channel)",
@@ -34,11 +34,11 @@ const REVISIONS: readonly (readonly [string, string])[] = [
   ],
   [
     "So every main network takes its top rate (three a day on X, two on LinkedIn, Facebook and Instagram) and every side channel three a week;",
-    "So every network takes its top rate (six a day on X, one on LinkedIn, four on Instagram, two on Facebook, three TikToks and two YouTube Shorts), a side network too;",
+    "So every network takes its top rate (six a day on X, one on LinkedIn, two picture posts on Instagram, two on Facebook, and seven short videos a day shared by TikTok, Reels and Shorts), a side network too;",
   ],
   [
     "(all_in with Instagram as the main channel and LinkedIn as a side channel: 14 + 3 = 17)",
-    "(all_in on X, LinkedIn, Instagram, TikTok and YouTube: 42 + 7 + 28 + 21 + 14 = 112)",
+    "(all_in on X, LinkedIn, Instagram, TikTok and YouTube: 42 + 7 + 14 + 49 = 112 entries, the 49 short videos each on three networks)",
   ],
   [
     "(all_in on two main networks and a side channel is about 33 a week, not 7)",
@@ -46,7 +46,7 @@ const REVISIONS: readonly (readonly [string, string])[] = [
   ],
   [
     "A video costs about 30 credits, as much as four pictures, so plan at most four a month, only where movement shows what a still picture cannot: a product in use, a before and after, a screen changing. The strategy review refuses more.",
-    "A video costs about 30 credits, as much as four pictures, and short video is where people watch most: plan them every day at each video network's rate (three TikToks, two Reels on Instagram, two YouTube Shorts), each showing something that moves: a product in use, a before and after, a screen changing, one step of a how-to.",
+    "A video costs about 30 credits, as much as four pictures, and short video is where people watch most: plan seven a day, each one entry with the other short-video networks in alsoOn, each showing something that moves: a product in use, a before and after, a screen changing, one step of a how-to.",
   ],
   [
     "It counts as one of the four videos and costs about",

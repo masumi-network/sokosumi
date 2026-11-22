@@ -529,6 +529,7 @@ export interface CmoMediaPiece
     | "voice"
     | "languageCode"
     | "socialPostId"
+    | "videoOf"
   > {
   /** What is on it already: a post's file pathnames, a file piece's file ids. */
   media: readonly string[];
@@ -750,6 +751,17 @@ export function cmoMediaState(
 /** The piece id in a talking video's job key: its posts share the one job. */
 const SHARED_VIDEO = "video";
 
+/**
+ * The piece whose jobs make this piece's media: a short video's post on
+ * another network (a Reel or a Short of a TikTok, `videoOf`) is the same
+ * file, so it reads and starts its source's jobs.
+ */
+function mediaPieceId(piece: CmoMediaPiece): string {
+  return piece.videoOf && cmoPieceIsVideo(piece) && !cmoPieceIsTalking(piece)
+    ? piece.videoOf
+    : piece.id;
+}
+
 function jobKey(
   versionId: string,
   piece: CmoMediaPiece,
@@ -760,7 +772,7 @@ function jobKey(
   return [
     KEY_PREFIX,
     versionId,
-    step === "talking" ? SHARED_VIDEO : piece.id,
+    step === "talking" ? SHARED_VIDEO : mediaPieceId(piece),
     slot,
     step,
     cmoVisualKey(piece),
@@ -771,7 +783,8 @@ function jobKey(
 /**
  * The jobs started for one slot of a piece under its current visual. A
  * talking video is one job for every piece that speaks the same script with
- * the same presenter and voice, so a Reel and a Short of it are made once.
+ * the same presenter and voice, so a Reel and a Short of it are made once; a
+ * short video's copies read their source's jobs.
  */
 function slotJobs(
   piece: CmoMediaPiece,
@@ -782,7 +795,9 @@ function slotJobs(
   return jobs.filter((job) =>
     cmoPieceIsTalking(piece)
       ? job.step === "talking" && job.visualKey === key
-      : job.pieceId === piece.id && job.slot === slot && job.visualKey === key,
+      : job.pieceId === mediaPieceId(piece) &&
+        job.slot === slot &&
+        job.visualKey === key,
   );
 }
 

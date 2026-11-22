@@ -163,9 +163,12 @@ export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-type
 export {
   CMO_CHANNELS,
   CMO_OWNER_CONFIRMED_CHANNELS,
+  CMO_SHORT_VIDEO_FORMATS,
   type CmoChannelKey,
+  cmoShortVideoFormat,
   isCmoChannelFormat,
   isCmoOwnerConfirmedChannel,
+  isCmoShortVideoFormat,
   isCmoTalkingFormat,
   normalizeCmoChannelFormat,
 } from "./cmo-channels.js";
@@ -179,6 +182,7 @@ export {
 export { withoutSokosumiLinks } from "./cmo-links.js";
 export {
   CMO_NETWORK_VOLUME,
+  CMO_SHORT_VIDEOS_PER_WEEK,
   CMO_VOLUME_LEVELS,
   type CmoMonthVolume,
   type CmoNetworkRate,

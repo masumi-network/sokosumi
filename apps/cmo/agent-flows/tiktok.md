@@ -2,7 +2,7 @@
 
 **Cuso does**
 
-- Plans TikTok videos in the month's strategy once the owner wants the channel: talking videos and short videos made from brand pictures. From cmo-v14: three TikToks a day at the top plan (Starter makes one a day, Growth two), most of them five-second TikToks, at most four talking ones a month.
+- Plans TikTok videos in the month's strategy once the owner wants the channel: talking videos and short videos made from brand pictures. From cmo-v14: every short video of the month, the same file as its Reel and YouTube Short: seven a day at the top plan (Starter about two a day, 17 a week; Growth four a day), most of them five-second TikToks, at most four talking ones a month.
 - Writes each one for TikTok: hook in the first second, captions in the safe area, AI label on.
 - Hands each finished video to the owner. He never posts to TikTok himself, and never says a video was posted or scheduled.
 

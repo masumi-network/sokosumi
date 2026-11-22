@@ -301,7 +301,7 @@ export function cmoPieceLine(piece: CmoPiece, failed: boolean): string {
       ? `carousel of ${slides} slides: one visual and a line per slide in slides, Core makes each slide`
       : "",
     piece.videoOf
-      ? `(the talking video of ${piece.videoOf} on ${piece.channel}: write only this post's own caption for ${piece.channel}; its script stays on ${piece.videoOf})`
+      ? `(the ${cmoPieceIsTalking(piece) ? "talking video" : "short video"} of ${piece.videoOf} on ${piece.channel}: the same file, so write only this post's own caption, in ${piece.channel}'s own format; ${cmoPieceIsTalking(piece) ? "its script" : "its visual"} stays on ${piece.videoOf})`
       : cmoPieceIsTalking(piece)
         ? piece.script
           ? failed

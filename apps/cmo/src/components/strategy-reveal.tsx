@@ -11,6 +11,7 @@ import {
   formatHasImage,
   formatHasVideo,
   formatName,
+  formatOn,
   GROUP_NAMES,
   OWNER_PART,
 } from "../lib/channels";
@@ -309,14 +310,14 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
           );
           const formats = new Map<string, number>();
           for (const entry of entries) {
-            const name = formatName(channel.key, entry.format);
+            const name = formatName(channel.key, formatOn(entry, channel.key));
             formats.set(name, (formats.get(name) ?? 0) + 1);
           }
           const images = entries.some((entry) =>
-            formatHasImage(channel.key, entry.format),
+            formatHasImage(channel.key, formatOn(entry, channel.key)),
           );
           const videos = entries.some((entry) =>
-            formatHasVideo(channel.key, entry.format),
+            formatHasVideo(channel.key, formatOn(entry, channel.key)),
           );
           return (
             <li key={channel.key} className="cw-card">

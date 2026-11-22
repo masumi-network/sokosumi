@@ -87,3 +87,16 @@ it("shows every network a month goes out on, a talking video on each of its netw
   expect(html).toMatch(/<b class="num">1<\/b> YouTube Short</);
   expect(html).toMatch(/<b class="num">1<\/b> TikTok</);
 });
+
+it("shows one short video on TikTok, Reels and Shorts, each counted in its own words", () => {
+  const html = feeds([
+    piece("sv", {
+      channel: "tiktok",
+      format: "video",
+      alsoOn: ["instagram", "youtube"],
+    }),
+  ]);
+  expect(html).toMatch(/<b class="num">1<\/b> TikTok</);
+  expect(html).toMatch(/<b class="num">1<\/b> Reel</);
+  expect(html).toMatch(/<b class="num">1<\/b> YouTube Short</);
+});

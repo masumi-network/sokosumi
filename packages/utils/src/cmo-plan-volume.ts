@@ -20,15 +20,28 @@ export type CmoVolumeNetwork =
 
 /**
  * One network's rate at a plan: `posts` a day or a week (X counts a day,
- * its feed moves fastest), and where a network splits them, `videos` (Reels,
- * YouTube Shorts, TikToks, talking videos) a week on their own. Without
- * `videos` a video counts as one of the posts.
+ * its feed moves fastest), and on the short-video networks (TikTok,
+ * Instagram Reels, YouTube Shorts) `videos` a week: the plan's short videos,
+ * each made once and posted on all three (`alsoOn`), so the three share one
+ * count. Without `videos` a video counts as one of the posts.
  */
 export interface CmoNetworkRate {
   posts: number;
   per: "day" | "week";
   videos?: number;
 }
+
+/**
+ * Short videos a week each plan makes, each one file posted to TikTok,
+ * Instagram Reels and YouTube Shorts together (owner, 2026-11-22): as many
+ * videos as before (68, 112 and 196 a month), so each network gets about
+ * three times its short videos and the media cost stays.
+ */
+export const CMO_SHORT_VIDEOS_PER_WEEK: Record<CmoVolumeLevel, number> = {
+  steady: 17,
+  active: 28,
+  all_in: 49,
+};
 
 /**
  * What each plan makes per network (owner, 2026-11-21: "more on every plan,
@@ -42,26 +55,50 @@ export const CMO_NETWORK_VOLUME: Record<
   steady: {
     x: { posts: 3, per: "day" },
     linkedin: { posts: 5, per: "week" },
-    instagram: { posts: 7, per: "week", videos: 5 },
+    instagram: {
+      posts: 7,
+      per: "week",
+      videos: CMO_SHORT_VIDEOS_PER_WEEK.steady,
+    },
     facebook: { posts: 5, per: "week" },
-    tiktok: { posts: 0, per: "week", videos: 7 },
-    youtube: { posts: 0, per: "week", videos: 5 },
+    tiktok: { posts: 0, per: "week", videos: CMO_SHORT_VIDEOS_PER_WEEK.steady },
+    youtube: {
+      posts: 0,
+      per: "week",
+      videos: CMO_SHORT_VIDEOS_PER_WEEK.steady,
+    },
   },
   active: {
     x: { posts: 4, per: "day" },
     linkedin: { posts: 7, per: "week" },
-    instagram: { posts: 7, per: "week", videos: 7 },
+    instagram: {
+      posts: 7,
+      per: "week",
+      videos: CMO_SHORT_VIDEOS_PER_WEEK.active,
+    },
     facebook: { posts: 7, per: "week" },
-    tiktok: { posts: 0, per: "week", videos: 14 },
-    youtube: { posts: 0, per: "week", videos: 7 },
+    tiktok: { posts: 0, per: "week", videos: CMO_SHORT_VIDEOS_PER_WEEK.active },
+    youtube: {
+      posts: 0,
+      per: "week",
+      videos: CMO_SHORT_VIDEOS_PER_WEEK.active,
+    },
   },
   all_in: {
     x: { posts: 6, per: "day" },
     linkedin: { posts: 7, per: "week" },
-    instagram: { posts: 14, per: "week", videos: 14 },
+    instagram: {
+      posts: 14,
+      per: "week",
+      videos: CMO_SHORT_VIDEOS_PER_WEEK.all_in,
+    },
     facebook: { posts: 14, per: "week" },
-    tiktok: { posts: 0, per: "week", videos: 21 },
-    youtube: { posts: 0, per: "week", videos: 14 },
+    tiktok: { posts: 0, per: "week", videos: CMO_SHORT_VIDEOS_PER_WEEK.all_in },
+    youtube: {
+      posts: 0,
+      per: "week",
+      videos: CMO_SHORT_VIDEOS_PER_WEEK.all_in,
+    },
   },
 };
 
@@ -139,7 +176,8 @@ export function cmoMonthAtLevel(
     if (!rate || channel?.owner !== "connect") {
       made.add(entry.id);
     } else if (format?.video && rate.videos !== undefined) {
-      take(`${key}:video:${week}`, rate.videos, entry);
+      // One count for the three: each short video goes out on all of them.
+      take(`short-video:${week}`, rate.videos, entry);
     } else if (rate.per === "day") {
       take(`${key}:${entry.date}`, rate.posts, entry);
     } else {

@@ -59,12 +59,13 @@ export const CMO_SHARE_TOLERANCE = 7;
 export const CMO_MAX_VIDEOS_PER_MONTH = 4;
 /**
  * cmo-v14 plans short video every day (owner, 2026-11-21: "multiple tiktoks
- * a day"; the top month holds 196: 56 Reels, 84 TikToks, 56 YouTube Shorts):
+ * a day"; the top month holds 196 short videos, each one file on TikTok,
+ * Reels and Shorts, and at most four talking videos):
  * a five-second video costs about 30 credits, so the cap moves to the
  * month's top volume, and the talking videos (120 to 250 credits each)
  * keep the old four.
  */
-export const CMO_CHANNEL_FIT_MAX_VIDEOS = 200;
+export const CMO_CHANNEL_FIT_MAX_VIDEOS = 210;
 export const CMO_MAX_TALKING_VIDEOS_PER_MONTH = 4;
 
 function isVideoFormat(entry: { channel: string; format: string }): boolean {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CMO_NETWORK_VOLUME,
+  CMO_SHORT_VIDEOS_PER_WEEK,
   CMO_VOLUME_LEVELS,
   type CmoVolumeLevel,
   cmoMonthAtLevel,
@@ -12,13 +13,19 @@ const day = (index: number) =>
   new Date(Date.UTC(2026, 10, 2 + index)).toISOString().slice(0, 10);
 
 /** `perDay` pieces of one format on one network, every day for 28 days. */
-function daily(channel: string, format: string, perDay: number) {
+function daily(
+  channel: string,
+  format: string,
+  perDay: number,
+  alsoOn?: string[],
+) {
   return Array.from({ length: 28 }, (_, index) =>
     Array.from({ length: perDay }, (_, slot) => ({
       id: `${channel}-${format}-${index}-${slot}`,
       date: day(index),
       channel,
       format,
+      ...(alsoOn ? { alsoOn } : {}),
     })),
   ).flat();
 }
@@ -29,10 +36,11 @@ const calendar = [
   ...daily("x", "image", 3),
   ...daily("linkedin", "image", 1),
   ...daily("instagram", "carousel", 2),
-  ...daily("instagram", "reel", 2),
   ...daily("facebook", "image", 2),
-  ...daily("tiktok", "video", 3),
-  ...daily("youtube", "short", 2),
+  // Seven short videos a day, each one file on TikTok, Reels and Shorts.
+  ...daily("tiktok", "video", 4, ["instagram", "youtube"]),
+  ...daily("instagram", "reel", 2, ["tiktok", "youtube"]),
+  ...daily("youtube", "short", 1, ["tiktok", "instagram"]),
   { id: "ad-1", date: day(1), channel: "google_ads", format: "search_ad" },
   { id: "issue-1", date: day(3), channel: "newsletter", format: "issue" },
 ];
@@ -50,16 +58,25 @@ describe("cmoMonthAtLevel", () => {
     expect(atLevels("x-")).toEqual([84, 112, 168]);
     expect(atLevels("linkedin-")).toEqual([20, 28, 28]);
     expect(atLevels("instagram-carousel-")).toEqual([28, 28, 56]);
-    expect(atLevels("instagram-reel-")).toEqual([20, 28, 56]);
     expect(atLevels("facebook-")).toEqual([20, 28, 56]);
-    expect(atLevels("tiktok-")).toEqual([28, 56, 84]);
-    expect(atLevels("youtube-")).toEqual([20, 28, 56]);
   });
 
-  it("matches the table, so the top plan makes the whole top month", () => {
-    for (const [network, rate] of Object.entries(CMO_NETWORK_VOLUME.all_in)) {
-      expect(made("all_in", `${network}-`)).toBe(cmoNetworkMonth(rate));
-    }
+  it("makes each plan's short videos once, across TikTok, Reels and Shorts", () => {
+    const shortVideos = (level: CmoVolumeLevel) =>
+      made(level, "tiktok-") +
+      made(level, "instagram-reel-") +
+      made(level, "youtube-");
+    expect(CMO_VOLUME_LEVELS.map(shortVideos)).toEqual([68, 112, 196]);
+    expect(
+      CMO_VOLUME_LEVELS.map((level) => CMO_SHORT_VIDEOS_PER_WEEK[level] * 4),
+    ).toEqual([68, 112, 196]);
+  });
+
+  it("gives each short-video network every short video at the top: 196", () => {
+    for (const network of ["tiktok", "instagram", "youtube"] as const)
+      expect(cmoNetworkMonth(CMO_NETWORK_VOLUME.all_in[network])).toBe(
+        network === "instagram" ? 56 + 196 : 196,
+      );
   });
 
   it("always makes what is not a social post", () => {
@@ -71,9 +88,10 @@ describe("cmoMonthAtLevel", () => {
 
   it("counts posts, pictures and videos, without the ad and the issue", () => {
     const top = cmoMonthAtLevel(calendar, "all_in");
-    // 168 X + 28 LinkedIn + 112 Instagram + 56 Facebook + 84 TikTok + 56 YouTube.
+    // 168 X + 28 LinkedIn + 56 Instagram + 56 Facebook + 196 short videos
+    // (their copies on the other two networks are posts once split).
     expect(top.posts).toBe(504);
-    expect(top.videos).toBe(56 + 84 + 56);
+    expect(top.videos).toBe(196);
     expect(top.pictures).toBe(84 + 28 + 56 + 56);
   });
 
