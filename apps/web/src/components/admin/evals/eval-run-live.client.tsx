@@ -3,21 +3,16 @@
 import { Square } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useTransition } from "react";
+import { useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useEvalRunLiveRefresh } from "@/hooks/effects/use-eval-run-live-refresh";
 import { cancelAdminEvalRunAction } from "@/lib/actions/admin-evals/action";
-
-const REFRESH_MS = 15_000;
 
 /** While a run is queued or running, the page reads it again every 15 seconds. */
 export function EvalRunRefresh() {
   const router = useRouter();
-  // Syncs with the browser's clock: an external system, not derived state.
-  useEffect(() => {
-    const timer = window.setInterval(() => router.refresh(), REFRESH_MS);
-    return () => window.clearInterval(timer);
-  }, [router]);
+  useEvalRunLiveRefresh(router);
   return null;
 }
 

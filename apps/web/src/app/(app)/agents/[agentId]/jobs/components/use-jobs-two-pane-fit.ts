@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useJobsTwoPaneFitObserver } from "@/hooks/effects/use-jobs-two-pane-fit-observer";
 
 /**
  * Narrowest panes row that still leaves the detail pane readable:
@@ -23,28 +23,8 @@ export const JOBS_PANES_ATTRIBUTE = "data-jobs-panes";
  * media query answers a different question than the one the layout asks.
  */
 export function useJobsTwoPaneFit(): boolean | null {
-  const [fits, setFits] = useState<boolean | null>(null);
-
-  // Effect is necessary: subscribes to an external system (element geometry).
-  useEffect(() => {
-    // Both callers render inside the jobs layout, which commits the row in the
-    // same pass, so the row is present by the time this effect runs.
-    const row = document.querySelector(`[${JOBS_PANES_ATTRIBUTE}]`);
-    if (!row) {
-      return;
-    }
-
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) {
-        return;
-      }
-      setFits(entry.contentRect.width >= JOBS_TWO_PANE_MIN_WIDTH);
-    });
-
-    observer.observe(row);
-    return () => observer.disconnect();
-  }, []);
-
-  return fits;
+  return useJobsTwoPaneFitObserver(
+    JOBS_PANES_ATTRIBUTE,
+    JOBS_TWO_PANE_MIN_WIDTH,
+  );
 }

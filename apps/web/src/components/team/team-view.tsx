@@ -2,7 +2,7 @@
 
 import { Users } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   Sheet,
@@ -11,19 +11,14 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useTeamFile } from "@/hooks/effects/use-team-file";
 import {
-  parseTeam,
   type Team,
   type TeamNode,
   type TeamPerson,
   teamTree,
 } from "@/lib/team-file";
 import { cn } from "@/lib/utils";
-
-type LoadState =
-  | { status: "loading" }
-  | { status: "ready"; team: Team }
-  | { status: "failed" };
 
 /**
  * A `*.team.json` file read from `url` and shown as a team.
@@ -33,25 +28,7 @@ type LoadState =
  */
 export function TeamFileView({ url }: { url: string }) {
   const t = useTranslations("Components.TeamView");
-  const [state, setState] = useState<LoadState>({ status: "loading" });
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setState({ status: "loading" });
-    fetch(url, { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error("Failed to fetch team");
-        return response.json();
-      })
-      .then((json: unknown) => {
-        const team = parseTeam(json);
-        setState(team ? { status: "ready", team } : { status: "failed" });
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setState({ status: "failed" });
-      });
-    return () => controller.abort();
-  }, [url]);
+  const state = useTeamFile(url);
 
   if (state.status === "loading")
     return (
