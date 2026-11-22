@@ -17,7 +17,8 @@ import { signUpWithOrganization } from "./sign-up.ts";
  */
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
-const LONG_NAME = "Ada Tester's Neighbourhood Bakery and Coffee Roastery";
+// Near the 50-character limit for an Organization name.
+const LONG_NAME = "Ada's Neighbourhood Bakery and Coffee Roastery";
 const DISCARDED = "Discarded brand rule";
 
 const PROJECTS = [
