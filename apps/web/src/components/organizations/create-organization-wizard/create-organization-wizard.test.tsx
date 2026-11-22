@@ -113,6 +113,28 @@ describe("CreateOrganizationWizard", () => {
     });
   });
 
+  it("shows the name and website errors together, each on its own field", async () => {
+    const user = userEvent.setup();
+    render(<WizardHarness />);
+
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+
+    const name = screen.getByLabelText("Details.nameLabel");
+    const url = screen.getByLabelText("Details.urlLabel");
+    expect(name).toHaveAccessibleDescription("Details.nameInvalid");
+    expect(url).toHaveAccessibleDescription("Details.urlInvalid");
+    expect(screen.getAllByRole("alert").map((el) => el.textContent)).toEqual([
+      "Details.nameInvalid",
+      "Details.urlInvalid",
+    ]);
+
+    await user.type(name, "Acme");
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    expect(name).not.toHaveAccessibleDescription();
+    expect(url).toHaveAccessibleDescription("Details.urlInvalid");
+    expect(createOrganizationWorkspaceActionMock).not.toHaveBeenCalled();
+  });
+
   it("keeps the invite link labeled while it loads", async () => {
     const user = userEvent.setup();
     createOrganizationInviteLinkMock.mockReturnValue(new Promise(() => {}));

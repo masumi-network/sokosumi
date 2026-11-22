@@ -58,6 +58,7 @@ import {
 import {
   Form,
   FormControl,
+  FormErrorText,
   FormField,
   FormItem,
   FormLabel,
@@ -248,7 +249,7 @@ function CreateOrganizationWizardContent({
   const [copied, setCopied] = useState(false);
   const [emails, setEmails] = useState("");
   const [isSendingInvites, setIsSendingInvites] = useState(false);
-  /** Shared error id for the details step (message lives outside FormField). */
+  /** Error id prefix for the details step (messages live outside FormField). */
   const detailsErrorId = useId();
   const inviteFieldsId = useId();
   const logoDropzoneTitleId = useId();
@@ -722,7 +723,7 @@ function CreateOrganizationWizardContent({
                             <FormControl
                               aria-describedby={
                                 form.formState.errors.name
-                                  ? detailsErrorId
+                                  ? `${detailsErrorId}-name`
                                   : undefined
                               }
                             >
@@ -747,7 +748,7 @@ function CreateOrganizationWizardContent({
                             <FormControl
                               aria-describedby={
                                 form.formState.errors.url
-                                  ? detailsErrorId
+                                  ? `${detailsErrorId}-url`
                                   : undefined
                               }
                             >
@@ -762,20 +763,25 @@ function CreateOrganizationWizardContent({
                         )}
                       />
                     </div>
-                    {/* Fixed slot so a validation message never resizes the stage */}
-                    <div className="min-h-5 text-left">
-                      {/* Plain <p>, not <FormMessage>: lives outside FormField so
-                          both fields can share one error line without growing
-                          the card. FormControl aria-invalid still comes from
-                          field state; aria-describedby points here. */}
-                      <p
-                        id={detailsErrorId}
-                        role="alert"
-                        className="text-destructive text-sm"
-                      >
-                        {form.formState.errors.name?.message ??
-                          form.formState.errors.url?.message}
-                      </p>
+                    {/* Reserved slot so the first message does not move the hint */}
+                    <div className="mt-2 flex min-h-5 flex-col gap-1 text-left">
+                      {/* Below the card, not <FormMessage> inside it, so the
+                          card keeps its shape. Each field's error is its own
+                          line, so both show at once and each field's
+                          aria-describedby names only its own error.
+                          FormControl aria-invalid still comes from field state. */}
+                      {(["name", "url"] as const).map((field) => {
+                        const message = form.formState.errors[field]?.message;
+                        return message ? (
+                          <FormErrorText
+                            key={field}
+                            id={`${detailsErrorId}-${field}`}
+                            role="alert"
+                          >
+                            {message}
+                          </FormErrorText>
+                        ) : null;
+                      })}
                     </div>
                     <p className="text-muted-foreground text-left text-sm">
                       {t("Details.urlHint")}

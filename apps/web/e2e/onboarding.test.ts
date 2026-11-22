@@ -8,7 +8,7 @@ import { resolveBaseUrl } from "./base-url.ts";
 import { createMailbox } from "./mailbox.ts";
 
 // A first-time visitor with only the link: Register, the emailed code, a
-// Personal workspace, a Soko Bot, then its chat. Each size signs up a new
+// Personal workspace or an Organization, a Soko Bot, then its chat. Each test signs up a new
 // throwaway user; nothing is paid for or connected.
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
@@ -204,6 +204,85 @@ for (const { name, ...viewport } of PROJECTS) {
       await page.waitForURL(/\/chat\/rooms\//);
       await page.getByRole("textbox", { name: `Message ${BOT}` }).waitFor();
       await shot("4-chat");
+      await context.close();
+      assert.deepEqual(errors, []);
+    });
+
+    test("a new visitor sets up an Organization and meets their Soko Bot", async () => {
+      const mailbox = await createMailbox();
+      const context = await browser.newContext({ viewport });
+      const page = await context.newPage();
+      page.setDefaultTimeout(60_000);
+      const errors: string[] = [];
+      page.on("pageerror", (e) => errors.push(e.message));
+
+      await page.goto(`${BASE_URL}/`);
+      await page.getByRole("link", { name: "Register" }).click();
+      await expectStep(page, /\/signup/, "Create your account");
+      await page.getByRole("textbox", { name: "Email" }).fill(mailbox.address);
+      await page.getByRole("button", { name: "Continue with email" }).click();
+      await page.getByRole("textbox", { name: "First name" }).fill("Ada");
+      await page.getByRole("textbox", { name: "Last name" }).fill(name);
+      await page
+        .getByRole("textbox", { name: "Code from the email" })
+        .pressSequentially(await mailbox.nextCode());
+      await page.getByRole("button", { name: "Register" }).click();
+
+      await expectStep(page, /\/setup$/, "How do you want to work?");
+      await page.getByRole("radio", { name: /Organization/ }).click();
+      await page.getByRole("button", { name: "Continue" }).click();
+
+      // An empty Continue names both missing fields at once, and each field
+      // is described by its own error, not the other's.
+      const dialog = page.getByRole("dialog", { name: "Create organization" });
+      const orgName = dialog.getByRole("textbox", { name: "Name" });
+      const website = dialog.getByRole("textbox", { name: "Website" });
+      await dialog.getByRole("button", { name: "Continue" }).click();
+      const nameError = "Enter a name with at least 2 characters.";
+      const urlError = "Enter a valid website, like https://acme.com";
+      await dialog.getByRole("alert").filter({ hasText: urlError }).waitFor();
+      assert.deepEqual(await dialog.getByRole("alert").allTextContents(), [
+        nameError,
+        urlError,
+      ]);
+      assert.equal(
+        await orgName.evaluate((el) => el.getAttribute("aria-describedby")),
+        await dialog
+          .getByRole("alert")
+          .filter({ hasText: nameError })
+          .getAttribute("id"),
+      );
+      assert.equal(
+        await website.evaluate((el) => el.getAttribute("aria-describedby")),
+        await dialog
+          .getByRole("alert")
+          .filter({ hasText: urlError })
+          .getAttribute("id"),
+      );
+      await page.screenshot({
+        path: `${RESULTS_DIR}onboarding-${name}-org-errors.png`,
+      });
+
+      await orgName.fill("Ada Test Studio");
+      await website.fill("example.com");
+      await dialog.getByRole("button", { name: "Continue" }).click();
+      await dialog.getByRole("button", { name: "Skip for now" }).click();
+      await dialog.getByRole("button", { name: "Finish setup" }).click();
+      await dialog.getByRole("button", { name: "Go to workspace" }).click();
+
+      await expectStep(page, /\/setup\/assistant$/, "Name your Soko Bot");
+      await page.getByRole("textbox", { name: "Name" }).fill(BOT);
+      await page.getByRole("button", { name: "Continue" }).click();
+      const create = page.getByRole("button", { name: `Create ${BOT}` });
+      await create.and(page.locator(":enabled")).click();
+      await expectStep(
+        page,
+        /\/setup\/assistant\/connect$/,
+        `Give ${BOT} your inbox and calendar`,
+      );
+      await page.getByRole("link", { name: "Skip" }).click();
+      await page.waitForURL(/\/chat\/rooms\//);
+      await page.getByRole("textbox", { name: `Message ${BOT}` }).waitFor();
       await context.close();
       assert.deepEqual(errors, []);
     });
