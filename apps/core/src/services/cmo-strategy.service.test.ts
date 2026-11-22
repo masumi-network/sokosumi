@@ -34,6 +34,7 @@ import {
   strategy,
   strategyRows,
   turnFindFirst,
+  turnFindMany,
   turnFindUnique,
 } from "@/test-fixtures/cmo-service";
 
@@ -120,6 +121,7 @@ import {
   pauseCmoCalendarEntry,
   requestCmoStrategy,
   requireCmoStrategyFitted,
+  resumeCmoMonthFinishes,
   saveCmoStrategy,
   setCmoAdBudget,
   startCmoPlanAfterResearch,
@@ -529,6 +531,45 @@ describe("the plan starts when the research ends", () => {
       }),
     ).resolves.toBeNull();
     expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("finishes a cmo-v14 month the fresh plan turn left at one day", async () => {
+    seedStrategy({ ...strategy, calendar: [strategy.calendar[0]] });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v14" });
+    startTurn.mockResolvedValue({ turnId: "finish-1" });
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: "cmo:strategy:bot-1:1795316055955",
+      }),
+    ).resolves.toEqual({ turnId: "finish-1" });
+    const started = startTurn.mock.calls[0]?.[0] as { message: string };
+    expect(started.message).toContain("covers 1 of four weeks");
+    expect(started.message).toContain("lists the other two in alsoOn");
+  });
+
+  it("resumes a short draft whose finish turn never started, from the production sync", async () => {
+    seedStrategy({ ...strategy, calendar: [strategy.calendar[0]] });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v14" });
+    cusoFind.mockResolvedValue(HIRE);
+    startTurn.mockResolvedValue({ turnId: "finish-1" });
+    const now = new Date("2026-11-22T03:10:00Z");
+    turnFindMany.mockResolvedValueOnce([
+      {
+        id: "plan-1",
+        status: "COMPLETED",
+        eveSessionId: null,
+        createdAt: new Date("2026-11-22T02:54:00Z"),
+        updatedAt: new Date("2026-11-22T02:57:00Z"),
+        clientTurnId: "cmo:strategy:bot-1:1795316055955",
+        sokoBotId: "bot-1",
+        userId: "user-1",
+      },
+    ]);
+    await expect(resumeCmoMonthFinishes(now)).resolves.toBe(1);
+    const started = startTurn.mock.calls[0]?.[0] as { clientTurnId: string };
+    expect(started.clientTurnId).toMatch(/^cmo:strategy:bot-1:finish:\d+:1$/);
   });
 
   it("finishes a four-week month short of its cadences: NMKR's test copy planned a third", async () => {
