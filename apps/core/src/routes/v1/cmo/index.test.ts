@@ -202,6 +202,7 @@ function overview() {
       beyondPlan: [],
     },
     mailingListSize: 0,
+    comments: [],
     billing: {
       tier: null,
       interval: null,
