@@ -123,10 +123,11 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
         .getByRole("option", { name: / New task$/ })
         .first();
       await coworker.waitFor();
-      // The row reads "<Coworker> New task", its visible text.
-      const name = (await coworker.textContent())
-        ?.replace(/New task$/, "")
-        .trim();
+      // The row's accessible name is "<Coworker> New task", its visible
+      // text without the decorative avatar letter.
+      const name = (await coworker.ariaSnapshot()).match(
+        /option "(.+) New task"/,
+      )?.[1];
       assert.ok(name, "the Coworker row names its Coworker");
       await noSidewaysScroll(page);
       await shot(page, size, "3-coworker-result");
