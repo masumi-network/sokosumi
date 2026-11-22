@@ -158,12 +158,12 @@ export const CMO_MEASUREMENT_SOURCES = [
   {
     id: "google_analytics",
     name: "Google Analytics",
-    measures: "Visits, where they come from and conversions",
+    measures: "Visits, where they come from, and sign-ups or sales",
   },
   {
     id: "google_search_console",
     name: "Google Search Console",
-    measures: "Searches, clicks and rankings",
+    measures: "What people search on Google, and where you show up",
   },
   { id: "shopify", name: "Shopify", measures: "Orders and revenue" },
 ] as const;

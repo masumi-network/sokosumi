@@ -751,7 +751,7 @@ export function PlanReview({
           ) : null
         ) : hasChecks ? (
           <div className="card ob-checks">
-            <h2>Check these</h2>
+            <h2>Did I get these right?</h2>
             {questions.map((question) => (
               <PlanQuestionChip
                 key={question.id}

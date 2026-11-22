@@ -30,7 +30,13 @@ import { PageLead } from "./page-lead";
 
 import { BeforeAfter, CopyButton } from "./seo-before-after";
 import { KeywordSearch, SearchConsoleCard } from "./seo-research";
-import { count, day, NOT_KNOWN, pagePath } from "./seo-research-format";
+import {
+  count,
+  day,
+  intentWords,
+  NOT_KNOWN,
+  pagePath,
+} from "./seo-research-format";
 
 export interface SeoActions {
   loadSeo: () => Promise<CmoSeo | null>;
@@ -78,9 +84,9 @@ function evidenceText(e: CmoSeoEvidence): string {
     case "difficulty":
       return `difficulty ${e.value} of 100`;
     case "intent":
-      return `${e.value} intent`;
+      return `they want ${intentWords(e.value)}`;
     case "position":
-      return `${/^\d/.test(e.value) ? "position " : ""}${e.value}${on}`;
+      return `${/^\d/.test(e.value) ? "place " : ""}${e.value} on Google${on}`;
     case "clicks":
       return `${e.value} clicks${on}`;
     case "impressions":
@@ -556,7 +562,7 @@ function GoogleNumbers({ seo }: { seo: CmoSeo }) {
                 changeText(totals.impressions, before?.impressions),
               ),
               kpi(
-                "Average position",
+                "Average place on Google",
                 totals.position?.toFixed(1) ?? NOT_KNOWN,
                 positionChangeText(totals.position, before?.position),
               ),
@@ -827,7 +833,7 @@ export function SeoPage({
             </details>
           ) : null}
           <details className="seo-fold">
-            <summary>Keyword search</summary>
+            <summary>What people search for</summary>
             <KeywordSearch
               seo={seo}
               search={actions.searchKeywords}
@@ -837,7 +843,7 @@ export function SeoPage({
           {landingPages.length > 0 ? (
             <details className="seo-fold">
               <summary>
-                Landing pages
+                Pages for competitor searches
                 <span className="note">{landingPages.length}</span>
               </summary>
               <section className="card">

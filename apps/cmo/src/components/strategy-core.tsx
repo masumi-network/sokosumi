@@ -352,7 +352,7 @@ function MeasurePart({ stage }: { stage: Stage }) {
         <span className="note">
           {measure?.basis === "estimated"
             ? `${AGENT_NAME}'s estimate`
-            : "Not measured yet"}
+            : "Counted once your accounts are connected"}
         </span>
       )}
     </div>

@@ -163,7 +163,7 @@ it("says Not known for a keyword number that is missing", async () => {
     "team booking app free",
     "10",
     "Not known",
-    "commercial",
+    "to compare",
     "Not yet",
   ]);
   expect(cells[3].slice(1, 4)).toEqual(["Not known", "Not known", "Not known"]);
@@ -217,7 +217,7 @@ it("shows a landing page with its sources and says where it is live", async () =
   }));
   const page = actions(seo, { markLandingPageLive });
   await render(page);
-  expect(text()).toContain("Landing pages");
+  expect(text()).toContain("Pages for competitor searches");
   expect(text()).toContain(
     "Calendly alternative for teams that want their own booking page",
   );
@@ -265,5 +265,5 @@ it("shows a landing page that is live with its address, and no address field", a
 
 it("leaves the landing pages out while there are none", async () => {
   await render(actions({ ...seo, landingPages: [] }));
-  expect(text()).not.toContain("Landing pages");
+  expect(text()).not.toContain("Pages for competitor searches");
 });

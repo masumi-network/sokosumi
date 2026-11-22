@@ -406,7 +406,7 @@ function measureLine(measure: Measure): string {
       ? measure.value
       : `${measure.value} (my estimate)`;
   }
-  return "Not measured yet";
+  return "Counted once your accounts are connected";
 }
 
 /** What Cuso does on his own schedule; it matches his daily, weekly and monthly runs. */
