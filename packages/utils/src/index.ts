@@ -519,6 +519,7 @@ export {
   SEO_PAGE_CEILING_CENTS,
   type SeoCreditCeilingInput,
   seoCreditsForCents,
+  seoFullAuditAutoPages,
   seoFullAuditPrice,
   seoMaxCredits,
 } from "./seo-credits.js";
