@@ -114,9 +114,7 @@ describe("useSocialSignupAutoInitiator", () => {
   });
 
   it("does not restart OAuth when t changes identity on rerender", async () => {
-    const nextT = ((key: string) => key) as unknown as ReturnType<
-      typeof useTranslations<"Auth.Pages.SignUp">
-    >;
+    const nextT = t.bind(undefined);
     const { rerender } = renderHook(
       ({ translate }) =>
         useSocialSignupAutoInitiator({
