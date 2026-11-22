@@ -534,6 +534,9 @@ const ACCOUNT_STATE_REASON =
 const WEAK_VIDEO_NETWORK_REASON =
   /\b(young(er)?|teens?|gen ?z|consumers?|b2b|business buyers?|professionals?|developers?|builders?|entertainment|not where)\b/i;
 
+/** A network the owner asked to drop: the only leftOut cmo-v14 keeps. */
+const OWNER_LEFT_OUT = /^\s*owner:/i;
+
 /** The networks a talking video goes out on with no extra cost (alsoOn). */
 const VIDEO_ONLY_NETWORKS = ["youtube", "tiktok"];
 
@@ -550,6 +553,12 @@ export function cmoLeftOutProblems(
     if (options.channelFit && connected.has(key))
       return [
         `leftOut leaves ${key} out, but the business has connected its ${key} account: its audience is already there. Plan ${key}.`,
+      ];
+    // cmo-v14 plans every live network at its plan's rate (owner,
+    // 2026-11-21); NMKR's Facebook was left out as "leads gather elsewhere".
+    if (options.channelFit && !OWNER_LEFT_OUT.test(why))
+      return [
+        `leftOut leaves ${key} out ("${why}"); every live network is planned at its rate, ${CHANNEL_FIT_TOP[key]?.cadence ?? "its top cadence"} for ${key}. Leave one out only when the owner asked, with a why that starts with "Owner:".`,
       ];
     if (ACCOUNT_STATE_REASON.test(why))
       return [

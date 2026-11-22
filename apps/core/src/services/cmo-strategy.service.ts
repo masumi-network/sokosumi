@@ -1,6 +1,7 @@
 import { type MarketingStrategy, Prisma } from "@sokosumi/database";
 import {
   type BrandBrain,
+  CMO_CALENDAR_MAX_ENTRIES,
   CMO_PRODUCTION_TURN_PREFIX,
   type CmoBrandAnswer,
   type CmoBrandQuestion,
@@ -446,6 +447,12 @@ const FINISH_KIND = "finish";
 
 /** Finish turns in a row after a plan turn, so a month that cannot be finished still ends. */
 export const CMO_MONTH_FINISH_TURNS = 2;
+/**
+ * cmo-v14's top month is 504 pieces, and NMKR's first rewrite ended its plan
+ * turn near a third of them: each finish turn adds a week or two, so a
+ * channel-fit Cuso gets more of them.
+ */
+export const CMO_CHANNEL_FIT_FINISH_TURNS = 6;
 
 /** How many finish turns came before this one in a row; -1 for a turn that is no plan. */
 function finishRound(clientTurnId: string | null): number {
@@ -468,7 +475,7 @@ async function startCmoMonthFinish(
   cuso: Cuso,
 ): Promise<{ turnId: string } | null> {
   const round = finishRound(input.clientTurnId);
-  if (round < 0 || round >= CMO_MONTH_FINISH_TURNS) return null;
+  if (round < 0 || round >= CMO_CHANNEL_FIT_FINISH_TURNS) return null;
   const [bot, version] = await Promise.all([
     prisma.sokoBot.findUnique({
       where: { id: cuso.sokoBotId },
@@ -479,6 +486,10 @@ async function startCmoMonthFinish(
   if (!bot?.versionId) return null;
   const rules = cmoStrategyRules(getSokoBotVersion(bot.versionId).skills);
   if (!rules.weekly) return null;
+  const most = rules.channelFit
+    ? CMO_CHANNEL_FIT_FINISH_TURNS
+    : CMO_MONTH_FINISH_TURNS;
+  if (round >= most) return null;
   const plan = version?.approvedAt ? null : parseMarketingPlan(version?.plan);
   if (!plan) return null;
   const gaps = cmoPromiseGaps(plan, rules);
@@ -910,13 +921,7 @@ function ownerAnswers(brain: BrandBrain): string[] {
 
 /** Matches the calendar slice in the turn packet. A full plan with drafts does not fit. */
 export const CMO_VISIBLE_CALENDAR_DAYS = 31;
-/**
- * cmo-v14's top volume on every live network is 504 pieces a month
- * (`CMO_NETWORK_VOLUME.all_in`: six X posts a day, three TikToks, two
- * picture posts and two Reels on Instagram, two on Facebook, two YouTube
- * Shorts, one on LinkedIn), plus newsletter issues and room to spare.
- */
-const CMO_CALENDAR_LIMIT = 560;
+const CMO_CALENDAR_LIMIT = CMO_CALENDAR_MAX_ENTRIES;
 
 export function calendarBounds(
   now: Date,

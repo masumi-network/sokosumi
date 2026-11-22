@@ -369,7 +369,7 @@ describe("CMO version", () => {
     expect(strategy).toContain("three TikToks a day");
     expect(strategy).toContain("never the whole calendar");
     expect(strategy).toContain(
-      "A network the business has connected is never left out",
+      "Leave a network out only when the owner asked you to",
     );
     expect(strategy).not.toContain("three a day on X");
     expect(strategy).not.toContain("plan at most four a month, only where");
