@@ -1,8 +1,35 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import {
+  act,
+  type RenderHookOptions,
+  renderHook as rtlRenderHook,
+  waitFor,
+} from "@testing-library/react";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
+import { createElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { StudioState } from "./types";
 import { useStudioState } from "./use-studio-state";
+
+function createWrapper(searchParams?: string | Record<string, string>) {
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return createElement(NuqsTestingAdapter, {
+      searchParams,
+      hasMemory: true,
+      children,
+    });
+  };
+}
+
+function renderHook<Result, Props>(
+  render: (initialProps: Props) => Result,
+  options?: RenderHookOptions<Props>,
+) {
+  return rtlRenderHook(render, {
+    ...options,
+    wrapper: options?.wrapper ?? createWrapper(),
+  });
+}
 
 /**
  * The rule these tests exist for: a generation finishing must not take the
@@ -558,4 +585,35 @@ it("keeps saved feedback when a poll started before the rating returns", async (
     myReasons: ["great"],
     thumbsUp: 1,
   });
+});
+
+it("loads the sort order from a shared ?sort=best URL on mount", async () => {
+  const fetchMock = mockFetch({
+    assets: [asset("best-from-url", 2)],
+    jobs: [],
+    nextCursor: null,
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  const { result } = renderHook(
+    () =>
+      useStudioState({
+        projectId: "project-1",
+        initialState: INITIAL,
+        initialSelectedAssetId: null,
+      }),
+    { wrapper: createWrapper("?sort=best") },
+  );
+
+  expect(result.current.sort).toBe("best");
+  await waitFor(() =>
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/projects/project-1/image-studio/state?sort=best&assetId=a1",
+      expect.any(Object),
+    ),
+  );
+  await waitFor(() =>
+    expect(result.current.state.assets.map(({ id }) => id)).toEqual([
+      "best-from-url",
+    ]),
+  );
 });

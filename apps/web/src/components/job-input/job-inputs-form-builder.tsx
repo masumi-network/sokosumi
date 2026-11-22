@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
 import type React from "react";
-import { useEffect, useRef } from "react";
+import { useImperativeHandle, useRef } from "react";
 import { type SubmitHandler, useForm } from "react-hook-form";
 
 import { Form } from "@/components/ui/form";
@@ -24,7 +24,12 @@ export interface FormFooterProps {
   reset: () => void;
 }
 
+export interface JobInputsFormBuilderHandle {
+  getValues: () => JobInputsFormSchemaType;
+}
+
 export interface JobInputsFormBuilderProps {
+  ref?: React.Ref<JobInputsFormBuilderHandle>;
   inputFields: InputFieldSchemaType[];
   defaultValues?: JobInputsFormSchemaType;
   onSubmit: SubmitHandler<JobInputsFormSchemaType>;
@@ -34,11 +39,10 @@ export interface JobInputsFormBuilderProps {
   isActive?: boolean;
   t?: IntlTranslation<JobInputFormIntlPath>;
   preventEnterSubmit?: boolean;
-  /** Live draft merge for multi-group flows (tab navigation without Next). */
-  onValuesChange?: (values: JobInputsFormSchemaType) => void;
 }
 
 export function JobInputsFormBuilder({
+  ref,
   inputFields,
   defaultValues,
   onSubmit,
@@ -48,7 +52,6 @@ export function JobInputsFormBuilder({
   isActive = true,
   t,
   preventEnterSubmit = false,
-  onValuesChange,
 }: JobInputsFormBuilderProps) {
   const form = useForm<JobInputsFormSchemaType>({
     resolver: zodResolver(jobInputsFormSchema(inputFields, t)),
@@ -56,13 +59,13 @@ export function JobInputsFormBuilder({
     mode: "onChange",
   });
 
-  useEffect(() => {
-    if (!onValuesChange) return;
-    const subscription = form.watch((values) => {
-      onValuesChange(values as JobInputsFormSchemaType);
-    });
-    return () => subscription.unsubscribe();
-  }, [form, onValuesChange]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      getValues: () => form.getValues(),
+    }),
+    [form],
+  );
 
   const normalFormRef = useRef<HTMLFormElement | null>(null);
   const {

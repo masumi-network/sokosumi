@@ -1,6 +1,5 @@
 import type { SessionUser } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
-import { resolveAccountNotice } from "@/app/components/account-notice-state";
 import { mapAccountCreditsChrome } from "@/app/components/sidebar";
 import { SidebarAccountChip } from "@/app/components/sidebar/components/sidebar-account-chip.client";
 import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
@@ -12,7 +11,6 @@ import {
   getCachedMyCredits,
   getPrivateCachedChatListChrome,
 } from "./private-sidebar-cache";
-import { AccountNoticeHydrator } from "./shell-hydrators.client";
 
 interface SidebarDeferredAccountProps {
   sessionUser: SessionUser;
@@ -45,36 +43,26 @@ export default async function SidebarDeferredAccount({
 
   const credits = mapAccountCreditsChrome(creditsResult);
   const planName = await resolvePlanName(credits.planForLabel);
-  const accountNotice = resolveAccountNotice({
-    credits: credits.totalCredits,
-    currentPlan: credits.creditScope === null ? null : credits.currentPlan,
-    email: sessionUser.email,
-    emailVerified: sessionUser.emailVerified,
-    threshold: lowCreditsThreshold,
-  });
 
   return (
-    <>
-      <AccountNoticeHydrator accountNotice={accountNotice} />
-      <SidebarAccountChip
-        sessionUser={sessionUser}
-        planName={planName}
-        totalCredits={credits.totalCredits}
-        extraCredits={credits.extraCredits}
-        creditUsage={credits.creditUsage}
-        subscriptionPeriodEndMs={credits.subscriptionPeriodEndMs}
-        currentTimestampMs={credits.currentTimestampMs}
-        lowCreditsThreshold={lowCreditsThreshold}
-        buyCreditsLabel={tPlan("getMoreCredits")}
-        buyCreditsPath={credits.buyCreditsPath}
-        adminSettingsChrome={{
-          adminMenuEnabled,
-          members: chatListChrome.members,
-          activeOrganizationId,
-          showDeveloperVendors: showVendors,
-        }}
-      />
-    </>
+    <SidebarAccountChip
+      sessionUser={sessionUser}
+      planName={planName}
+      totalCredits={credits.totalCredits}
+      extraCredits={credits.extraCredits}
+      creditUsage={credits.creditUsage}
+      subscriptionPeriodEndMs={credits.subscriptionPeriodEndMs}
+      currentTimestampMs={credits.currentTimestampMs}
+      lowCreditsThreshold={lowCreditsThreshold}
+      buyCreditsLabel={tPlan("getMoreCredits")}
+      buyCreditsPath={credits.buyCreditsPath}
+      adminSettingsChrome={{
+        adminMenuEnabled,
+        members: chatListChrome.members,
+        activeOrganizationId,
+        showDeveloperVendors: showVendors,
+      }}
+    />
   );
 }
 

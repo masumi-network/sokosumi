@@ -250,8 +250,14 @@ export function TaskActivityComposer({
               aria-label={formattingLabel}
               aria-pressed={formatToolbarOpen}
               onClick={() => {
-                setFormatToolbarOpen((open) => !open);
-                setActiveFormats(EMPTY_COMPOSER_ACTIVE_FORMATS);
+                const next = !formatToolbarOpen;
+                setFormatToolbarOpen(next);
+                setActiveFormats(
+                  next
+                    ? (editorRef.current?.getActiveFormats() ??
+                        EMPTY_COMPOSER_ACTIVE_FORMATS)
+                    : EMPTY_COMPOSER_ACTIVE_FORMATS,
+                );
               }}
             >
               <ALargeSmall className="size-4" aria-hidden />

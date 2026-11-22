@@ -110,6 +110,7 @@ export interface ComposerWysiwygEditorHandle {
   insertLink: (text: string, url: string) => void;
   getSelectedPlainText: () => string;
   getMarkdown: () => string;
+  getActiveFormats: () => ComposerActiveFormats;
   /** Flush bare trailing emoticons before submit when Send skips blur. */
   flushTrailingEmoticon: () => void;
 }
@@ -1293,11 +1294,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
     }
   });
 
-  useEffect(() => {
-    if (!onActiveFormatsChange) return;
-    publishActiveFormats();
-  }, [onActiveFormatsChange, publishActiveFormats]);
-
   useScrollIntoViewWhen(
     () => listRef.current?.querySelector(`[data-index="${activeIndex}"]`),
     isOpen,
@@ -1369,6 +1365,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
       getSelectedPlainText: () => window.getSelection()?.toString() ?? "",
       getMarkdown: () =>
         editorRef.current ? htmlToMarkdown(editorRef.current) : "",
+      getActiveFormats: () => getComposerActiveFormats(editorRef.current),
       flushTrailingEmoticon: tryFlushTrailingEmoticon,
     }),
     [

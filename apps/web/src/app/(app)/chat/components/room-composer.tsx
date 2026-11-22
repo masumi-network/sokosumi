@@ -793,7 +793,12 @@ export function RoomComposer({
               onClick={() => {
                 const next = !formatToolbarOpen;
                 setFormatToolbarOpen(next);
-                if (!next) {
+                if (next) {
+                  handleActiveFormatsChange(
+                    editorRef.current?.getActiveFormats() ??
+                      EMPTY_COMPOSER_ACTIVE_FORMATS,
+                  );
+                } else {
                   setActiveFormats(EMPTY_COMPOSER_ACTIVE_FORMATS);
                 }
               }}

@@ -1712,4 +1712,31 @@ describe("ComposerWysiwygEditor", () => {
       Element.prototype.scrollIntoView = originalScrollIntoView;
     }
   });
+
+  it("exposes current active inline formats via getActiveFormats without an effect", () => {
+    const editorRef = { current: null as ComposerWysiwygEditorHandle | null };
+    render(
+      <ComposerWysiwygEditor
+        ref={editorRef}
+        value="**bold** plain"
+        onChange={() => undefined}
+        mentions={{}}
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    const boldEl = editor.querySelector("strong, b");
+    expect(boldEl).not.toBeNull();
+
+    const textNode = boldEl!.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, 4);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    expect(editorRef.current?.getActiveFormats().bold).toBe(true);
+    expect(editorRef.current?.getActiveFormats().italic).toBe(false);
+  });
 });

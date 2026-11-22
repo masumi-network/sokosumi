@@ -1,15 +1,9 @@
 "use client";
 
-import {
-  createContext,
-  use,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, use, useMemo } from "react";
 
 import type { AccountNotice } from "@/app/components/account-notice-state";
+import { useDeferredPromise } from "@/hooks/use-deferred-promise";
 
 interface AccountNoticeContextValue {
   notice: AccountNotice | null;
@@ -19,53 +13,26 @@ interface AccountNoticeContextValue {
 const AccountNoticeContext = createContext<AccountNoticeContextValue | null>(
   null,
 );
-const AccountNoticeHydrationContext = createContext<
-  ((notice: AccountNotice | null) => void) | null
->(null);
 
 interface AccountNoticeProviderProps {
   notice: AccountNotice | null;
+  noticePromise?: Promise<AccountNotice | null>;
   sessionId: string;
   children: React.ReactNode;
 }
 
 export function AccountNoticeProvider({
   notice: initialNotice,
+  noticePromise,
   sessionId,
   children,
 }: AccountNoticeProviderProps) {
-  // Hydrate path owns updates after mount — avoid prop→state effect that
-  // would clobber shell-hydrated notices when layout re-renders with null.
-  const [notice, setNotice] = useState<AccountNotice | null>(initialNotice);
-
-  const hydrateAccountNotice = useCallback(
-    (nextNotice: AccountNotice | null) => {
-      setNotice(nextNotice);
-    },
-    [],
-  );
+  const hydratedNotice = useDeferredPromise(noticePromise, null);
+  const notice = hydratedNotice !== undefined ? hydratedNotice : initialNotice;
 
   const value = useMemo(() => ({ notice, sessionId }), [notice, sessionId]);
 
-  return (
-    <AccountNoticeHydrationContext.Provider value={hydrateAccountNotice}>
-      <AccountNoticeContext value={value}>{children}</AccountNoticeContext>
-    </AccountNoticeHydrationContext.Provider>
-  );
-}
-
-export function useAccountNoticeHydration(): (
-  notice: AccountNotice | null,
-) => void {
-  const hydrateAccountNotice = useContext(AccountNoticeHydrationContext);
-
-  if (!hydrateAccountNotice) {
-    throw new Error(
-      "useAccountNoticeHydration must be used within an AccountNoticeProvider",
-    );
-  }
-
-  return hydrateAccountNotice;
+  return <AccountNoticeContext value={value}>{children}</AccountNoticeContext>;
 }
 
 export function useAccountNotice(): AccountNoticeContextValue {
