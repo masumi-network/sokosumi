@@ -2,6 +2,7 @@
 
 import type { QueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { taskSubtasksQueryKey } from "@/app/tasks/components/use-task-subtasks";
 import type { SubtaskRow } from "@/app/tasks/utils/task-subtask-row";
 
 /**
@@ -18,7 +19,7 @@ export function useTaskSubtasksCacheSync(
   // replay older ones, so only newer rows replace it. A change in flight
   // keeps its optimistic order.
   useEffect(() => {
-    const key = ["task-subtasks", parentTaskId] as const;
+    const key = taskSubtasksQueryKey(parentTaskId);
     const cachedAt = queryClient.getQueryState(key)?.dataUpdatedAt ?? 0;
     if (
       renderedAt > cachedAt &&
