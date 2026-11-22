@@ -9,7 +9,12 @@ import {
   waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { type ComponentProps, cloneElement, type ReactNode } from "react";
+import {
+  Activity,
+  type ComponentProps,
+  cloneElement,
+  type ReactNode,
+} from "react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadMoreTasksColumn, loadMoreTasksList } from "@/app/tasks/actions";
@@ -959,4 +964,142 @@ describe("TasksView filtered empty state", () => {
       screen.queryByText("Filters.noMatchesTitle"),
     ).not.toBeInTheDocument();
   });
+});
+
+it("does not rewind the column cursor when archiving the only loaded task", async () => {
+  const archived: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-only-loaded-archived",
+  };
+  vi.mocked(loadMoreTasksColumn).mockResolvedValue({
+    tasks: [archived],
+    nextCursor: null,
+  });
+
+  const { rerender } = render(boardView([TASK], undefined, "cursor-1", 1));
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(
+    await screen.findByTestId(`board-card-${archived.id}`),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+
+  markTaskArchived(archived.id);
+  rerender(boardView([TASK], undefined, "cursor-1", 1));
+
+  expect(
+    screen.queryByTestId(`board-card-${archived.id}`),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("0");
+});
+
+it("discards a delayed page that settles after a hidden board switches filters under Activity", async () => {
+  const PROJECT_A = "11111111-1111-4111-8111-111111111111";
+  const PROJECT_B = "22222222-2222-4222-8222-222222222222";
+  const page =
+    Promise.withResolvers<Awaited<ReturnType<typeof loadMoreTasksColumn>>>();
+  vi.mocked(loadMoreTasksColumn).mockReturnValueOnce(page.promise);
+  const projectBTask: TaskWithCoworker = { ...TASK, id: "task-project-b" };
+  const projectBoard = (
+    projectId: string,
+    tasks: TaskWithCoworker[],
+    doneCursor: string | null,
+  ) => {
+    searchParamsRef.current = new URLSearchParams({ projectId });
+    return cloneElement(boardView(tasks, undefined, doneCursor), {
+      projectOptions: [
+        { id: PROJECT_A, name: "Alpha" },
+        { id: PROJECT_B, name: "Beta" },
+      ],
+      initialFilters: { ...EMPTY_FILTERS, projectId },
+    });
+  };
+  try {
+    const { rerender } = render(
+      <Activity mode="visible">
+        {projectBoard(PROJECT_A, [TASK], "alpha-cursor-1")}
+      </Activity>,
+    );
+    act(() => screen.getByRole("button", { name: "Load more" }).click());
+    expect(loadMoreTasksColumn).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <Activity mode="hidden">
+        {projectBoard(PROJECT_B, [projectBTask], "beta-cursor-1")}
+      </Activity>,
+    );
+
+    await act(async () => {
+      page.resolve({
+        tasks: [{ ...CANCELED_TASK, id: "stale-alpha-page" }],
+        nextCursor: null,
+      });
+      await page.promise;
+    });
+
+    rerender(
+      <Activity mode="visible">
+        {projectBoard(PROJECT_A, [TASK], "alpha-cursor-1")}
+      </Activity>,
+    );
+
+    expect(
+      screen.queryByTestId("board-card-stale-alpha-page"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+  } finally {
+    searchParamsRef.current = new URLSearchParams();
+  }
+});
+
+it("does not roll back or toast a rejected drag after a hidden board switches filters under Activity", async () => {
+  vi.mocked(toast.error).mockClear();
+  const dragResult =
+    Promise.withResolvers<Awaited<ReturnType<typeof setTaskStatusFromDrag>>>();
+  vi.mocked(setTaskStatusFromDrag).mockReturnValueOnce(dragResult.promise);
+  const updatedTask: TaskWithCoworker = {
+    ...TASK,
+    status: TaskStatus.READY,
+    columnId: "todo",
+  };
+  const taggedBoard = (tag: string, tasks: TaskWithCoworker[]) => {
+    searchParamsRef.current = new URLSearchParams({ tag });
+    return cloneElement(boardView(tasks), {
+      initialFilters: { ...EMPTY_FILTERS, tag },
+    });
+  };
+  try {
+    const { rerender } = render(
+      <Activity mode="visible">{taggedBoard("research", [TASK])}</Activity>,
+    );
+    await dropOnTodo(TASK.id, "backlog");
+    expect(boardCard(TASK.id)).toHaveAttribute("data-column", "todo");
+
+    rerender(
+      <Activity mode="hidden">
+        {taggedBoard("writing", [updatedTask])}
+      </Activity>,
+    );
+
+    await act(async () => {
+      dragResult.resolve({
+        ok: false,
+        error: { kind: "status_not_selectable" },
+      });
+      await dragResult.promise;
+    });
+
+    rerender(
+      <Activity mode="visible">
+        {taggedBoard("writing", [updatedTask])}
+      </Activity>,
+    );
+
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(boardCard(TASK.id)).toHaveAttribute("data-column", "todo");
+  } finally {
+    searchParamsRef.current = new URLSearchParams();
+  }
 });
