@@ -5,6 +5,7 @@ import {
   fileLinkFindMany,
   messageFindMany,
   postFindMany,
+  projectFindMany,
   projectFindUnique,
   resetCmoServiceMocks,
   seedStrategy,
@@ -248,6 +249,41 @@ describe("loadCmoMarketingContext", () => {
       expect.objectContaining({ id: "message-1", headline: "Week 1" }),
     ]);
     expect(JSON.stringify(context)).not.toContain("previousVersionId");
+  });
+
+  it("counts an account connected to the business's other Cuso for the same site", async () => {
+    // NMKR's Facebook Page sat on its first Cuso; the second read "New: Open an account".
+    const { loadCmoMarketingContext } = await import("./cmo-context.service");
+    cusoFind.mockResolvedValue({
+      sokoBotId: "bot-1",
+      projectId: "project-1",
+      brandBrain: null,
+      mockPlan: null,
+      updates: [],
+    });
+    seedStrategy(strategy);
+    subscriptionFindFirst.mockResolvedValue(null);
+    projectFindMany.mockResolvedValueOnce([
+      { id: "project-old", websiteUrl: "https://www.acme.io/" },
+      { id: "project-other", websiteUrl: "https://other.io" },
+    ]);
+    connectionFindMany.mockImplementation(
+      async (args: { where?: { projectId?: { in?: string[] } } }) =>
+        args.where?.projectId?.in
+          ? [{ provider: "facebook" }, { provider: "instagram" }]
+          : [],
+    );
+    const context = await loadCmoMarketingContext("bot-1");
+    expect(context?.existingAccounts).toEqual(["facebook", "instagram"]);
+    const query = connectionFindMany.mock.calls.find(
+      ([args]) =>
+        (args as { where?: { projectId?: { in?: string[] } } }).where?.projectId
+          ?.in,
+    )?.[0] as { where: { projectId: { in: string[] } } };
+    expect(query.where.projectId.in.sort()).toEqual([
+      "project-1",
+      "project-old",
+    ]);
   });
 
   it("gives Cuso the competitor moves of the last weeks, and none when quiet", async () => {
