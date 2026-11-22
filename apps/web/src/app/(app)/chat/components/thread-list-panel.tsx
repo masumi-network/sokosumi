@@ -2,7 +2,7 @@
 
 import type { ChatRoomMessage, ChatRoomThread } from "@sokosumi/core-client";
 import { BellOff, Loader2, MessagesSquare, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   listThreadsAction,
   markAllUnreadThreadsReadAction,
@@ -22,7 +22,6 @@ import {
   threadListRowClassName,
 } from "@/components/chat/thread-list-row";
 import { Button } from "@/components/ui/button";
-import { useThreadListFirstPage } from "@/hooks/effects/use-thread-list-first-page";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 export interface ThreadListPanelLabels {
@@ -72,22 +71,54 @@ export function ThreadListPanel({
   onClose,
   onAllThreadsLooked,
 }: ThreadListPanelProps) {
-  const {
-    items,
-    setItems,
-    nextCursor,
-    setNextCursor,
-    error,
-    setError,
-    olderFailed,
-    setOlderFailed,
-    isLoading,
-    listRequestIdRef,
-    loadFirstPage,
-  } = useThreadListFirstPage(roomId, labels);
+  const [items, setItems] = useState<ChatRoomThread[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [olderFailed, setOlderFailed] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
+  const listRequestIdRef = useRef(0);
   const { formatTimeAgo } = useLocalizedDateTime();
+
+  const loadFirstPage = useEffectEvent(async () => {
+    const requestId = ++listRequestIdRef.current;
+    setIsLoading(true);
+    setError(null);
+    setOlderFailed(false);
+    try {
+      const result = await listThreadsAction(roomId);
+      if (requestId !== listRequestIdRef.current) {
+        return;
+      }
+      if (!result.ok) {
+        setItems([]);
+        setNextCursor(null);
+        setError(result.error.message || labels.error);
+        return;
+      }
+      setItems(result.value.threads);
+      setNextCursor(result.value.nextCursor);
+    } catch {
+      if (requestId !== listRequestIdRef.current) {
+        return;
+      }
+      setItems([]);
+      setNextCursor(null);
+      setError(labels.error);
+    } finally {
+      if (requestId === listRequestIdRef.current) {
+        setIsLoading(false);
+      }
+    }
+  });
+
+  useEffect(() => {
+    void loadFirstPage();
+    return () => {
+      listRequestIdRef.current += 1;
+    };
+  }, [roomId]);
 
   async function handleLoadOlder() {
     // Mark all holds the boundary too, but an observer entry queued before

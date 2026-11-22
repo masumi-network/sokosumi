@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { act, renderHook } from "@testing-library/react";
+import { act, render, renderHook } from "@testing-library/react";
+import { Activity, createElement, StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -119,5 +120,58 @@ describe("useQuietHoverWhileScrolling", () => {
     expect(selector).not.toContain(
       `[${CHAT_SCROLLING_ATTRIBUTE}] [data-message-actions="hover"]{`,
     );
+  });
+
+  it("clears the mark on Activity hide, resumes listening on reveal, and survives StrictMode replay", () => {
+    function Probe({ node }: { node: HTMLElement | null }) {
+      useQuietHoverWhileScrolling(node);
+      return null;
+    }
+
+    const { rerender, unmount } = render(
+      createElement(
+        StrictMode,
+        null,
+        createElement(Activity, {
+          mode: "visible",
+          children: createElement(Probe, { node: scroller }),
+        }),
+      ),
+    );
+
+    scrollOnce(scroller);
+    expect(scroller.hasAttribute(CHAT_SCROLLING_ATTRIBUTE)).toBe(true);
+
+    rerender(
+      createElement(
+        StrictMode,
+        null,
+        createElement(Activity, {
+          mode: "hidden",
+          children: createElement(Probe, { node: scroller }),
+        }),
+      ),
+    );
+    expect(scroller.hasAttribute(CHAT_SCROLLING_ATTRIBUTE)).toBe(false);
+
+    // Scrolling while hidden does not mark the scroller.
+    scrollOnce(scroller);
+    expect(scroller.hasAttribute(CHAT_SCROLLING_ATTRIBUTE)).toBe(false);
+
+    rerender(
+      createElement(
+        StrictMode,
+        null,
+        createElement(Activity, {
+          mode: "visible",
+          children: createElement(Probe, { node: scroller }),
+        }),
+      ),
+    );
+    scrollOnce(scroller);
+    expect(scroller.hasAttribute(CHAT_SCROLLING_ATTRIBUTE)).toBe(true);
+
+    unmount();
+    expect(scroller.hasAttribute(CHAT_SCROLLING_ATTRIBUTE)).toBe(false);
   });
 });
