@@ -1,6 +1,13 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { Activity, StrictMode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useUnreadThreadReplyCounts } from "@/app/chat/hooks/use-unread-thread-reply-counts";
+import { useUnreadThreadReplyCounts } from "./use-unread-thread-reply-counts";
 
 const listUnreadThreadReplyCountsAction = vi.fn();
 
@@ -170,5 +177,86 @@ describe("useUnreadThreadReplyCounts", () => {
       expect(listUnreadThreadReplyCountsAction).toHaveBeenCalledTimes(2);
     });
     expect(screen.getByTestId("count")).toHaveTextContent("1");
+  });
+
+  it("cancels the debounce timer on StrictMode replay and Activity hide, ignores pending results after unmount, and re-reads on reveal", async () => {
+    vi.useFakeTimers();
+    try {
+      const first = Promise.withResolvers<ReturnType<typeof unread>>();
+      const second = Promise.withResolvers<ReturnType<typeof unread>>();
+      listUnreadThreadReplyCountsAction
+        .mockReturnValueOnce(first.promise)
+        .mockReturnValueOnce(second.promise);
+
+      const { rerender, unmount } = render(
+        <StrictMode>
+          <Activity mode="visible">
+            <Probe roomId="room-1" refreshKey="0:false" />
+          </Activity>
+        </StrictMode>,
+      );
+
+      // Hiding before the 150ms debounce deadline cancels the queued read.
+      rerender(
+        <StrictMode>
+          <Activity mode="hidden">
+            <Probe roomId="room-1" refreshKey="0:false" />
+          </Activity>
+        </StrictMode>,
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200);
+      });
+      expect(listUnreadThreadReplyCountsAction).not.toHaveBeenCalled();
+
+      // Revealing schedules the read; StrictMode replay cancels the first timer,
+      // so only one action fires after 150ms.
+      rerender(
+        <StrictMode>
+          <Activity mode="visible">
+            <Probe roomId="room-1" refreshKey="0:false" />
+          </Activity>
+        </StrictMode>,
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(150);
+      });
+      expect(listUnreadThreadReplyCountsAction).toHaveBeenCalledTimes(1);
+
+      // Hiding marks active=false so resolving the pending read does not update state.
+      rerender(
+        <StrictMode>
+          <Activity mode="hidden">
+            <Probe roomId="room-1" refreshKey="0:false" />
+          </Activity>
+        </StrictMode>,
+      );
+      await act(async () => {
+        first.resolve(unread(4));
+        await first.promise;
+      });
+      expect(screen.getByTestId("count")).toHaveTextContent("0");
+
+      // Revealing schedules a fresh read; unmounting while it is in flight ignores its result.
+      rerender(
+        <StrictMode>
+          <Activity mode="visible">
+            <Probe roomId="room-1" refreshKey="0:false" />
+          </Activity>
+        </StrictMode>,
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(150);
+      });
+      expect(listUnreadThreadReplyCountsAction).toHaveBeenCalledTimes(2);
+
+      unmount();
+      await act(async () => {
+        second.resolve(unread(6));
+        await second.promise;
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

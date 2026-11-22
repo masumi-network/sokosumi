@@ -181,6 +181,17 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-seo-focus-handoff-target` (`useSeoFocusHandoffTarget`) — focuses the SEO focus-handoff status target with `preventScroll` when armed, visible, and focus fell to `document.body`
 - `use-seo-focus-handoff-dialog-return` (`useSeoFocusHandoffDialogReturn`) — returns focus to the first control button in the SEO focus-handoff container when its dialog closes without replacing the control
 - `use-seo-connection-callback` (`useSeoConnectionCallback`) — completes the native SEO OAuth connection callback on mount, broadcasts completion, closes the popup, and supports explicit retry
+- `use-chat-landing-notice` (`useChatLandingNotice`) — shows the room-unavailable toast and clears `?notice=room-unavailable` on Welcome (`/`)
+- `use-coworker-thought-live-elapsed` (`useCoworkerThoughtLiveElapsed`) — live 100ms elapsed timer for `CoworkerLiveThought` starting from deterministic `startedAtMs`
+- `use-coworker-thought-line-height` (`useCoworkerThoughtLineHeight`) — before-paint `offsetHeight` measurement for the `CoworkerThoughtTrace` rail
+- `use-message-param-jump` (`useMessageParamJump`) — jumps to a URL-named notification message once per arrival when messages are ready
+- `use-quiet-hover-while-scrolling` (`useQuietHoverWhileScrolling`, `CHAT_SCROLLING_ATTRIBUTE`) — marks a chat transcript scroller with `data-chat-scrolling` while scrolling and clears after settle
+- `use-room-url-ask` (`useRoomUrlAsk`) — opens a room dialog/panel requested by a URL query parameter once roster is ready and strips the parameter
+- `use-rooms-client-classic-outbound-cleanup` (`useRoomsClientClassicOutboundCleanup`) — drops classic channel and thread outbound queues on room switch, Activity hide, and unmount
+- `use-rooms-client-reopen-active-stream-thread` (`useRoomsClientReopenActiveStreamThread`) — re-opens the thread panel in `RoomsClient` when a coworker thread stream is active or resumed
+- `use-rooms-client-scroll-on-history-loaded` (`useRoomsClientScrollOnHistoryLoaded`) — pins `RoomsClient` to the bottom in layout when message history transitions from pending to loaded
+- `use-rooms-client-transcript-active` (`useRoomsClientTranscriptActive`) — before-paint active/mounted ref lifecycle for `RetainedRoomsClient` and its `positionChanged` guard
+- `use-unread-thread-reply-counts` (`useUnreadThreadReplyCounts`) — debounced unread thread reply count reader per room with local `clear` override
 - `use-task-activity-composer-upload-cleanup` (`useTaskActivityComposerUploadCleanup`) — tracks unmounting/hidden state and aborts active attachment uploads on passive cleanup for `TaskActivityComposer`
 - `use-task-activity-jump-highlight` (`useTaskActivityJumpHighlight`) — tracks and highlights a pending "Jump to latest" message once rendered in `TaskActivitySection`
 - `use-task-files-expanded` (`useTaskFilesExpanded`) — owns `TaskFiles` expansion state and resets it before paint on unmount or React `<Activity>` hide

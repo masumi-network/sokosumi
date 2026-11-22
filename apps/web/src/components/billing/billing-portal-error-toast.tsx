@@ -21,19 +21,20 @@ function BillingPortalErrorToastContent({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const hasHandledRef = useRef(false);
+  const handledErrorRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (hasHandledRef.current) {
-      return;
-    }
-
     const errorCode = searchParams.get(BILLING_PORTAL_ERROR_PARAM);
     if (!errorCode) {
+      handledErrorRef.current = null;
       return;
     }
 
-    hasHandledRef.current = true;
+    if (handledErrorRef.current === errorCode) {
+      return;
+    }
+
+    handledErrorRef.current = errorCode;
 
     const message =
       errorCode === BILLING_PORTAL_ERROR_UNAUTHORIZED && unauthorizedMessage
