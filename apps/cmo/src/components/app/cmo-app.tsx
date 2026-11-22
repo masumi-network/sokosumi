@@ -59,6 +59,7 @@ import { StrategyPage } from "./strategy-page";
 import { type ChangePlan, type OpenPortal } from "./subscription-card";
 import { TabBar } from "./tab-bar";
 import { TodayPage } from "./today-page";
+import { UpgradeNotice } from "./upgrade-notice";
 
 const POLL_MS = 4_000;
 
@@ -125,6 +126,8 @@ export interface CmoAppActions
   startOver: () => Promise<string | null>;
   /** Moves Cuso's routines to this time zone; a refusal comes back as text. */
   setTimeZone: (timeZone: string) => Promise<string | null>;
+  /** The member closed the dialog that says what Cuso's newer version changed. */
+  markUpgradeSeen: (versionId: string) => Promise<void>;
   /** Starts the checkout for a Project top-up of this Cuso. */
   startTopUp: StartTopUp;
   /** Starts the CMO plan checkout, for a paused Cuso or from Settings. */
@@ -425,6 +428,17 @@ export function CmoApp({
     );
   }
 
+  // Closed at once; the next overview read no longer carries it.
+  const [closedUpgrade, setClosedUpgrade] = useState<string | null>(null);
+  const upgrade =
+    overview.upgrade && overview.upgrade.versionId !== closedUpgrade
+      ? overview.upgrade
+      : null;
+  const closeUpgrade = (versionId: string) => {
+    setClosedUpgrade(versionId);
+    void actions.markUpgradeSeen(versionId).catch(() => undefined);
+  };
+
   const lead = pageLead(view, overview);
   const outOfCredits =
     strategyApproved(overview) && overview.billing.availableCredits <= 0;
@@ -704,6 +718,12 @@ export function CmoApp({
           </div>
         )}
       </main>
+      {upgrade ? (
+        <UpgradeNotice
+          upgrade={upgrade}
+          onClose={() => closeUpgrade(upgrade.versionId)}
+        />
+      ) : null}
       <TabBar
         view={view}
         onSelect={go}

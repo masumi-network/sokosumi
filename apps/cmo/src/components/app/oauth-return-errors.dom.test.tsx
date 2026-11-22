@@ -74,6 +74,7 @@ function stubActions(): CmoAppActions {
     setAdCampaignStatus: async () => ({ overview: null, error: null }),
     loadAdCampaigns: async () => [],
     setTimeZone: noop,
+    markUpgradeSeen: async () => undefined,
     startOver: noop,
     startTopUp: noopConnect,
     subscribe: noopConnect,

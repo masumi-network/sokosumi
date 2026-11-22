@@ -50,6 +50,7 @@ import {
   listCmoCusos,
   listCmoPlans,
   markCmoLandingPageLiveForProject,
+  markCmoUpgradeSeenForProject,
   openCmoCustomerPortalForProject,
   type ProjectCompetitorCreate,
   pauseCmoCalendarEntryForProject,
@@ -751,6 +752,18 @@ export async function setTimeZone(
   if (error) return errorText(error, "Could not change the time zone");
   revalidatePath("/");
   return null;
+}
+
+/** The member closed the dialog about Cuso's newer version; it stays closed. */
+export async function markUpgradeSeen(
+  projectId: string,
+  versionId: string,
+): Promise<void> {
+  await markCmoUpgradeSeenForProject({
+    ...(await requireCore()),
+    path: { projectId },
+    body: { versionId },
+  });
 }
 
 /** A browser's time zone when this server knows it, else nothing. */

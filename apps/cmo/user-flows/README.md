@@ -29,3 +29,4 @@ What an owner typically does with Cuso, from hiring on, and what they expect. Ro
 | [Newsletter](newsletter.md)                               | Email                               | Not finished: no sending from CMO                |
 | [Month review](month-review.md)                           | All                                 | Works                                            |
 | [Chat failures](chat-usage-limit.md)                      | Chat                                | Shows a usage-limit notice or a safe fallback    |
+| [Cuso got better](cuso-upgrade.md)                        | Any                                 | Works; one dialog per member per version move    |
