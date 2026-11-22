@@ -1,6 +1,16 @@
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
+/* Product name: set once in <meta name="product-name"> */
+const productName = document.querySelector(
+  'meta[name="product-name"]',
+)?.content;
+if (productName) {
+  for (const el of $$("[data-name]")) el.textContent = productName;
+  for (const el of $$("[data-slug]"))
+    el.textContent = productName.toLowerCase();
+}
+
 /* Words: each word becomes a span so headlines can animate word by word */
 for (const el of $$("[data-words]")) {
   const words = el.textContent.trim().split(/\s+/);
@@ -66,7 +76,7 @@ if (!reduced) {
     { threshold: 0.15 },
   );
   const revealed =
-    ".logos p, .logos__grid li, .feature .tray, .replaces > div, .replaces li, .facts3 > div, .quote blockquote, .quote figcaption, .quote__photo, .close > *";
+    ".logos p, .logos__grid li, .feature .tray, .replaces > div, .replaces li, .facts3 > div, .quote blockquote, .quote figcaption, .quote__photo, .close > *, .install__works, .block > h2, .steps li, .toolset > div, .toolset li";
   for (const el of $$(revealed)) {
     const i = [...el.parentElement.children].indexOf(el);
     el.style.setProperty("--d", `${Math.min(i, 9) * 60}ms`);

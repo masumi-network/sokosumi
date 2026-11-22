@@ -41,6 +41,7 @@
   --color-focus: var(--neutral-950);
 
   --font-sans: "PP Mori", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   /* six sizes: two for product panels, four for the page */
   --text-xs: 0.75rem;

@@ -41,12 +41,14 @@ h2,
 h3,
 p,
 ul,
+ol,
 figure,
 blockquote {
   margin: 0;
   padding: 0;
 }
-ul {
+ul,
+ol {
   list-style: none;
 }
 a {
@@ -715,6 +717,126 @@ h3 {
 .foot a:hover {
   color: var(--color-ink);
 }
+/* Builders page: the install on the app backdrop, then steps, tools and standards */
+code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  color: var(--color-ink);
+}
+.install {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-lg);
+  margin-top: clamp(56px, 9svh, 96px);
+  padding: clamp(40px, 7vw, 88px) var(--space-lg);
+  border-radius: var(--radius-2xl);
+  background: var(--gradient-app);
+  transform: scale(calc(0.93 + 0.07 * var(--p)));
+  transform-origin: 50% 0;
+  animation: rise 1300ms 460ms var(--ease-out) backwards;
+}
+.term {
+  width: min(100%, 34rem);
+  padding: var(--space-xs) var(--space-lg);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-panel);
+  text-align: left;
+}
+.term__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding-block: var(--space-sm);
+}
+.term__head b {
+  font-weight: 400;
+}
+.badge {
+  padding: 0.2em 0.625rem 0.1em;
+  border-radius: var(--radius-pill);
+  background: var(--color-fill-2);
+  font-size: var(--text-xs);
+  color: var(--color-ink);
+}
+.term li {
+  display: grid;
+  gap: var(--space-2xs);
+  padding-block: var(--space-md);
+  border-top: var(--rule);
+}
+.term code {
+  font-size: var(--text-lead);
+  overflow-wrap: anywhere;
+}
+.install__works {
+  max-width: 26rem;
+  text-wrap: balance;
+  color: var(--color-ink);
+}
+.block {
+  margin-top: var(--space-4xl);
+}
+.block > h2,
+.toolset > div {
+  padding-top: var(--space-md);
+  border-top: var(--rule);
+}
+.steps {
+  display: grid;
+  gap: var(--space-2xl) var(--space-lg);
+  margin-top: var(--space-2xl);
+}
+.steps {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.steps h3 {
+  margin-bottom: var(--space-2xs);
+}
+.steps__n {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-bottom: var(--space-lg);
+  padding-top: 0.1em;
+  border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-panel);
+  color: var(--color-ink);
+}
+.toolset {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 11fr);
+  gap: var(--space-2xl);
+  align-items: start;
+  margin-top: var(--space-4xl);
+}
+.toolset > div p {
+  max-width: 21rem;
+  margin-top: var(--space-xs);
+  font-size: var(--text-lead);
+}
+.toolset ul {
+  border-bottom: var(--rule);
+}
+.toolset li {
+  display: grid;
+  grid-template-columns: 13rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--space-md);
+  padding-block: var(--space-md);
+  border-top: var(--rule);
+}
+.toolset code,
+.toolset b {
+  font-size: var(--text-lead);
+  font-weight: 400;
+}
+.toolset code {
+  font-size: 1rem;
+}
 @media (max-width: 900px) {
   .nav__links {
     display: none;
@@ -775,6 +897,13 @@ h3 {
   .film__canvas {
     aspect-ratio: 4 / 3;
   }
+  .steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .toolset {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-lg);
+  }
 }
 @media (max-width: 600px) {
   .shots__stage img {
@@ -790,6 +919,20 @@ h3 {
   }
   .replaces li {
     grid-template-columns: 6.5rem minmax(0, 1fr);
+  }
+  .steps {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-xl);
+  }
+  .install {
+    padding-inline: var(--space-md);
+  }
+  .term {
+    padding-inline: var(--space-md);
+  }
+  .toolset li {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2xs);
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -818,7 +961,8 @@ h3 {
     border-bottom: 1px solid var(--color-ink);
   }
   .agents li,
-  .idcard {
+  .idcard,
+  .term {
     box-shadow: 0 0 0 1px var(--color-ink-3);
   }
 }
