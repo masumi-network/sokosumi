@@ -17,9 +17,7 @@ import type { ReactNode } from "react";
 import {
   forwardRef,
   useCallback,
-  useEffect,
   useImperativeHandle,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -46,6 +44,10 @@ import {
   UNKNOWN_MENTION_CLASSNAME,
   VIEWPORT_PADDING_PX,
 } from "@/components/ui/mention-textarea-utils";
+import { useMarkdownEditorBlurTimeoutCleanup } from "@/hooks/effects/use-markdown-editor-blur-timeout-cleanup";
+import { useMarkdownEditorFormatToolbarWidth } from "@/hooks/effects/use-markdown-editor-format-toolbar-width";
+import { useMarkdownEditorSelectionToolbar } from "@/hooks/effects/use-markdown-editor-selection-toolbar";
+import { useMarkdownEditorValueSync } from "@/hooks/effects/use-markdown-editor-value-sync";
 import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import { cn } from "@/lib/utils";
 import { clearComposerFormat } from "@/lib/utils/composer-clear-format";
@@ -54,7 +56,10 @@ import {
   markdownToHtml,
 } from "@/lib/utils/composer-markdown-dom";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
-import { normalizeUrl } from "@/lib/utils/markdown-editor-utils";
+import {
+  normalizeUrl,
+  syncMarkdownEditorEmptyState,
+} from "@/lib/utils/markdown-editor-utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 
 interface MarkdownEditorProps {
@@ -90,26 +95,6 @@ interface MarkdownFormatToolsProps {
 }
 
 const FORMAT_TOOL_BUTTON_CLASSNAME = "size-7 cursor-pointer p-0";
-const FORMAT_TOOLBAR_FALLBACK_WIDTH_PX = 244;
-
-export function isMarkdownEditorDomEmpty(editor: HTMLElement): boolean {
-  const html = editor.innerHTML;
-  return (
-    html === "" ||
-    html === "<br>" ||
-    html === "<div><br></div>" ||
-    html === "<p><br></p>" ||
-    (editor.textContent ?? "").replace(/\u200b/g, "").trim() === ""
-  );
-}
-
-function syncMarkdownEditorEmptyState(editor: HTMLElement): void {
-  if (isMarkdownEditorDomEmpty(editor)) {
-    editor.setAttribute("data-empty", "");
-  } else {
-    editor.removeAttribute("data-empty");
-  }
-}
 
 function preventEditorSelectionLoss(event: { preventDefault: () => void }) {
   event.preventDefault();
@@ -269,10 +254,6 @@ export const MarkdownEditor = forwardRef<
   const [triggerPosition, setTriggerPosition] =
     useState<TriggerPosition | null>(null);
   const [drivePickerOpen, setDrivePickerOpen] = useState(false);
-  const [selectionRect, setSelectionRect] = useState<DOMRect | null>(null);
-  const [formatToolbarWidth, setFormatToolbarWidth] = useState(
-    FORMAT_TOOLBAR_FALLBACK_WIDTH_PX,
-  );
 
   const normalizedMentions = useMemo(() => {
     const entries = Object.entries(mentions);
@@ -417,21 +398,12 @@ export const MarkdownEditor = forwardRef<
   }, []);
 
   // Initialize editor content from value prop
-  useEffect(() => {
-    if (editorRef.current && !isInternalChange.current) {
-      const currentHtml = editorRef.current.innerHTML;
-      const newHtml = convertMarkdownToHtml(value);
-      const isFocused = editorRef.current.contains(document.activeElement);
-      const isExternalClear = value.trim().length === 0;
-
-      // Only update if content actually changed (avoid cursor jumping)
-      if (currentHtml !== newHtml && (!isFocused || isExternalClear)) {
-        editorRef.current.innerHTML = newHtml || "";
-        syncMarkdownEditorEmptyState(editorRef.current);
-      }
-    }
-    isInternalChange.current = false;
-  }, [value, convertMarkdownToHtml]);
+  useMarkdownEditorValueSync(
+    editorRef,
+    isInternalChange,
+    value,
+    convertMarkdownToHtml,
+  );
 
   const handleInput = useCallback(() => {
     if (editorRef.current) {
@@ -799,62 +771,15 @@ export const MarkdownEditor = forwardRef<
     { block: "nearest", resetKey: activeIndex },
   );
 
-  useEffect(() => {
-    return () => {
-      if (blurTimeoutRef.current) {
-        clearTimeout(blurTimeoutRef.current);
-      }
-    };
-  }, []);
+  useMarkdownEditorBlurTimeoutCleanup(blurTimeoutRef);
 
-  const updateSelectionToolbar = useCallback(() => {
-    if (variant !== "document") {
-      savedSelectionRangeRef.current = null;
-      setSelectionRect(null);
-      return;
-    }
-
-    const selection = window.getSelection();
-    if (
-      !selection ||
-      selection.isCollapsed ||
-      selection.rangeCount === 0 ||
-      !editorRef.current
-    ) {
-      savedSelectionRangeRef.current = null;
-      setSelectionRect(null);
-      return;
-    }
-
-    const range = selection.getRangeAt(0);
-    if (!editorRef.current.contains(range.commonAncestorContainer)) {
-      savedSelectionRangeRef.current = null;
-      setSelectionRect(null);
-      return;
-    }
-
-    const rect = range.getBoundingClientRect();
-    if (rect.width === 0 && rect.height === 0) {
-      savedSelectionRangeRef.current = null;
-      setSelectionRect(null);
-      return;
-    }
-
-    saveSelectionRange();
-    setSelectionRect(rect);
-  }, [saveSelectionRange, variant]);
-
-  useEffect(() => {
-    if (variant !== "document") {
-      setSelectionRect(null);
-      return;
-    }
-
-    document.addEventListener("selectionchange", updateSelectionToolbar);
-    return () => {
-      document.removeEventListener("selectionchange", updateSelectionToolbar);
-    };
-  }, [updateSelectionToolbar, variant]);
+  const { selectionRect, updateSelectionToolbar } =
+    useMarkdownEditorSelectionToolbar({
+      editorRef,
+      savedSelectionRangeRef,
+      saveSelectionRange,
+      variant,
+    });
 
   useImperativeHandle(
     ref,
@@ -870,13 +795,10 @@ export const MarkdownEditor = forwardRef<
   const placeFormatToolbarBelow =
     selectionRect != null && selectionRect.top - editorTop < 40;
 
-  useLayoutEffect(() => {
-    if (!selectionRect || !formatToolbarRef.current) return;
-    const width = formatToolbarRef.current.getBoundingClientRect().width;
-    if (width > 0) {
-      setFormatToolbarWidth(width);
-    }
-  }, [selectionRect]);
+  const formatToolbarWidth = useMarkdownEditorFormatToolbarWidth(
+    formatToolbarRef,
+    selectionRect,
+  );
 
   const formatToolbarLeft =
     selectionRect == null
