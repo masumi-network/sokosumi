@@ -1,14 +1,19 @@
+"use client";
+
 import type { StudioLogoPosition } from "@sokosumi/core-client";
 import { useEffect, useState } from "react";
 
-import { fetchStudioAd } from "./studio-ad-download";
+import { fetchStudioAd } from "@/app/projects/components/image-studio/studio-ad-download";
 import {
   renderStudioHeadline,
   type StudioHeadlineLook,
-} from "./studio-ad-headline";
-import { usesExactFontOverlay } from "./studio-lettering";
-import type { PlacementRatio } from "./studio-placements";
-import type { StudioAsset, StudioJob } from "./types";
+} from "@/app/projects/components/image-studio/studio-ad-headline";
+import { usesExactFontOverlay } from "@/app/projects/components/image-studio/studio-lettering";
+import type { PlacementRatio } from "@/app/projects/components/image-studio/studio-placements";
+import type {
+  StudioAsset,
+  StudioJob,
+} from "@/app/projects/components/image-studio/types";
 
 type RenderedHeadline =
   | { key: string; status: "ready"; blob: Blob; url: string }

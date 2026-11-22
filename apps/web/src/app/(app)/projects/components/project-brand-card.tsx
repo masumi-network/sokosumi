@@ -19,7 +19,6 @@ import {
   type ReactNode,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -30,16 +29,12 @@ import { toast } from "sonner";
 import {
   type FailedProjectBrandGeneration,
   getProjectBrandStorageVersion,
-  hasProjectBrandAttemptInFlight,
-  hasProjectBrandAutoStartAttempted,
   markProjectBrandAutoStartAttempted,
   onProjectBrandStorageChange,
   parseFailedProjectBrandGeneration,
   projectBrandJobCallbacks,
   projectBrandWebsite,
-  readFailedProjectBrandGeneration,
   readFailedProjectBrandGenerationJson,
-  readPendingProjectBrandJob,
 } from "@/app/projects/project-brand-job";
 import { DesignMdUploadTrigger } from "@/components/design-md/design-md-upload-trigger";
 import { DESIGN_MD_TRANSLATION_NAMESPACE } from "@/components/design-md/types";
@@ -63,6 +58,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { useProjectBrandAutoSetup } from "@/hooks/effects/use-project-brand-auto-setup";
 import {
   removeProjectDesignMd,
   updateProject,
@@ -195,46 +191,10 @@ export function ProjectBrandProvider({
       ? liveFailure
       : storedFailure;
 
-  // Background brand setup: the wizard may have closed mid-generation, so pick
-  // up its pending job here; if there is none but the project has a website
-  // and no DESIGN.md yet, kick generation off once so it lands on its own.
   const { resume, generate, isRunning } = generation;
-  useEffect(() => {
-    if (designMd) {
-      // Prevent an explicit remove from immediately recreating a brand when
-      // a server re-render remounts this provider in the same browser session.
-      backgroundGenerationAttempted.current = true;
-      markProjectBrandAutoStartAttempted(projectId);
-      return;
-    }
-    if (isRunning) return;
-    // Wait for the viewer, so a failure this attempt meets is kept.
-    if (!viewerId) return;
-    const pending = readPendingProjectBrandJob(projectId);
-    if (pending) {
-      if (backgroundGenerationAttempted.current) return;
-      backgroundGenerationAttempted.current = true;
-      resume(pending);
-      return;
-    }
-    if (!autoStart || !websiteUrl) return;
-    if (backgroundGenerationAttempted.current) return;
-    if (hasProjectBrandAutoStartAttempted(projectId)) return;
-    // A start elsewhere (the wizard's) hands its job over when it answers.
-    if (hasProjectBrandAttemptInFlight(projectId)) return;
-    // A failure on this website (the wizard's too) waits for the owner, not
-    // a silent retry. One on an older website does not count.
-    if (
-      readFailedProjectBrandGeneration(projectId, viewerId)?.website ===
-      projectBrandWebsite(websiteUrl)
-    ) {
-      return;
-    }
-    backgroundGenerationAttempted.current = true;
-    markProjectBrandAutoStartAttempted(projectId);
-    void generate({ url: websiteUrl });
-  }, [
+  useProjectBrandAutoSetup({
     autoStart,
+    backgroundGenerationAttempted,
     designMd,
     generate,
     isRunning,
@@ -243,7 +203,7 @@ export function ProjectBrandProvider({
     storageVersion,
     viewerId,
     websiteUrl,
-  ]);
+  });
 
   const value = useMemo(
     () => ({ designMd, failure, generation, setDesignMd }),
