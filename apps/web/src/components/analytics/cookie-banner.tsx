@@ -2,14 +2,16 @@
 
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { NEWSLETTER_EMBED_PATH } from "@/config/document-security-headers";
+import {
+  mainChromeLeftPx,
+  useCookieBannerChromeLeftPx,
+} from "@/hooks/effects/use-cookie-banner-chrome-left";
 import {
   openCookieConsentPreferences,
   useCookieConsentBanner,
 } from "@/hooks/effects/use-cookie-consent-banner";
-import { MOBILE_BREAKPOINT } from "@/hooks/effects/use-mobile";
 import { cn } from "@/lib/utils";
 
 const COOKIE_POLICY_URL = "https://www.sokosumi.com/legal/cookie-policy";
@@ -19,48 +21,7 @@ export function openConsentPreferences() {
   openCookieConsentPreferences();
 }
 
-/** Desktop app chrome reserves a left sidebar; align to that column, not the viewport. */
-export function mainChromeLeftPx(
-  viewportWidth: number,
-  sidebarGapWidth: number | null,
-): number {
-  if (viewportWidth < MOBILE_BREAKPOINT) return 0;
-  return sidebarGapWidth ?? 0;
-}
-
-function useMainChromeLeftPx(): number {
-  const [leftPx, setLeftPx] = useState(0);
-
-  useEffect(() => {
-    let observer: ResizeObserver | undefined;
-
-    function measure() {
-      const gap = document.querySelector<HTMLElement>(
-        "[data-slot=sidebar-gap]",
-      );
-      setLeftPx(
-        mainChromeLeftPx(
-          window.innerWidth,
-          gap?.getBoundingClientRect().width ?? null,
-        ),
-      );
-    }
-
-    measure();
-    const gap = document.querySelector("[data-slot=sidebar-gap]");
-    if (gap) {
-      observer = new ResizeObserver(measure);
-      observer.observe(gap);
-    }
-    window.addEventListener("resize", measure);
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, []);
-
-  return leftPx;
-}
+export { mainChromeLeftPx };
 
 /**
  * Self-built cookie banner (no third-party CMP). Records the visitor's choice
@@ -71,7 +32,7 @@ function useMainChromeLeftPx(): number {
 export function CookieBanner() {
   const t = useTranslations("CookieConsent");
   const pathname = usePathname();
-  const chromeLeftPx = useMainChromeLeftPx();
+  const chromeLeftPx = useCookieBannerChromeLeftPx();
   const {
     visible,
     expanded,
