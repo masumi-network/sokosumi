@@ -29,6 +29,10 @@ vi.mock("@/lib/auth/auth.client", () => ({
 vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: {
     getHistory: async () => ({ data: [], meta: { nextCursor: null } }),
+    listTaskSchedules: async () => ({ data: [] }),
+    getTaskScheduleAssignees: async () => ({
+      data: { coworkers: [], sokoBot: null },
+    }),
   },
 }));
 

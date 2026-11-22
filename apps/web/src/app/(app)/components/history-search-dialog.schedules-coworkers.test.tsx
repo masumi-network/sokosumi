@@ -8,7 +8,13 @@ const {
   openNewTaskWizardMock,
   listTaskSchedulesMock,
   getAssigneesMock,
+  CoreApiRequestError,
 } = vi.hoisted(() => ({
+  CoreApiRequestError: class extends Error {
+    constructor(readonly status: number) {
+      super(`Core ${status}`);
+    }
+  },
   pushMock: vi.fn(),
   openNewTaskWizardMock: vi.fn(),
   listTaskSchedulesMock: vi.fn(),
@@ -26,6 +32,7 @@ vi.mock("@/app/components/new-task-wizard-provider", () => ({
 }));
 
 vi.mock("@/lib/clients/core.browser.client", () => ({
+  CoreApiRequestError,
   coreClient: {
     getHistory: async () => ({ data: [], meta: { nextCursor: null } }),
     listTaskSchedules: listTaskSchedulesMock,
@@ -53,11 +60,6 @@ vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
 
 vi.mock("@/components/chat/use-live-chat-rooms", () => ({
   useLiveChatRoomsRead: () => ({ rooms: [], failed: false }),
-}));
-
-vi.mock("use-debounce", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("use-debounce")>()),
-  useDebounce: (value: unknown) => [value],
 }));
 
 import { HistorySearchDialog } from "@/app/components/history-search-dialog";
@@ -174,9 +176,33 @@ describe("HistorySearchDialog Schedules and Coworkers groups", () => {
     );
   });
 
-  it("hides the groups when their reads fail, without blocking No results", async () => {
+  it("says the read failed, not No results, when Schedules fail to load", async () => {
     listTaskSchedulesMock.mockRejectedValue(new Error("down"));
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.type(screen.getByPlaceholderText("Search..."), "weekly");
+
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent("Failed"),
+    );
+    expect(screen.queryByText("No results found")).not.toBeInTheDocument();
+  });
+
+  it("says the read failed when Coworkers fail to load", async () => {
     getAssigneesMock.mockRejectedValue(new Error("down"));
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.type(screen.getByPlaceholderText("Search..."), "seo");
+
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent("Failed"),
+    );
+  });
+
+  it("reads a member without a seat as no Schedules, not a failure", async () => {
+    listTaskSchedulesMock.mockRejectedValue(new CoreApiRequestError(403));
     const user = userEvent.setup();
     renderDialog();
 
@@ -185,6 +211,31 @@ describe("HistorySearchDialog Schedules and Coworkers groups", () => {
     await waitFor(() =>
       expect(screen.getByRole("status")).toHaveTextContent("No results found"),
     );
-    expect(screen.queryByText("Schedules")).not.toBeInTheDocument();
+  });
+
+  it("never opens the previous query's Schedule with Enter while the new query waits", async () => {
+    listTaskSchedulesMock.mockImplementation(async ({ q }: { q: string }) => ({
+      data: q === "weekly" ? [{ id: "s-1", name: "Weekly report" }] : [],
+    }));
+    const user = userEvent.setup();
+    renderDialog();
+    const input = screen.getByPlaceholderText("Search...");
+
+    await user.type(input, "weekly");
+    const option = await screen.findByRole("option", {
+      name: "Weekly report",
+    });
+    expect(option).toHaveAttribute("aria-disabled", "false");
+
+    await user.type(input, " sync{Enter}");
+
+    expect(option).toHaveAttribute("aria-disabled", "true");
+    expect(pushMock).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("option", { name: "Weekly report" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(pushMock).not.toHaveBeenCalled();
   });
 });

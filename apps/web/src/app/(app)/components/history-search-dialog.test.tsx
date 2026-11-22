@@ -27,6 +27,10 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: {
     getHistory: getHistoryMock,
+    listTaskSchedules: async () => ({ data: [] }),
+    getTaskScheduleAssignees: async () => ({
+      data: { coworkers: [], sokoBot: null },
+    }),
   },
 }));
 

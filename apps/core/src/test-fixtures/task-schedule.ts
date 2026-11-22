@@ -227,6 +227,24 @@ export function runsOf(scheduleId: string): TaskScheduleRun[] {
 
 type Where = Record<string, unknown>;
 
+/**
+ * Prisma `contains` as PostgreSQL runs it: `LIKE '%text%'`, where `%` and `_`
+ * are wildcards unless escaped with a backslash.
+ */
+function likeContains(text: string, ignoreCase: boolean): RegExp {
+  let pattern = "";
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i] as string;
+    if (char === "\\" && i + 1 < text.length) {
+      i++;
+      pattern += (text[i] as string).replace(/[.*+?^${}()|[\]\\]/u, "\\$&");
+    } else if (char === "%") pattern += ".*";
+    else if (char === "_") pattern += ".";
+    else pattern += char.replace(/[.*+?^${}()|[\]\\]/u, "\\$&");
+  }
+  return new RegExp(pattern, ignoreCase ? "isu" : "su");
+}
+
 function matchesValue(actual: unknown, expected: unknown): boolean {
   if (expected instanceof Date) {
     return actual instanceof Date && actual.getTime() === expected.getTime();
@@ -244,7 +262,10 @@ function matchesValue(actual: unknown, expected: unknown): boolean {
     if ("contains" in filter) {
       return (
         typeof actual === "string" &&
-        actual.toLowerCase().includes(String(filter.contains).toLowerCase())
+        likeContains(
+          String(filter.contains),
+          filter.mode === "insensitive",
+        ).test(actual)
       );
     }
     if ("in" in filter) return (filter.in as unknown[]).includes(actual);

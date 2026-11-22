@@ -27,7 +27,14 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/clients/core.browser.client", () => ({
-  coreClient: { getHistory: getHistoryMock, getTasks: getTasksMock },
+  coreClient: {
+    getHistory: getHistoryMock,
+    getTasks: getTasksMock,
+    listTaskSchedules: async () => ({ data: [] }),
+    getTaskScheduleAssignees: async () => ({
+      data: { coworkers: [], sokoBot: null },
+    }),
+  },
 }));
 
 vi.mock("@/lib/utils/file-search.client", () => ({

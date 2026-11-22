@@ -17,7 +17,10 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { coreClient } from "@/lib/clients/core.browser.client";
+import {
+  CoreApiRequestError,
+  coreClient,
+} from "@/lib/clients/core.browser.client";
 
 const GO_TO_LIMIT = 5;
 const SCHEDULE_SEARCH_DEBOUNCE_MS = 250;
@@ -54,13 +57,22 @@ function useScheduleAndCoworkerSearch({
   const [scheduleNeedle] = useDebounce(needle, SCHEDULE_SEARCH_DEBOUNCE_MS);
   const scheduleRead = useQuery({
     queryKey: ["search-schedules", activeOrganizationId, scheduleNeedle],
-    queryFn: async () =>
-      (
-        await coreClient.listTaskSchedules({
-          q: scheduleNeedle,
-          limit: GO_TO_LIMIT,
-        })
-      ).data,
+    queryFn: async () => {
+      try {
+        return (
+          await coreClient.listTaskSchedules({
+            q: scheduleNeedle,
+            limit: GO_TO_LIMIT,
+          })
+        ).data;
+      } catch (error) {
+        // No seat here: no Schedules to find, not a failed search.
+        if (error instanceof CoreApiRequestError && error.status === 403) {
+          return [];
+        }
+        throw error;
+      }
+    },
     enabled: scheduleNeedle.length > 0,
   });
   const coworkerRead = useQuery({
@@ -79,7 +91,11 @@ function useScheduleAndCoworkerSearch({
             .filter((coworker) => coworker.name.toLowerCase().includes(lower))
             .slice(0, GO_TO_LIMIT)
         : [],
+    // Rows of the previous query show until the debounce settles, but
+    // cannot be picked: Enter must never open a Schedule the text no longer names.
+    schedulesStale: needle !== scheduleNeedle,
     pending: scheduleRead.isLoading || coworkerRead.isLoading,
+    failed: scheduleRead.isError || coworkerRead.isError,
   };
 }
 
@@ -90,8 +106,8 @@ function useScheduleAndCoworkerSearch({
  * just above the list, since a listbox may hold only options and groups.
  * Both lists come from the reader's own access (Core's project search, the
  * reader's room memberships). Schedules (Core's name search) and the
- * Coworkers this workspace can assign follow; a failed read of either only
- * hides its group, as Files does.
+ * Coworkers this workspace can assign follow; a failed read of either reads
+ * as a failure, like Projects and channels, never as "No results".
  */
 export function GoToSearchList({
   query,
@@ -141,8 +157,10 @@ export function GoToSearchList({
     .slice(0, GO_TO_LIMIT);
   const {
     schedules,
+    schedulesStale,
     coworkers,
     pending: extraPending,
+    failed: extraFailed,
   } = useScheduleAndCoworkerSearch({
     query,
     activeOrganizationId,
@@ -161,7 +179,7 @@ export function GoToSearchList({
                 (rooms === null && !roomsFailed) ||
                 (!scopeProjects.isError &&
                   (scopeProjects.isPending || scopeProjects.isSearchPending)),
-              failed: roomsFailed || scopeProjects.isError,
+              failed: roomsFailed || scopeProjects.isError || extraFailed,
               count:
                 projects.length +
                 channels.length +
@@ -212,6 +230,7 @@ export function GoToSearchList({
         ) : null}
         <ScheduleResults
           schedules={schedules}
+          stale={schedulesStale}
           heading={labels.schedulesGroup}
           onSelect={onSelect}
         />
@@ -230,10 +249,12 @@ export function GoToSearchList({
 
 function ScheduleResults({
   schedules,
+  stale,
   heading,
   onSelect,
 }: {
   schedules: { id: string; name: string }[];
+  stale: boolean;
   heading: string;
   onSelect: (href: string) => void;
 }) {
@@ -244,6 +265,7 @@ function ScheduleResults({
         <CommandItem
           key={schedule.id}
           value={`schedule:${schedule.id}`}
+          disabled={stale}
           onSelect={() => onSelect(`${TASK_SCHEDULES_PATH}/${schedule.id}`)}
         >
           <Repeat aria-hidden className="size-4" />

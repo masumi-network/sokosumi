@@ -200,7 +200,7 @@ export const taskScheduleListQuerySchema = cursorPaginationQuerySchema.extend({
     .string()
     .trim()
     .min(1)
-    .max(200)
+    .max(LIMITS.NAME_MAX_LENGTH)
     .optional()
     .openapi({ description: "Name contains this text, ignoring case" }),
 });

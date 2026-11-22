@@ -18,6 +18,7 @@ import {
   createPaginationMeta,
   parseCursorPagination,
 } from "@/helpers/pagination";
+import { escapeLikeText } from "@/helpers/query-params";
 import {
   buildCoworkerPrivateTaskVisibilityWhere,
   buildHumanTaskVisibilityWhere,
@@ -194,6 +195,11 @@ export async function getTaskSchedule(
   return toTaskScheduleView(actor, await findReadableSchedule(actor, id));
 }
 
+/** Name contains `q` as typed: `%`, `_` and `\\` are literal, not wildcards. */
+export function taskScheduleNameFilter(q: string) {
+  return { contains: escapeLikeText(q), mode: "insensitive" as const };
+}
+
 export async function listTaskSchedules(
   vars: RouteVars,
   query: TaskScheduleListQuery,
@@ -204,9 +210,7 @@ export async function listTaskSchedules(
     ...readableWhere(actor),
     ...(query.projectId ? { projectId: query.projectId } : {}),
     ...(query.state ? { state: query.state } : {}),
-    ...(query.q
-      ? { name: { contains: query.q, mode: "insensitive" as const } }
-      : {}),
+    ...(query.q ? { name: taskScheduleNameFilter(query.q) } : {}),
   };
   const [rows, total] = await Promise.all([
     prisma.taskSchedule.findMany({
