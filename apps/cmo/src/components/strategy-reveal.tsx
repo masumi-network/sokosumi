@@ -12,10 +12,10 @@ import {
   formatHasVideo,
   formatName,
   formatOn,
-  GROUP_NAMES,
   OWNER_PART,
 } from "../lib/channels";
 import { joinNames } from "../lib/names";
+import { calendarDays, postRate } from "../lib/strategy";
 import { ChannelIcon } from "./channel-icon";
 import { planPieces } from "./phone-feeds";
 import { withoutLabel } from "./showcases";
@@ -247,7 +247,16 @@ const GROUP_ORDER: ChannelGroup[] = ["social", "ads", "email", "search"];
  * with a reply"; a name such as "YouTube Short" keeps its capitals.
  */
 export function plural(name: string, count: number): string {
-  const lower = /[a-z][A-Z]/.test(name) ? name : name.toLowerCase();
+  // Platform names keep their case ("1 Talking Reel, 31 Reels"); other
+  // words read as plain nouns ("12 image posts").
+  const lower = name
+    .split(" ")
+    .map((word) =>
+      /[a-z][A-Z]|^(Reels?|Shorts?|Stor(y|ies)|Talking)$/.test(word)
+        ? word
+        : word.toLowerCase(),
+    )
+    .join(" ");
   if (count === 1) return `1 ${lower}`;
   const [noun, ...rest] = lower.split(/ (?=with )/);
   const many = /(x|s|sh|ch)$/.test(noun) ? `${noun}es` : `${noun}s`;
@@ -274,6 +283,7 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
         GROUP_ORDER.indexOf(channelInfo(a.key)?.group ?? "social") -
         GROUP_ORDER.indexOf(channelInfo(b.key)?.group ?? "social"),
     );
+  const days = calendarDays(strategy.calendar);
   const used = new Set(channels.map((channel) => channel.key));
   // Networks Cuso left out because they do not fit the buyer, with his reason.
   const leftOut = (strategy.leftOut ?? []).flatMap((item) => {
@@ -328,9 +338,9 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
                 <div>
                   <p className="cw-name">{info.name}</p>
                   <p className="note">
-                    {GROUP_NAMES[info.group] === info.name
-                      ? channel.cadence
-                      : `${GROUP_NAMES[info.group]} · ${channel.cadence}`}
+                    {entries.length > 0
+                      ? postRate(entries.length, days)
+                      : channel.cadence}
                   </p>
                 </div>
               </div>

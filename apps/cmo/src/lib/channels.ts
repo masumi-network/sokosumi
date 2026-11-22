@@ -71,13 +71,6 @@ export function formatMedia(
   return known?.image ? "image" : null;
 }
 
-export const GROUP_NAMES: Record<ChannelGroup, string> = {
-  social: "Social media",
-  ads: "Ads",
-  email: "Newsletter",
-  search: "SEO",
-};
-
 /** What the owner does for each kind of channel, in one line. */
 export const OWNER_PART: Record<ChannelInfo["owner"], string> = {
   connect: `Connect your account. ${AGENT_NAME} posts for you.`,
