@@ -241,6 +241,12 @@ function matchesValue(actual: unknown, expected: unknown): boolean {
     if ("not" in filter) {
       return actual != null && !matchesValue(actual, filter.not);
     }
+    if ("contains" in filter) {
+      return (
+        typeof actual === "string" &&
+        actual.toLowerCase().includes(String(filter.contains).toLowerCase())
+      );
+    }
     if ("in" in filter) return (filter.in as unknown[]).includes(actual);
     if ("notIn" in filter) {
       return actual != null && !(filter.notIn as unknown[]).includes(actual);

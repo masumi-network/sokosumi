@@ -130,6 +130,10 @@ export function HistorySearchDialogProvider({
           tagTasksError: tSearch("tagTasksError"),
           projectsGroup: tSearch("projectsGroup"),
           channelsGroup: tSearch("channelsGroup"),
+          schedulesGroup: tSearch("schedulesGroup"),
+          coworkersGroup: tSearch("coworkersGroup"),
+          newTask: tSearch("newTask"),
+          newTaskWith: (name) => tSearch("newTaskWith", { name }),
         }}
       />
     </HistorySearchContext.Provider>

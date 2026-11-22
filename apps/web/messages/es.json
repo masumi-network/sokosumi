@@ -5992,7 +5992,7 @@
     },
     "HistorySearchDialog": {
       "title": "Buscar",
-      "description": "Buscar tareas, etiquetas, personas, proyectos, canales, trabajos, resultados de trabajos, imágenes o archivos",
+      "description": "Buscar tareas, etiquetas, personas, proyectos, canales, programaciones, coworkers, trabajos, resultados de trabajos, imágenes o archivos",
       "searchPlaceholder": "Buscar...",
       "empty": "No se encontraron resultados",
       "loading": "Cargando...",
@@ -6011,7 +6011,11 @@
       "tagsError": "No se pudieron cargar las etiquetas",
       "tagTasksError": "No se pudieron cargar estas tareas",
       "projectsGroup": "Proyectos",
-      "channelsGroup": "Canales"
+      "channelsGroup": "Canales",
+      "schedulesGroup": "Programaciones",
+      "coworkersGroup": "Coworkers",
+      "newTask": "Nueva tarea",
+      "newTaskWith": "Nueva tarea con {name}"
     },
     "NoticeDialog": {
       "defaultTitle": "Aviso",

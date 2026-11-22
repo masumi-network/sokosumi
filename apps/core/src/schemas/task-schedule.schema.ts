@@ -196,6 +196,13 @@ export const updateTaskScheduleRequestSchema = z
 export const taskScheduleListQuerySchema = cursorPaginationQuerySchema.extend({
   projectId: z.string().uuid().optional(),
   state: taskScheduleStateSchema.optional(),
+  q: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .optional()
+    .openapi({ description: "Name contains this text, ignoring case" }),
 });
 
 export const taskScheduleSchema = z

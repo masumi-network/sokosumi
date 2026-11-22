@@ -65,6 +65,10 @@ const labels = {
   tagTasksError: "Couldn't load these tasks",
   projectsGroup: "Projects",
   channelsGroup: "Channels",
+  schedulesGroup: "Schedules",
+  coworkersGroup: "Coworkers",
+  newTask: "New task",
+  newTaskWith: (name: string) => `New task with ${name}`,
 };
 
 function tag(id: string, displayName: string, archived = false) {

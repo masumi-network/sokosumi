@@ -204,6 +204,9 @@ export async function listTaskSchedules(
     ...readableWhere(actor),
     ...(query.projectId ? { projectId: query.projectId } : {}),
     ...(query.state ? { state: query.state } : {}),
+    ...(query.q
+      ? { name: { contains: query.q, mode: "insensitive" as const } }
+      : {}),
   };
   const [rows, total] = await Promise.all([
     prisma.taskSchedule.findMany({
