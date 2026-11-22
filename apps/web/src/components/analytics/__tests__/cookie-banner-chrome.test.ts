@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mainChromeLeftPx } from "@/components/analytics/cookie-banner";
+import { mainChromeLeftPx } from "@/hooks/effects/use-cookie-banner-chrome-left";
 import { MOBILE_BREAKPOINT } from "@/hooks/effects/use-mobile";
 
 describe("mainChromeLeftPx", () => {

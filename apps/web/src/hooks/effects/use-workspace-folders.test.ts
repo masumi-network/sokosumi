@@ -1,5 +1,5 @@
 import { renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const fetchWorkspaceFoldersMock = vi.fn();
 
@@ -13,6 +13,10 @@ import { useWorkspaceFolders } from "./use-workspace-folders";
 const STORE = { scope: "me" as const };
 
 describe("useWorkspaceFolders", () => {
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
   it("loads the folders again when the reload token changes", async () => {
     fetchWorkspaceFoldersMock
       .mockResolvedValueOnce([])
@@ -39,5 +43,21 @@ describe("useWorkspaceFolders", () => {
     const { result } = renderHook(() => useWorkspaceFolders(STORE, 0));
     await waitFor(() => expect(fetchWorkspaceFoldersMock).toHaveBeenCalled());
     expect(result.current).toEqual([]);
+  });
+
+  it("aborts an in-flight folder load on unmount", () => {
+    let capturedSignal: AbortSignal | undefined;
+    fetchWorkspaceFoldersMock.mockImplementation(
+      ({ signal }: { signal?: AbortSignal }) => {
+        capturedSignal = signal;
+        return new Promise<string[]>(() => {});
+      },
+    );
+
+    const { unmount } = renderHook(() => useWorkspaceFolders(STORE, 0));
+    expect(capturedSignal?.aborted).toBe(false);
+
+    unmount();
+    expect(capturedSignal?.aborted).toBe(true);
   });
 });
