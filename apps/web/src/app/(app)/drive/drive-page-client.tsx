@@ -6,7 +6,6 @@ import {
   deleteDriveFoldersDelete,
   getProjectsById,
   getTasksById,
-  getUsersByIdOrganizations,
   patchDriveFilesMove,
   patchDriveFilesRename,
   patchDriveFoldersRename,
@@ -132,6 +131,8 @@ import { Input } from "@/components/ui/input";
 import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { useAbortController } from "@/hooks/effects/use-abort-controller";
+import { useDriveOrganizationName } from "@/hooks/effects/use-drive-organization-name";
+import { useDriveWorkspaceSwitchUrlReset } from "@/hooks/effects/use-drive-workspace-switch-url-reset";
 import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { useIsMobile } from "@/hooks/effects/use-mobile";
 import { useSession } from "@/lib/auth/auth.client";
@@ -177,33 +178,10 @@ import {
   DRIVE_ITEMS_QUERY_KEY,
   getDriveItemsQueryOptions,
 } from "@/queries/drive";
+import { driveNavParams } from "./drive-nav-params";
 
 const filesSortByParser = parseAsStringLiteral([...FILES_SORT_BY_VALUES]);
 const filesSortOrderParser = parseAsStringLiteral([...FILES_SORT_ORDER_VALUES]);
-
-function withoutLegacyDriveScopeParam(
-  params: URLSearchParams,
-): URLSearchParams {
-  const next = new URLSearchParams(params.toString());
-  next.delete("scope");
-  return next;
-}
-
-/**
- * The query a drive navigation should carry forward.
- *
- * Drops the legacy `scope`, and `archived` — which only the Tables list reads.
- * Every caller here rebuilds the query from the current URL and then navigates
- * into browse or tasks, so without this a `?archived=true` left over from the
- * Tables tab rides along into views that ignore it and ends up in shared links.
- * `navigateToPrimaryView` clears it through nuqs for the same reason.
- */
-function driveNavParams(params: URLSearchParams): URLSearchParams {
-  const next = withoutLegacyDriveScopeParam(params);
-  next.delete("archived");
-  next.delete("tags");
-  return next;
-}
 
 type ExploreItem =
   | ({ kind: "blob-file" | "blob-folder" } & DriveItem)
@@ -238,42 +216,12 @@ export function DrivePageClient({
   const activeOrganizationId = workspaceIdRef.current;
   const router = useRouter();
   const searchParams = useSearchParams();
-  const previousWorkspaceIdRef = useRef<string | null | undefined>(undefined);
   const skeletonViewMode = effectiveFilesViewMode(
     defaultFilesViewMode,
     isMobile,
   );
 
-  useEffect(() => {
-    if (activeOrganizationId === undefined) {
-      return;
-    }
-    if (previousWorkspaceIdRef.current === undefined) {
-      previousWorkspaceIdRef.current = activeOrganizationId;
-      return;
-    }
-    if (previousWorkspaceIdRef.current === activeOrganizationId) {
-      return;
-    }
-    previousWorkspaceIdRef.current = activeOrganizationId;
-    if (
-      !searchParams.get("folder") &&
-      !searchParams.get("view") &&
-      !searchParams.get("projectId") &&
-      !searchParams.get("taskId") &&
-      !searchParams.get("assigneeId")
-    ) {
-      return;
-    }
-    const params = driveNavParams(searchParams);
-    params.delete("folder");
-    params.delete("view");
-    params.delete("projectId");
-    params.delete("taskId");
-    params.delete("assigneeId");
-    const query = params.toString();
-    router.replace(query ? `/drive?${query}` : "/drive");
-  }, [activeOrganizationId, router, searchParams]);
+  useDriveWorkspaceSwitchUrlReset(activeOrganizationId, router, searchParams);
 
   if (activeOrganizationId === undefined) {
     return (
@@ -318,7 +266,6 @@ function DrivePageWorkspace({
   const [filesViewMode, setFilesViewMode] =
     useState<FilesViewMode>(defaultFilesViewMode);
   const isMobile = useIsMobile();
-  const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [shareItem, setShareItem] = useState<DriveShareItem | null>(null);
   const [dataRoomFolder, setDataRoomFolder] =
@@ -378,7 +325,6 @@ function DrivePageWorkspace({
     () => new Map(),
   );
 
-  const fetchOrgNameAbortRef = useRef<AbortController | null>(null);
   const loadAllFoldersAbort = useAbortController(activeOrganizationId);
   const loadTasksAbortRef = useRef<AbortController | null>(null);
   const loadMoreTasksAbortRef = useRef<AbortController | null>(null);
@@ -546,10 +492,6 @@ function DrivePageWorkspace({
   }
   const isTasksSearchActive =
     isTasksView && debouncedSearchQuery.trim().length > 0;
-  const storeRootLabel = driveWorkspaceRootLabel(driveStore, organizationName, {
-    myDrive: t("myDrive"),
-    organizationFallback: t("organizationDriveFallback"),
-  });
 
   function handleSearchChange(value: string) {
     setSearchQuery(value);
@@ -564,7 +506,7 @@ function DrivePageWorkspace({
    * destinations and the folder actions read, and what an upload invalidates,
    * so it stays — it just stopped being a second list on the page.
    */
-  const driveItemsQuery = useQuery({
+  useQuery({
     ...getDriveItemsQueryOptions({
       store: driveStore,
       folder: currentFolder,
@@ -575,14 +517,6 @@ function DrivePageWorkspace({
   });
   // The catalog renders its own skeleton, so the Workspace tab never uses this.
   const loading = isTasksView ? tasksLoading : false;
-
-  useEffect(() => {
-    if (!driveItemsQuery.isError) {
-      return;
-    }
-    console.error("Failed to load Drive items", driveItemsQuery.error);
-    toast.error(t("loadFilesError"));
-  }, [driveItemsQuery.error, driveItemsQuery.isError, t]);
 
   async function refreshDriveItems() {
     await queryClient.invalidateQueries({ queryKey: DRIVE_ITEMS_QUERY_KEY });
@@ -866,38 +800,14 @@ function DrivePageWorkspace({
     void fetchMissingNames();
   }, [isTasksView, projectIdParam, taskIdParam, tasksItems]);
 
-  useEffect(() => {
-    async function fetchOrganizationName() {
-      fetchOrgNameAbortRef.current?.abort();
-      const controller = new AbortController();
-      fetchOrgNameAbortRef.current = controller;
-
-      if (!activeOrganizationId || !session?.user?.id) {
-        if (!controller.signal.aborted) {
-          setOrganizationName(null);
-        }
-        return;
-      }
-
-      try {
-        const response = await getUsersByIdOrganizations({
-          client: getBrowserCoreClient(),
-          path: { id: session.user.id },
-        });
-        const orgs = response.data?.data || [];
-        const activeOrg = orgs.find((org) => org.id === activeOrganizationId);
-        if (!controller.signal.aborted) {
-          setOrganizationName(activeOrg?.name ?? null);
-        }
-      } catch {
-        if (!controller.signal.aborted) {
-          setOrganizationName(null);
-        }
-      }
-    }
-
-    void fetchOrganizationName();
-  }, [activeOrganizationId, session?.user?.id]);
+  const organizationName = useDriveOrganizationName(
+    activeOrganizationId,
+    session?.user?.id,
+  );
+  const storeRootLabel = driveWorkspaceRootLabel(driveStore, organizationName, {
+    myDrive: t("myDrive"),
+    organizationFallback: t("organizationDriveFallback"),
+  });
 
   /**
    * Run one upload at a time, busy from the moment files arrive: reading a
