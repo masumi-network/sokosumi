@@ -96,7 +96,6 @@ import {
   type DrivePrimaryView,
   DriveViewTabs,
 } from "@/app/drive/components/drive-view-tabs";
-import { driveNavParams } from "@/app/drive/drive-nav-params";
 import { TableCreateDialog } from "@/app/drive/tables/table-create-dialog";
 import { TableList } from "@/app/drive/tables/table-list";
 import { PROJECTS_LIST_CARD_MIN_H_CLASS } from "@/app/projects/constants";
@@ -179,6 +178,7 @@ import {
   DRIVE_ITEMS_QUERY_KEY,
   getDriveItemsQueryOptions,
 } from "@/queries/drive";
+import { driveNavParams } from "./drive-nav-params";
 
 const filesSortByParser = parseAsStringLiteral([...FILES_SORT_BY_VALUES]);
 const filesSortOrderParser = parseAsStringLiteral([...FILES_SORT_ORDER_VALUES]);
