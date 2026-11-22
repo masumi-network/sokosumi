@@ -108,10 +108,10 @@ export function OfferLadder({
  * writes AIDA's four; the last three are stages of strategies saved before.
  */
 const STAGES: Record<Stage["stage"], { label: string; people: string }> = {
-  awareness: { label: "Awareness", people: "People who could buy hear of you" },
-  interest: { label: "Interest", people: "They look closer" },
+  awareness: { label: "Awareness", people: "People find out about you" },
+  interest: { label: "Interest", people: "They look at what you offer" },
   desire: { label: "Desire", people: "They want it" },
-  action: { label: "Action", people: "They buy, book or sign up" },
+  action: { label: "Action", people: "They sign up, buy or book" },
   consideration: { label: "Consideration", people: "They weigh you up" },
   conversion: { label: "Conversion", people: "They buy or sign up" },
   loyalty: { label: "Loyalty", people: "They come back" },

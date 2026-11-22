@@ -13,6 +13,10 @@ export const CMO_CHANNEL_FIT_STRATEGY_SKILL = "cmo-strategy-channel-fit";
  */
 const REVISIONS: readonly (readonly [string, string])[] = [
   [
+    '  - goal: what people do at this stage, for this business, at most 10 words ("Parents see a five-minute recipe");',
+    '  - goal: what this step means for the business, in plain words, at most 12 words, naming the business or its product and who: awareness, the right people find out it exists ("Project leads planning a token launch find out NMKR exists"); interest, they look at what the product does ("They look at what NMKR Studio does for a launch"); desire, they want it from proof, customers or results ("They see teams like theirs launch with NMKR Studio"); action, the one thing they do ("They open a free NMKR Studio account"). Never a buyer\'s inner thought ("see a decision they face", "work out which steps they can hand off"). Each play is one short line naming the format and topic ("Seven YouTube Shorts a day, one Studio setup step each"), and metric is the one number you watch there;',
+  ],
+  [
     "and a why of at most 12 words saying what those pieces do for the business.",
     'and a why of at most 12 words saying what the pillar is for: the job its pieces do for the business ("Shows buyers setup takes minutes"). Spread each pillar over the networks it fits, and set each share to the pillar\'s real count in the calendar (34 of 144 pieces is 24, not 20).',
   ],
@@ -70,7 +74,7 @@ const REVISIONS: readonly (readonly [string, string])[] = [
   ],
   [
     "Every channel in the strategy appears at the stage it serves, the talking videos where they explain (name them as videos in the play),",
-    "Every channel in the strategy appears at the stage it serves, and every main network at awareness, where most of its posts reach new people; the videos where they explain, named as the platform names them (Reels, YouTube Shorts, TikToks);",
+    "Every social network sits at the one stage its posts serve (awareness, interest or desire; its offer posts may also go at action), so each stage says what its own posts do and no play shows up twice; the videos named as the platform names them (Reels, YouTube Shorts, TikToks);",
   ],
   [
     'When your work does not reach the stage, say so ("Nothing here: the order happens in your shop");',
