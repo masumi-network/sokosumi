@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
+import {
   defaultPlanReport,
   seoPlanReports,
   seoReportPlan,
@@ -36,5 +40,42 @@ export function useSelectedSeoPlan(model: SeoWorkspaceModel) {
     include(plan.followOrigin, plan.follow?.actionId);
     for (const row of plan.more) include(row.originId, row.item.actionId);
   }
-  return { report, reports, plan, setPicked, historical, actionKeys };
+  return {
+    report,
+    reports,
+    options: useSeoPlanReportOptions(reports),
+    plan,
+    setPicked,
+    historical,
+    actionKeys,
+  };
+}
+
+/** The reports a reader can pick, each named by its kind of check and its time. Two with one name also show their id. */
+function useSeoPlanReportOptions(reports: ReturnType<typeof seoPlanReports>) {
+  const t = useSeoResultTranslations("App.Seo");
+  const format = useSeoResultFormatter();
+  const options = reports.map((row) => {
+    const kind = t.has(`analysis.${row.kind}`)
+      ? t(`analysis.${row.kind}`)
+      : t("timeline.checkRun");
+    const date = format.dateTime(new Date(row.observedAt), "dateTimeWithYear", {
+      timeZone: "UTC",
+      timeZoneName: "short",
+    });
+    return {
+      value: row.id,
+      label: t("reportFiles.version", { checkType: kind, date }),
+    };
+  });
+  const labels = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const { label } of options) {
+    if (labels.has(label)) duplicates.add(label);
+    labels.add(label);
+  }
+  for (const option of options) {
+    if (duplicates.has(option.label)) option.label += " · " + option.value;
+  }
+  return options;
 }

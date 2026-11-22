@@ -36,7 +36,7 @@ export function SeoReportPlan({
   const ui = useTranslations("App.Seo");
   const format = useSeoResultFormatter();
   const selector = useId();
-  const { report, reports, plan, setPicked, historical } = selected;
+  const { report, options, plan, setPicked, historical } = selected;
   if (!report) return null;
   const reason = plan?.lead.reason ?? "";
   const sentences = Array.from(
@@ -46,28 +46,6 @@ export function SeoReportPlan({
   const reasonDetails = sentences.length > 2 ? sentences.slice(1) : [];
   const summary = reasonDetails.length ? sentences[0] : reason;
   const change = seoPlanChange(model.data, report, model.brief?.data, plan);
-  const options = reports.map((row) => {
-    const kind = t.has(`analysis.${row.kind}`)
-      ? t(`analysis.${row.kind}`)
-      : t("timeline.checkRun");
-    const date = format.dateTime(new Date(row.observedAt), "dateTimeWithYear", {
-      timeZone: "UTC",
-      timeZoneName: "short",
-    });
-    return {
-      value: row.id,
-      label: t("reportFiles.version", { checkType: kind, date }),
-    };
-  });
-  const labels = new Set<string>();
-  const duplicates = new Set<string>();
-  for (const { label } of options) {
-    if (labels.has(label)) duplicates.add(label);
-    labels.add(label);
-  }
-  for (const option of options) {
-    if (duplicates.has(option.label)) option.label += " · " + option.value;
-  }
   const evidenceList = (lines: string[]) =>
     lines.length > 0 && (
       <ul className="text-muted-foreground list-disc space-y-2 ps-5">
