@@ -14,11 +14,26 @@ vi.mock("@/clients/composio.client", async (importOriginal) => ({
   deleteComposioToolSession: composio.deleteSession,
 }));
 
-import { listPostComments, replyToComment } from "./comments";
+const zernio = vi.hoisted(() => ({ request: vi.fn() }));
+vi.mock("@/clients/zernio.client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/clients/zernio.client")>()),
+  zernioRequest: zernio.request,
+}));
 
-const context = (provider: "instagram" | "facebook" | "youtube") => ({
+import {
+  listPostComments,
+  listXReplies,
+  replyToComment,
+  type SocialCommentProvider,
+  socialCommentReplyFits,
+} from "./comments";
+
+const context = (
+  provider: SocialCommentProvider,
+  connectedAccountId = "ca-1",
+) => ({
   provider,
-  connectedAccountId: "ca-1",
+  connectedAccountId,
   executorUserId: "exec-1",
   externalAccountId: "brand-1",
 });
@@ -119,16 +134,168 @@ describe("replyToComment", () => {
       "YOUTUBE_CREATE_COMMENT_REPLY",
       { parentId: "c1", textOriginal: "Yes!" },
     ],
+    [
+      "x",
+      "TWITTER_CREATION_OF_A_POST",
+      { text: "Yes!", reply_in_reply_to_tweet_id: "c1" },
+    ],
   ] as const)(
     "replies on %s with its own tool",
     async (provider, toolSlug, args) => {
       composio.execute.mockResolvedValue({ id: "r1" });
       await expect(
-        replyToComment(context(provider), "c1", "Yes!"),
+        replyToComment(
+          context(provider),
+          {
+            externalCommentId: "c1",
+            externalPostId: "p1",
+            idempotencyKey: "k",
+          },
+          "Yes!",
+        ),
       ).resolves.toBe("r1");
       expect(composio.execute).toHaveBeenCalledWith(
         expect.objectContaining({ toolSlug, arguments: args }),
       );
     },
   );
+});
+
+describe("X replies", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("reads replies from the account's mentions, without its own or other threads' roots", async () => {
+    composio.execute.mockResolvedValue({
+      data: [
+        {
+          id: "r1",
+          author_id: "u1",
+          conversation_id: "post-1",
+          created_at: "2026-11-22T01:42:43.000Z",
+          text: "@nmkr_io +1, metadata is where it goes wrong",
+        },
+        {
+          id: "r2",
+          author_id: "brand-1",
+          conversation_id: "post-1",
+          text: "Thanks",
+        },
+        {
+          id: "post-9",
+          author_id: "u2",
+          conversation_id: "post-9",
+          text: "@nmkr_io hi",
+        },
+      ],
+      includes: { users: [{ id: "u1", username: "wutzebaer1" }] },
+    });
+    const since = new Date("2026-11-19T00:00:00Z");
+    const replies = await listXReplies(context("x"), {
+      startTime: since,
+      sinceId: "r0",
+    });
+    expect(composio.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ toolkitSlug: "twitter" }),
+    );
+    expect(composio.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolSlug: "TWITTER_GET_USER_MENTIONS",
+        arguments: expect.objectContaining({
+          id: "brand-1",
+          start_time: since.toISOString(),
+          since_id: "r0",
+        }),
+      }),
+    );
+    expect(replies).toEqual([
+      {
+        externalId: "r1",
+        text: "@nmkr_io +1, metadata is where it goes wrong",
+        authorName: "@wutzebaer1",
+        authorExternalId: "u1",
+        commentedAt: new Date("2026-11-22T01:42:43.000Z"),
+        conversationId: "post-1",
+      },
+    ]);
+  });
+
+  it("holds an X reply to 280 characters as X counts them", () => {
+    expect(socialCommentReplyFits("x", "x".repeat(280))).toEqual({
+      max: 280,
+      fits: true,
+    });
+    expect(socialCommentReplyFits("x", "x".repeat(281)).fits).toBe(false);
+    expect(socialCommentReplyFits("linkedin", "x".repeat(300)).fits).toBe(true);
+  });
+});
+
+describe("Zernio comments (LinkedIn, TikTok)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("reads a LinkedIn Page post's comments through Zernio, without the Page's own", async () => {
+    zernio.request.mockResolvedValue({
+      comments: [
+        {
+          id: "urn:li:comment:1",
+          message: "Which chains do you support?",
+          createdTime: "2026-11-21T10:00:00.000Z",
+          from: { id: "urn:li:person:9", name: "Ana Ruiz" },
+        },
+        {
+          id: "urn:li:comment:2",
+          message: "Cardano and more.",
+          from: { id: "urn:li:organization:7", name: "NMKR", isOwner: true },
+        },
+      ],
+    });
+    const comments = await listPostComments(
+      context("linkedin", "zernio:acc-1"),
+      "zpost-1",
+    );
+    expect(zernio.request).toHaveBeenCalledWith(
+      "/inbox/comments/zpost-1?accountId=acc-1&limit=50",
+      expect.anything(),
+    );
+    expect(composio.execute).not.toHaveBeenCalled();
+    expect(comments).toEqual([
+      {
+        externalId: "urn:li:comment:1",
+        text: "Which chains do you support?",
+        authorName: "Ana Ruiz",
+        authorExternalId: "urn:li:person:9",
+        commentedAt: new Date("2026-11-21T10:00:00.000Z"),
+      },
+    ]);
+  });
+
+  it("replies under the comment through Zernio, once per comment", async () => {
+    zernio.request.mockResolvedValue({
+      success: true,
+      data: { commentId: "urn:li:comment:3", isReply: true },
+    });
+    await expect(
+      replyToComment(
+        context("tiktok", "zernio:acc-2"),
+        {
+          externalCommentId: "c-7",
+          externalPostId: "vid-1",
+          idempotencyKey: "row-7",
+        },
+        "Thanks!",
+      ),
+    ).resolves.toBe("urn:li:comment:3");
+    expect(zernio.request).toHaveBeenCalledWith("/inbox/comments/vid-1", {
+      method: "POST",
+      idempotencyKey: "row-7",
+      signal: undefined,
+      body: { accountId: "acc-2", commentId: "c-7", message: "Thanks!" },
+    });
+  });
+
+  it("never reads a Composio LinkedIn account, which has no comment tool", async () => {
+    await expect(
+      listPostComments(context("linkedin"), "urn:li:share:1"),
+    ).rejects.toThrow("not read per post");
+    expect(composio.execute).not.toHaveBeenCalled();
+  });
 });
