@@ -67,7 +67,7 @@ const MermaidDiagram = memo(function MermaidDiagram({
   const current =
     result?.source === source && result.dark === dark ? result : undefined;
   const url =
-    complete && !error && current?.svg && objectUrl?.result === current
+    complete && !error && current && objectUrl?.result === current
       ? objectUrl.url
       : undefined;
   const status = !complete

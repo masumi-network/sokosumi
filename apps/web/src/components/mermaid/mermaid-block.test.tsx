@@ -238,6 +238,14 @@ describe("Mermaid lifecycle", () => {
     expect(revoked.has(revealedUrl!)).toBe(false);
 
     unmount();
-    expect(revoked.has(revealedUrl!)).toBe(true);
+    const created = vi
+      .mocked(URL.createObjectURL)
+      .mock.results.map((r) => r.value);
+    expect(
+      vi
+        .mocked(URL.revokeObjectURL)
+        .mock.calls.map(([u]) => u)
+        .sort(),
+    ).toEqual([...created].sort());
   });
 });
