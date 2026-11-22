@@ -3,18 +3,9 @@
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { Loader2, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import {
-  type ReactNode,
-  useEffect,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { type ReactNode, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import {
-  checkChannelSlugAvailabilityAction,
-  createChannelAction,
-} from "@/app/chat/actions";
+import { createChannelAction } from "@/app/chat/actions";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SIDEBAR_ICON_ACTION_CLASS } from "@/components/ui/sidebar-classes";
 import { Textarea } from "@/components/ui/textarea";
+import { useChannelSlugAvailability } from "@/hooks/effects/use-channel-slug-availability";
 import { cn } from "@/lib/utils";
 import { useChatComposeRoster } from "./chat-compose-dialog";
 import {
@@ -38,7 +30,6 @@ import {
   CHANNEL_NAME_MAX,
   CHANNEL_SLUG_MAX,
   CHANNEL_TOPIC_MAX,
-  type ChannelSlugCheckState,
   type CreateChannelWizard,
   canCreateChannel,
   createChannelSubmitFields,
@@ -78,8 +69,11 @@ export function CreateChannelDialog({
     useChatComposeRoster();
   const [wizard, setWizard] =
     useState<CreateChannelWizard>(createInitialWizard);
-  const [availability, setAvailability] =
-    useState<ChannelSlugCheckState>("invalid");
+  const createStepSlug = wizard.step === "create" ? wizard.slug : "";
+  const { availability, setAvailability } = useChannelSlugAvailability(
+    wizard,
+    createStepSlug,
+  );
   const [isPending, startTransition] = useTransition();
 
   const {
@@ -128,35 +122,6 @@ export function CreateChannelDialog({
     resetDialog();
     window.location.assign(`/chat/rooms/${roomId}`);
   }
-
-  const createStepSlug = wizard.step === "create" ? wizard.slug : "";
-
-  useEffect(() => {
-    if (wizard.step !== "create") {
-      return;
-    }
-    if (!createStepSlug) {
-      setAvailability("invalid");
-      return;
-    }
-    setAvailability("unknown");
-    let cancelled = false;
-    const timer = window.setTimeout(async () => {
-      const result = await checkChannelSlugAvailabilityAction(createStepSlug);
-      if (cancelled) {
-        return;
-      }
-      if (!result.ok) {
-        setAvailability("error");
-        return;
-      }
-      setAvailability(result.value.status);
-    }, 300);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [wizard.step, createStepSlug]);
 
   function handleAdvanceToPeople() {
     if (
