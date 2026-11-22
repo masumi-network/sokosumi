@@ -72,8 +72,10 @@ export function isNumericCsvColumn(header: string, values: string[]): boolean {
 /**
  * Plans adding CSV rows to an existing Table: headers match column names
  * ignoring case and outer spaces, other headers are skipped, and a Last
- * updated column fills itself. `newRows` leaves out the rows whose matched
- * cells equal an existing row's, so overlapping exports can skip them.
+ * updated column fills itself. A header that names two columns, or two headers
+ * that name one column, are `ambiguous` and plan no rows. `newRows` leaves out
+ * the rows whose matched cells equal an existing row's, so overlapping
+ * exports can skip them.
  */
 export function planCsvAppend(
   columns: Pick<TableColumn, "id" | "name" | "type" | "options">[],
@@ -82,49 +84,60 @@ export function planCsvAppend(
   describe: (row: number, error: unknown) => string = (_, error) =>
     error instanceof Error ? error.message : String(error),
 ) {
-  const byName = new Map(
-    columns
-      .filter((column) => column.type !== "last_updated")
-      .map((column) => [column.name.trim().toLowerCase(), column]),
+  const normal = (text: string) => text.trim().toLowerCase();
+  const fillable = columns.filter((column) => column.type !== "last_updated");
+  const found = csv[0].map((header) =>
+    fillable.filter((column) => normal(column.name) === normal(header)),
   );
-  const pairs: Array<{ column: (typeof columns)[number]; index: number }> = [];
-  const skipped: string[] = [];
-  csv[0].forEach((header, index) => {
-    const column = byName.get(header.trim().toLowerCase());
-    if (column && !pairs.some((pair) => pair.column === column))
-      pairs.push({ column, index });
-    else skipped.push(header);
-  });
+  const ambiguous = csv[0].filter(
+    (_, i) =>
+      found[i].length > 1 ||
+      (found[i].length === 1 &&
+        found.filter((other) => other.length === 1 && other[0] === found[i][0])
+          .length > 1),
+  );
+  const unclear = new Set(ambiguous);
+  const pairs = found.flatMap((match, index) =>
+    match.length === 1 && !unclear.has(csv[0][index])
+      ? [{ column: match[0], index }]
+      : [],
+  );
+  const skipped = csv[0].filter(
+    (header, i) => !found[i].length && !unclear.has(header),
+  );
   const key = (values: TableRow["values"]) =>
     JSON.stringify(pairs.map(({ column }) => values[column.id] ?? null));
-  const rows = csv.slice(1).map((cells, i) => {
-    try {
-      const row = tableInsertRowSchema.parse({
-        values: Object.fromEntries(
-          pairs.map(({ column, index }) => [
-            column.id,
-            parseTableInput(column, cells[index]),
-          ]),
-        ),
+  const rows = ambiguous.length
+    ? []
+    : csv.slice(1).map((cells, i) => {
+        try {
+          const row = tableInsertRowSchema.parse({
+            values: Object.fromEntries(
+              pairs.map(({ column, index }) => [
+                column.id,
+                parseTableInput(column, cells[index]),
+              ]),
+            ),
+          });
+          validateTableValues(
+            pairs.map(({ column }) => ({
+              ...column,
+              options: column.options ?? [],
+              description: "",
+            })),
+            row.values,
+            row.evidence,
+          );
+          return row;
+        } catch (error) {
+          throw new Error(describe(i + 2, error));
+        }
       });
-      validateTableValues(
-        pairs.map(({ column }) => ({
-          ...column,
-          options: column.options ?? [],
-          description: "",
-        })),
-        row.values,
-        row.evidence,
-      );
-      return row;
-    } catch (error) {
-      throw new Error(describe(i + 2, error));
-    }
-  });
   const held = new Set(existing.map((row) => key(row.values)));
   return {
     matched: pairs.map(({ column }) => column.name),
     skipped,
+    ambiguous,
     rows,
     newRows: rows.filter((row) => !held.has(key(row.values))),
   };

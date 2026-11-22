@@ -140,3 +140,31 @@ it("names the CSV row whose value does not fit its column", () => {
     ),
   ).toThrow("Row 3: Invalid number");
 });
+
+it("refuses a header that could fill two columns, or a column two headers fill", () => {
+  const upper = {
+    ...name,
+    id: "00000000-0000-4000-8000-000000000014",
+    name: "NAME",
+  };
+  expect(
+    planCsvAppend(
+      [name, upper, amount],
+      [
+        ["name", "Amount"],
+        ["Ada", "1"],
+      ],
+      [],
+    ).ambiguous,
+  ).toEqual(["name"]);
+  const twice = planCsvAppend(
+    [name, amount],
+    [
+      ["Name", "Amount", "name "],
+      ["Ada", "1", "Bo"],
+    ],
+    [],
+  );
+  expect(twice.ambiguous).toEqual(["Name", "name "]);
+  expect(twice.newRows).toEqual([]);
+});

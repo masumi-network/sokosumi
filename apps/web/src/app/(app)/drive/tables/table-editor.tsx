@@ -1514,11 +1514,9 @@ function TableWorkspace({
         <TableAppendCsv
           table={table}
           returnFocus={tableMenu}
+          onChanged={() => void refresh()}
           onClose={() => setAppendCsv(false)}
-          onDone={(count) => {
-            void refresh();
-            toast.success(t("appendCsv.done", { count }));
-          }}
+          onDone={(count) => toast.success(t("appendCsv.done", { count }))}
         />
       )}
       {findReplace && (

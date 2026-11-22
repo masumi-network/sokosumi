@@ -1,5 +1,5 @@
 "use client";
-import type { DataTable, TableRow } from "@sokosumi/core-client";
+import type { TableColumn, TableRow } from "@sokosumi/core-client";
 import { parseTableCsv } from "@sokosumi/utils";
 import { Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -21,105 +21,129 @@ import { dataTableService } from "@/lib/services/data-table.client";
 import { planCsvAppend, tableImportBatches } from "./table-import";
 import { tableError } from "./table-value";
 
-/** The most rows read to find the ones a CSV repeats, as Export CSV allows. */
-const MAX_EXISTING = 10_000;
+/** Core's cap on a Table's rows, archived ones included. */
+const MAX_ROWS = 10_000;
+
+type AppendTable = {
+  id: string;
+  columns: Pick<TableColumn, "id" | "name" | "type" | "options">[];
+};
+
+/** Every live row, to spot repeats, and how many more rows Core still takes. */
+async function readTable(id: string) {
+  const archived = await dataTableService.query(id, {
+    limit: 1,
+    archived: true,
+  });
+  const rows: Pick<TableRow, "values">[] = [];
+  let cursor: string | undefined;
+  let live = 0;
+  do {
+    const page = await dataTableService.query(id, {
+      limit: 100,
+      cursor,
+      archived: false,
+    });
+    rows.push(...page.rows);
+    live = page.total;
+    cursor = page.nextCursor ?? undefined;
+  } while (cursor);
+  return { rows, room: Math.max(0, MAX_ROWS - live - archived.total) };
+}
 
 /** Adds the rows of a CSV to the end of a Table, matching headers to columns by name. */
 export function TableAppendCsv({
   table,
   returnFocus,
+  onChanged,
   onClose,
   onDone,
 }: {
-  table: DataTable;
+  table: AppendTable;
   returnFocus?: RefObject<HTMLElement | null>;
+  /** Rows were written, possibly not all of them: refresh the Table. */
+  onChanged: () => void;
   onClose: () => void;
   onDone: (count: number) => void;
 }) {
   const t = useTranslations("App.Tables");
-  const input = useRef<HTMLInputElement>(null);
-  const [fileName, setFileName] = useState("");
-  const [plan, setPlan] = useState<ReturnType<typeof planCsvAppend>>();
+  const [file, setFile] = useState<{
+    name: string;
+    room: number;
+    plan: ReturnType<typeof planCsvAppend>;
+  }>();
   const [skipDuplicates, setSkipDuplicates] = useState(true);
-  const [pending, setPending] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [busy, setBusy] = useState<"reading" | "adding">();
+  const [added, setAdded] = useState(0);
   const [error, setError] = useState("");
   /** Set once rows start going out, so a retry resends the same batches. */
   const [key, setKey] = useState<string>();
 
-  async function handleFile(file: File | undefined) {
-    if (!file) return;
-    setPending(true);
+  async function handleFile(picked: File | undefined) {
+    if (!picked) return;
+    setBusy("reading");
     setError("");
-    setPlan(undefined);
+    setFile(undefined);
     try {
-      if (file.size > 5_000_000) throw new Error(t("csvLimit"));
-      const csv = parseTableCsv(await file.text());
-      const existing: Pick<TableRow, "values">[] = [];
-      let cursor: string | undefined;
-      do {
-        const page = await dataTableService.query(table.id, {
-          limit: 100,
-          cursor,
-          archived: false,
-        });
-        existing.push(...page.rows);
-        cursor = page.nextCursor ?? undefined;
-        if (existing.length > MAX_EXISTING)
-          throw new Error(t("appendCsv.tooManyRows"));
-      } while (cursor);
-      setPlan(
-        planCsvAppend(
-          table.columns,
-          csv,
-          existing,
-          (row, error) => `${t("row")} ${row}: ${tableError(error, t)}`,
-        ),
+      if (picked.size > 5_000_000) throw new Error(t("csvLimit"));
+      const csv = parseTableCsv(await picked.text());
+      const { rows, room } = await readTable(table.id);
+      const plan = planCsvAppend(
+        table.columns,
+        csv,
+        rows,
+        (row, error) => `${t("row")} ${row}: ${tableError(error, t)}`,
       );
-      setFileName(file.name);
+      setFile({ name: picked.name, room, plan });
     } catch (error) {
-      setFileName("");
       setError(tableError(error, t));
     } finally {
-      setPending(false);
+      setBusy(undefined);
     }
   }
 
-  const rows = !plan?.matched.length
-    ? []
-    : skipDuplicates
-      ? plan.newRows
-      : plan.rows;
+  const plan = file?.plan;
+  const { rows, room } = rowsToAdd(file, skipDuplicates);
+  const full = rows.length > room;
 
   async function handleAdd() {
     const attempt = key ?? crypto.randomUUID();
     setKey(attempt);
-    setPending(true);
+    setBusy("adding");
     setError("");
+    let written = 0;
     try {
-      let added = 0;
+      // One batch at a time, in order: rows land in CSV order and the first
+      // failure stops the rest.
       for (const batch of tableImportBatches(attempt, rows)) {
         await dataTableService.batch(table.id, batch);
-        added += batch.insert.length;
-        setProgress(added);
+        written += batch.insert.length;
+        setAdded(written);
       }
+      onChanged();
       onDone(rows.length);
       onClose();
     } catch (error) {
+      if (written) onChanged();
       setError(tableError(error, t));
     } finally {
-      setPending(false);
+      setBusy(undefined);
     }
   }
+
+  const locked = !!busy || !!key;
+  const problem =
+    error || (full ? t("appendCsv.full", { room, count: rows.length }) : "");
 
   return (
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open && !pending) onClose();
+        if (!open && !busy) onClose();
       }}
     >
       <DialogContent
+        showCloseButton={!busy}
         className="app-scrollbar max-h-[85dvh] overflow-y-auto"
         onCloseAutoFocus={(event) => {
           if (!returnFocus?.current) return;
@@ -132,85 +156,23 @@ export function TableAppendCsv({
           <DialogDescription>{t("appendCsv.description")}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="append-csv-file">{t("appendCsv.file")}</Label>
-            {/* Same picker as New table: the native input stays the one real
-            control, and the visible button and filename are presentational. */}
-            <div className="ring-offset-background has-[:focus-visible]:ring-ring flex w-fit max-w-full items-center gap-3 rounded-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2">
-              <Button
-                type="button"
-                aria-hidden
-                tabIndex={-1}
-                size="sm"
-                variant="outline"
-                disabled={pending || !!key}
-                onClick={() => input.current?.click()}
-              >
-                <Upload aria-hidden className="size-4" />
-                {t("chooseCsv")}
-              </Button>
-              <span
-                aria-hidden
-                className="text-muted-foreground min-w-0 truncate text-sm"
-              >
-                {fileName || t("noFileChosen")}
-              </span>
-              <span className="sr-only">
-                <Input
-                  id="append-csv-file"
-                  ref={input}
-                  type="file"
-                  accept=".csv,text/csv"
-                  disabled={pending || !!key}
-                  onChange={(event) => void handleFile(event.target.files?.[0])}
-                />
-              </span>
-            </div>
-            <p className="text-muted-foreground text-sm">{t("csvLimit")}</p>
-          </div>
+          <CsvPicker
+            name={file?.name}
+            disabled={locked}
+            onPick={(picked) => void handleFile(picked)}
+          />
           {plan && (
-            <div className="grid gap-2 text-sm">
-              {plan.matched.length ? (
-                <p className="break-words">
-                  {t("appendCsv.matched", {
-                    columns: plan.matched.join(", "),
-                  })}
-                </p>
-              ) : (
-                <p>{t("appendCsv.noMatch")}</p>
-              )}
-              {plan.skipped.length > 0 && (
-                <p className="text-muted-foreground break-words">
-                  {t("appendCsv.skipped", {
-                    columns: plan.skipped.join(", "),
-                  })}
-                </p>
-              )}
-              {plan.matched.length > 0 &&
-                plan.newRows.length < plan.rows.length && (
-                  <div className="flex items-start gap-2">
-                    <Checkbox
-                      id="append-csv-skip"
-                      className="mt-0.5"
-                      checked={skipDuplicates}
-                      disabled={pending || !!key}
-                      onCheckedChange={(value) =>
-                        setSkipDuplicates(value === true)
-                      }
-                    />
-                    <Label htmlFor="append-csv-skip" className="font-normal">
-                      {t("appendCsv.skipDuplicates", {
-                        count: plan.rows.length - plan.newRows.length,
-                      })}
-                    </Label>
-                  </div>
-                )}
-            </div>
+            <AppendPlan
+              plan={plan}
+              skip={skipDuplicates}
+              locked={locked}
+              onSkip={setSkipDuplicates}
+            />
           )}
-          {error && (
+          {problem && (
             <Alert variant="destructive">
               <AlertDescription>
-                <span className="min-w-0 break-words">{error}</span>
+                <span className="min-w-0 break-words">{problem}</span>
               </AlertDescription>
             </Alert>
           )}
@@ -218,21 +180,146 @@ export function TableAppendCsv({
             role="status"
             className="text-muted-foreground text-sm empty:hidden"
           >
-            {pending && key ? t("importProgress", { count: progress }) : null}
+            {appendStatus(t, busy, added, key && error ? rows.length : null)}
           </p>
         </div>
         <DialogFooter>
           <Button
-            loading={pending && !!key}
-            disabled={!rows.length || pending}
+            loading={busy === "adding"}
+            disabled={!rows.length || full || !!busy}
             onClick={() => void handleAdd()}
           >
-            {key && !pending && error
+            {key && error
               ? t("retry")
               : t("appendCsv.add", { count: rows.length })}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** The rows Add sends, and how many more the Table takes. */
+function rowsToAdd(
+  file: { room: number; plan: ReturnType<typeof planCsvAppend> } | undefined,
+  skipDuplicates: boolean,
+) {
+  if (!file?.plan.matched.length) return { rows: [], room: Infinity };
+  const rows = skipDuplicates ? file.plan.newRows : file.plan.rows;
+  return { rows, room: file.room };
+}
+
+/** The live line: reading, adding, or how far a stopped add got. */
+function appendStatus(
+  t: ReturnType<typeof useTranslations<"App.Tables">>,
+  busy: "reading" | "adding" | undefined,
+  added: number,
+  stoppedOf: number | null,
+) {
+  if (busy === "reading") return t("appendCsv.reading");
+  if (busy === "adding") return t("importProgress", { count: added });
+  if (stoppedOf !== null)
+    return t("appendCsv.stopped", { added, count: stoppedOf });
+  return null;
+}
+
+/** Same picker as New table: the native input stays the one real control,
+ * and the visible button and filename are presentational. */
+function CsvPicker({
+  name,
+  disabled,
+  onPick,
+}: {
+  name: string | undefined;
+  disabled: boolean;
+  onPick: (file: File | undefined) => void;
+}) {
+  const t = useTranslations("App.Tables");
+  const input = useRef<HTMLInputElement>(null);
+  return (
+    <div className="grid gap-2">
+      <Label htmlFor="append-csv-file">{t("appendCsv.file")}</Label>
+      <div className="ring-offset-background has-[:focus-visible]:ring-ring flex w-fit max-w-full items-center gap-3 rounded-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2">
+        <Button
+          type="button"
+          aria-hidden
+          tabIndex={-1}
+          size="sm"
+          variant="outline"
+          disabled={disabled}
+          onClick={() => input.current?.click()}
+        >
+          <Upload aria-hidden className="size-4" />
+          {t("chooseCsv")}
+        </Button>
+        <span
+          aria-hidden
+          className="text-muted-foreground min-w-0 truncate text-sm"
+        >
+          {name || t("noFileChosen")}
+        </span>
+        <span className="sr-only">
+          <Input
+            id="append-csv-file"
+            ref={input}
+            type="file"
+            accept=".csv,text/csv"
+            disabled={disabled}
+            onChange={(event) => onPick(event.target.files?.[0])}
+          />
+        </span>
+      </div>
+      <p className="text-muted-foreground text-sm">{t("csvLimit")}</p>
+    </div>
+  );
+}
+
+/** What the CSV fills, what it leaves out, and the offer to skip repeats. */
+function AppendPlan({
+  plan,
+  skip,
+  locked,
+  onSkip,
+}: {
+  plan: ReturnType<typeof planCsvAppend>;
+  skip: boolean;
+  locked: boolean;
+  onSkip: (skip: boolean) => void;
+}) {
+  const t = useTranslations("App.Tables");
+  const repeats = plan.rows.length - plan.newRows.length;
+  return (
+    <div className="grid gap-2 text-sm">
+      {plan.ambiguous.length > 0 ? (
+        <p className="break-words">
+          {t("appendCsv.ambiguous", { columns: plan.ambiguous.join(", ") })}
+        </p>
+      ) : plan.matched.length ? (
+        <p className="break-words">
+          {t("appendCsv.matched", { columns: plan.matched.join(", ") })}
+        </p>
+      ) : (
+        <p>{t("appendCsv.noMatch")}</p>
+      )}
+      {plan.skipped.length > 0 && (
+        <p className="text-muted-foreground break-words">
+          {t("appendCsv.skipped", { columns: plan.skipped.join(", ") })}
+        </p>
+      )}
+      {plan.matched.length > 0 && repeats > 0 && (
+        <div className="flex items-start gap-2">
+          <Checkbox
+            id="append-csv-skip"
+            className="mt-0.5"
+            checked={skip}
+            disabled={locked}
+            onCheckedChange={(value) => onSkip(value === true)}
+          />
+          <Label htmlFor="append-csv-skip" className="font-normal">
+            {t("appendCsv.skipDuplicates", { count: repeats })}
+          </Label>
+        </div>
+      )}
+    </div>
   );
 }

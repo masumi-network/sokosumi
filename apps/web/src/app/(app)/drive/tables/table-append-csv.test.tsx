@@ -1,4 +1,3 @@
-import type { DataTable } from "@sokosumi/core-client";
 import {
   cleanup,
   fireEvent,
@@ -26,8 +25,22 @@ const name = {
 };
 const table = {
   id: "00000000-0000-4000-8000-000000000009",
-  columns: [name],
-} as unknown as DataTable;
+  columns: [{ ...name, type: "text" as const }],
+};
+
+/** Core's query: `total` counts live rows, or archived ones when asked. */
+function holds(
+  rows: Array<{ values: Record<string, unknown> }>,
+  { live = rows.length, archived = 0 } = {},
+) {
+  f.query.mockImplementation((_id: string, body: { archived?: boolean }) =>
+    Promise.resolve(
+      body.archived
+        ? { rows: [], nextCursor: null, total: archived }
+        : { rows, nextCursor: null, total: live },
+    ),
+  );
+}
 
 function choose(text: string) {
   fireEvent.change(screen.getByLabelText("appendCsv.file"), {
@@ -42,13 +55,17 @@ describe("TableAppendCsv", () => {
   });
 
   it("adds only the CSV rows the Table does not hold yet", async () => {
-    f.query.mockResolvedValue({
-      rows: [{ values: { [name.id]: "Ada" } }],
-      nextCursor: null,
-    });
+    holds([{ values: { [name.id]: "Ada" } }]);
     f.batch.mockResolvedValue({});
     const onDone = vi.fn();
-    render(<TableAppendCsv table={table} onClose={vi.fn()} onDone={onDone} />);
+    render(
+      <TableAppendCsv
+        table={table}
+        onChanged={vi.fn()}
+        onClose={vi.fn()}
+        onDone={onDone}
+      />,
+    );
 
     choose("Name,Notes\nAda,x\nBo,y\n");
 
@@ -71,13 +88,17 @@ describe("TableAppendCsv", () => {
   });
 
   it("keeps rows already in the Table when asked", async () => {
-    f.query.mockResolvedValue({
-      rows: [{ values: { [name.id]: "Ada" } }],
-      nextCursor: null,
-    });
+    holds([{ values: { [name.id]: "Ada" } }]);
     f.batch.mockResolvedValue({});
     const onDone = vi.fn();
-    render(<TableAppendCsv table={table} onClose={vi.fn()} onDone={onDone} />);
+    render(
+      <TableAppendCsv
+        table={table}
+        onChanged={vi.fn()}
+        onClose={vi.fn()}
+        onDone={onDone}
+      />,
+    );
 
     choose("Name\nAda\nBo\n");
     fireEvent.click(
@@ -93,8 +114,15 @@ describe("TableAppendCsv", () => {
   });
 
   it("says so when no CSV header matches a column", async () => {
-    f.query.mockResolvedValue({ rows: [], nextCursor: null });
-    render(<TableAppendCsv table={table} onClose={vi.fn()} onDone={vi.fn()} />);
+    holds([]);
+    render(
+      <TableAppendCsv
+        table={table}
+        onChanged={vi.fn()}
+        onClose={vi.fn()}
+        onDone={vi.fn()}
+      />,
+    );
 
     choose("Email\na@b.c\n");
 
@@ -104,5 +132,100 @@ describe("TableAppendCsv", () => {
         .getByRole("button", { name: 'appendCsv.add {"count":0}' })
         .hasAttribute("disabled"),
     ).toBe(true);
+  });
+
+  it("refuses a CSV that would take the Table past 10,000 rows", async () => {
+    holds([], { live: 9_000, archived: 999 });
+    render(
+      <TableAppendCsv
+        table={table}
+        onChanged={vi.fn()}
+        onClose={vi.fn()}
+        onDone={vi.fn()}
+      />,
+    );
+
+    choose("Name\nAda\nBo\n");
+
+    expect(
+      await screen.findByText('appendCsv.full {"room":1,"count":2}'),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole("button", { name: 'appendCsv.add {"count":2}' })
+        .hasAttribute("disabled"),
+    ).toBe(true);
+  });
+
+  it("says a header is ambiguous and adds nothing", async () => {
+    holds([]);
+    render(
+      <TableAppendCsv
+        table={table}
+        onChanged={vi.fn()}
+        onClose={vi.fn()}
+        onDone={vi.fn()}
+      />,
+    );
+
+    choose("Name,name\nAda,Bo\n");
+
+    expect(
+      await screen.findByText('appendCsv.ambiguous {"columns":"Name, name"}'),
+    ).toBeTruthy();
+  });
+
+  it("shows what a failed add already wrote and retries the same batches", async () => {
+    holds([]);
+    f.batch
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(new Error("Network down"))
+      .mockResolvedValue({});
+    const onChanged = vi.fn();
+    const onDone = vi.fn();
+    render(
+      <TableAppendCsv
+        table={table}
+        onChanged={onChanged}
+        onClose={vi.fn()}
+        onDone={onDone}
+      />,
+    );
+    const csv = ["Name", ...Array.from({ length: 150 }, (_, i) => `P${i}`)];
+    choose(csv.join("\n"));
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: 'appendCsv.add {"count":150}',
+      }),
+    );
+
+    expect(
+      await screen.findByText('appendCsv.stopped {"added":100,"count":150}'),
+    ).toBeTruthy();
+    expect(onChanged).toHaveBeenCalled();
+    expect(onDone).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "retry" }));
+
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(150));
+    const keys = f.batch.mock.calls.map((call) => call[1].key);
+    expect(keys.slice(2)).toEqual(keys.slice(0, 2));
+  });
+
+  it("hides Close while it reads the file", async () => {
+    f.query.mockReturnValue(new Promise(() => {}));
+    render(
+      <TableAppendCsv
+        table={table}
+        onChanged={vi.fn()}
+        onClose={vi.fn()}
+        onDone={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /close/i })).toBeTruthy();
+
+    choose("Name\nAda\n");
+
+    expect(await screen.findByText("appendCsv.reading")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /close/i })).toBeNull();
   });
 });
