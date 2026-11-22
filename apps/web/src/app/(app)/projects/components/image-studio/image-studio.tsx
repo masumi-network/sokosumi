@@ -20,9 +20,7 @@ import {
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
-  type RefObject,
   useCallback,
-  useLayoutEffect,
   useMemo,
   useOptimistic,
   useRef,
@@ -34,10 +32,11 @@ import { toast } from "sonner";
 import { switchScopeHref } from "@/app/components/project-scope/project-scope-href";
 import { openProjectScope } from "@/app/components/project-scope/sidebar-project-scope-state";
 import { Button } from "@/components/ui/button";
+import { useImageStudioSteadyDock } from "@/hooks/effects/use-image-studio-steady-dock";
+import { useImageStudioWorkspaceBrief } from "@/hooks/effects/use-image-studio-workspace-brief";
 import { useIntersectionObserver } from "@/hooks/effects/use-intersection-observer";
 import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   listStudioBatchAssets,
   prepareStudioAssetSocialMedia,
@@ -104,10 +103,6 @@ import {
   videoSettingsFor,
 } from "./studio-video-composer";
 import { StudioWebsiteTools } from "./studio-website-tools";
-import {
-  registerStudioWorkspaceBrief,
-  takeStudioBriefFor,
-} from "./studio-workspace-brief";
 import {
   creditsByAssetId,
   elapsedByAssetId,
@@ -235,18 +230,7 @@ export function ImageStudio({
   } | null>(null);
   const assistantTriggerRef = useRef<HTMLButtonElement>(null);
   const assistantCloseRef = useRef<HTMLButtonElement>(null);
-  const [prompt, setPrompt] = useState("");
-  const latestPrompt = useRef(prompt);
-  latestPrompt.current = prompt;
-  // Picking or creating a project here remounts the studio. A brief typed in
-  // the All-projects view moves to that project instead of vanishing.
-  useMountEffect(() => {
-    const brief = takeStudioBriefFor(projectId);
-    if (brief) setPrompt(brief);
-    return projectId === null
-      ? registerStudioWorkspaceBrief(() => latestPrompt.current)
-      : undefined;
-  });
+  const [prompt, setPrompt] = useImageStudioWorkspaceBrief(projectId);
   const [draftProduct, setDraftProduct] = useState<StudioProductIdentity>();
   const productDetailsRef = useRef<string | null>(null);
   const [batchProducts, setBatchProducts] = useState<StudioBatchProduct[]>([]);
@@ -1223,7 +1207,7 @@ export function ImageStudio({
     { rootMargin: "400px 0px 0px 0px", resetKey: state.assets.length },
   );
 
-  const dock = useSteadyDock(promptRef, showsNothing);
+  const dock = useImageStudioSteadyDock(promptRef, showsNothing);
   const assistantOpen = assistant?.open === true;
 
   function openAssistant(asset: StudioAsset | null) {
@@ -1833,46 +1817,6 @@ export function ImageStudio({
       ) : null}
     </div>
   );
-}
-
-/**
- * Keep the gallery still while the prompt grows.
- *
- * The feed is a bottom-anchored scroller, so anything that shrank it moved
- * every image on screen: each new line of a brief, or a long template landing
- * in the box. The composer is docked over the feed's bottom edge instead, in a
- * slot as tall as the composer minus whatever the prompt has grown past its
- * resting height. A growing brief then rises over the feed, the way a sheet
- * would, and the feed's height only follows the composer's own rows.
- */
-function useSteadyDock(
-  promptRef: RefObject<HTMLTextAreaElement | null>,
-  floating: boolean,
-) {
-  const slotRef = useRef<HTMLDivElement>(null);
-  const dockRef = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const slot = slotRef.current;
-    const dock = dockRef.current;
-    if (!slot || !dock) return;
-    if (floating) {
-      slot.style.height = "";
-      return;
-    }
-    const sync = () => {
-      const prompt = promptRef.current;
-      const growth = prompt
-        ? prompt.offsetHeight -
-          Number.parseFloat(getComputedStyle(prompt).minHeight)
-        : 0;
-      slot.style.height = `${dock.offsetHeight - (growth > 0 ? growth : 0)}px`;
-    };
-    sync();
-    const observer = new ResizeObserver(sync);
-    observer.observe(dock);
-    return () => observer.disconnect();
-  }, [promptRef, floating]);
-  return { slotRef, dockRef };
 }
 
 /**
