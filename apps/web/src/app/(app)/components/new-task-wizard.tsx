@@ -2,8 +2,6 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
-import { toast } from "sonner";
 
 import { loadNewTaskWizardOptions } from "@/app/tasks/actions";
 import {
@@ -12,6 +10,7 @@ import {
   type NewTaskCopyPrefill,
   useCreateTaskModal,
 } from "@/app/tasks/components/create-task-modal";
+import { useNewTaskWizardLoadError } from "@/hooks/effects/use-new-task-wizard-load-error";
 
 type NewTaskWizardData = Awaited<ReturnType<typeof loadNewTaskWizardOptions>>;
 
@@ -84,11 +83,7 @@ function NewTaskWizardModal({
     retry: false,
   });
 
-  useEffect(() => {
-    if (!isError) return;
-    toast.error(tTasksErrors("loadCreateTask"));
-    handleClose();
-  }, [handleClose, isError, tTasksErrors]);
+  useNewTaskWizardLoadError(isError, handleClose, tTasksErrors);
 
   return (
     <CreateTaskModal

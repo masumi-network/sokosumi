@@ -2,7 +2,7 @@
 
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { useTranslations } from "next-intl";
-import { type Ref, type RefObject, useEffect, useId, useRef } from "react";
+import { type Ref, type RefObject, useId, useRef } from "react";
 import * as z from "zod";
 import { FormErrorText } from "@/components/ui/form";
 import {
@@ -11,6 +11,7 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { Label } from "@/components/ui/label";
+import { useEmailCodeRefusalFocus } from "@/hooks/effects/use-email-code-refusal-focus";
 import { cn } from "@/lib/utils";
 
 import { ResendCodeButton } from "./resend-code-button";
@@ -90,19 +91,12 @@ export function useEmailCodeRefusal({
   const describe = useDescribeEmailCodeError();
   // Pass to the field, so its handed-over code survives a remount.
   const completedCodeRef = useRef("");
-  const focusPending = useRef(false);
-
-  // Runs after every render, and focuses once per refusal when unlocked.
-  useEffect(() => {
-    if (!focusPending.current || isLocked) return;
-    focusPending.current = false;
-    focus();
-  });
+  const requestFocus = useEmailCodeRefusalFocus(focus, isLocked);
 
   /** Clears the field and returns the reason to show beside it. */
   const refuse = (answer: EmailCodeError): string => {
     completedCodeRef.current = "";
-    focusPending.current = true;
+    requestFocus();
     clear();
     return describe(answer);
   };
