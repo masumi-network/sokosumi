@@ -1,4 +1,5 @@
 import { render } from "@testing-library/react";
+import { Activity, StrictMode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { useMessageParamJump } from "./use-message-param-jump";
@@ -118,5 +119,35 @@ describe("useMessageParamJump", () => {
     rerender(<Harness roomId="room-1" messageId="msg-1" ready jump={jump} />);
 
     expect(jump).toHaveBeenCalledTimes(1);
+  });
+
+  it("jumps once under StrictMode replay and stays settled across Activity hide and reveal", () => {
+    const jump = vi.fn();
+    const { rerender, unmount } = render(
+      <StrictMode>
+        <Activity mode="visible">
+          <Harness roomId="room-1" messageId="msg-1" ready jump={jump} />
+        </Activity>
+      </StrictMode>,
+    );
+    expect(jump).toHaveBeenCalledExactlyOnceWith("msg-1");
+
+    rerender(
+      <StrictMode>
+        <Activity mode="hidden">
+          <Harness roomId="room-1" messageId="msg-1" ready jump={jump} />
+        </Activity>
+      </StrictMode>,
+    );
+    rerender(
+      <StrictMode>
+        <Activity mode="visible">
+          <Harness roomId="room-1" messageId="msg-1" ready jump={jump} />
+        </Activity>
+      </StrictMode>,
+    );
+    expect(jump).toHaveBeenCalledTimes(1);
+
+    unmount();
   });
 });

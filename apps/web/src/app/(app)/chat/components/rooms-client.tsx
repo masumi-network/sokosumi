@@ -55,7 +55,6 @@ import {
   useCoworkerDirectRoomStream,
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
 import { useOpenRoomUnreadRecheck } from "@/app/chat/hooks/use-open-room-unread-recheck";
-import { useQuietHoverWhileScrolling } from "@/app/chat/hooks/use-quiet-hover-while-scrolling";
 import {
   TRANSCRIPT_SNAPSHOT_RETRIES,
   useRoomMessageJumps,
@@ -64,8 +63,6 @@ import { useRoomMessageMutations } from "@/app/chat/hooks/use-room-message-mutat
 import { useRoomNotificationDeepLink } from "@/app/chat/hooks/use-room-notification-deep-link";
 import { useRoomReadAttention } from "@/app/chat/hooks/use-room-read-attention";
 import { useRoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
-import { useRoomUrlAsk } from "@/app/chat/hooks/use-room-url-ask";
-import { useUnreadThreadReplyCounts } from "@/app/chat/hooks/use-unread-thread-reply-counts";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 import { getRoomMessageAction } from "@/app/chat/message-actions";
 import { canManageChannelSettings } from "@/app/chat/utils/channel-member-permissions";
@@ -168,9 +165,16 @@ import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-sche
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useIsMobileMedia } from "@/hooks/effects/use-mobile";
+import { useQuietHoverWhileScrolling } from "@/hooks/effects/use-quiet-hover-while-scrolling";
 import { useMarkRoomCacheDirtyOnExit } from "@/hooks/effects/use-room-cache-dirty";
+import { useRoomUrlAsk } from "@/hooks/effects/use-room-url-ask";
+import { useRoomsClientClassicOutboundCleanup } from "@/hooks/effects/use-rooms-client-classic-outbound-cleanup";
+import { useRoomsClientReopenActiveStreamThread } from "@/hooks/effects/use-rooms-client-reopen-active-stream-thread";
+import { useRoomsClientScrollOnHistoryLoaded } from "@/hooks/effects/use-rooms-client-scroll-on-history-loaded";
+import { useRoomsClientTranscriptActive } from "@/hooks/effects/use-rooms-client-transcript-active";
 import { useScheduledTimeoutMap } from "@/hooks/effects/use-scheduled-timeout";
 import { useSelectedRoomChannelHealth } from "@/hooks/effects/use-selected-room-channel-health";
+import { useUnreadThreadReplyCounts } from "@/hooks/effects/use-unread-thread-reply-counts";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import {
   chatRoomMessageIdEnvelopeAction,
@@ -463,13 +467,7 @@ function RetainedRoomsClient({
   );
   const entry = data ?? cache.seed(props);
   const lifetime = entry.lifetime;
-  const activeRef = useRef(true);
-  useLayoutEffect(() => {
-    activeRef.current = true;
-    return () => {
-      activeRef.current = false;
-    };
-  }, []);
+  const activeRef = useRoomsClientTranscriptActive();
   const refreshRef = useRef<() => void>(() => {});
   const [pending, setPending] = useState<ChatRoomMessage[]>([]);
   const pendingRef = useRef(pending);
@@ -1024,15 +1022,11 @@ function RoomView({
   );
   // When history lands, pin live edge in layout (same frame as skeleton →
   // messages) so the list does not paint mid-jump then scroll.
-  const wasHistoryPendingRef = useRef(messagesPending);
-  useLayoutEffect(() => {
-    const wasPending = wasHistoryPendingRef.current;
-    wasHistoryPendingRef.current = messagesPending;
-    if (!wasPending || messagesPending || opensAtUnread) {
-      return;
-    }
-    scrollToBottom();
-  }, [messagesPending, opensAtUnread, scrollToBottom]);
+  useRoomsClientScrollOnHistoryLoaded(
+    messagesPending,
+    opensAtUnread,
+    scrollToBottom,
+  );
   // Async handlers must stop when their room surface is replaced.
   const selectedRoomIdRef = useRef(selectedRoomId);
   selectedRoomIdRef.current = selectedRoomId;
@@ -1082,14 +1076,11 @@ function RoomView({
 
   // Drop classic outbound jobs when leaving a room — shells are wiped and
   // Retry UI is gone (ADR-0004: no outbox across navigation).
-  useEffect(() => {
-    clearClassicOutboundQueue(classicChannelRefs);
-    clearClassicOutboundQueue(classicThreadRefs);
-    return () => {
-      clearClassicOutboundQueue(classicChannelRefs);
-      clearClassicOutboundQueue(classicThreadRefs);
-    };
-  }, [selectedRoomId, classicChannelRefs, classicThreadRefs]);
+  useRoomsClientClassicOutboundCleanup(
+    selectedRoomId,
+    classicChannelRefs,
+    classicThreadRefs,
+  );
 
   function flashOutboundSentTick(
     messageId: string,
@@ -1652,32 +1643,14 @@ function RoomView({
 
   // Re-open thread panel when a thread stream is active/resumed so overlays
   // stay visible after remount or if the panel was closed mid-stream.
-  useEffect(() => {
-    if (
-      !isCoworkerStreamRoom ||
-      !selectedRoom ||
-      !activeStreamParentMessageId
-    ) {
-      return;
-    }
-    if (threadParentMessage?.id === activeStreamParentMessageId) {
-      return;
-    }
-    const parent =
-      topLevelRoomMessages.find(
-        (message) => message.id === activeStreamParentMessageId,
-      ) ?? null;
-    if (!parent) {
-      return;
-    }
-    loadThreadMessages(parent);
-  }, [
+  useRoomsClientReopenActiveStreamThread({
     isCoworkerStreamRoom,
     selectedRoom,
     activeStreamParentMessageId,
-    threadParentMessage?.id,
+    threadParentMessage,
     topLevelRoomMessages,
-  ]);
+    loadThreadMessages,
+  });
 
   // Pending draft stays in sessionStorage until stream settles successfully
   // (cleared in useCoworkerDirectRoomStream.onFinish). Clearing on stream
