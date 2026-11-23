@@ -661,7 +661,7 @@ describe("Plan", () => {
     expect(html).toContain("Try again");
   });
 
-  it("makes the short goal the one H1, with the long sentence under it", () => {
+  it("makes the short goal the one H1, without the long sentence", () => {
     const sentence =
       "We'll reach marketing leads with recurring backlogs, show named specialists turning briefs into finished files, and invite them to try the Free plan.";
     const base = draft();
@@ -683,9 +683,8 @@ describe("Plan", () => {
     expect(html).toMatch(
       /<h1 class="ob-goal-headline">More marketing teams starting Free<\/h1>/,
     );
-    expect(html).toContain(
-      `<p class="ob-goal-statement">${sentence.replaceAll("'", "&#x27;")}</p>`,
-    );
+    // The sentence repeated the goal, Who and The offer (owner, 2026-11-23).
+    expect(html).not.toContain("ob-goal-statement");
   });
 
   it("shows what stops people buying, the other plans and the rest closed", () => {
@@ -765,8 +764,11 @@ describe("Plan", () => {
       expect(html).not.toContain(live);
     }
     // Before the first plan the owner can still start over (NMKR, 2026-11-23).
+    // What starting over cancels is said in its confirm step, not on the page.
     expect(html).toContain("Write a new strategy");
-    expect(html).toContain("you approve it before you pick a plan");
+    expect(html).not.toContain(
+      "then its posts that have not gone out are canceled",
+    );
   });
 
   it("asks for the plan when Brand is confirmed and nothing writes it", () => {

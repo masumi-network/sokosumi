@@ -530,9 +530,9 @@ describe("pages", () => {
         connectMeasurement={async () => ({ url: null, error: null })}
       />,
     );
-    expect(html).toContain(strategy.summary);
     expect(html).toContain("40 trial sign-ups");
-    expect(html).toContain("in your calendar");
+    expect(html).not.toContain("Up to");
+    expect(html).toContain("See your month in the calendar");
     expect(html).not.toContain("Week 1");
     // Parts an older plan does not have stay out instead of showing empty.
     expect(html).not.toContain("What stops people buying");
@@ -654,7 +654,7 @@ describe("pages", () => {
     expect(html).not.toContain("No ads");
   });
 
-  it("counts the month as planned and in the plan when the plan makes fewer", () => {
+  it("shows no post count, even when the plan makes fewer than planned", () => {
     const base = overview(cmoStrategyVersion(new Date("2026-11-02T09:00:00Z")));
     const [first] = strategy.calendar;
     if (!first) throw new Error("fixture has an entry");
@@ -670,7 +670,9 @@ describe("pages", () => {
         connectMeasurement={async () => ({ url: null, error: null })}
       />,
     );
-    expect(html).toContain("2 planned, 1 in your plan");
+    // No post counts on the Strategy page (owner, 2026-11-23).
+    expect(html).not.toContain("2 planned, 1 in your plan");
+    expect(html).not.toMatch(/\d+ posts?\b/);
   });
 
   it("lists only answered questions as approved", () => {

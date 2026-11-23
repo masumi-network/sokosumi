@@ -3,20 +3,22 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Check, CircleAlert, Loader2 } from "lucide-react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
-import { type KeyboardEvent, useRef, useState, useTransition } from "react";
+import {
+  type KeyboardEvent,
+  type ReactNode,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
 import { changeIdeas } from "../../lib/change-ideas";
 import { channelInfo } from "../../lib/channels";
-import {
-  monthPostCount,
-  planChosen,
-  planCount,
-  strategyApproved,
-} from "../../lib/strategy";
+import { strategyApproved } from "../../lib/strategy";
+import { WriteNewStrategy } from "../app/write-new-strategy";
+import { ChannelIcon } from "../channel-icon";
 import { CusoAvatar } from "../cuso";
 import { EntrySheet } from "../entry-sheet";
-import { PlanSizes } from "../plan-sizes";
 import { AdsChoice, money } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
 import { SubmitButton } from "../submit-button";
@@ -113,16 +115,13 @@ export function planningRows(
     }
   }
   if (running) {
-    const pieces = strategy ? monthPostCount(strategy.calendar) : 0;
     // On top, so what Cuso is on stays in view above the plan so far.
     rows.unshift({
       id: strategy ? "calendar" : "plan",
       kind: "strategy",
       label: !strategy
         ? "Choosing your idea, channels and pillars"
-        : pieces > 0
-          ? `Writing four weeks, day by day: ${pieces} posts so far`
-          : "Writing four weeks, day by day",
+        : "Writing four weeks, day by day",
       url: null,
       status: "running",
     });
@@ -478,10 +477,6 @@ export function PlanReview({
     ...overview,
     strategy: { ...strategy, questions },
   });
-  const count = planCount(strategy.calendar, overview.production.beyondPlan);
-  // Before a plan is picked the month is the most a plan makes: "Up to …".
-  const atMost = !planChosen(overview);
-  const month = atMost ? `Up to ${count.label}` : count.label;
 
   // Plain async, not a transition: React holds a transition's state updates
   // until it ends, and the re-planning screen must show on the tap. A refusal
@@ -518,11 +513,9 @@ export function PlanReview({
     send("Fitting your strategy to your answers", onUpdate).catch(() => {});
   };
 
-  // One short line, one number (owner, 2026-11-22: "too much text").
-  const line = approved
-    ? `${month} this month.`
-    : `${month} a month. Nothing goes out until you approve.`;
-  // The short goal is the headline; the long sentence sits under it.
+  // Before approval one line says what approving does; no post count.
+  const line = approved ? null : "Nothing goes out until you approve.";
+  // The short goal is the headline.
   const sentence = strategy.idea?.sentence ?? strategy.summary;
   const goal = outcomeLine(strategy) || firstClause(sentence);
 
@@ -597,8 +590,7 @@ export function PlanReview({
             }
           />
         )}
-        {/* The app's page opens on the goal; the line follows it there. */}
-        {readOnly ? null : <p className="muted">{line}</p>}
+        {readOnly || !line ? null : <p className="muted">{line}</p>}
       </div>
 
       {asking && !locked ? (
@@ -703,15 +695,13 @@ export function PlanReview({
       ) : null}
 
       <div className="ob-plan-body" hidden={replanning !== null}>
+        {/* The goal alone: the long sentence repeated it (owner, 2026-11-23). */}
         <GoalBlock
           label="The goal"
           headline
           goal={goal}
-          statement={sentence !== goal ? sentence : undefined}
           facts={goalFacts(strategy)}
         />
-        {readOnly ? <p className="note ob-plan-built">{line}</p> : null}
-        {approved ? null : <PlanSizes strategy={strategy} />}
 
         {fitted.length > 0 && !writing ? (
           <div className="card ob-changed">
@@ -742,24 +732,18 @@ export function PlanReview({
         {approved && !readOnly ? (
           // An approved strategy before the first plan: the owner can still
           // start over (NMKR, 2026-11-23, had no way back from Subscribe).
-          <p className="ob-small muted">
-            Want a different one? {AGENT_NAME} writes a whole new strategy from
-            your Brand Brain, and you approve it before you pick a plan. Then
-            this one's posts that have not gone out are canceled.{" "}
-            <button
-              type="button"
-              className="sc-link"
-              disabled={busy}
-              onClick={() => {
-                setRefusal(null);
-                send("Writing your strategy again", () => onRequest()).catch(
-                  () => {},
-                );
-              }}
-            >
-              Write a new strategy
-            </button>
-          </p>
+          // What that cancels is said in the confirm step, not on the page.
+          <WriteNewStrategy
+            overview={overview}
+            explain={`${AGENT_NAME} writes a whole new strategy from your Brand Brain, and you approve it before you pick a plan. Then this one's posts that have not gone out are canceled.`}
+            onWriteNew={() =>
+              send("Writing your strategy again", () => onRequest()).then(
+                () => null,
+                // send shows the refusal itself.
+                () => null,
+              )
+            }
+          />
         ) : null}
         {locked ? (
           // "No ads" alone is no answer worth a card.
@@ -974,23 +958,29 @@ function firstClause(text: string): string {
   return clause || text;
 }
 
-/** Who, what, where and how much, from whatever the plan fills in. */
-function goalFacts(strategy: Strategy): { term: string; value: string }[] {
+/** Who, what and where, from whatever the plan fills in; no post counts (owner, 2026-11-23). */
+function goalFacts(strategy: Strategy): { term: string; value: ReactNode }[] {
   const who =
     strategy.focus?.segment ?? strategy.idea?.who ?? strategy.audience;
   const offer =
     strategy.offer?.what ?? strategy.idea?.offer ?? strategy.ladder?.core.what;
-  const where = strategy.channels
-    .map((channel) => channelLabel(channel.channel))
-    .join(", ");
-  const facts = [
+  const where =
+    strategy.channels.length > 0 ? (
+      <span className="ob-goal-networks">
+        {strategy.channels.map(({ channel }) => (
+          <span key={channel} title={channelLabel(channel)}>
+            <ChannelIcon channel={channel} size={16} />
+            <span className="sr-only">{channelLabel(channel)}</span>
+          </span>
+        ))}
+      </span>
+    ) : null;
+  const facts: { term: string; value: ReactNode }[] = [
     { term: "Who", value: who },
     { term: "The offer", value: offer },
     { term: "Where", value: where },
   ];
-  return facts.filter((fact): fact is { term: string; value: string } =>
-    Boolean(fact.value),
-  );
+  return facts.filter((fact) => Boolean(fact.value));
 }
 
 interface PlanQuestionChipProps {
