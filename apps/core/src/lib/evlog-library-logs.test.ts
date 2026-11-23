@@ -15,6 +15,9 @@ import { composioLogger as coreComposioSink } from "@/lib/evlog-library-logs";
 import { restoreComposioSdkLoggerAfterFile } from "@/test/composio-sdk-logger";
 import { coreLogEvents, expectCoreLog } from "@/test/core-log";
 
+// Core's real `auth` seeds the MCP resource row at startup.
+vi.mock("@/lib/db/prisma", () => import("@/test/seeded-oauth-resource-prisma"));
+
 vi.hoisted(() => {
   // `getComposio` builds the client, and with it Core's SDK logger, only
   // when a key is configured. Unstubbed at the end of the file.

@@ -19,6 +19,7 @@ Register the client at `https://app.sokosumi.com/developer/oauth-clients`. Redir
 | `openid`         | Identity only: the ID token and userinfo carry `sub`. Cannot call `/v1`. |
 | `sokosumi:api`   | Calling Core `/v1` as the consenting user.                               |
 | `offline_access` | Refresh tokens.                                                          |
+| `sokosumi:mcp`   | Calling Sokosumi's MCP server. Cannot call `/v1`. See below.             |
 
 A new client is **identity-only**. Core API access needs `sokosumi:api` in all three places:
 
@@ -36,6 +37,16 @@ A new client is **identity-only**. Core API access needs `sokosumi:api` in all t
 | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------- |
 | **401**                                                                                                       | Unknown, expired or revoked token; disabled client; banned user; consent withdrawn | Refresh, or sign the user in again                        |
 | **403** `insufficient_scope` with `WWW-Authenticate: Bearer error="insufficient_scope", scope="sokosumi:api"` | A valid token without `sokosumi:api` on the token, the client, or the consent      | Fix the scope in the three places above, then reauthorize |
+
+## MCP server
+
+Sokosumi's MCP server is a protected resource of the same issuer, at `{Core origin}/mcp`, for example `https://api.sokosumi.com/mcp` ([ADR 0076](./adr/0076-mcp-tokens-are-audience-bound-jwts-for-a-core-hosted-resource.md)). Not open yet: the `/mcp` endpoint and client registration for it are still being built.
+
+- Discover it from `GET https://api.sokosumi.com/.well-known/oauth-protected-resource/mcp` (RFC 9728): `resource`, `authorization_servers` and `scopes_supported`.
+- Authorize and exchange the code with `resource=https://api.sokosumi.com/mcp` (RFC 8707) and `scope=openid sokosumi:mcp offline_access`. The client must be linked to the resource, and the user consents to it on Sokosumi's consent page.
+- The access token is a JWT with `aud` set to the resource. It lasts 15 minutes and carries only `openid`, `sokosumi:mcp` and `offline_access`, even when the request asks for `sokosumi:api`.
+- The MCP server accepts only that JWT. Core `/v1` rejects it with 401, and the MCP server rejects `/v1` tokens and API keys the same way.
+- Banning the user, disabling the client or withdrawing consent ends the token on its next use. Revoking the app's tokens stops its refresh token; an access token it holds works until it expires.
 
 ## Which workspace
 

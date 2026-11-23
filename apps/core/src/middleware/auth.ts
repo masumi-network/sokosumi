@@ -1,7 +1,6 @@
 import {
   CORE_API_ERROR_KINDS,
   hasAdminRole as checkAdminRole,
-  hasCoreApiOAuthScope,
   OAUTH_SCOPE_CORE_API,
 } from "@sokosumi/utils";
 import type { Context, MiddlewareHandler } from "hono";
@@ -20,6 +19,7 @@ import {
 import prisma from "@/lib/db/prisma";
 
 import { BEARER_USER_SELECT, isActiveUser } from "./auth-active-user";
+import { checkOAuthGrant, OAUTH_GRANT_CLIENT_SELECT } from "./auth-oauth-grant";
 import { syncAuthObservers } from "./auth-observability";
 
 const DEFAULT_USER_ROLE = "user";
@@ -551,13 +551,7 @@ async function verifyOAuthToken(
       user: {
         select: BEARER_USER_SELECT,
       },
-      client: {
-        select: {
-          disabled: true,
-          scopes: true,
-          skipConsent: true,
-        },
-      },
+      client: { select: OAUTH_GRANT_CLIENT_SELECT },
     },
   });
 
@@ -579,54 +573,27 @@ async function verifyOAuthToken(
     return false;
   }
 
-  // A ban clears sessions but leaves bearer tokens usable until they expire.
-  if (!isActiveUser(oauthToken.user)) {
-    return false;
-  }
-
   if (oauthToken.refreshId && oauthToken.refreshToken) {
     if (oauthToken.refreshToken.revoked) {
       return false;
     }
   }
 
-  const client = oauthToken.client;
-  if (!client || client.disabled) {
+  const status = await checkOAuthGrant(
+    {
+      userId: oauthToken.userId,
+      clientId: oauthToken.clientId,
+      tokenScopes: oauthToken.scopes,
+      user: oauthToken.user,
+      client: oauthToken.client,
+    },
+    OAUTH_SCOPE_CORE_API,
+  );
+  if (status === "insufficient_scope") {
+    throw insufficientOAuthScope();
+  }
+  if (status === "inactive") {
     return false;
-  }
-
-  // The token is valid from here; what remains is whether it may call Core.
-  // Identity-only tokens (openid without sokosumi:api) cannot call Core API.
-  if (!hasCoreApiOAuthScope(oauthToken.scopes)) {
-    throw insufficientOAuthScope();
-  }
-
-  // Client allow-list must still include Core API (e.g. after privilege reduction).
-  // Check before consent so reduced clients skip the consent query.
-  if (!hasCoreApiOAuthScope(client.scopes)) {
-    throw insufficientOAuthScope();
-  }
-
-  // A first-party client skips consent, so it has no consent row (ADR 0046).
-  if (!client.skipConsent) {
-    const consent = await prisma.oauthConsent.findFirst({
-      where: {
-        userId: oauthToken.userId,
-        clientId: oauthToken.clientId,
-      },
-      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-      select: {
-        id: true,
-        scopes: true,
-      },
-    });
-
-    if (!consent) {
-      return false;
-    }
-    if (!hasCoreApiOAuthScope(consent.scopes)) {
-      throw insufficientOAuthScope();
-    }
   }
 
   setAuthContext(c, {
@@ -635,10 +602,10 @@ async function verifyOAuthToken(
       actor: "user",
       userId: oauthToken.userId,
       organizationId: null,
-      role: oauthToken.user.role ?? DEFAULT_USER_ROLE,
+      role: oauthToken.user?.role ?? DEFAULT_USER_ROLE,
       authenticationMethod: "oauth",
       oauthClientId: oauthToken.clientId,
-      ...(client.skipConsent ? { firstPartyClient: true } : {}),
+      ...(oauthToken.client?.skipConsent ? { firstPartyClient: true } : {}),
     },
   });
   return true;

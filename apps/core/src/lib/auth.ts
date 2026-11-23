@@ -20,6 +20,7 @@ import {
   betterAuthUserAdditionalFields,
   getEmailLocale,
   OAUTH_PROVIDER_SCOPES,
+  OAUTH_SCOPE_MCP,
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
 } from "@sokosumi/utils";
@@ -57,6 +58,7 @@ import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete
 import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
 import prisma from "@/lib/db/prisma";
 import { runAsBackgroundWork } from "@/lib/evlog";
+import { mcpOAuthResource } from "@/lib/sokosumi-mcp/resource";
 import { handleStripeAuthWebhookOnEvent } from "@/lib/stripe-auth-webhook-on-event";
 import { resolveActiveOrganizationIdForSession } from "@/services/preferred-workspace.service";
 import { disconnectLeaverSokoBotIntegrationsBestEffort } from "@/services/soko-bot-integration-leaver.service";
@@ -648,7 +650,12 @@ export const auth = betterAuth({
       // anyone is signed in. Answered only for a request this provider signed.
       allowPublicClientPrelogin: true,
       consentPage: `${webAppBaseUrl}/oauth/consent`,
-      scopes: [...OAUTH_PROVIDER_SCOPES],
+      scopes: [...OAUTH_PROVIDER_SCOPES, OAUTH_SCOPE_MCP],
+      // A token requested with `resource={origin}/mcp` is a 15-minute JWT
+      // for Core's MCP server, never usable at `/v1` (ADR 0076). Per-client
+      // resource links stay enforced (the plugin default), so a client gets
+      // MCP tokens only once it is linked to the resource.
+      resources: [mcpOAuthResource(betterAuthBaseUrl)],
       // Defaults to identity-only; allow-list keeps sokosumi:api opt-in available
       // for authenticated create-client and for DCR if enabled later.
       clientRegistrationDefaultScopes: ["openid"],

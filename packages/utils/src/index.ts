@@ -436,9 +436,13 @@ export {
   buildOAuthClientGrantTypes,
   buildOAuthClientScopeParam,
   hasCoreApiOAuthScope,
+  hasOAuthScope,
   hasOfflineAccessOAuthScope,
   OAUTH_PROVIDER_SCOPES,
   OAUTH_SCOPE_CORE_API,
+  OAUTH_SCOPE_MCP,
+  OAUTH_SCOPE_OFFLINE_ACCESS,
+  OAUTH_SCOPE_OPENID,
 } from "./oauth-scopes.js";
 export {
   isReactJsonFencePrefixCandidate,
