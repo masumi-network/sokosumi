@@ -35,4 +35,36 @@ describe("well-known oauth issuer metadata integration", () => {
     // even though the test takes ~1.5s in isolation. Observed failing at
     // exactly 5007ms while this branch's added tests were in the run.
   }, 10_000);
+
+  it("describes the MCP server as a resource of that issuer (RFC 9728)", async () => {
+    const { default: wellKnownRouter } = await import("./index.js");
+    const app = new Hono();
+    app.route("/", wellKnownRouter);
+
+    const authServer = (await (
+      await app.request(
+        "http://localhost:8787/.well-known/oauth-authorization-server/auth",
+      )
+    ).json()) as { issuer: string; scopes_supported: string[] };
+    expect(authServer.scopes_supported).toContain("sokosumi:mcp");
+
+    // The path MCP's 401 points at, and the root MCP clients fall back to.
+    for (const path of [
+      "/oauth-protected-resource/mcp",
+      "/oauth-protected-resource",
+    ]) {
+      const response = await app.request(
+        `http://localhost:8787/.well-known${path}`,
+      );
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        resource: new URL("/mcp", authServer.issuer).href,
+        resource_name: "Sokosumi MCP",
+        authorization_servers: [authServer.issuer],
+        scopes_supported: ["sokosumi:mcp", "offline_access"],
+        bearer_methods_supported: ["header"],
+      });
+    }
+  }, 10_000);
 });

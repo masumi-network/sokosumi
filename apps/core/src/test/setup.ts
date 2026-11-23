@@ -117,6 +117,30 @@ vi.mock("@sentry/node", () => {
   };
 });
 
+// Better Auth seeds the MCP resource row whenever Core's `auth` starts (ADR
+// 0076), and many route tests load `auth`. A unit run has no database, so
+// that one table answers here, as if the row exists: startup never reaches
+// the placeholder `DATABASE_URL`, which fails at error level in CI and hangs
+// locally. A file that mocks Prisma itself takes precedence; a mock without
+// `oauthResource` reads as a table not created yet, which Better Auth skips
+// quietly. A run against PostgreSQL keeps the real client.
+vi.mock("@/lib/db/prisma", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/db/prisma")>();
+  if (process.env.DATABASE_URL?.startsWith("postgres")) {
+    return actual;
+  }
+  const row = ({ where }: { where: { identifier: string } }) =>
+    Promise.resolve({ id: "mcp-resource", identifier: where.identifier });
+  const oauthResource = { findFirst: row, update: row };
+  return {
+    ...actual,
+    default: new Proxy(actual.default, {
+      get: (target, key) =>
+        key === "oauthResource" ? oauthResource : Reflect.get(target, key),
+    }),
+  };
+});
+
 installConsoleGuard();
 // The test drain owns evlog's setup here: `lib/evlog-init.ts`, which
 // `config/env.ts` imports, must neither start Core's logger over it nor read
