@@ -159,4 +159,49 @@ describe("DataRoomActivity", () => {
     });
     expect(screen.queryByRole("button", { name: "retry" })).toBeNull();
   });
+
+  it("shows the error alert when a page-one refresh fails", async () => {
+    api.fetchDataRoomEvents
+      .mockResolvedValueOnce({
+        events: [
+          {
+            id: "ev_1",
+            kind: "view",
+            createdAt: "2026-11-23T08:00:00.000Z",
+            memberId: null,
+            name: "Alice",
+            email: "alice@example.com",
+            path: "Deck.pdf",
+          },
+        ],
+        nextBefore: "cursor_2",
+      })
+      .mockRejectedValueOnce(new Error("page one refresh failed"));
+
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={client}>
+        <DataRoomActivity
+          store={store}
+          roomId="room_1"
+          members={[]}
+          rows={[]}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText("kind.view")).toBeVisible();
+
+    await act(async () => {
+      await invalidateDrive(client, store);
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("loadFailed");
+    expect(screen.queryByText("kind.view")).toBeNull();
+    expect(screen.queryByRole("button", { name: "retry" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "more" })).toBeNull();
+  });
 });

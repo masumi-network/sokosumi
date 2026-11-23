@@ -2184,6 +2184,61 @@ describe("one catalog, not two", () => {
     ).toBeVisible();
   });
 
+  it("cancels a held cold data-room-list GET on rename so the new name lands", async () => {
+    const user = userEvent.setup();
+    const firstGet =
+      Promise.withResolvers<Array<{ id: string; folderPath: string }>>();
+    let firstSignal: AbortSignal | undefined;
+
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    patchDriveFoldersRenameMock.mockReset();
+    patchDriveFoldersRenameMock.mockResolvedValue({});
+    fetchDataRoomsMock.mockReset();
+    fetchDataRoomsMock
+      .mockImplementationOnce(
+        (_store: unknown, options?: { signal?: AbortSignal }) => {
+          firstSignal = options?.signal;
+          return firstGet.promise;
+        },
+      )
+      .mockResolvedValue([{ id: "room_1", folderPath: "Investors" }]);
+    vi.stubGlobal("prompt", () => "Investors");
+
+    renderDrive();
+
+    const panel = await screen.findByTestId("drive-all-files");
+    await waitFor(() => {
+      expect(fetchDataRoomsMock).toHaveBeenCalledTimes(1);
+    });
+    expect(panel).toHaveAttribute("data-room-paths", "");
+
+    await user.click(screen.getByTestId("files-rename-folder"));
+
+    await waitFor(() => {
+      expect(fetchDataRoomsMock).toHaveBeenCalledTimes(2);
+    });
+    expect(firstSignal?.aborted).toBe(true);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toHaveAttribute(
+        "data-room-paths",
+        "Investors",
+      );
+    });
+
+    // Stale first GET resolving late must not overwrite the renamed folder.
+    await act(async () => {
+      firstGet.resolve([{ id: "room_1", folderPath: "Reports" }]);
+      await firstGet.promise;
+    });
+
+    expect(screen.getByTestId("drive-all-files")).toHaveAttribute(
+      "data-room-paths",
+      "Investors",
+    );
+    vi.unstubAllGlobals();
+  });
+
   it("offers no folder actions when no folder is applied", async () => {
     // There is nothing to rename then, and offering it would have to guess.
     searchParams = new URLSearchParams("view=workspace");
@@ -2477,12 +2532,16 @@ describe("one catalog, not two", () => {
       expectConsole("error", "Failed to upload file");
       renderDrive();
       const list = await screen.findByTestId("drive-all-files");
+      await waitFor(() => {
+        expect(fetchDataRoomsMock).toHaveBeenCalledTimes(1);
+      });
 
       await dropOn(list, fileEntry("/notes.txt"));
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith("uploadError", undefined);
       });
+      expect(fetchDataRoomsMock).toHaveBeenCalledTimes(1);
     });
   });
 });

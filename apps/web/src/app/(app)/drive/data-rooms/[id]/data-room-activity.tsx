@@ -89,7 +89,7 @@ export function DataRoomActivity({
           </SelectContent>
         </Select>
       </div>
-      {query.isError && events.length === 0 ? (
+      {query.isError && !query.isFetchNextPageError ? (
         <p className="text-muted-foreground p-4 text-sm" role="alert">
           {t("loadFailed")}
         </p>
@@ -134,7 +134,7 @@ export function DataRoomActivity({
             {tFiles("retry")}
           </Button>
         </div>
-      ) : query.hasNextPage ? (
+      ) : !query.isError && query.hasNextPage ? (
         <Button
           type="button"
           variant="outline"

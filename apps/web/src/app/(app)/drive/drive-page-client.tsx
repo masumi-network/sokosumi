@@ -863,10 +863,12 @@ function DrivePageWorkspace({
         }
       }
     }
-    refreshDriveItems();
-    // Empty Recents can start an upload, and the new file belongs there.
-    if (uploaded > 0) setRecentsReloadToken((token) => token + 1);
-    if (uploaded > 0 && plan.rootFolder) applyFolderFacet(plan.rootFolder);
+    if (uploaded > 0) {
+      refreshDriveItems();
+      // Empty Recents can start an upload, and the new file belongs there.
+      setRecentsReloadToken((token) => token + 1);
+      if (plan.rootFolder) applyFolderFacet(plan.rootFolder);
+    }
 
     if (uploaded === 0 && entries.length === 1 && duplicate) {
       toast.error(t("uploadDuplicateError"));
@@ -946,6 +948,7 @@ function DrivePageWorkspace({
         );
       }
       refreshDriveItems();
+      setRecentsReloadToken((token) => token + 1);
     } catch (err) {
       console.error(`Failed to rename ${item.type}`, err);
       if (isDuplicateResourceError(err)) {
@@ -1202,7 +1205,7 @@ function DrivePageWorkspace({
   }
 
   /** Moving several ticked files: each on its own, failures reported once. */
-  async function moveFiles(targetFolderPath: string) {
+  async function moveFiles(targetFolderPath: string): Promise<number> {
     const results = await Promise.allSettled(
       filesToMove.map((file) =>
         patchDriveFilesMove({
@@ -1217,9 +1220,11 @@ function DrivePageWorkspace({
       ),
     );
     const failed = results.filter((result) => result.status === "rejected");
+    const moved = results.length - failed.length;
     if (failed.length > 0)
       toast.error(t("moveFilesPartialError", { count: failed.length }));
     else toast.success(t("movedFiles", { count: filesToMove.length }));
+    return moved;
   }
 
   async function loadAllFolders() {
@@ -1264,12 +1269,14 @@ function DrivePageWorkspace({
       if (filesToMove.length === 0) return;
       setMovingItem(true);
       try {
-        await moveFiles(selectedDestination);
+        const moved = await moveFiles(selectedDestination);
         setMoveDialogOpen(false);
         setFilesToMove([]);
         setSelectedDestination(null);
-        refreshDriveItems();
-        setRecentsReloadToken((token) => token + 1);
+        if (moved > 0) {
+          refreshDriveItems();
+          setRecentsReloadToken((token) => token + 1);
+        }
       } finally {
         setMovingItem(false);
       }
@@ -1996,9 +2003,6 @@ function DrivePageWorkspace({
               updatedAt: item.activityAt,
             });
             setCopyDialogOpen(true);
-          }}
-          onItemsChanged={() => {
-            refreshDriveItems();
           }}
           onUpload={openFilePicker}
           uploading={uploading}
