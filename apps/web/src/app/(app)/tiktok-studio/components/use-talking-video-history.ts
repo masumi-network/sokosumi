@@ -7,11 +7,12 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   usePageSearchPagination,
   usePageSearchQuery,
 } from "@/components/page-list-search";
+import { useTalkingVideoHistoryCancel } from "@/hooks/effects/use-talking-video-history-cancel";
 import type { TalkingVideoPage } from "@/lib/services/image-studio.service";
 import { rankPageItems } from "@/lib/utils/page-search";
 import { ACTIVE_STATUSES } from "./tiktok-studio-stage";
@@ -104,10 +105,7 @@ export function useTalkingVideoHistory(
       return next?.beforeId === previous?.beforeId ? undefined : next;
     },
   });
-  useEffect(() => {
-    if (!searching)
-      void queryClient.cancelQueries({ queryKey: historyKey, exact: true });
-  }, [searching, queryClient, historyKey]);
+  useTalkingVideoHistoryCancel({ searching, queryClient, historyKey });
   const lastPage = history.data?.pages.at(-1);
   const cursor = lastPage
     ? history.hasNextPage && oldestVideo(lastPage)
