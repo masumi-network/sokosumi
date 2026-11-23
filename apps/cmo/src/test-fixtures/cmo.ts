@@ -160,6 +160,8 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
       pillars: null,
       level: "all_in",
       beyondPlan: [],
+      withoutPicture: [],
+      retryAt: null,
     },
     measurement: [
       {

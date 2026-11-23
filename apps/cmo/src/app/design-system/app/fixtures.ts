@@ -204,6 +204,8 @@ export const overview: CmoOverview = cmoOverview({
     level: "active",
     // Growth: the month's third X post and last LinkedIn post wait for Scale.
     beyondPlan: ["e18-x", "e27-linkedin"],
+    withoutPicture: [],
+    retryAt: null,
   },
   timeZone: "Europe/Berlin",
   routines: [

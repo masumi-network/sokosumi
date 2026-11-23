@@ -62113,7 +62113,7 @@ export const CmoProductionSchema = {
                 'stuck',
                 'blocked'
             ],
-            description: 'starting: approved, but no run is working yet; the next sync starts one. blocked: no run could start for half an hour; Core keeps trying.'
+            description: 'starting: approved, but no run is working yet; the next sync starts one. stuck: the last run made nothing ready; the next starts at retryAt. blocked: no run could start for half an hour; Core keeps trying.'
         },
         ready: {
             type: 'integer'
@@ -62203,6 +62203,24 @@ export const CmoProductionSchema = {
                 type: 'string'
             },
             description: 'Calendar entries the plan bought does not make. A bigger plan makes them.'
+        },
+        withoutPicture: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Written entries whose picture failed the brand check on every visual Cuso wrote. They stay drafts without a picture and no longer hold the month back.'
+        },
+        retryAt: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'When a stuck month\'s next production run starts. Null unless state is stuck.'
         }
     },
     required: [
@@ -62215,7 +62233,9 @@ export const CmoProductionSchema = {
         'finishedAt',
         'pillars',
         'level',
-        'beyondPlan'
+        'beyondPlan',
+        'withoutPicture',
+        'retryAt'
     ],
     description: 'After approval Cuso makes the whole month at once: how many of its pieces are made.'
 } as const;
