@@ -1375,19 +1375,6 @@ a.cuso-says:focus-visible {
   }
 }
 
-/* The rig moves him; a pointer on his stage makes him hop. */
-@media (prefers-reduced-motion: no-preference) {
-  .cuso-status:hover .cuso-poses {
-    animation: cuso-hop 480ms cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-}
-
-@keyframes cuso-hop {
-  40% {
-    transform: translateY(-8px) rotate(-3deg);
-  }
-}
-
 .main {
   /* The column every page lines up in; the chat's is narrower. */
   --column: 1040px;

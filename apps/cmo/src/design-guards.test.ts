@@ -695,17 +695,9 @@ describe("Cuso on every page", () => {
     expect(css).toMatch(/a\.cuso-says:focus-visible \{[^}]*outline: 2px solid/);
   });
 
-  it("moves only when motion is allowed", () => {
-    const moving = [
-      ...css.matchAll(/\n( *)[^\n{]*\.cuso-poses \{[^}]*animation/g),
-    ];
-    expect(moving.length).toBeGreaterThan(0);
-    for (const match of moving) {
-      const before = css.slice(0, match.index);
-      expect(
-        before.lastIndexOf("@media (prefers-reduced-motion: no-preference)"),
-      ).toBeGreaterThan(before.lastIndexOf("\n}"));
-    }
+  it("moves only through his rig, which reduced motion never starts", () => {
+    // A CSS animation on him would run under reduced motion and fight the rig.
+    expect(css).not.toMatch(/\.cuso-(poses|rig|figure)[^{]*\{[^}]*animation/);
   });
 
   it("steps back while a sheet or dialog is open", () => {

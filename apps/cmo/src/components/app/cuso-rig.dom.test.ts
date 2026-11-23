@@ -62,6 +62,20 @@ it("walks in with his legs drawn live", async () => {
   for (const tube of legs) expect(tube.getAttribute("d")).toMatch(/^M[\d.-]+ /);
 });
 
+it("hops off the ground and lands back where he stood", async () => {
+  rig.pose("pointing");
+  const fig = host.lastElementChild as SVGSVGElement;
+  const y = () =>
+    Number(fig.style.transform.match(/translate\([^,]+, ([-\d.e]+)px\)/)?.[1]);
+  Object.defineProperty(fig, "clientWidth", { value: 240 });
+  rig.hop();
+  await vi.advanceTimersByTimeAsync(350); // crouched, then near the top
+  expect(y()).toBeLessThan(-10);
+  rig.hop(); // mid-air: ignored, he finishes this one
+  await vi.advanceTimersByTimeAsync(800);
+  expect(y()).toBe(0);
+});
+
 it("stops moving once stopped", async () => {
   rig.pose("pointing");
   rig.stop();

@@ -69,6 +69,8 @@ function foot(p: number, k: number) {
 export interface CusoRig {
   /** Moves him into a pose: walking walks him in, any other swaps on a squash. */
   pose: (art: CusoArt) => void;
+  /** A hop on the spot, when he is at rest; ignored while he moves. */
+  hop: () => void;
   stop: () => void;
 }
 
@@ -315,13 +317,58 @@ export function startCusoRig(fig: SVGSVGElement, shadow: HTMLElement): CusoRig {
     }
   }
 
+  /**
+   * A hop with weight: he crouches, stretches as he takes off, rises on a
+   * ballistic arc (fast up, hanging at the top, fast down) leaning a little,
+   * squashes on landing and settles on a damped spring. A wave carries on
+   * through it; a new pose cancels it.
+   */
+  async function hop() {
+    if (!idle || stopped) return;
+    idle = false;
+    const lean = shown === "pointing" ? 3 : -3; // toward his hand
+    const crouched = await tween(
+      140,
+      (t) => {
+        st.squash = 0.09 * t;
+      },
+      easeOut,
+    );
+    if (!crouched) return;
+    const flew = await tween(420, (_, r) => {
+      const air = 4 * r * (1 - r); // 0 on the ground, 1 at the top
+      st.y = -0.075 * air;
+      st.rot = lean * Math.sin(Math.PI * r);
+      // Stretched leaving and nearing the ground, round at the top; the
+      // crouch springs into the stretch over the first frames.
+      const stretch = -0.06 * (1 - air);
+      st.squash = r < 0.12 ? lerp(0.09, stretch, smooth(r / 0.12)) : stretch;
+    });
+    if (!flew) return;
+    const landed = await tween(380, (_, r) => {
+      st.y = 0;
+      st.rot = 0;
+      st.squash = 0.1 * ring(r * 0.38, 3.2, 9);
+    });
+    if (!landed) return;
+    st.squash = 0;
+    idle = true;
+  }
+
   // At rest he breathes; friendly, he waves every seven seconds; looking
-  // something up, he sways with his glass.
+  // something up, he sways with his glass. Breath and sway ease in and out
+  // as he comes to rest or starts to move, so neither pops.
+  let calm = 0;
+  let glass = 0;
+  let last = performance.now();
   function idleLoop(now: number) {
     if (stopped) return;
-    breathe = idle ? 1 + 0.012 * Math.sin((now / 1000) * 2.2) : 1;
-    sway =
-      idle && shown === "researching" ? 1.6 * Math.sin((now / 1000) * 1.4) : 0;
+    const ease = Math.min(1, ((now - last) / 1000) * 5);
+    last = now;
+    calm += ((idle ? 1 : 0) - calm) * ease;
+    glass += ((idle && shown === "researching" ? 1 : 0) - glass) * ease;
+    breathe = 1 + 0.012 * calm * Math.sin((now / 1000) * 2.2);
+    sway = 1.6 * glass * Math.sin((now / 1000) * 1.4);
     // A hidden sidebar (a short window) gives him no size: nothing to draw.
     if (idle && !document.hidden && size() > 0) {
       render();
@@ -347,6 +394,9 @@ export function startCusoRig(fig: SVGSVGElement, shadow: HTMLElement): CusoRig {
         lastWave = performance.now() - WAVE_EVERY_MS + 1200;
       } else if (art === "walking") void walkIn();
       else void swap(art);
+    },
+    hop() {
+      void hop();
     },
     stop() {
       stopped = true;

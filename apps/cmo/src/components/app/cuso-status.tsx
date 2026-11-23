@@ -182,7 +182,7 @@ export function CusoStatus({
   const still = useMediaQuery("(prefers-reduced-motion: reduce)", true);
   // A phone hides the sidebar: no rig, no drawing to load.
   const wide = useMediaQuery("(min-width: 861px)", false);
-  const live = useCusoRig(host, art, wide && !still);
+  const { live, hop } = useCusoRig(host, art, wide && !still);
   const working = pose === "reading" || pose === "thinking";
   const words = (
     <>
@@ -194,7 +194,8 @@ export function CusoStatus({
     </>
   );
   return (
-    <div className="cuso-status" data-pose={pose}>
+    // A pointer coming onto his stage makes him hop.
+    <div className="cuso-status" data-pose={pose} onPointerEnter={hop}>
       {view === "today" ? (
         <p className="cuso-says" role="status">
           <span className="sr-only">{AGENT_NAME}: </span>

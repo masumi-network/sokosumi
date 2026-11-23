@@ -20,14 +20,14 @@ function loadPoses(): Promise<string> {
 
 /**
  * Cuso's animated drawing inside `host`, in pose `art`, while `on`. Returns
- * whether he is live: until then (loading, a failed load, motion off) the
- * caller shows his still.
+ * whether he is live (until then, loading, a failed load or motion off, the
+ * caller shows his still) and `hop`, which makes him hop when he is.
  */
 export function useCusoRig(
   host: RefObject<HTMLElement | null>,
   art: CusoArt,
   on: boolean,
-): boolean {
+): { live: boolean; hop: () => void } {
   const rig = useRef<CusoRig | null>(null);
   const [live, setLive] = useState(false);
 
@@ -62,5 +62,5 @@ export function useCusoRig(
     if (live) rig.current?.pose(art);
   }, [art, live]);
 
-  return live;
+  return { live, hop: () => rig.current?.hop() };
 }
