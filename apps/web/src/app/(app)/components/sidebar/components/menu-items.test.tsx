@@ -17,16 +17,6 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ prefetch: routerPrefetchMock }),
 }));
 
-// Core's answer for the scoped project, without a fetch. "gone" is a project
-// Core does not know, as after a delete.
-vi.mock("@/app/components/project-scope/use-scope-projects", () => ({
-  useSelectedScopeProject: (projectId: string | null) =>
-    projectId && projectId !== "gone"
-      ? { id: projectId, name: "Acme", logo: null }
-      : null,
-  useIsUnknownScopeProject: (projectId: string | null) => projectId === "gone",
-}));
-
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
@@ -509,29 +499,6 @@ describe("MenuItems during a navigation", () => {
     // The mocked pathname stays on Tasks, as after a navigation that failed.
     expect(markedHrefs()).toEqual(["/tasks"]);
   });
-
-  it("keeps the mark on Overview while a click switches to another project", async () => {
-    pathnameRef.current = "/projects/p1";
-    searchRef.current = "";
-    sidebarIsMobile = false;
-    render(
-      <NavigationProgress>
-        <TestQueryProvider>
-          <OrganizationSeatContext value>
-            <MenuItems />
-          </OrganizationSeatContext>
-        </TestQueryProvider>
-      </NavigationProgress>,
-    );
-    expect(markedHrefs()).toEqual(["/projects/p1"]);
-
-    const arrive = await startNavigation("/projects/p2");
-    try {
-      expect(markedHrefs()).toEqual(["/projects/p1"]);
-    } finally {
-      await arrive();
-    }
-  });
 });
 
 describe("MenuItems project scope", () => {
@@ -546,51 +513,19 @@ describe("MenuItems project scope", () => {
     renderMenu(true, false);
 
     expect(screen.queryByRole("link", { name: "projects" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "overview" })).toBeNull();
     expect(markedHrefs()).toEqual([]);
   });
 
-  it("puts the selected project's Overview and avatar under Home", () => {
+  it("leaves the selected project's Overview to the project picker", () => {
     searchRef.current = "projectId=p-1";
-    renderMenu(true, false);
-
-    const overview = screen.getByRole("link", { name: "overview" });
-    expect(overview).toHaveAttribute("href", "/projects/p-1");
-    expect(screen.getAllByRole("link")[1]).toBe(overview);
-    const slot = overview.querySelector('[data-slot="sidebar-row-slot"]');
-    expect(
-      slot?.querySelector('[data-testid="project-avatar"]'),
-    ).toHaveTextContent("A");
-  });
-
-  it("omits Overview when Core does not know the scoped project", () => {
-    searchRef.current = "projectId=gone";
     renderMenu(true, false);
 
     expect(screen.queryByRole("link", { name: "overview" })).toBeNull();
-  });
-
-  it.each([
-    "/projects/p-1",
-    "/projects/p-1/design-md",
-    "/projects/p-1/memory",
-    "/projects/p-1/bots",
-    "/projects/p-1/edit",
-  ])("marks Overview current on %s", (pathname) => {
-    pathnameRef.current = pathname;
-    renderMenu(true, false);
-
-    expect(markedHrefs()).toEqual(["/projects/p-1"]);
-  });
-
-  it("shows the selected project's Overview first on the phone sheet", () => {
-    searchRef.current = "projectId=p-1";
-    renderMenu(true, true);
-
-    expect(screen.getAllByRole("link")[0]).toBe(
-      screen.getByRole("link", { name: "overview" }),
-    );
-    expect(screen.queryByRole("link", { name: "projects" })).toBeNull();
+    expect(
+      screen
+        .getAllByRole("link")
+        .some((link) => link.getAttribute("href") === "/projects/p-1"),
+    ).toBe(false);
   });
 
   it("keeps plain destination links in the workspace view", () => {
@@ -700,19 +635,6 @@ describe("MenuItems prefetch", () => {
 
     expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
       "/",
-      expect.objectContaining({ kind: "full" }),
-    );
-  });
-
-  it("loads the selected project's Overview content on a resting hover", () => {
-    pathnameRef.current = "/tasks";
-    searchRef.current = "projectId=p-1";
-    renderMenu(true, false);
-
-    restOn(/^overview$/);
-
-    expect(routerPrefetchMock).toHaveBeenCalledExactlyOnceWith(
-      "/projects/p-1",
       expect.objectContaining({ kind: "full" }),
     );
   });

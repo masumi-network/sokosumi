@@ -7,6 +7,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   load: vi.fn(),
   loadPinned: vi.fn(),
+  push: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: mocks.push }),
 }));
 
 vi.mock("next-intl", () => ({
@@ -233,6 +238,50 @@ describe("ProjectScopeMenu", () => {
     expect(onSelectAll).toHaveBeenCalledOnce();
     expect(onSelect).not.toHaveBeenCalled();
     expect(onDone).toHaveBeenCalledOnce();
+  });
+
+  it("leads with the picked project's Overview, then All projects", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          Response.json({ project: project("active-1", "Active One") }),
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    const { onSelect, onDone } = setup({
+      selectedProjectId: "active-1",
+      onSelectAll: vi.fn(),
+    });
+
+    await screen.findByText("Pinned One");
+    const overview = screen.getByTestId("project-scope-overview");
+    const [first, second] = screen.getAllByRole("option");
+    expect(first).toBe(overview);
+    expect(second).toBe(screen.getByTestId("project-scope-all"));
+    expect(overview).toHaveTextContent("overview");
+
+    await user.click(overview);
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith("/projects/active-1");
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onDone).toHaveBeenCalledOnce();
+  });
+
+  it("offers no Overview for a project Core does not know", async () => {
+    setup({ selectedProjectId: "gone", onSelectAll: vi.fn() });
+
+    await screen.findByText("Pinned One");
+    await waitFor(() =>
+      expect(screen.queryByTestId("project-scope-overview")).toBeNull(),
+    );
+  });
+
+  it("offers no Overview when a page asks for a project", async () => {
+    setup({ selectedProjectId: "active-1" });
+
+    await screen.findByText("Pinned One");
+    expect(screen.queryByTestId("project-scope-overview")).toBeNull();
   });
 
   it("explains the Projects link on hover and keyboard focus, and opens it with Enter", async () => {

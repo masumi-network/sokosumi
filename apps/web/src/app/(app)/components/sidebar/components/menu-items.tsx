@@ -6,7 +6,6 @@ import {
   Bot,
   CalendarDays,
   Clapperboard,
-  FolderKanban,
   HardDrive,
   House,
   ImagePlus,
@@ -27,13 +26,7 @@ import {
   type SVGProps,
   useState,
 } from "react";
-import { projectPageSection } from "@/app/components/project-scope/project-scope-href";
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
-import {
-  useIsUnknownScopeProject,
-  useSelectedScopeProject,
-} from "@/app/components/project-scope/use-scope-projects";
-import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import { useNavPathname } from "@/components/navigation-progress.client";
 import { RestingIntentLink } from "@/components/resting-intent-link";
@@ -70,8 +63,6 @@ interface MenuItemConfig {
   href: string;
   label: string;
   Icon: ComponentType<SVGProps<SVGSVGElement>>;
-  /** An avatar drawn in the slot instead of `Icon`, sized like it. */
-  tile?: ReactNode;
   /** The Badge campaign row this is, when the feature has one. */
   feature?: AnnouncedFeature;
   /**
@@ -116,11 +107,7 @@ function ScopedMenuItems({
 }: {
   newsletterEnabled: boolean;
 }) {
-  const { projectId, hrefFor } = useProjectScope();
-  const selectedProject = useSelectedScopeProject(projectId);
-  // A deleted or foreign project has no page to open.
-  const isUnknownProject = useIsUnknownScopeProject(projectId);
-  const hasProjectPage = projectId !== null && !isUnknownProject;
+  const { hrefFor } = useProjectScope();
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
   const navPathname = useNavPathname();
@@ -138,25 +125,6 @@ function ScopedMenuItems({
       desktopOnly: true,
       prefetchContent: true,
     },
-    ...(hasProjectPage
-      ? [
-          {
-            key: "overview",
-            href: `/projects/${encodeURIComponent(projectId)}`,
-            label: t("overview"),
-            // The glyph holds the slot until the project's name and logo load.
-            Icon: FolderKanban,
-            tile: selectedProject ? (
-              <ProjectAvatar
-                name={selectedProject.name}
-                logo={selectedProject.logo}
-              />
-            ) : undefined,
-            group: "work",
-            prefetchContent: true,
-          } satisfies NavDestination,
-        ]
-      : []),
     {
       key: "explore-agents",
       href: "/agents",
@@ -287,15 +255,10 @@ function ScopedMenuItems({
     href,
     label,
     Icon,
-    tile,
     feature,
     prefetchContent,
   }: MenuItemConfig) {
-    // A click that heads for another project's page keeps the mark on
-    // Overview: on arrival this row is that project's.
-    const headsForProject =
-      key === "overview" && projectPageSection(navPathname) !== null;
-    const isActive = headsForProject || isPathActive(navPathname, href);
+    const isActive = isPathActive(navPathname, href);
 
     return (
       <SidebarMenuItem key={key}>
@@ -314,8 +277,8 @@ function ScopedMenuItems({
                   : SIDEBAR_ROW_LINK_CLASS,
               )}
             >
-              <SidebarRowSlot aria-hidden tile={tile !== undefined}>
-                {tile ?? <Icon aria-hidden />}
+              <SidebarRowSlot aria-hidden>
+                <Icon aria-hidden />
               </SidebarRowSlot>
               <span
                 className={cn(
