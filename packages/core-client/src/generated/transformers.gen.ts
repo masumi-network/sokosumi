@@ -6685,6 +6685,9 @@ const coworkerApiKeySchemaResponseTransformer = (data: any) => {
     if (data.revokedAt) {
         data.revokedAt = new Date(data.revokedAt);
     }
+    if (data.lastUsedAt) {
+        data.lastUsedAt = new Date(data.lastUsedAt);
+    }
     data.createdAt = new Date(data.createdAt);
     data.updatedAt = new Date(data.updatedAt);
     return data;

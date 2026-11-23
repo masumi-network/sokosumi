@@ -1,6 +1,10 @@
 import "server-only";
 
-import type { Coworker } from "@sokosumi/core-client";
+import type {
+  Coworker,
+  CoworkerApiKey,
+  CreateCoworkerApiKeyResponse,
+} from "@sokosumi/core-client";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 function sortOwnedCoworkers(coworkers: Coworker[]): Coworker[] {
@@ -35,8 +39,34 @@ export const developerCoworkerService = (() => {
     }
   }
 
+  async function listApiKeys(coworkerId: string): Promise<CoworkerApiKey[]> {
+    const response = await coreClient.getCoworkerApiKeys(coworkerId);
+    return response.data;
+  }
+
+  async function createApiKey(
+    coworkerId: string,
+    name: string,
+  ): Promise<CreateCoworkerApiKeyResponse> {
+    const response = await coreClient.createCoworkerApiKey(coworkerId, {
+      name,
+    });
+    return response.data;
+  }
+
+  async function revokeApiKey(
+    coworkerId: string,
+    keyId: string,
+  ): Promise<CoworkerApiKey> {
+    const response = await coreClient.revokeCoworkerApiKey(coworkerId, keyId);
+    return response.data;
+  }
+
   return {
     listOwnedCoworkers,
     getOwnedCoworkerById,
+    listApiKeys,
+    createApiKey,
+    revokeApiKey,
   };
 })();
