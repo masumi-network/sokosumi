@@ -764,6 +764,11 @@ describe("Plan", () => {
     ]) {
       expect(html).not.toContain(live);
     }
+    // Before the first plan the owner can still start over (NMKR, 2026-11-23).
+    expect(html).toContain("Write a new strategy");
+    expect(html).toContain(
+      "then its posts that have not gone out are canceled",
+    );
   });
 
   it("asks for the plan when Brand is confirmed and nothing writes it", () => {
