@@ -1,9 +1,8 @@
-import { SokoBotStatus } from "@sokosumi/core-client";
-import { useFailedSokoBotIdPublisher } from "@/hooks/effects/use-failed-soko-bot-id-publisher";
 import {
   type LiveSokoBotFields,
   useLiveSokoBotPoll,
 } from "@/hooks/effects/use-live-soko-bot-poll";
+import { useLiveSokoBotPublisher } from "@/hooks/effects/use-live-soko-bot-publisher";
 
 /**
  * Your bot as the server rendered it, kept current: its status and when it
@@ -20,8 +19,7 @@ export function useLiveSokoBot<Bot extends LiveSokoBotFields & { id: string }>(
   // server's status until a poll answers, and kept when a poll fails.
   // Publish before paint (`useLayoutEffect`) so the Direct row updates in the
   // same frame as this row instead of lagging behind a passive effect.
-  const failedId = current.status === SokoBotStatus.ERROR ? current.id : null;
-  useFailedSokoBotIdPublisher(failedId);
+  useLiveSokoBotPublisher(current);
 
   return current;
 }

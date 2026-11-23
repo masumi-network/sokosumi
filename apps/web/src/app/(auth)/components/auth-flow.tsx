@@ -112,6 +112,9 @@ export default function AuthFlow({
   const [email, setEmail] = useState(prefilledEmail ?? "");
   // What step 1's field holds now, for Log in's Register link beside it.
   const [typedEmail, setTypedEmail] = useState(prefilledEmail ?? "");
+  // Log in only. The no-account notice offers Create account, so the
+  // Register line below would be a second way to the same page.
+  const [isDetoured, setIsDetoured] = useState(false);
   const [step, setStep] = useState<"email" | "finish">("email");
   const [cameBack, setCameBack] = useState(false);
   const [isFinishPending, setIsFinishPending] = useState(false);
@@ -277,6 +280,7 @@ export default function AuthFlow({
                 }
         }
         onFormStart={handleFormStart}
+        onDetourChange={setIsDetoured}
         onEmailChange={setTypedEmail}
         onContinue={async (confirmedEmail, signal, account) => {
           setEmail(confirmedEmail);
@@ -312,7 +316,7 @@ export default function AuthFlow({
         disabled={isEmailPending}
         onPendingChange={setIsProviderPending}
       />
-      {isSignIn && signsUpOnWebsite ? (
+      {isSignIn && isDetoured ? null : isSignIn && signsUpOnWebsite ? (
         <div className="flex flex-row flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center">
           <span className="text-muted-foreground text-sm">
             {signInT("RegisterOnWebsite.message")}

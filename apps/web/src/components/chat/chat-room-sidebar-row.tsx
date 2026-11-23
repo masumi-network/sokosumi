@@ -126,6 +126,11 @@ export interface ChatRoomSidebarRowProps {
   label: string;
   /** Optional secondary line (e.g. host org name on External guest rows). */
   subtitle?: string;
+  /**
+   * Shown at the end of the name's line, e.g. your Soko Bot's status on its
+   * Direct. Hidden from assistive technology: the leading mark announces it.
+   */
+  status?: ReactNode;
   isActive: boolean;
   leading: ReactNode;
   onRoomUpdated: (room: ChatRoom) => void;
@@ -251,6 +256,7 @@ export function ChatRoomSidebarRow({
   href,
   label,
   subtitle,
+  status,
   isActive: routeIsActive,
   leading,
   onRoomUpdated,
@@ -415,6 +421,18 @@ export function ChatRoomSidebarRow({
     </DropdownMenuItem>
   );
 
+  const name = (
+    <span
+      className={cn(
+        "block min-w-0 truncate",
+        bold && "font-semibold text-foreground",
+        isMuted && !isCurrent && "text-muted-foreground",
+      )}
+    >
+      {label}
+    </span>
+  );
+
   const roomLink = (
     <Link
       aria-current={isCurrent ? "page" : undefined}
@@ -435,15 +453,16 @@ export function ChatRoomSidebarRow({
             It is drawn in the trailing cluster now, so only its announcement
             is left here, and a counted row must not keep a hole after the
             name for text nobody sees. */}
-        <span
-          className={cn(
-            "block min-w-0 truncate",
-            bold && "font-semibold text-foreground",
-            isMuted && !isCurrent && "text-muted-foreground",
-          )}
-        >
-          {label}
-        </span>
+        {status ? (
+          <span className="flex min-w-0 items-baseline gap-2">
+            {name}
+            <span aria-hidden className="ml-auto flex shrink-0">
+              {status}
+            </span>
+          </span>
+        ) : (
+          name
+        )}
         {hasTile ? (
           <span className="sr-only">
             {tChannels("inWorkspace", { workspace: workspaceName })}

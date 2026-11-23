@@ -470,6 +470,32 @@ describe("ChatRoomSidebarRow row height", () => {
   });
 });
 
+describe("ChatRoomSidebarRow status", () => {
+  it("draws a status at the end of the name's line, for the eye only", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="Juno"
+        status={<span>Active 1m ago</span>}
+        isActive={false}
+        leading={<span>J</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const status = screen.getByText("Active 1m ago").parentElement;
+    expect(status).toHaveAttribute("aria-hidden");
+    expect(status?.parentElement).toHaveTextContent("JunoActive 1m ago");
+    // One line still: the status shares the name's.
+    expect(
+      container
+        .querySelector('[data-testid="sidebar-menu-button"]')
+        ?.getAttribute("data-lines"),
+    ).toBe("1");
+  });
+});
+
 describe("ChatRoomSidebarRow unread threads", () => {
   const unreadThread = {
     parentMessageId: "550e8400-e29b-41d4-a716-446655440b01",

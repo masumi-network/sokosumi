@@ -143,6 +143,7 @@ vi.mock("@/app/chat/components/room-helpers", async (importActual) => {
     getRoomDisplayName: (
       ...args: Parameters<typeof actual.getRoomDisplayName>
     ) => (args[0].isSelfDirect ? actual.getRoomDisplayName(...args) : "room"),
+    getRoomParticipantPreviews: actual.getRoomParticipantPreviews,
   };
 });
 
@@ -150,6 +151,7 @@ vi.mock("@/components/chat/chat-room-sidebar-row", () => ({
   ChatRoomSidebarRow: ({
     label,
     subtitle,
+    status,
     reorderHandle,
     itemProps,
     ...props
@@ -157,6 +159,7 @@ vi.mock("@/components/chat/chat-room-sidebar-row", () => ({
     room: ChatRoom;
     label: string;
     subtitle?: string;
+    status?: ReactNode;
     reorderHandle?: ReactNode;
     itemProps?: ComponentProps<"li">;
   }) => {
@@ -165,6 +168,7 @@ vi.mock("@/components/chat/chat-room-sidebar-row", () => ({
       <li {...itemProps} data-testid="room-row">
         <span>{label}</span>
         {subtitle ? <span>{subtitle}</span> : null}
+        {status}
         {reorderHandle}
       </li>
     );

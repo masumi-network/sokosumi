@@ -1,16 +1,14 @@
-import { type ChatRoom, SokoBotStatus } from "@sokosumi/core-client";
+import type { ChatRoom } from "@sokosumi/core-client";
 import { MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
-import {
-  type ChatParticipantHoverProfile,
-  getRoomParticipantPreviews,
-} from "@/app/chat/components/room-helpers";
+import { getDirectParticipants } from "@/components/chat/direct-room-participants";
 import {
   LiveMemberPresenceDot,
   LiveMemberPresenceText,
 } from "@/components/chat/live-member-presence-dot";
-import { useFailedSokoBotId } from "@/components/chat/personal-assistant-chrome-store";
+import { useLiveSokoBotStatus } from "@/components/chat/personal-assistant-chrome-store";
 import { SOKO_BOT_STATUS_TONE } from "@/components/soko-bot/soko-bot-badges";
+import { SokoBotStatusLine } from "@/components/soko-bot/soko-bot-status-line";
 import { STATUS_TONE_DOT_CLASS } from "@/components/soko-bot/status-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -19,34 +17,6 @@ import { getInitials } from "@/lib/utils/text";
 interface DirectRoomAvatarStackProps {
   room: ChatRoom;
   currentUserId: string;
-}
-
-/**
- * Direct avatars show peers, or the owner for Self Direct. With every peer
- * gone they show the Former members instead, so the row still says who the
- * Direct was with rather than falling back to a generic mark.
- */
-function getDirectParticipants(
-  room: ChatRoom,
-  currentUserId: string,
-): ChatParticipantHoverProfile[] {
-  const participants = getRoomParticipantPreviews(room).filter(
-    (participant) =>
-      room.isSelfDirect ||
-      participant.kind === "coworker" ||
-      participant.id !== currentUserId,
-  );
-  if (participants.length > 0) {
-    return participants.slice(0, 3);
-  }
-  return room.formerUserMembers.slice(0, 3).map((member) => ({
-    kind: "human",
-    id: member.id,
-    name: member.name || member.email,
-    email: member.email,
-    image: member.image,
-    presence: "offline",
-  }));
 }
 
 /**
@@ -97,7 +67,7 @@ export function DirectRoomAvatarStack({
 }: DirectRoomAvatarStackProps) {
   const participants = getDirectParticipants(room, currentUserId);
   const tStatus = useTranslations("Components.SokoBot.BotStatus");
-  const failedSokoBotId = useFailedSokoBotId();
+  const liveSokoBot = useLiveSokoBotStatus();
   // Former members are not here to be online, and their faces sit back.
   const showsPresence = !room.isSelfDirect && !room.isReadOnly;
 
@@ -122,10 +92,11 @@ export function DirectRoomAvatarStack({
         // roster panel says "Online" for the same member.
         const isAi =
           participant.kind === "coworker" || participant.kind === "sokoBot";
-        // Your own bot after a failed reply: the status its sidebar row and
-        // page show, not "Online".
-        const failed =
-          participant.kind === "sokoBot" && participant.id === failedSokoBotId;
+        // Your own bot: the status its sidebar row shows, not "Online".
+        const ownBot =
+          participant.kind === "sokoBot" && participant.id === liveSokoBot?.id
+            ? liveSokoBot
+            : null;
 
         return (
           <span
@@ -147,23 +118,19 @@ export function DirectRoomAvatarStack({
                 {getInitials(participant.name)}
               </AvatarFallback>
             </Avatar>
-            {showsPresence && failed ? (
+            {showsPresence && ownBot ? (
               <>
                 <span
                   aria-hidden
-                  data-testid="dm-sidebar-bot-failed"
-                  title={tStatus(SokoBotStatus.ERROR)}
+                  data-testid="dm-sidebar-bot-status"
+                  title={tStatus(ownBot.status)}
                   className={cn(
                     "border-sidebar absolute -right-0.5 -bottom-0.5 size-2 rounded-full border",
-                    STATUS_TONE_DOT_CLASS[
-                      SOKO_BOT_STATUS_TONE[SokoBotStatus.ERROR]
-                    ],
+                    STATUS_TONE_DOT_CLASS[SOKO_BOT_STATUS_TONE[ownBot.status]],
                   )}
                 />
                 {participants.length === 1 ? (
-                  <span className="sr-only">
-                    {tStatus(SokoBotStatus.ERROR)}
-                  </span>
+                  <SokoBotStatusLine bot={ownBot} className="sr-only" />
                 ) : null}
               </>
             ) : showsPresence ? (
@@ -175,7 +142,7 @@ export function DirectRoomAvatarStack({
                 userId={participant.id}
               />
             ) : null}
-            {participants.length === 1 && showsPresence && !failed ? (
+            {participants.length === 1 && showsPresence && !ownBot ? (
               <LiveMemberPresenceText
                 className="sr-only"
                 fallback={participant.presence}

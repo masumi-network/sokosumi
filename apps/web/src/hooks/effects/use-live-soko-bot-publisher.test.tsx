@@ -1,29 +1,39 @@
+import { SokoBotStatus } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import { Activity, useLayoutEffect } from "react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
-  getFailedSokoBotId,
-  useFailedSokoBotId,
+  getLiveSokoBot,
+  useLiveSokoBotStatus,
 } from "@/components/chat/personal-assistant-chrome-store";
-import { useFailedSokoBotIdPublisher } from "./use-failed-soko-bot-id-publisher";
+import { useLiveSokoBotPublisher } from "./use-live-soko-bot-publisher";
 
 function Publisher({ failedId }: { failedId: string | null }) {
-  useFailedSokoBotIdPublisher(failedId);
+  useLiveSokoBotPublisher({
+    id: failedId ?? "bot-ok",
+    status: failedId ? SokoBotStatus.ERROR : SokoBotStatus.IDLE,
+    lastActivityAt: null,
+  });
   return null;
 }
 
-function Probe() {
-  return <output data-testid="probe">{useFailedSokoBotId() ?? "none"}</output>;
+function failedIdOf(bot: ReturnType<typeof getLiveSokoBot>) {
+  return bot?.status === SokoBotStatus.ERROR ? bot.id : null;
 }
 
-describe("useFailedSokoBotIdPublisher", () => {
-  it("publishes the failed id before paint and clears it on recovery or unmount", () => {
+function Probe() {
+  const bot = useLiveSokoBotStatus();
+  return <output data-testid="probe">{bot ? bot.id : "none"}</output>;
+}
+
+describe("useLiveSokoBotPublisher", () => {
+  it("publishes the bot before paint and follows its status", () => {
     const observedDuringLayout: Array<string | null> = [];
 
     function FollowingLayoutSibling() {
       useLayoutEffect(() => {
-        observedDuringLayout.push(getFailedSokoBotId());
+        observedDuringLayout.push(failedIdOf(getLiveSokoBot()));
       });
       return null;
     }
@@ -47,7 +57,7 @@ describe("useFailedSokoBotIdPublisher", () => {
       </>,
     );
     expect(observedDuringLayout.at(-1)).toBeNull();
-    expect(screen.getByTestId("probe")).toHaveTextContent("none");
+    expect(screen.getByTestId("probe")).toHaveTextContent("bot-ok");
 
     rerender(
       <>
@@ -60,6 +70,7 @@ describe("useFailedSokoBotIdPublisher", () => {
     expect(screen.getByTestId("probe")).toHaveTextContent("bot-2");
 
     unmount();
+    expect(getLiveSokoBot()).toBeNull();
   });
 
   it("clears on React Activity hide and restores on reveal", () => {
