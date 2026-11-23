@@ -1,7 +1,9 @@
 "use client";
 
 import { isDesignMdJobInProgress } from "@sokosumi/masumi/tools";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+
+import { useDesignMdGenerationLifecycle } from "@/hooks/effects/use-design-md-generation-lifecycle";
 
 import {
   finalizeDesignMdGeneration,
@@ -302,14 +304,7 @@ export function useDesignMdGeneration({
     safeSetState({ errorMessage: null, status: "idle" });
   }, [clearPollTimeout, safeSetState]);
 
-  useEffect(() => {
-    // Set again on mount: a Strict Mode remount keeps the refs it unmounted.
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      clearPollTimeout();
-    };
-  }, [clearPollTimeout]);
+  useDesignMdGenerationLifecycle(mountedRef, clearPollTimeout);
 
   return {
     errorMessage,

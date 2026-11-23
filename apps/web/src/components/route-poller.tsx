@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useTransition } from "react";
+import { useRef, useTransition } from "react";
+import { useRoutePoller } from "@/hooks/effects/use-route-poller";
 
 /**
  * Asks the route for fresh data every `everyMs` while it is mounted. Mount it
@@ -20,17 +21,14 @@ export function RoutePoller({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    if (isPending) return;
-
-    const id = setInterval(() => {
-      if (document.visibilityState === "hidden") return;
-      if (asked.current >= times) return clearInterval(id);
-      asked.current += 1;
-      startTransition(() => router.refresh());
-    }, everyMs);
-    return () => clearInterval(id);
-  }, [everyMs, isPending, router, times]);
+  useRoutePoller({
+    asked,
+    everyMs,
+    isPending,
+    router,
+    startTransition,
+    times,
+  });
 
   return null;
 }
