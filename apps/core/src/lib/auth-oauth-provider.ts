@@ -95,6 +95,44 @@ export function registerPublicClientsOnly(ctx: {
   };
 }
 
+/** The provider's endpoints that show a client to the sign-in and consent pages. */
+const PUBLIC_CLIENT_PATHS = new Set([
+  "/oauth2/public-client",
+  "/oauth2/public-client-prelogin",
+]);
+
+/**
+ * After hook: adds `selfRegistered` to the public client info, true when
+ * nobody owns the client (no `userId` or `referenceId`), as with every client
+ * from open registration. Web's consent page warns about such an app. An error
+ * answer, such as 404 for an unknown client, passes through unchanged.
+ */
+export async function markSelfRegisteredClient(
+  ctx: GenericEndpointContext & { context: { returned?: unknown } },
+): Promise<Response | Record<string, unknown> | undefined> {
+  const returned = ctx.context.returned;
+  if (
+    !PUBLIC_CLIENT_PATHS.has(ctx.path) ||
+    typeof returned !== "object" ||
+    returned === null ||
+    !("client_id" in returned) ||
+    typeof returned.client_id !== "string"
+  ) {
+    return;
+  }
+  const client = await ctx.context.adapter.findOne<{
+    userId?: string | null;
+    referenceId?: string | null;
+  }>({
+    model: "oauthClient",
+    where: [{ field: "clientId", value: returned.client_id }],
+  });
+  return ctx.json({
+    ...returned,
+    selfRegistered: !client?.userId && !client?.referenceId,
+  });
+}
+
 /**
  * Revokes every access and refresh token the OAuth provider holds for a user,
  * across all clients. The provider's own logout path only revokes a session's

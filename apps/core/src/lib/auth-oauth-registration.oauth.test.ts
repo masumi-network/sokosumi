@@ -20,6 +20,7 @@ import {
 
 import {
   clientRegistrationOptions,
+  markSelfRegisteredClient,
   registerPublicClientsOnly,
 } from "./auth-oauth-provider";
 
@@ -62,6 +63,7 @@ function createAuth(options: { rateLimit?: boolean } = {}) {
       oauthProvider({
         loginPage: `${WEB}/signin`,
         consentPage: `${WEB}/oauth/consent`,
+        allowPublicClientPrelogin: true,
         scopes: [...OAUTH_PROVIDER_SCOPES, OAUTH_SCOPE_MCP],
         resources: [mcpOAuthResource(CORE)],
         grantTypes: ["authorization_code", "refresh_token"],
@@ -72,6 +74,7 @@ function createAuth(options: { rateLimit?: boolean } = {}) {
       before: createAuthMiddleware(async (ctx) =>
         registerPublicClientsOnly(ctx),
       ),
+      after: createAuthMiddleware(async (ctx) => markSelfRegisteredClient(ctx)),
     },
     rateLimit: options.rateLimit
       ? { enabled: true, storage: "memory" }
@@ -352,25 +355,103 @@ describe("dynamic client registration", () => {
   });
 });
 
+/** Web's create-client with the signed-in user as owner. */
+async function createOwnedClient(scope: string) {
+  const created = await auth.handler(
+    new Request(`${CORE}/auth/oauth2/create-client`, {
+      method: "POST",
+      headers: { cookie, origin: WEB, "content-type": "application/json" },
+      body: JSON.stringify({
+        client_name: "Partner app",
+        redirect_uris: [WEB_REDIRECT],
+        scope,
+        grant_types: ["authorization_code", "refresh_token"],
+      }),
+    }),
+  );
+  expect(created.status).toBe(201);
+  return (await created.json()) as {
+    client_id: string;
+    client_secret?: string;
+  };
+}
+
+/** What Web's consent page and sign-in page read about a client. */
+async function readPublicClient(clientId: string, redirectUri: string) {
+  // The sign-in page gets a signed query when authorize finds no session.
+  const signIn = await auth.handler(
+    new Request(
+      `${CORE}/auth/oauth2/authorize?${new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        response_type: "code",
+        scope: OAUTH_SCOPE_OPENID,
+        code_challenge: createHash("sha256")
+          .update(CODE_VERIFIER)
+          .digest("base64url"),
+        code_challenge_method: "S256",
+      })}`,
+      { headers: { accept: "text/html", "sec-fetch-mode": "navigate" } },
+    ),
+  );
+  const oauthQuery = new URL(signIn.headers.get("location") ?? "").search.slice(
+    1,
+  );
+  const [publicClient, prelogin] = await Promise.all([
+    auth.handler(
+      new Request(
+        `${CORE}/auth/oauth2/public-client?${new URLSearchParams({ client_id: clientId })}`,
+        { headers: { cookie } },
+      ),
+    ),
+    auth.handler(
+      new Request(`${CORE}/auth/oauth2/public-client-prelogin`, {
+        method: "POST",
+        headers: { origin: WEB, "content-type": "application/json" },
+        body: JSON.stringify({ client_id: clientId, oauth_query: oauthQuery }),
+      }),
+    ),
+  ]);
+  return [await publicClient.json(), await prelogin.json()] as Row[];
+}
+
+describe("public client info", () => {
+  it("marks a self-registered client", async () => {
+    const clientId = await registerMcpClient();
+
+    for (const client of await readPublicClient(clientId, LOOPBACK_REDIRECT)) {
+      expect(client).toMatchObject({
+        client_id: clientId,
+        client_name: "Claude Code",
+        selfRegistered: true,
+      });
+    }
+  });
+
+  it("marks a client created on Web as owned", async () => {
+    const { client_id } = await createOwnedClient(OAUTH_SCOPE_OPENID);
+
+    for (const client of await readPublicClient(client_id, WEB_REDIRECT)) {
+      expect(client).toMatchObject({ client_id, selfRegistered: false });
+    }
+  });
+
+  it("still answers 404 for an unknown client", async () => {
+    const response = await auth.handler(
+      new Request(`${CORE}/auth/oauth2/public-client?client_id=missing`, {
+        headers: { cookie },
+      }),
+    );
+
+    expect(response.status).toBe(404);
+  });
+});
+
 describe("Web's create-client", () => {
   it("still grants Sokosumi API access when ticked", async () => {
     // What `use-oauth-clients.ts` sends with "Allow Sokosumi API access".
     const scope = `${OAUTH_SCOPE_OPENID} ${OAUTH_SCOPE_CORE_API} ${OAUTH_SCOPE_OFFLINE_ACCESS}`;
-    const created = await auth.handler(
-      new Request(`${CORE}/auth/oauth2/create-client`, {
-        method: "POST",
-        headers: { cookie, origin: WEB, "content-type": "application/json" },
-        body: JSON.stringify({
-          client_name: "Partner app",
-          redirect_uris: [WEB_REDIRECT],
-          scope,
-          grant_types: ["authorization_code", "refresh_token"],
-        }),
-      }),
-    );
-    expect(created.status).toBe(201);
-    const client: { client_id: string; client_secret?: string } =
-      await created.json();
+    const client = await createOwnedClient(scope);
     expect(client.client_secret).toBeTruthy();
 
     const { code } = await authorize({

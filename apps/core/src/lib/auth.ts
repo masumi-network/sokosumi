@@ -82,6 +82,7 @@ import {
   acceptCmoPreviewCallback,
   clientRegistrationOptions,
   jwtKeyStoreOptions,
+  markSelfRegisteredClient,
   oauthRefreshTokenOptions,
   registerPublicClientsOnly,
   revokeUserOAuthTokens,
@@ -430,6 +431,8 @@ export const auth = betterAuth({
 
       await captureBetterAuthOAuthErrorURL(ctx.path);
       await afterNewSession(ctx);
+
+      return await markSelfRegisteredClient(ctx);
     }),
   },
   emailAndPassword: {
