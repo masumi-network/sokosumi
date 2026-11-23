@@ -322,7 +322,8 @@ export function startCusoRig(fig: SVGSVGElement, shadow: HTMLElement): CusoRig {
     breathe = idle ? 1 + 0.012 * Math.sin((now / 1000) * 2.2) : 1;
     sway =
       idle && shown === "researching" ? 1.6 * Math.sin((now / 1000) * 1.4) : 0;
-    if (idle && !document.hidden) {
+    // A hidden sidebar (a short window) gives him no size: nothing to draw.
+    if (idle && !document.hidden && size() > 0) {
       render();
       if (shown === "friendly" && now - lastWave > WAVE_EVERY_MS) {
         lastWave = now;

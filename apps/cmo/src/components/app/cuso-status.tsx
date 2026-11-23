@@ -180,7 +180,9 @@ export function CusoStatus({
   const { art, moving } = useCusoMoment(mood.art, view, mood.busy);
   const host = useRef<HTMLSpanElement>(null);
   const still = useMediaQuery("(prefers-reduced-motion: reduce)", true);
-  const live = useCusoRig(host, art, !still);
+  // A phone hides the sidebar: no rig, no drawing to load.
+  const wide = useMediaQuery("(min-width: 861px)", false);
+  const live = useCusoRig(host, art, wide && !still);
   const working = pose === "reading" || pose === "thinking";
   const words = (
     <>
