@@ -73,6 +73,9 @@ interface HistorySearchDialogLabels {
   tagTasksError: string;
   projectsGroup: string;
   channelsGroup: string;
+  schedulesGroup: string;
+  coworkersGroup: string;
+  newTask: string;
 }
 
 interface HistorySearchDialogProps {
@@ -197,6 +200,14 @@ export function HistorySearchDialog({
     });
   }
 
+  function handleNewTaskWith(coworkerId: string) {
+    if (!wizard) return;
+    // Focus belongs to the new Task draft, not the Search button.
+    navigatingRef.current = true;
+    handleOpenChange(false);
+    wizard.openNewTaskWizard({ assigneeId: coworkerId });
+  }
+
   function handleSelectTag(tag: WorkspaceLabel) {
     closeAndGo(`/tasks?tag=${encodeURIComponent(tag.id)}`);
   }
@@ -231,8 +242,10 @@ export function HistorySearchDialog({
       />
       <GoToSearchList
         query={query}
+        activeOrganizationId={activeOrganizationId}
         labels={labels}
         onSelect={closeAndGo}
+        onNewTaskWith={wizard ? handleNewTaskWith : undefined}
         listRef={listRef}
         listStyle={{ maxHeight: listMaxHeight }}
         renderStatus={(goTo) => (

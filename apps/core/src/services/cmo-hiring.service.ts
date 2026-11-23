@@ -49,6 +49,7 @@ import {
   requireCuso,
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
+import { documentCmoSitePages } from "@/services/cmo-site-pages.service";
 import {
   linkTestCopyConnections,
   requireTestCopySource,
@@ -782,8 +783,18 @@ async function requireHirerSeat(
   }
 }
 
-/** One unpaid Cuso per person (ADR 0068): the refusal names him for CMO's link. */
+/**
+ * One unpaid Cuso per person (ADR 0068): the refusal names him for CMO's link.
+ * A tester may continue any Cuso on Tester credits anyway, so the cap would
+ * only stop them hiring two Cusos to compare before approving either.
+ */
 async function requireNoUnpaidCuso(userId: string): Promise<void> {
+  if (
+    await isOnEmailAllowlist(userId, getEnv().CMO_SUBSCRIPTION_SKIP_ALLOWLIST, {
+      requireVerifiedEmail: true,
+    })
+  )
+    return;
   const unpaid = await findUnpaidCusoHiredBy(userId);
   if (!unpaid) return;
   throw new CmoConflictError(
@@ -945,20 +956,23 @@ export async function startCmoOnboarding(input: {
   // opens with them instead of waiting for the full capture.
   waitUntil(
     runAsBackgroundWork(() =>
-      captureCmoHomepage(created).catch((error) => {
-        emitCoreWarning(
-          {
-            operation: "cmo_homepage_capture",
-            sokoBot: { id: created.sokoBotId },
-            failure: messageSafeErrorFields(error),
-          },
-          {
-            message: "Could not capture the brand's homepage for a new Cuso",
-            why: "The homepage screenshot capture threw",
-            fix: "The Brand Brain waits for the full capture after research instead. If it repeats, look up the error name and code under failure.",
-          },
-        );
-      }),
+      captureCmoHomepage(created)
+        // Then the whole site, so research and the Brand Brain can use it.
+        .then(() => documentCmoSitePages(created.sokoBotId))
+        .catch((error) => {
+          emitCoreWarning(
+            {
+              operation: "cmo_homepage_capture",
+              sokoBot: { id: created.sokoBotId },
+              failure: messageSafeErrorFields(error),
+            },
+            {
+              message: "Could not capture the brand's homepage for a new Cuso",
+              why: "The homepage screenshot capture threw",
+              fix: "The Brand Brain waits for the full capture after research instead. If it repeats, look up the error name and code under failure.",
+            },
+          );
+        }),
     ),
   );
 

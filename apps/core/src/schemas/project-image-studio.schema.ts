@@ -499,6 +499,8 @@ export const writeTalkingVideoScriptsRequestSchema = z
   .object({
     /** What the videos should be about. Omitted, the brand picks. */
     topic: z.string().trim().min(1).max(500).optional(),
+    /** Write for a short in this format. Omitted, for a presenter to speak. */
+    format: z.enum(SHORT_VIDEO_FORMATS).optional(),
     /** ISO 639-1 language to write in. */
     languageCode: z
       .string()
@@ -516,6 +518,8 @@ export const talkingVideoScriptsSchema = z
         hook: z.string(),
         /** The whole script, hook included, as it is spoken. */
         script: z.string(),
+        /** A short's words on screen over its first seconds. */
+        hookLine: z.string().optional(),
       }),
     ),
   })

@@ -506,7 +506,10 @@ describe("captureCmoBrandMedia", () => {
             },
             {
               updatedAt: { gte: new Date("2026-11-19T06:00:00Z") },
-              resource: { sourceId: { contains: "/Brand research/" } },
+              resource: {
+                sourceId: { contains: "/Brand research/" },
+                NOT: { sourceId: { contains: "/Brand research/Site/" } },
+              },
             },
           ],
         }),
@@ -535,6 +538,7 @@ describe("captureCmoBrandMedia", () => {
               // The logo is read at hire too: a test copy's research saved
               // its essentials 26 seconds later and read only the homepage.
               { sourceId: { contains: "/Brand research/Logo/" } },
+              { sourceId: { contains: "/Brand research/Site/" } },
             ],
           }),
         }),

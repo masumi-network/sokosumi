@@ -24,7 +24,7 @@ const PLANS: { level: CmoVolumeLevel; name: string }[] = [
  */
 export function PlanSizes({ strategy }: { strategy: Strategy }) {
   const plans = PLANS.map(({ level, name }) => {
-    const made = cmoMonthAtLevel(strategy.calendar, level).made;
+    const { made, videos } = cmoMonthAtLevel(strategy.calendar, level);
     const counts = new Map(
       madeByNetwork(strategy.calendar, made).map(({ key, posts }) => [
         key,
@@ -34,8 +34,15 @@ export function PlanSizes({ strategy }: { strategy: Strategy }) {
     // Issues count as posts in "Up to N posts", so the total matches it.
     const issues = newsletterIssues(strategy.calendar, made);
     if (issues > 0) counts.set("newsletter", issues);
-    return { name, counts };
+    return { name, counts, videos };
   });
+  // One short video goes out on TikTok, Reels and Shorts and counts on each,
+  // so NMKR's Instagram read 95 on Starter beside YouTube's 68: say so.
+  const shared = strategy.calendar.some(
+    (entry) =>
+      (entry.alsoOn?.length ?? 0) > 0 &&
+      !strategy.calendar.some((copy) => copy.videoOf === entry.id),
+  );
   const top = plans.at(-1);
   if (!top || top.counts.size === 0) return null;
   const networks = [...top.counts.keys()];
@@ -88,6 +95,14 @@ export function PlanSizes({ strategy }: { strategy: Strategy }) {
           </tr>
         </tfoot>
       </table>
+      {shared ? (
+        <p className="note">
+          Each short video goes out on TikTok, Instagram (as a Reel) and YouTube
+          (as a Short) at once, so it counts on each. Instagram adds its picture
+          posts. New videos a month:{" "}
+          {plans.map((plan) => `${plan.name} ${plan.videos}`).join(", ")}.
+        </p>
+      ) : null}
     </section>
   );
 }

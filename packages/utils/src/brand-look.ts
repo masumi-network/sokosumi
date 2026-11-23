@@ -243,12 +243,17 @@ export interface DesignMdBrandLook {
   fonts: string[];
   /** The voice's adjectives, e.g. "plain, factual and confident". */
   tone: string | null;
+  /**
+   * The first sentence after the tone, e.g. "Favouring short declarative
+   * claims over hype."
+   */
+  voice: string | null;
 }
 
 /**
- * Colours, fonts and tone in a DESIGN.md: its brand colour roles, the
- * `fontFamily` entries (CSS `font-family` too), and the words after
- * "The voice is" or "Tone of voice is", when they list them.
+ * Colours, fonts, tone and voice in a DESIGN.md: its brand colour roles, the
+ * `fontFamily` entries (CSS `font-family` too), the words after "The voice
+ * is" or "Tone of voice is" when they list them, and the sentence after those.
  */
 export function designMdBrandLook(content: string): DesignMdBrandLook {
   const fonts = [
@@ -258,13 +263,22 @@ export function designMdBrandLook(content: string): DesignMdBrandLook {
     .filter((font): font is string => font !== null);
   // ponytail: reads the generator's English list ("plain, factual and
   // confident"); any other wording gives no tone rather than a guess.
-  const tone = content.match(
-    /\bvoice is ([a-z-]+(?:, [a-z-]+)*,? and [a-z-]+)\b/i,
-  )?.[1];
+  // The list ends at a whole word followed by punctuation or the line end, so
+  // "plain and easy to read" and "plain and detail-oriented in reports" give
+  // no tone. One separator after it (",", ":", a dash) is dropped; an ASCII
+  // hyphen counts only with a space after it.
+  const voiceLine = content.match(
+    /\bvoice is ([a-z-]+(?:, [a-z-]+)*,? and [a-z-]+)(?![a-z-])[ \t]*(?:[.,;:!?\u2013\u2014]|-(?=[ \t])|(?=\(|\r?$))[ \t]*([^\r\n]*)/im,
+  );
+  const tone = voiceLine?.[1];
+  // The voice is the rest of that line, whole: a full stop can't tell a
+  // sentence end from "e.g." or "U.S.". A line wholly in brackets loses them.
+  const voice = voiceLine?.[2]?.trim().replace(/^\((.+)\)([.!?]?)$/, "$1$2");
   return {
     colors: designMdRoleColors(content) ?? brandColors(content, 5),
     fonts: [...new Set(fonts)].slice(0, 4),
     tone: tone ?? null,
+    voice: voice ? voice.charAt(0).toUpperCase() + voice.slice(1) : null,
   };
 }
 

@@ -196,6 +196,41 @@ export const richMedia: NonNullable<CmoOverview["brandMedia"]> = {
     dark: { url: "/logo/cmo-xyz-lockup-stacked-text-white.svg", fileId: null },
     mark: { url: "/icon.svg", fileId: null },
   },
+  site: {
+    complete: false,
+    pages: [
+      {
+        url: "https://acme.io/",
+        title: "Acme: rockets that launch on time",
+        summary:
+          "Rockets for small teams that need a launch date they can trust.",
+        facts: ["On-time launches since 2019", "Teams of 5 to 50"],
+        desktop: { url: "/cuso/walking.png", fileId: null },
+        phone: { url: "/cuso/walking.png", fileId: null },
+      },
+      {
+        url: "https://acme.io/pricing",
+        title: "Pricing · Acme",
+        summary:
+          "Three plans, priced per team of ten, with a free first consult.",
+        facts: [
+          "Starter $900 a launch",
+          "Team $2,400 a month",
+          "Free first consult",
+        ],
+        desktop: { url: "/cuso/thinking.png", fileId: null },
+        phone: null,
+      },
+      {
+        url: "https://acme.io/customers",
+        title: "Customers · Acme",
+        summary: "",
+        facts: [],
+        desktop: null,
+        phone: null,
+      },
+    ],
+  },
 };
 
 /** A Brand Brain filled enough to render every Brand tile. */

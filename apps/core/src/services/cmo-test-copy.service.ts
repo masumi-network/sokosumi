@@ -1,4 +1,6 @@
 import { MemberRole, type Prisma } from "@sokosumi/database";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { HTTPException } from "hono/http-exception";
 import { getEnv } from "@/config/env";
 import { isOnEmailAllowlist } from "@/helpers/email-allowlist";
 import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
@@ -44,16 +46,25 @@ export async function requireTestCopySource(input: {
   /** Where the caller asked to hire, if they said. */
   organizationId: string | undefined;
 }): Promise<string> {
-  // 404 unless the caller is a member of the source's organization.
+  // A source the caller cannot see reads as one that is not hired: the
+  // refusal names no Project of another organization.
   const source = await findCusoForProject({
     userId: input.userId,
     projectId: input.sourceProjectId,
+  }).catch((error: unknown) => {
+    if (error instanceof HTTPException && error.status === 404) return null;
+    throw error;
   });
-  if (!source) throw new CmoNotFoundError("The Cuso to copy is not hired");
+  if (!source)
+    throw new CmoNotFoundError(
+      "The Cuso to copy is not hired",
+      CORE_API_ERROR_KINDS.CMO_TEST_COPY_SOURCE_NOT_HIRED,
+    );
   const { organizationId } = await cmoPayer(source);
   if (input.organizationId && input.organizationId !== organizationId) {
     throw new CmoForbiddenError(
       "A test copy goes into the organization of the Cuso it copies",
+      CORE_API_ERROR_KINDS.CMO_TEST_COPY_OTHER_ORGANIZATION,
     );
   }
   const [project, member] = await Promise.all([
@@ -67,7 +78,10 @@ export async function requireTestCopySource(input: {
     }),
   ]);
   if (project?.testCopyOfProjectId) {
-    throw new CmoConflictError("A test copy cannot be copied");
+    throw new CmoConflictError(
+      "A test copy cannot be copied",
+      CORE_API_ERROR_KINDS.CMO_TEST_COPY_OF_TEST_COPY,
+    );
   }
   const mayCopy =
     (member !== null && isOrganizationOwnerOrAdmin(member.role)) ||
@@ -79,6 +93,7 @@ export async function requireTestCopySource(input: {
   if (!mayCopy) {
     throw new CmoForbiddenError(
       "Only an organization owner or admin, or a tester, makes a test copy",
+      CORE_API_ERROR_KINDS.CMO_TEST_COPY_NOT_ALLOWED,
     );
   }
   return organizationId;

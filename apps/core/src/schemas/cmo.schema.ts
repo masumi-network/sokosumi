@@ -690,6 +690,24 @@ export const cmoBrandMediaSchema = z
       .describe(
         "The brand's logo as its site shows it, read from its DESIGN.md: the full logo, its version for a dark background and the square mark, each a PNG. Null where the site gave none.",
       ),
+    site: z
+      .object({
+        pages: z.array(
+          z.object({
+            url: z.string(),
+            title: z.string(),
+            summary: z.string(),
+            facts: z.array(z.string()),
+            desktop: z.union([cmoMediaFileSchema, z.null()]),
+            phone: z.union([cmoMediaFileSchema, z.null()]),
+          }),
+        ),
+        complete: z.boolean(),
+      })
+      .optional()
+      .describe(
+        "Every page of the brand's site Cuso read, home first: what it says and how it looks on a desktop and a phone. complete is false while pages are still to be read. Absent before the first page was read.",
+      ),
   })
   .openapi("CmoBrandMedia");
 export type CmoBrandMedia = z.infer<typeof cmoBrandMediaSchema>;

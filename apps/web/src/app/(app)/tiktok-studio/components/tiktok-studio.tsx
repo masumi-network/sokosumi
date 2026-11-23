@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  ProjectImageAsset,
   ProjectImageJob,
   ProjectImageStudioTalkingVideoCatalog,
   ProjectSocialConnection,
@@ -8,8 +9,10 @@ import type {
 } from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
+  creditsPerShortVideoCents,
   creditsPerTalkingVideoCents,
   resolveUserUploadContentType,
+  SHORT_VIDEO_MAX_PICTURES,
   talkingVideoQuotedSeconds,
 } from "@sokosumi/utils";
 import { useQueryClient } from "@tanstack/react-query";
@@ -21,17 +24,20 @@ import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
 import { APP_MAIN_MOBILE_SCROLL_MT_CLASS } from "@/app/components/app-shell-safe-area";
+import { assetContentUrl } from "@/app/projects/components/image-studio/types";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import {
   prepareStudioAssetSocialMedia,
+  startShortVideo,
   startTalkingVideo,
   writeTalkingVideoScripts,
 } from "@/lib/actions/image-studio/action";
@@ -52,7 +58,14 @@ import {
   PresenterControls,
   type PresenterPhoto,
   SCRIPT_LANGUAGES,
+  VoiceControls,
 } from "./presenter-controls";
+import {
+  ShortPictures,
+  shortFormatSpeaks,
+  type VideoKind,
+  VideoKindPicker,
+} from "./short-format-controls";
 import { TikTokStudioLibrary } from "./tiktok-studio-library";
 import {
   ACTIVE_STATUSES,
@@ -70,7 +83,11 @@ const TikTokComposer = dynamic(() =>
 );
 
 const MAX_PHOTO_MIB = 12;
-type Script = { hook: string; script: string };
+/** As long as Core keeps a hook line. */
+const HOOK_LINE_MAX_LENGTH = 48;
+type Script = { hook: string; script: string; hookLine?: string };
+/** Pictures chosen for a short before the person picks any. */
+const PRESELECTED_PICTURES = 4;
 
 /** Something that went wrong, shown beside the step it belongs to. */
 type Problem = {
@@ -108,6 +125,7 @@ function Extra({
 export function TikTokStudio({
   projectId,
   hasWebsite,
+  pictures,
   catalog,
   initialVideos,
   readOnly,
@@ -115,6 +133,8 @@ export function TikTokStudio({
   projectId: string;
   /** The Project has a website a video can show. */
   hasWebsite: boolean;
+  /** The Project's newest studio pictures, for a short to show. */
+  pictures: ProjectImageAsset[];
   catalog: ProjectImageStudioTalkingVideoCatalog;
   initialVideos: TalkingVideoPage;
   /** A CMO Project is changed in CMO only. */
@@ -130,6 +150,14 @@ export function TikTokStudio({
   const brollId = useId();
   const makeHintId = useId();
   const queryClient = useQueryClient();
+  const [kind, setKind] = useState<VideoKind>("presenter");
+  const short = kind === "presenter" ? null : kind;
+  const spoken = shortFormatSpeaks(kind);
+  const [pictureIds, setPictureIds] = useState<string[]>(() =>
+    pictures.slice(0, PRESELECTED_PICTURES).map((picture) => picture.id),
+  );
+  const [hookLine, setHookLine] = useState("");
+  const hookLineId = useId();
   const [script, setScript] = useState("");
   const [presenterId, setPresenterId] = useState(
     catalog.presenters[0]?.id ?? OWN_PHOTO,
@@ -190,15 +218,20 @@ export function TikTokStudio({
       current[asset.id] === next ? current : { ...current, [asset.id]: next },
     );
 
+  const firstPicture = pictures.find((picture) => picture.id === pictureIds[0]);
   /** What still stands between the person and the button, if anything. */
   const missing =
     trimmed.length < catalog.scriptMinLength
       ? t("needScript", { count: catalog.scriptMinLength })
-      : ownPhoto && !photo
-        ? t("photoMissing")
-        : ownPhoto && !consent
-          ? t("consentMissing")
-          : null;
+      : short
+        ? pictureIds.length === 0 && !hasWebsite
+          ? t("picturesMissing")
+          : null
+        : ownPhoto && !photo
+          ? t("photoMissing")
+          : ownPhoto && !consent
+            ? t("consentMissing")
+            : null;
 
   /** A change to the video being set up brings its preview back. */
   function edit(change: () => void) {
@@ -274,6 +307,7 @@ export function TikTokStudio({
       const result = await writeTalkingVideoScripts({
         projectId,
         languageCode,
+        ...(short ? { format: short } : {}),
       });
       if (!result.ok || result.value.length === 0) {
         setProblem({ step: "script", message: t("scriptsFailed") });
@@ -288,21 +322,32 @@ export function TikTokStudio({
     setProblem(null);
     const idempotencyKey = `ui:${crypto.randomUUID()}`;
     startStarting(async () => {
-      const result = await startTalkingVideo({
-        projectId,
-        modelId: model.id,
-        script: trimmed,
-        voice,
-        languageCode,
-        presenter:
-          ownPhoto && photo
-            ? { kind: "file", fileId: photo.id, consent: true }
-            : { kind: "stock", id: presenterId },
-        siteShots,
-        broll,
-        music,
-        idempotencyKey,
-      });
+      const result = short
+        ? await startShortVideo({
+            projectId,
+            format: short,
+            script: trimmed,
+            hookLine: spoken ? hookLine.trim() || undefined : undefined,
+            voice,
+            languageCode,
+            pictureAssetIds: pictureIds,
+            idempotencyKey,
+          })
+        : await startTalkingVideo({
+            projectId,
+            modelId: model.id,
+            script: trimmed,
+            voice,
+            languageCode,
+            presenter:
+              ownPhoto && photo
+                ? { kind: "file", fileId: photo.id, consent: true }
+                : { kind: "stock", id: presenterId },
+            siteShots,
+            broll,
+            music,
+            idempotencyKey,
+          });
       if (!result.ok) {
         const testimonial = result.kind === "talking_video_testimonial";
         setProblem({
@@ -329,6 +374,7 @@ export function TikTokStudio({
         ],
       }));
       setScript("");
+      setHookLine("");
       setSuggestions([]);
       showOnStage(result.job.id);
     });
@@ -367,6 +413,7 @@ export function TikTokStudio({
 
   function reuse(job: ProjectImageJob) {
     edit(() => {
+      setKind(job.talkingVideo?.format ?? "presenter");
       setScript(job.prompt);
       const presenter = job.talkingVideo?.presenterId;
       if (presenterImage(presenter) && presenter) setPresenterId(presenter);
@@ -427,8 +474,22 @@ export function TikTokStudio({
             />
           ) : (
             <StagePreview
-              image={ownPhoto ? photo?.previewUrl : presenterImage(presenterId)}
-              missingPhoto={ownPhoto && !photo}
+              captions={spoken}
+              hookLine={
+                short
+                  ? spoken
+                    ? hookLine.trim() || undefined
+                    : trimmed.split("\n")[0]?.trim() || undefined
+                  : undefined
+              }
+              image={
+                short
+                  ? firstPicture && assetContentUrl(firstPicture)
+                  : ownPhoto
+                    ? photo?.previewUrl
+                    : presenterImage(presenterId)
+              }
+              missingPhoto={!short && ownPhoto && !photo}
               script={trimmed}
             />
           )}
@@ -436,10 +497,12 @@ export function TikTokStudio({
             <p className="text-muted-foreground line-clamp-2 text-xs">
               {stageJob
                 ? stageJob.prompt
-                : t("previewMeta", {
-                    voice,
-                    language: languageNames.of(languageCode) ?? languageCode,
-                  })}
+                : spoken
+                  ? t("previewMeta", {
+                      voice,
+                      language: languageNames.of(languageCode) ?? languageCode,
+                    })
+                  : t("previewMetaSlideshow")}
             </p>
             {stageJob ? (
               <Button
@@ -469,34 +532,78 @@ export function TikTokStudio({
           handleCreate();
         }}
       >
-        <Step number={1} title={t("stepPresenter")}>
-          <PresenterControls
-            catalog={catalog}
-            presenterId={presenterId}
-            photo={photo}
-            consent={consent}
-            voice={voice}
-            languageCode={languageCode}
-            languageNames={languageNames}
-            readOnly={readOnly}
-            uploading={uploading}
-            problem={problemFor("presenter")}
-            onConsentChange={(checked) => edit(() => setConsent(checked))}
-            onVoiceChange={(name) => edit(() => setVoice(name))}
-            onLanguageChange={(code) => edit(() => setLanguageCode(code))}
-            onPhoto={handlePhoto}
-            onPresenterChange={(id) =>
+        <Step number={1} title={t("stepKind")}>
+          <VideoKindPicker
+            hasWebsite={hasWebsite}
+            onChange={(next) =>
               edit(() => {
-                setPresenterId(id);
-                // Each presenter comes with a voice that sounds like them.
-                const presenterVoice = catalog.presenters.find(
-                  (presenter) => presenter.id === id,
-                )?.voice;
-                if (presenterVoice) setVoice(presenterVoice);
+                setKind(next);
+                setSuggestions([]);
               })
             }
+            presenterImage={presenterImage(presenterId)}
+            readOnly={readOnly}
+            value={kind}
           />
         </Step>
+
+        {short ? (
+          <Step number={2} title={t("stepShows")}>
+            <ShortPictures
+              chosen={pictureIds}
+              max={SHORT_VIDEO_MAX_PICTURES}
+              onChange={(ids) => edit(() => setPictureIds(ids))}
+              pictures={pictures}
+              readOnly={readOnly}
+            />
+            <p className="text-muted-foreground text-xs">
+              {hasWebsite
+                ? t("picturesNoteWithSite", { max: SHORT_VIDEO_MAX_PICTURES })
+                : t("picturesNote", { max: SHORT_VIDEO_MAX_PICTURES })}
+            </p>
+            {problemFor("presenter")}
+            {spoken ? (
+              <VoiceControls
+                catalog={catalog}
+                languageCode={languageCode}
+                languageNames={languageNames}
+                onLanguageChange={(code) => edit(() => setLanguageCode(code))}
+                onVoiceChange={(name) => edit(() => setVoice(name))}
+                readOnly={readOnly}
+                voice={voice}
+              />
+            ) : null}
+          </Step>
+        ) : (
+          <Step number={2} title={t("stepPresenter")}>
+            <PresenterControls
+              catalog={catalog}
+              presenterId={presenterId}
+              photo={photo}
+              consent={consent}
+              voice={voice}
+              languageCode={languageCode}
+              languageNames={languageNames}
+              readOnly={readOnly}
+              uploading={uploading}
+              problem={problemFor("presenter")}
+              onConsentChange={(checked) => edit(() => setConsent(checked))}
+              onVoiceChange={(name) => edit(() => setVoice(name))}
+              onLanguageChange={(code) => edit(() => setLanguageCode(code))}
+              onPhoto={handlePhoto}
+              onPresenterChange={(id) =>
+                edit(() => {
+                  setPresenterId(id);
+                  // Each presenter comes with a voice that sounds like them.
+                  const presenterVoice = catalog.presenters.find(
+                    (presenter) => presenter.id === id,
+                  )?.voice;
+                  if (presenterVoice) setVoice(presenterVoice);
+                })
+              }
+            />
+          </Step>
+        )}
 
         <Step
           action={
@@ -511,8 +618,14 @@ export function TikTokStudio({
               {t("writeForMe")}
             </Button>
           }
-          number={2}
-          title={t("stepScript")}
+          number={3}
+          title={t(
+            short
+              ? spoken
+                ? "stepScriptVoice"
+                : "stepScriptSlideshow"
+              : "stepScript",
+          )}
         >
           <Textarea
             aria-describedby={`${scriptId}-meta`}
@@ -523,7 +636,9 @@ export function TikTokStudio({
             id={scriptId}
             maxLength={catalog.scriptMaxLength}
             onChange={(event) => edit(() => setScript(event.target.value))}
-            placeholder={t("scriptPlaceholder")}
+            placeholder={t(
+              short ? `scriptPlaceholders.${short}` : "scriptPlaceholder",
+            )}
             value={script}
           />
           <div
@@ -531,7 +646,9 @@ export function TikTokStudio({
             id={`${scriptId}-meta`}
           >
             <span>
-              {trimmed ? t("scriptLength", { seconds }) : t("scriptHint")}
+              {trimmed && spoken
+                ? t("scriptLength", { seconds })
+                : t(short ? `scriptHints.${short}` : "scriptHint")}
             </span>
             <span>
               {t("scriptCount", {
@@ -540,6 +657,28 @@ export function TikTokStudio({
               })}
             </span>
           </div>
+          {short && spoken ? (
+            <div className="flex min-w-0 flex-col gap-1">
+              <Label htmlFor={hookLineId}>{t("hookLine")}</Label>
+              <Input
+                aria-describedby={`${hookLineId}-hint`}
+                disabled={readOnly}
+                id={hookLineId}
+                maxLength={HOOK_LINE_MAX_LENGTH}
+                onChange={(event) =>
+                  edit(() => setHookLine(event.target.value))
+                }
+                placeholder={t("hookLinePlaceholder")}
+                value={hookLine}
+              />
+              <p
+                className="text-muted-foreground text-xs"
+                id={`${hookLineId}-hint`}
+              >
+                {t("hookLineHint")}
+              </p>
+            </div>
+          ) : null}
           {problemFor("script")}
           {suggestions.length > 0 ? (
             <ul
@@ -551,7 +690,11 @@ export function TikTokStudio({
                   <button
                     className="border-control-border hover:bg-accent press w-full rounded-lg border p-3 text-start text-sm transition-colors duration-150"
                     onClick={() => {
-                      edit(() => setScript(suggestion.script));
+                      edit(() => {
+                        setScript(suggestion.script);
+                        if (suggestion.hookLine)
+                          setHookLine(suggestion.hookLine);
+                      });
                       setSuggestions([]);
                     }}
                     type="button"
@@ -568,8 +711,13 @@ export function TikTokStudio({
           ) : null}
         </Step>
 
-        <Step number={3} title={t("stepMake")}>
-          <div className="flex flex-col gap-2">
+        <Step number={4} title={t("stepMake")}>
+          {short ? (
+            <p className="text-muted-foreground text-sm">
+              {t(spoken ? "shortIncludes" : "slideshowIncludes")}
+            </p>
+          ) : null}
+          <div className={cn("flex flex-col gap-2", short && "hidden")}>
             {hasWebsite ? (
               <Extra
                 checked={showSite}
@@ -607,16 +755,18 @@ export function TikTokStudio({
                 <>
                   <span className="font-medium">
                     {tStudio("creditsCount", {
-                      count: creditsPerTalkingVideoCents(model.price, trimmed, {
-                        siteShots,
-                        broll,
-                        music,
-                      }),
+                      count: short
+                        ? creditsPerShortVideoCents(model.price, trimmed, short)
+                        : creditsPerTalkingVideoCents(model.price, trimmed, {
+                            siteShots,
+                            broll,
+                            music,
+                          }),
                     })}
                   </span>
                   <span className="text-muted-foreground">
                     {" · "}
-                    {t("costDetail")}
+                    {t(short ? "costDetailShort" : "costDetail")}
                   </span>
                 </>
               )}

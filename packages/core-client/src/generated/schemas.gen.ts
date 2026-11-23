@@ -45115,6 +45115,9 @@ export const ProjectTalkingVideoScriptsSchema = {
                     },
                     script: {
                         type: 'string'
+                    },
+                    hookLine: {
+                        type: 'string'
                     }
                 },
                 required: [
@@ -45136,6 +45139,15 @@ export const WriteProjectTalkingVideoScriptsRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 500
+        },
+        format: {
+            type: 'string',
+            enum: [
+                'voiceover',
+                'site_tour',
+                'top_three',
+                'slideshow'
+            ]
         },
         languageCode: {
             type: 'string',
@@ -60016,6 +60028,108 @@ export const CmoBrandMediaSchema = {
                 'mark'
             ],
             description: 'The brand\'s logo as its site shows it, read from its DESIGN.md: the full logo, its version for a dark background and the square mark, each a PNG. Null where the site gave none.'
+        },
+        site: {
+            type: 'object',
+            properties: {
+                pages: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            url: {
+                                type: 'string'
+                            },
+                            title: {
+                                type: 'string'
+                            },
+                            summary: {
+                                type: 'string'
+                            },
+                            facts: {
+                                type: 'array',
+                                items: {
+                                    type: 'string'
+                                }
+                            },
+                            desktop: {
+                                anyOf: [
+                                    {
+                                        type: 'object',
+                                        properties: {
+                                            url: {
+                                                type: 'string'
+                                            },
+                                            fileId: {
+                                                anyOf: [
+                                                    {
+                                                        type: 'string'
+                                                    },
+                                                    {
+                                                        type: 'null'
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        required: [
+                                            'url',
+                                            'fileId'
+                                        ]
+                                    },
+                                    {
+                                        type: 'null'
+                                    }
+                                ]
+                            },
+                            phone: {
+                                anyOf: [
+                                    {
+                                        type: 'object',
+                                        properties: {
+                                            url: {
+                                                type: 'string'
+                                            },
+                                            fileId: {
+                                                anyOf: [
+                                                    {
+                                                        type: 'string'
+                                                    },
+                                                    {
+                                                        type: 'null'
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        required: [
+                                            'url',
+                                            'fileId'
+                                        ]
+                                    },
+                                    {
+                                        type: 'null'
+                                    }
+                                ]
+                            }
+                        },
+                        required: [
+                            'url',
+                            'title',
+                            'summary',
+                            'facts',
+                            'desktop',
+                            'phone'
+                        ]
+                    }
+                },
+                complete: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'pages',
+                'complete'
+            ],
+            description: 'Every page of the brand\'s site Cuso read, home first: what it says and how it looks on a desktop and a phone. complete is false while pages are still to be read. Absent before the first page was read.'
         }
     },
     required: [
