@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatStandup,
+  formatWeekInReview,
   handoffMessage,
   isStandupHostMessage,
   lineIsEmpty,
@@ -102,5 +103,39 @@ describe("stand-up text", () => {
         metadata: { team_standup: {} },
       }),
     ).toBe(false);
+  });
+});
+
+describe("formatWeekInReview", () => {
+  it("writes one line per person and agent, counts in plain words, and says where to turn it off", () => {
+    const text = formatWeekInReview({
+      dates: "16 Nov – 22 Nov",
+      people: [
+        {
+          userId: "u1",
+          name: "Robin Keller",
+          finished: ["A", "B", "C", "D"],
+          answered: 1,
+          assigned: 0,
+          approved: { strategies: 2, newsletters: 0 },
+          postsPublished: 3,
+          filesShared: 0,
+          tablesMade: 1,
+        },
+      ],
+      agents: [{ agent: soko.agent, done: ["2 Tasks answered"] }],
+      summary: " Four Tasks done. ",
+    });
+    expect(text.split("\n")[0]).toBe(
+      "**Week in review · 16 Nov – 22 Nov** · 1 person · 1 agent",
+    );
+    expect(text).toContain(
+      '- **Robin Keller** · 4 Tasks finished ("A", "B", "C" (+1)) · 1 Task answered · 2 strategies approved · 3 posts published · 1 table made',
+    );
+    expect(text).toContain("· 2 Tasks answered");
+    expect(text).toContain("\nFour Tasks done.\n");
+    expect(text).toContain(
+      'turn off "Include my week in the stand-up" in [your account settings](/account)',
+    );
   });
 });

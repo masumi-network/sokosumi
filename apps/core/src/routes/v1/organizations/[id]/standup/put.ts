@@ -28,7 +28,7 @@ const route = createRoute({
   path: "/{id}/standup",
   operationId: "updateOrganizationStandup",
   description:
-    "Turn the organization's daily agent stand-up on or off and set its time (HH:MM), weekdays and time zone. Only organization owners and admins may do this.",
+    "Turn the organization's daily agent stand-up on or off and set its time (HH:MM), weekdays, time zone and the weekday of its weekly week in review. Only organization owners and admins may do this.",
   tags: ["Organizations"],
   request: {
     params,

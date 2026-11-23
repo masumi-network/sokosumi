@@ -7547,6 +7547,11 @@ export type TeamStandup = {
     timezone: string;
     nextRunAt: string | null;
     lastRunAt: string | null;
+    /**
+     * The weekday (1 Monday … 7 Sunday) of the weekly week in review, posted at `timeOfDay`.
+     */
+    weekInReviewWeekday: number;
+    weekInReviewNextRunAt: string | null;
 };
 
 export type UpdateTeamStandup = {
@@ -7560,6 +7565,10 @@ export type UpdateTeamStandup = {
      */
     weekdays?: Array<number>;
     timezone?: string;
+    /**
+     * Week in review weekday, 1 Monday … 7 Sunday.
+     */
+    weekInReviewWeekday?: number;
 };
 
 export type OrganizationLogoCleanupResult = {

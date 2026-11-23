@@ -26402,6 +26402,18 @@ export const TeamStandupSchema = {
                 'string',
                 'null'
             ]
+        },
+        weekInReviewWeekday: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 7,
+            description: 'The weekday (1 Monday … 7 Sunday) of the weekly week in review, posted at `timeOfDay`.'
+        },
+        weekInReviewNextRunAt: {
+            type: [
+                'string',
+                'null'
+            ]
         }
     },
     required: [
@@ -26411,7 +26423,9 @@ export const TeamStandupSchema = {
         'weekdays',
         'timezone',
         'nextRunAt',
-        'lastRunAt'
+        'lastRunAt',
+        'weekInReviewWeekday',
+        'weekInReviewNextRunAt'
     ]
 } as const;
 
@@ -26441,6 +26455,12 @@ export const UpdateTeamStandupSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 64
+        },
+        weekInReviewWeekday: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 7,
+            description: 'Week in review weekday, 1 Monday … 7 Sunday.'
         }
     }
 } as const;
