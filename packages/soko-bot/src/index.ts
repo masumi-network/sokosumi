@@ -327,7 +327,6 @@ export {
   renderWritingSkill,
   WRITING_SKILL_GROUPS,
   WRITING_SKILLS,
-  writingSkillForChannel,
   writingSkillsBrief,
   writingSkillsForChannels,
 } from "./writing-skills/index.js";
