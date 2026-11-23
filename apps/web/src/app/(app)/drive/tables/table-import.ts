@@ -56,25 +56,25 @@ export function isNumericCsvColumn(header: string, values: string[]): boolean {
   const name = header.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
   if (IDENTIFIER_HEADER.test(name)) return false;
   const filled = values.map((value) => value.trim()).filter(Boolean);
-  return filled.length > 0 && filled.every(isExactCsvNumber);
-}
-
-/** A plain decimal a float holds exactly: see {@link isNumericCsvColumn}. */
-function isExactCsvNumber(value: string): boolean {
   return (
-    PLAIN_NUMBER.test(value) &&
-    value.replace(/^-?0*|\./g, "").replace(/^0+/, "").length <= 15 &&
-    // A nonzero value below the smallest normal double underflows to
-    // zero or loses digits as a subnormal.
-    (!/[1-9]/.test(value) || Math.abs(Number(value)) >= MIN_NORMAL)
+    filled.length > 0 &&
+    filled.every(
+      (value) =>
+        PLAIN_NUMBER.test(value) &&
+        value.replace(/^-?0*|\./g, "").replace(/^0+/, "").length <= 15 &&
+        // A nonzero value below the smallest normal double underflows to
+        // zero or loses digits as a subnormal.
+        (!/[1-9]/.test(value) || Math.abs(Number(value)) >= MIN_NORMAL),
+    )
   );
 }
 
 /**
- * Plans adding CSV rows to an existing Table: headers match column names
- * ignoring case and outer spaces, other headers are skipped, and a Last
- * updated column fills itself. A header that names two columns, or two headers
- * that name one column, are `ambiguous` and plan no rows. `newRows` leaves out
+ * Plans adding CSV rows to an existing Table: headers match Text column
+ * names ignoring case and outer spaces; every other header is skipped, so
+ * other column types stay empty and no value is converted. A header that
+ * names two columns, or two headers that name one column, are `ambiguous` and
+ * plan no rows. `newRows` leaves out
  * the rows whose matched cells equal an existing row's, so overlapping
  * exports can skip them.
  */
@@ -86,7 +86,7 @@ export function planCsvAppend(
     error instanceof Error ? error.message : String(error),
 ) {
   const normal = (text: string) => text.trim().toLowerCase();
-  const fillable = columns.filter((column) => column.type !== "last_updated");
+  const fillable = columns.filter((column) => column.type === "text");
   const found = csv[0].map((header) =>
     fillable.filter((column) => normal(column.name) === normal(header)),
   );
@@ -114,16 +114,10 @@ export function planCsvAppend(
         try {
           const row = tableInsertRowSchema.parse({
             values: Object.fromEntries(
-              pairs.map(({ column, index }) => {
-                const value = parseTableInput(column, cells[index]);
-                // Number() rounds what a float cannot hold; refuse it instead.
-                if (
-                  typeof value === "number" &&
-                  !isExactCsvNumber(cells[index].trim())
-                )
-                  throw new Error("Number loses precision");
-                return [column.id, value];
-              }),
+              pairs.map(({ column, index }) => [
+                column.id,
+                parseTableInput(column, cells[index]),
+              ]),
             ),
           });
           validateTableValues(

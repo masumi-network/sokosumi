@@ -51,7 +51,7 @@ async function readTable(id: string) {
   return { rows, room: Math.max(0, MAX_ROWS - live - archived.total) };
 }
 
-/** Adds the rows of a CSV to the end of a Table, matching headers to columns by name. */
+/** Adds the rows of a CSV to the end of a Table, matching headers to Text columns by name. */
 export function TableAppendCsv({
   table,
   returnFocus,
@@ -80,7 +80,9 @@ export function TableAppendCsv({
   const [key, setKey] = useState<string>();
 
   async function handleFile(picked: File | undefined) {
-    if (!picked) return;
+    // The picker stays enabled while reading so it keeps focus; ignore a
+    // second pick until the first is read.
+    if (!picked || busy) return;
     setBusy("reading");
     setError("");
     setFile(undefined);
@@ -132,7 +134,7 @@ export function TableAppendCsv({
     }
   }
 
-  const locked = !!busy || !!key;
+  const locked = busy === "adding" || !!key;
   const status = appendStatus(
     t,
     busy,

@@ -11805,11 +11805,11 @@
       "undoBatch": "Stapel rückgängig",
       "appendCsv": {
         "title": "Zeilen aus CSV hinzufügen",
-        "description": "Fügt die Zeilen der CSV am Ende dieser Tabelle an. CSV-Spalten landen in Tabellenspalten mit demselben Namen.",
+        "description": "Fügt die Zeilen der CSV am Ende dieser Tabelle an. Nur Textspalten werden befüllt, aus CSV-Spalten mit demselben Namen. Andere Spalten bleiben leer.",
         "file": "CSV-Datei",
         "matched": "Füllt: {columns}",
-        "skipped": "Nicht in dieser Tabelle, ausgelassen: {columns}",
-        "noMatch": "Keine CSV-Spalte heißt wie eine Spalte dieser Tabelle. Benenne die CSV-Überschriften passend um und wähle die Datei erneut.",
+        "skipped": "Ausgelassen, keine Textspalte mit diesem Namen: {columns}",
+        "noMatch": "Keine CSV-Spalte heißt wie eine Textspalte dieser Tabelle. Nur Textspalten können befüllt werden. Benenne die CSV-Spalten passend um und wähle die Datei dann erneut.",
         "skipDuplicates": "{count, plural, one {# Zeile auslassen, die schon in dieser Tabelle steht} other {# Zeilen auslassen, die schon in dieser Tabelle stehen}}",
         "add": "{count, plural, =0 {Zeilen hinzufügen} one {# Zeile hinzufügen} other {# Zeilen hinzufügen}}",
         "done": "{count, plural, one {# Zeile hinzugefügt.} other {# Zeilen hinzugefügt.}}",
@@ -11861,7 +11861,6 @@
       "enrichmentRequired": "Gib eine Anweisung (bis zu 4.000 Zeichen) ein und wähle einen Agenten und mindestens eine Ausgabespalte.",
       "errors": {
         "number": "Gib eine gültige Zahl ein.",
-        "numberPrecision": "Verwende eine einfache Zahl mit höchstens 15 signifikanten Stellen, etwa 1234.5. Längere Zahlen würden gerundet.",
         "checkbox": "Verwende true oder false.",
         "option": "Wähle eine für diese Spalte definierte Option.",
         "date": "Verwende ein gültiges Datum im Format JJJJ-MM-TT.",

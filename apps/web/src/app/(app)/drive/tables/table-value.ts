@@ -14,7 +14,6 @@ const INPUT_ERRORS = {
   "CSV needs non-empty column headers": "errors.csvHeaders",
   "CSV rows have different column counts": "errors.csvWidth",
   "Invalid number": "errors.number",
-  "Number loses precision": "errors.numberPrecision",
   "Use true or false": "errors.checkbox",
   "Unknown option": "errors.option",
   "Use YYYY-MM-DD": "errors.date",

@@ -11805,11 +11805,11 @@
       "undoBatch": "Undo batch",
       "appendCsv": {
         "title": "Add rows from CSV",
-        "description": "Adds the CSV's rows to the end of this table. CSV columns go into table columns with the same name.",
+        "description": "Adds the CSV's rows to the end of this table. Only text columns are filled, from CSV columns with the same name. Other columns stay empty.",
         "file": "CSV file",
         "matched": "Fills: {columns}",
-        "skipped": "Not in this table, left out: {columns}",
-        "noMatch": "No CSV column has the name of a column in this table. Rename the CSV headers to match, then choose the file again.",
+        "skipped": "Left out, no text column with this name: {columns}",
+        "noMatch": "No CSV column has the name of a text column in this table. Only text columns can be filled. Rename the CSV headers to match, then choose the file again.",
         "skipDuplicates": "{count, plural, one {Leave out # row that is already in this table} other {Leave out # rows that are already in this table}}",
         "add": "{count, plural, =0 {Add rows} one {Add # row} other {Add # rows}}",
         "done": "{count, plural, one {Added # row.} other {Added # rows.}}",
@@ -11861,7 +11861,6 @@
       "enrichmentRequired": "Enter an instruction (up to 4,000 characters), choose an agent and at least one output column.",
       "errors": {
         "number": "Enter a valid number.",
-        "numberPrecision": "Use a plain number with up to 15 significant digits, like 1234.5. Longer numbers would be rounded.",
         "checkbox": "Use true or false.",
         "option": "Choose an option defined for this column.",
         "date": "Use a valid date in YYYY-MM-DD format.",

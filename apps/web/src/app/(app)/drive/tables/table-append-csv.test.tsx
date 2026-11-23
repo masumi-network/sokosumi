@@ -113,20 +113,34 @@ describe("TableAppendCsv", () => {
     await waitFor(() => expect(onDone).toHaveBeenCalledWith(2));
   });
 
-  it("says so when no CSV header matches a column", async () => {
+  it("says so when no CSV header names a Text column", async () => {
     holds([]);
     render(
       <TableAppendCsv
-        table={table}
+        table={{
+          ...table,
+          columns: [
+            ...table.columns,
+            {
+              ...name,
+              id: `${name.id.slice(0, -1)}2`,
+              name: "Amount",
+              type: "number",
+            },
+          ],
+        }}
         onChanged={vi.fn()}
         onClose={vi.fn()}
         onDone={vi.fn()}
       />,
     );
 
-    choose("Email\na@b.c\n");
+    choose("Amount\n12\n");
 
     expect(await screen.findByText("appendCsv.noMatch")).toBeTruthy();
+    expect(
+      screen.getByText('appendCsv.skipped {"columns":"Amount"}'),
+    ).toBeTruthy();
     expect(
       screen
         .getByRole("button", { name: 'appendCsv.add {"count":0}' })
@@ -256,7 +270,7 @@ describe("TableAppendCsv", () => {
     expect(status.className).not.toContain("empty:hidden");
   });
 
-  it("hides Close while it reads the file", async () => {
+  it("hides Close but keeps the file picker focusable while it reads", async () => {
     f.query.mockReturnValue(new Promise(() => {}));
     render(
       <TableAppendCsv
@@ -272,5 +286,9 @@ describe("TableAppendCsv", () => {
 
     expect(await screen.findByText("appendCsv.reading")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /close/i })).toBeNull();
+    // A disabled picker drops focus onto the dialog panel.
+    expect(
+      screen.getByLabelText("appendCsv.file").hasAttribute("disabled"),
+    ).toBe(false);
   });
 });

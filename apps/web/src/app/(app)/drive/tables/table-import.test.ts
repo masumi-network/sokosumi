@@ -80,6 +80,12 @@ const name = {
   type: "text" as const,
   options: [],
 };
+const notes = {
+  id: "00000000-0000-4000-8000-000000000015",
+  name: "Notes",
+  type: "text" as const,
+  options: [],
+};
 const amount = {
   id: "00000000-0000-4000-8000-000000000012",
   name: "Amount",
@@ -93,52 +99,47 @@ const updated = {
   options: [],
 };
 
-it("matches CSV headers to columns by name and lists the headers it skips", () => {
+it("fills only Text columns, matched by name, and lists every other header as skipped", () => {
   const plan = planCsvAppend(
-    [name, amount, updated],
+    [name, amount, updated, notes],
     [
-      [" amount ", "Name", "Notes", "Updated"],
-      ["12", "Ada", "x", "2026-01-01"],
+      [" notes ", "Amount", "Name", "Source", "Updated"],
+      ["x", "1e-7", "Ada", "web", "2026-01-01"],
     ],
     [],
   );
-  expect(plan.matched).toEqual(["Amount", "Name"]);
-  expect(plan.skipped).toEqual(["Notes", "Updated"]);
+  expect(plan.matched).toEqual(["Notes", "Name"]);
+  expect(plan.skipped).toEqual(["Amount", "Source", "Updated"]);
   expect(plan.rows).toEqual([
-    { values: { [amount.id]: 12, [name.id]: "Ada" }, evidence: {} },
+    { values: { [notes.id]: "x", [name.id]: "Ada" }, evidence: {} },
   ]);
+});
+
+it("plans no rows when no header names a Text column", () => {
+  const plan = planCsvAppend([name, amount], [["Amount"], ["many"]], []);
+  expect(plan.matched).toEqual([]);
+  expect(plan.skipped).toEqual(["Amount"]);
 });
 
 it("counts CSV rows the Table already holds in the matched columns", () => {
   const plan = planCsvAppend(
-    [name, amount],
+    [name, notes, amount],
     [
-      ["Name", "Amount"],
-      ["Ada", "12"],
-      ["Bo", ""],
-      ["Cy", "3"],
+      ["Name", "Notes", "Amount"],
+      ["Ada", "x", "1"],
+      ["Bo", "", "2"],
+      ["Cy", "z", "3"],
     ],
     [
-      { values: { [name.id]: "Ada", [amount.id]: 12 } },
+      { values: { [name.id]: "Ada", [notes.id]: "x", [amount.id]: 9 } },
       { values: { [name.id]: "Bo" } },
-      { values: { [name.id]: "Cy", [amount.id]: 4 } },
+      { values: { [name.id]: "Cy", [notes.id]: "y" } },
     ],
   );
   expect(plan.rows).toHaveLength(3);
   expect(plan.newRows).toEqual([
-    { values: { [name.id]: "Cy", [amount.id]: 3 }, evidence: {} },
+    { values: { [name.id]: "Cy", [notes.id]: "z" }, evidence: {} },
   ]);
-});
-
-it("names the CSV row whose value does not fit its column", () => {
-  expect(() =>
-    planCsvAppend(
-      [amount],
-      [["Amount"], ["1"], ["many"]],
-      [],
-      (row, error) => `Row ${row}: ${(error as Error).message}`,
-    ),
-  ).toThrow("Row 3: Invalid number");
 });
 
 it("refuses a header that could fill two columns, or a column two headers fill", () => {
@@ -149,38 +150,22 @@ it("refuses a header that could fill two columns, or a column two headers fill",
   };
   expect(
     planCsvAppend(
-      [name, upper, amount],
+      [name, upper, notes],
       [
-        ["name", "Amount"],
-        ["Ada", "1"],
+        ["name", "Notes"],
+        ["Ada", "x"],
       ],
       [],
     ).ambiguous,
   ).toEqual(["name"]);
   const twice = planCsvAppend(
-    [name, amount],
+    [name, notes],
     [
-      ["Name", "Amount", "name "],
-      ["Ada", "1", "Bo"],
+      ["Name", "Notes", "name "],
+      ["Ada", "x", "Bo"],
     ],
     [],
   );
   expect(twice.ambiguous).toEqual(["Name", "name "]);
   expect(twice.newRows).toEqual([]);
-});
-
-it("refuses a Number cell a float cannot hold exactly, before comparing rows", () => {
-  for (const value of ["9007199254740993", `0.${"0".repeat(330)}1`]) {
-    expect(() =>
-      planCsvAppend(
-        [amount],
-        [["Amount"], [value]],
-        [{ values: { [amount.id]: Number(value) } }],
-        (row, error) => `Row ${row}: ${(error as Error).message}`,
-      ),
-    ).toThrow("Row 2: Number loses precision");
-  }
-  expect(
-    planCsvAppend([amount], [["Amount"], ["123456789012345"]], []).rows,
-  ).toEqual([{ values: { [amount.id]: 123456789012345 }, evidence: {} }]);
 });

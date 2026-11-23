@@ -93,7 +93,9 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
         buffer: Buffer.from(WEEK_2),
       });
       await dialog.getByText("Fills: Contact, Company").waitFor();
-      await dialog.getByText("Not in this table, left out: Source").waitFor();
+      await dialog
+        .getByText("Left out, no text column with this name: Source")
+        .waitFor();
       const skip = dialog.getByRole("checkbox", {
         name: "Leave out 1 row that is already in this table",
       });

@@ -11805,11 +11805,11 @@
       "undoBatch": "Deshacer lote",
       "appendCsv": {
         "title": "Añadir filas desde CSV",
-        "description": "Añade las filas del CSV al final de esta tabla. Las columnas del CSV van a las columnas de la tabla con el mismo nombre.",
+        "description": "Añade las filas del CSV al final de esta tabla. Solo se rellenan las columnas de texto, desde columnas del CSV con el mismo nombre. Las demás columnas quedan vacías.",
         "file": "Archivo CSV",
         "matched": "Rellena: {columns}",
-        "skipped": "No están en esta tabla, se omiten: {columns}",
-        "noMatch": "Ninguna columna del CSV tiene el nombre de una columna de esta tabla. Cambia los encabezados del CSV para que coincidan y vuelve a elegir el archivo.",
+        "skipped": "Omitidas, no hay columna de texto con este nombre: {columns}",
+        "noMatch": "Ninguna columna del CSV tiene el nombre de una columna de texto de esta tabla. Solo se pueden rellenar columnas de texto. Cambia los encabezados del CSV para que coincidan y vuelve a elegir el archivo.",
         "skipDuplicates": "{count, plural, one {Omitir # fila que ya está en esta tabla} other {Omitir # filas que ya están en esta tabla}}",
         "add": "{count, plural, =0 {Añadir filas} one {Añadir # fila} other {Añadir # filas}}",
         "done": "{count, plural, one {# fila añadida.} other {# filas añadidas.}}",
@@ -11861,7 +11861,6 @@
       "enrichmentRequired": "Introduce una instrucción (hasta 4.000 caracteres), elige un agente y al menos una columna de salida.",
       "errors": {
         "number": "Introduce un número válido.",
-        "numberPrecision": "Usa un número simple con hasta 15 cifras significativas, como 1234.5. Los números más largos se redondearían.",
         "checkbox": "Usa true o false.",
         "option": "Elige una opción definida para esta columna.",
         "date": "Usa una fecha válida en formato AAAA-MM-DD.",
