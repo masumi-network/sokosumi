@@ -9655,7 +9655,7 @@
             "cancel": "Cancel",
             "confirm": "Revoke key"
           },
-          "neverUsed": "Never"
+          "noRecordedUse": "No recorded use"
         }
       },
       "Tasks": {

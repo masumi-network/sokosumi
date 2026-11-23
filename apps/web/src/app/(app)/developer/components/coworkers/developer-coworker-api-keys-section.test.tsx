@@ -77,7 +77,7 @@ describe("DeveloperCoworkerApiKeysSection", () => {
     expect(screen.getByText("Revoked")).toBeInTheDocument();
     expect(screen.getByText("Expired")).toBeInTheDocument();
     expect(screen.getByText("Unnamed")).toBeInTheDocument();
-    expect(screen.getAllByText("Never")).toHaveLength(3);
+    expect(screen.getAllByText("No recorded use")).toHaveLength(3);
     expect(screen.getAllByRole("button", { name: "Revoke" })).toHaveLength(1);
   });
 

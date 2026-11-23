@@ -163,7 +163,7 @@ export function DeveloperCoworkerApiKeys({
                   <TableCell className="hidden sm:table-cell">
                     {row.lastUsedAt
                       ? format.dateTime(row.lastUsedAt, "dateTimeMedium")
-                      : t("neverUsed")}
+                      : t("noRecordedUse")}
                   </TableCell>
                   <TableCell>
                     <Badge

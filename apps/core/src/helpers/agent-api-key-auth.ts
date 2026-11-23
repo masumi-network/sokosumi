@@ -10,7 +10,7 @@ import {
   isSokoBotApiKeyToken,
 } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
-import { recordCoreError } from "@/lib/evlog";
+import { emitCoreError } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import type {
   CoworkerAuthenticationContext,
@@ -51,7 +51,8 @@ function recordAgentApiKeyUse(
       .then(
         () => undefined,
         (error: unknown) => {
-          recordCoreError(
+          // Standalone: this may settle while the request's own event is live.
+          emitCoreError(
             { operation: "agent_api_key_last_used", id: key.id },
             {
               message: "Could not record when an agent API key was last used",

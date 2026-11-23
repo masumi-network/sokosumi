@@ -9628,7 +9628,7 @@
             "cancel": "Cancelar",
             "confirm": "Revocar clave"
           },
-          "neverUsed": "Nunca"
+          "noRecordedUse": "Sin uso registrado"
         }
       },
       "Tasks": {
