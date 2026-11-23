@@ -50,10 +50,7 @@ export function EarlierThreadsList({
   const headingId = useId();
 
   const query = useInfiniteQuery({
-    queryKey: chatQueryKeys.earlierThreads(
-      { userId: currentUserId },
-      earlierThreadsFingerprint(rooms),
-    ),
+    queryKey: chatQueryKeys.earlierThreads(earlierThreadsFingerprint(rooms)),
     queryFn: ({ pageParam }) => fetchChatEarlierThreads(pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,

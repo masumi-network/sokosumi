@@ -1,23 +1,60 @@
+import type { ChatRoom } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
-import {
-  chatQueryKeys,
-  normalizeChatScope,
-  splitChatQueryKey,
-} from "@/queries/chat";
-import { buildScopedQueryKey, useScopedQuery } from "@/queries/scoped-queries";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useOtherWorkspaceRooms } from "@/components/chat/use-other-workspace-rooms";
+import { chatQueryKeys } from "@/queries/chat";
+
+const { fetchElsewhereMock } = vi.hoisted(() => ({
+  fetchElsewhereMock: vi.fn<() => Promise<ChatRoom[] | null>>(),
+}));
+
+vi.mock("@/components/chat/fetch-sidebar-room-collection", () => ({
+  fetchSidebarRoomCollection: fetchElsewhereMock,
+}));
 
 const scopeA = { userId: "user_a", workspaceId: "org_a" };
 const scopeB = { userId: "user_a", workspaceId: "org_b" };
 const personal = { userId: "user_a", workspaceId: null };
 
+function unreadElsewhereRoom(id: string, name: string): ChatRoom {
+  return {
+    id,
+    name,
+    kind: "channel",
+    organizationId: "org_elsewhere",
+    organizationName: "Elsewhere Org",
+    organizationLogo: null,
+    organizationWebsiteUrl: null,
+    unreadCount: 1,
+    channelUnreadCount: 1,
+    threadUnreadCount: 0,
+    unreadThreadCount: 0,
+    unreadThreadMentionCount: 0,
+    unreadThreads: [],
+    unreadMentionCount: 0,
+    unreadNeedsYouCount: 0,
+    markedUnread: false,
+    starredAt: null,
+    starredSortKey: null,
+    mutedAt: null,
+  } as unknown as ChatRoom;
+}
+
 describe("chatQueryKeys", () => {
-  it("normalizes scope with scope first, then chat root and resource", () => {
+  beforeEach(() => {
+    fetchElsewhereMock.mockReset();
+  });
+
+  it("normalizes missing and null scope members to one identity with scope first", () => {
     expect(
-      normalizeChatScope({ userId: "user_a", workspaceId: undefined }),
-    ).toEqual(personal);
-    expect(normalizeChatScope()).toEqual({ userId: null, workspaceId: null });
+      chatQueryKeys.elsewhere({ userId: "user_a", workspaceId: undefined }),
+    ).toEqual(chatQueryKeys.elsewhere(personal));
+    expect(chatQueryKeys.elsewhere({})).toEqual([
+      { userId: null, workspaceId: null },
+      "chat",
+      "elsewhere",
+    ]);
 
     expect(chatQueryKeys.prefix(scopeA)).toEqual([scopeA, "chat"]);
     expect(chatQueryKeys.sidebarRooms(scopeA)).toEqual([
@@ -59,24 +96,13 @@ describe("chatQueryKeys", () => {
       "threads",
       "room_1",
     ]);
-    expect(chatQueryKeys.openAtUnread(scopeA, "room_1", 2)).toEqual([
-      scopeA,
+    expect(chatQueryKeys.openAtUnread("room_1", 2)).toEqual([
+      { userId: null, workspaceId: null },
       "chat",
       "open-at-unread",
       "room_1",
       2,
     ]);
-  });
-
-  it("round-trips splitChatQueryKey through buildScopedQueryKey", () => {
-    const fullKey = chatQueryKeys.transcript(scopeA, "room_1");
-    const split = splitChatQueryKey(fullKey);
-
-    expect(split).toEqual({
-      scope: scopeA,
-      queryKey: ["chat", "transcript", "room_1"],
-    });
-    expect(buildScopedQueryKey(split.scope, split.queryKey)).toEqual(fullKey);
   });
 
   it("matches all user and workspace scopes with cross-scope prefixes without matching other domains", () => {
@@ -120,30 +146,30 @@ describe("chatQueryKeys", () => {
     expect(queryClient.getQueryData(transcriptA)).toEqual(["msg-a"]);
   });
 
-  it("shows no rows from the previous workspace when switching workspace", async () => {
+  it("shows no unpinned Elsewhere rows from the previous workspace while the next workspace read is pending", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
-    const workspaceBDeferred = Promise.withResolvers<string[]>();
+    const workspaceBDeferred = Promise.withResolvers<ChatRoom[]>();
+    fetchElsewhereMock
+      .mockResolvedValueOnce([unreadElsewhereRoom("room-a", "Alpha Room")])
+      .mockReturnValueOnce(workspaceBDeferred.promise);
 
-    function WorkspaceChatRows({ workspaceId }: { workspaceId: string }) {
-      const { data } = useScopedQuery({
-        ...splitChatQueryKey(
-          chatQueryKeys.sidebarRoomCollection(
-            { userId: "user_a", workspaceId },
-            "active",
-          ),
-        ),
-        queryFn: () =>
-          workspaceId === "org_a"
-            ? Promise.resolve(["Alpha Room"])
-            : workspaceBDeferred.promise,
+    function ElsewhereProbe({
+      organizationId,
+    }: {
+      organizationId: string | null;
+    }) {
+      const { rooms } = useOtherWorkspaceRooms({
+        currentUserId: "user_a",
+        organizationId,
+        enabled: true,
       });
 
       return (
         <ul>
-          {(data ?? []).map((row) => (
-            <li key={row}>{row}</li>
+          {rooms.map((room) => (
+            <li key={room.id}>{room.name}</li>
           ))}
         </ul>
       );
@@ -151,7 +177,7 @@ describe("chatQueryKeys", () => {
 
     const { rerender } = render(
       <QueryClientProvider client={queryClient}>
-        <WorkspaceChatRows workspaceId="org_a" />
+        <ElsewhereProbe organizationId="org_a" />
       </QueryClientProvider>,
     );
 
@@ -159,14 +185,14 @@ describe("chatQueryKeys", () => {
 
     rerender(
       <QueryClientProvider client={queryClient}>
-        <WorkspaceChatRows workspaceId="org_b" />
+        <ElsewhereProbe organizationId="org_b" />
       </QueryClientProvider>,
     );
 
-    // While org_b is still loading, org_a's rows must not appear.
+    // While org_b's read is still pending, org_a's unpinned row must stay gone.
     expect(screen.queryByText("Alpha Room")).toBeNull();
 
-    workspaceBDeferred.resolve(["Beta Room"]);
+    workspaceBDeferred.resolve([unreadElsewhereRoom("room-b", "Beta Room")]);
     await waitFor(() => {
       expect(screen.getByText("Beta Room")).toBeTruthy();
     });

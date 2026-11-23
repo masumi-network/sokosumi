@@ -74,7 +74,7 @@ function StickerPickerPanel({
   const t = useTranslations("App.Channels.Stickers");
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
-  const queryKey = chatQueryKeys.stickers({ userId });
+  const queryKey = chatQueryKeys.stickers(userId);
   const {
     data = [],
     isPending,

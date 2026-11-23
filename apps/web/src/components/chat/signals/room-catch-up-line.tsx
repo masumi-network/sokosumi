@@ -41,7 +41,7 @@ export function RoomCatchUpLine({
   // Decided once per visit: reading the room drops its unread to zero.
   const [busy] = useState(unreadAtOpen >= BUSY_ROOM_UNREAD);
   const { data } = useQuery({
-    queryKey: chatQueryKeys.roomCatchUp({}, roomId),
+    queryKey: chatQueryKeys.roomCatchUp(roomId),
     queryFn: async (): Promise<ChatRoomCatchUp | null> => {
       const result = await getChatRoomCatchUpAction(roomId);
       return result.ok ? result.value : null;

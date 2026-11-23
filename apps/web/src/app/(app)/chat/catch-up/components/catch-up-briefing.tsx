@@ -38,7 +38,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 import { getInitials } from "@/lib/utils/text";
-import { type ChatQueryScopeInput, chatQueryKeys } from "@/queries/chat";
+import { chatQueryKeys } from "@/queries/chat";
 
 /** Every room with something unread. */
 function unreadRoomIds(summary: ChatCatchUpSummary): string[] {
@@ -57,10 +57,10 @@ const MARK_READ_MUTATION_KEY = ["chat-catch-up-mark-read"];
  * Reads each room in full: its messages and its Threads. The rooms leave
  * the page at once; a refused or failed write puts them back and says so.
  */
-function useMarkRead(onDone: () => void, scope: ChatQueryScopeInput = {}) {
+function useMarkRead(onDone: () => void) {
   const t = useTranslations("App.Channels.Signals");
   const queryClient = useQueryClient();
-  const summaryQueryKey = chatQueryKeys.catchUpSummary(scope);
+  const summaryQueryKey = chatQueryKeys.catchUpSummary();
   const isMarking = useIsMutating({ mutationKey: MARK_READ_MUTATION_KEY }) > 0;
   const { mutate } = useMutation({
     mutationKey: MARK_READ_MUTATION_KEY,
@@ -155,16 +155,14 @@ function useDone(onChanged: () => void) {
 export function BriefingHeader({
   summary,
   onChanged,
-  scope,
 }: {
   summary: ChatCatchUpSummary;
   onChanged: () => void;
-  scope?: ChatQueryScopeInput;
 }) {
   const t = useTranslations("App.Channels.Signals.Briefing");
   const tSignals = useTranslations("App.Channels.Signals");
   const format = useFormatter();
-  const { isMarking, markRead } = useMarkRead(onChanged, scope);
+  const { isMarking, markRead } = useMarkRead(onChanged);
   const roomIds = unreadRoomIds(summary);
   const unread = t("unread", {
     messages: summary.unreadMessageCount,
@@ -638,18 +636,16 @@ export function OpenLoopsList({
 export function QuietRooms({
   rooms,
   onChanged,
-  scope,
 }: {
   rooms: ChatCatchUpSummary["quietRooms"];
   onChanged: () => void;
-  scope?: ChatQueryScopeInput;
 }) {
   const t = useTranslations("App.Channels.Signals.Briefing");
   const tSignals = useTranslations("App.Channels.Signals");
   const format = useFormatter();
   const now = useNow({ updateInterval: 60_000 });
   const headingId = useId();
-  const { isMarking, markRead } = useMarkRead(onChanged, scope);
+  const { isMarking, markRead } = useMarkRead(onChanged);
   const matching = usePageListSearch(rooms, (room) => ({
     primary: [room.roomName],
     secondary: [room.latest?.excerpt, room.latest?.senderName],

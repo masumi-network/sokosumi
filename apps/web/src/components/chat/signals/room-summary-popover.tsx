@@ -32,7 +32,7 @@ interface RoomSummaryPopoverProps {
  */
 export function useRoomSummary(roomId: string, enabled: boolean) {
   return useQuery({
-    queryKey: chatQueryKeys.roomSummary({}, roomId),
+    queryKey: chatQueryKeys.roomSummary(roomId),
     queryFn: () => fetchCatchUpSummary(roomId),
     enabled,
     staleTime: Number.POSITIVE_INFINITY,

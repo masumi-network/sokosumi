@@ -12,7 +12,7 @@ import { useThreadSearchRows } from "@/components/chat/use-thread-search-rows";
 import { usePageSearchPagination } from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 import type { ChatUnreadThreadsPage } from "@/lib/services/chat-room.service";
-import { type ChatQueryScopeInput, chatQueryKeys } from "@/queries/chat";
+import { chatQueryKeys } from "@/queries/chat";
 
 import { fetchChatUnreadThreads } from "./fetch-chat-threads";
 
@@ -70,12 +70,10 @@ export function useUnreadThreadsQuery({
   rooms,
   initial = null,
   enabled = true,
-  scope = {},
 }: {
   rooms: readonly ChatRoom[];
   initial?: UnreadThreadsInitial;
   enabled?: boolean;
-  scope?: ChatQueryScopeInput;
 }) {
   const fingerprint = unreadThreadsFingerprint(rooms);
   // initialData is fresh for the app query client's 60s staleTime. Only the
@@ -85,7 +83,7 @@ export function useUnreadThreadsQuery({
     ? unreadThreadsFingerprint(initial.rooms)
     : null;
   return useInfiniteQuery({
-    queryKey: chatQueryKeys.unreadThreads(scope, fingerprint),
+    queryKey: chatQueryKeys.unreadThreads(fingerprint),
     queryFn: ({ pageParam }) => fetchChatUnreadThreads(pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
@@ -121,7 +119,6 @@ export function UnreadThreadsList({
     rooms,
     initial,
     enabled: !roomsSayCaughtUp && !waitingForRooms,
-    scope: { userId: currentUserId },
   });
 
   const fetched = (query.data?.pages ?? []).flatMap((page) => page.threads);

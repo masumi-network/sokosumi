@@ -14,28 +14,20 @@ export interface ChatQueryScope {
 
 const ANY_CHAT_SCOPE = {} as const;
 
-export function normalizeChatScope(
-  scope: ChatQueryScopeInput = {},
-): ChatQueryScope {
-  return {
-    userId: scope.userId ?? null,
-    workspaceId: scope.workspaceId ?? null,
-  };
-}
-
 function chatKey<const TRest extends readonly unknown[]>(
   scope: ChatQueryScopeInput,
   ...rest: TRest
 ) {
-  return buildScopedQueryKey(normalizeChatScope(scope), [
-    CHAT_QUERY_ROOT,
-    ...rest,
-  ] as const);
+  const normalized: ChatQueryScope = {
+    userId: scope.userId ?? null,
+    workspaceId: scope.workspaceId ?? null,
+  };
+  return buildScopedQueryKey(normalized, [CHAT_QUERY_ROOT, ...rest] as const);
 }
 
 /**
  * Matches any normalized `ChatQueryScope` at index 0 via TanStack Query's
- * `partialMatchKey({}, scope) === true`, without accumulating per-scope entries.
+ * `partialMatchKey(scope, {}) === true`, without accumulating per-scope entries.
  */
 function anyChatScopeKey<const TRest extends readonly unknown[]>(
   ...rest: TRest
@@ -59,27 +51,20 @@ export const chatQueryKeys = {
   anyElsewhere: () => anyChatScopeKey("elsewhere"),
   threads: (scope: ChatQueryScopeInput, roomId: string) =>
     chatKey(scope, "threads", roomId),
-  unreadThreads: (scope: ChatQueryScopeInput, fingerprint: string) =>
-    chatKey(scope, "unread-threads", fingerprint),
-  earlierThreads: (scope: ChatQueryScopeInput, fingerprint: string) =>
-    chatKey(scope, "earlier-threads", fingerprint),
-  openAtUnread: (
-    scope: ChatQueryScopeInput,
-    roomId: string | null | undefined,
-    visit: number,
-  ) => chatKey(scope, "open-at-unread", roomId ?? null, visit),
-  catchUpSummary: (scope: ChatQueryScopeInput) =>
-    chatKey(scope, "catch-up", "summary"),
+  unreadThreads: (fingerprint: string) =>
+    chatKey({}, "unread-threads", fingerprint),
+  earlierThreads: (fingerprint: string) =>
+    chatKey({}, "earlier-threads", fingerprint),
+  openAtUnread: (roomId: string | null | undefined, visit: number) =>
+    chatKey({}, "open-at-unread", roomId ?? null, visit),
+  catchUpSummary: () => chatKey({}, "catch-up", "summary"),
   catchUpFirstSteps: (scope: ChatQueryScopeInput) =>
     chatKey(scope, "catch-up", "first-steps"),
   anyCatchUpFirstSteps: () => anyChatScopeKey("catch-up", "first-steps"),
-  roomSummary: (scope: ChatQueryScopeInput, roomId: string) =>
-    chatKey(scope, "room-summary", roomId),
-  roomCatchUp: (scope: ChatQueryScopeInput, roomId: string) =>
-    chatKey(scope, "room-catch-up", roomId),
-  roomDecisions: (scope: ChatQueryScopeInput, roomId: string) =>
-    chatKey(scope, "room-decisions", roomId),
-  stickers: (scope: ChatQueryScopeInput) => chatKey(scope, "stickers"),
+  roomSummary: (roomId: string) => chatKey({}, "room-summary", roomId),
+  roomCatchUp: (roomId: string) => chatKey({}, "room-catch-up", roomId),
+  roomDecisions: (roomId: string) => chatKey({}, "room-decisions", roomId),
+  stickers: (userId: string) => chatKey({ userId }, "stickers"),
   skills: (query: string) => chatKey({}, "skills", query),
   results: (
     scope: ChatQueryScopeInput,
@@ -88,13 +73,3 @@ export const chatQueryKeys = {
   ) => chatKey(scope, "results", source, descriptorIds),
   sokoBotConnectPrompt: () => chatKey({}, "soko-bot-connect-prompt"),
 } as const;
-
-export function splitChatQueryKey<const TRest extends readonly unknown[]>(
-  key: readonly [ChatQueryScope, typeof CHAT_QUERY_ROOT, ...TRest],
-): {
-  scope: ChatQueryScope;
-  queryKey: readonly [typeof CHAT_QUERY_ROOT, ...TRest];
-} {
-  const [scope, ...queryKey] = key;
-  return { scope, queryKey };
-}
