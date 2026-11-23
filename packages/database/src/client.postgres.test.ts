@@ -31,16 +31,24 @@ describe.skipIf(!enabled)("createPrismaClient schema on PostgreSQL", () => {
   });
 
   afterAll(async () => {
-    try {
-      await publicClient?.lock.deleteMany({
-        where: { key: { startsWith: suffix } },
-      });
-      await pool?.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
-    } finally {
-      await publicClient?.$disconnect();
-      await schemaClient?.$disconnect();
-      await pool?.end();
+    const errors: unknown[] = [];
+    for (const step of [
+      () =>
+        publicClient?.lock.deleteMany({
+          where: { key: { startsWith: suffix } },
+        }),
+      () => pool?.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`),
+      () => publicClient?.$disconnect(),
+      () => schemaClient?.$disconnect(),
+      () => pool?.end(),
+    ]) {
+      try {
+        await step();
+      } catch (error) {
+        errors.push(error);
+      }
     }
+    if (errors.length > 0) throw new AggregateError(errors, "Teardown failed");
   });
 
   it("writes and reads each client's rows in its own schema on a shared pool", async () => {

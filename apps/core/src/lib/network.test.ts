@@ -26,6 +26,8 @@ describe("networkKey", () => {
   );
 
   it("requires the Network at compile time", () => {
+    // @ts-expect-error The Network and the name are required.
+    expect(() => networkKey()).toThrow("Unknown Network");
     // @ts-expect-error The Network is required.
     expect(() => networkKey("agents-sync")).toThrow("Unknown Network");
     // @ts-expect-error A deployment `NETWORK` value is not a Network.

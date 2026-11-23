@@ -10,61 +10,26 @@ const DIRECTORIES = [
   "packages/database/scripts",
 ];
 
-// `SET [SESSION] search_path`, its name quoted or not, across lines.
-// `SET LOCAL` does not match.
-const SESSION_SET = /\bSET\s+(?:SESSION\s+)?"?search_path\b/gi;
-const SET_CONFIG = /\bset_config\s*\(/gi;
-
-/** The top-level arguments of the call whose `(` ends at `open`. */
-function callArguments(text: string, open: number): string[] {
-  const args: string[] = [];
-  let depth = 0;
-  let quote: string | null = null;
-  let current = "";
-  for (let index = open; index < text.length; index++) {
-    const char = text[index];
-    if (quote) {
-      if (char === quote) quote = null;
-    } else if (char === "'" || char === '"') {
-      quote = char;
-    } else if ("({[".includes(char)) {
-      depth++;
-    } else if (")}]".includes(char)) {
-      depth--;
-      if (depth === 0) return [...args, current.trim()];
-    } else if (char === "," && depth === 1) {
-      args.push(current.trim());
-      current = "";
-      continue;
-    }
-    if (index !== open) current += char;
-  }
-  return [...args, current.trim()];
-}
+// Every mention of search_path fails unless it is `SET LOCAL search_path`,
+// which lasts one transaction. SQL comments count as whitespace. No file needs
+// an exception today; add one here with its reason if one ever does.
+const SEARCH_PATH = /search_path/gi;
+const GAP = String.raw`(?:\s|/\*[\s\S]*?\*/|--[^\n]*\n)+`;
+const SET_LOCAL_BEFORE = new RegExp(String.raw`\bSET${GAP}LOCAL${GAP}"?$`, "i");
 
 function lineOf(text: string, offset: number): number {
   return text.slice(0, offset).split("\n").length;
 }
 
-/**
- * Lines that set search_path for the session. `set_config('search_path', …)`
- * passes only with a literal `true`, which makes it last one transaction.
- */
 function sessionSearchPathLines(text: string): number[] {
-  const offsets = [...text.matchAll(SESSION_SET)].map((match) => match.index);
-  for (const match of text.matchAll(SET_CONFIG)) {
-    const [name, , isLocal] = callArguments(
-      text,
-      match.index + match[0].length - 1,
-    );
-    if (
-      /^['"]search_path['"]$/i.test(name ?? "") &&
-      !/^true$/i.test(isLocal ?? "")
-    ) {
-      offsets.push(match.index);
-    }
-  }
-  return offsets.sort((a, b) => a - b).map((offset) => lineOf(text, offset));
+  return [...text.matchAll(SEARCH_PATH)]
+    .filter(
+      (match) =>
+        !SET_LOCAL_BEFORE.test(
+          text.slice(Math.max(0, match.index - 200), match.index),
+        ),
+    )
+    .map((match) => lineOf(text, match.index));
 }
 
 function sourceFiles(directory: string): string[] {
@@ -107,6 +72,15 @@ describe("session state on the shared pool", () => {
       "parameterised flag",
       "SELECT set_config('search_path', ${schema}, ${isLocal})",
     ],
+    ["text cast", "SELECT set_config('search_path'::text, 'x', false)"],
+    [
+      "comment between the words",
+      "await prisma.$executeRawUnsafe(`SET /* why */ search_path TO x`);",
+    ],
+    [
+      "set_config with true",
+      "SELECT set_config(\n  'search_path',\n  quote_ident(${schema}),\n  TRUE\n)",
+    ],
   ])("finds a session search_path written as %s", (_name, source) => {
     expect(sessionSearchPathLines(source)).toHaveLength(1);
   });
@@ -121,14 +95,14 @@ describe("session state on the shared pool", () => {
       "await tx.$executeRawUnsafe(`SET\n  LOCAL search_path TO x`);",
     ],
     [
-      "set_config with true",
-      "SELECT set_config(\n  'search_path',\n  quote_ident(${schema}),\n  TRUE\n)",
+      "comments between the words",
+      "await tx.$executeRawUnsafe(`SET /* why */ LOCAL -- note\n search_path TO x`);",
     ],
   ])("allows %s", (_name, source) => {
     expect(sessionSearchPathLines(source)).toEqual([]);
   });
 
-  it("finds a plain or session SET search_path, and lets SET LOCAL pass", () => {
+  it("finds every search_path that is not SET LOCAL, with its line", () => {
     expect(
       sessionSearchPathLines(
         [
@@ -139,7 +113,7 @@ describe("session state on the shared pool", () => {
           "SELECT set_config('search_path', 'x', true)",
         ].join("\n"),
       ),
-    ).toEqual([2, 3, 4]);
+    ).toEqual([2, 3, 4, 5]);
   });
 
   it("never sets search_path for the session: the three clients share connections", () => {

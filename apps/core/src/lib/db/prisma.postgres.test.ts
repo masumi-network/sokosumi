@@ -50,6 +50,19 @@ const email = `${key}@example.test`;
 type Clients = typeof import("./prisma");
 type Admin = ReturnType<typeof createPrismaClient>;
 
+/** Runs every step, even after one fails, then throws what failed. */
+async function runEach(steps: (() => unknown)[]) {
+  const errors: unknown[] = [];
+  for (const step of steps) {
+    try {
+      await step();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  if (errors.length > 0) throw new AggregateError(errors, "Teardown failed");
+}
+
 function table(schema: string, name: string) {
   return PrismaRaw.raw(`"${schema}"."${name}"`);
 }
@@ -100,25 +113,21 @@ describe.runIf(enabled)("Core database clients on PostgreSQL", () => {
   });
 
   afterAll(async () => {
-    try {
-      if (clients) {
-        await clients.default.$disconnect();
-        await clients.networkPrisma("mainnet").$disconnect();
-        await clients.networkPrisma("preprod").$disconnect();
-      }
-      for (const pool of pools) await pool.end();
-    } finally {
-      vi.unstubAllEnvs();
-      try {
-        for (const schema of Object.values(schemas)) {
-          await admin?.$executeRawUnsafe(
-            `DROP SCHEMA IF EXISTS "${schema}" CASCADE`,
-          );
-        }
-      } finally {
-        await admin?.$disconnect();
-      }
-    }
+    vi.unstubAllEnvs();
+    await runEach([
+      () => clients?.default.$disconnect(),
+      () => clients?.networkPrisma("mainnet").$disconnect(),
+      () => clients?.networkPrisma("preprod").$disconnect(),
+      ...pools.map((pool) => () => pool.end()),
+      // A client sent to `public` by mistake leaves its rows there.
+      () => admin?.lock.deleteMany({ where: { key: { startsWith: key } } }),
+      () => admin?.user.deleteMany({ where: { email } }),
+      ...Object.values(schemas).map(
+        (schema) => () =>
+          admin?.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`),
+      ),
+      () => admin?.$disconnect(),
+    ]);
   });
 
   it("keeps each client's rows in its own schema under concurrent use", async () => {
