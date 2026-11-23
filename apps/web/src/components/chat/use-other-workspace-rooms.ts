@@ -9,6 +9,7 @@ import {
 import { useState } from "react";
 import {
   useOtherWorkspaceRoomsLiveSync,
+  wasOtherWorkspaceRoomRevokedSince,
   withWorkspaceOf,
 } from "@/hooks/effects/use-other-workspace-rooms-live-sync";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
@@ -60,7 +61,10 @@ async function readOtherWorkspaceRooms({
   if (current && requestRevision < pinsChangedAtRevision) {
     return current;
   }
-  return reconcileRoomAttention(rooms, requestRevision);
+  const visible = rooms.filter(
+    (room) => !wasOtherWorkspaceRoomRevokedSince(room.id, requestRevision),
+  );
+  return reconcileRoomAttention(visible, requestRevision);
 }
 
 /**
