@@ -199,7 +199,7 @@ export default function SocialButtons({
               // contrast; handleClick already ignores clicks while waiting.
               disabled={isWaiting && !isPending}
               className={cn(
-                "text-foreground! m-0! flex h-auto! min-h-10! w-full! rounded-md! border! px-4! py-2! text-sm! shadow-none! transition-colors! duration-300! disabled:pointer-events-none! disabled:opacity-50! [&>div]:justify-center! [&>div]:gap-2! [&>div_div]:w-auto!",
+                "text-foreground! m-0! flex h-auto! min-h-10! w-full! rounded-md! border! px-4! py-1! text-sm! shadow-none! transition-colors! duration-300! disabled:pointer-events-none! disabled:opacity-50! [&>div]:justify-center! [&>div]:gap-2! [&>div_div]:w-auto!",
                 isPending && "cursor-progress!",
                 isLastUsed
                   ? "border-border! bg-muted! hover:bg-quinary!"
