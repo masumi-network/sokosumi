@@ -4,6 +4,11 @@ import {
   getOAuthProviderState,
   type OAuthOptions,
 } from "@better-auth/oauth-provider";
+import {
+  OAUTH_SCOPE_MCP,
+  OAUTH_SCOPE_OFFLINE_ACCESS,
+  OAUTH_SCOPE_OPENID,
+} from "@sokosumi/utils";
 import type { DBAdapter, GenericEndpointContext } from "better-auth";
 import { getOAuthState } from "better-auth/api";
 import { symmetricDecrypt } from "better-auth/crypto";
@@ -22,6 +27,55 @@ export const oauthRefreshTokenOptions = {
   // response instead of signing the person out (default: 0, off).
   refreshTokenReuseInterval: 30,
 } satisfies Partial<OAuthOptions>;
+
+/**
+ * Open dynamic client registration (RFC 7591), so MCP clients such as Claude
+ * Code and Claude.ai connect by URL (ADR 0076). Anyone can register, so a
+ * registered client may ask only for the MCP server's scopes, never
+ * `sokosumi:api`, and is linked to the MCP resource. Web's
+ * `/oauth2/create-client` is not dynamic registration and keeps every scope;
+ * its clients get the MCP link too, which grants nothing without
+ * `sokosumi:mcp` on the client.
+ */
+export function clientRegistrationOptions(mcpResourceIdentifier: string) {
+  return {
+    allowDynamicClientRegistration: true,
+    allowUnauthenticatedClientRegistration: true,
+    // Better Auth stores this whole list on every registered client and
+    // refuses a registration that asks for any other scope.
+    clientRegistrationDefaultScopes: [
+      OAUTH_SCOPE_OPENID,
+      OAUTH_SCOPE_MCP,
+      OAUTH_SCOPE_OFFLINE_ACCESS,
+    ],
+    clientRegistrationDefaultResources: [mcpResourceIdentifier],
+    // A loopback or custom-scheme redirect, as Claude Code sends without an
+    // `application_type`, makes a native client instead of a refused web one.
+    clientRegistrationDefaultApplicationType: "infer",
+    rateLimit: { register: { window: 60, max: 10 } },
+  } satisfies Partial<OAuthOptions<string[]>>;
+}
+
+/**
+ * Before hook: dynamic registration makes public clients only, with no secret
+ * and PKCE on every authorization. RFC 7591 §3.2.1 lets the server replace a
+ * requested value; the response tells the client the method it got.
+ */
+export function registerPublicClientsOnly(ctx: {
+  path?: string;
+  body?: unknown;
+}) {
+  if (
+    ctx.path !== "/oauth2/register" ||
+    typeof ctx.body !== "object" ||
+    ctx.body === null
+  ) {
+    return;
+  }
+  return {
+    context: { body: { ...ctx.body, token_endpoint_auth_method: "none" } },
+  };
+}
 
 /**
  * Revokes every access and refresh token the OAuth provider holds for a user,

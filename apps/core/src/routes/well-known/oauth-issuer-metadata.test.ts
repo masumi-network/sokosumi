@@ -23,6 +23,9 @@ describe("well-known oauth issuer metadata integration", () => {
       issuer: string;
       authorization_endpoint: string;
       token_endpoint: string;
+      registration_endpoint: string;
+      code_challenge_methods_supported: string[];
+      token_endpoint_auth_methods_supported: string[];
     };
 
     expect(metadata.issuer).toMatch(/\/auth$/);
@@ -30,6 +33,12 @@ describe("well-known oauth issuer metadata integration", () => {
       `${metadata.issuer}/oauth2/authorize`,
     );
     expect(metadata.token_endpoint).toBe(`${metadata.issuer}/oauth2/token`);
+    // MCP clients register themselves as public PKCE clients (ADR 0076).
+    expect(metadata.registration_endpoint).toBe(
+      `${metadata.issuer}/oauth2/register`,
+    );
+    expect(metadata.code_challenge_methods_supported).toEqual(["S256"]);
+    expect(metadata.token_endpoint_auth_methods_supported).toContain("none");
     // Bumped from vitest's 5s default: this boots the whole Better Auth
     // handler, and that cold start exceeds 5s under full-suite parallel load
     // even though the test takes ~1.5s in isolation. Observed failing at

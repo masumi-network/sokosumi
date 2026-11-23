@@ -40,10 +40,12 @@ A new client is **identity-only**. Core API access needs `sokosumi:api` in all t
 
 ## MCP server
 
-Sokosumi's MCP server is a protected resource of the same issuer, at `{Core origin}/mcp`, for example `https://api.sokosumi.com/mcp` ([ADR 0076](./adr/0076-mcp-tokens-are-audience-bound-jwts-for-a-core-hosted-resource.md)). Not open yet: the `/mcp` endpoint and client registration for it are still being built.
+Sokosumi's MCP server is a protected resource of the same issuer, at `{Core origin}/mcp`, for example `https://api.sokosumi.com/mcp` ([ADR 0076](./adr/0076-mcp-tokens-are-audience-bound-jwts-for-a-core-hosted-resource.md)). Not open yet: the `/mcp` endpoint itself is still being built. Client registration is open.
 
 - Discover it from `GET https://api.sokosumi.com/.well-known/oauth-protected-resource/mcp` (RFC 9728): `resource`, `authorization_servers` and `scopes_supported`.
-- Authorize and exchange the code with `resource=https://api.sokosumi.com/mcp` (RFC 8707) and `scope=openid sokosumi:mcp offline_access`. The client must be linked to the resource, and the user consents to it on Sokosumi's consent page.
+- Register without signing in: `POST {issuer}/oauth2/register` (RFC 7591), the `registration_endpoint` in the issuer's metadata. Core makes a public client with no secret, whatever `token_endpoint_auth_method` you send, and links it to the MCP resource. It may ask for `openid`, `sokosumi:mcp` and `offline_access` only; a registration that asks for `sokosumi:api` gets `400 invalid_scope`. A loopback or custom-scheme redirect URI registers a native client. Each IP may register 10 clients a minute.
+- Every authorization uses PKCE with `S256`.
+- Authorize and exchange the code with `resource=https://api.sokosumi.com/mcp` (RFC 8707) and `scope=openid sokosumi:mcp offline_access`. A registered client is linked to the resource already, and the user consents to it on Sokosumi's consent page.
 - The access token is a JWT with `aud` set to the resource. It lasts 15 minutes and carries only `openid`, `sokosumi:mcp` and `offline_access`, even when the request asks for `sokosumi:api`.
 - The MCP server accepts only that JWT. Core `/v1` rejects it with 401, and the MCP server rejects `/v1` tokens and API keys the same way.
 - Banning the user, disabling the client or withdrawing consent ends the token on its next use. Revoking the app's tokens stops its refresh token; an access token it holds works until it expires.
