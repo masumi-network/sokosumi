@@ -332,15 +332,22 @@ describe("ProjectBrandCard", () => {
       screen.getByRole("button", { name: "Generate from website" }),
     ).toHaveAttribute("type", "submit");
     expect(screen.getByRole("button", { name: "Upload" })).toBeInTheDocument();
-    // Choosing Upload leaves no empty button row above the upload form.
+    // Upload shares Generate's row; choosing it leaves Generate in place and
+    // opens the upload form below.
+    const actionRow = screen.getByRole("button", {
+      name: "Generate from website",
+    }).parentElement;
+    expect(actionRow).toContainElement(
+      screen.getByRole("button", { name: "Upload" }),
+    );
     await userEvent
       .setup()
       .click(screen.getByRole("button", { name: "Upload" }));
     expect(screen.queryByRole("button", { name: "Upload" })).toBeNull();
     expect(screen.getByRole("button", { name: "Start upload" })).toBeTruthy();
     expect(
-      screen.getByTestId("project-brand-card").querySelector(".flex-wrap"),
-    ).toBeNull();
+      screen.getByRole("button", { name: "Generate from website" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(
         "Add a project website before generating brand context.",
