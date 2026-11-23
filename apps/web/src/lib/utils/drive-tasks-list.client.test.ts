@@ -450,4 +450,33 @@ describe("fetchDriveTasksPage", () => {
     expect(call.query).not.toHaveProperty("sortBy");
     expect(call.query).not.toHaveProperty("sortOrder");
   });
+
+  it("returns selectedProject and selectedTask metadata from pagination", async () => {
+    getDriveTasksMock.mockResolvedValue({
+      data: {
+        data: [],
+        meta: {
+          pagination: {
+            nextCursor: null,
+            selectedProject: { id: "proj-p2", name: "Page 2 Project" },
+            selectedTask: { id: "task-p2", name: "Page 2 Task" },
+          },
+        },
+      },
+    });
+
+    const result = await fetchDriveTasksPage({
+      scope: "me",
+      taskId: "task-p2",
+    });
+
+    expect(result.selectedProject).toEqual({
+      id: "proj-p2",
+      name: "Page 2 Project",
+    });
+    expect(result.selectedTask).toEqual({
+      id: "task-p2",
+      name: "Page 2 Task",
+    });
+  });
 });

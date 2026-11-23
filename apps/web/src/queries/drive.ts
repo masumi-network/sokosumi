@@ -4,6 +4,7 @@ import type {
   FileSearchFilterState,
   FileStore,
 } from "@/lib/utils/file-search.client";
+import type { FilesSortBy, FilesSortOrder } from "@/lib/utils/files-sort";
 import { buildScopedQueryKey } from "@/queries/scoped-queries";
 
 export const DRIVE_QUERY_ROOT = "drive" as const;
@@ -19,6 +20,15 @@ export interface DriveCatalogQueryParams {
 export interface DriveRecentsQueryParams {
   q?: string;
   tagLabelIds?: readonly string[];
+}
+
+export interface DriveTasksQueryParams {
+  projectId?: string | null;
+  taskId?: string | null;
+  assigneeId?: string | null;
+  q?: string;
+  sortBy?: FilesSortBy | null;
+  sortOrder?: FilesSortOrder | null;
 }
 
 export function normalizeDriveStore(store: FileStore): DriveWorkspaceStore {
@@ -64,6 +74,19 @@ export const driveQueryKeys = {
       tagLabelIds: params.tagLabelIds?.filter(Boolean) ?? [],
     }),
   tags: (store: FileStore) => driveKey(store, "tags"),
+  tasks: (store: FileStore, params: DriveTasksQueryParams = {}) => {
+    const q = params.q?.trim() ?? "";
+    const taskId = q ? null : (params.taskId ?? null);
+    const projectId = q || taskId ? null : (params.projectId ?? null);
+    return driveKey(store, "tasks", {
+      projectId,
+      taskId,
+      assigneeId: params.assigneeId ?? null,
+      q,
+      sortBy: params.sortBy ?? null,
+      sortOrder: params.sortOrder ?? null,
+    });
+  },
 } as const;
 
 export function splitDriveQueryKey<const TRest extends readonly unknown[]>(

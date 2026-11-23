@@ -45,6 +45,7 @@ const {
   prismaTaskFindManyMock,
   prismaTaskGroupByMock,
   prismaTaskCountMock,
+  prismaProjectFindFirstMock,
   prismaProjectFindManyMock,
   prismaMemberFindUniqueMock,
   prismaQueryRawMock,
@@ -66,6 +67,7 @@ const {
   prismaTaskFindManyMock: vi.fn(),
   prismaTaskGroupByMock: vi.fn(),
   prismaTaskCountMock: vi.fn(),
+  prismaProjectFindFirstMock: vi.fn(),
   prismaProjectFindManyMock: vi.fn(),
   prismaMemberFindUniqueMock: vi.fn(),
   prismaQueryRawMock: vi.fn(),
@@ -101,6 +103,7 @@ vi.mock("@/lib/db/prisma", () => ({
       count: prismaTaskCountMock,
     },
     project: {
+      findFirst: prismaProjectFindFirstMock,
       findMany: prismaProjectFindManyMock,
     },
     member: {
@@ -571,6 +574,60 @@ describe("Drive Tasks Routes", () => {
         expect(res.status).toBe(400);
         expect(prismaTaskFileFindManyMock).not.toHaveBeenCalled();
       });
+
+      it("returns selectedTask and parent selectedProject metadata for task-only drill-downs", async () => {
+        requireTaskReadForRouteVarsMock.mockResolvedValue({
+          id: "tsk_page2",
+          name: "Page 2 Task",
+          projectId: "550e8400-e29b-41d4-a716-446655440002",
+        });
+        prismaProjectFindFirstMock.mockResolvedValue({
+          id: "550e8400-e29b-41d4-a716-446655440002",
+          name: "Page 2 Project",
+        });
+        prismaTaskFileFindManyMock.mockResolvedValue([]);
+        prismaTaskFileCountMock.mockResolvedValue(0);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&taskId=tsk_page2",
+        );
+
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.meta.pagination.selectedTask).toEqual({
+          id: "tsk_page2",
+          name: "Page 2 Task",
+        });
+        expect(json.meta.pagination.selectedProject).toEqual({
+          id: "550e8400-e29b-41d4-a716-446655440002",
+          name: "Page 2 Project",
+        });
+      });
+
+      it("returns selectedProject as null for unscoped task drill-downs under type sort too", async () => {
+        requireTaskReadForRouteVarsMock.mockResolvedValue({
+          id: "tsk_unscoped",
+          name: "Solo Task",
+          projectId: null,
+        });
+        prismaTaskFileFindManyMock.mockResolvedValue([]);
+        prismaTaskFileCountMock.mockResolvedValue(0);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&taskId=tsk_unscoped&sortBy=type&sortOrder=asc",
+        );
+
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.meta.pagination.selectedTask).toEqual({
+          id: "tsk_unscoped",
+          name: "Solo Task",
+        });
+        expect(json.meta.pagination.selectedProject).toBeNull();
+        expect(prismaProjectFindFirstMock).not.toHaveBeenCalled();
+      });
     });
 
     describe("Search: task-file rows", () => {
@@ -708,6 +765,33 @@ describe("Drive Tasks Routes", () => {
         const json = await res.json();
         expect(json.data).toHaveLength(1);
         expect(json.data[0].type).toBe("task");
+      });
+
+      it("returns selectedProject metadata for project drill-downs and scopes empty projects to the workspace", async () => {
+        const projectId = "550e8400-e29b-41d4-a716-446655440099";
+        prismaQueryRawMock
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([{ count: 0n }]);
+        prismaProjectFindFirstMock.mockResolvedValueOnce({
+          id: projectId,
+          name: "Page 2 Project",
+        });
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          `http://localhost/?scope=me&projectId=${projectId}`,
+        );
+
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json.meta.pagination.selectedProject).toEqual({
+          id: projectId,
+          name: "Page 2 Project",
+        });
+        expect(prismaProjectFindFirstMock).toHaveBeenCalledWith({
+          where: { id: projectId, workspaceId: "ws_personal" },
+          select: { id: true, name: true },
+        });
       });
 
       it("includes assigneeSokoBotId in task query filters", async () => {

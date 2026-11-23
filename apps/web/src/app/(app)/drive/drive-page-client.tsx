@@ -4,8 +4,6 @@ import type { DriveItem, DriveTasksListItem } from "@sokosumi/core-client";
 import {
   deleteDriveFilesDelete,
   deleteDriveFoldersDelete,
-  getProjectsById,
-  getTasksById,
   patchDriveFilesMove,
   patchDriveFilesRename,
   patchDriveFoldersRename,
@@ -43,14 +41,7 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import {
-  type ReactElement,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ReactElement, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { RoomFileDropZone } from "@/app/chat/components/room-file-drop-zone";
@@ -179,7 +170,10 @@ import {
   invalidateDrive,
   splitDriveQueryKey,
 } from "@/queries/drive";
-import { useScopedQuery } from "@/queries/scoped-queries";
+import {
+  useScopedInfiniteQuery,
+  useScopedQuery,
+} from "@/queries/scoped-queries";
 import { driveNavParams } from "./drive-nav-params";
 
 const filesSortByParser = parseAsStringLiteral([...FILES_SORT_BY_VALUES]);
@@ -306,26 +300,12 @@ function DrivePageWorkspace({
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [uiWorkspaceId, setUiWorkspaceId] = useState(activeOrganizationId);
-  const [tasksItems, setTasksItems] = useState<DriveTasksListItem[]>([]);
-  const [tasksLoading, setTasksLoading] = useState(false);
-  const [tasksNextCursor, setTasksNextCursor] = useState<string | null>(null);
-  const [tasksLoadingMore, setTasksLoadingMore] = useState(false);
   const [copyDialogOpen, setCopyDialogOpen] = useState(false);
   const [tasksFilterSheetOpen, setTasksFilterSheetOpen] = useState(false);
   const [taskFileToCopy, setTaskFileToCopy] =
     useState<DriveTasksListItem | null>(null);
   const [copying, setCopying] = useState(false);
-  const [projectNameCache, setProjectNameCache] = useState<Map<string, string>>(
-    () => new Map(),
-  );
-  const [taskNameCache, setTaskNameCache] = useState<Map<string, string>>(
-    () => new Map(),
-  );
 
-  const loadTasksAbortRef = useRef<AbortController | null>(null);
-  const loadMoreTasksAbortRef = useRef<AbortController | null>(null);
-  const workspaceIdRef = useRef(activeOrganizationId);
-  workspaceIdRef.current = activeOrganizationId;
   const debouncedSetSearchQuery = useDebouncedCallback((value: string) => {
     setDebouncedSearchQuery(value);
   }, getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME);
@@ -345,16 +325,8 @@ function DrivePageWorkspace({
     debouncedSetSearchQuery.cancel();
     setSearchQuery("");
     setDebouncedSearchQuery("");
-    loadTasksAbortRef.current?.abort();
-    loadMoreTasksAbortRef.current?.abort();
-    setTasksItems([]);
-    setTasksLoading(false);
-    setTasksNextCursor(null);
-    setTasksLoadingMore(false);
     setCopyDialogOpen(false);
     setTaskFileToCopy(null);
-    setProjectNameCache(new Map());
-    setTaskNameCache(new Map());
   }
 
   const driveStore = driveStoreForActiveWorkspace(activeOrganizationId);
@@ -502,48 +474,31 @@ function DrivePageWorkspace({
     debouncedSetSearchQuery(value);
   }
 
-  // The catalog renders its own skeleton, so the Workspace tab never uses this.
-  const loading = isTasksView ? tasksLoading : false;
+  const isDriveStoreEnabled =
+    driveStore.scope !== "org" || Boolean(driveStore.organizationId);
+  const trimmedTasksSearchQuery = isTasksSearchActive
+    ? debouncedSearchQuery.trim()
+    : "";
 
-  function refreshDriveItems(options?: InvalidateDriveOptions) {
-    void invalidateDrive(queryClient, driveStore, options);
-  }
-
-  const loadTasksItems = useCallback(async () => {
-    if (!isTasksView) {
-      return;
-    }
-
-    loadTasksAbortRef.current?.abort();
-    loadMoreTasksAbortRef.current?.abort();
-    loadMoreTasksAbortRef.current = null;
-    setTasksLoadingMore(false);
-    const controller = new AbortController();
-    loadTasksAbortRef.current = controller;
-
-    try {
-      if (scope === "org" && !activeOrganizationId) {
-        if (!controller.signal.aborted) {
-          setTasksItems([]);
-          setTasksNextCursor(null);
-          setTasksLoading(false);
-        }
-        return;
-      }
-
-      if (!controller.signal.aborted) {
-        setTasksItems([]);
-        setTasksNextCursor(null);
-        setTasksLoading(true);
-      }
-
-      const page = await fetchDriveTasksPage({
+  const tasksQuery = useScopedInfiniteQuery({
+    ...splitDriveQueryKey(
+      driveQueryKeys.tasks(driveStore, {
+        projectId: projectIdParam,
+        taskId: taskIdParam,
+        assigneeId: assigneeIdParam,
+        q: trimmedTasksSearchQuery,
+        sortBy: filesSortQuery.sortBy,
+        sortOrder: filesSortQuery.sortOrder,
+      }),
+    ),
+    queryFn: ({ pageParam, signal }) =>
+      fetchDriveTasksPage({
         scope,
         ...(scope === "org" && activeOrganizationId
           ? { organizationId: activeOrganizationId }
           : {}),
-        ...(isTasksSearchActive
-          ? { q: debouncedSearchQuery.trim() }
+        ...(trimmedTasksSearchQuery
+          ? { q: trimmedTasksSearchQuery }
           : taskIdParam
             ? { taskId: taskIdParam }
             : projectIdParam
@@ -551,229 +506,98 @@ function DrivePageWorkspace({
               : {}),
         ...(assigneeIdParam ? { assigneeId: assigneeIdParam } : {}),
         ...filesSortQuery,
-        signal: controller.signal,
-      });
+        ...(pageParam ? { cursor: pageParam } : {}),
+        signal,
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled: isTasksView && isDriveStoreEnabled,
+    // Task outputs are produced outside Drive, so returning to the Tasks view
+    // keeps cached rows visible and refetches in the background like main.
+    staleTime: 0,
+  });
 
-      if (!controller.signal.aborted) {
-        setTasksItems(page.items);
-        setTasksNextCursor(page.nextCursor);
-        setProjectNameCache((prev) => {
-          const next = new Map(prev);
-          for (const item of page.items) {
-            if (item.type === "project") {
-              next.set(item.id, item.name);
-            }
-          }
-          return next;
-        });
-        setTaskNameCache((prev) => {
-          const next = new Map(prev);
-          for (const item of page.items) {
-            if (item.type === "task") {
-              next.set(item.id, item.name);
-            }
-          }
-          return next;
-        });
-      }
-    } catch (err) {
-      if (!controller.signal.aborted) {
-        console.error("Failed to load tasks", err);
-        toast.error(t("loadTasksError"));
-      }
-    } finally {
-      if (!controller.signal.aborted) {
-        setTasksLoading(false);
-      }
-    }
-  }, [
-    isTasksView,
-    isTasksSearchActive,
-    debouncedSearchQuery,
-    scope,
-    activeOrganizationId,
-    projectIdParam,
-    taskIdParam,
-    assigneeIdParam,
-    filesSortQuery.sortBy,
-    filesSortQuery.sortOrder,
-    t,
-  ]);
-
-  const loadMoreTasksItems = useCallback(async () => {
-    if (!isTasksView || !tasksNextCursor || tasksLoadingMore) {
-      return;
-    }
-
-    if (scope === "org" && !activeOrganizationId) {
-      return;
-    }
-
-    loadMoreTasksAbortRef.current?.abort();
-    const controller = new AbortController();
-    loadMoreTasksAbortRef.current = controller;
-    const workspaceIdAtRequest = workspaceIdRef.current;
-    const queryAtRequest = {
-      scope,
-      organizationId: activeOrganizationId,
-      projectId: projectIdParam,
-      taskId: taskIdParam,
-      assigneeId: assigneeIdParam,
-      searchQuery: debouncedSearchQuery.trim(),
-      cursor: tasksNextCursor,
-      sortBy: filesSortQuery.sortBy,
-      sortOrder: filesSortQuery.sortOrder,
-    };
-
-    setTasksLoadingMore(true);
-    try {
-      const page = await fetchDriveTasksPage({
-        scope: queryAtRequest.scope,
-        ...(queryAtRequest.scope === "org" && queryAtRequest.organizationId
-          ? { organizationId: queryAtRequest.organizationId }
+  const drillDownSelectionQuery = useScopedInfiniteQuery({
+    ...splitDriveQueryKey(
+      driveQueryKeys.tasks(driveStore, {
+        projectId: projectIdParam,
+        taskId: taskIdParam,
+        assigneeId: assigneeIdParam,
+        q: "",
+        sortBy: filesSortQuery.sortBy,
+        sortOrder: filesSortQuery.sortOrder,
+      }),
+    ),
+    queryFn: ({ pageParam, signal }) =>
+      fetchDriveTasksPage({
+        scope,
+        ...(scope === "org" && activeOrganizationId
+          ? { organizationId: activeOrganizationId }
           : {}),
-        ...(queryAtRequest.searchQuery
-          ? { q: queryAtRequest.searchQuery }
-          : queryAtRequest.taskId
-            ? { taskId: queryAtRequest.taskId }
-            : queryAtRequest.projectId
-              ? { projectId: queryAtRequest.projectId }
-              : {}),
-        ...(queryAtRequest.assigneeId
-          ? { assigneeId: queryAtRequest.assigneeId }
-          : {}),
-        ...(queryAtRequest.sortBy ? { sortBy: queryAtRequest.sortBy } : {}),
-        ...(queryAtRequest.sortOrder
-          ? { sortOrder: queryAtRequest.sortOrder }
-          : {}),
-        cursor: queryAtRequest.cursor,
-        signal: controller.signal,
-      });
+        ...(taskIdParam
+          ? { taskId: taskIdParam }
+          : projectIdParam
+            ? { projectId: projectIdParam }
+            : {}),
+        ...(assigneeIdParam ? { assigneeId: assigneeIdParam } : {}),
+        ...filesSortQuery,
+        ...(pageParam ? { cursor: pageParam } : {}),
+        signal,
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    // Reads cached selectedProject / selectedTask from the unsearched
+    // drill-down key during search without refetching warm entries, while
+    // fetching once if selection or sort changes to an uncached key (and
+    // still refetching on invalidateDrive).
+    enabled:
+      isTasksView &&
+      isDriveStoreEnabled &&
+      isTasksSearchActive &&
+      Boolean(projectIdParam || taskIdParam),
+    staleTime: Number.POSITIVE_INFINITY,
+  });
 
-      const queryStillMatches =
-        workspaceIdRef.current === workspaceIdAtRequest &&
-        scope === queryAtRequest.scope &&
-        activeOrganizationId === queryAtRequest.organizationId &&
-        projectIdParam === queryAtRequest.projectId &&
-        taskIdParam === queryAtRequest.taskId &&
-        assigneeIdParam === queryAtRequest.assigneeId &&
-        debouncedSearchQuery.trim() === queryAtRequest.searchQuery &&
-        filesSortQuery.sortBy === queryAtRequest.sortBy &&
-        filesSortQuery.sortOrder === queryAtRequest.sortOrder;
+  const firstTasksPage = isTasksSearchActive
+    ? drillDownSelectionQuery.data?.pages[0]
+    : tasksQuery.data?.pages[0];
+  const selectedProject = firstTasksPage?.selectedProject ?? null;
+  const selectedTask = firstTasksPage?.selectedTask ?? null;
+  const effectiveProjectId =
+    projectIdParam ??
+    (taskIdParam && firstTasksPage && "selectedProject" in firstTasksPage
+      ? (selectedProject?.id ?? "null")
+      : null);
 
-      if (controller.signal.aborted || !queryStillMatches) {
-        return;
-      }
-
-      setTasksItems((current) => [...current, ...page.items]);
-      setTasksNextCursor(page.nextCursor);
-      setProjectNameCache((prev) => {
-        const next = new Map(prev);
-        for (const item of page.items) {
-          if (item.type === "project") {
-            next.set(item.id, item.name);
-          }
-        }
-        return next;
-      });
-      setTaskNameCache((prev) => {
-        const next = new Map(prev);
-        for (const item of page.items) {
-          if (item.type === "task") {
-            next.set(item.id, item.name);
-          }
-        }
-        return next;
-      });
-    } catch (err) {
-      if (!controller.signal.aborted) {
-        console.error("Failed to load more tasks", err);
-        toast.error(t("loadMoreTasksError"));
-      }
-    } finally {
-      if (!controller.signal.aborted) {
-        setTasksLoadingMore(false);
+  const tasksItems = useMemo(() => {
+    const pages = tasksQuery.data?.pages ?? [];
+    const seen = new Set<string>();
+    const flattened: DriveTasksListItem[] = [];
+    for (const page of pages) {
+      for (const item of page.items) {
+        const key = `${item.type}:${item.id}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        flattened.push(item);
       }
     }
-  }, [
-    isTasksView,
-    tasksNextCursor,
-    tasksLoadingMore,
-    scope,
-    activeOrganizationId,
-    projectIdParam,
-    taskIdParam,
-    assigneeIdParam,
-    debouncedSearchQuery,
-    filesSortQuery.sortBy,
-    filesSortQuery.sortOrder,
-    t,
-  ]);
+    return flattened;
+  }, [tasksQuery.data?.pages]);
 
-  useEffect(() => {
-    if (isTasksView) {
-      void loadTasksItems();
-    }
-  }, [isTasksView, loadTasksItems]);
+  const isRefreshingTasksPageOne =
+    tasksQuery.isFetching && !tasksQuery.isFetchingNextPage;
+  const isTasksEmptyError =
+    isTasksView && tasksQuery.isError && tasksItems.length === 0;
+  // The catalog renders its own skeleton, so the Workspace tab never uses this.
+  const loading =
+    isTasksView &&
+    isDriveStoreEnabled &&
+    (tasksQuery.isPending ||
+      (tasksItems.length === 0 && tasksQuery.isFetching));
 
-  useEffect(() => {
-    if (!isTasksView) {
-      return;
-    }
-
-    async function fetchMissingNames() {
-      try {
-        if (
-          projectIdParam &&
-          projectIdParam !== "null" &&
-          !projectNameCache.has(projectIdParam) &&
-          !tasksItems.some(
-            (item) => item.type === "project" && item.id === projectIdParam,
-          )
-        ) {
-          const response = await getProjectsById({
-            client: getBrowserCoreClient(),
-            path: { id: projectIdParam },
-            throwOnError: true,
-          });
-          const project = response.data?.data;
-          if (project?.id && project?.name) {
-            setProjectNameCache((prev) => {
-              const next = new Map(prev);
-              next.set(project.id, project.name);
-              return next;
-            });
-          }
-        }
-
-        if (
-          taskIdParam &&
-          !taskNameCache.has(taskIdParam) &&
-          !tasksItems.some(
-            (item) => item.type === "task" && item.id === taskIdParam,
-          )
-        ) {
-          const response = await getTasksById({
-            client: getBrowserCoreClient(),
-            path: { id: taskIdParam },
-            throwOnError: true,
-          });
-          const task = response.data?.data;
-          if (task?.id && task?.name) {
-            setTaskNameCache((prev) => {
-              const next = new Map(prev);
-              next.set(task.id, task.name);
-              return next;
-            });
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch missing names", err);
-      }
-    }
-
-    void fetchMissingNames();
-  }, [isTasksView, projectIdParam, taskIdParam, tasksItems]);
+  function refreshDriveItems(options?: InvalidateDriveOptions) {
+    void invalidateDrive(queryClient, driveStore, options);
+  }
 
   const organizationName = useDriveOrganizationName(
     activeOrganizationId,
@@ -1053,14 +877,7 @@ function DrivePageWorkspace({
     router.push(`/drive?${params.toString()}`);
   }
 
-  function navigateToProject(projectId: string, projectName?: string) {
-    if (projectName) {
-      setProjectNameCache((prev) => {
-        const next = new Map(prev);
-        next.set(projectId, projectName);
-        return next;
-      });
-    }
+  function navigateToProject(projectId: string) {
     const params = driveNavParams(searchParams);
     params.set("view", "tasks");
     params.set("projectId", projectId);
@@ -1069,14 +886,7 @@ function DrivePageWorkspace({
     router.push(`/drive?${params.toString()}`);
   }
 
-  function navigateToTask(taskId: string, taskName?: string) {
-    if (taskName) {
-      setTaskNameCache((prev) => {
-        const next = new Map(prev);
-        next.set(taskId, taskName);
-        return next;
-      });
-    }
+  function navigateToTask(taskId: string) {
     const params = driveNavParams(searchParams);
     params.set("view", "tasks");
     params.set("taskId", taskId);
@@ -1408,7 +1218,8 @@ function DrivePageWorkspace({
     return [];
   })();
 
-  const emptyState = !loading && isTasksView && exploreItems.length === 0;
+  const emptyState =
+    !loading && !isTasksEmptyError && isTasksView && exploreItems.length === 0;
   const hasItems = exploreItems.length > 0;
 
   const tasksBreadcrumbs = (() => {
@@ -1418,28 +1229,21 @@ function DrivePageWorkspace({
     const crumbs: Array<{ label: string; onClick: () => void }> = [
       { label: t("tasksBreadcrumbLabel"), onClick: navigateToTasksRoot },
     ];
-    if (projectIdParam) {
-      const project = tasksItems.find(
-        (item) => item.type === "project" && item.id === projectIdParam,
-      );
-      const cachedName = projectNameCache.get(projectIdParam);
+    if (effectiveProjectId) {
       const projectName =
-        project && project.type === "project"
-          ? project.name
-          : cachedName ||
-            (projectIdParam === "null" ? t("noProject") : projectIdParam);
+        selectedProject?.id === effectiveProjectId
+          ? selectedProject.name
+          : effectiveProjectId === "null"
+            ? t("noProject")
+            : effectiveProjectId;
       crumbs.push({
         label: projectName,
-        onClick: () => navigateToProject(projectIdParam),
+        onClick: () => navigateToProject(effectiveProjectId),
       });
     }
     if (taskIdParam) {
-      const task = tasksItems.find(
-        (item) => item.type === "task" && item.id === taskIdParam,
-      );
-      const cachedName = taskNameCache.get(taskIdParam);
       const taskName =
-        task && task.type === "task" ? task.name : cachedName || taskIdParam;
+        selectedTask?.id === taskIdParam ? selectedTask.name : taskIdParam;
       crumbs.push({
         label: taskName,
         onClick: () => navigateToTask(taskIdParam),
@@ -1466,6 +1270,7 @@ function DrivePageWorkspace({
     taskLabel: t("filterTaskLabel"),
     noProjectLabel: t("noProject"),
     loadMore: t("loadMore"),
+    retry: t("Files.retry"),
   };
 
   const driveTablesFilterLabels = {
@@ -1664,7 +1469,9 @@ function DrivePageWorkspace({
       {/* Drive scopes to a Project only on the Tasks view. */}
       <DriveCmoProjectBanner
         projectId={
-          isTasksView && projectIdParam !== "null" ? projectIdParam : null
+          isTasksView && effectiveProjectId !== "null"
+            ? effectiveProjectId
+            : null
         }
       />
       <div className="mb-4 flex flex-col gap-4 md:mb-6">
@@ -1729,8 +1536,10 @@ function DrivePageWorkspace({
                   <DriveTasksFilters
                     activeOrganizationId={activeOrganizationId}
                     assigneeId={assigneeIdParam}
-                    projectId={projectIdParam}
+                    projectId={effectiveProjectId}
                     taskId={taskIdParam}
+                    selectedProject={selectedProject}
+                    selectedTask={selectedTask}
                     labels={driveTasksFilterLabels}
                     hideMobileTrigger
                     sheetOpen={tasksFilterSheetOpen}
@@ -1972,6 +1781,25 @@ function DrivePageWorkspace({
         />
       ) : loading ? (
         <DriveListSkeleton viewMode={layoutMode} />
+      ) : isTasksEmptyError ? (
+        <div
+          className={cn(
+            "bg-card-background flex flex-col items-center justify-center overflow-hidden rounded-xl px-4 py-12 text-center text-sm",
+            PROJECTS_LIST_CARD_MIN_H_CLASS,
+          )}
+          role="alert"
+        >
+          <p>{t("loadTasksError")}</p>
+          <Button
+            type="button"
+            className="mt-3"
+            variant="outline"
+            size="sm"
+            onClick={() => void tasksQuery.refetch()}
+          >
+            {t("Files.retry")}
+          </Button>
+        </div>
       ) : emptyState ? (
         <div
           className={cn(
@@ -2034,7 +1862,7 @@ function DrivePageWorkspace({
                     key={`project-${item.id}`}
                     viewMode={layoutMode}
                     activateLabel={item.name}
-                    onActivate={() => navigateToProject(item.id, item.name)}
+                    onActivate={() => navigateToProject(item.id)}
                   >
                     <div className={driveItemIconWellClass(layoutMode)}>
                       <Folder className="text-muted-foreground size-5" />
@@ -2105,7 +1933,7 @@ function DrivePageWorkspace({
                     key={`task-${item.id}`}
                     viewMode={layoutMode}
                     activateLabel={item.name}
-                    onActivate={() => navigateToTask(item.id, item.name)}
+                    onActivate={() => navigateToTask(item.id)}
                   >
                     <div className={driveItemIconWellClass(layoutMode)}>
                       <Folder className="text-muted-foreground size-5" />
@@ -2248,14 +2076,48 @@ function DrivePageWorkspace({
                */
               return null;
             })}
-            {isTasksView && tasksNextCursor ? (
+            {isTasksView && tasksQuery.isError ? (
+              <div
+                className="flex items-center justify-center gap-2 py-4 text-sm"
+                role="alert"
+              >
+                <span className="text-muted-foreground">
+                  {tasksQuery.isFetchNextPageError
+                    ? t("loadMoreTasksError")
+                    : t("loadTasksError")}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  loading={
+                    tasksQuery.isFetchNextPageError
+                      ? tasksQuery.isFetchingNextPage
+                      : isRefreshingTasksPageOne
+                  }
+                  disabled={
+                    tasksQuery.isFetchNextPageError && isRefreshingTasksPageOne
+                  }
+                  onClick={() =>
+                    void (tasksQuery.isFetchNextPageError
+                      ? tasksQuery.fetchNextPage({ cancelRefetch: false })
+                      : tasksQuery.refetch())
+                  }
+                >
+                  {t("Files.retry")}
+                </Button>
+              </div>
+            ) : isTasksView && tasksQuery.hasNextPage ? (
               <div className="flex justify-center py-4">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => void loadMoreTasksItems()}
-                  disabled={tasksLoadingMore}
+                  loading={tasksQuery.isFetchingNextPage}
+                  disabled={isRefreshingTasksPageOne}
+                  onClick={() =>
+                    void tasksQuery.fetchNextPage({ cancelRefetch: false })
+                  }
                 >
                   {t("loadMore")}
                 </Button>

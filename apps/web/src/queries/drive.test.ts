@@ -112,6 +112,77 @@ describe("driveQueryKeys", () => {
       { q: "invoice", tagLabelIds: ["tag_a", "tag_b"] },
     ]);
     expect(driveQueryKeys.tags(orgA)).toEqual([orgA, "drive", "tags"]);
+    expect(driveQueryKeys.tasks(orgA)).toEqual([
+      orgA,
+      "drive",
+      "tasks",
+      {
+        projectId: null,
+        taskId: null,
+        assigneeId: null,
+        q: "",
+        sortBy: null,
+        sortOrder: null,
+      },
+    ]);
+    expect(
+      driveQueryKeys.tasks(orgA, {
+        projectId: "proj_1",
+        assigneeId: "cow_1",
+        sortBy: "name",
+        sortOrder: "asc",
+      }),
+    ).toEqual([
+      orgA,
+      "drive",
+      "tasks",
+      {
+        projectId: "proj_1",
+        taskId: null,
+        assigneeId: "cow_1",
+        q: "",
+        sortBy: "name",
+        sortOrder: "asc",
+      },
+    ]);
+    // taskId takes precedence over projectId; q takes precedence over both.
+    expect(
+      driveQueryKeys.tasks(orgA, {
+        projectId: "proj_1",
+        taskId: "task_1",
+      }),
+    ).toEqual([
+      orgA,
+      "drive",
+      "tasks",
+      {
+        projectId: null,
+        taskId: "task_1",
+        assigneeId: null,
+        q: "",
+        sortBy: null,
+        sortOrder: null,
+      },
+    ]);
+    expect(
+      driveQueryKeys.tasks(orgA, {
+        projectId: "proj_1",
+        taskId: "task_1",
+        q: "  mockup  ",
+      }),
+    ).toEqual([
+      orgA,
+      "drive",
+      "tasks",
+      {
+        projectId: null,
+        taskId: null,
+        assigneeId: null,
+        q: "mockup",
+        sortBy: null,
+        sortOrder: null,
+      },
+    ]);
   });
 
   it("round-trips splitDriveQueryKey through buildScopedQueryKey", () => {

@@ -41,6 +41,9 @@ vi.mock("@/lib/db/prisma", () => ({
     task: {
       findFirst: prismaTaskFindFirstMock,
     },
+    project: {
+      findFirst: vi.fn(),
+    },
     member: {
       findUnique: vi.fn(),
     },

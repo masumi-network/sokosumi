@@ -45,6 +45,7 @@ import {
 import {
   type DriveTasksListItem,
   driveTasksListSchema,
+  driveTasksPaginationMetaSchema,
 } from "@/schemas/drive-tasks.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
@@ -144,6 +145,8 @@ const route = withCoworkerContextHeaderParameters(
       200: jsonPaginatedSuccessResponse(
         driveTasksListSchema,
         "Drive Tasks list retrieved",
+        undefined,
+        driveTasksPaginationMetaSchema,
       ),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
@@ -483,7 +486,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (taskId) {
-      await requireTaskReadForRouteVars(c.var, taskId);
+      const task = await requireTaskReadForRouteVars(c.var, taskId);
 
       const taskFileWhere = {
         taskId,
@@ -503,6 +506,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
+      const selectedTask =
+        task?.id && task?.name ? { id: task.id, name: task.name } : null;
+      const selectedProjectPromise = task?.projectId
+        ? prisma.project.findFirst({
+            where: { id: task.projectId },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve(null);
+
       const useInMemoryTypeSort = sort?.sortBy === "type";
       const takePlusOne = take + 1;
 
@@ -516,11 +528,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           );
         }
 
-        const taskFiles = await prisma.taskFile.findMany({
-          where: taskFileWhere,
-          take: MAX_TASK_FILES_FOR_TYPE_SORT,
-          orderBy: [{ name: "asc" }, { id: "asc" }],
-        });
+        const [taskFiles, selectedProjectRow] = await Promise.all([
+          prisma.taskFile.findMany({
+            where: taskFileWhere,
+            take: MAX_TASK_FILES_FOR_TYPE_SORT,
+            orderBy: [{ name: "asc" }, { id: "asc" }],
+          }),
+          selectedProjectPromise,
+        ]);
 
         const sorted = sortTaskFilesInMemory(taskFiles, sort);
         let startIndex = 0;
@@ -561,17 +576,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             } => item !== null,
           );
 
-        const paginationMeta = createPaginationMeta(
-          pagedFiles,
-          taskFileCount,
-          take,
-          hasMore,
-          cursor,
-        );
+        const paginationMeta = driveTasksPaginationMetaSchema.parse({
+          ...createPaginationMeta(
+            pagedFiles,
+            taskFileCount,
+            take,
+            hasMore,
+            cursor,
+          ),
+          selectedProject: selectedProjectRow
+            ? { id: selectedProjectRow.id, name: selectedProjectRow.name }
+            : null,
+          selectedTask,
+        });
         return ok(c, driveTasksListSchema.parse(items), paginationMeta);
       }
 
-      const [taskFiles, taskFileCount] = await Promise.all([
+      const [taskFiles, taskFileCount, selectedProjectRow] = await Promise.all([
         prisma.taskFile.findMany({
           where: taskFileWhere,
           take: takePlusOne,
@@ -581,6 +602,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         prisma.taskFile.count({
           where: taskFileWhere,
         }),
+        selectedProjectPromise,
       ]);
 
       const hasMore = taskFiles.length === takePlusOne;
@@ -613,13 +635,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           } => item !== null,
         );
 
-      const paginationMeta = createPaginationMeta(
-        pagedFiles,
-        taskFileCount,
-        take,
-        hasMore,
-        cursor,
-      );
+      const paginationMeta = driveTasksPaginationMetaSchema.parse({
+        ...createPaginationMeta(
+          pagedFiles,
+          taskFileCount,
+          take,
+          hasMore,
+          cursor,
+        ),
+        selectedProject: selectedProjectRow
+          ? { id: selectedProjectRow.id, name: selectedProjectRow.name }
+          : null,
+        selectedTask,
+      });
       return ok(c, driveTasksListSchema.parse(items), paginationMeta);
     }
 
@@ -639,6 +667,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw badRequest("Invalid pagination cursor");
       }
 
+      const selectedProjectRow =
+        projectId !== "null"
+          ? await prisma.project.findFirst({
+              where: {
+                id: projectId,
+                ...(pageResult.totalCount > 0 ? {} : { workspaceId }),
+              },
+              select: { id: true, name: true },
+            })
+          : null;
+
       const hasMore = pageResult.rows.length === take + 1;
       const pagedTasks = pageResult.rows.slice(0, take);
 
@@ -649,13 +688,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         latestFileUpdatedAt: task.latestFileUpdatedAt.toISOString(),
       }));
 
-      const paginationMeta = createPaginationMeta(
-        pagedTasks,
-        pageResult.totalCount,
-        take,
-        hasMore,
-        cursor,
-      );
+      const paginationMeta = driveTasksPaginationMetaSchema.parse({
+        ...createPaginationMeta(
+          pagedTasks,
+          pageResult.totalCount,
+          take,
+          hasMore,
+          cursor,
+        ),
+        selectedProject: selectedProjectRow
+          ? { id: selectedProjectRow.id, name: selectedProjectRow.name }
+          : null,
+      });
       return ok(c, driveTasksListSchema.parse(items), paginationMeta);
     }
 

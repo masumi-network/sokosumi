@@ -1,6 +1,9 @@
 "use client";
 
-import type { DriveTasksListItem } from "@sokosumi/core-client";
+import type {
+  DriveTasksListItem,
+  DriveTasksPaginationMetadata,
+} from "@sokosumi/core-client";
 import { getDriveTasks } from "@sokosumi/core-client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import type { FilesSortBy, FilesSortOrder } from "@/lib/utils/files-sort";
@@ -8,9 +11,15 @@ import type { FilesSortBy, FilesSortOrder } from "@/lib/utils/files-sort";
 /** Core max page size for task items. */
 export const DRIVE_TASKS_PAGE_LIMIT = 100;
 
+export type DriveTasksSelectedEntity = NonNullable<
+  DriveTasksPaginationMetadata["selectedProject"]
+>;
+
 export interface DriveTasksPageResult {
   items: DriveTasksListItem[];
   nextCursor: string | null;
+  selectedProject?: DriveTasksSelectedEntity | null;
+  selectedTask?: DriveTasksSelectedEntity | null;
 }
 
 export interface FetchDriveTasksPageOptions {
@@ -52,11 +61,18 @@ export async function fetchDriveTasksPage(
   });
 
   const items = (response.data?.data ?? []).map(coerceDriveTasksListItemDates);
-  const nextCursor = response.data?.meta?.pagination?.nextCursor ?? null;
+  const pagination = response.data?.meta?.pagination;
+  const nextCursor = pagination?.nextCursor ?? null;
 
   return {
     items,
     nextCursor: nextCursor && nextCursor === options.cursor ? null : nextCursor,
+    ...(pagination?.selectedProject !== undefined
+      ? { selectedProject: pagination.selectedProject }
+      : {}),
+    ...(pagination?.selectedTask !== undefined
+      ? { selectedTask: pagination.selectedTask }
+      : {}),
   };
 }
 
