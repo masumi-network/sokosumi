@@ -36,8 +36,8 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
     buildSignedOAuthQueryFromSearchParams(oauthSearchParams);
   const scope = oauthSearchParams.get("scope");
   const requestsCoreApi = hasCoreApiOAuthScope(scope);
-  // Read from the signed query: a swapped `redirect_uri` fails the signature
-  // at consent, so the host shown is the one Better Auth will redirect to.
+  // Read from the signed query, not the raw one. Core verifies the signature
+  // when the person answers; a tampered value fails there.
   const redirectUri = new URLSearchParams(signedOAuthQuery).get("redirect_uri");
 
   if (!client_id) {

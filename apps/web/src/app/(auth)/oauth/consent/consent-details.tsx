@@ -9,7 +9,10 @@ import { useTranslations } from "next-intl";
 interface ConsentDetailsProps {
   clientName: string;
   scope: string | null;
-  /** The signed request's `redirect_uri`; Core checked it against the client. */
+  /**
+   * The `redirect_uri` from the signed OAuth query. Core verifies the signature
+   * when the person answers; a tampered value fails there.
+   */
   redirectUri: string | null;
   /** From Core: the client has no owner (dynamic registration). */
   selfRegistered: boolean | undefined;
@@ -58,11 +61,25 @@ export function ConsentDetails({
   );
 }
 
-/** `app.example.com`, `127.0.0.1:33418`, or a native app's scheme. */
+const LOOPBACK_HOSTNAMES = new Set(["127.0.0.1", "[::1]", "localhost"]);
+
+/**
+ * Where the authorization code goes. A bare host only where the browser itself
+ * delivers it there: `https:`, or `http:` on this computer. Any other scheme
+ * hands the code to whichever app claims it, so `com.attacker://claude.ai`
+ * keeps its scheme rather than reading as `claude.ai`.
+ */
 function readRedirectHost(redirectUri: string | null): string | null {
   if (!(redirectUri && URL.canParse(redirectUri))) {
     return null;
   }
   const url = new URL(redirectUri);
-  return url.host || url.protocol.slice(0, -1);
+  const scheme = url.protocol.slice(0, -1);
+  if (
+    url.protocol === "https:" ||
+    (url.protocol === "http:" && LOOPBACK_HOSTNAMES.has(url.hostname))
+  ) {
+    return url.host;
+  }
+  return url.host ? `${scheme}://${url.host}` : scheme;
 }

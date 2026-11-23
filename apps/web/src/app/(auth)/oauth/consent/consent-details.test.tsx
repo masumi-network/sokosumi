@@ -95,6 +95,47 @@ describe("ConsentDetails", () => {
       ).toBeInTheDocument();
     });
 
+    // The browser hands `com.attacker://…` to the app that claims the scheme,
+    // whatever host follows it.
+    it("keeps the scheme of a custom-scheme redirect that names a web host", () => {
+      render(
+        <ConsentDetails
+          {...selfRegistered}
+          redirectUri="com.attacker://claude.ai/cb"
+        />,
+      );
+
+      expect(
+        screen.getByText('redirectHost {"host":"com.attacker://claude.ai"}'),
+      ).toBeInTheDocument();
+    });
+
+    it("keeps the scheme of a plain-http redirect off this computer", () => {
+      render(
+        <ConsentDetails
+          {...selfRegistered}
+          redirectUri="http://agents.example/cb"
+        />,
+      );
+
+      expect(
+        screen.getByText('redirectHost {"host":"http://agents.example"}'),
+      ).toBeInTheDocument();
+    });
+
+    it("names an https redirect by its host", () => {
+      render(
+        <ConsentDetails
+          {...selfRegistered}
+          redirectUri="https://agents.example:8443/cb"
+        />,
+      );
+
+      expect(
+        screen.getByText('redirectHost {"host":"agents.example:8443"}'),
+      ).toBeInTheDocument();
+    });
+
     it("keeps the note but drops the host line for an unreadable redirect", () => {
       render(<ConsentDetails {...selfRegistered} redirectUri="not a url" />);
 
