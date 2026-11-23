@@ -16,6 +16,9 @@ vi.mock("@vercel/functions", async (importOriginal) => ({
     mocks.attachDatabasePool(pool);
   },
 }));
+// setup.ts mocks this module for every file; its factory result survives
+// vi.resetModules(), so the module would never be evaluated again.
+vi.unmock("@/lib/db/prisma");
 vi.mock("@sentry/node", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@sentry/node")>()),
   captureException: mocks.captureException,
