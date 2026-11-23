@@ -8,6 +8,23 @@ export type SeoStep =
   | { kind: "article"; item: CmoSeoSuggestion };
 
 /**
+ * An audit fix with no text for the owner to paste: a technical change for
+ * whoever builds the site, told in the audit's own technical words.
+ */
+export function isSiteFix(
+  change: Pick<CmoSeoSuggestion, "source" | "newText">,
+): boolean {
+  return change.source === "audit" && !change.newText;
+}
+
+/** The open technical fixes, which the owner forwards rather than makes. */
+export function siteFixes(seo: CmoSeo): CmoSeoSuggestion[] {
+  return seo.pageChanges.filter(
+    (change) => change.status === "open" && isSiteFix(change),
+  );
+}
+
+/**
  * What the owner does next, most valuable first: connect Search Console when
  * it is not, the open page changes (each already has its text to copy), then
  * the articles still to write or publish.
@@ -16,7 +33,8 @@ export function seoSteps(seo: CmoSeo): SeoStep[] {
   const steps: SeoStep[] = [];
   if (seo.searchConsole.status !== "connected") steps.push({ kind: "connect" });
   for (const item of seo.pageChanges)
-    if (item.status === "open") steps.push({ kind: "change", item });
+    if (item.status === "open" && !isSiteFix(item))
+      steps.push({ kind: "change", item });
   for (const item of seo.articles)
     if (item.status === "open") steps.push({ kind: "article", item });
   return steps;

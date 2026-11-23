@@ -11,6 +11,7 @@ import {
   cmoStrategyVersion,
 } from "../test-fixtures/cmo";
 import { competitorsLead, dayName, pageLead, seoLead } from "./page-lead";
+import { isSiteFix } from "./seo-next";
 
 const NOW = new Date("2026-11-20T10:00:00Z");
 const BERLIN = "Europe/Berlin";
@@ -170,7 +171,9 @@ describe("seoLead", () => {
 
   it("counts the page changes to make without Search Console", () => {
     const seo = { ...withoutConsole };
-    const open = seo.pageChanges.filter((c) => c.status === "open").length;
+    const open = seo.pageChanges.filter(
+      (c) => c.status === "open" && !isSiteFix(c),
+    ).length;
     expect(seoLead(seo, BERLIN, NOW).title).toBe(
       `${open} ${open === 1 ? "change" : "changes"} to make.`,
     );
@@ -179,8 +182,31 @@ describe("seoLead", () => {
     );
     // The line speaks of the changes, never "each one" after the checks.
     expect(seoLead(seo, BERLIN, NOW).line).toMatch(
-      /checks passed\. (The change|Each change) below comes with the exact new text to copy\.$/,
+      /checks passed\. (The change|Each change) below comes with the exact new text to copy\.( Next check \w+\.)?$/,
     );
+  });
+
+  it("names the technical fixes as the builder's, and says when the next check runs", () => {
+    const fixes = withoutConsole.pageChanges.filter(
+      (c) => c.status === "open" && isSiteFix(c),
+    );
+    expect(fixes.length).toBeGreaterThan(0);
+    const lead = seoLead(
+      {
+        ...withoutConsole,
+        pageChanges: fixes,
+        audit: {
+          ...withoutConsole.audit,
+          nextRunAt: new Date("2026-11-23T06:00:00Z"),
+        },
+      },
+      BERLIN,
+      NOW,
+    );
+    expect(lead.title).toBe(
+      `${fixes.length} ${fixes.length === 1 ? "fix" : "fixes"} for whoever builds your site.`,
+    );
+    expect(lead.line).toMatch(/send it on\. Next check Monday\.$/);
   });
 
   it("says nothing is to change, and when the first audit runs", () => {
