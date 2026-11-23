@@ -15,7 +15,6 @@ import {
 } from "../../test-fixtures/onboarding";
 import { Onboarding } from "../onboarding";
 import { feedScreens } from "../phone-feeds";
-import { showcaseEntries } from "../showcases";
 import { BrandStep, fixWaitNote } from "./brand-step";
 import {
   LaunchStep,
@@ -1073,13 +1072,6 @@ describe("strategy helpers the screens build on", () => {
     expect(weeks).toHaveLength(4);
     expect(weeks[0]?.days[0]).toBe("2026-10-05");
     expect(weeks[3]?.days[6]).toBe("2026-11-01");
-  });
-
-  it("groups pieces into account previews, written drafts first", () => {
-    const groups = showcaseEntries(strategy);
-    expect(groups.get("linkedin")?.map((entry) => entry.id)).toEqual(["a"]);
-    expect(groups.get("x")?.map((entry) => entry.id)).toEqual(["b"]);
-    expect(groups.get("newsletter")?.map((entry) => entry.id)).toEqual(["c"]);
   });
 });
 

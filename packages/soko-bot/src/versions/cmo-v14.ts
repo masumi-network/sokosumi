@@ -16,6 +16,10 @@ export const cmoV14: SokoBotVersion = {
   createdAt: "2026-11-21",
   summary:
     "Cuso on cmo-v13 who plans each network at its own rate: four X posts a day, at most one on LinkedIn, more pictures, and TikToks, Reels and YouTube Shorts every day; the funnel follows where the posts are and every format has its platform's name.",
+  whatsNew: [
+    "More posts on the networks that suit your business, at the pace each one likes.",
+    "Short videos, each made once and shared on TikTok, Instagram Reels and YouTube Shorts.",
+  ],
   releaseNote:
     "Your strategy now fits each network: several posts a day on X, at most one a day on LinkedIn, more pictures, and TikToks, Reels and YouTube Shorts every day. It shows the most your plan can make; a smaller plan makes less of the same month.",
   skills: cmoV13.skills.map((skill) =>

@@ -189,7 +189,7 @@ describe("X replies", () => {
       ],
       includes: { users: [{ id: "u1", username: "wutzebaer1" }] },
     });
-    const since = new Date("2026-11-19T00:00:00Z");
+    const since = new Date("2026-11-19T09:00:43.643Z");
     const replies = await listXReplies(context("x"), {
       startTime: since,
       sinceId: "r0",
@@ -202,7 +202,7 @@ describe("X replies", () => {
         toolSlug: "TWITTER_GET_USER_MENTIONS",
         arguments: expect.objectContaining({
           id: "brand-1",
-          start_time: since.toISOString(),
+          start_time: "2026-11-19T09:00:43Z",
           since_id: "r0",
         }),
       }),

@@ -49,6 +49,27 @@ export async function withCloseStatus(
   );
 }
 
+/** The views, of `states`, that hold at least one project (matching `query`). */
+async function viewsWithProjects(
+  states: ProjectsListState[],
+  query?: string,
+): Promise<ProjectsListState[]> {
+  const found = await Promise.all(
+    states.map(async (state) =>
+      (
+        await projectService.listProjects({
+          limit: 1,
+          state,
+          ...(query ? { query } : {}),
+        })
+      ).projects.length > 0
+        ? state
+        : null,
+    ),
+  );
+  return found.filter((state) => state !== null);
+}
+
 async function readProjectsPageData({ query, state }: ProjectsPageDataInput) {
   const page = await projectService.listProjects({
     limit: PROJECTS_PAGE_LIMIT,
@@ -59,37 +80,24 @@ async function readProjectsPageData({ query, state }: ProjectsPageDataInput) {
     ...page,
     projects: await withCloseStatus(page.projects),
   };
+  const isEmpty = projectsPage.projects.length === 0;
   // A filter that matches nothing here may match in another view; the empty
   // state names those views instead of saying nothing matches.
-  const otherMatches: ProjectsListState[] =
-    query && page.projects.length === 0
-      ? (
-          await Promise.all(
-            PROJECTS_LIST_STATES.filter((other) => other !== state).map(
-              async (other) =>
-                (
-                  await projectService.listProjects({
-                    limit: 1,
-                    query,
-                    state: other,
-                  })
-                ).projects.length > 0
-                  ? other
-                  : null,
-            ),
-          )
-        ).filter((other) => other !== null)
+  const otherMatches =
+    query && isEmpty
+      ? await viewsWithProjects(
+          PROJECTS_LIST_STATES.filter((other) => other !== state),
+          query,
+        )
       : [];
   // An empty Open view reads "No projects yet" only when there is truly
-  // nothing; one Closed project is enough to say "all closed" instead.
-  const hasClosedProjects =
-    state === "open" &&
-    !query &&
-    projectsPage.projects.length === 0 &&
-    (await projectService.listProjects({ limit: 1, state: "closed" })).projects
-      .length > 0;
+  // nothing; a Hidden or Closed project is enough to name its view instead.
+  const otherViews =
+    state === "open" && !query && isEmpty
+      ? await viewsWithProjects(["hidden", "closed"])
+      : [];
 
-  return { projectsPage, hasClosedProjects, otherMatches };
+  return { projectsPage, otherViews, otherMatches };
 }
 
 type ProjectsPageData = Awaited<ReturnType<typeof readProjectsPageData>>;

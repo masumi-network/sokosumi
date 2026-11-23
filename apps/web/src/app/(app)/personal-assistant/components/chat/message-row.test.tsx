@@ -40,6 +40,7 @@ it.each([
     decisions: [],
     requestedBy: null,
     chatRoom: null,
+    schedule: null,
     qualityScore: null,
   };
 

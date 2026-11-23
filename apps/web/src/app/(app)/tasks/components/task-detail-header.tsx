@@ -1,7 +1,7 @@
 import type { TaskSeoAudit } from "@sokosumi/core-client";
 import { SearchCheck } from "lucide-react";
 import Link from "next/link";
-import { seoAuditHref, seoProjectHref } from "@/app/seo/seo-href";
+import { seoTaskResultLink } from "@/app/seo/seo-href";
 import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
 
 import { BackToTasksButton } from "./back-to-tasks-button";
@@ -43,19 +43,10 @@ export function TaskDetailHeader({
   seoAuditLabels,
   actions,
 }: TaskDetailHeaderProps) {
+  const seoResult = seoAuditLabels ? seoTaskResultLink(seoAudit) : null;
   const seoLink =
-    seoAudit && seoAuditLabels
-      ? seoAudit.auditId
-        ? {
-            href: seoAuditHref(seoAudit.auditId, seoAudit.projectId),
-            label: seoAuditLabels.audit,
-          }
-        : seoAudit.projectId
-          ? {
-              href: seoProjectHref(seoAudit.projectId),
-              label: seoAuditLabels.project,
-            }
-          : null
+    seoResult && seoAuditLabels
+      ? { href: seoResult.href, label: seoAuditLabels[seoResult.kind] }
       : null;
   return (
     <div className="space-y-4">

@@ -4,6 +4,7 @@ import { ChevronRight } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { ChatTurn } from "@/lib/soko-bot/chat-state";
 import { cn } from "@/lib/utils";
@@ -22,10 +23,42 @@ function statusDotClass(turn: ChatTurn): string {
   return "bg-tertiary";
 }
 
+type Translate = ReturnType<typeof useTranslations<"App.SokoBot.Console">>;
+
 /**
- * One turn folded to a single line: what was asked, how it was routed, by
- * whom and where, and when. Opens to the full transcript with approvals,
- * delegated work, and the explain view.
+ * What the run was. A chat turn shows what the person asked; every other
+ * source carries the bot's own instructions in `userMessage`, which never
+ * shows, so it reads as its kind or schedule name instead.
+ */
+function runTitle(turn: ChatTurn, t: Translate): string {
+  switch (turn.source) {
+    case "CHAT":
+      return turn.userMessage.replace(/\s+/g, " ").trim();
+    case "SCHEDULE":
+      return turn.schedule?.name ?? t("Activity.scheduled");
+    case "INGEST":
+      return t("Activity.mailCheck");
+    case "EVENT":
+      return t("Activity.event");
+    case "ADMIN_RETRY":
+      return t("Activity.retry");
+    default:
+      return t("Activity.other");
+  }
+}
+
+function runOutcome(turn: ChatTurn, t: Translate): string {
+  if (isActiveTurn(turn)) return t("Activity.outcome.running");
+  if (turn.status === "FAILED") return t("Activity.outcome.failed");
+  if (turn.status === "CANCELLED") return t("Activity.outcome.cancelled");
+  return t("Activity.outcome.done");
+}
+
+/**
+ * One turn folded to a row: what the run was and how it ended, what waits for
+ * approval, how it was routed, by whom and where, and when. A long name wraps
+ * the outcome and approval mark onto further lines. Opens to the full
+ * transcript with approvals, delegated work, and the explain view.
  */
 function ActivityRow({
   turn,
@@ -43,11 +76,12 @@ function ActivityRow({
   onDecisionResolved: () => void;
 }) {
   const t = useTranslations("App.SokoBot.Chat");
+  const tConsole = useTranslations("App.SokoBot.Console");
   const tRoute = useTranslations("Components.SokoBot.Route");
   const format = useFormatter();
   const [open, setOpen] = useState(defaultOpen);
   const kind = turnKind(turn);
-  const summary = turn.userMessage.replace(/\s+/g, " ").trim();
+  const waiting = turn.decisions.filter((d) => d.status === "PENDING").length;
   const when = format.relativeTime(new Date(turn.createdAt), new Date());
 
   return (
@@ -69,13 +103,29 @@ function ActivityRow({
           aria-hidden
           className={cn("size-1.5 shrink-0 rounded-full", statusDotClass(turn))}
         />
-        <span className="text-foreground min-w-0 flex-1 truncate text-sm">
-          {summary}
+        {/* Only the name ellipsizes. The outcome and approval mark sit
+            outside it and wrap under a long name; each can break across
+            lines itself, for a long translation, a 320px screen or larger
+            text. The leading space keeps "name · outcome" in the button's
+            name; the browser drops it at a line start. */}
+        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1 text-sm">
+          <span className="text-foreground max-w-full truncate">
+            {runTitle(turn, tConsole)}
+          </span>
+          <span className="text-muted-foreground max-w-full wrap-anywhere">
+            {" · "}
+            {runOutcome(turn, tConsole)}
+          </span>
+          {waiting > 0 ? (
+            // Viewer-neutral: a shared bot's member may not be allowed to answer.
+            <Badge className="max-w-full whitespace-normal wrap-anywhere">
+              {tConsole("Activity.waiting", { count: waiting })}
+            </Badge>
+          ) : null}
         </span>
         <span className="text-muted-foreground hidden shrink-0 items-center gap-2 text-xs sm:flex">
           {turn.route ? <span>{tRoute(turn.route)}</span> : null}
           {kind === "scheduled" ? <span>{t("kind.scheduled")}</span> : null}
-          {kind === "event" ? <span>{t("kind.event")}</span> : null}
           {turn.requestedBy ? (
             <span>
               {t("kind.askedBy", {

@@ -4,7 +4,7 @@ import { TaskPriority, TaskStatus } from "@sokosumi/core-client";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useTransition } from "react";
+import { useTransition } from "react";
 import { toast } from "sonner";
 import { exportTasks, previewTasksExport } from "@/app/tasks/actions";
 import {
@@ -35,6 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useTasksExportRun } from "@/hooks/effects/use-tasks-export-run";
 
 type ExportFilters = Parameters<typeof exportTasks>[0];
 
@@ -134,13 +135,7 @@ function TasksExportSummary({
   // Cancel closes the dialog but cannot stop the action. Closing, or
   // unmounting while open, starts a new run, and an export from an earlier
   // run saves nothing. The content stays mounted while it animates out.
-  const run = useRef(0);
-  useEffect(() => {
-    const wasOpen = open;
-    return () => {
-      if (wasOpen) run.current += 1;
-    };
-  }, [open]);
+  const run = useTasksExportRun(open);
   const handleExport = () => {
     const started = run.current;
     startExport(async () => {

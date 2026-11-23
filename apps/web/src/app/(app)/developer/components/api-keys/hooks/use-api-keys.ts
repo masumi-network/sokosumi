@@ -1,13 +1,13 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
 import { toast } from "sonner";
 
+import { useApiKeysList } from "@/hooks/effects/use-api-keys-list";
 import { authClient } from "@/lib/auth/auth.client";
 
 import type {
-  ApiKeyRecord,
   CreateApiKeyRequest,
   CreateApiKeyResult,
   DeleteApiKeyRequest,
@@ -18,41 +18,11 @@ import { getToggleActionText } from "../utils";
 
 export function useApiKeys(): UseApiKeysReturn {
   const t = useTranslations("App.Account.ApiKeys");
-  const [apiKeys, setApiKeys] = useState<ApiKeyRecord[]>([]);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { apiKeys, setApiKeys, isInitialLoading, error, refresh } =
+    useApiKeysList(t);
   // Keys with a toggle on the wire. A second click on one is dropped until
   // the first has its answer, so two requests for one key cannot cross.
   const updatingKeyIds = useRef(new Set<string>());
-
-  const refresh = useCallback(
-    async (isInitial = false) => {
-      if (isInitial) {
-        setIsInitialLoading(true);
-      }
-      setError(null);
-
-      try {
-        const result = await authClient.apiKey.list();
-        if (result.data) {
-          setApiKeys(result.data.apiKeys);
-        } else {
-          const errorMessage = t("Messages.loadError");
-          setError(errorMessage);
-          toast.error(errorMessage);
-        }
-      } catch {
-        const errorMessage = t("Messages.loadError");
-        setError(errorMessage);
-        toast.error(errorMessage);
-      } finally {
-        if (isInitial) {
-          setIsInitialLoading(false);
-        }
-      }
-    },
-    [t],
-  );
 
   const create = useCallback(
     async (data: CreateApiKeyRequest): Promise<CreateApiKeyResult> => {
@@ -159,10 +129,6 @@ export function useApiKeys(): UseApiKeysReturn {
     },
     [refresh, t],
   );
-
-  useEffect(() => {
-    refresh(true);
-  }, [refresh]);
 
   return {
     apiKeys,

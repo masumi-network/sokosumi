@@ -7,7 +7,8 @@ import type {
   CmoSeoSuggestion,
 } from "@sokosumi/core-client";
 import { Download, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useSeoPageRefresh } from "../../hooks/effects/use-seo-page-refresh";
 import { AGENT_NAME } from "../../lib/agent";
 import { seoLead } from "../../lib/page-lead";
 import {
@@ -65,9 +66,6 @@ export interface SeoActions {
 
 /** What writing one article costs: about $0.015 of model time in the cmo-v12 eval run (1,085 words), at 100 credits a dollar. */
 const ARTICLE_COST = "Each article uses about 2 credits of your plan.";
-
-/** While the tab is open it reads again this often, so Cuso's new ideas show up. */
-const REFRESH_MS = 20_000;
 
 const SOURCE: Record<CmoSeoEvidence["source"], string> = {
   keyword_research: "Keyword research",
@@ -647,11 +645,7 @@ export function SeoPage({
       setFailed(true);
     }
   }, [actions]);
-  useEffect(() => {
-    void refresh();
-    const timer = setInterval(() => void refresh(), REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [refresh]);
+  useSeoPageRefresh(refresh);
 
   if (!seo)
     return (

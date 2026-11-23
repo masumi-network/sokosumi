@@ -1,5 +1,5 @@
 import { ssrfSafeFetch, ssrfSafeStreamFetch } from "@sokosumi/net";
-import type { Browser, HTTPRequest, Page } from "puppeteer-core";
+import type { Browser, HTTPRequest, HTTPResponse, Page } from "puppeteer-core";
 
 import { getEnv } from "@/config/env";
 
@@ -71,6 +71,7 @@ export interface CaptureViewport {
 }
 
 const NAVIGATION_TIMEOUT_MS = 20_000;
+const NETWORK_IDLE_TIMEOUT_MS = 8_000;
 const SETTLE_MS = 1_500;
 const MAX_RESOURCE_BYTES = 8_000_000;
 const JPEG_QUALITY = 72;
@@ -132,6 +133,26 @@ export async function withBrowser<T>(
 }
 
 /**
+ * Opens the address and waits for a quiet network as far as it comes. Not
+ * Chrome's own network-idle signal: with requests intercepted it never came
+ * for entry.fyi at desktop width, though every request had finished.
+ */
+async function loadPage(page: Page, url: string): Promise<HTTPResponse | null> {
+  const response = await page
+    .goto(url, { waitUntil: "load", timeout: NAVIGATION_TIMEOUT_MS })
+    .catch(() => null);
+  if (response)
+    await page
+      .waitForNetworkIdle({
+        idleTime: 500,
+        concurrency: 2,
+        timeout: NETWORK_IDLE_TIMEOUT_MS,
+      })
+      .catch(() => undefined);
+  return response;
+}
+
+/**
  * Opens a public page and captures its first screen and its large pictures.
  * Every request goes through the SSRF-safe fetch, so a page cannot reach a
  * private address. Cookie banners are declined, or hidden when there is no
@@ -170,13 +191,7 @@ async function capture(
     page.on("request", (request) => {
       void guardRequest(request, abort.signal);
     });
-    const load = () =>
-      page
-        .goto(target, {
-          waitUntil: "networkidle2",
-          timeout: NAVIGATION_TIMEOUT_MS,
-        })
-        .catch(() => null);
+    const load = () => loadPage(page, target);
     let response = await load();
     if (response && (await missingStyles(page))) response = await load();
     if (!response || response.status() >= 400 || (await missingStyles(page)))
@@ -257,12 +272,7 @@ export async function readPageText(
     page.on("request", (request) => {
       void guardRequest(request, abort.signal);
     });
-    const response = await page
-      .goto(await finalUrl(url), {
-        waitUntil: "networkidle2",
-        timeout: NAVIGATION_TIMEOUT_MS,
-      })
-      .catch(() => null);
+    const response = await loadPage(page, await finalUrl(url));
     if (!response || response.status() >= 400) return null;
     await declineCookies(page);
     await page

@@ -114,3 +114,6 @@ export const WORKSPACE_COLUMN_STACKED_ROWS = 3;
  */
 export const PROJECTS_OPEN_LAYOUT_CLASS =
   "flex flex-col gap-5 xl:grid xl:grid-cols-[20rem_minmax(0,1fr)] xl:items-start";
+
+/** The date without the time, as the phone's Properties line shows it. */
+export const PROJECT_LINE_DATE = { month: "short", day: "numeric" } as const;

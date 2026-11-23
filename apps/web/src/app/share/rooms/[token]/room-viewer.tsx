@@ -16,13 +16,14 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { CapTableFileView } from "@/components/cap-table/cap-table-view";
 import { SpreadsheetFileView } from "@/components/spreadsheet/spreadsheet-view";
 import { TeamFileView } from "@/components/team/team-view";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useRoomQuestions } from "@/hooks/effects/use-room-questions";
 import { isCapTableFileName } from "@/lib/cap-table-file";
 import { spreadsheetKind } from "@/lib/spreadsheet-file";
 import { fileTitle, isTeamFileName } from "@/lib/team-file";
@@ -508,44 +509,4 @@ function RoomQuestions({
       </form>
     </div>
   );
-}
-
-/**
- * The viewer's own questions and the room's shared answers at `url`, with
- * whether they are still loading or failed to, and a way to load them again.
- */
-function useRoomQuestions(url: string) {
-  const [questions, setQuestions] = useState<DataRoomViewerQuestion[]>([]);
-  const [status, setStatus] = useState<"loading" | "ready" | "failed">(
-    "loading",
-  );
-  const [attempt, setAttempt] = useState(0);
-  useEffect(() => {
-    let current = true;
-    fetch(url, attempt > 0 ? { cache: "no-store" } : undefined)
-      .then((response) => {
-        if (!response.ok) throw new Error(`Questions ${response.status}`);
-        return response.json();
-      })
-      .then((loaded: DataRoomViewerQuestion[]) => {
-        if (!current) return;
-        setQuestions(loaded);
-        setStatus("ready");
-      })
-      .catch(() => {
-        if (current) setStatus("failed");
-      });
-    return () => {
-      current = false;
-    };
-  }, [url, attempt]);
-  return {
-    questions,
-    setQuestions,
-    status,
-    retry: () => {
-      setStatus("loading");
-      setAttempt((count) => count + 1);
-    },
-  };
 }

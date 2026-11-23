@@ -11,6 +11,9 @@ import {
   convertCentsToCredits,
   convertCreditsToCents,
   readImageDimensionsFromBytes,
+  SHORT_VIDEO_MAX_PICTURES,
+  SHORT_VIDEO_TEXT_FORMATS,
+  type ShortVideoFormat,
   talkingVideoQuotedSeconds,
 } from "@sokosumi/utils";
 import { put } from "@vercel/blob";
@@ -90,6 +93,7 @@ import {
   buildTalkingVideoCutoutInput,
   buildTalkingVideoInput,
   buildTalkingVideoMusicInput,
+  creditsPerShortVideo,
   creditsPerTalkingVideo,
   findTalkingVideoPresenter,
   frameTalkingVideoPresenter,
@@ -112,8 +116,11 @@ import {
   loadTalkingVideoEndCard,
 } from "@/lib/image-studio/talking-video-brand";
 import {
+  editShortVideo,
   editTalkingVideo,
   hookTakesBroll,
+  readingTimings,
+  type SpokenWord,
 } from "@/lib/image-studio/talking-video-edit";
 import { timeSpokenWords } from "@/lib/image-studio/talking-video-words";
 import {
@@ -1320,6 +1327,8 @@ export async function createTalkingVideoJob(input: CreateTalkingVideoJobInput) {
     brollRequestId: null,
     music: input.music === true,
     musicRequestId: null,
+    format: null,
+    picturePathnames: [],
   };
   const ownPhoto = input.presenter.kind === "file" ? input.presenter : null;
   return await reserveAndSend({
@@ -1343,6 +1352,109 @@ export async function createTalkingVideoJob(input: CreateTalkingVideoJobInput) {
   });
 }
 
+export interface CreateShortVideoJobInput {
+  /** Core's month media (cmo-media-maker), as for a talking video. */
+  forCmoMonth?: boolean;
+  projectId: string;
+  workspaceId: string;
+  userId: string;
+  format: ShortVideoFormat;
+  /** What the voice says, or for a slideshow the lines shown, one a picture. */
+  script: string;
+  /** The words over the first seconds; omitted, they are written from the script. */
+  hookLine?: string | null;
+  voice: string;
+  /** ISO 639-1 language of the script. */
+  languageCode: string;
+  /** The studio's pictures and Files images the short shows, in order. */
+  pictures: { assetIds: string[]; fileIds: string[]; actor: FileActor };
+  idempotencyKey: string;
+}
+
+/**
+ * Create (or replay) a short: a vertical video without a presenter, cut from
+ * the brand's pictures and site to a voice or to music. Stored as a talking
+ * video, so it is listed, published and charged like one.
+ */
+export async function createShortVideoJob(input: CreateShortVideoJobInput) {
+  const access = await requireProjectAccess({
+    projectId: input.projectId,
+    workspaceId: input.workspaceId,
+    userId: input.userId,
+  });
+  requireStudioBlobToken();
+  const spoken = !SHORT_VIDEO_TEXT_FORMATS.includes(input.format);
+  const pictureCount =
+    input.pictures.assetIds.length + input.pictures.fileIds.length;
+  if (pictureCount > SHORT_VIDEO_MAX_PICTURES)
+    throw unprocessableEntity(
+      `A short shows at most ${SHORT_VIDEO_MAX_PICTURES} pictures.`,
+      { kind: "invalid_video_settings" },
+    );
+  const showsSite = await talkingVideoShowsSite(input.projectId);
+  if (pictureCount === 0 && !showsSite)
+    throw unprocessableEntity(
+      "Add a picture, or a website to the Project, for the short to show.",
+      { kind: "invalid_video_settings" },
+    );
+  if (input.format === "site_tour" && !showsSite)
+    throw unprocessableEntity("A website tour needs the Project's website.", {
+      kind: "invalid_video_settings",
+    });
+  if (posesAsCustomerTestimonial(input.script))
+    throw unprocessableEntity(TALKING_VIDEO_TESTIMONIAL_MESSAGE, {
+      kind: "talking_video_testimonial",
+    });
+  if (input.pictures.assetIds.length > 0) {
+    const found = await prisma.projectImageAsset.count({
+      where: {
+        id: { in: input.pictures.assetIds },
+        projectId: input.projectId,
+        mediaType: ProjectImageMediaType.IMAGE,
+      },
+    });
+    if (found !== new Set(input.pictures.assetIds).size)
+      throw notFound("A picture for the short was not found");
+  }
+
+  const settings: TalkingVideoSettings = {
+    aspectRatio: TALKING_VIDEO_ASPECT_RATIO,
+    durationSeconds: talkingVideoQuotedSeconds(input.script),
+    resolution: TALKING_VIDEO_RESOLUTION,
+    voice: spoken ? input.voice : "",
+    presenterId: null,
+    languageCode: input.languageCode,
+    words: [],
+    hookLine: spoken ? input.hookLine?.trim() || null : null,
+    siteShots: showsSite,
+    sitePagePathname: null,
+    broll: false,
+    brollRequestId: null,
+    music: true,
+    musicRequestId: null,
+    format: input.format,
+    picturePathnames: [],
+  };
+  return await reserveAndSend({
+    projectId: input.projectId,
+    workspaceId: input.workspaceId,
+    userId: input.userId,
+    sessionId: null,
+    prompt: input.script,
+    idempotencyKey: input.idempotencyKey,
+    forCmoMonth: input.forCmoMonth,
+    kind: ProjectImageJobKind.TALKING_VIDEO,
+    model: TALKING_VIDEO_MUSIC_ENDPOINT,
+    settings,
+    referenceAssetIds: input.pictures.assetIds,
+    referenceFileIds: input.pictures.fileIds,
+    referenceFileActor: input.pictures.actor,
+    parentAssetId: null,
+    organizationId: access.organizationId,
+    chargedCredits: creditsPerShortVideo(input.script, input.format),
+  });
+}
+
 function isVideoKind(kind: ProjectImageJobKind): boolean {
   return (
     kind === ProjectImageJobKind.TEXT_TO_VIDEO ||
@@ -1361,6 +1473,7 @@ function talkingVideoSecondStep(
   settings: TalkingVideoSettings,
   videoUrl: string,
 ): { endpoint: string; input: Record<string, unknown> } | null {
+  if (settings.format) return null;
   if (settings.words.length === 0)
     return {
       endpoint: TALKING_VIDEO_CAPTION_ENDPOINT,
@@ -1453,45 +1566,8 @@ async function prepareTalkingVideo(
   }
 
   step("voice_unavailable");
-  const voice = await speakVoiceover({
-    text: job.prompt,
-    voice: settings.voice,
-    languageCode: settings.languageCode,
-  });
-  const quotedSeconds = settings.durationSeconds;
-  const spokenSeconds = Math.ceil(
-    voice.durationSeconds ?? voice.bytes.byteLength / MP3_BYTES_PER_SECOND,
-  );
-  if (spokenSeconds > quotedSeconds * VOICE_OVERRUN_LIMIT)
-    throw new Error("The voice ran far longer than the script was quoted at.");
-  const stored = await put(
-    `projects/${job.projectId}/image-studio/${job.id}-voice.mp3`,
-    voice.bytes as unknown as Buffer,
-    {
-      access: "private",
-      token: requireStudioBlobToken(),
-      addRandomSuffix: false,
-      allowOverwrite: true,
-      contentType: "audio/mpeg",
-      abortSignal: AbortSignal.timeout(60_000),
-    },
-  );
-  const audioUrl = await uploadReference({
-    bytes: voice.bytes,
-    contentType: "audio/mpeg",
-    fileName: `${job.id}.mp3`,
-  });
-  const [words, hookLine] = await Promise.all([
-    timeSpokenWords({
-      audioUrl,
-      script: job.prompt,
-      languageCode: settings.languageCode,
-    }),
-    writeTalkingVideoHookLine({
-      script: job.prompt,
-      languageCode: settings.languageCode,
-    }),
-  ]);
+  const { voiceBlobPathname, audioUrl, spokenSeconds, words, hookLine } =
+    await speakScript(job, settings);
   // The paid extras last, once nothing before them can fail.
   const [sitePagePathname, brollRequestId, musicRequestId] = await Promise.all([
     sitePage,
@@ -1527,7 +1603,7 @@ async function prepareTalkingVideo(
   await prisma.projectImageJob.update({
     where: { id: job.id },
     data: {
-      voiceBlobPathname: stored.pathname,
+      voiceBlobPathname,
       settings: jsonInput(made),
       // What could not be started is not charged for.
       ...((settings.siteShots && !made.siteShots) ||
@@ -1548,6 +1624,194 @@ async function prepareTalkingVideo(
   });
   step("request_not_supported");
   return buildTalkingVideoInput({ imageUrl, audioUrl });
+}
+
+/**
+ * Speak a script, keep the voice in the studio's store, and time its words. The hook line is written beside it unless one was given.
+ */
+async function speakScript(
+  job: { id: string; projectId: string; prompt: string },
+  settings: TalkingVideoSettings,
+): Promise<{
+  voiceBlobPathname: string;
+  audioUrl: string;
+  spokenSeconds: number;
+  words: SpokenWord[];
+  hookLine: string | null;
+}> {
+  const voice = await speakVoiceover({
+    text: job.prompt,
+    voice: settings.voice,
+    languageCode: settings.languageCode,
+  });
+  const quotedSeconds = settings.durationSeconds;
+  const spokenSeconds = Math.ceil(
+    voice.durationSeconds ?? voice.bytes.byteLength / MP3_BYTES_PER_SECOND,
+  );
+  if (spokenSeconds > quotedSeconds * VOICE_OVERRUN_LIMIT)
+    throw new Error("The voice ran far longer than the script was quoted at.");
+  const stored = await put(
+    `projects/${job.projectId}/image-studio/${job.id}-voice.mp3`,
+    voice.bytes as unknown as Buffer,
+    {
+      access: "private",
+      token: requireStudioBlobToken(),
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      contentType: "audio/mpeg",
+      abortSignal: AbortSignal.timeout(60_000),
+    },
+  );
+  const audioUrl = await uploadReference({
+    bytes: voice.bytes,
+    contentType: "audio/mpeg",
+    fileName: `${job.id}.mp3`,
+  });
+  const [words, hookLine] = await Promise.all([
+    timeSpokenWords({
+      audioUrl,
+      script: job.prompt,
+      languageCode: settings.languageCode,
+    }),
+    settings.hookLine ??
+      writeTalkingVideoHookLine({
+        script: job.prompt,
+        languageCode: settings.languageCode,
+      }),
+  ]);
+  return {
+    voiceBlobPathname: stored.pathname,
+    audioUrl,
+    spokenSeconds,
+    words,
+    hookLine,
+  };
+}
+
+/** A short's pictures, framed 9:16 and kept in the studio's store, in order. */
+async function storeShortVideoPictures(
+  job: {
+    id: string;
+    projectId: string;
+    workspaceId: string;
+    requestedByUserId: string;
+    idempotencyKey: string;
+    referenceAssetIds: string[];
+    referenceFileIds: string[];
+  },
+  organizationId: string | null,
+): Promise<string[]> {
+  const assets = await prisma.projectImageAsset.findMany({
+    where: { id: { in: job.referenceAssetIds }, projectId: job.projectId },
+    select: { id: true, blobPathname: true },
+  });
+  const sources = [
+    ...job.referenceAssetIds.map(async (assetId) => {
+      const asset = assets.find((candidate) => candidate.id === assetId);
+      if (!asset) throw notFound("A picture for the short was not found");
+      return await readAssetBytes(asset.blobPathname);
+    }),
+    ...job.referenceFileIds.map(
+      async (fileId) =>
+        (
+          await downloadStudioFileReference(job.workspaceId, fileId, {
+            userId: job.requestedByUserId,
+            organizationId,
+            kind: automatedRequestKind(job.idempotencyKey),
+          })
+        ).bytes,
+    ),
+  ];
+  return await Promise.all(
+    sources.map(async (source, index) => {
+      const framed = await frameTalkingVideoPresenter(await source);
+      const stored = await put(
+        `projects/${job.projectId}/image-studio/${job.id}-picture-${index}.jpg`,
+        framed as unknown as Buffer,
+        {
+          access: "private",
+          token: requireStudioBlobToken(),
+          addRandomSuffix: false,
+          allowOverwrite: true,
+          contentType: "image/jpeg",
+          abortSignal: AbortSignal.timeout(60_000),
+        },
+      );
+      return stored.pathname;
+    }),
+  );
+}
+
+/**
+ * Get a short ready to send: its pictures copied in, its site captured, its
+ * voice spoken and timed (or its lines timed for reading). The request
+ * returned is its one paid call: the music.
+ */
+async function prepareShortVideo(
+  job: {
+    id: string;
+    projectId: string;
+    workspaceId: string;
+    requestedByUserId: string;
+    idempotencyKey: string;
+    prompt: string;
+    settings: Prisma.JsonValue;
+    referenceAssetIds: string[];
+    referenceFileIds: string[];
+  },
+  organizationId: string | null,
+  step: (reason: ImageJobFailureReason) => void,
+): Promise<Record<string, unknown>> {
+  const settings = readTalkingVideoSettings(job.settings);
+  const format = settings.format!;
+  const sitePage = settings.siteShots
+    ? storeTalkingVideoSitePage(job)
+    : Promise.resolve(null);
+  step("reference_not_sendable");
+  const picturePathnames = await storeShortVideoPictures(job, organizationId);
+  let words: SpokenWord[];
+  let seconds: number;
+  let hookLine: string | null = null;
+  let voiceBlobPathname: string | null = null;
+  if (SHORT_VIDEO_TEXT_FORMATS.includes(format)) {
+    words = readingTimings(job.prompt);
+    seconds = Math.ceil(words.at(-1)?.end ?? 0);
+  } else {
+    step("voice_unavailable");
+    const spoken = await speakScript(job, settings);
+    seconds = spoken.spokenSeconds;
+    hookLine = spoken.hookLine;
+    voiceBlobPathname = spoken.voiceBlobPathname;
+    // Words the voice service could not time are spread over the voice.
+    const read = readingTimings(job.prompt);
+    const scale = seconds / (read.at(-1)?.end || 1);
+    words = spoken.words.length
+      ? spoken.words
+      : read.map((word) => ({
+          text: word.text,
+          start: word.start * scale,
+          end: word.end * scale,
+        }));
+  }
+  const sitePagePathname = await sitePage;
+  if (picturePathnames.length === 0 && !sitePagePathname)
+    throw new Error("The short has neither pictures nor a site to show.");
+  const made: TalkingVideoSettings = {
+    ...settings,
+    durationSeconds: seconds,
+    words,
+    hookLine,
+    siteShots: sitePagePathname !== null,
+    sitePagePathname,
+    picturePathnames,
+  };
+  await prisma.projectImageJob.update({
+    where: { id: job.id },
+    data: { voiceBlobPathname, settings: jsonInput(made) },
+    select: { id: true },
+  });
+  step("request_not_supported");
+  return buildTalkingVideoMusicInput();
 }
 
 /**
@@ -1707,7 +1971,10 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
     try {
       // The voice is bought here, before the video: a few cents the studio
       // carries when a later step fails, since only a delivery is charged.
-      request = await prepareTalkingVideo(job, organizationId, (step) => {
+      const prepare = readTalkingVideoSettings(job.settings).format
+        ? prepareShortVideo
+        : prepareTalkingVideo;
+      request = await prepare(job, organizationId, (step) => {
         reason = step;
       });
     } catch (error) {
@@ -2533,6 +2800,51 @@ async function readTalkingVideoSite(
   }
 }
 
+/**
+ * A short, put together from its music, its stored voice, pictures and site,
+ * and the brand's end card. Null when it has no words to time by.
+ */
+async function makeShortVideo(
+  job: {
+    id: string;
+    projectId: string;
+    voiceBlobPathname: string | null;
+  },
+  settings: TalkingVideoSettings,
+  music: Uint8Array,
+): Promise<{ bytes: Uint8Array; durationSeconds: number } | null> {
+  const [voice, pictures, page, endCard, brand] = await Promise.all([
+    job.voiceBlobPathname ? readAssetBytes(job.voiceBlobPathname) : null,
+    Promise.all(settings.picturePathnames.map(readAssetBytes)),
+    settings.sitePagePathname
+      ? readAssetBytes(settings.sitePagePathname).catch(() => null)
+      : null,
+    prisma.project
+      .findUnique({
+        where: { id: job.projectId },
+        select: { id: true, name: true, logo: true, websiteUrl: true },
+      })
+      .then((project) => (project ? loadTalkingVideoEndCard(project) : null)),
+    loadStudioBrand(job.projectId),
+  ]);
+  const colour = (brand.look?.colors ?? brand.designColors ?? []).find(
+    (value) => /^#[0-9a-f]{6}$/i.test(value),
+  );
+  const edited = await editShortVideo({
+    format: settings.format!,
+    words: settings.words,
+    seconds: settings.durationSeconds,
+    hookLine: settings.hookLine,
+    pictures,
+    music,
+    ...(voice ? { voice } : {}),
+    ...(page ? { page } : {}),
+    ...(endCard ? { endCard } : {}),
+    ...(colour ? { cardColour: `0x${colour.slice(1)}` } : {}),
+  });
+  return edited;
+}
+
 /** Media types a log may name; the rest of a Content-Type is the provider's text. */
 const LOGGABLE_MEDIA_TYPES: ReadonlySet<string> = new Set([
   "image/avif",
@@ -2684,9 +2996,11 @@ async function storeMedia(
     job.kind === ProjectImageJobKind.TALKING_VIDEO
       ? readTalkingVideoSettings(job.settings)
       : null;
+  // A short's one paid request is its music: Core makes the video around it.
+  const short = talking?.format ? talking : null;
   // Core edits a clip whose words were timed. After a cut-out, `sourceUrl`
   // is the cut-out and the clip to edit is the one it was made from.
-  const edits = talking !== null && talking.words.length > 0;
+  const edits = talking !== null && !short && talking.words.length > 0;
   const clipUrl =
     edits && job.pendingMediaUrl ? job.pendingMediaUrl : sourceUrl;
   const cutOut = edits && clipUrl !== sourceUrl;
@@ -2699,12 +3013,12 @@ async function storeMedia(
           job.kind === ProjectImageJobKind.TALKING_VIDEO
             ? LIMITS.IMAGE_STUDIO_MAX_TALKING_VIDEO_BYTES
             : LIMITS.IMAGE_STUDIO_MAX_VIDEO_BYTES,
-          "video/mp4",
+          short ? "audio/wav" : "video/mp4",
         )
       : await downloadMedia(sourceUrl, LIMITS.IMAGE_STUDIO_MAX_ASSET_BYTES);
     // A CDN that calls an mp4 `application/octet-stream` would make it
     // unplayable in the gallery and unattachable in Social.
-    if (video && !downloaded.contentType.startsWith("video/"))
+    if (video && !short && !downloaded.contentType.startsWith("video/"))
       downloaded = { ...downloaded, contentType: "video/mp4" };
   } catch (error) {
     // fal has already produced the image, so it has already been paid for. A
@@ -2751,7 +3065,31 @@ async function storeMedia(
 
   let editedSeconds: number | null = null;
   let chargedCents = job.chargedCents;
-  if (talking && edits) {
+  if (short) {
+    try {
+      const made = await makeShortVideo(job, short, downloaded.bytes);
+      if (!made)
+        throw new Error("The short had no words to time its shots by.");
+      downloaded = { bytes: made.bytes, contentType: "video/mp4" };
+      editedSeconds = Math.ceil(made.durationSeconds);
+    } catch (error) {
+      // Its music alone is no short. Nothing is delivered, so nothing is charged.
+      recordCoreWarning(
+        {
+          operation: "image_job_settle",
+          imageJobs: [{ id: job.id, failure: messageSafeErrorFields(error) }],
+        },
+        {
+          message: "Could not put a short together",
+          why: "Reading its pictures, voice or site, or running the edit, threw",
+          fix: "The job is marked failed and nothing is charged. If this repeats, check that Core can read the studio's store and run its ffmpeg build.",
+        },
+      );
+      await releaseSettlementLease(job.id, lease);
+      await failImageJob(job.id, "unknown");
+      return;
+    }
+  } else if (talking && edits) {
     try {
       const [site, endCard, broll, music] = await Promise.all([
         cutOut ? readTalkingVideoSite(job, talking) : null,

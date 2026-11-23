@@ -42,6 +42,7 @@ import {
   cmoSpreadPoints,
   cmoStrategyRules,
   cmoTopVolumeProblems,
+  cmoWeekGaps,
   cmoWithOwnerPace,
   funnelStageProblems,
   mixProblems,
@@ -531,6 +532,111 @@ describe("the funnel strategy", () => {
     expect(fitted.pace?.perWeek).toBe(59);
     // Nothing in the calendar changes.
     expect(fitted.calendar).toBe(top.calendar);
+  });
+
+  it("fits every network, its pictures and Reels apart, its plays too, and says what it cut", () => {
+    // entry.fyi, 2026-11-22: the fit lowered X and YouTube but left
+    // Instagram at "2 images, 7 Reels daily" over 35 Instagram pieces.
+    const day = (index: number) =>
+      `2026-11-${String(2 + (index % 28)).padStart(2, "0")}`;
+    const calendar = [
+      ...Array.from({ length: 28 }, (_, index) => ({
+        ...entry(`ig-${index}`, "instagram", "carousel"),
+        date: day(index),
+      })),
+      ...Array.from({ length: 7 }, (_, index) => ({
+        ...entry(`v-${index}`, "youtube", "short"),
+        date: day(index * 4),
+        alsoOn: ["instagram", "tiktok"],
+      })),
+    ];
+    const month = plan({
+      calendar,
+      channels: [
+        {
+          channel: "instagram",
+          cadence: "2 images, 7 Reels daily",
+          role: "main",
+        },
+        { channel: "youtube", cadence: "7 Shorts a day", role: "main" },
+        { channel: "tiktok", cadence: "7 TikToks a day", role: "main" },
+        { channel: "facebook", cadence: "2 a day", role: "main" },
+      ],
+      funnel: [
+        {
+          stage: "interest",
+          goal: "They look at what Entry does",
+          channels: ["instagram", "facebook"],
+          metric: "Visits",
+          plays: [
+            {
+              channel: "instagram",
+              what: "Carousels and Reels",
+              cadence: "2 images, 7 Reels daily",
+            },
+            { channel: "facebook", what: "Posts", cadence: "2 a day" },
+          ],
+        },
+      ],
+    });
+
+    const fitted = cmoFitMonthToCalendar(month);
+    const instagram = "1 a day in pictures and 1 a week in Reels";
+    expect(
+      fitted.channels.find((channel) => channel.channel === "instagram")
+        ?.cadence,
+    ).toBe(instagram);
+    expect(fitted.funnel[0]?.plays).toEqual([
+      { channel: "instagram", what: "Carousels and Reels", cadence: instagram },
+    ]);
+    expect(fitted.funnel[0]?.channels).toEqual(["instagram"]);
+    expect(fitted.fitted).toEqual([
+      `Instagram: ${instagram} instead of 2 images, 7 Reels daily.`,
+      "YouTube: 1 a week instead of 7 Shorts a day.",
+      "TikTok: 1 a week instead of 7 TikToks a day.",
+      "Facebook: not this month (planned 2 a day).",
+    ]);
+  });
+
+  it("names each short week's missing pieces and what it already holds", () => {
+    // Four weeks of X at 3 a day against "6 a day", the last week full.
+    const calendar = Array.from({ length: 28 }, (_, index) =>
+      Array.from({ length: index >= 21 ? 6 : 3 }, (_, slot) => ({
+        ...entry(`x-${index}-${slot}`, "x", "post"),
+        title: `X ${index}-${slot}`,
+        date: `2026-11-${String(2 + index).padStart(2, "0")}`,
+      })),
+    ).flat();
+    const gaps = cmoWeekGaps(
+      plan({
+        calendar,
+        channels: [
+          { channel: "x", cadence: "6 a day", role: "main" },
+          { channel: "newsletter", cadence: "2 a month", role: "side" },
+        ],
+      }),
+    );
+    expect(
+      gaps.map(({ from, to, missing }) => ({ from, to, missing })),
+    ).toEqual([
+      {
+        from: "2026-11-02",
+        to: "2026-11-08",
+        missing: [{ channel: "x", count: 21 }],
+      },
+      {
+        from: "2026-11-09",
+        to: "2026-11-15",
+        missing: [{ channel: "x", count: 21 }],
+      },
+      {
+        from: "2026-11-16",
+        to: "2026-11-22",
+        missing: [{ channel: "x", count: 21 }],
+      },
+    ]);
+    expect(gaps[0]?.titles).toHaveLength(21);
+    expect(gaps[0]?.titles[0]).toBe("X 0-0");
   });
 
   it("holds a weekly Cuso's side channels to a buyer and three a week", () => {
@@ -1230,6 +1336,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       partPatch: false,
       channelFit: false,
       plainWords: false,
+      stageSpread: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-weekly"])).toEqual({
       weekly: true,
@@ -1239,6 +1346,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       partPatch: false,
       channelFit: false,
       plainWords: false,
+      stageSpread: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-part-patch"])).toEqual({
       weekly: true,
@@ -1248,6 +1356,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       partPatch: true,
       channelFit: false,
       plainWords: false,
+      stageSpread: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-channel-fit"])).toEqual({
       weekly: true,
@@ -1257,6 +1366,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       partPatch: true,
       channelFit: true,
       plainWords: false,
+      stageSpread: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-plain-words"])).toEqual({
       weekly: true,
@@ -1266,6 +1376,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       partPatch: true,
       channelFit: true,
       plainWords: true,
+      stageSpread: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-patches"])).toEqual({
       weekly: false,
@@ -1275,6 +1386,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       partPatch: false,
       channelFit: false,
       plainWords: false,
+      stageSpread: false,
     });
   });
 
@@ -1947,6 +2059,7 @@ describe("claims", () => {
       partPatch: false,
       channelFit: false,
       plainWords: false,
+      stageSpread: false,
     });
     const strategy = plan({
       calendar: [
@@ -2339,7 +2452,7 @@ describe("each network at its own rate, for a Cuso on cmo-v14", () => {
     );
   });
 
-  it("puts each network at one stage, proof at desire and Cuso's offer posts at action", () => {
+  it("asks for proof at desire and Cuso's offer posts at action, wherever a network sits", () => {
     const problems = cmoChannelFitProblems(
       plan({
         channels,
@@ -2354,8 +2467,8 @@ describe("each network at its own rate, for a Cuso on cmo-v14", () => {
         ] as MarketingStrategyPlan["funnel"],
       }),
     );
+    // Every network carries every step (owner, 2026-11-23): LinkedIn at two is fine.
     expect(problems).toEqual([
-      expect.stringContaining("linkedin sits at awareness and interest"),
       expect.stringContaining("the desire stage rests on newsletter"),
       expect.stringContaining("the action stage has no work of yours"),
     ]);
@@ -2437,9 +2550,10 @@ describe("each network at its own rate, for a Cuso on cmo-v14", () => {
         expect.stringContaining(
           'the action stage\'s goal "Qualified leads create their first projects." does not name NMKR or Studio',
         ),
-        expect.stringContaining("youtube sits at awareness and interest"),
-        expect.stringContaining("linkedin sits at awareness and desire"),
       ]),
+    );
+    expect(problems.some((problem) => problem.includes(" sits at "))).toBe(
+      false,
     );
     const after = nmkr(
       [
@@ -2471,6 +2585,58 @@ describe("each network at its own rate, for a Cuso on cmo-v14", () => {
       ],
     );
     expect(funnelStageProblems(after, () => true)).toEqual([]);
+  });
+
+  it("on cmo-v18, asks every entry for its step and every network to spread", () => {
+    const tagged = (
+      id: string,
+      channel: string,
+      stage?: "awareness" | "interest" | "desire" | "action",
+    ) => ({ ...entry(id, channel, "post"), ...(stage ? { stage } : {}) });
+    const pinned = plan({
+      channels,
+      funnel,
+      calendar: [
+        ...Array.from({ length: 8 }, (_, index) =>
+          tagged(`x-${index}`, "x", "awareness"),
+        ),
+        tagged("li-1", "linkedin", "interest"),
+        tagged("li-2", "linkedin", "desire"),
+      ],
+    });
+    expect(funnelStageProblems(pinned, () => true, true)).toEqual([
+      "no piece serves action; give every step pieces across the networks.",
+      "all 8 x pieces serve awareness; every network carries every step. It may lean toward what it does best, but give it pieces at other steps too.",
+    ]);
+    // Older versions are not asked.
+    expect(funnelStageProblems(pinned, () => true)).toEqual([]);
+
+    const untagged = plan({
+      channels,
+      funnel,
+      calendar: [tagged("x-1", "x", "action"), tagged("x-2", "x")],
+    });
+    expect(funnelStageProblems(untagged, () => true, true)).toEqual([
+      "1 calendar entries have no stage (x-2); give each the funnel step it serves: awareness, interest, desire or action.",
+    ]);
+
+    const spread = plan({
+      channels,
+      funnel,
+      calendar: (
+        ["awareness", "interest", "desire", "action"] as const
+      ).flatMap((stage) => [
+        tagged(`x-${stage}-1`, "x", stage),
+        tagged(`x-${stage}-2`, "x", stage),
+        tagged(`li-${stage}`, "linkedin", stage),
+      ]),
+    });
+    expect(funnelStageProblems(spread, () => true, true)).toEqual([]);
+    expect(cmoStrategyRules(["cmo-strategy-stage-spread"])).toMatchObject({
+      stageSpread: true,
+      plainWords: true,
+      channelFit: true,
+    });
   });
 
   it("asks for the platforms' own names, never talking or short video", () => {

@@ -268,25 +268,29 @@ describe("ProjectsPage", () => {
     },
   );
 
-  it("asks Core for one Closed project only when the Open view is empty", async () => {
-    projectServiceMock.listProjects
-      .mockResolvedValueOnce({ projects: [], pagination: null })
-      .mockResolvedValueOnce({ projects: [buildProject()], pagination: null });
+  it("asks Core for one Hidden and one Closed project only when the Open view is empty", async () => {
+    projectServiceMock.listProjects.mockImplementation(
+      async ({ state }: { state?: string }) =>
+        state === "closed"
+          ? { projects: [buildProject()], pagination: null }
+          : { projects: [], pagination: null },
+    );
 
     const { ProjectsPageContent } = await import("./page");
 
     render(await ProjectsPageContent({ searchParams: Promise.resolve({}) }));
 
-    expect(projectServiceMock.listProjects).toHaveBeenLastCalledWith({
-      limit: 1,
-      state: "closed",
-    });
+    for (const state of ["hidden", "closed"]) {
+      expect(projectServiceMock.listProjects).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 1, state }),
+      );
+    }
     expect(projectsViewMock).toHaveBeenCalledWith(
-      expect.objectContaining({ hasClosedProjects: true }),
+      expect.objectContaining({ otherViews: ["closed"] }),
     );
   });
 
-  it("skips the Closed probe when the Open view has projects or a filter", async () => {
+  it("skips the Hidden and Closed probes when the Open view has projects or a filter", async () => {
     projectServiceMock.listProjects.mockResolvedValue({
       projects: [],
       pagination: null,
@@ -299,12 +303,12 @@ describe("ProjectsPage", () => {
     );
 
     // Only the filter's own reads: this view, then the other views it may
-    // match in. No unfiltered Closed probe.
+    // match in. No unfiltered Hidden or Closed probe.
     for (const [input] of projectServiceMock.listProjects.mock.calls) {
       expect(input).toEqual(expect.objectContaining({ query: "x" }));
     }
     expect(projectsViewMock).toHaveBeenCalledWith(
-      expect.objectContaining({ hasClosedProjects: false, otherMatches: [] }),
+      expect.objectContaining({ otherViews: [], otherMatches: [] }),
     );
   });
 

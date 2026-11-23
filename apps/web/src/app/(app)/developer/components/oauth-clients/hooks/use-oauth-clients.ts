@@ -5,15 +5,15 @@ import {
   buildOAuthClientScopeParam,
 } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { toast } from "sonner";
 
+import { useOAuthClientsList } from "@/hooks/effects/use-oauth-clients-list";
 import { authClient } from "@/lib/auth/auth.client";
 
 import type {
   CreateOAuthClientRequest,
   DeleteOAuthClientRequest,
-  OAuthClientRecord,
   OAuthClientSecretResult,
   RotateOAuthClientRequest,
   UpdateOAuthClientRequest,
@@ -23,39 +23,7 @@ import { inferOAuthApplicationType } from "../utils";
 
 export function useOAuthClients(): UseOAuthClientsReturn {
   const t = useTranslations("App.Account.OAuthClients");
-  const [clients, setClients] = useState<OAuthClientRecord[]>([]);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(
-    async (isInitial = false) => {
-      if (isInitial) {
-        setIsInitialLoading(true);
-      }
-      setError(null);
-
-      try {
-        const result = await authClient.oauth2.getClients();
-        if (result.error) {
-          const errorMessage = result.error.message ?? t("Messages.loadError");
-          setError(errorMessage);
-          toast.error(errorMessage);
-          return;
-        }
-
-        setClients(result.data ?? []);
-      } catch {
-        const errorMessage = t("Messages.loadError");
-        setError(errorMessage);
-        toast.error(errorMessage);
-      } finally {
-        if (isInitial) {
-          setIsInitialLoading(false);
-        }
-      }
-    },
-    [t],
-  );
+  const { clients, isInitialLoading, error, refresh } = useOAuthClientsList(t);
 
   const create = useCallback(
     async (
@@ -256,10 +224,6 @@ export function useOAuthClients(): UseOAuthClientsReturn {
     },
     [refresh, t],
   );
-
-  useEffect(() => {
-    void refresh(true);
-  }, [refresh]);
 
   return {
     clients,

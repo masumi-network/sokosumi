@@ -150,12 +150,28 @@ describe("SEO worker request compatibility before Task dispatch", () => {
     );
     expect(full.price).toEqual({ kind: "fixed", credits: 750 });
     expect(full.inspectRelated).toBe(true);
-    expect(
+    const legacy = seoTaskPacket(
+      { ...base, kind: "audit_full" },
+      [page],
+      "01951111-1111-7111-8111-111111111111",
+    );
+    expect(legacy.inspectRelated).toBeUndefined();
+    // A priced full audit may add pages by itself: 4, or what is left of the 10 the worker reads.
+    const added = (pages: number, credits?: 750) =>
       seoTaskPacket(
-        { ...base, kind: "audit_full" },
-        [page],
+        { ...base, kind: "audit_full", fullAuditCredits: credits },
+        Array.from({ length: pages }, (_, n) => `${page}/${n}`),
         "01951111-1111-7111-8111-111111111111",
-      ).inspectRelated,
+      ).autoPages;
+    expect([full.autoPages, added(8, 750), added(10, 750)]).toEqual([
+      4,
+      2,
+      undefined,
+    ]);
+    expect([legacy.autoPages, added(8)]).toEqual([undefined, undefined]);
+    expect(
+      seoTaskPacket(base, [page], "01951111-1111-7111-8111-111111111111")
+        .autoPages,
     ).toBeUndefined();
     expect(
       seoTaskPacket(base, [page], "01951111-1111-7111-8111-111111111111").price,
@@ -178,6 +194,17 @@ describe("SEO worker request compatibility before Task dispatch", () => {
     ).toThrow("provider allowance");
     expect(() =>
       validateSeoAnalysis(base, [page, `${page}/next`]),
+    ).not.toThrow();
+    // One selected page takes the same limits: each full audit is a site Run.
+    expect(() =>
+      validateSeoAnalysis(
+        {
+          ...base,
+          fullAuditCredits: 750,
+          fullAuditLimits: { usd: 5, seconds: 900 },
+        },
+        [page],
+      ),
     ).not.toThrow();
   });
   it("refuses a Task packet the worker would refuse for its length, before dispatch", () => {

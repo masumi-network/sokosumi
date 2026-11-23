@@ -103,7 +103,8 @@ import { useLoadWhenVisible } from "@/hooks/effects/use-load-when-visible";
 import { useIsMobile } from "@/hooks/effects/use-mobile";
 import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
 import { useUrlTimezone } from "@/hooks/effects/use-url-timezone";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useWorkspaceCalendarGridPageDrain } from "@/hooks/effects/use-workspace-calendar-grid-page-drain";
+import { useWorkspaceCalendarRenderEpoch } from "@/hooks/effects/use-workspace-calendar-render-epoch";
 import { CalendarRealtimeBridge } from "@/lib/ably/calendar-realtime-bridge";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import {
@@ -1111,7 +1112,6 @@ function WorkspaceCalendarView({
     null,
   );
   const { moveBotRun, restoreBotRun, skipBotRun } = useBotRunChanges();
-  const [calendarRenderEpoch, setCalendarRenderEpoch] = useState(0);
   const calendarAccessGeneration = useRef(0);
   const hasActivatedRef = useRef(false);
 
@@ -1136,28 +1136,7 @@ function WorkspaceCalendarView({
     setLoadMoreError(false);
   }
 
-  useMountEffect(() => {
-    // Defer past React StrictMode's synchronous setup -> cleanup -> setup
-    // dev-mode cycle: only the microtask from the setup that survives (isn't
-    // cancelled by an immediate synthetic cleanup) marks activation or
-    // recreates the Calendar views once for a real reactivation.
-    let cancelled = false;
-
-    queueMicrotask(() => {
-      if (cancelled) {
-        return;
-      }
-      if (hasActivatedRef.current) {
-        setCalendarRenderEpoch((epoch) => epoch + 1);
-        return;
-      }
-      hasActivatedRef.current = true;
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  });
+  const calendarRenderEpoch = useWorkspaceCalendarRenderEpoch(hasActivatedRef);
 
   const requestedDate = parseCalendarDate(
     state.date ?? initialDate,
@@ -1485,21 +1464,14 @@ function WorkspaceCalendarView({
     setMovingBotRun(null);
   }
 
-  // Month/week grids must show every event: a day holding three of its five
-  // events looks complete. Drain the remaining pages as soon as one appears.
-  useEffect(() => {
-    const requested = requestedPageRef.current;
-    if (
-      view === "agenda" ||
-      !nextCursor ||
-      loadMoreError ||
-      (requested?.cursor === nextCursor && requested.items === items)
-    ) {
-      return;
-    }
-    requestedPageRef.current = { cursor: nextCursor, items };
-    void loadNextPage();
-  }, [view, items, nextCursor, loadMoreError, loadNextPage]);
+  useWorkspaceCalendarGridPageDrain({
+    view,
+    items,
+    nextCursor,
+    loadMoreError,
+    loadNextPage,
+    requestedPageRef,
+  });
 
   useLoadWhenVisible(agendaBoundaryRef, {
     armed:

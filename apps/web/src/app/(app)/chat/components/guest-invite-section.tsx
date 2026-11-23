@@ -1,24 +1,12 @@
 "use client";
 
-import type {
-  ChatRoomGuestInviteLink,
-  ChatRoomInvitation,
-} from "@sokosumi/core-client";
 import { Copy, Link2, Loader2, Trash2, UserPlus } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import {
-  type FormEvent,
-  useCallback,
-  useEffect,
-  useState,
-  useTransition,
-} from "react";
+import { type FormEvent, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   createRoomGuestInviteLinkAction,
   createRoomInvitationAction,
-  listRoomGuestInviteLinksAction,
-  listRoomInvitationsAction,
   revokeRoomGuestInviteLinkAction,
   revokeRoomInvitationAction,
 } from "@/app/chat/actions";
@@ -32,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useGuestInviteSectionData } from "@/hooks/effects/use-guest-invite-section-data";
 import { isValidEmail } from "@/lib/utils/email";
 
 /** Select value for "no hard expiry". */
@@ -66,42 +55,21 @@ export function GuestInviteSection({ roomId }: GuestInviteSectionProps) {
   const t = useTranslations("App.Channels.GuestInvite");
   const format = useFormatter();
   const [email, setEmail] = useState("");
-  const [invitations, setInvitations] = useState<ChatRoomInvitation[]>([]);
-  const [inviteLinks, setInviteLinks] = useState<ChatRoomGuestInviteLink[]>([]);
-  const [loadFailed, setLoadFailed] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const {
+    invitations,
+    setInvitations,
+    inviteLinks,
+    setInviteLinks,
+    loadFailed,
+    isLoading,
+    loadInvitations,
+  } = useGuestInviteSectionData(roomId);
   const [isPending, startTransition] = useTransition();
   const [isCreatingLink, setIsCreatingLink] = useState(false);
   const [linkExpiry, setLinkExpiry] = useState<string>("7");
   const [linkMaxUses, setLinkMaxUses] = useState<string>(MAX_USES_UNLIMITED);
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [revokingToken, setRevokingToken] = useState<string | null>(null);
-
-  const loadInvitations = useCallback(async () => {
-    setIsLoading(true);
-    setLoadFailed(false);
-    const [invitationsResult, linksResult] = await Promise.all([
-      listRoomInvitationsAction(roomId),
-      listRoomGuestInviteLinksAction(roomId),
-    ]);
-    setIsLoading(false);
-    if (!invitationsResult.ok || !linksResult.ok) {
-      setLoadFailed(true);
-      setInvitations([]);
-      setInviteLinks([]);
-      return;
-    }
-    setInvitations(
-      invitationsResult.value.filter((inv) => inv.status === "pending"),
-    );
-    // Show non-revoked links (expired/depleted still useful for audit until host revokes).
-    setInviteLinks(linksResult.value.filter((link) => !link.revokedAt));
-  }, [roomId]);
-
-  // Mount-only fetch; parent remounts on dialog open so reopen is fresh.
-  useEffect(() => {
-    void loadInvitations();
-  }, [loadInvitations]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

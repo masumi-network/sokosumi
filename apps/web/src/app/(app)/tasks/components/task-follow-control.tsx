@@ -4,7 +4,7 @@ import type { TaskFollower } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { READ_RECEIPT_FACE_CAP } from "@/components/chat/read-receipt-faces";
@@ -15,7 +15,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import { followTask, unfollowTask } from "@/lib/actions/task/follow-action";
 import {
   FOLLOW_AFTER_SETUP_PARAM,
@@ -272,6 +271,6 @@ function SokoBotMark({ face }: { face: ViewerSokoBotFace }) {
  * so the second run follows nothing.
  */
 function OnMount({ run }: { run: () => void }) {
-  useMountEffect(run);
+  useEffect(run, []);
   return null;
 }

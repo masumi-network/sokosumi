@@ -591,15 +591,18 @@ describe("the plan starts when the research ends", () => {
     ).resolves.toEqual({ turnId: "finish-1" });
     const message = (startTurn.mock.calls[0]?.[0] as { message: string })
       .message;
+    // entry.fyi's Cuso stopped six times: "I could only see part of the
+    // existing calendar". The message names each week's gap and holdings.
     expect(message).toContain(
-      "its calendar does not hold what the strategy promises",
+      "some weeks hold fewer pieces than its cadences say",
     );
     expect(message).toContain(
-      'linkedin has 4 calendar pieces, but its cadence "3 a week" means about 12',
+      `- 2026-10-01 to 2026-10-07: add 2 on linkedin. Saved that week, so make each new piece say something else: ${strategy.calendar[0]?.title}.`,
     );
-    expect(message).toContain(
-      "Never lower the pace or a posting network's cadence",
-    );
+    expect(message).toContain("you need nothing more from the calendar");
+    expect(message).toContain("Never lower the pace or a cadence");
+    // Two weeks a turn; the next turn takes the rest.
+    expect(message).not.toContain("2026-10-15 to");
   });
 
   it("fits a month still short after its last finish turn, so the owner can approve it", async () => {

@@ -4,13 +4,6 @@ import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { authClient } from "@/lib/auth/auth.client";
 import { NotificationKinds } from "./notification-kinds";
 
@@ -73,39 +66,37 @@ export function NotificationPreferences({
   };
 
   return (
-    <Card className="flex h-full flex-col">
-      <CardHeader>
-        {/* The route's top-level heading. `CardTitle` is a div, so without this
-            heading navigation, which is how a settings page is read, reaches
-            nothing here. Preflight resets a heading's size and weight, so the
-            card looks the same. Cards below this one use `h2`. */}
-        <CardTitle>
-          <h1>{t("title")}</h1>
-        </CardTitle>
-        <CardDescription>{t("description")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {/* Everything about delivery is in the one grid: what Sokosumi tells
-            you about, and where each of those things reaches you. The
-            marketing switch is a row of it, so a reader answers one question in
-            one place rather than meeting a second kind of control among them.
-            Push has no row of its own at all: a cell asks the browser. A
-            preference that changes no delivery cannot be a row here, so
-            `children` carries it below the grid as its own quieter card
-            instead. */}
-        {/* Busy while the write is in flight. A cell that took the press and
-            did nothing would look broken; dimmed and marked busy, it says
-            why. */}
-        <NotificationKinds
-          pushDevices={pushDevices}
-          news={{
-            enabled: marketingOptIn,
-            saving: isSaving,
-            onChange: handleMarketingOptInToggle,
-          }}
-        />
-      </CardContent>
-      {children ? <CardContent>{children}</CardContent> : null}
-    </Card>
+    // No card of its own: the page's gray panel is the surface, and the
+    // groups below sit on it as white bordered blocks, like every other
+    // settings page. A card here put four layers between the edge and a row.
+    <div className="flex flex-col gap-6">
+      <header className="space-y-1.5">
+        {/* The route's top-level heading, so heading navigation, which is how
+            a settings page is read, has a landmark to arrive at. Blocks below
+            this one use `h2`. */}
+        <h1 className="text-lg leading-none font-semibold">{t("title")}</h1>
+        <p className="text-muted-foreground text-sm">{t("description")}</p>
+      </header>
+      {/* Everything about delivery is in the one grid: what Sokosumi tells
+          you about, and where each of those things reaches you. The
+          marketing switch is a row of it, so a reader answers one question in
+          one place rather than meeting a second kind of control among them.
+          Push has no row of its own at all: a cell asks the browser. A
+          preference that changes no delivery cannot be a row here, so
+          `children` carries it below the grid as its own quieter card
+          instead. */}
+      {/* Busy while the write is in flight. A cell that took the press and
+          did nothing would look broken; dimmed and marked busy, it says
+          why. */}
+      <NotificationKinds
+        pushDevices={pushDevices}
+        news={{
+          enabled: marketingOptIn,
+          saving: isSaving,
+          onChange: handleMarketingOptInToggle,
+        }}
+      />
+      {children}
+    </div>
   );
 }

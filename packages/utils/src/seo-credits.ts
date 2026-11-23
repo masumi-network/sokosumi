@@ -17,7 +17,7 @@ export function seoFullAuditPrice(maxCredits?: typeof SEO_FULL_AUDIT_CREDITS) {
 }
 /** Provider spending bound for a newly priced full audit. */
 export const SEO_FULL_AUDIT_MAX_PROVIDER_USD = 5;
-/** A one-page full audit has no USD limit; the worker's page reserve bounds it. */
+/** The worker's reserve of paid data for one page. */
 export const SEO_PAGE_CEILING_CENTS = 33;
 /** The ceiling of one paid call of a focused check (live SERP is about 0.6, a backlinks summary about 2.4). */
 const SEO_MAX_CALL_CENTS = 5;
@@ -26,6 +26,22 @@ export const SEO_DEFAULT_FULL_AUDIT_USD = 3;
 
 /** Maximum site-audit duration accepted by the public SEO worker. */
 export const SEO_FULL_AUDIT_MAX_SECONDS = 5400;
+/** The most pages one full audit reads: the selected pages and the pages the audit adds. */
+const SEO_FULL_AUDIT_MAX_PAGES = 10;
+/**
+ * The most pages a full audit adds to the selected ones (owner decision 2026-11-22). The audit picks them from the
+ * site by the goal of the first page. Each one costs at most one page reserve inside the audit's USD limit.
+ */
+const SEO_FULL_AUDIT_AUTO_PAGES = 4;
+/** How many pages a full audit of this many selected pages may add. */
+export const seoFullAuditAutoPages = (selectedPages: number): number =>
+  Math.max(
+    0,
+    Math.min(
+      SEO_FULL_AUDIT_AUTO_PAGES,
+      SEO_FULL_AUDIT_MAX_PAGES - selectedPages,
+    ),
+  );
 
 const CENTS_PER_USD = 100;
 /** The smallest USD limit of a multi-page full audit: the worker refuses a limit below one page's reserve. */

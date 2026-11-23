@@ -205,6 +205,8 @@ describe("strategy reveal", () => {
         },
         level: "all_in" as const,
         beyondPlan: [],
+        withoutPicture: [],
+        retryAt: null,
       },
     };
     const html = renderToStaticMarkup(

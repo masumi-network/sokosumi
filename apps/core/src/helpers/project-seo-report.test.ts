@@ -596,6 +596,48 @@ describe("public SEO report trust boundary", () => {
     }
   });
 
+  it("imports the pages a full audit added, up to the count its frozen request names", () => {
+    const added = "https://shop.example.test/added",
+      other = "https://example.test/other";
+    const site = (
+      urls: string[],
+      skipped: { url: string; reason: string }[] = [],
+    ) => ({
+      kind: "site",
+      rulebookVersion: "test",
+      pages: urls.map((url) => ({ ...legacyReport(), request: { url } })),
+      selection: { pages: [], skipped, picked: [] },
+    });
+    const check = (raw: ReturnType<typeof site>, autoPages?: number) =>
+      assertSeoArtifactMatchesRequest(raw, parsePublicSeoArtifact(raw), {
+        id: SEO_TEST_REQUEST_ID,
+        kind: "audit_full",
+        request: {
+          pageUrls: [SEO_TEST_PAGE],
+          countryCode: "US",
+          languageCode: "en",
+          ...(autoPages ? { autoPages } : {}),
+        },
+      });
+    const one = site([SEO_TEST_PAGE, added]),
+      failed = site(
+        [SEO_TEST_PAGE, added],
+        [{ url: other, reason: "the page Run failed: timeout" }],
+      );
+    // The evidence of an added page is inside the scope: the fixture page has a finding and an action.
+    expect(parsePublicSeoArtifact(one).pageUrls).toEqual([
+      SEO_TEST_PAGE,
+      added,
+    ]);
+    expect(() => check(one, 1)).not.toThrow();
+    // An added page that failed counts too: the worker paid for its try.
+    expect(() => check(failed, 2)).not.toThrow();
+    expect(() => check(failed, 1)).toThrow("frozen page scope");
+    expect(() => check(one)).toThrow("frozen page scope");
+    // The selected page stays required, with or without added pages.
+    expect(() => check(site([added]), 4)).toThrow("frozen page scope");
+  });
+
   it("keeps a site audit's strategy results: page per keyword group, and only web links as targets", () => {
     expect(parsePublicSeoArtifact(siteStrategyReport()).strategy).toEqual({
       verdict: "keep",

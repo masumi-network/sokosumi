@@ -29,3 +29,33 @@ export function productionSteps(
     ? `${words} · Pictures ${production.pictured} of ${production.needPictures}`
     : words;
 }
+
+/** "at 14:30", or "tomorrow at 09:10": when a stopped month's next run starts. */
+export function retryWhen(
+  retryAt: string | null,
+  timeZone: string,
+  now: Date = new Date(),
+): string {
+  if (!retryAt) return "soon";
+  const at = new Date(retryAt);
+  try {
+    const time = at.toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone,
+    });
+    const day = (date: Date) => date.toLocaleDateString("en-CA", { timeZone });
+    return day(at) === day(now) ? `at ${time}` : `tomorrow at ${time}`;
+  } catch {
+    return `at ${at.toISOString().slice(11, 16)} UTC`;
+  }
+}
+
+/** "1 post has no picture…": posts whose picture never passed the brand check. */
+export function withoutPictureLine(production: Production): string | null {
+  const count = production.withoutPicture.length;
+  if (count === 0) return null;
+  return count === 1
+    ? "1 post has no picture: none he made fit your brand, so it stays a draft."
+    : `${count} posts have no picture: none he made fit your brand, so they stay drafts.`;
+}

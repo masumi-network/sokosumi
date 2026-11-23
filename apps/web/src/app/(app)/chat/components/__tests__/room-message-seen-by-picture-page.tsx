@@ -4,14 +4,13 @@ import type {
   ChatRoomUserParticipant,
 } from "@sokosumi/core-client";
 import { NextIntlClientProvider } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { hydrateRoot } from "react-dom/client";
 import { ChatMessageRow } from "@/app/chat/components/room-message-row";
 import { RoomSeenByLine } from "@/app/chat/components/room-seen-by-line";
 import { RoomShellLayout } from "@/app/chat/components/room-shell-layout";
 import type { RoomReader } from "@/app/chat/hooks/use-room-read-receipts";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import { createFormats } from "@/i18n/time-format";
 import messages from "@/messages/en.json";
 
@@ -55,9 +54,9 @@ const MESSAGE: ChatRoomMessage = {
 
 export function PicturePage() {
   const [faces, setFaces] = useState(false);
-  useMountEffect(() => {
+  useEffect(() => {
     document.body.dataset.hydrated = "true";
-  });
+  }, []);
   return (
     <NextIntlClientProvider
       locale="en"

@@ -127,3 +127,50 @@ export const TALKING_VIDEO_PLANNED_CREDITS = {
       planned(TALKING_VIDEO_PLANNED_SCRIPT.longest)) /
     TALKING_VIDEO_PLANNED_SCRIPT.longest,
 };
+
+/**
+ * A short: a vertical video without a presenter, made from the brand's
+ * pictures and site. Each format is a way of telling it that works without
+ * a person on camera (the platforms' own creative guides, 2026-11-23).
+ */
+export const SHORT_VIDEO_FORMATS = [
+  /** A voice tells a short story over the brand's pictures and site. */
+  "voiceover",
+  /** A voice walks through the brand's site, page by page. */
+  "site_tour",
+  /** A voice gives three numbered points. */
+  "top_three",
+  /** The brand's pictures to music, a short line on each. */
+  "slideshow",
+] as const;
+export type ShortVideoFormat = (typeof SHORT_VIDEO_FORMATS)[number];
+
+/** Formats whose words are shown, not spoken. */
+export const SHORT_VIDEO_TEXT_FORMATS: readonly ShortVideoFormat[] = [
+  "slideshow",
+];
+
+/** A short shows at most this many of the brand's pictures. */
+export const SHORT_VIDEO_MAX_PICTURES = 6;
+
+/**
+ * Credits (= cents) for one short. Every short has music; a spoken one adds
+ * its voice and the timing of its words. No presenter, so no per-second
+ * cost, and no generated clip: it needs an AI label and shows nothing of the
+ * brand's own.
+ */
+export function creditsPerShortVideoCents(
+  price: TalkingVideoPriceFigures,
+  script: string,
+  format: ShortVideoFormat,
+): number {
+  const spoken = !SHORT_VIDEO_TEXT_FORMATS.includes(format);
+  const seconds = talkingVideoQuotedSeconds(script);
+  const usd =
+    price.musicUsd +
+    (spoken
+      ? (script.length / 1000) * price.voicePer1000CharactersUsd +
+        (seconds / 60) * price.captionsPerMinuteUsd
+      : 0);
+  return Math.ceil(usd * 100);
+}

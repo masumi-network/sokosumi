@@ -519,6 +519,7 @@ export {
   SEO_PAGE_CEILING_CENTS,
   type SeoCreditCeilingInput,
   seoCreditsForCents,
+  seoFullAuditAutoPages,
   seoFullAuditPrice,
   seoMaxCredits,
 } from "./seo-credits.js";
@@ -649,7 +650,12 @@ export { productBrief } from "./studio-product-brief.js";
 export { encodeTableCsv, parseTableCsv, readCsvRows } from "./table-csv.js";
 export { validateTableValues } from "./table-value-validation.js";
 export {
+  creditsPerShortVideoCents,
   creditsPerTalkingVideoCents,
+  SHORT_VIDEO_FORMATS,
+  SHORT_VIDEO_MAX_PICTURES,
+  SHORT_VIDEO_TEXT_FORMATS,
+  type ShortVideoFormat,
   TALKING_VIDEO_PLANNED_CREDITS,
   TALKING_VIDEO_PLANNED_SCRIPT,
   TALKING_VIDEO_PRICE,

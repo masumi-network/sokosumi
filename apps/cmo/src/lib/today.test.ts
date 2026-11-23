@@ -255,18 +255,48 @@ it("counts the month once, as it goes out, whatever Core's run still makes", () 
       }
     : null;
   expect(
-    monthMade({
-      ...overview,
-      strategy,
-      approvedStrategy: strategy,
-      production: {
-        ...overview.production,
-        ready: 8,
-        total: 11,
-        beyondPlan: ["beyond"],
+    monthMade(
+      {
+        ...overview,
+        strategy,
+        approvedStrategy: strategy,
+        production: {
+          ...overview.production,
+          ready: 8,
+          total: 11,
+          beyondPlan: ["beyond"],
+        },
       },
-    }),
+      new Date(`${first.date}T00:00:00Z`),
+    ),
   ).toEqual({ ready: 2, total: 3 });
+});
+
+it("leaves out a post whose day passed before it was made: it never goes out", () => {
+  // entry.fyi, 2026-11-23: three X posts of 22 Nov read "To make" all month.
+  const overview = cmoOverview({ ...approved });
+  const [first] = overview.strategy?.calendar ?? [];
+  if (!first) throw new Error("fixture has an entry");
+  const strategy = overview.strategy && {
+    ...overview.strategy,
+    calendar: [
+      { ...first, id: "past", date: "2026-11-22", status: "idea" as const },
+      {
+        ...first,
+        id: "sent",
+        date: "2026-11-22",
+        status: "published" as const,
+      },
+      { ...first, id: "next", date: "2026-11-24", status: "idea" as const },
+    ],
+  };
+  const month = { ...overview, strategy, approvedStrategy: strategy };
+  const now = new Date("2026-11-23T08:00:00Z");
+  expect(monthEntries(month, now).map((entry) => entry.id)).toEqual([
+    "sent",
+    "next",
+  ]);
+  expect(monthMade(month, now)).toEqual({ ready: 1, total: 2 });
 });
 
 it("leaves a post X paused out of Needs you: it is still scheduled, and Core retries it", () => {
@@ -301,8 +331,24 @@ describe("todayLine", () => {
     const line = todayLine(at("stuck"), 0);
     expect(line).not.toMatch(/Nothing needs you|on its day/);
     expect(line).toBe(
-      `I stopped making your month at ${made.ready} of ${made.total}. I try the rest again on my next round.`,
+      `I stopped making your month at ${made.ready} of ${made.total}. My last try made nothing new, so I try the rest again soon.`,
     );
+  });
+
+  it("says when a stopped month is tried again, in the owner's time", () => {
+    const stopped = at("stuck");
+    const line = todayLine(
+      {
+        ...stopped,
+        timeZone: "Europe/Zurich",
+        production: {
+          ...stopped.production,
+          retryAt: new Date(Date.now() + 60_000).toISOString(),
+        },
+      },
+      0,
+    );
+    expect(line).toMatch(/so I try the rest again (tomorrow )?at \d\d:\d\d\.$/);
   });
 
   it("counts the month while a run is about to make the rest", () => {

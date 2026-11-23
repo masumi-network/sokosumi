@@ -10,9 +10,12 @@ import {
   replyToComment,
   SOCIAL_COMMENT_PROVIDERS,
   type SocialCommentContext,
+  type SocialCommentProvider,
   socialCommentReplyFits,
 } from "@/clients/social-post-providers/comments";
 import prisma from "@/lib/db/prisma";
+import { recordCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { connectionExecutorUserId } from "@/services/project-social-connections.service";
 import { TEST_COPY_NOTHING_AT_ONCE } from "@/services/project-test-copy";
 
@@ -82,6 +85,20 @@ export async function collectNewSocialComments(input: {
   });
   const since = new Date(now.getTime() - COMMENT_WINDOW_DAYS * DAY_MS);
   const unavailable = new Set<string>();
+  const refused = (provider: SocialCommentProvider) => (error: unknown) => {
+    unavailable.add(socialPostProviderLabel(provider));
+    // Comment text can be in the error, so content-free metadata only.
+    recordCoreError(
+      { operation: "social_comments_read", provider },
+      {
+        message: `Could not read ${socialPostProviderLabel(provider)} comments`,
+        why: "The network or Composio refused the comment read",
+        fix: "Cuso's reply round skipped this network today. Look up the error under failure.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
+    return [];
+  };
   const save = async (
     post: { id: string; provider: string },
     comments: ProviderComment[],
@@ -122,10 +139,7 @@ export async function collectNewSocialComments(input: {
     const comments = await listPostComments(
       context,
       post.publishedExternalId,
-    ).catch(() => {
-      unavailable.add(socialPostProviderLabel(context.provider));
-      return [];
-    });
+    ).catch(refused(context.provider));
     await save(post, comments);
   }
   // X: one read of the account's mentions covers all its posts.
@@ -140,10 +154,7 @@ export async function collectNewSocialComments(input: {
     const replies = await listXReplies(context, {
       startTime: since,
       sinceId: newest?.externalCommentId,
-    }).catch(() => {
-      unavailable.add(socialPostProviderLabel("x"));
-      return [];
-    });
+    }).catch(refused("x"));
     for (const post of accountPosts) {
       await save(
         post,

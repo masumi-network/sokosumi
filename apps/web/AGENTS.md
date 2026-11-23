@@ -103,7 +103,7 @@ Prefer `toActionResult` over inventing another Ok/Err helper.
 
 ### useEffect and client-side effects
 
-Direct `useEffect`, `useLayoutEffect`, and `useMountEffect` calls are banned in product code outside `src/hooks/effects/` ([ADR-0075](../../docs/adr/0075-effects-live-only-in-named-hooks.md)). Use Effects only to **synchronize with external systems** through a named, tested hook in `src/hooks/effects/`. See [Effects in Web UI conventions](../../docs/agents/web-ui.md#effects) for alternatives (render computation, event handlers, `key` resets, React Query, `useSyncExternalStore`, `useEffectEvent`) and the existing named hooks.
+Direct `useEffect` and `useLayoutEffect` calls are banned in product code outside `src/hooks/effects/` ([ADR-0075](../../docs/adr/0075-effects-live-only-in-named-hooks.md)), and general effect-callback wrappers (like the removed `useMountEffect`) are disallowed. Use Effects only to **synchronize with external systems** through a named, tested hook in `src/hooks/effects/`. See [Effects in Web UI conventions](../../docs/agents/web-ui.md#effects) for alternatives (render computation, event handlers, `key` resets, React Query, `useSyncExternalStore`, `useEffectEvent`) and the existing named hooks.
 
 ### Linting & Formatting
 

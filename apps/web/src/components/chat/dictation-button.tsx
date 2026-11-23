@@ -2,12 +2,11 @@
 
 import { Mic, Square, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import useIsClient from "@/hooks/use-is-client";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 
 /** Dictation stops and turns into text on its own after two minutes. */
 export const DICTATION_MAX_MS = 120_000;
@@ -100,13 +99,13 @@ export function DictationButton({
     onRecordingChange?.(false);
   }
 
-  useMountEffect(() => {
+  useEffect(() => {
     unmountedRef.current = false;
     return () => {
       unmountedRef.current = true;
       finish(false);
     };
-  });
+  }, []);
 
   // Stable so React calls it only when the mic button mounts.
   const micRef = useCallback((node: HTMLButtonElement | null) => {

@@ -1,20 +1,13 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
-
-const COOLDOWN_SECONDS = 30;
+import { useResendCodeCooldown } from "@/hooks/effects/use-resend-code-cooldown";
 
 interface ResendCodeButtonProps {
   /** When the current code went out, in epoch milliseconds. */
   sentAt: number;
   onResend: () => void;
   isSending: boolean;
-}
-
-function secondsLeft(sentAt: number, now: number): number {
-  const left = Math.ceil((sentAt + COOLDOWN_SECONDS * 1000 - now) / 1000);
-  return Math.min(COOLDOWN_SECONDS, Math.max(0, left));
 }
 
 /**
@@ -28,20 +21,7 @@ export function ResendCodeButton({
   isSending,
 }: ResendCodeButtonProps) {
   const t = useTranslations("Components.EmailCodeForm");
-  const [now, setNow] = useState(() => Date.now());
-  const left = secondsLeft(sentAt, now);
-
-  // Synchronizes with the clock until the wait is over.
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const current = Date.now();
-      setNow(current);
-      if (secondsLeft(sentAt, current) === 0) {
-        clearInterval(timer);
-      }
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [sentAt]);
+  const left = useResendCodeCooldown(sentAt);
 
   return (
     <button

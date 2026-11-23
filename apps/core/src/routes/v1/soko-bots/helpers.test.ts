@@ -108,4 +108,14 @@ describe("mapTurn", () => {
     expect(mapped.chatRoom).toEqual(room);
     expect(mapped).not.toHaveProperty("askedBy");
   });
+
+  it("names the schedule a scheduled turn ran for, and null for other turns", () => {
+    const schedule = { name: "Dreaming", systemKey: "dreaming" };
+
+    const scheduled = mapTurn({ scheduleRun: { schedule } });
+
+    expect(scheduled.schedule).toEqual(schedule);
+    expect(scheduled).not.toHaveProperty("scheduleRun");
+    expect(mapTurn({}).schedule).toBeNull();
+  });
 });

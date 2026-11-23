@@ -2732,6 +2732,7 @@ model SokoBot {
   legacyMessages       SokoBotLegacyMessage[]
   pendingDecisions     SokoBotPendingDecision[]
   schedules            SokoBotSchedule[]
+  cmoUpgradesSeen      CmoUpgradeSeen[]
 
   // One LIVE bot per user and workspace. Partial, because a plain unique would
   // let a tombstone block its owner from ever creating a new bot.
@@ -3458,6 +3459,22 @@ model SokoBotAdminAction {
   @@index([operatorId, createdAt(sort: Desc)])
   @@index([traceId, createdAt(sort: Desc)])
   @@map("soko_bot_admin_action")
+}
+
+/// A member closed CMO's "Cuso got better" dialog for this Cuso's move onto
+/// this version, so it is not shown to them again.
+model CmoUpgradeSeen {
+  userId    String
+  sokoBotId String   @db.Uuid
+  versionId String
+  seenAt    DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sokoBot SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
+  @@id([userId, sokoBotId, versionId])
+  @@index([sokoBotId])
+  @@map("cmo_upgrade_seen")
 }
 
 model CoworkerApiKey {

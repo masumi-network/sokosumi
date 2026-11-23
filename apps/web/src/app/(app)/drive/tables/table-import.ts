@@ -1,5 +1,11 @@
-import { tableBatchSchema, type tableInsertRowSchema } from "@sokosumi/utils";
+import type { TableColumn, TableRow } from "@sokosumi/core-client";
+import {
+  tableBatchSchema,
+  tableInsertRowSchema,
+  validateTableValues,
+} from "@sokosumi/utils";
 import type { z } from "zod";
+import { parseTableInput } from "./table-value";
 
 /** Deterministic chunks leave headroom for the Core operation envelope as well as HTTP JSON. */
 export function tableImportBatches(
@@ -61,4 +67,80 @@ export function isNumericCsvColumn(header: string, values: string[]): boolean {
         (!/[1-9]/.test(value) || Math.abs(Number(value)) >= MIN_NORMAL),
     )
   );
+}
+
+/**
+ * Plans adding CSV rows to an existing Table: headers match Text column
+ * names ignoring case and outer spaces; every other header is skipped, so
+ * other column types stay empty and no value is converted. A header that
+ * names two columns, or two headers that name one column, are `ambiguous`;
+ * then, or when no header names a Text column, it plans no rows. `newRows` leaves out
+ * the rows whose matched cells equal an existing row's, so overlapping
+ * exports can skip them.
+ */
+export function planCsvAppend(
+  columns: Pick<TableColumn, "id" | "name" | "type" | "options">[],
+  csv: string[][],
+  existing: Pick<TableRow, "values">[],
+  describe: (row: number, error: unknown) => string = (_, error) =>
+    error instanceof Error ? error.message : String(error),
+) {
+  const normal = (text: string) => text.trim().toLowerCase();
+  const fillable = columns.filter((column) => column.type === "text");
+  const found = csv[0].map((header) =>
+    fillable.filter((column) => normal(column.name) === normal(header)),
+  );
+  const ambiguous = csv[0].filter(
+    (_, i) =>
+      found[i].length > 1 ||
+      (found[i].length === 1 &&
+        found.filter((other) => other.length === 1 && other[0] === found[i][0])
+          .length > 1),
+  );
+  const unclear = new Set(ambiguous);
+  const pairs = found.flatMap((match, index) =>
+    match.length === 1 && !unclear.has(csv[0][index])
+      ? [{ column: match[0], index }]
+      : [],
+  );
+  const skipped = csv[0].filter(
+    (header, i) => !found[i].length && !unclear.has(header),
+  );
+  const key = (values: TableRow["values"]) =>
+    JSON.stringify(pairs.map(({ column }) => values[column.id] ?? null));
+  const rows =
+    ambiguous.length || !pairs.length
+      ? []
+      : csv.slice(1).map((cells, i) => {
+          try {
+            const row = tableInsertRowSchema.parse({
+              values: Object.fromEntries(
+                pairs.map(({ column, index }) => [
+                  column.id,
+                  parseTableInput(column, cells[index]),
+                ]),
+              ),
+            });
+            validateTableValues(
+              pairs.map(({ column }) => ({
+                ...column,
+                options: column.options ?? [],
+                description: "",
+              })),
+              row.values,
+              row.evidence,
+            );
+            return row;
+          } catch (error) {
+            throw new Error(describe(i + 2, error));
+          }
+        });
+  const held = new Set(existing.map((row) => key(row.values)));
+  return {
+    matched: pairs.map(({ column }) => column.name),
+    skipped,
+    ambiguous,
+    rows,
+    newRows: rows.filter((row) => !held.has(key(row.values))),
+  };
 }
