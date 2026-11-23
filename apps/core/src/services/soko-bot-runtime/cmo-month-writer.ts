@@ -21,7 +21,7 @@ import prisma from "@/lib/db/prisma";
 import { EMBEDDING_MODEL } from "@/lib/embeddings";
 import { gatewayCallUsage } from "@/lib/soko-bot/gateway-cost";
 import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
-import { modelCallTelemetryFor } from "@/lib/soko-bot/model-calls";
+import { modelCallTelemetryFor } from "@/lib/soko-bot/model-call-roles";
 import { sokoBotModelRequest } from "@/lib/soko-bot/model-policy";
 import {
   RuntimeEventLog,
