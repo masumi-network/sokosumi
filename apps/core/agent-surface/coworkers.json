@@ -16,10 +16,16 @@
     "PATCH /coworkers/{id}": {
       "cli": "coworkers update"
     },
+    "GET /coworkers/{id}/api-keys": {
+      "cli": "coworkers list-api-keys"
+    },
     "POST /coworkers/{id}/api-keys": {
       "cli": "coworkers api-key",
       "mcp": false,
       "reason": "Mints a long-lived credential."
+    },
+    "DELETE /coworkers/{id}/api-keys/{keyId}": {
+      "cli": "coworkers revoke-api-key"
     },
     "POST /coworkers/{id}/workspace-access": {
       "cli": "coworkers connect"

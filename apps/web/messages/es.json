@@ -9596,6 +9596,37 @@
           "statusRevoked": "Revocado",
           "workspaceKindOrganization": "Organización",
           "workspaceKindUser": "Usuario"
+        },
+        "ApiKeys": {
+          "title": "Claves de API",
+          "description": "Claves de ejecución con las que este coworker llama a Sokosumi. Para reemplazar una clave, crea una nueva, cambia el agente a ella y luego revoca la anterior.",
+          "createButton": "Crear clave",
+          "empty": "Aún no hay claves de API.",
+          "loadError": "No se pudieron cargar las claves de API. Recarga la página para intentarlo de nuevo.",
+          "unnamed": "Sin nombre",
+          "revokeButton": "Revocar",
+          "createSuccess": "Clave de API creada",
+          "createError": "No se pudo crear la clave de API",
+          "revokeSuccess": "Clave de API revocada",
+          "revokeError": "No se pudo revocar la clave de API",
+          "Table": {
+            "name": "Nombre",
+            "key": "Clave",
+            "created": "Creada",
+            "status": "Estado",
+            "actions": "Acciones"
+          },
+          "Status": {
+            "active": "Activa",
+            "revoked": "Revocada",
+            "expired": "Caducada"
+          },
+          "RevokeDialog": {
+            "title": "¿Revocar la clave de API?",
+            "description": "{name} deja de funcionar de inmediato. Cualquier agente que aún la use recibirá errores 401.",
+            "cancel": "Cancelar",
+            "confirm": "Revocar clave"
+          }
         }
       },
       "Tasks": {

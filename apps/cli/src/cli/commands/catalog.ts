@@ -36,6 +36,16 @@ export const CLI_COMMAND_CATALOG = [
   { command: "coworkers connect", usage: "COWORKER_ID [--personal] [options]" },
   { command: "coworkers update", usage: "COWORKER_ID [options]" },
   { command: "coworkers api-key", usage: "COWORKER_ID [options]" },
+  {
+    command: "coworkers list-api-keys",
+    usage: "COWORKER_ID",
+    operation: "GET /coworkers/{id}/api-keys",
+  },
+  {
+    command: "coworkers revoke-api-key",
+    usage: "COWORKER_ID KEY_ID",
+    operation: "DELETE /coworkers/{id}/api-keys/{keyId}",
+  },
   { command: "coworkers me", usage: "" },
   { command: "vendors me", usage: "" },
   { command: "vendors create", usage: "--name NAME --slug SLUG" },

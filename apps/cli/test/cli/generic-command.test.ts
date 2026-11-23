@@ -204,12 +204,15 @@ test("jobs commands send the selected Workspace", async (t) => {
 for (const [argv, message] of [
   [
     ["tasks", "list", "--query", "status=READY"],
-    /--query is only supported by jobs events, jobs files, jobs links/,
+    /--query is only supported by coworkers list-api-keys, coworkers revoke-api-key, jobs events, jobs files, jobs links/,
   ],
-  [["skills", "--query", "a=b"], /--query is only supported by jobs events/],
+  [
+    ["skills", "--query", "a=b"],
+    /--query is only supported by coworkers list-api-keys/,
+  ],
   [
     ["runtime", "receipt", "task-1", "--query", "a=b"],
-    /--query is only supported by jobs events/,
+    /--query is only supported by coworkers list-api-keys/,
   ],
   [
     ["agents", "list", "--organization-slug", "utxo"],
