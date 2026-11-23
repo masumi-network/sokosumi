@@ -2,7 +2,10 @@
 
 import { useCallback, useRef } from "react";
 
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import {
+  type ActiveComposioPopupFlow,
+  useComposioOAuthPopupCleanup,
+} from "@/hooks/effects/use-composio-oauth-popup-cleanup";
 import {
   COMPOSIO_OAUTH_ACK_TYPE,
   COMPOSIO_OAUTH_NONCE_STORAGE_KEY,
@@ -31,22 +34,6 @@ export type ComposioOAuthPopupRunResult<T> =
   | { kind: "in_flight" }
   | { kind: "popup_blocked" };
 
-interface ActivePopupFlow {
-  cancelled: boolean;
-  cancelWait: (() => void) | null;
-  nonce: string;
-  popup: Window;
-  waitPromise: Promise<ComposioOAuthPopupWaitResult> | null;
-}
-
-function closePopup(popup: Window): void {
-  try {
-    popup.close();
-  } catch {
-    // The OAuth provider may have isolated its browsing context.
-  }
-}
-
 function sendCallbackAck(
   target: Window | MessageEventSource | null,
   nonce: string,
@@ -63,7 +50,7 @@ function sendCallbackAck(
 }
 
 function waitForOAuthCallback(
-  flow: ActivePopupFlow,
+  flow: ActiveComposioPopupFlow,
 ): Promise<ComposioOAuthPopupWaitResult> {
   if (flow.waitPromise) return flow.waitPromise;
   if (flow.cancelled) return Promise.resolve({ kind: "cancelled" });
@@ -142,21 +129,9 @@ function waitForOAuthCallback(
 
 /** Owns the browser-only lifecycle shared by Composio OAuth popup flows. */
 export function useComposioOAuthPopup() {
-  const activeFlowRef = useRef<ActivePopupFlow | null>(null);
+  const activeFlowRef = useRef<ActiveComposioPopupFlow | null>(null);
   const inFlightRef = useRef(false);
-
-  const cleanupFlow = useCallback((flow: ActivePopupFlow | null) => {
-    if (!flow) return;
-    flow.cancelled = true;
-    flow.cancelWait?.();
-    closePopup(flow.popup);
-    if (activeFlowRef.current === flow) {
-      activeFlowRef.current = null;
-      inFlightRef.current = false;
-    }
-  }, []);
-
-  useMountEffect(() => () => cleanupFlow(activeFlowRef.current));
+  const cleanupFlow = useComposioOAuthPopupCleanup(activeFlowRef, inFlightRef);
 
   const runPopupOAuth = useCallback(
     async <T>(
@@ -172,7 +147,7 @@ export function useComposioOAuthPopup() {
       );
       if (!popup) return { kind: "popup_blocked" };
 
-      const activeFlow: ActivePopupFlow = {
+      const activeFlow: ActiveComposioPopupFlow = {
         cancelled: false,
         cancelWait: null,
         nonce,
