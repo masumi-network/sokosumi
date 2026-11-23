@@ -13,7 +13,6 @@
   "src/app/(app)/components/sidebar-chat-list.client.tsx": 1,
   "src/app/(app)/components/sidebar/components/feature-badges.tsx": 1,
   "src/app/(app)/contacts/components/contacts-workspace.tsx": 1,
-  "src/app/(app)/drive/components/file-detail-view.tsx": 1,
   "src/app/(app)/personal-assistant/components/console/tool-connectors.client.tsx": 1,
   "src/app/(app)/projects/components/image-studio/studio-gallery.tsx": 1,
   "src/app/(app)/projects/components/image-studio/use-generation-queue.ts": 2,
