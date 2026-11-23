@@ -227,6 +227,9 @@ function renderPanel(
 describe("DriveAllFilesPanel on the Drive cache", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    for (const fn of Object.values(api)) {
+      fn.mockReset();
+    }
     listDriveItemsMock.mockReset();
     listDriveItemsMock.mockResolvedValue([]);
     useSessionMock.mockReturnValue({
@@ -466,15 +469,21 @@ describe("DriveAllFilesPanel on the Drive cache", () => {
     });
   });
 
-  it("keeps loaded rows visible when a page-one refresh fails without showing the later-page Retry row", async () => {
+  it("keeps loaded rows, hides Load more, and shows Retry calling refetch when a page-one refresh fails", async () => {
+    const user = userEvent.setup();
     const file1 = makeFile("res_1", "kept.pdf");
+    const refreshed = makeFile("res_2", "recovered.pdf");
 
     api.fetchFileSearchPage
       .mockResolvedValueOnce({
         items: [file1],
         search: makeMeta({ hasMore: true, nextCursor: "cursor_2" }),
       })
-      .mockRejectedValueOnce(new Error("refresh failed"));
+      .mockRejectedValueOnce(new Error("refresh failed"))
+      .mockResolvedValueOnce({
+        items: [refreshed],
+        search: makeMeta({ hasMore: true, nextCursor: "cursor_3" }),
+      });
 
     const { client } = renderPanel();
 
@@ -484,7 +493,16 @@ describe("DriveAllFilesPanel on the Drive cache", () => {
       await invalidateDrive(client, orgA);
     });
 
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("searchError");
     expect(screen.getByText("kept.pdf")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "loadMore" })).toBeNull();
+    const retry = screen.getByRole("button", { name: "retry" });
+    expect(retry).toBeEnabled();
+
+    await user.click(retry);
+
+    expect(await screen.findByText("recovered.pdf")).toBeVisible();
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByRole("button", { name: "retry" })).toBeNull();
     expect(screen.getByRole("button", { name: "loadMore" })).toBeEnabled();
@@ -613,10 +631,17 @@ describe("DriveAllFilesPanel on the Drive cache", () => {
     await waitFor(() => {
       expect(api.fetchFileCollections).toHaveBeenCalledTimes(3);
     });
-    // Shelf waits for the collections GET refetch rather than patching deletedIds.
+    // Shelf stays visible while collections refetch, with chip controls disabled.
+    const chipButton = screen.getByRole("button", {
+      name: "Receipts (server)",
+    });
+    expect(chipButton).toBeVisible();
+    expect(chipButton).toBeDisabled();
     expect(
-      screen.getByRole("button", { name: "Receipts (server)" }),
-    ).toBeVisible();
+      screen.getByRole("button", {
+        name: 'collectionActions:{"name":"Receipts (server)"}',
+      }),
+    ).toBeDisabled();
 
     await act(async () => {
       deleteRefetchDeferred.resolve([]);

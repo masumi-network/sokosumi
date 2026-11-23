@@ -1218,7 +1218,13 @@ function DrivePageWorkspace({
   }
 
   async function handleMoveConfirm() {
-    if (selectedDestination === null) return;
+    if (
+      loadingAllFolders ||
+      selectedDestination === null ||
+      !hasValidMoveDestination
+    ) {
+      return;
+    }
     if (!itemToMove) {
       if (filesToMove.length === 0) return;
       setMovingItem(true);
@@ -1374,6 +1380,11 @@ function DrivePageWorkspace({
 
     return destinations;
   })();
+
+  const hasValidMoveDestination =
+    selectedDestination !== null &&
+    (moveNewFolderName.trim().length > 0 ||
+      availableDestinations.some((dest) => dest.path === selectedDestination));
 
   const exploreItems: ExploreItem[] = (() => {
     if (isTasksView) {
@@ -2497,7 +2508,7 @@ function DrivePageWorkspace({
             <Button
               onClick={() => void handleMoveConfirm()}
               disabled={
-                movingItem || loadingAllFolders || selectedDestination === null
+                movingItem || loadingAllFolders || !hasValidMoveDestination
               }
             >
               {t("moveHere")}

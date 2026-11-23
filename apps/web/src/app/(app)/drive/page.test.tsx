@@ -758,6 +758,10 @@ describe("DrivePage move dialog", () => {
       await screen.findByRole("button", { name: "Archive" }),
     ).toBeVisible();
     expect(screen.queryByRole("button", { name: "Clients" })).toBeNull();
+    // Fresh response dropped Clients, so Submit stays disabled until a valid destination is chosen.
+    expect(screen.getByRole("button", { name: "moveHere" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Archive" }));
+    expect(screen.getByRole("button", { name: "moveHere" })).toBeEnabled();
     expect(fetchWorkspaceFoldersMock).toHaveBeenCalledTimes(1);
   });
 });

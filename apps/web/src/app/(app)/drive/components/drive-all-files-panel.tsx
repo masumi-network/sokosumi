@@ -849,7 +849,7 @@ export function DriveAllFilesPanel({
                 key={collection.id}
                 collection={collection}
                 active={activeCollectionId === collection.id}
-                disabled={collectionBusy}
+                disabled={collectionBusy || collectionsQuery.isFetching}
                 saving={renamingId === collection.id}
                 onOpen={() => {
                   const definition = collection.definition as Partial<
@@ -1104,7 +1104,7 @@ export function DriveAllFilesPanel({
             </p>
           ) : null}
 
-          {searchQuery.isFetchNextPageError ? (
+          {searchQuery.isError ? (
             <div
               className="flex items-center justify-center gap-2 text-sm"
               role="alert"
@@ -1114,10 +1114,18 @@ export function DriveAllFilesPanel({
                 type="button"
                 variant="outline"
                 size="sm"
-                loading={searchQuery.isFetchingNextPage}
-                disabled={isRefreshingPageOne}
+                loading={
+                  searchQuery.isFetchNextPageError
+                    ? searchQuery.isFetchingNextPage
+                    : isRefreshingPageOne
+                }
+                disabled={
+                  searchQuery.isFetchNextPageError && isRefreshingPageOne
+                }
                 onClick={() =>
-                  void searchQuery.fetchNextPage({ cancelRefetch: false })
+                  void (searchQuery.isFetchNextPageError
+                    ? searchQuery.fetchNextPage({ cancelRefetch: false })
+                    : searchQuery.refetch())
                 }
               >
                 {t("retry")}
