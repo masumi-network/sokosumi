@@ -34308,6 +34308,15 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
+                                    },
+                                    stage: {
+                                        type: 'string',
+                                        enum: [
+                                            'awareness',
+                                            'interest',
+                                            'desire',
+                                            'action'
+                                        ]
                                     }
                                 },
                                 required: [
@@ -34695,6 +34704,15 @@ export const MarketingStrategySchema = {
                                                 type: 'string',
                                                 minLength: 1,
                                                 maxLength: 400
+                                            },
+                                            stage: {
+                                                type: 'string',
+                                                enum: [
+                                                    'awareness',
+                                                    'interest',
+                                                    'desire',
+                                                    'action'
+                                                ]
                                             }
                                         },
                                         required: [
@@ -36240,6 +36258,15 @@ export const MarketingStrategyRequestSchema = {
                                 type: 'string',
                                 minLength: 1,
                                 maxLength: 400
+                            },
+                            stage: {
+                                type: 'string',
+                                enum: [
+                                    'awareness',
+                                    'interest',
+                                    'desire',
+                                    'action'
+                                ]
                             }
                         },
                         required: [
@@ -36627,6 +36654,15 @@ export const MarketingStrategyRequestSchema = {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
+                                    },
+                                    stage: {
+                                        type: 'string',
+                                        enum: [
+                                            'awareness',
+                                            'interest',
+                                            'desire',
+                                            'action'
+                                        ]
                                     }
                                 },
                                 required: [
@@ -42783,6 +42819,15 @@ export const SocialPostSchema = {
                     type: 'string',
                     minLength: 1,
                     maxLength: 400
+                },
+                stage: {
+                    type: 'string',
+                    enum: [
+                        'awareness',
+                        'interest',
+                        'desire',
+                        'action'
+                    ]
                 },
                 campaignId: {
                     type: 'string',
@@ -61346,6 +61391,15 @@ export const CmoPlanSchema = {
                         type: 'string',
                         minLength: 1,
                         maxLength: 400
+                    },
+                    stage: {
+                        type: 'string',
+                        enum: [
+                            'awareness',
+                            'interest',
+                            'desire',
+                            'action'
+                        ]
                     }
                 },
                 required: [
@@ -61733,6 +61787,15 @@ export const CmoPlanSchema = {
                                 type: 'string',
                                 minLength: 1,
                                 maxLength: 400
+                            },
+                            stage: {
+                                type: 'string',
+                                enum: [
+                                    'awareness',
+                                    'interest',
+                                    'desire',
+                                    'action'
+                                ]
                             }
                         },
                         required: [

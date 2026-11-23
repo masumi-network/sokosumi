@@ -588,6 +588,11 @@ async function startCmoMonthFinish(
         ]
     )
       .concat([
+        ...(rules.stageSpread
+          ? [
+              "Give each new entry the funnel step it serves in stage, and spread each network's pieces across the steps.",
+            ]
+          : []),
         "When a save is refused or names problems, fix them and save again.",
         "Then tell the owner in one sentence that the month is complete. The strategy card is your report: do not call report_update.",
       ])
