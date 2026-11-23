@@ -1,6 +1,7 @@
 import type { SokoBotVersion } from "@sokosumi/core-client";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { withNuqsTestingAdapter } from "nuqs/adapters/testing";
+import { useRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useScenarioLabVersion } from "@/hooks/effects/use-scenario-lab-version";
 
@@ -39,7 +40,7 @@ const VERSIONS: SokoBotVersion[] = [
 
 describe("useScenarioLabVersion", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    setVersionMock.mockReset();
   });
 
   it("applies a deep-linked version from the URL, switches Core, and notifies onTurnFinished", async () => {
@@ -47,15 +48,19 @@ describe("useScenarioLabVersion", () => {
     setVersionMock.mockResolvedValue({ ok: true, value: {} });
 
     const { result } = renderHook(
-      () =>
-        useScenarioLabVersion({
+      () => {
+        const activeVersionRef = useRef<string | null>("v11");
+        return useScenarioLabVersion({
           versionId: "v11",
           versions: VERSIONS,
+          activeVersionRef,
           onTurnFinished,
-        }),
+        });
+      },
       {
         wrapper: withNuqsTestingAdapter({
           searchParams: "?version=v12-operator",
+          hasMemory: true,
         }),
       },
     );
@@ -69,34 +74,39 @@ describe("useScenarioLabVersion", () => {
     expect(onTurnFinished).toHaveBeenCalledTimes(1);
   });
 
-  it("clears unknown or rejected URL versions and releases switching", async () => {
+  it("clears rejected URL versions and releases switching", async () => {
     const onUrlUpdate = vi.fn();
-    setVersionMock.mockRejectedValueOnce(new Error("RSC failure"));
+    setVersionMock.mockRejectedValue(new Error("RSC failure"));
 
     const { result } = renderHook(
-      () =>
-        useScenarioLabVersion({
+      () => {
+        const activeVersionRef = useRef<string | null>("v11");
+        return useScenarioLabVersion({
           versionId: "v11",
           versions: VERSIONS,
-        }),
+          activeVersionRef,
+        });
+      },
       {
         wrapper: withNuqsTestingAdapter({
           searchParams: "?version=v12-operator",
+          hasMemory: true,
           onUrlUpdate,
         }),
       },
     );
 
     await waitFor(() => {
-      expect(result.current.switching).toBe(false);
-    });
-    expect(result.current.activeVersion).toBe("v11");
-    await waitFor(() => {
       expect(onUrlUpdate).toHaveBeenCalled();
     });
     expect(onUrlUpdate.mock.calls.at(-1)?.[0].searchParams.get("version")).toBe(
       null,
     );
+    await waitFor(() => {
+      expect(result.current.switching).toBe(false);
+    });
+    expect(result.current.activeVersion).toBe("v11");
+    expect(setVersionMock).toHaveBeenCalledTimes(1);
   });
 
   it("updates activeVersion and URL when chooseVersion succeeds", async () => {
@@ -105,14 +115,20 @@ describe("useScenarioLabVersion", () => {
     setVersionMock.mockResolvedValue({ ok: true, value: {} });
 
     const { result } = renderHook(
-      () =>
-        useScenarioLabVersion({
+      () => {
+        const activeVersionRef = useRef<string | null>("v11");
+        return useScenarioLabVersion({
           versionId: "v11",
           versions: VERSIONS,
+          activeVersionRef,
           onTurnFinished,
-        }),
+        });
+      },
       {
-        wrapper: withNuqsTestingAdapter({ onUrlUpdate }),
+        wrapper: withNuqsTestingAdapter({
+          hasMemory: true,
+          onUrlUpdate,
+        }),
       },
     );
 

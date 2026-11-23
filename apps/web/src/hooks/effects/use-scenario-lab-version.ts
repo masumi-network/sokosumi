@@ -2,12 +2,13 @@
 
 import type { SokoBotVersion } from "@sokosumi/core-client";
 import { parseAsString, useQueryState } from "nuqs";
-import { useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useState } from "react";
 import { setSokoBotVersionAction } from "@/lib/actions/soko-bot/action";
 
 interface UseScenarioLabVersionOptions {
   versionId: string | null;
   versions: SokoBotVersion[];
+  activeVersionRef: RefObject<string | null>;
   onTurnFinished?: () => void;
 }
 
@@ -18,10 +19,10 @@ interface UseScenarioLabVersionOptions {
 export function useScenarioLabVersion({
   versionId,
   versions,
+  activeVersionRef,
   onTurnFinished,
 }: UseScenarioLabVersionOptions) {
   const [activeVersion, setActiveVersion] = useState<string | null>(versionId);
-  const activeVersionRef = useRef<string | null>(versionId);
   const [requestedVersionId, setRequestedVersionId] = useQueryState(
     "version",
     parseAsString.withOptions({ history: "replace" }),

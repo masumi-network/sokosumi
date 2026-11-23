@@ -239,9 +239,11 @@ export function ScenarioLab({
   onTurnFinished?: () => void;
 }) {
   const t = useTranslations("App.Admin.SokoBots.Lab");
+  const activeVersionRef = useRef<string | null>(versionId);
   const { activeVersion, switching, chooseVersion } = useScenarioLabVersion({
     versionId,
     versions,
+    activeVersionRef,
     onTurnFinished,
   });
   const [promptOpen, setPromptOpen] = useState(false);
