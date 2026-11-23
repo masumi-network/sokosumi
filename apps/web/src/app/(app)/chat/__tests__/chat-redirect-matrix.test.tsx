@@ -17,13 +17,9 @@ vi.mock("@/lib/auth/auth.server", () => ({
 }));
 
 vi.mock("@/app/components/private-sidebar-cache", () => ({
-  getPrivateCachedMembershipVisibleRooms: vi.fn().mockResolvedValue({
+  loadSidebarChatList: vi.fn().mockResolvedValue({
     rooms: [],
-    nextCursor: null,
-  }),
-  getPrivateCachedChatListArchivedAndMembers: vi.fn().mockResolvedValue({
-    archivedChatRoomsPage: { rooms: [], nextCursor: null },
-    members: [],
+    deferred: Promise.resolve({ archivedRooms: [], isOrgOwnerOrAdmin: false }),
   }),
 }));
 

@@ -24,6 +24,12 @@ interface SidebarChatListProps {
   deferred: Promise<SidebarChatListDeferred>;
   currentUserId: string;
   organizationId: string | null;
+  /**
+   * `sidebar` (default) heads the list with Chats and closes the sheet on
+   * navigate. `page` is the phone's `/chat` page: titled Chats already and
+   * outside any sheet.
+   */
+  variant?: "sidebar" | "page";
 }
 
 /**
@@ -39,6 +45,7 @@ export function SidebarChatList({
   deferred,
   currentUserId,
   organizationId,
+  variant = "sidebar",
 }: SidebarChatListProps) {
   const [settled, setSettled] = useState<SidebarChatListDeferred | null>(
     () => settledAnswers.get(deferred) ?? null,
@@ -68,7 +75,8 @@ export function SidebarChatList({
       currentUserId={currentUserId}
       organizationId={organizationId}
       isOrgOwnerOrAdmin={settled?.isOrgOwnerOrAdmin ?? false}
-      withChatsHeading
+      withChatsHeading={variant === "sidebar"}
+      dismissSheetOnNavigate={variant === "sidebar"}
     />
   );
 }

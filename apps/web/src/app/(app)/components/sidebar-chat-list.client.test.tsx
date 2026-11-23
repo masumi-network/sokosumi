@@ -8,6 +8,8 @@ interface ListProps {
   rooms: ChatRoom[];
   archivedRooms: ChatRoom[];
   isOrgOwnerOrAdmin?: boolean;
+  withChatsHeading?: boolean;
+  dismissSheetOnNavigate?: boolean;
 }
 
 const listRenders: ListProps[] = [];
@@ -158,6 +160,32 @@ describe("SidebarChatList", () => {
     expect(listRenders[0]).toMatchObject({
       archivedRooms,
       isOrgOwnerOrAdmin: true,
+    });
+  });
+
+  it("heads the sidebar's list with Chats and closes its sheet on navigate", () => {
+    renderList(deferred().promise);
+
+    expect(lastRender()).toMatchObject({
+      withChatsHeading: true,
+      dismissSheetOnNavigate: true,
+    });
+  });
+
+  it("renders the phone Chats page's list without the heading and without a sheet to close", () => {
+    render(
+      <SidebarChatList
+        rooms={rooms}
+        deferred={deferred().promise}
+        currentUserId="user-1"
+        organizationId="org-1"
+        variant="page"
+      />,
+    );
+
+    expect(lastRender()).toMatchObject({
+      withChatsHeading: false,
+      dismissSheetOnNavigate: false,
     });
   });
 
