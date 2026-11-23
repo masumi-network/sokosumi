@@ -5454,7 +5454,7 @@ model ProjectImageJob {
 
   /// Exact-font overlay by default; ideogram paints approved copy into the image.
   lettering String @default("overlay")
-  /// Frozen quote for the automatic Ideogram edit, until the backdrop delivers.
+  /// Frozen quote for the automatic Ideogram lettering or Gemini make-realistic edit, until the first image delivers.
   letteringQuoteCents BigInt?
 
   /// Generate a backdrop, then composite the original transparent product photo.

@@ -24,6 +24,7 @@ import {
 } from "@/lib/image-studio/failure-reason";
 import {
   assetSelect,
+  downloadableAssetWhere,
   jobSelect,
   olderStudioRows,
   type StudioPageCursor,
@@ -335,6 +336,7 @@ export async function listRecentStudioProjects(options: {
   const where = {
     workspaceId: options.workspaceId,
     mediaType: ProjectImageMediaType.IMAGE,
+    hiddenAt: null,
     project: {
       closedAt: null,
       hides: { none: { userId: options.userId } },
@@ -443,7 +445,11 @@ export async function getAsset(options: {
 }): Promise<AssetView> {
   await requireProjectAccess(options);
   const asset = await prisma.projectImageAsset.findFirst({
-    where: { id: options.assetId, projectId: options.projectId },
+    where: {
+      id: options.assetId,
+      projectId: options.projectId,
+      ...downloadableAssetWhere,
+    },
     select: assetSelect,
   });
   if (!asset) throw notFound("Image not found");
@@ -477,7 +483,11 @@ export async function openAssetStream(options: {
 }> {
   await requireProjectAccess(options);
   const asset = await prisma.projectImageAsset.findFirst({
-    where: { id: options.assetId, projectId: options.projectId },
+    where: {
+      id: options.assetId,
+      projectId: options.projectId,
+      ...downloadableAssetWhere,
+    },
     select: {
       blobPathname: true,
       contentType: true,

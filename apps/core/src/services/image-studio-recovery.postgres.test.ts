@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
-
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { convertCreditsToCents } from "@sokosumi/utils";
+import sharp from "sharp";
 import {
   afterAll,
   beforeAll,
@@ -53,6 +54,7 @@ vi.mock("@/config/env", async (importOriginal) => {
 });
 vi.mock("@/services/image-studio-drive.service", () => ({
   publishStudioAssetToFiles: vi.fn(),
+  ensureStudioAssetDriveFile: vi.fn().mockResolvedValue({ id: "restored" }),
 }));
 vi.mock("@vercel/blob", () => ({ put: putMock }));
 vi.mock("@/lib/image-studio/access", () => ({
@@ -76,9 +78,19 @@ vi.mock("@/services/image-studio-assets.service", async (importOriginal) => ({
 
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
+import { RECRAFT_VECTOR_ENDPOINT } from "@/lib/image-studio/catalog-overrides";
 import mountBatchAssets from "@/routes/v1/projects/[id]/image-studio/batch-assets-get";
 import mountTalkingVideos from "@/routes/v1/projects/[id]/image-studio/talking-videos-get";
 import {
+  getAsset,
+  openAssetStream,
+} from "@/services/image-studio-assets.service";
+import {
+  ensureStudioAssetDriveFile,
+  publishStudioAssetToFiles,
+} from "@/services/image-studio-drive.service";
+import {
+  failImageJob,
   reconcileJob,
   reconcileProjectJobs,
   reconcileStaleJobs,
@@ -151,6 +163,121 @@ beforeEach(() => {
     media: [{ url: "https://v3b.fal.media/files/a.png" }],
   });
 });
+
+describe.skipIf(!enabled)(
+  "make_realistic settlement racing a failure callback",
+  () => {
+    it.each(["failure", "delivery"] as const)(
+      "keeps only the %s when it finishes first",
+      async (winner) => {
+        const cents = convertCreditsToCents(15);
+        await prisma.creditBucket.create({
+          data: {
+            user: { connect: { id: userId } },
+            amount: cents,
+            sourceTransaction: { create: { userId, amount: cents } },
+          },
+        });
+        const first = await makeJob({
+          status: "SUCCEEDED",
+          model: RECRAFT_VECTOR_ENDPOINT,
+          letteringQuoteCents: cents,
+        });
+        const layout = await prisma.projectImageAsset.create({
+          data: {
+            projectId,
+            workspaceId,
+            jobId: first.id,
+            rootId: randomUUID(),
+            version: 1,
+            model: first.model,
+            prompt: first.prompt,
+            settings: {},
+            hiddenAt: new Date(),
+            blobPathname: `projects/${projectId}/${first.id}.png`,
+            contentType: "image/png",
+            width: 32,
+            height: 32,
+            bytes: 42,
+            checksum: first.id,
+          },
+        });
+        const scope = { assetId: layout.id, projectId, workspaceId, userId };
+        await expect(getAsset(scope)).rejects.toMatchObject({ status: 404 });
+        await expect(openAssetStream(scope)).rejects.toMatchObject({
+          status: 404,
+        });
+        const render = await makeJob({
+          kind: "EDIT",
+          parentAssetId: layout.id,
+          chargedCents: cents,
+          settings: { route: "make_realistic" },
+          idempotencyKey: `studio-realistic:${first.id}`,
+        });
+        const bytes = await sharp({
+          create: { width: 32, height: 32, channels: 3, background: "red" },
+        })
+          .png()
+          .toBuffer();
+        downloadMediaMock.mockResolvedValue({
+          bytes,
+          contentType: "image/png",
+        });
+        const barrier = Promise.withResolvers<void>();
+        const reached = Promise.withResolvers<void>();
+        if (winner === "failure") {
+          putMock.mockImplementationOnce(async () => {
+            reached.resolve();
+            await barrier.promise;
+            return { pathname: `projects/${projectId}/${render.id}.png` };
+          });
+        } else {
+          vi.mocked(publishStudioAssetToFiles).mockImplementationOnce(
+            async () => {
+              reached.resolve();
+              await barrier.promise;
+            },
+          );
+        }
+        const settling = settleWithMedia(
+          render.id,
+          "https://v3b.fal.media/render.png",
+        );
+        try {
+          await Promise.race([reached.promise, settling]);
+          await failImageJob(render.id, "provider_error");
+        } finally {
+          barrier.resolve();
+          await settling;
+        }
+        const row = await prisma.projectImageJob.findUniqueOrThrow({
+          where: { id: render.id },
+          include: { asset: true, transaction: true },
+        });
+        const parent = await prisma.projectImageAsset.findUniqueOrThrow({
+          where: { id: layout.id },
+        });
+        if (winner === "failure") {
+          expect(row).toMatchObject({
+            status: "FAILED",
+            asset: null,
+            transaction: null,
+          });
+          expect(parent.hiddenAt).toBeNull();
+          expect(ensureStudioAssetDriveFile).toHaveBeenCalledOnce();
+        } else {
+          expect(row).toMatchObject({
+            status: "SUCCEEDED",
+            asset: { parentId: layout.id },
+            transaction: { amount: -cents },
+          });
+          expect(parent.hiddenAt).not.toBeNull();
+          expect(ensureStudioAssetDriveFile).not.toHaveBeenCalled();
+        }
+      },
+    );
+  },
+);
 
 describe.skipIf(!enabled)("Talking video history", () => {
   it("reads older project videos across a timestamp tie without repeating a page", async () => {

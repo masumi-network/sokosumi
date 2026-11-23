@@ -14,7 +14,12 @@ import { useStudioChatDraft } from "@/hooks/effects/use-studio-chat-draft";
 import { useStudioChatIntent } from "@/hooks/effects/use-studio-chat-intent";
 
 import { StudioImage } from "./studio-image";
-import type { StudioAsset, StudioLabels } from "./types";
+import type { StudioAsset, StudioJob, StudioLabels } from "./types";
+
+const generationOutputSchema = z.object({
+  jobId: z.string(),
+  settings: z.object({ route: z.string().optional() }).nullish(),
+});
 
 const headlineUpdateSchema = z.object({
   assetId: z.uuid(),
@@ -111,6 +116,7 @@ function recoverableSessionId(error: unknown): string | null {
  */
 export function StudioChat({
   assets,
+  jobs,
   labels,
   onActivity,
   onPreviewAd,
@@ -119,6 +125,7 @@ export function StudioChat({
   selectedAsset,
 }: {
   assets: readonly StudioAsset[];
+  jobs?: readonly StudioJob[];
   labels: StudioLabels;
   onActivity: (headlineUpdates: HeadlineUpdate[]) => void;
   onPreviewAd?: (asset: StudioAsset) => void;
@@ -148,6 +155,7 @@ export function StudioChat({
   return (
     <StudioConversation
       assets={assets}
+      jobs={jobs}
       key={`${sessionId ?? "new"}:${conversationNumber}`}
       labels={labels}
       onActivity={onActivity}
@@ -172,6 +180,7 @@ export function StudioChat({
 
 function StudioConversation({
   assets,
+  jobs,
   labels,
   onActivity,
   onPreviewAd,
@@ -184,6 +193,7 @@ function StudioConversation({
   selectedAsset,
 }: {
   assets: readonly StudioAsset[];
+  jobs?: readonly StudioJob[];
   labels: StudioLabels;
   /** Fires when the agent settles a turn, so the page can look for results. */
   onActivity: (headlineUpdates: HeadlineUpdate[]) => void;
@@ -456,14 +466,24 @@ function StudioConversation({
                   (asset) =>
                     asset.projectId === projectId && asset.id === updatedAdId,
                 );
+              const generation = generationOutputSchema.safeParse(output).data;
+              const layoutId =
+                generation?.settings?.route === "make_realistic"
+                  ? jobs?.find((job) => job.id === generation.jobId)?.assetId
+                  : null;
               const asset =
-                output && typeof output === "object" && "jobId" in output
-                  ? assets.find(
+                generation &&
+                (assets.find(
+                  (asset) =>
+                    asset.projectId === projectId &&
+                    asset.jobId === generation.jobId,
+                ) ??
+                  (layoutId &&
+                    assets.find(
                       (asset) =>
                         asset.projectId === projectId &&
-                        asset.jobId === output.jobId,
-                    )
-                  : undefined;
+                        asset.parentId === layoutId,
+                    )));
               return (
                 <div key={part.callId}>
                   <p className="text-muted-foreground text-xs">{part.label}</p>

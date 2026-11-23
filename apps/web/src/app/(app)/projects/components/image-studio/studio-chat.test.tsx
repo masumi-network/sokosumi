@@ -30,7 +30,7 @@ vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 import { StudioChat } from "./studio-chat";
 
 import { TEST_LABELS } from "./studio-fixtures";
-import type { StudioAsset } from "./types";
+import type { StudioAsset, StudioJob } from "./types";
 
 function agentState(overrides: Record<string, unknown> = {}) {
   return {
@@ -211,48 +211,55 @@ describe("project conversation", () => {
     expect(onPreviewAd).toHaveBeenCalledExactlyOnceWith(asset);
   });
 
-  it("lets the user keep editing a result once its job produces an ad", () => {
-    const ad = {
-      id: "new-ad",
-      jobId: "refine-job",
-      projectId: "project-1",
-      version: 2,
-    } as StudioAsset;
-    useEveAgentMock.mockImplementation(() =>
-      agentState({
-        messages: [
-          {
-            id: "reply",
-            role: "assistant",
-            parts: [
-              {
-                type: "tool",
-                callId: "call",
-                label: "Refine the headline",
-                output: { jobId: ad.jobId },
-              },
-            ],
-          },
-        ],
-      }),
-    );
-    const onSelectResult = vi.fn();
-    const props = {
-      labels: TEST_LABELS,
-      onActivity: () => {},
-      onSelectResult,
-      projectId: ad.projectId,
-      selectedAsset: null,
-    };
-    const view = render(<StudioChat assets={[]} {...props} />);
-    expect(
-      screen.queryByRole("button", { name: "editResult" }),
-    ).not.toBeInTheDocument();
-    view.rerender(<StudioChat assets={[ad]} {...props} />);
+  it.each([false, true])(
+    "opens the delivered result (automatic render: %s)",
+    (twoStep) => {
+      const ad = {
+        id: "new-ad",
+        jobId: "refine-job",
+        parentId: "layout",
+        projectId: "project-1",
+        version: 2,
+      } as StudioAsset;
+      useEveAgentMock.mockImplementation(() =>
+        agentState({
+          messages: [
+            {
+              id: "reply",
+              role: "assistant",
+              parts: [
+                {
+                  type: "tool",
+                  callId: "call",
+                  label: "Refine the headline",
+                  output: twoStep
+                    ? { jobId: "first", settings: { route: "make_realistic" } }
+                    : { jobId: ad.jobId },
+                },
+              ],
+            },
+          ],
+        }),
+      );
+      const onSelectResult = vi.fn();
+      const props = {
+        labels: TEST_LABELS,
+        onActivity: () => {},
+        onSelectResult,
+        projectId: ad.projectId,
+        jobs: [{ id: "first", assetId: "layout" } as StudioJob],
+        selectedAsset: null,
+      };
+      const view = render(<StudioChat assets={[]} {...props} />);
+      expect(
+        screen.queryByRole("button", { name: "editResult" }),
+      ).not.toBeInTheDocument();
+      view.rerender(<StudioChat assets={[ad]} {...props} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "editResult" }));
-    expect(onSelectResult).toHaveBeenCalledExactlyOnceWith(ad);
-  });
+      fireEvent.click(screen.getByRole("button", { name: "editResult" }));
+      expect(onSelectResult).toHaveBeenCalledExactlyOnceWith(ad);
+    },
+  );
 
   it("resumes a saved session for this project", () => {
     window.sessionStorage.setItem(

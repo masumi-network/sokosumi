@@ -9,7 +9,7 @@ import { studioRouterForSession } from "../lib/router-trial";
 
 export default defineTool({
   description:
-    "Generate a new image from a description. Use this for a genuinely new idea. To change an image that already exists, use refine_image instead so the original is preserved and the lineage stays intact.",
+    "Generate a new image from a description. Use this for a genuinely new idea. For a finished illustration or photo that requires exact layout, shapes or text, choose route make_realistic. Core generates a Recraft vector and automatically edits its rendered PNG with Gemini Pro in the same request. To change an image that already exists, use refine_image instead so the original is preserved and the lineage stays intact.",
   inputSchema: z.object({
     route: z.enum(ImageStudioRoute).optional(),
     catalogProductId: z
@@ -17,7 +17,7 @@ export default defineTool({
       .uuid()
       .optional()
       .describe(
-        "Use a saved product id from list_products when the user wants to feature that product. Core applies its approved details and photo.",
+        "Use a saved product id from list_products when the user wants to feature that product. Core applies its approved details. The make_realistic route uses the product brief alone for the vector layout. Other routes can also use the product photo.",
       ),
     prompt: z
       .string()

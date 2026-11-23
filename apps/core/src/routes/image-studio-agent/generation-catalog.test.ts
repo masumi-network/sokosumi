@@ -81,12 +81,12 @@ describe("agent catalog and generation HTTP contract", () => {
     price: "EUR 19",
   };
 
-  function swapProduct(catalogProductId = productId) {
+  function swapProduct(catalogProductId = productId, route = "edit") {
     return app.request("/generations", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        route: "edit",
+        route,
         experimentArm: "router:opus-5.5",
         prompt: "Switch the product and keep the layout",
         modelId: "ideogram-v3",
@@ -219,6 +219,39 @@ describe("agent catalog and generation HTTP contract", () => {
     );
   });
 
+  it("uses the catalog brief without importing a remote photo for make_realistic", async () => {
+    readCatalog.mockResolvedValueOnce({
+      products: [
+        { ...selectedProduct, imageUrl: "https://example.test/mug.png" },
+      ],
+    });
+    createJob.mockResolvedValueOnce({ id: "job", status: "QUEUED" });
+    expect((await swapProduct(productId, "make_realistic")).status).toBe(200);
+    expect(copyPhoto).not.toHaveBeenCalled();
+    expect(createJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining("Glazed stoneware"),
+      }),
+    );
+  });
+
+  it("reports the render's progress on a replay of the original tool call", async () => {
+    findJob
+      .mockResolvedValueOnce({
+        id: "layout-job",
+        kind: "GENERATE",
+        status: "SUCCEEDED",
+        settings: { route: "make_realistic" },
+      })
+      .mockResolvedValueOnce({ id: "render" });
+    getJob.mockResolvedValueOnce({ id: "render", status: "RUNNING" });
+    const response = await swapProduct(productId, "make_realistic");
+    expect(await response.json()).toMatchObject({
+      job: { id: "layout-job", status: "RUNNING" },
+    });
+    expect(createJob).not.toHaveBeenCalled();
+  });
+
   it("refuses a missing product before queueing any work", async () => {
     readCatalog.mockResolvedValueOnce({ products: [] });
     const response = await swapProduct();
@@ -261,28 +294,33 @@ describe("agent catalog and generation HTTP contract", () => {
     expect(createJob).not.toHaveBeenCalled();
   });
 
-  it("accepts a vector generation only through the agent route", async () => {
-    const input = {
-      modelId: "recraft-v4-1-text-to-vector",
-      prompt: "A fox icon",
-      idempotencyKey: "vector-job",
-    };
-    // Public create no longer takes modelId; the browser never chooses Recraft.
-    const publicParse = createImageJobRequestSchema.safeParse(input);
-    expect(publicParse.success).toBe(true);
-    expect(publicParse.data).not.toHaveProperty("modelId");
-    expect(getImageCatalog().models.map((model) => model.id)).not.toContain(
-      "recraft-v4-1-text-to-vector",
-    );
-    createJob.mockResolvedValueOnce({ id: "job-id", status: "QUEUED" });
-    const response = await app.request("/generations", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    expect(response.status).toBe(200);
-    expect(createJob).toHaveBeenCalledWith(expect.objectContaining(input));
-  });
+  it.each(["vector", "make_realistic"])(
+    "accepts %s only through the agent route",
+    async (route) => {
+      const input = {
+        route,
+        modelId: "recraft-v4-1-text-to-vector",
+        prompt: "A fox icon",
+        idempotencyKey: "vector-job",
+      };
+      // Public create no longer takes modelId; the browser never chooses Recraft.
+      const publicParse = createImageJobRequestSchema.safeParse(input);
+      expect(publicParse.success).toBe(true);
+      expect(publicParse.data).not.toHaveProperty("modelId");
+      expect(publicParse.data).not.toHaveProperty("route");
+      expect(getImageCatalog().models.map((model) => model.id)).not.toContain(
+        "recraft-v4-1-text-to-vector",
+      );
+      createJob.mockResolvedValueOnce({ id: "job-id", status: "QUEUED" });
+      const response = await app.request("/generations", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      expect(response.status).toBe(200);
+      expect(createJob).toHaveBeenCalledWith(expect.objectContaining(input));
+    },
+  );
 
   it("does not expose the catalog through the agent surface without authorization", async () => {
     authorize.mockResolvedValue(new Response(null, { status: 401 }));
@@ -347,6 +385,61 @@ describe("agent catalog and generation HTTP contract", () => {
       expect(createJob).not.toHaveBeenCalled();
     },
   );
+
+  it.each([
+    ["RUNNING", null],
+    ["SUCCEEDED", "final"],
+    ["FAILED", "layout"],
+  ])(
+    "checks the automatic render from its first job when %s",
+    async (status, expectedAsset) => {
+      getJob
+        .mockResolvedValueOnce({
+          id: "first",
+          kind: "GENERATE",
+          status: "SUCCEEDED",
+          settings: { route: "make_realistic" },
+          assetId: "layout",
+        })
+        .mockResolvedValueOnce({
+          id: "child",
+          kind: "EDIT",
+          settings: { route: "make_realistic" },
+          parentAssetId: "layout",
+          status,
+          assetId: status === "SUCCEEDED" ? "final" : null,
+        });
+      findJob.mockResolvedValue({ id: "child", parentAssetId: "layout" });
+      getAsset.mockResolvedValue({ id: expectedAsset });
+      const response = await app.request("/generations/first");
+      expect(await response.json()).toMatchObject({
+        job: { id: "child", status },
+        version: expectedAsset ? { id: expectedAsset } : null,
+      });
+      if (expectedAsset)
+        expect(getAsset).toHaveBeenCalledWith(
+          expect.objectContaining({ assetId: expectedAsset }),
+        );
+      else expect(getAsset).not.toHaveBeenCalled();
+    },
+  );
+
+  it("returns the restored layout when polling a failed render by its own ID", async () => {
+    getJob.mockResolvedValueOnce({
+      id: "child",
+      kind: "EDIT",
+      status: "FAILED",
+      settings: { route: "make_realistic" },
+      parentAssetId: "layout",
+      assetId: null,
+    });
+    getAsset.mockResolvedValueOnce({ id: "layout" });
+    const response = await app.request("/generations/child");
+    expect(await response.json()).toMatchObject({
+      job: { id: "child", status: "FAILED" },
+      version: { id: "layout" },
+    });
+  });
 
   it("includes model metadata for completed jobs and their versions", async () => {
     const settings = { aspectRatio: "1:1" };

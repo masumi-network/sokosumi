@@ -349,6 +349,7 @@ describe("listRecentStudioProjects", () => {
         where: {
           workspaceId: "workspace-1",
           mediaType: "IMAGE",
+          hiddenAt: null,
           project: {
             closedAt: null,
             hides: { none: { userId: "user-1" } },
