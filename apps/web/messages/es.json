@@ -11944,6 +11944,27 @@
         "apply": "{count, plural, one {Reemplazar # celda} other {Reemplazar # celdas}}",
         "done": "{count, plural, one {Se reemplazó # celda.} other {Se reemplazaron # celdas.}} Puedes deshacerlo desde Historial y fuentes."
       },
+      "fillSeries": {
+        "menu": "Rellenar serie…",
+        "title": "Rellenar {column} con una serie",
+        "description": "Rellena las filas en el orden en que las muestra esta vista, de arriba abajo. La primera fila recibe el valor inicial y cada fila siguiente un paso más. Se guarda como un solo cambio que puedes deshacer desde Historial y fuentes.",
+        "start": "Empezar en",
+        "step": "Paso",
+        "unit": "Cada",
+        "units": {
+          "day": "Día",
+          "week": "Semana",
+          "month": "Mes"
+        },
+        "onlyEmpty": "Rellenar solo celdas vacías",
+        "preview": "Vista previa",
+        "row": "Fila {position}",
+        "changes": "{count, plural, one {Cambiará # celda. Primeros cambios:} other {Cambiarán # celdas. Primeros cambios:}}",
+        "unchanged": "Cada fila ya tiene su valor de la serie. No hay nada que cambiar.",
+        "tooMany": "Esta vista muestra más de {limit} filas y una serie rellena hasta {limit}. Filtra la vista e inténtalo de nuevo. No se cambió nada.",
+        "apply": "{count, plural, one {Rellenar # celda} other {Rellenar # celdas}}",
+        "done": "{count, plural, one {# celda rellenada.} other {# celdas rellenadas.}} Puedes deshacerlo desde Historial y fuentes."
+      },
       "before": "Antes",
       "after": "Después",
       "openTask": "Abrir tarea",

@@ -11944,6 +11944,27 @@
         "apply": "{count, plural, one {Replace # cell} other {Replace # cells}}",
         "done": "{count, plural, one {Replaced # cell.} other {Replaced # cells.}} You can undo it from History and sources."
       },
+      "fillSeries": {
+        "menu": "Fill series…",
+        "title": "Fill {column} with a series",
+        "description": "Fills the rows in the order this view shows them, top to bottom. The first row gets the start value and each next row one step more. It saves as one change you can undo from History and sources.",
+        "start": "Start with",
+        "step": "Step",
+        "unit": "Every",
+        "units": {
+          "day": "Day",
+          "week": "Week",
+          "month": "Month"
+        },
+        "onlyEmpty": "Only fill empty cells",
+        "preview": "Preview",
+        "row": "Row {position}",
+        "changes": "{count, plural, one {# cell will change. First changes:} other {# cells will change. First changes:}}",
+        "unchanged": "Every row already holds its value in the series. Nothing to change.",
+        "tooMany": "This view shows more than {limit} rows, and a series fills up to {limit}. Filter the view and try again. Nothing was changed.",
+        "apply": "{count, plural, one {Fill # cell} other {Fill # cells}}",
+        "done": "{count, plural, one {Filled # cell.} other {Filled # cells.}} You can undo it from History and sources."
+      },
       "before": "Before",
       "after": "After",
       "openTask": "Open task",

@@ -102,6 +102,7 @@ import { TableAppendCsv } from "./table-append-csv";
 import { TableCell, TableUpdatedCell } from "./table-cell";
 import { TableColumnDialog } from "./table-column-dialog";
 import { tableCsv } from "./table-csv";
+import { TableFillSeries } from "./table-fill-series";
 import { TableFindReplace } from "./table-find-replace";
 import { cellWrap, columnWidth } from "./table-layout";
 import { createTableMutations, isTableRejection } from "./table-mutations";
@@ -342,6 +343,7 @@ function TableWorkspace({
   const [pending, setPending] = useState(false);
   const [column, setColumn] = useState<TableColumn | "new" | null>(null);
   const [findReplace, setFindReplace] = useState(false);
+  const [fillSeries, setFillSeries] = useState<TableColumn | null>(null);
   const [appendCsv, setAppendCsv] = useState(false);
   const tableMenu = useRef<HTMLButtonElement>(null);
   const [dialog, setDialog] = useState<
@@ -459,6 +461,11 @@ function TableWorkspace({
   function handleFit(columnId: string) {
     const width = fitGridColumn(grid.current, columnId);
     if (width !== null) columnLayout.setWidth(columnId, width);
+  }
+  function openHistory() {
+    setHistoryCursor(undefined);
+    setHistoryCell({});
+    setDialog("history");
   }
   async function refresh() {
     await Promise.all([
@@ -1260,6 +1267,16 @@ function TableWorkspace({
                                 >
                                   {t("sortDescending")}
                                 </DropdownMenuItem>
+                                {!table.archivedAt &&
+                                  !archivedRows &&
+                                  (column.type === "number" ||
+                                    column.type === "date") && (
+                                    <DropdownMenuItem
+                                      onClick={() => setFillSeries(column)}
+                                    >
+                                      {t("fillSeries.menu")}
+                                    </DropdownMenuItem>
+                                  )}
                                 {!table.archivedAt && (
                                   <>
                                     <DropdownMenuSeparator />
@@ -1503,6 +1520,20 @@ function TableWorkspace({
           onDone={(count) => toast.success(t("appendCsv.done", { count }))}
         />
       )}
+      {fillSeries && (
+        <TableFillSeries
+          table={table}
+          column={fillSeries}
+          definition={definition}
+          onClose={() => setFillSeries(null)}
+          onDone={(count) => {
+            void refresh();
+            toast.success(t("fillSeries.done", { count }), {
+              action: { label: t("history"), onClick: openHistory },
+            });
+          }}
+        />
+      )}
       {findReplace && (
         <TableFindReplace
           table={table}
@@ -1511,14 +1542,7 @@ function TableWorkspace({
           onDone={(count) => {
             void refresh();
             toast.success(t("findReplace.done", { count }), {
-              action: {
-                label: t("history"),
-                onClick: () => {
-                  setHistoryCursor(undefined);
-                  setHistoryCell({});
-                  setDialog("history");
-                },
-              },
+              action: { label: t("history"), onClick: openHistory },
             });
           }}
         />

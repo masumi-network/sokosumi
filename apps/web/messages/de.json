@@ -11944,6 +11944,27 @@
         "apply": "{count, plural, one {# Zelle ersetzen} other {# Zellen ersetzen}}",
         "done": "{count, plural, one {# Zelle ersetzt.} other {# Zellen ersetzt.}} Du kannst es in Verlauf und Quellen rückgängig machen."
       },
+      "fillSeries": {
+        "menu": "Reihe ausfüllen…",
+        "title": "{column} mit einer Reihe ausfüllen",
+        "description": "Füllt die Zeilen in der Reihenfolge dieser Ansicht, von oben nach unten. Die erste Zeile erhält den Startwert, jede weitere einen Schritt mehr. Wird als eine Änderung gespeichert, die du in Verlauf und Quellen rückgängig machen kannst.",
+        "start": "Beginnen mit",
+        "step": "Schritt",
+        "unit": "Alle",
+        "units": {
+          "day": "Tag",
+          "week": "Woche",
+          "month": "Monat"
+        },
+        "onlyEmpty": "Nur leere Zellen ausfüllen",
+        "preview": "Vorschau",
+        "row": "Zeile {position}",
+        "changes": "{count, plural, one {# Zelle wird geändert. Erste Änderungen:} other {# Zellen werden geändert. Erste Änderungen:}}",
+        "unchanged": "Jede Zeile enthält schon ihren Wert der Reihe. Nichts zu ändern.",
+        "tooMany": "Diese Ansicht zeigt mehr als {limit} Zeilen, und eine Reihe füllt bis zu {limit}. Filtere die Ansicht und versuche es noch einmal. Es wurde nichts geändert.",
+        "apply": "{count, plural, one {# Zelle ausfüllen} other {# Zellen ausfüllen}}",
+        "done": "{count, plural, one {# Zelle ausgefüllt.} other {# Zellen ausgefüllt.}} Du kannst es in Verlauf und Quellen rückgängig machen."
+      },
       "before": "Vorher",
       "after": "Nachher",
       "openTask": "Aufgabe öffnen",
