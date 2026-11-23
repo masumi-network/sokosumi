@@ -51,6 +51,7 @@ Reads on these routes open to agents in SOKD-378. Image-studio writes that neith
 - **Stopping is always allowed.** Cancel and pause only make an outward effect smaller, and an agent that notices a mistake should be able to stop it.
 - **Credits are their own cap.** An API key can already hire an agent and spend credits (`agents hire`). The image studio is the same kind of spend: prepaid, checked against the balance and the jobs in flight, and visible in transactions. The CLI and MCP tools always send an `idempotencyKey`, so a retry never buys a second image.
 - **Ad money is not credits.** It is billed by Google or Meta outside Sokosumi, with no balance to stop it, so a person resumes every campaign.
+- **An agent's ad update makes one change.** A PATCH carries a status or a budget, never both, as for Soko Bots ([ADR 0073](0073-soko-bots-run-ads-through-the-projects-ad-account.md)). So "pause, then lower the budget" is two calls, and the budget check always sees the campaign's current status.
 - **A person-only route says so.** It answers 403 with its own message and error kind ("A person approves this in Sokosumi") and the item's Web link, instead of "Interactive session required to manage credentials", so the agent can tell its user where to go. Its manifest row is `"mcp": false` with the reason citing this ADR.
 - **The approve, reject and send routes stay session-only.** Whether a first-party app (CMO, the Apple app, [ADR 0046](0046-first-party-clients-skip-consent.md)) may approve is decided per route when that app ships an approval screen.
 
@@ -70,6 +71,7 @@ Reads on these routes open to agents in SOKD-378. Image-studio writes that neith
   3. **feat(core): let agents create and pause ad campaigns and edit them while paused.** Resume stays person-only.
   4. **feat(core): let agents start image-studio generations.** Jobs, video, short and talking video, and cancel; CLI and MCP send an `idempotencyKey`.
   5. Each ticket adds its CLI and MCP rows and fixtures under the parity rule, or ships inside the projects wave if that lands first.
+- Once `docs/agents/agent-surface.md` exists (PR #8000), its exclusion reasons for these routes cite this ADR. That edit lands in this PR if #8000 merges first, otherwise in ticket 2.
 - `requireInteractiveUserAuthContext` goes back to its own job: credentials and account connections.
 - An agent's work waits for a person. That is the point: the approval queue becomes where agent work shows up.
 - Soko Bots keep their own rules ([ADR 0073](0073-soko-bots-run-ads-through-the-projects-ad-account.md)); this ADR does not change them.
