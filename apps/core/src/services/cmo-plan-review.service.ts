@@ -13,6 +13,7 @@ import {
   type CmoNetworkRate,
   cmoJargonIn,
   cmoNetworkMonth,
+  cmoShortVideoFormat,
 } from "@sokosumi/utils";
 
 import { z } from "zod";
@@ -794,12 +795,32 @@ function cadenceFor(count: number): string {
 }
 
 /**
+ * The cadence a network's pieces meet, its pictures and videos apart when
+ * its cadence named them apart ("2 images, 7 Reels daily").
+ */
+function fittedCadence(
+  channel: MarketingStrategyPlan["channels"][number],
+  pieces: MarketingStrategyPlan["calendar"],
+): string {
+  const on = pieces.filter((entry) => goesOutOn(entry, channel.channel));
+  if (!cadenceParts(channel.cadence)) return cadenceFor(on.length);
+  const key = channel.channel.toLowerCase();
+  const videos = on.filter(
+    (entry) => entry.channel.toLowerCase() !== key || isVideoFormat(entry),
+  ).length;
+  const name = cmoShortVideoFormat(key) === "reel" ? "Reels" : "videos";
+  return `${cadenceFor(on.length - videos)} in pictures and ${cadenceFor(videos)} in ${name}`;
+}
+
+/**
  * The strategy fitted to the calendar Cuso saved, once his finish turns are
  * spent (owner, 2026-11-22: "this generation should never fail"): each
  * channel whose cadence promises more than its pieces says what they hold,
- * a channel with none leaves the strategy, and the pace says the calendar's
- * pieces a week. Nothing in the calendar changes, so the plan the owner buys
- * still decides how much of it is made.
+ * and so do its funnel plays; a channel with none leaves the strategy, and
+ * the pace says the calendar's pieces a week. `fitted` tells the owner each
+ * cut. Nothing in the calendar changes, so the plan the owner buys still
+ * decides how much of it is made. A last resort: the finish turns name
+ * each week's missing pieces first.
  */
 export function cmoFitMonthToCalendar(
   strategy: MarketingStrategyPlan,
@@ -819,20 +840,52 @@ export function cmoFitMonthToCalendar(
       isSocialChannel(channel.channel) &&
       cadenceRange(channel.cadence) !== null,
   );
+  const cadences = new Map<string, string>();
+  for (const channel of strategy.channels) {
+    if (empty.includes(channel)) continue;
+    const range = cadenceRange(channel.cadence);
+    if (range && (counts.get(channel.channel) ?? 0) < range[0])
+      cadences.set(channel.channel, fittedCadence(channel, pieces));
+  }
+  const name = (channel: string) =>
+    (CMO_CHANNELS as Record<string, { name: string }>)[channel.toLowerCase()]
+      ?.name ?? channel;
+  const fitted = [
+    ...strategy.channels.flatMap((channel) => {
+      const now = cadences.get(channel.channel);
+      return now
+        ? [`${name(channel.channel)}: ${now} instead of ${channel.cadence}.`]
+        : [];
+    }),
+    ...empty.map(
+      (channel) =>
+        `${name(channel.channel)}: not this month (planned ${channel.cadence}).`,
+    ),
+  ];
   const channels = strategy.channels
     .filter((channel) => !empty.includes(channel))
     .map((channel) => {
-      const range = cadenceRange(channel.cadence);
-      const count = counts.get(channel.channel) ?? 0;
-      return range && count < range[0]
-        ? { ...channel, cadence: cadenceFor(count) }
-        : channel;
+      const cadence = cadences.get(channel.channel);
+      return cadence ? { ...channel, cadence } : channel;
     });
+  const gone = new Set(empty.map((channel) => channel.channel));
+  const funnel = strategy.funnel?.map((stage) => ({
+    ...stage,
+    channels: stage.channels.filter((channel) => !gone.has(channel)),
+    plays: stage.plays
+      .filter((play) => !gone.has(play.channel))
+      .map((play) => {
+        const cadence = cadences.get(play.channel);
+        return cadence ? { ...play, cadence } : play;
+      }),
+  }));
   const weeks = Math.max(1, Math.min(4, cmoCalendarWeeks(pieces)));
   const perWeek = Math.floor(pieces.length / weeks);
   return {
     ...strategy,
     channels,
+    ...(funnel ? { funnel } : {}),
+    ...(fitted.length > 0 ? { fitted } : {}),
     ...(empty.length > 0
       ? {
           leftOut: [
@@ -1276,6 +1329,49 @@ export function cmoCalendarWeeks(
   return pieces.length === 0 ? 0 : calendarWeeks(pieces);
 }
 
+/** One calendar week a finish turn fills: what each network still lacks, and what it holds. */
+export interface CmoWeekGap {
+  from: string;
+  to: string;
+  missing: { channel: string; count: number }[];
+  titles: string[];
+}
+
+/**
+ * Each of the month's four weeks that holds fewer pieces on a network than
+ * its cadence says, from the calendar's first day. A finish turn reads
+ * these, not the calendar: its packet shows only the next weeks of a full
+ * month, and entry.fyi's Cuso stopped six times rather than risk repeats.
+ */
+export function cmoWeekGaps(strategy: MarketingStrategyPlan): CmoWeekGap[] {
+  const pieces = strategy.calendar.filter(
+    (entry) => entry.status !== "skipped",
+  );
+  const first = pieces.map((entry) => entry.date).sort()[0];
+  if (!first) return [];
+  const start = Date.parse(first);
+  const day = (offset: number) =>
+    new Date(start + offset * 86_400_000).toISOString().slice(0, 10);
+  return [0, 1, 2, 3].flatMap((week) => {
+    const from = day(week * 7);
+    const to = day(week * 7 + 6);
+    const held = pieces.filter(
+      (entry) => entry.date >= from && entry.date <= to,
+    );
+    const missing = strategy.channels.flatMap((channel) => {
+      const range = cadenceRange(channel.cadence);
+      if (!range || !isSocialChannel(channel.channel)) return [];
+      const count =
+        Math.round(range[0] / 4) -
+        held.filter((entry) => goesOutOn(entry, channel.channel)).length;
+      return count > 0 ? [{ channel: channel.channel, count }] : [];
+    });
+    return missing.length > 0
+      ? [{ from, to, missing, titles: held.map((entry) => entry.title) }]
+      : [];
+  });
+}
+
 /** Whole or started weeks from the calendar's first piece to its last. */
 function calendarWeeks(pieces: MarketingStrategyPlan["calendar"]): number {
   const days = pieces
@@ -1506,20 +1602,50 @@ function claimProblems(pieces: MarketingStrategyPlan["calendar"]): string[] {
   ];
 }
 
-/** "2 a day", "8 posts a week", "1 to 2 posts a week", "2 a month": pieces over four weeks. */
+const TIMES: Record<string, number> = { day: 28, dai: 28, week: 4, month: 1 };
+
+/**
+ * "2 a day", "8 posts a week", "1 to 2 posts a week", "2 a month", and a
+ * network's pictures and videos together ("2 images, 7 Reels daily"):
+ * pieces over four weeks.
+ */
 function cadenceRange(cadence: string): [number, number] | null {
-  const match = cadence
-    .trim()
-    .toLowerCase()
-    .match(
-      /^(\d+)(?:\s*(?:to|-|–)\s*(\d+))?(?:\s+[a-z]+){0,2}\s+(?:(?:a|per|each)\s+(day|week|month)|(dai|week|month)ly)$/,
-    );
-  if (!match) return null;
-  const low = Number(match[1]);
-  const high = Number(match[2] ?? match[1]);
-  const unit = match[3] ?? match[4];
-  const times = unit === "day" || unit === "dai" ? 28 : unit === "week" ? 4 : 1;
-  return [low * times, high * times];
+  const text = cadence.trim().toLowerCase();
+  const match = text.match(
+    /^(\d+)(?:\s*(?:to|-|–)\s*(\d+))?(?:\s+[a-z]+){0,2}\s+(?:(?:a|per|each)\s+(day|week|month)|(dai|week|month)ly)$/,
+  );
+  if (match) {
+    const times = TIMES[match[3] ?? match[4] ?? ""] ?? 1;
+    return [Number(match[1]) * times, Number(match[2] ?? match[1]) * times];
+  }
+  const parts = cadenceParts(text);
+  if (!parts) return null;
+  const total = (parts.pictures + parts.videos) * parts.times;
+  return [total, total];
+}
+
+/**
+ * A cadence of pictures and videos on one network, the videos named as
+ * such: "2 images, 7 Reels daily", "2 picture posts and 7 Reels a day".
+ */
+function cadenceParts(
+  cadence: string,
+): { pictures: number; videos: number; times: number } | null {
+  const text = cadence.toLowerCase();
+  const unit = text.match(
+    /\b(?:(?:a|per|each)\s+(day|week|month)|(dai|week|month)ly)\b/,
+  );
+  const counts = [...text.matchAll(/(\d+)\s+([a-z-]+(?:\s+[a-z]+)?)/g)];
+  if (!unit || counts.length < 2) return null;
+  let pictures = 0;
+  let videos = 0;
+  for (const [, count, what] of counts) {
+    if (/reel|short|tiktok|video/.test(what ?? "")) videos += Number(count);
+    else pictures += Number(count);
+  }
+  // Only pictures beside videos: "4 page fixes, 2 articles monthly" is no feed.
+  if (pictures === 0 || videos === 0) return null;
+  return { pictures, videos, times: TIMES[unit[1] ?? unit[2] ?? ""] ?? 1 };
 }
 
 /**

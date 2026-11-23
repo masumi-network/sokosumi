@@ -34371,6 +34371,15 @@ export const MarketingStrategySchema = {
                             maxItems: 10,
                             default: []
                         },
+                        fitted: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 12
+                        },
                         patched: {
                             type: 'array',
                             items: {
@@ -36302,6 +36311,15 @@ export const MarketingStrategyRequestSchema = {
                     },
                     maxItems: 10,
                     default: []
+                },
+                fitted: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    maxItems: 12
                 },
                 patched: {
                     type: 'array',
@@ -61408,6 +61426,15 @@ export const CmoPlanSchema = {
             },
             maxItems: 10,
             default: []
+        },
+        fitted: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 12
         },
         patched: {
             type: 'array',
