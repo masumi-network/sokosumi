@@ -11799,6 +11799,9 @@
     "Tables": {
       "tables": "Tablas",
       "newTable": "Nueva tabla",
+      "openAsTable": "Abrir como tabla",
+      "loadingCsv": "Leyendo el CSV…",
+      "fileMissing": "No se pudo abrir el archivo. Ya no está en Archivos.",
       "createDescription": "Empieza con una tabla vacía o importa un archivo CSV.",
       "title": "Título",
       "description": "Descripción",
