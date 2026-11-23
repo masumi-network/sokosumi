@@ -1,5 +1,6 @@
 import type { ChatRoom } from "@sokosumi/core-client";
-import { act, render } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SidebarChatListDeferred } from "./private-sidebar-cache";
@@ -51,14 +52,18 @@ function lastRender(): ListProps {
   return last;
 }
 
+let queryClient: QueryClient;
+
 function renderList(pending: Promise<SidebarChatListDeferred>) {
   return render(
-    <SidebarChatList
-      rooms={rooms}
-      deferred={pending}
-      currentUserId="user-1"
-      organizationId="org-1"
-    />,
+    <QueryClientProvider client={queryClient}>
+      <SidebarChatList
+        rooms={rooms}
+        deferred={pending}
+        currentUserId="user-1"
+        organizationId="org-1"
+      />
+    </QueryClientProvider>,
   );
 }
 
@@ -66,6 +71,9 @@ describe("SidebarChatList", () => {
   beforeEach(() => {
     listRenders.length = 0;
     listMounts = 0;
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
   });
 
   it("shows the rooms before the archived rooms arrive, then fills them into the same mount", async () => {
@@ -82,10 +90,12 @@ describe("SidebarChatList", () => {
       admin.resolve({ archivedRooms, isOrgOwnerOrAdmin: true });
     });
 
-    expect(lastRender()).toMatchObject({
-      rooms,
-      archivedRooms,
-      isOrgOwnerOrAdmin: true,
+    await waitFor(() => {
+      expect(lastRender()).toMatchObject({
+        rooms,
+        archivedRooms,
+        isOrgOwnerOrAdmin: true,
+      });
     });
     expect(listMounts).toBe(1);
   });
@@ -94,12 +104,14 @@ describe("SidebarChatList", () => {
     const admin = deferred();
     const view = renderList(admin.promise);
     view.rerender(
-      <SidebarChatList
-        rooms={rooms}
-        deferred={admin.promise}
-        currentUserId="user-1"
-        organizationId="org-1"
-      />,
+      <QueryClientProvider client={queryClient}>
+        <SidebarChatList
+          rooms={rooms}
+          deferred={admin.promise}
+          currentUserId="user-1"
+          organizationId="org-1"
+        />
+      </QueryClientProvider>,
     );
 
     expect(listRenders.length).toBeGreaterThan(1);
@@ -112,14 +124,22 @@ describe("SidebarChatList", () => {
     await act(async () => {
       first.resolve({ archivedRooms, isOrgOwnerOrAdmin: true });
     });
+    await waitFor(() => {
+      expect(lastRender()).toMatchObject({
+        archivedRooms,
+        isOrgOwnerOrAdmin: true,
+      });
+    });
     const rerender = (pending: Promise<SidebarChatListDeferred>) =>
       view.rerender(
-        <SidebarChatList
-          rooms={rooms}
-          deferred={pending}
-          currentUserId="user-1"
-          organizationId="org-1"
-        />,
+        <QueryClientProvider client={queryClient}>
+          <SidebarChatList
+            rooms={rooms}
+            deferred={pending}
+            currentUserId="user-1"
+            organizationId="org-1"
+          />
+        </QueryClientProvider>,
       );
 
     const second = deferred();
@@ -135,9 +155,16 @@ describe("SidebarChatList", () => {
     await act(async () => {
       third.resolve({ archivedRooms: newer, isOrgOwnerOrAdmin: true });
     });
+    await waitFor(() => {
+      expect(lastRender()).toMatchObject({
+        archivedRooms: newer,
+        isOrgOwnerOrAdmin: true,
+      });
+    });
     // The replaced read answers last.
     await act(async () => {
       second.resolve({ archivedRooms: [], isOrgOwnerOrAdmin: false });
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(lastRender()).toMatchObject({
@@ -174,13 +201,15 @@ describe("SidebarChatList", () => {
 
   it("renders the phone Chats page's list without the heading and without a sheet to close", () => {
     render(
-      <SidebarChatList
-        rooms={rooms}
-        deferred={deferred().promise}
-        currentUserId="user-1"
-        organizationId="org-1"
-        variant="page"
-      />,
+      <QueryClientProvider client={queryClient}>
+        <SidebarChatList
+          rooms={rooms}
+          deferred={deferred().promise}
+          currentUserId="user-1"
+          organizationId="org-1"
+          variant="page"
+        />
+      </QueryClientProvider>,
     );
 
     expect(lastRender()).toMatchObject({

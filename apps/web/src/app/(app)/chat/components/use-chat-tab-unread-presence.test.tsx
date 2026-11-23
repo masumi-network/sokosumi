@@ -529,7 +529,12 @@ describe("Elsewhere rooms in the unread signals", () => {
     view.rerender(<Harness />);
     await act(async () => {});
 
-    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute(
+        "data-show",
+        "yes",
+      ),
+    );
   });
 
   it("starts over in another workspace", async () => {
@@ -676,7 +681,7 @@ describe("useChatTabUnreadPresence", () => {
           },
         });
       });
-      expect(document.title).toBe("(2) Sokosumi - Chat");
+      await waitFor(() => expect(document.title).toBe("(2) Sokosumi - Chat"));
       expect(listRoomsMock).toHaveBeenCalledTimes(1);
       mockPathname = "/chat";
       rerender(
@@ -688,7 +693,7 @@ describe("useChatTabUnreadPresence", () => {
         "data-unread",
         "true",
       );
-      expect(document.title).toBe("(2) Sokosumi - Chat");
+      await waitFor(() => expect(document.title).toBe("(2) Sokosumi - Chat"));
       expect(listRoomsMock).toHaveBeenCalledTimes(1);
     },
   );
@@ -737,7 +742,12 @@ describe("useChatTabUnreadPresence", () => {
     await act(async () => {
       releaseSidebar();
     });
-    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute(
+        "data-show",
+        "yes",
+      ),
+    );
   });
 
   it("mirrors a live sidebar list instead of reading the active collection itself", async () => {
@@ -831,7 +841,12 @@ describe("useChatTabUnreadPresence", () => {
       );
     });
 
-    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute(
+        "data-show",
+        "yes",
+      ),
+    );
   });
 
   it("shows unread for the active room when that room reports attention", async () => {
@@ -845,8 +860,11 @@ describe("useChatTabUnreadPresence", () => {
 
     await waitFor(() => {
       expect(listRoomsMock).toHaveBeenCalled();
+      expect(screen.getByTestId("presence")).toHaveAttribute(
+        "data-show",
+        "yes",
+      );
     });
-    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
   });
 
   it("keeps previous presence when a later poll fails", async () => {
@@ -874,7 +892,12 @@ describe("useChatTabUnreadPresence", () => {
     await waitFor(() => {
       expect(listRoomsMock).toHaveBeenCalledTimes(2);
     });
-    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute(
+        "data-show",
+        "yes",
+      ),
+    );
   });
 
   it("clears presence after a room-read event for the last unread room", async () => {
@@ -909,7 +932,9 @@ describe("useChatTabUnreadPresence", () => {
       );
     });
 
-    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no"),
+    );
   });
 });
 
@@ -1025,7 +1050,12 @@ describe("authoritative tab attention", () => {
         value: { rooms: [room({ id: "a", unreadCount: 1 })], nextCursor: null },
       }),
     );
-    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute(
+        "data-show",
+        "yes",
+      ),
+    );
   });
 
   it.each(["hidden", "unfocused"])(
@@ -1122,7 +1152,12 @@ describe("authoritative tab attention", () => {
         value: { rooms: [room({ id: "b", unreadCount: 1 })], nextCursor: null },
       }),
     );
-    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute(
+        "data-show",
+        "yes",
+      ),
+    );
   });
 
   it("protects a local read completed during a tab refresh", async () => {
@@ -1139,6 +1174,8 @@ describe("authoritative tab attention", () => {
         value: { rooms: [{ ...readRoom, unreadCount: 1 }], nextCursor: null },
       }),
     );
-    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no"),
+    );
   });
 });

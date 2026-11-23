@@ -48,9 +48,13 @@ let pinsChangedAtRevision = 0;
 async function readOtherWorkspaceRooms({
   client,
   queryKey,
+  signal,
 }: QueryFunctionContext): Promise<ChatRoom[]> {
   const requestRevision = beginRoomAttentionRefresh();
   const rooms = await fetchSidebarRoomCollection("elsewhere");
+  if (signal.aborted) {
+    throw new Error("Cancelled reading the rooms of other workspaces");
+  }
   if (!rooms) {
     throw new Error("Failed to read the rooms of other workspaces");
   }
@@ -78,7 +82,10 @@ export function OtherWorkspaceRoomsLive(): null {
   const requestRead = useChatRefreshScheduler({
     key: "elsewhere",
     refresh: () =>
-      queryClient.invalidateQueries({ queryKey: chatQueryKeys.anyElsewhere() }),
+      queryClient.refetchQueries({
+        queryKey: chatQueryKeys.anyElsewhere(),
+        type: "active",
+      }),
     healthy: useAblyConnectionHealthy(),
     refreshOnRecovery: true,
     refreshOnForeground: true,

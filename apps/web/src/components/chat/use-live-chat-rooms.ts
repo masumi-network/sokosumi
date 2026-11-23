@@ -1,7 +1,8 @@
 "use client";
 
 import type { ChatRoom } from "@sokosumi/core-client";
-import { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import { CancelledError, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useRef, useSyncExternalStore } from "react";
 import { fetchSidebarRoomCollection } from "@/components/chat/fetch-sidebar-room-collection";
 import {
   getLatestMembershipVisibleRoomsSnapshot,
@@ -23,6 +24,8 @@ import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { useLiveChatRoomsOwnershipSettled } from "@/hooks/effects/use-live-chat-rooms-ownership-settled";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import { useSession } from "@/lib/auth/auth.client";
+import { chatQueryKeys, splitChatQueryKey } from "@/queries/chat";
+import { useScopedQuery } from "@/queries/scoped-queries";
 
 /** Poll cadence while the Ably connection is unavailable. */
 const LIVE_CHAT_ROOMS_FALLBACK_MS = 15_000;
@@ -35,32 +38,16 @@ function roomsScope(
   return userId ? `${organizationId ?? ""}:${userId}` : null;
 }
 
-/** Rows with the scope they were read in, so another scope's never show. */
-interface HeldRooms {
-  scope: string | null;
-  rooms: ChatRoom[] | null;
-}
-
-function getInitialRoomsFromSessionSnapshot(): HeldRooms {
-  const snapshot = getLatestMembershipVisibleRoomsSnapshot();
-  if (snapshot == null) {
-    return { scope: null, rooms: null };
-  }
-  return {
-    scope: roomsScope(snapshot.organizationId, snapshot.currentUserId),
-    rooms: applyRoomReadOverlays([...snapshot.rooms]),
-  };
-}
-
 /**
  * The reader's live membership-visible rooms, for chat surfaces that need
  * what is unread without mounting the sidebar list: the Chats tab's unread
  * dot, and the Threads view (SOK-1159).
  *
- * While a sidebar list is mounted it already reads the active collection, so
- * this mirrors its rows. Without one (the phone, away from the Chats list) it
- * runs the same read on the same schedule itself, and applies the same room
- * read and rooms-changed events the list does.
+ * Reads the same React Query entry as the sidebar list
+ * (`chatQueryKeys.sidebarRoomCollection(scope, "active")`). While a sidebar
+ * list is mounted it already schedules the active collection reads; without
+ * one (the phone, away from the Chats list) this hook runs the same read on
+ * the same schedule itself.
  *
  * Null until a first read or a session snapshot says what the rooms are, so
  * a reader in no room (an empty list) is not mistaken for one not read yet.
@@ -77,32 +64,23 @@ export function useLiveChatRoomsRead(): {
   rooms: ChatRoom[] | null;
   failed: boolean;
 } {
+  const queryClient = useQueryClient();
   const { data: session } = useSession();
   const currentUserId = session?.user.id ?? "";
   const organizationId = session?.session.activeOrganizationId ?? null;
-  const latestAppliedRefreshRef = useRef(0);
-  const [held, setHeld] = useState<HeldRooms>(
-    getInitialRoomsFromSessionSnapshot,
-  );
   const scope = roomsScope(organizationId, currentUserId);
   // Read by the async refresh, which keeps one identity across scopes.
   const scopeRef = useLatestRef(scope);
-  // The scope whose latest own read failed; cleared by a read that answers.
-  const [failedScope, setFailedScope] = useState<string | null>(null);
-  // Updates a held list in place; a list not read yet stays unread.
-  const updateRooms = useCallback(
-    (apply: (rooms: ChatRoom[]) => ChatRoom[]) =>
-      setHeld((current) =>
-        current.rooms === null
-          ? current
-          : { ...current, rooms: apply(current.rooms) },
-      ),
-    [],
+  const latestAppliedRefreshRef = useRef(0);
+
+  const activeKey = chatQueryKeys.sidebarRoomCollection(
+    { userId: currentUserId || null, workspaceId: organizationId },
+    "active",
   );
+  const activeKeyRef = useLatestRef(activeKey);
 
   // A mounted sidebar list already reads the active collection on the same
-  // schedule; mirror its rows rather than run a second reader (desktop).
-  // The mirrored rows stay after the list unmounts until the own read lands.
+  // schedule; share its cache rather than run a second reader (desktop).
   const sidebarOwnsReads = useSyncExternalStore(
     subscribeMembershipVisibleRooms,
     hasLiveMembershipVisibleRoomsPublisher,
@@ -119,48 +97,40 @@ export function useLiveChatRoomsRead(): {
     () => null,
   );
 
-  const [trackedScope, setTrackedScope] = useState<string | null>(scope);
-
-  const mirroredSnapshot =
-    sidebarOwnsReads &&
-    liveSnapshot &&
-    liveSnapshot.currentUserId === currentUserId &&
-    liveSnapshot.organizationId === organizationId
-      ? liveSnapshot
-      : null;
-  const [syncedSnapshot, setSyncedSnapshot] = useState<
-    typeof liveSnapshot | null
-  >(null);
-  if (mirroredSnapshot && mirroredSnapshot !== syncedSnapshot) {
-    setSyncedSnapshot(mirroredSnapshot);
-    setHeld({
-      scope,
-      rooms: applyRoomReadOverlays([...mirroredSnapshot.rooms]),
-    });
-  } else if (!mirroredSnapshot && syncedSnapshot !== null) {
-    setSyncedSnapshot(null);
-  }
-
-  // Drop the previous workspace's rows before the new GET lands so an
-  // in-flight response cannot light the dot for the wrong org (SOK-986).
-  // Runs after the mirror so a matching snapshot's local read overlays win.
-  if (trackedScope !== scope) {
-    const previous = trackedScope;
-    setTrackedScope(scope);
-    if (scope && previous !== null) {
-      latestAppliedRefreshRef.current = 0;
-      const snapshot = getLatestMembershipVisibleRoomsSnapshot();
-      setHeld({
-        scope,
-        rooms:
-          snapshot &&
-          snapshot.currentUserId === currentUserId &&
-          snapshot.organizationId === organizationId
-            ? applyRoomReadOverlays([...snapshot.rooms])
-            : null,
-      });
-    }
-  }
+  const hasCachedData =
+    scope !== null && queryClient.getQueryData(activeKey) !== undefined;
+  const activeQuery = useScopedQuery({
+    ...splitChatQueryKey(activeKey),
+    queryFn: async ({ client, queryKey, signal }) => {
+      const requestRevision = beginRoomAttentionRefresh();
+      // The ref moves in the layout phase, before the scheduler's passive
+      // cleanup makes `isCurrent` false, so an answer can land between them.
+      const requestScope = scopeRef.current;
+      const page = await fetchSidebarRoomCollection("active");
+      if (signal.aborted || scopeRef.current !== requestScope) {
+        throw new CancelledError({ revert: true });
+      }
+      if (!page) {
+        throw new Error("Failed to read active chat rooms");
+      }
+      const current = client.getQueryData<ChatRoom[]>(queryKey);
+      if (current && requestRevision < latestAppliedRefreshRef.current) {
+        return current;
+      }
+      latestAppliedRefreshRef.current = requestRevision;
+      return reconcileRoomAttention(page.rooms, requestRevision);
+    },
+    // Enable only once data is in the cache so `useScopedQuery` never fires
+    // an unscheduled mount fetch ahead of the desktop handoff wait or throttle
+    // clock; `useChatRefreshScheduler` owns all read timing.
+    enabled: Boolean(
+      scope && ownershipSettled && !sidebarOwnsReads && hasCachedData,
+    ),
+    staleTime: Number.POSITIVE_INFINITY,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+  });
+  const activeQueryRef = useLatestRef(activeQuery);
 
   // Same GET read and scheduling rules as the sidebar's active collection
   // (SOK-986): timer reads pause while hidden or unfocused with one read on
@@ -168,25 +138,21 @@ export function useLiveChatRoomsRead(): {
   // Ably is connected.
   const refreshRooms = useCallback(
     async (isCurrent: () => boolean) => {
-      const requestRevision = beginRoomAttentionRefresh();
-      // The ref moves in the layout phase, before the scheduler's passive
-      // cleanup makes `isCurrent` false, so an answer can land between them.
       const requestScope = scopeRef.current;
-      const page = await fetchSidebarRoomCollection("active");
-      if (!isCurrent() || scopeRef.current !== requestScope) return;
-      if (!page) {
-        setFailedScope(requestScope);
-        return;
+      const key = activeKeyRef.current;
+      const query = queryClient
+        .getQueryCache()
+        .find({ queryKey: key, exact: true });
+      if (query && !query.isDisabled()) {
+        await queryClient.refetchQueries({ queryKey: key, exact: true });
+      } else {
+        await activeQueryRef.current.refetch();
       }
-      if (requestRevision < latestAppliedRefreshRef.current) return;
-      setFailedScope(null);
-      latestAppliedRefreshRef.current = requestRevision;
-      setHeld({
-        scope: requestScope,
-        rooms: reconcileRoomAttention(page.rooms, requestRevision),
-      });
+      if (!isCurrent() || scopeRef.current !== requestScope) {
+        void queryClient.cancelQueries({ queryKey: key, exact: true });
+      }
     },
-    [scopeRef],
+    [activeKeyRef, activeQueryRef, queryClient, scopeRef],
   );
   const requestRefresh = useChatRefreshScheduler({
     key:
@@ -198,40 +164,78 @@ export function useLiveChatRoomsRead(): {
     refreshOnRecovery: true,
   });
 
-  useOrganizationChatRoomRead((apply) => updateRooms(apply));
-
-  useOrganizationChatRoomsChanged({
-    onRemoved: (removedRoomId) =>
-      updateRooms((current) =>
-        applyRoomReadOverlays(
-          current.filter((row) => row.id !== removedRoomId),
-        ),
-      ),
-    onRoom: (room) =>
-      // The answers that land here do not count what is unread, so the
-      // room keeps what the title already counted for it.
-      // One room is not the list; the first read still decides it.
-      updateRooms((current) => {
-        const held = current.find((row) => row.id === room.id);
-        const without = current.filter((row) => row.id !== room.id);
-        return applyRoomReadOverlays([
-          keepRoomUnreadState(held, room),
-          ...without,
-        ]);
-      }),
-    onInvalidated: (collections) => {
-      // Only the active collection holds what is unread.
-      if (!collections || collections.includes("active")) {
-        requestRefresh();
-      }
+  const updateCachedRooms = useCallback(
+    (apply: (rooms: ChatRoom[]) => ChatRoom[]) => {
+      queryClient.setQueryData<ChatRoom[]>(activeKeyRef.current, (current) =>
+        current === undefined ? current : apply(current),
+      );
     },
-  });
+    [activeKeyRef, queryClient],
+  );
+
+  useOrganizationChatRoomRead(updateCachedRooms, undefined, !sidebarOwnsReads);
+
+  useOrganizationChatRoomsChanged(
+    {
+      onRemoved: () => {
+        latestAppliedRefreshRef.current = beginRoomAttentionRefresh();
+        void queryClient.cancelQueries({
+          queryKey: activeKeyRef.current,
+          exact: true,
+        });
+        void queryClient.invalidateQueries({
+          queryKey: activeKeyRef.current,
+          exact: true,
+          refetchType: "none",
+        });
+        requestRefresh();
+      },
+      onRoom: (room) =>
+        // The answers that land here do not count what is unread, so the
+        // room keeps what the title already counted for it.
+        // One room is not the list; the first read still decides it.
+        updateCachedRooms((current) => {
+          const held = current.find((row) => row.id === room.id);
+          const without = current.filter((row) => row.id !== room.id);
+          return applyRoomReadOverlays([
+            keepRoomUnreadState(held, room),
+            ...without,
+          ]);
+        }),
+      onInvalidated: (collections) => {
+        // Only the active collection holds what is unread.
+        if (!collections || collections.includes("active")) {
+          requestRefresh();
+        }
+      },
+    },
+    !sidebarOwnsReads,
+  );
+
+  const matchingSnapshot =
+    scope !== null &&
+    liveSnapshot &&
+    liveSnapshot.currentUserId === currentUserId &&
+    liveSnapshot.organizationId === organizationId
+      ? liveSnapshot
+      : null;
 
   // Rows read for another user or workspace never show, even before this
   // scope's own read lands.
-  const rooms = scope !== null && held.scope === scope ? held.rooms : null;
+  const rooms =
+    scope === null
+      ? null
+      : (activeQuery.data ??
+        (matchingSnapshot
+          ? applyRoomReadOverlays([...matchingSnapshot.rooms])
+          : null));
+
   return {
     rooms,
-    failed: rooms === null && scope !== null && failedScope === scope,
+    failed:
+      rooms === null &&
+      scope !== null &&
+      activeQuery.isError &&
+      !activeQuery.isFetching,
   };
 }

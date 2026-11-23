@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useOtherWorkspaceRooms } from "@/components/chat/use-other-workspace-rooms";
-import { chatQueryKeys } from "@/queries/chat";
+import { chatQueryKeys, splitChatQueryKey } from "@/queries/chat";
 
 const { fetchElsewhereMock } = vi.hoisted(() => ({
   fetchElsewhereMock: vi.fn<() => Promise<ChatRoom[] | null>>(),
@@ -68,6 +68,18 @@ describe("chatQueryKeys", () => {
       "sidebar-rooms",
       "active",
     ]);
+    expect(
+      splitChatQueryKey(chatQueryKeys.sidebarRoomCollection(scopeA, "active")),
+    ).toEqual({
+      scope: scopeA,
+      queryKey: ["chat", "sidebar-rooms", "active"],
+    });
+    expect(chatQueryKeys.sidebarDeferred(scopeA, 3)).toEqual([
+      scopeA,
+      "chat",
+      "sidebar-deferred",
+      3,
+    ]);
     expect(chatQueryKeys.roster(scopeA, "room_1")).toEqual([
       scopeA,
       "chat",
@@ -111,6 +123,18 @@ describe("chatQueryKeys", () => {
     const transcriptPersonal = chatQueryKeys.transcript(personal, "room_2");
     const elsewhereA = chatQueryKeys.elsewhere(scopeA);
     const elsewhereB = chatQueryKeys.elsewhere(scopeB);
+    const sidebarActiveA = chatQueryKeys.sidebarRoomCollection(
+      scopeA,
+      "active",
+    );
+    const sidebarArchivedA = chatQueryKeys.sidebarRoomCollection(
+      scopeA,
+      "archived",
+    );
+    const sidebarActiveB = chatQueryKeys.sidebarRoomCollection(
+      scopeB,
+      "active",
+    );
     const driveKey = [{ scope: "me" }, "drive", "folders"] as const;
 
     queryClient.setQueryDefaults(chatQueryKeys.anyTranscript(), {
@@ -144,6 +168,29 @@ describe("chatQueryKeys", () => {
     expect(queryClient.getQueryData(elsewhereA)).toEqual(["room-a:updated"]);
     expect(queryClient.getQueryData(elsewhereB)).toEqual(["room-b:updated"]);
     expect(queryClient.getQueryData(transcriptA)).toEqual(["msg-a"]);
+
+    queryClient.setQueryData(sidebarActiveA, ["a1"]);
+    queryClient.setQueryData(sidebarArchivedA, ["ar1"]);
+    queryClient.setQueryData(sidebarActiveB, ["b1"]);
+
+    void queryClient.invalidateQueries({
+      queryKey: chatQueryKeys.anySidebarRoomCollection("active"),
+      refetchType: "none",
+    });
+    expect(queryClient.getQueryState(sidebarActiveA)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(sidebarActiveB)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(sidebarArchivedA)?.isInvalidated).toBe(
+      false,
+    );
+
+    void queryClient.invalidateQueries({
+      queryKey: chatQueryKeys.anySidebarRooms(),
+      refetchType: "none",
+    });
+    expect(queryClient.getQueryState(sidebarArchivedA)?.isInvalidated).toBe(
+      true,
+    );
+    expect(queryClient.getQueryState(transcriptA)?.isInvalidated).toBe(false);
   });
 
   it("shows no unpinned Elsewhere rows from the previous workspace while the next workspace read is pending", async () => {

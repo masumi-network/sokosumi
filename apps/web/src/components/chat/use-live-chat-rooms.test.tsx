@@ -1,6 +1,12 @@
 import type { ChatRoom } from "@sokosumi/core-client";
-import { act, render, renderHook } from "@testing-library/react";
-import { useEffect, useState } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  act,
+  renderHook as renderHookInTest,
+  render as renderInTest,
+  waitFor,
+} from "@testing-library/react";
+import { type ReactElement, type ReactNode, useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { fetchMock, sessionState } = vi.hoisted(() => ({
@@ -30,9 +36,28 @@ import {
   publishMembershipVisibleRooms,
   registerMembershipVisibleRoomsPublisher,
 } from "./membership-visible-rooms-store";
+import { notifyOrganizationChatRoomsChanged } from "./organization-chat-events";
 import { clearRoomReadOverlays, rememberRoomRead } from "./room-read-overlay";
 import * as chatRefreshScheduler from "./use-chat-refresh-scheduler";
 import { useLiveChatRooms, useLiveChatRoomsRead } from "./use-live-chat-rooms";
+
+let testQueryClient: QueryClient;
+
+function QueryWrapper({ children }: { children: ReactNode }) {
+  return (
+    <QueryClientProvider client={testQueryClient}>
+      {children}
+    </QueryClientProvider>
+  );
+}
+
+function render(ui: ReactElement) {
+  return renderInTest(ui, { wrapper: QueryWrapper });
+}
+
+function renderHook<TResult>(callback: () => TResult) {
+  return renderHookInTest(callback, { wrapper: QueryWrapper });
+}
 
 function TabUnread() {
   useLiveChatRooms();
@@ -47,6 +72,9 @@ function SidebarList() {
 
 describe("useLiveChatRooms", () => {
   beforeEach(() => {
+    testQueryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
     vi.useFakeTimers();
     fetchMock.mockReset();
     fetchMock.mockResolvedValue({ rooms: [] });
@@ -57,6 +85,7 @@ describe("useLiveChatRooms", () => {
     vi.stubGlobal("innerWidth", 1280);
   });
   afterEach(() => {
+    testQueryClient.clear();
     clearMembershipVisibleRoomsSnapshot();
     clearRoomReadOverlays();
     vi.useRealTimers();
@@ -295,5 +324,56 @@ describe("useLiveChatRooms", () => {
       expect(result.current).toEqual({ rooms: null, failed: false });
       unmount();
     });
+  });
+
+  it("cancels an in-flight read when membership is revoked so the older response cannot restore the room", async () => {
+    vi.useRealTimers();
+    vi.stubGlobal("innerWidth", 390);
+    const olderRead = Promise.withResolvers<{ rooms: ChatRoom[] }>();
+    const newerRead = Promise.withResolvers<{ rooms: ChatRoom[] }>();
+    const revokedRoom = {
+      id: "room-revoked",
+      name: "revoked",
+      kind: "channel",
+      unreadCount: 2,
+      unreadMentionCount: 0,
+      markedUnread: false,
+      updatedAt: new Date("2026-11-23T12:00:00Z"),
+    } as ChatRoom;
+    const keptRoom = {
+      id: "room-kept",
+      name: "kept",
+      kind: "channel",
+      unreadCount: 0,
+      unreadMentionCount: 0,
+      markedUnread: false,
+      updatedAt: new Date("2026-11-23T12:00:00Z"),
+    } as ChatRoom;
+    fetchMock
+      .mockReturnValueOnce(olderRead.promise)
+      .mockReturnValueOnce(newerRead.promise);
+
+    const { result, unmount } = renderHook(() => useLiveChatRooms());
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      notifyOrganizationChatRoomsChanged({ removedRoomId: "room-revoked" });
+    });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      newerRead.resolve({ rooms: [keptRoom] });
+    });
+    await waitFor(() =>
+      expect(result.current?.map((room) => room.id)).toEqual(["room-kept"]),
+    );
+
+    // Late resolution of the pre-revoke read must not restore the revoked room.
+    await act(async () => {
+      olderRead.resolve({ rooms: [keptRoom, revokedRoom] });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(result.current?.map((room) => room.id)).toEqual(["room-kept"]);
+    unmount();
   });
 });

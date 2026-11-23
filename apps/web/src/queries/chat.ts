@@ -35,11 +35,26 @@ function anyChatScopeKey<const TRest extends readonly unknown[]>(
   return [ANY_CHAT_SCOPE, CHAT_QUERY_ROOT, ...rest] as const;
 }
 
+export function splitChatQueryKey<const TRest extends readonly unknown[]>(
+  key: readonly [ChatQueryScope, typeof CHAT_QUERY_ROOT, ...TRest],
+): {
+  scope: ChatQueryScope;
+  queryKey: readonly [typeof CHAT_QUERY_ROOT, ...TRest];
+} {
+  const [scope, ...queryKey] = key;
+  return { scope, queryKey };
+}
+
 export const chatQueryKeys = {
   prefix: (scope: ChatQueryScopeInput) => chatKey(scope),
   sidebarRooms: (scope: ChatQueryScopeInput) => chatKey(scope, "sidebar-rooms"),
   sidebarRoomCollection: (scope: ChatQueryScopeInput, collection: string) =>
     chatKey(scope, "sidebar-rooms", collection),
+  anySidebarRooms: () => anyChatScopeKey("sidebar-rooms"),
+  anySidebarRoomCollection: (collection: string) =>
+    anyChatScopeKey("sidebar-rooms", collection),
+  sidebarDeferred: (scope: ChatQueryScopeInput, deferredId: number) =>
+    chatKey(scope, "sidebar-deferred", deferredId),
   roster: (scope: ChatQueryScopeInput, roomId: string) =>
     chatKey(scope, "roster", roomId),
   transcripts: (scope: ChatQueryScopeInput) => chatKey(scope, "transcript"),

@@ -1,9 +1,11 @@
 "use client";
 
 import type { ChatRoom } from "@sokosumi/core-client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
+import { chatQueryKeys, splitChatQueryKey } from "@/queries/chat";
+import { useScopedQuery } from "@/queries/scoped-queries";
 
 import type { SidebarChatListDeferred } from "./private-sidebar-cache";
 
@@ -11,12 +13,19 @@ import type { SidebarChatListDeferred } from "./private-sidebar-cache";
 // replaces its rows whenever a collection is a new reference.
 const NO_ARCHIVED_ROOMS: ChatRoom[] = [];
 
-// Answers by promise, so a list that mounts again (the phone's sheet reopens)
-// starts with what the promise already gave and not one render behind it.
-const settledAnswers = new WeakMap<
-  Promise<SidebarChatListDeferred>,
-  SidebarChatListDeferred
->();
+// Stable identity per deferred server promise so remounts reuse the cached
+// query result and replaced promises land on their own inactive key.
+let nextDeferredId = 0;
+const deferredIds = new WeakMap<Promise<SidebarChatListDeferred>, number>();
+
+function getDeferredId(promise: Promise<SidebarChatListDeferred>): number {
+  let id = deferredIds.get(promise);
+  if (id === undefined) {
+    id = ++nextDeferredId;
+    deferredIds.set(promise, id);
+  }
+  return id;
+}
 
 interface SidebarChatListProps {
   rooms: ChatRoom[];
@@ -37,8 +46,6 @@ interface SidebarChatListProps {
  * and the owner/admin menus arrive later and are handed to the same mount, so
  * the list keeps its state and reads Core once. A refreshed promise keeps
  * what it replaces on screen until it settles.
- *
- * An effect, not `use()`: `use()` would suspend the rows this exists to show.
  */
 export function SidebarChatList({
   rooms,
@@ -47,26 +54,33 @@ export function SidebarChatList({
   organizationId,
   variant = "sidebar",
 }: SidebarChatListProps) {
-  const [settled, setSettled] = useState<SidebarChatListDeferred | null>(
-    () => settledAnswers.get(deferred) ?? null,
-  );
-  useEffect(() => {
-    let current = true;
-    deferred.then(
-      (value) => {
-        settledAnswers.set(deferred, value);
-        if (current) setSettled(value);
-      },
-      // The read failed or the stream closed before the answer arrived. The
-      // rows stay, without the Archived section and the owner/admin menus,
-      // until the layout is next refreshed. No refresh from here: it re-runs
-      // the whole app frame, which fails closed when Core is slow.
-      () => undefined,
-    );
-    return () => {
-      current = false;
-    };
-  }, [deferred]);
+  const scopeKey = `${currentUserId}:${organizationId ?? ""}`;
+  const deferredId = getDeferredId(deferred);
+  const { data } = useScopedQuery({
+    ...splitChatQueryKey(
+      chatQueryKeys.sidebarDeferred(
+        { userId: currentUserId, workspaceId: organizationId },
+        deferredId,
+      ),
+    ),
+    queryFn: () => deferred,
+    staleTime: Number.POSITIVE_INFINITY,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+  });
+
+  const [lastSettled, setLastSettled] = useState<{
+    scopeKey: string;
+    value: SidebarChatListDeferred;
+  } | null>(null);
+  if (
+    data !== undefined &&
+    (lastSettled?.scopeKey !== scopeKey || lastSettled.value !== data)
+  ) {
+    setLastSettled({ scopeKey, value: data });
+  }
+  const settled =
+    data ?? (lastSettled?.scopeKey === scopeKey ? lastSettled.value : null);
 
   return (
     <OrganizationChatList

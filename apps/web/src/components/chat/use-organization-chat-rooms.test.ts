@@ -1,5 +1,7 @@
 import type { ChatRoom, ChatRoomInvitation } from "@sokosumi/core-client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { createElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import {
@@ -33,6 +35,21 @@ const NO_ROOMS: ChatRoom[] = [];
 const NO_INVITATIONS: ChatRoomInvitation[] = [];
 
 let hasFocus: ReturnType<typeof vi.spyOn>;
+let testQueryClient: QueryClient;
+
+function makeQueryClient() {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+}
+
+function QueryWrapper({ children }: { children: ReactNode }) {
+  return createElement(
+    QueryClientProvider,
+    { client: testQueryClient },
+    children,
+  );
+}
 
 /**
  * Leave the foreground, learn the active collection changed while away, and
@@ -99,18 +116,20 @@ function mount({
         organizationId: props.organizationId ?? "org-1",
         paintOnly,
       }),
-    { initialProps },
+    { initialProps, wrapper: QueryWrapper },
   );
 }
 
 describe("useOrganizationChatRooms", () => {
   beforeEach(() => {
+    testQueryClient = makeQueryClient();
     resetOrganizationChatListMocks();
     clearRoomReadOverlays();
     hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
   });
 
   afterEach(() => {
+    testQueryClient.clear();
     clearMembershipVisibleRoomsSnapshot();
     vi.restoreAllMocks();
   });
@@ -256,10 +275,12 @@ describe("useOrganizationChatRooms", () => {
       );
     });
 
-    const row = result.current.roomRows.find((r) => r.id === "read-me");
-    expect(row?.unreadCount).toBe(0);
-    expect(row?.unreadMentionCount).toBe(0);
-    expect(row?.markedUnread).toBe(false);
+    await waitFor(() => {
+      const row = result.current.roomRows.find((r) => r.id === "read-me");
+      expect(row?.unreadCount).toBe(0);
+      expect(row?.unreadMentionCount).toBe(0);
+      expect(row?.markedUnread).toBe(false);
+    });
   });
 
   it("drops a room the control channel says the reader lost", async () => {
@@ -271,6 +292,7 @@ describe("useOrganizationChatRooms", () => {
       expect(result.current.roomRows).toHaveLength(2);
     });
 
+    listRoomsMock.mockResolvedValue(emptyListResult([channel("kept")]));
     await act(async () => {
       window.dispatchEvent(
         new CustomEvent(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, {
@@ -279,10 +301,12 @@ describe("useOrganizationChatRooms", () => {
       );
     });
 
-    expect(result.current.roomRows.map((row) => row.id)).toEqual(["kept"]);
+    await waitFor(() => {
+      expect(result.current.roomRows.map((row) => row.id)).toEqual(["kept"]);
+    });
   });
 
-  it("moves a room to the top and drops its archived copy in one step", () => {
+  it("moves a room to the top and drops its archived copy in one step", async () => {
     const restored = channel("restored");
     const { result } = mount({
       rooms: [channel("other")],
@@ -299,14 +323,16 @@ describe("useOrganizationChatRooms", () => {
     });
 
     // A room is live or archived, never both.
-    expect(result.current.roomRows.map((row) => row.id)).toEqual([
-      "restored",
-      "other",
-    ]);
-    expect(result.current.archivedRows).toEqual([]);
+    await waitFor(() => {
+      expect(result.current.roomRows.map((row) => row.id)).toEqual([
+        "restored",
+        "other",
+      ]);
+      expect(result.current.archivedRows).toEqual([]);
+    });
   });
 
-  it("replaces rather than duplicates a room it already holds", () => {
+  it("replaces rather than duplicates a room it already holds", async () => {
     const room = channel("dupe");
     const { result } = mount({
       rooms: [room, channel("other")],
@@ -317,18 +343,20 @@ describe("useOrganizationChatRooms", () => {
       result.current.upsertRoomToTop({ ...room, name: "renamed" });
     });
 
-    expect(result.current.roomRows.map((row) => row.id)).toEqual([
-      "dupe",
-      "other",
-    ]);
-    expect(result.current.roomRows[0]?.name).toBe("renamed");
+    await waitFor(() => {
+      expect(result.current.roomRows.map((row) => row.id)).toEqual([
+        "dupe",
+        "other",
+      ]);
+      expect(result.current.roomRows[0]?.name).toBe("renamed");
+    });
   });
 
   // Opening a Direct, joining a channel the reader is already in, creating or
   // restoring a room: each answers with the room, and none of them recounts
   // what is unread, so the counts on that answer are zeros that mean "not
   // counted", not "nothing unread".
-  it("keeps what is unread on a room it already holds", () => {
+  it("keeps what is unread on a room it already holds", async () => {
     const unreadThread = {
       parentMessageId: "550e8400-e29b-41d4-a716-446655440b01",
       firstUnreadReplyId: "550e8400-e29b-41d4-a716-446655440c01",
@@ -359,31 +387,35 @@ describe("useOrganizationChatRooms", () => {
       });
     });
 
-    expect(result.current.roomRows[0]).toMatchObject({
-      name: "renamed",
-      unreadCount: 5,
-      channelUnreadCount: 3,
-      threadUnreadCount: 2,
-      unreadThreadCount: 1,
-      unreadThreads: [unreadThread],
-      unreadMentionCount: 1,
+    await waitFor(() => {
+      expect(result.current.roomRows[0]).toMatchObject({
+        name: "renamed",
+        unreadCount: 5,
+        channelUnreadCount: 3,
+        threadUnreadCount: 2,
+        unreadThreadCount: 1,
+        unreadThreads: [unreadThread],
+        unreadMentionCount: 1,
+      });
     });
   });
 
-  it("takes a room it did not hold as it comes", () => {
+  it("takes a room it did not hold as it comes", async () => {
     const { result } = mount({ rooms: [], paintOnly: true });
 
     act(() => {
       result.current.upsertRoomToTop({ ...channel("fresh"), unreadCount: 0 });
     });
 
-    expect(result.current.roomRows[0]).toMatchObject({
-      id: "fresh",
-      unreadCount: 0,
+    await waitFor(() => {
+      expect(result.current.roomRows[0]).toMatchObject({
+        id: "fresh",
+        unreadCount: 0,
+      });
     });
   });
 
-  it("swaps one room for a newer copy without moving it", () => {
+  it("swaps one room for a newer copy without moving it", async () => {
     const room = channel("edited");
     const { result } = mount({
       rooms: [channel("first"), room, channel("last")],
@@ -394,15 +426,17 @@ describe("useOrganizationChatRooms", () => {
       result.current.replaceRoom({ ...room, name: "renamed" });
     });
 
-    expect(result.current.roomRows.map((row) => row.id)).toEqual([
-      "first",
-      "edited",
-      "last",
-    ]);
-    expect(result.current.roomRows[1]?.name).toBe("renamed");
+    await waitFor(() => {
+      expect(result.current.roomRows.map((row) => row.id)).toEqual([
+        "first",
+        "edited",
+        "last",
+      ]);
+      expect(result.current.roomRows[1]?.name).toBe("renamed");
+    });
   });
 
-  it("keeps a room the reader just marked unread unread", () => {
+  it("keeps a room the reader just marked unread unread", async () => {
     const room = channel("marked");
     const { result } = mount({ rooms: [room], paintOnly: true });
 
@@ -414,10 +448,12 @@ describe("useOrganizationChatRooms", () => {
       result.current.replaceRoom({ ...room, markedUnread: true });
     });
 
-    expect(result.current.roomRows[0]?.markedUnread).toBe(true);
+    await waitFor(() => {
+      expect(result.current.roomRows[0]?.markedUnread).toBe(true);
+    });
   });
 
-  it("replaces the whole live list with a freshly fetched one", () => {
+  it("replaces the whole live list with a freshly fetched one", async () => {
     const { result } = mount({
       rooms: [channel("stale-1"), channel("stale-2")],
       paintOnly: true,
@@ -430,10 +466,12 @@ describe("useOrganizationChatRooms", () => {
       );
     });
 
-    expect(result.current.roomRows.map((row) => row.id)).toEqual(["fresh"]);
+    await waitFor(() => {
+      expect(result.current.roomRows.map((row) => row.id)).toEqual(["fresh"]);
+    });
   });
 
-  it("reapplies the read overlay when it swaps one room", () => {
+  it("reapplies the read overlay when it swaps one room", async () => {
     const room = channel("overlaid", { unreadCount: 5 });
     const { result } = mount({ rooms: [room], paintOnly: true });
 
@@ -445,11 +483,13 @@ describe("useOrganizationChatRooms", () => {
       result.current.replaceRoom({ ...room, name: "renamed" });
     });
 
-    expect(result.current.roomRows[0]?.name).toBe("renamed");
-    expect(result.current.roomRows[0]?.unreadCount).toBe(0);
+    await waitFor(() => {
+      expect(result.current.roomRows[0]?.name).toBe("renamed");
+      expect(result.current.roomRows[0]?.unreadCount).toBe(0);
+    });
   });
 
-  it("reapplies a read that completed after a list fetch started", () => {
+  it("reapplies a read that completed after a list fetch started", async () => {
     const room = channel("overlaid", { unreadCount: 5 });
     const { result } = mount({ rooms: [room], paintOnly: true });
 
@@ -461,18 +501,22 @@ describe("useOrganizationChatRooms", () => {
     });
 
     // A stale fetch must not paint the room unread again.
-    expect(result.current.roomRows[0]?.unreadCount).toBe(0);
+    await waitFor(() => {
+      expect(result.current.roomRows[0]?.unreadCount).toBe(0);
+    });
   });
 });
 
 describe("authoritative sidebar refresh", () => {
   beforeEach(() => {
+    testQueryClient = makeQueryClient();
     resetOrganizationChatListMocks();
     clearRoomReadOverlays();
     hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
   });
 
   afterEach(() => {
+    testQueryClient.clear();
     vi.restoreAllMocks();
   });
 
@@ -500,7 +544,9 @@ describe("authoritative sidebar refresh", () => {
       emptyListResult([{ ...original, unreadCount: 2 }]),
     );
     await act(async () => invalidateWhileAwayAndReturn());
-    expect(result.current.roomRows[0]?.unreadCount).toBe(2);
+    await waitFor(() =>
+      expect(result.current.roomRows[0]?.unreadCount).toBe(2),
+    );
   });
 
   it("accepts an older active response when a newer refresh only loads invitations", async () => {
@@ -514,7 +560,9 @@ describe("authoritative sidebar refresh", () => {
     await act(async () =>
       older.resolve(emptyListResult([{ ...original, unreadCount: 4 }])),
     );
-    expect(result.current.roomRows[0]?.unreadCount).toBe(4);
+    await waitFor(() =>
+      expect(result.current.roomRows[0]?.unreadCount).toBe(4),
+    );
   });
 
   it("never overlaps a slow read and re-arms the fallback poll after it completes", async () => {
@@ -596,7 +644,9 @@ describe("authoritative sidebar refresh", () => {
     await act(async () =>
       newer.resolve(emptyListResult([{ ...original, unreadCount: 1 }])),
     );
-    expect(result.current.roomRows[0]?.unreadCount).toBe(1);
+    await waitFor(() =>
+      expect(result.current.roomRows[0]?.unreadCount).toBe(1),
+    );
     expect(listRoomsMock).toHaveBeenCalledTimes(2);
   });
 
@@ -642,22 +692,29 @@ describe("authoritative sidebar refresh", () => {
     });
 
     expect(listRoomsMock).toHaveBeenCalledTimes(1);
-    expect(result.current.roomRows[0]?.unreadCount).toBe(1);
+    await waitFor(() =>
+      expect(result.current.roomRows[0]?.unreadCount).toBe(1),
+    );
   });
 
   it("does not restore a removed room from an older poll", async () => {
     const original = channel("removed");
     const pending = Promise.withResolvers<ReturnType<typeof emptyListResult>>();
-    listRoomsMock.mockReturnValueOnce(pending.promise);
+    const afterRemoval =
+      Promise.withResolvers<ReturnType<typeof emptyListResult>>();
+    listRoomsMock
+      .mockReturnValueOnce(pending.promise)
+      .mockReturnValueOnce(afterRemoval.promise);
     const { result } = mount({ rooms: [original] });
-    act(() =>
+    await act(async () => {
       window.dispatchEvent(
         new CustomEvent(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, {
           detail: { removedRoomId: original.id },
         }),
-      ),
-    );
-    expect(result.current.roomRows).toEqual([]);
+      );
+    });
+    await act(async () => afterRemoval.resolve(emptyListResult([])));
+    await waitFor(() => expect(result.current.roomRows).toEqual([]));
     await act(async () => pending.resolve(emptyListResult([original])));
     expect(result.current.roomRows).toEqual([]);
   });
@@ -717,7 +774,11 @@ describe("authoritative sidebar refresh", () => {
     });
 
     await act(async () => pendingPoll.resolve(emptyListResult()));
-    expect(result.current.roomRows.map((room) => room.id)).toEqual(["joined"]);
+    await waitFor(() =>
+      expect(result.current.roomRows.map((room) => room.id)).toEqual([
+        "joined",
+      ]),
+    );
   });
 
   it.each(["joined", "updated"])(
@@ -738,15 +799,15 @@ describe("authoritative sidebar refresh", () => {
           }),
         );
       });
-      expect(result.current.roomRows).toEqual([updated]);
+      await waitFor(() => expect(result.current.roomRows).toEqual([updated]));
 
       await act(async () => pendingPoll.resolve(emptyListResult(staleRooms)));
-      expect(result.current.roomRows).toEqual([updated]);
+      await waitFor(() => expect(result.current.roomRows).toEqual([updated]));
 
       const refreshed = { ...updated, name: "Later room name" };
       listRoomsMock.mockResolvedValue(emptyListResult([refreshed]));
       await act(async () => invalidateWhileAwayAndReturn());
-      expect(result.current.roomRows).toEqual([refreshed]);
+      await waitFor(() => expect(result.current.roomRows).toEqual([refreshed]));
     },
   );
 
@@ -761,7 +822,9 @@ describe("authoritative sidebar refresh", () => {
     settleRoomAttentionChange(original.id, token, readRoom);
 
     await act(async () => response.resolve(emptyListResult([original])));
-    expect(result.current.roomRows[0]?.unreadCount).toBe(2);
+    await waitFor(() =>
+      expect(result.current.roomRows[0]?.unreadCount).toBe(2),
+    );
   });
 
   it("keeps pending reads across polling and accepts the next fetch after completion", async () => {
@@ -770,15 +833,59 @@ describe("authoritative sidebar refresh", () => {
     const token = beginRoomAttentionChange(readRoom);
     listRoomsMock.mockResolvedValue(emptyListResult([original]));
     const { result } = mount({ rooms: [original] });
-    await act(async () => undefined);
-    expect(result.current.roomRows[0]?.unreadCount).toBe(0);
+    await waitFor(() =>
+      expect(result.current.roomRows[0]?.unreadCount).toBe(0),
+    );
 
     settleRoomAttentionChange(original.id, token, readRoom);
     listRoomsMock.mockResolvedValue(
       emptyListResult([{ ...original, unreadCount: 1 }]),
     );
     await act(async () => invalidateWhileAwayAndReturn());
-    expect(result.current.roomRows[0]?.unreadCount).toBe(1);
+    await waitFor(() =>
+      expect(result.current.roomRows[0]?.unreadCount).toBe(1),
+    );
+  });
+
+  it("ends with the newer data when a rooms-changed event arrives during an in-flight read", async () => {
+    const original = channel("room", { name: "Initial" });
+    const inFlight =
+      Promise.withResolvers<ReturnType<typeof emptyListResult>>();
+    const followUp =
+      Promise.withResolvers<ReturnType<typeof emptyListResult>>();
+    listRoomsMock
+      .mockReturnValueOnce(inFlight.promise)
+      .mockReturnValueOnce(followUp.promise);
+
+    const { result } = mount({ rooms: [original] });
+    await waitFor(() => expect(listRoomsMock).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, {
+          detail: { collections: ["active"] },
+        }),
+      );
+    });
+
+    await act(async () => {
+      inFlight.resolve(
+        emptyListResult([{ ...original, name: "Older response" }]),
+      );
+    });
+    await waitFor(() => expect(listRoomsMock).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      followUp.resolve(
+        emptyListResult([
+          { ...original, name: "Newer response", unreadCount: 3 },
+        ]),
+      );
+    });
+    await waitFor(() => {
+      expect(result.current.roomRows[0]?.name).toBe("Newer response");
+      expect(result.current.roomRows[0]?.unreadCount).toBe(3);
+    });
   });
 });
 
@@ -793,12 +900,14 @@ function messageIn(roomId: string) {
 
 describe("a message event that names its room", () => {
   beforeEach(() => {
+    testQueryClient = makeQueryClient();
     resetOrganizationChatListMocks();
     clearRoomReadOverlays();
     hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
   });
 
   afterEach(() => {
+    testQueryClient.clear();
     vi.useRealTimers();
     resetChatReadThrottleForTests();
     act(() => setAblyConnectionHealthy(false));
@@ -824,9 +933,11 @@ describe("a message event that names its room", () => {
 
     expect(getRoomMock).toHaveBeenCalledExactlyOnceWith("room-a");
     expect(listRoomsMock).not.toHaveBeenCalled();
-    expect(result.current.roomRows.map((room) => room.unreadCount)).toEqual([
-      2, 0,
-    ]);
+    await waitFor(() =>
+      expect(result.current.roomRows.map((room) => room.unreadCount)).toEqual([
+        2, 0,
+      ]),
+    );
     expect(result.current.roomRows[1]).toBe(untouched);
 
     // The next event reads its own room only, not the one already read.
@@ -844,10 +955,12 @@ describe("a message event that names its room", () => {
     await act(async () => messageIn("room-new"));
 
     expect(getRoomMock).not.toHaveBeenCalled();
-    expect(result.current.roomRows.map((room) => room.id)).toEqual([
-      "room-a",
-      "room-new",
-    ]);
+    await waitFor(() =>
+      expect(result.current.roomRows.map((room) => room.id)).toEqual([
+        "room-a",
+        "room-new",
+      ]),
+    );
   });
 
   it("reads the whole list when the reader can no longer open the room", async () => {
@@ -858,7 +971,11 @@ describe("a message event that names its room", () => {
     await act(async () => messageIn("room-a"));
 
     expect(getRoomMock).toHaveBeenCalledExactlyOnceWith("room-a");
-    expect(result.current.roomRows.map((room) => room.id)).toEqual(["room-b"]);
+    await waitFor(() =>
+      expect(result.current.roomRows.map((room) => room.id)).toEqual([
+        "room-b",
+      ]),
+    );
   });
 
   it("reads the whole list when an event naming no room is waiting with it", async () => {
@@ -924,7 +1041,9 @@ describe("a message event that names its room", () => {
     );
     await act(async () => pending.resolve(channel("room-a", { name: "Old" })));
 
-    expect(result.current.roomRows[0]?.name).toBe("Renamed");
+    await waitFor(() =>
+      expect(result.current.roomRows[0]?.name).toBe("Renamed"),
+    );
   });
 
   it("reads as many stale rooms singly as the limit allows, in one pass", async () => {
@@ -949,9 +1068,11 @@ describe("a message event that names its room", () => {
     await act(async () => first.resolve(channel("room-a")));
 
     expect(listRoomsMock).not.toHaveBeenCalled();
-    expect(result.current.roomRows.map((room) => room.unreadCount)).toEqual([
-      0, 5, 5, 5,
-    ]);
+    await waitFor(() =>
+      expect(result.current.roomRows.map((room) => room.unreadCount)).toEqual([
+        0, 5, 5, 5,
+      ]),
+    );
   });
 
   it("keeps the workspace logo and website, which Core loads for the list only", async () => {
@@ -966,11 +1087,13 @@ describe("a message event that names its room", () => {
 
     await act(async () => messageIn("room-a"));
 
-    expect(result.current.roomRows[0]).toMatchObject({
-      unreadCount: 1,
-      organizationLogo: "logo.png",
-      organizationWebsiteUrl: "https://acme.test",
-    });
+    await waitFor(() =>
+      expect(result.current.roomRows[0]).toMatchObject({
+        unreadCount: 1,
+        organizationLogo: "logo.png",
+        organizationWebsiteUrl: "https://acme.test",
+      }),
+    );
   });
 
   it("reads the whole list on recovery even while a named room waits", async () => {
@@ -1044,9 +1167,12 @@ describe("a message event that names its room", () => {
     act(() => result.current.upsertRoomToTop(channel("room-c")));
     await act(async () => pending.resolve("gone"));
 
-    expect(
-      result.current.roomRows.find((room) => room.id === "room-a")?.unreadCount,
-    ).toBe(4);
+    await waitFor(() =>
+      expect(
+        result.current.roomRows.find((room) => room.id === "room-a")
+          ?.unreadCount,
+      ).toBe(4),
+    );
   });
 
   it("reads the whole list when the browser comes back online while a named room waits", async () => {
@@ -1117,10 +1243,12 @@ describe("a message event that names its room", () => {
       ),
     );
 
-    expect(result.current.roomRows.map((room) => room.id)).toEqual([
-      "room-a",
-      "room-b",
-    ]);
+    await waitFor(() =>
+      expect(result.current.roomRows.map((room) => room.id)).toEqual([
+        "room-a",
+        "room-b",
+      ]),
+    );
   });
 
   it("reads the whole list when one of several rooms is gone", async () => {

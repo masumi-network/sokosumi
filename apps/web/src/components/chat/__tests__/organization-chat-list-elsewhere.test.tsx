@@ -429,11 +429,40 @@ describe("OrganizationChatList Elsewhere rows", () => {
       renderOrganizationChatList();
       await findElsewhereRow("launch");
 
+      listElsewhereMock.mockResolvedValue([]);
       act(() => {
         notifyOrganizationChatRoomsChanged({ removedRoomId: "launch" });
       });
 
       await waitFor(() => expect(elsewhereList()).toBeNull());
+    });
+
+    it("does not restore a revoked room when an older in-flight read resolves after removal", async () => {
+      const olderRead = Promise.withResolvers<ChatRoom[]>();
+      const newerRead = Promise.withResolvers<ChatRoom[]>();
+      listElsewhereMock
+        .mockReturnValueOnce(olderRead.promise)
+        .mockReturnValueOnce(newerRead.promise);
+
+      renderOrganizationChatList();
+      await waitFor(() => expect(listElsewhereMock).toHaveBeenCalledTimes(1));
+
+      act(() => {
+        notifyOrganizationChatRoomsChanged({ removedRoomId: "launch" });
+      });
+      await waitFor(() => expect(listElsewhereMock).toHaveBeenCalledTimes(2));
+
+      // Older read resolves with the revoked room after the revoke event.
+      await act(async () => {
+        olderRead.resolve([elsewhereRoom("launch")]);
+        await Promise.resolve();
+      });
+      expect(elsewhereList()).toBeNull();
+
+      await act(async () => {
+        newerRead.resolve([]);
+      });
+      expect(elsewhereList()).toBeNull();
     });
 
     it("keeps its rows when a later read fails", async () => {
@@ -583,6 +612,9 @@ describe("OrganizationChatList Elsewhere rows", () => {
       harnessPathname.current = "/chat/rooms/launch";
       renderOrganizationChatList();
       await waitFor(() => expect(listElsewhereMock).toHaveBeenCalledOnce());
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
 
       listElsewhereMock.mockResolvedValue([elsewhereRoom("launch")]);
       act(() => {
