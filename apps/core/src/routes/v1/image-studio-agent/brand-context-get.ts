@@ -44,7 +44,7 @@ const route = createRoute({
               themes: list,
             })
             .optional(),
-          colors: list.optional(),
+          colors: studioBrandLookSchema.shape.colors.optional(),
           fonts: list.optional(),
         })
         .openapi("StudioAgentBrandContext"),
@@ -110,7 +110,7 @@ export default function mount(
             themes: firstFew(plan.pillars.map((pillar) => pillar.name)),
           }
         : undefined,
-      colors: look.colors.length ? firstFew(look.colors) : undefined,
+      colors: look.colors.length ? look.colors : undefined,
       fonts: look.fonts.length ? firstFew(look.fonts) : undefined,
     });
   });

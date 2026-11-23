@@ -22898,9 +22898,9 @@ export const StudioAgentBrandContextSchema = {
             type: 'array',
             items: {
                 type: 'string',
-                maxLength: 180
+                pattern: '^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i'
             },
-            maxItems: 3
+            maxItems: 8
         },
         fonts: {
             type: 'array',

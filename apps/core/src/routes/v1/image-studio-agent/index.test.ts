@@ -161,14 +161,15 @@ describe("reading brand context", () => {
     expect(state.design).not.toHaveBeenCalled();
   });
 
-  it("returns the Studio kit palette even without a brand brief", async () => {
+  it("returns the full Studio kit palette even without a brand brief", async () => {
+    const colors = ["#123456", "#789abc", "#def012", "#345678"];
     state.project.mockResolvedValueOnce({
       brandBrain: null,
       designMdUrl: "site-design",
-      studioBrandLook: { colors: ["#123456"], fonts: [] },
+      studioBrandLook: { colors, fonts: [] },
     });
     state.strategy.mockResolvedValueOnce(null);
-    expect((await (await read()).json()).data).toEqual({ colors: ["#123456"] });
+    expect((await (await read()).json()).data).toEqual({ colors });
     expect(state.design).not.toHaveBeenCalled();
   });
   it("selects and caps reference copy from the authorized project", async () => {

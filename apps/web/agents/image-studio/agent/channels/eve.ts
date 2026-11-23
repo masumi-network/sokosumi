@@ -1,3 +1,4 @@
+import type { RouteHandlerArgs } from "eve/channels";
 import { type AuthFn, withAuthChallenges } from "eve/channels/auth";
 import { eveChannel } from "eve/channels/eve";
 
@@ -791,14 +792,32 @@ export default {
       };
     }
     if (route.method === "GET" && route.path.endsWith("/stream")) {
-      const stream = route.handler as RouteHandler;
+      const stream = route.handler as (
+        request: Request,
+        context: RouteHandlerArgs,
+      ) => Promise<Response>;
       return {
         ...route,
-        handler: async (request: Request, context: never) => {
+        handler: async (request: Request, context: RouteHandlerArgs) => {
           const response = await stream(request, context);
-          return response instanceof Response
-            ? hideDrawingInputs(response)
-            : response;
+          const startIndex = Number(
+            new URL(request.url).searchParams.get("startIndex"),
+          );
+          const id = context.params.sessionId;
+          return hideDrawingInputs(
+            response,
+            startIndex > 0 &&
+              id &&
+              response.headers.get("x-eve-session-id") === id
+              ? {
+                  startIndex,
+                  read: () =>
+                    context
+                      .attachSession(id)
+                      .stream({ follow: false, signal: request.signal }),
+                }
+              : undefined,
+          );
         },
       };
     }

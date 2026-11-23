@@ -52,7 +52,7 @@ vi.mock("@/config/env", async (importOriginal) => {
   };
 });
 vi.mock("@/services/image-studio-drive.service", () => ({
-  publishStudioAssetToFiles: vi.fn(),
+  publishStudioAssetToFiles: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@vercel/blob", () => ({ put: putMock }));
 vi.mock("@/lib/image-studio/access", () => ({
