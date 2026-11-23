@@ -56,7 +56,7 @@ describe("sendEmail", () => {
 
     expect(resendConstructorMock).toHaveBeenCalledWith("re_test_key");
     expect(emailsSendMock).toHaveBeenCalledWith({
-      from: "no-reply@example.com",
+      from: "Sokosumi <no-reply@example.com>",
       to: "user@example.com",
       subject: "Hello",
       html: "<p>Hi</p>",
@@ -81,7 +81,7 @@ describe("sendEmail", () => {
     });
 
     expect(emailsSendMock).toHaveBeenCalledWith({
-      from: "no-reply@example.com",
+      from: "Sokosumi <no-reply@example.com>",
       to: ["author@example.com"],
       bcc: ["ops@example.com"],
       subject: "Failure",
@@ -207,14 +207,14 @@ describe("sendEmails", () => {
     expect(batchSendMock).toHaveBeenCalledTimes(1);
     expect(batchSendMock).toHaveBeenCalledWith([
       {
-        from: "no-reply@example.com",
+        from: "Sokosumi <no-reply@example.com>",
         to: "a@example.com",
         subject: "A",
         html: "<p>A</p>",
         tags: [{ name: "category", value: "job-final-status" }],
       },
       {
-        from: "no-reply@example.com",
+        from: "Sokosumi <no-reply@example.com>",
         to: "b@example.com",
         subject: "B",
         html: "<p>B</p>",
@@ -244,7 +244,7 @@ describe("sendEmails", () => {
 
     expect(batchSendMock).toHaveBeenCalledWith([
       {
-        from: "no-reply@example.com",
+        from: "Sokosumi <no-reply@example.com>",
         to: ["author@example.com"],
         bcc: ["ops@example.com"],
         subject: "Failure",

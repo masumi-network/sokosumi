@@ -50,7 +50,8 @@ export interface SendEmailInput {
 
 function toResendPayload(input: SendEmailInput) {
   return {
-    from: input.from ?? getEnv().RESEND_FROM_EMAIL,
+    // The display name inboxes show instead of the bare "noreply" local part.
+    from: input.from ?? `Sokosumi <${getEnv().RESEND_FROM_EMAIL}>`,
     to: input.to,
     subject: input.subject,
     html: input.html,
