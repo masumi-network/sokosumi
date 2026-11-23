@@ -180,6 +180,9 @@ export function FixtureApp({ view, state }: FixtureAppProps) {
               production: {
                 ...shown.overview.production,
                 state: "stuck" as const,
+                retryAt: new Date(
+                  Date.now() + 3 * 60 * 60 * 1_000,
+                ).toISOString(),
               },
             },
           }

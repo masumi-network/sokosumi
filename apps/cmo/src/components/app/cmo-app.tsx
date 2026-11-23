@@ -16,7 +16,12 @@ import { changeIdeas } from "../../lib/change-ideas";
 import type { CusoMessage } from "../../lib/chat-messages";
 import type { ChatTable, ChatWork } from "../../lib/chat-work";
 import { pageLead } from "../../lib/page-lead";
-import { productionShare, productionSteps } from "../../lib/production";
+import {
+  productionShare,
+  productionSteps,
+  retryWhen,
+  withoutPictureLine,
+} from "../../lib/production";
 import { strategyApproved } from "../../lib/strategy";
 import { buildThread, type ThreadItem } from "../../lib/thread";
 import { monthMade, needsYou } from "../../lib/today";
@@ -864,6 +869,7 @@ function ThreadEntry({
           <ProductionCard
             production={overview.production}
             month={monthMade(overview)}
+            timeZone={overview.timeZone}
             openCalendar={openCalendar}
           />
         );
@@ -927,13 +933,16 @@ function ApproveDraft({ approve }: { approve: () => Promise<void> }) {
 function ProductionCard({
   production,
   month,
+  timeZone,
   openCalendar,
 }: {
   production: CmoOverview["production"];
   /** The month's posts and how many are made, as Today and the Calendar say. */
   month: { ready: number; total: number };
+  timeZone: string;
   openCalendar: () => void;
 }) {
+  const noPicture = withoutPictureLine(production);
   const ready = production.state === "ready";
   const share = productionShare(production);
   // Between two runs the month is partly made: only a month with no words
@@ -973,9 +982,10 @@ function ProductionCard({
       </span>
       <p className="note">
         {ready
-          ? "Every post, picture, article and email is made. Each goes out on its day."
+          ? (noPicture ??
+            "Every post, picture, article and email is made. Each goes out on its day.")
           : production.state === "stuck"
-            ? `${productionSteps(production, month.total)}. ${AGENT_NAME} tries the rest again on his next round.`
+            ? `${productionSteps(production, month.total)}. His last try made nothing new, so he tries the rest again ${retryWhen(production.retryAt, timeZone)}.`
             : production.state === "blocked"
               ? "Something on our side keeps him from starting. He tries again every ten minutes."
               : notStarted

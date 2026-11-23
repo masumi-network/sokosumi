@@ -6,6 +6,7 @@ import {
   pieceMade,
   waitsForNetwork,
 } from "./calendar";
+import { retryWhen } from "./production";
 import { isAd, strategyApproved } from "./strategy";
 import type { View } from "./views";
 
@@ -23,14 +24,24 @@ export interface NeedsYou {
 }
 
 /**
- * The month as it goes out: the strategy being made, without skipped posts
- * and the posts the plan bought does not make (the Calendar's count too).
+ * The month as it goes out: the strategy being made, without skipped posts,
+ * the posts the plan bought does not make (the Calendar's count too), and
+ * posts whose day passed before they were made: they never go out.
  */
-export function monthEntries(overview: CmoOverview): Entry[] {
+export function monthEntries(
+  overview: CmoOverview,
+  now: Date = new Date(),
+): Entry[] {
   const strategy = overview.approvedStrategy ?? overview.strategy;
   const beyond = new Set(overview.production.beyondPlan);
+  const today = now.toISOString().slice(0, 10);
   return (strategy?.calendar ?? [])
-    .filter((entry) => entry.status !== "skipped" && !beyond.has(entry.id))
+    .filter(
+      (entry) =>
+        entry.status !== "skipped" &&
+        !beyond.has(entry.id) &&
+        !(entry.status === "idea" && entry.date < today),
+    )
     .sort(
       (a, b) =>
         a.date.localeCompare(b.date) ||
@@ -42,11 +53,14 @@ export function monthEntries(overview: CmoOverview): Entry[] {
  * The month's posts as they go out, and how many of them are made: the one
  * count Today, the Calendar, the chat and Cuso's pill all say.
  */
-export function monthMade(overview: CmoOverview): {
+export function monthMade(
+  overview: CmoOverview,
+  now: Date = new Date(),
+): {
   ready: number;
   total: number;
 } {
-  const posts = monthEntries(overview).filter((entry) => !isAd(entry));
+  const posts = monthEntries(overview, now).filter((entry) => !isAd(entry));
   const media = new Set(overview.media.map((item) => item.entryId));
   return {
     ready: posts.filter((entry) => pieceMade(entry, media.has(entry.id)))
@@ -250,7 +264,8 @@ export function todayLine(overview: CmoOverview, needs: number): string {
     return `I'm making your month: ${ready} of ${total} ready.`;
   }
   if (state === "stuck") {
-    return `I stopped making your month at ${ready} of ${total}. I try the rest again on my next round.`;
+    const when = retryWhen(overview.production.retryAt, overview.timeZone);
+    return `I stopped making your month at ${ready} of ${total}. My last try made nothing new, so I try the rest again ${when}.`;
   }
   if (state === "blocked") {
     return "I couldn't start your month yet. I keep trying every ten minutes.";
