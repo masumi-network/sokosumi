@@ -13,7 +13,6 @@
   "src/app/(app)/components/sidebar-chat-list.client.tsx": 1,
   "src/app/(app)/components/sidebar/components/feature-badges.tsx": 1,
   "src/app/(app)/contacts/components/contacts-workspace.tsx": 1,
-  "src/app/(app)/drive/components/drive-all-files-panel.tsx": 2,
   "src/app/(app)/drive/components/drive-recents-panel.tsx": 1,
   "src/app/(app)/drive/components/drive-tasks-filters.tsx": 3,
   "src/app/(app)/drive/components/file-detail-view.tsx": 1,

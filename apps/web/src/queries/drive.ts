@@ -1,9 +1,20 @@
 import type { QueryClient } from "@tanstack/react-query";
 import type { DriveWorkspaceStore } from "@/lib/utils/drive-file-list.client";
-import type { FileStore } from "@/lib/utils/file-search.client";
+import type {
+  FileSearchFilterState,
+  FileStore,
+} from "@/lib/utils/file-search.client";
 import { buildScopedQueryKey } from "@/queries/scoped-queries";
 
 export const DRIVE_QUERY_ROOT = "drive" as const;
+
+export interface DriveCatalogQueryParams {
+  query: string;
+  filters: FileSearchFilterState;
+  directOnly: boolean;
+  sortBy: "relevance" | "modified" | "name";
+  sortOrder: "asc" | "desc";
+}
 
 export function normalizeDriveStore(store: FileStore): DriveWorkspaceStore {
   return store.scope === "org" && store.organizationId
@@ -23,6 +34,9 @@ function driveKey<const TRest extends readonly unknown[]>(
 
 export const driveQueryKeys = {
   prefix: (store: FileStore) => driveKey(store),
+  catalog: (store: FileStore, params: DriveCatalogQueryParams) =>
+    driveKey(store, "catalog", params),
+  collections: (store: FileStore) => driveKey(store, "collections"),
   dataRooms: (store: FileStore) => driveKey(store, "data-rooms"),
   dataRoom: (store: FileStore, roomId: string) =>
     driveKey(store, "data-room", roomId),
@@ -30,8 +44,10 @@ export const driveQueryKeys = {
     driveKey(store, "data-room", roomId, "events", memberId),
   dataRoomQuestions: (store: FileStore, roomId: string) =>
     driveKey(store, "data-room", roomId, "questions"),
+  folders: (store: FileStore) => driveKey(store, "folders"),
   googleSheet: (store: FileStore, resourceId: string) =>
     driveKey(store, "google-sheet", resourceId),
+  labels: (store: FileStore) => driveKey(store, "labels"),
   picker: (store: FileStore, params: { folder?: string; q?: string } = {}) =>
     driveKey(store, "picker", {
       folder: params.folder ?? "",
@@ -134,7 +150,7 @@ function removeDeletedFromData(
  * Single Drive write invalidation path: runs only after a successful write.
  * Cancels in-flight reads on the store prefix (including cold keys with no data
  * yet, which `invalidateQueries` alone would reuse), removes `deletedIds` from
- * loaded (`status === "success"`) entries, then invalidates the prefix.
+ * entries that have data, then invalidates the prefix.
  */
 export async function invalidateDrive(
   queryClient: QueryClient,
@@ -150,7 +166,6 @@ export async function invalidateDrive(
     for (const query of queryClient
       .getQueryCache()
       .findAll({ queryKey: prefix })) {
-      if (query.state.status !== "success") continue;
       const current = query.state.data;
       if (current === undefined) continue;
 

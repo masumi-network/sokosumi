@@ -1,5 +1,6 @@
 import { type InfiniteData, QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
+import { EMPTY_FILE_FILTERS } from "@/lib/utils/file-search.client";
 import {
   driveQueryKeys,
   invalidateDrive,
@@ -32,6 +33,26 @@ describe("driveQueryKeys", () => {
     ).toEqual(driveQueryKeys.dataRooms(personal));
 
     expect(driveQueryKeys.prefix(orgA)).toEqual([orgA, "drive"]);
+    const catalogParams = {
+      query: "invoice",
+      filters: EMPTY_FILE_FILTERS,
+      directOnly: false,
+      sortBy: "relevance" as const,
+      sortOrder: "desc" as const,
+    };
+    expect(driveQueryKeys.catalog(orgA, catalogParams)).toEqual([
+      orgA,
+      "drive",
+      "catalog",
+      catalogParams,
+    ]);
+    expect(driveQueryKeys.collections(orgA)).toEqual([
+      orgA,
+      "drive",
+      "collections",
+    ]);
+    expect(driveQueryKeys.folders(orgA)).toEqual([orgA, "drive", "folders"]);
+    expect(driveQueryKeys.labels(orgA)).toEqual([orgA, "drive", "labels"]);
     expect(driveQueryKeys.dataRooms(orgA)).toEqual([
       orgA,
       "drive",
@@ -89,7 +110,7 @@ describe("driveQueryKeys", () => {
 });
 
 describe("invalidateDrive", () => {
-  it("removes deletedIds only from status === 'success' entries across list shapes and invalidates the store prefix", async () => {
+  it("removes deletedIds from entries with data (including error entries with prior data) and invalidates the store prefix", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -101,6 +122,7 @@ describe("invalidateDrive", () => {
     const catalogKey = buildScopedQueryKey(orgA, ["drive", "catalog", "all"]);
     const recentsKey = buildScopedQueryKey(orgA, ["drive", "recents", "all"]);
     const arrayKey = buildScopedQueryKey(orgA, ["drive", "picker", "all"]);
+    const staleErrorKey = buildScopedQueryKey(orgA, ["drive", "stale-error"]);
     const otherOrgKey = buildScopedQueryKey(orgB, ["drive", "picker", "all"]);
     const failedKey = buildScopedQueryKey(orgA, ["drive", "failed-list"]);
     const pendingKey = buildScopedQueryKey(orgA, ["drive", "pending-list"]);
@@ -140,6 +162,14 @@ describe("invalidateDrive", () => {
       pageParams: [null],
     });
     queryClient.setQueryData(arrayKey, [fileKeep, fileDropByPath]);
+    queryClient.setQueryData(staleErrorKey, [fileKeep, fileDropById]);
+    await queryClient
+      .fetchQuery({
+        queryKey: staleErrorKey,
+        queryFn: () => Promise.reject(new Error("refresh failed")),
+      })
+      .catch(() => undefined);
+    expect(queryClient.getQueryState(staleErrorKey)?.status).toBe("error");
     queryClient.setQueryData(otherOrgKey, [otherOrgFile]);
 
     await queryClient
@@ -180,16 +210,18 @@ describe("invalidateDrive", () => {
       },
     ]);
     expect(queryClient.getQueryData(arrayKey)).toEqual([fileKeep]);
+    expect(queryClient.getQueryData(staleErrorKey)).toEqual([fileKeep]);
     // Other workspace cache is untouched.
     expect(queryClient.getQueryData(otherOrgKey)).toEqual([otherOrgFile]);
 
-    // Failed and unloaded queries must never be marked success.
+    // Failed (no data) and unloaded queries must never be marked success.
     expect(queryClient.getQueryState(failedKey)?.status).toBe("error");
     expect(queryClient.getQueryState(pendingKey)?.status).toBe("pending");
 
     // Every orgA Drive entry is invalidated; orgB stays fresh.
     expect(queryClient.getQueryState(catalogKey)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(arrayKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(staleErrorKey)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(otherOrgKey)?.isInvalidated).toBe(false);
 
     pendingDeferred.resolve([]);

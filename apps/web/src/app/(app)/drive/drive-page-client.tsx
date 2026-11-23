@@ -130,7 +130,6 @@ import { FileTypeIcon } from "@/components/ui/file-icon";
 import { Input } from "@/components/ui/input";
 import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { useAbortController } from "@/hooks/effects/use-abort-controller";
 import { useDriveOrganizationName } from "@/hooks/effects/use-drive-organization-name";
 import { useDriveWorkspaceSwitchUrlReset } from "@/hooks/effects/use-drive-workspace-switch-url-reset";
 import { useEventListener } from "@/hooks/effects/use-event-listener";
@@ -304,9 +303,6 @@ function DrivePageWorkspace({
     null,
   );
   const [movingItem, setMovingItem] = useState(false);
-  /** Every folder path in the store, nested ones included. */
-  const [allFolders, setAllFolders] = useState<string[]>([]);
-  const [loadingAllFolders, setLoadingAllFolders] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [uiWorkspaceId, setUiWorkspaceId] = useState(activeOrganizationId);
@@ -316,7 +312,6 @@ function DrivePageWorkspace({
   const [tasksLoadingMore, setTasksLoadingMore] = useState(false);
   const [copyDialogOpen, setCopyDialogOpen] = useState(false);
   const [recentsReloadToken, setRecentsReloadToken] = useState(0);
-  const [catalogReloadToken, setCatalogReloadToken] = useState(0);
   const [tasksFilterSheetOpen, setTasksFilterSheetOpen] = useState(false);
   const [taskFileToCopy, setTaskFileToCopy] =
     useState<DriveTasksListItem | null>(null);
@@ -328,7 +323,6 @@ function DrivePageWorkspace({
     () => new Map(),
   );
 
-  const loadAllFoldersAbort = useAbortController(activeOrganizationId);
   const loadTasksAbortRef = useRef<AbortController | null>(null);
   const loadMoreTasksAbortRef = useRef<AbortController | null>(null);
   const workspaceIdRef = useRef(activeOrganizationId);
@@ -349,9 +343,6 @@ function DrivePageWorkspace({
     setMoveDialogOpen(false);
     setItemToMove(null);
     setSelectedDestination(null);
-    loadAllFoldersAbort.abort();
-    setAllFolders([]);
-    setLoadingAllFolders(false);
     debouncedSetSearchQuery.cancel();
     setSearchQuery("");
     setDebouncedSearchQuery("");
@@ -474,6 +465,17 @@ function DrivePageWorkspace({
     enabled: isWorkspaceView,
   });
 
+  const foldersQuery = useScopedQuery({
+    ...splitDriveQueryKey(driveQueryKeys.folders(allFilesStore)),
+    queryFn: ({ signal }) =>
+      fetchWorkspaceFolders({ store: allFilesStore, signal }),
+    enabled: moveDialogOpen,
+  });
+  const allFolders = foldersQuery.data ?? [];
+  const loadingAllFolders = foldersQuery.isPending;
+  const foldersUnavailable =
+    foldersQuery.isPending || foldersQuery.isFetching || foldersQuery.isError;
+
   const filesSortSelection = parseFilesSortSelection(
     driveNavQuery.sortBy,
     driveNavQuery.sortOrder,
@@ -506,15 +508,6 @@ function DrivePageWorkspace({
 
   function refreshDriveItems(options?: InvalidateDriveOptions) {
     void invalidateDrive(queryClient, driveStore, options);
-    /**
-     * And the catalog, which is the list a reader on this tab is looking at.
-     *
-     * It fetches from the search index rather than from the blob listing, so
-     * invalidating that query does not touch it. Before the merge an upload
-     * refreshed the grid the reader could see; without this it would land in
-     * the store and appear nowhere until they searched for something.
-     */
-    setCatalogReloadToken((token) => token + 1);
   }
 
   const loadTasksItems = useCallback(async () => {
@@ -1193,7 +1186,6 @@ function DrivePageWorkspace({
     setMoveNewFolderName("");
     setSelectedDestination(null);
     setMoveDialogOpen(true);
-    void loadAllFolders();
   }
 
   function openMoveFilesDialog(files: { pathname: string; name: string }[]) {
@@ -1202,7 +1194,6 @@ function DrivePageWorkspace({
     setMoveNewFolderName("");
     setSelectedDestination(null);
     setMoveDialogOpen(true);
-    void loadAllFolders();
   }
 
   /** Moving several ticked files: each on its own, failures reported once. */
@@ -1228,44 +1219,14 @@ function DrivePageWorkspace({
     return moved;
   }
 
-  async function loadAllFolders() {
-    const controller = loadAllFoldersAbort.start();
-    const requestedWorkspaceId = activeOrganizationId;
-    setLoadingAllFolders(true);
-    try {
-      const loaded = await fetchWorkspaceFolders({
-        store: driveStore,
-        signal: controller.signal,
-      });
-      if (
-        controller.signal.aborted ||
-        workspaceIdRef.current !== requestedWorkspaceId
-      ) {
-        return;
-      }
-
-      setAllFolders(loaded);
-    } catch (err) {
-      if (controller.signal.aborted) {
-        return;
-      }
-      console.error("Failed to load all folders", err);
-      if (workspaceIdRef.current === requestedWorkspaceId) {
-        setAllFolders([]);
-      }
-    } finally {
-      loadAllFoldersAbort.release(controller);
-      if (
-        !controller.signal.aborted &&
-        workspaceIdRef.current === requestedWorkspaceId
-      ) {
-        setLoadingAllFolders(false);
-      }
-    }
-  }
-
   async function handleMoveConfirm() {
-    if (selectedDestination === null) return;
+    if (
+      foldersQuery.isFetching ||
+      selectedDestination === null ||
+      !hasValidMoveDestination
+    ) {
+      return;
+    }
     if (!itemToMove) {
       if (filesToMove.length === 0) return;
       setMovingItem(true);
@@ -1421,6 +1382,15 @@ function DrivePageWorkspace({
 
     return destinations;
   })();
+
+  const isTypedMoveDestination = moveNewFolderName.trim().length > 0;
+  const hasValidMoveDestination =
+    selectedDestination !== null &&
+    (isTypedMoveDestination ||
+      (!foldersUnavailable &&
+        availableDestinations.some(
+          (dest) => dest.path === selectedDestination,
+        )));
 
   const exploreItems: ExploreItem[] = (() => {
     if (isTasksView) {
@@ -2333,7 +2303,6 @@ function DrivePageWorkspace({
             onOpen: navigateToTasksRoot,
           }}
           dataRoomPaths={dataRoomsQuery.data?.map((room) => room.folderPath)}
-          reloadToken={catalogReloadToken}
           onShareFile={setShareItem}
           onMoveFiles={openMoveFilesDialog}
         />
@@ -2352,7 +2321,6 @@ function DrivePageWorkspace({
         store={driveStore}
         folder={currentFolder}
         onOpenChange={setLinkSheetDialogOpen}
-        onLinked={() => setCatalogReloadToken((token) => token + 1)}
       />
 
       <DriveDataRoomDialog
@@ -2361,7 +2329,6 @@ function DrivePageWorkspace({
         onOpenChange={(open) => {
           if (!open) setDataRoomFolder(null);
         }}
-        onChanged={() => setCatalogReloadToken((token) => token + 1)}
       />
 
       {/* Outside any one view: Workspace's Upload menu, the phone FAB and
@@ -2492,12 +2459,13 @@ function DrivePageWorkspace({
                 <button
                   key={dest.path}
                   type="button"
+                  disabled={foldersUnavailable}
                   onClick={() => {
                     setMoveNewFolderName("");
                     setSelectedDestination(dest.path);
                   }}
                   className={cn(
-                    "text-foreground press hover:bg-accent flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                    "text-foreground press hover:bg-accent flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors disabled:pointer-events-none disabled:opacity-50",
                     selectedDestination === dest.path &&
                       "bg-muted border-foreground",
                   )}
@@ -2546,7 +2514,11 @@ function DrivePageWorkspace({
             </Button>
             <Button
               onClick={() => void handleMoveConfirm()}
-              disabled={movingItem || selectedDestination === null}
+              disabled={
+                movingItem ||
+                foldersQuery.isFetching ||
+                !hasValidMoveDestination
+              }
             >
               {t("moveHere")}
             </Button>
