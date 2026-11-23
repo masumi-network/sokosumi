@@ -13,8 +13,8 @@ vi.mock("@/components/jobs/job-details/refund-request", () => ({
   default: () => <button type="button">refund</button>,
 }));
 
-function jobWith(status: SokosumiJobStatus, jobStatusSettled = true): Job {
-  return { status, jobStatusSettled } as Job;
+function jobWith(status: SokosumiJobStatus): Job {
+  return { status } as Job;
 }
 
 describe("JobStatusNotice", () => {
@@ -28,30 +28,6 @@ describe("JobStatusNotice", () => {
     const notice = screen.getByRole("note");
     expect(notice).toHaveTextContent(`${key}.title`);
     expect(notice).toHaveTextContent(`${key}.description`);
-  });
-
-  it("says the credits came back only once the refund has settled", () => {
-    const { rerender } = render(
-      <JobStatusNotice
-        job={jobWith(SokosumiJobStatus.REFUND_RESOLVED, false)}
-        canManage
-      />,
-    );
-
-    // Core marks the job refunded when the on-chain refund lands, before the
-    // credits are back in the ledger (`jobStatusSettled: false`).
-    expect(screen.getByRole("note")).toHaveTextContent("refundPending.title");
-    expect(screen.getByRole("note")).toHaveTextContent(
-      "refundPending.description",
-    );
-
-    rerender(
-      <JobStatusNotice
-        job={jobWith(SokosumiJobStatus.REFUND_RESOLVED, true)}
-        canManage
-      />,
-    );
-    expect(screen.getByRole("note")).toHaveTextContent("refunded.description");
   });
 
   it.each([

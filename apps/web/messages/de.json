@@ -526,8 +526,8 @@
         },
         "StatusNotice": {
           "failed": {
-            "title": "Dieser Job ist fehlgeschlagen",
-            "description": "Er wurde ohne Ergebnis beendet."
+            "title": "Job fehlgeschlagen",
+            "description": "Dieser Job konnte nicht abgeschlossen werden."
           },
           "paymentFailed": {
             "title": "Zahlung fehlgeschlagen",
@@ -535,11 +535,7 @@
           },
           "refunded": {
             "title": "Job erstattet",
-            "description": "Die Credits für diesen Job wurden zurückgebucht."
-          },
-          "refundPending": {
-            "title": "Erstattung läuft",
-            "description": "Die Erstattung ist durch. Die Credits für diesen Job werden zurückgebucht."
+            "description": "Für diesen Job wurde eine Erstattung ausgestellt."
           }
         }
       },

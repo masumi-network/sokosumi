@@ -526,8 +526,8 @@
         },
         "StatusNotice": {
           "failed": {
-            "title": "Este job falló",
-            "description": "Terminó sin un resultado."
+            "title": "Job fallido",
+            "description": "Este job no se pudo completar."
           },
           "paymentFailed": {
             "title": "El pago falló",
@@ -535,11 +535,7 @@
           },
           "refunded": {
             "title": "Job reembolsado",
-            "description": "Se devolvieron los créditos de este job."
-          },
-          "refundPending": {
-            "title": "Reembolso en curso",
-            "description": "El reembolso se realizó. Los créditos de este job se están devolviendo."
+            "description": "Se emitió un reembolso para este job."
           }
         }
       },
