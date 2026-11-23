@@ -1,4 +1,5 @@
 import type { ChatRoomMessage, ChatRoomThread } from "@sokosumi/core-client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
   fireEvent,
@@ -8,6 +9,7 @@ import {
   within,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { chatQueryKeys } from "@/queries/chat";
 import {
   ThreadListPanel,
   type ThreadListPanelLabels,
@@ -119,23 +121,55 @@ function unreadAndReadPair() {
   };
 }
 
+function createQueryClient() {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+}
+
 function renderPanel(
   options: {
+    roomId?: string;
+    queryClient?: QueryClient;
     onOpenThread?: (parent: ChatRoomMessage) => boolean | Promise<boolean>;
     onClose?: () => void;
     onAllThreadsLooked?: (stillUnreadParentIds: string[]) => void;
     labels?: ThreadListPanelLabels;
   } = {},
 ) {
-  return render(
-    <ThreadListPanel
-      roomId={ROOM_ID}
-      labels={options.labels ?? labels}
-      onOpenThread={options.onOpenThread ?? vi.fn().mockResolvedValue(true)}
-      onClose={options.onClose ?? vi.fn()}
-      onAllThreadsLooked={options.onAllThreadsLooked}
-    />,
+  const queryClient = options.queryClient ?? createQueryClient();
+  const roomId = options.roomId ?? ROOM_ID;
+  const onOpenThread = options.onOpenThread ?? vi.fn().mockResolvedValue(true);
+  const onClose = options.onClose ?? vi.fn();
+  const panelLabels = options.labels ?? labels;
+  const result = render(
+    <QueryClientProvider client={queryClient}>
+      <ThreadListPanel
+        roomId={roomId}
+        labels={panelLabels}
+        onOpenThread={onOpenThread}
+        onClose={onClose}
+        onAllThreadsLooked={options.onAllThreadsLooked}
+      />
+    </QueryClientProvider>,
   );
+  return {
+    ...result,
+    queryClient,
+    rerenderRoom(nextRoomId: string) {
+      result.rerender(
+        <QueryClientProvider client={queryClient}>
+          <ThreadListPanel
+            roomId={nextRoomId}
+            labels={panelLabels}
+            onOpenThread={onOpenThread}
+            onClose={onClose}
+            onAllThreadsLooked={options.onAllThreadsLooked}
+          />
+        </QueryClientProvider>,
+      );
+    },
+  };
 }
 
 describe("ThreadListPanel", () => {
@@ -806,6 +840,125 @@ describe("ThreadListPanel", () => {
     expect(within(items[1]).getByTestId("thread-icon-circle")).toHaveAttribute(
       "data-tone",
       "read",
+    );
+  });
+
+  it("never shows the previous room's threads when switching rooms while the first page is in flight", async () => {
+    const otherRoomId = "550e8400-e29b-41d4-a716-446655440002";
+    const roomADeferred = Promise.withResolvers<unknown>();
+    listThreadsActionMock.mockImplementation((roomId: string) => {
+      if (roomId === ROOM_ID) {
+        return roomADeferred.promise;
+      }
+      return Promise.resolve({
+        ok: true,
+        value: {
+          threads: [
+            threadItem({
+              parentMessage: parentMessage({
+                id: "550e8400-e29b-41d4-a716-446655440022",
+                roomId: otherRoomId,
+                content: "Room B thread",
+              }),
+            }),
+          ],
+          nextCursor: null,
+        },
+      });
+    });
+
+    const { rerenderRoom, queryClient } = renderPanel();
+    await waitFor(() => {
+      expect(listThreadsActionMock).toHaveBeenCalledWith(ROOM_ID);
+    });
+
+    rerenderRoom(otherRoomId);
+    expect(await screen.findByText("Room B thread")).toBeInTheDocument();
+
+    // Room A's first page finishes late: it must not replace Room B's list.
+    await act(async () => {
+      roomADeferred.resolve({
+        ok: true,
+        value: {
+          threads: [
+            threadItem({
+              parentMessage: parentMessage({
+                id: "550e8400-e29b-41d4-a716-446655440011",
+                roomId: ROOM_ID,
+                content: "Room A stale thread",
+              }),
+            }),
+          ],
+          nextCursor: null,
+        },
+      });
+    });
+
+    expect(screen.getByText("Room B thread")).toBeInTheDocument();
+    expect(screen.queryByText("Room A stale thread")).not.toBeInTheDocument();
+    expect(
+      queryClient.getQueryData(chatQueryKeys.threads({}, otherRoomId)),
+    ).toBeDefined();
+  });
+
+  it("refetches only the first page after mark-all even when older pages were loaded", async () => {
+    const olderId = "550e8400-e29b-41d4-a716-446655440098";
+    listThreadsActionMock
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          threads: [threadItem()],
+          nextCursor: "cursor-1",
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          threads: [
+            threadItem({
+              parentMessage: parentMessage({
+                id: olderId,
+                content: "Older page thread",
+              }),
+              unreadReplyCount: 0,
+              lastUnreadReplyAt: null,
+            }),
+          ],
+          nextCursor: "cursor-2",
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          threads: [
+            threadItem({
+              unreadReplyCount: 0,
+              lastUnreadReplyAt: null,
+            }),
+          ],
+          nextCursor: "cursor-fresh",
+        },
+      });
+
+    renderPanel();
+
+    fireEvent.click(
+      within(await screen.findByTestId("thread-list-load-more")).getByRole(
+        "button",
+      ),
+    );
+    expect(await screen.findByText("Older page thread")).toBeInTheDocument();
+    expect(listThreadsActionMock).toHaveBeenCalledTimes(2);
+
+    fireEvent.click(screen.getByTestId("thread-list-mark-all-read"));
+    await waitFor(() => {
+      expect(listThreadsActionMock).toHaveBeenCalledTimes(3);
+    });
+    expect(listThreadsActionMock).toHaveBeenLastCalledWith(ROOM_ID);
+    expect(screen.queryByText("Older page thread")).not.toBeInTheDocument();
+    expect(screen.getByTestId("thread-list-item")).toHaveAttribute(
+      "data-unread",
+      "false",
     );
   });
 });
