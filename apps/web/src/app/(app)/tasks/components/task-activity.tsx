@@ -6,13 +6,7 @@ import { extractHttpLinks, type SubscriptionPlanName } from "@sokosumi/utils";
 import { ArrowDown } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import {
-  type ReactNode,
-  useEffect,
-  useMemo,
-  useState,
-  useTransition,
-} from "react";
+import { type ReactNode, useMemo, useState, useTransition } from "react";
 import { CHAT_MESSAGE_LIST_ATTRIBUTE } from "@/app/chat/chat-message-list";
 import { highlightListMessage } from "@/app/chat/utils/room-message-highlight";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
@@ -37,6 +31,7 @@ import { TimeAgo } from "@/components/time-ago";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useTaskActivityJumpHighlight } from "@/hooks/effects/use-task-activity-jump-highlight";
 import { useTaskActivityRowEnter } from "@/hooks/effects/use-task-activity-row-enter";
 import {
   createTaskComment,
@@ -195,7 +190,6 @@ function TaskActivityContent({
   const [, startExpandTransition] = useTransition();
   const [localEvents, setLocalEvents] = useState<TaskEvent[]>(events);
   const [commentsExpanded, setCommentsExpanded] = useState(false);
-  const [pendingJumpId, setPendingJumpId] = useState<string | null>(null);
   // Match chat and Core `excludeUserId`: @ of yourself does not enroll the writer.
   const viewerId = currentUser?.id;
   const mentionOptions = useMemo(() => {
@@ -270,14 +264,11 @@ function TaskActivityContent({
     localEvents[0]?.id ??
     null;
 
-  useEffect(() => {
-    if (!pendingJumpId) {
-      return;
-    }
-    if (highlightListMessage(TASK_ACTIVITY_MESSAGE_LIST, pendingJumpId)) {
-      setPendingJumpId(null);
-    }
-  }, [pendingJumpId, localEvents, commentsExpanded, feedItems]);
+  const setPendingJumpId = useTaskActivityJumpHighlight(
+    localEvents,
+    commentsExpanded,
+    feedItems,
+  );
 
   function handleJumpToRecent() {
     if (!latestCommentId) {

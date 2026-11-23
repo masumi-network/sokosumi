@@ -1,10 +1,10 @@
 /** Playwright capture page for Social draft-row account labels. */
 import { NextIntlClientProvider } from "next-intl";
+import { useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { accountChipLabel } from "@/app/projects/components/social-posts/social-post-account-chip-label";
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import { createFormats } from "@/i18n/time-format";
 import messages from "@/messages/en.json";
 
@@ -14,9 +14,9 @@ const CONNECTION = {
 };
 
 export function RowDisplayNamePage() {
-  useMountEffect(() => {
+  useEffect(() => {
     document.body.dataset.hydrated = "true";
-  });
+  }, []);
 
   const accountLabel = accountChipLabel(CONNECTION, "No account");
 

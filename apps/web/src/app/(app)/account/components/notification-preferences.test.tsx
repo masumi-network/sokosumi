@@ -90,10 +90,9 @@ describe("NotificationPreferences", () => {
   });
 
   /**
-   * The route holds this card and nothing else, so the card's title is the
-   * page's heading. `CardTitle` is a div, and heading navigation is how a
-   * settings page is read: without a level on it the page has no landmark to
-   * arrive at.
+   * The route holds this block and nothing else, so its title is the page's
+   * heading. Heading navigation is how a settings page is read: without a
+   * level on it the page has no landmark to arrive at.
    */
   it("titles the page with a heading", () => {
     renderPreferences();

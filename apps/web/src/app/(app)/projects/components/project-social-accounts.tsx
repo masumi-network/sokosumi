@@ -45,7 +45,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useProjectSocialAccountsMountedRef } from "@/hooks/effects/use-project-social-accounts-mounted-ref";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import {
   disconnectProjectSocialConnection,
@@ -212,13 +212,7 @@ export function ProjectSocialAccounts({
     startRefresh(() => router.refresh());
   }
 
-  useMountEffect(() => {
-    isMountedRef.current = true;
-
-    return () => {
-      isMountedRef.current = false;
-    };
-  });
+  useProjectSocialAccountsMountedRef(isMountedRef);
 
   function showFeedback(nextFeedback: Feedback): void {
     if (!isMountedRef.current) return;

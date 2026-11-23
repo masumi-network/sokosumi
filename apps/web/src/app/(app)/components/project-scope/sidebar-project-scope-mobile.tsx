@@ -18,7 +18,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useSidebarScopeMobileReset } from "@/hooks/effects/use-sidebar-scope-mobile-reset";
 import { cn } from "@/lib/utils";
 
 import { ProjectScopeReason } from "./project-scope-required";
@@ -30,7 +30,6 @@ import {
 import {
   getScopeCreateOpener,
   openScopeCreate,
-  resetScopeDialogs,
   selectCreatedProject,
   selectProjectScope,
   setScopeCreateOpen,
@@ -59,8 +58,7 @@ export function SidebarScopeMobileChip() {
   const chipRef = useRef<HTMLButtonElement>(null);
   const clearScope = useClearScope(chipRef);
 
-  // The store outlives this chip, as when the reader leaves the app shell.
-  useMountEffect(() => resetScopeDialogs);
+  useSidebarScopeMobileReset();
 
   return (
     <>

@@ -4,12 +4,12 @@ import {
   createContext,
   type ReactNode,
   useCallback,
+  useEffect,
   useEffectEvent,
   useRef,
 } from "react";
 
 import { useEventListener } from "@/hooks/effects/use-event-listener";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
 import { createAuthSessionGetter } from "@/lib/auth/auth.utils";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
@@ -136,7 +136,7 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
     [reconcileSession],
   );
 
-  useMountEffect(() => {
+  useEffect(() => {
     mountedRef.current = true;
     void validateSession();
 
@@ -144,7 +144,7 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
       mountedRef.current = false;
       probeGenerationRef.current += 1;
     };
-  });
+  }, []);
 
   useEventListener("window", "focus", () => {
     void validateSession();

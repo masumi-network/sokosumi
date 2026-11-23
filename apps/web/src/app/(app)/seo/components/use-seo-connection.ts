@@ -3,7 +3,8 @@
 import type { SeoConnectionStatus } from "@sokosumi/core-client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { useSeoConnectionAlive } from "@/hooks/effects/use-seo-connection-alive";
 import { toActionRejectionError } from "@/lib/actions/errors/action-error";
 import {
   connectSeoStatisticsAction,
@@ -79,13 +80,7 @@ export function useSeoConnection(
   const [busy, setBusy] = useState<SeoConnectionAction | null>(null);
   const [error, setError] = useState<string | null>(null);
   const busyRef = useRef(false);
-  const alive = useRef(true);
-  useLayoutEffect(() => {
-    alive.current = true;
-    return () => {
-      alive.current = false;
-    };
-  }, []);
+  const alive = useSeoConnectionAlive();
   const actor = {
     viewerId: session?.user.id ?? "",
     organizationId: session?.session.activeOrganizationId ?? null,

@@ -21,7 +21,7 @@ async function updateUser(
 }
 
 /**
- * Chat display preferences, as a recessive card nested in the notification card.
+ * Chat display preferences, as a recessive card under the notification grid.
  *
  * It is a card and not a row of that card's grid, because the grid answers what
  * Sokosumi tells a reader about and where each of those things reaches them.
@@ -29,11 +29,10 @@ async function updateUser(
  * in a sidebar they already have open, so a row of that grid would misreport
  * what they do.
  *
- * It reads quieter than its host on purpose. It keeps the host's ground so it
- * does not stand out as a second surface, and a border alone says where it
- * starts. One radius step down, tighter padding, and its heading dropped to
- * label size, so a reader meets the delivery grid first and finds this below
- * it.
+ * It reads quieter than the grid on purpose. It takes the same white ground and
+ * border as the grid's blocks on the page's gray panel, so it does not stand
+ * out as a different surface. Tighter padding and its heading dropped to label
+ * size, so a reader meets the delivery grid first and finds this below it.
  */
 export function ChatDisplayPreferences({
   showRoomUnreadCount,
@@ -43,17 +42,18 @@ export function ChatDisplayPreferences({
   const messages = { loading: t("loading"), error: t("error") };
 
   return (
-    // `rounded-lg` is one step under the host card's `rounded-xl`. The two do
-    // not share a corner (this sits 1.5rem inside), so there is no concentric
-    // radius to preserve, only the hierarchy to state. Ground stays the host's:
-    // a second fill made this read as a louder surface, not a quieter one. The
-    // border does the whole job, and a boundary is structure, which a border
-    // states and a shadow would not.
+    // `rounded-lg` matches the grid's blocks and sits one step under the
+    // panel's `rounded-xl`. The two do not share a corner (this sits inside
+    // the panel's padding), so there is no concentric radius to preserve, only
+    // the hierarchy to state. Ground is the grid blocks' white: a second fill
+    // made this read as a louder surface, not a quieter one. The border does
+    // the whole job, and a boundary is structure, which a border states and a
+    // shadow would not.
     <Card className="gap-2 rounded-lg py-4">
       {/* `gap-0`: `CardHeader` is a two-row grid and this header has one child,
           so the gutter would otherwise be drawn to an empty second row. */}
       <CardHeader className="gap-0 px-4">
-        {/* h2: the notification card around this one owns the route's h1.
+        {/* h2: the notification header above this one owns the route's h1.
             Demoted by size and weight, never by colour: `text-muted-foreground`
             is a half-alpha near-black, which is 3.7:1 on card ground in light
             mode and fails AA for text this small.

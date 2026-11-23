@@ -2,11 +2,12 @@
 
 import { Bell, BellOff } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState, useTransition } from "react";
+import { useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useThreadMuteStatus } from "@/hooks/effects/use-thread-mute-status";
 
-import { getRoomThreadAction, setThreadMutedAction } from "../actions";
+import { setThreadMutedAction } from "../actions";
 
 /**
  * Mute / unmute the open thread (SOK-1087).
@@ -34,37 +35,12 @@ export function ThreadMuteButton({
   onChanged?: () => void;
 }) {
   const t = useTranslations("App.Channels.Thread");
-  const threadKey = `${roomId}:${parentMessageId}`;
-  const [known, setKnown] = useState<{ key: string; muted: boolean | null }>({
-    key: threadKey,
-    muted: null,
-  });
-  // Another thread's answer says nothing about this one.
-  const muted = known.key === threadKey ? known.muted : null;
+  const { muted, setThreadMuted } = useThreadMuteStatus(
+    roomId,
+    parentMessageId,
+    replyCount,
+  );
   const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    // Only read while the state is unknown. A reply landing mid-toggle must
-    // not race the write it would overtake.
-    if (muted !== null) {
-      return;
-    }
-    let active = true;
-    void getRoomThreadAction(roomId, parentMessageId)
-      .then((result) => {
-        if (!active || !result.ok) {
-          return;
-        }
-        setKnown({ key: threadKey, muted: result.value.mutedAt !== null });
-      })
-      // A server action rejects instead of answering with a result when the
-      // POST comes back as something other than RSC. Leave the state unknown,
-      // exactly as a failed read does, so the button stays hidden.
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, [muted, roomId, parentMessageId, threadKey, replyCount]);
 
   if (muted === null) {
     return null;
@@ -75,7 +51,7 @@ export function ThreadMuteButton({
   function handleClick() {
     const next = !muted;
     // Answer the click now; the request only confirms it.
-    setKnown({ key: threadKey, muted: next });
+    setThreadMuted(next);
     startTransition(async () => {
       try {
         const result = await setThreadMutedAction(
@@ -84,13 +60,13 @@ export function ThreadMuteButton({
           next,
         );
         if (!result.ok) {
-          setKnown({ key: threadKey, muted: !next });
+          setThreadMuted(!next);
           return;
         }
-        setKnown({ key: threadKey, muted: result.value.mutedAt !== null });
+        setThreadMuted(result.value.mutedAt !== null);
         onChanged?.();
       } catch {
-        setKnown({ key: threadKey, muted: !next });
+        setThreadMuted(!next);
       }
     });
   }

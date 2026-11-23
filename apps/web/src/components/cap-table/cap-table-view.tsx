@@ -2,14 +2,10 @@
 
 import { PieChart } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  type CapTable,
-  capTableRows,
-  parseCapTable,
-} from "@/lib/cap-table-file";
+import { useCapTableFile } from "@/hooks/effects/use-cap-table-file";
+import { type CapTable, capTableRows } from "@/lib/cap-table-file";
 import { cn } from "@/lib/utils";
 
 const SEGMENT_CLASSES = [
@@ -20,11 +16,6 @@ const SEGMENT_CLASSES = [
   "bg-chart-5",
 ];
 
-type LoadState =
-  | { status: "loading" }
-  | { status: "ready"; capTable: CapTable }
-  | { status: "failed" };
-
 /**
  * A `*.captable.json` file read from `url` and shown as a cap table.
  *
@@ -33,27 +24,7 @@ type LoadState =
  */
 export function CapTableFileView({ url }: { url: string }) {
   const t = useTranslations("Components.CapTableView");
-  const [state, setState] = useState<LoadState>({ status: "loading" });
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setState({ status: "loading" });
-    fetch(url, { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error("Failed to fetch cap table");
-        return response.json();
-      })
-      .then((json: unknown) => {
-        const capTable = parseCapTable(json);
-        setState(
-          capTable ? { status: "ready", capTable } : { status: "failed" },
-        );
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setState({ status: "failed" });
-      });
-    return () => controller.abort();
-  }, [url]);
+  const state = useCapTableFile(url);
 
   if (state.status === "loading")
     return (
