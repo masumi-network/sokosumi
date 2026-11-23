@@ -7,8 +7,11 @@ import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 interface JobsListHeaderProps {
   agent: CoreAgentDto;
-  /** All of the viewer's jobs with this agent, not just the loaded page. */
-  total: number;
+  /**
+   * All of the viewer's jobs with this agent, not just the loaded page.
+   * Absent while the jobs still load.
+   */
+  total?: number;
   /** Agent deleted or inaccessible: its page 404s, so Back goes to the catalog. */
   disabled?: boolean;
 }
@@ -52,7 +55,9 @@ export function JobsListHeader({
             {name}
           </h1>
           <p className="text-muted-foreground text-sm">
-            {t("yourJobsCount", { count: total })}
+            {total === undefined
+              ? t("yourJobs")
+              : t("yourJobsCount", { count: total })}
           </p>
         </div>
       </div>

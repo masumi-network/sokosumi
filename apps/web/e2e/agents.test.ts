@@ -80,6 +80,18 @@ for (const { name: size, ...viewport } of PROJECTS) {
         1,
         "the page has one search field",
       );
+      // A miss under All keeps the coworkers group and says so on screen,
+      // not only to screen readers; the group once vanished and left a gap.
+      await search.fill("zebra accounting robot");
+      await page
+        .getByRole("heading", { name: /^Your AI coworkers · 0$/ })
+        .waitFor();
+      await page
+        .getByRole("main")
+        .getByText("Nothing matches your search.")
+        .waitFor();
+      await shot("0-miss");
+
       await search.fill("research");
       await page.getByRole("radio", { name: "Agents", exact: true }).click();
       await page.waitForURL(/show=agents/);

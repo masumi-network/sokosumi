@@ -2,7 +2,7 @@
 
 import type { Job, MemberWithOrganization } from "@sokosumi/core-client";
 import { ArrowLeft } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type TouchEvent, useCallback, useRef, useState } from "react";
 import { useJobsTwoPaneFit } from "@/app/agents/[agentId]/jobs/components/use-jobs-two-pane-fit";
@@ -36,7 +36,18 @@ export function JobDetailsModal({
   readOnly,
 }: JobDetailsModalProps) {
   const t = useTranslations("App.Agents.Jobs.Modal");
-  const [isOpen, setIsOpen] = useState(true);
+  // On a soft navigation Next keeps the @modal slot on its last page, so after
+  // Back this modal stays mounted at /jobs with `closed` still true. Open only
+  // at this job's own path, and forget a close once the path changes, so
+  // tapping the same job again opens it.
+  const pathname = usePathname();
+  const [closed, setClosed] = useState(false);
+  const [closedPathname, setClosedPathname] = useState(pathname);
+  if (pathname !== closedPathname) {
+    setClosedPathname(pathname);
+    setClosed(false);
+  }
+  const isOpen = !closed && pathname === `/agents/${agentId}/jobs/${job.id}`;
   const twoPaneFits = useJobsTwoPaneFit();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -44,7 +55,7 @@ export function JobDetailsModal({
   const touchStartYRef = useRef<number | null>(null);
 
   const handleClose = useCallback(() => {
-    setIsOpen(false);
+    setClosed(true);
     const qs = searchParams.toString();
     const basePath = `/agents/${agentId}/jobs`;
     router.replace(qs ? `${basePath}?${qs}` : basePath);

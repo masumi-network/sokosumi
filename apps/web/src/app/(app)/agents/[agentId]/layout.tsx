@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AgentLoadingStatusRegion } from "@/app/agents/[agentId]/jobs/components/jobs-loading-status";
 import { getCoreAgentById } from "@/lib/agents/core-loaders";
 
 export async function generateMetadata({
@@ -21,5 +22,12 @@ export default function AgentDetailLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  // The loading announcement stands here, above the jobs layout, so it is
+  // already in the page when Your jobs starts loading from the profile.
+  return (
+    <>
+      {children}
+      <AgentLoadingStatusRegion />
+    </>
+  );
 }
