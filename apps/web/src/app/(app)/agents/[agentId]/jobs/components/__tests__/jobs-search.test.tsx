@@ -8,18 +8,26 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/agents/agent-id/jobs",
 }));
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations:
+    () => (key: string, values?: Record<string, string | number>) =>
+      values ? `${key}:${Object.values(values).join(",")}` : key,
 }));
 
-function JobsSearchHarness() {
+function JobsSearchHarness({
+  filteredCount = 0,
+  totalCount = 0,
+}: {
+  filteredCount?: number;
+  totalCount?: number;
+}) {
   const { searchValue, handleInputChange, handleClear } = useJobsSearchQuery();
   return (
     <JobsSearch
       searchValue={searchValue}
       onSearchChange={handleInputChange}
       onClear={handleClear}
-      filteredCount={0}
-      totalCount={0}
+      filteredCount={filteredCount}
+      totalCount={totalCount}
     />
   );
 }
@@ -54,4 +62,22 @@ it("clears a pending search before its debounced URL update can restore it", asy
   );
   expect(field).toHaveValue("");
   expect(field).toHaveFocus();
+});
+
+it("counts a search that finds jobs", () => {
+  render(
+    <NuqsTestingAdapter searchParams="?query=report">
+      <JobsSearchHarness filteredCount={1} totalCount={3} />
+    </NuqsTestingAdapter>,
+  );
+  expect(screen.getByText("resultsCount:1,3")).toBeInTheDocument();
+});
+
+it("drops the count when the search finds nothing", () => {
+  render(
+    <NuqsTestingAdapter searchParams="?query=zebra">
+      <JobsSearchHarness filteredCount={0} totalCount={1} />
+    </NuqsTestingAdapter>,
+  );
+  expect(screen.queryByText(/^resultsCount/)).not.toBeInTheDocument();
 });

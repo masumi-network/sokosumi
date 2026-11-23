@@ -6,7 +6,13 @@ import { makeAgentJobsChannelName } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useMemo, useState, useTransition } from "react";
+import {
+  type ReactNode,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 import { loadMoreOwnedAgentJobs } from "@/app/agents/[agentId]/jobs/actions";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
@@ -102,6 +108,7 @@ export function JobsList({
     () => new Map<string, JobStatusPatch>(),
   );
   const { searchValue, handleInputChange, handleClear } = useJobsSearchQuery();
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [isLoadingMore, startLoadMoreTransition] = useTransition();
   const activeJobId = selectedJobId ?? routeParams.jobId;
 
@@ -223,6 +230,7 @@ export function JobsList({
           filteredCount={filteredJobs.length}
           totalCount={localJobs.length}
           hasMoreHistory={Boolean(nextCursor)}
+          inputRef={searchInputRef}
         />
 
         <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto px-2 pb-24 md:p-2 md:pr-4 md:pl-0 @4xl/jobs-panes:pb-2">
@@ -246,8 +254,27 @@ export function JobsList({
               </section>
             ))
           ) : (
-            <div className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 duration-200 px-2 py-8 text-sm text-pretty">
-              {localJobs.length > 0 ? t("noMatches") : t("emptyJobs")}
+            <div className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 flex flex-col items-start gap-3 px-2 py-8 text-sm text-pretty duration-200">
+              {localJobs.length > 0 && searchValue.trim() ? (
+                <>
+                  <p className="wrap-anywhere">
+                    {t("noMatches", { query: searchValue.trim() })}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      handleClear();
+                      searchInputRef.current?.focus();
+                    }}
+                  >
+                    {t("clearSearch")}
+                  </Button>
+                </>
+              ) : (
+                <p>{t("emptyJobs")}</p>
+              )}
             </div>
           )}
           {nextCursor ? (

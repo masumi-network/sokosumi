@@ -5,7 +5,7 @@ import { Search, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
-import { useRef, useState } from "react";
+import { type RefObject, useRef, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { PageSearchHint } from "@/components/page-search-field";
 import { Input } from "@/components/ui/input";
@@ -85,6 +85,8 @@ interface JobsSearchProps {
   totalCount: number;
   /** True when older jobs exist beyond the loaded pages (load-more available). */
   hasMoreHistory?: boolean;
+  /** Lets the list's Clear search button hand focus back to the field. */
+  inputRef?: RefObject<HTMLInputElement | null>;
 }
 
 export function JobsSearch({
@@ -94,8 +96,10 @@ export function JobsSearch({
   filteredCount,
   totalCount,
   hasMoreHistory = false,
+  inputRef: inputRefProp,
 }: JobsSearchProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const ownInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = inputRefProp ?? ownInputRef;
   const pathname = usePathname();
   usePageSearchShortcut(inputRef, { focusOnMount: pathname.endsWith("/jobs") });
   const t = useTranslations("Components.Jobs.JobsSearch");
@@ -144,12 +148,16 @@ export function JobsSearch({
       </div>
       {searchValue ? (
         <div className="text-muted-foreground flex flex-col gap-0.5 px-1 text-xs">
-          <span className="whitespace-nowrap">
-            {t(hasMoreHistory ? "resultsCountLoaded" : "resultsCount", {
-              found: filteredCount,
-              total: totalCount,
-            })}
-          </span>
+          {/* A miss says so in the list with the query and a way out, so a
+              "0 of N" count here would only repeat it less clearly. */}
+          {filteredCount > 0 ? (
+            <span className="whitespace-nowrap">
+              {t(hasMoreHistory ? "resultsCountLoaded" : "resultsCount", {
+                found: filteredCount,
+                total: totalCount,
+              })}
+            </span>
+          ) : null}
           {hasMoreHistory ? (
             <span className="text-xs">{t("loadedOnlyHint")}</span>
           ) : null}

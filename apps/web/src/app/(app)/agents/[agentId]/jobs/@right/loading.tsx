@@ -1,5 +1,6 @@
-import DefaultLoading from "@/components/default-loading";
+import { JobDetailSkeleton } from "../components/jobs-loading";
 
+/** Sync shell only — no cookies/`connection()`/server i18n (Instant Nav). */
 export default function AgentJobsRightLoading() {
-  return <DefaultLoading className="size-full min-h-[300px] flex-1 p-8" />;
+  return <JobDetailSkeleton />;
 }
