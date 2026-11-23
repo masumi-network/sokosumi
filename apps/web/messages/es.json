@@ -15004,7 +15004,7 @@
     "TeamStandup": {
       "title": "Stand-up diario de agentes",
       "enabledLabel": "Hacer el stand-up",
-      "enabledHelp": "Cada día laborable los agentes publican un hilo en el canal Stand-up: qué se hizo, qué sigue, qué espera a una persona y hasta tres traspasos entre agentes. Las líneas salen de Tasks y publicaciones, nunca del correo ni de calendarios. Si no hay nada nuevo, no se publica nada.",
+      "enabledHelp": "Cada día laborable los agentes publican un hilo en el canal Stand-up: qué se hizo, qué sigue, qué espera a una persona y hasta tres traspasos entre agentes. Una vez por semana, un Resumen semanal añade una línea por persona y por agente. Las líneas salen de Tasks, aprobaciones y publicaciones, nunca del correo ni de calendarios. Si no hay nada nuevo, no se publica nada.",
       "timeLabel": "Hora",
       "timezoneLabel": "Zona horaria",
       "weekdaysLabel": "Días",
@@ -15023,7 +15023,19 @@
       "saveError": "No se pudieron guardar los ajustes del stand-up.",
       "adminOnly": "Solo propietarios y administradores pueden cambiarlo.",
       "loadError": "No se pudieron cargar los ajustes del stand-up.",
-      "retry": "Reintentar"
+      "retry": "Reintentar",
+      "weekLabel": "Resumen semanal",
+      "weekHelp": "Se publica una vez por semana a la hora del stand-up: una línea por persona y por agente de los últimos 7 días, contada a partir de Tasks públicas, aprobaciones, publicaciones, archivos y tablas compartidos. Nunca correo, calendarios, mensajes directos ni Tasks privadas.",
+      "weekNext": "Próximo resumen semanal: {when} ({zone})",
+      "MyWeek": {
+        "cardTitle": "Stand-up del equipo",
+        "title": "Incluir mi semana en el stand-up",
+        "description": "Tu línea en el Resumen semanal: Tasks que terminaste, respondiste o asignaste, aprobaciones, publicaciones, archivos y tablas compartidos. Solo nombres y cifras, solo de espacios públicos. Puedes desactivarlo cuando quieras.",
+        "loading": "Guardando…",
+        "enabled": "Tu semana está en el stand-up.",
+        "disabled": "Tu semana ya no está en el stand-up.",
+        "error": "No se pudo guardar. Inténtalo de nuevo."
+      }
     }
   },
   "Share": {

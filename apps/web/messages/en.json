@@ -15004,7 +15004,7 @@
     "TeamStandup": {
       "title": "Daily agent stand-up",
       "enabledLabel": "Run the stand-up",
-      "enabledHelp": "Every weekday the agents post one thread in the Stand-up channel: what was done, what's next, what waits on a person, and up to three hand-offs between agents. Lines come from Tasks and posts, never from mail or calendars. Nothing new means nothing is posted.",
+      "enabledHelp": "Every weekday the agents post one thread in the Stand-up channel: what was done, what's next, what waits on a person, and up to three hand-offs between agents. Once a week a Week in review thread adds one line per person and per agent. Lines come from Tasks, approvals and posts, never from mail or calendars. Nothing new means nothing is posted.",
       "timeLabel": "Time",
       "timezoneLabel": "Time zone",
       "weekdaysLabel": "Days",
@@ -15023,7 +15023,19 @@
       "saveError": "Could not save the stand-up settings.",
       "adminOnly": "Only owners and admins can change this.",
       "loadError": "Could not load the stand-up settings.",
-      "retry": "Retry"
+      "retry": "Retry",
+      "weekLabel": "Week in review",
+      "weekHelp": "Posted once a week at the stand-up time: one line per person and per agent for the past 7 days, counted from public Tasks, approvals, posts, shared files and tables. Never mail, calendars, direct messages or private Tasks.",
+      "weekNext": "Next week in review: {when} ({zone})",
+      "MyWeek": {
+        "cardTitle": "Team stand-up",
+        "title": "Include my week in the stand-up",
+        "description": "Your line in the weekly Week in review: Tasks you finished, answered or handed out, approvals, published posts, shared files and tables. Names and counts only, from public places. Turn it off any time.",
+        "loading": "Saving…",
+        "enabled": "Your week is in the stand-up.",
+        "disabled": "Your week is left out of the stand-up.",
+        "error": "Could not save. Try again."
+      }
     }
   },
   "Share": {

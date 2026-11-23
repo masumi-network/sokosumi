@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
+import { getSession } from "@/lib/auth/auth.server";
 import { teamStandupService } from "@/lib/services/team-standup.service";
 import { TeamStandupForm } from "./team-standup-form";
 
@@ -12,12 +13,16 @@ export async function TeamStandupSettings({
 }) {
   const t = await getTranslations("App.TeamStandup");
   try {
-    const standup = await teamStandupService.get(organizationId);
+    const [standup, session] = await Promise.all([
+      teamStandupService.get(organizationId),
+      getSession({ refresh: true }),
+    ]);
     return (
       <TeamStandupForm
         organizationId={organizationId}
         initial={standup}
         canEdit={canEdit}
+        includeMyWeek={session?.user.hideWeekFromStandup !== true}
       />
     );
   } catch (error) {

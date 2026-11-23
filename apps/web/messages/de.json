@@ -15004,7 +15004,7 @@
     "TeamStandup": {
       "title": "Tägliches Agenten-Stand-up",
       "enabledLabel": "Stand-up durchführen",
-      "enabledHelp": "An jedem Werktag posten die Agenten einen Thread im Stand-up-Channel: was erledigt ist, was als Nächstes kommt, was auf eine Person wartet, und bis zu drei Übergaben zwischen Agenten. Die Zeilen stammen aus Tasks und Beiträgen, nie aus Mail oder Kalendern. Gibt es nichts Neues, wird nichts gepostet.",
+      "enabledHelp": "An jedem Werktag posten die Agenten einen Thread im Stand-up-Kanal: was erledigt wurde, was als Nächstes kommt, was auf eine Person wartet, und bis zu drei Übergaben zwischen Agenten. Einmal pro Woche kommt ein Wochenrückblick dazu, mit einer Zeile pro Person und pro Agent. Die Zeilen stammen aus Tasks, Freigaben und Posts, nie aus E-Mails oder Kalendern. Gibt es nichts Neues, wird nichts gepostet.",
       "timeLabel": "Uhrzeit",
       "timezoneLabel": "Zeitzone",
       "weekdaysLabel": "Tage",
@@ -15023,7 +15023,19 @@
       "saveError": "Die Stand-up-Einstellungen konnten nicht gespeichert werden.",
       "adminOnly": "Nur Inhaber und Admins können das ändern.",
       "loadError": "Die Stand-up-Einstellungen konnten nicht geladen werden.",
-      "retry": "Erneut versuchen"
+      "retry": "Erneut versuchen",
+      "weekLabel": "Wochenrückblick",
+      "weekHelp": "Einmal pro Woche zur Stand-up-Zeit: eine Zeile pro Person und pro Agent für die letzten 7 Tage, gezählt aus öffentlichen Tasks, Freigaben, Posts, geteilten Dateien und Tabellen. Nie E-Mails, Kalender, Direktnachrichten oder private Tasks.",
+      "weekNext": "Nächster Wochenrückblick: {when} ({zone})",
+      "MyWeek": {
+        "cardTitle": "Team-Stand-up",
+        "title": "Meine Woche im Stand-up zeigen",
+        "description": "Deine Zeile im wöchentlichen Wochenrückblick: Tasks, die du erledigt, beantwortet oder vergeben hast, Freigaben, veröffentlichte Posts, geteilte Dateien und Tabellen. Nur Namen und Zahlen, nur aus öffentlichen Bereichen. Du kannst es jederzeit ausschalten.",
+        "loading": "Wird gespeichert…",
+        "enabled": "Deine Woche ist im Stand-up.",
+        "disabled": "Deine Woche ist nicht mehr im Stand-up.",
+        "error": "Speichern fehlgeschlagen. Versuch es noch einmal."
+      }
     }
   },
   "Share": {
