@@ -1235,8 +1235,29 @@ a.cuso-says:focus-visible {
   background: var(--warn);
 }
 
+/*
+ * While he works, the dot pulses. It is styled here, not by onboarding.css
+ * (not loaded on app pages), in the pill's text colour: the pill's fill is
+ * the page's ink.
+ */
 .cuso-says .ob-box-dot {
   flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cuso-says .ob-box-dot {
+    animation: cuso-working 1.2s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes cuso-working {
+  from {
+    transform: scale(0.5);
+  }
 }
 
 /*

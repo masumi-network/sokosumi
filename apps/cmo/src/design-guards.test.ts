@@ -684,6 +684,13 @@ describe("Cuso on every page", () => {
     expect(css).toMatch(/\.who-button:focus-visible \{[^}]*outline: 2px solid/);
   });
 
+  it("draws the pill's working dot itself, in the pill's text colour", () => {
+    // onboarding.css, which sizes .ob-box-dot elsewhere, is not on app pages.
+    const dot = rule(".cuso-says .ob-box-dot");
+    expect(dot).toContain("width: 8px");
+    expect(dot).toContain("background: currentColor");
+  });
+
   it("opens Today from a pill that shows where focus is", () => {
     expect(css).toMatch(/a\.cuso-says:focus-visible \{[^}]*outline: 2px solid/);
   });
