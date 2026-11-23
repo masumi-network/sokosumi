@@ -15,7 +15,6 @@ import {
   OWNER_PART,
 } from "../lib/channels";
 import { joinNames } from "../lib/names";
-import { calendarDays, postRate } from "../lib/strategy";
 import { ChannelIcon } from "./channel-icon";
 import { planPieces } from "./phone-feeds";
 import { withoutLabel } from "./showcases";
@@ -83,7 +82,7 @@ export const APPROACHES: Record<
   },
 };
 
-/** The kinds of posts this month: how many of each, what they do, one real example. */
+/** The kinds of posts this month: their share as a bar, what they do, one real example. */
 export function Mix({
   mix,
   calendar,
@@ -107,11 +106,6 @@ export function Mix({
           <li key={part.approach}>
             <div className="bb-mix-head">
               <b>{APPROACHES[part.approach].name}</b>
-              <span className="num">
-                {mine.length > 0
-                  ? `${mine.length} ${mine.length === 1 ? "post" : "posts"}`
-                  : `${part.share}%`}
-              </span>
             </div>
             <span className="bb-bar" aria-hidden="true">
               <motion.i
@@ -152,12 +146,12 @@ export function Topics({ pillars }: { pillars: Strategy["pillars"] }) {
 const GROUP_ORDER: ChannelGroup[] = ["social", "ads", "email", "search"];
 
 /**
- * "Image post" reads "3 image posts" and "Post with a reply" reads "3 posts
- * with a reply"; a name such as "YouTube Short" keeps its capitals.
+ * "Image post" reads "image posts" and "Post with a reply" reads "posts with
+ * a reply"; a name such as "YouTube Short" keeps its capitals.
  */
-export function plural(name: string, count: number): string {
-  // Platform names keep their case ("1 Talking Reel, 31 Reels"); other
-  // words read as plain nouns ("12 image posts").
+export function pluralName(name: string): string {
+  // Platform names keep their case ("Talking Reels"); other words read as
+  // plain nouns ("image posts").
   const lower = name
     .split(" ")
     .map((word) =>
@@ -166,10 +160,9 @@ export function plural(name: string, count: number): string {
         : word.toLowerCase(),
     )
     .join(" ");
-  if (count === 1) return `1 ${lower}`;
   const [noun, ...rest] = lower.split(/ (?=with )/);
   const many = /(x|s|sh|ch)$/.test(noun) ? `${noun}es` : `${noun}s`;
-  return [count, many, ...rest].join(" ");
+  return [many, ...rest].join(" ");
 }
 
 interface ChannelPlanProps {
@@ -177,8 +170,8 @@ interface ChannelPlanProps {
 }
 
 /**
- * Each channel of the plan: what Cuso makes there, counted from the
- * calendar, how often, and the one thing the founder does for it.
+ * Each channel of the plan: what Cuso makes there and the one thing the
+ * founder does for it. No counts or rates (owner, 2026-11-23).
  */
 export function ChannelPlan({ strategy }: ChannelPlanProps) {
   const channels = strategy.channels
@@ -192,7 +185,6 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
         GROUP_ORDER.indexOf(channelInfo(a.key)?.group ?? "social") -
         GROUP_ORDER.indexOf(channelInfo(b.key)?.group ?? "social"),
     );
-  const days = calendarDays(strategy.calendar);
   const used = new Set(channels.map((channel) => channel.key));
   // Networks Cuso left out because they do not fit the buyer, with his reason.
   const leftOut = (strategy.leftOut ?? []).flatMap((item) => {
@@ -227,11 +219,11 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
                 (network) => channelKey(network) === channel.key,
               ),
           );
-          const formats = new Map<string, number>();
-          for (const entry of entries) {
-            const name = formatName(channel.key, formatOn(entry, channel.key));
-            formats.set(name, (formats.get(name) ?? 0) + 1);
-          }
+          const formats = new Set(
+            entries.map((entry) =>
+              formatName(channel.key, formatOn(entry, channel.key)),
+            ),
+          );
           const images = entries.some((entry) =>
             formatHasImage(channel.key, formatOn(entry, channel.key)),
           );
@@ -246,18 +238,11 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
                 </span>
                 <div>
                   <p className="cw-name">{info.name}</p>
-                  <p className="note">
-                    {entries.length > 0
-                      ? postRate(entries.length, days)
-                      : channel.cadence}
-                  </p>
                 </div>
               </div>
               {formats.size > 0 ? (
                 <p className="cw-makes">
-                  {[...formats]
-                    .map(([name, count]) => plural(name, count))
-                    .join(", ")}
+                  {upperFirst([...formats].map(pluralName).join(", "))}
                   {images ? (
                     <span className="cw-images">Images by {AGENT_NAME}</span>
                   ) : null}
@@ -333,6 +318,10 @@ export function goalLine(metric: string): string {
   return /^(more|increase|grow|get|win|reach|raise|boost)\b/i.test(metric)
     ? metric
     : `More ${lowerFirst(metric)}`;
+}
+
+function upperFirst(text: string): string {
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }
 
 function lowerFirst(text: string): string {

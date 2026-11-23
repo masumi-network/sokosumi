@@ -101,40 +101,6 @@ export function postsGoingOut(
   );
 }
 
-const DAY_MS = 86_400_000;
-
-/** The days the month's calendar spans, first piece to last; 28 when unknown. */
-export function calendarDays(calendar: readonly CalendarEntry[]): number {
-  const days = calendar
-    .filter((entry) => entry.status !== "skipped")
-    .map((entry) => Date.parse(entry.date))
-    .filter((at) => !Number.isNaN(at));
-  if (days.length === 0) return 28;
-  return Math.max(
-    7,
-    Math.round((Math.max(...days) - Math.min(...days)) / DAY_MS) + 1,
-  );
-}
-
-/**
- * How often, counted from the calendar: "About 3 a day", "5 a week",
- * "2 this month". Cuso's own cadence text once said "7 Reels daily" beside
- * 32 Reels in the month, so the page counts instead of quoting him.
- */
-export function postRate(count: number, days: number): string {
-  const perDay = count / days;
-  if (perDay >= 1) {
-    const rounded = Math.round(perDay);
-    return `${rounded === perDay ? "" : "About "}${rounded} a day`;
-  }
-  const perWeek = (count * 7) / days;
-  if (perWeek >= 1) {
-    const rounded = Math.round(perWeek);
-    return `${rounded === perWeek ? "" : "About "}${rounded} a week`;
-  }
-  return `${count} this month`;
-}
-
 /**
  * About how much of the month's posts serves each funnel step, in whole
  * percent, from the step Cuso tags each piece with (cmo-v20). A short video
