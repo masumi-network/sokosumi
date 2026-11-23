@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
 import {
+  CMO_INDUSTRY_RESEARCH_VERSION,
   type CmoIndustryResearch,
   cmoIndustryContext,
   cmoIndustryDue,
@@ -25,6 +26,7 @@ const result = (id: string, url: string, publishedDate?: string) => ({
 
 describe("cmoIndustryDue", () => {
   const research = (researchedAt: string, items = 1) => ({
+    version: CMO_INDUSTRY_RESEARCH_VERSION,
     researchedAt,
     items: Array.from({ length: items }, () => ({}) as never),
   });
@@ -38,6 +40,16 @@ describe("cmoIndustryDue", () => {
     expect(cmoIndustryDue(nov25, new Date("2026-11-27T09:00:00Z"))).toBe(false);
     expect(cmoIndustryDue(nov25, new Date("2026-12-24T09:00:00Z"))).toBe(false);
     expect(cmoIndustryDue(nov25, new Date("2026-12-25T09:00:00Z"))).toBe(true);
+  });
+
+  // NMKR (2026-11-23): its 11:10 research predated the Haiku plan, and a new
+  // strategy reused it.
+  it("researches again when the research code is newer than the saved one", () => {
+    const now = new Date("2026-11-23T12:00:00Z");
+    const { version: _, ...unstamped } = research("2026-11-23T11:10:00Z");
+    expect(cmoIndustryDue(unstamped, now)).toBe(true);
+    expect(cmoIndustryDue({ ...unstamped, version: 1 }, now)).toBe(true);
+    expect(cmoIndustryDue(research("2026-11-23T11:10:00Z"), now)).toBe(false);
   });
 
   it("tries an empty research again after six hours", () => {
@@ -93,6 +105,7 @@ describe("cmoIndustryFromAnswer", () => {
 
 describe("the research as Cuso reads it", () => {
   const research: CmoIndustryResearch = {
+    version: CMO_INDUSTRY_RESEARCH_VERSION,
     researchedAt: "2026-11-23T10:00:00.000Z",
     industry: "Token launches on Cardano",
     buyer: "Founders launching a token",
