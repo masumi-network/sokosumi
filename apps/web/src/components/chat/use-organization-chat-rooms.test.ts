@@ -8,9 +8,11 @@ import {
   noteChatReadThrottled,
   resetChatReadThrottleForTests,
 } from "@/lib/chat/chat-read-throttle";
+import { chatQueryKeys } from "@/queries/chat";
 import {
   emptyListResult,
   getRoomMock,
+  listArchivedMock,
   listPendingMock,
   listRoomsMock,
   makeRoom,
@@ -75,6 +77,7 @@ function channel(id: string, overrides: Partial<ChatRoom> = {}): ChatRoom {
 interface MountOptions {
   rooms?: ChatRoom[];
   archivedRooms?: ChatRoom[];
+  archivedRoomsSettled?: boolean;
   paintOnly?: boolean;
   organizationId?: string;
   currentUserId?: string;
@@ -83,19 +86,18 @@ interface MountOptions {
 interface RoomListProps {
   rooms: ChatRoom[];
   archivedRooms: ChatRoom[];
+  archivedRoomsSettled?: boolean;
   organizationId?: string;
   currentUserId?: string;
 }
 
 /**
- * The collections must keep the same identity across renders. The hook replaces
- * its rows whenever a collection is a new reference, so a fresh `[]` literal per
- * render would loop (React #301) — the hazard the list guards with its stable
- * empty default.
+ * Mounts the hook with stable default arrays for each collection.
  */
 function mount({
   rooms = NO_ROOMS,
   archivedRooms = NO_ROOMS,
+  archivedRoomsSettled = true,
   paintOnly = false,
   organizationId,
   currentUserId,
@@ -103,6 +105,7 @@ function mount({
   const initialProps: RoomListProps = {
     rooms,
     archivedRooms,
+    archivedRoomsSettled,
     organizationId,
     currentUserId,
   };
@@ -111,6 +114,7 @@ function mount({
       useOrganizationChatRooms({
         rooms: props.rooms,
         archivedRooms: props.archivedRooms,
+        archivedRoomsSettled: props.archivedRoomsSettled,
         pendingInvitations: NO_INVITATIONS,
         currentUserId: props.currentUserId ?? "user-1",
         organizationId: props.organizationId ?? "org-1",
@@ -195,7 +199,7 @@ describe("useOrganizationChatRooms", () => {
     },
   );
 
-  it("uses fresh server props instead of an earlier sidebar snapshot", async () => {
+  it("uses fresh server props instead of an earlier sidebar snapshot on a cold cache, and preserves live cache over stale RSC props", async () => {
     const seed = [
       makeRoom({
         id: "direct",
@@ -215,10 +219,68 @@ describe("useOrganizationChatRooms", () => {
     );
     first.unmount();
 
+    // Live cache in the same QueryClient is never overwritten by older RSC props.
+    const warm = await act(async () =>
+      mount({ rooms: [{ ...seed[0], isReadOnly: false }] }),
+    );
+    expect(warm.result.current.roomRows[0]?.isReadOnly).toBe(true);
+    warm.unmount();
+
+    // On a cold QueryClient with only the earlier snapshot, fresh server props win.
+    testQueryClient.clear();
     const fresh = await act(async () =>
       mount({ rooms: [{ ...seed[0], isReadOnly: false }] }),
     );
     expect(fresh.result.current.roomRows[0]?.isReadOnly).toBe(false);
+  });
+
+  it("never seeds the cache from a paintOnly mount or unsettled archived props", async () => {
+    const paint = mount({
+      rooms: [channel("paint-only")],
+      archivedRooms: [],
+      paintOnly: true,
+    });
+    const scope = { userId: "user-1", workspaceId: "org-1" };
+    expect(
+      testQueryClient.getQueryData(
+        chatQueryKeys.sidebarRoomCollection(scope, "active"),
+      ),
+    ).toBeUndefined();
+    expect(
+      testQueryClient.getQueryData(
+        chatQueryKeys.sidebarRoomCollection(scope, "archived"),
+      ),
+    ).toBeUndefined();
+    expect(
+      testQueryClient.getQueryData(
+        chatQueryKeys.sidebarRoomCollection(scope, "invitations"),
+      ),
+    ).toBeUndefined();
+    paint.unmount();
+
+    // Unsettled deferred archived props do not seed [] into the archived cache.
+    const { result, rerender } = mount({
+      rooms: [channel("live-1")],
+      archivedRooms: NO_ROOMS,
+      archivedRoomsSettled: false,
+    });
+    expect(
+      testQueryClient.getQueryData(
+        chatQueryKeys.sidebarRoomCollection(scope, "archived"),
+      ),
+    ).toBeUndefined();
+    expect(listArchivedMock).not.toHaveBeenCalled();
+
+    const settledArchived = [channel("archived-1")];
+    rerender({
+      rooms: [channel("live-1")],
+      archivedRooms: settledArchived,
+      archivedRoomsSettled: true,
+    });
+    expect(result.current.archivedRows.map((row) => row.id)).toEqual([
+      "archived-1",
+    ]);
+    expect(listArchivedMock).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -620,7 +682,7 @@ describe("authoritative sidebar refresh", () => {
     );
   });
 
-  it("queues one follow-up read behind an in-flight read instead of overlapping", async () => {
+  it("cancels an in-flight read and coalesces burst invalidations into one follow-up read", async () => {
     const original = channel("room");
     const older = Promise.withResolvers<ReturnType<typeof emptyListResult>>();
     const newer = Promise.withResolvers<ReturnType<typeof emptyListResult>>();
@@ -637,10 +699,16 @@ describe("authoritative sidebar refresh", () => {
         );
       }
     });
-    expect(listRoomsMock).toHaveBeenCalledTimes(1);
-
-    await act(async () => older.resolve(emptyListResult([original])));
+    // Three rapid invalidations cancel the in-flight mount read and coalesce
+    // into one follow-up read rather than three.
     expect(listRoomsMock).toHaveBeenCalledTimes(2);
+
+    // The cancelled older answer must never commit.
+    await act(async () =>
+      older.resolve(emptyListResult([{ ...original, unreadCount: 9 }])),
+    );
+    expect(result.current.roomRows[0]?.unreadCount).toBe(0);
+
     await act(async () =>
       newer.resolve(emptyListResult([{ ...original, unreadCount: 1 }])),
     );
@@ -847,7 +915,7 @@ describe("authoritative sidebar refresh", () => {
     );
   });
 
-  it("ends with the newer data when a rooms-changed event arrives during an in-flight read", async () => {
+  it("cancels an in-flight read when a rooms-changed event arrives so the old answer never commits", async () => {
     const original = channel("room", { name: "Initial" });
     const inFlight =
       Promise.withResolvers<ReturnType<typeof emptyListResult>>();
@@ -867,13 +935,17 @@ describe("authoritative sidebar refresh", () => {
         }),
       );
     });
+    await waitFor(() => expect(listRoomsMock).toHaveBeenCalledTimes(2));
 
+    // The pre-event answer settles while the follow-up is still pending and
+    // must never overwrite the cached rows.
     await act(async () => {
       inFlight.resolve(
         emptyListResult([{ ...original, name: "Older response" }]),
       );
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
-    await waitFor(() => expect(listRoomsMock).toHaveBeenCalledTimes(2));
+    expect(result.current.roomRows[0]?.name).toBe("Initial");
 
     await act(async () => {
       followUp.resolve(
@@ -886,6 +958,41 @@ describe("authoritative sidebar refresh", () => {
       expect(result.current.roomRows[0]?.name).toBe("Newer response");
       expect(result.current.roomRows[0]?.unreadCount).toBe(3);
     });
+  });
+
+  it("hides a revoked room immediately even when the follow-up GET fails, and refetches every cancelled collection including invitations", async () => {
+    const kept = channel("kept");
+    const revoked = channel("revoked");
+    listRoomsMock.mockResolvedValueOnce(emptyListResult([kept, revoked]));
+    const { result } = mount({
+      rooms: [kept, revoked],
+      archivedRooms: [revoked],
+    });
+    await waitFor(() => expect(listRoomsMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(listPendingMock).toHaveBeenCalledTimes(1));
+    listRoomsMock.mockClear();
+    listArchivedMock.mockClear();
+    listPendingMock.mockClear();
+
+    listRoomsMock.mockResolvedValue({ ok: false });
+    listArchivedMock.mockResolvedValue({ ok: false });
+    listPendingMock.mockResolvedValue({ ok: false });
+
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, {
+          detail: { removedRoomId: revoked.id },
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.roomRows.map((row) => row.id)).toEqual(["kept"]);
+      expect(result.current.archivedRows).toEqual([]);
+    });
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
+    expect(listArchivedMock).toHaveBeenCalledTimes(1);
+    expect(listPendingMock).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -1302,17 +1409,23 @@ describe("a message event that names its room", () => {
   it("owes the whole list when the room left the rows during its read", async () => {
     const rooms = [channel("room-a"), channel("room-b")];
     listRoomsMock.mockResolvedValue(emptyListResult(rooms));
-    const { rerender } = mount({ rooms });
+    mount({ rooms });
     await act(async () => undefined);
     listRoomsMock.mockClear();
     const pending = Promise.withResolvers<ChatRoom>();
     getRoomMock.mockReturnValueOnce(pending.promise);
 
     await act(async () => messageIn("room-a"));
-    // New server props without the room: no revision moves.
-    await act(async () =>
-      rerender({ rooms: [channel("room-b")], archivedRooms: NO_ROOMS }),
-    );
+    // Room leaves the cached list without advancing the revision.
+    await act(async () => {
+      testQueryClient.setQueryData(
+        chatQueryKeys.sidebarRoomCollection(
+          { userId: "user-1", workspaceId: "org-1" },
+          "active",
+        ),
+        [channel("room-b")],
+      );
+    });
     await act(async () => pending.resolve(channel("room-a")));
     await act(async () => messageIn("room-b"));
 

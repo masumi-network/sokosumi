@@ -31,6 +31,21 @@ export function backgroundChatReadEnvelope(page: BackgroundChatReadPage) {
   };
 }
 
+export interface BackgroundChatReadScope {
+  userId: string;
+  organizationId: string | null;
+}
+
+export interface BackgroundChatReadOptions {
+  /** Stamp the authenticated session's `{ userId, organizationId }` onto 200 responses. */
+  includeScope?: boolean;
+  /**
+   * Workspace the caller asked about (`null` for personal). When set, refuse
+   * with 409 if the session's active workspace has already moved.
+   */
+  expectedOrganizationId?: string | null;
+}
+
 /**
  * Shared shape of the chat background GET routes (SOK-986): a session
  * check that answers JSON 401 rather than a sign-in redirect, a no-store
@@ -44,6 +59,7 @@ export function backgroundChatReadEnvelope(page: BackgroundChatReadPage) {
 export async function respondToBackgroundChatRead(
   unavailableMessage: string,
   read: () => Promise<BackgroundChatReadPage>,
+  options?: BackgroundChatReadOptions,
 ): Promise<NextResponse> {
   try {
     const sessionRead = await readRouteSession();
@@ -55,10 +71,27 @@ export async function respondToBackgroundChatRead(
     if (sessionRead.status === "signedOut") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const scope: BackgroundChatReadScope = {
+      userId: sessionRead.session.user.id,
+      organizationId: sessionRead.session.session?.activeOrganizationId ?? null,
+    };
+    if (
+      options?.expectedOrganizationId !== undefined &&
+      scope.organizationId !== options.expectedOrganizationId
+    ) {
+      return NextResponse.json(
+        { error: "Workspace changed", scope },
+        { status: 409, headers: { "Cache-Control": "no-store" } },
+      );
+    }
     const page = await read();
-    return NextResponse.json(backgroundChatReadEnvelope(page), {
-      headers: { "Cache-Control": "no-store" },
-    });
+    const envelope = backgroundChatReadEnvelope(page);
+    return NextResponse.json(
+      options?.includeScope ? { ...envelope, scope } : envelope,
+      {
+        headers: { "Cache-Control": "no-store" },
+      },
+    );
   } catch (error) {
     // Core's server client may throw a sign-in redirect. A background read
     // must return a failed response, never sign-in HTML as successful data.

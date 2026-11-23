@@ -40,6 +40,9 @@ export function useOtherWorkspaceRoomsLiveSync(
     function read() {
       timer = undefined;
       lastReadAt = Date.now();
+      void queryClient.cancelQueries({
+        queryKey: chatQueryKeys.anyElsewhere(),
+      });
       requestRead();
     }
 
@@ -51,13 +54,16 @@ export function useOtherWorkspaceRoomsLiveSync(
     }
 
     const stopRoomsChanged = subscribeOrganizationChatRoomsChanged({
-      onRemoved: () => {
+      onRemoved: (removedRoomId) => {
         window.clearTimeout(timer);
         timer = undefined;
         lastReadAt = Date.now();
         void queryClient.cancelQueries({
           queryKey: chatQueryKeys.anyElsewhere(),
         });
+        updateRooms((current) =>
+          current.filter((room) => room.id !== removedRoomId),
+        );
         void queryClient.invalidateQueries({
           queryKey: chatQueryKeys.anyElsewhere(),
           refetchType: "none",

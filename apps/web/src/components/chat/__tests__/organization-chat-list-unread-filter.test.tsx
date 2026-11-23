@@ -1,6 +1,7 @@
-import { act, screen, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
+import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 
 import {
   CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
@@ -275,7 +276,7 @@ describe("OrganizationChatList All unreads read in place", () => {
   it("dims each room read during the pass in its place, and forgets them when off", async () => {
     const start = [unreadChannel, threadsOnlyChannel, readChannel];
     listRoomsMock.mockResolvedValue(emptyListResult(start));
-    const { container, rerender } = renderOrganizationChatList({
+    const { container } = renderOrganizationChatList({
       organizationId: "org-1",
       rooms: start,
     });
@@ -285,14 +286,13 @@ describe("OrganizationChatList All unreads read in place", () => {
     // #launch is read: it stays in its place, dimmed.
     const launchRead = [read(unreadChannel), threadsOnlyChannel, readChannel];
     listRoomsMock.mockResolvedValue(emptyListResult(launchRead));
-    rerender(
-      createOrganizationChatList({
-        organizationId: "org-1",
-        rooms: launchRead,
-      }),
-    );
+    act(() => {
+      notifyOrganizationChatRoomsChanged({ collections: ["active"] });
+    });
     // Its read moved `updatedAt` on, and it still does not jump.
-    expect(inboxRows(container)).toEqual(["launch (read)", "design"]);
+    await waitFor(() =>
+      expect(inboxRows(container)).toEqual(["launch (read)", "design"]),
+    );
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
     // #design too: caught up, both still one click away, still in place.
@@ -302,10 +302,12 @@ describe("OrganizationChatList All unreads read in place", () => {
       readChannel,
     ];
     listRoomsMock.mockResolvedValue(emptyListResult(allRead));
-    rerender(
-      createOrganizationChatList({ organizationId: "org-1", rooms: allRead }),
+    act(() => {
+      notifyOrganizationChatRoomsChanged({ collections: ["active"] });
+    });
+    await waitFor(() =>
+      expect(inboxRows(container)).toEqual(["launch (read)", "design (read)"]),
     );
-    expect(inboxRows(container)).toEqual(["launch (read)", "design (read)"]);
     expect(screen.getByRole("status")).toHaveTextContent(
       "App.Channels.UnreadNav.caughtUp",
     );
@@ -377,7 +379,7 @@ describe("OrganizationChatList All unreads pinned rooms", () => {
   it("moves a room out of the flat list when it is pinned during the pass", async () => {
     const start = [unreadChannel, readChannel];
     listRoomsMock.mockResolvedValue(emptyListResult(start));
-    const { container, rerender } = renderOrganizationChatList({
+    const { container } = renderOrganizationChatList({
       organizationId: "org-1",
       rooms: start,
     });
@@ -393,25 +395,20 @@ describe("OrganizationChatList All unreads pinned rooms", () => {
       readChannel,
     ];
     listRoomsMock.mockResolvedValue(emptyListResult(launchPinned));
-    rerender(
-      createOrganizationChatList({
-        organizationId: "org-1",
-        rooms: launchPinned,
-      }),
-    );
+    act(() => {
+      notifyOrganizationChatRoomsChanged({ collections: ["active"] });
+    });
 
-    expect(pinnedRows(container)).toEqual(["launch"]);
+    await waitFor(() => expect(pinnedRows(container)).toEqual(["launch"]));
     expect(inboxRows(container)).toEqual([]);
     expect(rowLabels()).toEqual(["launch"]);
 
     // Unpin puts it back in the flat list, in the place the pass kept.
-    rerender(
-      createOrganizationChatList({
-        organizationId: "org-1",
-        rooms: start,
-      }),
-    );
-    expect(pinnedRows(container)).toEqual([]);
+    listRoomsMock.mockResolvedValue(emptyListResult(start));
+    act(() => {
+      notifyOrganizationChatRoomsChanged({ collections: ["active"] });
+    });
+    await waitFor(() => expect(pinnedRows(container)).toEqual([]));
     expect(inboxRows(container)).toEqual(["launch"]);
   });
 
@@ -505,7 +502,7 @@ describe("OrganizationChatList All unreads pinned rooms", () => {
   it("orders caught up, then Read just now, then Pinned", async () => {
     const start = [unreadChannel, pinnedRead];
     listRoomsMock.mockResolvedValue(emptyListResult(start));
-    const { container, rerender } = renderOrganizationChatList({
+    const { container } = renderOrganizationChatList({
       organizationId: "org-1",
       rooms: start,
     });
@@ -513,18 +510,20 @@ describe("OrganizationChatList All unreads pinned rooms", () => {
 
     const allRead = [read(unreadChannel), pinnedRead];
     listRoomsMock.mockResolvedValue(emptyListResult(allRead));
-    rerender(
-      createOrganizationChatList({ organizationId: "org-1", rooms: allRead }),
-    );
+    act(() => {
+      notifyOrganizationChatRoomsChanged({ collections: ["active"] });
+    });
 
-    expect(
-      inDocumentOrder(
-        screen.getByRole("status"),
-        screen.getByText("App.Channels.UnreadNav.justRead"),
-        container.querySelector('[data-slot="unread-inbox"]'),
-        container.querySelector('[data-slot="unread-inbox-pinned"]'),
-      ),
-    ).toBe(true);
+    await waitFor(() =>
+      expect(
+        inDocumentOrder(
+          screen.getByRole("status"),
+          screen.getByText("App.Channels.UnreadNav.justRead"),
+          container.querySelector('[data-slot="unread-inbox"]'),
+          container.querySelector('[data-slot="unread-inbox-pinned"]'),
+        ),
+      ).toBe(true),
+    );
   });
 
   it("is not caught up while a pinned room alone is unread", async () => {

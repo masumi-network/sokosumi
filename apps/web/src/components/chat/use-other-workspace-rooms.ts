@@ -2,6 +2,7 @@
 
 import type { ChatRoom, StarredChatRoomOrder } from "@sokosumi/core-client";
 import {
+  CancelledError,
   type QueryFunctionContext,
   useQuery,
   useQueryClient,
@@ -49,11 +50,13 @@ async function readOtherWorkspaceRooms({
   client,
   queryKey,
   signal,
-}: QueryFunctionContext): Promise<ChatRoom[]> {
+}: QueryFunctionContext<ReturnType<typeof chatQueryKeys.elsewhere>>): Promise<
+  ChatRoom[]
+> {
   const requestRevision = beginRoomAttentionRefresh();
-  const rooms = await fetchSidebarRoomCollection("elsewhere");
+  const rooms = await fetchSidebarRoomCollection("elsewhere", queryKey[0]);
   if (signal.aborted) {
-    throw new Error("Cancelled reading the rooms of other workspaces");
+    throw new CancelledError({ revert: true });
   }
   if (!rooms) {
     throw new Error("Failed to read the rooms of other workspaces");
@@ -81,11 +84,16 @@ export function OtherWorkspaceRoomsLive(): null {
   const queryClient = useQueryClient();
   const requestRead = useChatRefreshScheduler({
     key: "elsewhere",
-    refresh: () =>
-      queryClient.refetchQueries({
+    refresh: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: chatQueryKeys.anyElsewhere(),
+        refetchType: "none",
+      });
+      await queryClient.refetchQueries({
         queryKey: chatQueryKeys.anyElsewhere(),
         type: "active",
-      }),
+      });
+    },
     healthy: useAblyConnectionHealthy(),
     refreshOnRecovery: true,
     refreshOnForeground: true,

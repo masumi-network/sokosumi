@@ -1,9 +1,8 @@
 "use client";
 
 import type { ChatRoom } from "@sokosumi/core-client";
-import { CancelledError, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useRef, useSyncExternalStore } from "react";
-import { fetchSidebarRoomCollection } from "@/components/chat/fetch-sidebar-room-collection";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useSyncExternalStore } from "react";
 import {
   getLatestMembershipVisibleRoomsSnapshot,
   hasLiveMembershipVisibleRoomsPublisher,
@@ -14,17 +13,19 @@ import {
   useOrganizationChatRoomsChanged,
 } from "@/components/chat/organization-chat-events";
 import { keepRoomUnreadState } from "@/components/chat/room-attention";
-import {
-  applyRoomReadOverlays,
-  beginRoomAttentionRefresh,
-  reconcileRoomAttention,
-} from "@/components/chat/room-read-overlay";
+import { applyRoomReadOverlays } from "@/components/chat/room-read-overlay";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { useLiveChatRoomsOwnershipSettled } from "@/hooks/effects/use-live-chat-rooms-ownership-settled";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import { useSession } from "@/lib/auth/auth.client";
-import { chatQueryKeys, splitChatQueryKey } from "@/queries/chat";
+import { chatReadThrottleResumeInMs } from "@/lib/chat/chat-read-throttle";
+import { chatQueryKeys } from "@/queries/chat";
+import {
+  cancelAndInvalidateSidebarCollections,
+  revokeSidebarRoom,
+  sidebarActiveRoomsQueryOptions,
+} from "@/queries/chat-sidebar-rooms";
 import { useScopedQuery } from "@/queries/scoped-queries";
 
 /** Poll cadence while the Ably connection is unavailable. */
@@ -71,12 +72,12 @@ export function useLiveChatRoomsRead(): {
   const scope = roomsScope(organizationId, currentUserId);
   // Read by the async refresh, which keeps one identity across scopes.
   const scopeRef = useLatestRef(scope);
-  const latestAppliedRefreshRef = useRef(0);
 
-  const activeKey = chatQueryKeys.sidebarRoomCollection(
-    { userId: currentUserId || null, workspaceId: organizationId },
-    "active",
-  );
+  const queryScope = {
+    userId: currentUserId || null,
+    workspaceId: organizationId,
+  };
+  const activeKey = chatQueryKeys.sidebarRoomCollection(queryScope, "active");
   const activeKeyRef = useLatestRef(activeKey);
 
   // A mounted sidebar list already reads the active collection on the same
@@ -97,40 +98,17 @@ export function useLiveChatRoomsRead(): {
     () => null,
   );
 
-  const hasCachedData =
-    scope !== null && queryClient.getQueryData(activeKey) !== undefined;
+  const isActiveReader = Boolean(
+    scope && ownershipSettled && !sidebarOwnsReads,
+  );
+  // Passive observers (desktop while sidebar owns reads, or before handoff
+  // settles) use the same queryOptions with `enabled: false`. Active readers
+  // defer during a shared throttle window so `useChatRefreshScheduler` owns
+  // all read timing via `refetchQueries`.
   const activeQuery = useScopedQuery({
-    ...splitChatQueryKey(activeKey),
-    queryFn: async ({ client, queryKey, signal }) => {
-      const requestRevision = beginRoomAttentionRefresh();
-      // The ref moves in the layout phase, before the scheduler's passive
-      // cleanup makes `isCurrent` false, so an answer can land between them.
-      const requestScope = scopeRef.current;
-      const page = await fetchSidebarRoomCollection("active");
-      if (signal.aborted || scopeRef.current !== requestScope) {
-        throw new CancelledError({ revert: true });
-      }
-      if (!page) {
-        throw new Error("Failed to read active chat rooms");
-      }
-      const current = client.getQueryData<ChatRoom[]>(queryKey);
-      if (current && requestRevision < latestAppliedRefreshRef.current) {
-        return current;
-      }
-      latestAppliedRefreshRef.current = requestRevision;
-      return reconcileRoomAttention(page.rooms, requestRevision);
-    },
-    // Enable only once data is in the cache so `useScopedQuery` never fires
-    // an unscheduled mount fetch ahead of the desktop handoff wait or throttle
-    // clock; `useChatRefreshScheduler` owns all read timing.
-    enabled: Boolean(
-      scope && ownershipSettled && !sidebarOwnsReads && hasCachedData,
-    ),
-    staleTime: Number.POSITIVE_INFINITY,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
+    ...sidebarActiveRoomsQueryOptions(queryScope),
+    enabled: isActiveReader ? () => chatReadThrottleResumeInMs() <= 0 : false,
   });
-  const activeQueryRef = useLatestRef(activeQuery);
 
   // Same GET read and scheduling rules as the sidebar's active collection
   // (SOK-986): timer reads pause while hidden or unfocused with one read on
@@ -140,23 +118,18 @@ export function useLiveChatRoomsRead(): {
     async (isCurrent: () => boolean) => {
       const requestScope = scopeRef.current;
       const key = activeKeyRef.current;
-      const query = queryClient
-        .getQueryCache()
-        .find({ queryKey: key, exact: true });
-      if (query && !query.isDisabled()) {
-        await queryClient.refetchQueries({ queryKey: key, exact: true });
-      } else {
-        await activeQueryRef.current.refetch();
-      }
+      await queryClient.refetchQueries(
+        { queryKey: key, exact: true },
+        { cancelRefetch: false },
+      );
       if (!isCurrent() || scopeRef.current !== requestScope) {
         void queryClient.cancelQueries({ queryKey: key, exact: true });
       }
     },
-    [activeKeyRef, activeQueryRef, queryClient, scopeRef],
+    [activeKeyRef, queryClient, scopeRef],
   );
   const requestRefresh = useChatRefreshScheduler({
-    key:
-      scope && ownershipSettled && !sidebarOwnsReads ? `${scope}:unread` : null,
+    key: isActiveReader ? `${scope}:unread` : null,
     refresh: refreshRooms,
     healthy: useAblyConnectionHealthy(),
     fallbackIntervalMs: LIVE_CHAT_ROOMS_FALLBACK_MS,
@@ -177,17 +150,8 @@ export function useLiveChatRoomsRead(): {
 
   useOrganizationChatRoomsChanged(
     {
-      onRemoved: () => {
-        latestAppliedRefreshRef.current = beginRoomAttentionRefresh();
-        void queryClient.cancelQueries({
-          queryKey: activeKeyRef.current,
-          exact: true,
-        });
-        void queryClient.invalidateQueries({
-          queryKey: activeKeyRef.current,
-          exact: true,
-          refetchType: "none",
-        });
+      onRemoved: (removedRoomId) => {
+        revokeSidebarRoom(queryClient, removedRoomId, activeKeyRef.current);
         requestRefresh();
       },
       onRoom: (room) =>
@@ -205,6 +169,11 @@ export function useLiveChatRoomsRead(): {
       onInvalidated: (collections) => {
         // Only the active collection holds what is unread.
         if (!collections || collections.includes("active")) {
+          cancelAndInvalidateSidebarCollections(
+            queryClient,
+            [activeKeyRef.current],
+            { exact: true },
+          );
           requestRefresh();
         }
       },

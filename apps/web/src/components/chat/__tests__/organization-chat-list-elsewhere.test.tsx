@@ -424,17 +424,18 @@ describe("OrganizationChatList Elsewhere rows", () => {
       expect(listElsewhereMock).not.toHaveBeenCalled();
     });
 
-    it("drops a row the reader left or was removed from at once", async () => {
+    it("drops a row the reader left or was removed from at once, even when the next GET fails", async () => {
       listElsewhereMock.mockResolvedValue([elsewhereRoom("launch")]);
       renderOrganizationChatList();
       await findElsewhereRow("launch");
 
-      listElsewhereMock.mockResolvedValue([]);
+      listElsewhereMock.mockResolvedValue(null);
       act(() => {
         notifyOrganizationChatRoomsChanged({ removedRoomId: "launch" });
       });
 
       await waitFor(() => expect(elsewhereList()).toBeNull());
+      expect(listElsewhereMock).toHaveBeenCalledTimes(2);
     });
 
     it("does not restore a revoked room when an older in-flight read resolves after removal", async () => {

@@ -1,3 +1,4 @@
+import { CancelledError } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -295,6 +296,65 @@ describe("sidebar collection GET requests", () => {
       rooms: [],
       nextCursor: null,
     });
+  });
+
+  it("binds the query key's workspace onto the request and drops mismatched responses", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    const scope = { userId: "user-1", workspaceId: "org-1" };
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          data: [],
+          meta: {
+            timestamp,
+            requestId: "request-1",
+            pagination: { nextCursor: null },
+          },
+          scope: { userId: "user-1", organizationId: "org-2" },
+        }),
+        { headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    await expect(
+      fetchSidebarRoomCollection("active", scope),
+    ).rejects.toBeInstanceOf(CancelledError);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "/api/chat/rooms?collection=active&organizationId=org-1",
+    );
+
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: "Workspace changed" }), {
+        status: 409,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    await expect(
+      fetchSidebarRoomCollection("active", scope),
+    ).rejects.toBeInstanceOf(CancelledError);
+  });
+
+  it("separates concurrent batched reads for different workspaces", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock
+      .mockResolvedValueOnce(response([]))
+      .mockResolvedValueOnce(response([]));
+
+    await Promise.all([
+      fetchSidebarRoomCollection("active", {
+        userId: "user-1",
+        workspaceId: "org-1",
+      }),
+      fetchSidebarRoomCollection("active", {
+        userId: "user-1",
+        workspaceId: "org-2",
+      }),
+    ]);
+
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "/api/chat/rooms?collection=active&organizationId=org-1",
+      "/api/chat/rooms?collection=active&organizationId=org-2",
+    ]);
   });
 });
 

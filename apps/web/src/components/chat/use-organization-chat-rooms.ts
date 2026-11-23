@@ -15,19 +15,22 @@ import {
   type OrganizationChatRoomsStaleActive,
   useOrganizationChatRoomsScopeStale,
 } from "@/hooks/effects/use-organization-chat-rooms-scope-stale";
-import {
-  hasNewOrganizationChatRoomsSeed,
-  useOrganizationChatRoomsSeedSync,
-} from "@/hooks/effects/use-organization-chat-rooms-seed-sync";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import { chatReadThrottleResumeInMs } from "@/lib/chat/chat-read-throttle";
-import { chatQueryKeys, splitChatQueryKey } from "@/queries/chat";
+import { chatQueryKeys } from "@/queries/chat";
+import {
+  cancelAndInvalidateSidebarCollections,
+  getSidebarRoomsRevision,
+  noteSidebarRoomsRevision,
+  revokeSidebarRoom,
+  sidebarActiveRoomsQueryOptions,
+  sidebarArchivedRoomsQueryOptions,
+  sidebarInvitationsQueryOptions,
+  wasSidebarRoomsReadDropped,
+} from "@/queries/chat-sidebar-rooms";
 import { useScopedQuery } from "@/queries/scoped-queries";
 import { withPinnedOrder } from "./chat-room-activity-sort";
-import {
-  fetchSidebarRoom,
-  fetchSidebarRoomCollection,
-} from "./fetch-sidebar-room-collection";
+import { fetchSidebarRoom } from "./fetch-sidebar-room-collection";
 import { getLatestMembershipVisibleRoomsSnapshot } from "./membership-visible-rooms-store";
 import {
   useOrganizationChatRoomRead,
@@ -57,10 +60,29 @@ const ORGANIZATION_CHAT_FALLBACK_MS = 15_000;
 interface UseOrganizationChatRoomsOptions {
   rooms: ChatRoom[];
   archivedRooms: ChatRoom[];
+  /** False while `SidebarChatList`'s deferred archived promise is still pending. */
+  archivedRoomsSettled?: boolean;
   pendingInvitations: ChatRoomInvitation[];
   currentUserId: string;
   organizationId: string | null;
   paintOnly: boolean;
+}
+
+function initialActiveRooms(
+  rooms: ChatRoom[],
+  organizationId: string | null,
+  currentUserId: string,
+): ChatRoom[] {
+  const snapshot = getLatestMembershipVisibleRoomsSnapshot();
+  // Closing the mobile Sheet unmounts this list. Its unchanged RSC seed must
+  // not replace a roster already fetched in this session while Core refreshes.
+  const remountRooms =
+    snapshot?.organizationId === organizationId &&
+    snapshot.currentUserId === currentUserId &&
+    snapshot.sourceRooms === rooms
+      ? [...snapshot.rooms]
+      : rooms;
+  return applyRoomReadOverlays(remountRooms);
 }
 
 /**
@@ -79,21 +101,17 @@ interface UseOrganizationChatRoomsOptions {
  * the archived and pending collections through the setters this returns; the
  * live rows are the exception, because the read overlay has to be reapplied on
  * every write and that rule stays here. `paintOnly` mounts (SOK-903 instant
- * soft-nav) skip every subscription, so they paint the props they were given
- * and nothing else.
+ * soft-nav) skip every subscription and never seed the cache, so they paint
+ * the props they were given and nothing else.
  *
  * The live rows are published to the membership-visible store on every change.
  * Chat surfaces that render without mounting the sidebar read them back from
  * there, the tab-title unread count among them.
- *
- * The three collections must keep their identity across renders. A new array
- * reference means new props, and the rows are replaced, so a caller passing a
- * fresh `[]` literal per render loops (React #301). That is what the list's
- * stable empty invitations default is for.
  */
 export function useOrganizationChatRooms({
   rooms,
   archivedRooms,
+  archivedRoomsSettled = true,
   pendingInvitations,
   currentUserId,
   organizationId,
@@ -116,15 +134,13 @@ export function useOrganizationChatRooms({
     "invitations",
   );
 
+  const queryScopeRef = useLatestRef(queryScope);
   const sidebarRoomsPrefixRef = useLatestRef(sidebarRoomsPrefix);
   const activeKeyRef = useLatestRef(activeKey);
   const archivedKeyRef = useLatestRef(archivedKey);
   const invitationsKeyRef = useLatestRef(invitationsKey);
 
-  const latestAppliedRefreshRef = useRef(0);
   const latestRoomSwapRef = useRef(0);
-  const latestArchivedRefreshRef = useRef(0);
-  const latestInvitationsRefreshRef = useRef(0);
 
   /**
    * What the next active read has to fetch. A message event names its room,
@@ -147,197 +163,31 @@ export function useOrganizationChatRooms({
   const requestActiveRef = useRef(() => {});
 
   const activeQuery = useScopedQuery({
-    ...splitChatQueryKey(activeKey),
-    queryFn: async ({ client, queryKey, signal }) => {
-      const stale = staleActiveRef.current;
-      const roomIds = stale.wholeList ? [] : [...stale.rooms];
-      staleActiveRef.current = { rooms: new Set(), wholeList: false };
-      let requestRevision = beginRoomAttentionRefresh();
-      if (
-        roomIds.length > 0 &&
-        roomIds.length <= MAX_SINGLE_ROOM_READS &&
-        Date.now() - wholeListReadAtRef.current < CHAT_HEALTHY_REFRESH_MS
-      ) {
-        const fresh = await Promise.all(roomIds.map(fetchSidebarRoom));
-        if (signal.aborted) {
-          throw new Error("Cancelled reading sidebar room");
-        }
-        const answered = fresh.filter((room) => room !== null);
-        if (answered.length < fresh.length) {
-          // A read that failed says nothing about the room, and the list
-          // would fail the same way. It stays owed, as a failed list read
-          // does. A throttle is the one failure with an end, so that waits
-          // out the window like any other read.
-          staleActiveRef.current.wholeList = true;
-          if (chatReadThrottleResumeInMs() > 0) requestActiveRef.current();
-          throw new Error("Failed to read sidebar room");
-        }
-        const singleRooms = answered.filter((room) => room !== "gone");
-        if (singleRooms.length === answered.length) {
-          const current = client.getQueryData<ChatRoom[]>(queryKey) ?? [];
-          if (requestRevision < latestAppliedRefreshRef.current) {
-            // A dropped answer leaves its room stale with nothing to say so.
-            // The next read of any kind then takes the whole list.
-            staleActiveRef.current.wholeList = true;
-            return current;
-          }
-          // So does an answer for a room that left the rows meanwhile.
-          const listed = singleRooms.every((room) =>
-            current.some((row) => row.id === room.id),
-          );
-          if (!listed) {
-            staleActiveRef.current.wholeList = true;
-          }
-          latestRoomSwapRef.current = requestRevision;
-          const freshById = new Map(
-            reconcileRoomAttention(singleRooms, requestRevision).map((room) => [
-              room.id,
-              room,
-            ]),
-          );
-          return current.map((row) => {
-            const room = freshById.get(row.id);
-            // Core loads the workspace logo and website for the list only.
-            return room
-              ? {
-                  ...room,
-                  organizationLogo: row.organizationLogo,
-                  organizationWebsiteUrl: row.organizationWebsiteUrl,
-                }
-              : row;
-          });
-        }
-        // A room the reader can no longer open has left the list. The list
-        // read starts now, so a change made during the room reads predates it.
-        requestRevision = beginRoomAttentionRefresh();
-      }
-      const wholeListReadAt = Date.now();
-      const page = await fetchSidebarRoomCollection("active");
-      if (signal.aborted) {
-        throw new Error("Cancelled reading active chat rooms");
-      }
-      if (!page) {
-        // Whatever asked for the whole list is still owed it.
-        staleActiveRef.current.wholeList = true;
-        throw new Error("Failed to read active chat rooms");
-      }
-      wholeListReadAtRef.current = wholeListReadAt;
-      const current = client.getQueryData<ChatRoom[]>(queryKey) ?? [];
-      if (requestRevision < latestAppliedRefreshRef.current) {
-        staleActiveRef.current.wholeList = true;
-        return current;
-      }
-      if (requestRevision < latestRoomSwapRef.current) {
-        staleActiveRef.current.wholeList = true;
-      }
-      latestAppliedRefreshRef.current = requestRevision;
-      return reconcileRoomAttention(page.rooms, requestRevision);
-    },
-    initialData: () => {
-      const snapshot = getLatestMembershipVisibleRoomsSnapshot();
-      // Closing the mobile Sheet unmounts this list. Its unchanged RSC seed
-      // must not replace a roster already fetched in this session while Core
-      // refreshes.
-      const remountRooms =
-        !paintOnly &&
-        snapshot?.organizationId === organizationId &&
-        snapshot.currentUserId === currentUserId &&
-        snapshot.sourceRooms === rooms
-          ? [...snapshot.rooms]
-          : rooms;
-      return applyRoomReadOverlays(remountRooms);
-    },
+    ...sidebarActiveRoomsQueryOptions(queryScope),
+    initialData: paintOnly
+      ? undefined
+      : () => initialActiveRooms(rooms, organizationId, currentUserId),
     enabled: !paintOnly,
-    staleTime: Number.POSITIVE_INFINITY,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
   });
 
+  const archivedReady =
+    archivedRoomsSettled || queryClient.getQueryData(archivedKey) !== undefined;
   const archivedQuery = useScopedQuery({
-    ...splitChatQueryKey(archivedKey),
-    queryFn: async ({ client, queryKey, signal }) => {
-      const requestRevision = beginRoomAttentionRefresh();
-      const page = await fetchSidebarRoomCollection("archived");
-      if (signal.aborted) {
-        throw new Error("Cancelled reading archived chat rooms");
-      }
-      if (!page) {
-        throw new Error("Failed to read archived chat rooms");
-      }
-      const current = client.getQueryData<ChatRoom[]>(queryKey);
-      if (current && requestRevision < latestArchivedRefreshRef.current) {
-        return current;
-      }
-      latestArchivedRefreshRef.current = requestRevision;
-      return page.rooms;
-    },
-    initialData: () => archivedRooms,
-    enabled: !paintOnly && hasOrganization,
-    staleTime: Number.POSITIVE_INFINITY,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
+    ...sidebarArchivedRoomsQueryOptions(queryScope),
+    initialData:
+      !paintOnly && archivedRoomsSettled ? () => archivedRooms : undefined,
+    enabled: !paintOnly && hasOrganization && archivedReady,
   });
 
   const invitationsQuery = useScopedQuery({
-    ...splitChatQueryKey(invitationsKey),
-    queryFn: async ({ client, queryKey, signal }) => {
-      const requestRevision = beginRoomAttentionRefresh();
-      const invitations = await fetchSidebarRoomCollection("invitations");
-      if (signal.aborted) {
-        throw new Error("Cancelled reading chat room invitations");
-      }
-      if (!invitations) {
-        throw new Error("Failed to read chat room invitations");
-      }
-      const current = client.getQueryData<ChatRoomInvitation[]>(queryKey);
-      if (current && requestRevision < latestInvitationsRefreshRef.current) {
-        return current;
-      }
-      latestInvitationsRefreshRef.current = requestRevision;
-      return invitations;
-    },
-    initialData: () => pendingInvitations,
+    ...sidebarInvitationsQueryOptions(queryScope),
+    initialData: paintOnly ? undefined : () => pendingInvitations,
     enabled: !paintOnly,
-    staleTime: Number.POSITIVE_INFINITY,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
   });
 
-  const activeSeedPending = hasNewOrganizationChatRoomsSeed(
-    queryClient,
-    activeKey,
-    rooms,
-  );
-  const archivedSeedPending = hasNewOrganizationChatRoomsSeed(
-    queryClient,
-    archivedKey,
-    archivedRooms,
-  );
-  const invitationsSeedPending = hasNewOrganizationChatRoomsSeed(
-    queryClient,
-    invitationsKey,
-    pendingInvitations,
-  );
-
-  useOrganizationChatRoomsSeedSync({
-    queryClient,
-    activeKey,
-    rooms,
-    archivedKey,
-    archivedRooms,
-    invitationsKey,
-    pendingInvitations,
-  });
-
-  const roomRows = activeSeedPending
-    ? applyRoomReadOverlays(rooms)
-    : (activeQuery.data ?? applyRoomReadOverlays(rooms));
-  const archivedRows = archivedSeedPending
-    ? archivedRooms
-    : (archivedQuery.data ?? archivedRooms);
-  const pendingRows = invitationsSeedPending
-    ? pendingInvitations
-    : (invitationsQuery.data ?? pendingInvitations);
+  const roomRows = activeQuery.data ?? applyRoomReadOverlays(rooms);
+  const archivedRows = archivedQuery.data ?? archivedRooms;
+  const pendingRows = invitationsQuery.data ?? pendingInvitations;
 
   const roomRowsRef = useLatestRef(roomRows);
   const archivedRowsRef = useLatestRef(archivedRows);
@@ -394,8 +244,9 @@ export function useOrganizationChatRooms({
    */
   const upsertRoomToTop = useCallback(
     (room: ChatRoom) => {
-      latestAppliedRefreshRef.current = beginRoomAttentionRefresh();
-      latestArchivedRefreshRef.current = latestAppliedRefreshRef.current;
+      const revision = beginRoomAttentionRefresh();
+      noteSidebarRoomsRevision(queryClient, activeKeyRef.current, revision);
+      noteSidebarRoomsRevision(queryClient, archivedKeyRef.current, revision);
       setActiveCache((current) => {
         const held = current.find((row) => row.id === room.id);
         const without = current.filter((row) => row.id !== room.id);
@@ -406,7 +257,13 @@ export function useOrganizationChatRooms({
       });
       setArchivedRows((current) => current.filter((row) => row.id !== room.id));
     },
-    [setActiveCache, setArchivedRows],
+    [
+      activeKeyRef,
+      archivedKeyRef,
+      queryClient,
+      setActiveCache,
+      setArchivedRows,
+    ],
   );
 
   /**
@@ -433,10 +290,14 @@ export function useOrganizationChatRooms({
   const applyPinnedOrder = useCallback(
     (order: StarredChatRoomOrder[]) => {
       // A list fetch already in flight predates this order; drop it on arrival.
-      latestAppliedRefreshRef.current = beginRoomAttentionRefresh();
+      noteSidebarRoomsRevision(
+        queryClient,
+        activeKeyRef.current,
+        beginRoomAttentionRefresh(),
+      );
       setActiveCache((current) => withPinnedOrder(current, order));
     },
-    [setActiveCache],
+    [activeKeyRef, queryClient, setActiveCache],
   );
 
   /**
@@ -449,40 +310,144 @@ export function useOrganizationChatRooms({
    */
   const replaceAllRooms = useCallback(
     (nextRooms: ChatRoom[], requestRevision: number): boolean => {
-      if (requestRevision < latestAppliedRefreshRef.current) {
+      if (
+        requestRevision <
+        getSidebarRoomsRevision(queryClient, activeKeyRef.current)
+      ) {
         staleActiveRef.current.wholeList = true;
         return false;
       }
       if (requestRevision < latestRoomSwapRef.current) {
         staleActiveRef.current.wholeList = true;
       }
-      latestAppliedRefreshRef.current = requestRevision;
+      noteSidebarRoomsRevision(
+        queryClient,
+        activeKeyRef.current,
+        requestRevision,
+      );
       setActiveCache(reconcileRoomAttention(nextRooms, requestRevision));
       return true;
     },
-    [setActiveCache],
+    [activeKeyRef, queryClient, setActiveCache],
   );
 
-  const refreshActive = useCallback(async () => {
-    await queryClient.refetchQueries({
-      queryKey: activeKeyRef.current,
-      exact: true,
-    });
-  }, [activeKeyRef, queryClient]);
+  const refreshActive = useCallback(
+    async (isCurrent: () => boolean) => {
+      const key = activeKeyRef.current;
+      const scope = queryScopeRef.current;
+      const stale = staleActiveRef.current;
+      const roomIds = stale.wholeList ? [] : [...stale.rooms];
+      staleActiveRef.current = { rooms: new Set(), wholeList: false };
+      if (
+        roomIds.length > 0 &&
+        roomIds.length <= MAX_SINGLE_ROOM_READS &&
+        Date.now() - wholeListReadAtRef.current < CHAT_HEALTHY_REFRESH_MS
+      ) {
+        const requestRevision = beginRoomAttentionRefresh();
+        const fresh = await Promise.all(
+          roomIds.map((roomId) => fetchSidebarRoom(roomId, scope)),
+        );
+        if (!isCurrent()) return;
+        const answered = fresh.filter((room) => room !== null);
+        if (answered.length < fresh.length) {
+          // A read that failed says nothing about the room, and the list
+          // would fail the same way. It stays owed, as a failed list read
+          // does. A throttle is the one failure with an end, so that waits
+          // out the window like any other read.
+          staleActiveRef.current.wholeList = true;
+          if (chatReadThrottleResumeInMs() > 0) requestActiveRef.current();
+          return;
+        }
+        const singleRooms = answered.filter((room) => room !== "gone");
+        if (singleRooms.length === answered.length) {
+          if (requestRevision < getSidebarRoomsRevision(queryClient, key)) {
+            // A dropped answer leaves its room stale with nothing to say so.
+            // The next read of any kind then takes the whole list.
+            staleActiveRef.current.wholeList = true;
+            return;
+          }
+          // So does an answer for a room that left the rows meanwhile.
+          const currentRows =
+            queryClient.getQueryData<ChatRoom[]>(key) ?? roomRowsRef.current;
+          const listed = singleRooms.every((room) =>
+            currentRows.some((row) => row.id === room.id),
+          );
+          if (!listed) {
+            staleActiveRef.current.wholeList = true;
+          }
+          latestRoomSwapRef.current = requestRevision;
+          const freshById = new Map(
+            reconcileRoomAttention(singleRooms, requestRevision).map((room) => [
+              room.id,
+              room,
+            ]),
+          );
+          setActiveCache((current) =>
+            current.map((row) => {
+              const room = freshById.get(row.id);
+              // Core loads the workspace logo and website for the list only.
+              return room
+                ? {
+                    ...room,
+                    organizationLogo: row.organizationLogo,
+                    organizationWebsiteUrl: row.organizationWebsiteUrl,
+                  }
+                : row;
+            }),
+          );
+          return;
+        }
+      }
+      const wholeListReadAt = Date.now();
+      try {
+        await queryClient.refetchQueries(
+          { queryKey: key, exact: true },
+          { throwOnError: true },
+        );
+      } catch {
+        // Whatever asked for the whole list is still owed it.
+        staleActiveRef.current.wholeList = true;
+        return;
+      }
+      if (!isCurrent()) {
+        void queryClient.cancelQueries({ queryKey: key, exact: true });
+        return;
+      }
+      if (wasSidebarRoomsReadDropped(queryClient, key)) {
+        staleActiveRef.current.wholeList = true;
+        return;
+      }
+      wholeListReadAtRef.current = wholeListReadAt;
+      if (
+        getSidebarRoomsRevision(queryClient, key) < latestRoomSwapRef.current
+      ) {
+        staleActiveRef.current.wholeList = true;
+      }
+    },
+    [activeKeyRef, queryClient, queryScopeRef, roomRowsRef, setActiveCache],
+  );
 
-  const refreshArchived = useCallback(async () => {
-    await queryClient.refetchQueries({
-      queryKey: archivedKeyRef.current,
-      exact: true,
-    });
-  }, [archivedKeyRef, queryClient]);
+  const refreshArchived = useCallback(
+    async (isCurrent: () => boolean) => {
+      const key = archivedKeyRef.current;
+      await queryClient.refetchQueries({ queryKey: key, exact: true });
+      if (!isCurrent()) {
+        void queryClient.cancelQueries({ queryKey: key, exact: true });
+      }
+    },
+    [archivedKeyRef, queryClient],
+  );
 
-  const refreshInvitations = useCallback(async () => {
-    await queryClient.refetchQueries({
-      queryKey: invitationsKeyRef.current,
-      exact: true,
-    });
-  }, [invitationsKeyRef, queryClient]);
+  const refreshInvitations = useCallback(
+    async (isCurrent: () => boolean) => {
+      const key = invitationsKeyRef.current;
+      await queryClient.refetchQueries({ queryKey: key, exact: true });
+      if (!isCurrent()) {
+        void queryClient.cancelQueries({ queryKey: key, exact: true });
+      }
+    },
+    [invitationsKeyRef, queryClient],
+  );
 
   // A workspace or user switch restarts every read, so an in-flight response
   // for the previous workspace is discarded. Mobile sheet remounts the list
@@ -532,33 +497,58 @@ export function useOrganizationChatRooms({
         } else {
           staleActiveRef.current.wholeList = true;
         }
+        cancelAndInvalidateSidebarCollections(
+          queryClient,
+          [activeKeyRef.current],
+          { exact: true },
+        );
         requestActive();
       }
-      if (wanted.has("archived")) requestArchived();
-      if (wanted.has("invitations")) requestInvitations();
+      if (wanted.has("archived")) {
+        cancelAndInvalidateSidebarCollections(
+          queryClient,
+          [archivedKeyRef.current],
+          { exact: true },
+        );
+        requestArchived();
+      }
+      if (wanted.has("invitations")) {
+        cancelAndInvalidateSidebarCollections(
+          queryClient,
+          [invitationsKeyRef.current],
+          { exact: true },
+        );
+        requestInvitations();
+      }
     },
-    [requestActive, requestArchived, requestInvitations, roomRowsRef],
+    [
+      activeKeyRef,
+      archivedKeyRef,
+      invitationsKeyRef,
+      queryClient,
+      requestActive,
+      requestArchived,
+      requestInvitations,
+      roomRowsRef,
+    ],
   );
 
   useOrganizationChatRoomRead(setActiveCache, undefined, !paintOnly);
 
   useOrganizationChatRoomsChanged(
     {
-      onRemoved: () => {
-        latestAppliedRefreshRef.current = beginRoomAttentionRefresh();
-        latestArchivedRefreshRef.current = latestAppliedRefreshRef.current;
+      onRemoved: (removedRoomId) => {
         staleActiveRef.current.wholeList = true;
-        void queryClient.cancelQueries({
-          queryKey: sidebarRoomsPrefixRef.current,
-        });
-        void queryClient.invalidateQueries({
-          queryKey: sidebarRoomsPrefixRef.current,
-          refetchType: "none",
-        });
+        revokeSidebarRoom(
+          queryClient,
+          removedRoomId,
+          sidebarRoomsPrefixRef.current,
+        );
         requestActive();
         if (hasOrganization) {
           requestArchived();
         }
+        requestInvitations();
       },
       onRoom: upsertRoomToTop,
       onInvalidated: requestCollections,

@@ -1,8 +1,8 @@
-import { act, fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
+import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 
 import {
-  createOrganizationChatList,
   declineInvitationMock,
   listPendingMock,
   makeInvitation,
@@ -75,14 +75,20 @@ describe("OrganizationChatList decline invitation", () => {
 
   it("drops an invitation that a list read brought back while Core declined it", async () => {
     const write = holdOpen();
-    const { rerender } = await renderPending([partners, vendors]);
+    await renderPending([partners, vendors]);
 
     fireEvent.click(declineButtons()[0]);
-    // A page render that read Core before the decline landed.
-    rerender(
-      createOrganizationChatList({ pendingInvitations: [partners, vendors] }),
+    // A list read that answered from Core before the decline landed.
+    listPendingMock.mockResolvedValue({
+      ok: true,
+      value: [partners, vendors],
+    });
+    act(() => {
+      notifyOrganizationChatRoomsChanged({ collections: ["invitations"] });
+    });
+    await waitFor(() =>
+      expect(shownInvitations()).toEqual(["Partners", "Vendors"]),
     );
-    expect(shownInvitations()).toEqual(["Partners", "Vendors"]);
 
     await write.answer({ ok: true, value: partners });
     expect(shownInvitations()).toEqual(["Vendors"]);

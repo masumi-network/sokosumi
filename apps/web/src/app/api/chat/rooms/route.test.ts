@@ -100,10 +100,51 @@ describe("GET /api/chat/rooms", () => {
     expect(await result.json()).toMatchObject({
       data: [{ id: "room-1" }],
       meta: { pagination: { nextCursor: null } },
+      scope: { userId: "user-1", organizationId: null },
     });
     expect(listRoomsMock).toHaveBeenCalledOnce();
     expect(listArchivedMock).not.toHaveBeenCalled();
     expect(listPendingMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses with 409 before asking Core when organizationId no longer matches the session workspace", async () => {
+    getSessionResultMock.mockResolvedValue(
+      ok({
+        user: { id: "user-1" },
+        session: { activeOrganizationId: "org-2" },
+      }),
+    );
+    const result = await GET(
+      new NextRequest(
+        "https://app.test/api/chat/rooms?collection=active&organizationId=org-1",
+      ),
+    );
+    expect(result.status).toBe(409);
+    expect(await result.json()).toEqual({
+      error: "Workspace changed",
+      scope: { userId: "user-1", organizationId: "org-2" },
+    });
+    expect(listRoomsMock).not.toHaveBeenCalled();
+  });
+
+  it("answers 200 with session scope when organizationId matches the session workspace", async () => {
+    getSessionResultMock.mockResolvedValue(
+      ok({
+        user: { id: "user-1" },
+        session: { activeOrganizationId: "org-1" },
+      }),
+    );
+    const result = await GET(
+      new NextRequest(
+        "https://app.test/api/chat/rooms?collection=active&organizationId=org-1",
+      ),
+    );
+    expect(result.status).toBe(200);
+    expect(await result.json()).toMatchObject({
+      data: [{ id: "room-1" }],
+      scope: { userId: "user-1", organizationId: "org-1" },
+    });
+    expect(listRoomsMock).toHaveBeenCalledOnce();
   });
 
   it.each(["archived", "invitations"])(

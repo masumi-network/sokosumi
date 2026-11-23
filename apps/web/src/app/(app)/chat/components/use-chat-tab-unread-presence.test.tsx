@@ -1023,7 +1023,7 @@ describe("authoritative tab attention", () => {
     );
   });
 
-  it("queues one follow-up read behind an in-flight read instead of overlapping", async () => {
+  it("cancels an in-flight read and coalesces burst invalidations into one follow-up read", async () => {
     const older = Promise.withResolvers<ListResult>();
     const newer = Promise.withResolvers<ListResult>();
     listRoomsMock
@@ -1034,12 +1034,13 @@ describe("authoritative tab attention", () => {
       window.dispatchEvent(new Event("organization-chat-rooms-changed"));
       window.dispatchEvent(new Event("organization-chat-rooms-changed"));
     });
-    expect(listRoomsMock).toHaveBeenCalledTimes(1);
+    expect(listRoomsMock).toHaveBeenCalledTimes(2);
 
+    // The cancelled older answer must never commit.
     await act(async () =>
       older.resolve({
         ok: true,
-        value: { rooms: [room({ id: "a" })], nextCursor: null },
+        value: { rooms: [room({ id: "a", unreadCount: 5 })], nextCursor: null },
       }),
     );
     expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");

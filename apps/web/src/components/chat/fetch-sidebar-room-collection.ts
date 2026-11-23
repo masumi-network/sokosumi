@@ -5,10 +5,15 @@ import {
   getChatsRoomsElsewhereResponseTransformer,
   getChatsRoomsResponseTransformer,
 } from "@sokosumi/core-client/transformers";
+import { CancelledError } from "@tanstack/react-query";
+import type { ChatQueryScope } from "@/queries/chat";
 
 import { fetchBackgroundJson } from "./fetch-background-json";
 
 const SIDEBAR_ROOM_REQUEST_TIMEOUT_MS = 20_000;
+
+/** Sentinel for a response whose session workspace no longer matches the query key. */
+const WORKSPACE_MISMATCH = Symbol("workspace-mismatch");
 
 interface SidebarRoomsPage {
   rooms: ChatRoom[];
@@ -21,33 +26,93 @@ type SidebarRoomCollection =
   | "elsewhere"
   | "invitations";
 
-let queuedReads: Map<SidebarRoomCollection, ((raw: unknown) => void)[]> | null =
-  null;
+interface ScopedBatch {
+  expectedScope?: ChatQueryScope;
+  collections: Map<SidebarRoomCollection, ((raw: unknown) => void)[]>;
+}
 
-function readOneCollection(collection: SidebarRoomCollection) {
-  return fetchBackgroundJson(
-    `/api/chat/rooms?collection=${collection}`,
-    SIDEBAR_ROOM_REQUEST_TIMEOUT_MS,
+let queuedReads: Map<string, ScopedBatch> | null = null;
+
+function scopeBatchKey(expectedScope?: ChatQueryScope): string {
+  return expectedScope
+    ? `${expectedScope.userId ?? ""}\0${expectedScope.workspaceId ?? ""}`
+    : "";
+}
+
+function withWorkspaceParam(
+  url: string,
+  expectedScope?: ChatQueryScope,
+): string {
+  if (!expectedScope) return url;
+  return `${url}&organizationId=${encodeURIComponent(expectedScope.workspaceId ?? "")}`;
+}
+
+function matchesExpectedScope(
+  raw: unknown,
+  expectedScope?: ChatQueryScope,
+): boolean {
+  if (!expectedScope || raw == null || typeof raw !== "object") return true;
+  const scope = (raw as { scope?: unknown }).scope;
+  if (!scope || typeof scope !== "object") return true;
+  const { userId, organizationId } = scope as {
+    userId?: unknown;
+    organizationId?: unknown;
+  };
+  return (
+    userId === expectedScope.userId &&
+    (organizationId ?? null) === expectedScope.workspaceId
   );
 }
 
-async function readQueuedParts(
-  collections: SidebarRoomCollection[],
-): Promise<Map<SidebarRoomCollection, unknown>> {
-  if (collections.length === 1) {
-    return new Map([[collections[0], await readOneCollection(collections[0])]]);
-  }
+async function readOneCollection(
+  collection: SidebarRoomCollection,
+  expectedScope?: ChatQueryScope,
+): Promise<unknown> {
   let status: number | undefined;
   const raw = await fetchBackgroundJson(
-    `/api/chat/rooms?collections=${collections.join(",")}`,
+    withWorkspaceParam(
+      `/api/chat/rooms?collection=${collection}`,
+      expectedScope,
+    ),
     SIDEBAR_ROOM_REQUEST_TIMEOUT_MS,
     (answered) => {
       status = answered;
     },
   );
+  if (status === 409 || !matchesExpectedScope(raw, expectedScope)) {
+    return WORKSPACE_MISMATCH;
+  }
+  return raw;
+}
+
+async function readQueuedParts(
+  collections: SidebarRoomCollection[],
+  expectedScope?: ChatQueryScope,
+): Promise<Map<SidebarRoomCollection, unknown>> {
+  if (collections.length === 1) {
+    return new Map([
+      [collections[0], await readOneCollection(collections[0], expectedScope)],
+    ]);
+  }
+  let status: number | undefined;
+  const raw = await fetchBackgroundJson(
+    withWorkspaceParam(
+      `/api/chat/rooms?collections=${collections.join(",")}`,
+      expectedScope,
+    ),
+    SIDEBAR_ROOM_REQUEST_TIMEOUT_MS,
+    (answered) => {
+      status = answered;
+    },
+  );
+  if (status === 409 || !matchesExpectedScope(raw, expectedScope)) {
+    return new Map(collections.map((c) => [c, WORKSPACE_MISMATCH]));
+  }
   // A server from before batched reads refuses the list: ask one by one.
   if (status === 400) {
-    const answers = await Promise.all(collections.map(readOneCollection));
+    const answers = await Promise.all(
+      collections.map((c) => readOneCollection(c, expectedScope)),
+    );
     return new Map(collections.map((c, index) => [c, answers[index]]));
   }
   const parts = (raw as { data?: Record<string, unknown> } | null)?.data;
@@ -58,65 +123,89 @@ async function readQueuedParts(
     collections.map((c) => {
       const part = parts?.[c] ?? null;
       const stalled = (part as { stalled?: unknown } | null)?.stalled;
-      return [c, stalled === true ? readOneCollection(c) : part];
+      return [c, stalled === true ? readOneCollection(c, expectedScope) : part];
     }),
   );
 }
 
 async function sendQueuedReads(): Promise<void> {
-  const batch = queuedReads;
+  const batches = queuedReads;
   queuedReads = null;
-  if (!batch) return;
-  // Every caller settles, even if the read threw: null, like any failure.
-  const parts = await readQueuedParts([...batch.keys()]).catch(
-    () => new Map<SidebarRoomCollection, unknown>(),
-  );
+  if (!batches) return;
   await Promise.all(
-    [...batch].map(async ([collection, waiters]) => {
-      const part = await Promise.resolve(parts.get(collection) ?? null).catch(
-        () => null,
+    [...batches.values()].map(async ({ expectedScope, collections }) => {
+      // Every caller settles, even if the read threw: null, like any failure.
+      const parts = await readQueuedParts(
+        [...collections.keys()],
+        expectedScope,
+      ).catch(() => new Map<SidebarRoomCollection, unknown>());
+      await Promise.all(
+        [...collections].map(async ([collection, waiters]) => {
+          const part = await Promise.resolve(
+            parts.get(collection) ?? null,
+          ).catch(() => null);
+          // Each caller transforms its own copy: the generated transformers
+          // rewrite dates in place.
+          waiters.forEach((resolve, index) => {
+            resolve(
+              index === 0 || part == null || part === WORKSPACE_MISMATCH
+                ? part
+                : structuredClone(part),
+            );
+          });
+        }),
       );
-      // Each caller transforms its own copy: the generated transformers
-      // rewrite dates in place.
-      waiters.forEach((resolve, index) => {
-        resolve(index === 0 || part == null ? part : structuredClone(part));
-      });
     }),
   );
 }
 
 /**
- * Reads asked for in the same task (the list's active and invitation reads on
- * mount, say) go out as one request, so they cost one session read in the
- * route instead of one each. Each caller still gets only its own collection.
+ * Reads asked for in the same task for the same workspace (the list's active
+ * and invitation reads on mount, say) go out as one request, so they cost one
+ * session read in the route instead of one each. Each caller still gets only
+ * its own collection.
  */
 function readCollectionJson(
   collection: SidebarRoomCollection,
+  expectedScope?: ChatQueryScope,
 ): Promise<unknown> {
   return new Promise((resolve) => {
     if (!queuedReads) {
       queuedReads = new Map();
       queueMicrotask(() => void sendQueuedReads());
     }
-    const waiters = queuedReads.get(collection) ?? [];
+    const key = scopeBatchKey(expectedScope);
+    let batch = queuedReads.get(key);
+    if (!batch) {
+      batch = { expectedScope, collections: new Map() };
+      queuedReads.set(key, batch);
+    }
+    const waiters = batch.collections.get(collection) ?? [];
     waiters.push(resolve);
-    queuedReads.set(collection, waiters);
+    batch.collections.set(collection, waiters);
   });
 }
 
 export function fetchSidebarRoomCollection(
   collection: "invitations",
+  expectedScope?: ChatQueryScope,
 ): Promise<ChatRoomInvitation[] | null>;
 export function fetchSidebarRoomCollection(
   collection: "elsewhere",
+  expectedScope?: ChatQueryScope,
 ): Promise<ChatRoom[] | null>;
 export function fetchSidebarRoomCollection(
   collection: "active" | "archived",
+  expectedScope?: ChatQueryScope,
 ): Promise<SidebarRoomsPage | null>;
 export async function fetchSidebarRoomCollection(
   collection: SidebarRoomCollection,
+  expectedScope?: ChatQueryScope,
 ): Promise<SidebarRoomsPage | ChatRoom[] | ChatRoomInvitation[] | null> {
-  const data = await readCollectionJson(collection);
+  const data = await readCollectionJson(collection, expectedScope);
+  if (data === WORKSPACE_MISMATCH) {
+    throw new CancelledError({ revert: true });
+  }
   if (data == null) return null;
   try {
     if (collection === "invitations") {
@@ -142,11 +231,22 @@ export async function fetchSidebarRoomCollection(
  */
 export async function fetchSidebarRoom(
   roomId: string,
+  expectedScope?: ChatQueryScope,
 ): Promise<ChatRoom | "gone" | null> {
+  let status: number | undefined;
   const data = await fetchBackgroundJson(
-    `/api/chat/rooms?roomId=${encodeURIComponent(roomId)}`,
+    withWorkspaceParam(
+      `/api/chat/rooms?roomId=${encodeURIComponent(roomId)}`,
+      expectedScope,
+    ),
     SIDEBAR_ROOM_REQUEST_TIMEOUT_MS,
+    (answered) => {
+      status = answered;
+    },
   );
+  if (status === 409 || !matchesExpectedScope(data, expectedScope)) {
+    return null;
+  }
   if (data == null) return null;
   if ((data as { data?: unknown }).data === null) return "gone";
   try {

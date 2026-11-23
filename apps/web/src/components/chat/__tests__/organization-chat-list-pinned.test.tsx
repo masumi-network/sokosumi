@@ -1,9 +1,9 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
+import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 
 import {
-  createOrganizationChatList,
   emptyListResult,
   listRoomsMock,
   makeRoom,
@@ -66,7 +66,8 @@ describe("OrganizationChatList Pinned section", () => {
   });
 
   it("drops the section when the last pin goes, and keeps the room listed", async () => {
-    const { rerender } = await act(async () =>
+    listRoomsMock.mockResolvedValue(emptyListResult([rooms[0], rooms[2]]));
+    await act(async () =>
       renderOrganizationChatList({
         organizationId: "org-1",
         rooms: [rooms[0], rooms[2]],
@@ -74,19 +75,19 @@ describe("OrganizationChatList Pinned section", () => {
     );
     expect(screen.getByText("App.Channels.pinned")).toBeInTheDocument();
 
-    await act(async () =>
-      rerender(
-        createOrganizationChatList({
-          organizationId: "org-1",
-          rooms: [
-            makeRoom({ id: "launch", kind: "channel", myAccess: "member" }),
-            rooms[2],
-          ],
-        }),
-      ),
+    listRoomsMock.mockResolvedValue(
+      emptyListResult([
+        makeRoom({ id: "launch", kind: "channel", myAccess: "member" }),
+        rooms[2],
+      ]),
     );
+    act(() => {
+      notifyOrganizationChatRoomsChanged({ collections: ["active"] });
+    });
 
-    expect(screen.queryByText("App.Channels.pinned")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByText("App.Channels.pinned")).not.toBeInTheDocument(),
+    );
     // Back under Channels, where activity order decides the place.
     expect(rowLabels().toSorted()).toEqual(["general", "launch"]);
   });
@@ -129,23 +130,28 @@ describe("OrganizationChatList Pinned section", () => {
   });
 
   it("ends reorder mode when the pins drop below two, and does not resume it", async () => {
-    const { rerender } = renderOrganizationChatList({
+    renderOrganizationChatList({
       organizationId: "org-1",
       rooms,
     });
     await enterReorderMode();
 
     // Unpinned on another device: one pin left, so no toggle to leave with.
-    rerender(
-      createOrganizationChatList({
-        organizationId: "org-1",
-        rooms: [rooms[0], rooms[2]],
-      }),
+    listRoomsMock.mockResolvedValue(emptyListResult([rooms[0], rooms[2]]));
+    act(() => {
+      notifyOrganizationChatRoomsChanged({ collections: ["active"] });
+    });
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: HANDLE })).toBeNull(),
     );
-    expect(screen.queryByRole("button", { name: HANDLE })).toBeNull();
 
-    rerender(createOrganizationChatList({ organizationId: "org-1", rooms }));
-    expect(screen.getByRole("button", { name: TOGGLE })).toBeInTheDocument();
+    listRoomsMock.mockResolvedValue(emptyListResult(rooms));
+    act(() => {
+      notifyOrganizationChatRoomsChanged({ collections: ["active"] });
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: TOGGLE })).toBeInTheDocument(),
+    );
     expect(screen.queryByRole("button", { name: HANDLE })).toBeNull();
   });
 

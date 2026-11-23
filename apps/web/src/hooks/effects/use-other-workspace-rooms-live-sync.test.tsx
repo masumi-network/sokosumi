@@ -78,14 +78,15 @@ describe("useOtherWorkspaceRoomsLiveSync", () => {
     });
     expect(requestRead).toHaveBeenCalledTimes(2);
 
-    // Room removal invalidates cached queries and requests a fresh read instead of patching.
+    // Room removal drops the room from cached lists at once, invalidates the
+    // prefix, and requests a fresh read so it stays hidden even if the next GET fails.
     act(() => {
       notifyOrganizationChatRoomsChanged({ removedRoomId: "r2" });
     });
     expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
     expect(requestRead).toHaveBeenCalledTimes(3);
     expect(queryClient.getQueryData<ChatRoom[]>(key)?.map((r) => r.id)).toEqual(
-      ["r1", "r2"],
+      ["r1"],
     );
 
     // Room read preserves organizationName via withWorkspaceOf.
@@ -180,12 +181,16 @@ describe("useOtherWorkspaceRoomsLiveSync", () => {
     queryClient.clear();
   });
 
-  it("cancels an in-flight read and invalidates when membership is revoked so the older response cannot restore the room", async () => {
+  it("cancels an in-flight read, removes the room from cached lists at once, and invalidates when membership is revoked so the older response cannot restore the room", async () => {
     vi.useRealTimers();
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
     const key = chatQueryKeys.elsewhere({ userId: "u1", workspaceId: "org1" });
+    queryClient.setQueryData<ChatRoom[]>(key, [
+      sampleRoom("r1"),
+      sampleRoom("r2"),
+    ]);
     const olderRead = Promise.withResolvers<ChatRoom[]>();
     let aborted = false;
 
@@ -198,6 +203,7 @@ describe("useOtherWorkspaceRoomsLiveSync", () => {
           });
           return olderRead.promise;
         },
+        staleTime: 0,
       })
       .catch(() => undefined);
 
@@ -211,15 +217,20 @@ describe("useOtherWorkspaceRoomsLiveSync", () => {
     });
 
     expect(aborted).toBe(true);
+    expect(queryClient.getQueryData<ChatRoom[]>(key)?.map((r) => r.id)).toEqual(
+      ["r2"],
+    );
     expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
     expect(requestRead).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      olderRead.resolve([sampleRoom("r1")]);
+      olderRead.resolve([sampleRoom("r1"), sampleRoom("r2")]);
       await inFlight;
     });
 
-    expect(queryClient.getQueryData<ChatRoom[]>(key)).toBeUndefined();
+    expect(queryClient.getQueryData<ChatRoom[]>(key)?.map((r) => r.id)).toEqual(
+      ["r2"],
+    );
     unmount();
     queryClient.clear();
   });

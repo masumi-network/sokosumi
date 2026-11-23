@@ -85,14 +85,28 @@ async function readCollections(
  * session read instead of one each.
  */
 export async function GET(request: NextRequest) {
+  const expectedOrganizationId = request.nextUrl.searchParams.has(
+    "organizationId",
+  )
+    ? request.nextUrl.searchParams.get("organizationId") || null
+    : undefined;
+  const readOptions = {
+    includeScope: true,
+    ...(expectedOrganizationId !== undefined ? { expectedOrganizationId } : {}),
+  };
+
   const roomId = request.nextUrl.searchParams.get("roomId");
   if (roomId !== null) {
     if (!isUuidString(roomId)) {
       return NextResponse.json({ error: "Invalid room" }, { status: 400 });
     }
-    return respondToBackgroundChatRead("Chat rooms unavailable", async () => ({
-      data: await chatRoomService.getRoom(roomId),
-    }));
+    return respondToBackgroundChatRead(
+      "Chat rooms unavailable",
+      async () => ({
+        data: await chatRoomService.getRoom(roomId),
+      }),
+      readOptions,
+    );
   }
 
   const many = request.nextUrl.searchParams.get("collections");
@@ -104,8 +118,10 @@ export async function GET(request: NextRequest) {
         { status: 400 },
       );
     }
-    return respondToBackgroundChatRead("Chat rooms unavailable", () =>
-      readCollections(collections),
+    return respondToBackgroundChatRead(
+      "Chat rooms unavailable",
+      () => readCollections(collections),
+      readOptions,
     );
   }
 
@@ -114,7 +130,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid collection" }, { status: 400 });
   }
 
-  return respondToBackgroundChatRead("Chat rooms unavailable", () =>
-    readCollection(collection),
+  return respondToBackgroundChatRead(
+    "Chat rooms unavailable",
+    () => readCollection(collection),
+    readOptions,
   );
 }

@@ -170,7 +170,10 @@ describe("useLiveChatRooms", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1_000);
     });
-    expect(fetchMock).toHaveBeenCalledWith("active");
+    expect(fetchMock).toHaveBeenCalledWith("active", {
+      userId: "user-1",
+      workspaceId: "org-1",
+    });
     view.unmount();
   });
 
@@ -180,7 +183,10 @@ describe("useLiveChatRooms", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    expect(fetchMock).toHaveBeenCalledWith("active");
+    expect(fetchMock).toHaveBeenCalledWith("active", {
+      userId: "user-1",
+      workspaceId: "org-1",
+    });
     view.unmount();
   });
 
@@ -361,19 +367,64 @@ describe("useLiveChatRooms", () => {
     });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
 
+    // Late resolution of the cancelled pre-revoke read must never commit even
+    // while the follow-up read is still pending.
+    await act(async () => {
+      olderRead.resolve({ rooms: [keptRoom, revokedRoom] });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(result.current).toBeNull();
+
     await act(async () => {
       newerRead.resolve({ rooms: [keptRoom] });
     });
     await waitFor(() =>
       expect(result.current?.map((room) => room.id)).toEqual(["room-kept"]),
     );
+    unmount();
+  });
 
-    // Late resolution of the pre-revoke read must not restore the revoked room.
-    await act(async () => {
-      olderRead.resolve({ rooms: [keptRoom, revokedRoom] });
-      await new Promise((resolve) => setTimeout(resolve, 0));
+  it("hides a revoked room at once even when the follow-up GET fails", async () => {
+    vi.useRealTimers();
+    vi.stubGlobal("innerWidth", 390);
+    const revokedRoom = {
+      id: "room-revoked",
+      name: "revoked",
+      kind: "channel",
+      unreadCount: 2,
+      unreadMentionCount: 0,
+      markedUnread: false,
+      updatedAt: new Date("2026-11-23T12:00:00Z"),
+    } as ChatRoom;
+    const keptRoom = {
+      id: "room-kept",
+      name: "kept",
+      kind: "channel",
+      unreadCount: 0,
+      unreadMentionCount: 0,
+      markedUnread: false,
+      updatedAt: new Date("2026-11-23T12:00:00Z"),
+    } as ChatRoom;
+    fetchMock
+      .mockResolvedValueOnce({ rooms: [keptRoom, revokedRoom] })
+      .mockResolvedValueOnce(null);
+
+    const { result, unmount } = renderHook(() => useLiveChatRooms());
+    await waitFor(() =>
+      expect(result.current?.map((room) => room.id)).toEqual([
+        "room-kept",
+        "room-revoked",
+      ]),
+    );
+
+    act(() => {
+      notifyOrganizationChatRoomsChanged({ removedRoomId: "room-revoked" });
     });
-    expect(result.current?.map((room) => room.id)).toEqual(["room-kept"]);
+
+    await waitFor(() =>
+      expect(result.current?.map((room) => room.id)).toEqual(["room-kept"]),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     unmount();
   });
 });

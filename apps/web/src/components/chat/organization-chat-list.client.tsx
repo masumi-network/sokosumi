@@ -100,6 +100,8 @@ const EMPTY_PENDING_INVITATIONS: ChatRoomInvitation[] = [];
 interface OrganizationChatListProps {
   rooms: ChatRoom[];
   archivedRooms: ChatRoom[];
+  /** False while `SidebarChatList`'s deferred archived promise is still pending. */
+  archivedRoomsSettled?: boolean;
   pendingInvitations?: ChatRoomInvitation[];
   currentUserId: string;
   organizationId: string | null;
@@ -127,6 +129,7 @@ interface OrganizationChatListProps {
 export function OrganizationChatList({
   rooms,
   archivedRooms,
+  archivedRoomsSettled = true,
   pendingInvitations = EMPTY_PENDING_INVITATIONS,
   currentUserId,
   organizationId,
@@ -157,6 +160,7 @@ export function OrganizationChatList({
   } = useOrganizationChatRooms({
     rooms,
     archivedRooms,
+    archivedRoomsSettled,
     pendingInvitations,
     currentUserId,
     organizationId,

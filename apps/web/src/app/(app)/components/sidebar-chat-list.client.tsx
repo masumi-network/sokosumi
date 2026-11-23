@@ -86,6 +86,7 @@ export function SidebarChatList({
     <OrganizationChatList
       rooms={rooms}
       archivedRooms={settled?.archivedRooms ?? NO_ARCHIVED_ROOMS}
+      archivedRoomsSettled={settled !== null}
       currentUserId={currentUserId}
       organizationId={organizationId}
       isOrgOwnerOrAdmin={settled?.isOrgOwnerOrAdmin ?? false}
