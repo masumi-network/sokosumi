@@ -240,6 +240,12 @@
     "MembersTable": {
       "title": "Members",
       "search": "Search members",
+      "searchResults": "{count, plural, =0 {No members match} one {# match} other {# matches}}",
+      "Sort": {
+        "label": "Sort",
+        "ascending": "{column}, ascending",
+        "descending": "{column}, descending"
+      },
       "Header": {
         "name": "Name",
         "email": "Email",
@@ -720,13 +726,14 @@
           "title": "{organization} can't be deleted yet",
           "description": "Sort these out first. Then you can delete it here.",
           "close": "Close",
-          "additionalMembers": "{count, plural, one {# other member} other {# other members}}",
+          "additionalMembers": "{count, plural, =0 {Other members still belong to it} one {# other member} other {# other members}}",
           "runningSubscription": "A paid subscription is still running",
           "enterpriseContractActive": "An enterprise contract is active",
           "lastWorkspace": "It's your only workspace. Create or join another one first.",
           "inFlightJob": "Jobs are still running",
           "unsettledOnChainJob": "Job payments are still settling",
           "inFlightTask": "Tasks are still in progress",
+          "switchWorkspace": "Switch to this workspace to see them.",
           "Links": {
             "members": "Go to members",
             "billing": "Open billing",

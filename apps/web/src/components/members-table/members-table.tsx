@@ -2,11 +2,20 @@
 
 import type { PendingInvitation } from "@sokosumi/core-client";
 import { InvitationStatus, MemberRole } from "@sokosumi/core-client";
-import { SearchIcon } from "lucide-react";
+import type { SortingState } from "@tanstack/react-table";
+import { ArrowUpDown, SearchIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import DataTable from "@/components/data-table/data-table";
 import { usePageSearchQuery } from "@/components/page-list-search";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useIsMobile } from "@/hooks/effects/use-mobile";
 import { InvitationDisplayStatus } from "@/lib/constants/invitation-display-status";
@@ -16,7 +25,11 @@ import InvitationActionsModal from "./invitation-actions-modal";
 import { InvitationActionsModalContextProvider } from "./invitation-actions-modal-context";
 import MemberActionsModal from "./member-actions-modal";
 import { MemberActionsModalContextProvider } from "./member-actions-modal-context";
-import { getMembersTableColumnList } from "./members-table-columns";
+import {
+  COMPACT_HIDDEN_COLUMNS,
+  getMembersTableColumnList,
+  SORTABLE_COLUMNS,
+} from "./members-table-columns";
 import { SeatManagementContextProvider } from "./seat-management-context";
 import type { MemberRowData, OrganizationMember } from "./types";
 
@@ -42,6 +55,9 @@ export default function MembersTable({
   // Invitations with a cancel on its way: off the table before Core answers.
   const [cancelling, setCancelling] = useState<readonly string[]>([]);
   const [search, setSearch] = useState("");
+  // Shared by the column headers and the phone's Sort menu, so a sort
+  // survives a resize.
+  const [sorting, setSorting] = useState<SortingState>([]);
   const compact = useIsMobile();
 
   // The card's own field searches every page: names first, then emails.
@@ -77,20 +93,28 @@ export default function MembersTable({
             )
           }
         >
-          <div className="relative mb-4">
-            <SearchIcon
-              aria-hidden="true"
-              className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2"
-            />
-            <Input
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder={t("search")}
-              aria-label={t("search")}
-              className="ps-9"
-            />
+          <div className="mb-4 flex items-center gap-2">
+            <div className="relative min-w-0 flex-1">
+              <SearchIcon
+                aria-hidden="true"
+                className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2"
+              />
+              <Input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder={t("search")}
+                aria-label={t("search")}
+                className="ps-9"
+              />
+            </div>
+            {compact ? (
+              <MembersSortMenu sorting={sorting} onSortingChange={setSorting} />
+            ) : null}
           </div>
+          <p role="status" className="sr-only">
+            {search.trim() ? t("searchResults", { count: rows.length }) : ""}
+          </p>
           <DataTable
             columns={getMembersTableColumnList(t, me, {
               showSeatManagement,
@@ -102,6 +126,9 @@ export default function MembersTable({
                 ? [...named, ...rows.filter((row) => !named.has(row))]
                 : rows
             }
+            sorting={sorting}
+            onSortingChange={setSorting}
+            hiddenColumns={compact ? COMPACT_HIDDEN_COLUMNS : undefined}
             rowClassName={() =>
               "text-foreground active:bg-accent hover:bg-accent"
             }
@@ -117,6 +144,53 @@ export default function MembersTable({
         </InvitationActionsModalContextProvider>
       </MemberActionsModalContextProvider>
     </SeatManagementContextProvider>
+  );
+}
+
+/** Phones hide Email and Last seen, so their sorts move to this menu. */
+function MembersSortMenu({
+  sorting,
+  onSortingChange,
+}: {
+  sorting: SortingState;
+  onSortingChange: (sorting: SortingState) => void;
+}) {
+  const t = useTranslations("Components.MembersTable");
+  const tOrder = useTranslations("Components.MembersTable.Sort");
+  const current = sorting[0]
+    ? `${sorting[0].id}:${sorting[0].desc ? "desc" : "asc"}`
+    : "";
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" className="shrink-0">
+          <ArrowUpDown aria-hidden="true" />
+          {tOrder("label")}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuRadioGroup
+          value={current}
+          onValueChange={(value) => {
+            const [id, order] = value.split(":");
+            onSortingChange([{ id: id ?? "name", desc: order === "desc" }]);
+          }}
+        >
+          {SORTABLE_COLUMNS.flatMap((id) =>
+            (["asc", "desc"] as const).map((order) => (
+              <DropdownMenuRadioItem
+                key={`${id}:${order}`}
+                value={`${id}:${order}`}
+              >
+                {tOrder(order === "asc" ? "ascending" : "descending", {
+                  column: t(`Header.${id}`),
+                })}
+              </DropdownMenuRadioItem>
+            )),
+          )}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

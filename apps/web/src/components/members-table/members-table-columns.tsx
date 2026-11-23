@@ -131,6 +131,10 @@ function getMembersTableColumns(
   };
 }
 
+export const COMPACT_HIDDEN_COLUMNS = ["email", "lastSeen", "seat"];
+/** Sorts a phone can still pick from the Sort menu. */
+export const SORTABLE_COLUMNS = ["name", "email", "role", "lastSeen"] as const;
+
 export function getMembersTableColumnList(
   t: ReturnType<typeof useTranslations>,
   me: OrganizationMembershipSelf,
@@ -141,22 +145,16 @@ export function getMembersTableColumnList(
   },
 ) {
   const cols = getMembersTableColumns(t, me);
-  if (options.compact) {
-    return columnHelper.columns([
-      cols.personColumn,
-      { ...cols.roleColumn, size: 1, minSize: 0 },
-      ...(options.includeActions
-        ? [{ ...cols.actionColumn, size: 1, minSize: 0 }]
-        : []),
-    ]);
-  }
+  // Phones keep every column so its sort still applies; the table hides
+  // COMPACT_HIDDEN_COLUMNS and shrinks role and actions to their content.
+  const fit = options.compact ? { size: 1, minSize: 0 } : {};
   return columnHelper.columns([
-    cols.nameColumn,
+    options.compact ? cols.personColumn : cols.nameColumn,
     cols.emailColumn,
-    cols.roleColumn,
+    { ...cols.roleColumn, ...fit },
     cols.lastSeenColumn,
     ...(options.showSeatManagement ? [cols.seatColumn] : []),
-    ...(options.includeActions ? [cols.actionColumn] : []),
+    ...(options.includeActions ? [{ ...cols.actionColumn, ...fit }] : []),
   ]);
 }
 

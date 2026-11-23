@@ -32,6 +32,7 @@ interface OrganizationInformationProps {
   deletionPreflightFailed?: boolean;
   deletionPreflightLoadError?: ReactNode;
   otherMemberCount?: number;
+  isActiveOrganization?: boolean;
 }
 
 export default async function OrganizationInformation({
@@ -41,6 +42,7 @@ export default async function OrganizationInformation({
   deletionPreflightFailed = false,
   deletionPreflightLoadError,
   otherMemberCount = 0,
+  isActiveOrganization = false,
 }: OrganizationInformationProps) {
   const t = await getTranslations("App.Organizations.OrganizationDetail");
   const { role } = member;
@@ -129,6 +131,7 @@ export default async function OrganizationInformation({
                     blockers={deletionBlockers}
                     preflightFailed={deletionPreflightFailed}
                     otherMemberCount={otherMemberCount}
+                    isActiveOrganization={isActiveOrganization}
                   />
                 ) : null}
               </div>

@@ -33,8 +33,12 @@ const organization = {
 
 function Page({
   blockers,
+  active = true,
+  otherMemberCount = 11,
 }: {
   blockers: OrganizationDeletionEvaluation["blockers"];
+  active?: boolean;
+  otherMemberCount?: number;
 }) {
   const [open, setOpen] = useState(true);
   return (
@@ -47,7 +51,8 @@ function Page({
         onOpenChange={setOpen}
         organization={organization}
         blockers={blockers}
-        otherMemberCount={11}
+        otherMemberCount={otherMemberCount}
+        isActiveOrganization={active}
       />
     </>
   );
@@ -78,7 +83,7 @@ describe("OrganizationRemoveModal when deletion is blocked", () => {
     ).toHaveAttribute("href", "#members");
     expect(
       within(dialog).getByRole("link", { name: "Links.billing" }),
-    ).toHaveAttribute("href", "/billing");
+    ).toHaveAttribute("href", "/billing?organizationId=org-1");
     expect(
       within(dialog).getByRole("link", { name: "Links.jobs" }),
     ).toHaveAttribute("href", "/history");
@@ -102,6 +107,29 @@ describe("OrganizationRemoveModal when deletion is blocked", () => {
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
     );
     expect(document.activeElement).toBe(document.getElementById("members"));
+  });
+});
+
+describe("OrganizationRemoveModal for an organization that is not the active workspace", () => {
+  it("keeps billing scoped to it and gives guidance instead of jobs and tasks links", () => {
+    render(
+      <Page
+        active={false}
+        blockers={["RUNNING_SUBSCRIPTION", "IN_FLIGHT_JOB", "IN_FLIGHT_TASK"]}
+      />,
+    );
+    const dialog = screen.getByRole("alertdialog");
+
+    expect(
+      within(dialog).getByRole("link", { name: "Links.billing" }),
+    ).toHaveAttribute("href", "/billing?organizationId=org-1");
+    expect(
+      within(dialog).queryByRole("link", { name: "Links.jobs" }),
+    ).toBeNull();
+    expect(
+      within(dialog).queryByRole("link", { name: "Links.tasks" }),
+    ).toBeNull();
+    expect(within(dialog).getAllByText("switchWorkspace")).toHaveLength(2);
   });
 });
 

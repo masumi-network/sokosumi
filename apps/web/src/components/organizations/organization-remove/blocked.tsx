@@ -76,6 +76,8 @@ interface OrganizationRemoveBlockedProps {
   organization: OrganizationRecord;
   blockers: OrganizationDeletionEvaluation["blockers"];
   otherMemberCount: number;
+  /** Jobs and Tasks show the active workspace only, so link them only then. */
+  isActiveOrganization: boolean;
   onGoToMembers: () => void;
 }
 
@@ -84,6 +86,7 @@ export function OrganizationRemoveBlocked({
   organization,
   blockers,
   otherMemberCount,
+  isActiveOrganization,
   onGoToMembers,
 }: OrganizationRemoveBlockedProps) {
   const t = useTranslations("Components.Organizations.RemoveModal.Blocked");
@@ -101,6 +104,7 @@ export function OrganizationRemoveBlocked({
       <ul className="flex flex-col gap-2">
         {blockers.map((code) => {
           const { icon: Icon, message, href, link } = ROWS[code];
+          const workspaceOnly = link === "jobs" || link === "tasks";
           return (
             <li
               key={code}
@@ -112,9 +116,17 @@ export function OrganizationRemoveBlocked({
               <span className="min-w-0 flex-1">
                 {t(message, { count: otherMemberCount })}
               </span>
-              {href && link ? (
+              {workspaceOnly && !isActiveOrganization ? (
+                <span className="text-muted-foreground basis-full ps-11 text-xs">
+                  {t("switchWorkspace")}
+                </span>
+              ) : href && link ? (
                 <Link
-                  href={href}
+                  href={
+                    link === "billing"
+                      ? `${href}?organizationId=${organization.id}`
+                      : href
+                  }
                   className="font-medium underline underline-offset-4"
                   onClick={(event) => {
                     if (link !== "members") return;

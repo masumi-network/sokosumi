@@ -48,6 +48,8 @@ interface DataTableProps<TData extends RowData> {
   disableHover?: boolean | undefined;
   showRowsPerPage?: boolean | undefined;
   initialPageSize?: number | undefined;
+  /** Kept in the table (so their sorting still applies) but not drawn. */
+  hiddenColumns?: readonly string[] | undefined;
   defaultSort?: { id: string; desc: boolean }[];
   manualSorting?: boolean | undefined;
   sorting?: SortingState | undefined;
@@ -71,6 +73,7 @@ export default function DataTable<TData extends RowData>({
   disableHover = false,
   showRowsPerPage = true,
   initialPageSize,
+  hiddenColumns,
   defaultSort,
   manualSorting = false,
   sorting: controlledSorting,
@@ -102,7 +105,12 @@ export default function DataTable<TData extends RowData>({
     columns,
     state: {
       sorting,
-      columnVisibility,
+      columnVisibility: hiddenColumns
+        ? {
+            ...columnVisibility,
+            ...Object.fromEntries(hiddenColumns.map((id) => [id, false])),
+          }
+        : columnVisibility,
       rowSelection,
       columnFilters,
     },

@@ -240,6 +240,12 @@
     "MembersTable": {
       "title": "Miembros",
       "search": "Buscar miembros",
+      "searchResults": "{count, plural, =0 {Ningún miembro coincide} one {# coincidencia} other {# coincidencias}}",
+      "Sort": {
+        "label": "Ordenar",
+        "ascending": "{column}, ascendente",
+        "descending": "{column}, descendente"
+      },
       "Header": {
         "name": "Nombre",
         "email": "Email",
@@ -704,13 +710,14 @@
           "title": "{organization} aún no se puede eliminar",
           "description": "Resuelve esto primero. Después podrás eliminarla aquí.",
           "close": "Cerrar",
-          "additionalMembers": "{count, plural, one {# miembro más} other {# miembros más}}",
+          "additionalMembers": "{count, plural, =0 {Todavía hay otros miembros} one {# miembro más} other {# miembros más}}",
           "runningSubscription": "Una suscripción de pago sigue activa",
           "enterpriseContractActive": "Hay un contrato empresarial activo",
           "lastWorkspace": "Es tu único espacio de trabajo. Crea otro o únete a otro primero.",
           "inFlightJob": "Hay jobs en ejecución",
           "unsettledOnChainJob": "Hay pagos de jobs pendientes de liquidar",
           "inFlightTask": "Hay tareas en curso",
+          "switchWorkspace": "Cambia a este espacio de trabajo para verlos.",
           "Links": {
             "members": "Ir a miembros",
             "billing": "Abrir facturación",

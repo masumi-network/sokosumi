@@ -76,16 +76,34 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       await members.getByRole("button", { name: "Invite member" }).waitFor();
       const search = members.getByRole("searchbox", { name: "Search members" });
 
-      await search.fill("ada tester");
       const row = members.getByRole("row").filter({ hasText: "Ada Tester" });
       await row.waitFor();
       await assertInside(row.getByText("Owner"), viewport.width, "Owner role");
-      await search.fill("@");
-      await row.waitFor();
-      await search.fill("nobody-by-this-name");
-      await members.getByText("No results.").waitFor();
+      const email = (await row.innerText()).match(/\S+@\S+/)?.[0];
+      assert.ok(email, "the owner's row shows their email");
+      const status = members.getByRole("status");
+
+      // Each search starts from no match, so a row that returns proves the
+      // query found it.
+      for (const query of ["Ada Tester", email]) {
+        await search.fill("nobody-by-this-name");
+        await members.getByText("No results.").waitFor();
+        await row.waitFor({ state: "detached" });
+        assert.equal(await status.textContent(), "No members match");
+        await search.fill(query);
+        await row.waitFor();
+        assert.equal(await status.textContent(), "1 match");
+      }
       await search.fill("");
       await row.waitFor();
+      if (name === "phone") {
+        // Email and Last seen are hidden here; their sorts live in Sort.
+        await members.getByRole("button", { name: "Sort" }).click();
+        await page
+          .getByRole("menuitemradio", { name: "Email, descending" })
+          .click();
+        await row.waitFor();
+      }
       await members.scrollIntoViewIfNeeded();
       await assertNoOverflow(page);
       await shot(page, name, "members");

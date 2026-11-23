@@ -24,6 +24,7 @@ interface OrganizationRemoveModalProps {
   blockers?: OrganizationDeletionEvaluation["blockers"];
   preflightFailed?: boolean;
   otherMemberCount?: number;
+  isActiveOrganization?: boolean;
 }
 
 export default function OrganizationRemoveModal({
@@ -33,6 +34,7 @@ export default function OrganizationRemoveModal({
   blockers = [],
   preflightFailed = false,
   otherMemberCount = 0,
+  isActiveOrganization = false,
 }: OrganizationRemoveModalProps) {
   const t = useTranslations("Components.Organizations.RemoveModal");
   const [isLoading, setIsLoading] = useState(false);
@@ -66,6 +68,7 @@ export default function OrganizationRemoveModal({
             organization={organization}
             blockers={blockers}
             otherMemberCount={otherMemberCount}
+            isActiveOrganization={isActiveOrganization}
             onGoToMembers={() => {
               focusMembers.current = true;
               onOpenChange(false);

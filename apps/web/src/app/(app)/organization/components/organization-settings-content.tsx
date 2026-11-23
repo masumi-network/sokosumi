@@ -128,6 +128,9 @@ export async function OrganizationSettingsContent({
   const { data: members } = await coreClient.getOrganizationMembers(
     organization.id,
   );
+  // `/organizations/[slug]` can show a workspace other than the active one.
+  const isActiveOrganization =
+    (await userService.getActiveOrganizationId()) === organization.id;
   const seatSummary = isOwnerOrAdmin
     ? await organizationSeatService.getSeatSummary(organization.id)
     : null;
@@ -172,6 +175,7 @@ export async function OrganizationSettingsContent({
           otherMemberCount={
             members.filter((entry) => entry.id !== member.id).length
           }
+          isActiveOrganization={isActiveOrganization}
         />
         <AdDataConsentSettings organizationId={organization.id} />
         <TeamStandupSettings

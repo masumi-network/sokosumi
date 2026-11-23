@@ -16,6 +16,7 @@ interface OrganizationRemoveButtonProps {
   blockers?: OrganizationDeletionEvaluation["blockers"];
   preflightFailed?: boolean;
   otherMemberCount?: number;
+  isActiveOrganization?: boolean;
 }
 
 export default function OrganizationRemoveButton({
@@ -24,6 +25,7 @@ export default function OrganizationRemoveButton({
   blockers = [],
   preflightFailed = false,
   otherMemberCount = 0,
+  isActiveOrganization = false,
 }: OrganizationRemoveButtonProps) {
   const t = useTranslations("App.Organizations.OrganizationDetail");
   const { Component, showModal } = useModal(OrganizationRemoveModal, {
@@ -31,6 +33,7 @@ export default function OrganizationRemoveButton({
     blockers,
     preflightFailed,
     otherMemberCount,
+    isActiveOrganization,
   });
 
   return (

@@ -193,15 +193,22 @@ function elevenMembers(): Member[] {
   }));
 }
 
+function renderEleven() {
+  return render(
+    <MembersTable
+      me={{ id: "member-0", role: MemberRole.OWNER }}
+      members={elevenMembers()}
+      pendingInvitations={[invitation("pending@example.com")]}
+    />,
+  );
+}
+
+const names = () =>
+  screen.getAllByText(/^Person \d+$/).map((cell) => cell.textContent);
+
 describe("searching members", () => {
   it("finds a member on a later page by name or email, then restores the pages", async () => {
-    render(
-      <MembersTable
-        me={{ id: "member-0", role: MemberRole.OWNER }}
-        members={elevenMembers()}
-        pendingInvitations={[invitation("pending@example.com")]}
-      />,
-    );
+    renderEleven();
     const search = screen.getByRole("searchbox", { name: "search" });
     expect(screen.queryByText("Person 11")).toBeNull();
 
@@ -218,11 +225,51 @@ describe("searching members", () => {
     expect(screen.getByText("Person 01")).toBeInTheDocument();
     expect(screen.queryByText("Person 11")).toBeNull();
   });
+
+  it("announces how many rows match, including none", async () => {
+    renderEleven();
+    const search = screen.getByRole("searchbox", { name: "search" });
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("");
+
+    await userEvent.type(search, "p1");
+    expect(status).toHaveTextContent("searchResults 3");
+    await userEvent.type(search, "zzz");
+    expect(status).toHaveTextContent("searchResults 0");
+    expect(screen.getByText("noResults")).toBeInTheDocument();
+  });
+
+  it("pages through more than ten matches and starts over when the query changes on page 2", async () => {
+    renderEleven();
+    const search = screen.getByRole("searchbox", { name: "search" });
+
+    await userEvent.type(search, "person");
+    expect(names()).toHaveLength(10);
+    await userEvent.click(screen.getByRole("button", { name: "nextPage" }));
+    expect(names()).toEqual(["Person 11"]);
+
+    await userEvent.type(search, " 0");
+    expect(names()).toEqual([
+      "Person 01",
+      "Person 02",
+      "Person 03",
+      "Person 04",
+      "Person 05",
+      "Person 06",
+      "Person 07",
+      "Person 08",
+      "Person 09",
+      "Person 10",
+    ]);
+  });
 });
 
 describe("on a phone", () => {
-  it("shows one row per person with role and actions, without the wide columns", () => {
+  beforeEach(() => {
     mobile.value = true;
+  });
+
+  it("shows one row per person with role and actions, without the wide columns", () => {
     render(
       <MembersTable
         me={{ id: "member-0", role: MemberRole.OWNER }}
@@ -239,6 +286,24 @@ describe("on a phone", () => {
     expect(row).toHaveTextContent("member");
     expect(
       within(row as HTMLElement).getByRole("button", { name: "open" }),
+    ).toBeInTheDocument();
+  });
+
+  it("still sorts by email and last seen, across pages", async () => {
+    renderEleven();
+
+    await userEvent.click(screen.getByRole("button", { name: "label" }));
+    await userEvent.click(
+      screen.getByRole("menuitemradio", { name: "descending Header.email" }),
+    );
+    // Natural order, descending: pending@, p11, p10, … p3 | p2, p1.
+    expect(names()[0]).toBe("Person 11");
+    await userEvent.click(screen.getByRole("button", { name: "nextPage" }));
+    expect(names()).toEqual(["Person 02", "Person 01"]);
+
+    await userEvent.click(screen.getByRole("button", { name: "label" }));
+    expect(
+      screen.getByRole("menuitemradio", { name: "ascending Header.lastSeen" }),
     ).toBeInTheDocument();
   });
 });
