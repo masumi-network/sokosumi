@@ -49,6 +49,7 @@ import {
 import { CMO_PART_PATCH_STRATEGY_SKILL } from "../versions/cmo-v13-skills.js";
 import { CMO_CHANNEL_FIT_STRATEGY_SKILL } from "../versions/cmo-v14-skills.js";
 import { CMO_PLAIN_WORDS_STRATEGY_SKILL } from "../versions/cmo-v15-skills.js";
+import { CMO_STAGE_SPREAD_STRATEGY_SKILL } from "../versions/cmo-v18-skills.js";
 import {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
@@ -407,6 +408,27 @@ describe("CMO version", () => {
     expect(strategy).toContain(
       '"funnel" → the steps from first hearing of you to buying',
     );
+  });
+
+  // Owner, 2026-11-23: "every network carries every step".
+  it("has cmo-v18 be cmo-v15 with every step on every network, each entry tagged", () => {
+    const v15 = getSokoBotVersion("cmo-v15");
+    const v18 = getSokoBotVersion("cmo-v18");
+    expect(v18.systemPrompt).toBe(v15.systemPrompt);
+    expect(v18.skills).toEqual(
+      v15.skills.map((skill) =>
+        skill === CMO_PLAIN_WORDS_STRATEGY_SKILL
+          ? CMO_STAGE_SPREAD_STRATEGY_SKILL
+          : skill,
+      ),
+    );
+    const strategy = getSokoBotSkill(CMO_STAGE_SPREAD_STRATEGY_SKILL).content;
+    expect(strategy).toContain("# Words for an owner who is not a marketer");
+    expect(strategy).toContain("Every social network carries every step");
+    expect(strategy).not.toContain("sits at the one stage its posts serve");
+    expect(strategy).toContain("# Every step on every network");
+    // Not the default: Patrick decides the move.
+    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v15");
   });
 
   it("keeps a piece's claim on its plan entry and its Social post", () => {
