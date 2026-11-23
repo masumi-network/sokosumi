@@ -88,6 +88,7 @@ import {
 } from "@/components/ui/sidebar";
 import {
   SIDEBAR_ROW_LABEL_CLASS,
+  SIDEBAR_ROW_LABEL_INSET_CLASS,
   SIDEBAR_ROW_LINK_CLASS,
 } from "@/components/ui/sidebar-classes";
 import { cn } from "@/lib/utils";
@@ -279,17 +280,24 @@ export function RoomRowNameLine({
 }
 
 /**
- * The status in full, under the row while its link has keyboard focus, so a
- * status the name line shortened or dropped can still be read. Wraps inside
- * the row's width. Hidden from assistive technology like the line itself:
- * the link's name already carries the full words.
+ * The status in full, on its own line under the row while the row's link has
+ * keyboard focus, so a status the name line shortened or dropped can still be
+ * read. In the flow, not over it: the rows below move down rather than being
+ * covered, so there is nothing to dismiss. Starts on the label column and
+ * wraps inside the sidebar. Hidden from assistive technology like the line
+ * itself: the link's name already carries the full words.
+ *
+ * Must directly follow the row's `peer/room-row` box.
  */
 export function RoomRowStatusReveal({ status }: { status: ReactNode }) {
   return (
     <span
       aria-hidden
       data-slot="room-status-reveal"
-      className="bg-popover text-popover-foreground pointer-events-none absolute top-full right-1 left-1 z-20 mt-1 hidden rounded-md border px-2 py-1 shadow-md group-has-[a:focus-visible]/room-row:block *:overflow-visible *:whitespace-normal"
+      className={cn(
+        SIDEBAR_ROW_LABEL_INSET_CLASS,
+        "hidden pr-2 pb-1 peer-has-[a:focus-visible]/room-row:block *:overflow-visible *:whitespace-normal",
+      )}
     >
       {status}
     </span>
@@ -591,9 +599,11 @@ export function ChatRoomSidebarRow({
       {/* The row proper. Its marks and trailing cluster are centred on this
           box, and its hover reveals its own menu, so neither can drift onto
           the inset thread rows that follow it inside the same item. */}
-      <div data-slot="room-row-main" className="group/room-row relative">
+      <div
+        data-slot="room-row-main"
+        className="group/room-row peer/room-row relative"
+      >
         {roomButton}
-        {status ? <RoomRowStatusReveal status={status} /> : null}
         <div data-slot="room-trailing" className={TRAILING_CLUSTER_CLASS}>
           {hasTile ? (
             <RoomWorkspaceTile
@@ -731,6 +741,7 @@ export function ChatRoomSidebarRow({
           </div>
         </div>
       </div>
+      {status ? <RoomRowStatusReveal status={status} /> : null}
 
       {/* Room mute outranks everything a room can hold, so a muted room lists
           nothing. Reorder mode moves rows, and rows of differing height under

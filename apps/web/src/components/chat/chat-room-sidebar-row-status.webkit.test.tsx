@@ -51,40 +51,50 @@ async function layout(
     </span>
   );
   const markup = renderToStaticMarkup(
-    <div style={{ width: rowPx ? `${rowPx}px` : `${rowRem}rem` }}>
-      <div className="group/room-row relative">
-        <a
-          href="#juno"
-          data-testid="link"
-          className="flex h-7 items-center gap-2 px-2 text-sm"
-        >
-          <span className="size-6 shrink-0" />
-          <span className={SIDEBAR_ROW_LABEL_CLASS}>
-            <RoomRowNameLine
-              name={
-                <span data-testid="name" className="block min-w-0 truncate">
-                  {name}
-                </span>
-              }
-              status={statusNode}
-            />
-          </span>
-          {/* The hole a focused row opens for its menu. */}
-          <span className="size-4 shrink-0 group-focus-within/room-row:size-4" />
-        </a>
-        <button
-          type="button"
-          data-testid="menu"
-          className="absolute top-1/2 right-1 size-7 -translate-y-1/2"
-        >
-          …
-        </button>
+    <ul style={{ width: rowPx ? `${rowPx}px` : `${rowRem}rem` }}>
+      <li>
+        {/* As the row draws it: the box the link and its menu share, then the
+            reveal straight after it. */}
+        <div className="group/room-row peer/room-row relative">
+          <a
+            href="#juno"
+            data-testid="link"
+            className="flex h-7 items-center gap-2 px-2 text-sm"
+          >
+            <span className="size-6 shrink-0" />
+            <span className={SIDEBAR_ROW_LABEL_CLASS}>
+              <RoomRowNameLine
+                name={
+                  <span data-testid="name" className="block min-w-0 truncate">
+                    {name}
+                  </span>
+                }
+                status={statusNode}
+              />
+            </span>
+            {/* The hole a focused row opens for its menu. */}
+            <span className="size-4 shrink-0" />
+          </a>
+          <button
+            type="button"
+            data-testid="menu"
+            className="absolute top-1/2 right-1 size-7 -translate-y-1/2"
+          >
+            …
+          </button>
+        </div>
         <RoomRowStatusReveal status={statusNode} />
-      </div>
-      <a href="#next" data-testid="next">
-        Next
-      </a>
-    </div>,
+      </li>
+      <li>
+        <a
+          href="#next"
+          data-testid="next"
+          className="flex h-7 items-center px-2 text-sm"
+        >
+          general
+        </a>
+      </li>
+    </ul>,
   );
   await page.setContent(
     `<!doctype html><html lang="de" style="font-size:${16 * textScale}px"><head><style>${css}</style></head><body>${markup}</body></html>`,
@@ -119,6 +129,7 @@ async function layout(
         // Drawn inside the row, or given up entirely.
         statusFits: status.width === 0 || status.right <= labelRight + 0.5,
         menu: box(el('[data-testid="menu"]')),
+        next: box(el('[data-testid="next"]')),
         reveal: box(reveal),
         revealText: reveal.textContent,
         revealStatusClipped:
@@ -134,7 +145,14 @@ async function layout(
   await page.keyboard.press("Shift");
   await page.focus('[data-testid="link"]');
   const focused = await measure();
-  return { atRest, focused };
+  // Nothing covers anything, so Escape has nothing to close: focus stays.
+  await page.keyboard.press("Escape");
+  const escaped = await measure();
+  await page.focus('[data-testid="menu"]');
+  const onMenu = await measure();
+  await page.focus('[data-testid="next"]');
+  const blurred = await measure();
+  return { atRest, focused, escaped, onMenu, blurred };
 }
 
 describe("ChatRoomSidebarRow status in a narrow row", () => {
@@ -195,7 +213,7 @@ describe("ChatRoomSidebarRow status in a narrow row", () => {
   ])(
     "shows the full status under the row on keyboard focus at %o",
     async (size) => {
-      const { atRest, focused } = await layout(
+      const { atRest, focused, escaped } = await layout(
         "Juno",
         "Konnte nicht antworten",
         size,
@@ -206,28 +224,49 @@ describe("ChatRoomSidebarRow status in a narrow row", () => {
       expect(focused.reveal.shown).toBe(true);
       expect(focused.revealText).toBe("Konnte nicht antworten");
       expect(focused.revealStatusClipped).toBe(false);
-      // Under the row, inside its width, clear of the name and the menu.
+      // Its own line under the row, inside the row's width.
       expect(focused.reveal.top).toBeGreaterThanOrEqual(focused.row.bottom);
       expect(focused.reveal.top).toBeGreaterThanOrEqual(focused.menu.bottom);
       expect(focused.reveal.left).toBeGreaterThanOrEqual(focused.row.left);
       expect(focused.reveal.right).toBeLessThanOrEqual(focused.row.right);
+      // In the flow: the next row moves down below it, never under it.
+      expect(focused.next.top).toBeGreaterThanOrEqual(focused.reveal.bottom);
+      expect(focused.next.top - atRest.next.top).toBeCloseTo(
+        focused.reveal.bottom - atRest.row.bottom,
+        0,
+      );
+      // The row itself keeps its place and height.
+      expect(focused.row.top).toBe(atRest.row.top);
+      expect(focused.row.bottom).toBe(atRest.row.bottom);
       expect(focused.statusFits).toBe(true);
+      // Escape has nothing to dismiss and leaves focus where it was.
+      expect(escaped.focused).toBe("link");
+      expect(escaped.next.top).toBeGreaterThanOrEqual(escaped.reveal.bottom);
     },
   );
 
-  it("puts the reveal away once focus moves on", async () => {
-    await layout("Juno", "Konnte nicht antworten", { rowPx: 192 });
-    await page.keyboard.press("Shift");
-    await page.focus('[data-testid="next"]');
+  it("puts the reveal away once focus leaves the link", async () => {
+    const { onMenu, blurred } = await layout("Juno", "Konnte nicht antworten", {
+      rowPx: 192,
+      textScale: 2,
+    });
 
-    const shown = await page.evaluate(
-      () =>
-        getComputedStyle(
-          document.querySelector(
-            '[data-slot="room-status-reveal"]',
-          ) as HTMLElement,
-        ).display !== "none",
-    );
-    expect(shown).toBe(false);
+    for (const state of [onMenu, blurred]) {
+      expect(state.reveal.shown).toBe(false);
+      expect(state.next.top).toBeCloseTo(state.row.bottom, 0);
+    }
+  });
+
+  // Known before this change: at 200% text a fixed 192px row leaves 48px for
+  // the name, so "Juno" is cut whether or not a status shares its line. The
+  // status gives up all of its width first.
+  it("leaves the baseline name truncation at 200% text in 192px as it was", async () => {
+    const { focused } = await layout("Juno", "Konnte nicht antworten", {
+      rowPx: 192,
+      textScale: 2,
+    });
+
+    expect(focused.status.width).toBe(0);
+    expect(focused.name.clipped).toBe(true);
   });
 });
