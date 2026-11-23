@@ -12015,7 +12015,8 @@
         "publicCopy": "Die Kopie kann jede Person mit ihrem Link öffnen, wie jede angehängte Datei. Füge sie nur hinzu, wenn das für diese Daten in Ordnung ist.",
         "cancel": "Abbrechen",
         "add": "Kopie hinzufügen",
-        "loadMore": "Weitere Tabellen anzeigen"
+        "loadMore": "Weitere Tabellen anzeigen",
+        "loadMoreError": "Weitere Tabellen konnten nicht geladen werden. Versuch es noch einmal."
       }
     },
     "ProjectScope": {

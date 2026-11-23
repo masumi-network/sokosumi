@@ -12015,7 +12015,8 @@
         "publicCopy": "The copy opens for anyone with its link, like every file you attach. Add it only if that's fine for this data.",
         "cancel": "Cancel",
         "add": "Add copy",
-        "loadMore": "Show more tables"
+        "loadMore": "Show more tables",
+        "loadMoreError": "Couldn't load more tables. Try again."
       }
     },
     "ProjectScope": {

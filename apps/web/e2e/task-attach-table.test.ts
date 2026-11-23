@@ -2,14 +2,15 @@ import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { after, before, describe, test } from "node:test";
 
-import { type Browser, chromium, type Page } from "playwright";
+import { type Browser, chromium, type Page, request } from "playwright";
 
 import { resolveBaseUrl } from "./base-url.ts";
 import { createMailbox } from "./mailbox.ts";
 
 // A new user makes a Files Table from an invented CSV, then writes a New
 // Task and adds that Table from the attach menu: after confirming that the
-// copy opens by link, the brief links a dated CSV copy of it. Free only: the Task is for the user, nothing runs.
+// copy opens by link, the brief links a dated CSV copy of it. The saved
+// Task links that copy, and it holds the Table's rows. Free only: the Task is for the user, nothing runs.
 // Each size signs up its own disposable mail.tm inbox.
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
@@ -103,7 +104,8 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
         .fill("Write a follow-up email for each lead.");
       await newTask
         .getByRole("button", { name: "Upload file" })
-        .filter({ visible: true })
+        // The paperclip menu, not the hidden file input's trigger.
+        .and(newTask.locator('[aria-haspopup="menu"]'))
         .click();
       await page.getByRole("menuitem", { name: "From a table" }).click();
       const picker = page.getByRole("dialog", { name: "Add a table" });
@@ -112,7 +114,10 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
           exact: false,
         })
         .waitFor();
-      await picker.getByRole("radio", { name: /Expo leads/ }).check();
+      await picker.locator("label", { hasText: "Expo leads" }).click();
+      assert.ok(
+        await picker.getByRole("radio", { name: /Expo leads/ }).isChecked(),
+      );
       await picker
         .getByText("The copy opens for anyone with its link", { exact: false })
         .waitFor();
@@ -124,6 +129,27 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       const link = `Expo leads (${day}).csv`;
       await newTask.getByText(link, { exact: false }).first().waitFor();
       await shot(page, size, "2-attached");
+
+      // Save the Task (for the user, so nothing runs) and read the copy it
+      // links from a fresh context with no session: it holds the rows.
+      await newTask.getByRole("button", { name: "Create task" }).click();
+      await newTask
+        .getByRole("button", { name: "Bring me to the task" })
+        .click({ timeout: 120_000 });
+      await page.waitForURL(/\/tasks\//);
+      const href = await page
+        .locator('a[href$=".csv"]')
+        .first()
+        .getAttribute("href");
+      assert.ok(href, "the saved Task links its CSV copy");
+      await shot(page, size, "3-saved");
+      const outsider = await request.newContext();
+      const csv = await (await outsider.get(href)).text();
+      await outsider.dispose();
+      assert.equal(
+        csv,
+        '"Company","Contact"\r\n"Acme","Lena Ortiz"\r\n"Globex","Sam Reid"',
+      );
 
       const overflow = await page.evaluate(
         () =>

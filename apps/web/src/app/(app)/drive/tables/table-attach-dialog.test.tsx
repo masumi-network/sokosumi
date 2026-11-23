@@ -14,6 +14,7 @@ const f = vi.hoisted(() => ({
   list: vi.fn(),
   file: vi.fn(),
   workspace: "org-a" as string | null,
+  sessionLoaded: true,
 }));
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -21,7 +22,9 @@ vi.mock("next-intl", () => ({
 }));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
-    data: { session: { activeOrganizationId: f.workspace } },
+    data: f.sessionLoaded
+      ? { session: { activeOrganizationId: f.workspace } }
+      : null,
   }),
 }));
 vi.mock("@/lib/services/data-table.client", () => ({
@@ -56,6 +59,7 @@ async function choose(title: RegExp) {
 
 beforeEach(() => {
   f.workspace = "org-a";
+  f.sessionLoaded = true;
 });
 afterEach(() => {
   cleanup();
@@ -169,6 +173,82 @@ describe("TableAttachDialog", () => {
 
     await waitFor(() => expect(document.activeElement).toBe(attach));
     attach.remove();
+  });
+
+  it("never copies a Table the reader can no longer see after searching", async () => {
+    f.list.mockImplementation(({ search }: { search?: string }) =>
+      Promise.resolve({
+        items: search ? [] : [leads],
+        nextCursor: null,
+      }),
+    );
+    renderDialog();
+
+    fireEvent.click(await screen.findByRole("radio", { name: /Leads/ }));
+    fireEvent.change(screen.getByRole("searchbox"), {
+      target: { value: "nothing" },
+    });
+    await screen.findByText("noMatches");
+
+    const add = screen.getByRole("button", { name: "add" });
+    expect(add).toBeDisabled();
+    fireEvent.click(add);
+    expect(f.file).not.toHaveBeenCalled();
+  });
+
+  it("drops a copy still being made when the form unmounts the picker", async () => {
+    f.list.mockResolvedValue({ items: [leads], nextCursor: null });
+    const pending = Promise.withResolvers<File>();
+    f.file.mockReturnValue(pending.promise);
+    const { onPick, onClose, view } = renderDialog();
+
+    await choose(/Leads/);
+    view.unmount();
+    await act(async () => {
+      pending.resolve(new File(["a"], "Leads.csv"));
+      await pending.promise;
+    });
+
+    expect(onPick).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("waits for the session before listing any Tables", async () => {
+    f.sessionLoaded = false;
+    f.list.mockResolvedValue({ items: [leads], nextCursor: null });
+    renderDialog();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(f.list).not.toHaveBeenCalled();
+    expect(screen.queryByRole("radio")).not.toBeInTheDocument();
+  });
+
+  it("keeps the loaded Tables when the next page fails, and retries it", async () => {
+    let fail = true;
+    f.list.mockImplementation(({ cursor }: { cursor?: string }) => {
+      if (cursor !== "p2")
+        return Promise.resolve({ items: [leads], nextCursor: "p2" });
+      if (fail) return Promise.reject(new Error("down"));
+      return Promise.resolve({
+        items: [{ ...leads, id: "t2", title: "Older" }],
+        nextCursor: null,
+      });
+    });
+    renderDialog(
+      new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "loadMore" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("loadMoreError");
+    expect(screen.getByRole("radio", { name: /Leads/ })).toBeInTheDocument();
+
+    fail = false;
+    fireEvent.click(screen.getByRole("button", { name: "loadMore" }));
+    expect(
+      await screen.findByRole("radio", { name: /Older/ }),
+    ).toBeInTheDocument();
   });
 
   it("caps search at the 200 characters Core accepts", async () => {

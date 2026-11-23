@@ -12015,7 +12015,8 @@
         "publicCopy": "Cualquiera con el enlace puede abrir la copia, como cualquier archivo adjunto. Añádela solo si eso está bien para estos datos.",
         "cancel": "Cancelar",
         "add": "Añadir copia",
-        "loadMore": "Mostrar más tablas"
+        "loadMore": "Mostrar más tablas",
+        "loadMoreError": "No se pudieron cargar más tablas. Inténtalo de nuevo."
       }
     },
     "ProjectScope": {
