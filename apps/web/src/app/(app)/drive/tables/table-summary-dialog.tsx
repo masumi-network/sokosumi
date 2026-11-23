@@ -48,8 +48,9 @@ export function TableSummaryDialog({
   );
   const numbers = table.columns.filter((column) => column.type === "number");
   const [columnId, setColumnId] = useState(
-    (columns.find((column) => column.type === "single_select") ?? columns[0])
-      ?.id ?? "",
+    () =>
+      (columns.find((column) => column.type === "single_select") ?? columns[0])
+        ?.id ?? "",
   );
   const column = columns.find((item) => item.id === columnId);
   // Every live row, not the page on screen, so the counts are the Table's own.
