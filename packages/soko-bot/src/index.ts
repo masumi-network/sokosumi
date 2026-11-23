@@ -115,7 +115,6 @@ export {
   CMO_BRAND_ANSWERS,
   CMO_BRAND_SECTION_KEYS,
   CMO_BUYING_BARRIERS,
-  CMO_CALENDAR_MAX_ENTRIES,
   CMO_CALENDAR_STATUSES,
   CMO_CONTENT_APPROACHES,
   CMO_IMPROVEMENT_AREAS,
@@ -296,6 +295,7 @@ export {
 export { CMO_SCENE_PRODUCTION_SKILL } from "./versions/cmo-v9-skills.js";
 export { CMO_PICKED_PRODUCTION_SKILL } from "./versions/cmo-v11-skills.js";
 export {
+  CMO_SEO_PLAIN_SKILL,
   CMO_SEO_REPORTS_SKILL,
   cmoReportsSeo,
   cmoSeoReportBrief,
@@ -304,6 +304,20 @@ export { CMO_PART_PATCH_STRATEGY_SKILL } from "./versions/cmo-v13-skills.js";
 export { CMO_CHANNEL_FIT_STRATEGY_SKILL } from "./versions/cmo-v14-skills.js";
 export { CMO_PLAIN_WORDS_STRATEGY_SKILL } from "./versions/cmo-v15-skills.js";
 export { CMO_STAGE_SPREAD_STRATEGY_SKILL } from "./versions/cmo-v18-skills.js";
+export {
+  CMO_MONTH_POINTS_SKILL,
+  CMO_SHORTS_WRITING_GUIDE,
+  CMO_SITE_PAGES_SKILL,
+  CMO_V20_STRATEGY_SKILL,
+  cmoMarksPoints,
+  cmoRevisedWritingSkills,
+  cmoTurnSkills,
+} from "./versions/cmo-v20-skills.js";
+export {
+  CMO_INDUSTRY_SKILL,
+  CMO_V21_STRATEGY_SKILL,
+  cmoReadsIndustry,
+} from "./versions/cmo-v21-skills.js";
 export {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,

@@ -11,6 +11,11 @@ export const teamStandupSchema = z
     timezone: z.string().openapi({ example: "Europe/Berlin" }),
     nextRunAt: z.string().nullable(),
     lastRunAt: z.string().nullable(),
+    weekInReviewWeekday: z.number().int().min(1).max(7).openapi({
+      description:
+        "The weekday (1 Monday … 7 Sunday) of the weekly week in review, posted at `timeOfDay`.",
+    }),
+    weekInReviewNextRunAt: z.string().nullable(),
   })
   .openapi("TeamStandup");
 
@@ -29,5 +34,12 @@ export const updateTeamStandupSchema = z
       .optional()
       .openapi({ description: "1 Monday … 7 Sunday." }),
     timezone: z.string().trim().min(1).max(64).optional(),
+    weekInReviewWeekday: z
+      .number()
+      .int()
+      .min(1)
+      .max(7)
+      .optional()
+      .openapi({ description: "Week in review weekday, 1 Monday … 7 Sunday." }),
   })
   .openapi("UpdateTeamStandup");

@@ -1,7 +1,6 @@
 import { type MarketingStrategy, Prisma } from "@sokosumi/database";
 import {
   type BrandBrain,
-  CMO_CALENDAR_MAX_ENTRIES,
   CMO_PRODUCTION_TURN_PREFIX,
   type CmoBrandAnswer,
   type CmoBrandQuestion,
@@ -47,6 +46,10 @@ import {
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
 import {
+  cmoIndustryBeforePlan,
+  cmoIndustryPillarProblems,
+} from "@/services/cmo-industry.service";
+import {
   cmoPictureStyleProblem,
   cmoPieceTakesStyle,
   cmoSceneVisualProblem,
@@ -57,11 +60,14 @@ import {
   cmoFitMonthToCalendar,
   cmoFollowCadenceChange,
   cmoMonthShortfall,
+  cmoPillarFactProblems,
+  cmoPillarFacts,
   cmoPlanRulesBrokenSince,
   cmoPromiseGaps,
   cmoStrategyRules,
   cmoWeekGaps,
   cmoWithOwnerPace,
+  type PlanReviewOptions,
 } from "@/services/cmo-plan-review.service";
 import {
   approvedMarketingStrategy,
@@ -77,6 +83,7 @@ import {
 } from "@/services/marketing-strategy.service";
 import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
 import { referenceLibraryAvailable } from "@/services/reference-library.service";
+import { recordSokoBotCheckUsage } from "@/services/soko-bot-billing.service";
 import {
   settledTurnStatus,
   TURN_ROW_SELECT,
@@ -437,12 +444,35 @@ export async function afterCmoTurn(input: {
   const mayPlan =
     input.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX) ||
     cmoChangeKind(input.clientTurnId) === "fix";
-  return (
+  const next =
     (mayPlan ? await startCmoPlanAfterResearch(input, cuso) : null) ??
     (await startCmoMonthFinish(input, cuso)) ??
     (await startNextCmoChange(input, cuso)) ??
-    (await startQueuedAdBudget(cuso))
+    (await startQueuedAdBudget(cuso));
+  if (!next && input.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX))
+    await announceCmoStrategyReady(cuso);
+  return next;
+}
+
+/**
+ * Strategy turns post nothing: entry.fyi's first round, still short of its
+ * weeks, pinged the owner as if the plan were done. Once no turn follows,
+ * Cuso says so once per saved version.
+ */
+async function announceCmoStrategyReady(cuso: Cuso): Promise<void> {
+  const version = await newestMarketingStrategy(cuso.projectId);
+  if (!version || version.approvedAt) return;
+  const summary = parseMarketingPlan(version.plan)?.summary?.trim();
+  const { postSokoBotOwnerNotice } = await import(
+    "@/services/soko-bot-chat.service"
   );
+  await postSokoBotOwnerNotice({
+    sokoBotId: cuso.sokoBotId,
+    content: summary
+      ? `Your strategy is ready. ${summary}`
+      : "Your strategy is ready.",
+    key: `cmo-strategy-ready:${version.id}:${version.updatedAt.getTime()}`,
+  });
 }
 
 /** How far back the sync looks for a hiring strategy left short. */
@@ -513,6 +543,37 @@ function finishRound(clientTurnId: string | null): number {
   return parts[3] === FINISH_KIND ? Number(parts[5] ?? 1) : 0;
 }
 
+/** The pillars of a plan that rest on too few Brand Brain facts (cmo-v20). */
+async function cmoThinPillars(
+  cuso: Cuso,
+  plan: MarketingStrategyPlan,
+  versionId: string,
+  round: number,
+  rules: PlanReviewOptions,
+): Promise<string[]> {
+  const topics = rules.industryTopics
+    ? await cmoIndustryPillarProblems(cuso.projectId, plan).catch(() => null)
+    : null;
+  if (topics) {
+    await recordSokoBotCheckUsage({
+      sokoBotId: cuso.sokoBotId,
+      key: `cmo-pillars:${versionId}:${round}`,
+      costUsd: topics.costUsd,
+    });
+    return topics.problems;
+  }
+  const brain = parseBrandBrain(cuso.brandBrain);
+  if (!brain) return [];
+  const counted = await cmoPillarFacts(plan, brain).catch(() => null);
+  if (!counted) return [];
+  await recordSokoBotCheckUsage({
+    sokoBotId: cuso.sokoBotId,
+    key: `cmo-pillars:${versionId}:${round}`,
+    costUsd: counted.costUsd,
+  });
+  return cmoPillarFactProblems(counted.pillars);
+}
+
 /**
  * A weekly Cuso saves his month a week a call, and once ended his turn with
  * week one saved although the review asked for the rest: NMKR's month came
@@ -544,7 +605,13 @@ async function startCmoMonthFinish(
   const plan = version?.approvedAt ? null : parseMarketingPlan(version?.plan);
   if (!version || !plan) return null;
   const gaps = cmoPromiseGaps(plan, rules);
-  if (gaps.length === 0) return null;
+  // cmo-v20: once the month is in, a pillar that rests on too few facts
+  // gets a turn of its own to merge or reframe it.
+  const pillars =
+    gaps.length === 0 && rules.pillarFacts && round < most
+      ? await cmoThinPillars(cuso, plan, version.id, round, rules)
+      : [];
+  if (gaps.length === 0 && pillars.length === 0) return null;
   if (round >= most) {
     // The turns are spent: the strategy says what its calendar holds, so the
     // owner can always approve it.
@@ -567,41 +634,47 @@ async function startCmoMonthFinish(
     .at(-1);
   return startCmoTurn(cuso, userId, {
     clientTurnId: `${STRATEGY_TURN_PREFIX}${cuso.sokoBotId}:${FINISH_KIND}:${Date.now()}:${round + 1}`,
-    message: (weeks < 4
+    message: (pillars.length > 0
       ? [
-          `Finish ${cuso.businessName}'s marketing strategy: its calendar covers ${weeks} of four weeks${last ? `, up to ${last}` : ""}.`,
-          weeks === 0
-            ? "Save week one with save_strategy part calendar, then each later week with part patch (only that week's entries, new ids)."
-            : "Save each missing week with save_strategy part patch, one week a call (only that week's entries, new ids), until the calendar covers four weeks from its first day.",
-          "Every week holds the pace's perWeek pieces at each channel's cadence and role, in the mix and pillar shares. Change nothing already saved.",
-          ...(rules.channelFit
-            ? [
-                "A short video is one entry on TikTok (format video), Instagram (format reel) or YouTube (format short) that lists the other two in alsoOn: it counts on all three networks, so seven such entries a day give TikTok, Reels and Shorts seven each.",
-              ]
-            : []),
+          `Fix the pillars of ${cuso.businessName}'s marketing strategy:`,
+          ...pillars.map((problem) => `- ${problem}`),
+          "A pillar is something the buyer gets or does, never a reassurance line. Save the pillars whole with save_strategy part patch (their shares add up to 100), then move each calendar entry of a merged or reframed pillar to the pillar it now belongs to, also with part patch, at most 8 entries a call (each entry whole under its id). Change nothing else.",
         ]
-      : weekGaps.length > 0
+      : weeks < 4
         ? [
-            `Finish ${cuso.businessName}'s marketing strategy: some weeks hold fewer pieces than its cadences say. Fill these weeks now; the next turn takes any others.`,
-            ...weekGaps.map(
-              (week) =>
-                `- ${week.from} to ${week.to}: add ${week.missing.map((gap) => `${gap.count} on ${gap.channel}`).join(", ")}. Saved that week, so make each new piece say something else: ${week.titles.join(" · ") || "nothing yet"}.`,
-            ),
-            `These counts and titles are the whole of each week: you need nothing more from the calendar, and a new id never replaces a saved piece. Save each week with save_strategy part patch (only its new entries, new ids, dated inside the week), in the mix and pillar shares. Never lower the pace or a cadence, and do not ask the owner: the plan the owner buys decides how much of the month is made.${
-              rules.channelFit
-                ? " A short video is one entry on TikTok (format video), Instagram (format reel) or YouTube (format short) that lists the other two in alsoOn: it counts on all three networks."
-                : ""
-            } Change nothing already saved.`,
+            `Finish ${cuso.businessName}'s marketing strategy: its calendar covers ${weeks} of four weeks${last ? `, up to ${last}` : ""}.`,
+            weeks === 0
+              ? "Save week one with save_strategy part calendar, then each later week with part patch (only that week's entries, new ids)."
+              : "Save each missing week with save_strategy part patch, one week a call (only that week's entries, new ids), until the calendar covers four weeks from its first day.",
+            "Every week holds the pace's perWeek pieces at each channel's cadence and role, in the mix and pillar shares. Change nothing already saved.",
+            ...(rules.channelFit
+              ? [
+                  "A short video is one entry on TikTok (format video), Instagram (format reel) or YouTube (format short) that lists the other two in alsoOn: it counts on all three networks, so seven such entries a day give TikTok, Reels and Shorts seven each.",
+                ]
+              : []),
           ]
-        : [
-            `Finish ${cuso.businessName}'s marketing strategy: its calendar does not hold what the strategy promises.`,
-            ...gaps.map((gap) => `- ${gap}`),
-            `Add the missing pieces with save_strategy part patch, one week a call (only that week's new entries, new ids), until every week holds the pace's perWeek pieces and each channel its cadence, in the mix and pillar shares, and each video the funnel promises goes out where it says. Never lower the pace or a posting network's cadence to match: the plan the owner buys decides how much of the month is made. ${
-              rules.channelFit
-                ? "A short video is one entry on TikTok (format video), Instagram (format reel) or YouTube (format short) that lists the other two in alsoOn: it counts on all three networks, so seven such entries a day give TikTok, Reels and Shorts seven each. To make room, you may turn a short video entry already saved into a shared one (part patch, same id, add alsoOn) and skip its duplicates on the other two networks (status skipped). The month keeps at most four talking videos."
-                : `The month keeps at most ${CMO_MAX_VIDEOS_PER_MONTH} videos: for a video network or a play that promises video, first add the network to the alsoOn of talking videos already planned (part patch, same id); YouTube or TikTok may take a cadence that matches those videos, and a play may drop the video in its words (part plan).`
-            } Change nothing else already saved.`,
-          ]
+        : weekGaps.length > 0
+          ? [
+              `Finish ${cuso.businessName}'s marketing strategy: some weeks hold fewer pieces than its cadences say. Fill these weeks now; the next turn takes any others.`,
+              ...weekGaps.map(
+                (week) =>
+                  `- ${week.from} to ${week.to}: add ${week.missing.map((gap) => `${gap.count} on ${gap.channel}`).join(", ")}. Saved that week, so make each new piece say something else: ${week.titles.join(" · ") || "nothing yet"}.`,
+              ),
+              `These counts and titles are the whole of each week: you need nothing more from the calendar, and a new id never replaces a saved piece. Save each week with save_strategy part patch (only its new entries, new ids, dated inside the week), in the mix and pillar shares. Never lower the pace or a cadence, and do not ask the owner: the plan the owner buys decides how much of the month is made.${
+                rules.channelFit
+                  ? " A short video is one entry on TikTok (format video), Instagram (format reel) or YouTube (format short) that lists the other two in alsoOn: it counts on all three networks."
+                  : ""
+              } Change nothing already saved.`,
+            ]
+          : [
+              `Finish ${cuso.businessName}'s marketing strategy: its calendar does not hold what the strategy promises.`,
+              ...gaps.map((gap) => `- ${gap}`),
+              `Add the missing pieces with save_strategy part patch, one week a call (only that week's new entries, new ids), until every week holds the pace's perWeek pieces and each channel its cadence, in the mix and pillar shares, and each video the funnel promises goes out where it says. Never lower the pace or a posting network's cadence to match: the plan the owner buys decides how much of the month is made. ${
+                rules.channelFit
+                  ? "A short video is one entry on TikTok (format video), Instagram (format reel) or YouTube (format short) that lists the other two in alsoOn: it counts on all three networks, so seven such entries a day give TikTok, Reels and Shorts seven each. To make room, you may turn a short video entry already saved into a shared one (part patch, same id, add alsoOn) and skip its duplicates on the other two networks (status skipped). The month keeps at most four talking videos."
+                  : `The month keeps at most ${CMO_MAX_VIDEOS_PER_MONTH} videos: for a video network or a play that promises video, first add the network to the alsoOn of talking videos already planned (part patch, same id); YouTube or TikTok may take a cadence that matches those videos, and a play may drop the video in its words (part plan).`
+              } Change nothing else already saved.`,
+            ]
     )
       .concat([
         ...(rules.stageSpread
@@ -759,7 +832,11 @@ async function startCmoStrategy(
   // A new strategy over a draft starts from an empty month: NMKR's
   // "Write a new strategy" (2026-11-22) kept the draft's 296 pieces, and Cuso
   // only patched around them. The draft stays as the version before.
-  if (!change) await clearDraftCalendar(cuso);
+  if (!change) {
+    await clearDraftCalendar(cuso);
+    // cmo-v21: the plan rests on the buyer's industry, researched first.
+    await cmoIndustryBeforePlan(cuso);
+  }
   try {
     return await startStrategyTurn(
       cuso,
@@ -1030,7 +1107,6 @@ function ownerAnswers(brain: BrandBrain): string[] {
 
 /** Matches the calendar slice in the turn packet. A full plan with drafts does not fit. */
 export const CMO_VISIBLE_CALENDAR_DAYS = 31;
-const CMO_CALENDAR_LIMIT = CMO_CALENDAR_MAX_ENTRIES;
 
 export function calendarBounds(
   now: Date,
@@ -1065,12 +1141,8 @@ function withHiddenCalendar(
       (entry.date < from || entry.date > to) &&
       !covered.has(`${entry.date}\0${entry.channel}`),
   );
-  const room = CMO_CALENDAR_LIMIT - incoming.length;
-  if (room <= 0 || hidden.length === 0) return incoming;
-  const kept = hidden
-    .sort((left, right) => left.date.localeCompare(right.date))
-    .slice(-room);
-  return [...incoming, ...kept].sort((left, right) =>
+  if (hidden.length === 0) return incoming;
+  return [...incoming, ...hidden].sort((left, right) =>
     left.date === right.date
       ? left.id.localeCompare(right.id)
       : left.date.localeCompare(right.date),
@@ -1516,19 +1588,22 @@ export async function saveCmoStrategy(
   // A changed cadence reaches the funnel and the calendar, not the label alone.
   if (options.turnId && !options.executing)
     stored = cmoFollowCadenceChange(stored, before);
-  // A talking video shows a generated presenter: its script speaks for the
-  // brand, never as a customer of it.
+  // A talking video shows a generated presenter, and a short a generated
+  // voice: its script speaks for the brand, never as a customer of it.
   const testimonial = options.turnId
     ? (strategy.calendar ?? []).find(
         (entry) =>
-          isCmoTalkingFormat(entry.channel, entry.format) &&
+          (isCmoTalkingFormat(entry.channel, entry.format) ||
+            entry.shortFormat) &&
           entry.script &&
           posesAsCustomerTestimonial(entry.script),
       )
     : undefined;
   if (testimonial)
     throw unprocessableEntity(
-      `The talking video ${testimonial.id} speaks as a customer. ${TALKING_VIDEO_TESTIMONIAL_MESSAGE} Rewrite its script and save again.`,
+      testimonial.shortFormat
+        ? `The short video ${testimonial.id} speaks as a customer. Its voice is generated, so it speaks for the brand only. Rewrite its script in the brand's own voice and save again.`
+        : `The talking video ${testimonial.id} speaks as a customer. ${TALKING_VIDEO_TESTIMONIAL_MESSAGE} Rewrite its script and save again.`,
     );
   // A month is planned without scripts and production writes them; a change
   // in chat makes the piece now, so it needs its words.

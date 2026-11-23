@@ -6,6 +6,8 @@ import {
   CMO_PART_PATCH_STRATEGY_SKILL,
   CMO_PLAIN_WORDS_STRATEGY_SKILL,
   CMO_STAGE_SPREAD_STRATEGY_SKILL,
+  CMO_V20_STRATEGY_SKILL,
+  CMO_V21_STRATEGY_SKILL,
   type MarketingStrategyPlan,
 } from "@sokosumi/soko-bot";
 import {
@@ -27,6 +29,7 @@ import type { EmbedTexts } from "@/lib/embeddings";
 import { findRepeats } from "@/lib/repeats";
 import { bannedCopyProblems } from "@/lib/social-post-writing";
 import { evaluateWithJev } from "@/lib/soko-bot/jev";
+import { compactBrandBrain } from "@/services/brand-brain.service";
 
 /** What the evaluator said about the main offer; "skipped" when it was not asked. */
 export type CmoPlanOfferVerdict = "ok" | "drift" | "unavailable" | "skipped";
@@ -353,8 +356,12 @@ export interface PlanReviewOptions {
   channelFit?: boolean;
   /** What the owner reads is in plain words, no marketing jargon (cmo-v15's strategy skill). */
   plainWords?: boolean;
-  /** Every calendar entry names its funnel step, every network spread across them (cmo-v18's strategy skill). */
+  /** Every calendar entry names its funnel step, every network spread across them (the stage-spread strategy skill). */
   stageSpread?: boolean;
+  /** Every pillar rests on at least three Brand Brain facts (cmo-v20's strategy skill). */
+  pillarFacts?: boolean;
+  /** Pillars are industry topics resting on the industry research, never product steps (cmo-v21's strategy skill). */
+  industryTopics?: boolean;
   /** The social networks the Project has connected, which are never left out. */
   connectedNetworks?: readonly string[];
 }
@@ -367,8 +374,13 @@ export const EVERY_NETWORK_STRATEGY_SKILL = "cmo-strategy-every-network";
 
 /** What the strategy review asks of a Cuso, from the strategy skill his version reads. */
 export function cmoStrategyRules(skills: readonly string[]): PlanReviewOptions {
-  // cmo-v18's strategy skill is cmo-v15's with every step on every network.
-  const stageSpread = skills.includes(CMO_STAGE_SPREAD_STRATEGY_SKILL);
+  // cmo-v21's strategy skill is cmo-v20's with pillars as industry topics.
+  const industryTopics = skills.includes(CMO_V21_STRATEGY_SKILL);
+  // cmo-v20's strategy skill adds pillars built on facts to the stage spread.
+  const pillarFacts = industryTopics || skills.includes(CMO_V20_STRATEGY_SKILL);
+  // The stage-spread skill is cmo-v15's with every step on every network.
+  const stageSpread =
+    pillarFacts || skills.includes(CMO_STAGE_SPREAD_STRATEGY_SKILL);
   // cmo-v15's strategy skill is cmo-v14's in plain words.
   const plainWords =
     stageSpread || skills.includes(CMO_PLAIN_WORDS_STRATEGY_SKILL);
@@ -390,6 +402,8 @@ export function cmoStrategyRules(skills: readonly string[]): PlanReviewOptions {
     channelFit,
     plainWords,
     stageSpread,
+    pillarFacts,
+    industryTopics,
   };
 }
 
@@ -1171,7 +1185,7 @@ function brandWords(strategy: MarketingStrategyPlan): string[] {
  * cmo-v14's funnel reads as what happens for the business: each stage's goal
  * names the brand or its product and says it plainly. Networks are not
  * placed at stages (owner, 2026-11-23: "every network carries every step");
- * on cmo-v18 each calendar entry names its step instead, and every network
+ * on cmo-v20 each calendar entry names its step instead, and every network
  * spreads across them.
  */
 export function funnelStageProblems(
@@ -1204,7 +1218,7 @@ export function funnelStageProblems(
 const SPREAD_FROM = 8;
 
 /**
- * cmo-v18: every calendar entry names the funnel step it serves, every
+ * cmo-v20: every calendar entry names the funnel step it serves, every
  * step gets pieces, and no network with a few pieces serves one step only.
  */
 function stageSpreadProblems(
@@ -1507,8 +1521,9 @@ const LANGUAGE_TITLES_READ = 20;
 /**
  * Whether new calendar titles are in the language the posts are written in:
  * Jev reads a sample of them. A strategy written for an owner who writes
- * German once put German titles over English posts. A failed check is no
- * finding.
+ * German once put German titles over English posts, and a local NMKR test
+ * (2026-11-23) German pillar names ("Echte Projekte") over an English
+ * month. A failed check is no finding.
  */
 export async function cmoCalendarLanguage(
   strategy: MarketingStrategyPlan,
@@ -1521,13 +1536,14 @@ export async function cmoCalendarLanguage(
     .slice(0, LANGUAGE_TITLES_READ)
     .map((entry) => entry.title);
   if (!language || titles.length === 0) return { problems: [], costUsd: 0 };
+  const pillars = strategy.pillars.map((pillar) => pillar.name);
   try {
     const { answers, costUsd } = await evaluateWithJev({
-      state: { contentLanguage: language, titles },
+      state: { contentLanguage: language, titles, pillars },
       questions: {
         inContentLanguage: {
           type: "boolean" as const,
-          instructions: `Are these titles written in ${language}? Names of brands, products and places, and a trade word borrowed from another language, do not count against it.`,
+          instructions: `Are these titles and pillar names written in ${language}? Names of brands, products and places, and a trade word borrowed from another language, do not count against it.`,
         },
       },
       timeoutMs: 15_000,
@@ -1537,7 +1553,7 @@ export async function cmoCalendarLanguage(
       problems:
         answer?.type === "boolean" && answer.probability < 0.3
           ? [
-              `the calendar's titles are not in ${language}, the contentLanguage its posts are written in; rewrite each new entry's title, brief and story in ${language}.`,
+              `the calendar's titles are not in ${language}, the contentLanguage its posts are written in; rewrite each new entry's title, brief and story, and the pillar names, in ${language}.`,
             ]
           : [],
       costUsd,
@@ -2654,4 +2670,203 @@ export function cmoPlainWordsProblems(
           `${where} says "${term}" ("${text.slice(0, 80)}"); the owner is not a marketer: say ${plain}, naming the business, the buyer and what they do.`,
         );
   return [...found.values()].slice(0, MAX_JARGON_PROBLEMS);
+}
+
+/** Facts a pillar rests on at least. */
+export const CMO_PILLAR_MIN_FACTS = 3;
+/** How far a pillar's share may run past its share of the facts. */
+const PILLAR_SHARE_SLACK = 2;
+
+const pillarFactsSchema = z.object({
+  facts: z.array(z.object({ id: z.string(), fact: z.string() })),
+  pillars: z.array(
+    z.object({
+      id: z.string(),
+      factIds: z.array(z.string()),
+      reassurance: z.boolean(),
+    }),
+  ),
+});
+
+/** A pillar and the distinct Brand Brain facts its posts can rest on. */
+export interface CmoPillarFacts {
+  name: string;
+  share: number;
+  facts: string[];
+  /** The pillar is a trust or reassurance line, not something the buyer gets. */
+  reassurance?: boolean;
+  /** The pillar is a step of using the product, not a topic of the buyer's world (cmo-v21). */
+  productStep?: boolean;
+}
+
+/**
+ * The pillars against the Brand Brain's distinct facts (cmo-v20): one with
+ * fewer than three, or a share well past its share of the facts, is named
+ * to be merged or reframed. entry.fyi's cmo-v15 plan gave "Owner control"
+ * 25% on one line the site repeats six times.
+ */
+export function cmoPillarFactProblems(
+  pillars: readonly CmoPillarFacts[],
+  /** Where the facts come from: the Brand Brain, or the industry research (cmo-v21). */
+  source: "brand" | "industry" = "brand",
+): string[] {
+  const all = new Set(pillars.flatMap((pillar) => pillar.facts));
+  const steps = pillars.filter((pillar) => pillar.productStep);
+  const stepProblems = steps.map(
+    (pillar) =>
+      `the pillar "${pillar.name}" is a step of using the product, not a topic the buyers care about in their own work: reframe it around the buyers' own world from industryResearch (running their work well, what is changing, common mistakes, the market), and move its calendar entries there. The product comes in inside the topics, where it helps.`,
+  );
+  if (all.size === 0) return stepProblems;
+  const from =
+    source === "industry" ? "the industry research" : "the Brand Brain";
+  const checked = (pillar: CmoPillarFacts) =>
+    !pillar.reassurance && !pillar.productStep;
+  const trust = pillars.filter((pillar) => pillar.reassurance);
+  const thin = pillars.filter(
+    (pillar) => checked(pillar) && pillar.facts.length < CMO_PILLAR_MIN_FACTS,
+  );
+  const wide = pillars.filter(
+    (pillar) =>
+      checked(pillar) &&
+      pillar.facts.length >= CMO_PILLAR_MIN_FACTS &&
+      pillar.share >
+        Math.ceil((PILLAR_SHARE_SLACK * 100 * pillar.facts.length) / all.size),
+  );
+  return [
+    ...stepProblems,
+    ...trust.map(
+      (pillar) =>
+        `the pillar "${pillar.name}" is a reassurance line, not something the buyer gets or does: a few posts may carry it as a supporting line, but it is never a pillar. Give its share to a pillar about a job the buyer gets done, an audience or a feature that solves something, and move its calendar entries there.`,
+    ),
+    ...thin.map(
+      (pillar) =>
+        `the pillar "${pillar.name}" rests on ${pillar.facts.length === 0 ? "no fact" : pillar.facts.length === 1 ? "one fact" : `${pillar.facts.length} facts`} from ${from}${pillar.facts.length > 0 ? ` (${pillar.facts.map((fact) => `"${fact}"`).join(", ")})` : ""}; a pillar needs at least ${CMO_PILLAR_MIN_FACTS}. Merge it into another pillar or reframe it around what the buyer gets or does, never a reassurance line, and move its calendar entries to the pillar they now belong to.`,
+    ),
+    ...wide.map(
+      (pillar) =>
+        `the pillar "${pillar.name}" holds ${pillar.share}% of the month on ${pillar.facts.length} of ${from}'s ${all.size} facts; give it at most ${Math.ceil((PILLAR_SHARE_SLACK * 100 * pillar.facts.length) / all.size)}% and the rest to pillars with more to say, moving their calendar entries too.`,
+    ),
+  ];
+}
+
+/**
+ * The model's count of each pillar's distinct facts: the Brand Brain's
+ * facts listed once each (one thing the site says in several places is one
+ * fact), then the ones each pillar's posts could rest on.
+ */
+export async function cmoPillarFacts(
+  strategy: Pick<MarketingStrategyPlan, "pillars" | "offer">,
+  brain: BrandBrain,
+  ask: AskCompetitorModel = askCompetitorModel,
+  /** Facts from the whole site's page notes, when they are read. */
+  siteFacts: readonly string[] = [],
+): Promise<{ pillars: CmoPillarFacts[]; costUsd: number }> {
+  if (strategy.pillars.length === 0) return { pillars: [], costUsd: 0 };
+  const answer = await ask({
+    system: [
+      "You check a marketing plan's content pillars against what the business can actually say.",
+      'First list the distinct facts in the Brand Brain a post could rest on: what the product does, a feature by its name, a price or plan, a number, a customer, a dated event, the founder\'s story, an audience it serves. List each once: one thing said in several places, or in other words, is one fact. A reassurance or trust line ("you approve what goes live", "no credit card needed") counts once at most. At most 40 facts, each at most 15 words.',
+      'Then for each pillar, by its id (p1, p2, …), give the ids of the facts its posts could rest on: only facts about that pillar\'s own topic, not facts that could be squeezed in. And say whether the pillar is a reassurance: a trust line about safety, control, privacy, approval or risk ("you approve what goes live", "your data stays yours") rather than a job the buyer gets done, an audience or a feature that solves a problem for them.',
+    ].join("\n"),
+    prompt: [
+      "Brand Brain:",
+      JSON.stringify(compactBrandBrain(brain)),
+      "Offer:",
+      JSON.stringify(strategy.offer ?? null),
+      ...(siteFacts.length > 0
+        ? [
+            "Facts from the site's pages:",
+            ...siteFacts.map((fact) => `- ${fact}`),
+          ]
+        : []),
+      "Pillars:",
+      ...strategy.pillars.map(
+        (pillar, index) =>
+          `- p${index + 1}: ${pillar.name}: ${pillar.why ?? ""}`,
+      ),
+    ].join("\n"),
+    schema: pillarFactsSchema,
+  });
+  const known = new Map(
+    answer.output.facts.map((fact) => [fact.id, fact.fact]),
+  );
+  return {
+    pillars: strategy.pillars.map((pillar, index) => {
+      const named = answer.output.pillars.find(
+        (one) => one.id === `p${index + 1}`,
+      );
+      return {
+        name: pillar.name,
+        share: pillar.share,
+        ...(named?.reassurance ? { reassurance: true } : {}),
+        facts: [
+          ...new Set(
+            (named?.factIds ?? []).flatMap((id) => known.get(id) ?? []),
+          ),
+        ],
+      };
+    }),
+    costUsd: answer.costUsd,
+  };
+}
+
+const topicFactsSchema = z.object({
+  pillars: z.array(
+    z.object({
+      id: z.string(),
+      itemIds: z.array(z.string()),
+      productStep: z.boolean(),
+    }),
+  ),
+});
+
+/**
+ * cmo-v21: each pillar against the industry research's items, and whether
+ * it is a step of using the product. NMKR's cmo-v20 pillars were NMKR
+ * Studio's workflow steps ("Prepare Token Assets", "Choose Minting Setup").
+ */
+export async function cmoTopicPillarFacts(
+  strategy: Pick<MarketingStrategyPlan, "pillars" | "offer">,
+  items: readonly { id: string; point: string }[],
+  ask: AskCompetitorModel = askCompetitorModel,
+): Promise<{ pillars: CmoPillarFacts[]; costUsd: number }> {
+  if (strategy.pillars.length === 0) return { pillars: [], costUsd: 0 };
+  const answer = await ask({
+    system: [
+      "You check a marketing plan's content pillars against research into the buyers' industry.",
+      "For each pillar, by its id (p1, p2, …), give the ids of the research items (i1, i2, …) its posts could rest on: only items about that pillar's own topic, not items that could be squeezed in.",
+      'And say whether the pillar is a product step: a step of using the business\'s own product, one of its features or screens ("Prepare token assets", "Choose a minting setup", "Set up your dashboard"), rather than a topic in the buyers\' own world (running their work well, what is changing in their field, common mistakes, the market).',
+    ].join("\n"),
+    prompt: [
+      "The business's offer:",
+      JSON.stringify(strategy.offer ?? null),
+      "Industry research:",
+      ...items.map((item) => `- ${item.id}: ${item.point}`),
+      "Pillars:",
+      ...strategy.pillars.map(
+        (pillar, index) =>
+          `- p${index + 1}: ${pillar.name}: ${pillar.why ?? ""}`,
+      ),
+    ].join("\n"),
+    schema: topicFactsSchema,
+  });
+  const known = new Map(items.map((item) => [item.id, item.point]));
+  return {
+    pillars: strategy.pillars.map((pillar, index) => {
+      const named = answer.output.pillars.find(
+        (one) => one.id === `p${index + 1}`,
+      );
+      return {
+        name: pillar.name,
+        share: pillar.share,
+        ...(named?.productStep ? { productStep: true } : {}),
+        facts: [
+          ...new Set(
+            (named?.itemIds ?? []).flatMap((id) => known.get(id.trim()) ?? []),
+          ),
+        ],
+      };
+    }),
+    costUsd: answer.costUsd,
+  };
 }

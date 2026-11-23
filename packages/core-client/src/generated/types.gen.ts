@@ -7547,6 +7547,11 @@ export type TeamStandup = {
     timezone: string;
     nextRunAt: string | null;
     lastRunAt: string | null;
+    /**
+     * The weekday (1 Monday … 7 Sunday) of the weekly week in review, posted at `timeOfDay`.
+     */
+    weekInReviewWeekday: number;
+    weekInReviewNextRunAt: string | null;
 };
 
 export type UpdateTeamStandup = {
@@ -7560,6 +7565,10 @@ export type UpdateTeamStandup = {
      */
     weekdays?: Array<number>;
     timezone?: string;
+    /**
+     * Week in review weekday, 1 Monday … 7 Sunday.
+     */
+    weekInReviewWeekday?: number;
 };
 
 export type OrganizationLogoCleanupResult = {
@@ -9227,6 +9236,8 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             script?: string;
             presenter?: string;
             voice?: string;
+            shortFormat?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+            hookLine?: string;
             languageCode?: string;
             alsoOn?: Array<string>;
             videoOf?: string;
@@ -9292,6 +9303,8 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 script?: string;
                 presenter?: string;
                 voice?: string;
+                shortFormat?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+                hookLine?: string;
                 languageCode?: string;
                 alsoOn?: Array<string>;
                 videoOf?: string;
@@ -9562,6 +9575,8 @@ export type MarketingStrategyRequest = {
             script?: string;
             presenter?: string;
             voice?: string;
+            shortFormat?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+            hookLine?: string;
             languageCode?: string;
             alsoOn?: Array<string>;
             videoOf?: string;
@@ -9627,6 +9642,8 @@ export type MarketingStrategyRequest = {
                 script?: string;
                 presenter?: string;
                 voice?: string;
+                shortFormat?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+                hookLine?: string;
                 languageCode?: string;
                 alsoOn?: Array<string>;
                 videoOf?: string;
@@ -11365,6 +11382,8 @@ export type SocialPost = {
         script?: string;
         presenter?: string;
         voice?: string;
+        shortFormat?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+        hookLine?: string;
         languageCode?: string;
         alsoOn?: Array<string>;
         videoOf?: string;
@@ -15081,6 +15100,8 @@ export type CmoPlan = {
         script?: string;
         presenter?: string;
         voice?: string;
+        shortFormat?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+        hookLine?: string;
         languageCode?: string;
         alsoOn?: Array<string>;
         videoOf?: string;
@@ -15146,6 +15167,8 @@ export type CmoPlan = {
             script?: string;
             presenter?: string;
             voice?: string;
+            shortFormat?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+            hookLine?: string;
             languageCode?: string;
             alsoOn?: Array<string>;
             videoOf?: string;

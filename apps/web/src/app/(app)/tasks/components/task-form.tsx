@@ -11,6 +11,8 @@ import {
   Lock,
   Paperclip,
 } from "lucide-react";
+import { useRef, useState } from "react";
+import { TableAttachDialog } from "@/app/drive/tables/table-attach-dialog";
 import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
 import { isOtherHumanAssignee } from "@/app/tasks/utils/coworker-options";
 import { VendorMark } from "@/components/agents/vendor-mark";
@@ -82,6 +84,8 @@ function TaskFormContent({
 }) {
   const model = useTaskFormModel(props, session);
   const handleSave = useTaskFormSubmission(model);
+  const [isTablePickerOpen, setIsTablePickerOpen] = useState(false);
+  const attachButtonRef = useRef<HTMLButtonElement>(null);
   const {
     mode,
     taskId,
@@ -354,13 +358,12 @@ function TaskFormContent({
                 />
               ) : null}
 
-              <div
-                className={cn(
-                  useModalFieldFill && "flex min-h-0 flex-1 flex-col",
-                )}
-              >
+              {/* Never shorter than the editor's own minimum: on a phone the
+              column ran out of room, squeezed this box and drew the attachment
+              chips over the brief. */}
+              <div className={cn(useModalFieldFill && "flex flex-1 flex-col")}>
                 <FileUpload
-                  className={cn(useModalFieldFill && "min-h-0 flex-1")}
+                  className={cn(useModalFieldFill && "min-h-32 flex-1")}
                   value={pendingUploadFiles}
                   onValueChange={setPendingUploadFiles}
                   onAccept={(files) => {
@@ -612,6 +615,7 @@ function TaskFormContent({
                 onDriveClick={() =>
                   markdownEditorRef.current?.openDrivePicker()
                 }
+                onTableClick={() => setIsTablePickerOpen(true)}
                 disabled={
                   createdTask !== null ||
                   isSubmittingAny ||
@@ -619,6 +623,7 @@ function TaskFormContent({
                 }
               >
                 <button
+                  ref={attachButtonRef}
                   type="button"
                   aria-label={labels.uploadFile}
                   disabled={
@@ -638,6 +643,13 @@ function TaskFormContent({
                   )}
                 </button>
               </AttachmentSubmenu>
+              {isTablePickerOpen && (
+                <TableAttachDialog
+                  onClose={() => setIsTablePickerOpen(false)}
+                  onPick={(file) => void handleAttachFiles([file])}
+                  returnFocusRef={attachButtonRef}
+                />
+              )}
               <TaskStatusPicker
                 value={status}
                 options={statusOptions}

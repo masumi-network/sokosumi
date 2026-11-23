@@ -1,6 +1,7 @@
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { nextStandupAt } from "@/services/team-standup.service";
+import { nextWeekInReviewAt } from "@/services/team-standup-week.service";
 
 const DEFAULTS = {
   enabled: false,
@@ -10,6 +11,8 @@ const DEFAULTS = {
   timezone: "Europe/Berlin",
   nextRunAt: null,
   lastRunAt: null,
+  weekInReviewWeekday: 1,
+  weekInReviewNextRunAt: null,
 };
 
 function toDto(standup: {
@@ -20,6 +23,8 @@ function toDto(standup: {
   timezone: string;
   nextRunAt: Date | null;
   lastRunAt: Date | null;
+  weekInReviewWeekday: number;
+  weekInReviewNextRunAt: Date | null;
 }) {
   return {
     enabled: standup.enabled,
@@ -29,6 +34,8 @@ function toDto(standup: {
     timezone: standup.timezone,
     nextRunAt: standup.nextRunAt?.toISOString() ?? null,
     lastRunAt: standup.lastRunAt?.toISOString() ?? null,
+    weekInReviewWeekday: standup.weekInReviewWeekday,
+    weekInReviewNextRunAt: standup.weekInReviewNextRunAt?.toISOString() ?? null,
   };
 }
 
@@ -47,6 +54,7 @@ export async function updateTeamStandup(
     timeOfDay?: string;
     weekdays?: number[];
     timezone?: string;
+    weekInReviewWeekday?: number;
   },
 ) {
   if (input.timezone) {
@@ -66,14 +74,20 @@ export async function updateTeamStandup(
       ...new Set(input.weekdays ?? current?.weekdays ?? DEFAULTS.weekdays),
     ].sort(),
     timezone: input.timezone ?? current?.timezone ?? DEFAULTS.timezone,
+    weekInReviewWeekday:
+      input.weekInReviewWeekday ??
+      current?.weekInReviewWeekday ??
+      DEFAULTS.weekInReviewWeekday,
   };
-  const nextRunAt = next.enabled
-    ? nextStandupAt(next, await databaseNow())
+  const now = await databaseNow();
+  const nextRunAt = next.enabled ? nextStandupAt(next, now) : null;
+  const weekInReviewNextRunAt = next.enabled
+    ? nextWeekInReviewAt(next, now)
     : null;
   const standup = await prisma.teamStandup.upsert({
     where: { organizationId },
-    create: { organizationId, ...next, nextRunAt },
-    update: { ...next, nextRunAt },
+    create: { organizationId, ...next, nextRunAt, weekInReviewNextRunAt },
+    update: { ...next, nextRunAt, weekInReviewNextRunAt },
   });
   return toDto(standup);
 }

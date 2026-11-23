@@ -150,6 +150,7 @@ async function AccountPageContent() {
           userImage={session?.user.image}
           userLogo={session?.user.logo}
           userMetadata={session?.user.metadata}
+          includeWeekInStandup={session?.user.hideWeekFromStandup !== true}
           hasPersonalWorkspace={workspaceAccess?.hasPersonalWorkspace ?? false}
           hasOrganizationMembership={
             workspaceAccess?.hasOrganizationMembership ?? members.length > 0

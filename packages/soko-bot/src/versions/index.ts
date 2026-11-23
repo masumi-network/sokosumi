@@ -29,6 +29,9 @@ import { cmoV12 } from "./cmo-v12.js";
 import { cmoV13 } from "./cmo-v13.js";
 import { cmoV14 } from "./cmo-v14.js";
 import { cmoV15 } from "./cmo-v15.js";
+import { cmoV20 } from "./cmo-v20.js";
+import { cmoTurnSkills } from "./cmo-v20-skills.js";
+import { cmoV21 } from "./cmo-v21.js";
 import {
   getSokoBotSkill,
   SOKO_BOT_SKILLS,
@@ -134,10 +137,12 @@ export const SOKO_BOT_PRODUCT_VERSIONS: readonly SokoBotVersion[] = [
   cmoV13,
   cmoV14,
   cmoV15,
+  cmoV20,
+  cmoV21,
   ...CMO_MODEL_TRIALS,
 ];
 /** The Cuso version a new hire starts on. */
-export const CMO_SOKO_BOT_VERSION_ID = cmoV15.id;
+export const CMO_SOKO_BOT_VERSION_ID = cmoV20.id;
 /**
  * Every Cuso version. A Cuso stays on the version he was hired on until he is
  * moved, so finding one means any of these, never only the newest.
@@ -223,6 +228,7 @@ export function sokoBotIdentity(
 export function composeSystemPrompt(
   version: SokoBotVersion,
   persona?: SokoBotPersona,
+  turn?: { clientTurnId: string | null },
 ): string {
   return [
     ...(persona
@@ -233,7 +239,9 @@ export function composeSystemPrompt(
         ]
       : []),
     version.systemPrompt.trim(),
-    ...version.skills.map((id) => getSokoBotSkill(id).content.trim()),
+    ...cmoTurnSkills(version.skills, turn?.clientTurnId).map((id) =>
+      getSokoBotSkill(id).content.trim(),
+    ),
     ...(persona?.shared ? [SHARED_SOKO_BOT_GUIDANCE] : []),
   ].join("\n\n");
 }

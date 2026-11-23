@@ -210,6 +210,8 @@ const SHOWN_SECTION_KINDS = new Set<SiteSectionKind>([
 export interface CmoBrandPicture {
   fileId: string;
   alt: string;
+  /** A screenshot of a whole page, a crop of one of its sections, or a photo. */
+  kind?: "page" | "section" | "photo";
   /** A page screenshot's phone shot, for a tall (9:16) picture or video. */
   phoneFileId?: string;
   /**
@@ -252,6 +254,7 @@ export async function listCmoBrandPictures(
               {
                 fileId: phone.fileId,
                 alt: `${label} on a phone page screenshot`,
+                kind: "page",
               },
             ]
           : [];
@@ -260,6 +263,7 @@ export async function listCmoBrandPictures(
         {
           fileId: desktop.fileId,
           alt: `${label} page screenshot`,
+          kind: "page",
           ...(phone ? { phoneFileId: phone.fileId } : {}),
           wideFileIds: [
             desktop.fileId,
@@ -286,6 +290,7 @@ export async function listCmoBrandPictures(
     .map(({ file, page, kind, words }) => ({
       fileId: file.fileId,
       alt: `${SECTION_LABELS[kind]}, ${PAGE_LABELS[page] ?? page} page${words ? `: ${words}` : ""}`,
+      kind: "section" as const,
     }));
   const site = await readCmoResearchJson(
     projectId,
@@ -298,6 +303,7 @@ export async function listCmoBrandPictures(
     ...latestPictures(files).map((file) => ({
       fileId: file.fileId,
       alt: pictureAlt(file.name),
+      kind: "photo" as const,
     })),
     ...(site?.data.pages ?? []).flatMap((page): CmoBrandPicture[] =>
       page.desktopFileId
@@ -306,6 +312,7 @@ export async function listCmoBrandPictures(
               fileId: page.desktopFileId,
               alt: `${page.title || page.url} page screenshot`,
               ...(page.phoneFileId ? { phoneFileId: page.phoneFileId } : {}),
+              kind: "page",
               wideFileIds: [page.desktopFileId],
               fromSite: true,
             },
@@ -315,6 +322,7 @@ export async function listCmoBrandPictures(
               {
                 fileId: page.phoneFileId,
                 alt: `${page.title || page.url} on a phone page screenshot`,
+                kind: "page",
                 fromSite: true,
               },
             ]

@@ -77,7 +77,7 @@ export function nextStandupAt(
   });
 }
 
-async function workspaceOf(organizationId: string) {
+export async function workspaceOf(organizationId: string) {
   return prisma.workspace.findFirst({
     where: { organizationId },
     select: { id: true },
@@ -338,7 +338,7 @@ export async function hostStandup(input: {
   return { summary: output.summary, matches, costUsd };
 }
 
-async function ensureStandupRoom(standup: {
+export async function ensureStandupRoom(standup: {
   id: string;
   organizationId: string;
   roomId: string | null;
@@ -488,6 +488,7 @@ export async function runTeamStandup(input: {
     const previous = await prisma.teamStandupRun.findFirst({
       where: {
         standupId: standup.id,
+        kind: "DAILY",
         id: { not: runId },
         status: { in: ["POSTED", "QUIET"] },
       },
@@ -622,7 +623,7 @@ export async function runTeamStandup(input: {
 }
 
 /** Platform switch: admins pause every stand-up at once (Soko Bot settings). */
-async function standupsPaused(): Promise<boolean> {
+export async function standupsPaused(): Promise<boolean> {
   const setting = await prisma.sokoBotSetting.findUnique({
     where: { id: "singleton" },
     select: { disabledAt: true, standupPausedAt: true },

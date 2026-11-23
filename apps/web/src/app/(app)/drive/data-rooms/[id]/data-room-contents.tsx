@@ -1,6 +1,7 @@
 "use client";
 
 import type { DataRoomTreeRow } from "@sokosumi/core-client";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, File, Folder } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -13,6 +14,7 @@ import {
   saveDataRoomOrder,
 } from "@/lib/utils/data-room.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
+import { invalidateDrive } from "@/queries/drive";
 
 function parentOf(path: string): string {
   return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
@@ -72,14 +74,13 @@ export function DataRoomContents({
   store,
   roomId,
   rows,
-  onChanged,
 }: {
   store: FileStore;
   roomId: string;
   rows: DataRoomTreeRow[];
-  onChanged: () => void;
 }) {
   const t = useTranslations("App.Drive.DataRoom.Contents");
+  const queryClient = useQueryClient();
   const [order, setOrder] = useState(rows);
   const [busy, setBusy] = useState(false);
   const changed = order.some((row, index) => row.path !== rows[index]?.path);
@@ -151,8 +152,8 @@ export function DataRoomContents({
               roomId,
               entries: orderEntries(order),
             });
+            void invalidateDrive(queryClient, store);
             toast.success(t("saved"));
-            onChanged();
           } catch (error) {
             toast.error(dataRoomRefusal(error) ?? t("saveFailed"));
           } finally {

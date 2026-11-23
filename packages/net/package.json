@@ -34,7 +34,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "request-filtering-agent": "3.3.0"
+    "request-filtering-agent": "3.3.1"
   },
   "devDependencies": {
     "@types/node": "26.6.6",

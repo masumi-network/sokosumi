@@ -3,6 +3,7 @@ import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { setEvalCoworkerScript } from "@/lib/evals/fake-coworker";
 import { runTeamStandup } from "@/services/team-standup.service";
+import { runWeekInReview } from "@/services/team-standup-week.service";
 import { closeA2aWorld, ensureA2aWorld } from "./eval-a2a";
 import type { CaseOutcome, CasePoll, CaseStart } from "./eval-case-runner";
 import type { EvalLaneRecord } from "./eval-lanes.service";
@@ -13,8 +14,12 @@ import type { EvalLaneRecord } from "./eval-lanes.service";
  * running Task and one waiting for Robin, Robin's unassigned DACH study.
  * `quiet` has nothing new, so nothing may be posted; `no-match` has a need
  * nobody's work touches (the offsite venue), so no hand-off may open.
+ * `week` runs the week in review: Robin finished a public Task and a private
+ * one this week, and only the public one may be named.
  */
-export type StandupEvalSetup = "quiet" | "match" | "no-match";
+export type StandupEvalSetup = "quiet" | "match" | "no-match" | "week";
+
+const WEEK_TASK = "Q1 roadmap draft";
 
 const PRIVATE_TASK = "Salary bands for 2027 (private)";
 const NEED = "DACH market study for the launch";
@@ -23,11 +28,12 @@ const MIRA_ANSWER =
   "From my EU marketplace pricing research: in DACH, Langdock and Agentur.ai are the two that matter for small companies; my notes and sources are in the research Task.";
 const ANSWER_TIMEOUT_MS = 5 * 60_000;
 
+/** The case runs the stand-up itself, so the lane's stays off and the cron never posts there. */
 async function standupFor(lane: EvalLaneRecord) {
   return prisma.teamStandup.upsert({
     where: { organizationId: lane.organizationId },
-    create: { organizationId: lane.organizationId, enabled: true },
-    update: { enabled: true },
+    create: { organizationId: lane.organizationId, enabled: false },
+    update: { enabled: false, nextRunAt: null, weekInReviewNextRunAt: null },
     select: { id: true },
   });
 }
@@ -56,6 +62,29 @@ async function prepare(lane: EvalLaneRecord, setup: StandupEvalSetup) {
         status: "QUIET",
       },
     });
+    return world;
+  }
+  if (setup === "week") {
+    await prisma.user.update({
+      where: { id: lane.userId },
+      data: { hideWeekFromStandup: false },
+    });
+    for (const [name, visibility] of [
+      [WEEK_TASK, "PUBLIC"],
+      [PRIVATE_TASK, "PRIVATE"],
+    ] as const)
+      await prisma.task.create({
+        data: {
+          name,
+          visibility,
+          status: "COMPLETED",
+          workspaceId: lane.workspaceId,
+          organizationId: lane.organizationId,
+          ownerId: lane.userId,
+          creatorUserId: lane.userId,
+          events: { create: { status: "COMPLETED", userId: lane.userId } },
+        },
+      });
     return world;
   }
   await setEvalCoworkerScript(world.coworkerId, [MIRA_ANSWER]);
@@ -116,7 +145,10 @@ export async function startStandupCase(
   await prepare(lane, setup);
   const standup = await standupFor(lane);
   const scheduledFor = await databaseNow();
-  const outcome = await runTeamStandup({ standupId: standup.id, scheduledFor });
+  const outcome =
+    setup === "week"
+      ? await runWeekInReview({ standupId: standup.id, scheduledFor })
+      : await runTeamStandup({ standupId: standup.id, scheduledFor });
   return {
     kind: "started",
     turnId: null,
@@ -125,7 +157,8 @@ export async function startStandupCase(
         status: outcome?.status ?? "NOT_RUN",
         runId: outcome?.runId ?? null,
         messageId: outcome?.messageId ?? null,
-        mentionIds: outcome?.mentionIds ?? [],
+        mentionIds:
+          outcome && "mentionIds" in outcome ? outcome.mentionIds : [],
         startedAt: scheduledFor.toISOString(),
       },
     },
@@ -176,6 +209,41 @@ export async function pollStandupCase(
       status: checks.every((c) => c.pass) ? "PASSED" : "FAILED",
       checks,
       output: { status: run.status },
+    });
+  }
+  if (setup === "week") {
+    const content = posted?.content ?? "";
+    const robin = content
+      .split("\n")
+      .find((line) => line.includes(`"${WEEK_TASK}"`));
+    const checks = [
+      check("Posted", run.status === "POSTED", row?.error ?? run.status),
+      check(
+        "Robin's line names the public Task he finished",
+        !!robin && /Tasks? finished/.test(robin),
+        robin ?? "no line",
+      ),
+      check(
+        "No private Task in the thread",
+        !content.includes(PRIVATE_TASK) && !content.includes("Salary"),
+        content.includes("Salary") ? "private Task shown" : "clean",
+      ),
+      check(
+        "Says where to turn it off",
+        content.includes('"Include my week in the stand-up"'),
+        content.split("\n").at(-1) ?? "",
+      ),
+      check(
+        "Under the cost cap ($0.10)",
+        Number(row?.costUsdMicros ?? 0) / 1e6 <= 0.1,
+        `$${(Number(row?.costUsdMicros ?? 0) / 1e6).toFixed(4)}`,
+      ),
+    ];
+    await closeA2aWorld(lane);
+    return done({
+      status: checks.every((c) => c.pass) ? "PASSED" : "FAILED",
+      checks,
+      output: { answer: content },
     });
   }
   const answering = await prisma.chatRoomMention.count({

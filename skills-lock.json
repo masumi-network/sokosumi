@@ -5,7 +5,8 @@
       "source": "vercel-labs/agent-browser",
       "sourceType": "github",
       "skillPath": "skills/agent-browser/SKILL.md",
-      "computedHash": "a0dfac7503f69bcf529b2660fc79964064c4f179eb65695904ddc45fc0d99d20"
+      "computedHash": "a0dfac7503f69bcf529b2660fc79964064c4f179eb65695904ddc45fc0d99d20",
+      "commit": "d2dfc782ccdd79d25a9b4f0acced9321789cecb8"
     },
     "ai-sdk": {
       "source": "vercel/ai",
@@ -38,7 +39,8 @@
       "source": "ably/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/debugging-with-ably-cli/SKILL.md",
-      "computedHash": "a35261d79f8fd765a32f628dda3c5dcee762390d78f68e4de044fc9fdaeb5ea5"
+      "computedHash": "a35261d79f8fd765a32f628dda3c5dcee762390d78f68e4de044fc9fdaeb5ea5",
+      "commit": "24671cd3a0b888fb4acac30196ed4a80397eb416"
     },
     "diagnosing-bugs": {
       "source": "mattpocock/skills",
@@ -112,25 +114,29 @@
       "source": "polarsource/agent-toolkit",
       "sourceType": "github",
       "skillPath": "skills/polar-integration/SKILL.md",
-      "computedHash": "2e038ec388bb1d2587df197359211dba9ae353eb03f77c601a4601aa21dd0035"
+      "computedHash": "09954df259317e7da6f80b81eaf19bb578437daf7e1331d34d0515eac80725d6",
+      "commit": "ad0cf34251974cc222723762eacc7b67b446ebb0"
     },
     "polar-migration": {
       "source": "polarsource/agent-toolkit",
       "sourceType": "github",
       "skillPath": "skills/polar-migration/SKILL.md",
-      "computedHash": "6988ab3995ab21ff430d317ef10eca2ed54a81df4f3c663c9a1ed9040bf50d30"
+      "computedHash": "6988ab3995ab21ff430d317ef10eca2ed54a81df4f3c663c9a1ed9040bf50d30",
+      "commit": "ad0cf34251974cc222723762eacc7b67b446ebb0"
     },
     "polar-testing": {
       "source": "polarsource/agent-toolkit",
       "sourceType": "github",
       "skillPath": "skills/polar-testing/SKILL.md",
-      "computedHash": "2b3d36ee521dcdb6da3f15e83be7df9c86904d855f37aa2820776ea20df1caab"
+      "computedHash": "2b3d36ee521dcdb6da3f15e83be7df9c86904d855f37aa2820776ea20df1caab",
+      "commit": "ad0cf34251974cc222723762eacc7b67b446ebb0"
     },
     "portless": {
       "source": "vercel-labs/portless",
       "sourceType": "github",
       "skillPath": "skills/portless/SKILL.md",
-      "computedHash": "ef84ea7237ff122430e38033c9568560a7cf031d5d16f3284d1128421d273a14"
+      "computedHash": "18a44b42b29741c704b877b9c6d3f66e2dcba1dcb834d8c8df4059e8fd42cbc4",
+      "commit": "6784e585a786a23b557d1291dfc86647587c4ea6"
     },
     "pr": {
       "source": "mattpocock/skills",
@@ -164,8 +170,8 @@
       "source": "cli.sentry.dev",
       "sourceUrl": "https://cli.sentry.dev",
       "sourceType": "well-known",
-      "computedHash": "68223d92c72c46d60c4af88a4d94483832f175f63115f321ee013ac679d8f91c",
-      "wellKnownDigest": "sha256:4f58eeb2804e095c500cc9ade9d362e4b10f9ccf50e8f50507a5794bb51d0adc"
+      "computedHash": "f81cdcf57e7302487bc186b1a038fc8dd4907783c602e626705d1368d7594c8b",
+      "wellKnownDigest": "sha256:dd84d92aad80d2baf773ec4b2b2e16df4e82773e60e4dcd2d13d8fc86d1be6bc"
     },
     "setup-matt-pocock-skills": {
       "source": "mattpocock/skills",
@@ -178,7 +184,8 @@
       "source": "polarsource/agent-toolkit",
       "sourceType": "github",
       "skillPath": "skills/setup-polar/SKILL.md",
-      "computedHash": "ab75c13316850cc5c15f6e90489450e0a5c3bf88c8db1b2dd6fed05e731f8767"
+      "computedHash": "ab75c13316850cc5c15f6e90489450e0a5c3bf88c8db1b2dd6fed05e731f8767",
+      "commit": "ad0cf34251974cc222723762eacc7b67b446ebb0"
     },
     "steward": {
       "source": ".",
@@ -236,13 +243,15 @@
       "source": "vercel/turborepo",
       "sourceType": "github",
       "skillPath": "skills/turborepo/SKILL.md",
-      "computedHash": "49bb6427015253ce5d93f15dfa6c9ade3f8528f0fbe54769b6da1e1458f058d4"
+      "computedHash": "49bb6427015253ce5d93f15dfa6c9ade3f8528f0fbe54769b6da1e1458f058d4",
+      "commit": "794c10da2fc36058524ad98fc62fb0e785c3a258"
     },
     "using-ably": {
       "source": "ably/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/using-ably/SKILL.md",
-      "computedHash": "0cca412b4f522b129cba3ba25c1702d319ec2b1def29f52335d03077bc134b64"
+      "computedHash": "0cca412b4f522b129cba3ba25c1702d319ec2b1def29f52335d03077bc134b64",
+      "commit": "24671cd3a0b888fb4acac30196ed4a80397eb416"
     },
     "wait-what": {
       "source": "mattpocock/skills",

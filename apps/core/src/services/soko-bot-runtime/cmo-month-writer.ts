@@ -4,15 +4,24 @@ import {
   CMO_PIECE_WRITING_GUIDE,
   CMO_PRODUCTION_TURN_PREFIX,
   CMO_SCENE_PIECE_WRITING_GUIDE,
+  CMO_SHORTS_WRITING_GUIDE,
   CMO_VARIED_PIECE_WRITING_GUIDE,
   type CmoCalendarEntry,
+  cmoRevisedWritingSkills,
   getSokoBotVersion,
   type MarketingStrategyPlan,
   PICTURE_KINDS,
   type PictureKind,
   REFERENCE_PURPOSES,
+  WRITING_SKILLS,
   writingSkillsBrief,
 } from "@sokosumi/soko-bot";
+import {
+  SHORT_VIDEO_FORMATS,
+  SHORT_VIDEO_TEXT_FORMATS,
+  TALKING_VIDEO_SCRIPT_MAX_LENGTH,
+  TALKING_VIDEO_SCRIPT_MIN_LENGTH,
+} from "@sokosumi/utils";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
@@ -39,15 +48,22 @@ import {
   startCmoProduction,
 } from "@/services/cmo-cuso.service";
 import {
+  cmoIndustryLine,
+  cmoReadsIndustry,
+  readCmoIndustry,
+} from "@/services/cmo-industry.service";
+import {
   type CmoKindedPiece,
   cmoAllowedKinds,
   cmoMakesVariedMonth,
   cmoNeighbourlyKind,
   cmoPicksPictures,
   cmoPieceIsTalking,
+  cmoPieceIsVideo,
   cmoPieceNeedsMedia,
   cmoPieceTakesStyle,
   cmoWritesSceneVisuals,
+  cmoWritesShorts,
   LAYOUT_KINDS,
 } from "@/services/cmo-media-maker.service";
 import { cmoDraftProblems } from "@/services/cmo-plan-review.service";
@@ -62,6 +78,11 @@ import {
   readCmoProduction,
 } from "@/services/cmo-production.service";
 import {
+  cmoReadsSitePages,
+  cmoWriterSitePages,
+  readCmoSitePages,
+} from "@/services/cmo-site-pages.service";
+import {
   findStyleReferences,
   infographicSuits,
   referenceLibraryAvailable,
@@ -73,6 +94,14 @@ import {
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
 import { chargeCheck } from "./cmo";
+import {
+  assignCmoPoints,
+  cmoMarksPoints,
+  cmoOfferLine,
+  cmoOfferLinkProblem,
+  cmoOfferPieceIds,
+  cmoUnclaimed,
+} from "./cmo-month-points";
 import { type RuntimeOperations } from "./operations";
 
 /**
@@ -135,9 +164,46 @@ const writtenPieceSchema = z.object({
   voice: z.string().nullable(),
   /** A talking video's language as a two-letter code. */
   languageCode: z.string().nullable(),
+  /** A short video's kind and its words on screen first (cmo-v20 only). */
+  shortFormat: z.enum(SHORT_VIDEO_FORMATS).nullable().optional(),
+  hookLine: z.string().nullable().optional(),
 });
 const writtenChunkSchema = z.object({ pieces: z.array(writtenPieceSchema) });
 type WrittenPiece = z.infer<typeof writtenPieceSchema>;
+
+const SHORT_HOOK_LINE_MAX_LENGTH = 48;
+
+/**
+ * A short video's fields from what the writer returned (cmo-v20), or null
+ * when it has no kind or no script of a length Core can make. A website
+ * tour without a website is told as a story instead.
+ */
+export function cmoShortOf(
+  written: Pick<WrittenPiece, "shortFormat" | "script" | "hookLine">,
+  website: boolean,
+): Pick<CmoCalendarEntry, "shortFormat" | "script" | "hookLine"> | null {
+  const script = written.script?.trim() ?? "";
+  if (
+    !written.shortFormat ||
+    script.length < TALKING_VIDEO_SCRIPT_MIN_LENGTH ||
+    script.length > TALKING_VIDEO_SCRIPT_MAX_LENGTH
+  )
+    return null;
+  const shortFormat =
+    written.shortFormat === "site_tour" && !website
+      ? "voiceover"
+      : written.shortFormat;
+  const hookLine = written.hookLine?.replace(/\s+/g, " ").trim();
+  return {
+    shortFormat,
+    script,
+    ...(hookLine &&
+    hookLine.length <= SHORT_HOOK_LINE_MAX_LENGTH &&
+    !SHORT_VIDEO_TEXT_FORMATS.includes(shortFormat)
+      ? { hookLine }
+      : {}),
+  };
+}
 
 /** A piece Core could not save, with the reason its check gave. */
 export interface CmoRefusedPiece {
@@ -185,6 +251,14 @@ export function cmoWriterSystem(input: {
   scenes?: boolean;
   /** cmo-v11: pictures borrow a print's layout, in a varied picture kind. */
   picked?: boolean;
+  /** cmo-v20: each chunk reads its own network's writing skill instead. */
+  chunkSkills?: boolean;
+  /** cmo-v20: short videos are cut from a script; whether the brand has a site. */
+  shorts?: { website: boolean };
+  /** cmo-v20: the site's pages, one line each with its screenshot. */
+  sitePages?: readonly string[];
+  /** cmo-v21: the industry research, one line each with its source. */
+  industry?: readonly string[];
 }): string {
   const { strategy } = input;
   const live = strategy.calendar.filter((entry) => entry.status !== "skipped");
@@ -202,7 +276,12 @@ export function cmoWriterSystem(input: {
       : input.styles
         ? "Pictures here take an old print's style: give every piece with a picture a styleLook, and a headline or slideHeadlines."
         : "Pictures here are made from the brand's own pictures: leave styleLook, headline and slideHeadlines null.",
-    writingSkillsBrief(live.map((entry) => entry.channel)),
+    input.shorts
+      ? `${CMO_SHORTS_WRITING_GUIDE}${input.shorts.website ? "" : "\nThis brand has no website: never site_tour."}`
+      : "Leave shortFormat and hookLine null.",
+    input.chunkSkills
+      ? ""
+      : writingSkillsBrief(live.map((entry) => entry.channel)),
     "Brand Brain:",
     JSON.stringify(compactBrandBrain(input.brain)),
     input.proof.length > 0
@@ -215,6 +294,18 @@ export function cmoWriterSystem(input: {
     ...input.brandPictures.map(
       (picture) => `- ${picture.fileId}: ${picture.alt}`,
     ),
+    input.sitePages && input.sitePages.length > 0
+      ? [
+          "The site's pages (path: what it says; shot is its screenshot, a brand picture for visualFileIds when a piece shows that page). Take offers, prices and facts from these, never guess them:",
+          ...input.sitePages.map((line) => `- ${line}`),
+        ].join("\n")
+      : "",
+    input.industry && input.industry.length > 0
+      ? [
+          "The buyers' industry (id · kind · date · what it is, with its source). Helpful pieces are about the buyers' own work and rest on these; a claim ending in (source: …) rests on one. A fact about the industry (a number, a trend, news, a competitor's move) comes only from here, said as the source says it, and the post says where it is from in plain words (\"CoinDesk reported…\"). On X, LinkedIn and Facebook a piece built on news puts the source's address in firstComment, unless it is an offer piece. Never invent a market number, a study or a date:",
+          ...input.industry.map((line) => `- ${line}`),
+        ].join("\n")
+      : "",
     "Strategy:",
     JSON.stringify({
       summary: strategy.summary,
@@ -250,14 +341,24 @@ export function cmoChunkProof(
   return mine.length > 0 ? mine : [proof[chunk % proof.length]!];
 }
 
+/** cmo-v20: what a chunk adds to its lines, beyond cmo-v6's. */
+interface ChunkExtras {
+  /** The chunk's network's writing skill, for that network alone. */
+  skill?: string;
+  /** Each offer piece's line: its action and where its link goes. */
+  offers?: ReadonlyMap<string, string>;
+}
+
 function chunkPrompt(
   chunk: readonly CmoPiece[],
   failedMedia: ReadonlySet<string>,
   refused: ReadonlyMap<string, { draft: string | null; reason: string }>,
   lead: readonly string[],
   said: readonly string[],
+  extras: ChunkExtras = {},
 ): string {
   return [
+    extras.skill ?? "",
     lead.length > 0
       ? [
           "Lead with this proof in these pieces, so the month spreads its customers and results (any other proof in your brief may follow):",
@@ -275,6 +376,7 @@ function chunkPrompt(
       const again = refused.get(piece.id);
       return [
         cmoPieceLine(piece, failedMedia.has(piece.id)),
+        extras.offers?.get(piece.id) ?? "",
         piece.draft?.trim() && !again ? `(its words: ${piece.draft})` : "",
         again
           ? `(Core refused your last version: ${again.reason} Write it again so it passes.${again.draft ? ` Last version: ${again.draft}` : ""})`
@@ -320,12 +422,20 @@ async function writeChunk(
     abortSignal: AbortSignal.timeout(timeoutMs),
     telemetry: modelCallTelemetryFor("cmo-month-writer"),
   }).catch(rethrowAiGatewayFailure);
-  // Charged to the turn like its own steps, with its tokens.
+  await chargeWriterCall(input, modelId, result);
+  return writtenChunkSchema.parse(result.output).pieces;
+}
+
+/** Charged to the turn like its own steps, with its tokens. */
+async function chargeWriterCall(
+  input: ExecuteSokoBotToolInput,
+  modelId: string,
+  result: Parameters<typeof gatewayCallUsage>[0],
+): Promise<void> {
   const usage = gatewayCallUsage(result);
   await new RuntimeEventLog(input.turnId, input.sessionId).append(
     runtimeEvent("step.completed", { modelId, usage }),
   );
-  return writtenChunkSchema.parse(result.output).pieces;
 }
 
 /**
@@ -391,12 +501,43 @@ export async function writeCmoMonthPieces(
   const brain = parseBrandBrain((await getBrandBrain(cuso.projectId))?.body);
   const varied = cmoMakesVariedMonth(authorized.turn.versionId);
   const picksPictures = cmoPicksPictures(authorized.turn.versionId);
+  const shorts = cmoWritesShorts(authorized.turn.versionId);
   const praise = varied
     ? await cmoPraiseOnly(cmoProofPoints(brain))
     : { points: cmoProofPoints(brain), costUsd: 0 };
   await chargeCheck(input, SOKO_BOT_JEV_MODEL, praise.costUsd);
   const proof = praise.points;
   const styles = referenceLibraryAvailable();
+  const modelId = getSokoBotVersion(authorized.turn.versionId).model;
+  const request = sokoBotModelRequest({
+    role: "agent",
+    model: modelId,
+    purpose: sokoBotTurnPurpose({
+      clientTurnId: turn.clientTurnId,
+      versionId: authorized.turn.versionId,
+    }),
+  });
+  // cmo-v20: each piece's point and the offer pieces, before any chunk runs.
+  const points = cmoMarksPoints(authorized.turn.versionId);
+  const offers = new Map(
+    points
+      ? [...cmoOfferPieceIds(strategy)].flatMap((id) => {
+          const entry = strategy.calendar.find((piece) => piece.id === id);
+          return entry
+            ? [
+                [
+                  id,
+                  cmoOfferLine(entry.channel, strategy.offer, cuso.websiteUrl),
+                ] as const,
+              ]
+            : [];
+        })
+      : [],
+  );
+  // cmo-v21: the buyer's industry, which most helpful pieces rest on.
+  const industry = cmoReadsIndustry(authorized.turn.versionId)
+    ? await readCmoIndustry(cuso.projectId).catch(() => null)
+    : null;
   const system = cmoWriterSystem({
     businessName: cuso.businessName,
     strategy,
@@ -409,16 +550,26 @@ export async function writeCmoMonthPieces(
     varied,
     scenes: cmoWritesSceneVisuals(authorized.turn.versionId),
     picked: picksPictures,
+    chunkSkills: points,
+    ...(shorts ? { shorts: { website: Boolean(cuso.websiteUrl) } } : {}),
+    sitePages: cmoReadsSitePages(authorized.turn.versionId)
+      ? cmoWriterSitePages(
+          (await readCmoSitePages(cuso.projectId).catch(() => null))?.pages ??
+            [],
+        )
+      : undefined,
+    industry: industry?.items.map(cmoIndustryLine),
   });
-  const modelId = getSokoBotVersion(authorized.turn.versionId).model;
-  const request = sokoBotModelRequest({
-    role: "agent",
-    model: modelId,
-    purpose: sokoBotTurnPurpose({
-      clientTurnId: turn.clientTurnId,
-      versionId: authorized.turn.versionId,
-    }),
-  });
+  const skillOf = (channel: string) =>
+    points
+      ? writingSkillsBrief(
+          [channel],
+          cmoRevisedWritingSkills(
+            getSokoBotVersion(authorized.turn.versionId).skills,
+            WRITING_SKILLS,
+          ),
+        )
+      : undefined;
   const byId = new Map(batch.map((piece) => [piece.id, piece]));
   // Every style reference the month already uses: each piece gets its own.
   const usedStyles = new Set(
@@ -468,6 +619,52 @@ export async function writeCmoMonthPieces(
       input: body,
     });
 
+  // cmo-v20: the batch's points first, in a call of their own (60 pieces
+  // took about a minute), saved as each entry's claim; the next call writes.
+  if (points) {
+    const open = cmoUnclaimed(strategy.calendar).filter((entry) =>
+      byId.has(entry.id),
+    );
+    const assigned =
+      open.length === 0
+        ? new Map<string, string>()
+        : await assignCmoPoints({
+            request,
+            strategy,
+            brain,
+            proof,
+            only: new Set(open.map((entry) => entry.id)),
+            timeoutMs: cmoWriterModelTimeoutMs(deadline, Date.now()),
+            industry: industry?.items ?? [],
+          })
+            .then(async ({ claims, call }) => {
+              if (call) await chargeWriterCall(input, modelId, call);
+              return claims;
+            })
+            .catch(() => new Map<string, string>());
+    const saved =
+      assigned.size > 0 &&
+      (await child("save_strategy", {
+        part: "pieces",
+        strategy: {
+          calendar: open.flatMap((entry) => {
+            const claim = assigned.get(entry.id);
+            return claim ? [{ ...pieceEntry(entry), claim }] : [];
+          }),
+        },
+      }).then(
+        () => true,
+        () => false,
+      ));
+    if (saved)
+      return {
+        written: 0,
+        refused: [],
+        left: batch.length,
+        next: "Core gave each piece its point. Call write_month_pieces again to write them.",
+      };
+  }
+
   const entryOf = async (
     piece: CmoPiece,
     written: WrittenPiece,
@@ -490,6 +687,13 @@ export async function writeCmoMonthPieces(
       cmoPieceIsTalking(piece) ||
       !written.visual
     )
+      return null;
+    // A short video of its own (not another network's copy) takes its script.
+    const short =
+      shorts && cmoPieceIsVideo(piece) && !piece.videoOf
+        ? cmoShortOf(written, Boolean(cuso.websiteUrl))
+        : null;
+    if (shorts && cmoPieceIsVideo(piece) && !piece.videoOf && !short)
       return null;
     let styleReferenceId: string | undefined;
     if (styles && cmoPieceTakesStyle(piece)) {
@@ -539,6 +743,7 @@ export async function writeCmoMonthPieces(
       ...pieceEntry(piece),
       visual: written.visual,
       visualFileIds: (written.visualFileIds ?? []).slice(0, 3),
+      ...(short ?? {}),
       ...(pictureKind ? { pictureKind } : {}),
       ...(written.slides?.length
         ? { slides: written.slides.slice(0, 10) }
@@ -594,6 +799,13 @@ export async function writeCmoMonthPieces(
       if (Date.now() > deadline) break;
       const piece = byId.get(written.id)!;
       if (!written.draft?.trim() || piece.draft?.trim()) continue;
+      const offerMissing = offers.has(piece.id)
+        ? cmoOfferLinkProblem(piece.channel, written)
+        : null;
+      if (offerMissing) {
+        refused.set(piece.id, { draft: written.draft, reason: offerMissing });
+        continue;
+      }
       try {
         const post = await getSocialPost({
           projectId: cuso.projectId,
@@ -643,6 +855,7 @@ export async function writeCmoMonthPieces(
           none,
           cmoChunkProof(proof, index, chunks.length),
           said,
+          { skill: skillOf(chunk[0]!.channel), offers },
         ),
         deadline,
       )
@@ -680,7 +893,10 @@ export async function writeCmoMonthPieces(
           request,
           modelId,
           system,
-          chunkPrompt(chunk, failedMedia, refused, [], []),
+          chunkPrompt(chunk, failedMedia, refused, [], [], {
+            skill: skillOf(chunk[0]!.channel),
+            offers,
+          }),
           deadline,
         ).catch(() => [] as WrittenPiece[]),
       ),
@@ -719,7 +935,7 @@ export async function writeCmoMonthPieces(
 }
 
 /** The fields a pieces save names a piece by, as the brief gives them. */
-function pieceEntry(piece: CmoPiece): CmoCalendarEntry {
+function pieceEntry(piece: CmoCalendarEntry): CmoCalendarEntry {
   return {
     id: piece.id,
     date: piece.date,

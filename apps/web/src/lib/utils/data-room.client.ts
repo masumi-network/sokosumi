@@ -31,10 +31,14 @@ import { type FileStore, storeQuery } from "@/lib/utils/file-search.client";
 
 /** Browser calls for data rooms: Drive folders whose files are private. */
 
-export async function fetchDataRooms(store: FileStore): Promise<DataRoom[]> {
+export async function fetchDataRooms(
+  store: FileStore,
+  options?: { signal?: AbortSignal },
+): Promise<DataRoom[]> {
   const { data } = await getDriveDataRooms({
     client: getBrowserCoreClient(),
     query: storeQuery(store),
+    ...(options?.signal ? { signal: options.signal } : {}),
     throwOnError: true,
   });
   return data.data;
@@ -67,11 +71,13 @@ export async function closeDataRoom(input: {
 export async function fetchDataRoom(input: {
   store: FileStore;
   roomId: string;
+  signal?: AbortSignal;
 }): Promise<DataRoomDetail> {
   const { data } = await getDriveDataRoomsById({
     client: getBrowserCoreClient(),
     path: { id: input.roomId },
     query: storeQuery(input.store),
+    ...(input.signal ? { signal: input.signal } : {}),
     throwOnError: true,
   });
   return data.data;
@@ -134,6 +140,7 @@ export async function fetchDataRoomEvents(input: {
   roomId: string;
   memberId?: string;
   before?: string;
+  signal?: AbortSignal;
 }): Promise<DataRoomEvents> {
   const { data } = await getDriveDataRoomsByIdEvents({
     client: getBrowserCoreClient(),
@@ -143,6 +150,7 @@ export async function fetchDataRoomEvents(input: {
       ...(input.memberId ? { memberId: input.memberId } : {}),
       ...(input.before ? { before: new Date(input.before) } : {}),
     },
+    ...(input.signal ? { signal: input.signal } : {}),
     throwOnError: true,
   });
   return data.data;
@@ -151,11 +159,13 @@ export async function fetchDataRoomEvents(input: {
 export async function fetchDataRoomQuestions(input: {
   store: FileStore;
   roomId: string;
+  signal?: AbortSignal;
 }): Promise<DataRoomQuestion[]> {
   const { data } = await getDriveDataRoomsByIdQuestions({
     client: getBrowserCoreClient(),
     path: { id: input.roomId },
     query: storeQuery(input.store),
+    ...(input.signal ? { signal: input.signal } : {}),
     throwOnError: true,
   });
   return data.data;

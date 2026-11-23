@@ -647,7 +647,7 @@ describe("Plan", () => {
     );
     expect(after).toContain("Show the rockets working.");
     expect(after).toContain("LinkedIn, 2 a week");
-    expect(after).toContain("Product stories: 100% of posts");
+    expect(after).toContain("Topic: Product stories");
     expect(after).toContain("Writing four weeks, day by day");
     expect(after.match(/Writing your strategy/g)).toHaveLength(1);
   });
@@ -764,6 +764,11 @@ describe("Plan", () => {
     ]) {
       expect(html).not.toContain(live);
     }
+    // Before the first plan the owner can still start over (NMKR, 2026-11-23).
+    expect(html).toContain("Write a new strategy");
+    expect(html).toContain(
+      "then its posts that have not gone out are canceled",
+    );
   });
 
   it("asks for the plan when Brand is confirmed and nothing writes it", () => {

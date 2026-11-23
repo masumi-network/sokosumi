@@ -3890,7 +3890,7 @@ export const getOrganizationStandup = <ThrowOnError extends boolean = false>(opt
 });
 
 /**
- * Turn the organization's daily agent stand-up on or off and set its time (HH:MM), weekdays and time zone. Only organization owners and admins may do this.
+ * Turn the organization's daily agent stand-up on or off and set its time (HH:MM), weekdays, time zone and the weekday of its weekly week in review. Only organization owners and admins may do this.
  */
 export const updateOrganizationStandup = <ThrowOnError extends boolean = false>(options: Options<UpdateOrganizationStandupData, ThrowOnError>): RequestResult<UpdateOrganizationStandupResponses, UpdateOrganizationStandupErrors, ThrowOnError> => (options.client ?? client).put<UpdateOrganizationStandupResponses, UpdateOrganizationStandupErrors, ThrowOnError>({
     responseTransformer: updateOrganizationStandupResponseTransformer,

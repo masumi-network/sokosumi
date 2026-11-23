@@ -30,11 +30,17 @@ import {
   pickedPieceWritingGuide,
   pickedProduction,
 } from "./cmo-v11-skills.js";
-import { seoReports } from "./cmo-v12-skills.js";
+import { seoPlain, seoReports } from "./cmo-v12-skills.js";
 import { partPatchStrategy } from "./cmo-v13-skills.js";
 import { channelFitStrategy } from "./cmo-v14-skills.js";
 import { plainWordsStrategy } from "./cmo-v15-skills.js";
 import { stageSpreadStrategy } from "./cmo-v18-skills.js";
+import {
+  CMO_MONTH_POINTS,
+  CMO_SITE_PAGES,
+  cmoV20Strategy,
+} from "./cmo-v20-skills.js";
+import { CMO_INDUSTRY, cmoV21Strategy } from "./cmo-v21-skills.js";
 import type { SokoBotSkill } from "./skills.js";
 
 const nearestTen = (credits: number): number => Math.round(credits / 10) * 10;
@@ -734,4 +740,20 @@ export const CMO_SKILLS: readonly SokoBotSkill[] = [
   stageSpreadStrategy(
     plainWordsStrategy(channelFitStrategy(partPatchStrategy(claims))),
   ),
+  cmoV20Strategy(
+    stageSpreadStrategy(
+      plainWordsStrategy(channelFitStrategy(partPatchStrategy(claims))),
+    ),
+  ),
+  cmoV21Strategy(
+    cmoV20Strategy(
+      stageSpreadStrategy(
+        plainWordsStrategy(channelFitStrategy(partPatchStrategy(claims))),
+      ),
+    ),
+  ),
+  seoPlain(seoReports(seo)),
+  CMO_MONTH_POINTS,
+  CMO_SITE_PAGES,
+  CMO_INDUSTRY,
 ];

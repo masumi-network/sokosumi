@@ -22,6 +22,18 @@ vi.mock("@/components/spreadsheet/spreadsheet-view", () => ({
   SpreadsheetFileView: () => <div data-testid="spreadsheet-view" />,
 }));
 
+vi.mock("@/app/drive/tables/table-create-dialog", () => ({
+  TableCreateDialog: ({
+    csvFile,
+  }: {
+    csvFile: { url: string; name: string };
+  }) => (
+    <button type="button" data-url={csvFile.url}>
+      {`openAsTable:${csvFile.name}`}
+    </button>
+  ),
+}));
+
 const store = { scope: "me" } as const;
 const noop = () => undefined;
 
@@ -106,6 +118,17 @@ describe("DriveFileViewer", () => {
       "href",
       "/drive/files/res-1",
     );
+  });
+
+  it("offers Open as Table on a CSV, reading it through the authorized route", () => {
+    const { unmount } = open("leads.csv", "text/csv");
+    expect(
+      screen.getByRole("button", { name: "openAsTable:leads.csv" }),
+    ).toHaveAttribute("data-url", "/api/drive/files/res-1/content?scope=me");
+    unmount();
+
+    open("leads.xlsx", null);
+    expect(screen.queryByRole("button", { name: /openAsTable/ })).toBeNull();
   });
 
   it("renders nothing while closed", () => {

@@ -113,7 +113,7 @@ export const cmoMeasurementSchema = z
   .openapi("CmoMeasurement");
 
 /** A plan, named once: the overview carries the newest and the approved one. */
-const cmoPlanSchema = marketingStrategyPlanSchema.openapi("CmoPlan");
+export const cmoPlanSchema = marketingStrategyPlanSchema.openapi("CmoPlan");
 
 export const cmoProductionSchema = z
   .object({

@@ -151,69 +151,28 @@ describe("strategy reveal", () => {
     );
   });
 
-  it("shows each content pillar's share, and once the month is made, the share Cuso's pieces have", () => {
+  // Owner, 2026-11-23: the pillar cards sorted the same posts again, with
+  // shares that read as a decision and every network on every pillar.
+  it("names the topics in one line under what the posts do", () => {
     const pillars = [
-      { name: "Setup proof", share: 60, why: "Shows setup takes minutes" },
-      { name: "Founder stories", share: 40 },
+      { name: "Launch timing", share: 60, why: "When buyers launch" },
+      { name: "Community", share: 40 },
     ];
-    const planned = renderToStaticMarkup(
-      <PlanPanel
-        overview={overview({
-          pillars,
-          calendar: calendar.map((piece) => ({
-            ...piece,
-            pillar: "Setup proof",
-          })),
-        })}
-        strategy={
-          overview({
-            pillars,
-            calendar: calendar.map((piece) => ({
-              ...piece,
-              pillar: "Setup proof",
-            })),
-          }).strategy as Strategy
-        }
-      />,
-    );
-    expect(planned).toContain("Content pillars");
-    expect(planned).not.toContain("What the posts are about");
-    expect(planned).toContain("A content pillar is a topic your posts");
-    expect(planned).toContain("Shows setup takes minutes");
-    // The share is counted from the calendar, not the share Cuso wrote.
-    expect(planned).toContain("4 posts · 100%");
-    expect(planned).toContain("0%");
-    expect(planned).toMatch(/class="bb-pillar-networks"><span><svg/);
-    expect(planned).not.toContain("% made");
-
-    const made = {
-      ...overview({ pillars }),
-      production: {
-        state: "ready" as const,
-        ready: 4,
-        total: 4,
-        written: 4,
-        pictured: 0,
-        needPictures: 0,
-        finishedAt: null,
-        pillars: {
-          shares: [
-            { name: "Setup proof", planned: 60, made: 75, pieces: 3 },
-            { name: "Founder stories", planned: 40, made: 25, pieces: 1 },
-          ],
-          rewriting: true,
-        },
-        level: "all_in" as const,
-        beyondPlan: [],
-        withoutPicture: [],
-        retryAt: null,
-      },
-    };
+    const plan = overview({
+      pillars,
+      mix: [{ approach: "educational", share: 100, why: "Launch lessons" }],
+      calendar: calendar.map((piece) => ({ ...piece, pillar: "Community" })),
+    });
     const html = renderToStaticMarkup(
-      <PlanPanel overview={made} strategy={made.strategy as Strategy} />,
+      <PlanPanel overview={plan} strategy={plan.strategy as Strategy} />,
     );
-    expect(html).toContain("75% made · 60% planned");
-    expect(html).toContain("Cuso is rewriting them now.");
+    expect(html).toContain("What the posts do");
+    expect(html).toContain(
+      "Topics Cuso keeps coming back to: Launch timing · Community",
+    );
+    expect(html).not.toContain("Content pillars");
+    expect(html).not.toContain("60%");
+    expect(html).not.toContain("When buyers launch");
   });
 });
 

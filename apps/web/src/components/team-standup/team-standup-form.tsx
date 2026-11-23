@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { saveTeamStandup } from "@/lib/actions/team-standup/action";
+import { MyWeekSwitch } from "./my-week-switch";
 
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 
@@ -18,13 +19,15 @@ interface TeamStandupFormProps {
   organizationId: string;
   initial: TeamStandup;
   canEdit: boolean;
+  includeMyWeek: boolean;
 }
 
-/** On/off, time, weekdays and time zone of the organization's daily agent stand-up. */
+/** On/off, time, weekdays, time zone and week-in-review day of the organization's stand-up, and the reader's own week switch. */
 export function TeamStandupForm({
   organizationId,
   initial,
   canEdit,
+  includeMyWeek,
 }: TeamStandupFormProps) {
   const t = useTranslations("App.TeamStandup");
   const locale = useLocale();
@@ -33,12 +36,25 @@ export function TeamStandupForm({
   const [timeOfDay, setTimeOfDay] = useState(initial.timeOfDay);
   const [weekdays, setWeekdays] = useState(initial.weekdays.map(String));
   const [timezone, setTimezone] = useState(initial.timezone);
+  const [weekDay, setWeekDay] = useState(String(initial.weekInReviewWeekday));
   const [pending, startTransition] = useTransition();
   const changed =
     enabled !== saved.enabled ||
     timeOfDay !== saved.timeOfDay ||
     timezone !== saved.timezone ||
-    weekdays.join() !== saved.weekdays.map(String).join();
+    weekdays.join() !== saved.weekdays.map(String).join() ||
+    weekDay !== String(saved.weekInReviewWeekday);
+
+  function formatNext(iso: string) {
+    return new Intl.DateTimeFormat(locale, {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: saved.timezone,
+    }).format(new Date(iso));
+  }
 
   function handleSave(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -49,6 +65,7 @@ export function TeamStandupForm({
         timeOfDay,
         weekdays: weekdays.map(Number).sort(),
         timezone,
+        weekInReviewWeekday: Number(weekDay),
       });
       if (!result.ok) {
         toast.error(t("saveError"));
@@ -127,19 +144,39 @@ export function TeamStandupForm({
               ))}
             </ToggleGroup>
           </div>
+          <div className="space-y-2">
+            <Label>{t("weekLabel")}</Label>
+            <p className="text-muted-foreground text-sm">{t("weekHelp")}</p>
+            <ToggleGroup
+              type="single"
+              value={weekDay}
+              disabled={!canEdit || pending}
+              onValueChange={(value) => {
+                if (value) setWeekDay(value);
+              }}
+            >
+              {WEEKDAYS.map((day) => (
+                <ToggleGroupItem key={day} value={String(day)}>
+                  {t(`weekday.${day}`)}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
           {saved.enabled && saved.nextRunAt ? (
             <p className="text-muted-foreground text-sm">
               {t("next", {
-                when: new Intl.DateTimeFormat(locale, {
-                  weekday: "short",
-                  day: "numeric",
-                  month: "short",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  timeZone: saved.timezone,
-                }).format(new Date(saved.nextRunAt)),
+                when: formatNext(saved.nextRunAt),
                 zone: saved.timezone,
               })}
+              {saved.weekInReviewNextRunAt ? (
+                <>
+                  <br />
+                  {t("weekNext", {
+                    when: formatNext(saved.weekInReviewNextRunAt),
+                    zone: saved.timezone,
+                  })}
+                </>
+              ) : null}
             </p>
           ) : null}
           {canEdit ? (
@@ -155,6 +192,9 @@ export function TeamStandupForm({
             <p className="text-muted-foreground text-sm">{t("adminOnly")}</p>
           )}
         </form>
+        <div className="mt-6 border-t pt-5">
+          <MyWeekSwitch included={includeMyWeek} />
+        </div>
       </CardContent>
     </Card>
   );
