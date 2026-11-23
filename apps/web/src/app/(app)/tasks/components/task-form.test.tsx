@@ -140,6 +140,18 @@ vi.mock("next-intl", () => ({
   }),
 }));
 
+// Lists Tables through react-query; covered by its own test.
+vi.mock("@/app/drive/tables/table-attach-dialog", () => ({
+  TableAttachDialog: ({ onPick }: { onPick: (file: File) => void }) => (
+    <button
+      type="button"
+      onClick={() => onPick(new File(["a"], "Leads (2026-11-23).csv"))}
+    >
+      Pick Leads
+    </button>
+  ),
+}));
+
 // Reads Core through react-query; covered by its own test.
 vi.mock("./similar-tasks-hint", () => ({
   SimilarTasksHint: ({ brief }: { brief: string }) => (
@@ -3900,6 +3912,41 @@ describe("TaskForm", () => {
       }),
     );
     expect(createTaskMock).not.toHaveBeenCalled();
+    expect(toastErrorMock).not.toHaveBeenCalled();
+  });
+
+  it("uploads a picked Table for the brief like any attached file", async () => {
+    const user = userEvent.setup();
+    uploadUserFileDirectMock.mockResolvedValue({
+      publicUrl: "https://blob.example/users/u1/Leads.csv",
+    });
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    const attach = screen
+      .getAllByRole("button", { name: "Upload File" })
+      .find((button) => !button.classList.contains("sr-only"));
+    await user.click(attach as HTMLElement);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "fromTable" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Pick Leads" }));
+
+    await waitFor(() =>
+      expect(uploadUserFileDirectMock).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "Leads (2026-11-23).csv" }),
+        expect.objectContaining({ abortSignal: expect.any(AbortSignal) }),
+      ),
+    );
     expect(toastErrorMock).not.toHaveBeenCalled();
   });
 
