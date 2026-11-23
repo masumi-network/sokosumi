@@ -67,7 +67,10 @@ import {
 } from "./chat-unread-nav-rows";
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
 import { isDirectWithSokoBot } from "./direct-room-participants";
-import { limitSidebarChannels } from "./limit-sidebar-section-rooms";
+import {
+  limitSidebarChannels,
+  limitSidebarSectionRooms,
+} from "./limit-sidebar-section-rooms";
 import {
   listOrganizationChatRoomsAction,
   reorderPinnedOrganizationChatRoomsAction,
@@ -86,7 +89,6 @@ import {
   advanceUnreadFilterPass,
   EMPTY_UNREAD_FILTER_PASS,
 } from "./unread-filter-pass";
-import { useChatPageSearch } from "./use-chat-page-search";
 import { useOrganizationChatRooms } from "./use-organization-chat-rooms";
 import { useOtherWorkspaceRooms } from "./use-other-workspace-rooms";
 import { useSidebarSectionShowAll } from "./use-sidebar-section-show-all";
@@ -301,29 +303,18 @@ export function OrganizationChatList({
   // so nothing new waits behind "Show more".
   const keepInSection = (room: ChatRoom) =>
     room.id === activeRoomId || isUnreadRoom(room);
-  const search = useChatPageSearch({
-    rooms: unreadOnly ? [...inboxRooms, ...pinned] : listedRooms,
-    elsewhere: elsewhereRooms,
-    archived: hasOrganization && !unreadOnly ? archivedRows : [],
-    invitations: pendingRows,
-    currentUserId,
+  const channelRows = limitSidebarChannels(namedChannels, {
+    showAll: channelsShowAll,
+    alwaysShow: keepInSection,
   });
-  const channelRows = search.limited(
-    namedChannels,
-    channelsShowAll,
-    keepInSection,
-    limitSidebarChannels,
-  );
-  const externalRows = search.limited(
-    externalJoined,
-    externalShowAll,
-    keepInSection,
-  );
-  const directRows = search.limited(
-    directMessages,
-    directShowAll,
-    keepInSection,
-  );
+  const externalRows = limitSidebarSectionRooms(externalJoined, {
+    showAll: externalShowAll,
+    alwaysShow: keepInSection,
+  });
+  const directRows = limitSidebarSectionRooms(directMessages, {
+    showAll: directShowAll,
+    alwaysShow: keepInSection,
+  });
   // Read rooms dim, but not the open one: dimmed, its highlight reads as
   // disabled.
   function inboxRoomRowProps(room: ChatRoom): ChatRoomSidebarRowProps {
@@ -340,11 +331,7 @@ export function OrganizationChatList({
   // replaces; its Pinned group shows every pin, fixed. Folding Chats folds
   // Pinned with it, so it ends the mode the same way.
   const canReorderPinned =
-    chatsOpen &&
-    pinnedOpen &&
-    pinned.length > 1 &&
-    !unreadOnly &&
-    !search.active;
+    chatsOpen && pinnedOpen && pinned.length > 1 && !unreadOnly;
   // A pending invitation stays under the filter, in External, and keeps the
   // reader from being caught up: it is addressed to them and waits on them,
   // which is why a closed section already marks it as a mention
@@ -470,18 +457,13 @@ export function OrganizationChatList({
       />
       {/* Outside the keyed list below: the Unreads filter does not touch them,
           because hiding what is unread is the last thing it should do. */}
-      {(search.active ? elsewhereRooms : elsewhereRows).length > 0 ? (
+      {elsewhereRows.length > 0 ? (
         <SidebarMenu
           data-slot="elsewhere-rows"
           aria-label={t("UnreadNav.elsewhereLabel")}
           className="gap-0"
         >
-          {(search.active
-            ? search.matching(
-                elsewhereRooms.filter((room) => room.starredAt == null),
-              )
-            : elsewhereRows
-          ).map((room) => (
+          {elsewhereRows.map((room) => (
             <ChatRoomSidebarRow
               key={room.id}
               {...roomRowProps(room)}
@@ -493,7 +475,7 @@ export function OrganizationChatList({
               elsewhere
             />
           ))}
-          {!search.active && elsewhereOverflowCount > 0 ? (
+          {elsewhereOverflowCount > 0 ? (
             <ChatElsewhereOverflowRow
               count={elsewhereOverflowCount}
               dismissSheetOnNavigate={dismissSheetOnNavigate}
@@ -520,16 +502,15 @@ export function OrganizationChatList({
             caughtUp={caughtUp}
             showsReadLabel={showsReadLabel}
             hasNeedsYou={needsYouInboxRooms.length > 0}
-            needsYou={search.matching(needsYouInboxRooms)}
-            other={search.matching(otherInboxRooms)}
+            needsYou={needsYouInboxRooms}
+            other={otherInboxRooms}
             roomRowProps={inboxRoomRowProps}
           />
         ) : null}
         {!unreadOnly && pinned.length > 0 ? (
           <PinnedRoomsSection
             pinned={pinned}
-            visible={search.matching(pinned)}
-            open={search.active || pinnedOpen}
+            open={pinnedOpen}
             onOpenChange={setPinnedOpen}
             canReorderPinned={canReorderPinned}
             isReorderingPinned={isReorderingPinned}
@@ -543,11 +524,11 @@ export function OrganizationChatList({
 
         {hasOrganization && !unreadOnly ? (
           <Collapsible
-            open={search.active || channelSectionOpen}
+            open={channelSectionOpen}
             onOpenChange={setChannelSectionOpen}
           >
             <ChatSidebarSectionHeader
-              isOpen={search.active || channelSectionOpen}
+              isOpen={channelSectionOpen}
               closedAttention={resolveSectionAttention(namedChannels)}
               createAction={<CreateChannelDialog />}
               secondaryAction={<BrowseChannelsDialog />}
@@ -588,10 +569,10 @@ export function OrganizationChatList({
           <ExternalRoomsSection
             rooms={externalJoined}
             rows={externalRows}
-            invitations={search.invitations}
+            invitations={pendingRows}
             hasPendingInvitation={pendingRows.length > 0}
             actions={invitationActions}
-            open={search.active || externalOpen}
+            open={externalOpen}
             onOpenChange={setExternalOpen}
             unreadOnly={unreadOnly}
             showAll={externalShowAll}
@@ -604,26 +585,23 @@ export function OrganizationChatList({
             unread room does. */}
         {inboxPinnedRooms.length > 0 ? (
           <UnreadInboxPinnedRooms
-            rooms={search.matching(inboxPinnedRooms)}
+            rooms={inboxPinnedRooms}
             roomRowProps={inboxRoomRowProps}
           />
         ) : null}
         <ArchivedRoomsSection
           actions={archivedActions}
-          rooms={search.matching(sortedArchivedChannels)}
+          rooms={sortedArchivedChannels}
           visible={
             hasOrganization && !unreadOnly && sortedArchivedChannels.length > 0
           }
-          open={search.active || archivedSectionOpen}
+          open={archivedSectionOpen}
           onOpenChange={setArchivedSectionOpen}
           isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
         />
 
         {!unreadOnly ? (
-          <Collapsible
-            open={search.active || directOpen}
-            onOpenChange={setDirectOpen}
-          >
+          <Collapsible open={directOpen} onOpenChange={setDirectOpen}>
             {/*
             Sidebar rows = messaged history only. `+` opens Start New Direct
             in place (org members + coworkers, 1:1 coworker / group humans).
@@ -631,7 +609,7 @@ export function OrganizationChatList({
             (coworkers only).
           */}
             <ChatSidebarSectionHeader
-              isOpen={search.active || directOpen}
+              isOpen={directOpen}
               closedAttention={resolveSectionAttention(directMessages)}
               createAction={<CreateDirectDialog />}
             >

@@ -88,14 +88,7 @@ interface ToolbarProps {
   renderHeader?: (search: ReactNode) => ReactNode;
 }
 
-const DASHBOARD_PATHS = [
-  "/studio",
-  "/tiktok-studio",
-  "/competitors",
-  "/chat",
-  "/you",
-  "/admin",
-];
+const DASHBOARD_PATHS = ["/studio", "/tiktok-studio", "/competitors", "/admin"];
 const SECTION_PATHS = [
   "/soko-bots",
   "/personal-assistant",
