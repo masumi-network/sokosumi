@@ -244,13 +244,13 @@ describe("CreateOrganizationWizard", () => {
         colors: ["#5850ec"],
         fonts: ["Inter"],
         tone: "plain and confident",
-        voice: "Prefer **short sentences** and `plain` words.",
+        voice: "Prefer **short sentences.** Use `plain` words.",
       },
       [
         "#5850ec",
         "Inter",
         "plain and confident",
-        "Prefer short sentences and plain words.",
+        "Prefer short sentences. Use plain words.",
       ],
     ],
     [

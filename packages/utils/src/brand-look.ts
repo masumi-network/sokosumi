@@ -263,19 +263,17 @@ export function designMdBrandLook(content: string): DesignMdBrandLook {
     .filter((font): font is string => font !== null);
   // ponytail: reads the generator's English list ("plain, factual and
   // confident"); any other wording gives no tone rather than a guess.
-  // The list has to end in punctuation or the line end; "plain and easy to
-  // read" is no tone. One separator after it (",", ":", a dash) is dropped.
+  // The list ends at a whole word followed by punctuation or the line end, so
+  // "plain and easy to read" and "plain and detail-oriented in reports" give
+  // no tone. One separator after it (",", ":", a dash) is dropped; an ASCII
+  // hyphen counts only with a space after it.
   const voiceLine = content.match(
-    /\bvoice is ([a-z-]+(?:, [a-z-]+)*,? and [a-z-]+)(?=[ \t]*(?:[.,;:!?(\u2013\u2014-]|$))[ \t]*[.,;:!?\u2013\u2014-]?[ \t]*([^\r\n]*)/im,
+    /\bvoice is ([a-z-]+(?:, [a-z-]+)*,? and [a-z-]+)(?![a-z-])[ \t]*(?:[.,;:!?\u2013\u2014]|-(?=[ \t])|(?=\(|\r?$))[ \t]*([^\r\n]*)/im,
   );
   const tone = voiceLine?.[1];
-  // The rest of that line up to its first sentence end: a stop followed by a
-  // capital or the line end, so "e.g. short" and closing quotes stay whole.
-  // A sentence wholly in brackets loses them.
-  const voice = voiceLine?.[2]
-    ?.trim()
-    .match(/^.*?[.!?]["\u201d')]?(?=\s+["\u201c'(]?\p{Lu}|\s*$)|^.+/u)?.[0]
-    .replace(/^\((.+)\)([.!?]?)$/, "$1$2");
+  // The voice is the rest of that line, whole: a full stop can't tell a
+  // sentence end from "e.g." or "U.S.". A line wholly in brackets loses them.
+  const voice = voiceLine?.[2]?.trim().replace(/^\((.+)\)([.!?]?)$/, "$1$2");
   return {
     colors: designMdRoleColors(content) ?? brandColors(content, 5),
     fonts: [...new Set(fonts)].slice(0, 4),

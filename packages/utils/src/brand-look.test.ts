@@ -120,7 +120,7 @@ Primary #5850ec drives every call to action.
       fonts: ["Inter"],
       tone: "plain, professional and colleague-like",
       voice:
-        'Coworkers are introduced by name and role, briefs are described as plain language, and the product is framed as work that "arrives as a file."',
+        'Coworkers are introduced by name and role, briefs are described as plain language, and the product is framed as work that "arrives as a file." Example sentence: "You write one briefing. They do the rest."',
     });
   });
 
@@ -197,18 +197,39 @@ Primary #5850ec drives every call to action.
     ).toMatchObject({ tone: null, voice: null });
   });
 
-  it("keeps the voice whole past abbreviations", () => {
+  it("reads no tone from a hyphenated word cut short", () => {
+    expect(
+      designMdBrandLook("The voice is plain and detail-oriented in reports."),
+    ).toMatchObject({ tone: null, voice: null });
     expect(
       designMdBrandLook(
-        "The voice is plain and calm. Use e.g. short examples. Never hype.",
-      ).voice,
-    ).toBe("Use e.g. short examples.");
+        "The voice is plain and detail-oriented. Short claims.",
+      ),
+    ).toMatchObject({
+      tone: "plain and detail-oriented",
+      voice: "Short claims.",
+    });
+  });
+
+  // The rest of the line, unsplit: a full stop can't tell a sentence end
+  // from "e.g." or "U.S.", so none is guessed.
+  it.each([
+    "Use e.g. short examples. Never hype.",
+    "Use e.g. CEO quotes. Never hype.",
+    "Use U.S. English. Never hype.",
+    "Prefer **short sentences.** Avoid hype.",
+  ])("keeps the voice line whole: %j", (voice) => {
+    expect(
+      designMdBrandLook(`The voice is plain and calm. ${voice}\n\n## Colors`)
+        .voice,
+    ).toBe(voice);
   });
 
   it.each([
     ["The voice is plain and confident: short sentences, no hype."],
     ["The voice is plain and confident \u2014 short sentences, no hype."],
     ["The voice is plain and confident (short sentences, no hype)."],
+    ["The voice is plain and confident - short sentences, no hype."],
   ])("drops the separator before the voice in %j", (content) => {
     expect(designMdBrandLook(content)).toMatchObject({
       tone: "plain and confident",
