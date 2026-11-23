@@ -652,6 +652,7 @@ export { validateTableValues } from "./table-value-validation.js";
 export {
   creditsPerShortVideoCents,
   creditsPerTalkingVideoCents,
+  SHORT_VIDEO_FORMAT_GUIDE,
   SHORT_VIDEO_FORMATS,
   SHORT_VIDEO_MAX_PICTURES,
   SHORT_VIDEO_TEXT_FORMATS,

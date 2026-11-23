@@ -2,6 +2,7 @@ import "server-only";
 
 import type {
   CreateProjectImageJobRequest,
+  CreateProjectShortVideoJobRequest,
   CreateProjectTalkingVideoJobRequest,
   CreateProjectVideoJobRequest,
   GetProjectsByIdImageStudioTalkingVideosData,
@@ -19,6 +20,7 @@ import type {
   StudioProductCatalog,
   StudioProductImport,
   StudioProductPhoto,
+  WriteProjectTalkingVideoScriptsRequest,
 } from "@sokosumi/core-client";
 import { coreClient } from "@/lib/clients/core.client";
 
@@ -218,6 +220,17 @@ export const imageStudioService = {
     return result.data;
   },
 
+  async createShortVideoJob(
+    projectId: string,
+    input: CreateProjectShortVideoJobRequest,
+  ): Promise<ProjectImageJob> {
+    const result = await coreClient.postProjectsByIdImageStudioShortVideoJobs(
+      projectId,
+      input,
+    );
+    return result.data;
+  },
+
   /** Answering this settles finished talking videos, like `getState`. */
   async getTalkingVideos(
     projectId: string,
@@ -234,7 +247,7 @@ export const imageStudioService = {
 
   async writeTalkingVideoScripts(
     projectId: string,
-    input: { topic?: string; languageCode: string },
+    input: WriteProjectTalkingVideoScriptsRequest,
   ): Promise<ProjectTalkingVideoScripts["scripts"]> {
     const result =
       await coreClient.postProjectsByIdImageStudioTalkingVideoScripts(

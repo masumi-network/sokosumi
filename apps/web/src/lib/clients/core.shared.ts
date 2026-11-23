@@ -151,6 +151,7 @@ import type {
   PostProjectsByIdCloseData,
   PostProjectsByIdCloseRetryData,
   PostProjectsByIdImageStudioJobsData,
+  PostProjectsByIdImageStudioShortVideoJobsData,
   PostProjectsByIdImageStudioTalkingVideoJobsData,
   PostProjectsByIdImageStudioTalkingVideoScriptsData,
   PostProjectsByIdImageStudioVideoJobsData,
@@ -512,6 +513,7 @@ import {
   postProjectsByIdImageStudioAssetsByAssetIdCaption as corePostProjectsByIdImageStudioAssetsByAssetIdCaption,
   postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
   postProjectsByIdImageStudioJobsByJobIdCancel as corePostProjectsByIdImageStudioJobsByJobIdCancel,
+  postProjectsByIdImageStudioShortVideoJobs as corePostProjectsByIdImageStudioShortVideoJobs,
   postProjectsByIdImageStudioTalkingVideoJobs as corePostProjectsByIdImageStudioTalkingVideoJobs,
   postProjectsByIdImageStudioTalkingVideoScripts as corePostProjectsByIdImageStudioTalkingVideoScripts,
   postProjectsByIdImageStudioVideoJobs as corePostProjectsByIdImageStudioVideoJobs,
@@ -4568,6 +4570,22 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function postProjectsByIdImageStudioShortVideoJobs(
+    id: string,
+    body: NonNullable<PostProjectsByIdImageStudioShortVideoJobsData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdImageStudioShortVideoJobs({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to start the short",
+    );
+  }
+
   async function postProjectsByIdImageStudioTalkingVideoScripts(
     id: string,
     body: NonNullable<
@@ -7514,6 +7532,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdImageStudioJobs,
     postProjectsByIdImageStudioJobsByJobIdCancel,
     postProjectsByIdImageStudioVideoJobs,
+    postProjectsByIdImageStudioShortVideoJobs,
     postProjectsByIdImageStudioTalkingVideoJobs,
     postProjectsByIdImageStudioTalkingVideoScripts,
     getProjectsByIdSocialPosts,

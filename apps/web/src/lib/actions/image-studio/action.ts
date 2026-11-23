@@ -2,6 +2,7 @@
 
 import type {
   CreateProjectImageJobRequest,
+  CreateProjectShortVideoJobRequest,
   CreateProjectTalkingVideoJobRequest,
   CreateProjectVideoJobRequest,
   ProjectImageAsset,
@@ -296,20 +297,67 @@ export const startTalkingVideo = withSession<
   }
 });
 
+interface StartShortVideoParameters
+  extends AuthenticatedRequest,
+    Pick<
+      CreateProjectShortVideoJobRequest,
+      | "format"
+      | "script"
+      | "hookLine"
+      | "languageCode"
+      | "pictureAssetIds"
+      | "idempotencyKey"
+    > {
+  projectId: string;
+  voice: string;
+}
+
+export const startShortVideo = withSession<
+  StartShortVideoParameters,
+  StartGenerationResult
+>(async (input) => {
+  try {
+    const job = await imageStudioService.createShortVideoJob(input.projectId, {
+      format: input.format,
+      script: input.script,
+      ...(input.hookLine ? { hookLine: input.hookLine } : {}),
+      // Core checks the voice against its own list.
+      voice: input.voice as CreateProjectShortVideoJobRequest["voice"],
+      languageCode: input.languageCode,
+      pictureAssetIds: input.pictureAssetIds,
+      pictureFileIds: [],
+      idempotencyKey: input.idempotencyKey,
+    });
+    return { ok: true, job };
+  } catch (error) {
+    if (error instanceof CoreApiRequestError) {
+      return {
+        ok: false,
+        kind: error.kind ?? null,
+        message: error.message || "Could not start the video.",
+        uncertain: error.status === undefined || error.status >= 500,
+      };
+    }
+    throw error;
+  }
+});
+
 export const writeTalkingVideoScripts = withSession<
   AuthenticatedRequest & {
     projectId: string;
     topic?: string;
     languageCode: string;
+    format?: CreateProjectShortVideoJobRequest["format"];
   },
   ActionResultDto<ProjectTalkingVideoScripts["scripts"], ActionError>
->(async ({ projectId, topic, languageCode }) => {
+>(async ({ projectId, topic, languageCode, format }) => {
   try {
     return toActionResult(
       ok(
         await imageStudioService.writeTalkingVideoScripts(projectId, {
           ...(topic ? { topic } : {}),
           languageCode,
+          ...(format ? { format } : {}),
         }),
       ),
     );

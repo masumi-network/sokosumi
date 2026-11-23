@@ -70,8 +70,6 @@ export function PresenterControls({
 }) {
   const t = useTranslations("App.TikTokStudio");
   const ownPhoto = presenterId === OWN_PHOTO;
-  const voiceId = useId();
-  const languageId = useId();
   const consentId = useId();
   const photoInput = useRef<HTMLInputElement>(null);
   const tileClass = (selected: boolean) =>
@@ -178,47 +176,77 @@ export function PresenterControls({
       ) : (
         <p className="text-muted-foreground text-xs">{t("presenterNote")}</p>
       )}
-      <div className="grid min-w-0 gap-3 sm:grid-cols-2">
-        <div className="flex min-w-0 flex-col gap-1">
-          <Label htmlFor={voiceId}>{t("voice")}</Label>
-          <Select
-            disabled={readOnly}
-            onValueChange={onVoiceChange}
-            value={voice}
-          >
-            <SelectTrigger className="w-full" id={voiceId}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {catalog.voices.map((name) => (
-                <SelectItem key={name} value={name}>
-                  {name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex min-w-0 flex-col gap-1">
-          <Label htmlFor={languageId}>{t("language")}</Label>
-          <Select
-            disabled={readOnly}
-            onValueChange={onLanguageChange}
-            value={languageCode}
-          >
-            <SelectTrigger className="w-full" id={languageId}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SCRIPT_LANGUAGES.map((code) => (
-                <SelectItem key={code} value={code}>
-                  {languageNames.of(code) ?? code}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      <VoiceControls
+        catalog={catalog}
+        languageCode={languageCode}
+        languageNames={languageNames}
+        onLanguageChange={onLanguageChange}
+        onVoiceChange={onVoiceChange}
+        readOnly={readOnly}
+        voice={voice}
+      />
     </>
+  );
+}
+
+/** Which stock voice speaks, and in which language. */
+export function VoiceControls({
+  catalog,
+  voice,
+  languageCode,
+  languageNames,
+  readOnly,
+  onVoiceChange,
+  onLanguageChange,
+}: {
+  catalog: Pick<ProjectImageStudioTalkingVideoCatalog, "voices">;
+  voice: string;
+  languageCode: string;
+  languageNames: Intl.DisplayNames;
+  readOnly: boolean;
+  onVoiceChange: (value: string) => void;
+  onLanguageChange: (value: string) => void;
+}) {
+  const t = useTranslations("App.TikTokStudio");
+  const voiceId = useId();
+  const languageId = useId();
+  return (
+    <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+      <div className="flex min-w-0 flex-col gap-1">
+        <Label htmlFor={voiceId}>{t("voice")}</Label>
+        <Select disabled={readOnly} onValueChange={onVoiceChange} value={voice}>
+          <SelectTrigger className="w-full" id={voiceId}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {catalog.voices.map((name) => (
+              <SelectItem key={name} value={name}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex min-w-0 flex-col gap-1">
+        <Label htmlFor={languageId}>{t("language")}</Label>
+        <Select
+          disabled={readOnly}
+          onValueChange={onLanguageChange}
+          value={languageCode}
+        >
+          <SelectTrigger className="w-full" id={languageId}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SCRIPT_LANGUAGES.map((code) => (
+              <SelectItem key={code} value={code}>
+                {languageNames.of(code) ?? code}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
   );
 }
 
