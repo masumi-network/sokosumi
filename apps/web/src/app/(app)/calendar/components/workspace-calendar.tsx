@@ -103,6 +103,7 @@ import { useLoadWhenVisible } from "@/hooks/effects/use-load-when-visible";
 import { useIsMobile } from "@/hooks/effects/use-mobile";
 import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
 import { useUrlTimezone } from "@/hooks/effects/use-url-timezone";
+import { useWorkspaceCalendarGridPageDrain } from "@/hooks/effects/use-workspace-calendar-grid-page-drain";
 import { useWorkspaceCalendarRenderEpoch } from "@/hooks/effects/use-workspace-calendar-render-epoch";
 import { CalendarRealtimeBridge } from "@/lib/ably/calendar-realtime-bridge";
 import { coreClient } from "@/lib/clients/core.browser.client";
@@ -1463,21 +1464,14 @@ function WorkspaceCalendarView({
     setMovingBotRun(null);
   }
 
-  // Month/week grids must show every event: a day holding three of its five
-  // events looks complete. Drain the remaining pages as soon as one appears.
-  useEffect(() => {
-    const requested = requestedPageRef.current;
-    if (
-      view === "agenda" ||
-      !nextCursor ||
-      loadMoreError ||
-      (requested?.cursor === nextCursor && requested.items === items)
-    ) {
-      return;
-    }
-    requestedPageRef.current = { cursor: nextCursor, items };
-    void loadNextPage();
-  }, [view, items, nextCursor, loadMoreError, loadNextPage]);
+  useWorkspaceCalendarGridPageDrain({
+    view,
+    items,
+    nextCursor,
+    loadMoreError,
+    loadNextPage,
+    requestedPageRef,
+  });
 
   useLoadWhenVisible(agendaBoundaryRef, {
     armed:
