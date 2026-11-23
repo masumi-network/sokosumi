@@ -163,3 +163,20 @@ for (const [name, argv, message] of [
     assert.match(JSON.parse(f.output.join("")).error, message);
   });
 }
+
+for (const [argv, message] of [
+  [
+    ["tasks", "list", "--query", "status=READY"],
+    /--query is only supported by jobs events, jobs files, jobs links/,
+  ],
+  [
+    ["jobs", "get", "job-1", "--organization-slug", "utxo"],
+    /--organization-slug is only supported by tasks commands and jobs events/,
+  ],
+] as const) {
+  test(`${argv.slice(0, 2).join(" ")} rejects ${argv.at(-2)} before calling Core`, async (t) => {
+    const f = fixture(t);
+    await assert.rejects(runCli([...API, ...argv], f.deps), message);
+    assert.equal(f.calls.length, 0);
+  });
+}

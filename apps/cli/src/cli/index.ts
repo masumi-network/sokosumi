@@ -168,6 +168,11 @@ const CORE_COMMAND_SECTIONS = new Set(
       section !== "skills" && section !== "runtime" && section !== "auth",
   ),
 );
+const GENERIC_ROWS = CLI_COMMAND_CATALOG.filter(
+  (entry): entry is Extract<typeof entry, { operation: string }> =>
+    "operation" in entry,
+);
+const GENERIC_COMMANDS = GENERIC_ROWS.map((entry) => entry.command).join(", ");
 interface ParsedArgv {
   positionals: string[];
   options: CliOptions;
@@ -280,10 +285,8 @@ export async function runCli(
     throw error;
   }
   const { positionals, options } = parsed;
-  const genericRow = CLI_COMMAND_CATALOG.find(
-    (entry) =>
-      "operation" in entry &&
-      entry.command === positionals.slice(0, 2).join(" "),
+  const genericRow = GENERIC_ROWS.find(
+    (entry) => entry.command === positionals.slice(0, 2).join(" "),
   );
   const coworkerRegistration =
     positionals[0] === "coworkers" &&
@@ -367,10 +370,12 @@ export async function runCli(
       throw new Error(
         "--personal cannot be combined with organization or Workspace flags",
       );
+    if (options.query !== undefined && !genericRow)
+      throw new Error(`--query is only supported by ${GENERIC_COMMANDS}`);
     if (options["organization-slug"] !== undefined) {
       if (positionals[0] !== "tasks" && !genericRow) {
         throw new Error(
-          "--organization-slug is only supported by tasks commands and commands that call one Core operation",
+          `--organization-slug is only supported by tasks commands and ${GENERIC_COMMANDS}`,
         );
       }
       organizationSlug = validateOrganizationSlug(options["organization-slug"]);
@@ -430,7 +435,7 @@ export async function runCli(
     }
 
     const [section, command, positionalId, ...rest] = positionals;
-    if (genericRow && "operation" in genericRow) {
+    if (genericRow) {
       await requireAuthenticatedSession(session);
       await runGenericCommand({
         client: getCoreClient(session, dependencies, organizationSlug),
