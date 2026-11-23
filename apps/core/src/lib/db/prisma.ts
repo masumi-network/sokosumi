@@ -24,15 +24,14 @@ const globalForPrisma = globalThis as typeof globalThis & {
  * One pool for the `shared` client and the client of each Network. The clients
  * share its connections, so session state set on one is seen by the others:
  * use `SET LOCAL` inside a transaction or schema-qualified names, never a
- * plain `SET` (`no-session-set.test.ts`).
+ * plain `SET` (`__tests__/no-session-set.test.ts`).
  */
 function createCoreDatabase(): CoreDatabase {
   const env = getEnv();
   const pool = new Pool({
     connectionString: env.DATABASE_URL,
-    // pg's default, now shared by all three clients. Preprod stays off until
-    // the move, so Mainnet keeps the connections it had; one long transaction
-    // on any client holds one of them.
+    // Shared by all three clients: while Preprod is off, Mainnet has all of
+    // them; one long transaction on any client holds one.
     max: 10,
     // Detect dead TCP connections before the next cron invocation (60s).
     // The OS default (~7200s) misses server-side idle-timeout closures.

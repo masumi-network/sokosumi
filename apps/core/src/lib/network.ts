@@ -1,6 +1,10 @@
 export const NETWORKS = ["mainnet", "preprod"] as const;
 
-/** A Masumi Network. Every Network has its own database schema and its own keys. */
+/**
+ * A Masumi Network. Every Network has its own database schema and its own keys.
+ * Lowercase, as its schema names and key prefixes are; the deployment's
+ * `NETWORK` (`"Mainnet" | "Preprod"`) is a different value and goes away.
+ */
 export type Network = (typeof NETWORKS)[number];
 
 /**
