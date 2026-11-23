@@ -77,14 +77,13 @@ import {
   emailCodeSignIn,
   resolveEmailCodeSignUpLoginMethod,
 } from "./auth-email-code-sign-in";
-import { afterNewSession } from "./auth-new-session";
+import { afterAuthRequest } from "./auth-new-session";
 import {
   acceptCmoPreviewCallback,
+  applyOAuthClientPolicy,
   clientRegistrationOptions,
   jwtKeyStoreOptions,
-  markSelfRegisteredClient,
   oauthRefreshTokenOptions,
-  registerPublicClientsOnly,
   revokeUserOAuthTokens,
   signsInToCmo,
 } from "./auth-oauth-provider";
@@ -126,6 +125,7 @@ const EMAIL_CODE_EXPIRES_IN_SECONDS = 10 * 60;
 const env = getEnv();
 const webAppBaseUrl = getWebAppBaseUrl();
 const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
+const mcpResource = mcpResourceIdentifier(betterAuthBaseUrl);
 const betterAuthCookiePrefixParams = {
   network: env.NETWORK,
   vercelEnv: env.VERCEL_ENV,
@@ -394,7 +394,7 @@ export const auth = betterAuth({
         await validateUpdatedUserName(ctx);
       }
 
-      return registerPublicClientsOnly(ctx);
+      return applyOAuthClientPolicy(ctx, mcpResource);
     }),
     after: createAuthMiddleware(async (ctx) => {
       if (ctx.path === "/organization/leave") {
@@ -430,9 +430,7 @@ export const auth = betterAuth({
       }
 
       await captureBetterAuthOAuthErrorURL(ctx.path);
-      await afterNewSession(ctx);
-
-      return await markSelfRegisteredClient(ctx);
+      return await afterAuthRequest(ctx);
     }),
   },
   emailAndPassword: {
@@ -673,7 +671,7 @@ export const auth = betterAuth({
       resourceSeedMode: "merge",
       // Open self-registration for MCP clients: public PKCE clients capped
       // at the MCP scopes and linked to the MCP resource (ADR 0076).
-      ...clientRegistrationOptions(mcpResourceIdentifier(betterAuthBaseUrl)),
+      ...clientRegistrationOptions(mcpResource),
       grantTypes: ["authorization_code", "refresh_token"],
       // Production keeps exact redirect URI matching (ADR 0045).
       ...(env.VERCEL_ENV === "preview"

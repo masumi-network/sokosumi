@@ -11,17 +11,18 @@ import { memoryAdapter } from "better-auth/adapters/memory";
 import { createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { jwt } from "better-auth/plugins";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   mcpOAuthResource,
   mcpResourceIdentifier,
 } from "@/lib/sokosumi-mcp/resource";
 
+import { afterAuthRequest } from "./auth-new-session";
 import {
+  applyOAuthClientPolicy,
   clientRegistrationOptions,
   markSelfRegisteredClient,
-  registerPublicClientsOnly,
 } from "./auth-oauth-provider";
 
 type Row = Record<string, unknown>;
@@ -70,11 +71,12 @@ function createAuth(options: { rateLimit?: boolean } = {}) {
         ...registration,
       }),
     ],
+    // Core's own hook steps (`src/lib/auth.ts`), in Core's order.
     hooks: {
       before: createAuthMiddleware(async (ctx) =>
-        registerPublicClientsOnly(ctx),
+        applyOAuthClientPolicy(ctx, MCP),
       ),
-      after: createAuthMiddleware(async (ctx) => markSelfRegisteredClient(ctx)),
+      after: createAuthMiddleware(async (ctx) => afterAuthRequest(ctx)),
     },
     rateLimit: options.rateLimit
       ? { enabled: true, storage: "memory" }
@@ -266,7 +268,12 @@ describe("dynamic client registration", () => {
   it.each([
     ["backchannel_logout_uri", "https://agent.example.test/logout"],
     ["jwks_uri", "https://agent.example.test/jwks.json"],
-  ])("refuses a registration with %s", async (field, value) => {
+    ...["client_uri", "logo_uri", "tos_uri", "policy_uri"].map((field) => [
+      field,
+      "javascript:alert(1)",
+    ]),
+    ["logo_uri", "http://agent.example.test/logo.png"],
+  ])("refuses a registration with %s %s", async (field, value) => {
     const response = await register({ ...MCP_CLIENT, [field]: value });
 
     expect(response.status).toBe(400);
@@ -415,6 +422,47 @@ async function readPublicClient(clientId: string, redirectUri: string) {
   return [await publicClient.json(), await prelogin.json()] as Row[];
 }
 
+describe("sokosumi:mcp outside self-registration", () => {
+  it("refuses it when Web creates a client", async () => {
+    const response = await auth.handler(
+      new Request(`${CORE}/auth/oauth2/create-client`, {
+        method: "POST",
+        headers: { cookie, origin: WEB, "content-type": "application/json" },
+        body: JSON.stringify({
+          client_name: "Partner app",
+          redirect_uris: [WEB_REDIRECT],
+          scope: MCP_SCOPE,
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "invalid_scope" });
+    expect(store.oauthClient).toHaveLength(0);
+  });
+
+  it("refuses it when Web updates a client", async () => {
+    const { client_id } = await createOwnedClient(OAUTH_SCOPE_OPENID);
+
+    const response = await auth.handler(
+      new Request(`${CORE}/auth/oauth2/update-client`, {
+        method: "POST",
+        headers: { cookie, origin: WEB, "content-type": "application/json" },
+        body: JSON.stringify({ client_id, update: { scope: MCP_SCOPE } }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(store.oauthClient[0].scopes).toEqual([OAUTH_SCOPE_OPENID]);
+  });
+
+  it("leaves a client Web creates unlinked from the MCP resource", async () => {
+    await createOwnedClient(OAUTH_SCOPE_OPENID);
+
+    expect(store.oauthClientResource).toEqual([]);
+  });
+});
+
 describe("public client info", () => {
   it("marks a self-registered client", async () => {
     const clientId = await registerMcpClient();
@@ -434,6 +482,30 @@ describe("public client info", () => {
     for (const client of await readPublicClient(client_id, WEB_REDIRECT)) {
       expect(client).toMatchObject({ client_id, selfRegistered: false });
     }
+  });
+
+  it("treats a client it cannot read as self-registered", async () => {
+    const logger = { error: vi.fn() };
+    const ctx = {
+      path: "/oauth2/public-client",
+      json: (body: unknown) => body,
+      context: {
+        returned: { client_id: "c1", client_name: "Agent" },
+        logger,
+        adapter: {
+          findOne: async () => {
+            throw new Error("database unavailable");
+          },
+        },
+      },
+    } as unknown as Parameters<typeof markSelfRegisteredClient>[0];
+
+    await expect(markSelfRegisteredClient(ctx)).resolves.toEqual({
+      client_id: "c1",
+      client_name: "Agent",
+      selfRegistered: true,
+    });
+    expect(logger.error).toHaveBeenCalled();
   });
 
   it("still answers 404 for an unknown client", async () => {
