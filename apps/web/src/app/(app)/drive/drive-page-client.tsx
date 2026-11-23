@@ -472,7 +472,7 @@ function DrivePageWorkspace({
     enabled: moveDialogOpen,
   });
   const allFolders = foldersQuery.data ?? [];
-  const loadingAllFolders = foldersQuery.isPending;
+  const loadingAllFolders = foldersQuery.isPending || foldersQuery.isFetching;
 
   const filesSortSelection = parseFilesSortSelection(
     driveNavQuery.sortBy,
@@ -2495,7 +2495,9 @@ function DrivePageWorkspace({
             </Button>
             <Button
               onClick={() => void handleMoveConfirm()}
-              disabled={movingItem || selectedDestination === null}
+              disabled={
+                movingItem || loadingAllFolders || selectedDestination === null
+              }
             >
               {t("moveHere")}
             </Button>

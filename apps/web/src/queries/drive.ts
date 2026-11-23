@@ -145,7 +145,7 @@ function removeDeletedFromData(
  * Single Drive write invalidation path: runs only after a successful write.
  * Cancels in-flight reads on the store prefix (including cold keys with no data
  * yet, which `invalidateQueries` alone would reuse), removes `deletedIds` from
- * loaded (`status === "success"`) entries, then invalidates the prefix.
+ * entries that have data, then invalidates the prefix.
  */
 export async function invalidateDrive(
   queryClient: QueryClient,
@@ -161,7 +161,6 @@ export async function invalidateDrive(
     for (const query of queryClient
       .getQueryCache()
       .findAll({ queryKey: prefix })) {
-      if (query.state.status !== "success") continue;
       const current = query.state.data;
       if (current === undefined) continue;
 

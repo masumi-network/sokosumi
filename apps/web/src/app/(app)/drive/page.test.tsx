@@ -700,16 +700,16 @@ describe("DrivePage move dialog", () => {
     });
   });
 
-  it("shares the Drive folders cache key and refreshes after a folder write", async () => {
+  it("shares the Drive folders cache key and disables destinations and submit while refetching", async () => {
     const user = userEvent.setup();
     queryClient = createDriveQueryClient();
     const store = { scope: "org" as const, organizationId: "org_a" };
+    const refetchDeferred = Promise.withResolvers<string[]>();
     fetchWorkspaceFoldersMock.mockReset();
-    fetchWorkspaceFoldersMock.mockResolvedValue([
-      "Reports",
-      "Clients",
-      "Archive",
-    ]);
+    fetchWorkspaceFoldersMock.mockResolvedValue([]);
+    fetchWorkspaceFoldersMock.mockImplementationOnce(
+      () => refetchDeferred.promise,
+    );
     // Pre-seed the shared Drive folders cache (as the catalog facet populates).
     queryClient.setQueryData(driveQueryKeys.folders(store), [
       "Reports",
@@ -724,17 +724,37 @@ describe("DrivePage move dialog", () => {
     });
     await user.click(screen.getByTestId("files-move-folder"));
 
-    expect(await screen.findByText("Clients")).toBeVisible();
+    const clientsButton = await screen.findByRole("button", {
+      name: "Clients",
+    });
+    expect(clientsButton).toBeVisible();
     // Stale time is 60s in this harness, so the shared cache avoids a duplicate fetch.
     expect(fetchWorkspaceFoldersMock).not.toHaveBeenCalled();
 
-    await act(async () => {
-      await queryClient.invalidateQueries({
-        queryKey: driveQueryKeys.prefix(store),
-      });
+    await user.click(clientsButton);
+    expect(screen.getByRole("button", { name: "moveHere" })).toBeEnabled();
+
+    // While folders refetch after invalidation, stale destinations are replaced
+    // by the loading state and Submit is disabled.
+    const invalidation = queryClient.invalidateQueries({
+      queryKey: driveQueryKeys.prefix(store),
     });
 
-    expect(await screen.findByText("Archive")).toBeVisible();
+    await waitFor(() => {
+      expect(screen.getByText("loadingFolders")).toBeVisible();
+    });
+    expect(screen.queryByRole("button", { name: "Clients" })).toBeNull();
+    expect(screen.getByRole("button", { name: "moveHere" })).toBeDisabled();
+
+    await act(async () => {
+      refetchDeferred.resolve(["Reports", "Archive"]);
+      await invalidation;
+    });
+
+    expect(
+      await screen.findByRole("button", { name: "Archive" }),
+    ).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Clients" })).toBeNull();
     expect(fetchWorkspaceFoldersMock).toHaveBeenCalledTimes(1);
   });
 });

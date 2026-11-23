@@ -342,8 +342,7 @@ export function DriveAllFilesPanel({
   const { items, meta, restarted } = foldLoadedFilePages(
     searchQuery.data?.pages ?? [],
   );
-  const isInitialError =
-    searchQuery.isError && !searchQuery.isFetchNextPageError;
+  const isInitialError = searchQuery.isError && searchQuery.data === undefined;
   const isLoadingList =
     searchQuery.isPending || (items.length === 0 && searchQuery.isFetching);
   const isRefreshingPageOne =
@@ -499,9 +498,7 @@ export function DriveAllFilesPanel({
       if (activeCollectionId === collection.id) {
         setActiveCollectionId(null);
       }
-      void invalidateDrive(queryClient, store, {
-        deletedIds: [collection.id],
-      });
+      void invalidateDrive(queryClient, store);
     } catch {
       toast.error(t("collectionDeleteFailed", { name: collection.name }));
     } finally {
@@ -1113,7 +1110,9 @@ export function DriveAllFilesPanel({
                 size="sm"
                 loading={searchQuery.isFetchingNextPage}
                 disabled={isRefreshingPageOne}
-                onClick={() => void searchQuery.fetchNextPage()}
+                onClick={() =>
+                  void searchQuery.fetchNextPage({ cancelRefetch: false })
+                }
               >
                 {t("retry")}
               </Button>
@@ -1125,7 +1124,9 @@ export function DriveAllFilesPanel({
               className="self-center"
               loading={searchQuery.isFetchingNextPage}
               disabled={isRefreshingPageOne}
-              onClick={() => void searchQuery.fetchNextPage()}
+              onClick={() =>
+                void searchQuery.fetchNextPage({ cancelRefetch: false })
+              }
             >
               {t("loadMore")}
             </Button>

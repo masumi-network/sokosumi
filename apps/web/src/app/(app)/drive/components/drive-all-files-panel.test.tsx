@@ -9,7 +9,13 @@ import {
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -324,39 +330,77 @@ describe("DriveAllFilesPanel on the Drive cache", () => {
     expect(screen.getByText("a.pdf")).toBeVisible();
   });
 
-  it("disables Load more while page one refreshes", async () => {
+  it("disables Load more while page one refreshes and does not cancel an in-flight refresh on an interleaved click", async () => {
     const file1 = makeFile("res_1", "page1.pdf");
+    const refreshedFile = makeFile("res_2", "refreshed.pdf");
     const refreshDeferred = Promise.withResolvers<FileSearchPage>();
+    let refreshSignal: AbortSignal | undefined;
 
     api.fetchFileSearchPage
       .mockResolvedValueOnce({
         items: [file1],
         search: makeMeta({ hasMore: true, nextCursor: "cursor_2" }),
       })
-      .mockImplementationOnce(() => refreshDeferred.promise);
+      .mockImplementationOnce(({ signal }: { signal?: AbortSignal }) => {
+        refreshSignal = signal;
+        return refreshDeferred.promise;
+      });
 
     const { client } = renderPanel();
 
     const loadMore = await screen.findByRole("button", { name: "loadMore" });
     expect(loadMore).toBeEnabled();
 
-    const invalidation = invalidateDrive(client, orgA);
+    // Start a page-one refresh and fire a click on Load more before React
+    // commits `disabled`, matching a fast click racing invalidation.
+    const invalidation = client.invalidateQueries({
+      queryKey: driveQueryKeys.prefix(orgA),
+    });
+    fireEvent.click(loadMore);
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "loadMore" })).toBeDisabled();
     });
+    // `{ cancelRefetch: false }` leaves the page-one refresh intact with no stale cursor fetch.
+    expect(refreshSignal?.aborted).toBe(false);
+    expect(api.fetchFileSearchPage).toHaveBeenCalledTimes(2);
 
     await act(async () => {
       refreshDeferred.resolve({
-        items: [file1],
-        search: makeMeta({ hasMore: true, nextCursor: "cursor_2" }),
+        items: [refreshedFile],
+        search: makeMeta({ hasMore: true, nextCursor: "cursor_fresh" }),
       });
       await invalidation;
     });
 
+    expect(await screen.findByText("refreshed.pdf")).toBeVisible();
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "loadMore" })).toBeEnabled();
     });
+  });
+
+  it("keeps loaded rows visible when a page-one refresh fails without showing the later-page Retry row", async () => {
+    const file1 = makeFile("res_1", "kept.pdf");
+
+    api.fetchFileSearchPage
+      .mockResolvedValueOnce({
+        items: [file1],
+        search: makeMeta({ hasMore: true, nextCursor: "cursor_2" }),
+      })
+      .mockRejectedValueOnce(new Error("refresh failed"));
+
+    const { client } = renderPanel();
+
+    expect(await screen.findByText("kept.pdf")).toBeVisible();
+
+    await act(async () => {
+      await invalidateDrive(client, orgA);
+    });
+
+    expect(screen.getByText("kept.pdf")).toBeVisible();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("button", { name: "retry" })).toBeNull();
+    expect(screen.getByRole("button", { name: "loadMore" })).toBeEnabled();
   });
 
   it("keeps loaded pages and shows Retry when loading a later page fails", async () => {
@@ -430,13 +474,14 @@ describe("DriveAllFilesPanel on the Drive cache", () => {
     const user = userEvent.setup();
     const renameDeferred = Promise.withResolvers<FileCollection>();
     const deleteDeferred = Promise.withResolvers<void>();
+    const deleteRefetchDeferred = Promise.withResolvers<FileCollection[]>();
     const initial = makeCollection("col_1", "Invoices");
     const renamed = makeCollection("col_1", "Receipts (server)");
 
     api.fetchFileCollections
       .mockResolvedValueOnce([initial])
       .mockResolvedValueOnce([renamed])
-      .mockResolvedValueOnce([]);
+      .mockImplementationOnce(() => deleteRefetchDeferred.promise);
     api.updateFileCollection.mockImplementationOnce(
       () => renameDeferred.promise,
     );
@@ -476,6 +521,19 @@ describe("DriveAllFilesPanel on the Drive cache", () => {
     await act(async () => {
       deleteDeferred.resolve();
       await deleteDeferred.promise;
+    });
+
+    await waitFor(() => {
+      expect(api.fetchFileCollections).toHaveBeenCalledTimes(3);
+    });
+    // Shelf waits for the collections GET refetch rather than patching deletedIds.
+    expect(
+      screen.getByRole("button", { name: "Receipts (server)" }),
+    ).toBeVisible();
+
+    await act(async () => {
+      deleteRefetchDeferred.resolve([]);
+      await deleteRefetchDeferred.promise;
     });
 
     await waitFor(() => {
