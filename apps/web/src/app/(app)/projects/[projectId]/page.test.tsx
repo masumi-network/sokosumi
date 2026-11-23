@@ -282,10 +282,10 @@ describe("ProjectDetailPage", () => {
     expect(
       screen.getByRole("heading", { name: "Launch plan" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /example.com/ })).toHaveAttribute(
-      "href",
-      "https://example.com/about",
-    );
+    // The rail from xl, the Properties line below it: both link the site.
+    for (const link of screen.getAllByRole("link", { name: /example.com/ })) {
+      expect(link).toHaveAttribute("href", "https://example.com/about");
+    }
     expect(
       screen.getByRole("heading", { name: "App.Projects.Detail.briefing" }),
     ).toBeInTheDocument();

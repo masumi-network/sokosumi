@@ -578,7 +578,13 @@ describe("cmoProductionMessage", () => {
           id: "written",
           script: "Stop emailing back and forth.",
         }),
-        piece({ ...talking, id: "yt", channel: "youtube", videoOf: "tv" }),
+        piece({
+          ...talking,
+          id: "yt",
+          channel: "youtube",
+          videoOf: "tv",
+          script: "Book a demo in one click.",
+        }),
       ],
       connected: new Set(),
       attempt: 1,
@@ -586,7 +592,7 @@ describe("cmoProductionMessage", () => {
     });
     expect(message).toContain("(write its script)");
     expect(message).toContain(
-      "(the talking video of tv on youtube: the same file, so write only this post's own caption, in youtube's own format; its script stays on tv)",
+      "(the talking video of tv on youtube: the same file, so write only this post's own caption, in youtube's own format, about what the video says: \"Book a demo in one click.\"; its script stays on tv)",
     );
     expect(message).not.toContain("(write its visual)");
   });

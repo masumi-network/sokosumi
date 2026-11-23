@@ -25,6 +25,8 @@ import { useSokoBotTargetId } from "./soko-bot-target";
 
 interface ScheduleRowActionsProps {
   scheduleId: string;
+  /** Names each control, so a row is clear without its truncated title. */
+  name: string;
   enabled: boolean;
   /** Built-in rhythms can be paused but not deleted. */
   deletable?: boolean;
@@ -34,6 +36,7 @@ interface ScheduleRowActionsProps {
 
 export function ScheduleRowActions({
   scheduleId,
+  name,
   enabled,
   deletable = true,
   onRemovedChange,
@@ -94,7 +97,8 @@ export function ScheduleRowActions({
         checked={shown}
         onCheckedChange={toggle}
         disabled={isPending}
-        aria-label={shown ? t("disable") : t("enable")}
+        // One name in both states (ARIA switch); its checked state says on or off.
+        aria-label={name}
       />
       {deletable ? (
         <AlertDialog>
@@ -105,13 +109,17 @@ export function ScheduleRowActions({
               size="sm"
               disabled={isPending}
               className="text-muted-foreground hover:text-destructive"
+              aria-label={t("deleteNamed", { name })}
             >
               {t("delete")}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>{t("deleteTitle")}</AlertDialogTitle>
+              {/* wrap-anywhere: a long unbroken name would widen the dialog past the screen. */}
+              <AlertDialogTitle className="wrap-anywhere">
+                {t("deleteTitle", { name })}
+              </AlertDialogTitle>
               <AlertDialogDescription>
                 {t("deleteDescription")}
               </AlertDialogDescription>

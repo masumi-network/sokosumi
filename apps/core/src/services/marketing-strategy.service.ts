@@ -583,7 +583,13 @@ export async function planMarketingStrategyPosts(
   const posts = await db.socialPost.findMany({
     where: { marketingStrategyId: version.id },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    select: { id: true, status: true, provider: true, planning: true },
+    select: {
+      id: true,
+      status: true,
+      provider: true,
+      planning: true,
+      media: true,
+    },
   });
   const connections = await db.projectSocialConnection.findMany({
     where: { projectId: version.projectId, status: "active" },
@@ -693,8 +699,13 @@ export async function planMarketingStrategyPosts(
       continue;
     }
     if (!unpublished(post.status)) continue;
+    // A talking video made for other words is taken off, so Core makes the
+    // new one: a carried-over post kept a video of an older script.
+    const remake =
+      spokenChanged(stored, planning) &&
+      parseSocialPostMedia(post.media, post.id).length > 0;
     // A scheduled post's words and time change through Social, which checks them.
-    const draft = post.status !== "SCHEDULED";
+    const draft = post.status !== "SCHEDULED" || remake;
     await db.socialPost.update({
       where: { id: post.id },
       data:
@@ -702,6 +713,14 @@ export async function planMarketingStrategyPosts(
           ? canceledPost(now)
           : {
               planning,
+              ...(remake
+                ? {
+                    media: [],
+                    status: "DRAFT" as const,
+                    scheduledByUserId: null,
+                    scheduledByCoworkerId: null,
+                  }
+                : {}),
               ...(draft
                 ? {
                     scheduledAt: plannedAt(entry, timeZone),
@@ -715,6 +734,20 @@ export async function planMarketingStrategyPosts(
     });
   }
   if (drafts.length > 0) await db.socialPost.createMany({ data: drafts });
+}
+
+/** Whether a talking video's post now speaks other words, or with another presenter or voice. */
+export function spokenChanged(
+  before: SocialPostPlanning | null | undefined,
+  after: Pick<SocialPostPlanning, "script" | "presenter" | "voice">,
+): boolean {
+  if (!before?.script?.trim()) return false;
+  return (
+    before.script.trim() !== after.script?.trim() ||
+    (before.presenter ?? "").toLowerCase() !==
+      (after.presenter ?? "").toLowerCase() ||
+    (before.voice ?? "").toLowerCase() !== (after.voice ?? "").toLowerCase()
+  );
 }
 
 /** A version's Social post, as a calendar entry and the media it carries. */

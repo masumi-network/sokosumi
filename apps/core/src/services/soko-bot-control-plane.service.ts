@@ -632,9 +632,15 @@ export function safeEventProjection(
   return { summary: type.replaceAll(".", " "), payload: undefined };
 }
 
-/** Who asked and where, for chat-started turns (console attribution). */
+/**
+ * Who asked and where, for chat-started turns, and the schedule a scheduled
+ * turn ran for (console attribution).
+ */
 const TURN_CHAT_ATTRIBUTION_INCLUDE = {
   askedBy: { select: { id: true, name: true, image: true } },
+  scheduleRun: {
+    select: { schedule: { select: { name: true, systemKey: true } } },
+  },
   chatMention: {
     select: {
       message: {
