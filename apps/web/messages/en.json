@@ -6045,7 +6045,7 @@
     },
     "HistorySearchDialog": {
       "title": "Search",
-      "description": "Search for tasks, tags, people, projects, channels, jobs, job results, images or files",
+      "description": "Search for tasks, tags, people, projects, channels, schedules, coworkers, jobs, job results, images or files",
       "searchPlaceholder": "Search...",
       "empty": "No results found",
       "loading": "Loading...",
@@ -6064,7 +6064,10 @@
       "tagsError": "Couldn't load tags",
       "tagTasksError": "Couldn't load these tasks",
       "projectsGroup": "Projects",
-      "channelsGroup": "Channels"
+      "channelsGroup": "Channels",
+      "schedulesGroup": "Schedules",
+      "coworkersGroup": "Coworkers",
+      "newTask": "New task"
     },
     "NoticeDialog": {
       "defaultTitle": "Notice",

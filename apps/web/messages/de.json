@@ -6045,7 +6045,7 @@
     },
     "HistorySearchDialog": {
       "title": "Suche",
-      "description": "Suche nach Aufgaben, Tags, Personen, Projekten, Kanälen, Jobs, Job-Ergebnissen, Bildern oder Dateien",
+      "description": "Suche nach Aufgaben, Tags, Personen, Projekten, Kanälen, Zeitplänen, Coworkern, Jobs, Job-Ergebnissen, Bildern oder Dateien",
       "searchPlaceholder": "Suchen...",
       "empty": "Keine Ergebnisse gefunden",
       "loading": "Lädt...",
@@ -6064,7 +6064,10 @@
       "tagsError": "Tags konnten nicht geladen werden",
       "tagTasksError": "Diese Aufgaben konnten nicht geladen werden",
       "projectsGroup": "Projekte",
-      "channelsGroup": "Kanäle"
+      "channelsGroup": "Kanäle",
+      "schedulesGroup": "Zeitpläne",
+      "coworkersGroup": "Coworker",
+      "newTask": "Neue Aufgabe"
     },
     "NoticeDialog": {
       "defaultTitle": "Hinweis",

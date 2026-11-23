@@ -29,6 +29,10 @@ vi.mock("@/lib/auth/auth.client", () => ({
 vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: {
     getHistory: async () => ({ data: [], meta: { nextCursor: null } }),
+    listTaskSchedules: async () => ({ data: [] }),
+    getTaskScheduleAssignees: async () => ({
+      data: { coworkers: [], sokoBot: null },
+    }),
   },
 }));
 
@@ -78,6 +82,9 @@ const labels = {
   tagTasksError: "Couldn't load these tasks",
   projectsGroup: "Projects",
   channelsGroup: "Channels",
+  schedulesGroup: "Schedules",
+  coworkersGroup: "Coworkers",
+  newTask: "New task",
 };
 
 const SCOPE = { userId: "user-1", organizationId: "org-1" };

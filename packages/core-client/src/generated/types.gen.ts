@@ -105124,6 +105124,10 @@ export type GetTasksSchedulesData = {
         limit?: number;
         projectId?: string;
         state?: TaskScheduleState;
+        /**
+         * Name contains this text, ignoring case
+         */
+        q?: string;
     };
     url: '/tasks/schedules';
 };
