@@ -37,7 +37,7 @@ describe("sendEmail", () => {
     vi.clearAllMocks();
   });
 
-  it("sends from RESEND_FROM_EMAIL with category tags and returns id", async () => {
+  it("sends as Sokosumi from RESEND_FROM_EMAIL with category tags and returns id", async () => {
     emailsSendMock.mockResolvedValue({
       data: { id: "email_123" },
       error: null,
@@ -88,6 +88,27 @@ describe("sendEmail", () => {
       html: "<p>Failed</p>",
       tags: [{ name: "category", value: "job-failure-notification" }],
     });
+  });
+
+  it("keeps a caller's own from unchanged", async () => {
+    emailsSendMock.mockResolvedValue({
+      data: { id: "email_from" },
+      error: null,
+    });
+
+    const { sendEmail } = await import("./email.client");
+
+    await sendEmail({
+      from: "Brand <news@example.com>",
+      to: "reader@example.com",
+      subject: "News",
+      html: "<p>News</p>",
+      tag: "newsletter",
+    });
+
+    expect(emailsSendMock).toHaveBeenCalledWith(
+      expect.objectContaining({ from: "Brand <news@example.com>" }),
+    );
   });
 
   it("throws ErrorResponse fields when Resend returns an API error", async () => {
