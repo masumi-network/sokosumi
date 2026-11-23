@@ -783,8 +783,18 @@ async function requireHirerSeat(
   }
 }
 
-/** One unpaid Cuso per person (ADR 0068): the refusal names him for CMO's link. */
+/**
+ * One unpaid Cuso per person (ADR 0068): the refusal names him for CMO's link.
+ * A tester may continue any Cuso on Tester credits anyway, so the cap would
+ * only stop them hiring two Cusos to compare before approving either.
+ */
 async function requireNoUnpaidCuso(userId: string): Promise<void> {
+  if (
+    await isOnEmailAllowlist(userId, getEnv().CMO_SUBSCRIPTION_SKIP_ALLOWLIST, {
+      requireVerifiedEmail: true,
+    })
+  )
+    return;
   const unpaid = await findUnpaidCusoHiredBy(userId);
   if (!unpaid) return;
   throw new CmoConflictError(
