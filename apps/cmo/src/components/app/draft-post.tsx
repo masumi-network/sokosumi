@@ -247,7 +247,7 @@ export function DraftPost({
   const [pending, startTransition] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
-  // The owner's yes gets its moment: Cuso's thumbs-up until the card moves on.
+  // The owner's yes gets its moment: Cuso's check mark until the card moves on.
   const [approved, setApproved] = useState(false);
   const [text, setText] = useState(draft.text);
   const textId = useId();
@@ -299,7 +299,7 @@ export function DraftPost({
         <div className="cf draft-done" role="status">
           <img
             className="draft-done-cuso"
-            src={cusoArt("thumbs-up")}
+            src={cusoArt("done")}
             alt=""
             width={48}
             height={48}

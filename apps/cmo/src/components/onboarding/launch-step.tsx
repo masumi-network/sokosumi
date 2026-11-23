@@ -223,8 +223,8 @@ export function LaunchStep({
         <div className="ob-celebration-panel">
           <div className="card ob-celebration">
             <img
-              src={cusoArt("thumbs-up")}
-              alt={`${AGENT_NAME} giving a thumbs up`}
+              src={cusoArt("done")}
+              alt={`${AGENT_NAME} holding up a check mark`}
               width={320}
               height={320}
             />

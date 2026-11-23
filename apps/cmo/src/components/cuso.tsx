@@ -3,25 +3,26 @@ import type { CusoPose } from "../lib/thread";
 /** How Cuso looks on an avatar; same poses as `cusoPose`. */
 export type Pose = CusoPose;
 
-/** Cuso's drawings in `public/cuso/`, the landing page's mascot poses. */
+/** Cuso's drawings in `public/cuso/`, from the brand guide's 2D poses (`scripts/cuso-poses.py`). */
 export type CusoArt =
   | "walking"
+  | "friendly"
   | "pointing"
   | "thinking"
-  | "thumbs-up"
-  | "searching";
+  | "done"
+  | "researching";
 
 /** The drawing each status pose shows. */
 const POSE_ART: Record<Pose, CusoArt> = {
-  reading: "searching",
+  reading: "researching",
   thinking: "thinking",
   "needs-you": "pointing",
-  reporting: "walking",
-  done: "thumbs-up",
+  reporting: "friendly",
+  done: "done",
 };
 
 export function cusoArt(art: CusoArt): string {
-  return `/cuso/${art}.png`;
+  return `/cuso/${art}.svg`;
 }
 
 interface CusoAvatarProps {

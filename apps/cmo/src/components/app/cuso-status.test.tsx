@@ -51,7 +51,7 @@ const cases = [
       learning: "running" as const,
     },
     pose: "reading",
-    art: "searching",
+    art: "researching",
     line: "Learning",
   },
   {
@@ -83,7 +83,7 @@ const cases = [
       updates: [report("2026-11-05T09:00:00Z")],
     },
     pose: "reporting",
-    art: "walking",
+    art: "friendly",
     line: null,
   },
   {
@@ -95,7 +95,7 @@ const cases = [
       updates: [report("2026-11-01T09:00:00Z")],
     },
     pose: "done",
-    art: "thumbs-up",
+    art: "done",
     line: null,
   },
 ];
@@ -179,30 +179,24 @@ it("opens Today from a pill link on every page but Today itself", () => {
   expect(home).toContain("On schedule");
 });
 
-it("stands in a light porthole, not on a half disc", () => {
+it("stands in his spotlight, the still of his pose until the rig is live", () => {
   const html = renderToStaticMarkup(
     <CusoStatus overview={calm} view="chat" now={NOW} onOpen={() => {}} />,
   );
   expect(html).toMatch(
-    /<span class="cuso-figure" aria-hidden="true"><span class="cuso-ground"><\/span><span class="cuso-poses"/,
+    /<span class="cuso-figure" aria-hidden="true"><span class="cuso-ground"><\/span><span class="cuso-poses" data-art="[a-z]+"><span class="cuso-shadow"><\/span><img class="cuso-still"/,
   );
-  // Every pose is on the stage from the first paint, so a change loads nothing.
-  for (const pose of [
-    "pointing",
-    "thinking",
-    "searching",
-    "walking",
-    "thumbs-up",
-  ]) {
-    expect(html).toContain(`cuso-pose-${pose}`);
-  }
-  expect(html.match(/data-on=""/g)).toHaveLength(1);
+  // The brand guide's 2D drawing, never a PNG.
+  expect(html).toContain(
+    `src="/cuso/${cusoBubble(calm, "chat", NOW).art}.svg"`,
+  );
+  expect(html).not.toContain(".png");
 });
 
 it("looks things up on SEO and Competitors while nothing else goes on", () => {
-  expect(cusoBubble(calm, "seo", NOW).art).toBe("searching");
-  expect(cusoBubble(calm, "competitors", NOW).art).toBe("searching");
-  expect(cusoBubble(calm, "chat", NOW).art).not.toBe("searching");
+  expect(cusoBubble(calm, "seo", NOW).art).toBe("researching");
+  expect(cusoBubble(calm, "competitors", NOW).art).toBe("researching");
+  expect(cusoBubble(calm, "chat", NOW).art).not.toBe("researching");
   // What needs the owner still comes first.
   expect(cusoBubble(cmoOverview(), "seo", NOW).art).toBe("pointing");
 });

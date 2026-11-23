@@ -93,13 +93,13 @@ describe("DraftPost", () => {
     await press("Approve");
 
     expect(drafts.approve).toHaveBeenCalledWith("post-1", 3);
-    // The yes gets its moment: Cuso's thumbs-up and when it goes out.
+    // The yes gets its moment: Cuso's check mark and when it goes out.
     const done = host.querySelector('[role="status"].draft-done');
     expect(done?.textContent).toBe(
       "Approved. It goes out on X in about two minutes.",
     );
     expect(done?.querySelector("img")?.getAttribute("src")).toBe(
-      "/cuso/thumbs-up.png",
+      "/cuso/done.svg",
     );
     expect(host.textContent).not.toContain("Decline");
   });

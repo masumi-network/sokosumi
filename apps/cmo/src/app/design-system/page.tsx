@@ -105,10 +105,11 @@ const SHADOWS = [
 
 const ART: CusoArt[] = [
   "walking",
+  "friendly",
   "pointing",
   "thinking",
-  "thumbs-up",
-  "searching",
+  "done",
+  "researching",
 ];
 
 const POSES: Pose[] = [
