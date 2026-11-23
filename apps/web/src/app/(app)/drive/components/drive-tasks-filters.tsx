@@ -11,7 +11,10 @@ import {
 } from "@/components/common/filter-dropdown-menu";
 import { useDriveTasksFilterCoworkers } from "@/hooks/effects/use-drive-tasks-filter-coworkers";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
-import { fetchDriveTasksPage } from "@/lib/utils/drive-tasks-list.client";
+import {
+  type DriveTasksSelectedEntity,
+  fetchDriveTasksPage,
+} from "@/lib/utils/drive-tasks-list.client";
 import { driveQueryKeys, splitDriveQueryKey } from "@/queries/drive";
 import { useScopedInfiniteQuery } from "@/queries/scoped-queries";
 
@@ -30,6 +33,8 @@ interface DriveTasksFiltersProps {
   assigneeId: string | null;
   projectId: string | null;
   taskId: string | null;
+  selectedProject?: DriveTasksSelectedEntity | null;
+  selectedTask?: DriveTasksSelectedEntity | null;
   labels: {
     title: string;
     searchPlaceholder: string;
@@ -161,6 +166,8 @@ export function DriveTasksFilters({
   assigneeId,
   projectId,
   taskId,
+  selectedProject,
+  selectedTask,
   labels,
   hideMobileTrigger = false,
   sheetOpen,
@@ -237,6 +244,16 @@ export function DriveTasksFilters({
     [pathname, router, searchParams],
   );
 
+  const resolvedSelectedProject =
+    projectId && selectedProject?.id === projectId
+      ? selectedProject
+      : projectId &&
+          tasksQuery.data?.pages[0]?.selectedProject?.id === projectId
+        ? tasksQuery.data.pages[0].selectedProject
+        : null;
+  const resolvedSelectedTask =
+    taskId && selectedTask?.id === taskId ? selectedTask : null;
+
   const showActiveIndicator =
     assigneeId !== null || projectId !== null || taskId !== null;
   const retryLabel = labels.retry ?? labels.loadMore;
@@ -280,7 +297,17 @@ export function DriveTasksFilters({
         ...(projectId === "null" &&
         !projects.some((project) => project.id === "null")
           ? [{ value: "null", label: labels.noProjectLabel }]
-          : []),
+          : resolvedSelectedProject &&
+              !projects.some(
+                (project) => project.id === resolvedSelectedProject.id,
+              )
+            ? [
+                {
+                  value: resolvedSelectedProject.id,
+                  label: resolvedSelectedProject.name,
+                },
+              ]
+            : []),
         ...projects.map((project) => ({
           value: project.id,
           label: project.name,
@@ -297,10 +324,21 @@ export function DriveTasksFilters({
         value: taskId,
         allLabel: labels.all,
         onChange: (value) => handleFilterChange("taskId", value),
-        options: tasks.map((task) => ({
-          value: task.id,
-          label: task.name,
-        })),
+        options: [
+          ...(resolvedSelectedTask &&
+          !tasks.some((task) => task.id === resolvedSelectedTask.id)
+            ? [
+                {
+                  value: resolvedSelectedTask.id,
+                  label: resolvedSelectedTask.name,
+                },
+              ]
+            : []),
+          ...tasks.map((task) => ({
+            value: task.id,
+            label: task.name,
+          })),
+        ],
         pagination: tasksPagination,
       });
     }
@@ -313,8 +351,10 @@ export function DriveTasksFilters({
     coworkers,
     projects,
     projectsPagination,
+    resolvedSelectedProject,
     tasks,
     tasksPagination,
+    resolvedSelectedTask,
     handleFilterChange,
     labels.all,
     labels.coworkerLabel,

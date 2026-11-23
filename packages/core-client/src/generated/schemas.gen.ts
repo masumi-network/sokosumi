@@ -21733,6 +21733,92 @@ export const DriveTasksTaskFileItemSchema = {
     ]
 } as const;
 
+export const DriveTasksPaginationMetadataSchema = {
+    type: 'object',
+    properties: {
+        cursor: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cmg4zknxt0000l404yn4li0kp',
+            description: 'Cursor for the current page'
+        },
+        limit: {
+            type: 'integer',
+            minimum: 1,
+            example: 20,
+            description: 'Number of items returned'
+        },
+        total: {
+            type: 'integer',
+            minimum: 0,
+            example: 100,
+            description: 'Total number of items'
+        },
+        nextCursor: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cmi4gmksz000104l8wps8p7fp',
+            description: 'Cursor for the next page'
+        },
+        selectedProject: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'prj_abc123',
+                    description: 'Selected project or task ID'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Q4 Campaign',
+                    description: 'Selected project or task display name'
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ],
+            description: 'Selected project (id + name) for projectId/taskId drill-down, or null when unscoped or unmatched'
+        },
+        selectedTask: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'prj_abc123',
+                    description: 'Selected project or task ID'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Q4 Campaign',
+                    description: 'Selected project or task display name'
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ],
+            description: 'Selected task (id + name) for taskId drill-down'
+        }
+    },
+    required: [
+        'cursor',
+        'limit',
+        'total',
+        'nextCursor'
+    ]
+} as const;
+
 export const CopyTaskFileToDriveResponseSchema = {
     type: 'object',
     properties: {

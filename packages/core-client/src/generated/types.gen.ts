@@ -6099,6 +6099,51 @@ export type DriveTasksTaskFileItem = {
     projectName?: string | null;
 };
 
+export type DriveTasksPaginationMetadata = {
+    /**
+     * Cursor for the current page
+     */
+    cursor: string | null;
+    /**
+     * Number of items returned
+     */
+    limit: number;
+    /**
+     * Total number of items
+     */
+    total: number;
+    /**
+     * Cursor for the next page
+     */
+    nextCursor: string | null;
+    /**
+     * Selected project (id + name) for projectId/taskId drill-down, or null when unscoped or unmatched
+     */
+    selectedProject?: {
+        /**
+         * Selected project or task ID
+         */
+        id: string;
+        /**
+         * Selected project or task display name
+         */
+        name: string;
+    } | null;
+    /**
+     * Selected task (id + name) for taskId drill-down
+     */
+    selectedTask?: {
+        /**
+         * Selected project or task ID
+         */
+        id: string;
+        /**
+         * Selected project or task display name
+         */
+        name: string;
+    } | null;
+};
+
 export type CopyTaskFileToDriveResponse = {
     /**
      * Copied file name
@@ -50575,7 +50620,7 @@ export type GetDriveTasksResponses = {
         meta: {
             timestamp: Date;
             requestId: string;
-            pagination: PaginationMetadata;
+            pagination: DriveTasksPaginationMetadata;
         };
     };
 };

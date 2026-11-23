@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
+import { cursorPaginationMetaSchema } from "@/schemas/pagination.schema";
 
 /**
  * Drive Tasks list item - discriminated union by level.
@@ -129,6 +130,36 @@ export type DriveTasksListItem = z.infer<typeof driveTasksListItemSchema>;
 export const driveTasksListSchema = z
   .array(driveTasksListItemSchema)
   .openapi("DriveTasksList");
+
+export const driveTasksSelectedEntitySchema = z
+  .object({
+    id: z.string().openapi({
+      example: "prj_abc123",
+      description: "Selected project or task ID",
+    }),
+    name: z.string().openapi({
+      example: "Q4 Campaign",
+      description: "Selected project or task display name",
+    }),
+  })
+  .openapi("DriveTasksSelectedEntity");
+
+// Flat copy, not `.extend`, to avoid emitting OpenAPI `allOf`.
+export const driveTasksPaginationMetaSchema = z
+  .object({
+    ...cursorPaginationMetaSchema.shape,
+    selectedProject: driveTasksSelectedEntitySchema
+      .nullable()
+      .optional()
+      .openapi({
+        description:
+          "Selected project (id + name) for projectId/taskId drill-down, or null when unscoped or unmatched",
+      }),
+    selectedTask: driveTasksSelectedEntitySchema.nullable().optional().openapi({
+      description: "Selected task (id + name) for taskId drill-down",
+    }),
+  })
+  .openapi("DriveTasksPaginationMetadata");
 
 /**
  * Copy TaskFile to Drive request.

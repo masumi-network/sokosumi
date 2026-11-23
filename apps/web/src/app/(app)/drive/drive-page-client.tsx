@@ -517,57 +517,16 @@ function DrivePageWorkspace({
     staleTime: 0,
   });
 
-  const projectBreadcrumbQuery = useScopedInfiniteQuery({
-    ...splitDriveQueryKey(
-      driveQueryKeys.tasks(driveStore, { assigneeId: assigneeIdParam }),
-    ),
-    queryFn: ({ pageParam, signal }) =>
-      fetchDriveTasksPage({
-        scope,
-        ...(scope === "org" && activeOrganizationId
-          ? { organizationId: activeOrganizationId }
-          : {}),
-        ...(assigneeIdParam ? { assigneeId: assigneeIdParam } : {}),
-        ...(pageParam ? { cursor: pageParam } : {}),
-        signal,
-      }),
-    initialPageParam: null as string | null,
-    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    enabled:
-      isTasksView &&
-      isDriveStoreEnabled &&
-      Boolean(projectIdParam) &&
-      projectIdParam !== "null",
-    refetchOnMount: false,
-  });
-
-  const taskBreadcrumbQuery = useScopedInfiniteQuery({
-    ...splitDriveQueryKey(
-      driveQueryKeys.tasks(driveStore, {
-        projectId: projectIdParam,
-        assigneeId: assigneeIdParam,
-      }),
-    ),
-    queryFn: ({ pageParam, signal }) =>
-      fetchDriveTasksPage({
-        scope,
-        ...(scope === "org" && activeOrganizationId
-          ? { organizationId: activeOrganizationId }
-          : {}),
-        ...(projectIdParam ? { projectId: projectIdParam } : {}),
-        ...(assigneeIdParam ? { assigneeId: assigneeIdParam } : {}),
-        ...(pageParam ? { cursor: pageParam } : {}),
-        signal,
-      }),
-    initialPageParam: null as string | null,
-    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    enabled:
-      isTasksView &&
-      isDriveStoreEnabled &&
-      Boolean(projectIdParam) &&
-      Boolean(taskIdParam),
-    refetchOnMount: false,
-  });
+  const firstTasksPage = !isTasksSearchActive
+    ? tasksQuery.data?.pages[0]
+    : undefined;
+  const selectedProject = firstTasksPage?.selectedProject ?? null;
+  const selectedTask = firstTasksPage?.selectedTask ?? null;
+  const effectiveProjectId =
+    projectIdParam ??
+    (taskIdParam && firstTasksPage && "selectedProject" in firstTasksPage
+      ? (selectedProject?.id ?? "null")
+      : null);
 
   const tasksItems = useMemo(() => {
     const pages = tasksQuery.data?.pages ?? [];
@@ -1229,39 +1188,21 @@ function DrivePageWorkspace({
     const crumbs: Array<{ label: string; onClick: () => void }> = [
       { label: t("tasksBreadcrumbLabel"), onClick: navigateToTasksRoot },
     ];
-    if (projectIdParam) {
-      const loadedProject =
-        tasksItems.find(
-          (item) => item.type === "project" && item.id === projectIdParam,
-        ) ??
-        projectBreadcrumbQuery.data?.pages
-          .flatMap((page) => page.items)
-          .find(
-            (item) => item.type === "project" && item.id === projectIdParam,
-          );
+    if (effectiveProjectId) {
       const projectName =
-        loadedProject && loadedProject.type === "project"
-          ? loadedProject.name
-          : projectIdParam === "null"
+        selectedProject?.id === effectiveProjectId
+          ? selectedProject.name
+          : effectiveProjectId === "null"
             ? t("noProject")
-            : projectIdParam;
+            : effectiveProjectId;
       crumbs.push({
         label: projectName,
-        onClick: () => navigateToProject(projectIdParam),
+        onClick: () => navigateToProject(effectiveProjectId),
       });
     }
     if (taskIdParam) {
-      const loadedTask =
-        tasksItems.find(
-          (item) => item.type === "task" && item.id === taskIdParam,
-        ) ??
-        taskBreadcrumbQuery.data?.pages
-          .flatMap((page) => page.items)
-          .find((item) => item.type === "task" && item.id === taskIdParam);
       const taskName =
-        loadedTask && loadedTask.type === "task"
-          ? loadedTask.name
-          : taskIdParam;
+        selectedTask?.id === taskIdParam ? selectedTask.name : taskIdParam;
       crumbs.push({
         label: taskName,
         onClick: () => navigateToTask(taskIdParam),
@@ -1487,7 +1428,9 @@ function DrivePageWorkspace({
       {/* Drive scopes to a Project only on the Tasks view. */}
       <DriveCmoProjectBanner
         projectId={
-          isTasksView && projectIdParam !== "null" ? projectIdParam : null
+          isTasksView && effectiveProjectId !== "null"
+            ? effectiveProjectId
+            : null
         }
       />
       <div className="mb-4 flex flex-col gap-4 md:mb-6">
@@ -1552,8 +1495,10 @@ function DrivePageWorkspace({
                   <DriveTasksFilters
                     activeOrganizationId={activeOrganizationId}
                     assigneeId={assigneeIdParam}
-                    projectId={projectIdParam}
+                    projectId={effectiveProjectId}
                     taskId={taskIdParam}
+                    selectedProject={selectedProject}
+                    selectedTask={selectedTask}
                     labels={driveTasksFilterLabels}
                     hideMobileTrigger
                     sheetOpen={tasksFilterSheetOpen}

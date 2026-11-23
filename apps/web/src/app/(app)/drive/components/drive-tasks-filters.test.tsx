@@ -441,4 +441,86 @@ describe("DriveTasksFilters", () => {
     expect(screen.queryByRole("option", { name: "Org A Project" })).toBeNull();
     expect(screen.getByRole("option", { name: "Org B Project" })).toBeVisible();
   });
+
+  it("shows selected project and task names on a cold deep link when both are on page 2", async () => {
+    const client = makeQueryClient();
+    fetchDriveTasksPageMock.mockImplementation(
+      async ({ projectId }: { projectId?: string }) => {
+        if (projectId === "proj-p2") {
+          return {
+            items: [taskRow("task-p1", "Page 1 Task")],
+            nextCursor: "cursor-tasks-2",
+            selectedProject: { id: "proj-p2", name: "Page 2 Project" },
+          };
+        }
+        return {
+          items: [projectRow("proj-p1", "Page 1 Project")],
+          nextCursor: "cursor-projects-2",
+        };
+      },
+    );
+
+    render(
+      <QueryClientProvider client={client}>
+        <DriveTasksFilters
+          activeOrganizationId="org_a"
+          assigneeId={null}
+          projectId="proj-p2"
+          taskId="task-p2"
+          selectedProject={{ id: "proj-p2", name: "Page 2 Project" }}
+          selectedTask={{ id: "task-p2", name: "Page 2 Task" }}
+          labels={DEFAULT_LABELS}
+          sheetOpen
+        />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Project Page 2 Project" }),
+      ).toBeVisible();
+      expect(
+        screen.getByRole("button", { name: "Task Page 2 Task" }),
+      ).toBeVisible();
+    });
+    expect(getProjectsByIdMock).not.toHaveBeenCalled();
+    expect(getTasksByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("reads selectedProject directly from the Level 2 drill-down response when a page-2 project is filtered", async () => {
+    const client = makeQueryClient();
+    fetchDriveTasksPageMock.mockImplementation(
+      async ({ projectId }: { projectId?: string }) => {
+        if (projectId === "proj-p2") {
+          return {
+            items: [taskRow("task-1", "Task One")],
+            nextCursor: null,
+            selectedProject: { id: "proj-p2", name: "Page 2 Project" },
+          };
+        }
+        return {
+          items: [projectRow("proj-p1", "Page 1 Project")],
+          nextCursor: "cursor-projects-2",
+        };
+      },
+    );
+
+    render(
+      <QueryClientProvider client={client}>
+        <DriveTasksFilters
+          activeOrganizationId="org_a"
+          assigneeId={null}
+          projectId="proj-p2"
+          taskId={null}
+          labels={DEFAULT_LABELS}
+          sheetOpen
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByRole("button", { name: "Project Page 2 Project" }),
+    ).toBeVisible();
+    expect(getProjectsByIdMock).not.toHaveBeenCalled();
+  });
 });
