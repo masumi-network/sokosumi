@@ -800,14 +800,17 @@ describe("TaskForm", () => {
       id: "one",
       displayName: "Release",
     };
-    vi.mocked(fetchWorkspaceLabels).mockResolvedValue([tag]);
-    vi.mocked(createWorkspaceTag).mockResolvedValue({
+    const createdTag = {
       ...tag,
-      color: "purple",
+      color: "purple" as const,
       customColor: "#6341A2",
       id: "two",
       displayName: "Finance",
-    });
+    };
+    vi.mocked(fetchWorkspaceLabels)
+      .mockResolvedValueOnce([tag])
+      .mockResolvedValue([tag, createdTag]);
+    vi.mocked(createWorkspaceTag).mockResolvedValue(createdTag);
     vi.mocked(createTask).mockResolvedValue(
       createTaskSuccess("task-1", "Title"),
     );

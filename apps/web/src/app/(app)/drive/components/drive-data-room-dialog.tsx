@@ -1,6 +1,7 @@
 "use client";
 
 import type { DataRoom } from "@sokosumi/core-client";
+import { useQueryClient } from "@tanstack/react-query";
 import { LockKeyhole } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -31,6 +32,7 @@ import {
   dataRoomRefusal,
 } from "@/lib/utils/data-room.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
+import { invalidateDrive } from "@/queries/drive";
 
 export interface DriveDataRoomFolder {
   path: string;
@@ -55,9 +57,10 @@ export function DriveDataRoomDialog({
   store: FileStore;
   folder: DriveDataRoomFolder | null;
   onOpenChange: (open: boolean) => void;
-  onChanged: () => void;
+  onChanged?: () => void;
 }) {
   const t = useTranslations("App.Drive.DataRoom");
+  const queryClient = useQueryClient();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
@@ -68,8 +71,9 @@ export function DriveDataRoomDialog({
     setBusy(true);
     try {
       await action();
+      void invalidateDrive(queryClient, store);
       toast.success(done);
-      onChanged();
+      onChanged?.();
       onOpenChange(false);
     } catch (error) {
       toast.error(dataRoomRefusal(error) ?? t("saveFailed"));

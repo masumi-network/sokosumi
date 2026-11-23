@@ -5,7 +5,7 @@ import {
   getDriveResourcesByIdGoogleSheet,
   postDriveResourcesByIdGoogleSheetRefresh,
 } from "@sokosumi/core-client";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, RefreshCw } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 
@@ -13,6 +13,12 @@ import { Button } from "@/components/ui/button";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import { cn } from "@/lib/utils";
 import type { FileStore } from "@/lib/utils/file-search.client";
+import {
+  driveQueryKeys,
+  invalidateDrive,
+  splitDriveQueryKey,
+} from "@/queries/drive";
+import { useScopedQuery } from "@/queries/scoped-queries";
 
 /**
  * Where a Drive file comes from when it holds Google's PDF of a linked sheet:
@@ -32,7 +38,7 @@ export function GoogleSheetBar({
   const format = useFormatter();
   const now = useNow({ updateInterval: 60_000 });
   const queryClient = useQueryClient();
-  const queryKey = ["drive", "google-sheet", resourceId, store];
+  const queryKey = driveQueryKeys.googleSheet(store, resourceId);
   const options = {
     client: getBrowserCoreClient(),
     path: { id: resourceId },
@@ -40,11 +46,12 @@ export function GoogleSheetBar({
     throwOnError: false,
   } as const;
 
-  const { data: link } = useQuery({
-    queryKey,
+  const { data: link } = useScopedQuery({
+    ...splitDriveQueryKey(queryKey),
     // A plain file answers 204: nothing to show.
-    queryFn: async (): Promise<DriveGoogleSheet | null> =>
-      (await getDriveResourcesByIdGoogleSheet(options)).data?.data ?? null,
+    queryFn: async ({ signal }): Promise<DriveGoogleSheet | null> =>
+      (await getDriveResourcesByIdGoogleSheet({ ...options, signal })).data
+        ?.data ?? null,
     staleTime: 60_000,
   });
 
@@ -55,7 +62,7 @@ export function GoogleSheetBar({
       return result.data.data;
     },
     onSuccess: (next) => {
-      queryClient.setQueryData(queryKey, next);
+      void invalidateDrive(queryClient, store);
       if (!next.error) onRefreshed?.();
     },
   });

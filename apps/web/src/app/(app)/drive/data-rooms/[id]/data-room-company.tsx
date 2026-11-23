@@ -6,6 +6,7 @@ import type {
   DataRoomCompanyRepresentative,
   DataRoomTreeRow,
 } from "@sokosumi/core-client";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import { toast } from "sonner";
@@ -24,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { dataRoomRefusal, updateDataRoom } from "@/lib/utils/data-room.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
+import { invalidateDrive } from "@/queries/drive";
 import { rowLabel } from "./data-room-activity";
 
 const NO_FOLDER = "none";
@@ -142,14 +144,13 @@ export function DataRoomCompanyPanel({
   store,
   room,
   rows,
-  onChanged,
 }: {
   store: FileStore;
   room: DataRoom;
   rows: DataRoomTreeRow[];
-  onChanged: () => void;
 }) {
   const t = useTranslations("App.Drive.DataRoom.Company");
+  const queryClient = useQueryClient();
   const idPrefix = useId();
   const [draft, setDraft] = useState(() => toDraft(room.company));
   const [formationPath, setFormationPath] = useState(
@@ -177,8 +178,8 @@ export function DataRoomCompanyPanel({
               ),
             },
           });
+          void invalidateDrive(queryClient, store);
           toast.success(t("saved"));
-          onChanged();
         } catch (error) {
           toast.error(dataRoomRefusal(error) ?? t("saveFailed"));
         } finally {
