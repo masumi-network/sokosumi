@@ -46,6 +46,10 @@ import {
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
 import {
+  cmoIndustryBeforePlan,
+  cmoIndustryPillarProblems,
+} from "@/services/cmo-industry.service";
+import {
   cmoPictureStyleProblem,
   cmoPieceTakesStyle,
   cmoSceneVisualProblem,
@@ -63,6 +67,7 @@ import {
   cmoStrategyRules,
   cmoWeekGaps,
   cmoWithOwnerPace,
+  type PlanReviewOptions,
 } from "@/services/cmo-plan-review.service";
 import {
   approvedMarketingStrategy,
@@ -521,7 +526,19 @@ async function cmoThinPillars(
   plan: MarketingStrategyPlan,
   versionId: string,
   round: number,
+  rules: PlanReviewOptions,
 ): Promise<string[]> {
+  const topics = rules.industryTopics
+    ? await cmoIndustryPillarProblems(cuso.projectId, plan).catch(() => null)
+    : null;
+  if (topics) {
+    await recordSokoBotCheckUsage({
+      sokoBotId: cuso.sokoBotId,
+      key: `cmo-pillars:${versionId}:${round}`,
+      costUsd: topics.costUsd,
+    });
+    return topics.problems;
+  }
   const brain = parseBrandBrain(cuso.brandBrain);
   if (!brain) return [];
   const counted = await cmoPillarFacts(plan, brain).catch(() => null);
@@ -569,7 +586,7 @@ async function startCmoMonthFinish(
   // gets a turn of its own to merge or reframe it.
   const pillars =
     gaps.length === 0 && rules.pillarFacts && round < most
-      ? await cmoThinPillars(cuso, plan, version.id, round)
+      ? await cmoThinPillars(cuso, plan, version.id, round, rules)
       : [];
   if (gaps.length === 0 && pillars.length === 0) return null;
   if (round >= most) {
@@ -792,7 +809,11 @@ async function startCmoStrategy(
   // A new strategy over a draft starts from an empty month: NMKR's
   // "Write a new strategy" (2026-11-22) kept the draft's 296 pieces, and Cuso
   // only patched around them. The draft stays as the version before.
-  if (!change) await clearDraftCalendar(cuso);
+  if (!change) {
+    await clearDraftCalendar(cuso);
+    // cmo-v21: the plan rests on the buyer's industry, researched first.
+    await cmoIndustryBeforePlan(cuso);
+  }
   try {
     return await startStrategyTurn(
       cuso,

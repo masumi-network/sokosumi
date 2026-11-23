@@ -138,105 +138,14 @@ export function Mix({
   );
 }
 
-/** What a content pillar is, for an owner who never heard the word. */
-export const PILLARS_EXPLAINED =
-  "A content pillar is a topic your posts keep coming back to. A few clear pillars teach people what you stand for, and every post belongs to one.";
-
-/**
- * The content pillars: each topic's share of the month counted from the
- * calendar, what it is for, the networks that carry it and one example; once
- * the month is made, the share Cuso's pieces really have.
- */
-export function Pillars({
-  pillars,
-  calendar,
-  made,
-}: {
-  pillars: Strategy["pillars"];
-  calendar: Entry[];
-  made: CmoOverview["production"]["pillars"];
-}) {
-  const pieces = planPieces(calendar);
-  const mineOf = (name: string) =>
-    pieces.filter(
-      (entry) =>
-        entry.pillar?.trim().toLowerCase() === name.trim().toLowerCase(),
-    );
-  const counted = pillars.reduce(
-    (sum, pillar) => sum + mineOf(pillar.name).length,
-    0,
-  );
+/** The topics the posts keep coming back to, in one plain line. */
+export function Topics({ pillars }: { pillars: Strategy["pillars"] }) {
+  if (pillars.length === 0) return null;
   return (
-    <>
-      <p className="note">
-        {made
-          ? made.rewriting
-            ? `Some posts read as another topic than planned. ${AGENT_NAME} is rewriting them now.`
-            : `${AGENT_NAME} read every post he made and counted what each one is really about.`
-          : PILLARS_EXPLAINED}
-      </p>
-      <ul className="bb-mix">
-        {pillars.map((pillar) => {
-          const mine = mineOf(pillar.name);
-          const share = counted
-            ? Math.round((mine.length / counted) * 100)
-            : pillar.share;
-          const read = made?.shares.find((item) => item.name === pillar.name);
-          const width = read ? read.made : share;
-          const networks = [
-            ...new Set(
-              mine.flatMap((entry) =>
-                [entry.channel, ...(entry.alsoOn ?? [])].flatMap(
-                  (channel) => channelKey(channel) ?? [],
-                ),
-              ),
-            ),
-          ];
-          return (
-            <li key={pillar.name}>
-              <div className="bb-mix-head">
-                <b>{pillar.name}</b>
-                <span className="num">
-                  {read
-                    ? `${read.made}% made · ${share}% planned`
-                    : mine.length > 0
-                      ? `${mine.length} ${mine.length === 1 ? "post" : "posts"} · ${share}%`
-                      : `${share}%`}
-                </span>
-              </div>
-              <span className="bb-bar" aria-hidden="true">
-                <motion.i
-                  style={{ width: `${width}%` }}
-                  initial={{ scaleX: 0 }}
-                  whileInView={{ scaleX: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.6, ease: EASE }}
-                />
-                {read ? (
-                  <span className="bb-bar-plan" style={{ left: `${share}%` }} />
-                ) : null}
-              </span>
-              {pillar.why ? <span>{pillar.why}</span> : null}
-              {networks.length > 0 ? (
-                <span className="bb-pillar-networks">
-                  {networks.map((network) => (
-                    <span key={network}>
-                      <ChannelIcon channel={network} size={14} />
-                      {channelInfo(network)?.name ?? network}
-                    </span>
-                  ))}
-                </span>
-              ) : null}
-              {mine[0] ? (
-                <span className="note">
-                  Example: “{withoutLabel(mine[0].title)}”
-                </span>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
-    </>
+    <p className="note">
+      Topics {AGENT_NAME} keeps coming back to:{" "}
+      {pillars.map((pillar) => pillar.name).join(" · ")}
+    </p>
   );
 }
 

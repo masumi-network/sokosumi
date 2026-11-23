@@ -40,6 +40,10 @@ import {
 
 const kickCmoProduction = vi.hoisted(() => vi.fn());
 vi.mock("@/services/cmo-production.service", () => ({ kickCmoProduction }));
+vi.mock("@/services/cmo-industry.service", () => ({
+  cmoIndustryBeforePlan: vi.fn(async () => undefined),
+  cmoIndustryPillarProblems: vi.fn(async () => null),
+}));
 
 const libraryAvailable = vi.hoisted(() => vi.fn(() => false));
 vi.mock("@/services/reference-library.service", () => ({

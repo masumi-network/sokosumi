@@ -161,6 +161,40 @@ const pointsSchema = z.object({
   pieces: z.array(z.object({ id: z.string(), point: z.string() })),
 });
 
+/** An industry research item a point may rest on (cmo-v21). */
+export interface CmoIndustryFact {
+  id: string;
+  point: string;
+  sourceUrl: string;
+}
+
+/** Longest a claim may be (the calendar's short text). */
+const CLAIM_MAX = 400;
+
+/**
+ * cmo-v21: a point resting on an industry item carries its source, so the
+ * writer and the review see where it comes from: its address when it fits,
+ * its id otherwise.
+ */
+export function cmoSourcedPoints(
+  points: readonly CmoPoint[],
+  industry: readonly CmoIndustryFact[],
+): CmoPoint[] {
+  const byId = new Map(industry.map((item) => [item.id, item]));
+  return points.map((point) => {
+    const item = byId.get(point.factId.trim());
+    if (!item) return point;
+    const withUrl = `${point.point} (source: ${item.sourceUrl})`;
+    return {
+      ...point,
+      point:
+        withUrl.length <= CLAIM_MAX
+          ? withUrl
+          : `${point.point} (source: ${item.id})`,
+    };
+  });
+}
+
 /** A point of the month and the id of the one fact it rests on. */
 export interface CmoPoint {
   id: string;
@@ -232,6 +266,8 @@ export function cmoPointsPrompt(
   brain: BrandBrain | null,
   proof: readonly string[],
   only: ReadonlySet<string>,
+  /** cmo-v21: the industry research's items, facts a point may rest on with their source. */
+  industry: readonly CmoIndustryFact[] = [],
 ): { system: string; prompt: string } {
   const open = cmoUnclaimed(strategy.calendar).filter((entry) =>
     only.has(entry.id),
@@ -257,6 +293,11 @@ export function cmoPointsPrompt(
         .join(
           ", ",
         )} in the month, counting the claims already taken, and never two pieces of one network in the same week. A piece's point belongs to its pillar and suits its title and approach.`,
+      ...(industry.length > 0
+        ? [
+            "The industry research's items (i1, i2, …) are facts about the buyers' world, each from its source: list them among the facts under their own ids. Most points of helpful pieces (educational and the like) rest on one of them: what a buyer can do in their own work, what a piece of news or a trend means for them, a common mistake and its lesson. A point about the industry rests only on an item and never adds a number, a study or a date the item does not give; a point about the product rests only on the Brand Brain.",
+          ]
+        : []),
       "A LinkedIn piece's point rests on a story (a named customer, the founder or the team did something and something came of it), a result, or a decision the business made and why; a feature alone is not enough there. When those run out, a number from the business worked out for the reader.",
     ].join("\n\n"),
     prompt: [
@@ -264,6 +305,12 @@ export function cmoPointsPrompt(
       JSON.stringify(compactBrandBrain(brain)),
       proof.length > 0
         ? ["Named proof:", ...proof.map((point) => `- ${point}`)].join("\n")
+        : "",
+      industry.length > 0
+        ? [
+            "Industry research:",
+            ...industry.map((item) => `- ${item.id}: ${item.point}`),
+          ].join("\n")
         : "",
       "Strategy:",
       JSON.stringify({
@@ -298,6 +345,8 @@ export async function assignCmoPoints(input: {
   /** The pieces this call writes; the month's other claims stay as taken. */
   only: ReadonlySet<string>;
   timeoutMs: number;
+  /** cmo-v21: the industry research's items. */
+  industry?: readonly CmoIndustryFact[];
 }): Promise<{
   claims: Map<string, string>;
   call: Awaited<ReturnType<typeof generateText>> | null;
@@ -313,6 +362,7 @@ export async function assignCmoPoints(input: {
     input.brain,
     input.proof,
     input.only,
+    input.industry,
   );
   const result = await generateText({
     ...input.request,
@@ -327,7 +377,7 @@ export async function assignCmoPoints(input: {
   return {
     claims: cmoCapPoints({
       calendar: strategy.calendar,
-      points: answer.points,
+      points: cmoSourcedPoints(answer.points, input.industry ?? []),
       picks: new Map(answer.pieces.map((piece) => [piece.id, piece.point])),
     }),
     call: result,

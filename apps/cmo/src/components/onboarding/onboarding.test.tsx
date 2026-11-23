@@ -647,7 +647,7 @@ describe("Plan", () => {
     );
     expect(after).toContain("Show the rockets working.");
     expect(after).toContain("LinkedIn, 2 a week");
-    expect(after).toContain("Product stories: 100% of posts");
+    expect(after).toContain("Topic: Product stories");
     expect(after).toContain("Writing four weeks, day by day");
     expect(after.match(/Writing your strategy/g)).toHaveLength(1);
   });

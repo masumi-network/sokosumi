@@ -108,7 +108,7 @@ export function planningRows(
         ...done,
         id: `pillar:${pillar.name}`,
         kind: "brain",
-        label: `${pillar.name}: ${pillar.share}% of posts`,
+        label: `Topic: ${pillar.name}`,
       });
     }
   }
