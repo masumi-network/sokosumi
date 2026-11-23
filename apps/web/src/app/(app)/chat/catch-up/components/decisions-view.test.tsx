@@ -9,14 +9,16 @@ import { makeRoom } from "@/components/chat/__tests__/chat-room-fixtures";
 
 import { DecisionsView } from "./decisions-view";
 
-const { liveRooms, listMock, toastMock } = vi.hoisted(() => ({
+const { liveRooms, listMock, correctMock, toastMock } = vi.hoisted(() => ({
   liveRooms: { current: null as ChatRoom[] | null },
   listMock: vi.fn(),
+  correctMock: vi.fn(),
   toastMock: { success: vi.fn(), error: vi.fn() },
 }));
 
 vi.mock("@/app/chat/signal-actions", () => ({
   listChatDecisionsAction: listMock,
+  correctChatSignalTagAction: correctMock,
 }));
 vi.mock("sonner", () => ({ toast: toastMock }));
 vi.mock("@/components/chat/use-live-chat-rooms", () => ({
@@ -122,7 +124,7 @@ describe("DecisionsView", () => {
   });
 
   it("tells how to fix a wrong decision only when one is listed", () => {
-    const note = /If one is wrong/;
+    const note = /choose “Not a decision”/;
     const { rerender } = render(view({ messages: [], nextCursor: null }));
     expect(screen.queryByText(note)).toBeNull();
 
@@ -283,5 +285,89 @@ describe("DecisionsView", () => {
     });
     await user.click(screen.getByRole("button", { name: "Load older" }));
     expect(listMock).toHaveBeenLastCalledWith("c-new");
+  });
+
+  it("takes a decision out with Not a decision, removing only that tag", async () => {
+    const user = userEvent.setup();
+    correctMock.mockResolvedValue({ ok: true, value: decision("m-1", "x") });
+    render(
+      view({
+        messages: [
+          decision("m-1", "We launch Monday"),
+          decision("m-2", "Blue, not orange"),
+        ],
+        nextCursor: null,
+      }),
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Not a decision: We launch Monday" }),
+    );
+
+    expect(correctMock).toHaveBeenCalledExactlyOnceWith(
+      "m-1",
+      "decisionMade",
+      false,
+    );
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("link", { name: /We launch Monday/ }),
+      ).not.toBeInTheDocument();
+    });
+    expect(
+      screen.getByRole("link", { name: /Blue, not orange/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the row and says so when the change fails", async () => {
+    const user = userEvent.setup();
+    correctMock.mockResolvedValue({
+      ok: false,
+      error: { code: "INTERNAL_SERVER_ERROR", message: "Could not save" },
+    });
+    render(
+      view({
+        messages: [decision("m-1", "We launch Monday")],
+        nextCursor: null,
+      }),
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Not a decision: We launch Monday" }),
+    );
+
+    await waitFor(() => {
+      expect(toastMock.error).toHaveBeenCalledWith("Could not save");
+    });
+    expect(
+      screen.getByRole("link", { name: /We launch Monday/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Not a decision: We launch Monday" }),
+    ).toBeEnabled();
+  });
+
+  it("offers Not a decision only in rooms the reader is in", () => {
+    render(
+      view(
+        {
+          messages: [
+            decision("m-1", "We launch Monday"),
+            decision("m-2", "Blue, not orange", { roomId: "room-gone" }),
+          ],
+          nextCursor: null,
+        },
+        [design],
+      ),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Not a decision: We launch Monday" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: "Not a decision: Blue, not orange",
+      }),
+    ).toBeNull();
   });
 });

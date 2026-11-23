@@ -12,7 +12,10 @@ import {
 } from "@/app/chat/components/chat-unread-view-header";
 import { messageSender } from "@/app/chat/components/room-helpers";
 import { useRoomDisplayName } from "@/app/chat/components/use-room-display-name";
-import { listChatDecisionsAction } from "@/app/chat/signal-actions";
+import {
+  correctChatSignalTagAction,
+  listChatDecisionsAction,
+} from "@/app/chat/signal-actions";
 import { roomMentionNames } from "@/app/chat/utils/room-mention-names";
 import { formatUnreadThreadsPreview } from "@/app/chat/utils/unread-threads-preview";
 import { useLiveChatRooms } from "@/components/chat/use-live-chat-rooms";
@@ -76,6 +79,7 @@ export function DecisionsView({
   }
   const currentPage = useLatestRef(initialPage);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [removing, setRemoving] = useState<ReadonlySet<string>>(new Set());
 
   // Live rooms are the reader's access now: a decision whose room left the
   // sidebar (membership lost) goes at once, before Core is asked again.
@@ -100,6 +104,29 @@ export function DecisionsView({
   });
 
   usePageSearchPagination(nextCursor, loadingOlder, handleLoadOlder);
+
+  // Removes only the Decision tag; the message keeps its other tags. Core
+  // lets any member of the room correct a tag, the same as the room's chip.
+  async function handleNotDecision(messageId: string) {
+    setRemoving((current) => new Set(current).add(messageId));
+    const result = await correctChatSignalTagAction(
+      messageId,
+      "decisionMade",
+      false,
+    );
+    setRemoving((current) => {
+      const next = new Set(current);
+      next.delete(messageId);
+      return next;
+    });
+    if (!result.ok) {
+      toast.error(result.error.message);
+      return;
+    }
+    setMessages((current) =>
+      current.filter((message) => message.id !== messageId),
+    );
+  }
 
   async function handleLoadOlder() {
     if (!nextCursor) return;
@@ -153,11 +180,11 @@ export function DecisionsView({
                 return (
                   <li
                     key={message.id}
-                    className="press hover:bg-accent relative flex items-start gap-2 rounded-md px-2 py-2 transition-colors"
+                    className="press hover:bg-accent relative flex flex-wrap items-start gap-2 rounded-md px-2 py-2 transition-colors"
                   >
                     <Link
                       href={chatRoomMessageHref(message.roomId, message.id)}
-                      className="flex min-w-0 flex-1 flex-col gap-0.5 text-sm outline-none after:absolute after:inset-0 after:rounded-md focus-visible:after:ring-2 focus-visible:after:ring-ring"
+                      className="flex min-w-0 flex-1 basis-full flex-col gap-0.5 text-sm outline-none sm:basis-0 after:absolute after:inset-0 after:rounded-md focus-visible:after:ring-2 focus-visible:after:ring-ring"
                     >
                       <span className="flex items-baseline gap-2">
                         <span className="truncate font-medium">
@@ -178,6 +205,19 @@ export function DecisionsView({
                         </span>
                       ) : null}
                     </Link>
+                    {room ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="relative ms-auto self-end"
+                        loading={removing.has(message.id)}
+                        aria-label={t("notDecisionFor", { message: preview })}
+                        onClick={() => void handleNotDecision(message.id)}
+                      >
+                        {t("notDecision")}
+                      </Button>
+                    ) : null}
                   </li>
                 );
               })}
