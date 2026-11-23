@@ -15,7 +15,7 @@ export function MobileStackedMenuGroup({
   children: ReactNode;
 }): ReactElement {
   return (
-    <div className="bg-card-background divide-border divide-y overflow-hidden rounded-xl">
+    <div className="border-border bg-card-background divide-border divide-y overflow-hidden rounded-lg border">
       {children}
     </div>
   );
