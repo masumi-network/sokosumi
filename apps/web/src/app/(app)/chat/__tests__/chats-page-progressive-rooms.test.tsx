@@ -4,8 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const getSessionMock = vi.fn();
-const getPrivateCachedMembershipVisibleRoomsMock = vi.fn();
-const getPrivateCachedChatListArchivedAndMembersMock = vi.fn();
+const loadSidebarChatListMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
@@ -22,10 +21,7 @@ vi.mock("@/lib/auth/auth.server", () => ({
 }));
 
 vi.mock("@/app/components/private-sidebar-cache", () => ({
-  getPrivateCachedMembershipVisibleRooms: (...args: unknown[]) =>
-    getPrivateCachedMembershipVisibleRoomsMock(...args),
-  getPrivateCachedChatListArchivedAndMembers: (...args: unknown[]) =>
-    getPrivateCachedChatListArchivedAndMembersMock(...args),
+  loadSidebarChatList: (...args: unknown[]) => loadSidebarChatListMock(...args),
 }));
 
 vi.mock(
@@ -35,19 +31,10 @@ vi.mock(
   }),
 );
 
-vi.mock("@/components/chat/organization-chat-list.client", () => ({
-  OrganizationChatList: (props: {
-    rooms: Array<{ id: string; name?: string | null }>;
-    archivedRooms: unknown[];
-    isOrgOwnerOrAdmin?: boolean;
-  }) => (
-    <div
-      data-testid="organization-chat-list"
-      data-room-names={props.rooms.map((room) => room.name).join("|")}
-      data-archived-count={String(props.archivedRooms.length)}
-      data-can-delete={String(Boolean(props.isOrgOwnerOrAdmin))}
-    />
-  ),
+vi.mock("@/app/components/sidebar-chat-list.client", () => ({
+  SidebarChatList: function SidebarChatList() {
+    return null;
+  },
 }));
 
 vi.mock("@/components/ui/sheet", () => ({
@@ -63,20 +50,15 @@ vi.mock("@/app/chat/components/chat-desktop-home-redirect.client", () => ({
 }));
 
 import ChatPage from "@/app/chat/page";
+import { SidebarChatList } from "@/app/components/sidebar-chat-list.client";
 
 const USER_ID = "user_1";
 const ORG_ID = "org_1";
 
-interface OrganizationChatListProps {
+interface ChatListProps {
   rooms: Array<{ id: string; name?: string | null }>;
-  archivedRooms: unknown[];
-  isOrgOwnerOrAdmin?: boolean;
-  dismissSheetOnNavigate?: boolean;
-}
-
-interface SuspenseLikeProps {
-  fallback?: ReactElement;
-  children?: ReactNode;
+  deferred: Promise<unknown>;
+  variant?: string;
 }
 
 interface ClassNameProps {
@@ -110,69 +92,52 @@ function findElement(
   return findElement(props.children, predicate);
 }
 
-function suspenseProps(element: ReactElement): SuspenseLikeProps {
-  return element.props as SuspenseLikeProps;
-}
-
-function listProps(element: ReactElement): OrganizationChatListProps {
-  return element.props as OrganizationChatListProps;
-}
-
 describe("ChatPage progressive rooms (mobile LCP)", () => {
+  const rooms = [{ id: "room-1", name: "Launch Plans" }];
+
   beforeEach(() => {
     vi.clearAllMocks();
     getSessionMock.mockResolvedValue({
       user: { id: USER_ID, email: "alice@example.com" },
       session: { activeOrganizationId: ORG_ID },
     });
-    getPrivateCachedMembershipVisibleRoomsMock.mockResolvedValue({
-      rooms: [{ id: "room-1", name: "Plan.Net Studios x NMKR" }],
-      nextCursor: null,
-    });
   });
 
-  it("paints OrganizationChatList room labels while archived+members stay pending", async () => {
-    getPrivateCachedChatListArchivedAndMembersMock.mockReturnValue(
-      new Promise(() => {}),
-    );
+  it("mounts one list with the rooms while archived+members stay pending", async () => {
+    const deferred = new Promise(() => {});
+    loadSidebarChatListMock.mockResolvedValue({ rooms, deferred });
 
     const tree = await ChatPage({ searchParams: Promise.resolve({}) });
 
-    // Parent finishes after membership rooms; Suspense fallback already has
-    // real row text. Deferred chrome is a sibling child, not awaited here.
-    expect(getPrivateCachedMembershipVisibleRoomsMock).toHaveBeenCalledTimes(1);
-    expect(getPrivateCachedMembershipVisibleRoomsMock).toHaveBeenCalledWith({
+    expect(loadSidebarChatListMock).toHaveBeenCalledTimes(1);
+    expect(loadSidebarChatListMock).toHaveBeenCalledWith({
       userId: USER_ID,
       activeOrganizationId: ORG_ID,
     });
 
-    const suspense = findElement(tree, (el) => {
-      const props = el.props as SuspenseLikeProps;
-      return props.fallback != null && props.children != null;
-    });
+    // One list, handed the pending read: no Suspense fallback list that a
+    // second list replaces when the read lands.
+    const fallback = findElement(
+      tree,
+      (el) => (el.props as { fallback?: unknown }).fallback != null,
+    );
+    expect(fallback).toBeNull();
 
-    expect(suspense).not.toBeNull();
-    const fallback = suspenseProps(suspense as ReactElement).fallback;
-    expect(fallback).toBeDefined();
-    const props = listProps(fallback as ReactElement);
-    expect(props.rooms).toEqual([
-      { id: "room-1", name: "Plan.Net Studios x NMKR" },
-    ]);
-    expect(props.archivedRooms).toEqual([]);
-    expect(props.isOrgOwnerOrAdmin).toBe(false);
-    expect(props.dismissSheetOnNavigate).toBe(false);
-
-    // Deferred fetch is started by the Suspense child type, not by the parent
-    // await — calling the page must not require archived/members to resolve.
-    expect(
-      getPrivateCachedChatListArchivedAndMembersMock,
-    ).not.toHaveBeenCalled();
+    const list = findElement(tree, (el) => el.type === SidebarChatList);
+    expect(list).not.toBeNull();
+    const props = (list as ReactElement).props as ChatListProps;
+    expect(props.rooms).toBe(rooms);
+    expect(props.deferred).toBe(deferred);
+    expect(props.variant).toBe("page");
   });
 
   it("keeps md:hidden mobile-only shell", async () => {
-    getPrivateCachedChatListArchivedAndMembersMock.mockResolvedValue({
-      archivedChatRoomsPage: { rooms: [], nextCursor: null },
-      members: [],
+    loadSidebarChatListMock.mockResolvedValue({
+      rooms,
+      deferred: Promise.resolve({
+        archivedRooms: [],
+        isOrgOwnerOrAdmin: false,
+      }),
     });
 
     const tree = await ChatPage({ searchParams: Promise.resolve({}) });

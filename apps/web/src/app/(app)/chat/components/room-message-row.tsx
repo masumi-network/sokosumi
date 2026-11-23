@@ -3162,6 +3162,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           <button
             type="button"
             className="sr-only"
+            data-message-actions-trigger
             onClick={() => {
               openSheet();
             }}
