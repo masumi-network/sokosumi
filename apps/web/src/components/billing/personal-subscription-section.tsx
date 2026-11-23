@@ -121,7 +121,10 @@ export function PersonalSubscriptionSection({
       ) : null}
 
       <div className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-3">
+        {/* Each card spans three shared rows (header, body, footer), so a
+            description that wraps to two lines moves every price down with
+            it and the prices stay on one line. */}
+        <div className="grid gap-4 md:grid-cols-3 md:*:row-span-3 md:*:grid md:*:grid-rows-subgrid">
           {paidPlans.map((plan) => (
             <SubscriptionPlanCard
               key={plan.name}

@@ -67,7 +67,10 @@ export function SubscriptionPlanCard({
 
   return (
     <Card className="flex h-full flex-col">
-      <CardHeader className="space-y-2">
+      {/* `content-start`: on Billing the header can be taller than its own
+          rows (it shares a row with its neighbours), and the extra height
+          stays under the description instead of opening a gap above it. */}
+      <CardHeader className="content-start space-y-2">
         <CardTitle className="flex items-center justify-between">
           <span>{t(`Plans.${translationKey}.name`)}</span>
           {plan.isCurrent ? (
