@@ -510,7 +510,6 @@ export function OrganizationChatList({
         {!unreadOnly && pinned.length > 0 ? (
           <PinnedRoomsSection
             pinned={pinned}
-            visible={pinned}
             open={pinnedOpen}
             onOpenChange={setPinnedOpen}
             canReorderPinned={canReorderPinned}

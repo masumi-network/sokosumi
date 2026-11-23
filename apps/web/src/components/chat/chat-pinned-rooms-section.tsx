@@ -20,7 +20,6 @@ import { resolveSectionAttention } from "./room-attention";
 
 export function PinnedRoomsSection({
   pinned,
-  visible,
   open,
   onOpenChange,
   canReorderPinned,
@@ -32,7 +31,6 @@ export function PinnedRoomsSection({
   roomRowProps,
 }: {
   pinned: ChatRoom[];
-  visible: readonly ChatRoom[];
   open: boolean;
   onOpenChange: (next: boolean) => void;
   canReorderPinned: boolean;
@@ -100,7 +98,7 @@ export function PinnedRoomsSection({
           </PinnedRoomsDndContext>
         ) : (
           <SidebarMenu className="gap-0">
-            {visible.map((room) => (
+            {pinned.map((room) => (
               <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
             ))}
           </SidebarMenu>
