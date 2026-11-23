@@ -51,8 +51,10 @@ const CSV_LIMIT = 5_000_000;
 
 /** A Files CSV's bytes, refused as soon as they pass the import limit. */
 async function readCsvFile(response: Response, name: string, tooLarge: string) {
-  if (Number(response.headers.get("content-length")) > CSV_LIMIT)
+  if (Number(response.headers.get("content-length")) > CSV_LIMIT) {
+    await response.body?.cancel();
     throw new Error(tooLarge);
+  }
   const reader = response.body?.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
@@ -209,10 +211,11 @@ export function TableCreateDialog({
     if (!value) fileRead.cancel();
     if (!value || !csvFile || csv.length) return;
     setError("");
+    // Before the read, so a title typed while it loads is kept.
+    setTitle((current) => current || csvFile.name.replace(/\.csv$/i, ""));
     try {
       const file = await fileRead.read(csvFile, t("csvLimit"));
       if (!file) return;
-      setTitle(csvFile.name.replace(/\.csv$/i, ""));
       await handleCsv(file);
     } catch (error) {
       setError(tableError(error, t));

@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -98,16 +99,34 @@ describe("TableCreateDialog from a Files CSV", () => {
     expect(f.create).not.toHaveBeenCalled();
   });
 
-  it("refuses a file over 5 MB from its length without reading it", async () => {
-    const response = new Response("Name\nAda\n", {
+  it("refuses a file over 5 MB from its length, closing it unread", async () => {
+    const cancel = vi.fn();
+    const response = new Response(new ReadableStream<Uint8Array>({ cancel }), {
       headers: { "content-length": "6000000" },
     });
-    const read = vi.spyOn(response, "blob");
+    const getReader = vi.spyOn(
+      response.body as ReadableStream<Uint8Array>,
+      "getReader",
+    );
     openFromFiles(response);
 
     expect(await screen.findByText("csvLimit")).toBeTruthy();
-    expect(read).not.toHaveBeenCalled();
+    expect(cancel).toHaveBeenCalled();
+    expect(getReader).not.toHaveBeenCalled();
     expect(screen.queryByLabelText("columnName")).toBeNull();
+  });
+
+  it("keeps a title typed while the file is still loading", async () => {
+    const { promise, resolve } = Promise.withResolvers<Response>();
+    openFromFiles(() => promise);
+
+    const title = await screen.findByLabelText("title");
+    expect(title).toHaveValue("Leads");
+    fireEvent.change(title, { target: { value: "Spring leads" } });
+    await act(async () => resolve(new Response("Name,Zip\nAda,007\n")));
+
+    expect(await screen.findByText("007")).toBeTruthy();
+    expect(screen.getByLabelText("title")).toHaveValue("Spring leads");
   });
 
   it("stops reading a file of unknown length once it passes 5 MB", async () => {
