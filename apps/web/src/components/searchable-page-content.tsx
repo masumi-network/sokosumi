@@ -92,7 +92,6 @@ const DASHBOARD_PATHS = [
   "/studio",
   "/tiktok-studio",
   "/competitors",
-  "/chat",
   "/you",
   "/admin",
 ];
