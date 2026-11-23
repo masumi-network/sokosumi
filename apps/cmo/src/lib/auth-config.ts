@@ -15,14 +15,8 @@ export interface CmoAuthConfig {
 /** The Core project whose branch preview a CMO preview signs in against. */
 const CORE_PREVIEW_PROJECT = "sokosumi-core-mainnet";
 
-/** The Sokosumi Web project beside that Core. */
-const SOKOSUMI_APP_PREVIEW_PROJECT = "sokosumi-app-mainnet";
-
 /** Sokosumi's preview deployment suffix; CMO's own previews use preview.cmo.xyz. */
 const SOKOSUMI_PREVIEW_DOMAIN = "preview.sokosumi.com";
-
-/** Sokosumi Web in production, when `SOKOSUMI_APP_BASE_URL` is unset. */
-const SOKOSUMI_APP_PRODUCTION_URL = "https://app.sokosumi.com";
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -84,26 +78,4 @@ export function readCmoAuthConfig(): CmoAuthConfig {
     clientSecret: requireEnv("SOKOSUMI_OAUTH_CLIENT_SECRET"),
     secret: requireEnv("BETTER_AUTH_SECRET"),
   };
-}
-
-/**
- * Sokosumi Web's origin, where a person accepts invitations (ADR 0051):
- * `SOKOSUMI_APP_BASE_URL` or production. A CMO preview needs the same
- * branch's Web preview, since its invitations live in that branch's database;
- * production Web would show other data. Kept out of the auth config, so a
- * missing Web never stops signing in.
- */
-export function readSokosumiAppBaseUrl(): string {
-  if (process.env.VERCEL_ENV === "preview") {
-    const previewUrl = sokosumiPreviewUrl(SOKOSUMI_APP_PREVIEW_PROJECT);
-    if (!previewUrl) {
-      throw new Error(
-        `${SOKOSUMI_APP_PREVIEW_PROJECT} has no preview for this branch`,
-      );
-    }
-    return previewUrl;
-  }
-  return (
-    process.env.SOKOSUMI_APP_BASE_URL || SOKOSUMI_APP_PRODUCTION_URL
-  ).replace(/\/+$/, "");
 }
