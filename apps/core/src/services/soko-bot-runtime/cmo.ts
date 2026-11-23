@@ -57,6 +57,8 @@ import {
   cmoDistinctClaims,
   cmoDraftProblems,
   cmoNewNetworkProblems,
+  cmoPillarFactProblems,
+  cmoPillarFacts,
   cmoPlanDrift,
   cmoPlanProblemsSince,
   cmoRejectedTermProblems,
@@ -400,6 +402,14 @@ export async function reviewCmoPlan(
     : null;
   if (rules.everyNetwork && brain)
     problems.push(...cmoNewNetworkProblems(strategy, brain));
+  // cmo-v20: every pillar rests on at least three Brand Brain facts.
+  if (rules.pillarFacts && plan.planSent && brain) {
+    const pillars = await cmoPillarFacts(strategy, brain).catch(() => null);
+    if (pillars) {
+      await chargeCheck(input, COMPETITOR_CHECK_MODEL, pillars.costUsd);
+      problems.push(...cmoPillarFactProblems(pillars.pillars));
+    }
+  }
   let mainOffer: CmoPlanOfferVerdict = "skipped";
   if (plan.planSent && brain) {
     const drift = await cmoPlanDrift({ strategy, brain });

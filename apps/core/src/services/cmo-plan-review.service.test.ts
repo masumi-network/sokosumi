@@ -748,13 +748,14 @@ describe("the funnel strategy", () => {
     });
     const checked = await cmoCalendarLanguage(strategy, earlier);
     expect(checked.problems).toEqual([
-      "the calendar's titles are not in English, the contentLanguage its posts are written in; rewrite each new entry's title, brief and story in English.",
+      "the calendar's titles are not in English, the contentLanguage its posts are written in; rewrite each new entry's title, brief and story, and the pillar names, in English.",
     ]);
     expect(checked.costUsd).toBe(0.0003);
     // Only this save's new entries are read: a kept piece is the owner's.
     expect(jev.input?.state).toEqual({
       contentLanguage: "English",
       titles: ["Vom Wallet zur ersten Mint-Idee"],
+      pillars: strategy.pillars.map((pillar) => pillar.name),
     });
     jev.answer = async () => ({
       answers: new Map([
@@ -1337,6 +1338,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       channelFit: false,
       plainWords: false,
       stageSpread: false,
+      pillarFacts: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-weekly"])).toEqual({
       weekly: true,
@@ -1347,6 +1349,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       channelFit: false,
       plainWords: false,
       stageSpread: false,
+      pillarFacts: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-part-patch"])).toEqual({
       weekly: true,
@@ -1357,6 +1360,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       channelFit: false,
       plainWords: false,
       stageSpread: false,
+      pillarFacts: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-channel-fit"])).toEqual({
       weekly: true,
@@ -1367,6 +1371,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       channelFit: true,
       plainWords: false,
       stageSpread: false,
+      pillarFacts: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-plain-words"])).toEqual({
       weekly: true,
@@ -1377,6 +1382,18 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       channelFit: true,
       plainWords: true,
       stageSpread: false,
+      pillarFacts: false,
+    });
+    expect(cmoStrategyRules(["cmo-strategy-v20"])).toEqual({
+      weekly: true,
+      aida: true,
+      everyNetwork: true,
+      claims: true,
+      partPatch: true,
+      channelFit: true,
+      plainWords: true,
+      stageSpread: true,
+      pillarFacts: true,
     });
     expect(cmoStrategyRules(["cmo-strategy-patches"])).toEqual({
       weekly: false,
@@ -1387,6 +1404,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       channelFit: false,
       plainWords: false,
       stageSpread: false,
+      pillarFacts: false,
     });
   });
 
@@ -2060,6 +2078,7 @@ describe("claims", () => {
       channelFit: false,
       plainWords: false,
       stageSpread: false,
+      pillarFacts: false,
     });
     const strategy = plan({
       calendar: [
@@ -2587,7 +2606,7 @@ describe("each network at its own rate, for a Cuso on cmo-v14", () => {
     expect(funnelStageProblems(after, () => true)).toEqual([]);
   });
 
-  it("on cmo-v18, asks every entry for its step and every network to spread", () => {
+  it("on cmo-v20, asks every entry for its step and every network to spread", () => {
     const tagged = (
       id: string,
       channel: string,

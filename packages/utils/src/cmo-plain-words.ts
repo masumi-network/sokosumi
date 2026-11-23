@@ -75,6 +75,36 @@ export const CMO_PLAIN_WORDS: readonly {
   { term: "value proposition", plain: "why people buy it" },
   { term: "awareness", plain: "people finding out about you" },
   { term: "omnichannel", plain: "every network" },
+  { term: "average position", plain: "place on Google" },
+  {
+    term: "crawl",
+    plain: "Google reading your site",
+    pattern: /\bcrawl(?:s|ed|ers?|ing)?\b/i,
+  },
+  {
+    term: "redirect",
+    plain: "an old address that forwards to a new one",
+    pattern: /\bredirect(?:s|ed|ing)?\b/i,
+  },
+  {
+    term: "internal link",
+    plain: "a link between your own pages",
+    pattern: /\binternal links?\b/i,
+  },
+  { term: "structured data", plain: "hidden labels for Google" },
+  { term: "JSON-LD", plain: "hidden labels for Google" },
+  { term: "schema markup", plain: "hidden labels for Google" },
+  {
+    term: "indexed",
+    plain: "in Google's list",
+    pattern: /\b(?:indexed|indexing|de-?indexed)\b/i,
+  },
+  { term: "canonical", plain: "the main address of a page" },
+  {
+    term: "backlinks",
+    plain: "links from other sites",
+    pattern: /\bbacklinks?\b/i,
+  },
 ];
 
 /** The words from `CMO_PLAIN_WORDS` in `text`, each once, in list order. */

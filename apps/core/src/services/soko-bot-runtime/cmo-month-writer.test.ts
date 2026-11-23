@@ -49,6 +49,7 @@ vi.mock("@/services/cmo-cuso.service", () => ({
     sokoBotId: "bot-1",
     projectId: "project-1",
     businessName: "nmkr.io",
+    websiteUrl: "https://nmkr.io",
   }),
 }));
 vi.mock("@/services/cmo-production.service", async (original) => ({
@@ -552,5 +553,169 @@ describe("writeCmoMonthPieces", () => {
     expect(entry.styleReferenceId).toBeUndefined();
     expect(entry.headline).toBeUndefined();
     expect(m.findStyleReferences).not.toHaveBeenCalled();
+  });
+});
+
+describe("writeCmoMonthPieces on cmo-v20", () => {
+  const v17 = {
+    turn: { ...(authorized as any).turn, versionId: "cmo-v20" },
+  } as never;
+  const month = {
+    ...strategy,
+    offer: {
+      what: "Studio",
+      why: "w",
+      proof: [],
+      action: "Open a free Studio account",
+    },
+    funnel: [
+      { stage: "action", goal: "g", owner: "cuso", channels: ["x"], plays: [] },
+    ],
+  };
+  const usage = { inputTokens: 1_000, outputTokens: 200 };
+  beforeEach(() => {
+    m.referenceFindMany.mockResolvedValue([]);
+  });
+
+  it("first gives the batch its points, in a call of their own, saved as claims", async () => {
+    const pieces = [piece("p1"), piece("p2", { date: "2026-11-22" })];
+    m.readCmoProduction.mockResolvedValue({
+      strategy: { ...month, calendar: pieces },
+      pending: pieces,
+      failedMedia: new Set(),
+    });
+    m.generateText.mockResolvedValueOnce({
+      output: {
+        facts: [
+          { id: "f1", fact: "3% a token" },
+          { id: "f2", fact: "No monthly fee" },
+        ],
+        points: [
+          {
+            id: "a",
+            pillar: "Launch",
+            factId: "f1",
+            point: "Studio mints at 3% a token",
+          },
+          {
+            id: "b",
+            pillar: "Launch",
+            factId: "f2",
+            point: "Studio has no monthly fee",
+          },
+        ],
+        pieces: [
+          { id: "p1", point: "a" },
+          { id: "p2", point: "b" },
+        ],
+      },
+      usage,
+    });
+    const tools = runtime();
+    const result = await writeCmoMonthPieces(tools as never, input, v17);
+
+    expect(result).toMatchObject({ written: 0, left: 2 });
+    expect(result.next).toMatch(/again/);
+    expect(m.generateText).toHaveBeenCalledTimes(1);
+    const [save] = tools.executeTool.mock.calls.map(([call]) => call);
+    expect(save!.capability).toBe("save_strategy");
+    expect(
+      save!.input.strategy.calendar.map((entry: any) => [
+        entry.id,
+        entry.claim,
+      ]),
+    ).toEqual([
+      ["p1", "Studio mints at 3% a token"],
+      ["p2", "Studio has no monthly fee"],
+    ]);
+  });
+
+  it("writes claimed pieces with their network's skill and the offer line, and sends an offer piece back without its link", async () => {
+    const pieces = [
+      piece("p1", {
+        approach: "product-led",
+        claim: "Studio mints at 3% a token",
+      }),
+      piece("p2", { date: "2026-11-22", claim: "Studio has no monthly fee" }),
+    ];
+    m.readCmoProduction
+      .mockResolvedValueOnce({
+        strategy: { ...month, calendar: pieces },
+        pending: pieces,
+        failedMedia: new Set(),
+      })
+      .mockResolvedValue({
+        strategy: month,
+        pending: [],
+        failedMedia: new Set(),
+      });
+    m.generateText
+      .mockResolvedValueOnce({
+        output: {
+          pieces: [
+            written("p1"),
+            written("p2", { firstComment: "https://nmkr.io/studio" }),
+          ],
+        },
+        usage,
+      })
+      // The repair round, told why p1 was refused.
+      .mockResolvedValueOnce({
+        output: {
+          pieces: [written("p1", { firstComment: "https://nmkr.io" })],
+        },
+        usage,
+      });
+    const tools = runtime();
+    const result = await writeCmoMonthPieces(tools as never, input, v17);
+
+    const prompts = m.generateText.mock.calls.map(
+      ([call]) => call.prompt as string,
+    );
+    const systems = m.generateText.mock.calls.map(
+      ([call]) => call.system as string,
+    );
+    expect(systems[0]).toContain("claim: Studio has no monthly fee");
+    expect(systems[0]).not.toContain('<skill id="x">');
+    expect(prompts[0]).toContain('<skill id="x">');
+    expect(prompts[0]).toMatch(/p1 .*claim: Studio mints at 3% a token/);
+    expect(prompts[0]).toContain(
+      'offer piece: it ends with "Open a free Studio account"',
+    );
+    // Both are offer pieces (two a week); p1 came back without its link,
+    // and the repair round was told so.
+    expect(prompts[1]).toMatch(/p1 .*It is an offer piece: put the link/);
+    expect(result.refused).toEqual([]);
+    expect(
+      tools.executeTool.mock.calls
+        .map(([call]) => call)
+        .filter((call) => call.capability === "update_social_post")
+        .map((call) => call.input.postId),
+    ).toEqual(["p2", "p1"]);
+  });
+
+  it("writes as before when the points call fails", async () => {
+    const pieces = [piece("p1")];
+    m.readCmoProduction
+      .mockResolvedValueOnce({
+        strategy: { ...month, calendar: pieces },
+        pending: pieces,
+        failedMedia: new Set(),
+      })
+      .mockResolvedValue({
+        strategy: month,
+        pending: [],
+        failedMedia: new Set(),
+      });
+    m.generateText
+      .mockRejectedValueOnce(new Error("timeout"))
+      .mockResolvedValue({
+        output: {
+          pieces: [written("p1", { firstComment: "https://nmkr.io" })],
+        },
+        usage,
+      });
+    const result = await writeCmoMonthPieces(runtime() as never, input, v17);
+    expect(result).toMatchObject({ written: 1, refused: [] });
   });
 });

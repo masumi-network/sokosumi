@@ -1,6 +1,6 @@
 import type { SokoBotSkill } from "./skills.js";
 
-/** cmo-v18's strategy skill: cmo-v15's, every funnel step on every network. */
+/** cmo-v20's strategy skill: cmo-v15's, every funnel step on every network. */
 export const CMO_STAGE_SPREAD_STRATEGY_SKILL = "cmo-strategy-stage-spread";
 
 /** cmo-v14's rule this one replaces (owner, 2026-11-23: "every network carries every step"). */

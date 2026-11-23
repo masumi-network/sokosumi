@@ -6,11 +6,13 @@ import {
   CMO_SCENE_PIECE_WRITING_GUIDE,
   CMO_VARIED_PIECE_WRITING_GUIDE,
   type CmoCalendarEntry,
+  cmoRevisedWritingSkills,
   getSokoBotVersion,
   type MarketingStrategyPlan,
   PICTURE_KINDS,
   type PictureKind,
   REFERENCE_PURPOSES,
+  WRITING_SKILLS,
   writingSkillsBrief,
 } from "@sokosumi/soko-bot";
 import { generateText, Output } from "ai";
@@ -73,6 +75,14 @@ import {
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
 import { chargeCheck } from "./cmo";
+import {
+  assignCmoPoints,
+  cmoMarksPoints,
+  cmoOfferLine,
+  cmoOfferLinkProblem,
+  cmoOfferPieceIds,
+  cmoUnclaimed,
+} from "./cmo-month-points";
 import { type RuntimeOperations } from "./operations";
 
 /**
@@ -185,6 +195,8 @@ export function cmoWriterSystem(input: {
   scenes?: boolean;
   /** cmo-v11: pictures borrow a print's layout, in a varied picture kind. */
   picked?: boolean;
+  /** cmo-v20: each chunk reads its own network's writing skill instead. */
+  chunkSkills?: boolean;
 }): string {
   const { strategy } = input;
   const live = strategy.calendar.filter((entry) => entry.status !== "skipped");
@@ -202,7 +214,9 @@ export function cmoWriterSystem(input: {
       : input.styles
         ? "Pictures here take an old print's style: give every piece with a picture a styleLook, and a headline or slideHeadlines."
         : "Pictures here are made from the brand's own pictures: leave styleLook, headline and slideHeadlines null.",
-    writingSkillsBrief(live.map((entry) => entry.channel)),
+    input.chunkSkills
+      ? ""
+      : writingSkillsBrief(live.map((entry) => entry.channel)),
     "Brand Brain:",
     JSON.stringify(compactBrandBrain(input.brain)),
     input.proof.length > 0
@@ -250,14 +264,24 @@ export function cmoChunkProof(
   return mine.length > 0 ? mine : [proof[chunk % proof.length]!];
 }
 
+/** cmo-v20: what a chunk adds to its lines, beyond cmo-v6's. */
+interface ChunkExtras {
+  /** The chunk's network's writing skill, for that network alone. */
+  skill?: string;
+  /** Each offer piece's line: its action and where its link goes. */
+  offers?: ReadonlyMap<string, string>;
+}
+
 function chunkPrompt(
   chunk: readonly CmoPiece[],
   failedMedia: ReadonlySet<string>,
   refused: ReadonlyMap<string, { draft: string | null; reason: string }>,
   lead: readonly string[],
   said: readonly string[],
+  extras: ChunkExtras = {},
 ): string {
   return [
+    extras.skill ?? "",
     lead.length > 0
       ? [
           "Lead with this proof in these pieces, so the month spreads its customers and results (any other proof in your brief may follow):",
@@ -275,6 +299,7 @@ function chunkPrompt(
       const again = refused.get(piece.id);
       return [
         cmoPieceLine(piece, failedMedia.has(piece.id)),
+        extras.offers?.get(piece.id) ?? "",
         piece.draft?.trim() && !again ? `(its words: ${piece.draft})` : "",
         again
           ? `(Core refused your last version: ${again.reason} Write it again so it passes.${again.draft ? ` Last version: ${again.draft}` : ""})`
@@ -320,12 +345,20 @@ async function writeChunk(
     abortSignal: AbortSignal.timeout(timeoutMs),
     telemetry: modelCallTelemetryFor("cmo-month-writer"),
   }).catch(rethrowAiGatewayFailure);
-  // Charged to the turn like its own steps, with its tokens.
+  await chargeWriterCall(input, modelId, result);
+  return writtenChunkSchema.parse(result.output).pieces;
+}
+
+/** Charged to the turn like its own steps, with its tokens. */
+async function chargeWriterCall(
+  input: ExecuteSokoBotToolInput,
+  modelId: string,
+  result: Parameters<typeof gatewayCallUsage>[0],
+): Promise<void> {
   const usage = gatewayCallUsage(result);
   await new RuntimeEventLog(input.turnId, input.sessionId).append(
     runtimeEvent("step.completed", { modelId, usage }),
   );
-  return writtenChunkSchema.parse(result.output).pieces;
 }
 
 /**
@@ -397,6 +430,32 @@ export async function writeCmoMonthPieces(
   await chargeCheck(input, SOKO_BOT_JEV_MODEL, praise.costUsd);
   const proof = praise.points;
   const styles = referenceLibraryAvailable();
+  const modelId = getSokoBotVersion(authorized.turn.versionId).model;
+  const request = sokoBotModelRequest({
+    role: "agent",
+    model: modelId,
+    purpose: sokoBotTurnPurpose({
+      clientTurnId: turn.clientTurnId,
+      versionId: authorized.turn.versionId,
+    }),
+  });
+  // cmo-v20: each piece's point and the offer pieces, before any chunk runs.
+  const points = cmoMarksPoints(authorized.turn.versionId);
+  const offers = new Map(
+    points
+      ? [...cmoOfferPieceIds(strategy)].flatMap((id) => {
+          const entry = strategy.calendar.find((piece) => piece.id === id);
+          return entry
+            ? [
+                [
+                  id,
+                  cmoOfferLine(entry.channel, strategy.offer, cuso.websiteUrl),
+                ] as const,
+              ]
+            : [];
+        })
+      : [],
+  );
   const system = cmoWriterSystem({
     businessName: cuso.businessName,
     strategy,
@@ -407,16 +466,18 @@ export async function writeCmoMonthPieces(
     varied,
     scenes: cmoWritesSceneVisuals(authorized.turn.versionId),
     picked: picksPictures,
+    chunkSkills: points,
   });
-  const modelId = getSokoBotVersion(authorized.turn.versionId).model;
-  const request = sokoBotModelRequest({
-    role: "agent",
-    model: modelId,
-    purpose: sokoBotTurnPurpose({
-      clientTurnId: turn.clientTurnId,
-      versionId: authorized.turn.versionId,
-    }),
-  });
+  const skillOf = (channel: string) =>
+    points
+      ? writingSkillsBrief(
+          [channel],
+          cmoRevisedWritingSkills(
+            getSokoBotVersion(authorized.turn.versionId).skills,
+            WRITING_SKILLS,
+          ),
+        )
+      : undefined;
   const byId = new Map(batch.map((piece) => [piece.id, piece]));
   // Every style reference the month already uses: each piece gets its own.
   const usedStyles = new Set(
@@ -465,6 +526,51 @@ export async function writeCmoMonthPieces(
       toolCallId: `${input.toolCallId}:${(saveCall += 1)}`,
       input: body,
     });
+
+  // cmo-v20: the batch's points first, in a call of their own (60 pieces
+  // took about a minute), saved as each entry's claim; the next call writes.
+  if (points) {
+    const open = cmoUnclaimed(strategy.calendar).filter((entry) =>
+      byId.has(entry.id),
+    );
+    const assigned =
+      open.length === 0
+        ? new Map<string, string>()
+        : await assignCmoPoints({
+            request,
+            strategy,
+            brain,
+            proof,
+            only: new Set(open.map((entry) => entry.id)),
+            timeoutMs: cmoWriterModelTimeoutMs(deadline, Date.now()),
+          })
+            .then(async ({ claims, call }) => {
+              if (call) await chargeWriterCall(input, modelId, call);
+              return claims;
+            })
+            .catch(() => new Map<string, string>());
+    const saved =
+      assigned.size > 0 &&
+      (await child("save_strategy", {
+        part: "pieces",
+        strategy: {
+          calendar: open.flatMap((entry) => {
+            const claim = assigned.get(entry.id);
+            return claim ? [{ ...pieceEntry(entry), claim }] : [];
+          }),
+        },
+      }).then(
+        () => true,
+        () => false,
+      ));
+    if (saved)
+      return {
+        written: 0,
+        refused: [],
+        left: batch.length,
+        next: "Core gave each piece its point. Call write_month_pieces again to write them.",
+      };
+  }
 
   const entryOf = async (
     piece: CmoPiece,
@@ -592,6 +698,13 @@ export async function writeCmoMonthPieces(
       if (Date.now() > deadline) break;
       const piece = byId.get(written.id)!;
       if (!written.draft?.trim() || piece.draft?.trim()) continue;
+      const offerMissing = offers.has(piece.id)
+        ? cmoOfferLinkProblem(piece.channel, written)
+        : null;
+      if (offerMissing) {
+        refused.set(piece.id, { draft: written.draft, reason: offerMissing });
+        continue;
+      }
       try {
         const post = await getSocialPost({
           projectId: cuso.projectId,
@@ -641,6 +754,7 @@ export async function writeCmoMonthPieces(
           none,
           cmoChunkProof(proof, index, chunks.length),
           said,
+          { skill: skillOf(chunk[0]!.channel), offers },
         ),
         deadline,
       )
@@ -678,7 +792,10 @@ export async function writeCmoMonthPieces(
           request,
           modelId,
           system,
-          chunkPrompt(chunk, failedMedia, refused, [], []),
+          chunkPrompt(chunk, failedMedia, refused, [], [], {
+            skill: skillOf(chunk[0]!.channel),
+            offers,
+          }),
           deadline,
         ).catch(() => [] as WrittenPiece[]),
       ),
@@ -717,7 +834,7 @@ export async function writeCmoMonthPieces(
 }
 
 /** The fields a pieces save names a piece by, as the brief gives them. */
-function pieceEntry(piece: CmoPiece): CmoCalendarEntry {
+function pieceEntry(piece: CmoCalendarEntry): CmoCalendarEntry {
   return {
     id: piece.id,
     date: piece.date,

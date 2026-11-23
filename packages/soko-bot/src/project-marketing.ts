@@ -547,7 +547,7 @@ export const cmoCalendarEntrySchema = z.object({
   approach: z.enum(CMO_CONTENT_APPROACHES).optional(),
   /** The topic (pillar) it covers. */
   pillar: shortText.optional(),
-  /** The funnel step it serves (cmo-v18): every network carries every step. */
+  /** The funnel step it serves (cmo-v20): every network carries every step. */
   stage: z.enum(CMO_AIDA_STAGES).optional(),
 });
 export type CmoCalendarEntry = z.infer<typeof cmoCalendarEntrySchema>;
