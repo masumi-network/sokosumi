@@ -1,17 +1,37 @@
 /**
  * The `shared` client and the Network clients on one pool, against PostgreSQL.
- * Shared stays on `public`; each Network is pointed at a throwaway schema that
- * holds copies of `Lock` and `sync_metadata`, so a row that lands in the wrong
- * schema shows.
+ * Every client is pointed at a throwaway schema: `shared` gets an empty copy of
+ * every `public` table, each Network copies of `Lock` and `sync_metadata`. A
+ * row that lands in another schema, `public` included, shows.
  * RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… pnpm --filter core test src/lib/db/prisma.postgres.test.ts
  */
 import { randomUUID } from "node:crypto";
 import { createPrismaClient, PrismaRaw } from "@sokosumi/database/client";
 import { AUTH_CAPTCHA_ACTION, AUTH_CAPTCHA_HEADER } from "@sokosumi/utils";
 import { hashPassword } from "better-auth/crypto";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { Hono } from "hono";
+import type { Pool } from "pg";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
-import type { Network } from "@/lib/network";
+const pools = vi.hoisted(() => [] as Pool[]);
+vi.mock("@vercel/functions", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@vercel/functions")>();
+  return {
+    ...actual,
+    attachDatabasePool: (pool: Pool) => {
+      pools.push(pool);
+      actual.attachDatabasePool(pool);
+    },
+  };
+});
 
 const url = process.env.DATABASE_URL;
 const enabled =
@@ -19,7 +39,8 @@ const enabled =
   url?.startsWith("postgres");
 
 const suffix = randomUUID().replaceAll("-", "").slice(0, 12);
-const schemas: Record<Network, string> = {
+const schemas = {
+  shared: `n15_shared_${suffix}`,
   mainnet: `n15_mainnet_${suffix}`,
   preprod: `n15_preprod_${suffix}`,
 };
@@ -27,46 +48,77 @@ const key = `network-clients-${suffix}`;
 const email = `${key}@example.test`;
 
 type Clients = typeof import("./prisma");
+type Admin = ReturnType<typeof createPrismaClient>;
+
+function table(schema: string, name: string) {
+  return PrismaRaw.raw(`"${schema}"."${name}"`);
+}
 
 describe.runIf(enabled)("Core database clients on PostgreSQL", () => {
-  const admin = enabled && url ? createPrismaClient(url) : null;
+  let admin: Admin;
   let clients: Clients;
 
-  async function lockKeysIn(schema: string) {
-    if (!admin) throw new Error("Missing integration database");
+  async function lockKeysIn(schema: string, prefix = key) {
     const rows = await admin.$queryRaw<{ key: string }[]>`
-      SELECT key FROM ${PrismaRaw.raw(`"${schema}"."Lock"`)}
-      WHERE key LIKE ${`${key}%`} ORDER BY key`;
+      SELECT key FROM ${table(schema, "Lock")}
+      WHERE key LIKE ${`${prefix}%`} ORDER BY key`;
     return rows.map((row) => row.key);
   }
 
   beforeAll(async () => {
-    if (!admin) throw new Error("Missing integration database");
+    admin = createPrismaClient(url ?? "");
     for (const schema of Object.values(schemas)) {
       await admin.$executeRawUnsafe(`CREATE SCHEMA "${schema}"`);
-      for (const table of ["Lock", "sync_metadata"]) {
+    }
+    // Empty copies, without foreign keys: the shared schema then holds every
+    // table a sign-in touches, and nothing else.
+    await admin.$executeRawUnsafe(`
+      DO $$
+      DECLARE t text;
+      BEGIN
+        FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+          EXECUTE format('CREATE TABLE %I.%I (LIKE public.%I INCLUDING ALL)', '${schemas.shared}', t, t);
+        END LOOP;
+      END $$`);
+    for (const schema of [schemas.mainnet, schemas.preprod]) {
+      for (const name of ["Lock", "sync_metadata"]) {
         await admin.$executeRawUnsafe(
-          `CREATE TABLE "${schema}"."${table}" (LIKE public."${table}" INCLUDING ALL)`,
+          `CREATE TABLE "${schema}"."${name}" (LIKE public."${name}" INCLUDING ALL)`,
         );
       }
     }
     delete (globalThis as { coreDatabase?: unknown }).coreDatabase;
     vi.resetModules();
+    vi.stubEnv("DATABASE_SCHEMA_SHARED", schemas.shared);
     vi.stubEnv("DATABASE_SCHEMA_MAINNET", schemas.mainnet);
     vi.stubEnv("DATABASE_SCHEMA_PREPROD", schemas.preprod);
     clients = await import("./prisma");
+  }, 120_000);
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   afterAll(async () => {
-    vi.unstubAllEnvs();
-    await clients?.default.$disconnect();
-    if (!admin) return;
-    await admin.lock.deleteMany({ where: { key: { startsWith: key } } });
-    await admin.user.deleteMany({ where: { email } });
-    for (const schema of Object.values(schemas)) {
-      await admin.$executeRawUnsafe(`DROP SCHEMA "${schema}" CASCADE`);
+    try {
+      if (clients) {
+        await clients.default.$disconnect();
+        await clients.networkPrisma("mainnet").$disconnect();
+        await clients.networkPrisma("preprod").$disconnect();
+      }
+      for (const pool of pools) await pool.end();
+    } finally {
+      vi.unstubAllEnvs();
+      try {
+        for (const schema of Object.values(schemas)) {
+          await admin?.$executeRawUnsafe(
+            `DROP SCHEMA IF EXISTS "${schema}" CASCADE`,
+          );
+        }
+      } finally {
+        await admin?.$disconnect();
+      }
     }
-    await admin.$disconnect();
   });
 
   it("keeps each client's rows in its own schema under concurrent use", async () => {
@@ -90,45 +142,46 @@ describe.runIf(enabled)("Core database clients on PostgreSQL", () => {
         { length: 20 },
         (_, index) => `${key}:${prefix}:${index}`,
       ).sort();
-    expect(await lockKeysIn("public")).toEqual(expected("shared"));
+    expect(await lockKeysIn(schemas.shared)).toEqual(expected("shared"));
     expect(await lockKeysIn(schemas.mainnet)).toEqual(expected("mainnet"));
     expect(await lockKeysIn(schemas.preprod)).toEqual(expected("preprod"));
-    expect(
-      await networkPrisma("preprod").lock.count({
-        where: { key: { startsWith: `${key}:mainnet` } },
-      }),
-    ).toBe(0);
+    expect(await lockKeysIn("public")).toEqual([]);
   });
 
   it("writes shared and Network rows in one interactive transaction, and rolls both back", async () => {
     const { default: shared } = clients;
-    const mainnetCursor = PrismaRaw.raw(`"${schemas.mainnet}"."sync_metadata"`);
+    const mainnetCursor = table(schemas.mainnet, "sync_metadata");
+    const prefix = `${key}:tx:`;
     const write = (lock: string, cursor: string, fail = false) =>
       shared.$transaction(async (tx) => {
-        await tx.lock.create({ data: { key: `${key}:tx:${lock}` } });
+        await tx.lock.create({ data: { key: `${prefix}${lock}` } });
         await tx.$executeRaw`
           INSERT INTO ${mainnetCursor} (id, key, "lastSyncedAt", "updatedAt")
-          VALUES (${randomUUID()}, ${`${key}:tx:${cursor}`}, now(), now())`;
+          VALUES (${randomUUID()}, ${`${prefix}${cursor}`}, now(), now())`;
         if (fail) throw new Error("abort");
       });
 
     await write("commit", "commit");
     await expect(write("thrown", "thrown", true)).rejects.toThrow("abort");
     // The Network side fails on its unique key after the shared row was written.
-    await expect(write("duplicate", "commit")).rejects.toThrow();
+    const duplicate = await write("duplicate", "commit").then(
+      () => null,
+      (error: unknown) => error,
+    );
 
-    expect(
-      (await lockKeysIn("public")).filter((lock) => lock.includes(":tx:")),
-    ).toEqual([`${key}:tx:commit`]);
-    if (!admin) throw new Error("Missing integration database");
+    expect(String(duplicate)).toContain("23505");
+    expect(await lockKeysIn(schemas.shared, prefix)).toEqual([
+      `${prefix}commit`,
+    ]);
     const cursors = await admin.$queryRaw<{ key: string }[]>`
-      SELECT key FROM ${mainnetCursor} WHERE key LIKE ${`${key}:tx:%`}`;
-    expect(cursors.map((row) => row.key)).toEqual([`${key}:tx:commit`]);
+      SELECT key FROM ${mainnetCursor} WHERE key LIKE ${`${prefix}%`}`;
+    expect(cursors.map((row) => row.key)).toEqual([`${prefix}commit`]);
   });
 
-  it("signs in through Better Auth on the shared client while the Network schemas hold no auth tables", async () => {
+  it("signs in through Core's auth route with the shared tables outside public", async () => {
     const { default: shared } = clients;
-    const { auth } = await import("@/lib/auth");
+    const { default: authRouter } = await import("@/routes/auth/index");
+    const app = new Hono().route("/auth", authRouter);
     const password = "fixture-password-long";
     const userId = randomUUID();
     await shared.user.create({
@@ -153,19 +206,21 @@ describe.runIf(enabled)("Core database clients on PostgreSQL", () => {
     );
 
     const origin = "https://example.com";
-    const response = await auth.handler(
-      new Request(`${origin}/auth/sign-in/email`, {
-        method: "POST",
-        headers: {
-          origin,
-          "content-type": "application/json",
-          [AUTH_CAPTCHA_HEADER]: "fixture-turnstile-token",
-        },
-        body: JSON.stringify({ email, password }),
-      }),
-    );
+    const response = await app.request("/auth/sign-in/email", {
+      method: "POST",
+      headers: {
+        origin,
+        "content-type": "application/json",
+        [AUTH_CAPTCHA_HEADER]: "fixture-turnstile-token",
+      },
+      body: JSON.stringify({ email, password }),
+    });
 
     expect(response.status).toBe(200);
-    expect(await shared.session.count({ where: { userId } })).toBe(1);
+    const sessions = (schema: string) => admin.$queryRaw<{ count: bigint }[]>`
+      SELECT count(*) AS count FROM ${table(schema, "session")}
+      WHERE "userId" = ${userId}`;
+    expect((await sessions(schemas.shared))[0]?.count).toBe(1n);
+    expect((await sessions("public"))[0]?.count).toBe(0n);
   });
 });

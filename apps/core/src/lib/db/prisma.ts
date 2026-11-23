@@ -5,7 +5,7 @@ import { attachDatabasePool } from "@vercel/functions";
 import { Pool } from "pg";
 
 import { getEnv } from "@/config/env";
-import type { Network } from "@/lib/network";
+import { type Network, requireNetwork } from "@/lib/network";
 
 type CorePrismaClient = ReturnType<typeof createPrismaClient>;
 
@@ -82,8 +82,9 @@ const prisma = database.shared;
 
 /** The client of one Network's schema. */
 export function networkPrisma(network: Network): CorePrismaClient {
-  database.networks[network] ??= database.createNetworkClient(network);
-  return database.networks[network];
+  const known = requireNetwork(network);
+  database.networks[known] ??= database.createNetworkClient(known);
+  return database.networks[known];
 }
 
 /** The client or an open transaction: what a helper that only reads or writes takes. */

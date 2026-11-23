@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createPrismaClient } from "./client.js";
 
@@ -11,33 +11,44 @@ const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   url?.startsWith("postgres");
 
+type Client = ReturnType<typeof createPrismaClient>;
+
 describe.skipIf(!enabled)("createPrismaClient schema on PostgreSQL", () => {
   const suffix = randomUUID().replaceAll("-", "").slice(0, 12);
   const schema = `client_schema_${suffix}`;
-  const pool = new Pool({ connectionString: url });
-  const publicClient = createPrismaClient(pool, { schema: "public" });
-  const schemaClient = createPrismaClient(pool, { schema });
+  let pool: Pool | undefined;
+  let publicClient: Client | undefined;
+  let schemaClient: Client | undefined;
 
-  afterAll(async () => {
-    await publicClient.lock.deleteMany({
-      where: { key: { startsWith: suffix } },
-    });
-    await pool.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
-    await publicClient.$disconnect();
-    await schemaClient.$disconnect();
-    await pool.end();
-  });
-
-  it("writes and reads each client's rows in its own schema on a shared pool", async () => {
+  beforeAll(async () => {
+    pool = new Pool({ connectionString: url });
+    publicClient = createPrismaClient(pool, { schema: "public" });
+    schemaClient = createPrismaClient(pool, { schema });
     await pool.query(`CREATE SCHEMA "${schema}"`);
     await pool.query(
       `CREATE TABLE "${schema}"."Lock" (LIKE public."Lock" INCLUDING ALL)`,
     );
+  });
 
+  afterAll(async () => {
+    try {
+      await publicClient?.lock.deleteMany({
+        where: { key: { startsWith: suffix } },
+      });
+      await pool?.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
+    } finally {
+      await publicClient?.$disconnect();
+      await schemaClient?.$disconnect();
+      await pool?.end();
+    }
+  });
+
+  it("writes and reads each client's rows in its own schema on a shared pool", async () => {
+    if (!publicClient || !schemaClient) throw new Error("Clients not built");
     await publicClient.lock.create({ data: { key: `${suffix}:public` } });
     await schemaClient.lock.create({ data: { key: `${suffix}:schema` } });
 
-    const keys = async (client: typeof publicClient) =>
+    const keys = async (client: Client) =>
       (
         await client.lock.findMany({
           where: { key: { startsWith: suffix } },

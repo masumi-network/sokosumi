@@ -64,9 +64,15 @@ const emailAllowlistSchema = z
       .filter(Boolean),
   );
 
+// PostgreSQL truncates identifiers past 63 bytes, so two longer names could
+// be one schema. `pg_*` and `information_schema` belong to PostgreSQL.
 const databaseSchemaNameSchema = z
   .string()
   .regex(/^[a-z_][a-z0-9_]*$/)
+  .max(63)
+  .refine((name) => !name.startsWith("pg_") && name !== "information_schema", {
+    message: "Names a PostgreSQL system schema",
+  })
   .default("public");
 
 const baseEnvSchema = z.object({
