@@ -1,5 +1,4 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { Activity } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installJobsPanesRow } from "@/app/agents/[agentId]/jobs/components/__tests__/jobs-panes-harness";
@@ -7,6 +6,8 @@ import { JobDetailsModal } from "@/app/agents/[agentId]/jobs/components/job-deta
 import { JOBS_TWO_PANE_MIN_WIDTH } from "@/app/agents/[agentId]/jobs/components/use-jobs-two-pane-fit";
 
 const replaceMock = vi.fn();
+const JOB_PATH = "/agents/agent-1/jobs/job-1";
+let pathname = JOB_PATH;
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -16,6 +17,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({
     replace: replaceMock,
   }),
+  usePathname: () => pathname,
   useSearchParams: () =>
     ({
       toString: () => "",
@@ -36,13 +38,18 @@ function renderWithPanesWidth(width: number, job: object = {}) {
   panes = installJobsPanesRow(width);
 
   return render(
-    <JobDetailsModal agentId="agent-1" job={job as never} readOnly={false} />,
+    <JobDetailsModal
+      agentId="agent-1"
+      job={{ id: "job-1", ...job } as never}
+      readOnly={false}
+    />,
   );
 }
 
 describe("JobDetailsModal", () => {
   beforeEach(() => {
     replaceMock.mockClear();
+    pathname = JOB_PATH;
   });
 
   afterEach(() => {
@@ -117,23 +124,44 @@ describe("JobDetailsModal", () => {
   });
   it("opens again when the reader taps the same job after closing it", async () => {
     panes = installJobsPanesRow(ONE_PANE);
-    // Next keeps the closed modal's route in Activity and shows it again on
-    // the next tap, with the state it had when it closed.
-    const modal = (mode: "visible" | "hidden") => (
-      <Activity mode={mode}>
-        <JobDetailsModal agentId="agent-1" job={{} as never} readOnly={false} />
-      </Activity>
+    // On a soft navigation Next keeps the @modal slot on its last page, so
+    // the closed modal stays mounted at /jobs with the state it closed with.
+    const modal = () => (
+      <JobDetailsModal
+        agentId="agent-1"
+        job={{ id: "job-1" } as never}
+        readOnly={false}
+      />
     );
-    const { rerender } = render(modal("visible"));
+    const { rerender } = render(modal());
 
     fireEvent.click(await screen.findByRole("button", { name: /back/i }));
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
 
-    rerender(modal("hidden"));
-    rerender(modal("visible"));
+    pathname = "/agents/agent-1/jobs";
+    rerender(modal());
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
+    pathname = JOB_PATH;
+    rerender(modal());
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("stays closed while the slot still shows it at another path", async () => {
+    panes = installJobsPanesRow(ONE_PANE);
+    pathname = "/agents/agent-1/jobs";
+    render(
+      <JobDetailsModal
+        agentId="agent-1"
+        job={{ id: "job-1" } as never}
+        readOnly={false}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
   });
 });
