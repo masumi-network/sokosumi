@@ -192,13 +192,23 @@ const MAX_OFFERED_SECTIONS = 16;
  * sections cut from those pages (pricing cards, testimonials, product shots;
  * a plain section last), then the photos from its pages.
  */
+/**
+ * A picture of the brand: a screenshot of a whole page, a crop of one of its
+ * sections, or a photo.
+ */
+export interface CmoBrandPicture {
+  fileId: string;
+  alt: string;
+  kind: "page" | "section" | "photo";
+}
+
 export async function listCmoBrandPictures(
   projectId: string,
-): Promise<{ fileId: string; alt: string }[]> {
+): Promise<CmoBrandPicture[]> {
   const files = await listResearchFiles(projectId);
   const shot = (name: string, alt: string) => {
     const page = files.find((file) => file.folder === "" && file.name === name);
-    return page ? [{ fileId: page.fileId, alt }] : [];
+    return page ? [{ fileId: page.fileId, alt, kind: "page" as const }] : [];
   };
   const pages = Object.entries(PAGE_LABELS).flatMap(([name, label]) => [
     ...shot(name, `${label} page screenshot`),
@@ -220,6 +230,7 @@ export async function listCmoBrandPictures(
     .map(({ file, page, kind, words }) => ({
       fileId: file.fileId,
       alt: `${SECTION_LABELS[kind]}, ${PAGE_LABELS[page] ?? page} page${words ? `: ${words}` : ""}`,
+      kind: "section" as const,
     }));
   return [
     ...pages,
@@ -227,6 +238,7 @@ export async function listCmoBrandPictures(
     ...latestPictures(files).map((file) => ({
       fileId: file.fileId,
       alt: pictureAlt(file.name),
+      kind: "photo" as const,
     })),
   ];
 }

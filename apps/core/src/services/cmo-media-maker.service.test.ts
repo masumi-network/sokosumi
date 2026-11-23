@@ -187,6 +187,7 @@ import {
   cmoPictureOutdated,
   cmoPictureStyleProblem,
   cmoPieceSlides,
+  cmoShortPictures,
   cmoSlotAction,
   cmoStyleHeadline,
   cmoStyleInks,
@@ -322,6 +323,20 @@ describe("a cmo-v16 short video piece", () => {
       { visual: "Another scene." },
     ])
       expect(cmoVisualKey(short(patch))).not.toBe(before);
+  });
+
+  it("shows the site's section crops and photos as they are, never a whole page", () => {
+    const pictures = [
+      { fileId: "home", alt: "Home page screenshot", kind: "page" as const },
+      { fileId: "hero", alt: "Hero, Home page", kind: "section" as const },
+      { fileId: "team", alt: "team at work", kind: "photo" as const },
+      { fileId: "desk", alt: "desk", kind: "photo" as const },
+      { fileId: "cup", alt: "cup", kind: "photo" as const },
+    ];
+    const chosen = cmoShortPictures({ id: "p1" }, pictures);
+    expect(chosen).toHaveLength(3);
+    expect(chosen).not.toContain("home");
+    expect(new Set(chosen).size).toBe(3);
   });
 
   it("asks for a scene with no screen in it, since the site is shown for real", () => {

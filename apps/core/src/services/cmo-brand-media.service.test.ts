@@ -617,16 +617,25 @@ describe("the Project's brand research", () => {
 
   it("gives Cuso the page screenshots, the sections with the plain ones last, then the pictures", async () => {
     expect(await listCmoBrandPictures("project-1")).toEqual([
-      { fileId: "f-home", alt: "Home page screenshot" },
-      { fileId: "f-phone", alt: "Home on a phone page screenshot" },
-      { fileId: "f-pricing", alt: "Pricing page screenshot" },
+      { fileId: "f-home", alt: "Home page screenshot", kind: "page" },
+      {
+        fileId: "f-phone",
+        alt: "Home on a phone page screenshot",
+        kind: "page",
+      },
+      { fileId: "f-pricing", alt: "Pricing page screenshot", kind: "page" },
       {
         fileId: "f-plans",
         alt: "Pricing cards, Pricing page: plans starter pro",
+        kind: "section",
       },
-      { fileId: "f-plain-part", alt: "Section, Home page: how it works" },
-      { fileId: "f-new", alt: "red sneaker" },
-      { fileId: "f-plain", alt: "" },
+      {
+        fileId: "f-plain-part",
+        alt: "Section, Home page: how it works",
+        kind: "section",
+      },
+      { fileId: "f-new", alt: "red sneaker", kind: "photo" },
+      { fileId: "f-plain", alt: "", kind: "photo" },
     ]);
     expect(db.fileProjectLink.findMany).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -47,6 +47,7 @@ import { checkStyledPicture } from "@/lib/reference-library/style-check";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import type { StudioLogoPosition } from "@/schemas/project-image-studio.schema";
 import {
+  type CmoBrandPicture,
   listCmoBrandPictures,
   readCmoBrandLogo,
 } from "@/services/cmo-brand-media.service";
@@ -1284,22 +1285,44 @@ export const MAX_STYLE_BRAND_PICTURES = 2;
  * Each piece starts at another of them (by its id), so a month draws on
  * every section and photo of the site instead of the first one each time.
  */
-/** A brand picture that is not a screenshot of the brand's site. */
-function isPhoto(picture: { alt: string }): boolean {
-  return !picture.alt.endsWith("page screenshot");
+/**
+ * The brand's own pictures a short shows as they are, beside its scene: crops
+ * of its site's sections and its photos. Its whole page comes from a live
+ * capture.
+ */
+export function cmoShortPictures(
+  piece: Pick<CmoMediaPiece, "id">,
+  brandPictures: readonly BrandPicture[],
+): string[] {
+  const own = brandPictures.filter((picture) => picture.kind !== "page");
+  const start =
+    own.length > 0
+      ? [...piece.id].reduce((sum, char) => sum + char.charCodeAt(0), 0) %
+        own.length
+      : 0;
+  return [...own.slice(start), ...own.slice(0, start)]
+    .slice(0, SHORT_BRAND_PICTURES)
+    .map((picture) => picture.fileId);
 }
+
+type BrandPicture = Pick<CmoBrandPicture, "fileId" | "alt"> &
+  Partial<Pick<CmoBrandPicture, "kind">>;
 
 function references(
   piece: CmoMediaPiece,
-  all: readonly { fileId: string; alt: string }[],
+  all: readonly BrandPicture[],
 ): string[] {
-  // A short shows the site from its live capture: a screenshot among its
-  // pictures had the model redraw the page with made-up text (2026-11-22).
-  const brandPictures = piece.shortFormat ? all.filter(isPhoto) : all;
+  // A short's scene is drawn from photos only: given a screenshot or a crop
+  // of the site, the model redrew the page with made-up text (2026-11-22).
+  const brandPictures = piece.shortFormat
+    ? all.filter((picture) => picture.kind === "photo")
+    : all;
   const known = new Set(brandPictures.map((picture) => picture.fileId));
   const named = (piece.visualFileIds ?? []).filter((id) => known.has(id));
   if (named.length > 0) return named;
-  const own = brandPictures.filter(isPhoto);
+  const own = brandPictures.filter(
+    (picture) => !picture.alt.endsWith("page screenshot"),
+  );
   const start =
     own.length > 0
       ? [...piece.id].reduce((sum, char) => sum + char.charCodeAt(0), 0) %
@@ -1464,7 +1487,7 @@ export async function advanceCmoMedia(
     (await prisma.projectImageJob.count({
       where: { projectId, status: { in: [...LIVE] } },
     }));
-  let brandPictures: { fileId: string; alt: string }[] | null = null;
+  let brandPictures: CmoBrandPicture[] | null = null;
   let styleBrand: StyleBrand | null = null;
   const brandFor = async () => (styleBrand ??= await loadStyleBrand(projectId));
   const picks = picker
@@ -1596,11 +1619,13 @@ export async function advanceCmoMedia(
           action: { ...action, attempt },
           // A styled picture's screen is placed by Core, never redrawn.
           references:
-            action.step === "video" ||
-            action.step === "talking" ||
-            styled(piece)
-              ? []
-              : references(piece, brandPictures),
+            action.step === "short"
+              ? cmoShortPictures(piece, brandPictures)
+              : action.step === "video" ||
+                  action.step === "talking" ||
+                  styled(piece)
+                ? []
+                : references(piece, brandPictures),
           screen:
             styled(piece) &&
             action.step === "image" &&
@@ -1940,7 +1965,7 @@ async function start(
         // captured live, so no screenshot of it is among them.
         pictures: {
           assetIds: [action.sourceAssetId],
-          fileIds: input.references.slice(0, SHORT_BRAND_PICTURES),
+          fileIds: input.references,
         },
       });
       return true;
