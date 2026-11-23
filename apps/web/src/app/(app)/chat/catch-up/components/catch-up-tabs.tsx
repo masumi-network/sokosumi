@@ -38,7 +38,7 @@ export function CatchUpTabs() {
       aria-label={t("label")}
       className={cn(
         SEGMENTED_TABS_LIST_CLASS_NAME,
-        "mb-4 overflow-x-auto sm:w-auto",
+        "mb-4 gap-0.5 overflow-x-auto sm:w-auto sm:gap-1",
       )}
     >
       {TABS.map((tab) => {
