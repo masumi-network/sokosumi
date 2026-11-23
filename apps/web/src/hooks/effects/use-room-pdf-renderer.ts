@@ -12,8 +12,8 @@ interface UseRoomPdfRendererOptions {
 
 /**
  * Renders a shared data room PDF page by page into canvases mounted under
- * `container` via `pdfjs-dist`, cancelling in-flight work on URL change or
- * unmount.
+ * `container` via `pdfjs-dist`. On URL change or unmount, cleanup sets a
+ * cancelled flag that later steps check; pending PDF.js work still finishes.
  */
 export function useRoomPdfRenderer({
   container,
