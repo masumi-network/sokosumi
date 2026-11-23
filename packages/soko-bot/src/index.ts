@@ -304,6 +304,12 @@ export { CMO_PART_PATCH_STRATEGY_SKILL } from "./versions/cmo-v13-skills.js";
 export { CMO_CHANNEL_FIT_STRATEGY_SKILL } from "./versions/cmo-v14-skills.js";
 export { CMO_PLAIN_WORDS_STRATEGY_SKILL } from "./versions/cmo-v15-skills.js";
 export {
+  CMO_MONTH_POINTS_SKILL,
+  cmoMarksPoints,
+  cmoRevisedWritingSkills,
+  cmoTurnSkills,
+} from "./versions/cmo-v17-skills.js";
+export {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
   CMO_SOKO_BOT_VERSION_IDS,

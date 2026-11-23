@@ -90,8 +90,13 @@ export function judgedWritingRules(channel: string, format: string): string[] {
  * foundations, then one per channel. An evaluator holds each made piece to
  * their checklists.
  */
-export function writingSkillsBrief(channels: Iterable<string>): string {
-  const skills = writingSkillsForChannels(channels);
+export function writingSkillsBrief(
+  channels: Iterable<string>,
+  revised: readonly WritingSkill[] = [],
+): string {
+  const skills = writingSkillsForChannels(channels).map(
+    (skill) => revised.find((other) => other.id === skill.id) ?? skill,
+  );
   if (skills.length === 0) return "";
   return [
     "Writing skills: read each one before you write that kind of piece, and check every piece against its 'Before you save' list. The network's skill sets the shape; the brand's voice sets the words.",
