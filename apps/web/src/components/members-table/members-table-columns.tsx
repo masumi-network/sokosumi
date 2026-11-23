@@ -21,12 +21,13 @@ function getMembersTableColumns(
     // Phones: name over email, so role and actions stay on screen.
     personColumn: columnHelper.accessor("name", {
       id: "name",
-      minSize: 120,
+      minSize: 96,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.name")} />
       ),
       cell: ({ row }) => (
-        <div className="p-2 [overflow-wrap:anywhere]">
+        // Table cells default to nowrap; this one wraps so role and actions fit.
+        <div className="p-2 whitespace-normal [overflow-wrap:anywhere]">
           <div className="font-medium">
             {row.original.name ?? row.original.email}
           </div>

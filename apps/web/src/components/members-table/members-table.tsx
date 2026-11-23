@@ -163,9 +163,14 @@ function MembersSortMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="shrink-0">
+        <Button
+          variant="outline"
+          size="icon"
+          className="shrink-0"
+          aria-label={tOrder("label")}
+          title={tOrder("label")}
+        >
           <ArrowUpDown aria-hidden="true" />
-          {tOrder("label")}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

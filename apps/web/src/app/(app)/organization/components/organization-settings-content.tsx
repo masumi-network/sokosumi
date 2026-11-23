@@ -218,7 +218,7 @@ export async function OrganizationSettingsContent({
           aria-labelledby="members-title"
           className="scroll-mt-24 outline-none"
         >
-          <CardHeader className="flex flex-wrap items-center justify-between gap-3">
+          <CardHeader className="flex flex-wrap items-center justify-between gap-3 max-sm:px-4">
             <CardTitle>
               <h2 id="members-title" className="flex items-baseline gap-2">
                 {tMembers("title")}
@@ -236,7 +236,7 @@ export async function OrganizationSettingsContent({
               </div>
             ) : null}
           </CardHeader>
-          <CardContent>
+          <CardContent className="max-sm:px-4">
             <MembersTable
               me={member}
               members={members}
