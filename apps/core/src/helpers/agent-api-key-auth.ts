@@ -1,3 +1,5 @@
+import { waitUntil } from "@vercel/functions";
+
 import {
   buildSokoBotKeyAuthContext,
   sokoBotKeyWorkspaceWhere,
@@ -8,11 +10,60 @@ import {
   isSokoBotApiKeyToken,
 } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
+import { recordCoreError } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import type {
   CoworkerAuthenticationContext,
   SokoBotAuthenticationContext,
 } from "@/middleware/auth";
 import { BEARER_USER_SELECT } from "@/middleware/auth-active-user";
+
+const LAST_USED_WRITE_INTERVAL_MS = 60_000;
+
+/**
+ * Records a successful authentication on the key, at most once a minute, so
+ * one busy agent does not turn every request into a write. Runs after the
+ * response; a failed write only loses the timestamp.
+ */
+function recordAgentApiKeyUse(
+  key: { id: string; lastUsedAt: Date | null },
+  now: Date,
+) {
+  const staleBefore = new Date(now.getTime() - LAST_USED_WRITE_INTERVAL_MS);
+  if (key.lastUsedAt && key.lastUsedAt > staleBefore) {
+    return;
+  }
+
+  waitUntil(
+    // Started inside `then`, so even a synchronous throw becomes a logged
+    // rejection and never fails the request it authenticates.
+    Promise.resolve()
+      .then(() =>
+        prisma.coworkerApiKey.updateMany({
+          // Concurrent requests that all read a stale value write once.
+          where: {
+            id: key.id,
+            OR: [{ lastUsedAt: null }, { lastUsedAt: { lte: staleBefore } }],
+          },
+          data: { lastUsedAt: now },
+        }),
+      )
+      .then(
+        () => undefined,
+        (error: unknown) => {
+          recordCoreError(
+            { operation: "agent_api_key_last_used", id: key.id },
+            {
+              message: "Could not record when an agent API key was last used",
+              why: "The lastUsedAt update on coworker_api_key failed",
+              fix: "Check database health; the request itself was served.",
+            },
+            { failure: messageSafeErrorFields(error) },
+          );
+        },
+      ),
+  );
+}
 
 /**
  * Resolves a dedicated agent API key to the context it may act in, or `null`
@@ -39,6 +90,8 @@ export async function resolveAgentApiKeyAuthContext(
       keyHash,
     },
     select: {
+      id: true,
+      lastUsedAt: true,
       coworkerId: true,
       sokoBotId: true,
       revokedAt: true,
@@ -70,7 +123,8 @@ export async function resolveAgentApiKeyAuthContext(
     return null;
   }
 
-  if (apiKey.expiresAt && apiKey.expiresAt <= new Date()) {
+  const now = new Date();
+  if (apiKey.expiresAt && apiKey.expiresAt <= now) {
     return null;
   }
 
@@ -79,6 +133,7 @@ export async function resolveAgentApiKeyAuthContext(
       return null;
     }
 
+    recordAgentApiKeyUse(apiKey, now);
     return {
       actor: "coworker",
       coworkerId: apiKey.coworkerId,
@@ -99,11 +154,15 @@ export async function resolveAgentApiKeyAuthContext(
         })
       : null;
 
-    return buildSokoBotKeyAuthContext(
+    const context = buildSokoBotKeyAuthContext(
       apiKey.sokoBotId,
       apiKey.sokoBot,
       workspace,
     );
+    if (context) {
+      recordAgentApiKeyUse(apiKey, now);
+    }
+    return context;
   }
 
   return null;
