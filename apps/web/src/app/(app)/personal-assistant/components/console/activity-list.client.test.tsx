@@ -140,3 +140,23 @@ it("tells a viewer who cannot approve that a run waits, not that it needs them",
   expect(row).toHaveTextContent("Waiting for approval");
   expect(row).not.toHaveTextContent(/needs? you/i);
 });
+
+// A phone row is ~150px wide. A long schedule name ellipsizes, but the status
+// and the approval mark sit outside the truncating name, so they never get
+// cut with it (they wrap under the name instead).
+it("keeps the status and approval mark outside a long name's ellipsis", () => {
+  const name = "Evening: merged pull requests with a long roundup graphic";
+  renderList([
+    turn({
+      source: "SCHEDULE",
+      schedule: { name, systemKey: null },
+      decisions: [decision("a", "PENDING")],
+    }),
+  ]);
+
+  expect(screen.getByText(name)).toHaveClass("truncate");
+  expect(screen.getByText(/· Done/).closest(".truncate")).toBeNull();
+  expect(
+    screen.getByText("Waiting for approval").closest(".truncate"),
+  ).toBeNull();
+});

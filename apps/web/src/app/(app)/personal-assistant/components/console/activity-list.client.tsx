@@ -102,17 +102,24 @@ function ActivityRow({
           aria-hidden
           className={cn("size-1.5 shrink-0 rounded-full", statusDotClass(turn))}
         />
-        <span className="min-w-0 flex-1 truncate text-sm">
-          <span className="text-foreground">{runTitle(turn, tConsole)}</span>
-          <span className="text-muted-foreground">
-            {" · "}
+        {/* Only the name ellipsizes. On a phone a long name leaves no room,
+            so the status and approval mark wrap under it instead of being
+            cut off with it. */}
+        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1 text-sm">
+          <span className="text-foreground max-w-full truncate">
+            {runTitle(turn, tConsole)}
+          </span>
+          <span className="text-muted-foreground whitespace-pre">
+            {"· "}
             {runOutcome(turn, tConsole)}
           </span>
+          {waiting > 0 ? (
+            // Viewer-neutral: a shared bot's member may not be allowed to answer.
+            <Badge className="max-w-full whitespace-normal">
+              {tConsole("Activity.waiting", { count: waiting })}
+            </Badge>
+          ) : null}
         </span>
-        {waiting > 0 ? (
-          // Viewer-neutral: a shared bot's member may not be allowed to answer.
-          <Badge>{tConsole("Activity.waiting", { count: waiting })}</Badge>
-        ) : null}
         <span className="text-muted-foreground hidden shrink-0 items-center gap-2 text-xs sm:flex">
           {turn.route ? <span>{tRoute(turn.route)}</span> : null}
           {kind === "scheduled" ? <span>{t("kind.scheduled")}</span> : null}
