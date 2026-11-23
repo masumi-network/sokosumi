@@ -387,7 +387,6 @@ export function useChatRoomRealtime({
         CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
         handleMembershipRevoked,
       );
-      safeDetachChannel(controlChannel);
     };
   }, [ably, currentUserId, roomIdsKey]);
 

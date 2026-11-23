@@ -6,8 +6,8 @@ import {
   CLI_COMMANDS,
   formatCliCommandHelpLines,
   formatUnknownCommandUsage,
-  runDiscoverCommand,
-} from "../../../src/cli/commands/discover.js";
+} from "../../../src/cli/commands/catalog.js";
+import { runDiscoverCommand } from "../../../src/cli/commands/discover.js";
 
 const config = {
   target: "mainnet" as const,
