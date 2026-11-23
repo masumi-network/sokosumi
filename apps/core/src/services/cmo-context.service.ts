@@ -111,10 +111,12 @@ export async function loadCmoMarketingContext(
       designMd: designMd?.slice(0, CMO_DESIGN_MD_CHARS) ?? null,
     },
     /** The brand's own photos, the Project's files: generate_image references. */
-    brandPictures: brandPictures.map((picture) => ({
-      fileId: picture.fileId,
-      alt: picture.alt.slice(0, 80),
-    })),
+    brandPictures: brandPictures
+      .filter((picture) => !picture.fromSite)
+      .map((picture) => ({
+        fileId: picture.fileId,
+        alt: picture.alt.slice(0, 80),
+      })),
     /**
      * The owner gave their photo, with consent, to be the face of talking
      * videos: presenter "owner" uses it.

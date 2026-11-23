@@ -27,7 +27,11 @@ import {
 import { readRobots, readSitemapPages } from "@/lib/site-pages";
 import type { CmoBrandMedia } from "@/schemas/cmo.schema";
 import type { Cuso } from "@/services/cmo-cuso.service";
-import { CMO_SITE_INDEX, cmoSiteIndexSchema } from "@/services/cmo-site-index";
+import {
+  CMO_BRAND_SITE_FOLDER,
+  CMO_SITE_INDEX,
+  cmoSiteIndexSchema,
+} from "@/services/cmo-site-index";
 import {
   type CusoDrive,
   cusoDrive,
@@ -39,8 +43,6 @@ export const CMO_BRAND_MEDIA_FOLDER = "Brand research";
 
 /** Where the brand's logo files live, and what each is called (".png"). */
 export const CMO_BRAND_LOGO_FOLDER = `${CMO_BRAND_MEDIA_FOLDER}/Logo`;
-/** Where the whole site is documented, page by page (cmo-site-pages.service). */
-export const CMO_BRAND_SITE_FOLDER = `${CMO_BRAND_MEDIA_FOLDER}/Site`;
 export const CMO_BRAND_LOGO_FILES = {
   src: "logo",
   srcDark: "logo-dark",
@@ -215,6 +217,11 @@ export interface CmoBrandPicture {
    * feed picture: each piece shows another of them.
    */
   wideFileIds?: string[];
+  /**
+   * A page of the site's documentation (Brand research/Site): Cuso finds it
+   * in the site's pages and their notes, not in his list of brand pictures.
+   */
+  fromSite?: true;
 }
 
 /**
@@ -280,6 +287,11 @@ export async function listCmoBrandPictures(
       fileId: file.fileId,
       alt: `${SECTION_LABELS[kind]}, ${PAGE_LABELS[page] ?? page} page${words ? `: ${words}` : ""}`,
     }));
+  const site = await readCmoResearchJson(
+    projectId,
+    CMO_SITE_INDEX,
+    cmoSiteIndexSchema,
+  ).catch(() => null);
   return [
     ...pages,
     ...sections,
@@ -287,6 +299,27 @@ export async function listCmoBrandPictures(
       fileId: file.fileId,
       alt: pictureAlt(file.name),
     })),
+    ...(site?.data.pages ?? []).flatMap((page): CmoBrandPicture[] =>
+      page.desktopFileId
+        ? [
+            {
+              fileId: page.desktopFileId,
+              alt: `${page.title || page.url} page screenshot`,
+              ...(page.phoneFileId ? { phoneFileId: page.phoneFileId } : {}),
+              wideFileIds: [page.desktopFileId],
+              fromSite: true,
+            },
+          ]
+        : page.phoneFileId
+          ? [
+              {
+                fileId: page.phoneFileId,
+                alt: `${page.title || page.url} on a phone page screenshot`,
+                fromSite: true,
+              },
+            ]
+          : [],
+    ),
   ];
 }
 
@@ -328,7 +361,8 @@ export async function readCmoBrandLogo(projectId: string): Promise<{
 
 /**
  * A JSON file of the research (by its path under "Brand research"), read
- * from our own Blob store. Null when there is none or it does not parse.
+ * from our own Blob store. Null when there is none; throws when there is one
+ * that cannot be read, so a caller never takes it for missing and starts over.
  */
 export async function readCmoResearchJson<T>(
   projectId: string,
@@ -341,9 +375,10 @@ export async function readCmoResearchJson<T>(
       path,
   );
   if (!file) return null;
-  const blob = await head(file.pathname).catch(() => null);
-  const data = blob ? await readJsonBlob(blob, schema) : null;
-  return blob && data !== null ? { data, updatedAt: blob.uploadedAt } : null;
+  const blob = await head(file.pathname);
+  const data = await readJsonBlob(blob, schema);
+  if (data === null) throw new Error(`Could not read Brand research/${path}`);
+  return { data, updatedAt: blob.uploadedAt };
 }
 
 const indexes = new Map<string, BrandIndex | null>();
@@ -533,18 +568,23 @@ export async function cmoBrandMedia(input: {
 }
 
 /** A JSON file of the research, read from its blob once per upload. */
+const jsonFiles = new Map<string, unknown>();
 async function readJsonBlob<T>(
   blob: { url: string; uploadedAt: Date },
   schema: z.ZodType<T>,
 ): Promise<T | null> {
+  const key = `${blob.url}?v=${blob.uploadedAt.getTime()}`;
   // Our own Blob store: its bot check refuses the SSRF-safe fetch.
-  const body = await fetch(`${blob.url}?v=${blob.uploadedAt.getTime()}`, {
-    signal: AbortSignal.timeout(8_000),
-  })
-    .then((response) => (response.ok ? response.json() : null))
-    .catch(() => null);
+  const body = jsonFiles.has(key)
+    ? jsonFiles.get(key)
+    : await fetch(key, { signal: AbortSignal.timeout(8_000) })
+        .then((response) => (response.ok ? response.json() : null))
+        .catch(() => null);
   const parsed = schema.safeParse(body);
-  return parsed.success ? parsed.data : null;
+  if (!parsed.success) return null;
+  if (jsonFiles.size > 200) jsonFiles.clear();
+  jsonFiles.set(key, body);
+  return parsed.data;
 }
 
 /** The homepage and one page of each kind. */

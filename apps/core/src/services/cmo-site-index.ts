@@ -2,6 +2,8 @@ import { z } from "zod";
 
 /** The site's documentation under "Brand research": one note and two shots per page. */
 export const CMO_SITE_INDEX = "Site/pages.json";
+/** The same folder as a Drive path. */
+export const CMO_BRAND_SITE_FOLDER = "Brand research/Site";
 
 export const cmoSitePageSchema = z.object({
   url: z.string(),

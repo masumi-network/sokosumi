@@ -23,7 +23,6 @@ import {
 import { gatewayCallUsage, gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { sokoBotModelRequest } from "@/lib/soko-bot/model-policy";
 import {
-  CMO_BRAND_SITE_FOLDER,
   cmoFileSlug,
   readCmoResearchJson,
   type SaveFailure,
@@ -31,6 +30,7 @@ import {
 } from "@/services/cmo-brand-media.service";
 import type { Cuso } from "@/services/cmo-cuso.service";
 import {
+  CMO_BRAND_SITE_FOLDER,
   type CmoSitePage,
   CMO_SITE_INDEX as SITE_INDEX,
   type CmoSiteIndex as SiteIndex,
@@ -217,7 +217,9 @@ export async function scheduleCmoSitePages(
       cuso.projectId,
       SITE_INDEX,
       siteIndexSchema,
-    );
+    ).catch(() => "unreadable" as const);
+    // An index storage does not hand back now is left for a later sync.
+    if (index === "unreadable") continue;
     if (index && now.getTime() - index.updatedAt.getTime() < RUNNING_MS)
       continue;
     if (!cmoSitePagesDue(index?.data ?? null, now)) continue;
@@ -278,6 +280,7 @@ export async function documentCmoSitePages(
     SITE_INDEX,
     siteIndexSchema,
   );
+  if (saved && !cmoSitePagesDue(saved.data, now)) return;
   const deadline = Date.now() + RUN_BUDGET_MS;
   const failures: SaveFailure[] = [];
   let index: SiteIndex =
@@ -289,7 +292,7 @@ export async function documentCmoSitePages(
   const writeIndex = () =>
     saveCmoResearchFile(
       drive,
-      { folder: siteFolder, filename: "pages.json" },
+      { folder: CMO_BRAND_SITE_FOLDER, filename: "pages.json" },
       Buffer.from(JSON.stringify(index, null, 2)),
       "application/json",
       failures,
@@ -383,8 +386,6 @@ export async function documentCmoSitePages(
   nudgeFileIndexing();
 }
 
-const siteFolder = CMO_BRAND_SITE_FOLDER;
-
 /** One key for a page however it was reached: with or without www. */
 function samePage(url: string): string {
   return pageAddress(new URL(url)).replace(/^(https?:\/\/)www\./, "$1");
@@ -416,7 +417,7 @@ async function documentPage(
   const save = (filename: string, body: Buffer, contentType: string) =>
     saveCmoResearchFile(
       drive,
-      { folder: siteFolder, filename },
+      { folder: CMO_BRAND_SITE_FOLDER, filename },
       body,
       contentType,
       options.failures,
