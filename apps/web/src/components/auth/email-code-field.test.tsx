@@ -6,9 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { EmailCodeField, useEmailCodeRefusal } from "./email-code-field";
 
 vi.mock("next-intl", () => ({
-  // Keys stand for their copy; the address shows where the copy puts it.
-  useTranslations: () => (key: string, values?: { email?: string }) =>
-    values?.email ? `${key} ${values.email}.` : key,
+  useTranslations: () => (key: string) => key,
 }));
 
 /** The field is controlled; this holds its value the way every page does. */
@@ -232,14 +230,12 @@ describe("EmailCodeField", () => {
   it("describes the field by where the code went, and by the error once there is one", () => {
     const { rerender } = render(<Field />);
     expect(codeField()).not.toHaveAttribute("aria-invalid");
-    expect(codeField()).toHaveAccessibleDescription("sent ada@example.com.");
+    expect(codeField()).toHaveAccessibleDescription("sent");
 
     rerender(<Field error="That code is wrong." />);
 
     expect(codeField()).toHaveAttribute("aria-invalid", "true");
-    expect(codeField()).toHaveAccessibleDescription(
-      "sent ada@example.com. That code is wrong.",
-    );
+    expect(codeField()).toHaveAccessibleDescription("sent That code is wrong.");
   });
 
   it("says no code went out without calling the empty field invalid", () => {
@@ -286,7 +282,7 @@ describe("EmailCodeField", () => {
       />,
     );
 
-    const sent = screen.getByText("sent", { exact: false });
+    const sent = screen.getByText("sent");
     expect(sent).toBeVisible();
     // A long address wraps instead of being cut off.
     expect(sent).toHaveClass("wrap-anywhere");
@@ -327,17 +323,5 @@ describe("EmailCodeField", () => {
     await user.type(codeField(), "00000");
     expect(onComplete).toHaveBeenCalledTimes(2);
     expect(onComplete).toHaveBeenLastCalledWith("000000");
-  });
-});
-
-describe("the hint's address", () => {
-  it("sits in its own box with the full stop, so it moves to a new line whole and the stop never stands alone", () => {
-    render(<Field />);
-
-    const hint = screen.getByText("sent", { exact: false });
-    const address = screen.getByText("ada@example.com.");
-    expect(address).not.toBe(hint);
-    expect(hint).toContainElement(address);
-    expect(codeField()).toHaveAccessibleDescription("sent ada@example.com.");
   });
 });

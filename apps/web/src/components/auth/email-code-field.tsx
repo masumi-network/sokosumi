@@ -2,7 +2,7 @@
 
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { useTranslations } from "next-intl";
-import { type ReactNode, type Ref, type RefObject, useId, useRef } from "react";
+import { type Ref, type RefObject, useId, useRef } from "react";
 import * as z from "zod";
 import { FormErrorText } from "@/components/ui/form";
 import {
@@ -23,29 +23,6 @@ export const EMAIL_CODE_LENGTH = 6;
 export function useEmailCodeSchema() {
   const t = useTranslations("Components.EmailCodeForm");
   return z.string().length(EMAIL_CODE_LENGTH, { message: t("incomplete") });
-}
-
-/**
- * The sentence with its address in a box of its own, so the address moves to
- * the next line whole instead of breaking at a hyphen. The box takes the
- * punctuation after it, so a full stop never stands alone. An address wider
- * than the line still wraps (the box is never wider than the line).
- */
-function keepAddressWhole(text: string, email: string): ReactNode {
-  const at = text.indexOf(email);
-  if (at < 0) return text;
-  const end = at + email.length;
-  const stop = text.slice(end).match(/^\S*/)?.[0] ?? "";
-  return (
-    <>
-      {text.slice(0, at)}
-      <span className="inline-block max-w-full">
-        {email}
-        {stop}
-      </span>
-      {text.slice(end + stop.length)}
-    </>
-  );
 }
 
 const CODE_SLOTS = Array.from(
@@ -220,9 +197,7 @@ export function EmailCodeField({
         email ? "text-muted-foreground text-sm wrap-anywhere" : "sr-only"
       }
     >
-      {email
-        ? keepAddressWhole(t("sent", { email }), email)
-        : t("sentNoAddress")}
+      {email ? t("sent", { email }) : t("sentNoAddress")}
     </p>
   );
 

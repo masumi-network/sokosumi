@@ -55,45 +55,6 @@ async function reloadUntilShown(page: Page, url: string, text: string) {
   }
 }
 
-/**
- * The lines the code hint draws the address and its full stop on, as the
- * visitor sees them, and whether both would fit on one line.
- */
-async function addressLines(page: Page, address: string) {
-  const hint = page.getByText(/^We sent a 6-digit code to /);
-  await hint.waitFor();
-  return hint.evaluate((p, address) => {
-    const start = (p.textContent ?? "").indexOf(address);
-    // Each character's text node and offset, in reading order.
-    const chars: [Node, number][] = [];
-    const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
-    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-      for (let i = 0; i < (node.textContent?.length ?? 0); i++) {
-        chars.push([node, i]);
-      }
-    }
-    const lines: { top: number; text: string }[] = [];
-    let width = 0;
-    // The address and the full stop after it.
-    for (let i = start; i <= start + address.length; i++) {
-      const [node, offset] = chars[i];
-      const range = document.createRange();
-      range.setStart(node, offset);
-      range.setEnd(node, offset + 1);
-      const rect = range.getBoundingClientRect();
-      width += rect.width;
-      const text = node.textContent?.[offset] ?? "";
-      const last = lines.at(-1);
-      if (last && Math.abs(last.top - rect.top) < 2) last.text += text;
-      else lines.push({ top: rect.top, text });
-    }
-    return {
-      lines: lines.map((line) => line.text),
-      fits: width <= p.clientWidth,
-    };
-  }, address);
-}
-
 /** Setup lists the same policies as sign-up, each a 24px-tall target. */
 async function expectLegalLinks(page: Page) {
   for (const policy of [
@@ -162,17 +123,6 @@ for (const { name, ...viewport } of PROJECTS) {
       // send, must not throw.
       await codeField.dispatchEvent("paste");
       await codeField.pressSequentially(await mailbox.nextCode());
-      // "We sent a 6-digit code to …" moves the address to a new line whole;
-      // it wraps only when wider than the line, and its full stop never
-      // stands alone.
-      const { lines, fits } = await addressLines(page, mailbox.address);
-      if (fits) {
-        assert.deepEqual(lines, [`${mailbox.address}.`], "address on one line");
-      }
-      assert.ok(
-        lines.at(-1) !== ".",
-        `full stop stays with the address: ${lines}`,
-      );
       await shot("1-code");
       await page.getByRole("button", { name: "Register" }).click();
 
