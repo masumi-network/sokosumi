@@ -19,6 +19,7 @@ import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import {
   emitCoreWarning,
+  recordCoreError,
   recordCoreWarning,
   runAsBackgroundWork,
 } from "@/lib/evlog";
@@ -39,9 +40,11 @@ import {
 import {
   advanceCmoMedia,
   type CmoMediaJob,
+  cmoFailedVisuals,
   cmoMediaState,
   cmoPicksPictures,
   cmoPieceIsTalking,
+  cmoPieceIsVideo,
   cmoPieceNeedsMedia,
   cmoPieceSlides,
   cmoPieceTakesStyle,
@@ -91,6 +94,10 @@ const DAY_MS = 24 * 60 * 60 * 1_000;
 const PIECES_PER_RUN = 40;
 /** How long a month may wait for its next run before the owner is told. */
 export const CMO_PRODUCTION_START_GRACE_MS = 30 * 60 * 1_000;
+/** How long Core waits after a run that made nothing ready before the next. */
+export const CMO_PRODUCTION_RETRY_MS = 3 * 60 * 60 * 1_000;
+/** Visuals a piece's picture may fail on before it stays a draft without one. */
+export const CMO_PICTURE_VISUALS = 3;
 
 const RUN_ACTIVE = new Set<SokoBotTurnStatus>([
   "STARTING",
@@ -107,15 +114,18 @@ function pieceFiles(piece: CmoPiece): string[] {
 }
 
 /**
- * Whether another piece already counts for one of these files. A talking
- * video is the exception: its posts on several networks show the one video.
+ * Whether another piece already counts for one of these files. One video on
+ * several networks is the exception: a talking video's posts, and a short's
+ * Reel and TikTok (`videoOf`), show the one file. entry.fyi, 2026-11-22: 46
+ * shared Shorts never counted, and the month read "stopped" for a day.
  */
 function usedElsewhere(
   piece: CmoPiece,
   files: readonly string[],
   used: Set<string>,
 ): boolean {
-  if (cmoPieceIsTalking(piece)) return false;
+  if (cmoPieceIsTalking(piece) || (piece.videoOf && cmoPieceIsVideo(piece)))
+    return false;
   if (files.some((file) => used.has(file))) return true;
   for (const file of files) used.add(file);
   return false;
@@ -250,6 +260,13 @@ export interface CmoProductionStatus {
   level: CmoVolumeLevel;
   /** Entries of the month the plan bought does not make; a bigger plan does. */
   beyondPlan: string[];
+  /**
+   * Written pieces whose picture failed on every visual Cuso wrote: they stay
+   * drafts without one and no longer hold the month back.
+   */
+  withoutPicture: string[];
+  /** When a stopped month's next run starts; null unless stuck. */
+  retryAt: string | null;
 }
 
 export async function cmoConnectedChannels(
@@ -693,6 +710,8 @@ interface ProductionRead {
   runs: ProductionRun[];
   /** A run or its follow-up is still working, possibly from an earlier approval. */
   working: boolean;
+  /** The month stopped, Core waited, and the next run is due: a restart. */
+  restart: boolean;
 }
 
 /** Where the month's production stands; reads only, never starts a run. */
@@ -718,6 +737,8 @@ export async function readCmoProduction(
         pillars: null,
         level: "all_in",
         beyondPlan: [],
+        withoutPicture: [],
+        retryAt: null,
       },
       version: null,
       strategy: plan,
@@ -727,6 +748,7 @@ export async function readCmoProduction(
       failedMedia: new Set(),
       runs: [],
       working: false,
+      restart: false,
     };
   const [posts, files] = await Promise.all([
     listMarketingStrategyPosts(approved),
@@ -765,8 +787,18 @@ export async function readCmoProduction(
       media.get(piece.id) === "failed" ? [piece.id] : [],
     ),
   );
+  // A picture that failed on every visual Cuso wrote stays a draft without
+  // one: entry.fyi's X post, 2026-11-22, failed the brand check on four
+  // visuals (24 pictures) and held the whole month back.
+  const withoutPicture = unready.filter(
+    (piece) =>
+      failedMedia.has(piece.id) &&
+      (piece.draft?.trim() || piece.fileId) &&
+      cmoFailedVisuals(piece, jobs) >= CMO_PICTURE_VISUALS,
+  );
+  const missing = unready.filter((piece) => !withoutPicture.includes(piece));
   // A written piece whose picture Core is making waits for Core, not a run.
-  const pending = unready.filter(
+  const pending = missing.filter(
     (piece) =>
       !(
         (piece.draft?.trim() || piece.fileId) &&
@@ -787,6 +819,9 @@ export async function readCmoProduction(
             ),
         }
       : null;
+  /** When a stopped month's next run starts. */
+  let retryAt: string | null = null;
+  let restart = false;
   const read = (
     state: CmoProductionStatus["state"],
     runs: ProductionRun[] = [],
@@ -806,6 +841,8 @@ export async function readCmoProduction(
       pillars: pillarsOf(runs),
       level,
       beyondPlan,
+      withoutPicture: withoutPicture.map((piece) => piece.id),
+      retryAt,
     },
     version: approved,
     strategy,
@@ -815,6 +852,7 @@ export async function readCmoProduction(
     failedMedia,
     runs,
     working,
+    restart,
   });
   if (!context.subscribed) return read("waiting");
   // Runs' createdAt is PostgreSQL time, so their day is measured on it.
@@ -832,13 +870,13 @@ export async function readCmoProduction(
   });
   const working =
     Boolean(all[0] && RUN_ACTIVE.has(all[0].status)) || following > 0;
-  if (unready.length === 0) return read("ready", runs, working);
+  if (missing.length === 0) return read("ready", runs, working);
   if (working) return read("running", runs, true);
   // Every piece has its words and visual: Core is making the pictures.
   if (pending.length === 0) return read("running", runs);
   // Only this approval's runs count: a version approved the same day as an
   // earlier one once found the cap used up and waited until morning.
-  const today = runs.filter(
+  const idle = runs.filter(
     (run, index) =>
       runsNow.getTime() - run.createdAt.getTime() < DAY_MS &&
       !madeProgress(
@@ -847,21 +885,30 @@ export async function readCmoProduction(
       ),
   );
   // The last run finished without making a single piece ready (images
-  // refused, a tool down): another run today would only fail the same way.
-  // A run that crashed (a model or network error) is simply tried again.
+  // refused, a tool down): Core waits a few hours and tries again, not a
+  // day. A run that crashed (a model or network error) is tried at once.
   const last = runs[0];
   const lastReady = last ? readyAtStart(last) : null;
   const stalled =
     last?.status === "COMPLETED" &&
-    runsNow.getTime() - last.createdAt.getTime() < DAY_MS &&
     lastReady !== null &&
     ready.size <= lastReady;
-  if (today.length >= CMO_PRODUCTION_RUNS_PER_DAY || stalled)
+  const capped = idle.length >= CMO_PRODUCTION_RUNS_PER_DAY;
+  const ended = last?.completedAt ?? last?.createdAt ?? approvedAt;
+  const due = capped
+    ? new Date(idle.at(-1)!.createdAt.getTime() + DAY_MS)
+    : stalled
+      ? new Date(ended.getTime() + CMO_PRODUCTION_RETRY_MS)
+      : ended;
+  if (runsNow < due) {
+    retryAt = due.toISOString();
     return read("stuck", runs);
+  }
+  restart = capped || stalled;
   // Every sync tries to start a run; one that has not started in half an
-  // hour keeps failing, and the owner should not read "about to start".
-  const since = last?.completedAt ?? last?.createdAt ?? approvedAt;
-  if (runsNow.getTime() - since.getTime() > CMO_PRODUCTION_START_GRACE_MS)
+  // hour after it was due keeps failing, and the owner should not read
+  // "about to start".
+  if (runsNow.getTime() - due.getTime() > CMO_PRODUCTION_START_GRACE_MS)
     return read("blocked", runs);
   return read("starting", runs);
 }
@@ -886,6 +933,7 @@ export async function advanceCmoProduction(
     failedMedia,
     runs,
     working,
+    restart,
   } = await readCmoProduction(cuso, {
     connected,
     subscribed: await isCmoSubscribed(cuso),
@@ -963,6 +1011,21 @@ export async function advanceCmoProduction(
   const started = await onlyOnce(cuso.sokoBotId, runId, () =>
     startProductionRun(cuso, message, `${runId}${current.ready}`),
   );
+  if (started && restart)
+    recordCoreError(
+      { operation: "cmo_production", sokoBot: { id: cuso.sokoBotId } },
+      {
+        message: "A CMO month stopped and Core restarted it",
+        why: `The last run made nothing ready; after waiting Core started run ${attempt} with ${current.total - current.ready} of ${current.total} pieces missing`,
+        fix: "Read this Cuso's production turns and project_image_job rows for the approved version: a run that ends without making pieces, or pictures that keep failing their check.",
+      },
+      {
+        alert: "cmo_month_unfinished",
+        attempt,
+        ready: current.ready,
+        total: current.total,
+      },
+    );
   return started ? { ...current, state: "running" } : current;
 }
 

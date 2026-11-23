@@ -15207,7 +15207,7 @@ export type CmoMeasurement = {
  */
 export type CmoProduction = {
     /**
-     * starting: approved, but no run is working yet; the next sync starts one. blocked: no run could start for half an hour; Core keeps trying.
+     * starting: approved, but no run is working yet; the next sync starts one. stuck: the last run made nothing ready; the next starts at retryAt. blocked: no run could start for half an hour; Core keeps trying.
      */
     state: 'waiting' | 'starting' | 'running' | 'ready' | 'stuck' | 'blocked';
     ready: number;
@@ -15242,6 +15242,14 @@ export type CmoProduction = {
      * Calendar entries the plan bought does not make. A bigger plan makes them.
      */
     beyondPlan: Array<string>;
+    /**
+     * Written entries whose picture failed the brand check on every visual Cuso wrote. They stay drafts without a picture and no longer hold the month back.
+     */
+    withoutPicture: Array<string>;
+    /**
+     * When a stuck month's next production run starts. Null unless state is stuck.
+     */
+    retryAt: string | null;
 };
 
 export type CmoOnboardingConflictError = {

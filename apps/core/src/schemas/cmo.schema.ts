@@ -120,7 +120,7 @@ export const cmoProductionSchema = z
     state: z
       .enum(["waiting", "starting", "running", "ready", "stuck", "blocked"])
       .describe(
-        "starting: approved, but no run is working yet; the next sync starts one. blocked: no run could start for half an hour; Core keeps trying.",
+        "starting: approved, but no run is working yet; the next sync starts one. stuck: the last run made nothing ready; the next starts at retryAt. blocked: no run could start for half an hour; Core keeps trying.",
       ),
     ready: z.number().int(),
     total: z.number().int(),
@@ -158,6 +158,16 @@ export const cmoProductionSchema = z
       .array(z.string())
       .describe(
         "Calendar entries the plan bought does not make. A bigger plan makes them.",
+      ),
+    withoutPicture: z
+      .array(z.string())
+      .describe(
+        "Written entries whose picture failed the brand check on every visual Cuso wrote. They stay drafts without a picture and no longer hold the month back.",
+      ),
+    retryAt: z
+      .union([z.string(), z.null()])
+      .describe(
+        "When a stuck month's next production run starts. Null unless state is stuck.",
       ),
   })
   .openapi("CmoProduction");

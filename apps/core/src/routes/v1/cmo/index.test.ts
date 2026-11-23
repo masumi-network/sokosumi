@@ -201,6 +201,8 @@ function overview() {
       pillars: null,
       level: "all_in",
       beyondPlan: [],
+      withoutPicture: [],
+      retryAt: null,
     },
     mailingListSize: 0,
     comments: [],
