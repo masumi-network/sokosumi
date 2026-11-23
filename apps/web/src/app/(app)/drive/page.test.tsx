@@ -1121,6 +1121,87 @@ describe("DrivePage tasks view cache", () => {
     );
   });
 
+  it("fetches the new task name once when selection changes during an empty search", async () => {
+    searchParams = new URLSearchParams(
+      "view=tasks&projectId=proj-p2&taskId=task-a",
+    );
+    fetchDriveTasksPageMock.mockImplementation(
+      async (params: { q?: string; taskId?: string }) => {
+        if (params.q) {
+          return { items: [], nextCursor: null };
+        }
+        if (params.taskId === "task-a") {
+          return {
+            items: [
+              {
+                type: "task-file",
+                id: "tf-a",
+                name: "task-a-file.pdf",
+                fileUrl: "https://example.com/task-a-file.pdf",
+                size: 1024,
+                mimeType: "application/pdf",
+                updatedAt: new Date("2026-08-25T10:00:00.000Z"),
+              },
+            ],
+            nextCursor: null,
+            selectedProject: { id: "proj-p2", name: "Page 2 Project" },
+            selectedTask: { id: "task-a", name: "Task A" },
+          };
+        }
+        if (params.taskId === "task-b") {
+          return {
+            items: [],
+            nextCursor: null,
+            selectedProject: { id: "proj-p2", name: "Page 2 Project" },
+            selectedTask: { id: "task-b", name: "Task B" },
+          };
+        }
+        return { items: [], nextCursor: null };
+      },
+    );
+
+    const { rerender } = renderDrive();
+
+    expect(await screen.findByText("task-a-file.pdf")).toBeVisible();
+    const nav = screen.getByRole("navigation", { name: "breadcrumbNavLabel" });
+    expect(within(nav).getByRole("button", { name: "Task A" })).toBeVisible();
+
+    const [searchInput] = screen.getAllByPlaceholderText(
+      "tasksSearchPlaceholder",
+    );
+    fireEvent.change(searchInput!, { target: { value: "nonexistent" } });
+
+    expect(await screen.findByText("tasksNoMatchTitle")).toBeVisible();
+    expect(within(nav).getByRole("button", { name: "Task A" })).toBeVisible();
+    expect(fetchDriveTasksPageMock).toHaveBeenCalledTimes(2);
+
+    searchParams = new URLSearchParams(
+      "view=tasks&projectId=proj-p2&taskId=task-b",
+    );
+    rerender(driveTree());
+
+    expect(
+      await within(nav).findByRole("button", { name: "Task B" }),
+    ).toBeVisible();
+    expect(
+      within(nav).getByRole("button", { name: "Page 2 Project" }),
+    ).toBeVisible();
+    const filterStub = screen.getByTestId("drive-tasks-filters-stub");
+    expect(filterStub).toHaveAttribute(
+      "data-selected-project",
+      "Page 2 Project",
+    );
+    expect(filterStub).toHaveAttribute("data-selected-task", "Task B");
+    const unsearchedTaskBCalls = fetchDriveTasksPageMock.mock.calls.filter(
+      ([args]) => !args?.q && args?.taskId === "task-b",
+    );
+    expect(unsearchedTaskBCalls).toHaveLength(1);
+    const unsearchedTaskACalls = fetchDriveTasksPageMock.mock.calls.filter(
+      ([args]) => !args?.q && args?.taskId === "task-a",
+    );
+    expect(unsearchedTaskACalls).toHaveLength(1);
+  });
+
   it("refetches on return to Drive tasks view while keeping cached rows visible", async () => {
     const refetchDeferred = Promise.withResolvers<{
       items: unknown[];

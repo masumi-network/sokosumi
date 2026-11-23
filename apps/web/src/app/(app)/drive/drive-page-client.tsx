@@ -546,9 +546,16 @@ function DrivePageWorkspace({
       }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    // Cache-only reader: keeps the unsearched drill-down's selectedProject /
-    // selectedTask names visible during search without issuing another fetch.
-    enabled: false,
+    // Reads cached selectedProject / selectedTask from the unsearched
+    // drill-down key during search without refetching warm entries, while
+    // fetching once if selection or sort changes to an uncached key (and
+    // still refetching on invalidateDrive).
+    enabled:
+      isTasksView &&
+      isDriveStoreEnabled &&
+      isTasksSearchActive &&
+      Boolean(projectIdParam || taskIdParam),
+    staleTime: Number.POSITIVE_INFINITY,
   });
 
   const firstTasksPage = isTasksSearchActive
