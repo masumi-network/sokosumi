@@ -55,13 +55,14 @@ const ROWS: Record<
   IN_FLIGHT_JOB: {
     icon: Clock,
     message: "inFlightJob",
-    href: "/history",
+    // Bare /history shows only your own jobs; the blocker counts everyone's.
+    href: "/history?scope=workspace",
     link: "jobs",
   },
   UNSETTLED_ON_CHAIN_JOB: {
     icon: Clock,
     message: "unsettledOnChainJob",
-    href: "/history",
+    href: "/history?scope=workspace",
     link: "jobs",
   },
   IN_FLIGHT_TASK: {

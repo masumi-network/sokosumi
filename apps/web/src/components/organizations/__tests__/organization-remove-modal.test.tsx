@@ -86,7 +86,7 @@ describe("OrganizationRemoveModal when deletion is blocked", () => {
     ).toHaveAttribute("href", "/billing?organizationId=org-1");
     expect(
       within(dialog).getByRole("link", { name: "Links.jobs" }),
-    ).toHaveAttribute("href", "/history");
+    ).toHaveAttribute("href", "/history?scope=workspace");
     expect(
       within(dialog).getByRole("link", { name: "Links.tasks" }),
     ).toHaveAttribute("href", "/tasks");

@@ -228,10 +228,7 @@ export default function DataTable<TData extends RowData>({
               renderedRows
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 p-2 text-center"
-                >
+                <TableCell colSpan={colSpan} className="h-24 p-2 text-center">
                   {t("noResults")}
                 </TableCell>
               </TableRow>

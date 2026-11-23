@@ -26,6 +26,8 @@ vi.mock("next-intl", () => ({
     [key, ...Object.values(values ?? {})].join(" "),
 }));
 
+vi.mock("@/components/time-ago", () => ({ TimeAgo: () => "seen" }));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh }),
 }));
@@ -176,14 +178,15 @@ it("finds later members and puts their name before a matching email", () => {
   expect(screen.queryByText("Member Eleven")).toBeNull();
 });
 
-function elevenMembers(): Member[] {
-  return Array.from({ length: 11 }, (_, index) => ({
+function elevenMembers(count = 11): Member[] {
+  return Array.from({ length: count }, (_, index) => ({
     id: `member-${index}`,
     organizationId: "org-1",
     role: index === 0 ? MemberRole.OWNER : MemberRole.MEMBER,
     createdAt: new Date("2026-01-01T00:00:00Z"),
     seatAssignedAt: null,
-    lastSeenAt: null,
+    // Later people were seen earlier, so Last seen runs opposite to Name.
+    lastSeenAt: new Date(Date.UTC(2026, 0, 30 - index)),
     user: {
       id: `user-${index}`,
       name: `Person ${String(index + 1).padStart(2, "0")}`,
@@ -239,34 +242,59 @@ describe("searching members", () => {
     expect(screen.getByText("noResults")).toBeInTheDocument();
   });
 
-  it("pages through more than ten matches and starts over when the query changes on page 2", async () => {
-    renderEleven();
+  it("pages through more than ten matches and starts over on page one when the query changes", async () => {
+    render(
+      <MembersTable
+        me={{ id: "member-0", role: MemberRole.OWNER }}
+        members={elevenMembers(25)}
+        pendingInvitations={[]}
+      />,
+    );
     const search = screen.getByRole("searchbox", { name: "search" });
 
     await userEvent.type(search, "person");
     expect(names()).toHaveLength(10);
     await userEvent.click(screen.getByRole("button", { name: "nextPage" }));
-    expect(names()).toEqual(["Person 11"]);
+    await userEvent.click(screen.getByRole("button", { name: "nextPage" }));
+    expect(names()).toEqual([
+      "Person 21",
+      "Person 22",
+      "Person 23",
+      "Person 24",
+      "Person 25",
+    ]);
 
-    await userEvent.type(search, " 0");
+    // Still 12 matches, so the pager stays and must be back on page one.
+    await userEvent.type(search, " 1");
     expect(names()).toEqual([
       "Person 01",
-      "Person 02",
-      "Person 03",
-      "Person 04",
-      "Person 05",
-      "Person 06",
-      "Person 07",
-      "Person 08",
-      "Person 09",
       "Person 10",
+      "Person 11",
+      "Person 12",
+      "Person 13",
+      "Person 14",
+      "Person 15",
+      "Person 16",
+      "Person 17",
+      "Person 18",
     ]);
+    await userEvent.click(screen.getByRole("button", { name: "nextPage" }));
+    expect(names()).toEqual(["Person 19", "Person 21"]);
   });
 });
 
 describe("on a phone", () => {
   beforeEach(() => {
     mobile.value = true;
+  });
+
+  it("spans the empty row over the columns it shows", async () => {
+    renderEleven();
+    await userEvent.type(
+      screen.getByRole("searchbox", { name: "search" }),
+      "zzz",
+    );
+    expect(screen.getByText("noResults")).toHaveAttribute("colspan", "3");
   });
 
   it("shows one row per person with role and actions, without the wide columns", () => {
@@ -302,8 +330,15 @@ describe("on a phone", () => {
     expect(names()).toEqual(["Person 02", "Person 01"]);
 
     await userEvent.click(screen.getByRole("button", { name: "label" }));
-    expect(
+    await userEvent.click(
       screen.getByRole("menuitemradio", { name: "ascending Header.lastSeen" }),
-    ).toBeInTheDocument();
+    );
+    await userEvent.click(screen.getByRole("button", { name: "previousPage" }));
+    // Earliest seen first: Person 11 … Person 02 | Person 01, then the
+    // invitation (never seen).
+    expect(names()[0]).toBe("Person 11");
+    expect(names()).toHaveLength(10);
+    await userEvent.click(screen.getByRole("button", { name: "nextPage" }));
+    expect(names()).toEqual(["Person 01"]);
   });
 });
