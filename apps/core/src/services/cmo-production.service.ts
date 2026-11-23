@@ -83,8 +83,8 @@ import { referenceLibraryAvailable } from "@/services/reference-library.service"
  */
 
 /**
- * Runs a day that made nothing ready before Core stops retrying; the next
- * day it tries again. A run that made pieces does not count: NMKR's test
+ * Runs in a day that made nothing ready before Core waits between tries
+ * (CMO_PRODUCTION_RETRY_MS). A run that made pieces does not count: NMKR's test
  * copy, 2026-11-21, used four runs in 11 minutes, each making pieces, and
  * then waited a day with 104 of 171 missing.
  */
@@ -895,9 +895,11 @@ export async function readCmoProduction(
     ready.size <= lastReady;
   const capped = idle.length >= CMO_PRODUCTION_RUNS_PER_DAY;
   const ended = last?.completedAt ?? last?.createdAt ?? approvedAt;
-  const due = capped
-    ? new Date(idle.at(-1)!.createdAt.getTime() + DAY_MS)
-    : stalled
+  // Four runs that made nothing, or one that ended without making anything:
+  // the next waits three hours, never a day. A CodePat test copy, 2026-11-21,
+  // lives 10 hours and stalled at 67 of 171 behind a day-long wait.
+  const due =
+    capped || stalled
       ? new Date(ended.getTime() + CMO_PRODUCTION_RETRY_MS)
       : ended;
   if (runsNow < due) {
