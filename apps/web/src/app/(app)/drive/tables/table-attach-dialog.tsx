@@ -127,7 +127,7 @@ export function TableAttachDialog({
             maxLength={SEARCH_MAX_LENGTH}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            className="pl-8"
+            className="pl-8 [&::-webkit-search-cancel-button]:hidden"
           />
         </div>
         <div className="-mx-1 max-h-80 overflow-y-auto overscroll-contain px-1">

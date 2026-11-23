@@ -358,13 +358,12 @@ function TaskFormContent({
                 />
               ) : null}
 
-              <div
-                className={cn(
-                  useModalFieldFill && "flex min-h-0 flex-1 flex-col",
-                )}
-              >
+              {/* Never shorter than the editor's own minimum: on a phone the
+              column ran out of room, squeezed this box and drew the attachment
+              chips over the brief. */}
+              <div className={cn(useModalFieldFill && "flex flex-1 flex-col")}>
                 <FileUpload
-                  className={cn(useModalFieldFill && "min-h-0 flex-1")}
+                  className={cn(useModalFieldFill && "min-h-32 flex-1")}
                   value={pendingUploadFiles}
                   onValueChange={setPendingUploadFiles}
                   onAccept={(files) => {
