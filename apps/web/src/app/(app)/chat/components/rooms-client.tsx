@@ -236,10 +236,6 @@ import {
 import { RoomMembersPanel } from "./room-members-panel";
 import { RoomMessageListSkeleton } from "./room-message-list-skeleton";
 import { ChatMessageRow } from "./room-message-row";
-import {
-  type RoomMessagePage,
-  RoomMessagesHydrator,
-} from "./room-messages-hydrator";
 import { RoomOpenLoadingView } from "./room-open-loading-view";
 import { RoomSeenByLine, seenByReadersFor } from "./room-seen-by-line";
 import {
@@ -292,11 +288,6 @@ export interface RoomsClientProps {
   messages: ChatRoomMessage[];
   /** Cursor for the next older page; null when the initial page is complete. */
   messagesNextCursor: string | null;
-  /**
-   * Deferred initial history (Server → Client promise). Hydrates into this
-   * instance so real header + composer stay mounted while the list skeletons.
-   */
-  messagesPromise?: Promise<RoomMessagePage>;
   /**
    * Deferred org members + coworkers. Room chrome paints from `rooms` alone;
    * roster streams in for pickers / mentions / admin gates.
@@ -424,7 +415,6 @@ interface RetainedTranscriptBinding {
   setTranscript: (update: SetStateAction<RoomTranscript>) => void;
   /** Merge a jump window into the cache alone, so a render may call it. */
   joinWindow: (page: RoomTranscriptPage) => void;
-  resolve: (page: RoomMessagePage) => void;
   refresh: (
     isCurrent: () => boolean,
     onHead?: (head: RoomMessagesPage) => void,
@@ -507,21 +497,6 @@ function RetainedRoomsClient({
       cache.setTranscript(roomId, lifetime, (current) =>
         mergeRoomJumpWindow(current, page),
       ),
-    resolve: (page) => {
-      cache.update(roomId, lifetime, (current) =>
-        page.failed
-          ? { ...current, failed: !current.resolved }
-          : {
-              ...current,
-              resolved: true,
-              failed: false,
-              transcript: mergeRoomHeadPage(current.transcript, {
-                messages: page.messages,
-                nextCursor: page.nextCursor,
-              }),
-            },
-      );
-    },
     refresh: async (isCurrent, onHead) => {
       if (
         (await cache.refresh(roomId, lifetime, isCurrent, onHead)) === "stale"
@@ -573,7 +548,6 @@ function RoomView({
   membersLoadFailed: membersLoadFailedProp,
   messages,
   messagesNextCursor,
-  messagesPromise,
   rosterPromise,
   retained,
   registerRefresh,
@@ -703,13 +677,8 @@ function RoomView({
   const [boundaryStatus, setBoundaryStatus] = useState<
     Record<string, TranscriptBoundaryStatus>
   >({});
-  const [deferredHistoryPending, setDeferredHistoryPending] = useState(
-    () => messagesPromise != null,
-  );
   const [messageLoadFailedState, setMessageLoadFailedState] =
     useState(messageLoadFailed);
-  const [syncedMessagesPromise, setSyncedMessagesPromise] =
-    useState(messagesPromise);
   const [syncedHistoryRoomId, setSyncedHistoryRoomId] =
     useState(selectedRoomId);
   const [editChannelOpen, setEditChannelOpen] = useState(false);
@@ -751,10 +720,6 @@ function RoomView({
       );
     });
   }, []);
-  // RoomsClient stays mounted across /chat/rooms/[id] navigations. Progressive
-  // room switch must drop the prior timeline so skeleton shows and hydrate
-  // cannot merge room A into room B (or show A under B's header).
-  let effectiveDeferredHistoryPending = deferredHistoryPending;
   if (selectedRoomId !== syncedHistoryRoomId) {
     setSyncedHistoryRoomId(selectedRoomId);
     historicalThreadRef.current = false;
@@ -765,23 +730,6 @@ function RoomView({
     // handed to the next one.
     setEditChannelOpen(false);
     setSearchHoldOffBottom(false);
-    if (messagesPromise != null) {
-      setTranscript(emptyRoomTranscript());
-      setMessageLoadFailedState(false);
-      setDeferredHistoryPending(true);
-      effectiveDeferredHistoryPending = true;
-    }
-  }
-  if (messagesPromise !== syncedMessagesPromise) {
-    setSyncedMessagesPromise(messagesPromise);
-    // Same-room promise identity swap (RSC refresh) must not re-enter pending
-    // or focusOnMount false→true steals caret mid-type. Room change above
-    // already sets pending; initial mount seeds deferredHistoryPending.
-    if (messagesPromise == null) {
-      setDeferredHistoryPending(false);
-      effectiveDeferredHistoryPending = false;
-      setMessageLoadFailedState(messageLoadFailed);
-    }
   }
   const {
     organizationMembers,
@@ -803,7 +751,7 @@ function RoomView({
   });
   const messagesPending = retained
     ? !retained.entry.resolved && !retained.entry.failed
-    : deferredHistoryPending;
+    : false;
   const effectiveMessageLoadFailed = messagesPending
     ? false
     : retained
@@ -873,22 +821,6 @@ function RoomView({
   ) {
     setOpeningAtUnread(false);
   }
-
-  const handleDeferredHistoryResolved = useCallback((page: RoomMessagePage) => {
-    if (retained) {
-      if (!retained.entry.resolved) retained.resolve(page);
-      return;
-    }
-    setTranscript((current) =>
-      mergeRoomHeadPage(current, {
-        messages: page.messages,
-        nextCursor: page.nextCursor,
-      }),
-    );
-    setMessageLoadFailedState(page.failed);
-    setDeferredHistoryPending(false);
-    if (!page.failed) noteUnreadDivider(page);
-  }, []);
 
   const [threadListOpen, setThreadListOpen] = useState(false);
   // Every event that can change how many threads in this room are unread: a
@@ -1795,54 +1727,41 @@ function RoomView({
   }
 
   const [syncedPropSnapshot, setSyncedPropSnapshot] = useState(() => ({
-    deferredHistoryPending: effectiveDeferredHistoryPending,
     messageLoadFailed,
     messages,
     messagesNextCursor,
-    messagesPromise,
     selectedRoomId,
   }));
   if (
     !retained &&
-    (syncedPropSnapshot.deferredHistoryPending !==
-      effectiveDeferredHistoryPending ||
-      syncedPropSnapshot.messageLoadFailed !== messageLoadFailed ||
+    (syncedPropSnapshot.messageLoadFailed !== messageLoadFailed ||
       syncedPropSnapshot.messages !== messages ||
       syncedPropSnapshot.messagesNextCursor !== messagesNextCursor ||
-      syncedPropSnapshot.messagesPromise !== messagesPromise ||
       syncedPropSnapshot.selectedRoomId !== selectedRoomId)
   ) {
     const isChannelSwitch =
       syncedPropSnapshot.selectedRoomId !== selectedRoomId;
     setSyncedPropSnapshot({
-      deferredHistoryPending: effectiveDeferredHistoryPending,
       messageLoadFailed,
       messages,
       messagesNextCursor,
-      messagesPromise,
       selectedRoomId,
     });
 
-    // Deferred promise owns the first page until hydrate completes, and
-    // progressive open keeps messagesPromise after hydrate while props stay
-    // empty — do not re-apply prop messages / messageLoadFailed or we wipe
-    // hydrate and clobber failed:true from the hydrator.
-    if (!effectiveDeferredHistoryPending && messagesPromise == null) {
-      // Room switch: replace. Same room RSC refresh (e.g. revalidatePath):
-      // merge so client-loaded older pages are not wiped by the latest page.
-      const page = { messages, nextCursor: messagesNextCursor };
-      if (isChannelSwitch) {
-        setLocalTranscript(mergeRoomHeadPage(emptyRoomTranscript(), page));
-      } else {
-        setLocalTranscript((current) => mergeRoomHeadPage(current, page));
-      }
-      setMessageLoadFailedState(messageLoadFailed);
-      setThreadParentMessage((current) =>
-        current
-          ? (messages.find((message) => message.id === current.id) ?? current)
-          : current,
-      );
+    // Room switch: replace. Same room RSC refresh (e.g. revalidatePath):
+    // merge so client-loaded older pages are not wiped by the latest page.
+    const page = { messages, nextCursor: messagesNextCursor };
+    if (isChannelSwitch) {
+      setLocalTranscript(mergeRoomHeadPage(emptyRoomTranscript(), page));
+    } else {
+      setLocalTranscript((current) => mergeRoomHeadPage(current, page));
     }
+    setMessageLoadFailedState(messageLoadFailed);
+    setThreadParentMessage((current) =>
+      current
+        ? (messages.find((message) => message.id === current.id) ?? current)
+        : current,
+    );
   }
 
   // A Look clears the thread's unread everywhere at once: the header count
@@ -3182,12 +3101,6 @@ function RoomView({
     }
     const openRoomListBody = (
       <>
-        {messagesPromise ? (
-          <RoomMessagesHydrator
-            promise={messagesPromise}
-            onResolved={handleDeferredHistoryResolved}
-          />
-        ) : null}
         {showListSkeleton ? (
           <RoomMessageListSkeleton />
         ) : effectiveMessageLoadFailed ? (

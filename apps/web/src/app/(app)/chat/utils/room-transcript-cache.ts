@@ -200,15 +200,11 @@ export class RoomTranscriptCache {
     const roomId = props.selectedRoomId ?? "";
     const existing = this.get(roomId);
     if (existing) return existing;
-    const resolved =
-      !props.messagesPromise &&
-      !props.loadHistoryOnClient &&
-      !props.messageLoadFailed;
+    const resolved = !props.loadHistoryOnClient && !props.messageLoadFailed;
     return {
       bootstrap: {
         ...props,
         messages: [],
-        messagesPromise: undefined,
         loadHistoryOnClient: true,
       },
       transcript: resolved

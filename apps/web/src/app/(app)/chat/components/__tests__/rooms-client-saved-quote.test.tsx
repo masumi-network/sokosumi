@@ -1,6 +1,6 @@
 import "./rooms-client-harness";
 import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
-import { act, screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { clearRoomReadOverlays } from "@/components/chat/room-read-overlay";
@@ -250,41 +250,6 @@ describe("RoomsClient Self Direct transcript", () => {
     expect(screen.getByTestId("chat-message-row")).toHaveAttribute(
       "data-message-id",
       "msg-saved-quote",
-    );
-  });
-
-  it("shows a quote sent to yourself in hydrated history", async () => {
-    let resolvePage!: (page: {
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }) => void;
-    const messagesPromise = new Promise<{
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }>((resolve) => {
-      resolvePage = resolve;
-    });
-
-    renderWithQueryClient(
-      <RoomsClient {...selfDirectProps} messagesPromise={messagesPromise} />,
-    );
-
-    await act(async () => {
-      resolvePage({
-        messages: [savedQuoteMessage()],
-        nextCursor: null,
-        failed: false,
-      });
-      await messagesPromise;
-    });
-
-    await waitFor(() => {
-      expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
-    });
-    expect(screen.getByTestId("chat-message-row")).toHaveTextContent(
-      "quote:Bob",
     );
   });
 });

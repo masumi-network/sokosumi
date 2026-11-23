@@ -114,7 +114,6 @@ export function RoomRouteBootstrap(props: RoomsClientProps) {
             bootstrap: {
               ...props,
               messages: [],
-              messagesPromise: undefined,
               loadHistoryOnClient: true,
             },
           }
