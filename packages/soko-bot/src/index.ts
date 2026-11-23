@@ -305,6 +305,7 @@ export { CMO_CHANNEL_FIT_STRATEGY_SKILL } from "./versions/cmo-v14-skills.js";
 export { CMO_PLAIN_WORDS_STRATEGY_SKILL } from "./versions/cmo-v15-skills.js";
 export {
   CMO_MONTH_POINTS_SKILL,
+  CMO_PILLAR_FACTS_STRATEGY_SKILL,
   cmoMarksPoints,
   cmoRevisedWritingSkills,
   cmoTurnSkills,

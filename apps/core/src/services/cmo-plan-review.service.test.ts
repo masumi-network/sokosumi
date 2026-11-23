@@ -1336,6 +1336,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       partPatch: false,
       channelFit: false,
       plainWords: false,
+      pillarFacts: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-weekly"])).toEqual({
       weekly: true,
@@ -1345,6 +1346,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       partPatch: false,
       channelFit: false,
       plainWords: false,
+      pillarFacts: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-part-patch"])).toEqual({
       weekly: true,
@@ -1354,6 +1356,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       partPatch: true,
       channelFit: false,
       plainWords: false,
+      pillarFacts: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-channel-fit"])).toEqual({
       weekly: true,
@@ -1363,6 +1366,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       partPatch: true,
       channelFit: true,
       plainWords: false,
+      pillarFacts: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-plain-words"])).toEqual({
       weekly: true,
@@ -1372,6 +1376,17 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       partPatch: true,
       channelFit: true,
       plainWords: true,
+      pillarFacts: false,
+    });
+    expect(cmoStrategyRules(["cmo-strategy-pillar-facts"])).toEqual({
+      weekly: true,
+      aida: true,
+      everyNetwork: true,
+      claims: true,
+      partPatch: true,
+      channelFit: true,
+      plainWords: true,
+      pillarFacts: true,
     });
     expect(cmoStrategyRules(["cmo-strategy-patches"])).toEqual({
       weekly: false,
@@ -1381,6 +1396,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       partPatch: false,
       channelFit: false,
       plainWords: false,
+      pillarFacts: false,
     });
   });
 
@@ -2053,6 +2069,7 @@ describe("claims", () => {
       partPatch: false,
       channelFit: false,
       plainWords: false,
+      pillarFacts: false,
     });
     const strategy = plan({
       calendar: [

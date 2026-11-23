@@ -4,6 +4,9 @@ import type { WritingSkill } from "../writing-skills/types.js";
 import { CMO_PLAIN_WORDS_STRATEGY_SKILL } from "./cmo-v15-skills.js";
 import type { SokoBotSkill } from "./skills.js";
 
+/** cmo-v17's strategy skill: cmo-v15's, with pillars built on facts. */
+export const CMO_PILLAR_FACTS_STRATEGY_SKILL = "cmo-strategy-pillar-facts";
+
 /** cmo-v17's skill: Core gives each piece its point and marks the offer pieces. */
 export const CMO_MONTH_POINTS_SKILL = "cmo-month-points";
 
@@ -163,6 +166,7 @@ export function cmoRevisedWritingSkills(
  */
 const NOT_IN_PRODUCTION: ReadonlySet<string> = new Set([
   CMO_PLAIN_WORDS_STRATEGY_SKILL,
+  CMO_PILLAR_FACTS_STRATEGY_SKILL,
   "cmo-brand-brain-groups",
 ]);
 
@@ -177,4 +181,27 @@ export function cmoTurnSkills(
   )
     return skills;
   return skills.filter((id) => !NOT_IN_PRODUCTION.has(id));
+}
+
+/**
+ * entry.fyi's cmo-v15 plan (2026-11-22) made "Owner control" a pillar at
+ * 25%: the site's own refrain "You approve what goes live" (about six times
+ * on its homepage), a trust note rather than a reason to buy, so a quarter
+ * of the month argued one line.
+ */
+const PILLARS_SECTION = `
+
+# Pillars rest on facts
+
+- A pillar is something the buyer gets or does: a job they get done, an audience the business serves, or a feature that solves a problem for them. Never a reassurance or a trust line ("you approve what goes live", "no credit card needed", "cancel any time", "your data stays yours"): a refrain the site repeats is a supporting line a few posts may carry, never a pillar.
+- Each pillar rests on at least three different facts from the Brand Brain: features by their name, prices and plans, numbers, customers, dated events, the founder's story. One thing the site says in several places is one fact. Give a pillar no bigger share than its facts can carry.
+- A simple product gets fewer pillars: three is fine. Never stretch one fact across a pillar.
+- The strategy review counts each pillar's facts and names a pillar that rests on fewer than three, or holds more of the month than its facts carry: merge it into another pillar or reframe it around what the buyer gets, then move its calendar entries to the pillar they now belong to.`;
+
+export function pillarFactsStrategy(base: SokoBotSkill): SokoBotSkill {
+  return {
+    ...base,
+    id: CMO_PILLAR_FACTS_STRATEGY_SKILL,
+    content: `${base.content}${PILLARS_SECTION}`,
+  };
 }

@@ -12,8 +12,15 @@ describe("cmo-v17", () => {
   const v15 = getSokoBotVersion("cmo-v15");
   const v17 = getSokoBotVersion("cmo-v17");
 
-  it("is cmo-v15 with the points skill, and not the default", () => {
-    expect(v17.skills).toEqual([...v15.skills, CMO_MONTH_POINTS_SKILL]);
+  it("is cmo-v15 with the points and pillar-facts skills, and not the default", () => {
+    expect(v17.skills).toEqual([
+      ...v15.skills.map((skill) =>
+        skill === "cmo-strategy-plain-words"
+          ? "cmo-strategy-pillar-facts"
+          : skill,
+      ),
+      CMO_MONTH_POINTS_SKILL,
+    ]);
     expect(cmoMarksPoints(v17.skills)).toBe(true);
     expect(cmoMarksPoints(v15.skills)).toBe(false);
   });
