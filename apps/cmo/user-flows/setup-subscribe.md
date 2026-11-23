@@ -2,8 +2,8 @@
 
 **Steps**
 
-1. Sees what the approved month holds (posts, channels, pictures, videos; search ads apart from the posts, live only when they launch them) and the plans, monthly or yearly, each saying how many posts, pictures and videos it makes of this strategy a month and how many on each network ("X 84 · LinkedIn 28"); a short video counts as a post on every network it goes out on, so the plan that makes all of it says the same number as "Up to N posts"; the smallest plan that makes all of it is picked.
-2. Can read the CMO Terms, Privacy Policy, DPA and Imprint before paying. Pays through the hosted checkout.
+1. Sees the networks the approved month posts on as their logos, a Monthly / Yearly switch with the yearly saving on it ("Save 17%"), and the plans: each one's price a month (yearly shows the monthly price struck through and the yearly total) and how much of the month it makes ("Makes about 60% of your month."); the smallest plan that makes all of it is marked and picked. No post, picture or video counts on this page.
+2. Can read the CMO Terms, Privacy Policy, DPA and Imprint (one line under the button, with "Cancel any time.") before paying. Pays through the hosted checkout.
 3. Comes back to CMO and moves on to Launch.
 
 **They expect**

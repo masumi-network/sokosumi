@@ -361,9 +361,11 @@ export function OnboardingFlow({
         )}
       </main>
       <footer className="ob-foot">
-        <p className="ob-small muted">
-          You can close this page and come back any time to continue.
-        </p>
+        {step === "checkout" ? null : (
+          <p className="ob-small muted">
+            You can close this page and come back any time to continue.
+          </p>
+        )}
         <StartOver
           className="button button-ghost button-small"
           label="Use another website"

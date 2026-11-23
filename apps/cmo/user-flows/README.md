@@ -9,7 +9,7 @@ What an owner typically does with Cuso, from hiring on, and what they expect. Ro
 | [Hire and research](setup-hire-and-research.md) | Invite-only (`CMO_HIRE_ALLOWLIST`). Progress fixed.                                  |
 | [Brand](setup-brand.md)                         | Works                                                                                |
 | [Strategy](setup-strategy.md)                   | Works; industry topics on cmo-v21; one-shot Results OAuth error                      |
-| [Subscribe](setup-subscribe.md)                 | Works; CMO legal links before checkout                                               |
+| [Subscribe](setup-subscribe.md)                 | Works; network logos, yearly saving on the switch, one legal line                    |
 | [Launch](setup-launch.md)                       | Works; needs one connected network                                                   |
 | [Later changes](setup-later-changes.md)         | Works; Settings has CMO legal links, the AI content notice and preferred-source link |
 | [Daily test copy](test-copy.md)                 | Works; for testers only                                                              |
