@@ -7,6 +7,7 @@ const {
   verifyApiKeyMock,
   getSessionMock,
   coworkerApiKeyFindUniqueMock,
+  coworkerApiKeyUpdateManyMock,
   prismaTransactionMock,
   resolveWorkspaceForContextMock,
   memberFindFirstMock,
@@ -18,6 +19,7 @@ const {
   verifyApiKeyMock: vi.fn(),
   getSessionMock: vi.fn(),
   coworkerApiKeyFindUniqueMock: vi.fn(),
+  coworkerApiKeyUpdateManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
@@ -48,10 +50,13 @@ vi.mock("@/lib/auth", () => ({
   },
 }));
 
+vi.mock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     coworkerApiKey: {
       findUnique: coworkerApiKeyFindUniqueMock,
+      updateMany: coworkerApiKeyUpdateManyMock,
     },
     user: {
       findUnique: userFindUniqueMock,
@@ -104,6 +109,7 @@ describe("workspaceMiddleware", () => {
     });
     getSessionMock.mockResolvedValue(null);
     coworkerApiKeyFindUniqueMock.mockResolvedValue(null);
+    coworkerApiKeyUpdateManyMock.mockResolvedValue({ count: 1 });
     memberFindFirstMock.mockResolvedValue(null);
     userFindUniqueMock.mockResolvedValue(null);
     memberFindUniqueMock.mockResolvedValue(null);

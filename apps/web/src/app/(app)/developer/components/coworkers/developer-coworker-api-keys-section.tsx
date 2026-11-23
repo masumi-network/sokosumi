@@ -29,6 +29,7 @@ export async function DeveloperCoworkerApiKeysSection({
       name: key.name,
       keyStart: key.keyStart,
       createdAt: key.createdAt,
+      lastUsedAt: key.lastUsedAt,
       status: key.revokedAt
         ? "revoked"
         : key.expiresAt && key.expiresAt.getTime() <= now

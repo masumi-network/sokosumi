@@ -9614,7 +9614,8 @@
             "key": "Schlüssel",
             "created": "Erstellt",
             "status": "Status",
-            "actions": "Aktionen"
+            "actions": "Aktionen",
+            "lastUsed": "Zuletzt verwendet"
           },
           "Status": {
             "active": "Aktiv",
@@ -9626,7 +9627,8 @@
             "description": "{name} ({keyStart}…) funktioniert sofort nicht mehr. Agenten, die ihn noch nutzen, erhalten 401-Fehler.",
             "cancel": "Abbrechen",
             "confirm": "Schlüssel widerrufen"
-          }
+          },
+          "noRecordedUse": "Keine Nutzung erfasst"
         }
       },
       "Tasks": {

@@ -9641,7 +9641,8 @@
             "key": "Key",
             "created": "Created",
             "status": "Status",
-            "actions": "Actions"
+            "actions": "Actions",
+            "lastUsed": "Last used"
           },
           "Status": {
             "active": "Active",
@@ -9653,7 +9654,8 @@
             "description": "{name} ({keyStart}…) stops working at once. Any agent still using it gets 401 errors.",
             "cancel": "Cancel",
             "confirm": "Revoke key"
-          }
+          },
+          "noRecordedUse": "No recorded use"
         }
       },
       "Tasks": {

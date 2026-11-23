@@ -34,6 +34,7 @@ function key(overrides: Record<string, unknown>) {
     keyStart: "coworker_abc",
     expiresAt: null,
     revokedAt: null,
+    lastUsedAt: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     ...overrides,
@@ -76,6 +77,7 @@ describe("DeveloperCoworkerApiKeysSection", () => {
     expect(screen.getByText("Revoked")).toBeInTheDocument();
     expect(screen.getByText("Expired")).toBeInTheDocument();
     expect(screen.getByText("Unnamed")).toBeInTheDocument();
+    expect(screen.getAllByText("No recorded use")).toHaveLength(3);
     expect(screen.getAllByRole("button", { name: "Revoke" })).toHaveLength(1);
   });
 

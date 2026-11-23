@@ -27,6 +27,7 @@ const {
   verifyApiKeyMock,
   getSessionMock,
   coworkerApiKeyFindUniqueMock,
+  coworkerApiKeyUpdateManyMock,
   workspaceFindFirstMock,
   oauthAccessTokenFindUniqueMock,
   oauthConsentFindFirstMock,
@@ -35,6 +36,7 @@ const {
   verifyApiKeyMock: vi.fn(),
   getSessionMock: vi.fn(),
   coworkerApiKeyFindUniqueMock: vi.fn(),
+  coworkerApiKeyUpdateManyMock: vi.fn(),
   workspaceFindFirstMock: vi.fn(),
   oauthAccessTokenFindUniqueMock: vi.fn(),
   oauthConsentFindFirstMock: vi.fn(),
@@ -50,10 +52,13 @@ vi.mock("@/lib/auth", () => ({
   },
 }));
 
+vi.mock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     coworkerApiKey: {
       findUnique: coworkerApiKeyFindUniqueMock,
+      updateMany: coworkerApiKeyUpdateManyMock,
     },
     workspace: {
       findFirst: workspaceFindFirstMock,
@@ -104,6 +109,7 @@ describe("authMiddleware", () => {
     vi.clearAllMocks();
 
     coworkerApiKeyFindUniqueMock.mockResolvedValue(null);
+    coworkerApiKeyUpdateManyMock.mockResolvedValue({ count: 1 });
     workspaceFindFirstMock.mockResolvedValue({ organizationId: "org_123" });
 
     verifyApiKeyMock.mockResolvedValue({
@@ -150,6 +156,8 @@ describe("authMiddleware", () => {
         keyHash: expect.any(String),
       },
       select: {
+        id: true,
+        lastUsedAt: true,
         coworkerId: true,
         sokoBotId: true,
         revokedAt: true,
