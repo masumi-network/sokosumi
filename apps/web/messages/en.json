@@ -11004,10 +11004,9 @@
         "failures": "Failures",
         "disabled": "disabled",
         "yourTime": "({datetime} your time)",
-        "enable": "Enable schedule",
-        "disable": "Disable schedule",
         "delete": "Delete",
-        "deleteTitle": "Delete schedule?",
+        "deleteNamed": "Delete {name}",
+        "deleteTitle": "Delete {name}?",
         "deleteDescription": "Future runs are removed. Past turns stay in your history.",
         "deleteCancel": "Keep",
         "deleteConfirm": "Delete",
@@ -11250,6 +11249,20 @@
         "activityTitle": "Recent activity",
         "activityDescription": "What it did recently.",
         "activityEmpty": "No turns yet. Open the chat and ask for something.",
+        "Activity": {
+          "mailCheck": "Mail check",
+          "scheduled": "Scheduled run",
+          "event": "Work update",
+          "retry": "Retry",
+          "other": "Run",
+          "outcome": {
+            "running": "Running",
+            "done": "Done",
+            "failed": "Didn't finish",
+            "cancelled": "Cancelled"
+          },
+          "waiting": "{count, plural, one {Waiting for approval} other {# waiting for approval}}"
+        },
         "showMore": "Show {count} more",
         "skillsTitle": "Skills",
         "skillsDescription": "What your assistant knows how to do. Add more from skills.sh.",

@@ -11004,10 +11004,9 @@
         "failures": "Fallos",
         "disabled": "deshabilitada",
         "yourTime": "({datetime} en tu hora)",
-        "enable": "Habilitar programación",
-        "disable": "Deshabilitar programación",
         "delete": "Eliminar",
-        "deleteTitle": "¿Eliminar la programación?",
+        "deleteNamed": "Eliminar {name}",
+        "deleteTitle": "¿Eliminar {name}?",
         "deleteDescription": "Se eliminan las ejecuciones futuras. Los turnos pasados permanecen en tu historial.",
         "deleteCancel": "Conservar",
         "deleteConfirm": "Eliminar",
@@ -11250,6 +11249,20 @@
         "activityTitle": "Actividad reciente",
         "activityDescription": "Lo que hizo últimamente.",
         "activityEmpty": "Aún no hay turnos. Abre el chat y pide algo.",
+        "Activity": {
+          "mailCheck": "Revisión de correo",
+          "scheduled": "Ejecución programada",
+          "event": "Actualización de trabajo",
+          "retry": "Reintento",
+          "other": "Ejecución",
+          "outcome": {
+            "running": "En curso",
+            "done": "Hecho",
+            "failed": "No terminó",
+            "cancelled": "Cancelado"
+          },
+          "waiting": "{count, plural, one {Pendiente de aprobación} other {# pendientes de aprobación}}"
+        },
         "showMore": "Mostrar {count} más",
         "skillsTitle": "Skills",
         "skillsDescription": "Lo que sabe hacer tu asistente. Añade más desde skills.sh.",

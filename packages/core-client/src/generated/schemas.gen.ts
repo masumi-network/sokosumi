@@ -5047,6 +5047,27 @@ export const SokoBotTurnSchema = {
                 'kind'
             ]
         },
+        schedule: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                name: {
+                    type: 'string'
+                },
+                systemKey: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'name',
+                'systemKey'
+            ]
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
