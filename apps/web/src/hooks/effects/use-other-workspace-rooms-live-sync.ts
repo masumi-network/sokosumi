@@ -68,11 +68,6 @@ export function useOtherWorkspaceRoomsLiveSync(
         updateRooms((current) =>
           current.filter((room) => room.id !== removedRoomId),
         );
-        void queryClient.invalidateQueries({
-          queryKey: chatQueryKeys.anyElsewhere(),
-          refetchType: "none",
-        });
-        requestRead();
       },
       // A room handed over whole is one the reader just joined or edited here,
       // so no `onRoom`.

@@ -149,15 +149,14 @@ describe("useOtherWorkspaceRoomsLiveSync", () => {
     });
     expect(requestRead).toHaveBeenCalledTimes(2);
 
-    // Room removal hides the room at once, invalidates the prefix, and schedules a read.
+    // Room removal hides the room at once without scheduling an extra read.
     act(() => {
       notifyOrganizationChatRoomsChanged({ removedRoomId: "r2" });
     });
     expect(queryClient.getQueryData<ChatRoom[]>(key)?.map((r) => r.id)).toEqual(
       ["r1"],
     );
-    expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
-    expect(requestRead).toHaveBeenCalledTimes(3);
+    expect(requestRead).toHaveBeenCalledTimes(2);
 
     // Room read preserves organizationName via withWorkspaceOf.
     act(() => {
@@ -246,44 +245,48 @@ describe("useOtherWorkspaceRoomsLiveSync", () => {
       );
     });
     expect(requestRead).toHaveBeenCalledTimes(2);
-    expect(queryClient.getQueryState(key)?.isInvalidated).toBe(false);
     expect(queryClient.getQueryData<ChatRoom[]>(key)?.[0]?.unreadCount).toBe(2);
     queryClient.clear();
   });
 
-  it("drops a revoked room from an older in-flight read without overlapping a second GET, and shows it on a later read", async () => {
+  it("drops a revoked room from older cold and warm in-flight reads without starting an extra GET, and shows it on a later rejoin read", async () => {
     vi.useRealTimers();
-    const getA = Promise.withResolvers<Response>();
-    const getB = Promise.withResolvers<Response>();
+    const coldGet = Promise.withResolvers<Response>();
+    const warmGet = Promise.withResolvers<Response>();
+    const rejoinGet = Promise.withResolvers<Response>();
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(okResponse(["r1", "r2"]))
-      .mockReturnValueOnce(getA.promise)
-      .mockReturnValueOnce(getB.promise);
+      .mockReturnValueOnce(coldGet.promise)
+      .mockReturnValueOnce(warmGet.promise)
+      .mockReturnValueOnce(rejoinGet.promise);
     vi.stubGlobal("fetch", fetchMock);
 
-    const { roomIds, unmount } = mountLiveReader();
-    await waitFor(() => expect(roomIds()).toEqual(["r1", "r2"]));
+    const { queryClient, roomIds, unmount } = mountLiveReader();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 
+    // Cold revocation while mount read is in flight: no extra GET; cold answer drops r1.
+    act(() => notifyOrganizationChatRoomsChanged({ removedRoomId: "r1" }));
+    await act(async () => coldGet.resolve(okResponse(["r1", "r2"])));
+    await waitFor(() => expect(roomIds()).toEqual(["r2"]));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Warm revocation while an active-change read is in flight: hides r2 at once,
+    // starts no extra GET, and the older response still drops r2.
     act(() => notifyOrganizationChatRoomsChanged({ collections: ["active"] }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-
-    // Revoke during GET A: r1 hides immediately and no second GET overlaps.
-    await act(async () => {
-      notifyOrganizationChatRoomsChanged({ removedRoomId: "r1" });
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
-    expect(roomIds()).toEqual(["r2"]);
+    act(() => notifyOrganizationChatRoomsChanged({ removedRoomId: "r2" }));
+    expect(roomIds()).toEqual([]);
+    await act(async () => warmGet.resolve(okResponse(["r2"])));
+    await waitFor(() => expect(roomIds()).toEqual([]));
     expect(fetchMock).toHaveBeenCalledTimes(2);
 
-    // Older GET A resolves with [r1, r2]: r1 stays dropped; GET B starts after A ends.
-    await act(async () => getA.resolve(okResponse(["r1", "r2"])));
+    // A later read started after revocation (e.g. rejoin) shows r1 again.
+    act(() => {
+      void queryClient.invalidateQueries({ queryKey: KEY });
+    });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-    expect(roomIds()).toEqual(["r2"]);
-
-    // Newer GET B started after revocation (e.g. rejoin): r1 shows again.
-    await act(async () => getB.resolve(okResponse(["r1", "r2"])));
-    await waitFor(() => expect(roomIds()).toEqual(["r1", "r2"]));
+    await act(async () => rejoinGet.resolve(okResponse(["r1"])));
+    await waitFor(() => expect(roomIds()).toEqual(["r1"]));
     unmount();
   });
 
@@ -292,17 +295,17 @@ describe("useOtherWorkspaceRoomsLiveSync", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(okResponse(["r1", "r2"])) // mount
-      .mockResolvedValueOnce(okResponse(["r1", "r2"])) // t=0 active change
       .mockResolvedValueOnce(
         new Response("{}", { status: 429, headers: { "Retry-After": "5" } }),
-      ) // t=200ms revoke -> throttled until t=5200ms
-      .mockResolvedValueOnce(okResponse(["r2", "r3"])); // t=5200ms catch-up
+      ) // t=0 active change -> throttled until t=5000ms
+      .mockResolvedValueOnce(okResponse(["r2", "r3"])); // t=5000ms catch-up
     vi.stubGlobal("fetch", fetchMock);
 
     const { roomIds, unmount } = mountLiveReader();
     await act(() => vi.advanceTimersByTimeAsync(0));
 
-    // t=0: reads immediately; t=100ms: queues 2s timer; t=200ms: revoke hits 429.
+    // t=0: active change hits 429 (until t=5000ms); t=100ms: queues 2s timer;
+    // t=200ms: revoke hides r1 at once with no extra GET and leaves timer intact.
     await act(async () => {
       notifyOrganizationChatRoomsChanged({ collections: ["active"] });
       await vi.advanceTimersByTimeAsync(0);
@@ -312,16 +315,16 @@ describe("useOtherWorkspaceRoomsLiveSync", () => {
       notifyOrganizationChatRoomsChanged({ removedRoomId: "r1" });
       await vi.advanceTimersByTimeAsync(0);
     });
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(roomIds()).toEqual(["r2"]);
 
     // t=2000ms: pending active-change timer enters scheduler and defers through 429.
     await act(() => vi.advanceTimersByTimeAsync(1_800));
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
 
-    // t=5200ms: throttle ends; deferred read runs and lands r3.
-    await act(() => vi.advanceTimersByTimeAsync(3_200));
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    // t=5000ms: throttle ends; deferred read runs and lands r3.
+    await act(() => vi.advanceTimersByTimeAsync(3_000));
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(roomIds()).toEqual(["r2", "r3"]);
     unmount();
   });
