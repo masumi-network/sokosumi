@@ -246,6 +246,10 @@ describe("onboard", () => {
     ["organization_seat_required", "Seat"],
     ["organization_limit_reached", "organization limit"],
     ["organization_membership_required", "no longer a member"],
+    ["cmo_test_copy_source_not_hired", "no Cuso to copy at this link"],
+    ["cmo_test_copy_other_organization", "same organization"],
+    ["cmo_test_copy_of_test_copy", "already a test copy"],
+    ["cmo_test_copy_not_allowed", "owner or admin"],
   ])("names the reason when Core refuses with %s", async (kind, words) => {
     startCmoOnboarding.mockResolvedValue({
       error: { message: "Forbidden", kind },
