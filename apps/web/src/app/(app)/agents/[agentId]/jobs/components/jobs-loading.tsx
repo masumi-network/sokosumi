@@ -9,17 +9,23 @@ import { JobsLoadingStatus } from "./jobs-loading-status";
  * cookies, `connection()` and server i18n (Instant Nav).
  */
 
-/** The header's bones: the 40px icon box beside the name and its count. */
+/**
+ * The header's bones, in `JobsListHeader`'s own boxes: the back-link line
+ * where it shows (a lone list on a tablet-width pane), then the 40px icon
+ * box beside the name and its count.
+ */
 export function JobsListHeaderSkeleton() {
   return (
-    <div
-      aria-hidden
-      className="flex min-w-0 items-center gap-3 px-2 pb-3 md:px-0 md:pr-4"
-    >
-      <Skeleton className="size-10 shrink-0 rounded-lg" />
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <Skeleton className="h-5 w-40 max-w-full" />
-        <Skeleton className="h-4 w-20" />
+    <div aria-hidden className="flex flex-col gap-3 px-2 pb-3 md:px-0 md:pr-4">
+      <div className="max-md:hidden @4xl/jobs-panes:hidden">
+        <Skeleton className="h-5 w-48 max-w-full" />
+      </div>
+      <div className="flex min-w-0 items-center gap-3">
+        <Skeleton className="size-10 shrink-0 rounded-lg" />
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <Skeleton className="h-5 w-40 max-w-full" />
+          <Skeleton className="h-4 w-20" />
+        </div>
       </div>
     </div>
   );
