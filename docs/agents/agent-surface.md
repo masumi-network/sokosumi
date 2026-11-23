@@ -22,13 +22,13 @@ One file per route group: `apps/core/agent-surface/<group>.json`. The group is t
 }
 ```
 
-| Key                   | Meaning                                                                                                                                                            |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `operations.*.cli`    | A `command` from `CLI_COMMAND_CATALOG` (`apps/cli/src/cli/commands/discover.ts`), or `false`. A generic JSON command counts; bespoke commands are for human flows. |
-| `operations.*.mcp`    | The MCP tool name, or `false`.                                                                                                                                     |
-| `operations.*.reason` | One line saying why a surface is `false`. Required with `false`, and only then.                                                                                    |
-| `backlog`             | The wave Task that covers the group. Until it lands, unlisted operations pass and a row may leave `cli` or `mcp` out (pending). The wave deletes the key.          |
-| `excluded`            | One line saying why the whole group stays off the agent surface. Unlisted operations pass; listed rows still map both surfaces.                                    |
+| Key                   | Meaning                                                                                                                                                           |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `operations.*.cli`    | A `command` from `CLI_COMMAND_CATALOG` (`apps/cli/src/cli/commands/catalog.ts`), or `false`. A generic JSON command counts; bespoke commands are for human flows. |
+| `operations.*.mcp`    | The MCP tool name, or `false`.                                                                                                                                    |
+| `operations.*.reason` | One line saying why a surface is `false`. Required with `false`, and only then.                                                                                   |
+| `backlog`             | The wave Task that covers the group. Until it lands, unlisted operations pass and a row may leave `cli` or `mcp` out (pending). The wave deletes the key.         |
+| `excluded`            | One line saying why the whole group stays off the agent surface. Unlisted operations pass; listed rows still map both surfaces.                                   |
 
 A group sets `backlog` or `excluded`, not both. Several operations may map to one command when the command calls them all (`agents hire` reads the input schema, then creates the job).
 
@@ -50,13 +50,31 @@ A group sets `backlog` or `excluded`, not both. Several operations may map to on
 | Check                    | Where                                                   | Fails when                                                                                                                                               |
 | ------------------------ | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Completeness             | `apps/core/src/routes/v1/agent-surface.openapi.test.ts` | An operation is unmapped outside a `backlog` or `excluded` group, a row or file names no served operation, `false` lacks a `reason`, or a key is unknown |
-| CLI binding              | `apps/cli/test/cli/agent-surface.test.ts`               | A `cli` value is not in `CLI_COMMAND_CATALOG`                                                                                                            |
+| CLI binding              | `apps/cli/test/cli/agent-surface.test.ts`               | A `cli` value is not in `CLI_COMMAND_CATALOG`, or a catalog `operation` is mapped to another command                                                     |
 | MCP binding and fixtures | Arrive with SOKD-366                                    | A manifest tool is not registered, or a tool has no fixture                                                                                              |
-| CLI fixtures             | Arrive with SOKD-362                                    | A mapped command has no fixture that hits its operation                                                                                                  |
+| CLI fixtures             | `apps/cli/test/cli/agent-surface.test.ts`               | A `cli` row has no fixture, a fixture names no `cli` row, or the fixture's run fails, runs another command, or does not send the row's operation         |
 
 `apps/core/agent-surface/**` is part of the `cli` filter in `.github/js-paths-filter.yml` and an input of the CLI's `test` tasks in `turbo.json`, so a manifest change reruns the CLI check.
 
-**Fixtures.** Each mapped command and tool gets a surface-test fixture in the same PR as its row. SOKD-362 (CLI) and SOKD-366 (MCP) add the fixture format and the checks above, and document it here.
+**Fixtures.** Each mapped row gets a surface-test fixture in the same PR. SOKD-366 adds the MCP fixture format.
+
+## CLI commands and fixtures
+
+A row in `CLI_COMMAND_CATALOG` with an `operation` needs no handler: the CLI runs it generically.
+
+```ts
+{ command: "jobs events", usage: "JOB_ID", operation: "GET /jobs/{id}/events" }
+```
+
+Positionals fill the path parameters in order. `--query KEY=VALUE` (repeatable) adds query parameters, `--input-json` or `--input-file` sends a JSON object body (writes only), and `--organization-slug` selects the Workspace. The command prints Core's JSON body as is. Write a bespoke handler only for a human flow.
+
+CLI fixtures live in `apps/cli/test/cli/agent-surface.fixtures.ts`, keyed by the manifest operation:
+
+```ts
+"GET /jobs/{id}/events": { argv: ["--api-url", "https://fixture.invalid", "jobs", "events", "job-1"] },
+```
+
+The check runs `argv` through `runCli` with `fetch` mocked. Core answers from the shared fake `core` (unknown requests get `{ "data": [] }`); add a `response(request)` function when a command needs other data. Requests are written `METHOD /path` without `/v1` or the query. `stdin` feeds `--api-key-stdin`. A command that sends different operations by flag gets one fixture per operation (`workspaces list` and `workspaces list --personal`).
 
 ## Production safety
 

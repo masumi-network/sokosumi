@@ -1,4 +1,7 @@
-import { formatCliCommandHelpLines } from "./commands/discover.js";
+import {
+  CLI_COMMAND_CATALOG,
+  formatCliCommandHelpLines,
+} from "./commands/catalog.js";
 import { CLI_VERSION } from "./metadata.js";
 
 export type ValueOptionName =
@@ -62,7 +65,8 @@ export type ValueOptionName =
   | "repeats"
   | "soko-bot-version"
   | "cuso-version"
-  | "out";
+  | "out"
+  | "query";
 
 type CliOptionValue = string | string[];
 
@@ -129,6 +133,7 @@ export interface CliOptions {
   markdown?: boolean;
   "summary-md"?: boolean;
   out?: string;
+  query?: CliOptionValue;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
   personal?: boolean;
@@ -244,6 +249,15 @@ Evals (platform admin; Core runs them on the deployment you select):
   sokosumi evals cases
   --wait follows the run until it ends; --tick also moves it on, for a Core without the minute cron (preview, local).
   --markdown prints the table for a PR's Evidence. The weekly run on mainnet is the baseline every run is compared with.
+
+Commands that call one Core operation (${CLI_COMMAND_CATALOG.filter(
+    (entry) => "operation" in entry,
+  )
+    .map((entry) => entry.command)
+    .join(", ")}):
+  Positionals fill the path. --query KEY=VALUE (repeatable) adds a query parameter.
+  --input-json JSON or --input-file FILE sends the body of a write. --organization-slug WORKSPACE_SLUG selects the Workspace.
+  They print Core's JSON body as is.
 
 Organization Tasks:
   Add --organization-slug WORKSPACE_SLUG to any tasks command to select that organization.

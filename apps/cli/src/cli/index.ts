@@ -22,14 +22,15 @@ import { runAuthStatus } from "./auth-status.js";
 import { type AuthWhoamiResult, runAuthWhoami } from "./auth-whoami.js";
 import { runAdminCommand, validateAdminCommand } from "./commands/admin.js";
 import { runAgentsCommand } from "./commands/agents.js";
-import type { CommandOutput } from "./commands/command-helpers.js";
-import { runCoworkersCommand } from "./commands/coworkers.js";
 import {
   CLI_COMMAND_CATALOG,
   formatUnknownCommandUsage,
-  runDiscoverCommand,
-} from "./commands/discover.js";
+} from "./commands/catalog.js";
+import type { CommandOutput } from "./commands/command-helpers.js";
+import { runCoworkersCommand } from "./commands/coworkers.js";
+import { runDiscoverCommand } from "./commands/discover.js";
 import { runEvalsCommand } from "./commands/evals.js";
+import { runGenericCommand } from "./commands/generic.js";
 import { runJobsCommand } from "./commands/jobs.js";
 import {
   type RuntimeDependencies,
@@ -151,11 +152,13 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "soko-bot-version",
   "cuso-version",
   "out",
+  "query",
 ]);
 
 const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([
   "capability",
   "channel",
+  "query",
 ]);
 
 const BOOLEAN_OPTIONS = new Set<string>(BOOLEAN_OPTION_NAMES);
@@ -277,6 +280,11 @@ export async function runCli(
     throw error;
   }
   const { positionals, options } = parsed;
+  const genericRow = CLI_COMMAND_CATALOG.find(
+    (entry) =>
+      "operation" in entry &&
+      entry.command === positionals.slice(0, 2).join(" "),
+  );
   const coworkerRegistration =
     positionals[0] === "coworkers" &&
     ["register", "provision", "connect"].includes(positionals[1]);
@@ -360,9 +368,9 @@ export async function runCli(
         "--personal cannot be combined with organization or Workspace flags",
       );
     if (options["organization-slug"] !== undefined) {
-      if (positionals[0] !== "tasks") {
+      if (positionals[0] !== "tasks" && !genericRow) {
         throw new Error(
-          "--organization-slug is only supported by tasks commands",
+          "--organization-slug is only supported by tasks commands and commands that call one Core operation",
         );
       }
       organizationSlug = validateOrganizationSlug(options["organization-slug"]);
@@ -422,6 +430,17 @@ export async function runCli(
     }
 
     const [section, command, positionalId, ...rest] = positionals;
+    if (genericRow && "operation" in genericRow) {
+      await requireAuthenticatedSession(session);
+      await runGenericCommand({
+        client: getCoreClient(session, dependencies, organizationSlug),
+        stdout,
+        row: genericRow,
+        args: positionals.slice(2),
+        options,
+      });
+      return {};
+    }
     if (rest.length > 0) {
       throw new Error(`Unexpected argument: ${rest[0]}`);
     }
