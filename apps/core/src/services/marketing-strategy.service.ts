@@ -631,6 +631,8 @@ export async function planMarketingStrategyPosts(
               script: stored.script,
               presenter: stored.presenter,
               voice: stored.voice,
+              shortFormat: stored.shortFormat,
+              hookLine: stored.hookLine,
               languageCode: stored.languageCode,
               alsoOn: undefined,
               videoOf: stored.videoOf,

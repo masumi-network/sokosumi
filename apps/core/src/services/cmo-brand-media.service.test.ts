@@ -624,21 +624,28 @@ describe("the Project's brand research", () => {
       {
         fileId: "f-home",
         alt: "Home page screenshot",
+        kind: "page",
         phoneFileId: "f-phone",
         wideFileIds: ["f-home"],
       },
       {
         fileId: "f-pricing",
         alt: "Pricing page screenshot",
+        kind: "page",
         wideFileIds: ["f-pricing", "f-plans"],
       },
       {
         fileId: "f-plans",
         alt: "Pricing cards, Pricing page: plans starter pro",
+        kind: "section",
       },
-      { fileId: "f-plain-part", alt: "Section, Home page: how it works" },
-      { fileId: "f-new", alt: "red sneaker" },
-      { fileId: "f-plain", alt: "" },
+      {
+        fileId: "f-plain-part",
+        alt: "Section, Home page: how it works",
+        kind: "section",
+      },
+      { fileId: "f-new", alt: "red sneaker", kind: "photo" },
+      { fileId: "f-plain", alt: "", kind: "photo" },
     ]);
     expect(db.fileProjectLink.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -655,7 +662,11 @@ describe("the Project's brand research", () => {
       researchFile("f-phone", "home-mobile.jpg"),
     ]);
     expect(await listCmoBrandPictures("project-1")).toEqual([
-      { fileId: "f-phone", alt: "Home on a phone page screenshot" },
+      {
+        fileId: "f-phone",
+        alt: "Home on a phone page screenshot",
+        kind: "page",
+      },
     ]);
   });
 

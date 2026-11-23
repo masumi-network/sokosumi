@@ -307,6 +307,8 @@ export { CMO_PLAIN_WORDS_STRATEGY_SKILL } from "./versions/cmo-v15-skills.js";
 export { CMO_STAGE_SPREAD_STRATEGY_SKILL } from "./versions/cmo-v18-skills.js";
 export {
   CMO_MONTH_POINTS_SKILL,
+  CMO_SHORTS_WRITING_GUIDE,
+  CMO_SITE_PAGES_SKILL,
   CMO_V20_STRATEGY_SKILL,
   cmoMarksPoints,
   cmoRevisedWritingSkills,

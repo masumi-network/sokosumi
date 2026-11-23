@@ -187,6 +187,7 @@ import {
   cmoPictureOutdated,
   cmoPictureStyleProblem,
   cmoPieceSlides,
+  cmoShortPictures,
   cmoShotForPiece,
   cmoSlotAction,
   cmoStyleHeadline,
@@ -322,6 +323,82 @@ describe("cmoSlotAction", () => {
       kind: "attach",
       job: video,
     });
+  });
+});
+
+describe("a cmo-v20 short video piece", () => {
+  const short = (patch: Partial<CmoMediaPiece> = {}) =>
+    piece({
+      channel: "tiktok",
+      format: "video",
+      visual: "A developer's desk at night, warm lamp light.",
+      shortFormat: "site_tour",
+      script:
+        "This is Entry. Paste your GitHub and it drafts one page from what is public. Try it free.",
+      hookLine: "One page from your GitHub",
+      ...patch,
+    });
+
+  it("cuts the short from a still of its scene, not an animation", () => {
+    expect(cmoSlotAction(short(), [])).toMatchObject({ step: "still" });
+    const still = job({ step: "still", assetId: "still-asset" });
+    expect(cmoSlotAction(short(), [still])).toEqual({
+      kind: "start",
+      step: "short",
+      attempt: 1,
+      sourceAssetId: "still-asset",
+    });
+    const made = job({ id: "job-2", step: "short", assetId: "video-asset" });
+    expect(cmoSlotAction(short(), [still, made])).toEqual({
+      kind: "attach",
+      job: made,
+    });
+  });
+
+  it("still animates a short of a version before cmo-v20", () => {
+    const still = job({ step: "still", assetId: "still-asset" });
+    expect(
+      cmoSlotAction(short({ shortFormat: undefined, script: undefined }), [
+        still,
+      ]),
+    ).toMatchObject({ step: "video" });
+  });
+
+  it("starts over when its kind, script, hook line or scene changes", () => {
+    const before = cmoVisualKey(short());
+    for (const patch of [
+      { shortFormat: "voiceover" as const },
+      { script: `${short().script} Now.` },
+      { hookLine: "Another line" },
+      { visual: "Another scene." },
+    ])
+      expect(cmoVisualKey(short(patch))).not.toBe(before);
+  });
+
+  it("shows the site's section crops and photos as they are, never a whole page", () => {
+    const pictures = [
+      { fileId: "home", alt: "Home page screenshot", kind: "page" as const },
+      { fileId: "hero", alt: "Hero, Home page", kind: "section" as const },
+      { fileId: "team", alt: "team at work", kind: "photo" as const },
+      { fileId: "desk", alt: "desk", kind: "photo" as const },
+      { fileId: "cup", alt: "cup", kind: "photo" as const },
+    ];
+    const chosen = cmoShortPictures({ id: "p1" }, pictures);
+    expect(chosen).toHaveLength(3);
+    expect(chosen).not.toContain("home");
+    expect(new Set(chosen).size).toBe(3);
+  });
+
+  it("asks for a scene with no screen in it, since the site is shown for real", () => {
+    const prompt = cmoImagePrompt({
+      piece: short(),
+      slot: 0,
+      businessName: "Entry",
+      references: 1,
+    });
+    expect(prompt).toContain("no screen, phone or laptop showing anything");
+    expect(prompt).not.toContain("its screens");
+    expect(prompt).not.toContain("five-second");
   });
 });
 

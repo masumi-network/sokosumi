@@ -4,6 +4,7 @@ import {
   CMO_PIECE_WRITING_GUIDE,
   CMO_PRODUCTION_TURN_PREFIX,
   CMO_SCENE_PIECE_WRITING_GUIDE,
+  CMO_SHORTS_WRITING_GUIDE,
   CMO_VARIED_PIECE_WRITING_GUIDE,
   type CmoCalendarEntry,
   cmoRevisedWritingSkills,
@@ -15,6 +16,12 @@ import {
   WRITING_SKILLS,
   writingSkillsBrief,
 } from "@sokosumi/soko-bot";
+import {
+  SHORT_VIDEO_FORMATS,
+  SHORT_VIDEO_TEXT_FORMATS,
+  TALKING_VIDEO_SCRIPT_MAX_LENGTH,
+  TALKING_VIDEO_SCRIPT_MIN_LENGTH,
+} from "@sokosumi/utils";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
@@ -47,9 +54,11 @@ import {
   cmoNeighbourlyKind,
   cmoPicksPictures,
   cmoPieceIsTalking,
+  cmoPieceIsVideo,
   cmoPieceNeedsMedia,
   cmoPieceTakesStyle,
   cmoWritesSceneVisuals,
+  cmoWritesShorts,
   LAYOUT_KINDS,
 } from "@/services/cmo-media-maker.service";
 import { cmoDraftProblems } from "@/services/cmo-plan-review.service";
@@ -63,6 +72,11 @@ import {
   cmoWriterPieces,
   readCmoProduction,
 } from "@/services/cmo-production.service";
+import {
+  cmoReadsSitePages,
+  cmoWriterSitePages,
+  readCmoSitePages,
+} from "@/services/cmo-site-pages.service";
 import {
   findStyleReferences,
   infographicSuits,
@@ -145,9 +159,46 @@ const writtenPieceSchema = z.object({
   voice: z.string().nullable(),
   /** A talking video's language as a two-letter code. */
   languageCode: z.string().nullable(),
+  /** A short video's kind and its words on screen first (cmo-v20 only). */
+  shortFormat: z.enum(SHORT_VIDEO_FORMATS).nullable().optional(),
+  hookLine: z.string().nullable().optional(),
 });
 const writtenChunkSchema = z.object({ pieces: z.array(writtenPieceSchema) });
 type WrittenPiece = z.infer<typeof writtenPieceSchema>;
+
+const SHORT_HOOK_LINE_MAX_LENGTH = 48;
+
+/**
+ * A short video's fields from what the writer returned (cmo-v20), or null
+ * when it has no kind or no script of a length Core can make. A website
+ * tour without a website is told as a story instead.
+ */
+export function cmoShortOf(
+  written: Pick<WrittenPiece, "shortFormat" | "script" | "hookLine">,
+  website: boolean,
+): Pick<CmoCalendarEntry, "shortFormat" | "script" | "hookLine"> | null {
+  const script = written.script?.trim() ?? "";
+  if (
+    !written.shortFormat ||
+    script.length < TALKING_VIDEO_SCRIPT_MIN_LENGTH ||
+    script.length > TALKING_VIDEO_SCRIPT_MAX_LENGTH
+  )
+    return null;
+  const shortFormat =
+    written.shortFormat === "site_tour" && !website
+      ? "voiceover"
+      : written.shortFormat;
+  const hookLine = written.hookLine?.replace(/\s+/g, " ").trim();
+  return {
+    shortFormat,
+    script,
+    ...(hookLine &&
+    hookLine.length <= SHORT_HOOK_LINE_MAX_LENGTH &&
+    !SHORT_VIDEO_TEXT_FORMATS.includes(shortFormat)
+      ? { hookLine }
+      : {}),
+  };
+}
 
 /** A piece Core could not save, with the reason its check gave. */
 export interface CmoRefusedPiece {
@@ -197,6 +248,10 @@ export function cmoWriterSystem(input: {
   picked?: boolean;
   /** cmo-v20: each chunk reads its own network's writing skill instead. */
   chunkSkills?: boolean;
+  /** cmo-v20: short videos are cut from a script; whether the brand has a site. */
+  shorts?: { website: boolean };
+  /** cmo-v20: the site's pages, one line each with its screenshot. */
+  sitePages?: readonly string[];
 }): string {
   const { strategy } = input;
   const live = strategy.calendar.filter((entry) => entry.status !== "skipped");
@@ -214,6 +269,9 @@ export function cmoWriterSystem(input: {
       : input.styles
         ? "Pictures here take an old print's style: give every piece with a picture a styleLook, and a headline or slideHeadlines."
         : "Pictures here are made from the brand's own pictures: leave styleLook, headline and slideHeadlines null.",
+    input.shorts
+      ? `${CMO_SHORTS_WRITING_GUIDE}${input.shorts.website ? "" : "\nThis brand has no website: never site_tour."}`
+      : "Leave shortFormat and hookLine null.",
     input.chunkSkills
       ? ""
       : writingSkillsBrief(live.map((entry) => entry.channel)),
@@ -229,6 +287,12 @@ export function cmoWriterSystem(input: {
     ...input.brandPictures.map(
       (picture) => `- ${picture.fileId}: ${picture.alt}`,
     ),
+    input.sitePages && input.sitePages.length > 0
+      ? [
+          "The site's pages (path: what it says; shot is its screenshot, a brand picture for visualFileIds when a piece shows that page). Take offers, prices and facts from these, never guess them:",
+          ...input.sitePages.map((line) => `- ${line}`),
+        ].join("\n")
+      : "",
     "Strategy:",
     JSON.stringify({
       summary: strategy.summary,
@@ -424,6 +488,7 @@ export async function writeCmoMonthPieces(
   const brain = parseBrandBrain((await getBrandBrain(cuso.projectId))?.body);
   const varied = cmoMakesVariedMonth(authorized.turn.versionId);
   const picksPictures = cmoPicksPictures(authorized.turn.versionId);
+  const shorts = cmoWritesShorts(authorized.turn.versionId);
   const praise = varied
     ? await cmoPraiseOnly(cmoProofPoints(brain))
     : { points: cmoProofPoints(brain), costUsd: 0 };
@@ -469,6 +534,13 @@ export async function writeCmoMonthPieces(
     scenes: cmoWritesSceneVisuals(authorized.turn.versionId),
     picked: picksPictures,
     chunkSkills: points,
+    ...(shorts ? { shorts: { website: Boolean(cuso.websiteUrl) } } : {}),
+    sitePages: cmoReadsSitePages(authorized.turn.versionId)
+      ? cmoWriterSitePages(
+          (await readCmoSitePages(cuso.projectId).catch(() => null))?.pages ??
+            [],
+        )
+      : undefined,
   });
   const skillOf = (channel: string) =>
     points
@@ -597,6 +669,13 @@ export async function writeCmoMonthPieces(
       !written.visual
     )
       return null;
+    // A short video of its own (not another network's copy) takes its script.
+    const short =
+      shorts && cmoPieceIsVideo(piece) && !piece.videoOf
+        ? cmoShortOf(written, Boolean(cuso.websiteUrl))
+        : null;
+    if (shorts && cmoPieceIsVideo(piece) && !piece.videoOf && !short)
+      return null;
     let styleReferenceId: string | undefined;
     if (styles && cmoPieceTakesStyle(piece)) {
       const purpose = varied ? (written.purpose ?? undefined) : undefined;
@@ -645,6 +724,7 @@ export async function writeCmoMonthPieces(
       ...pieceEntry(piece),
       visual: written.visual,
       visualFileIds: (written.visualFileIds ?? []).slice(0, 3),
+      ...(short ?? {}),
       ...(pictureKind ? { pictureKind } : {}),
       ...(written.slides?.length
         ? { slides: written.slides.slice(0, 10) }

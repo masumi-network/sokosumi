@@ -6,6 +6,8 @@ import {
 } from "../versions/cmo-v12-skills.js";
 import {
   CMO_MONTH_POINTS_SKILL,
+  CMO_SHORTS_WRITING_GUIDE,
+  CMO_SITE_PAGES_SKILL,
   CMO_V20_STRATEGY_SKILL,
   cmoMarksPoints,
   cmoRevisedWritingSkills,
@@ -33,6 +35,7 @@ describe("cmo-v20", () => {
           })[skill] ?? skill,
       ),
       CMO_MONTH_POINTS_SKILL,
+      CMO_SITE_PAGES_SKILL,
     ]);
     expect(cmoMarksPoints(v20.skills)).toBe(true);
     expect(cmoMarksPoints(v15.skills)).toBe(false);
@@ -45,6 +48,17 @@ describe("cmo-v20", () => {
     expect(strategy).toContain("# Every step on every network");
     expect(strategy).not.toContain("sits at the one stage its posts serve");
     expect(strategy).toContain("# Pillars rest on facts");
+  });
+
+  // Owner, 2026-11-23: the daily shorts were one picture moving for five
+  // seconds, with no voice and made-up screen text.
+  it("cuts short videos from a script", () => {
+    const strategy = getSokoBotSkill(CMO_V20_STRATEGY_SKILL).content;
+    expect(strategy).not.toContain("five vertical seconds");
+    expect(strategy).not.toContain("A five-second vertical video");
+    expect(strategy).toContain("A short video costs about 15 credits");
+    for (const format of ["voiceover", "site_tour", "top_three", "slideshow"])
+      expect(CMO_SHORTS_WRITING_GUIDE).toContain(`  - ${format}: `);
   });
 
   it("reports on SEO in plain words and hands technical fixes to whoever builds the site", () => {

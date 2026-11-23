@@ -6,6 +6,7 @@ import { cmoV15 } from "./cmo-v15.js";
 import { CMO_PLAIN_WORDS_STRATEGY_SKILL } from "./cmo-v15-skills.js";
 import {
   CMO_MONTH_POINTS_SKILL,
+  CMO_SITE_PAGES_SKILL,
   CMO_V20_STRATEGY_SKILL,
 } from "./cmo-v20-skills.js";
 import type { SokoBotVersion } from "./types.js";
@@ -39,5 +40,6 @@ export const cmoV20: SokoBotVersion = {
   skills: [
     ...cmoV15.skills.map((skill) => SKILL_SWAPS[skill] ?? skill),
     CMO_MONTH_POINTS_SKILL,
+    CMO_SITE_PAGES_SKILL,
   ],
 };

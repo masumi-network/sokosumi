@@ -73,8 +73,10 @@ vi.mock("@/services/social-posts.service", () => ({
 import {
   cmoChunkProof,
   cmoMonthWriterBudgetMs,
+  cmoShortOf,
   cmoWriterChunks,
   cmoWriterModelTimeoutMs,
+  cmoWriterSystem,
   writeCmoMonthPieces,
 } from "./cmo-month-writer";
 
@@ -717,5 +719,71 @@ describe("writeCmoMonthPieces on cmo-v20", () => {
       });
     const result = await writeCmoMonthPieces(runtime() as never, input, v17);
     expect(result).toMatchObject({ written: 1, refused: [] });
+  });
+});
+
+describe("a cmo-v20 short video", () => {
+  const script =
+    "Your GitHub says a lot about you. Nobody reads it. Entry turns it into one clear page.";
+
+  it("keeps its kind, script and hook line", () => {
+    expect(
+      cmoShortOf(
+        {
+          shortFormat: "top_three",
+          script: ` ${script} `,
+          hookLine: " One  page ",
+        },
+        true,
+      ),
+    ).toEqual({ shortFormat: "top_three", script, hookLine: "One page" });
+  });
+
+  it("tells a website tour as a story when the brand has no website", () => {
+    expect(
+      cmoShortOf({ shortFormat: "site_tour", script, hookLine: null }, false),
+    ).toEqual({ shortFormat: "voiceover", script });
+  });
+
+  it("keeps no hook line on a slideshow and drops one too long to show", () => {
+    expect(
+      cmoShortOf({ shortFormat: "slideshow", script, hookLine: "Hi" }, true),
+    ).toEqual({ shortFormat: "slideshow", script });
+    expect(
+      cmoShortOf(
+        { shortFormat: "voiceover", script, hookLine: "x".repeat(49) },
+        true,
+      ),
+    ).toEqual({ shortFormat: "voiceover", script });
+  });
+
+  it("is not a short without a kind or a script Core can speak", () => {
+    expect(
+      cmoShortOf({ shortFormat: null, script, hookLine: null }, true),
+    ).toBe(null);
+    expect(
+      cmoShortOf(
+        { shortFormat: "voiceover", script: "Too short", hookLine: null },
+        true,
+      ),
+    ).toBe(null);
+  });
+
+  it("is briefed only to a cmo-v20 writer, without a tour for a brand with no site", () => {
+    const base = {
+      businessName: "Entry",
+      strategy: strategy as never,
+      brain: null,
+      proof: [],
+      brandPictures: [],
+      styles: false,
+    };
+    const v16 = cmoWriterSystem({ ...base, shorts: { website: false } });
+    expect(v16).toContain("## Short videos");
+    expect(v16).toContain("This brand has no website: never site_tour.");
+    expect(cmoWriterSystem(base)).toContain(
+      "Leave shortFormat and hookLine null.",
+    );
+    expect(cmoWriterSystem(base)).not.toContain("## Short videos");
   });
 });

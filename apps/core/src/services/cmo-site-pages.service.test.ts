@@ -3,8 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
 import {
+  cmoReadsSitePages,
+  cmoSiteFacts,
   cmoSitePageName,
   cmoSitePageNote,
+  cmoSitePagesContext,
   cmoSitePagesDue,
 } from "./cmo-site-pages.service";
 
@@ -104,5 +107,52 @@ describe("cmoSitePageNote", () => {
         "Starter $9",
       ].join("\n"),
     );
+  });
+});
+
+describe("cmoSitePagesContext", () => {
+  const page = (path: string, summary: string, noteFileId: string | null) => ({
+    url: `https://acme.io${path}`,
+    title: "Acme",
+    summary,
+    facts: [],
+    name: "page",
+    readAt: "2026-11-22T00:00:00Z",
+    desktopFileId: null,
+    phoneFileId: null,
+    noteFileId,
+  });
+
+  it("lists each page in one short line with its note, at most 30", () => {
+    const pages = [
+      page("/pricing", "Three plans for small teams.", "note-1"),
+      page("/about", "x".repeat(200), null),
+      ...Array.from({ length: 45 }, (_, index) => page(`/p${index}`, "", null)),
+    ];
+    const context = cmoSitePagesContext(pages, false);
+    expect(context.pages[0]).toBe(
+      "/pricing: Three plans for small teams. (note note-1)",
+    );
+    expect(context.pages[1]).toHaveLength("/about: ".length + 80);
+    expect(context.pages[2]).toBe("/p0: Acme");
+    expect(context.pages).toHaveLength(30);
+    expect(context).toMatchObject({ complete: false, more: 17 });
+  });
+});
+
+describe("cmoReadsSitePages", () => {
+  it("hands the pillar check each page's first facts, each once", () => {
+    const page = (facts: string[]) => ({ facts }) as never;
+    expect(
+      cmoSiteFacts([
+        page(["Pro is $49 a year", "a", "b", "c", "dropped"]),
+        page(["Pro is $49 a year", "Free preview"]),
+      ]),
+    ).toEqual(["Pro is $49 a year", "a", "b", "c", "Free preview"]);
+  });
+
+  it("is cmo-v20's, not cmo-v15's", () => {
+    expect(cmoReadsSitePages("cmo-v20")).toBe(true);
+    expect(cmoReadsSitePages("cmo-v15")).toBe(false);
   });
 });

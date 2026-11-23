@@ -74,6 +74,10 @@ import {
 } from "@/services/cmo-production.service";
 import { reportCmoUpdate } from "@/services/cmo-reports.service";
 import {
+  cmoSiteFacts,
+  readCmoSitePages,
+} from "@/services/cmo-site-pages.service";
+import {
   cmoTurnExecutesPlan,
   saveCmoStrategy,
 } from "@/services/cmo-strategy.service";
@@ -403,8 +407,15 @@ export async function reviewCmoPlan(
   if (rules.everyNetwork && brain)
     problems.push(...cmoNewNetworkProblems(strategy, brain));
   // cmo-v20: every pillar rests on at least three Brand Brain facts.
-  if (rules.pillarFacts && plan.planSent && brain) {
-    const pillars = await cmoPillarFacts(strategy, brain).catch(() => null);
+  if (rules.pillarFacts && plan.planSent && brain && bot?.projectId) {
+    const pillars = await cmoPillarFacts(
+      strategy,
+      brain,
+      undefined,
+      cmoSiteFacts(
+        (await readCmoSitePages(bot.projectId).catch(() => null))?.pages ?? [],
+      ),
+    ).catch(() => null);
     if (pillars) {
       await chargeCheck(input, COMPETITOR_CHECK_MODEL, pillars.costUsd);
       problems.push(...cmoPillarFactProblems(pillars.pillars));
