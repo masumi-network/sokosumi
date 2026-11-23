@@ -374,6 +374,7 @@ vi.mock("@/components/ui/document-viewer", () => ({
 import { toast } from "sonner";
 import { DataRoomClient } from "@/app/drive/data-rooms/[id]/data-room-client";
 import { DrivePageClient } from "@/app/drive/drive-page-client";
+import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import {
   FILES_VIEW_MODE_COOKIE_NAME,
   type FilesViewMode,
@@ -2237,6 +2238,155 @@ describe("one catalog, not two", () => {
       "Investors",
     );
     vi.unstubAllGlobals();
+  });
+
+  it("drops cached picker rows under a deleted folder while the refetch is held", async () => {
+    const user = userEvent.setup();
+    const docsReport = {
+      type: "file" as const,
+      name: "report.pdf",
+      fileUrl: "https://blob.example/docs/report.pdf",
+      pathname: "drive/organizations/org_a/docs/report.pdf",
+      size: 1024,
+      uploadedAt: new Date("2026-08-18T10:00:00.000Z"),
+      dataRoom: false,
+    };
+    const docsFolder = {
+      type: "folder" as const,
+      name: "docs",
+      path: "docs",
+      dataRoom: false,
+    };
+    const heldRefetch = Promise.withResolvers<unknown[]>();
+
+    searchParams = new URLSearchParams("view=workspace&folder=docs");
+    listDriveItemsMock
+      .mockResolvedValueOnce([docsFolder])
+      .mockResolvedValueOnce([docsReport])
+      .mockImplementationOnce(() => heldRefetch.promise);
+
+    function renderTree(pickerOpen: boolean) {
+      return (
+        <NuqsTestingAdapter searchParams={searchParams} hasMemory>
+          <QueryClientProvider client={queryClient}>
+            <DrivePageClient defaultFilesViewMode="list" />
+            <DriveFilePicker
+              open={pickerOpen}
+              onOpenChange={vi.fn()}
+              onSelect={vi.fn()}
+            />
+          </QueryClientProvider>
+        </NuqsTestingAdapter>
+      );
+    }
+
+    const { rerender } = render(renderTree(true));
+
+    await user.click(await screen.findByRole("button", { name: /docs/ }));
+    expect(
+      await screen.findByRole("button", { name: /report\.pdf/ }),
+    ).toBeInTheDocument();
+
+    rerender(renderTree(false));
+
+    await user.click(screen.getByTestId("files-delete-folder"));
+    await user.click(
+      await screen.findByRole("button", { name: "deleteDialogConfirm" }),
+    );
+
+    rerender(renderTree(true));
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalledTimes(3);
+    });
+    expect(
+      screen.queryByRole("button", { name: /report\.pdf/ }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      heldRefetch.resolve([]);
+      await heldRefetch.promise;
+    });
+  });
+
+  it("drops moved files from a cached picker list while the refetch is held", async () => {
+    const user = userEvent.setup();
+    const deckFile = {
+      type: "file" as const,
+      name: "deck.pdf",
+      fileUrl: "https://blob.example/users/u1/deck.pdf",
+      pathname: "drive/users/u1/deck.pdf",
+      size: 1024,
+      uploadedAt: new Date("2026-08-18T10:00:00.000Z"),
+      dataRoom: false,
+    };
+    const keepFile = {
+      type: "file" as const,
+      name: "keep.pdf",
+      fileUrl: "https://blob.example/users/u1/keep.pdf",
+      pathname: "drive/users/u1/keep.pdf",
+      size: 512,
+      uploadedAt: new Date("2026-08-18T10:00:00.000Z"),
+      dataRoom: false,
+    };
+    const heldRefetch = Promise.withResolvers<unknown[]>();
+
+    searchParams = new URLSearchParams("view=workspace");
+    patchDriveFilesMoveMock.mockReset();
+    patchDriveFilesMoveMock.mockResolvedValue({ data: {} });
+    listDriveItemsMock
+      .mockResolvedValueOnce([deckFile, keepFile])
+      .mockImplementationOnce(() => heldRefetch.promise);
+
+    function renderTree(pickerOpen: boolean) {
+      return (
+        <NuqsTestingAdapter searchParams={searchParams} hasMemory>
+          <QueryClientProvider client={queryClient}>
+            <DrivePageClient defaultFilesViewMode="list" />
+            <DriveFilePicker
+              open={pickerOpen}
+              onOpenChange={vi.fn()}
+              onSelect={vi.fn()}
+            />
+          </QueryClientProvider>
+        </NuqsTestingAdapter>
+      );
+    }
+
+    const { rerender } = render(renderTree(true));
+
+    expect(
+      await screen.findByRole("button", { name: /deck\.pdf/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /keep\.pdf/ }),
+    ).toBeInTheDocument();
+
+    rerender(renderTree(false));
+
+    await user.click(await screen.findByTestId("drive-all-files-move"));
+    await user.type(screen.getByLabelText("moveNewFolderLabel"), "Archive");
+    await user.click(screen.getByRole("button", { name: "moveHere" }));
+    await waitFor(() =>
+      expect(patchDriveFilesMoveMock).toHaveBeenCalledTimes(2),
+    );
+
+    rerender(renderTree(true));
+
+    expect(
+      await screen.findByRole("button", { name: /keep\.pdf/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /deck\.pdf/ }),
+    ).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalledTimes(2);
+    });
+
+    await act(async () => {
+      heldRefetch.resolve([keepFile]);
+      await heldRefetch.promise;
+    });
   });
 
   it("offers no folder actions when no folder is applied", async () => {

@@ -37,8 +37,6 @@ import { formatBytes } from "@/lib/utils/format-bytes";
 import { driveQueryKeys, splitDriveQueryKey } from "@/queries/drive";
 import { useScopedQuery } from "@/queries/scoped-queries";
 
-const DRIVE_PICKER_STALE_TIME_MS = 60_000;
-
 interface DriveFilePickerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -136,7 +134,7 @@ function DriveFilePickerContent({
         ...(trimmedQuery ? { q: trimmedQuery } : {}),
         signal,
       }),
-    staleTime: DRIVE_PICKER_STALE_TIME_MS,
+    staleTime: 0,
     enabled: open,
   });
 

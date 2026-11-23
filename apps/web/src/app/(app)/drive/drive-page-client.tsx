@@ -947,7 +947,9 @@ function DrivePageWorkspace({
           `${item.name.slice(0, item.name.lastIndexOf("/") + 1)}${newName.trim()}`,
         );
       }
-      refreshDriveItems();
+      refreshDriveItems({
+        deletedIds: [item.type === "file" ? item.pathname : item.name],
+      });
       setRecentsReloadToken((token) => token + 1);
     } catch (err) {
       console.error(`Failed to rename ${item.type}`, err);
@@ -991,14 +993,14 @@ function DrivePageWorkspace({
       }
 
       const deletedPathname =
-        itemToDelete.type === "file" ? itemToDelete.pathname : null;
+        itemToDelete.type === "file"
+          ? itemToDelete.pathname
+          : itemToDelete.name;
       setDeleteDialogOpen(false);
       // A deleted folder cannot go on narrowing the catalog.
       if (itemToDelete.type === "folder") applyFolderFacet("");
       setItemToDelete(null);
-      refreshDriveItems(
-        deletedPathname ? { deletedIds: [deletedPathname] } : undefined,
-      );
+      refreshDriveItems({ deletedIds: [deletedPathname] });
       setRecentsReloadToken((token) => token + 1);
     } catch (err) {
       console.error(`Failed to delete ${itemToDelete.type}`, err);
@@ -1205,7 +1207,7 @@ function DrivePageWorkspace({
   }
 
   /** Moving several ticked files: each on its own, failures reported once. */
-  async function moveFiles(targetFolderPath: string): Promise<number> {
+  async function moveFiles(targetFolderPath: string): Promise<string[]> {
     const results = await Promise.allSettled(
       filesToMove.map((file) =>
         patchDriveFilesMove({
@@ -1219,12 +1221,14 @@ function DrivePageWorkspace({
         }),
       ),
     );
-    const failed = results.filter((result) => result.status === "rejected");
-    const moved = results.length - failed.length;
-    if (failed.length > 0)
-      toast.error(t("moveFilesPartialError", { count: failed.length }));
+    const movedPathnames = filesToMove
+      .filter((_, index) => results[index]?.status === "fulfilled")
+      .map((file) => file.pathname);
+    const failedCount = results.length - movedPathnames.length;
+    if (failedCount > 0)
+      toast.error(t("moveFilesPartialError", { count: failedCount }));
     else toast.success(t("movedFiles", { count: filesToMove.length }));
-    return moved;
+    return movedPathnames;
   }
 
   async function loadAllFolders() {
@@ -1269,12 +1273,12 @@ function DrivePageWorkspace({
       if (filesToMove.length === 0) return;
       setMovingItem(true);
       try {
-        const moved = await moveFiles(selectedDestination);
+        const movedPathnames = await moveFiles(selectedDestination);
         setMoveDialogOpen(false);
         setFilesToMove([]);
         setSelectedDestination(null);
-        if (moved > 0) {
-          refreshDriveItems();
+        if (movedPathnames.length > 0) {
+          refreshDriveItems({ deletedIds: movedPathnames });
           setRecentsReloadToken((token) => token + 1);
         }
       } finally {
@@ -1285,11 +1289,12 @@ function DrivePageWorkspace({
 
     setMovingItem(true);
     try {
+      const sourcePathname =
+        itemToMove.type === "file" ? itemToMove.pathname : itemToMove.name;
       await patchDriveFilesMove({
         client: getBrowserCoreClient(),
         body: {
-          sourcePathname:
-            itemToMove.type === "file" ? itemToMove.pathname : itemToMove.name,
+          sourcePathname,
           targetFolderPath: selectedDestination,
           itemType: itemToMove.type,
           ...(itemToMove.type === "folder" ? driveStore : {}),
@@ -1300,7 +1305,7 @@ function DrivePageWorkspace({
       setMoveDialogOpen(false);
       setItemToMove(null);
       setSelectedDestination(null);
-      refreshDriveItems();
+      refreshDriveItems({ deletedIds: [sourcePathname] });
       setRecentsReloadToken((token) => token + 1);
     } catch (err) {
       console.error(`Failed to move ${itemToMove.type}`, err);

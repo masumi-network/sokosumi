@@ -85,6 +85,9 @@ function createQueryClient() {
 describe("DriveFilePicker", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    listDriveItemsMock.mockReset();
+    getUsersByIdOrganizationsMock.mockReset();
+    useSessionMock.mockReset();
     useSessionMock.mockReturnValue({
       data: {
         user: { id: "user_1" },
@@ -210,10 +213,17 @@ describe("DriveFilePicker", () => {
     });
   });
 
-  it("reopens with the cached list without loading every page again", async () => {
-    const queryClient = createQueryClient();
+  it("reopens with cached rows immediately while refetching in the background", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: 60_000 } },
+    });
     const cachedFile = makeFile("cached-brief.pdf");
-    listDriveItemsMock.mockResolvedValue([cachedFile]);
+    const addedFile = makeFile("newly-uploaded.pdf");
+    const reopenRefetch = Promise.withResolvers<DriveItem[]>();
+
+    listDriveItemsMock
+      .mockResolvedValueOnce([cachedFile])
+      .mockImplementationOnce(() => reopenRefetch.promise);
 
     const { rerender } = render(
       <QueryClientProvider client={queryClient}>
@@ -242,10 +252,68 @@ describe("DriveFilePicker", () => {
       </QueryClientProvider>,
     );
 
+    // Cached row is rendered immediately while the background refetch is held.
     expect(
       await screen.findByRole("button", { name: /cached-brief\.pdf/ }),
     ).toBeInTheDocument();
-    expect(listDriveItemsMock).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalledTimes(2);
+    });
+
+    await act(async () => {
+      reopenRefetch.resolve([cachedFile, addedFile]);
+      await reopenRefetch.promise;
+    });
+
+    expect(
+      await screen.findByRole("button", { name: /newly-uploaded\.pdf/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("drops cached files under a deleted folder before the refetch returns", async () => {
+    const user = userEvent.setup();
+    const queryClient = createQueryClient();
+    const docsFolder = makeFolder("docs");
+    const docsReport = makeFile("report.pdf", {
+      pathname: "drive/users/user_1/docs/report.pdf",
+    });
+    const refetchDeferred = Promise.withResolvers<DriveItem[]>();
+
+    listDriveItemsMock
+      .mockResolvedValueOnce([docsFolder])
+      .mockResolvedValueOnce([docsReport])
+      .mockImplementationOnce(() => refetchDeferred.promise);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <DriveFilePicker open onOpenChange={vi.fn()} onSelect={vi.fn()} />
+      </QueryClientProvider>,
+    );
+
+    await user.click(await screen.findByRole("button", { name: /docs/ }));
+    expect(
+      await screen.findByRole("button", { name: /report\.pdf/ }),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      void invalidateDrive(
+        queryClient,
+        { scope: "me" },
+        { deletedIds: ["docs"] },
+      );
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("button", { name: /report\.pdf/ }),
+      ).not.toBeInTheDocument();
+    });
+    expect(listDriveItemsMock).toHaveBeenCalledTimes(3);
+
+    await act(async () => {
+      refetchDeferred.resolve([]);
+      await refetchDeferred.promise;
+    });
   });
 
   it("resolves organization name, filters non-pickable items, navigates folders, and isolates workspaces", async () => {
@@ -331,8 +399,6 @@ describe("DriveFilePicker", () => {
     expect(
       await screen.findByRole("button", { name: /org-a\.pdf/ }),
     ).toBeInTheDocument();
-    // Root was cached, so returning to it does not refetch.
-    expect(listDriveItemsMock).toHaveBeenCalledTimes(2);
 
     // Switch to workspace B: org A's rows must not appear under org B.
     useSessionMock.mockReturnValue({
