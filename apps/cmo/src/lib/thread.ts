@@ -145,7 +145,7 @@ export type CusoPose =
   | "reporting"
   | "done";
 
-/** Each state in a word, for the chat header and Cuso's status card. */
+/** Each state in a word, for Cuso's status card. */
 const CUSO_STATE_LABEL: Record<CusoState, string> = {
   stopped: "Stopped",
   learning: "Learning",
@@ -156,7 +156,7 @@ const CUSO_STATE_LABEL: Record<CusoState, string> = {
   "waiting-approval": "Waiting for approval",
   "waiting-channel": "Waiting for a channel",
   blocked: "Couldn't start",
-  stuck: "Behind",
+  stuck: "Month stopped",
   running: "On schedule",
 };
 
@@ -195,7 +195,7 @@ export function cusoState(overview: CmoOverview): CusoState {
   return "running";
 }
 
-/** Cuso's state in a word, for the chat header. */
+/** Cuso's state in a word, for his status card. */
 export function cusoStatus(overview: CmoOverview): string {
   return CUSO_STATE_LABEL[cusoState(overview)];
 }

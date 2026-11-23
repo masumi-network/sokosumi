@@ -693,6 +693,11 @@ a.button {
   background: var(--stage);
 }
 
+/* In the chat he talks from Peach Blossom, the pink kept for him. */
+.msg .cuso-avatar {
+  background: var(--peach);
+}
+
 /* Smaller than the circle, so the drawing's corners stay inside it. */
 .cuso-avatar img {
   width: 84%;
@@ -1427,7 +1432,7 @@ a.cuso-says:focus-visible {
 /* ── Chat: rows like Sokosumi's chat rooms, no bubbles ── */
 /* The chat scrolls right down to the composer: no empty band above it. */
 .scroll.chat {
-  padding: 24px var(--page-pad) 12px;
+  padding: 40px var(--page-pad) 12px;
 }
 
 .thread {
@@ -1435,13 +1440,6 @@ a.cuso-says:focus-visible {
   flex-direction: column;
   gap: 12px;
   max-width: 880px;
-}
-
-/* The chat's lead stays put over the thread, on its line. */
-.main > .page-lead {
-  flex: none;
-  padding: 32px var(--page-pad) 20px;
-  border-bottom: var(--line-width) solid var(--line);
 }
 
 .msg {
@@ -2504,16 +2502,6 @@ video.draft-media {
 
   .scroll.chat {
     padding-top: 16px;
-  }
-
-  .main > .page-lead {
-    padding-top: 16px;
-    padding-bottom: 12px;
-  }
-
-  /* The chat leaves the phone's height to the thread. */
-  .main > .page-lead .page-title {
-    font-size: 1.5rem;
   }
 
   .composer-wrap {
