@@ -155,10 +155,11 @@ const PUBLIC_CLIENT_PATHS = new Set([
 ]);
 
 /**
- * After hook: adds `selfRegistered` to the public client info, true when
- * nobody owns the client (no `userId` or `referenceId`), as with every client
- * from open registration. Web's consent page warns about such an app, so a
- * failed read answers true rather than an error. An error answer, such as 404
+ * After hook: adds `selfRegistered` to the public client info, true when the
+ * client came from open registration: nobody owns it (no `userId` or
+ * `referenceId`), or it holds `sokosumi:mcp`, which only registration grants
+ * (a signed-in user who registers becomes the owner). Web's consent page warns
+ * about such an app, so a failed read answers true rather than an error. An error answer, such as 404
  * for an unknown client, passes through unchanged.
  */
 export async function markSelfRegisteredClient(
@@ -177,11 +178,14 @@ export async function markSelfRegisteredClient(
     const client = await ctx.context.adapter.findOne<{
       userId?: string | null;
       referenceId?: string | null;
+      scopes?: string[] | null;
     }>({
       model: "oauthClient",
       where: [{ field: "clientId", value: returned.client_id }],
     });
-    selfRegistered = !client?.userId && !client?.referenceId;
+    selfRegistered =
+      (!client?.userId && !client?.referenceId) ||
+      Boolean(client?.scopes?.includes(OAUTH_SCOPE_MCP));
   } catch (error) {
     ctx.context.logger.error("Could not read the OAuth client's owner", error);
   }

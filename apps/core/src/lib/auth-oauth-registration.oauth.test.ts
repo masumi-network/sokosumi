@@ -476,6 +476,24 @@ describe("public client info", () => {
     }
   });
 
+  it("marks an MCP client registered with a session", async () => {
+    // A signed-in user may register too; the client then has an owner.
+    const response = await auth.handler(
+      new Request(`${CORE}/auth/oauth2/register`, {
+        method: "POST",
+        headers: { cookie, origin: WEB, "content-type": "application/json" },
+        body: JSON.stringify(MCP_CLIENT),
+      }),
+    );
+    expect(response.status).toBe(201);
+    const { client_id }: { client_id: string } = await response.json();
+    expect(store.oauthClient[0].userId).toBeTruthy();
+
+    for (const client of await readPublicClient(client_id, LOOPBACK_REDIRECT)) {
+      expect(client).toMatchObject({ client_id, selfRegistered: true });
+    }
+  });
+
   it("marks a client created on Web as owned", async () => {
     const { client_id } = await createOwnedClient(OAUTH_SCOPE_OPENID);
 
