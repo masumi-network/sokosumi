@@ -20,6 +20,8 @@ If the project already uses `@polar-sh/sdk` below 1.0 (signs: `new Polar(...)`, 
 
 Don't install the deprecated `@polar-sh/<framework>` adapters (`@polar-sh/express`, `@polar-sh/hono`, `@polar-sh/fastify`, `@polar-sh/elysia`, `@polar-sh/astro`, `@polar-sh/sveltekit`, `@polar-sh/remix`, `@polar-sh/deno`, `@polar-sh/supabase`). `@polar-sh/nextjs`, `@polar-sh/nuxt`, `@polar-sh/tanstack-start` and `@polar-sh/better-auth` are maintained; keep them if the project already uses them.
 
+**No Polar account yet?** Polar supports the [auth.md](https://polar.sh/auth.md) spec: an agent can sign up on its own, without a human, set up the organization (products, benefits, meters, checkouts), and hand it over to the user later. Read <https://polar.sh/auth.md> to learn how to sign up and get claimed.
+
 Required environment variables (use whatever loader your framework provides — `process.env`, `Deno.env`, `import.meta.env`, etc.):
 
 - `POLAR_ACCESS_TOKEN` — organization access token. Create it with the Polar CLI (`polar auth token --scope checkouts:write --scope customer_sessions:write`, which opens a browser and prints the token, so ask the user to run it and save the output to the env file) or in the Polar dashboard (Settings → Access Tokens).
