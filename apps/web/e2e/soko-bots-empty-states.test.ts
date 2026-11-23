@@ -78,7 +78,9 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
         .getByRole("button", { name: "Archive" })
         .click();
       await page.waitForURL(`${BASE_URL}/soko-bots`);
+      // The sidebar lists the bot's room by the same name; open its card.
       await page
+        .getByRole("main")
         .getByRole("link", { name: /^Studio Desk/ })
         .first()
         .click();
