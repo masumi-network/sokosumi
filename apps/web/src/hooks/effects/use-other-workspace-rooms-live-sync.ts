@@ -51,10 +51,22 @@ export function useOtherWorkspaceRoomsLiveSync(
     }
 
     const stopRoomsChanged = subscribeOrganizationChatRoomsChanged({
-      onRemoved: (removedRoomId) =>
+      onRemoved: (removedRoomId) => {
+        window.clearTimeout(timer);
+        timer = undefined;
+        lastReadAt = Date.now();
+        void queryClient.cancelQueries({
+          queryKey: chatQueryKeys.anyElsewhere(),
+        });
         updateRooms((current) =>
           current.filter((room) => room.id !== removedRoomId),
-        ),
+        );
+        void queryClient.invalidateQueries({
+          queryKey: chatQueryKeys.anyElsewhere(),
+          refetchType: "none",
+        });
+        requestRead();
+      },
       // A room handed over whole is one the reader just joined or edited here,
       // so no `onRoom`.
       onInvalidated: (collections) => {

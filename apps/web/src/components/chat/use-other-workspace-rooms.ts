@@ -2,6 +2,7 @@
 
 import type { ChatRoom, StarredChatRoomOrder } from "@sokosumi/core-client";
 import {
+  CancelledError,
   type QueryFunctionContext,
   useQuery,
   useQueryClient,
@@ -48,9 +49,13 @@ let pinsChangedAtRevision = 0;
 async function readOtherWorkspaceRooms({
   client,
   queryKey,
+  signal,
 }: QueryFunctionContext): Promise<ChatRoom[]> {
   const requestRevision = beginRoomAttentionRefresh();
   const rooms = await fetchSidebarRoomCollection("elsewhere");
+  if (signal.aborted) {
+    throw new CancelledError({ revert: true });
+  }
   if (!rooms) {
     throw new Error("Failed to read the rooms of other workspaces");
   }

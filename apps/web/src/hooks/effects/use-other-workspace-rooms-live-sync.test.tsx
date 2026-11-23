@@ -78,13 +78,16 @@ describe("useOtherWorkspaceRoomsLiveSync", () => {
     });
     expect(requestRead).toHaveBeenCalledTimes(2);
 
-    // Room removal updates cached queries.
+    // Room removal cancels pending reads, hides the room at once, invalidates
+    // the prefix, and schedules a fresh read.
     act(() => {
       notifyOrganizationChatRoomsChanged({ removedRoomId: "r2" });
     });
     expect(queryClient.getQueryData<ChatRoom[]>(key)?.map((r) => r.id)).toEqual(
       ["r1"],
     );
+    expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
+    expect(requestRead).toHaveBeenCalledTimes(3);
 
     // Room read preserves organizationName via withWorkspaceOf.
     act(() => {
@@ -173,7 +176,63 @@ describe("useOtherWorkspaceRoomsLiveSync", () => {
       );
     });
     expect(requestRead).toHaveBeenCalledTimes(2);
+    expect(queryClient.getQueryState(key)?.isInvalidated).toBe(false);
     expect(queryClient.getQueryData<ChatRoom[]>(key)?.[0]?.unreadCount).toBe(2);
+    queryClient.clear();
+  });
+
+  it("cancels an in-flight read, removes the room at once, and invalidates on revocation so the older response cannot restore it", async () => {
+    vi.useRealTimers();
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const key = chatQueryKeys.elsewhere({ userId: "u1", workspaceId: "org1" });
+    queryClient.setQueryData<ChatRoom[]>(key, [
+      sampleRoom("r1"),
+      sampleRoom("r2"),
+    ]);
+    const olderRead = Promise.withResolvers<ChatRoom[]>();
+    let aborted = false;
+
+    const inFlight = queryClient
+      .fetchQuery({
+        queryKey: key,
+        queryFn: ({ signal }) => {
+          signal.addEventListener("abort", () => {
+            aborted = true;
+          });
+          return olderRead.promise;
+        },
+        staleTime: 0,
+      })
+      .catch(() => undefined);
+
+    const requestRead = vi.fn();
+    const { unmount } = render(
+      <LiveSyncProbe queryClient={queryClient} requestRead={requestRead} />,
+    );
+
+    act(() => {
+      notifyOrganizationChatRoomsChanged({ removedRoomId: "r1" });
+    });
+
+    // Hidden immediately even before any follow-up read runs (or if it is throttled/fails).
+    expect(aborted).toBe(true);
+    expect(queryClient.getQueryData<ChatRoom[]>(key)?.map((r) => r.id)).toEqual(
+      ["r2"],
+    );
+    expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
+    expect(requestRead).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      olderRead.resolve([sampleRoom("r1"), sampleRoom("r2")]);
+      await inFlight;
+    });
+
+    expect(queryClient.getQueryData<ChatRoom[]>(key)?.map((r) => r.id)).toEqual(
+      ["r2"],
+    );
+    unmount();
     queryClient.clear();
   });
 });
