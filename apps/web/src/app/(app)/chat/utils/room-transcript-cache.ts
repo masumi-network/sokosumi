@@ -10,6 +10,7 @@ import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organizati
 import { getRememberedPinnedRooms } from "@/components/chat/remembered-pinned-rooms";
 import { chatReadThrottleResumeInMs } from "@/lib/chat/chat-read-throttle";
 import { isListedInWorkspace } from "@/lib/chat/room-workspace-scope";
+import { chatQueryKeys } from "@/queries/chat";
 import {
   filterTopLevelChatRoomMessages,
   isTopLevelChatRoomMessage,
@@ -93,7 +94,7 @@ function normalizeTopLevelTranscript(
 
 /** Query cache owns data; this session owns scroll positions, request coalescing and fences. */
 export class RoomTranscriptCache {
-  readonly prefix: readonly string[];
+  readonly prefix: ReturnType<typeof chatQueryKeys.transcripts>;
   private valid = true;
   private readonly revoked = new Set<string>();
   /** Whether the cache was cleared before, so what read it needs a repaint. */
@@ -129,13 +130,9 @@ export class RoomTranscriptCache {
     private readonly userId: string,
     private readonly workspaceId: string | null,
   ) {
-    this.prefix = [
-      "room-transcript",
-      userId,
-      workspaceId ?? "personal-workspace",
-    ];
+    this.prefix = chatQueryKeys.transcripts({ userId, workspaceId });
     // Defaults belong to the room query type, not an accumulating auth scope.
-    client.setQueryDefaults(["room-transcript"], {
+    client.setQueryDefaults(chatQueryKeys.anyTranscript(), {
       gcTime: ROOM_RETENTION_MS,
       staleTime: Infinity,
       enabled: false,
@@ -178,7 +175,10 @@ export class RoomTranscriptCache {
   }
 
   key(roomId: string) {
-    return [...this.prefix, roomId];
+    return chatQueryKeys.transcript(
+      { userId: this.userId, workspaceId: this.workspaceId },
+      roomId,
+    );
   }
   get(roomId: string) {
     return this.client.getQueryData<RoomTranscriptEntry>(this.key(roomId));

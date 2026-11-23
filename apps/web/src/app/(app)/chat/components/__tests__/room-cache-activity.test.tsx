@@ -8,6 +8,7 @@ import {
   listenForNavigationStart,
   notifyNavigationStart,
 } from "@/lib/navigation/navigation-start";
+import { chatQueryKeys } from "@/queries/chat";
 import { TestQueryProvider } from "@/test/query-provider";
 import {
   PersistentRoomView,
@@ -146,7 +147,10 @@ describe("room cache across a hidden app shell", () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
-    const key = ["room-transcript", "user-1", "org-1", "room-channel"];
+    const key = chatQueryKeys.transcript(
+      { userId: "user-1", workspaceId: "org-1" },
+      "room-channel",
+    );
     const entry: RoomTranscriptEntry = {
       bootstrap: props,
       transcript: {

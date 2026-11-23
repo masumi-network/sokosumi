@@ -18,6 +18,7 @@ import {
 import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { chatQueryKeys } from "@/queries/chat";
 
 interface RoomDecisionsPopoverProps {
   room: ChatRoom;
@@ -122,7 +123,7 @@ function DecisionsList({
     [room.userMembers],
   );
   const query = useInfiniteQuery({
-    queryKey: ["chat-room-decisions", room.id],
+    queryKey: chatQueryKeys.roomDecisions(room.id),
     queryFn: async ({ pageParam }) => {
       const result = await listChatRoomDecisionsAction(room.id, pageParam);
       if (!result.ok) throw new Error(result.error.message ?? "");

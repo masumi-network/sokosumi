@@ -7,6 +7,7 @@ import {
   noteChatReadThrottled,
   resetChatReadThrottleForTests,
 } from "@/lib/chat/chat-read-throttle";
+import { chatQueryKeys } from "@/queries/chat";
 import { RoomTranscriptCache } from "./room-transcript-cache";
 
 vi.mock("@/components/chat/fetch-room-messages", () => ({
@@ -79,8 +80,8 @@ describe("authoritative retained history reconciliation", () => {
     first.clear();
     const second = new RoomTranscriptCache(client, "second-user", null);
     expect(registerDefaults.mock.calls.map(([key]) => key)).toEqual([
-      ["room-transcript"],
-      ["room-transcript"],
+      chatQueryKeys.anyTranscript(),
+      chatQueryKeys.anyTranscript(),
     ]);
     expect(client.getQueryDefaults(second.key("room"))).toMatchObject({
       gcTime: 30 * 60 * 1000,

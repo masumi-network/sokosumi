@@ -8,12 +8,12 @@ import {
 } from "@tanstack/react-query";
 import { useState } from "react";
 import {
-  OTHER_WORKSPACE_ROOMS_KEY,
   useOtherWorkspaceRoomsLiveSync,
   withWorkspaceOf,
 } from "@/hooks/effects/use-other-workspace-rooms-live-sync";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import { useSession } from "@/lib/auth/auth.client";
+import { chatQueryKeys } from "@/queries/chat";
 
 import { withPinnedOrder } from "./chat-room-activity-sort";
 import { fetchSidebarRoomCollection } from "./fetch-sidebar-room-collection";
@@ -78,7 +78,7 @@ export function OtherWorkspaceRoomsLive(): null {
   const requestRead = useChatRefreshScheduler({
     key: "elsewhere",
     refresh: () =>
-      queryClient.invalidateQueries({ queryKey: OTHER_WORKSPACE_ROOMS_KEY }),
+      queryClient.invalidateQueries({ queryKey: chatQueryKeys.anyElsewhere() }),
     healthy: useAblyConnectionHealthy(),
     refreshOnRecovery: true,
     refreshOnForeground: true,
@@ -166,11 +166,10 @@ export function useOtherWorkspaceRooms({
   const queryClient = useQueryClient();
   // A room of the workspace just left is not "elsewhere" any more, and one of
   // the workspace just entered must not show twice.
-  const queryKey = [
-    ...OTHER_WORKSPACE_ROOMS_KEY,
-    currentUserId,
-    organizationId,
-  ];
+  const queryKey = chatQueryKeys.elsewhere({
+    userId: currentUserId,
+    workspaceId: organizationId,
+  });
   const {
     data: listed = NO_ROOMS,
     isFetched: answered,
@@ -267,13 +266,15 @@ export function useOtherWorkspaceRooms({
   function applyPinnedOrder(order: StarredChatRoomOrder[]) {
     pinsChangedAtRevision = beginRoomAttentionRefresh();
     queryClient.setQueriesData<ChatRoom[]>(
-      { queryKey: OTHER_WORKSPACE_ROOMS_KEY },
+      { queryKey: chatQueryKeys.anyElsewhere() },
       (current) => current && withPinnedOrder(current, order),
     );
   }
 
   function readAgain() {
-    void queryClient.invalidateQueries({ queryKey: OTHER_WORKSPACE_ROOMS_KEY });
+    void queryClient.invalidateQueries({
+      queryKey: chatQueryKeys.anyElsewhere(),
+    });
   }
 
   // What a placeholder holds is only for Pinned: the new workspace's active list
