@@ -8783,6 +8783,9 @@
           "denyError": "No se pudo rechazar la aplicación"
         },
         "apiAccessNotice": "Autorizar otorga acceso completo a la API de tu cuenta (openid y sokosumi:api). Aprueba solo apps en las que confíes.",
+        "mcpAccessNotice": "Autorizar permite que esta app use Sokosumi en tu nombre a través de un cliente MCP (sokosumi:mcp).",
+        "unverifiedNotice": "App no verificada. Se registró por sí misma, así que Sokosumi no puede confirmar quién la gestiona.",
+        "redirectHost": "Después de responder, Sokosumi te enviará a {host}.",
         "descriptionWithApi": "Una aplicación quiere acceder a tu cuenta y llamar a la API de Sokosumi en tu nombre",
         "offlineAccessNotice": "Esta aplicación puede permanecer conectada y obtener nuevos tokens de acceso más tarde sin pedírtelo de nuevo (tokens de actualización, hasta 90 días)."
       },

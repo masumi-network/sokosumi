@@ -1,7 +1,4 @@
-import {
-  hasCoreApiOAuthScope,
-  hasOfflineAccessOAuthScope,
-} from "@sokosumi/utils";
+import { hasCoreApiOAuthScope } from "@sokosumi/utils";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
@@ -21,6 +18,7 @@ import {
 } from "@/lib/auth/auth.utils";
 
 import { ConsentActions } from "./consent-actions";
+import { ConsentDetails } from "./consent-details";
 
 export const instant = false;
 
@@ -38,7 +36,9 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
     buildSignedOAuthQueryFromSearchParams(oauthSearchParams);
   const scope = oauthSearchParams.get("scope");
   const requestsCoreApi = hasCoreApiOAuthScope(scope);
-  const requestsOfflineAccess = hasOfflineAccessOAuthScope(scope);
+  // Read from the signed query: a swapped `redirect_uri` fails the signature
+  // at consent, so the host shown is the one Better Auth will redirect to.
+  const redirectUri = new URLSearchParams(signedOAuthQuery).get("redirect_uri");
 
   if (!client_id) {
     return (
@@ -100,22 +100,12 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div>
-            <p className="mb-1 font-semibold">
-              {client.client_name || client.client_id}
-            </p>
-            <p className="text-muted-foreground text-sm">{t("wantsAccess")}</p>
-            {requestsCoreApi ? (
-              <p className="text-muted-foreground mt-2 text-sm">
-                {t("apiAccessNotice")}
-              </p>
-            ) : null}
-            {requestsOfflineAccess ? (
-              <p className="text-muted-foreground mt-2 text-sm">
-                {t("offlineAccessNotice")}
-              </p>
-            ) : null}
-          </div>
+          <ConsentDetails
+            clientName={client.client_name || client.client_id || client_id}
+            scope={scope}
+            redirectUri={redirectUri}
+            selfRegistered={client.selfRegistered}
+          />
 
           <ConsentActions oauthQuery={signedOAuthQuery} />
         </CardContent>

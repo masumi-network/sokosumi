@@ -33,6 +33,12 @@ export interface OAuthClientPublic {
   client_name?: string;
   client_uri?: string;
   logo_uri?: string;
+  /**
+   * True when the client has no owner (dynamic client registration). Core adds
+   * it to Better Auth's public client fields; the consent page treats a missing
+   * value as true.
+   */
+  selfRegistered?: boolean;
 }
 
 const CORE_GET_SESSION_PATH = "/auth/get-session";
