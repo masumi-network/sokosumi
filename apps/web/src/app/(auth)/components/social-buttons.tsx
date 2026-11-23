@@ -195,7 +195,7 @@ export default function SocialButtons({
               // contrast; handleClick already ignores clicks while waiting.
               disabled={isWaiting && !isPending}
               className={cn(
-                "text-foreground! m-0! flex h-[50px]! w-full! rounded-md! border! px-4! py-2! text-sm! shadow-none! transition-colors! duration-300! disabled:pointer-events-none! disabled:opacity-50! [&>div]:justify-center! [&>div]:gap-2! [&>div_div]:w-auto!",
+                "text-foreground! m-0! flex h-10! w-full! rounded-md! border! px-4! py-2! text-sm! shadow-none! transition-colors! duration-300! disabled:pointer-events-none! disabled:opacity-50! [&>div]:justify-center! [&>div]:gap-2! [&>div_div]:w-auto!",
                 isPending && "cursor-progress!",
                 isLastUsed
                   ? "border-border! bg-muted! hover:bg-quinary!"
@@ -221,7 +221,7 @@ export default function SocialButtons({
             type="button"
             variant="secondary"
             className={cn(
-              "text-foreground h-[50px] w-full justify-center gap-2 rounded-md border px-4 py-2 text-sm font-normal shadow-none",
+              "text-foreground h-10 w-full justify-center gap-2 rounded-md border px-4 py-2 text-sm font-normal shadow-none",
               lastUsedMethod === "passkey"
                 ? "border-border bg-muted hover:bg-quinary"
                 : "bg-senary hover:bg-quinary border-transparent",
