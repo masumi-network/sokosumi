@@ -132,6 +132,16 @@ describe("TeamSection", () => {
     expect(screen.getByText("notSetUp")).toBeInTheDocument();
     expect(screen.getByText("Sandro")).toBeInTheDocument();
   });
+
+  it("says nobody else is here yet and links to invites in a team of one", async () => {
+    render(await TeamSection({ team: { ...team, members: [me] } }));
+
+    expect(screen.getByText("teamEmpty")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "inviteTeam" })).toHaveAttribute(
+      "href",
+      "/organization",
+    );
+  });
 });
 
 describe("YourAssistantSection", () => {
@@ -153,6 +163,18 @@ describe("YourAssistantSection", () => {
     expect(
       screen.getByRole("link", { name: "createAssistant" }),
     ).toBeInTheDocument();
+  });
+
+  it("holds a placeholder, not a create offer, while the team is unavailable", async () => {
+    render(
+      await YourAssistantSection({ me: null, stats: null, unavailable: true }),
+    );
+
+    expect(screen.getByText("Unavailable.placeholder")).toBeInTheDocument();
+    expect(screen.queryByText("noAssistantYou")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "createAssistant" }),
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -179,5 +201,16 @@ describe("SokoBotsHero", () => {
     expect(
       screen.getByRole("link", { name: "createAssistant" }),
     ).toBeInTheDocument();
+  });
+
+  it("offers no create button while the team is unavailable", async () => {
+    render(await SokoBotsHero({ team: null }));
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "heroTitle" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "createAssistant" }),
+    ).not.toBeInTheDocument();
   });
 });
