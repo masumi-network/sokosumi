@@ -168,3 +168,83 @@ export function handoffMessage(input: {
     "Just answer here; nobody is starting paid work from this.",
   ].join("\n");
 }
+
+/** What one person did in the week, counted from records they made. */
+export interface PersonWeek {
+  userId: string;
+  name: string;
+  /** Names of public Tasks they finished. */
+  finished: string[];
+  answered: number;
+  assigned: number;
+  approved: { strategies: number; newsletters: number };
+  postsPublished: number;
+  filesShared: number;
+  tablesMade: number;
+}
+
+/** What one agent got done in the week. */
+export interface AgentWeek {
+  agent: StandupAgent;
+  done: string[];
+}
+
+export const WEEK_OPT_OUT_PATH = "/account";
+
+function counted(count: number, one: string, many: string): string[] {
+  return count > 0 ? [`${count} ${count === 1 ? one : many}`] : [];
+}
+
+export function personWeekParts(person: PersonWeek): string[] {
+  const finished = person.finished.length;
+  return [
+    ...(finished
+      ? [
+          `${finished} ${finished === 1 ? "Task" : "Tasks"} finished (${list(person.finished.map((name) => `"${name}"`))})`,
+        ]
+      : []),
+    ...counted(person.answered, "Task answered", "Tasks answered"),
+    ...counted(person.assigned, "Task handed out", "Tasks handed out"),
+    ...counted(
+      person.approved.strategies,
+      "strategy approved",
+      "strategies approved",
+    ),
+    ...counted(
+      person.approved.newsletters,
+      "newsletter approved",
+      "newsletters approved",
+    ),
+    ...counted(person.postsPublished, "post published", "posts published"),
+    ...counted(person.filesShared, "file shared", "files shared"),
+    ...counted(person.tablesMade, "table made", "tables made"),
+  ];
+}
+
+/** The week-in-review thread: one line per person, one per agent, one summary line. */
+export function formatWeekInReview(input: {
+  dates: string;
+  people: PersonWeek[];
+  agents: AgentWeek[];
+  summary: string;
+}): string {
+  const people = input.people.map(
+    (person) => `- **${person.name}** · ${personWeekParts(person).join(" · ")}`,
+  );
+  const agents = input.agents.map(
+    (line) => `- **${agentLabel(line.agent)}** · ${list(line.done)}`,
+  );
+  return [
+    [
+      `**Week in review · ${input.dates}**`,
+      ...counted(input.people.length, "person", "people"),
+      ...counted(input.agents.length, "agent", "agents"),
+    ].join(" · "),
+    ...(people.length ? ["", "**People**", ...people] : []),
+    ...(agents.length ? ["", "**Agents**", ...agents] : []),
+    "",
+    input.summary.trim(),
+    "",
+    `_Counted from public Tasks, approvals, posts, shared files and tables; never mail, calendars, direct messages or private Tasks. To leave your week out, turn off "Include my week in the stand-up" in [your account settings](${WEEK_OPT_OUT_PATH})._`,
+  ].join("\n");
+}

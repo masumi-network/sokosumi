@@ -1,11 +1,5 @@
 import type { OrganizationRecord } from "@sokosumi/core-client";
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import OrganizationRemoveForm from "@/components/organizations/organization-remove/form";
@@ -23,8 +17,6 @@ const translations: Record<string, string> = {
   "Components.Organizations.RemoveModal.error": "Failed to remove organization",
   "Components.Organizations.RemoveModal.success":
     "Organization removed successfully",
-  "Components.Organizations.RemoveModal.blockersTitle":
-    "You cannot remove this organization until these are resolved:",
   "Components.Organizations.RemoveModal.preflightError":
     "Could not check whether this organization can be removed.",
   "Components.Organizations.RemoveModal.retry": "Try again",
@@ -43,9 +35,6 @@ const translations: Record<string, string> = {
     "Cancel your running subscription and wait until the paid period ends.",
   "Components.Organizations.RemoveModal.Errors.enterpriseContractActive":
     "This organization has an active enterprise contract and cannot be deleted.",
-  "Components.Organizations.RemoveModal.Errors.billingLink": "Go to billing",
-  "Components.Organizations.RemoveModal.Links.jobs": "Jobs",
-  "Components.Organizations.RemoveModal.Links.tasks": "Tasks",
   "Components.Organizations.RemoveModal.Schema.ConfirmOrganization.invalid":
     "Invalid organization name",
   "Components.Organizations.RemoveModal.Schema.ConfirmOrganization.required":
@@ -126,106 +115,6 @@ describe("OrganizationRemoveForm", () => {
     vi.clearAllMocks();
   });
 
-  it("lists mapped blockers and disables confirm while any remain", async () => {
-    await act(async () =>
-      render(
-        <OrganizationRemoveForm
-          organization={createOrganization({})}
-          setIsLoading={vi.fn()}
-          onOpenChange={vi.fn()}
-          blockers={["ORGANIZATION_HAS_ADDITIONAL_MEMBERS", "LAST_WORKSPACE"]}
-        />,
-      ),
-    );
-
-    expect(
-      screen.getByText(
-        "You cannot remove this organization until these are resolved:",
-      ),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Remove all other members before deleting this organization.",
-      ),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("You cannot delete your last workspace."),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
-  });
-
-  it("lists billing blockers with a billing link and disables confirm", async () => {
-    await act(async () =>
-      render(
-        <OrganizationRemoveForm
-          organization={createOrganization({})}
-          setIsLoading={vi.fn()}
-          onOpenChange={vi.fn()}
-          blockers={["RUNNING_SUBSCRIPTION", "ENTERPRISE_CONTRACT_ACTIVE"]}
-        />,
-      ),
-    );
-
-    expect(
-      screen.getByText(
-        "Cancel your running subscription and wait until the paid period ends.",
-      ),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "This organization has an active enterprise contract and cannot be deleted.",
-      ),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Go to billing" })).toHaveAttribute(
-      "href",
-      "/billing",
-    );
-    expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
-  });
-
-  it("lists in-flight work blockers with way-out links", async () => {
-    await act(async () =>
-      render(
-        <OrganizationRemoveForm
-          organization={createOrganization({})}
-          setIsLoading={vi.fn()}
-          onOpenChange={vi.fn()}
-          blockers={[
-            "IN_FLIGHT_JOB",
-            "UNSETTLED_ON_CHAIN_JOB",
-            "IN_FLIGHT_TASK",
-          ]}
-        />,
-      ),
-    );
-
-    expect(
-      screen.getByText(
-        "Wait for in-flight jobs on this organization to finish before deleting it.",
-      ),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Wait for on-chain job purchases on this organization to settle before deleting it.",
-      ),
-    ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: "Jobs" })).toHaveLength(2);
-    expect(screen.getAllByRole("link", { name: "Jobs" })[0]).toHaveAttribute(
-      "href",
-      "/history",
-    );
-    expect(
-      screen.getByText(
-        "Wait for in-flight tasks on this organization to finish before deleting it.",
-      ),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Tasks" })).toHaveAttribute(
-      "href",
-      "/tasks",
-    );
-    expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
-  });
-
   it("disables confirm and retries preflight when load failed", async () => {
     const user = userEvent.setup();
     render(
@@ -233,7 +122,6 @@ describe("OrganizationRemoveForm", () => {
         organization={createOrganization({})}
         setIsLoading={vi.fn()}
         onOpenChange={vi.fn()}
-        blockers={[]}
         preflightFailed
       />,
     );
@@ -268,7 +156,6 @@ describe("OrganizationRemoveForm", () => {
         organization={createOrganization({})}
         setIsLoading={vi.fn()}
         onOpenChange={vi.fn()}
-        blockers={[]}
       />,
     );
 

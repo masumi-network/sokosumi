@@ -181,9 +181,9 @@ describe("CMO version", () => {
     );
   });
 
-  // Owner, 2026-11-22: plain words for founders who are not marketers.
-  it("makes cmo-v15 the version a new hire gets", () => {
-    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v15");
+  // Owner, 2026-11-23: this week's changes in one version, the live test a rehire.
+  it("makes cmo-v20 the version a new hire gets", () => {
+    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v20");
   });
 
   it("has cmo-v8 build on cmo-v7 with claims, varied pictures and LinkedIn openings", () => {

@@ -4,6 +4,7 @@ import { ProjectImageJobStatus } from "@sokosumi/database";
 import {
   CMO_PICKED_PRODUCTION_SKILL,
   CMO_SCENE_PRODUCTION_SKILL,
+  CMO_V20_STRATEGY_SKILL,
   CMO_VARIED_PRODUCTION_SKILL,
   type CmoCalendarEntry,
   getSokoBotVersion,
@@ -69,6 +70,7 @@ import {
 } from "@/services/image-studio-drive.service";
 import {
   createImageJob,
+  createShortVideoJob,
   createTalkingVideoJob,
   createVideoJob,
   DEFAULT_SETTINGS,
@@ -102,6 +104,8 @@ const KEY_PREFIX = "cmo-media";
 const ATTEMPTS = 2;
 /** Default references when the visual names none: the brand's own pictures. */
 const DEFAULT_REFERENCES = 2;
+/** A short shows its scene and at most this many of the brand's own pictures. */
+const SHORT_BRAND_PICTURES = 3;
 /**
  * The models a picture in a reference library style goes through, one per
  * try. Muse Image first, twice: on ten pieces of CMO.XYZ's month (2026-11-19)
@@ -296,6 +300,15 @@ export function cmoMakesVariedMonth(
     skills.includes(CMO_SCENE_PRODUCTION_SKILL) ||
     skills.includes(CMO_PICKED_PRODUCTION_SKILL)
   );
+}
+
+/**
+ * Whether a Cuso version writes its short videos as shorts (cmo-v20): a
+ * script, a hook line and a kind, cut by Core from the brand's pictures and
+ * site instead of one picture animated.
+ */
+export function cmoWritesShorts(versionId: string | null | undefined): boolean {
+  return getSokoBotVersion(versionId).skills.includes(CMO_V20_STRATEGY_SKILL);
 }
 
 /** Whether a Cuso version writes a styled picture's visual as a scene alone (cmo-v9). */
@@ -528,6 +541,8 @@ export interface CmoMediaPiece
     | "script"
     | "presenter"
     | "voice"
+    | "shortFormat"
+    | "hookLine"
     | "languageCode"
     | "socialPostId"
     | "videoOf"
@@ -541,7 +556,7 @@ export interface CmoMediaJob {
   id: string;
   pieceId: string;
   slot: number;
-  step: "image" | "still" | "video" | "talking";
+  step: "image" | "still" | "video" | "talking" | "short";
   visualKey: string;
   status: ProjectImageJobStatus;
   assetId: string | null;
@@ -599,8 +614,18 @@ export function cmoVisualKey(
     | "script"
     | "presenter"
     | "voice"
+    | "shortFormat"
+    | "hookLine"
   >,
 ): string {
+  // A short is cut from its scene picture, its script, kind and hook line.
+  if (piece.shortFormat)
+    return createHash("sha256")
+      .update(
+        `short|${piece.shortFormat}|${piece.script?.trim() ?? ""}|${piece.hookLine ?? ""}|${piece.visual ?? ""}|${(piece.visualFileIds ?? []).join(",")}`,
+      )
+      .digest("hex")
+      .slice(0, 10);
   // A talking video is made from its script and who speaks it.
   if (piece.script?.trim())
     return createHash("sha256")
@@ -679,11 +704,15 @@ export function cmoSlotAction(
   };
   if (cmoPieceIsTalking(piece)) return next("talking", null);
   if (!cmoPieceIsVideo(piece)) return next("image", null);
-  // A video animates a still made from the brand's own pictures: the still
-  // first, then the video from it, each retried on its own.
+  // A video starts from a still of its scene, made from the brand's own
+  // pictures: a cmo-v20 short is then cut from it and the site to its
+  // script, an older video animates it. Each is retried on its own.
   const still = next("still", null);
   if (still.kind !== "attach") return still;
-  return next("video", still.job.assetId);
+  return next(
+    piece.shortFormat && piece.script?.trim() ? "short" : "video",
+    still.job.assetId,
+  );
 }
 
 /**
@@ -863,7 +892,8 @@ export async function listCmoMediaJobs(
       (step !== "image" &&
         step !== "still" &&
         step !== "video" &&
-        step !== "talking")
+        step !== "talking" &&
+        step !== "short")
     )
       return [];
     return [
@@ -916,11 +946,15 @@ export function cmoImagePrompt(input: {
     slides > 0
       ? `Slide ${slot + 1} of ${slides} of one ${channel?.name ?? piece.channel} carousel: every slide in the same style and colours${slot === 0 ? "; this first slide is the hook" : ", each showing a different view"}.${slide ? ` This slide: ${slide}` : ""}`
       : "",
-    cmoPieceIsVideo(piece)
-      ? "A vertical still with one clear subject and room to move: it becomes a five-second video."
-      : "",
+    piece.shortFormat
+      ? "A vertical photo of this one scene, with no screen, phone or laptop showing anything: it opens a short video that shows the brand's real website itself."
+      : cmoPieceIsVideo(piece)
+        ? "A vertical still with one clear subject and room to move: it becomes a five-second video."
+        : "",
     input.references > 0
-      ? `Made for ${input.businessName} from the reference pictures: keep what they show of the brand (its product, its screens, its colours and logo) exactly, and change the setting, the framing and the light.`
+      ? piece.shortFormat
+        ? `Made for ${input.businessName} from the reference pictures: keep the brand's products and colours exactly, and change the setting, the framing and the light.`
+        : `Made for ${input.businessName} from the reference pictures: keep what they show of the brand (its product, its screens, its colours and logo) exactly, and change the setting, the framing and the light.`
       : `Made for ${input.businessName}.`,
     words,
     "Never a real, named person.",
@@ -1245,7 +1279,7 @@ export function cmoLayoutPrompt(input: {
 export const MAX_STYLE_BRAND_PICTURES = 2;
 
 /** A number from the piece's id, so each piece starts somewhere else. */
-function pieceSeed(piece: CmoMediaPiece): number {
+function pieceSeed(piece: Pick<CmoMediaPiece, "id">): number {
   return [...piece.id].reduce((sum, char) => sum + char.charCodeAt(0), 0);
 }
 
@@ -1289,10 +1323,31 @@ function namedShots(
  * Each piece starts at another of them (by its id), so a month draws on
  * every section and photo of the site instead of the first one each time.
  */
-function references(
-  piece: CmoMediaPiece,
+/**
+ * The brand's own pictures a short shows as they are, beside its scene: crops
+ * of its site's sections and its photos. Its whole page comes from a live
+ * capture.
+ */
+export function cmoShortPictures(
+  piece: Pick<CmoMediaPiece, "id">,
   brandPictures: readonly CmoBrandPicture[],
 ): string[] {
+  const own = brandPictures.filter((picture) => picture.kind !== "page");
+  const start = own.length > 0 ? pieceSeed(piece) % own.length : 0;
+  return [...own.slice(start), ...own.slice(0, start)]
+    .slice(0, SHORT_BRAND_PICTURES)
+    .map((picture) => picture.fileId);
+}
+
+function references(
+  piece: CmoMediaPiece,
+  all: readonly CmoBrandPicture[],
+): string[] {
+  // A short's scene is drawn from photos only: given a screenshot or a crop
+  // of the site, the model redrew the page with made-up text (2026-11-22).
+  const brandPictures = piece.shortFormat
+    ? all.filter((picture) => picture.kind === "photo")
+    : all;
   const named = namedShots(piece, brandPictures);
   if (named.length > 0) return named;
   const own = brandPictures.filter(
@@ -1302,7 +1357,9 @@ function references(
   const turned = [...own.slice(start), ...own.slice(0, start)].map(
     (picture) => picture.fileId,
   );
-  const home = brandPictures.find((picture) => picture.alt.startsWith("Home"));
+  const home = piece.shortFormat
+    ? undefined
+    : brandPictures.find((picture) => picture.alt.startsWith("Home"));
   return [
     ...new Set([
       ...turned.slice(0, 1),
@@ -1591,11 +1648,13 @@ export async function advanceCmoMedia(
           action: { ...action, attempt },
           // A styled picture's screen is placed by Core, never redrawn.
           references:
-            action.step === "video" ||
-            action.step === "talking" ||
-            styled(piece)
-              ? []
-              : references(piece, brandPictures),
+            action.step === "short"
+              ? cmoShortPictures(piece, brandPictures)
+              : action.step === "video" ||
+                  action.step === "talking" ||
+                  styled(piece)
+                ? []
+                : references(piece, brandPictures),
           screen:
             styled(piece) &&
             action.step === "image" &&
@@ -1846,16 +1905,21 @@ async function withoutOutdatedPictures(
  * consent; without it, or with a presenter or voice no catalog has, a stock
  * presenter and voice speak instead, so the month is not held up.
  */
+/** The stock voice a piece names, or the default one. */
+function pieceVoice(piece: CmoMediaPiece) {
+  return (SOKO_BOT_VOICEOVER_VOICES as readonly string[]).includes(
+    piece.voice ?? "",
+  )
+    ? (piece.voice as (typeof SOKO_BOT_VOICEOVER_VOICES)[number])
+    : DEFAULT_TALKING_VIDEO_VOICE;
+}
+
 async function talkingVoiceAndPresenter(
   context: MediaContext,
   drive: { workspaceId: string; userId: string },
   piece: CmoMediaPiece,
 ) {
-  const voice = (SOKO_BOT_VOICEOVER_VOICES as readonly string[]).includes(
-    piece.voice ?? "",
-  )
-    ? (piece.voice as (typeof SOKO_BOT_VOICEOVER_VOICES)[number])
-    : DEFAULT_TALKING_VIDEO_VOICE;
+  const voice = pieceVoice(piece);
   // Without a consented photo, "owner" falls back to the first stock presenter.
   const presenter = (await talkingVideoPresenter({
     projectId: context.cuso.projectId,
@@ -1914,6 +1978,24 @@ async function start(
         // A month's videos carry music, and B-roll where the hook has room.
         music: true,
         broll: true,
+      });
+      return true;
+    }
+    if (action.step === "short") {
+      if (!action.sourceAssetId || !piece.shortFormat) return true;
+      await createShortVideoJob({
+        ...scope,
+        format: piece.shortFormat,
+        script: piece.script?.trim() ?? "",
+        hookLine: piece.hookLine ?? null,
+        voice: pieceVoice(piece),
+        languageCode: piece.languageCode ?? "en",
+        // Its own scene first, then the brand's pictures; the site is
+        // captured live, so no screenshot of it is among them.
+        pictures: {
+          assetIds: [action.sourceAssetId],
+          fileIds: input.references,
+        },
       });
       return true;
     }

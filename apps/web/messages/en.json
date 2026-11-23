@@ -238,6 +238,14 @@
       }
     },
     "MembersTable": {
+      "title": "Members",
+      "search": "Search members",
+      "searchResults": "{count, plural, =0 {No members match} one {# match} other {# matches}}",
+      "Sort": {
+        "label": "Sort",
+        "ascending": "{column}, ascending",
+        "descending": "{column}, descending"
+      },
       "Header": {
         "name": "Name",
         "email": "Email",
@@ -703,7 +711,6 @@
         "error": "Failed to remove organization",
         "confirmLabelPrefix": "Type",
         "confirmLabelSuffix": "to confirm deletion:",
-        "blockersTitle": "You cannot remove this organization until these are resolved:",
         "preflightError": "Could not check whether this organization can be removed.",
         "loadErrorTitle": "Could not check organization deletion",
         "retry": "Try again",
@@ -713,14 +720,28 @@
           "unauthorizedAction": "Log in",
           "runningSubscription": "Cancel your running subscription and wait until the paid period ends.",
           "enterpriseContractActive": "This organization has an active enterprise contract and cannot be deleted.",
-          "billingLink": "Go to billing",
           "inFlightJob": "Wait for in-flight jobs on this organization to finish before deleting it.",
           "unsettledOnChainJob": "Wait for on-chain job purchases on this organization to settle before deleting it.",
           "inFlightTask": "Wait for in-flight tasks on this organization to finish before deleting it."
         },
-        "Links": {
-          "jobs": "Jobs",
-          "tasks": "Tasks"
+        "Blocked": {
+          "title": "{organization} can't be deleted yet",
+          "description": "Sort these out first. Then you can delete it here.",
+          "close": "Close",
+          "additionalMembers": "{count, plural, =0 {Other members still belong to it} one {# other member} other {# other members}}",
+          "runningSubscription": "A paid subscription is still running",
+          "enterpriseContractActive": "An enterprise contract is active",
+          "lastWorkspace": "It's your only workspace. Create or join another one first.",
+          "inFlightJob": "Jobs are still running",
+          "unsettledOnChainJob": "Job payments are still settling",
+          "inFlightTask": "Tasks are still in progress",
+          "switchWorkspace": "Switch to this workspace to see them.",
+          "Links": {
+            "members": "Go to members",
+            "billing": "Open billing",
+            "jobs": "Open jobs",
+            "tasks": "Open tasks"
+          }
         },
         "Schema": {
           "Organization": {

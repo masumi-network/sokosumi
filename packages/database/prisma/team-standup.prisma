@@ -16,6 +16,10 @@ model TeamStandup {
   timeOfDay String    @default("09:00")
   weekdays  Int[]     @default([1, 2, 3, 4, 5])
   timezone  String    @default("Europe/Berlin")
+  /// Week in review: one weekly thread of what people and agents did, on
+  /// this weekday (1 Monday … 7 Sunday) at `timeOfDay`.
+  weekInReviewWeekday   Int       @default(1)
+  weekInReviewNextRunAt DateTime?
 
   /// Most a stand-up may spend on model calls and hand-offs.
   costCapUsdMicros BigInt    @default(100000)
@@ -25,6 +29,7 @@ model TeamStandup {
   runs TeamStandupRun[]
 
   @@index([enabled, nextRunAt])
+  @@index([enabled, weekInReviewNextRunAt])
   @@map("team_standup")
 }
 
@@ -35,6 +40,8 @@ model TeamStandupRun {
   standup       TeamStandup @relation(fields: [standupId], references: [id], onDelete: Cascade)
   /// The slot this run is for; one run per slot.
   scheduledFor  DateTime
+  /// DAILY (the stand-up) or WEEKLY (week in review).
+  kind          String      @default("DAILY")
   /// POSTED, QUIET (nothing new: nothing posted), SKIPPED (paused) or FAILED.
   status        String
   /// The thread's root message.
@@ -45,6 +52,6 @@ model TeamStandupRun {
   costUsdMicros BigInt      @default(0)
   error         String?
 
-  @@unique([standupId, scheduledFor])
+  @@unique([standupId, kind, scheduledFor])
   @@map("team_standup_run")
 }

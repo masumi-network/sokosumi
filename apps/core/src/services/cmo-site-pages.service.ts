@@ -1,3 +1,4 @@
+import { CMO_SITE_PAGES_SKILL, getSokoBotVersion } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { generateText, Output } from "ai";
 import type { Browser } from "puppeteer-core";
@@ -61,6 +62,69 @@ export async function readCmoSitePages(
  * the function has 300 seconds. What is left waits for the next run.
  */
 const RUN_BUDGET_MS = 90_000;
+/** Whether a Cuso's version works from the site's pages (cmo-v20). */
+export function cmoReadsSitePages(
+  versionId: string | null | undefined,
+): boolean {
+  return getSokoBotVersion(versionId).skills.includes(CMO_SITE_PAGES_SKILL);
+}
+
+/** Pages listed in Cuso's context (about 4 KB); the rest wait in the Site folder. */
+const CONTEXT_PAGES = 30;
+const CONTEXT_SUMMARY = 80;
+/** Pages in the month writer's brief, which its prompt cache holds. */
+const WRITER_PAGES = 40;
+
+/**
+ * The site's pages as Cuso's context holds them: one short line each (path,
+ * what it says, the note's file id), so the packet grows by a few KB at most.
+ */
+export function cmoSitePagesContext(
+  pages: readonly CmoSitePage[],
+  complete: boolean,
+): { complete: boolean; pages: string[]; more?: number } {
+  const lines = pages.slice(0, CONTEXT_PAGES).map((page) => {
+    const summary = page.summary || page.title;
+    const short =
+      summary.length > CONTEXT_SUMMARY
+        ? `${summary.slice(0, CONTEXT_SUMMARY - 1).trimEnd()}…`
+        : summary;
+    return `${new URL(page.url).pathname}: ${short}${page.noteFileId ? ` (note ${page.noteFileId})` : ""}`;
+  });
+  return {
+    complete,
+    pages: lines,
+    ...(pages.length > CONTEXT_PAGES
+      ? { more: pages.length - CONTEXT_PAGES }
+      : {}),
+  };
+}
+
+/** Facts the pillar check reads beside the Brand Brain's, a few per page. */
+const PILLAR_FACTS_PER_PAGE = 4;
+const PILLAR_FACTS_MAX = 80;
+
+/** The site's page facts for the pillar check (cmo-v20), each once. */
+export function cmoSiteFacts(pages: readonly CmoSitePage[]): string[] {
+  return [
+    ...new Set(
+      pages.flatMap((page) => page.facts.slice(0, PILLAR_FACTS_PER_PAGE)),
+    ),
+  ].slice(0, PILLAR_FACTS_MAX);
+}
+
+/** The site's pages in the month writer's brief: what each says, its facts and its screenshot. */
+export function cmoWriterSitePages(pages: readonly CmoSitePage[]): string[] {
+  return pages.slice(0, WRITER_PAGES).map((page) => {
+    const facts =
+      page.facts.length > 0
+        ? ` Facts: ${page.facts.slice(0, 4).join("; ")}.`
+        : "";
+    const shot = page.desktopFileId ? ` (shot ${page.desktopFileId})` : "";
+    return `${new URL(page.url).pathname}: ${(page.summary || page.title).slice(0, 160)}${facts}${shot}`;
+  });
+}
+
 /** Pages read at once in one browser (the browser holds three open). */
 const PARALLEL = 3;
 /** Words of a page the summary reads and its note keeps. */

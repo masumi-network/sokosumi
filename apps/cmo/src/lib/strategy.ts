@@ -169,7 +169,7 @@ export function postRate(count: number, days: number): string {
 
 /**
  * About how much of the month's posts serves each funnel step, in whole
- * percent, from the step Cuso tags each piece with (cmo-v18). A short video
+ * percent, from the step Cuso tags each piece with (cmo-v20). A short video
  * counts on every network it goes out on. Null when no piece is tagged.
  */
 export function stageShares(

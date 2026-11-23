@@ -198,6 +198,16 @@ export const EVAL_CASES: readonly EvalCase[] = [
     kind: "standup",
     setup: "no-match",
   },
+  {
+    id: "standup-week",
+    suite: "soko-bot",
+    area: "Stand-up",
+    title: "Week in review names public work only",
+    intent:
+      "The weekly thread gives Robin a line naming the public Task he finished, leaves his private Task out, and says where to turn it off.",
+    kind: "standup",
+    setup: "week",
+  },
   ...CMO_EVAL_CASES,
   ...CMO_SCENARIOS.map((scenario) =>
     isCompetitorEvalCase(scenario.id)
