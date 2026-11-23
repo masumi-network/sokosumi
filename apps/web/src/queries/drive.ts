@@ -32,6 +32,11 @@ export const driveQueryKeys = {
     driveKey(store, "data-room", roomId, "questions"),
   googleSheet: (store: FileStore, resourceId: string) =>
     driveKey(store, "google-sheet", resourceId),
+  picker: (store: FileStore, params: { folder?: string; q?: string } = {}) =>
+    driveKey(store, "picker", {
+      folder: params.folder ?? "",
+      q: params.q?.trim() ?? "",
+    }),
   tags: (store: FileStore) => driveKey(store, "tags"),
 } as const;
 
