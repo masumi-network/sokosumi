@@ -992,6 +992,43 @@ describe("RoomsClient progressive roster (header + composer without members)", (
     expect(screen.getByTestId("room-session-composer")).toBe(composer);
     expect(screen.getByText("general")).toBeTruthy();
   });
+
+  it("shows failed roster state when rosterPromise rejects without remounting composer", async () => {
+    const deferred = Promise.withResolvers<RoomShellRosterPage>();
+    const messagesPromise = new Promise<{
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }>(() => undefined);
+
+    renderWithQueryClient(
+      <RoomsClient
+        {...baseProps}
+        messagesPromise={messagesPromise}
+        rosterPromise={deferred.promise}
+      />,
+    );
+
+    const composer = screen.getByTestId("room-session-composer");
+    fireEvent.click(screen.getByTestId("room-open-title"));
+
+    await act(async () => {
+      deferred.reject(new Error("coworkers unavailable"));
+      await deferred.promise.catch(() => undefined);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("add-members-dialog-probe")).toHaveAttribute(
+        "data-members-load-failed",
+        "true",
+      );
+    });
+    const probe = screen.getByTestId("add-members-dialog-probe");
+    expect(probe).toHaveAttribute("data-members-count", "0");
+    expect(probe).toHaveAttribute("data-coworkers-count", "0");
+    expect(screen.getByTestId("room-session-composer")).toBe(composer);
+    expect(screen.getByText("general")).toBeTruthy();
+  });
 });
 
 function CacheWrapper({ children }: { children: ReactNode }) {

@@ -63,6 +63,7 @@ import { useRoomMessageMutations } from "@/app/chat/hooks/use-room-message-mutat
 import { useRoomNotificationDeepLink } from "@/app/chat/hooks/use-room-notification-deep-link";
 import { useRoomReadAttention } from "@/app/chat/hooks/use-room-read-attention";
 import { useRoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
+import { useRoomShellRoster } from "@/app/chat/hooks/use-room-shell-roster";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 import { getRoomMessageAction } from "@/app/chat/message-actions";
 import { canManageChannelSettings } from "@/app/chat/utils/channel-member-permissions";
@@ -252,7 +253,6 @@ import {
   ROOM_SHELL_ROOT_CLASSNAME,
   RoomShellLayout,
 } from "./room-shell-layout";
-import { RoomShellRosterHydrator } from "./room-shell-roster-hydrator";
 import { RoomStatusRow } from "./room-status-row";
 import { RoomTypingProvider } from "./room-typing-provider";
 import { SokoBotConnectPrompt } from "./soko-bot-connect-prompt.client";
@@ -710,9 +710,6 @@ function RoomView({
     useState(messageLoadFailed);
   const [syncedMessagesPromise, setSyncedMessagesPromise] =
     useState(messagesPromise);
-  const [deferredRoster, setDeferredRoster] =
-    useState<RoomShellRosterPage | null>(null);
-  const [syncedRosterPromise, setSyncedRosterPromise] = useState(rosterPromise);
   const [syncedHistoryRoomId, setSyncedHistoryRoomId] =
     useState(selectedRoomId);
   const [editChannelOpen, setEditChannelOpen] = useState(false);
@@ -774,9 +771,6 @@ function RoomView({
       setDeferredHistoryPending(true);
       effectiveDeferredHistoryPending = true;
     }
-    if (rosterPromise != null) {
-      setDeferredRoster(null);
-    }
   }
   if (messagesPromise !== syncedMessagesPromise) {
     setSyncedMessagesPromise(messagesPromise);
@@ -789,28 +783,33 @@ function RoomView({
       setMessageLoadFailedState(messageLoadFailed);
     }
   }
-  if (rosterPromise !== syncedRosterPromise) {
-    setSyncedRosterPromise(rosterPromise);
-    if (rosterPromise == null) {
-      setDeferredRoster(null);
-    }
-  }
-  const organizationMembers =
-    rosterPromise != null
-      ? (deferredRoster?.organizationMembers ?? organizationMembersProp)
-      : organizationMembersProp;
-  const coworkers =
-    rosterPromise != null
-      ? (deferredRoster?.coworkers ?? coworkersProp)
-      : coworkersProp;
-  const sokoBots =
-    rosterPromise != null
-      ? (deferredRoster?.sokoBots ?? sokoBotsProp)
-      : sokoBotsProp;
-  const membersLoadFailed =
-    rosterPromise != null
-      ? (deferredRoster?.membersLoadFailed ?? membersLoadFailedProp)
-      : membersLoadFailedProp;
+  const activeOrganizationId = activeOrganization?.id ?? null;
+  const pageRoomForRoster =
+    rooms.find((room) => room.id === selectedRoomId) ?? null;
+  const organizationIdForRoster = pageRoomForRoster
+    ? isRoomOfWorkspace(pageRoomForRoster, activeOrganizationId)
+      ? activeOrganizationId
+      : pageRoomForRoster.organizationId
+    : activeOrganizationId;
+  const {
+    organizationMembers,
+    coworkers,
+    sokoBots,
+    membersLoadFailed,
+    ready: rosterReady,
+  } = useRoomShellRoster({
+    currentUserId,
+    workspaceId: activeOrganizationId,
+    roomId: selectedRoomId,
+    organizationIdForRoster,
+    rosterPromise,
+    fallback: {
+      organizationMembers: organizationMembersProp,
+      membersLoadFailed: membersLoadFailedProp,
+      coworkers: coworkersProp,
+      sokoBots: sokoBotsProp,
+    },
+  });
   const messagesPending = retained
     ? !retained.entry.resolved && !retained.entry.failed
     : deferredHistoryPending;
@@ -899,13 +898,6 @@ function RoomView({
     setDeferredHistoryPending(false);
     if (!page.failed) noteUnreadDivider(page);
   }, []);
-
-  const handleDeferredRosterResolved = useCallback(
-    (page: RoomShellRosterPage) => {
-      setDeferredRoster(page);
-    },
-    [],
-  );
 
   const [threadListOpen, setThreadListOpen] = useState(false);
   // Every event that can change how many threads in this room are unread: a
@@ -2239,7 +2231,7 @@ function RoomView({
       selectedRoom?.kind === "channel" || selectedRoom?.isGroupDirect
         ? selectedRoom.id
         : null,
-    ready: rosterPromise == null || deferredRoster != null,
+    ready: rosterReady,
     pathname,
     searchParams,
     replace: router.replace,
@@ -3199,12 +3191,6 @@ function RoomView({
     }
     const openRoomListBody = (
       <>
-        {rosterPromise ? (
-          <RoomShellRosterHydrator
-            promise={rosterPromise}
-            onResolved={handleDeferredRosterResolved}
-          />
-        ) : null}
         {messagesPromise ? (
           <RoomMessagesHydrator
             promise={messagesPromise}

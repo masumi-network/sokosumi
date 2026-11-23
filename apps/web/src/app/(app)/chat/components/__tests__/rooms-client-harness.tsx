@@ -216,6 +216,7 @@ vi.mock("@/app/chat/actions", () => ({
   listPinnedMessagesAction,
   listRoomMessagesAction,
   listThreadMessagesAction,
+  loadRoomShellRosterAction: vi.fn(),
   markThreadReadAction,
   pinRoomMessageAction,
   removeRoomMessageUnfurlAction,
