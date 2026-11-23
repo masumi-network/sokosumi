@@ -5,7 +5,6 @@ import type {
   DataRoomMember,
   DataRoomTreeRow,
 } from "@sokosumi/core-client";
-import { useInfiniteQuery } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +19,8 @@ import {
 import { cn } from "@/lib/utils";
 import { fetchDataRoomEvents } from "@/lib/utils/data-room.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
+import { driveQueryKeys, splitDriveQueryKey } from "@/queries/drive";
+import { useScopedInfiniteQuery } from "@/queries/scoped-queries";
 
 const EVERYONE = "everyone";
 
@@ -47,14 +48,17 @@ export function DataRoomActivity({
   const t = useTranslations("App.Drive.DataRoom.Activity");
   const format = useFormatter();
   const [memberId, setMemberId] = useState(EVERYONE);
-  const query = useInfiniteQuery({
-    queryKey: ["drive", "data-room", roomId, "events", memberId, store],
-    queryFn: ({ pageParam }) =>
+  const query = useScopedInfiniteQuery({
+    ...splitDriveQueryKey(
+      driveQueryKeys.dataRoomEvents(store, roomId, memberId),
+    ),
+    queryFn: ({ pageParam, signal }) =>
       fetchDataRoomEvents({
         store,
         roomId,
         ...(memberId === EVERYONE ? {} : { memberId }),
         ...(pageParam ? { before: pageParam } : {}),
+        signal,
       }),
     initialPageParam: "",
     getNextPageParam: (page) => page.nextBefore ?? undefined,
@@ -119,6 +123,7 @@ export function DataRoomActivity({
           size="sm"
           className="justify-self-center"
           loading={query.isFetchingNextPage}
+          disabled={query.isFetching && !query.isFetchingNextPage}
           onClick={() => void query.fetchNextPage()}
         >
           {t("more")}

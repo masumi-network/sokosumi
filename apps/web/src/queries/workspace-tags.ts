@@ -1,16 +1,13 @@
 "use client";
 
 import type { WorkspaceLabel } from "@sokosumi/core-client";
-import { useQuery } from "@tanstack/react-query";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import { fetchWorkspaceLabels } from "@/lib/utils/file-search.client";
+import { driveQueryKeys, splitDriveQueryKey } from "@/queries/drive";
+import { useScopedQuery } from "@/queries/scoped-queries";
 
 export function workspaceTagsQueryKey(organizationId: string | null) {
-  return [
-    "drive-tag-labels",
-    driveStoreForActiveWorkspace(organizationId).scope,
-    organizationId,
-  ] as const;
+  return driveQueryKeys.tags(driveStoreForActiveWorkspace(organizationId));
 }
 
 function activeTags(labels: WorkspaceLabel[]) {
@@ -24,11 +21,12 @@ export function useWorkspaceTags(
     enabled = true,
   }: { includeArchived?: boolean; enabled?: boolean } = {},
 ) {
-  return useQuery({
-    queryKey: workspaceTagsQueryKey(organizationId),
+  const store = driveStoreForActiveWorkspace(organizationId);
+  return useScopedQuery({
+    ...splitDriveQueryKey(driveQueryKeys.tags(store)),
     queryFn: ({ signal }) =>
       fetchWorkspaceLabels({
-        store: driveStoreForActiveWorkspace(organizationId),
+        store,
         kind: "TAG",
         includeArchived: true,
         signal,

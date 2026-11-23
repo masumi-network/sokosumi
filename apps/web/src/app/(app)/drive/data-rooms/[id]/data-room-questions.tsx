@@ -1,7 +1,7 @@
 "use client";
 
 import type { DataRoomQuestion, DataRoomTreeRow } from "@sokosumi/core-client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -19,7 +19,14 @@ import {
   fetchDataRoomQuestions,
 } from "@/lib/utils/data-room.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
+import {
+  cancelDriveQueries,
+  driveQueryKeys,
+  invalidateDrive,
+  splitDriveQueryKey,
+} from "@/queries/drive";
 import { NEEDS_YOU_DATA_ROOM_QUESTIONS_QUERY_KEY } from "@/queries/needs-you-data-room-questions";
+import { useScopedQuery } from "@/queries/scoped-queries";
 import { rowLabel } from "./data-room-activity";
 
 /** Viewers' questions about documents, each answerable in place. */
@@ -37,9 +44,9 @@ export function DataRoomQuestions({
 }) {
   const t = useTranslations("App.Drive.DataRoom.Questions");
   const queryClient = useQueryClient();
-  const query = useQuery({
-    queryKey: ["drive", "data-room", roomId, "questions", store],
-    queryFn: () => fetchDataRoomQuestions({ store, roomId }),
+  const query = useScopedQuery({
+    ...splitDriveQueryKey(driveQueryKeys.dataRoomQuestions(store, roomId)),
+    queryFn: ({ signal }) => fetchDataRoomQuestions({ store, roomId, signal }),
   });
 
   if (query.isError)
@@ -65,8 +72,8 @@ export function DataRoomQuestions({
           question={question}
           label={rowLabel(rows, question.path)}
           focused={question.id === focusQuestionId}
-          onAnswered={() => {
-            void query.refetch();
+          onAnswered={async () => {
+            await invalidateDrive(queryClient, store);
             // Needs you lists this question until it has an answer.
             void queryClient.invalidateQueries({
               queryKey: NEEDS_YOU_DATA_ROOM_QUESTIONS_QUERY_KEY,
@@ -91,10 +98,11 @@ function QuestionItem({
   question: DataRoomQuestion;
   label: string;
   focused: boolean;
-  onAnswered: () => void;
+  onAnswered: () => Promise<void>;
 }) {
   const t = useTranslations("App.Drive.DataRoom.Questions");
   const format = useFormatter();
+  const queryClient = useQueryClient();
   const [answer, setAnswer] = useState(question.answer ?? "");
   const [shared, setShared] = useState(question.sharedAt !== null);
   const [busy, setBusy] = useState(false);
@@ -129,6 +137,7 @@ function QuestionItem({
           if (!answer.trim()) return;
           setBusy(true);
           try {
+            await cancelDriveQueries(queryClient, store);
             await answerDataRoomQuestion({
               store,
               roomId,
@@ -137,7 +146,7 @@ function QuestionItem({
               shared,
             });
             toast.success(shared ? t("answeredShared") : t("answered"));
-            onAnswered();
+            await onAnswered();
           } catch (error) {
             toast.error(dataRoomRefusal(error) ?? t("answerFailed"));
           } finally {

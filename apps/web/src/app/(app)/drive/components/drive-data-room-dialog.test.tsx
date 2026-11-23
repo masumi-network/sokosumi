@@ -1,5 +1,7 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next-intl", () => ({
@@ -18,7 +20,15 @@ vi.mock("@/lib/utils/data-room.client", async (importOriginal) => ({
   ...api,
 }));
 
+import { driveQueryKeys } from "@/queries/drive";
 import { DriveDataRoomDialog } from "./drive-data-room-dialog";
+
+function renderWithClient(ui: ReactNode, client = new QueryClient()) {
+  return {
+    client,
+    ...render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>),
+  };
+}
 
 const store = { scope: "org" as const, organizationId: "org_1" };
 const room = {
@@ -45,7 +55,7 @@ describe("DriveDataRoomDialog", () => {
   it("makes the folder a data room and opens it to invite people", async () => {
     api.createDataRoom.mockResolvedValue({ ...room, storage: "moving_in" });
     const onChanged = vi.fn();
-    render(
+    const { client } = renderWithClient(
       <DriveDataRoomDialog
         store={store}
         folder={{ path: "Series A", name: "Series A", room: undefined }}
@@ -53,6 +63,7 @@ describe("DriveDataRoomDialog", () => {
         onChanged={onChanged}
       />,
     );
+    client.setQueryData(driveQueryKeys.dataRooms(store), []);
     expect(screen.getByText("makeDescriptionOrg")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "make" }));
     expect(api.createDataRoom).toHaveBeenCalledWith({
@@ -60,6 +71,9 @@ describe("DriveDataRoomDialog", () => {
       folderPath: "Series A",
     });
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
+    expect(
+      client.getQueryState(driveQueryKeys.dataRooms(store))?.isInvalidated,
+    ).toBe(true);
     expect(toast.success).toHaveBeenCalledWith("made");
     expect(router.push).toHaveBeenCalledWith(
       "/drive/data-rooms/room-1?invite=1",
@@ -70,7 +84,7 @@ describe("DriveDataRoomDialog", () => {
     api.createDataRoom.mockRejectedValue({
       message: "This folder holds a data room; a room cannot hold another",
     });
-    render(
+    renderWithClient(
       <DriveDataRoomDialog
         store={store}
         folder={{ path: "Deals", name: "Deals", room: undefined }}
@@ -89,7 +103,7 @@ describe("DriveDataRoomDialog", () => {
 
   it("closes a room only after the owner confirms", async () => {
     api.closeDataRoom.mockResolvedValue(undefined);
-    render(
+    const { client } = renderWithClient(
       <DriveDataRoomDialog
         store={store}
         folder={{ path: "Series A", name: "Series A", room }}
@@ -97,6 +111,7 @@ describe("DriveDataRoomDialog", () => {
         onChanged={() => {}}
       />,
     );
+    client.setQueryData(driveQueryKeys.dataRooms(store), [room]);
     expect(screen.getByText("storage.private")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "close" }));
     expect(api.closeDataRoom).not.toHaveBeenCalled();
@@ -109,10 +124,13 @@ describe("DriveDataRoomDialog", () => {
         roomId: "room-1",
       }),
     );
+    expect(
+      client.getQueryState(driveQueryKeys.dataRooms(store))?.isInvalidated,
+    ).toBe(true);
   });
 
   it("only points to the room from a folder inside it", () => {
-    render(
+    renderWithClient(
       <DriveDataRoomDialog
         store={store}
         folder={{ path: "Series A/Legal", name: "Legal", room }}

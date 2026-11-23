@@ -1,6 +1,7 @@
 "use client";
 
 import type { DataRoomMember, DataRoomTreeRow } from "@sokosumi/core-client";
+import { useQueryClient } from "@tanstack/react-query";
 import { UserPlus } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
@@ -28,6 +29,7 @@ import {
   removeDataRoomMember,
 } from "@/lib/utils/data-room.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
+import { cancelDriveQueries, invalidateDrive } from "@/queries/drive";
 import { DataRoomDateField } from "./data-room-date-field";
 
 /** Splits pasted addresses on commas, semicolons, spaces and new lines. */
@@ -54,12 +56,13 @@ export function DataRoomPeople({
   roomId: string;
   members: DataRoomMember[];
   rows: DataRoomTreeRow[];
-  onChanged: () => void;
+  onChanged?: () => void;
   /** Put the cursor in the invite field on arrival. */
   focusInvite?: boolean;
 }) {
   const t = useTranslations("App.Drive.DataRoom.People");
   const format = useFormatter();
+  const queryClient = useQueryClient();
   const emailsId = useId();
   const expiresId = useId();
   const emailsRef = useRef<HTMLTextAreaElement>(null);
@@ -79,6 +82,7 @@ export function DataRoomPeople({
     if (parsed.length === 0) return;
     setBusy(true);
     try {
+      await cancelDriveQueries(queryClient, store);
       await inviteToDataRoom({
         store,
         roomId,
@@ -86,11 +90,12 @@ export function DataRoomPeople({
         expiresAt,
         folderPaths: folders,
       });
+      await invalidateDrive(queryClient, store);
       toast.success(t("invited", { count: parsed.length }));
       setEmails("");
       setExpiresAt(null);
       setFolders([]);
-      onChanged();
+      onChanged?.();
     } catch (error) {
       toast.error(dataRoomRefusal(error) ?? t("inviteFailed"));
     } finally {
@@ -101,9 +106,11 @@ export function DataRoomPeople({
   async function handleRemove(member: DataRoomMember) {
     setBusy(true);
     try {
+      await cancelDriveQueries(queryClient, store);
       await removeDataRoomMember({ store, roomId, memberId: member.id });
+      await invalidateDrive(queryClient, store);
       toast.success(t("removed", { email: member.email }));
-      onChanged();
+      onChanged?.();
     } catch (error) {
       toast.error(dataRoomRefusal(error) ?? t("removeFailed"));
     } finally {

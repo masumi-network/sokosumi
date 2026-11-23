@@ -13,7 +13,7 @@ import {
   postDriveTasksCopy,
 } from "@sokosumi/core-client";
 import { getExtensionFromUrl } from "@sokosumi/utils";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown,
   ChevronRight,
@@ -175,9 +175,13 @@ import {
 } from "@/lib/utils/files-sort";
 import { formatBytes } from "@/lib/utils/format-bytes";
 import {
-  DRIVE_ITEMS_QUERY_KEY,
-  getDriveItemsQueryOptions,
+  cancelDriveQueries,
+  driveQueryKeys,
+  type InvalidateDriveOptions,
+  invalidateDrive,
+  splitDriveQueryKey,
 } from "@/queries/drive";
+import { useScopedQuery } from "@/queries/scoped-queries";
 import { driveNavParams } from "./drive-nav-params";
 
 const filesSortByParser = parseAsStringLiteral([...FILES_SORT_BY_VALUES]);
@@ -465,9 +469,9 @@ function DrivePageWorkspace({
     [allFilesOrganizationId],
   );
 
-  const dataRoomsQuery = useQuery({
-    queryKey: ["drive", "data-rooms", allFilesStore],
-    queryFn: () => fetchDataRooms(allFilesStore),
+  const dataRoomsQuery = useScopedQuery({
+    ...splitDriveQueryKey(driveQueryKeys.dataRooms(allFilesStore)),
+    queryFn: ({ signal }) => fetchDataRooms(allFilesStore, { signal }),
     enabled: isWorkspaceView,
   });
 
@@ -498,28 +502,11 @@ function DrivePageWorkspace({
     debouncedSetSearchQuery(value);
   }
 
-  /**
-   * Still fetched, and no longer rendered as a list.
-   *
-   * The Workspace tab shows the catalog, which lists files from the index
-   * rather than from the blob store. This listing is what the move dialog's
-   * destinations and the folder actions read, and what an upload invalidates,
-   * so it stays — it just stopped being a second list on the page.
-   */
-  useQuery({
-    ...getDriveItemsQueryOptions({
-      store: driveStore,
-      folder: currentFolder,
-      search: debouncedSearchQuery,
-      ...filesSortQuery,
-    }),
-    enabled: isWorkspaceView && !isTasksView,
-  });
   // The catalog renders its own skeleton, so the Workspace tab never uses this.
   const loading = isTasksView ? tasksLoading : false;
 
-  async function refreshDriveItems() {
-    await queryClient.invalidateQueries({ queryKey: DRIVE_ITEMS_QUERY_KEY });
+  async function refreshDriveItems(options?: InvalidateDriveOptions) {
+    await invalidateDrive(queryClient, driveStore, options);
     /**
      * And the catalog, which is the list a reader on this tab is looking at.
      *
@@ -529,9 +516,6 @@ function DrivePageWorkspace({
      * the store and appear nowhere until they searched for something.
      */
     setCatalogReloadToken((token) => token + 1);
-    // Core moves a room's path with a rename or move of it or of a folder
-    // above it; stale paths would mark the wrong folder as a data room.
-    await queryClient.invalidateQueries({ queryKey: ["drive", "data-rooms"] });
   }
 
   const loadTasksItems = useCallback(async () => {
@@ -852,6 +836,7 @@ function DrivePageWorkspace({
       return;
     }
 
+    await cancelDriveQueries(queryClient, driveStore);
     let uploaded = 0;
     let failed = 0;
     let duplicate = false;
@@ -922,6 +907,7 @@ function DrivePageWorkspace({
     }
 
     try {
+      await cancelDriveQueries(queryClient, driveStore);
       if (item.type === "file") {
         await patchDriveFilesRename({
           client: getBrowserCoreClient(),
@@ -984,6 +970,7 @@ function DrivePageWorkspace({
     }
 
     try {
+      await cancelDriveQueries(queryClient, driveStore);
       if (itemToDelete.type === "file") {
         await deleteDriveFilesDelete({
           client: getBrowserCoreClient(),
@@ -1004,11 +991,15 @@ function DrivePageWorkspace({
         });
       }
 
+      const deletedPathname =
+        itemToDelete.type === "file" ? itemToDelete.pathname : null;
       setDeleteDialogOpen(false);
       // A deleted folder cannot go on narrowing the catalog.
       if (itemToDelete.type === "folder") applyFolderFacet("");
       setItemToDelete(null);
-      await refreshDriveItems();
+      await refreshDriveItems(
+        deletedPathname ? { deletedIds: [deletedPathname] } : undefined,
+      );
       setRecentsReloadToken((token) => token + 1);
     } catch (err) {
       console.error(`Failed to delete ${itemToDelete.type}`, err);
@@ -1140,6 +1131,7 @@ function DrivePageWorkspace({
     setCreatingFolder(true);
     try {
       const targetFolder = snapshotFolder ?? currentFolder;
+      await cancelDriveQueries(queryClient, driveStore);
       const result = await postDriveFolders({
         client: getBrowserCoreClient(),
         body: {
@@ -1277,6 +1269,7 @@ function DrivePageWorkspace({
       if (filesToMove.length === 0) return;
       setMovingItem(true);
       try {
+        await cancelDriveQueries(queryClient, driveStore);
         await moveFiles(selectedDestination);
         setMoveDialogOpen(false);
         setFilesToMove([]);
@@ -1291,6 +1284,7 @@ function DrivePageWorkspace({
 
     setMovingItem(true);
     try {
+      await cancelDriveQueries(queryClient, driveStore);
       await patchDriveFilesMove({
         client: getBrowserCoreClient(),
         body: {
@@ -1335,6 +1329,7 @@ function DrivePageWorkspace({
 
     setCopying(true);
     try {
+      await cancelDriveQueries(queryClient, driveStore);
       await postDriveTasksCopy({
         client: getBrowserCoreClient(),
         body: {
@@ -2360,7 +2355,7 @@ function DrivePageWorkspace({
         store={driveStore}
         folder={currentFolder}
         onOpenChange={setLinkSheetDialogOpen}
-        onLinked={() => void refreshDriveItems()}
+        onLinked={() => setCatalogReloadToken((token) => token + 1)}
       />
 
       <DriveDataRoomDialog
@@ -2369,7 +2364,7 @@ function DrivePageWorkspace({
         onOpenChange={(open) => {
           if (!open) setDataRoomFolder(null);
         }}
-        onChanged={() => void dataRoomsQuery.refetch()}
+        onChanged={() => setCatalogReloadToken((token) => token + 1)}
       />
 
       {/* Outside any one view: Workspace's Upload menu, the phone FAB and

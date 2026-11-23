@@ -1,6 +1,7 @@
 "use client";
 
 import { postDriveFilesGoogleSheets } from "@sokosumi/core-client";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -17,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
+import { cancelDriveQueries, invalidateDrive } from "@/queries/drive";
 
 const SHEET_LINK = /^https:\/\/docs\.google\.com\/spreadsheets\/d\/[\w-]{20,}/;
 
@@ -35,9 +37,10 @@ export function DriveLinkSheetDialog({
   store: FileStore;
   folder: string;
   onOpenChange: (open: boolean) => void;
-  onLinked: () => void;
+  onLinked?: () => void;
 }) {
   const t = useTranslations("App.Drive.GoogleSheet");
+  const queryClient = useQueryClient();
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
@@ -59,27 +62,32 @@ export function DriveLinkSheetDialog({
     }
     setLinking(true);
     setError(null);
-    const result = await postDriveFilesGoogleSheets({
-      client: getBrowserCoreClient(),
-      body: { url: address, folder, ...store },
-      throwOnError: false,
-    });
-    setLinking(false);
-    if (result.data) {
-      toast.success(t("linked", { name: result.data.data.name }));
-      onLinked();
-      setUrl("");
-      onOpenChange(false);
-      return;
+    try {
+      await cancelDriveQueries(queryClient, store);
+      const result = await postDriveFilesGoogleSheets({
+        client: getBrowserCoreClient(),
+        body: { url: address, folder, ...store },
+        throwOnError: false,
+      });
+      if (result.data) {
+        await invalidateDrive(queryClient, store);
+        toast.success(t("linked", { name: result.data.data.name }));
+        onLinked?.();
+        setUrl("");
+        onOpenChange(false);
+        return;
+      }
+      const status = result.response?.status;
+      setError(
+        status === 409
+          ? t("nameTaken")
+          : status === 422
+            ? t("notShared")
+            : t("failed"),
+      );
+    } finally {
+      setLinking(false);
     }
-    const status = result.response?.status;
-    setError(
-      status === 409
-        ? t("nameTaken")
-        : status === 422
-          ? t("notShared")
-          : t("failed"),
-    );
   }
 
   return (

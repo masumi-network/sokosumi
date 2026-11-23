@@ -136,7 +136,8 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
   getBrowserCoreClient: () => ({ id: "browser-core-client" }),
 }));
 
-vi.mock("@sokosumi/core-client", () => ({
+vi.mock("@sokosumi/core-client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/core-client")>()),
   deleteDriveFilesDelete: vi.fn(),
   deleteDriveFoldersDelete: vi.fn(),
   getUsersByIdOrganizations: (...args: unknown[]) =>
@@ -165,6 +166,7 @@ vi.mock("@/lib/utils/drive-file-list.client", async (importOriginal) => {
 });
 
 const fetchWorkspaceFoldersMock = vi.fn();
+const fetchWorkspaceLabelsMock = vi.fn().mockResolvedValue([]);
 
 vi.mock("@/lib/utils/file-search.client", async (importOriginal) => {
   const actual =
@@ -173,14 +175,18 @@ vi.mock("@/lib/utils/file-search.client", async (importOriginal) => {
     ...actual,
     fetchWorkspaceFolders: (...args: unknown[]) =>
       fetchWorkspaceFoldersMock(...args),
+    fetchWorkspaceLabels: (...args: unknown[]) =>
+      fetchWorkspaceLabelsMock(...args),
   };
 });
 
 const fetchDataRoomsMock = vi.fn();
+const fetchDataRoomMock = vi.fn();
 
 vi.mock("@/lib/utils/data-room.client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/utils/data-room.client")>()),
   fetchDataRooms: (...args: unknown[]) => fetchDataRoomsMock(...args),
+  fetchDataRoom: (...args: unknown[]) => fetchDataRoomMock(...args),
 }));
 
 const fetchDriveTasksPageMock = vi.fn();
@@ -362,6 +368,7 @@ vi.mock("@/components/ui/document-viewer", () => ({
 }));
 
 import { toast } from "sonner";
+import { DataRoomClient } from "@/app/drive/data-rooms/[id]/data-room-client";
 import { DrivePageClient } from "@/app/drive/drive-page-client";
 import {
   FILES_VIEW_MODE_COOKIE_NAME,
@@ -369,6 +376,7 @@ import {
   parseFilesViewMode,
 } from "@/lib/ui-preferences/files-view-mode";
 import { DriveFileUploadError } from "@/lib/utils/drive-file-upload.client";
+import { driveQueryKeys } from "@/queries/drive";
 
 function filesViewModeFromDocumentCookie(): FilesViewMode {
   const value = document.cookie
@@ -429,7 +437,7 @@ function pendingSession() {
 }
 
 function listedStore() {
-  const options = listDriveItemsMock.mock.calls.at(-1)?.[0] as {
+  const options = fetchDataRoomsMock.mock.calls.at(-1)?.[0] as {
     scope: string;
     organizationId?: string;
   };
@@ -506,7 +514,7 @@ describe("DrivePage workspace remount", () => {
     const { rerender } = renderDrive();
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(fetchDataRoomsMock).toHaveBeenCalled();
     });
     expect(replaceMock).not.toHaveBeenCalled();
 
@@ -523,20 +531,20 @@ describe("DrivePage workspace remount", () => {
 
     const { rerender } = renderDrive();
 
-    expect(listDriveItemsMock).not.toHaveBeenCalled();
+    expect(fetchDataRoomsMock).not.toHaveBeenCalled();
 
     useSessionMock.mockReturnValue(sessionFor("org_a"));
     rerender(driveTree());
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(fetchDataRoomsMock).toHaveBeenCalled();
     });
 
     expect(listedStore()).toMatchObject({
       scope: "org",
       organizationId: "org_a",
     });
-    expect(listDriveItemsMock).toHaveBeenCalledTimes(1);
+    expect(fetchDataRoomsMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not remount as personal when the session briefly goes pending", async () => {
@@ -545,18 +553,18 @@ describe("DrivePage workspace remount", () => {
     const { rerender } = await act(async () => renderDrive());
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(fetchDataRoomsMock).toHaveBeenCalled();
     });
-    const callsAfterFirstLoad = listDriveItemsMock.mock.calls.length;
+    const callsAfterFirstLoad = fetchDataRoomsMock.mock.calls.length;
 
     useSessionMock.mockReturnValue(pendingSession());
     await act(async () => rerender(driveTree()));
     useSessionMock.mockReturnValue(sessionFor("org_a"));
     await act(async () => rerender(driveTree()));
 
-    expect(listDriveItemsMock).toHaveBeenCalledTimes(callsAfterFirstLoad);
+    expect(fetchDataRoomsMock).toHaveBeenCalledTimes(callsAfterFirstLoad);
     expect(
-      listDriveItemsMock.mock.calls.every(
+      fetchDataRoomsMock.mock.calls.every(
         ([options]) =>
           (options as { scope: string }).scope === "org" &&
           (options as { organizationId?: string }).organizationId === "org_a",
@@ -570,14 +578,14 @@ describe("DrivePage workspace remount", () => {
     const { rerender, unmount } = renderDrive();
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalledTimes(1);
+      expect(fetchDataRoomsMock).toHaveBeenCalledTimes(1);
     });
 
     useSessionMock.mockReturnValue(sessionFor("org_b"));
     rerender(driveTree());
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalledTimes(2);
+      expect(fetchDataRoomsMock).toHaveBeenCalledTimes(2);
     });
     expect(listedStore()).toMatchObject({
       scope: "org",
@@ -592,9 +600,9 @@ describe("DrivePage workspace remount", () => {
       expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
 
-    expect(listDriveItemsMock).toHaveBeenCalledTimes(2);
+    expect(fetchDataRoomsMock).toHaveBeenCalledTimes(2);
     expect(
-      listDriveItemsMock.mock.calls.filter(
+      fetchDataRoomsMock.mock.calls.filter(
         ([options]) =>
           (options as { organizationId?: string }).organizationId === "org_b",
       ),
@@ -904,12 +912,13 @@ describe("DrivePage recents view", () => {
 
   it("opens browse for legacy folder links without view=browse", async () => {
     searchParams = new URLSearchParams("folder=Reports");
-    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+    fetchDataRoomsMock.mockReset();
+    fetchDataRoomsMock.mockResolvedValue([]);
 
     renderDrive();
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
 
     expect(fetchDriveRecentsPageMock).not.toHaveBeenCalled();
@@ -921,7 +930,8 @@ describe("DrivePage recents view", () => {
 
   it("switches to browse when the browse tab is selected", async () => {
     const user = userEvent.setup();
-    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+    fetchDataRoomsMock.mockReset();
+    fetchDataRoomsMock.mockResolvedValue([]);
 
     renderDrive();
 
@@ -932,7 +942,7 @@ describe("DrivePage recents view", () => {
     await user.click(screen.getByRole("tab", { name: "workspaceTab" }));
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
   });
 });
@@ -1541,14 +1551,9 @@ describe("DrivePage files sort", () => {
     await user.click(screen.getByRole("tab", { name: "workspaceTab" }));
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
-    const browseCall = listDriveItemsMock.mock.calls.at(-1)?.[0] as Record<
-      string,
-      unknown
-    >;
-    expect(browseCall).not.toHaveProperty("sortBy");
-    expect(browseCall).not.toHaveProperty("sortOrder");
+    expect(listDriveItemsMock).not.toHaveBeenCalled();
     // The tab is the catalog, which this control would not order. Its presence
     // on the Tasks view is covered by the two cases above.
     expect(screen.queryByTestId("files-sort-trigger")).toBeNull();
@@ -1563,6 +1568,8 @@ describe("DrivePage workspace tab and breadcrumb root", () => {
     pushMock.mockReset();
     useSessionMock.mockReset();
     listDriveItemsMock.mockReset();
+    fetchDataRoomsMock.mockReset();
+    fetchDataRoomsMock.mockResolvedValue([]);
     listDataTablesMock.mockReset();
     fetchDriveTasksPageMock.mockReset();
     fetchDriveRecentsPageMock.mockReset();
@@ -1587,7 +1594,7 @@ describe("DrivePage workspace tab and breadcrumb root", () => {
     renderDrive();
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
 
     expect(screen.getByRole("tab", { name: "workspaceTab" })).toBeVisible();
@@ -1600,7 +1607,7 @@ describe("DrivePage workspace tab and breadcrumb root", () => {
     renderDrive();
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
 
     // The chip carried the organization name and an aria-label of its own.
@@ -1691,7 +1698,7 @@ describe("DrivePage workspace tab and breadcrumb root", () => {
     searchParams = new URLSearchParams("view=browse");
     renderDrive();
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
 
     assertHeaderRowHeightContract(headerRowControls());
@@ -1801,6 +1808,9 @@ describe("one catalog, not two", () => {
     pushMock.mockReset();
     useSessionMock.mockReset();
     listDriveItemsMock.mockReset();
+    fetchDataRoomsMock.mockReset();
+    fetchDataRoomsMock.mockResolvedValue([]);
+    fetchDataRoomMock.mockReset();
     getUsersByIdOrganizationsMock.mockReset();
     fetchDriveTasksPageMock.mockReset();
     fetchDriveRecentsPageMock.mockReset();
@@ -1961,6 +1971,129 @@ describe("one catalog, not two", () => {
     );
     expect(patchDriveFoldersRenameMock).toHaveBeenCalled();
     vi.unstubAllGlobals();
+  });
+
+  it("refetches both the data-room list and a mounted room detail after a Drive write", async () => {
+    const user = userEvent.setup();
+    const store = { scope: "org" as const, organizationId: "org_a" };
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    patchDriveFoldersRenameMock.mockReset();
+    patchDriveFoldersRenameMock.mockResolvedValue({});
+
+    fetchDataRoomsMock
+      .mockResolvedValueOnce([{ id: "room_1", folderPath: "Reports" }])
+      .mockResolvedValue([{ id: "room_1", folderPath: "Investors" }]);
+    fetchDataRoomMock
+      .mockResolvedValueOnce({
+        room: {
+          id: "room_1",
+          folderPath: "Reports",
+          title: "Reports Room",
+          storage: "private",
+          token: "tok",
+          createdByUserId: "user_1",
+        },
+        members: [],
+        rows: [],
+        colleagues: null,
+        canChooseColleagues: false,
+      })
+      .mockResolvedValue({
+        room: {
+          id: "room_1",
+          folderPath: "Investors",
+          title: "Investors Room",
+          storage: "private",
+          token: "tok",
+          createdByUserId: "user_1",
+        },
+        members: [],
+        rows: [],
+        colleagues: null,
+        canChooseColleagues: false,
+      });
+    vi.stubGlobal("prompt", () => "Investors");
+
+    render(
+      <NuqsTestingAdapter searchParams={searchParams} hasMemory>
+        <QueryClientProvider client={queryClient}>
+          <DrivePageClient defaultFilesViewMode="list" />
+          <DataRoomClient roomId="room_1" />
+        </QueryClientProvider>
+      </NuqsTestingAdapter>,
+    );
+
+    const panel = await screen.findByTestId("drive-all-files");
+    await waitFor(() => {
+      expect(panel).toHaveAttribute("data-room-paths", "Reports");
+      expect(
+        screen.getByRole("heading", { name: "Reports Room" }),
+      ).toBeVisible();
+    });
+    expect(
+      queryClient.getQueryData(driveQueryKeys.dataRooms(store)),
+    ).toBeDefined();
+    expect(
+      queryClient.getQueryData(driveQueryKeys.dataRoom(store, "room_1")),
+    ).toBeDefined();
+
+    await user.click(screen.getByTestId("files-rename-folder"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toHaveAttribute(
+        "data-room-paths",
+        "Investors",
+      );
+      expect(
+        screen.getByRole("heading", { name: "Investors Room" }),
+      ).toBeVisible();
+    });
+    expect(fetchDataRoomsMock).toHaveBeenCalledTimes(2);
+    expect(fetchDataRoomMock).toHaveBeenCalledTimes(2);
+    vi.unstubAllGlobals();
+  });
+
+  it("isolates the data-room list by store prefix so org A rooms never show under org B", async () => {
+    const orgBDeferred = Promise.withResolvers<Array<{ folderPath: string }>>();
+    searchParams = new URLSearchParams("view=workspace");
+    fetchDataRoomsMock
+      .mockResolvedValueOnce([{ folderPath: "OrgARoom" }])
+      .mockImplementationOnce(() => orgBDeferred.promise);
+
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+    const { rerender } = renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toHaveAttribute(
+        "data-room-paths",
+        "OrgARoom",
+      );
+    });
+    expect(
+      queryClient.getQueryData(
+        driveQueryKeys.dataRooms({ scope: "org", organizationId: "org_a" }),
+      ),
+    ).toEqual([{ folderPath: "OrgARoom" }]);
+
+    useSessionMock.mockReturnValue(sessionFor("org_b"));
+    rerender(driveTree());
+
+    expect(screen.getByTestId("drive-all-files")).toHaveAttribute(
+      "data-room-paths",
+      "",
+    );
+
+    await act(async () => {
+      orgBDeferred.resolve([{ folderPath: "OrgBRoom" }]);
+      await orgBDeferred.promise;
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toHaveAttribute(
+        "data-room-paths",
+        "OrgBRoom",
+      );
+    });
   });
 
   it("offers no folder actions when no folder is applied", async () => {

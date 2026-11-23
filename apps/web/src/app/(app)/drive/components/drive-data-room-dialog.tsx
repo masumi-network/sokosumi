@@ -1,6 +1,7 @@
 "use client";
 
 import type { DataRoom } from "@sokosumi/core-client";
+import { useQueryClient } from "@tanstack/react-query";
 import { LockKeyhole } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -31,6 +32,7 @@ import {
   dataRoomRefusal,
 } from "@/lib/utils/data-room.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
+import { cancelDriveQueries, invalidateDrive } from "@/queries/drive";
 
 export interface DriveDataRoomFolder {
   path: string;
@@ -55,22 +57,29 @@ export function DriveDataRoomDialog({
   store: FileStore;
   folder: DriveDataRoomFolder | null;
   onOpenChange: (open: boolean) => void;
-  onChanged: () => void;
+  onChanged?: () => void;
 }) {
   const t = useTranslations("App.Drive.DataRoom");
+  const queryClient = useQueryClient();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
   const room = folder?.room;
   const isRoot = room?.folderPath === folder?.path;
 
-  async function run(action: () => Promise<unknown>, done: string) {
+  async function run(
+    action: () => Promise<(() => void) | undefined | void>,
+    done: string,
+  ) {
     setBusy(true);
     try {
-      await action();
+      await cancelDriveQueries(queryClient, store);
+      const after = await action();
+      await invalidateDrive(queryClient, store);
       toast.success(done);
-      onChanged();
+      onChanged?.();
       onOpenChange(false);
+      after?.();
     } catch (error) {
       toast.error(dataRoomRefusal(error) ?? t("saveFailed"));
     } finally {
@@ -133,7 +142,8 @@ export function DriveDataRoomDialog({
                     store,
                     folderPath: folder.path,
                   });
-                  router.push(`/drive/data-rooms/${made.id}?invite=1`);
+                  return () =>
+                    router.push(`/drive/data-rooms/${made.id}?invite=1`);
                 }, t("made"))
               }
             >
