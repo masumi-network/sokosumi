@@ -174,12 +174,13 @@ export function toImportantChats(
  * first. The row shows and is dated by the question itself, so a bot post
  * today does not make an older question look new. Nothing when the question
  * is over a day old, when the reader never asked, or when an unread row from
- * that room is already listed: that one points at what is new.
+ * that room is already listed: that one points at what is new. The reader
+ * wrote the question, so `reader.from` names them and the bot ("You to Juno").
  */
 export function withSokoBotChat(
   chats: SokoBotHomeChat[],
   botRoom: { roomId: string; messages: readonly ChatRoomMessage[] } | null,
-  reader: { userId: string; botName: string; untitled: string },
+  reader: { userId: string; from: string; untitled: string },
   now: Date,
 ): SokoBotHomeChat[] {
   if (!botRoom || chats.some((chat) => chat.roomId === botRoom.roomId)) {
@@ -200,7 +201,7 @@ export function withSokoBotChat(
       roomId: botRoom.roomId,
       messageId: question.id,
       title: buildChatMessagePreview(question.content) || reader.untitled,
-      from: reader.botName,
+      from: reader.from,
       at: question.createdAt,
     },
   ];

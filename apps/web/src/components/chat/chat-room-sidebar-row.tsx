@@ -88,6 +88,7 @@ import {
 } from "@/components/ui/sidebar";
 import {
   SIDEBAR_ROW_LABEL_CLASS,
+  SIDEBAR_ROW_LABEL_INSET_CLASS,
   SIDEBAR_ROW_LINK_CLASS,
 } from "@/components/ui/sidebar-classes";
 import { cn } from "@/lib/utils";
@@ -126,6 +127,11 @@ export interface ChatRoomSidebarRowProps {
   label: string;
   /** Optional secondary line (e.g. host org name on External guest rows). */
   subtitle?: string;
+  /**
+   * Shown at the end of the name's line, e.g. your Soko Bot's status on its
+   * Direct. Hidden from assistive technology: the leading mark announces it.
+   */
+  status?: ReactNode;
   isActive: boolean;
   leading: ReactNode;
   onRoomUpdated: (room: ChatRoom) => void;
@@ -246,11 +252,67 @@ function MentionBadge({
   );
 }
 
+/**
+ * The name, then a status at the end of its line. Hidden from assistive
+ * technology: the row's leading mark announces the status, in full.
+ *
+ * In a narrow row the status gives way first, ending in an ellipsis and then
+ * going altogether, so the name keeps the line and stays whole. A translated
+ * status runs long ("Konnte nicht antworten" beside a focused row's menu in a
+ * 192px sidebar), and a row whose name is cut off no longer says who the
+ * Direct is with. `RoomRowStatusReveal` shows what was cut.
+ */
+export function RoomRowNameLine({
+  name,
+  status,
+}: {
+  name: ReactNode;
+  status: ReactNode;
+}) {
+  return (
+    <span className="flex min-w-0 items-baseline gap-2">
+      <span className="flex max-w-full min-w-0 shrink-0">{name}</span>
+      {/* `pr-1`: the menu button beside the row draws its focus ring 4px
+          outside its box (`ring-2` + `ring-offset-2`), and the label ends
+          at that box. The gap keeps the ring off the status's last letters. */}
+      <span aria-hidden className="ml-auto flex min-w-0 pr-1">
+        {status}
+      </span>
+    </span>
+  );
+}
+
+/**
+ * The status in full, on its own line under the row while the row's link has
+ * keyboard focus, so a status the name line shortened or dropped can still be
+ * read. In the flow, not over it: the rows below move down rather than being
+ * covered, so there is nothing to dismiss. Starts on the label column and
+ * wraps inside the sidebar. Hidden from assistive technology like the line
+ * itself: the link's name already carries the full words.
+ *
+ * Must directly follow the row's `peer/room-row` box.
+ */
+export function RoomRowStatusReveal({ status }: { status: ReactNode }) {
+  return (
+    <span
+      aria-hidden
+      data-slot="room-status-reveal"
+      className={cn(
+        SIDEBAR_ROW_LABEL_INSET_CLASS,
+        "hidden pr-2 pb-1 peer-has-[a:focus-visible]/room-row:block *:overflow-visible *:whitespace-normal",
+      )}
+    >
+      {status}
+    </span>
+  );
+}
+
 export function ChatRoomSidebarRow({
   room,
   href,
   label,
   subtitle,
+  status,
   isActive: routeIsActive,
   leading,
   onRoomUpdated,
@@ -415,6 +477,18 @@ export function ChatRoomSidebarRow({
     </DropdownMenuItem>
   );
 
+  const name = (
+    <span
+      className={cn(
+        "block min-w-0 truncate",
+        bold && "font-semibold text-foreground",
+        isMuted && !isCurrent && "text-muted-foreground",
+      )}
+    >
+      {label}
+    </span>
+  );
+
   const roomLink = (
     <Link
       aria-current={isCurrent ? "page" : undefined}
@@ -435,15 +509,7 @@ export function ChatRoomSidebarRow({
             It is drawn in the trailing cluster now, so only its announcement
             is left here, and a counted row must not keep a hole after the
             name for text nobody sees. */}
-        <span
-          className={cn(
-            "block min-w-0 truncate",
-            bold && "font-semibold text-foreground",
-            isMuted && !isCurrent && "text-muted-foreground",
-          )}
-        >
-          {label}
-        </span>
+        {status ? <RoomRowNameLine name={name} status={status} /> : name}
         {hasTile ? (
           <span className="sr-only">
             {tChannels("inWorkspace", { workspace: workspaceName })}
@@ -536,7 +602,10 @@ export function ChatRoomSidebarRow({
       {/* The row proper. Its marks and trailing cluster are centred on this
           box, and its hover reveals its own menu, so neither can drift onto
           the inset thread rows that follow it inside the same item. */}
-      <div data-slot="room-row-main" className="group/room-row relative">
+      <div
+        data-slot="room-row-main"
+        className="group/room-row peer/room-row relative"
+      >
         {roomButton}
         <div data-slot="room-trailing" className={TRAILING_CLUSTER_CLASS}>
           {hasTile ? (
@@ -675,6 +744,7 @@ export function ChatRoomSidebarRow({
           </div>
         </div>
       </div>
+      {status ? <RoomRowStatusReveal status={status} /> : null}
 
       {/* Room mute outranks everything a room can hold, so a muted room lists
           nothing. Reorder mode moves rows, and rows of differing height under

@@ -179,7 +179,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           chats={withSokoBotChat(
             toImportantChats(important, untitled),
             botRoom,
-            { userId, botName, untitled },
+            { userId, from: tHome("youTo", { name: botName }), untitled },
             now,
           )}
           schedules={toNewSchedules(sokoBot.schedules ?? [], now)}

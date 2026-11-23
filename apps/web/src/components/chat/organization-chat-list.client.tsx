@@ -19,6 +19,7 @@ import {
   useRoomWorkspaceName,
 } from "@/app/chat/components/use-room-display-name";
 import { canManageChannelSettings } from "@/app/chat/utils/channel-member-permissions";
+import { SokoBotStatusLine } from "@/components/soko-bot/soko-bot-status-line";
 import { Collapsible } from "@/components/ui/collapsible";
 import {
   SidebarGroup,
@@ -65,12 +66,14 @@ import {
   ChatUnreadsFilterChip,
 } from "./chat-unread-nav-rows";
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
+import { isDirectWithSokoBot } from "./direct-room-participants";
 import { limitSidebarChannels } from "./limit-sidebar-section-rooms";
 import {
   listOrganizationChatRoomsAction,
   reorderPinnedOrganizationChatRoomsAction,
 } from "./organization-chat-list.actions";
 import { partitionRoomsForSidebar } from "./partition-rooms-for-sidebar";
+import { useLiveSokoBotStatus } from "./personal-assistant-chrome-store";
 import {
   resolveChatsAttention,
   resolveSectionAttention,
@@ -134,6 +137,7 @@ export function OrganizationChatList({
   const roomDisplayName = useRoomDisplayName();
   const tExternal = useTranslations("App.Channels.External");
   const tActions = useTranslations("App.Channels.Actions");
+  const liveSokoBot = useLiveSokoBotStatus();
   const roomWorkspaceName = useRoomWorkspaceName();
   const pathname = usePathname();
   const selectedPath = useRoomSelection();
@@ -422,6 +426,12 @@ export function OrganizationChatList({
               organization: room.organizationName,
             })
           : undefined,
+      status:
+        isDirect &&
+        liveSokoBot &&
+        isDirectWithSokoBot(room, currentUserId, liveSokoBot.id) ? (
+          <SokoBotStatusLine bot={liveSokoBot} />
+        ) : undefined,
       isActive: activeRoomId === room.id,
       leading: isDirect ? (
         <DirectRoomAvatarStack room={room} currentUserId={currentUserId} />

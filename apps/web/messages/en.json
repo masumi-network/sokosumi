@@ -1798,6 +1798,7 @@
           "quietDay": "Nothing moved yet. Ask {name} to start something.",
           "newSchedule": "New schedule for {name}",
           "open": "Open",
+          "youTo": "You to {name}",
           "suggestions": {
             "catchUp": "Catch me up",
             "teamWins": "What did we finish?",

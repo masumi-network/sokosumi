@@ -1,10 +1,11 @@
+import { SokoBotStatus } from "@sokosumi/core-client";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
   clearPersonalAssistantChromeVisible,
-  getFailedSokoBotId,
+  getLiveSokoBot,
   getPersonalAssistantChromeVisible,
-  publishFailedSokoBotId,
+  publishLiveSokoBot,
   publishPersonalAssistantChromeVisible,
   subscribePersonalAssistantChromeVisible,
 } from "./personal-assistant-chrome-store";
@@ -38,28 +39,29 @@ describe("personal-assistant-chrome-store", () => {
     unsubscribe();
   });
 
-  it("keeps failedSokoBotId active until every failing publisher clears", () => {
-    expect(getFailedSokoBotId()).toBeNull();
+  it("keeps the live Soko Bot until every publisher clears", () => {
+    expect(getLiveSokoBot()).toBeNull();
 
     let calls = 0;
     const unsubscribe = subscribePersonalAssistantChromeVisible(() => {
       calls += 1;
     });
 
-    const clearFirst = publishFailedSokoBotId("bot-1");
-    const clearSecond = publishFailedSokoBotId("bot-1");
+    const clearFirst = publishLiveSokoBot(idle("bot-1"));
+    const clearSecond = publishLiveSokoBot(idle("bot-1"));
     try {
-      expect(getFailedSokoBotId()).toBe("bot-1");
+      expect(getLiveSokoBot()).toEqual(idle("bot-1"));
+      // The same bot again is no change.
       expect(calls).toBe(1);
 
       clearFirst();
       // Clearing the same publisher twice is a no-op and must not clear the second.
       clearFirst();
-      expect(getFailedSokoBotId()).toBe("bot-1");
+      expect(getLiveSokoBot()?.id).toBe("bot-1");
       expect(calls).toBe(1);
 
       clearSecond();
-      expect(getFailedSokoBotId()).toBeNull();
+      expect(getLiveSokoBot()).toBeNull();
       expect(calls).toBe(2);
     } finally {
       clearFirst();
@@ -68,20 +70,31 @@ describe("personal-assistant-chrome-store", () => {
     }
   });
 
-  it("falls back to a remaining publisher when two failed bot ids overlap", () => {
-    const clearFirst = publishFailedSokoBotId("bot-1");
-    const clearSecond = publishFailedSokoBotId("bot-2");
+  it("follows the newest publisher and falls back when it clears", () => {
+    const clearFirst = publishLiveSokoBot(idle("bot-1"));
+    const clearSecond = publishLiveSokoBot({
+      ...idle("bot-1"),
+      status: SokoBotStatus.ERROR,
+    });
     try {
-      expect(getFailedSokoBotId()).toBe("bot-2");
+      expect(getLiveSokoBot()?.status).toBe(SokoBotStatus.ERROR);
 
       clearSecond();
-      expect(getFailedSokoBotId()).toBe("bot-1");
+      expect(getLiveSokoBot()?.status).toBe(SokoBotStatus.IDLE);
 
       clearFirst();
-      expect(getFailedSokoBotId()).toBeNull();
+      expect(getLiveSokoBot()).toBeNull();
     } finally {
       clearFirst();
       clearSecond();
     }
   });
 });
+
+function idle(id: string) {
+  return {
+    id,
+    status: SokoBotStatus.IDLE,
+    lastActivityAt: new Date("2026-11-22T10:00:00Z"),
+  };
+}

@@ -4,20 +4,12 @@ import { AnnouncedFeature, SokoBotStatus } from "@sokosumi/core-client";
 import { avatarStateOf } from "@sokosumi/soko-bot";
 import { Bot, Users } from "lucide-react";
 import Link from "next/link";
-import { useFormatter, useTranslations } from "next-intl";
-import { type ReactNode, Suspense, use } from "react";
-import { browser } from "react-dom";
+import { useTranslations } from "next-intl";
 import { useNavPathname } from "@/components/navigation-progress.client";
-import {
-  useFormatShortTimeAgo,
-  useSharedNow,
-} from "@/components/short-time-ago";
 import { BotFace } from "@/components/soko-bot/bot-face";
 import { SOKO_BOT_STATUS_TONE } from "@/components/soko-bot/soko-bot-badges";
-import {
-  STATUS_TONE_DOT_CLASS,
-  statusToneTextClass,
-} from "@/components/soko-bot/status-badge";
+import { SokoBotStatusLine } from "@/components/soko-bot/soko-bot-status-line";
+import { STATUS_TONE_DOT_CLASS } from "@/components/soko-bot/status-badge";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarGroup,
@@ -169,7 +161,7 @@ function LiveSokoBotRow({ bot: rendered }: { bot: SidebarSokoBotLive }) {
                 />
               </span>
               <span className="sr-only">, </span>
-              <StatusLine bot={bot} />
+              <SokoBotStatusLine bot={bot} />
             </span>
             {/* Holds the label clear of the team link drawn over the end. */}
             <span aria-hidden className="w-7 shrink-0" />
@@ -196,67 +188,6 @@ function LiveSokoBotRow({ bot: rendered }: { bot: SidebarSokoBotLive }) {
       </div>
     </SidebarMenuItem>
   );
-}
-
-/**
- * What the bot is doing, in the tone the Soko Bot status badge paints it.
- * The words are the sidebar's where a row says more than the badge's one
- * word ("Working now", when an idle bot was last active), and the badge's
- * own where they agree ("Paused", "Couldn't reply"): a failed reply reads the
- * same here, on the bot's page and on its Direct in the chat list.
- */
-function StatusLine({ bot }: { bot: SidebarSokoBotLive }) {
-  const t = useTranslations("App.Sidebar.Content.SokoBot");
-  const tStatus = useTranslations("Components.SokoBot.BotStatus");
-  const text: Record<SokoBotStatus, ReactNode> = {
-    [SokoBotStatus.RUNNING]: t("workingNow"),
-    [SokoBotStatus.PAUSED]: tStatus(SokoBotStatus.PAUSED),
-    [SokoBotStatus.ERROR]: tStatus(SokoBotStatus.ERROR),
-    [SokoBotStatus.IDLE]: bot.lastActivityAt ? (
-      <LastActive at={bot.lastActivityAt} />
-    ) : (
-      t("ready")
-    ),
-  };
-
-  return (
-    <span
-      data-slot="soko-bot-status-line"
-      className={cn(
-        "truncate text-xs leading-tight",
-        statusToneTextClass(SOKO_BOT_STATUS_TONE[bot.status]),
-      )}
-    >
-      {text[bot.status]}
-    </span>
-  );
-}
-
-/**
- * "Active 2h ago", in the short form Home's rows use and on their clock. The
- * server sends the time of day instead ("Active 9:34 PM"): its clock and the
- * browser's differ by the load, so a relative label from each would not
- * hydrate (React #418), and a date as well would not fit the row.
- */
-export function LastActive({ at }: { at: Date }) {
-  const t = useTranslations("App.Sidebar.Content.SokoBot");
-  const formatter = useFormatter();
-
-  return (
-    <Suspense
-      fallback={t("activeAgo", { time: formatter.dateTime(at, "time") })}
-    >
-      <LastActiveRelative at={at} />
-    </Suspense>
-  );
-}
-
-function LastActiveRelative({ at }: { at: Date }) {
-  use(browser());
-  const t = useTranslations("App.Sidebar.Content.SokoBot");
-  const formatShortTimeAgo = useFormatShortTimeAgo();
-
-  return t("activeAgo", { time: formatShortTimeAgo(at, useSharedNow()) });
 }
 
 /**
