@@ -1366,8 +1366,12 @@ export interface CreateShortVideoJobInput {
   voice: string;
   /** ISO 639-1 language of the script. */
   languageCode: string;
-  /** The studio's pictures and Files images the short shows, in order. */
-  pictures: { assetIds: string[]; fileIds: string[]; actor: FileActor };
+  /**
+   * The studio's pictures and Files images the short shows, in order. A
+   * person's request names who reads the Files, checked at once; Core's
+   * month media is checked when the short is sent.
+   */
+  pictures: { assetIds: string[]; fileIds: string[]; actor?: FileActor };
   idempotencyKey: string;
 }
 

@@ -19,6 +19,11 @@ import {
 } from "@/services/cmo-cuso.service";
 import { listCmoReports } from "@/services/cmo-reports.service";
 import {
+  cmoReadsSitePages,
+  cmoSitePagesContext,
+  readCmoSitePages,
+} from "@/services/cmo-site-pages.service";
+import {
   CMO_VISIBLE_CALENDAR_DAYS,
   calendarBounds,
   cmoWorkingStrategy,
@@ -178,11 +183,25 @@ export async function loadCmoMarketingContext(
         learnings: report.learnings ?? [],
       })),
   };
+  const { versionId } =
+    (await prisma.sokoBot.findUnique({
+      where: { id: sokoBotId },
+      select: { versionId: true },
+    })) ?? {};
+  if (cmoReadsSitePages(versionId)) {
+    const site = await readCmoSitePages(cuso.projectId).catch(() => null);
+    /** Every page of the site: read a page's note with read_file. */
+    if (site && site.pages.length > 0)
+      context.sitePages = cmoSitePagesContext(site.pages, site.complete);
+  }
   if (competitorMoves.length > 0)
     /** The competitor feed's moves of about the last month, newest first. */
     context.competitorMoves = competitorMoves;
   return fitCmoMarketingContext(context, now);
 }
+
+/** Site pages Cuso's context keeps when the packet is tight. */
+const SITE_PAGES_WHEN_TIGHT = 10;
 
 /** Weekly reviews whose learnings Cuso sees: about a month. */
 const WEEKLY_LEARNINGS = 4;
@@ -294,6 +313,25 @@ export function fitCmoMarketingContext(
     return { ...current, [part]: { ...kept, storedNotShown: stored } };
   };
   const steps: ((current: MarketingContext) => MarketingContext)[] = [
+    // The site's pages first: each one's note is a read_file away.
+    (current) => {
+      const site = current.sitePages as
+        | { complete: boolean; pages: string[] }
+        | undefined;
+      return site && site.pages.length > SITE_PAGES_WHEN_TIGHT
+        ? {
+            ...current,
+            sitePages: {
+              ...site,
+              pages: site.pages.slice(0, SITE_PAGES_WHEN_TIGHT),
+              more:
+                site.pages.length -
+                SITE_PAGES_WHEN_TIGHT +
+                ((site as { more?: number }).more ?? 0),
+            },
+          }
+        : current;
+    },
     (current) =>
       calendar(
         current,

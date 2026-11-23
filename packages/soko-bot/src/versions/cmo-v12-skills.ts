@@ -6,10 +6,15 @@ import type { SokoBotSkill } from "./skills.js";
  * when a small market has no measured volume, and articles written on request.
  */
 export const CMO_SEO_REPORTS_SKILL = "cmo-seo-reports";
+/** cmo-v20's SEO skill: the weekly report in plain words. */
+export const CMO_SEO_PLAIN_SKILL = "cmo-seo-reports-plain";
 
 /** Whether a Cuso version reports on SEO after each weekly audit (cmo-v12 on). */
 export function cmoReportsSeo(skills: readonly string[]): boolean {
-  return skills.includes(CMO_SEO_REPORTS_SKILL);
+  return (
+    skills.includes(CMO_SEO_REPORTS_SKILL) ||
+    skills.includes(CMO_SEO_PLAIN_SKILL)
+  );
 }
 
 /** What Core starts a cmo-v12 Cuso with after each weekly audit. */
@@ -71,6 +76,23 @@ A full audit of the site runs every week, 750 credits, included in the owner's C
 
 Call it the SEO specialist or the SEO check. Never name the tools, Tasks, Coworkers or any other product to the owner.
 `;
+
+const PLAIN = `
+
+## Plain words for search
+
+The owner is not a web developer and has two minutes. Say what happened on Google in their words: how many people found the site, how many clicked, and the place on Google, never "impressions", "average position" or "CTR". The audit's technical fixes (links between pages, old addresses that forward, page code, hidden labels for Google, loading) are for whoever builds the site: say how many there are and that they are on the SEO page under "For whoever builds your site", ready to copy and send on. Never explain them or use their technical words (crawl, redirect, internal link, structured data, markup, JSON-LD, schema, indexed, canonical).
+`;
+
+/** cmo-v20's SEO skill: the weekly report and every SEO answer in the owner's words. */
+export function seoPlain(reports: SokoBotSkill): SokoBotSkill {
+  return {
+    ...reports,
+    id: CMO_SEO_PLAIN_SKILL,
+    description: `${reports.description} Says it in plain words and leaves the technical fixes to whoever builds the site.`,
+    content: `${reports.content}${PLAIN}`,
+  };
+}
 
 /** `base` is the cmo-seo skill every Cuso before cmo-v12 reads. */
 export function seoReports(base: SokoBotSkill): SokoBotSkill {
