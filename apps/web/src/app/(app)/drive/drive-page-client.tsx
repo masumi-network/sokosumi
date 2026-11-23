@@ -1001,6 +1001,7 @@ function DrivePageWorkspace({
       );
       setRecentsReloadToken((token) => token + 1);
     } catch (err) {
+      void invalidateDrive(queryClient, driveStore);
       console.error(`Failed to delete ${itemToDelete.type}`, err);
       toast.error(
         itemToDelete.type === "folder"

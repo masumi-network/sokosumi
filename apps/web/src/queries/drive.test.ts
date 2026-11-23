@@ -64,6 +64,15 @@ describe("driveQueryKeys", () => {
       "google-sheet",
       "res_1",
     ]);
+    expect(driveQueryKeys.picker(orgA)).toEqual([
+      orgA,
+      "drive",
+      "picker",
+      { folder: "", q: "" },
+    ]);
+    expect(
+      driveQueryKeys.picker(orgA, { folder: "docs", q: "  report  " }),
+    ).toEqual([orgA, "drive", "picker", { folder: "docs", q: "report" }]);
     expect(driveQueryKeys.tags(orgA)).toEqual([orgA, "drive", "tags"]);
   });
 

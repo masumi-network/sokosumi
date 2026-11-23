@@ -21,7 +21,12 @@ import {
   socialPostTextLimit,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
-import { type Query, useQueries, useQuery } from "@tanstack/react-query";
+import {
+  type Query,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Check, Plus } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
@@ -73,6 +78,7 @@ import {
   isDriveFileUploadDuplicate,
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
+import { invalidateDrive } from "@/queries/drive";
 import {
   accountChipLabel,
   formatComposerHandle,
@@ -290,6 +296,7 @@ export function SocialPostComposerDialog({
   const enabledConnections = connections.filter((connection) =>
     isProviderEnabled(connection.provider),
   );
+  const queryClient = useQueryClient();
   const driveStore = driveStoreForActiveWorkspace(organizationId);
 
   const [copy, setCopy] = useState<SocialPostComposerText>({
@@ -889,6 +896,7 @@ export function SocialPostComposerDialog({
     file: File,
     attached: SocialPostMediaRef[],
     partId: string | null,
+    onUploaded?: () => void,
   ): Promise<SocialPostMediaRef | null> {
     const candidate = buildSocialPostMediaRef({
       name: file.name,
@@ -911,6 +919,7 @@ export function SocialPostComposerDialog({
     }
     try {
       const uploaded = await uploadDriveFile(file, driveStore);
+      onUploaded?.();
       const ref = buildSocialPostMediaRef({
         name: file.name,
         size: file.size,
@@ -942,14 +951,20 @@ export function SocialPostComposerDialog({
     mediaTargetRef.current = partId;
     setUploadPending(true);
     let attached = attachedMedia(partId);
+    let uploadedAny = false;
     try {
       for (const file of files) {
-        const ref = await uploadOne(file, attached, partId);
-        if (ref) attached = [...attached, ref];
+        const ref = await uploadOne(file, attached, partId, () => {
+          uploadedAny = true;
+        });
+        if (ref) {
+          attached = [...attached, ref];
+        }
       }
     } finally {
       uploadInFlightRef.current = false;
       setUploadPending(false);
+      if (uploadedAny) void invalidateDrive(queryClient, driveStore);
     }
   }
 

@@ -6,6 +6,7 @@ import type {
   FileSearchMeta,
   WorkspaceLabel,
 } from "@sokosumi/core-client";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Bookmark,
   FolderInput,
@@ -65,6 +66,7 @@ import {
   fetchWorkspaceLabels,
   updateFileCollection,
 } from "@/lib/utils/file-search.client";
+import { invalidateDrive } from "@/queries/drive";
 import * as moves from "./drive-all-files-moves";
 import { mergeLoadedFilePage } from "./drive-all-files-panel.utils";
 import { DriveCollectionChip } from "./drive-collection-chip";
@@ -198,6 +200,7 @@ export function DriveAllFilesPanel({
   reloadToken = 0,
 }: DriveAllFilesPanelProps) {
   const t = useTranslations("App.Drive.Files");
+  const queryClient = useQueryClient();
 
   // "See all files" in global search navigates to `/drive?view=all&q=…`.
   // The panel used to start empty and drop it, so the reader arrived at an
@@ -680,6 +683,8 @@ export function DriveAllFilesPanel({
     try {
       const failedIds = await moves.deleteUploads(targets, setState);
       const deleted = targets.length - failedIds.length;
+      // Core can remove a blob and then fail, so a failed request may still have deleted it.
+      void invalidateDrive(queryClient, store);
       if (failedIds.length === 0) {
         toast.success(t("bulkDeleted", { count: deleted }));
         if (!mustReload && sequenceRef.current === searchAtStart) return;
