@@ -12,7 +12,7 @@ import {
   type OAuthCredentials,
 } from "../../src/auth/auth-manager.js";
 import type { BrowserLoginOptions } from "../../src/auth/oauth.js";
-import { formatUnknownCommandUsage } from "../../src/cli/commands/discover.js";
+import { formatUnknownCommandUsage } from "../../src/cli/commands/catalog.js";
 
 const binPath = fileURLToPath(
   new URL("../../bin/sokosumi.ts", import.meta.url),
