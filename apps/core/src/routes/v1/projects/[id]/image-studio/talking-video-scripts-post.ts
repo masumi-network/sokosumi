@@ -62,6 +62,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       projectId,
       topic: input.topic,
       languageCode: input.languageCode,
+      format: input.format,
     }).catch((error: unknown) => {
       if (error instanceof AiGatewayBudgetError)
         throw aiBudgetUnavailable(error);

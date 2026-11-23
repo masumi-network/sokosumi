@@ -42,15 +42,24 @@ function Frame({ image, children }: { image?: string; children?: ReactNode }) {
   );
 }
 
-/** The video as it will look: the presenter, with the script as captions. */
+/**
+ * The video as it will look: the presenter or the first picture, with the
+ * words shown first and the script as captions.
+ */
 export function StagePreview({
   image,
   script,
   missingPhoto,
+  hookLine,
+  captions = true,
 }: {
   image?: string;
   script: string;
   missingPhoto: boolean;
+  /** The words on screen over the first seconds. */
+  hookLine?: string;
+  /** A slideshow shows its lines instead of captions. */
+  captions?: boolean;
 }) {
   const t = useTranslations("App.TikTokStudio");
   return (
@@ -58,11 +67,16 @@ export function StagePreview({
       <span className="bg-popover absolute start-2 top-2 rounded-md border px-2 py-0.5 text-xs font-medium">
         {t("preview")}
       </span>
+      {hookLine ? (
+        <p className="bg-background text-foreground absolute inset-x-6 top-1/8 rounded-md px-2 py-1 text-center text-sm font-semibold">
+          <span className="line-clamp-2">{hookLine}</span>
+        </p>
+      ) : null}
       {missingPhoto ? (
         <p className="text-muted-foreground absolute inset-0 flex items-center justify-center p-6 text-center text-sm">
           {t("previewNoPhoto")}
         </p>
-      ) : (
+      ) : !captions ? null : (
         <p className="bg-scrim text-on-media absolute inset-x-4 bottom-1/3 rounded-md px-3 py-2 text-center text-sm font-semibold">
           <span className="line-clamp-3">
             {script || t("captionPlaceholder")}
@@ -229,7 +243,11 @@ function FinishedVideo({
           </Button>
         ) : null}
       </div>
-      <Badge className="self-start" title={t("aiLabelHint")} variant="outline">
+      <Badge
+        className="self-start"
+        title={t(job.talkingVideo?.format ? "aiLabelHintShort" : "aiLabelHint")}
+        variant="outline"
+      >
         {t("aiLabel")}
       </Badge>
     </>

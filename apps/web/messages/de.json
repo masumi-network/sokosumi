@@ -4549,9 +4549,9 @@
       "postToTikTok": "Auf TikTok posten",
       "title": "TikTok Studio",
       "pickTitle": "Projekt auswählen",
-      "pickBody": "Ein Sprechvideo gehört zu einem Projekt. Dessen Marke schreibt die Skripte, und dessen Dateien bewahren das Video auf.",
+      "pickBody": "Ein Video gehört zu einem Projekt. Dessen Marke schreibt die Skripte, und dessen Dateien bewahren das Video auf.",
       "pickUnavailable": "Dieses Projekt ist in diesem Workspace nicht verfügbar. Wähle ein anderes.",
-      "formLabel": "Neues Sprechvideo",
+      "formLabel": "Neues Video",
       "script": "Skript",
       "scriptPlaceholder": "Stopp. Das hier machen die meisten falsch …",
       "scriptHint": "Der erste Satz ist der Aufhänger.",
@@ -4610,7 +4610,54 @@
       "loadFailed": "Video konnte nicht geladen werden",
       "loadFailedBody": "Die Datei ist nicht angekommen. Versuche es gleich noch einmal.",
       "tryAgain": "Erneut versuchen",
-      "checking": "Das Video wird geprüft. Wenn es nicht startet, drücke auf Abspielen."
+      "checking": "Das Video wird geprüft. Wenn es nicht startet, drücke auf Abspielen.",
+      "kind": "Art des Videos",
+      "stepKind": "Welche Art Video",
+      "kinds": {
+        "presenter": "Jemand spricht",
+        "voiceover": "Geschichte mit Stimme",
+        "site_tour": "Website-Tour",
+        "top_three": "Top-3-Liste",
+        "slideshow": "Foto-Slideshow"
+      },
+      "kindHints": {
+        "presenter": "Eine Person spricht dein Skript in die Kamera.",
+        "voiceover": "Eine Stimme erzählt eine kurze Geschichte zu deinen Bildern und deiner Website.",
+        "site_tour": "Eine Stimme führt durch deine Website.",
+        "top_three": "Eine Stimme nennt drei nummerierte Punkte.",
+        "slideshow": "Deine Bilder mit Musik, auf jedem eine Zeile."
+      },
+      "kindNeedsSite": "Füge dem Projekt zuerst deine Website hinzu.",
+      "stepShows": "Was es zeigt",
+      "pictures": "Bilder",
+      "noPictures": "Dieses Projekt hat noch keine Bilder. Erstelle welche im Content Studio.",
+      "pictureChoose": "Dieses Bild verwenden",
+      "pictureChosen": "Bild {place} im Video. Entfernen",
+      "picturesNote": "Bis zu {max} Bilder, in der Reihenfolge, in der du sie wählst.",
+      "picturesNoteWithSite": "Bis zu {max} Bilder, in der Reihenfolge, in der du sie wählst. Deine Website wird auch gezeigt.",
+      "picturesMissing": "Wähle mindestens ein Bild.",
+      "stepScriptVoice": "Was die Stimme sagt",
+      "stepScriptSlideshow": "Der Text im Bild",
+      "scriptPlaceholders": {
+        "voiceover": "Das machen die meisten falsch bei…",
+        "site_tour": "Das ist unsere Website. Das kannst du hier tun…",
+        "top_three": "Drei Wege, um… Erstens, … Zweitens, … Drittens, … Probier es heute aus.",
+        "slideshow": "Code fertig?\nJetzt die Seite.\nHeute kostenlos testen"
+      },
+      "scriptHints": {
+        "voiceover": "Der erste Satz ist der Hook.",
+        "site_tour": "Sag, was man auf deiner Website sieht, von oben nach unten.",
+        "top_three": "Ein Satz, der die Liste nennt, einer pro Punkt, dann der nächste Schritt.",
+        "slideshow": "Eine kurze Zeile pro Bild, eine pro Zeile."
+      },
+      "hookLine": "Text im Bild am Anfang",
+      "hookLinePlaceholder": "Leer lassen, dann schreiben wir ihn für dich",
+      "hookLineHint": "Bis zu sechs Wörter, die sagen, warum man weiterschauen soll.",
+      "shortIncludes": "Untertitel, Musik und dein Logo am Ende sind inbegriffen.",
+      "slideshowIncludes": "Musik und dein Logo am Ende sind inbegriffen.",
+      "costDetailShort": "wird erst berechnet, wenn das Video fertig ist, in etwa einer Minute",
+      "previewMetaSlideshow": "Keine Stimme: Musik und deine Zeilen im Bild",
+      "aiLabelHintShort": "Dieses Video hat eine generierte Stimme oder Musik. Beim Veröffentlichen wird es als KI-generiert gekennzeichnet."
     },
     "Studio": {
       "back": "Zurück zum Projekt",

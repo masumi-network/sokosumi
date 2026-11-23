@@ -66,4 +66,39 @@ describe("writeTalkingVideoScripts", () => {
 
     expect(scripts).toEqual([GOOD]);
   });
+
+  it("writes for a short's format and keeps its words on screen", async () => {
+    generateTextMock.mockResolvedValue({
+      output: {
+        scripts: [
+          { ...GOOD, hookLine: "  Fresh   every week " },
+          { ...GOOD, hookLine: "x".repeat(80) },
+        ],
+      },
+    });
+
+    const scripts = await writeTalkingVideoScripts({
+      projectId: "project-1",
+      languageCode: "en",
+      format: "top_three",
+    });
+
+    expect(scripts).toEqual([{ ...GOOD, hookLine: "Fresh every week" }, GOOD]);
+    const system = generateTextMock.mock.calls[0]![0].system as string;
+    expect(system).toContain("without a person on camera");
+    expect(system).toContain("three numbered points");
+  });
+
+  it("returns no words on screen for a presenter's scripts", async () => {
+    generateTextMock.mockResolvedValue({
+      output: { scripts: [{ ...GOOD, hookLine: "Fresh every week" }] },
+    });
+
+    const scripts = await writeTalkingVideoScripts({
+      projectId: "project-1",
+      languageCode: "en",
+    });
+
+    expect(scripts).toEqual([GOOD]);
+  });
 });

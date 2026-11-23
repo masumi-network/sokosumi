@@ -23,7 +23,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Talking videos, as a top-level destination beside the Content Studio.
+ * Talking videos and shorts, as a top-level destination beside the Content
+ * Studio.
  *
  * It reads its project from `?projectId=`, the scope every workspace page
  * reads, so the sidebar's project switcher moves it between projects. A video
@@ -36,7 +37,7 @@ export default async function TikTokStudioPage({
   const query = await searchParams;
   const t = await getTranslations("App.TikTokStudio");
   const projectId = query.projectId?.trim();
-  const { project, talkingVideo, videos } =
+  const { project, talkingVideo, videos, pictures } =
     await loadTikTokStudioPageData(projectId);
 
   return (
@@ -55,6 +56,7 @@ export default async function TikTokStudioPage({
           // Remounted per project: no draft or selection survives the switch.
           key={project.id}
           hasWebsite={Boolean(project.websiteUrl)}
+          pictures={pictures}
           projectId={project.id}
           readOnly={project.cmo}
         />

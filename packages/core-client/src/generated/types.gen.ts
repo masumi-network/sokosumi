@@ -11878,11 +11878,13 @@ export type ProjectTalkingVideoScripts = {
     scripts: Array<{
         hook: string;
         script: string;
+        hookLine?: string;
     }>;
 };
 
 export type WriteProjectTalkingVideoScriptsRequest = {
     topic?: string;
+    format?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
     languageCode?: string;
 };
 

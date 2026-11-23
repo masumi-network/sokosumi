@@ -150,6 +150,21 @@ export const SHORT_VIDEO_TEXT_FORMATS: readonly ShortVideoFormat[] = [
   "slideshow",
 ];
 
+/**
+ * How a script is written for each format: one source for the studio's
+ * script writer and the bots that write shorts.
+ */
+export const SHORT_VIDEO_FORMAT_GUIDE: Record<ShortVideoFormat, string> = {
+  voiceover:
+    "A voice tells a short story over the brand's pictures and website: open on the problem or a surprising fact, say what the brand does about it, end on one next step. 3 to 6 short sentences, 15 to 30 seconds spoken.",
+  site_tour:
+    "A voice walks through the brand's website, top to bottom: start with what the site is, then one sentence per thing a visitor sees or can do there, end on one next step. 4 to 6 short sentences, 15 to 30 seconds spoken. Name only what the site really shows.",
+  top_three:
+    'A voice gives three numbered points. Exactly 5 sentences: the first names the list ("Three ways to..."), then one sentence per point, then one next step. Each point sentence says one concrete thing. 15 to 30 seconds spoken.',
+  slideshow:
+    "No voice: the brand's pictures play to music with one line of text on each. Write 4 to 7 lines, one per row, each at most 6 words and read in a second: a first line that stops the scroll, then the story, then a last line with the next step.",
+};
+
 /** A short shows at most this many of the brand's pictures. */
 export const SHORT_VIDEO_MAX_PICTURES = 6;
 

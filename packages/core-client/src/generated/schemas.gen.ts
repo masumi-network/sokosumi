@@ -45115,6 +45115,9 @@ export const ProjectTalkingVideoScriptsSchema = {
                     },
                     script: {
                         type: 'string'
+                    },
+                    hookLine: {
+                        type: 'string'
                     }
                 },
                 required: [
@@ -45136,6 +45139,15 @@ export const WriteProjectTalkingVideoScriptsRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 500
+        },
+        format: {
+            type: 'string',
+            enum: [
+                'voiceover',
+                'site_tour',
+                'top_three',
+                'slideshow'
+            ]
         },
         languageCode: {
             type: 'string',

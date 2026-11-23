@@ -4549,9 +4549,9 @@
       "postToTikTok": "Publicar en TikTok",
       "title": "TikTok Studio",
       "pickTitle": "Elige un proyecto",
-      "pickBody": "Un vídeo con presentador pertenece a un proyecto. Su marca escribe los guiones y sus Archivos guardan el vídeo.",
+      "pickBody": "Un vídeo pertenece a un proyecto. Su marca escribe los guiones y sus Archivos guardan el vídeo.",
       "pickUnavailable": "Ese proyecto no está disponible en este espacio de trabajo. Elige otro.",
-      "formLabel": "Nuevo vídeo con presentador",
+      "formLabel": "Nuevo vídeo",
       "script": "Guion",
       "scriptPlaceholder": "Para. Esto es lo que casi todo el mundo hace mal…",
       "scriptHint": "La primera frase es el gancho.",
@@ -4610,7 +4610,54 @@
       "loadFailed": "No se pudo cargar el vídeo",
       "loadFailedBody": "El archivo no llegó. Inténtalo de nuevo en un momento.",
       "tryAgain": "Intentar de nuevo",
-      "checking": "Comprobando el vídeo. Si no empieza, pulsa reproducir."
+      "checking": "Comprobando el vídeo. Si no empieza, pulsa reproducir.",
+      "kind": "Tipo de vídeo",
+      "stepKind": "Qué tipo de vídeo",
+      "kinds": {
+        "presenter": "Alguien habla",
+        "voiceover": "Historia con voz",
+        "site_tour": "Recorrido por la web",
+        "top_three": "Lista de 3",
+        "slideshow": "Pase de fotos"
+      },
+      "kindHints": {
+        "presenter": "Una persona dice tu guion a cámara.",
+        "voiceover": "Una voz cuenta una historia corta sobre tus imágenes y tu web.",
+        "site_tour": "Una voz recorre tu web.",
+        "top_three": "Una voz da tres puntos numerados.",
+        "slideshow": "Tus imágenes con música y una frase en cada una."
+      },
+      "kindNeedsSite": "Añade primero tu web al proyecto.",
+      "stepShows": "Qué muestra",
+      "pictures": "Imágenes",
+      "noPictures": "Este proyecto aún no tiene imágenes. Crea algunas en el Content Studio.",
+      "pictureChoose": "Usar esta imagen",
+      "pictureChosen": "Imagen {place} del vídeo. Quitarla",
+      "picturesNote": "Hasta {max} imágenes, en el orden en que las elijas.",
+      "picturesNoteWithSite": "Hasta {max} imágenes, en el orden en que las elijas. También se muestra tu web.",
+      "picturesMissing": "Elige al menos una imagen.",
+      "stepScriptVoice": "Qué dice la voz",
+      "stepScriptSlideshow": "El texto en pantalla",
+      "scriptPlaceholders": {
+        "voiceover": "Casi todo el mundo se equivoca con…",
+        "site_tour": "Esta es nuestra web. Esto es lo que puedes hacer en ella…",
+        "top_three": "Tres formas de… Uno, … Dos, … Tres, … Pruébalo hoy.",
+        "slideshow": "¿Código listo?\nAhora la página.\nPruébalo gratis hoy"
+      },
+      "scriptHints": {
+        "voiceover": "La primera frase es el gancho.",
+        "site_tour": "Di lo que se ve en tu web, de arriba abajo.",
+        "top_three": "Una frase que nombra la lista, una por punto y luego el siguiente paso.",
+        "slideshow": "Una frase corta por imagen, una por línea."
+      },
+      "hookLine": "Texto en pantalla al principio",
+      "hookLinePlaceholder": "Déjalo vacío y lo escribimos por ti",
+      "hookLineHint": "Hasta seis palabras que digan por qué seguir viendo.",
+      "shortIncludes": "Incluye subtítulos, música y tu logo al final.",
+      "slideshowIncludes": "Incluye música y tu logo al final.",
+      "costDetailShort": "solo se cobra cuando el vídeo está listo, en un minuto aproximadamente",
+      "previewMetaSlideshow": "Sin voz: música y tus frases en pantalla",
+      "aiLabelHintShort": "Este vídeo tiene una voz o música generada. Se etiqueta como generado con IA al publicarlo."
     },
     "Studio": {
       "back": "Volver al proyecto",

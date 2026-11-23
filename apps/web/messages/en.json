@@ -4549,9 +4549,9 @@
       "postToTikTok": "Post to TikTok",
       "title": "TikTok Studio",
       "pickTitle": "Choose a project",
-      "pickBody": "A talking video belongs to a project. Its brand writes the scripts and its Files keep the video.",
+      "pickBody": "A video belongs to a project. Its brand writes the scripts and its Files keep the video.",
       "pickUnavailable": "That project is not available in this workspace. Choose another one.",
-      "formLabel": "New talking video",
+      "formLabel": "New video",
       "script": "Script",
       "scriptPlaceholder": "Stop scrolling. Here is the one thing most people get wrong about…",
       "scriptHint": "The first sentence is the hook.",
@@ -4610,7 +4610,54 @@
       "loadFailed": "Failed to load video",
       "loadFailedBody": "Its file did not come through. Try again in a moment.",
       "tryAgain": "Try again",
-      "checking": "Checking the video. If it does not start, press play."
+      "checking": "Checking the video. If it does not start, press play.",
+      "kind": "Kind of video",
+      "stepKind": "What kind of video",
+      "kinds": {
+        "presenter": "Someone speaks",
+        "voiceover": "Story with voice",
+        "site_tour": "Website tour",
+        "top_three": "Top 3 list",
+        "slideshow": "Photo slideshow"
+      },
+      "kindHints": {
+        "presenter": "A presenter says your script to camera.",
+        "voiceover": "A voice tells a short story over your pictures and website.",
+        "site_tour": "A voice walks people through your website.",
+        "top_three": "A voice gives three numbered points.",
+        "slideshow": "Your pictures to music, with one line on each."
+      },
+      "kindNeedsSite": "Add your website to the project first.",
+      "stepShows": "What it shows",
+      "pictures": "Pictures",
+      "noPictures": "This project has no pictures yet. Make some in the Content Studio.",
+      "pictureChoose": "Use this picture",
+      "pictureChosen": "Picture {place} in the video. Remove it",
+      "picturesNote": "Up to {max} pictures, in the order you choose them.",
+      "picturesNoteWithSite": "Up to {max} pictures, in the order you choose them. Your website is shown too.",
+      "picturesMissing": "Choose at least one picture.",
+      "stepScriptVoice": "What the voice says",
+      "stepScriptSlideshow": "The words on screen",
+      "scriptPlaceholders": {
+        "voiceover": "Most people get this wrong about…",
+        "site_tour": "This is our website. Here is what you can do on it…",
+        "top_three": "Three ways to… One, … Two, … Three, … Try it today.",
+        "slideshow": "Shipped the code?\nNow ship the page.\nTry it free today"
+      },
+      "scriptHints": {
+        "voiceover": "The first sentence is the hook.",
+        "site_tour": "Say what people see on your site, from the top down.",
+        "top_three": "A sentence that names the list, one per point, then what to do next.",
+        "slideshow": "One short line per picture, one per row."
+      },
+      "hookLine": "Words on screen at the start",
+      "hookLinePlaceholder": "Leave empty and we write them for you",
+      "hookLineHint": "Up to six words that tell people why to keep watching.",
+      "shortIncludes": "Captions, music and your logo at the end are included.",
+      "slideshowIncludes": "Music and your logo at the end are included.",
+      "costDetailShort": "charged only when the video is ready, in about a minute",
+      "previewMetaSlideshow": "No voice: music and your lines on screen",
+      "aiLabelHintShort": "This video has a generated voice or music. It is labeled as AI-generated when it is published."
     },
     "Studio": {
       "back": "Back to project",
