@@ -1,6 +1,7 @@
 "use client";
 
 import type { DriveFile, GoogleDisplayImage } from "@sokosumi/core-client";
+import { useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { createContext, useContext, useRef, useState } from "react";
@@ -46,6 +47,7 @@ import {
   isDriveFileUploadDuplicate,
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
+import { invalidateDrive } from "@/queries/drive";
 
 function sizeText(min: MinSize): string {
   return `${min.minWidth} × ${min.minHeight}`;
@@ -93,6 +95,7 @@ interface ImageSlotProps {
 function ImageSlot({ slot }: ImageSlotProps) {
   const t = useTranslations("App.Ads.newCampaign.ad.images");
   const form = useFormContext<GoogleDisplayFormValues>();
+  const queryClient = useQueryClient();
   const { data: session } = useSession();
   const driveStore = driveStoreForActiveWorkspace(
     session?.session.activeOrganizationId ?? null,
@@ -150,16 +153,18 @@ function ImageSlot({ slot }: ImageSlotProps) {
     return role.value;
   }
 
-  async function addUpload(file: File, out: string[]): Promise<void> {
+  async function addUpload(file: File, out: string[]): Promise<boolean> {
     const checked = checkDisplayImageFile(file);
     if (checked.isErr()) {
       refuse(checked.error, file.name, out);
-      return;
+      return false;
     }
     const role = await roleFor(readFileImageSize(file), file.name, out);
-    if (!role) return;
+    if (!role) return false;
+    let uploadedToDrive = false;
     try {
       const uploaded = await uploadDriveFile(file, driveStore);
+      uploadedToDrive = true;
       if (!uploaded.fileUrl) throw new Error("Upload returned no URL");
       attach(
         {
@@ -179,6 +184,7 @@ function ImageSlot({ slot }: ImageSlotProps) {
           : t("uploadFailed"),
       );
     }
+    return uploadedToDrive;
   }
 
   async function addDriveFile(file: DriveFile, out: string[]): Promise<void> {
@@ -297,7 +303,11 @@ function ImageSlot({ slot }: ImageSlotProps) {
             const files = Array.from(event.target.files ?? []);
             event.target.value = "";
             void run(async (out) => {
-              for (const file of files) await addUpload(file, out);
+              let uploadedAny = false;
+              for (const file of files) {
+                if (await addUpload(file, out)) uploadedAny = true;
+              }
+              if (uploadedAny) void invalidateDrive(queryClient, driveStore);
             });
           }}
           ref={fileInputRef}

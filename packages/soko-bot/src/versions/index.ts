@@ -31,6 +31,7 @@ import { cmoV14 } from "./cmo-v14.js";
 import { cmoV15 } from "./cmo-v15.js";
 import { cmoV20 } from "./cmo-v20.js";
 import { cmoTurnSkills } from "./cmo-v20-skills.js";
+import { cmoV21 } from "./cmo-v21.js";
 import {
   getSokoBotSkill,
   SOKO_BOT_SKILLS,
@@ -137,6 +138,7 @@ export const SOKO_BOT_PRODUCT_VERSIONS: readonly SokoBotVersion[] = [
   cmoV14,
   cmoV15,
   cmoV20,
+  cmoV21,
   ...CMO_MODEL_TRIALS,
 ];
 /** The Cuso version a new hire starts on. */

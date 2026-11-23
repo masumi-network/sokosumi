@@ -1,14 +1,13 @@
 import type {
+  DriveFile,
+  DriveFileItem,
+  DriveItem,
   FileCollection,
   FileResource,
   FileSearchMeta,
   WorkspaceLabel,
 } from "@sokosumi/core-client";
-import {
-  type InfiniteData,
-  QueryClient,
-  QueryClientProvider,
-} from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
   fireEvent,
@@ -33,9 +32,33 @@ const api = vi.hoisted(() => ({
   decideSuggestion: vi.fn(),
 }));
 
+const listDriveItemsMock = vi.hoisted(() => vi.fn());
+const useSessionMock = vi.hoisted(() => vi.fn());
+
 vi.mock("@/lib/utils/file-search.client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/utils/file-search.client")>()),
   ...api,
+}));
+
+vi.mock("@/lib/utils/drive-file-list.client", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/lib/utils/drive-file-list.client")
+  >()),
+  listDriveItems: (...args: unknown[]) => listDriveItemsMock(...args),
+}));
+
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => useSessionMock(),
+}));
+
+vi.mock("@/hooks/effects/use-drive-organization-name", () => ({
+  useDriveOrganizationName: () => "Org A",
+}));
+
+vi.mock("@/config/env.public", () => ({
+  getEnvPublicConfig: () => ({
+    NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME: 0,
+  }),
 }));
 
 const toast = vi.hoisted(() => ({
@@ -49,8 +72,14 @@ function translate(key: string, values?: Record<string, unknown>) {
   return values ? `${key}:${JSON.stringify(values)}` : key;
 }
 
+const formatter = {
+  dateTime: () => "Jan 1",
+  number: (value: number) => String(value),
+};
+
 vi.mock("next-intl", () => ({
   useTranslations: () => translate,
+  useFormatter: () => formatter,
 }));
 
 vi.mock("@/app/drive/components/drive-file-viewer", () => ({
@@ -91,8 +120,8 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
   ),
 }));
 
+import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import { driveQueryKeys, invalidateDrive } from "@/queries/drive";
-import { buildScopedQueryKey } from "@/queries/scoped-queries";
 import { DriveAllFilesPanel } from "./drive-all-files-panel";
 
 const orgA: FileStore = { scope: "org", organizationId: "org_a" };
@@ -150,6 +179,22 @@ function makeCollection(
   } as unknown as FileCollection;
 }
 
+function makePickerFile(
+  name: string,
+  overrides: Partial<DriveFile> = {},
+): DriveFileItem {
+  return {
+    type: "file",
+    name,
+    fileUrl: `https://blob.example/${name}`,
+    pathname: `drive/orgs/org_a/${name}`,
+    size: 1024,
+    uploadedAt: new Date("2026-08-18T10:00:00.000Z"),
+    dataRoom: false,
+    ...overrides,
+  };
+}
+
 function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
@@ -182,6 +227,14 @@ function renderPanel(
 describe("DriveAllFilesPanel on the Drive cache", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    listDriveItemsMock.mockReset();
+    listDriveItemsMock.mockResolvedValue([]);
+    useSessionMock.mockReturnValue({
+      data: {
+        user: { id: "user_1" },
+        session: { activeOrganizationId: "org_a" },
+      },
+    });
     api.fetchWorkspaceFolders.mockResolvedValue([]);
     api.fetchWorkspaceLabels.mockResolvedValue([] as WorkspaceLabel[]);
     api.fetchFileCollections.mockResolvedValue([] as FileCollection[]);
@@ -191,126 +244,144 @@ describe("DriveAllFilesPanel on the Drive cache", () => {
     } satisfies FileSearchPage);
   });
 
-  it("removes bulk-deleted files from catalog, recents, and picker caches before refetch returns", async () => {
+  it("removes deleted files from catalog and mounted DriveFilePicker on mixed-success bulk delete while GETs are held", async () => {
     const user = userEvent.setup();
     const fileKeep = makeFile("res_keep", "keep.pdf");
     const fileDrop = makeFile("res_drop", "drop.pdf");
-    const refetchDeferred = Promise.withResolvers<FileSearchPage>();
+    const fileFail = makeFile("res_fail", "fail.pdf");
+    const pickerKeep = makePickerFile("keep.pdf");
+    const pickerDrop = makePickerFile("drop.pdf");
+    const pickerFail = makePickerFile("fail.pdf");
+    const catalogRefetchDeferred = Promise.withResolvers<FileSearchPage>();
+    const pickerRefetchDeferred = Promise.withResolvers<DriveItem[]>();
+    const onSelect = vi.fn();
 
     api.fetchFileSearchPage
       .mockResolvedValueOnce({
-        items: [fileKeep, fileDrop],
-        search: makeMeta({ windowCount: 2 }),
+        items: [fileKeep, fileDrop, fileFail],
+        search: makeMeta({ windowCount: 3 }),
       })
-      .mockImplementationOnce(() => refetchDeferred.promise);
-    api.deleteDriveUploads.mockResolvedValueOnce([]);
+      .mockImplementationOnce(() => catalogRefetchDeferred.promise);
+    listDriveItemsMock
+      .mockResolvedValueOnce([pickerKeep, pickerDrop, pickerFail])
+      .mockImplementationOnce(() => pickerRefetchDeferred.promise);
+    // drop.pdf succeeds; fail.pdf fails.
+    api.deleteDriveUploads.mockResolvedValueOnce([fileFail.pathname!]);
 
-    const client = makeQueryClient();
-    const recentsKey = buildScopedQueryKey(orgA, ["drive", "recents", "all"]);
-    const pickerKey = buildScopedQueryKey(orgA, ["drive", "picker", "root"]);
-    const orgBPickerKey = buildScopedQueryKey(orgB, [
-      "drive",
-      "picker",
-      "root",
-    ]);
-
-    client.setQueryData<
-      InfiniteData<{
-        items: Array<{
-          kind: "drive-file";
-          resourceId: string;
-          pathname: string;
-        }>;
-      }>
-    >(recentsKey, {
-      pages: [
-        {
-          items: [
-            {
-              kind: "drive-file",
-              resourceId: "res_keep",
-              pathname: "drive/orgs/org_a/keep.pdf",
-            },
-            {
-              kind: "drive-file",
-              resourceId: "res_drop",
-              pathname: "drive/orgs/org_a/drop.pdf",
-            },
-          ],
-        },
-      ],
-      pageParams: [null],
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: 60_000 } },
     });
-    client.setQueryData(pickerKey, [
-      { type: "file", name: "keep.pdf", pathname: "drive/orgs/org_a/keep.pdf" },
-      { type: "file", name: "drop.pdf", pathname: "drive/orgs/org_a/drop.pdf" },
-    ]);
+    const orgBPickerKey = driveQueryKeys.picker(orgB);
     client.setQueryData(orgBPickerKey, [
-      { type: "file", name: "drop.pdf", pathname: "drive/orgs/org_a/drop.pdf" },
+      makePickerFile("drop.pdf", { pathname: "drive/orgs/org_b/drop.pdf" }),
     ]);
 
-    renderPanel({}, client);
+    const renderBoth = (pickerOpen: boolean) => (
+      <QueryClientProvider client={client}>
+        <DriveAllFilesPanel store={orgA} viewMode="list" isMobile={false} />
+        <DriveFilePicker
+          open={pickerOpen}
+          onOpenChange={vi.fn()}
+          onSelect={onSelect}
+        />
+      </QueryClientProvider>
+    );
+
+    const { rerender } = render(renderBoth(true));
+
+    // Real DriveFilePicker loads through driveQueryKeys.picker(orgA).
+    expect(
+      await screen.findByRole("button", { name: /drop\.pdf/ }),
+    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: /fail\.pdf/ })).toBeEnabled();
+    expect(client.getQueryData(driveQueryKeys.picker(orgA))).toHaveLength(3);
+
+    // Close picker to interact with the All files catalog behind the modal.
+    rerender(renderBoth(false));
 
     expect(await screen.findByText("drop.pdf")).toBeVisible();
-    expect(screen.getByText("keep.pdf")).toBeVisible();
+    expect(screen.getByText("fail.pdf")).toBeVisible();
 
     await user.click(
-      screen.getByRole("checkbox", {
-        name: 'selectFile:{"name":"drop.pdf"}',
-      }),
+      screen.getByRole("checkbox", { name: 'selectFile:{"name":"drop.pdf"}' }),
+    );
+    await user.click(
+      screen.getByRole("checkbox", { name: 'selectFile:{"name":"fail.pdf"}' }),
     );
     await user.click(screen.getByRole("button", { name: "bulkDelete" }));
     const deleteButtons = screen.getAllByRole("button", { name: "bulkDelete" });
     await user.click(deleteButtons[deleteButtons.length - 1]);
 
-    // Before the catalog refetch returns, drop.pdf is already gone everywhere in orgA.
+    // Before the catalog refetch returns: deleted row is gone, failed row stays checked & selectable.
     await waitFor(() => {
       expect(screen.queryByText("drop.pdf")).toBeNull();
     });
     expect(screen.getByText("keep.pdf")).toBeVisible();
-    expect(
-      client.getQueryData<
-        InfiniteData<{ items: Array<{ resourceId: string; pathname: string }> }>
-      >(recentsKey)?.pages[0]?.items,
-    ).toEqual([
-      {
-        kind: "drive-file",
-        resourceId: "res_keep",
-        pathname: "drive/orgs/org_a/keep.pdf",
-      },
-    ]);
-    expect(client.getQueryData(pickerKey)).toEqual([
-      { type: "file", name: "keep.pdf", pathname: "drive/orgs/org_a/keep.pdf" },
-    ]);
-    // Other workspace cache stays untouched.
-    expect(client.getQueryData(orgBPickerKey)).toHaveLength(1);
-    expect(client.getQueryState(recentsKey)?.isInvalidated).toBe(true);
-    expect(client.getQueryState(pickerKey)?.isInvalidated).toBe(true);
-
-    await act(async () => {
-      refetchDeferred.resolve({
-        items: [fileKeep],
-        search: makeMeta({ windowCount: 1 }),
-      });
-      await refetchDeferred.promise;
+    expect(screen.getByText("fail.pdf")).toBeVisible();
+    const failCheckbox = screen.getByRole("checkbox", {
+      name: 'selectFile:{"name":"fail.pdf"}',
     });
+    expect(failCheckbox).toBeEnabled();
+    expect(failCheckbox).toBeChecked();
+
+    // Reopen the real DriveFilePicker while its refetch GET is held:
+    // deleted row is already gone, and remaining rows are disabled while refetching.
+    rerender(renderBoth(true));
+
+    const keepPickerButton = await screen.findByRole("button", {
+      name: /keep\.pdf/,
+    });
+    const failPickerButton = screen.getByRole("button", {
+      name: /fail\.pdf/,
+    });
+    expect(
+      screen.queryByRole("button", { name: /drop\.pdf/ }),
+    ).not.toBeInTheDocument();
+    expect(keepPickerButton).toBeDisabled();
+    expect(failPickerButton).toBeDisabled();
+    await user.click(failPickerButton);
+    expect(onSelect).not.toHaveBeenCalled();
+
+    // Other workspace picker cache stays untouched.
+    expect(client.getQueryData(orgBPickerKey)).toHaveLength(1);
+    expect(client.getQueryState(orgBPickerKey)?.isInvalidated).toBe(false);
+
+    // Once refetch GETs resolve, picker rows re-enable and failed row is selectable.
+    await act(async () => {
+      catalogRefetchDeferred.resolve({
+        items: [fileKeep, fileFail],
+        search: makeMeta({ windowCount: 2 }),
+      });
+      pickerRefetchDeferred.resolve([pickerKeep, pickerFail]);
+      await Promise.all([
+        catalogRefetchDeferred.promise,
+        pickerRefetchDeferred.promise,
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /fail\.pdf/ })).toBeEnabled();
+    });
+    await user.click(screen.getByRole("button", { name: /fail\.pdf/ }));
+    expect(onSelect).toHaveBeenCalledWith(pickerFail);
   });
 
-  it("does not invalidate Drive when every item in a bulk delete fails", async () => {
+  it("invalidates Drive without dropping failed items when every item in a bulk delete fails", async () => {
     const user = userEvent.setup();
     const fileA = makeFile("res_a", "a.pdf");
+    const refetchDeferred = Promise.withResolvers<FileSearchPage>();
 
-    api.fetchFileSearchPage.mockResolvedValue({
-      items: [fileA],
-      search: makeMeta({ windowCount: 1 }),
-    });
+    api.fetchFileSearchPage
+      .mockResolvedValueOnce({
+        items: [fileA],
+        search: makeMeta({ windowCount: 1 }),
+      })
+      .mockImplementationOnce(() => refetchDeferred.promise);
     api.deleteDriveUploads.mockResolvedValueOnce([fileA.pathname!]);
 
     const client = makeQueryClient();
-    const pickerKey = buildScopedQueryKey(orgA, ["drive", "picker", "root"]);
-    client.setQueryData(pickerKey, [
-      { type: "file", name: "a.pdf", pathname: fileA.pathname },
-    ]);
+    const pickerKey = driveQueryKeys.picker(orgA);
+    client.setQueryData(pickerKey, [makePickerFile("a.pdf")]);
 
     renderPanel({}, client);
 
@@ -325,9 +396,25 @@ describe("DriveAllFilesPanel on the Drive cache", () => {
     await waitFor(() => {
       expect(toast.warning).toHaveBeenCalled();
     });
-    expect(api.fetchFileSearchPage).toHaveBeenCalledTimes(1);
-    expect(client.getQueryState(pickerKey)?.isInvalidated).toBe(false);
+    await waitFor(() => {
+      expect(api.fetchFileSearchPage).toHaveBeenCalledTimes(2);
+    });
+    // Failed delete still invalidates the prefix (Core may have removed a blob before failing),
+    // without removing the failed row via deletedIds.
+    expect(client.getQueryState(pickerKey)?.isInvalidated).toBe(true);
+    expect(client.getQueryData(pickerKey)).toHaveLength(1);
     expect(screen.getByText("a.pdf")).toBeVisible();
+    expect(
+      screen.getByRole("checkbox", { name: 'selectFile:{"name":"a.pdf"}' }),
+    ).toBeChecked();
+
+    await act(async () => {
+      refetchDeferred.resolve({
+        items: [fileA],
+        search: makeMeta({ windowCount: 1 }),
+      });
+      await refetchDeferred.promise;
+    });
   });
 
   it("disables Load more while page one refreshes and does not cancel an in-flight refresh on an interleaved click", async () => {

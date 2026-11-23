@@ -24,6 +24,7 @@ import {
   postFindFirst,
   postFindMany,
   postUpdate,
+  projectFindFirst,
   projectUpdate,
   referenceFindMany,
   resetCmoServiceMocks,
@@ -39,7 +40,15 @@ import {
 } from "@/test-fixtures/cmo-service";
 
 const kickCmoProduction = vi.hoisted(() => vi.fn());
+const postSokoBotOwnerNotice = vi.hoisted(() => vi.fn());
+vi.mock("@/services/soko-bot-chat.service", () => ({
+  postSokoBotOwnerNotice,
+}));
 vi.mock("@/services/cmo-production.service", () => ({ kickCmoProduction }));
+vi.mock("@/services/cmo-industry.service", () => ({
+  cmoIndustryBeforePlan: vi.fn(async () => undefined),
+  cmoIndustryPillarProblems: vi.fn(async () => null),
+}));
 
 const libraryAvailable = vi.hoisted(() => vi.fn(() => false));
 vi.mock("@/services/reference-library.service", () => ({
@@ -183,6 +192,37 @@ describe("requestCmoStrategy", () => {
 
     expect(approvedRows()).toHaveLength(1);
     expect(strategyRows).toHaveLength(1);
+  });
+
+  // NMKR (2026-11-23): approved, never paid, so paused (ADR 0068); a new
+  // strategy goes back to hiring instead of being refused.
+  it("reopens an unpaid hire's approved strategy and writes the new one over it", async () => {
+    cusoFind.mockResolvedValue(cuso);
+    const approved = seedStrategy(strategy, {
+      approvedAt: new Date("2026-10-01T09:00:00Z"),
+    });
+    projectFindFirst.mockResolvedValue({ id: "project-1" });
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+
+    await requestCmoStrategy({ projectId: "project-1", userId: "user-1" });
+
+    expect(approvedRows()).toHaveLength(0);
+    expect(strategyRows).toHaveLength(2);
+    expect(strategyRows.find((row) => row.id === approved.id)?.plan).toEqual(
+      approved.plan,
+    );
+  });
+
+  it("restores the approval when the new strategy does not start", async () => {
+    cusoFind.mockResolvedValue(cuso);
+    seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
+    projectFindFirst.mockResolvedValue({ id: "project-1" });
+    startTurn.mockRejectedValue(new Error("no seat"));
+
+    await expect(
+      requestCmoStrategy({ projectId: "project-1", userId: "user-1" }),
+    ).rejects.toThrow("no seat");
+    expect(approvedRows()).toHaveLength(1);
   });
 
   it("starts a new strategy over a draft from an empty month, keeping the draft", async () => {
@@ -699,6 +739,36 @@ describe("the plan starts when the research ends", () => {
     expect(message).toContain(
       "first add the network to the alsoOn of talking videos already planned",
     );
+  });
+
+  it("says once that the strategy is ready, only when no round follows", async () => {
+    seedStrategy(strategy);
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v5" });
+    startTurn.mockResolvedValue({ turnId: "finish-1" });
+    const ended = {
+      sokoBotId: "bot-1",
+      userId: "user-1",
+      clientTurnId: "cmo:strategy:bot-1:1",
+    };
+    await afterCmoTurn(ended);
+    expect(postSokoBotOwnerNotice).not.toHaveBeenCalled();
+
+    await afterCmoTurn({
+      ...ended,
+      clientTurnId: "cmo:strategy:bot-1:finish:1:2",
+    });
+    expect(postSokoBotOwnerNotice).toHaveBeenCalledTimes(1);
+    const notice = postSokoBotOwnerNotice.mock.calls[0]?.[0];
+    expect(notice).toMatchObject({ sokoBotId: "bot-1" });
+    expect(notice.content).toMatch(/^Your strategy is ready\./);
+    expect(notice.content).not.toContain("@");
+    expect(notice.key).toMatch(/^cmo-strategy-ready:/);
+
+    postSokoBotOwnerNotice.mockClear();
+    seedStrategy(strategy, { approvedAt: new Date() });
+    await afterCmoTurn(ended);
+    await afterCmoTurn({ ...ended, clientTurnId: "chat:1" });
+    expect(postSokoBotOwnerNotice).not.toHaveBeenCalled();
   });
 
   it("finishes nothing for a whole month, an approved one, or a Cuso who saves in two calls", async () => {

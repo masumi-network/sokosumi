@@ -48,6 +48,11 @@ import {
   startCmoProduction,
 } from "@/services/cmo-cuso.service";
 import {
+  cmoIndustryLine,
+  cmoReadsIndustry,
+  readCmoIndustry,
+} from "@/services/cmo-industry.service";
+import {
   type CmoKindedPiece,
   cmoAllowedKinds,
   cmoMakesVariedMonth,
@@ -252,6 +257,8 @@ export function cmoWriterSystem(input: {
   shorts?: { website: boolean };
   /** cmo-v20: the site's pages, one line each with its screenshot. */
   sitePages?: readonly string[];
+  /** cmo-v21: the industry research, one line each with its source. */
+  industry?: readonly string[];
 }): string {
   const { strategy } = input;
   const live = strategy.calendar.filter((entry) => entry.status !== "skipped");
@@ -291,6 +298,12 @@ export function cmoWriterSystem(input: {
       ? [
           "The site's pages (path: what it says; shot is its screenshot, a brand picture for visualFileIds when a piece shows that page). Take offers, prices and facts from these, never guess them:",
           ...input.sitePages.map((line) => `- ${line}`),
+        ].join("\n")
+      : "",
+    input.industry && input.industry.length > 0
+      ? [
+          "The buyers' industry (id · kind · date · what it is, with its source). Helpful pieces are about the buyers' own work and rest on these; a claim ending in (source: …) rests on one. A fact about the industry (a number, a trend, news, a competitor's move) comes only from here, said as the source says it, and the post says where it is from in plain words (\"CoinDesk reported…\"). On X, LinkedIn and Facebook a piece built on news puts the source's address in firstComment, unless it is an offer piece. Never invent a market number, a study or a date:",
+          ...input.industry.map((line) => `- ${line}`),
         ].join("\n")
       : "",
     "Strategy:",
@@ -521,6 +534,10 @@ export async function writeCmoMonthPieces(
         })
       : [],
   );
+  // cmo-v21: the buyer's industry, which most helpful pieces rest on.
+  const industry = cmoReadsIndustry(authorized.turn.versionId)
+    ? await readCmoIndustry(cuso.projectId).catch(() => null)
+    : null;
   const system = cmoWriterSystem({
     businessName: cuso.businessName,
     strategy,
@@ -541,6 +558,7 @@ export async function writeCmoMonthPieces(
             [],
         )
       : undefined,
+    industry: industry?.items.map(cmoIndustryLine),
   });
   const skillOf = (channel: string) =>
     points
@@ -617,6 +635,7 @@ export async function writeCmoMonthPieces(
             proof,
             only: new Set(open.map((entry) => entry.id)),
             timeoutMs: cmoWriterModelTimeoutMs(deadline, Date.now()),
+            industry: industry?.items ?? [],
           })
             .then(async ({ claims, call }) => {
               if (call) await chargeWriterCall(input, modelId, call);

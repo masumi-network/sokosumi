@@ -1,7 +1,15 @@
 "use client";
 
-import { Check, Layers, Maximize2, Pin, Plus } from "lucide-react";
+import {
+  Check,
+  FolderKanban,
+  Layers,
+  Maximize2,
+  Pin,
+  Plus,
+} from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
@@ -20,10 +28,15 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-import { type ScopeProject, useScopeProjects } from "./use-scope-projects";
+import {
+  type ScopeProject,
+  useIsUnknownScopeProject,
+  useScopeProjects,
+} from "./use-scope-projects";
 
 const CREATE_VALUE = "__create_project__";
 const ALL_PROJECTS_VALUE = "__all_projects__";
+const OVERVIEW_VALUE = "__project_overview__";
 
 /**
  * The trigger of the popover, sheet or dialog that holds the menu. Radix links
@@ -63,7 +76,7 @@ interface ProjectScopeMenuProps {
  * narrows that same list and asks Core, so the list filters itself off. All
  * projects leads the list when the host offers it (`onSelectAll`), so the way
  * back to the list is in the same place as every project; the trigger's ×
- * does the same.
+ * does the same. With a project picked, its Overview comes first there.
  */
 export function ProjectScopeMenu({
   selectedProjectId,
@@ -78,6 +91,13 @@ export function ProjectScopeMenu({
   const [search, setSearch] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
   const projects = useScopeProjects({ search, selectedProjectId });
+  const router = useRouter();
+  // A deleted or foreign project has no page to open.
+  const isUnknownProject = useIsUnknownScopeProject(selectedProjectId);
+  const overviewHref =
+    selectedProjectId !== null && !isUnknownProject
+      ? `/projects/${encodeURIComponent(selectedProjectId)}`
+      : null;
 
   function choose(projectId: string) {
     onSelect(projectId);
@@ -216,6 +236,27 @@ export function ProjectScopeMenu({
           >
             {onSelectAll && !projects.isSearching ? (
               <CommandGroup className="border-b">
+                {overviewHref ? (
+                  <CommandItem
+                    value={OVERVIEW_VALUE}
+                    data-testid="project-scope-overview"
+                    className="min-h-11 gap-3 px-2.5 py-2 md:min-h-9 md:py-1.5"
+                    onSelect={() => {
+                      router.push(overviewHref);
+                      onDone?.();
+                    }}
+                  >
+                    <span
+                      aria-hidden
+                      className="flex size-6 shrink-0 items-center justify-center"
+                    >
+                      <FolderKanban className="size-4" />
+                    </span>
+                    <span className="min-w-0 flex-1 break-words leading-normal">
+                      {t("overview")}
+                    </span>
+                  </CommandItem>
+                ) : null}
                 <CommandItem
                   value={ALL_PROJECTS_VALUE}
                   data-testid="project-scope-all"

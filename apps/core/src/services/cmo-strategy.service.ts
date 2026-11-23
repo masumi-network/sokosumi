@@ -33,6 +33,7 @@ import {
   requestBrandBrainFix,
   withdrawBrandBrainFix,
 } from "@/services/brand-brain.service";
+import { isCmoProjectUnpaid } from "@/services/cmo-billing.service";
 import {
   CmoConflictError,
   CmoNotFoundError,
@@ -45,6 +46,10 @@ import {
   startCmoProduction,
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
+import {
+  cmoIndustryBeforePlan,
+  cmoIndustryPillarProblems,
+} from "@/services/cmo-industry.service";
 import {
   cmoPictureStyleProblem,
   cmoPieceTakesStyle,
@@ -63,6 +68,7 @@ import {
   cmoStrategyRules,
   cmoWeekGaps,
   cmoWithOwnerPace,
+  type PlanReviewOptions,
 } from "@/services/cmo-plan-review.service";
 import {
   approvedMarketingStrategy,
@@ -371,6 +377,59 @@ async function requestStrategyForCuso(
 }
 
 /**
+ * A new strategy for a Cuso whose Project never paid goes back to hiring:
+ * his approved strategy only led to Subscribe, and from approval an unpaid
+ * Cuso is paused (ADR 0068), so NMKR's "Write a new strategy" (2026-11-23)
+ * was refused. Un-approving it brings back free hiring; the new version's
+ * approval cancels the old one's posts that have not gone out, as before.
+ * Returns what was un-approved, so a turn that does not start restores it.
+ */
+async function reopenUnpaidStrategy(
+  cuso: Cuso,
+): Promise<
+  { id: string; approvedAt: Date; approvedByUserId: string | null }[]
+> {
+  const approved = (
+    await prisma.marketingStrategy.findMany({
+      where: { projectId: cuso.projectId, approvedAt: { not: null } },
+      select: { id: true, approvedAt: true, approvedByUserId: true },
+    })
+  ).flatMap(({ id, approvedAt, approvedByUserId }) =>
+    approvedAt ? [{ id, approvedAt, approvedByUserId }] : [],
+  );
+  if (
+    approved.length === 0 ||
+    (await isEvalCusoProject(cuso.projectId)) ||
+    !(await isCmoProjectUnpaid(cuso.projectId))
+  )
+    return [];
+  await prisma.marketingStrategy.updateMany({
+    where: { projectId: cuso.projectId, approvedAt: { not: null } },
+    data: { approvedAt: null, approvedByUserId: null },
+  });
+  return approved;
+}
+
+async function restoreApproval(
+  versions: readonly {
+    id: string;
+    approvedAt: Date;
+    approvedByUserId: string | null;
+  }[],
+): Promise<void> {
+  for (const version of versions)
+    await prisma.marketingStrategy
+      .update({
+        where: { id: version.id },
+        data: {
+          approvedAt: version.approvedAt,
+          approvedByUserId: version.approvedByUserId,
+        },
+      })
+      .catch(() => undefined);
+}
+
+/**
  * The first plan starts once the research turn ends with the essentials
  * saved, not when the founder confirms the brand: the founder reads the
  * Brand Brain while Cuso writes. Core runs one turn per bot at a time, so it
@@ -439,12 +498,35 @@ export async function afterCmoTurn(input: {
   const mayPlan =
     input.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX) ||
     cmoChangeKind(input.clientTurnId) === "fix";
-  return (
+  const next =
     (mayPlan ? await startCmoPlanAfterResearch(input, cuso) : null) ??
     (await startCmoMonthFinish(input, cuso)) ??
     (await startNextCmoChange(input, cuso)) ??
-    (await startQueuedAdBudget(cuso))
+    (await startQueuedAdBudget(cuso));
+  if (!next && input.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX))
+    await announceCmoStrategyReady(cuso);
+  return next;
+}
+
+/**
+ * Strategy turns post nothing: entry.fyi's first round, still short of its
+ * weeks, pinged the owner as if the plan were done. Once no turn follows,
+ * Cuso says so once per saved version.
+ */
+async function announceCmoStrategyReady(cuso: Cuso): Promise<void> {
+  const version = await newestMarketingStrategy(cuso.projectId);
+  if (!version || version.approvedAt) return;
+  const summary = parseMarketingPlan(version.plan)?.summary?.trim();
+  const { postSokoBotOwnerNotice } = await import(
+    "@/services/soko-bot-chat.service"
   );
+  await postSokoBotOwnerNotice({
+    sokoBotId: cuso.sokoBotId,
+    content: summary
+      ? `Your strategy is ready. ${summary}`
+      : "Your strategy is ready.",
+    key: `cmo-strategy-ready:${version.id}:${version.updatedAt.getTime()}`,
+  });
 }
 
 /** How far back the sync looks for a hiring strategy left short. */
@@ -521,7 +603,19 @@ async function cmoThinPillars(
   plan: MarketingStrategyPlan,
   versionId: string,
   round: number,
+  rules: PlanReviewOptions,
 ): Promise<string[]> {
+  const topics = rules.industryTopics
+    ? await cmoIndustryPillarProblems(cuso.projectId, plan).catch(() => null)
+    : null;
+  if (topics) {
+    await recordSokoBotCheckUsage({
+      sokoBotId: cuso.sokoBotId,
+      key: `cmo-pillars:${versionId}:${round}`,
+      costUsd: topics.costUsd,
+    });
+    return topics.problems;
+  }
   const brain = parseBrandBrain(cuso.brandBrain);
   if (!brain) return [];
   const counted = await cmoPillarFacts(plan, brain).catch(() => null);
@@ -569,7 +663,7 @@ async function startCmoMonthFinish(
   // gets a turn of its own to merge or reframe it.
   const pillars =
     gaps.length === 0 && rules.pillarFacts && round < most
-      ? await cmoThinPillars(cuso, plan, version.id, round)
+      ? await cmoThinPillars(cuso, plan, version.id, round, rules)
       : [];
   if (gaps.length === 0 && pillars.length === 0) return null;
   if (round >= most) {
@@ -792,7 +886,15 @@ async function startCmoStrategy(
   // A new strategy over a draft starts from an empty month: NMKR's
   // "Write a new strategy" (2026-11-22) kept the draft's 296 pieces, and Cuso
   // only patched around them. The draft stays as the version before.
-  if (!change) await clearDraftCalendar(cuso);
+  let reopened: Awaited<ReturnType<typeof reopenUnpaidStrategy>> = [];
+  if (!change) {
+    // An unpaid hire's approved strategy goes back to being a draft first,
+    // so the clear below starts the new one on a fresh version over it.
+    reopened = await reopenUnpaidStrategy(cuso);
+    await clearDraftCalendar(cuso);
+    // cmo-v21: the plan rests on the buyer's industry, researched first.
+    await cmoIndustryBeforePlan(cuso);
+  }
   try {
     return await startStrategyTurn(
       cuso,
@@ -808,6 +910,7 @@ async function startCmoStrategy(
     const writing = change ? null : await strategyTurnRunning(cuso.sokoBotId);
     if (writing && cmoChangeKind(writing.clientTurnId) === null)
       return { turnId: writing.id };
+    await restoreApproval(reopened);
     throw error;
   }
 }

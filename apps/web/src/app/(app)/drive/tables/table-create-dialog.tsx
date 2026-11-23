@@ -8,10 +8,10 @@ import {
   validateTableValues,
 } from "@sokosumi/utils";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Upload } from "lucide-react";
+import { Plus, Table, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useRef, useState } from "react";
+import { type ComponentProps, useRef, useState } from "react";
 import { DRIVE_HEADER_CONTROL_CLASS } from "@/app/drive/components/drive-view-layout";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useAbortController } from "@/hooks/effects/use-abort-controller";
 import { dataTableService } from "@/lib/services/data-table.client";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
@@ -46,10 +47,104 @@ export const TABLE_TYPES: TableColumn["type"][] = [
   "multiple_select",
   "last_updated",
 ];
+const CSV_LIMIT = 5_000_000;
+
+/** A Files CSV's bytes, refused as soon as they pass the import limit. */
+async function readCsvFile(response: Response, name: string, tooLarge: string) {
+  if (Number(response.headers.get("content-length")) > CSV_LIMIT) {
+    await response.body?.cancel();
+    throw new Error(tooLarge);
+  }
+  const reader = response.body?.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  while (reader) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > CSV_LIMIT) {
+      await reader.cancel();
+      throw new Error(tooLarge);
+    }
+    chunks.push(value);
+  }
+  return new File(chunks as BlobPart[], name);
+}
+
+/** A CSV from Files, through its authorized content URL. */
+async function fetchCsvFile(
+  file: { url: string; name: string },
+  signal: AbortSignal,
+  copy: CsvFileCopy,
+) {
+  const response = await fetch(file.url, { signal });
+  // A file, not a table or row, is what went missing.
+  if (response.status === 404) throw new Error(copy.missing);
+  if (!response.ok)
+    throw Object.assign(new Error(response.statusText), {
+      error: response.status === 403 ? "Forbidden" : "Request",
+    });
+  return readCsvFile(response, file.name, copy.tooLarge);
+}
+
+interface CsvFileCopy {
+  tooLarge: string;
+  missing: string;
+}
+
+/**
+ * The file viewer's trigger, shaped like its other header buttons: icon on
+ * phones, label from sm. Radix passes the trigger's props and ref through.
+ */
+function OpenAsTableButton({
+  label,
+  ...props
+}: ComponentProps<typeof Button> & { label: string }) {
+  return (
+    <Button
+      variant="outline"
+      size="icon"
+      className="size-10 sm:w-auto sm:gap-1.5 sm:px-3 md:h-8"
+      aria-label={label}
+      title={label}
+      {...props}
+    >
+      <Table className="size-3.5" aria-hidden />
+      <span className="hidden sm:inline">{label}</span>
+    </Button>
+  );
+}
+
+/** One cancellable read of a Files CSV; `read` answers null once cancelled. */
+function useCsvFileRead() {
+  const active = useAbortController();
+  const [reading, setReading] = useState<AbortController | null>(null);
+  async function read(file: { url: string; name: string }, copy: CsvFileCopy) {
+    const controller = active.start();
+    setReading(controller);
+    try {
+      return await fetchCsvFile(file, controller.signal, copy);
+    } catch (error) {
+      if (controller.signal.aborted) return null;
+      // The browser's own network wording is not ours and not translated.
+      if (error instanceof TypeError || error instanceof DOMException)
+        throw Object.assign(new Error(error.message), { error: "Request" });
+      throw error;
+    } finally {
+      active.release(controller);
+      setReading((current) => (current === controller ? null : current));
+    }
+  }
+  return { loading: reading !== null, read, cancel: active.abort };
+}
+
 export function TableCreateDialog({
   workspaceId,
+  csvFile,
 }: {
   workspaceId: string | null;
+  /** A CSV already in Files: the trigger reads it into the import, ready to map. */
+  csvFile?: { url: string; name: string };
 }) {
   const t = useTranslations("App.Tables");
   const router = useRouter();
@@ -86,7 +181,7 @@ export function TableCreateDialog({
   async function handleCsv(file: File | undefined) {
     if (!file) return;
     try {
-      if (file.size > 5000000) throw new Error(t("csvLimit"));
+      if (file.size > CSV_LIMIT) throw new Error(t("csvLimit"));
       const rows = parseTableCsv(await file.text());
       setCsv(rows);
       setCsvName(file.name);
@@ -107,6 +202,28 @@ export function TableCreateDialog({
       );
       setAttempt(null);
       setError("");
+    } catch (error) {
+      setError(tableError(error, t));
+    }
+  }
+  const fileRead = useCsvFileRead();
+  async function handleOpenChange(value: boolean) {
+    if (pending) return;
+    setOpen(value);
+    if (!value) fileRead.cancel();
+    if (!value || !csvFile || csv.length) return;
+    setError("");
+    // Before the read, so a title typed while it loads is kept.
+    setTitle((current) => current || csvFile.name.replace(/\.csv$/i, ""));
+    // Names the file being read, and the one that failed, as a chosen CSV is named.
+    setCsvName(csvFile.name);
+    try {
+      const file = await fileRead.read(csvFile, {
+        tooLarge: t("csvLimit"),
+        missing: t("fileMissing"),
+      });
+      if (!file) return;
+      await handleCsv(file);
     } catch (error) {
       setError(tableError(error, t));
     }
@@ -178,22 +295,24 @@ export function TableCreateDialog({
     }
   }
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(value) => {
-        if (!pending) setOpen(value);
-      }}
-    >
+    <Dialog open={open} onOpenChange={(value) => void handleOpenChange(value)}>
       <DialogTrigger asChild>
-        {/* The Files toolbar states the house rule for this row: 32px
-        controls, and the view's own create action is the solid one. */}
-        {/* This trigger sits inside the drive header row's `@container`, so it
+        {csvFile ? (
+          <OpenAsTableButton label={t("openAsTable")} />
+        ) : (
+          /* The Files toolbar states the house rule for this row: 32px
+        controls, and the view's own create action is the solid one. */
+          /* This trigger sits inside the drive header row's `@container`, so it
         takes that row's shared height rather than open-coding one: a control
-        here taller than the tab strip lifts the row and moves the strip. */}
-        <Button size="sm" className={cn("gap-1.5", DRIVE_HEADER_CONTROL_CLASS)}>
-          <Plus aria-hidden className="size-4" />
-          {t("newTable")}
-        </Button>
+        here taller than the tab strip lifts the row and moves the strip. */
+          <Button
+            size="sm"
+            className={cn("gap-1.5", DRIVE_HEADER_CONTROL_CLASS)}
+          >
+            <Plus aria-hidden className="size-4" />
+            {t("newTable")}
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="app-scrollbar max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
@@ -252,14 +371,14 @@ export function TableCreateDialog({
             clipped input cannot paint for itself; put the colour on
             `focus-visible:` instead and the wrapper, which is never focusable,
             never matches, so the ring falls back to `currentColor`. */}
-            <div className="ring-offset-background has-[:focus-visible]:ring-ring flex w-fit items-center gap-3 rounded-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2">
+            <div className="ring-offset-background has-[:focus-visible]:ring-ring flex w-fit max-w-full min-w-0 items-center gap-3 rounded-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2">
               <Button
                 type="button"
                 aria-hidden
                 tabIndex={-1}
                 size="sm"
                 variant="outline"
-                disabled={pending || !!attempt}
+                disabled={pending || fileRead.loading || !!attempt}
                 onClick={() => csvInput.current?.click()}
               >
                 <Upload aria-hidden className="size-4" />
@@ -277,7 +396,7 @@ export function TableCreateDialog({
                   ref={csvInput}
                   type="file"
                   accept=".csv,text/csv"
-                  disabled={pending || !!attempt}
+                  disabled={pending || fileRead.loading || !!attempt}
                   onChange={(event) => void handleCsv(event.target.files?.[0])}
                 />
               </span>
@@ -429,7 +548,9 @@ export function TableCreateDialog({
           <p role="status" className="text-muted-foreground text-sm">
             {pending && csv.length
               ? t("importProgress", { count: progress })
-              : null}
+              : fileRead.loading
+                ? t("loadingCsv")
+                : null}
           </p>
         </div>
         <DialogFooter>
@@ -441,7 +562,12 @@ export function TableCreateDialog({
               {t("openTable")}
             </Button>
           )}
-          <Button loading={pending} onClick={() => void handleCreate()}>
+          <Button
+            loading={pending}
+            // From Files the CSV is the point: no blank Table if it did not load.
+            disabled={fileRead.loading || (!!csvFile && csv.length === 0)}
+            onClick={() => void handleCreate()}
+          >
             {attempt?.tableId ? t("retry") : t("create")}
           </Button>
         </DialogFooter>

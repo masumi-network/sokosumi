@@ -7,6 +7,7 @@ import {
   Plus,
   Settings,
   User,
+  UserPlus,
 } from "lucide-react";
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
@@ -149,7 +150,8 @@ export async function SokoBotsHero({ team }: { team: SokoBotTeam | null }) {
         <p className="text-muted-foreground max-w-xl text-sm text-pretty md:text-base">
           {t("heroBody")}
         </p>
-        {me?.bot ? (
+        {/* Without the team we can't tell whether you have one yet. */}
+        {!team ? null : me?.bot ? (
           <ChatWithBotButton
             sokoBotId={me.bot.id}
             label={t("chatWith", { name: botName(me.bot, t) })}
@@ -195,9 +197,12 @@ export function SectionHeader({
 export async function YourAssistantSection({
   me,
   stats,
+  unavailable = false,
 }: {
   me: Member | null;
   stats: SokoBotDailyStats | null;
+  /** The team read failed: hold the card's place instead of offering Create. */
+  unavailable?: boolean;
 }) {
   const [t, tStatus, format] = await Promise.all([
     getTranslations("App.SokoBots"),
@@ -214,7 +219,20 @@ export async function YourAssistantSection({
     <section className="space-y-6">
       <SectionHeader title={t("yourAssistantTitle")} />
       <div className={HOLDER_CLASS}>
-        {!bot || !me ? (
+        {unavailable ? (
+          <div className="flex flex-col gap-3">
+            <div aria-hidden className={shell}>
+              <span className="bg-muted size-14 shrink-0 rounded-full sm:size-16" />
+              <span className="flex min-w-0 flex-1 flex-col gap-2">
+                <span className="bg-muted h-4 w-2/5 rounded" />
+                <span className="bg-muted h-3 w-3/5 rounded" />
+              </span>
+            </div>
+            <p className="text-muted-foreground px-2 pb-1 text-sm">
+              {t("Unavailable.placeholder")}
+            </p>
+          </div>
+        ) : !bot || !me ? (
           <div className={shell}>
             <span className="bg-muted text-foreground inline-flex size-14 shrink-0 items-center justify-center rounded-full sm:size-16">
               <Plus aria-hidden className="size-6" />
@@ -420,35 +438,48 @@ export async function TeamSection({ team }: { team: SokoBotTeam }) {
             : undefined
         }
       />
-      {paired.length > 0 || unpaired.length > 0 || isPersonal ? (
-        <div className={cn(HOLDER_CLASS, "flex flex-col gap-2")}>
-          {paired.length > 0 ? (
-            <ul className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(16.25rem,1fr))]">
-              <PageSearchRows
-                rows={paired.map((member) => ({
-                  primary: [member.bot?.name, member.name],
-                  secondary: [member.bot ? tStatus(member.bot.status) : null],
-                  content: member.bot ? (
-                    <PairCard
-                      key={member.userId}
-                      member={member}
-                      bot={member.bot}
-                      t={t}
-                      tStatus={tStatus}
-                      format={format}
-                    />
-                  ) : null,
-                }))}
-              />
-            </ul>
-          ) : isPersonal ? (
+      <div className={cn(HOLDER_CLASS, "flex flex-col gap-2")}>
+        {paired.length > 0 ? (
+          <ul className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(16.25rem,1fr))]">
+            <PageSearchRows
+              rows={paired.map((member) => ({
+                primary: [member.bot?.name, member.name],
+                secondary: [member.bot ? tStatus(member.bot.status) : null],
+                content: member.bot ? (
+                  <PairCard
+                    key={member.userId}
+                    member={member}
+                    bot={member.bot}
+                    t={t}
+                    tStatus={tStatus}
+                    format={format}
+                  />
+                ) : null,
+              }))}
+            />
+          </ul>
+        ) : isPersonal ? (
+          <p className="text-muted-foreground px-2 py-1 text-sm">
+            {t("teamDescriptionPersonal")}
+          </p>
+        ) : others.length === 0 ? (
+          // An organization of one: say so, and point to the invites.
+          <>
             <p className="text-muted-foreground px-2 py-1 text-sm">
-              {t("teamDescriptionPersonal")}
+              {t("teamEmpty")}
             </p>
-          ) : null}
-          <NotSetUpLine members={unpaired} t={t} />
-        </div>
-      ) : null}
+            <div className="px-1 pb-1">
+              <Button asChild variant="outline">
+                <Link href="/organization">
+                  <UserPlus aria-hidden className="size-4" />
+                  {t("inviteTeam")}
+                </Link>
+              </Button>
+            </div>
+          </>
+        ) : null}
+        <NotSetUpLine members={unpaired} t={t} />
+      </div>
     </section>
   );
 }

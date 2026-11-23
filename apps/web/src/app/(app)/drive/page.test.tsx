@@ -15,6 +15,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const useSessionMock = vi.fn();
 const listDriveItemsMock = vi.fn();
+const deleteDriveFoldersDeleteMock = vi.fn();
 const patchDriveFoldersRenameMock = vi.fn();
 const patchDriveFilesMoveMock = vi.fn();
 const postDriveFoldersMock = vi.fn();
@@ -139,7 +140,8 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
 vi.mock("@sokosumi/core-client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@sokosumi/core-client")>()),
   deleteDriveFilesDelete: vi.fn(),
-  deleteDriveFoldersDelete: vi.fn(),
+  deleteDriveFoldersDelete: (...args: unknown[]) =>
+    deleteDriveFoldersDeleteMock(...args),
   getUsersByIdOrganizations: (...args: unknown[]) =>
     getUsersByIdOrganizationsMock(...args),
   patchDriveFilesMove: (...args: unknown[]) => patchDriveFilesMoveMock(...args),
@@ -374,6 +376,7 @@ vi.mock("@/components/ui/document-viewer", () => ({
 import { toast } from "sonner";
 import { DataRoomClient } from "@/app/drive/data-rooms/[id]/data-room-client";
 import { DrivePageClient } from "@/app/drive/drive-page-client";
+import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import {
   FILES_VIEW_MODE_COOKIE_NAME,
   type FilesViewMode,
@@ -2295,6 +2298,71 @@ describe("one catalog, not two", () => {
       "Investors",
     );
     vi.unstubAllGlobals();
+  });
+
+  it("invalidates Drive cache when a delete throws after partial commit", async () => {
+    const user = userEvent.setup();
+    const staleFile = {
+      type: "file" as const,
+      name: "report.pdf",
+      fileUrl: "https://blob.example/docs/report.pdf",
+      pathname: "drive/organizations/org_a/docs/report.pdf",
+      size: 1024,
+      uploadedAt: new Date("2026-08-18T10:00:00.000Z"),
+      dataRoom: false,
+    };
+    const heldRefetch = Promise.withResolvers<unknown[]>();
+
+    searchParams = new URLSearchParams("view=workspace&folder=docs");
+    deleteDriveFoldersDeleteMock.mockReset();
+    deleteDriveFoldersDeleteMock.mockRejectedValueOnce(
+      new Error("partial delete failed"),
+    );
+    listDriveItemsMock
+      .mockResolvedValueOnce([staleFile])
+      .mockImplementationOnce(() => heldRefetch.promise);
+
+    const errorCalls = expectConsole("error", "Failed to delete folder");
+
+    function renderTree(pickerOpen: boolean) {
+      return (
+        <NuqsTestingAdapter searchParams={searchParams} hasMemory>
+          <QueryClientProvider client={queryClient}>
+            <DrivePageClient defaultFilesViewMode="list" />
+            <DriveFilePicker
+              open={pickerOpen}
+              onOpenChange={vi.fn()}
+              onSelect={vi.fn()}
+            />
+          </QueryClientProvider>
+        </NuqsTestingAdapter>
+      );
+    }
+
+    const { rerender } = render(renderTree(true));
+    expect(
+      await screen.findByRole("button", { name: /report\.pdf/ }),
+    ).toBeEnabled();
+
+    rerender(renderTree(false));
+    await user.click(screen.getByTestId("files-delete-folder"));
+    await user.click(
+      await screen.findByRole("button", { name: "deleteDialogConfirm" }),
+    );
+    await waitFor(() => {
+      expect(errorCalls.length).toBeGreaterThanOrEqual(1);
+    });
+
+    rerender(renderTree(true));
+    expect(
+      await screen.findByRole("button", { name: /report\.pdf/ }),
+    ).toBeDisabled();
+    expect(listDriveItemsMock).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      heldRefetch.resolve([]);
+      await heldRefetch.promise;
+    });
   });
 
   it("offers no folder actions when no folder is applied", async () => {

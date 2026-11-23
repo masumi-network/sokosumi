@@ -95,6 +95,8 @@ interface EmailStepProps {
   lastUsedLabel?: string | undefined;
   detour: EmailStepDetour;
   onFormStart: () => void;
+  /** Whether the notice shows, for links outside the step it replaces. */
+  onDetourChange?: ((detoured: boolean) => void) | undefined;
   /** The address as typed, for links outside the step that carry it. */
   onEmailChange?: ((email: string) => void) | undefined;
   /** Runs while the button still loads, e.g. to email a code. */
@@ -128,6 +130,7 @@ export function EmailStep({
   lastUsedLabel,
   detour,
   onFormStart,
+  onDetourChange,
   onEmailChange,
   onContinue,
   disabled = false,
@@ -184,6 +187,11 @@ export function EmailStep({
   // place. A submitting fieldset cannot receive focus; wait until it is
   // enabled again.
   useFocusWhen(detourLinkRef, isDetoured && !isSubmitting);
+
+  function changeDetoured(detoured: boolean) {
+    setIsDetoured(detoured);
+    onDetourChange?.(detoured);
+  }
 
   // Following the detour and Continue never overlap: the detour only shows
   // once Continue is done. Each tells the parent from the event that changes it.
@@ -270,7 +278,7 @@ export function EmailStep({
           }
           detouredSince.current = performance.now();
           detourAccount.current = account;
-          setIsDetoured(true);
+          changeDetoured(true);
           return;
         }
 
@@ -292,7 +300,7 @@ export function EmailStep({
         isFollowingRef.current = false;
         changeFollowing(null);
         // The answer was about the address as it was.
-        setIsDetoured(false);
+        changeDetoured(false);
         onFormStart();
         onEmailChange?.(form.getValues("email"));
       }}

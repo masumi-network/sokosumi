@@ -14,9 +14,8 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { AGENT_NAME } from "../../lib/agent";
-import { formatDay, planWeeks } from "../../lib/calendar";
+import { foldCopies, formatDay, planWeeks } from "../../lib/calendar";
 import { formatMedia } from "../../lib/channels";
-import { monthLabel } from "../../lib/strategy";
 import { brandStyle, Section } from "../brand-profile";
 import { businessDisplayName } from "../business-mark";
 import { ChannelIcon } from "../channel-icon";
@@ -36,11 +35,12 @@ import {
   ChannelPlan,
   Mix,
   outcomeLine,
-  Pillars,
+  Topics,
 } from "../strategy-reveal";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
+type Card = ReturnType<typeof foldCopies<Entry>>[number];
 type Measure = NonNullable<Strategy["funnel"]>[number]["measure"];
 
 export type ConnectMeasurement = (
@@ -58,6 +58,8 @@ export const TABS: { id: PlanTab; label: string }[] = [
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 /** How many entries "Up first" lists. */
 const UP_FIRST = 3;
+/** How many cards a day shows before "+N more". */
+const DAY_CARDS = 3;
 
 interface PlanPanelProps {
   overview: CmoOverview;
@@ -111,13 +113,14 @@ export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
           </div>
         </Section>
       ) : null}
-      {strategy.pillars.length > 0 ? (
-        <Section title="Content pillars">
-          <Pillars
-            pillars={strategy.pillars}
+      {mix.length > 0 ? (
+        <Section title="What the posts do">
+          <Mix
+            mix={mix}
             calendar={strategy.calendar}
-            made={overview.production.pillars}
+            business={businessDisplayName(overview)}
           />
+          <Topics pillars={strategy.pillars} />
         </Section>
       ) : null}
       {alternatives.length > 0 ? (
@@ -142,19 +145,18 @@ export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
       <Section title={`Where ${AGENT_NAME} works`} wide>
         <ChannelPlan strategy={strategy} />
       </Section>
-      <Everything overview={overview} strategy={strategy} />
+      <Everything strategy={strategy} />
     </div>
   );
 }
 
 /** The rest of the plan, closed until the founder wants it. */
-function Everything({ overview, strategy }: PlanPanelProps) {
+function Everything({ strategy }: Pick<PlanPanelProps, "strategy">) {
   const improvements = strategy.improvements ?? [];
   const beforeAfter = strategy.beforeAfter ?? [];
   if (
     !strategy.ladder &&
     !strategy.why &&
-    (strategy.mix ?? []).length === 0 &&
     improvements.length === 0 &&
     beforeAfter.length === 0
   ) {
@@ -163,15 +165,6 @@ function Everything({ overview, strategy }: PlanPanelProps) {
   return (
     <details className="ob-more">
       <summary>Everything in the strategy</summary>
-      {(strategy.mix ?? []).length > 0 ? (
-        <Section title="What the posts do">
-          <Mix
-            mix={strategy.mix ?? []}
-            calendar={strategy.calendar}
-            business={businessDisplayName(overview)}
-          />
-        </Section>
-      ) : null}
       {strategy.why ? (
         <Section title="Why this strategy">
           <p>{strategy.why}</p>
@@ -213,14 +206,17 @@ const MEDIA = {
   image: { icon: Image, label: "Image" },
 } as const;
 
-/** One piece on the calendar: channel, time, its media, title and pillar. */
+/** One piece on the calendar: its networks, time, media and title. */
 function EntryButton({
   entry,
+  channels,
   day,
   pending,
   onOpen,
 }: {
   entry: Entry;
+  /** Every network the piece goes out on; a short video's copies fold in. */
+  channels: string[];
   /** Shows the date too (Up first). */
   day?: boolean;
   pending: boolean;
@@ -237,7 +233,9 @@ function EntryButton({
       onClick={() => onOpen(entry)}
     >
       <span className="ob-entry-meta">
-        <ChannelIcon channel={entry.channel} size={12} />
+        {channels.map((channel) => (
+          <ChannelIcon key={channel} channel={channel} size={12} />
+        ))}
         {day
           ? `${formatDay(entry.date, { weekday: "short", day: "numeric", month: "short" })}${entry.time ? ` ${entry.time}` : ""}`
           : (entry.time ?? "")}
@@ -252,9 +250,6 @@ function EntryButton({
       <span className="ob-entry-title">
         {withoutLabel(entry.hook ?? entry.title)}
       </span>
-      {entry.pillar ? (
-        <span className="ob-entry-pillar">{entry.pillar}</span>
-      ) : null}
     </button>
   );
 }
@@ -269,36 +264,31 @@ export function MonthPanel({
     () => planWeeks(strategy.calendar),
     [strategy.calendar],
   );
-  const byDay = useMemo(() => {
-    const map = new Map<string, Entry[]>();
-    for (const entry of [...strategy.calendar].sort((a, b) =>
-      (a.time ?? "").localeCompare(b.time ?? ""),
-    )) {
-      map.set(entry.date, [...(map.get(entry.date) ?? []), entry]);
-    }
-    return map;
-  }, [strategy.calendar]);
-  const first = useMemo(
+  // A short video on three networks is one card, not three.
+  const cards = useMemo(
     () =>
-      [...strategy.calendar]
-        .sort((a, b) =>
-          `${a.date} ${a.time ?? ""}`.localeCompare(
-            `${b.date} ${b.time ?? ""}`,
-          ),
-        )
-        .slice(0, UP_FIRST),
+      foldCopies(strategy.calendar).sort((a, b) =>
+        `${a.entry.date} ${a.entry.time ?? ""}`.localeCompare(
+          `${b.entry.date} ${b.entry.time ?? ""}`,
+        ),
+      ),
     [strategy.calendar],
   );
-  const counts = useMemo(() => {
-    const media = strategy.calendar.map((entry) =>
-      formatMedia(entry.channel, entry.format),
-    );
-    return {
-      pictures: media.filter((kind) => kind === "image" || kind === "images")
-        .length,
-      videos: media.filter((kind) => kind === "video").length,
-    };
-  }, [strategy.calendar]);
+  const byDay = useMemo(() => {
+    const map = new Map<string, Card[]>();
+    for (const card of cards) {
+      map.set(card.entry.date, [...(map.get(card.entry.date) ?? []), card]);
+    }
+    return map;
+  }, [cards]);
+  const first = cards.slice(0, UP_FIRST);
+  const [openDays, setOpenDays] = useState<ReadonlySet<string>>(new Set());
+  const toggleDay = (day: string) =>
+    setOpenDays((current) => {
+      const next = new Set(current);
+      if (!next.delete(day)) next.add(day);
+      return next;
+    });
   return (
     <div className="ob-month">
       {pending ? (
@@ -308,27 +298,17 @@ export function MonthPanel({
             <b>These are the topics.</b> Once you approve, I write every post
             and make its pictures and videos.
           </p>
-          <p className="ob-month-counts num">
-            {[
-              monthLabel(strategy.calendar),
-              counts.pictures > 0 ? `${counts.pictures} with pictures` : "",
-              counts.videos > 0
-                ? `${counts.videos} ${counts.videos === 1 ? "video" : "videos"}`
-                : "",
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
         </div>
       ) : null}
       {first.length > 0 ? (
         <div className="ob-upfirst">
           <h2>Up first</h2>
           <ul>
-            {first.map((entry) => (
+            {first.map(({ entry, channels }) => (
               <li key={entry.id}>
                 <EntryButton
                   entry={entry}
+                  channels={channels}
                   day
                   pending={pending}
                   onOpen={onOpen}
@@ -350,6 +330,8 @@ export function MonthPanel({
             <div className="ob-days">
               {week.days.map((day) => {
                 const entries = byDay.get(day) ?? [];
+                const open = openDays.has(day);
+                const hidden = entries.length - DAY_CARDS;
                 const dayNumber = formatDay(day, { day: "numeric" });
                 return (
                   <div
@@ -373,14 +355,27 @@ export function MonthPanel({
                         })}
                       </span>
                     </span>
-                    {entries.map((entry) => (
-                      <EntryButton
-                        key={entry.id}
-                        entry={entry}
-                        pending={pending}
-                        onOpen={onOpen}
-                      />
-                    ))}
+                    {(open ? entries : entries.slice(0, DAY_CARDS)).map(
+                      ({ entry, channels }) => (
+                        <EntryButton
+                          key={entry.id}
+                          entry={entry}
+                          channels={channels}
+                          pending={pending}
+                          onOpen={onOpen}
+                        />
+                      ),
+                    )}
+                    {hidden > 0 ? (
+                      <button
+                        type="button"
+                        className="ob-day-more"
+                        aria-expanded={open}
+                        onClick={() => toggleDay(day)}
+                      >
+                        {open ? "Show less" : `+${hidden} more`}
+                      </button>
+                    ) : null}
                   </div>
                 );
               })}

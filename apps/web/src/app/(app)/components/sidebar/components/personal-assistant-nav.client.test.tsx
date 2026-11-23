@@ -69,11 +69,10 @@ vi.mock("@/components/aurora-orb", () => ({
 
 import { type ChatRoom, SokoBotStatus } from "@sokosumi/core-client";
 import { DirectRoomAvatarStack } from "@/components/chat/direct-room-avatar-stack";
+import { LastActive } from "@/components/soko-bot/soko-bot-status-line";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
-
 import PersonalAssistantNav, {
-  LastActive,
   type SidebarSokoBotLive,
 } from "./personal-assistant-nav.client";
 
@@ -457,8 +456,37 @@ describe("PersonalAssistantNav live status", () => {
     expect(directTextsWhenReady).not.toContainEqual(
       expect.stringContaining("ERROR"),
     );
-    expect(direct).toHaveTextContent("Presence.online");
+    // The row's words, not an always-online dot.
+    expect(direct).toHaveTextContent("ready");
     expect(direct).not.toHaveTextContent("ERROR");
+  });
+
+  it("gives the chat list's Direct the same dot and words as the row", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: false })),
+    );
+    renderNavWithDirect({
+      ...bot,
+      lastActivityAt: new Date("2026-10-27T08:00:00.000Z"),
+    });
+    const direct = screen.getByTestId(`dm-sidebar-avatar-${bot.id}`);
+    const rowDot = document.querySelector('[data-slot="soko-bot-status-dot"]');
+    const directDot = screen.getByTestId("dm-sidebar-bot-status");
+    const [rowWords, directWords] = document.querySelectorAll(
+      '[data-slot="soko-bot-status-line"]',
+    );
+
+    await waitFor(() =>
+      expect(rowWords).toHaveTextContent("activeAgo(2h ago)"),
+    );
+    expect(directWords).toHaveTextContent("activeAgo(2h ago)");
+    expect(direct).toContainElement(directWords as HTMLElement);
+    expect(direct).not.toHaveTextContent("Presence.online");
+    // Same tone: the grey of an idle bot, not presence green.
+    const tone = (el: Element | null) =>
+      tokens(el?.className ?? "").filter((token) => token.startsWith("bg-"));
+    expect(tone(directDot)).toEqual(tone(rowDot));
   });
 
   it("keeps the chat list in ERROR when one of two live rows hides in Activity or unmounts", () => {

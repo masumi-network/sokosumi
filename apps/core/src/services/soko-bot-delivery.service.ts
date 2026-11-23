@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import {
   CMO_PRODUCTION_TURN_PREFIX,
+  CMO_SOKO_BOT_VERSION_IDS,
   isSokoBotSilentAnswer,
 } from "@sokosumi/soko-bot";
 import { taskNotificationHref } from "@sokosumi/utils";
@@ -25,6 +26,7 @@ import { backgroundFailureText } from "@/lib/soko-bot/background-failure";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { TASK_SUMMARY_CLIENT_TURN_PREFIX } from "@/lib/soko-bot/system-routes";
 import { collectTurnResultSnapshots } from "@/services/chat-result-preview.service";
+import { STRATEGY_TURN_PREFIX } from "@/services/marketing-strategy.service";
 import { persistSokoBotChatTurn } from "./soko-bot-chat.service";
 import { deliverSokoBotEffect } from "./soko-bot-effect-outbox.service";
 
@@ -82,7 +84,8 @@ export async function enqueueSokoBotDelivery(
   // A stopped run stays quiet: whoever stopped it already said so, and the
   // note arrived an hour later when the cancellation finally settled.
   // A Cuso's month is one progress card in CMO; a production run's answer
-  // (receipts, "timed out") is not for the owner.
+  // (receipts, "timed out") is not for the owner. Nor is a strategy turn's:
+  // a first round read as the finished plan, so Core says once when it is.
   const reason = background
     ? !turn.destinationRoomId
       ? "NO_DESTINATION"
@@ -93,13 +96,15 @@ export async function enqueueSokoBotDelivery(
           : null
     : turn.source === "CHAT" && !isChat
       ? "ASSISTANT_PAGE"
-      : !turn.destinationRoomId
-        ? "NO_DESTINATION"
-        : silent
-          ? "SILENT"
-          : !isChat && turn.status !== "COMPLETED"
-            ? turn.status
-            : null;
+      : turn.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX)
+        ? "CMO_STRATEGY"
+        : !turn.destinationRoomId
+          ? "NO_DESTINATION"
+          : silent
+            ? "SILENT"
+            : !isChat && turn.status !== "COMPLETED"
+              ? turn.status
+              : null;
   await tx.sokoBotDelivery.upsert({
     where: {
       turnId_destinationKind_destinationId_purpose: {
@@ -151,6 +156,7 @@ async function destinationStillAuthorized(
     askedByUserId?: string | null;
     workspaceId: string;
     source: string;
+    versionId: string | null;
     destinationAudience: Prisma.JsonValue;
   },
   roomId: string,
@@ -222,8 +228,13 @@ async function destinationStillAuthorized(
     const present = room.userMembers.some(
       (member) => member.userId === recipientId,
     );
+    // Cuso's room is the owner's: his reports never ping anyone.
+    const cuso =
+      turn.versionId !== null &&
+      CMO_SOKO_BOT_VERSION_IDS.includes(turn.versionId);
     return {
-      mentionUserId: turn.source !== "CHAT" && present ? actingUserId : null,
+      mentionUserId:
+        turn.source !== "CHAT" && present && !cuso ? actingUserId : null,
       shared,
     };
   }

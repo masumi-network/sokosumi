@@ -60,7 +60,7 @@ export default async function SharedSokoBotPage({
           {t("title", { name: summary.name?.trim() || id })}
         </h1>
         <p className="text-muted-foreground text-sm">{t("description")}</p>
-        <div className="flex justify-center gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
           {/* Reactivating Cuso is CMO's call (ADR 0066). */}
           {summary.viewerCanManage && !summary.cuso ? (
             <ReactivateSharedBotButton botId={id} />

@@ -32,9 +32,14 @@ export function CatchUpTabs() {
   return (
     // Links, not Radix tabs: each tab is its own route. They wear the shared
     // segmented-tab classes, which key the active look on `data-state`.
+    // On a phone the row fills the column and the tabs share it, so it never
+    // sticks out past the content; a locale too long for it scrolls instead.
     <nav
       aria-label={t("label")}
-      className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "mb-4 w-auto")}
+      className={cn(
+        SEGMENTED_TABS_LIST_CLASS_NAME,
+        "mb-4 gap-0.5 overflow-x-auto sm:w-auto sm:gap-1",
+      )}
     >
       {TABS.map((tab) => {
         const active = tab.segment === segment;
@@ -46,6 +51,7 @@ export function CatchUpTabs() {
             data-state={active ? "active" : "inactive"}
             className={cn(
               SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+              "flex-auto shrink-0 px-1 text-center whitespace-nowrap sm:flex-none sm:px-3",
               "focus-visible:ring-ring outline-none focus-visible:ring-2",
             )}
           >

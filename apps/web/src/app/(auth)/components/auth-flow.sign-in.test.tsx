@@ -545,6 +545,10 @@ describe("AuthFlow signIn", () => {
     expect(createAccount).toHaveAttribute("href", "/signup");
     expect(createAccount).toHaveAttribute("target", "_blank");
     expect(detour()).toHaveTextContent("NoAccountOnWebsite.description");
+    // Create account is the one way on; the line below would repeat it.
+    expect(
+      screen.queryByRole("link", { name: "RegisterOnWebsite.link" }),
+    ).not.toBeInTheDocument();
     await new Promise((resolve) => setTimeout(resolve, 450));
     sendEmailCodeMock.mockClear();
     // After the page's own handler: jsdom would load the new window's page.
@@ -776,6 +780,33 @@ describe("AuthFlow signIn", () => {
       expect(
         await screen.findByRole("link", { name: "NoAccount.createAccount" }),
       ).toHaveAttribute("href", href);
+    });
+
+    it("hides while the no-account notice offers Create account, and returns on an edit", async () => {
+      const user = userEvent.setup();
+      emailStatusMock.mockResolvedValue({
+        data: { exists: false, captchaPass: CAPTCHA_PASS },
+        error: null,
+      });
+      render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
+
+      await continueWith(user, "new@example.com");
+      await waitFor(() =>
+        expect(detour()).toHaveAttribute("data-state", "open"),
+      );
+
+      expect(
+        screen.queryByRole("link", { name: "Register.link" }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("Register.message")).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: "NoAccount.createAccount" }),
+      ).toBeInTheDocument();
+
+      await user.type(emailField(), "x");
+
+      expect(detour()).toHaveAttribute("data-state", "closed");
+      expect(register()).toBeInTheDocument();
     });
 
     it("hands a locked email without an invitation to sign-up as a starting value", () => {

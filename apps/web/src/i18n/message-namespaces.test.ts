@@ -90,6 +90,16 @@ describe("message namespaces", () => {
     expect(SOKO_BOT_MESSAGE_PATHS).not.toContain("App.Admin");
   });
 
+  it("gives an archived shared bot's page its Reactivate copy", () => {
+    // `/soko-bots/[id]` renders `ReactivateSharedBotButton` inside this bag.
+    const picked = pickMessages(en, SOKO_BOT_MESSAGE_PATHS) as Partial<
+      typeof en
+    >;
+    expect(picked.App?.SokoBots?.Shared?.Archived).toEqual(
+      en.App.SokoBots.Shared.Archived,
+    );
+  });
+
   it("builds Admin bag from APP_SHELL + App.Admin", () => {
     for (const path of APP_SHELL_MESSAGE_PATHS) {
       expect(ADMIN_MESSAGE_PATHS).toContain(path);

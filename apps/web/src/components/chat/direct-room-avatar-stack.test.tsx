@@ -1,4 +1,4 @@
-import type { ChatRoom } from "@sokosumi/core-client";
+import { type ChatRoom, SokoBotStatus } from "@sokosumi/core-client";
 import { act, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -22,7 +22,7 @@ vi.mock("@/app/chat/components/chat-participant-hover-card", () => ({
 }));
 
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
-import { publishFailedSokoBotId } from "./personal-assistant-chrome-store";
+import { publishLiveSokoBot } from "./personal-assistant-chrome-store";
 
 function makeUser(id: string, name?: string) {
   return {
@@ -174,7 +174,11 @@ describe("DirectRoomAvatarStack", () => {
   });
 
   it("says your bot couldn't reply instead of Online after a failed reply", () => {
-    const clearFailed = publishFailedSokoBotId("bot-1");
+    const clearFailed = publishLiveSokoBot({
+      id: "bot-1",
+      status: SokoBotStatus.ERROR,
+      lastActivityAt: null,
+    });
     try {
       render(
         <DirectRoomAvatarStack
@@ -188,14 +192,39 @@ describe("DirectRoomAvatarStack", () => {
 
       // The words the sidebar row and the bot's page use for ERROR.
       const face = screen.getByTestId("dm-sidebar-avatar-bot-1");
-      expect(screen.getByTestId("dm-sidebar-bot-failed")).toHaveAttribute(
-        "title",
-        "ERROR",
-      );
       expect(face).toHaveTextContent("ERROR");
       expect(face).not.toHaveTextContent("Online");
     } finally {
       act(() => clearFailed());
+    }
+  });
+
+  it("gives your bot's dot no hover word of its own to disagree with the row", () => {
+    const clearIdle = publishLiveSokoBot({
+      id: "bot-1",
+      status: SokoBotStatus.IDLE,
+      lastActivityAt: null,
+    });
+    try {
+      render(
+        <DirectRoomAvatarStack
+          room={makeDirectRoom({
+            userMembers: [makeUser("me", "Me")],
+            sokoBotMembers: [makeSokoBot("bot-1", "Zero")],
+          })}
+          currentUserId="me"
+        />,
+      );
+
+      // The row's words ("Ready"), never the badge's ("Idle").
+      const face = screen.getByTestId("dm-sidebar-avatar-bot-1");
+      expect(screen.getByTestId("dm-sidebar-bot-status")).not.toHaveAttribute(
+        "title",
+      );
+      expect(face).toHaveTextContent("ready");
+      expect(face).not.toHaveTextContent("IDLE");
+    } finally {
+      act(() => clearIdle());
     }
   });
 

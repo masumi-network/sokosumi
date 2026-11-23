@@ -4,6 +4,7 @@ import {
   cmoOfferLinkProblem,
   cmoOfferPieceIds,
   cmoPointCap,
+  cmoSourcedPoints,
 } from "./cmo-month-points";
 
 function entry(id: string, extra: Record<string, unknown> = {}) {
@@ -140,5 +141,26 @@ describe("cmoCapPoints", () => {
       2,
     );
     expect(claims.size).toBe(5);
+  });
+});
+
+describe("cmoSourcedPoints", () => {
+  it("gives a point on an industry item its source", () => {
+    const industry = [
+      { id: "i1", point: "Fees fell", sourceUrl: "https://news.example/a" },
+    ];
+    const [onItem, onBrand, long] = cmoSourcedPoints(
+      [
+        { id: "a", pillar: "P", factId: "i1", point: "Fees fell this month" },
+        { id: "b", pillar: "P", factId: "f1", point: "Studio is free" },
+        { id: "c", pillar: "P", factId: "i1", point: "x".repeat(390) },
+      ],
+      industry,
+    );
+    expect(onItem?.point).toBe(
+      "Fees fell this month (source: https://news.example/a)",
+    );
+    expect(onBrand?.point).toBe("Studio is free");
+    expect(long?.point).toBe(`${"x".repeat(390)} (source: i1)`);
   });
 });

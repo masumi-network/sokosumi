@@ -34,30 +34,6 @@ export function monthPostCount(calendar: readonly CalendarEntry[]): number {
   );
 }
 
-/**
- * The month's posts as the Strategy page counts them: "171 posts", or "171
- * planned, 169 in your plan" when the plan bought makes fewer (Core's
- * beyondPlan), so the number matches what goes out on Today and the Calendar.
- */
-export function planCount(
-  calendar: readonly CalendarEntry[],
-  beyondPlan: readonly string[],
-): { label: string; planned: number; inPlan: number } {
-  const beyond = new Set(beyondPlan);
-  const planned = monthPostCount(calendar);
-  const inPlan = monthPostCount(
-    calendar.filter((entry) => !beyond.has(entry.id)),
-  );
-  return {
-    label:
-      inPlan < planned
-        ? `${planned} planned, ${inPlan} in your plan`
-        : monthLabel(calendar),
-    planned,
-    inPlan,
-  };
-}
-
 /** The ads in the month, not skipped. */
 export function monthAdCount(calendar: readonly CalendarEntry[]): number {
   return calendar.filter((entry) => entry.status !== "skipped" && isAd(entry))
@@ -70,14 +46,6 @@ export function monthLabel(calendar: readonly CalendarEntry[]): string {
   const ads = monthAdCount(calendar);
   const label = `${posts} ${posts === 1 ? "post" : "posts"}`;
   return ads > 0 ? `${label} and ${ads} ${ads === 1 ? "ad" : "ads"}` : label;
-}
-
-/**
- * Whether the owner has a plan yet (a CMO plan, or Tester credits). Until
- * then a strategy's month is the most the biggest plan makes, never a promise.
- */
-export function planChosen(overview: Pick<CmoOverview, "billing">): boolean {
-  return overview.billing.tier !== null || overview.billing.hasTesterCredits;
 }
 
 /**

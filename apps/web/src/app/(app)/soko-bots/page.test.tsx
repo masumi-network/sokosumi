@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getTeamMock = vi.fn();
@@ -14,6 +14,11 @@ vi.mock("@/lib/auth/auth.server", () => ({
 vi.mock("@/lib/clients/core.client", () => ({
   CoreApiRequestError: class extends Error {},
 }));
+// The real Try again button; refresh renders the page again, as Next does.
+const refreshMock = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: refreshMock }),
+}));
 vi.mock("@/lib/services/soko-bot.service", () => ({
   sokoBotService: {
     getTeam: () => getTeamMock(),
@@ -21,10 +26,18 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
   },
 }));
 vi.mock("./shared-bots", () => ({ loadSharedBots: () => loadSharedMock() }));
+const heroMock = vi.fn();
+const assistantMock = vi.fn();
 vi.mock("./components/roster", () => ({
-  SokoBotsHero: () => null,
-  YourAssistantSection: () => null,
-  TeamSection: () => null,
+  SokoBotsHero: (props: unknown) => {
+    heroMock(props);
+    return null;
+  },
+  YourAssistantSection: (props: unknown) => {
+    assistantMock(props);
+    return null;
+  },
+  TeamSection: () => <section data-testid="team-section" />,
 }));
 vi.mock("./components/shared-bots-section", () => ({
   SharedBotsSection: (props: { canCreatePersonal: boolean }) => {
@@ -33,6 +46,7 @@ vi.mock("./components/shared-bots-section", () => ({
   },
 }));
 
+import { CoreApiRequestError } from "@/lib/clients/core.client";
 import SokoBotsPage from "./page";
 
 function team(kind: "organization" | "personal", hasBot: boolean) {
@@ -73,5 +87,64 @@ describe("SokoBotsPage shared bots", () => {
     expect(sectionMock).toHaveBeenCalledWith(
       expect.objectContaining({ canCreatePersonal: true }),
     );
+  });
+});
+
+describe("SokoBotsPage when the team read fails", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("says so at the top with Try again and hides create and empty states", async () => {
+    getTeamMock.mockRejectedValue(new CoreApiRequestError("down"));
+    loadSharedMock.mockResolvedValue({ bots: [], projects: [] });
+    await renderPage();
+    expect(screen.getByText("Unavailable.title")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Unavailable.retry" }),
+    ).toBeInTheDocument();
+    expect(heroMock).toHaveBeenCalledWith(
+      expect.objectContaining({ team: null }),
+    );
+    expect(assistantMock).toHaveBeenCalledWith(
+      expect.objectContaining({ me: null, unavailable: true }),
+    );
+    expect(screen.queryByTestId("shared-bots-section")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("team-section")).not.toBeInTheDocument();
+  });
+
+  it("recovers when Try again reads the team successfully", async () => {
+    getTeamMock
+      .mockRejectedValueOnce(new CoreApiRequestError("down"))
+      .mockResolvedValueOnce(team("organization", true));
+    loadSharedMock.mockResolvedValue({ bots: [], projects: [] });
+    const { rerender } = render(await SokoBotsPage());
+    refreshMock.mockImplementation(async () => {
+      rerender(await SokoBotsPage());
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Unavailable.retry" }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("team-section")).toBeInTheDocument(),
+    );
+    expect(refreshMock).toHaveBeenCalledTimes(1);
+    expect(getTeamMock).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText("Unavailable.title")).not.toBeInTheDocument();
+    expect(screen.getByTestId("shared-bots-section")).toBeInTheDocument();
+    expect(assistantMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ unavailable: false }),
+    );
+  });
+
+  it("keeps the normal empty states after a successful empty read", async () => {
+    getTeamMock.mockResolvedValue(team("organization", false));
+    loadSharedMock.mockResolvedValue({ bots: [], projects: [] });
+    await renderPage();
+    expect(screen.queryByText("Unavailable.title")).not.toBeInTheDocument();
+    expect(assistantMock).toHaveBeenCalledWith(
+      expect.objectContaining({ unavailable: false }),
+    );
+    expect(screen.getByTestId("team-section")).toBeInTheDocument();
   });
 });

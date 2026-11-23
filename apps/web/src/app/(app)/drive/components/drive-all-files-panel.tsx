@@ -61,6 +61,7 @@ import {
   fetchWorkspaceLabels,
   updateFileCollection,
 } from "@/lib/utils/file-search.client";
+
 import {
   type DriveCatalogQueryParams,
   driveQueryKeys,
@@ -72,6 +73,7 @@ import {
   useScopedQuery,
 } from "@/queries/scoped-queries";
 import { foldLoadedFilePages } from "./drive-all-files-panel.utils";
+
 import { DriveCollectionChip } from "./drive-collection-chip";
 
 /**
@@ -542,12 +544,16 @@ export function DriveAllFilesPanel({
       );
 
       setConfirmDeleteOpen(false);
-      if (deletedTargets.length > 0) {
-        const deletedIds = deletedTargets.flatMap((item) =>
-          item.pathname ? [item.id, item.pathname] : [item.id],
-        );
-        void invalidateDrive(queryClient, store, { deletedIds });
-      }
+      // Core can remove a blob and then fail, so invalidate after every
+      // non-empty attempt; drop confirmed deletes from loaded lists at once.
+      const deletedIds = deletedTargets.flatMap((item) =>
+        item.pathname ? [item.id, item.pathname] : [item.id],
+      );
+      void invalidateDrive(
+        queryClient,
+        store,
+        deletedIds.length > 0 ? { deletedIds } : undefined,
+      );
 
       if (failedIds.length === 0) {
         setSelectedIds([]);

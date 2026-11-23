@@ -48,6 +48,11 @@ export const driveQueryKeys = {
   googleSheet: (store: FileStore, resourceId: string) =>
     driveKey(store, "google-sheet", resourceId),
   labels: (store: FileStore) => driveKey(store, "labels"),
+  picker: (store: FileStore, params: { folder?: string; q?: string } = {}) =>
+    driveKey(store, "picker", {
+      folder: params.folder ?? "",
+      q: params.q?.trim() ?? "",
+    }),
   tags: (store: FileStore) => driveKey(store, "tags"),
 } as const;
 

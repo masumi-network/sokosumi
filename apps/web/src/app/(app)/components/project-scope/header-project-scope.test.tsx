@@ -230,7 +230,26 @@ describe("header project scope", () => {
     );
   });
 
-  it("leads its menu with All projects, back to the Projects list from a project page", async () => {
+  it("opens the picked project's Overview from the top of its menu", async () => {
+    const user = userEvent.setup();
+    mocks.pathname = "/tasks";
+    mocks.search = "projectId=p-1";
+    renderScope();
+
+    await user.click(trigger());
+    const overview = await screen.findByTestId("project-scope-overview");
+    expect(screen.getAllByRole("option")[0]).toBe(overview);
+    await user.click(overview);
+
+    expect(mocks.push).toHaveBeenCalledExactlyOnceWith("/projects/p-1");
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "switchLabel" }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
+  it("offers All projects under Overview, back to the Projects list from a project page", async () => {
     const user = userEvent.setup();
     mocks.pathname = "/projects/p-1/design-md";
     mocks.loadPinned.mockResolvedValue([
@@ -241,7 +260,10 @@ describe("header project scope", () => {
     await user.click(trigger());
     const all = await screen.findByTestId("project-scope-all");
     await screen.findByTestId("project-scope-item-p-1");
-    expect(screen.getAllByRole("option")[0]).toBe(all);
+    expect(screen.getAllByRole("option").slice(0, 2)).toEqual([
+      screen.getByTestId("project-scope-overview"),
+      all,
+    ]);
     await user.click(all);
 
     expect(mocks.push).toHaveBeenCalledExactlyOnceWith("/projects");

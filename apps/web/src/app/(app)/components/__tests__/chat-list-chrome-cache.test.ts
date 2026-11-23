@@ -128,7 +128,7 @@ describe("loadMembershipVisibleRooms progressive paint", () => {
 });
 
 describe("chat list chrome single-source composition contract", () => {
-  it("sidebar shares private chrome slices; chats page awaits rooms first", async () => {
+  it("sidebar and chats page share private chrome slices, rooms first", async () => {
     const { readFileSync } = await import("node:fs");
     const { dirname, join } = await import("node:path");
     const { fileURLToPath } = await import("node:url");
@@ -159,10 +159,12 @@ describe("chat list chrome single-source composition contract", () => {
     expect(sidebarLoader).toMatch(
       /getPrivateCachedChatListArchivedAndMembers\(args\)/,
     );
-    // Chats awaits membership rooms, then Suspense-streams archived+members.
-    expect(chatsPage).toMatch(/getPrivateCachedMembershipVisibleRooms/);
-    expect(chatsPage).toMatch(/getPrivateCachedChatListArchivedAndMembers/);
-    expect(chatsPage).toMatch(/<Suspense/);
+    // Chats takes the sidebar's loader: rooms awaited, archived+members filled
+    // into the same mounted list. A Suspense fallback list would be replaced
+    // by a second list, dropping a tap or an open dialog.
+    expect(chatsPage).toMatch(/loadSidebarChatList/);
+    expect(chatsPage).toMatch(/<SidebarChatList/);
+    expect(chatsPage).not.toMatch(/<Suspense/);
     // Page must not re-issue raw listRooms / listArchived / members after the
     // shared private-cache slices own that cold composition work.
     expect(chatsPage).not.toMatch(/chatRoomService\s*\.\s*listRooms\s*\(/);

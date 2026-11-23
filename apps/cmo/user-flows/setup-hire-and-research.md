@@ -8,6 +8,7 @@
 2. Picks where Cuso goes (a new organization by default).
 3. Watches Cuso read the site: steps tick off, the homepage screenshots and first findings fill in.
 4. Answers his yes/no questions one at a time while he reads, adding details where needed.
+5. From cmo-v21, once the Brand Brain is saved, Core researches the buyers' industry (about five web searches: news, trends, common problems, competitors) before Cuso writes the strategy; it lands in Files under Brand research/Industry.
 
 **They expect**
 
