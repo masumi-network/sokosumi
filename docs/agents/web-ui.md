@@ -192,6 +192,14 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-rooms-client-scroll-on-history-loaded` (`useRoomsClientScrollOnHistoryLoaded`) — pins `RoomsClient` to the bottom in layout when message history transitions from pending to loaded
 - `use-rooms-client-transcript-active` (`useRoomsClientTranscriptActive`) — before-paint active/mounted ref lifecycle for `RetainedRoomsClient` and its `positionChanged` guard
 - `use-unread-thread-reply-counts` (`useUnreadThreadReplyCounts`) — debounced unread thread reply count reader per room with local `clear` override
+- `use-outbound-pending-spinner` (`useOutboundPendingSpinner`) — delays showing the pending outbound chat message spinner until `OUTBOUND_PENDING_SPINNER_DELAY_MS` elapses
+- `use-outbound-sent-tick-fade` (`useOutboundSentTickFade`) — starts fading the outbound chat message sent tick halfway through `OUTBOUND_SENT_TICK_MS`
+- `use-thread-mute-status` (`useThreadMuteStatus`) — loads the reader's mute status for the open chat thread while unknown, retrying on `replyCount` changes only while the status is unknown
+- `use-browse-channels-search` (`useBrowseChannelsSearch`) — debounces discoverable channel searches while `BrowseChannelsDialog` is open
+- `use-channel-slug-availability` (`useChannelSlugAvailability`) — debounces channel slug availability checks on the `CreateChannelDialog` create step
+- `use-live-chat-rooms-ownership-settled` (`useLiveChatRoomsOwnershipSettled`, `SIDEBAR_REGISTRATION_WAIT_MS`) — waits for desktop sidebar reader registration before `useLiveChatRoomsRead` starts its own reader
+- `use-organization-chat-rooms-health-stale` (`useOrganizationChatRoomsHealthStale`) — marks the active chat rooms list stale whenever Ably connection health flips
+- `use-other-workspace-rooms-live-sync` (`useOtherWorkspaceRoomsLiveSync`, `OTHER_WORKSPACE_ROOMS_KEY`, `withWorkspaceOf`) — subscribes `OtherWorkspaceRoomsLive` to organization chat room removal, read, and throttled active invalidation events
 - `use-task-activity-composer-upload-cleanup` (`useTaskActivityComposerUploadCleanup`) — tracks unmounting/hidden state and aborts active attachment uploads on passive cleanup for `TaskActivityComposer`
 - `use-task-activity-jump-highlight` (`useTaskActivityJumpHighlight`) — tracks and highlights a pending "Jump to latest" message once rendered in `TaskActivitySection`
 - `use-task-files-expanded` (`useTaskFilesExpanded`) — owns `TaskFiles` expansion state and resets it before paint on unmount or React `<Activity>` hide

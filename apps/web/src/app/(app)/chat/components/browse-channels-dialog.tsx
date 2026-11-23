@@ -3,12 +3,9 @@
 import type { DiscoverableChatRoom } from "@sokosumi/core-client";
 import { List, Loader2, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import {
-  joinRoomAction,
-  listDiscoverableChannelsAction,
-} from "@/app/chat/actions";
+import { joinRoomAction } from "@/app/chat/actions";
 import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Button } from "@/components/ui/button";
@@ -22,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useBrowseChannelsSearch } from "@/hooks/effects/use-browse-channels-search";
 
 export function BrowseChannelsDialog({
   triggerClassName,
@@ -31,43 +29,19 @@ export function BrowseChannelsDialog({
   const t = useTranslations("App.Channels.Browse");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [rooms, setRooms] = useState<DiscoverableChatRoom[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { rooms, isLoading, clearRooms } = useBrowseChannelsSearch(
+    open,
+    query,
+    t,
+  );
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
   const [_isJoining, startJoinTransition] = useTransition();
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    let cancelled = false;
-    const timeoutId = window.setTimeout(async () => {
-      setIsLoading(true);
-      const result = await listDiscoverableChannelsAction({ q: query });
-      if (cancelled) {
-        return;
-      }
-      setIsLoading(false);
-      if (!result.ok) {
-        toast.error(result.error.message || t("loadError"));
-        setRooms([]);
-        return;
-      }
-      setRooms(result.value);
-    }, 200);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeoutId);
-    };
-  }, [open, query, t]);
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
     if (!nextOpen) {
       setQuery("");
-      setRooms([]);
+      clearRooms();
       setJoiningRoomId(null);
     }
   }
