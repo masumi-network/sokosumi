@@ -1798,6 +1798,7 @@
           "quietDay": "Todavía no se ha movido nada. Pide a {name} que empiece algo.",
           "newSchedule": "Nueva programación para {name}",
           "open": "Abrir",
+          "youTo": "Tú a {name}",
           "suggestions": {
             "catchUp": "Ponme al día",
             "teamWins": "¿Qué terminamos?",

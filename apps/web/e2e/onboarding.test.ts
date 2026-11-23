@@ -103,6 +103,11 @@ for (const { name, ...viewport } of PROJECTS) {
       // send, must not throw.
       await codeField.dispatchEvent("paste");
       await codeField.pressSequentially(await mailbox.nextCode());
+      // The address in "We sent a 6-digit code to …" sits in a box of its own,
+      // so it moves to the next line whole instead of breaking at a hyphen.
+      await page
+        .locator("p span.inline-block", { hasText: mailbox.address })
+        .waitFor();
       await shot("1-code");
       await page.getByRole("button", { name: "Register" }).click();
 
@@ -202,8 +207,22 @@ for (const { name, ...viewport } of PROJECTS) {
       await page.getByRole("link", { name: "Skip" }).click();
 
       await page.waitForURL(/\/chat\/rooms\//);
-      await page.getByRole("textbox", { name: `Message ${BOT}` }).waitFor();
+      const message = page.getByRole("textbox", { name: `Message ${BOT}` });
+      await message.fill("What should I set up first?");
+      await page.getByRole("button", { name: "Send message" }).click();
+      await page
+        .getByRole("main")
+        .getByText("What should I set up first?")
+        .waitFor();
       await shot("4-chat");
+      // Home lists that first question as the reader's own, sent to the bot.
+      await page.goto(`${BASE_URL}/`);
+      await page
+        .getByRole("link", {
+          name: new RegExp(`What should I set up first\\?.*You to ${BOT}`),
+        })
+        .waitFor();
+      await shot("5-home");
       await context.close();
       assert.deepEqual(errors, []);
     });

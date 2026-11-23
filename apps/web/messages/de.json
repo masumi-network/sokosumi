@@ -1798,6 +1798,7 @@
           "quietDay": "Noch hat sich nichts bewegt. Bitte {name}, etwas anzustoßen.",
           "newSchedule": "Neuer Zeitplan für {name}",
           "open": "Öffnen",
+          "youTo": "Du an {name}",
           "suggestions": {
             "catchUp": "Bring mich auf den Stand",
             "teamWins": "Was haben wir geschafft?",

@@ -336,7 +336,8 @@ describe("WelcomePage", () => {
             roomId: "room-1",
             messageId: "msg-1",
             title: "Plan my week",
-            from: "Joseph",
+            // The reader wrote it, to the bot.
+            from: "App.Chat.Landing.SokoBotHome.youTo",
           }),
         ],
       }),

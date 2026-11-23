@@ -3,7 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { createRef, type Ref, useRef, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { EmailCodeField, useEmailCodeRefusal } from "./email-code-field";
+import {
+  EmailCodeField,
+  keepAddressWhole,
+  useEmailCodeRefusal,
+} from "./email-code-field";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -323,5 +327,27 @@ describe("EmailCodeField", () => {
     await user.type(codeField(), "00000");
     expect(onComplete).toHaveBeenCalledTimes(2);
     expect(onComplete).toHaveBeenLastCalledWith("000000");
+  });
+});
+
+describe("keepAddressWhole", () => {
+  it("wraps the address so it never breaks at its hyphen", () => {
+    render(
+      <p>
+        {keepAddressWhole(
+          "We sent a 6-digit code to soko-ux-1@example.com.",
+          "soko-ux-1@example.com",
+        )}
+      </p>,
+    );
+    const address = screen.getByText("soko-ux-1@example.com");
+    expect(address).toHaveClass("inline-block");
+    expect(address.parentElement).toHaveTextContent(
+      "We sent a 6-digit code to soko-ux-1@example.com.",
+    );
+  });
+
+  it("leaves a sentence without the address as it is", () => {
+    expect(keepAddressWhole("sent", "ada@example.com")).toBe("sent");
   });
 });

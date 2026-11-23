@@ -153,7 +153,7 @@ describe("toImportantChats", () => {
 
 describe("withSokoBotChat", () => {
   const now = new Date("2026-11-17T12:00:00Z");
-  const reader = { userId: "me", botName: "Wren", untitled: "No text" };
+  const reader = { userId: "me", from: "You to Wren", untitled: "No text" };
   const message = (
     id: string,
     sender: "me" | "other" | "bot",
@@ -197,7 +197,7 @@ describe("withSokoBotChat", () => {
         roomId: "bot-room",
         messageId: "q2",
         title: "What should I set up first?",
-        from: "Wren",
+        from: "You to Wren",
         at: new Date("2026-11-17T11:58:00Z"),
       },
     ]);
