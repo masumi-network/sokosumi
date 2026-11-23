@@ -402,7 +402,9 @@ export async function writeCmoMonthPieces(
     strategy,
     brain,
     proof,
-    brandPictures: await listCmoBrandPictures(cuso.projectId),
+    brandPictures: (await listCmoBrandPictures(cuso.projectId)).filter(
+      (picture) => !picture.fromSite,
+    ),
     styles,
     varied,
     scenes: cmoWritesSceneVisuals(authorized.turn.versionId),

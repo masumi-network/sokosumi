@@ -14828,6 +14828,26 @@ export type CmoBrandMedia = {
             fileId: string | null;
         } | null;
     };
+    /**
+     * Every page of the brand's site Cuso read, home first: what it says and how it looks on a desktop and a phone. complete is false while pages are still to be read. Absent before the first page was read.
+     */
+    site?: {
+        pages: Array<{
+            url: string;
+            title: string;
+            summary: string;
+            facts: Array<string>;
+            desktop: {
+                url: string;
+                fileId: string | null;
+            } | null;
+            phone: {
+                url: string;
+                fileId: string | null;
+            } | null;
+        }>;
+        complete: boolean;
+    };
 };
 
 export type CmoPlan = {

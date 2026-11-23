@@ -3440,6 +3440,87 @@ video.draft-media {
   padding-top: 16px;
 }
 
+/* Every page of the site: one line each, its facts and shots one click deeper. */
+.bm-site-note {
+  margin: -4px 0 12px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.bm-site {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--border);
+}
+
+.bm-site > li {
+  border-bottom: 1px solid var(--border);
+}
+
+.bm-site summary {
+  display: grid;
+  gap: 2px;
+  padding: 12px 0;
+  cursor: pointer;
+  list-style: none;
+}
+
+.bm-site summary::-webkit-details-marker {
+  display: none;
+}
+
+.bm-site summary b {
+  font-weight: 600;
+}
+
+.bm-site summary span {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.bm-site-page {
+  display: grid;
+  gap: 12px;
+  padding: 0 0 16px;
+}
+
+.bm-site-facts {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.875rem;
+}
+
+.bm-site-shots {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.3fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.bm-site-shots img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  object-position: top;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
+.bm-site-phone img {
+  aspect-ratio: 390 / 844;
+}
+
+.bm-site-page > a.bm-caption {
+  color: inherit;
+  font-size: 0.875rem;
+}
+
 @media (max-width: 600px) {
   .bm-sections a {
     max-width: 280px;
