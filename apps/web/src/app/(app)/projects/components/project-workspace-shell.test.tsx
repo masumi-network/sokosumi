@@ -96,11 +96,9 @@ describe("the project detail layout", () => {
     // actions clear of the rail.
     expect(grid.classList).toContain("gap-y-4");
     expect(grid.classList).toContain("xl:gap-x-14");
-    // In one column the tabs start a new group: 32px after the Properties.
-    const tabsBlock = screen.getByRole("navigation", {
-      name: "Project sections",
-    }).parentElement as HTMLElement;
-    expect(tabsBlock.classList).toContain("max-xl:mt-4");
+    // In one column the tabs follow the name: no rail between them.
+    const tabsBlock = tabsBlockOf();
+    expect(tabsBlock.classList).not.toContain("max-xl:mt-4");
     expect(tabsBlock.classList).toContain("space-y-8");
   });
 
@@ -123,6 +121,27 @@ describe("the project detail layout", () => {
     expect(within(aside).getByText("Identifier")).toBeInTheDocument();
   });
 
+  // A phone's first screen reaches the tabs and content: the rail waits for
+  // xl, and below it the Properties are one line under the tabs.
+  it("shows the Properties as one line under the tabs below xl", () => {
+    renderShell();
+
+    expect(screen.getByRole("complementary").classList).toContain(
+      "max-xl:hidden",
+    );
+    const line = screen.getByLabelText("Properties");
+    expect(line.tagName).toBe("DL");
+    expect(line.classList).toContain("xl:hidden");
+    const nav = screen.getByRole("navigation", { name: "Project sections" });
+    expect(nav.nextElementSibling).toBe(line);
+    expect(within(line).getByText("SOK")).toBeInTheDocument();
+    expect(
+      within(line).getByRole("link", { name: /example\.com/ }),
+    ).toBeInTheDocument();
+    expect(within(line).getByText("Updated")).toBeInTheDocument();
+    expect(within(line).getByText("Today")).toBeInTheDocument();
+  });
+
   it("orders name, rail, tabs, content, so the tabs touch their content", () => {
     renderShell();
 
@@ -137,8 +156,8 @@ describe("the project detail layout", () => {
     expect(follows(aside, nav)).toBe(true);
     expect(follows(nav, content)).toBe(true);
     // Tabs and content share one block; the rail is never between them.
-    expect(nav.parentElement?.contains(content)).toBe(true);
-    expect(nav.parentElement?.contains(aside)).toBe(false);
+    expect(tabsBlockOf().contains(content)).toBe(true);
+    expect(tabsBlockOf().contains(aside)).toBe(false);
   });
 
   it("keeps the two-row grid on a tab without panels", () => {
@@ -148,10 +167,7 @@ describe("the project detail layout", () => {
     // Design, Memory and Bots: no third row, no placement, the rail capped.
     expect(grid.className).not.toContain("grid-rows");
     expect(grid.children).toHaveLength(3);
-    const tabsBlock = screen.getByRole("navigation", {
-      name: "Project sections",
-    }).parentElement as HTMLElement;
-    expect(tabsBlock.className).not.toContain("row-span");
+    expect(tabsBlockOf().className).not.toContain("row-span");
     expect(screen.getByRole("complementary").className).not.toContain(
       "xl:max-w-none",
     );
@@ -179,10 +195,7 @@ describe("the project detail layout", () => {
     expect(panels.classList).toContain("xl:row-start-3");
     // Last in the DOM, so a phone reaches the tab's content first.
     expect(grid.lastElementChild).toBe(panels);
-    const tabsBlock = screen.getByRole("navigation", {
-      name: "Project sections",
-    }).parentElement as HTMLElement;
-    expect(tabsBlock.classList).toContain("xl:row-span-2");
+    expect(tabsBlockOf().classList).toContain("xl:row-span-2");
     expect(screen.getByRole("complementary").classList).toContain(
       "xl:max-w-none",
     );
@@ -266,3 +279,9 @@ describe("getProjectWorkspaceLabels", () => {
     expect((await getProjectWorkspaceLabels()).bots).toBeUndefined();
   });
 });
+
+/** The block the tabs open: tabs (with the Properties line) and content. */
+function tabsBlockOf(): HTMLElement {
+  return screen.getByRole("navigation", { name: "Project sections" })
+    .parentElement?.parentElement as HTMLElement;
+}

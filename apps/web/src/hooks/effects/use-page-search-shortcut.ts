@@ -12,7 +12,7 @@ function isAvailable(field: HTMLInputElement): boolean {
 }
 
 /** Resolve the live field on each press: some routes retain hidden tabs or mobile toolbars. */
-function activeSearchField(): HTMLInputElement | undefined {
+export function activeSearchField(): HTMLInputElement | undefined {
   const fields = Array.from(
     document.querySelectorAll<HTMLInputElement>(
       "input[data-page-search-input]",

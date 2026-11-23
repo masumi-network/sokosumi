@@ -64,6 +64,7 @@ export default async function ProjectDetailPage({
           cmo={project.cmo}
           closedAt={project.closedAt}
           closingAt={project.closingAt}
+          find
           isHidden={isHidden}
           projectId={project.id}
           projectRevision={project.projectRevision}

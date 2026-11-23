@@ -1,5 +1,6 @@
 import { CalendarPlus, ExternalLink, Globe, Hash, History } from "lucide-react";
 
+import { cn } from "@/lib/utils";
 import { getHostname } from "@/lib/utils/url";
 
 export interface ProjectPropertiesLabels {
@@ -85,6 +86,65 @@ export function ProjectProperties({
         </PropertyRow>
       </dl>
     </section>
+  );
+}
+
+/**
+ * The Properties as one quiet line under the tabs, for the single column
+ * below `xl`: the rail's rows would push the tabs down a phone's first
+ * screen. Same facts and qualifiers, smaller.
+ */
+export function ProjectPropertiesLine({
+  labels,
+  identifier,
+  websiteUrl,
+  updatedAt,
+  createdAt,
+  className,
+}: ProjectPropertiesProps & { className?: string }) {
+  const websiteHostname = websiteUrl ? getHostname(websiteUrl) : null;
+  const item = "flex min-w-0 items-center gap-1";
+
+  return (
+    <dl
+      aria-label={labels.title}
+      className={cn(
+        "text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs",
+        className,
+      )}
+    >
+      {identifier ? (
+        <div className={item}>
+          <dt className="sr-only">{labels.identifier}</dt>
+          <dd className="font-mono uppercase">{identifier}</dd>
+        </div>
+      ) : null}
+      {websiteUrl && websiteHostname ? (
+        <div className={item}>
+          <dt className="sr-only">{labels.website}</dt>
+          <dd className="min-w-0">
+            <a
+              href={websiteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={websiteUrl}
+              className="hover:text-foreground hit-area inline-flex max-w-full min-w-0 items-center gap-1 rounded-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="truncate">{websiteHostname}</span>
+              <ExternalLink className="size-3 shrink-0" aria-hidden />
+            </a>
+          </dd>
+        </div>
+      ) : null}
+      <div className={item}>
+        <dt>{labels.updated}</dt>
+        <dd className="tabular-nums">{updatedAt}</dd>
+      </div>
+      <div className={item}>
+        <dt>{labels.created}</dt>
+        <dd className="tabular-nums">{createdAt}</dd>
+      </div>
+    </dl>
   );
 }
 

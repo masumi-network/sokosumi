@@ -82,6 +82,8 @@ interface ToolbarProps {
   hits: number;
   partial: number;
   focusOnMount?: boolean;
+  /** Below md, out of sight until focused or holding a query: a page's own icon opens it. */
+  collapsed?: boolean;
   heading?: ReactNode;
   renderHeader?: (search: ReactNode) => ReactNode;
 }
@@ -109,6 +111,8 @@ function SidebarSearchToolbar(props: ToolbarProps) {
   const pathname = useChromePathname();
   const params = useSearchParams();
   const agentProfile = /^\/agents\/[^/]+$/.test(pathname);
+  // A project's title row has the phone's Find icon (ProjectFindButton).
+  const projectOverview = /^\/projects\/[^/]+$/.test(pathname);
   const newsletterDashboard =
     pathname.startsWith("/newsletter/") &&
     pathname !== "/newsletter/issues" &&
@@ -118,12 +122,19 @@ function SidebarSearchToolbar(props: ToolbarProps) {
     SECTION_PATHS.some(
       (section) => pathname === section || pathname.startsWith(section + "/"),
     ) ||
-    /^\/projects\/[^/]+$/.test(pathname) ||
+    projectOverview ||
     agentProfile ||
     newsletterDashboard;
   const key = JSON.stringify([pathname, params?.get("projectId")]);
   if (!scoped) return null;
-  return <SearchToolbar key={key} {...props} focusOnMount={agentProfile} />;
+  return (
+    <SearchToolbar
+      key={key}
+      {...props}
+      focusOnMount={agentProfile}
+      collapsed={projectOverview}
+    />
+  );
 }
 
 function SearchToolbar({
@@ -134,6 +145,7 @@ function SearchToolbar({
   hits,
   partial,
   focusOnMount,
+  collapsed,
   heading,
   renderHeader,
 }: ToolbarProps) {
@@ -206,6 +218,10 @@ function SearchToolbar({
       className={cn(
         "@container/page-toolbar flex flex-wrap items-center gap-2 py-2",
         sticky,
+        // sr-only, not hidden: the icon focuses the field inside its tap, so
+        // a phone opens the keyboard.
+        collapsed &&
+          "max-md:not-focus-within:has-[input:placeholder-shown]:sr-only",
       )}
     >
       {heading}
