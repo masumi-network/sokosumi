@@ -683,7 +683,8 @@ export function DriveAllFilesPanel({
     try {
       const failedIds = await moves.deleteUploads(targets, setState);
       const deleted = targets.length - failedIds.length;
-      if (deleted > 0) void invalidateDrive(queryClient, store);
+      // Core can remove a blob and then fail, so a failed request may still have deleted it.
+      void invalidateDrive(queryClient, store);
       if (failedIds.length === 0) {
         toast.success(t("bulkDeleted", { count: deleted }));
         if (!mustReload && sequenceRef.current === searchAtStart) return;
