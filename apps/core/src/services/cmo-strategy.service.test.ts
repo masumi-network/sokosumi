@@ -24,6 +24,7 @@ import {
   postFindFirst,
   postFindMany,
   postUpdate,
+  projectFindFirst,
   projectUpdate,
   referenceFindMany,
   resetCmoServiceMocks,
@@ -187,6 +188,37 @@ describe("requestCmoStrategy", () => {
 
     expect(approvedRows()).toHaveLength(1);
     expect(strategyRows).toHaveLength(1);
+  });
+
+  // NMKR (2026-11-23): approved, never paid, so paused (ADR 0068); a new
+  // strategy goes back to hiring instead of being refused.
+  it("reopens an unpaid hire's approved strategy and writes the new one over it", async () => {
+    cusoFind.mockResolvedValue(cuso);
+    const approved = seedStrategy(strategy, {
+      approvedAt: new Date("2026-10-01T09:00:00Z"),
+    });
+    projectFindFirst.mockResolvedValue({ id: "project-1" });
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+
+    await requestCmoStrategy({ projectId: "project-1", userId: "user-1" });
+
+    expect(approvedRows()).toHaveLength(0);
+    expect(strategyRows).toHaveLength(2);
+    expect(strategyRows.find((row) => row.id === approved.id)?.plan).toEqual(
+      approved.plan,
+    );
+  });
+
+  it("restores the approval when the new strategy does not start", async () => {
+    cusoFind.mockResolvedValue(cuso);
+    seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
+    projectFindFirst.mockResolvedValue({ id: "project-1" });
+    startTurn.mockRejectedValue(new Error("no seat"));
+
+    await expect(
+      requestCmoStrategy({ projectId: "project-1", userId: "user-1" }),
+    ).rejects.toThrow("no seat");
+    expect(approvedRows()).toHaveLength(1);
   });
 
   it("starts a new strategy over a draft from an empty month, keeping the draft", async () => {

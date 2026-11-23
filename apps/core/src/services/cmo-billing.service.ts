@@ -43,6 +43,21 @@ const UNPAID_CUSO_PROJECT_WHERE = {
   creditBuckets: { none: testerCreditsWhere() },
 } satisfies Prisma.ProjectWhereInput;
 
+/**
+ * Whether a Cuso's Project never paid: no CMO subscription and no Tester
+ * credits. Its approved strategy only led to Subscribe; nothing was made.
+ */
+export async function isCmoProjectUnpaid(
+  projectId: string,
+  db: Pick<Prisma.TransactionClient, "project"> = prisma,
+): Promise<boolean> {
+  const project = await db.project.findFirst({
+    where: { id: projectId, ...UNPAID_CUSO_PROJECT_WHERE },
+    select: { id: true },
+  });
+  return project !== null;
+}
+
 /** An unpaid Cuso's Project whose strategy is not approved yet (Launch). */
 const FREE_HIRING_PROJECT_WHERE = {
   ...UNPAID_CUSO_PROJECT_WHERE,
