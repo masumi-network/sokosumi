@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { notFound, unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
 import {
+  JobsListHeaderSkeleton,
+  JobsPanesSkeleton,
+} from "@/app/agents/[agentId]/jobs/components/jobs-loading";
+import {
   APP_MAIN_MOBILE_PT_CLASS,
   APP_SHELL_BELOW_HEADER_MIN_HEIGHT_CLASS,
 } from "@/app/components/app-shell-safe-area";
@@ -18,10 +22,6 @@ import { getCachedMyJobs } from "./_lib/get-cached-my-jobs";
 import { JobsHeaderContext } from "./components/jobs-header-context";
 import { JobsList } from "./components/jobs-list";
 import { JobsListHeader } from "./components/jobs-list-header";
-import {
-  JobsListHeaderSkeleton,
-  JobsPanesSkeleton,
-} from "./components/jobs-loading";
 
 export async function generateMetadata({
   params,

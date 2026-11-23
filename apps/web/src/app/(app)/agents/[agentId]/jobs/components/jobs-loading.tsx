@@ -1,24 +1,13 @@
-"use client";
-
-import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-/**
- * Loading shells for Your jobs. Client components so the status label comes
- * from the app's message bag: the shells stay free of cookies,
- * `connection()` and server i18n (Instant Nav).
- */
+import { JobsLoadingStatus } from "./jobs-loading-status";
 
-function LoadingStatus({ label }: { label: "jobs" | "job" }) {
-  const t = useTranslations("App.Agents.Jobs.Loading");
-  return (
-    <span role="status" className="sr-only">
-      {t(label)}
-    </span>
-  );
-}
+/**
+ * Loading shells for Your jobs. Server markup; only the status label is a
+ * client module, as it reads the app's message bag. The shells stay free of
+ * cookies, `connection()` and server i18n (Instant Nav).
+ */
 
 /** The header's bones: the 40px icon box beside the name and its count. */
 export function JobsListHeaderSkeleton() {
@@ -73,11 +62,21 @@ function JobDetailBones() {
   );
 }
 
-/** One job loading, in the right pane or the phone dialog. */
-export function JobDetailSkeleton({ className }: { className?: string }) {
+/**
+ * One job loading, in the right pane or the phone dialog. Only the right
+ * pane announces: it also renders (hidden) on phones, and two writers would
+ * read the label twice.
+ */
+export function JobDetailSkeleton({
+  className,
+  announce = true,
+}: {
+  className?: string;
+  announce?: boolean;
+}) {
   return (
     <div className={cn("w-full py-4", className)}>
-      <LoadingStatus label="job" />
+      {announce ? <JobsLoadingStatus label="job" /> : null}
       <JobDetailBones />
     </div>
   );
@@ -88,10 +87,10 @@ export function JobDetailSkeleton({ className }: { className?: string }) {
  * nothing moves when the list lands. `header` streams in on its own: the
  * agent arrives before the jobs do.
  */
-export function JobsPanesSkeleton({ header }: { header: ReactNode }) {
+export function JobsPanesSkeleton({ header }: { header: React.ReactNode }) {
   return (
     <div className="w-full md:@container/jobs-panes">
-      <LoadingStatus label="jobs" />
+      <JobsLoadingStatus label="jobs" />
       <div className="flex w-full flex-col gap-4 @4xl/jobs-panes:flex-row @4xl/jobs-panes:items-start">
         <div className="w-full px-4 @4xl/jobs-panes:w-72 @4xl/jobs-panes:flex-none">
           <div className="@4xl/jobs-panes:border-border flex flex-col py-4 @4xl/jobs-panes:h-[calc(100dvh-4rem)] @4xl/jobs-panes:border-r">

@@ -143,6 +143,10 @@ export function JobsList({
     [localJobs, searchValue],
   );
 
+  const query = searchValue.trim();
+  const isMiss =
+    query !== "" && localJobs.length > 0 && filteredJobs.length === 0;
+
   const dayGroups = useMemo(
     () => buildJobDayGroups(filteredJobs, locale),
     [filteredJobs, locale],
@@ -253,30 +257,39 @@ export function JobsList({
                 </ul>
               </section>
             ))
-          ) : (
-            <div className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 flex flex-col items-start gap-3 px-2 py-8 text-sm text-pretty duration-200">
-              {localJobs.length > 0 && searchValue.trim() ? (
-                <>
-                  <p className="wrap-anywhere">
-                    {t("noMatches", { query: searchValue.trim() })}
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      handleClear();
-                      searchInputRef.current?.focus();
-                    }}
-                  >
-                    {t("clearSearch")}
-                  </Button>
-                </>
-              ) : (
-                <p>{t("emptyJobs")}</p>
-              )}
+          ) : !isMiss ? (
+            <p className="text-muted-foreground px-2 py-8 text-sm text-pretty">
+              {t("emptyJobs")}
+            </p>
+          ) : null}
+          {/* Stands empty from the start, so a miss typed into the field is
+              announced while focus stays there. The button sits outside: a
+              status region is read, not operated. */}
+          <p
+            role="status"
+            className={
+              isMiss
+                ? "text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 px-2 pt-8 text-sm text-pretty wrap-anywhere duration-200"
+                : "sr-only"
+            }
+          >
+            {isMiss ? t("noMatches", { query }) : null}
+          </p>
+          {isMiss ? (
+            <div className="px-2 pt-3 pb-8">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  handleClear();
+                  searchInputRef.current?.focus();
+                }}
+              >
+                {t("clearSearch")}
+              </Button>
             </div>
-          )}
+          ) : null}
           {nextCursor ? (
             <div className="flex justify-center px-2 pb-2">
               <Button

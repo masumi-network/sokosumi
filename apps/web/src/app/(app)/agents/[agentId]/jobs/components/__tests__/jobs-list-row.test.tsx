@@ -37,7 +37,7 @@ vi.mock("@/contexts/lazy-ably-provider", () => ({
 
 vi.mock("../jobs-search", () => ({
   JobsSearch: () => null,
-  filterJobsByQuery: (jobs: JobSummary[]) => jobs,
+  filterJobsByQuery: (jobs: JobSummary[], query: string) => (query ? [] : jobs),
   useJobsSearchQuery: () => ({
     searchValue: search.value,
     handleInputChange: vi.fn(),
@@ -142,13 +142,23 @@ describe("JobsList empty state", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("keeps an empty status region mounted before any miss", () => {
+    search.value = "";
+    renderList([createJob()]);
+
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+  });
+
   it("names the missed query and offers to clear it", () => {
     search.value = "zebra";
     search.clear.mockClear();
     renderList([createJob()]);
 
-    expect(screen.getByText("noMatches:zebra")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "clearSearch" }));
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("noMatches:zebra");
+    const clear = screen.getByRole("button", { name: "clearSearch" });
+    expect(status).not.toContainElement(clear);
+    fireEvent.click(clear);
     expect(search.clear).toHaveBeenCalledOnce();
     search.value = "";
   });
