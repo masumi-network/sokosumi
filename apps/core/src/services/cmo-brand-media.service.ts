@@ -27,6 +27,7 @@ import {
 import { readRobots, readSitemapPages } from "@/lib/site-pages";
 import type { CmoBrandMedia } from "@/schemas/cmo.schema";
 import type { Cuso } from "@/services/cmo-cuso.service";
+import { CMO_SITE_INDEX, cmoSiteIndexSchema } from "@/services/cmo-site-index";
 import {
   type CusoDrive,
   cusoDrive,
@@ -38,6 +39,8 @@ export const CMO_BRAND_MEDIA_FOLDER = "Brand research";
 
 /** Where the brand's logo files live, and what each is called (".png"). */
 export const CMO_BRAND_LOGO_FOLDER = `${CMO_BRAND_MEDIA_FOLDER}/Logo`;
+/** Where the whole site is documented, page by page (cmo-site-pages.service). */
+export const CMO_BRAND_SITE_FOLDER = `${CMO_BRAND_MEDIA_FOLDER}/Site`;
 export const CMO_BRAND_LOGO_FILES = {
   src: "logo",
   srcDark: "logo-dark",
@@ -115,7 +118,11 @@ function sectionOf(
  * The brand research saved as the Project's files, newest first: what a
  * member confirmed on the Project (capture confirms each file it saves).
  */
-async function listResearchFiles(projectId: string): Promise<ResearchFile[]> {
+async function listResearchFiles(
+  projectId: string,
+  /** Only files at this path under the folder ("Site/pages.json"). */
+  within = "",
+): Promise<ResearchFile[]> {
   const marker = `/${CMO_BRAND_MEDIA_FOLDER}/`;
   const links = await prisma.fileProjectLink.findMany({
     where: {
@@ -124,7 +131,7 @@ async function listResearchFiles(projectId: string): Promise<ResearchFile[]> {
       resource: {
         sourceKind: FileSourceKind.DRIVE_UPLOAD,
         lifecycle: FileResourceLifecycle.ACTIVE,
-        sourceId: { contains: marker },
+        sourceId: { contains: `${marker}${within}` },
       },
     },
     select: { resource: { select: { id: true, sourceId: true } } },
@@ -267,6 +274,26 @@ export async function readCmoBrandLogo(projectId: string): Promise<{
   };
 }
 
+/**
+ * A JSON file of the research (by its path under "Brand research"), read
+ * from our own Blob store. Null when there is none or it does not parse.
+ */
+export async function readCmoResearchJson<T>(
+  projectId: string,
+  path: string,
+  schema: z.ZodType<T>,
+): Promise<{ data: T; updatedAt: Date } | null> {
+  const file = (await listResearchFiles(projectId, path)).find(
+    (candidate) =>
+      `${candidate.folder ? `${candidate.folder}/` : ""}${candidate.name}` ===
+      path,
+  );
+  if (!file) return null;
+  const blob = await head(file.pathname).catch(() => null);
+  const data = blob ? await readJsonBlob(blob, schema) : null;
+  return blob && data !== null ? { data, updatedAt: blob.uploadedAt } : null;
+}
+
 const indexes = new Map<string, BrandIndex | null>();
 
 /** A capture's index.json, read once per upload of it. */
@@ -395,7 +422,7 @@ export async function cmoBrandMedia(input: {
     const file = files.find(
       (candidate) =>
         candidate.folder === "Competitors" &&
-        candidate.name === slug(competitor.name),
+        candidate.name === cmoFileSlug(competitor.name),
     );
     const saved = file ? shown(file) : null;
     return saved
@@ -412,6 +439,16 @@ export async function cmoBrandMedia(input: {
     );
     return (file && shown(file)) ?? null;
   };
+  const siteBlob = blobs.get(`${prefix}${CMO_SITE_INDEX}`);
+  const siteIndex = siteBlob
+    ? await readJsonBlob(siteBlob, cmoSiteIndexSchema)
+    : null;
+  const siteShot = (name: string) => {
+    const file = files.find(
+      (candidate) => candidate.folder === "Site" && candidate.name === name,
+    );
+    return (file && shown(file)) ?? null;
+  };
   const stamps = [...blobs.values()].map((blob) => blob.uploadedAt.getTime());
   if (stamps.length === 0) return null;
   return {
@@ -425,7 +462,37 @@ export async function cmoBrandMedia(input: {
       dark: logoFile(CMO_BRAND_LOGO_FILES.srcDark),
       mark: logoFile(CMO_BRAND_LOGO_FILES.mark),
     },
+    ...(siteIndex && siteIndex.pages.length > 0
+      ? {
+          site: {
+            pages: siteIndex.pages.map((page) => ({
+              url: page.url,
+              title: page.title,
+              summary: page.summary,
+              facts: page.facts,
+              desktop: siteShot(page.name),
+              phone: siteShot(`${page.name}${MOBILE_SUFFIX}`),
+            })),
+            complete: siteIndex.queue.length === 0,
+          },
+        }
+      : {}),
   };
+}
+
+/** A JSON file of the research, read from its blob once per upload. */
+async function readJsonBlob<T>(
+  blob: { url: string; uploadedAt: Date },
+  schema: z.ZodType<T>,
+): Promise<T | null> {
+  // Our own Blob store: its bot check refuses the SSRF-safe fetch.
+  const body = await fetch(`${blob.url}?v=${blob.uploadedAt.getTime()}`, {
+    signal: AbortSignal.timeout(8_000),
+  })
+    .then((response) => (response.ok ? response.json() : null))
+    .catch(() => null);
+  const parsed = schema.safeParse(body);
+  return parsed.success ? parsed.data : null;
 }
 
 /** The homepage and one page of each kind. */
@@ -534,7 +601,7 @@ async function inBatches<T, R>(
   return results;
 }
 
-function slug(text: string): string {
+export function cmoFileSlug(text: string): string {
   return (
     text
       .toLowerCase()
@@ -612,7 +679,7 @@ const HOMEPAGE_FILES = ["home.jpg", "home-mobile.jpg"];
 const capturing = new Set<string>();
 
 /** A file a capture could not save, twice: what it was and why. */
-interface SaveFailure {
+export interface SaveFailure {
   folder: string;
   bytes: number;
   failure: ReturnType<typeof messageSafeErrorFields>;
@@ -623,7 +690,7 @@ interface SaveFailure {
  * cannot be saved is left out and noted in `failures`: it never ends the
  * capture, which is best effort file by file.
  */
-async function saveFile(
+export async function saveCmoResearchFile(
   drive: CusoDrive,
   target: { folder: string; filename: string },
   body: Buffer,
@@ -652,9 +719,9 @@ function saveShot(
   screenshot: Buffer,
   failures?: SaveFailure[],
 ): Promise<string | null> {
-  return saveFile(
+  return saveCmoResearchFile(
     drive,
-    { folder, filename: `${slug(name)}.jpg` },
+    { folder, filename: `${cmoFileSlug(name)}.jpg` },
     screenshot,
     "image/jpeg",
     failures,
@@ -714,8 +781,8 @@ const RETRY_INDEX_AFTER_MS = 6 * 60 * 60_000;
 export async function scheduleMissingCmoBrandIndex(
   cusos: Pick<Cuso, "projectId" | "sokoBotId">[],
   now: Date = new Date(),
-): Promise<void> {
-  if (cusos.length === 0) return;
+): Promise<boolean> {
+  if (cusos.length === 0) return false;
   const links = await prisma.fileProjectLink.findMany({
     where: {
       projectId: { in: cusos.map((cuso) => cuso.projectId) },
@@ -727,7 +794,11 @@ export async function scheduleMissingCmoBrandIndex(
         },
         {
           updatedAt: { gte: new Date(now.getTime() - RETRY_INDEX_AFTER_MS) },
-          resource: { sourceId: { contains: `/${CMO_BRAND_MEDIA_FOLDER}/` } },
+          resource: {
+            sourceId: { contains: `/${CMO_BRAND_MEDIA_FOLDER}/` },
+            // The site's pages are read on their own rhythm.
+            NOT: { sourceId: { contains: `/${CMO_BRAND_SITE_FOLDER}/` } },
+          },
         },
       ],
     },
@@ -736,6 +807,7 @@ export async function scheduleMissingCmoBrandIndex(
   const skip = new Set(links.map((link) => link.projectId));
   const next = cusos.find((cuso) => !skip.has(cuso.projectId));
   if (next) scheduleCmoBrandMedia(next.sokoBotId);
+  return next !== undefined;
 }
 
 export function scheduleCmoBrandMedia(sokoBotId: string): void {
@@ -799,6 +871,7 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
             sourceId: { endsWith: `/${CMO_BRAND_MEDIA_FOLDER}/${name}` },
           })),
           { sourceId: { contains: `/${CMO_BRAND_LOGO_FOLDER}/` } },
+          { sourceId: { contains: `/${CMO_BRAND_SITE_FOLDER}/` } },
         ],
       },
     },
@@ -836,7 +909,7 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
    */
   const saveOwnPage = async (label: string, capture: PageCapture) => {
     if (index.pages.some((page) => page.url === capture.url)) return false;
-    const name = slug(label);
+    const name = cmoFileSlug(label);
     index.pages.push({ name, url: capture.url, title: capture.title });
     await saveShot(
       drive,
@@ -861,7 +934,7 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
         section.kind,
         // A section without words (a video, a picture) is named by its kind.
         ...(/[a-z0-9]/i.test(section.title)
-          ? [slug(section.title).slice(0, 40).replace(/-$/, "")]
+          ? [cmoFileSlug(section.title).slice(0, 40).replace(/-$/, "")]
           : []),
       ].join("-");
       index.sections.push({
@@ -973,9 +1046,9 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
       const slot = String(index + 1).padStart(2, "0");
       // The alt text names the picture, so Cuso finds a product's photo.
       const filename = image.alt.trim()
-        ? `${slot}-${slug(image.alt)}.jpg`
+        ? `${slot}-${cmoFileSlug(image.alt)}.jpg`
         : `picture-${slot}.jpg`;
-      await saveFile(
+      await saveCmoResearchFile(
         drive,
         { folder: `${CMO_BRAND_MEDIA_FOLDER}/Pictures`, filename },
         body,
@@ -1009,7 +1082,7 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
     await logo;
     // Written last and always, also after a capture that threw: it names
     // what was read. The backfill counts a page from the top down, not this.
-    await saveFile(
+    await saveCmoResearchFile(
       drive,
       { folder: CMO_BRAND_MEDIA_FOLDER, filename: INDEX_FILE },
       Buffer.from(JSON.stringify(index, null, 2)),

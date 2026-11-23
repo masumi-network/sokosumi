@@ -129,6 +129,9 @@ vi.mock("@/services/cmo-brand-visual.service", () => ({
 vi.mock("@/services/cmo-brand-media.service", () => ({
   captureCmoHomepage: vi.fn(async () => undefined),
 }));
+vi.mock("@/services/cmo-site-pages.service", () => ({
+  documentCmoSitePages: vi.fn(async () => undefined),
+}));
 vi.mock("@/config/env", async (importOriginal) =>
   (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.env(
     await importOriginal<typeof import("@/config/env")>(),

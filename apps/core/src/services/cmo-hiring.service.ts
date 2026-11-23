@@ -49,6 +49,7 @@ import {
   requireCuso,
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
+import { documentCmoSitePages } from "@/services/cmo-site-pages.service";
 import {
   linkTestCopyConnections,
   requireTestCopySource,
@@ -945,20 +946,23 @@ export async function startCmoOnboarding(input: {
   // opens with them instead of waiting for the full capture.
   waitUntil(
     runAsBackgroundWork(() =>
-      captureCmoHomepage(created).catch((error) => {
-        emitCoreWarning(
-          {
-            operation: "cmo_homepage_capture",
-            sokoBot: { id: created.sokoBotId },
-            failure: messageSafeErrorFields(error),
-          },
-          {
-            message: "Could not capture the brand's homepage for a new Cuso",
-            why: "The homepage screenshot capture threw",
-            fix: "The Brand Brain waits for the full capture after research instead. If it repeats, look up the error name and code under failure.",
-          },
-        );
-      }),
+      captureCmoHomepage(created)
+        // Then the whole site, so research and the Brand Brain can use it.
+        .then(() => documentCmoSitePages(created.sokoBotId))
+        .catch((error) => {
+          emitCoreWarning(
+            {
+              operation: "cmo_homepage_capture",
+              sokoBot: { id: created.sokoBotId },
+              failure: messageSafeErrorFields(error),
+            },
+            {
+              message: "Could not capture the brand's homepage for a new Cuso",
+              why: "The homepage screenshot capture threw",
+              fix: "The Brand Brain waits for the full capture after research instead. If it repeats, look up the error name and code under failure.",
+            },
+          );
+        }),
     ),
   );
 

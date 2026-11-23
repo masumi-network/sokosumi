@@ -57,6 +57,7 @@ import {
   cmoPillarShares,
   parseCmoMonthReview,
 } from "@/services/cmo-month-review.service";
+import { scheduleCmoSitePages } from "@/services/cmo-site-pages.service";
 import {
   approvedMarketingStrategy,
   entryMedia,
@@ -1191,8 +1192,10 @@ export async function syncCmoProduction(
     .then(({ resumeCmoMonthFinishes }) => resumeCmoMonthFinishes(now))
     .catch(() => undefined);
   const hires = cmoSyncOrder(await listCusosWithApprovedStrategy(), now);
-  // In the background from the start, so it has the whole run.
-  await scheduleMissingCmoBrandIndex(hires).catch(() => undefined);
+  // In the background from the start, so it has the whole run; one browser
+  // a sync, so the site's pages wait for a sync without a brand capture.
+  const capturing = await scheduleMissingCmoBrandIndex(hires).catch(() => true);
+  if (!capturing) await scheduleCmoSitePages(hires, now).catch(() => undefined);
   let checked = 0;
   for (const cuso of hires) {
     if (!shouldContinue()) break;

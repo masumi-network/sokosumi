@@ -131,3 +131,72 @@ export async function readSitemapPages(
   }
   return pages.slice(0, MAX_SITEMAP_URLS);
 }
+
+/** Pages a site's documentation reads at most. */
+export const MAX_DOCUMENTED_PAGES = 50;
+/** Pages read below one top-level path (blog posts, docs), so one part cannot fill the rest. */
+const MAX_PAGES_PER_PART = 5;
+/** Paths with nothing for marketing: legal, sign-in, carts, feeds, archives. */
+const SKIPPED_SEGMENT =
+  /^(privacy|privacy-policy|terms|terms-of-service|terms-and-conditions|tos|legal|imprint|impressum|datenschutz|agb|cookies?|cookie-policy|gdpr|dpa|disclaimer|login|log-in|signin|sign-in|signup|sign-up|register|logout|account|auth|password|reset-password|cart|checkout|basket|wp-admin|wp-json|wp-login\.php|admin|dashboard|feed|rss|tag|tags|category|categories|author|search|cdn-cgi|page)$/i;
+const SKIPPED_FILE =
+  /\.(pdf|jpe?g|png|gif|webp|svg|xml|json|txt|zip|mp4|mp3|webm|ics|csv)$/i;
+/** A translated copy of the site under a language prefix: the original is read instead. */
+const LANGUAGE_PREFIX =
+  /^(de|fr|es|it|pt|nl|ja|zh|ko|ru|pl|sv|da|fi|nb|no|tr|ar|he|cs|hu|ro|uk|el|id|vi|th|en|en-[a-z]{2}|de-[a-z]{2}|fr-[a-z]{2}|es-[a-z]{2}|pt-[a-z]{2}|zh-[a-z]{2,4})$/i;
+
+/** The address a page is known by: no query, no fragment, no trailing slash. */
+export function pageAddress(url: URL): string {
+  const path = url.pathname.replace(/\/+$/, "") || "/";
+  return `${url.origin}${path}`;
+}
+
+/**
+ * The pages of a site worth documenting, home first: its own addresses only,
+ * each once, without legal and sign-in pages, files, feeds or translated
+ * copies; shallow pages before deep ones, in the order found (the site's
+ * links before its sitemap), and at most a few below one top-level path.
+ */
+export function pickSitePages(
+  websiteUrl: string,
+  found: readonly string[],
+  robots: Pick<SiteRobots, "allows"> = { allows: () => true },
+  max: number = MAX_DOCUMENTED_PAGES,
+): string[] {
+  const site = new URL(websiteUrl);
+  const host = (url: URL) => url.hostname.replace(/^www\./, "");
+  const home = pageAddress(new URL("/", site));
+  const seen = new Set<string>([home]);
+  const candidates: { address: string; segments: string[] }[] = [];
+  for (const raw of found) {
+    const url = URL.parse(raw, site);
+    if (!url || !/^https?:$/.test(url.protocol) || host(url) !== host(site))
+      continue;
+    const address = pageAddress(new URL(url.pathname, site.origin));
+    if (seen.has(address)) continue;
+    seen.add(address);
+    const segments = new URL(address).pathname.split("/").filter(Boolean);
+    if (
+      segments.some((segment) => SKIPPED_SEGMENT.test(segment)) ||
+      SKIPPED_FILE.test(address) ||
+      LANGUAGE_PREFIX.test(segments[0] ?? "") ||
+      !robots.allows(new URL(address).pathname)
+    )
+      continue;
+    candidates.push({ address, segments });
+  }
+  const perPart = new Map<string, number>();
+  const picked = [home];
+  const ordered = candidates
+    .map((candidate, order) => ({ ...candidate, order }))
+    .sort((a, b) => a.segments.length - b.segments.length || a.order - b.order);
+  for (const { address, segments } of ordered) {
+    if (picked.length >= max) break;
+    const part = segments.length > 1 ? (segments[0] as string) : "";
+    const count = perPart.get(part) ?? 0;
+    if (part && count >= MAX_PAGES_PER_PART) continue;
+    perPart.set(part, count + 1);
+    picked.push(address);
+  }
+  return picked;
+}

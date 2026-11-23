@@ -18,6 +18,12 @@ export interface PageCapture {
   fullPage?: Buffer;
   /** The page cut into its sections, top to bottom, when `sections` asked. */
   sections: SiteSection[];
+  /** What a visitor reads on the page, when `read` asked. */
+  text?: string;
+  /** The page's own description of itself (its meta description), when `read` asked. */
+  description?: string;
+  /** Every address on the page's own site it links to, when `read` asked. */
+  onSiteLinks?: string[];
 }
 
 export interface SiteLink {
@@ -68,6 +74,8 @@ export interface CaptureViewport {
   fullScreens?: number;
   /** Also cut the page into its sections, this many at most. */
   sections?: number;
+  /** Also read the page's words and every link to its own site. */
+  read?: boolean;
 }
 
 const NAVIGATION_TIMEOUT_MS = 20_000;
@@ -245,6 +253,7 @@ async function capture(
       sections: viewport.sections
         ? await pageSections(page, viewport.sections)
         : [],
+      ...(viewport.read ? await pageWords(page) : {}),
     };
   } catch {
     return null;
@@ -512,6 +521,44 @@ async function siteLinks(page: Page): Promise<SiteLink[]> {
   return found
     .filter((link) => (seen.has(link.url) ? false : (seen.add(link.url), true)))
     .slice(0, MAX_LINKS);
+}
+
+const MAX_PAGE_TEXT = 12_000;
+const MAX_ON_SITE_LINKS = 300;
+
+/** The page's words and the addresses on its own site it links to. */
+async function pageWords(
+  page: Page,
+): Promise<{ text: string; description: string; onSiteLinks: string[] }> {
+  const read = await page
+    .evaluate(() => {
+      const host = (name: string) => name.replace(/^www\./, "");
+      return {
+        text: document.body.innerText,
+        description:
+          document
+            .querySelector<HTMLMetaElement>(
+              'meta[name="description"], meta[property="og:description"]',
+            )
+            ?.content.trim() ?? "",
+        links: [...document.querySelectorAll<HTMLAnchorElement>("a[href]")]
+          .filter(
+            (anchor) =>
+              /^https?:$/.test(anchor.protocol) &&
+              host(anchor.hostname) === host(location.hostname),
+          )
+          .map((anchor) => `${anchor.origin}${anchor.pathname}`),
+      };
+    })
+    .catch(() => ({ text: "", description: "", links: [] as string[] }));
+  return {
+    text: read.text
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+      .slice(0, MAX_PAGE_TEXT),
+    description: read.description.slice(0, 300),
+    onSiteLinks: [...new Set(read.links)].slice(0, MAX_ON_SITE_LINKS),
+  };
 }
 
 interface SectionBox {
