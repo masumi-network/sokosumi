@@ -17,6 +17,7 @@ const INPUT_ERRORS = {
   "Use true or false": "errors.checkbox",
   "Unknown option": "errors.option",
   "Use YYYY-MM-DD": "errors.date",
+  "Series leaves the supported range": "errors.seriesRange",
   "Use HTTP or HTTPS": "errors.url",
   "Invalid URL": "errors.url",
   "Invalid email": "errors.email",
@@ -185,6 +186,21 @@ export function lastUpdatedFormat(
 
 export type SeriesUnit = "day" | "week" | "month";
 
+const RANGE = "Series leaves the supported range";
+
+/** Decimal places a number is written with: 0.25 has 2, 1e-11 has 11. */
+function decimals(value: number): number {
+  const [mantissa, exponent = "0"] = String(value).split("e");
+  return Math.max(0, (mantissa.split(".")[1]?.length ?? 0) - Number(exponent));
+}
+
+/** A UTC date; setUTCFullYear keeps years 0–99, which Date.UTC maps to 1900–1999. */
+function utc(year: number, month: number, day: number): Date {
+  const date = new Date(0);
+  date.setUTCFullYear(year, month, day);
+  return date;
+}
+
 /** The value `index` steps after `start`: a number, or a YYYY-MM-DD date counted in UTC. */
 export function seriesValue(
   start: number | string,
@@ -192,21 +208,23 @@ export function seriesValue(
   unit: SeriesUnit,
   index: number,
 ): number | string {
-  // Rounding drops float noise, so 0.1 steps read 0.3, not 0.30000000000000004.
-  if (typeof start === "number")
-    return Math.round((start + step * index) * 1e10) / 1e10;
-  const [year, month, day] = start.split("-").map(Number);
-  if (unit !== "month") {
-    const days = step * index * (unit === "week" ? 7 : 1);
-    return new Date(Date.UTC(year, month - 1, day + days))
-      .toISOString()
-      .slice(0, 10);
+  if (typeof start === "number") {
+    const value = start + step * index;
+    if (!Number.isFinite(value)) throw new Error(RANGE);
+    // Round to the places typed, so 0.1 steps read 0.3, not 0.30000000000000004.
+    const places = Math.max(decimals(start), decimals(step));
+    return places > 100 ? value : Number(value.toFixed(places));
   }
-  // Jan 31 plus one month is Feb 28 (or 29), never Mar 3.
-  const target = new Date(Date.UTC(year, month - 1 + step * index, 1));
-  const last = new Date(
-    Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0),
-  ).getUTCDate();
-  target.setUTCDate(Math.min(day, last));
-  return target.toISOString().slice(0, 10);
+  const [year, month, day] = start.split("-").map(Number);
+  let date: Date;
+  if (unit === "month") {
+    // Jan 31 plus one month is Feb 28 (or 29), never Mar 3.
+    date = utc(year, month - 1 + step * index, 1);
+    const last = utc(date.getUTCFullYear(), date.getUTCMonth() + 1, 0);
+    date.setUTCDate(Math.min(day, last.getUTCDate()));
+  } else
+    date = utc(year, month - 1, day + step * index * (unit === "week" ? 7 : 1));
+  const target = date.getUTCFullYear();
+  if (!(target >= 0 && target <= 9999)) throw new Error(RANGE);
+  return date.toISOString().slice(0, 10);
 }

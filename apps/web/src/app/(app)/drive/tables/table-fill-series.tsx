@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { dataTableService } from "@/lib/services/data-table.client";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
-import { createTableMutations } from "./table-mutations";
+import { createTableMutations, isTableRejection } from "./table-mutations";
 import {
   parseTableInput,
   type SeriesUnit,
@@ -82,7 +82,8 @@ export function TableFillSeries({
   }
   function show(value: number | string) {
     return typeof value === "number"
-      ? format.number(value)
+      ? // Every significant digit, so the preview shows the value that is saved.
+        format.number(value, { maximumSignificantDigits: 21 })
       : format.dateTime(new Date(value), {
           day: "numeric",
           month: "short",
@@ -150,6 +151,9 @@ export function TableFillSeries({
       onClose();
     } catch (error) {
       setError(tableError(error, t));
+      // A refused write changed nothing: drop the plan so the next Preview
+      // reads fresh row versions. An unclear failure keeps it, and its key, to retry.
+      if (isTableRejection(error)) setPlanned(undefined);
     } finally {
       setPending(false);
     }
@@ -262,7 +266,7 @@ export function TableFillSeries({
                       <span className="min-w-0 flex-1 truncate">
                         {item.label}
                       </span>
-                      <span className="shrink-0 font-medium tabular-nums">
+                      <span className="min-w-0 text-right font-medium break-all tabular-nums">
                         {show(item.value)}
                       </span>
                     </li>

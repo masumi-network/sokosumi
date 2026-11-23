@@ -344,6 +344,9 @@ function TableWorkspace({
   const [column, setColumn] = useState<TableColumn | "new" | null>(null);
   const [findReplace, setFindReplace] = useState(false);
   const [fillSeries, setFillSeries] = useState<TableColumn | null>(null);
+  // The dialog opens from a menu item that unmounts, so focus goes back to
+  // that column's menu button instead.
+  const fillSeriesReturn = useRef<HTMLElement | null>(null);
   const [appendCsv, setAppendCsv] = useState(false);
   const tableMenu = useRef<HTMLButtonElement>(null);
   const [dialog, setDialog] = useState<
@@ -1216,6 +1219,7 @@ function TableWorkspace({
                                   variant="ghost"
                                   size="icon"
                                   className="text-muted-foreground size-10 shrink-0 md:size-8"
+                                  data-column-menu={column.id}
                                   aria-label={t("columnMenu", {
                                     column: column.name,
                                   })}
@@ -1272,7 +1276,13 @@ function TableWorkspace({
                                   (column.type === "number" ||
                                     column.type === "date") && (
                                     <DropdownMenuItem
-                                      onClick={() => setFillSeries(column)}
+                                      onClick={() => {
+                                        fillSeriesReturn.current =
+                                          grid.current?.querySelector<HTMLElement>(
+                                            `[data-column-menu="${column.id}"]`,
+                                          ) ?? null;
+                                        setFillSeries(column);
+                                      }}
                                     >
                                       {t("fillSeries.menu")}
                                     </DropdownMenuItem>
@@ -1525,6 +1535,7 @@ function TableWorkspace({
           table={table}
           column={fillSeries}
           definition={definition}
+          returnFocus={fillSeriesReturn}
           onClose={() => setFillSeries(null)}
           onDone={(count) => {
             void refresh();

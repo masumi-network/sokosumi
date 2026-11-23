@@ -12015,7 +12015,8 @@
         "layout": "Column layout wasn't saved and was reset. {reason}",
         "archiveRows": "{count, plural, one {Could not archive # row. It is back in the table.} other {Could not archive # rows. They are back in the table.}} {reason}",
         "restoreRows": "{count, plural, one {Could not restore # row. It is back in archived rows.} other {Could not restore # rows. They are back in archived rows.}} {reason}",
-        "cellNotSaved": "Your value was not saved. It is back in the editor. {reason}"
+        "cellNotSaved": "Your value was not saved. It is back in the editor. {reason}",
+        "seriesRange": "The series runs past the dates or numbers a cell can hold. Change the start or the step."
       },
       "reorderColumn": "Reorder {column}. Drag, or press the left and right arrow keys.",
       "reorderRow": "Reorder row. Drag, or press the up and down arrow keys.",
