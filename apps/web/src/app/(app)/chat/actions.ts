@@ -24,10 +24,6 @@ import { revalidatePath } from "next/cache";
 import { getTranslations } from "next-intl/server";
 import { actionErrorMessage } from "@/app/chat/action-error-message";
 import { loadOrganizationMembers } from "@/app/chat/load-organization-members";
-import {
-  loadRoomShellRoster,
-  type RoomShellRosterPage,
-} from "@/app/chat/load-room-shell-roster";
 import { directCreateShapeError } from "@/app/chat/utils/direct-create-shape";
 import { invalidatePrivateSidebarChrome } from "@/app/components/private-sidebar-cache";
 import {
@@ -238,22 +234,6 @@ export async function loadChatComposeRosterAction(): Promise<
       membersLoadFailed: true,
       peopleLoadFailed: true,
     });
-  }
-}
-
-export async function loadRoomShellRosterAction(
-  organizationId: string | null,
-): Promise<RoomActionResult<RoomShellRosterPage>> {
-  const session = await getSession();
-  if (!session) {
-    return roomFail("Log in required.");
-  }
-
-  try {
-    const roster = await loadRoomShellRoster(organizationId);
-    return roomOk(roster);
-  } catch (error) {
-    return roomCatch(error, "Could not load room roster.");
   }
 }
 

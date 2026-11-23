@@ -3,50 +3,12 @@ import { MemberRole } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
-import { ChatControlListBridge } from "@/components/chat/chat-control-list-bridge";
 import {
   FAILED_ROOM_SHELL_ROSTER,
   useRoomShellRoster,
 } from "./use-room-shell-roster";
-
-const {
-  loadRoomShellRosterActionMock,
-  subscribeMock,
-  unsubscribeMock,
-  ablyClient,
-} = vi.hoisted(() => {
-  const subscribeMock = vi.fn();
-  const unsubscribeMock = vi.fn();
-  return {
-    loadRoomShellRosterActionMock: vi.fn(),
-    subscribeMock,
-    unsubscribeMock,
-    ablyClient: {
-      connection: {
-        state: "connected",
-        on: vi.fn(),
-        off: vi.fn(),
-      },
-      channels: {
-        get: () => ({
-          subscribe: subscribeMock,
-          unsubscribe: unsubscribeMock,
-        }),
-      },
-    },
-  };
-});
-
-vi.mock("ably/react", () => ({
-  useAbly: () => ablyClient,
-}));
-
-vi.mock("@/app/chat/actions", () => ({
-  loadRoomShellRosterAction: (...args: unknown[]) =>
-    loadRoomShellRosterActionMock(...args),
-}));
 
 function makeMember(id: string, name: string): Member {
   return {
@@ -90,6 +52,50 @@ function makeCoworker(id: string, name: string): Coworker {
   };
 }
 
+/**
+ * Mirrors a Next.js Flight streamed thenable: `.then` attaches callbacks and
+ * returns `undefined` (not a chained Promise), and there is no `.catch` method.
+ */
+function createFlightThenable<T>() {
+  const onFulfilledList: Array<(value: T) => void> = [];
+  const onRejectedList: Array<(reason: unknown) => void> = [];
+  let state:
+    | { status: "pending" }
+    | { status: "fulfilled"; value: T }
+    | { status: "rejected"; reason: unknown } = { status: "pending" };
+
+  const thenable = {
+    then(
+      onFulfilled?: ((value: T) => unknown) | null,
+      onRejected?: ((reason: unknown) => unknown) | null,
+    ) {
+      if (state.status === "fulfilled") {
+        onFulfilled?.(state.value);
+      } else if (state.status === "rejected") {
+        onRejected?.(state.reason);
+      } else {
+        if (onFulfilled) onFulfilledList.push(onFulfilled);
+        if (onRejected) onRejectedList.push(onRejected);
+      }
+      return undefined;
+    },
+  } as unknown as Promise<T>;
+
+  return {
+    thenable,
+    resolve(value: T) {
+      if (state.status !== "pending") return;
+      state = { status: "fulfilled", value };
+      for (const fn of onFulfilledList) fn(value);
+    },
+    reject(reason: unknown) {
+      if (state.status !== "pending") return;
+      state = { status: "rejected", reason };
+      for (const fn of onRejectedList) fn(reason);
+    },
+  };
+}
+
 const EMPTY_FALLBACK: RoomShellRosterPage = {
   organizationMembers: [],
   membersLoadFailed: false,
@@ -97,36 +103,20 @@ const EMPTY_FALLBACK: RoomShellRosterPage = {
   sokoBots: [],
 };
 
-function controlHandlerFor(eventName: string) {
-  const call = subscribeMock.mock.calls.find((args) => args[0] === eventName);
-  return call?.[1] as ((message: { data: unknown }) => void) | undefined;
-}
-
-function createWrapper(queryClient: QueryClient, withControlBridge = false) {
+function createWrapper(queryClient: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
-      <QueryClientProvider client={queryClient}>
-        {withControlBridge ? (
-          <ChatControlListBridge currentUserId="user-1" />
-        ) : null}
-        {children}
-      </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     );
   };
 }
 
 describe("useRoomShellRoster", () => {
-  beforeEach(() => {
-    loadRoomShellRosterActionMock.mockReset();
-    subscribeMock.mockReset();
-    unsubscribeMock.mockReset();
-  });
-
-  it("uses the server roster promise as the query's first result without calling the action", async () => {
+  it("resolves a Next Flight thenable whose .then returns undefined", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
-    const deferred = Promise.withResolvers<RoomShellRosterPage>();
+    const flight = createFlightThenable<RoomShellRosterPage>();
     const alice = makeMember("m-1", "Alice");
     const agent = makeCoworker("c-1", "Agent");
 
@@ -136,8 +126,7 @@ describe("useRoomShellRoster", () => {
           currentUserId: "user-1",
           workspaceId: "org-1",
           roomId: "room-1",
-          organizationIdForRoster: "org-1",
-          rosterPromise: deferred.promise,
+          rosterPromise: flight.thenable,
           fallback: EMPTY_FALLBACK,
         }),
       { wrapper: createWrapper(queryClient) },
@@ -147,14 +136,13 @@ describe("useRoomShellRoster", () => {
     expect(result.current.organizationMembers).toEqual([]);
     expect(result.current.membersLoadFailed).toBe(false);
 
-    await act(async () => {
-      deferred.resolve({
+    act(() => {
+      flight.resolve({
         organizationMembers: [alice],
         membersLoadFailed: false,
         coworkers: [agent],
         sokoBots: [],
       });
-      await deferred.promise;
     });
 
     await waitFor(() => {
@@ -163,14 +151,13 @@ describe("useRoomShellRoster", () => {
     expect(result.current.organizationMembers).toEqual([alice]);
     expect(result.current.coworkers).toEqual([agent]);
     expect(result.current.membersLoadFailed).toBe(false);
-    expect(loadRoomShellRosterActionMock).not.toHaveBeenCalled();
   });
 
   it("settles a rejected roster promise to the failed state, never leaving it pending", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
-    const deferred = Promise.withResolvers<RoomShellRosterPage>();
+    const flight = createFlightThenable<RoomShellRosterPage>();
 
     const { result } = renderHook(
       () =>
@@ -178,8 +165,7 @@ describe("useRoomShellRoster", () => {
           currentUserId: "user-1",
           workspaceId: "org-1",
           roomId: "room-1",
-          organizationIdForRoster: "org-1",
-          rosterPromise: deferred.promise,
+          rosterPromise: flight.thenable,
           fallback: EMPTY_FALLBACK,
         }),
       { wrapper: createWrapper(queryClient) },
@@ -187,9 +173,8 @@ describe("useRoomShellRoster", () => {
 
     expect(result.current.ready).toBe(false);
 
-    await act(async () => {
-      deferred.reject(new Error("coworkers unavailable"));
-      await deferred.promise.catch(() => undefined);
+    act(() => {
+      flight.reject(new Error("coworkers unavailable"));
     });
 
     await waitFor(() => {
@@ -203,171 +188,83 @@ describe("useRoomShellRoster", () => {
     expect(result.current.sokoBots).toEqual([]);
   });
 
-  it("refreshes the roster when a chat_rooms_changed event for the room arrives over Ably", async () => {
+  it("replaces the roster on a new server promise and ignores an older promise resolving later", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
+    const olderPromise = Promise.withResolvers<RoomShellRosterPage>();
+    const newerPromise = Promise.withResolvers<RoomShellRosterPage>();
     const alice = makeMember("m-1", "Alice");
     const bob = makeMember("m-2", "Bob");
-    const initialPromise = Promise.resolve<RoomShellRosterPage>({
-      organizationMembers: [alice],
-      membersLoadFailed: false,
-      coworkers: [],
-      sokoBots: [],
-    });
 
-    loadRoomShellRosterActionMock.mockResolvedValueOnce({
-      ok: true,
-      value: {
-        organizationMembers: [alice, bob],
-        membersLoadFailed: false,
-        coworkers: [],
-        sokoBots: [],
+    const { result, rerender } = renderHook(
+      ({ rosterPromise }: { rosterPromise: Promise<RoomShellRosterPage> }) =>
+        useRoomShellRoster({
+          currentUserId: "user-1",
+          workspaceId: "org-1",
+          roomId: "room-1",
+          rosterPromise,
+          fallback: EMPTY_FALLBACK,
+        }),
+      {
+        wrapper: createWrapper(queryClient),
+        initialProps: { rosterPromise: olderPromise.promise },
       },
-    });
-
-    const { result } = renderHook(
-      () =>
-        useRoomShellRoster({
-          currentUserId: "user-1",
-          workspaceId: "org-1",
-          roomId: "room-1",
-          organizationIdForRoster: "org-1",
-          rosterPromise: initialPromise,
-          fallback: EMPTY_FALLBACK,
-        }),
-      { wrapper: createWrapper(queryClient, true) },
-    );
-
-    await waitFor(() => {
-      expect(result.current.organizationMembers).toEqual([alice]);
-    });
-
-    // Events for another room or non-active collections must not refetch.
-    act(() => {
-      controlHandlerFor("chat_rooms_changed")?.({
-        data: {
-          collections: ["active"],
-          roomId: "room-other",
-          at: "2026-09-09T12:00:00.000Z",
-        },
-      });
-      controlHandlerFor("chat_rooms_changed")?.({
-        data: {
-          collections: ["archived"],
-          roomId: "room-1",
-          at: "2026-09-09T12:00:01.000Z",
-        },
-      });
-    });
-    expect(loadRoomShellRosterActionMock).not.toHaveBeenCalled();
-
-    // A matching roster event invalidates and refreshes through the action.
-    act(() => {
-      controlHandlerFor("chat_rooms_changed")?.({
-        data: {
-          collections: ["active"],
-          roomId: "room-1",
-          at: "2026-09-09T12:00:02.000Z",
-        },
-      });
-    });
-
-    await waitFor(() => {
-      expect(result.current.organizationMembers).toEqual([alice, bob]);
-    });
-    expect(loadRoomShellRosterActionMock).toHaveBeenCalledTimes(1);
-    expect(loadRoomShellRosterActionMock).toHaveBeenCalledWith("org-1");
-  });
-
-  it("keeps the newer roster when a roster event arrives while the initial server promise is still in flight", async () => {
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    const staleInitial = Promise.withResolvers<RoomShellRosterPage>();
-    const freshRefetch = Promise.withResolvers<{
-      ok: true;
-      value: RoomShellRosterPage;
-    }>();
-    const alice = makeMember("m-1", "Alice");
-    const bob = makeMember("m-2", "Bob");
-
-    loadRoomShellRosterActionMock.mockReturnValueOnce(freshRefetch.promise);
-
-    const { result } = renderHook(
-      () =>
-        useRoomShellRoster({
-          currentUserId: "user-1",
-          workspaceId: "org-1",
-          roomId: "room-1",
-          organizationIdForRoster: "org-1",
-          rosterPromise: staleInitial.promise,
-          fallback: EMPTY_FALLBACK,
-        }),
-      { wrapper: createWrapper(queryClient, true) },
     );
 
     expect(result.current.ready).toBe(false);
 
-    // Roster event arrives before the initial server promise settles.
-    act(() => {
-      controlHandlerFor("chat_rooms_changed")?.({
-        data: {
-          collections: ["active"],
-          roomId: "room-1",
-          at: "2026-09-09T12:00:02.000Z",
-        },
+    // Same-room RSC refresh delivers a newer promise before the older one settles.
+    rerender({ rosterPromise: newerPromise.promise });
+
+    await act(async () => {
+      newerPromise.resolve({
+        organizationMembers: [alice, bob],
+        membersLoadFailed: false,
+        coworkers: [],
+        sokoBots: [],
       });
+      await newerPromise.promise;
     });
 
     await waitFor(() => {
-      expect(loadRoomShellRosterActionMock).toHaveBeenCalledTimes(1);
+      expect(result.current.ready).toBe(true);
     });
+    expect(result.current.organizationMembers).toEqual([alice, bob]);
 
-    // Fresh refetch settles first with [Alice, Bob].
+    // Older promise resolves late with stale data — must not overwrite the newer roster.
     await act(async () => {
-      freshRefetch.resolve({
-        ok: true,
-        value: {
-          organizationMembers: [alice, bob],
-          membersLoadFailed: false,
-          coworkers: [],
-          sokoBots: [],
-        },
-      });
-      await freshRefetch.promise;
-    });
-
-    await waitFor(() => {
-      expect(result.current.organizationMembers).toEqual([alice, bob]);
-    });
-
-    // Stale initial server promise resolves late with [Alice] only — must not overwrite.
-    await act(async () => {
-      staleInitial.resolve({
+      olderPromise.resolve({
         organizationMembers: [alice],
         membersLoadFailed: false,
         coworkers: [],
         sokoBots: [],
       });
-      await staleInitial.promise;
+      await olderPromise.promise;
     });
 
     expect(result.current.organizationMembers).toEqual([alice, bob]);
   });
 
-  it("drops the previous workspace's roster immediately on workspace switch", async () => {
+  it("reads a new server promise when returning to a previously cached workspace and drops the prior workspace while pending", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
     const alice = makeMember("m-1", "Alice");
-    const orgAPromise = Promise.resolve<RoomShellRosterPage>({
+    const bob = makeMember("m-2", "Bob");
+    const orgAFirst = Promise.resolve<RoomShellRosterPage>({
       organizationMembers: [alice],
       membersLoadFailed: false,
       coworkers: [],
       sokoBots: [],
     });
     const orgBDeferred = Promise.withResolvers<RoomShellRosterPage>();
+    const orgAReturn = Promise.resolve<RoomShellRosterPage>({
+      organizationMembers: [alice, bob],
+      membersLoadFailed: false,
+      coworkers: [],
+      sokoBots: [],
+    });
 
     const { result, rerender } = renderHook(
       ({
@@ -381,7 +278,6 @@ describe("useRoomShellRoster", () => {
           currentUserId: "user-1",
           workspaceId,
           roomId: "room-1",
-          organizationIdForRoster: workspaceId,
           rosterPromise,
           fallback: EMPTY_FALLBACK,
         }),
@@ -389,7 +285,7 @@ describe("useRoomShellRoster", () => {
         wrapper: createWrapper(queryClient),
         initialProps: {
           workspaceId: "org-a" as string | null,
-          rosterPromise: orgAPromise,
+          rosterPromise: orgAFirst,
         },
       },
     );
@@ -398,12 +294,22 @@ describe("useRoomShellRoster", () => {
       expect(result.current.organizationMembers).toEqual([alice]);
     });
 
+    // Switch to org-b: org-a's roster is dropped immediately while org-b is pending.
     rerender({
       workspaceId: "org-b",
       rosterPromise: orgBDeferred.promise,
     });
-
     expect(result.current.ready).toBe(false);
     expect(result.current.organizationMembers).toEqual([]);
+
+    // Return to org-a with a fresh server promise: reads the new promise instead of stale cache.
+    rerender({
+      workspaceId: "org-a",
+      rosterPromise: orgAReturn,
+    });
+
+    await waitFor(() => {
+      expect(result.current.organizationMembers).toEqual([alice, bob]);
+    });
   });
 });

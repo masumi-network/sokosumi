@@ -783,14 +783,6 @@ function RoomView({
       setMessageLoadFailedState(messageLoadFailed);
     }
   }
-  const activeOrganizationId = activeOrganization?.id ?? null;
-  const pageRoomForRoster =
-    rooms.find((room) => room.id === selectedRoomId) ?? null;
-  const organizationIdForRoster = pageRoomForRoster
-    ? isRoomOfWorkspace(pageRoomForRoster, activeOrganizationId)
-      ? activeOrganizationId
-      : pageRoomForRoster.organizationId
-    : activeOrganizationId;
   const {
     organizationMembers,
     coworkers,
@@ -799,9 +791,8 @@ function RoomView({
     ready: rosterReady,
   } = useRoomShellRoster({
     currentUserId,
-    workspaceId: activeOrganizationId,
+    workspaceId: activeOrganization?.id ?? null,
     roomId: selectedRoomId,
-    organizationIdForRoster,
     rosterPromise,
     fallback: {
       organizationMembers: organizationMembersProp,
