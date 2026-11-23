@@ -7,10 +7,22 @@ import {
   subscribeOrganizationChatRoomRead,
   subscribeOrganizationChatRoomsChanged,
 } from "@/components/chat/organization-chat-events";
+import { beginRoomAttentionRefresh } from "@/components/chat/room-read-overlay";
 import { chatQueryKeys } from "@/queries/chat";
 
 /** At most one read per window, so a busy room costs less than its messages. */
 const OTHER_WORKSPACE_READ_WINDOW_MS = 2_000;
+
+/** Revision when each room was last revoked, so an older read cannot restore it. */
+const revokedAtRevision = new Map<string, number>();
+
+/** True when `roomId` was revoked after a read started at `requestRevision`. */
+export function wasOtherWorkspaceRoomRevokedSince(
+  roomId: string,
+  requestRevision: number,
+): boolean {
+  return (revokedAtRevision.get(roomId) ?? 0) > requestRevision;
+}
 
 /** A room action's answer does not load the Organization the row shows. */
 export function withWorkspaceOf(
@@ -52,9 +64,7 @@ export function useOtherWorkspaceRoomsLiveSync(
 
     const stopRoomsChanged = subscribeOrganizationChatRoomsChanged({
       onRemoved: (removedRoomId) => {
-        void queryClient.cancelQueries({
-          queryKey: chatQueryKeys.anyElsewhere(),
-        });
+        revokedAtRevision.set(removedRoomId, beginRoomAttentionRefresh());
         updateRooms((current) =>
           current.filter((room) => room.id !== removedRoomId),
         );

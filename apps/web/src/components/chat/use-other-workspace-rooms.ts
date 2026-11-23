@@ -2,20 +2,18 @@
 
 import type { ChatRoom, StarredChatRoomOrder } from "@sokosumi/core-client";
 import {
-  CancelledError,
-  type QueryClient,
   type QueryFunctionContext,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   useOtherWorkspaceRoomsLiveSync,
+  wasOtherWorkspaceRoomRevokedSince,
   withWorkspaceOf,
 } from "@/hooks/effects/use-other-workspace-rooms-live-sync";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import { useSession } from "@/lib/auth/auth.client";
-import { chatReadThrottleResumeInMs } from "@/lib/chat/chat-read-throttle";
 import { chatQueryKeys } from "@/queries/chat";
 
 import { withPinnedOrder } from "./chat-room-activity-sort";
@@ -48,43 +46,12 @@ const NO_ROOMS: ChatRoom[] = [];
 /** When the reader last pinned, unpinned or reordered here. */
 let pinsChangedAtRevision = 0;
 
-/** Active Elsewhere transports per client, so the scheduler never overlaps a cancelled read. */
-const inFlightReadsByClient = new WeakMap<QueryClient, Set<Promise<unknown>>>();
-
-function getInFlightReads(client: QueryClient): Set<Promise<unknown>> {
-  let reads = inFlightReadsByClient.get(client);
-  if (!reads) {
-    reads = new Set();
-    inFlightReadsByClient.set(client, reads);
-  }
-  return reads;
-}
-
-async function drainInFlightReads(client: QueryClient): Promise<void> {
-  const reads = inFlightReadsByClient.get(client);
-  while (reads && reads.size > 0) {
-    await Promise.allSettled([...reads]);
-  }
-}
-
 async function readOtherWorkspaceRooms({
   client,
   queryKey,
-  signal,
 }: QueryFunctionContext): Promise<ChatRoom[]> {
   const requestRevision = beginRoomAttentionRefresh();
-  const reads = getInFlightReads(client);
-  const read = fetchSidebarRoomCollection("elsewhere", signal);
-  reads.add(read);
-  let rooms: ChatRoom[] | null;
-  try {
-    rooms = await read;
-  } finally {
-    reads.delete(read);
-  }
-  if (signal.aborted) {
-    throw new CancelledError({ revert: true });
-  }
+  const rooms = await fetchSidebarRoomCollection("elsewhere");
   if (!rooms) {
     throw new Error("Failed to read the rooms of other workspaces");
   }
@@ -94,7 +61,10 @@ async function readOtherWorkspaceRooms({
   if (current && requestRevision < pinsChangedAtRevision) {
     return current;
   }
-  return reconcileRoomAttention(rooms, requestRevision);
+  const visible = rooms.filter(
+    (room) => !wasOtherWorkspaceRoomRevokedSince(room.id, requestRevision),
+  );
+  return reconcileRoomAttention(visible, requestRevision);
 }
 
 /**
@@ -109,28 +79,14 @@ async function readOtherWorkspaceRooms({
  */
 export function OtherWorkspaceRoomsLive(): null {
   const queryClient = useQueryClient();
-  const requestReadRef = useRef(() => {});
   const requestRead = useChatRefreshScheduler({
     key: "elsewhere",
-    refresh: async (isCurrent) => {
-      if ((inFlightReadsByClient.get(queryClient)?.size ?? 0) > 0) {
-        await drainInFlightReads(queryClient);
-        if (!isCurrent()) return;
-        if (chatReadThrottleResumeInMs() > 0) {
-          requestReadRef.current();
-          return;
-        }
-      }
-      await queryClient.invalidateQueries({
-        queryKey: chatQueryKeys.anyElsewhere(),
-      });
-      await drainInFlightReads(queryClient);
-    },
+    refresh: () =>
+      queryClient.invalidateQueries({ queryKey: chatQueryKeys.anyElsewhere() }),
     healthy: useAblyConnectionHealthy(),
     refreshOnRecovery: true,
     refreshOnForeground: true,
   });
-  requestReadRef.current = requestRead;
 
   useOtherWorkspaceRoomsLiveSync(queryClient, requestRead);
 

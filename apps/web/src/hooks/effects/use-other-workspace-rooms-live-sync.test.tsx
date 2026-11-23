@@ -37,6 +37,69 @@ function sampleRoom(id: string): ChatRoom {
   } as ChatRoom;
 }
 
+const TS = "2026-11-23T12:00:00.000Z";
+const KEY = chatQueryKeys.elsewhere({ userId: "u1", workspaceId: "org1" });
+
+function okResponse(ids: string[]): Response {
+  const data = ids.map((id) => ({
+    id,
+    organizationId: "org2",
+    organizationName: "Globex",
+    organizationLogo: null,
+    organizationWebsiteUrl: "https://globex.example",
+    unreadCount: 2,
+    channelUnreadCount: 2,
+    unreadMentionCount: 0,
+    markedUnread: false,
+    starredAt: null,
+    mutedAt: null,
+    createdAt: TS,
+    updatedAt: TS,
+    userMembers: [],
+  }));
+  return new Response(
+    JSON.stringify({
+      data,
+      meta: {
+        timestamp: TS,
+        requestId: "req-1",
+        pagination: { nextCursor: null },
+      },
+    }),
+    { headers: { "Content-Type": "application/json" } },
+  );
+}
+
+function mountLiveReader() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  function Reader() {
+    useOtherWorkspaceRooms({
+      currentUserId: "u1",
+      organizationId: "org1",
+      enabled: true,
+    });
+    return null;
+  }
+  const view = render(
+    <QueryClientProvider client={queryClient}>
+      <OtherWorkspaceRoomsLive />
+      <Reader />
+    </QueryClientProvider>,
+  );
+  const roomIds = () =>
+    queryClient.getQueryData<ChatRoom[]>(KEY)?.map((r) => r.id);
+  return {
+    queryClient,
+    roomIds,
+    unmount: () => {
+      view.unmount();
+      queryClient.clear();
+    },
+  };
+}
+
 describe("useOtherWorkspaceRoomsLiveSync", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -86,8 +149,7 @@ describe("useOtherWorkspaceRoomsLiveSync", () => {
     });
     expect(requestRead).toHaveBeenCalledTimes(2);
 
-    // Room removal cancels pending reads, hides the room at once, invalidates
-    // the prefix, and schedules a fresh read.
+    // Room removal hides the room at once, invalidates the prefix, and schedules a read.
     act(() => {
       notifyOrganizationChatRoomsChanged({ removedRoomId: "r2" });
     });
@@ -189,289 +251,78 @@ describe("useOtherWorkspaceRoomsLiveSync", () => {
     queryClient.clear();
   });
 
-  it("cancels an in-flight read, removes the room at once, and invalidates on revocation so the older response cannot restore it", async () => {
+  it("drops a revoked room from an older in-flight read without overlapping a second GET, and shows it on a later read", async () => {
     vi.useRealTimers();
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    const key = chatQueryKeys.elsewhere({ userId: "u1", workspaceId: "org1" });
-    queryClient.setQueryData<ChatRoom[]>(key, [
-      sampleRoom("r1"),
-      sampleRoom("r2"),
-    ]);
-    const olderRead = Promise.withResolvers<ChatRoom[]>();
-    let aborted = false;
-
-    const inFlight = queryClient
-      .fetchQuery({
-        queryKey: key,
-        queryFn: ({ signal }) => {
-          signal.addEventListener("abort", () => {
-            aborted = true;
-          });
-          return olderRead.promise;
-        },
-        staleTime: 0,
-      })
-      .catch(() => undefined);
-
-    const requestRead = vi.fn();
-    const { unmount } = render(
-      <LiveSyncProbe queryClient={queryClient} requestRead={requestRead} />,
-    );
-
-    act(() => {
-      notifyOrganizationChatRoomsChanged({ removedRoomId: "r1" });
-    });
-
-    // Hidden immediately even before any follow-up read runs (or if it is throttled/fails).
-    expect(aborted).toBe(true);
-    expect(queryClient.getQueryData<ChatRoom[]>(key)?.map((r) => r.id)).toEqual(
-      ["r2"],
-    );
-    expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
-    expect(requestRead).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      olderRead.resolve([sampleRoom("r1"), sampleRoom("r2")]);
-      await inFlight;
-    });
-
-    expect(queryClient.getQueryData<ChatRoom[]>(key)?.map((r) => r.id)).toEqual(
-      ["r2"],
-    );
-    unmount();
-    queryClient.clear();
-  });
-
-  it("aborts GET A on revocation and does not start GET B before GET A ends", async () => {
-    vi.useRealTimers();
-    const timestamp = "2026-11-23T12:00:00.000Z";
-    const roomDto = (id: string) => ({
-      id,
-      organizationId: "org2",
-      organizationName: "Globex",
-      organizationLogo: null,
-      organizationWebsiteUrl: "https://globex.example",
-      unreadCount: 2,
-      channelUnreadCount: 2,
-      unreadMentionCount: 0,
-      markedUnread: false,
-      starredAt: null,
-      mutedAt: null,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      userMembers: [],
-    });
-    const okResponse = (ids: string[]) =>
-      new Response(
-        JSON.stringify({
-          data: ids.map(roomDto),
-          meta: {
-            timestamp,
-            requestId: "req-1",
-            pagination: { nextCursor: null },
-          },
-        }),
-        { headers: { "Content-Type": "application/json" } },
-      );
-
-    let signalA: AbortSignal | undefined;
     const getA = Promise.withResolvers<Response>();
     const getB = Promise.withResolvers<Response>();
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(okResponse(["r1", "r2"]))
-      .mockImplementationOnce((_url: string, init?: RequestInit) => {
-        signalA = init?.signal ?? undefined;
-        // Intentionally does not settle on abort so we can prove GET B waits
-        // until GET A's transport actually finishes.
-        return getA.promise;
-      })
+      .mockReturnValueOnce(getA.promise)
       .mockReturnValueOnce(getB.promise);
     vi.stubGlobal("fetch", fetchMock);
 
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    const key = chatQueryKeys.elsewhere({ userId: "u1", workspaceId: "org1" });
+    const { roomIds, unmount } = mountLiveReader();
+    await waitFor(() => expect(roomIds()).toEqual(["r1", "r2"]));
 
-    function Reader() {
-      useOtherWorkspaceRooms({
-        currentUserId: "u1",
-        organizationId: "org1",
-        enabled: true,
-      });
-      return null;
-    }
-
-    const { unmount } = render(
-      <QueryClientProvider client={queryClient}>
-        <OtherWorkspaceRoomsLive />
-        <Reader />
-      </QueryClientProvider>,
-    );
-
-    await waitFor(() =>
-      expect(
-        queryClient.getQueryData<ChatRoom[]>(key)?.map((r) => r.id),
-      ).toEqual(["r1", "r2"]),
-    );
-
-    // Start GET A via an active-collection invalidation.
-    act(() => {
-      notifyOrganizationChatRoomsChanged({ collections: ["active"] });
-    });
+    act(() => notifyOrganizationChatRoomsChanged({ collections: ["active"] }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
 
-    // Revoke r1 while GET A is still in flight.
+    // Revoke during GET A: r1 hides immediately and no second GET overlaps.
     await act(async () => {
       notifyOrganizationChatRoomsChanged({ removedRoomId: "r1" });
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
-
-    // Abort reached the HTTP transport, r1 is already hidden, and GET B has
-    // not started while GET A is still open.
-    expect(signalA?.aborted).toBe(true);
-    expect(queryClient.getQueryData<ChatRoom[]>(key)?.map((r) => r.id)).toEqual(
-      ["r2"],
-    );
+    expect(roomIds()).toEqual(["r2"]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
 
-    // Even if GET A finishes with stale [r1, r2], it never restores r1, and
-    // only now does GET B start.
-    await act(async () => {
-      getA.resolve(okResponse(["r1", "r2"]));
-    });
+    // Older GET A resolves with [r1, r2]: r1 stays dropped; GET B starts after A ends.
+    await act(async () => getA.resolve(okResponse(["r1", "r2"])));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-    expect(queryClient.getQueryData<ChatRoom[]>(key)?.map((r) => r.id)).toEqual(
-      ["r2"],
-    );
+    expect(roomIds()).toEqual(["r2"]);
 
-    await act(async () => {
-      getB.resolve(okResponse(["r2"]));
-    });
-    expect(queryClient.getQueryData<ChatRoom[]>(key)?.map((r) => r.id)).toEqual(
-      ["r2"],
-    );
-
+    // Newer GET B started after revocation (e.g. rejoin): r1 shows again.
+    await act(async () => getB.resolve(okResponse(["r1", "r2"])));
+    await waitFor(() => expect(roomIds()).toEqual(["r1", "r2"]));
     unmount();
-    queryClient.clear();
   });
 
-  it("keeps a pending active-change timer across revocation so it still enters the scheduler and defers through a 429 throttle", async () => {
+  it("keeps a pending active-change timer across revocation so it defers through a 429 throttle", async () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
-    const timestamp = "2026-11-23T12:00:00.000Z";
-    const roomDto = (id: string) => ({
-      id,
-      organizationId: "org2",
-      organizationName: "Globex",
-      organizationLogo: null,
-      organizationWebsiteUrl: "https://globex.example",
-      unreadCount: 2,
-      channelUnreadCount: 2,
-      unreadMentionCount: 0,
-      markedUnread: false,
-      starredAt: null,
-      mutedAt: null,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      userMembers: [],
-    });
-    const okResponse = (ids: string[]) =>
-      new Response(
-        JSON.stringify({
-          data: ids.map(roomDto),
-          meta: {
-            timestamp,
-            requestId: "req-1",
-            pagination: { nextCursor: null },
-          },
-        }),
-        { headers: { "Content-Type": "application/json" } },
-      );
-
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(okResponse(["r1", "r2"])) // mount
       .mockResolvedValueOnce(okResponse(["r1", "r2"])) // t=0 active change
       .mockResolvedValueOnce(
-        new Response("{}", {
-          status: 429,
-          headers: { "Retry-After": "5" },
-        }),
-      ) // t=200ms revocation read -> throttled until t=5200ms
-      .mockResolvedValueOnce(okResponse(["r2", "r3"])); // t=5200ms catch-up after throttle
+        new Response("{}", { status: 429, headers: { "Retry-After": "5" } }),
+      ) // t=200ms revoke -> throttled until t=5200ms
+      .mockResolvedValueOnce(okResponse(["r2", "r3"])); // t=5200ms catch-up
     vi.stubGlobal("fetch", fetchMock);
 
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    const key = chatQueryKeys.elsewhere({ userId: "u1", workspaceId: "org1" });
+    const { roomIds, unmount } = mountLiveReader();
+    await act(() => vi.advanceTimersByTimeAsync(0));
 
-    function Reader() {
-      useOtherWorkspaceRooms({
-        currentUserId: "u1",
-        organizationId: "org1",
-        enabled: true,
-      });
-      return null;
-    }
-
-    const { unmount } = render(
-      <QueryClientProvider client={queryClient}>
-        <OtherWorkspaceRoomsLive />
-        <Reader />
-      </QueryClientProvider>,
-    );
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-
-    // t=0: first active change reads immediately.
+    // t=0: reads immediately; t=100ms: queues 2s timer; t=200ms: revoke hits 429.
     await act(async () => {
       notifyOrganizationChatRoomsChanged({ collections: ["active"] });
       await vi.advanceTimersByTimeAsync(0);
-    });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-
-    // t=100ms: second active change queues the 2s window timer (fires at t=2000ms).
-    await act(async () => {
       await vi.advanceTimersByTimeAsync(100);
       notifyOrganizationChatRoomsChanged({ collections: ["active"] });
-    });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-
-    // t=200ms: revocation arrives and its follow-up read gets 429 (Retry-After: 5s -> t=5200ms).
-    await act(async () => {
       await vi.advanceTimersByTimeAsync(100);
       notifyOrganizationChatRoomsChanged({ removedRoomId: "r1" });
       await vi.advanceTimersByTimeAsync(0);
     });
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(queryClient.getQueryData<ChatRoom[]>(key)?.map((r) => r.id)).toEqual(
-      ["r2"],
-    );
+    expect(roomIds()).toEqual(["r2"]);
 
-    // t=2000ms: the t=100ms active-change timer fires into the scheduler and
-    // defers through the 429 throttle instead of firing inside the window.
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1_800);
-    });
+    // t=2000ms: pending active-change timer enters scheduler and defers through 429.
+    await act(() => vi.advanceTimersByTimeAsync(1_800));
     expect(fetchMock).toHaveBeenCalledTimes(3);
 
-    // t=5200ms: throttle ends; the deferred active-change read runs and lands r3.
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(3_200);
-    });
+    // t=5200ms: throttle ends; deferred read runs and lands r3.
+    await act(() => vi.advanceTimersByTimeAsync(3_200));
     expect(fetchMock).toHaveBeenCalledTimes(4);
-    expect(queryClient.getQueryData<ChatRoom[]>(key)?.map((r) => r.id)).toEqual(
-      ["r2", "r3"],
-    );
-
+    expect(roomIds()).toEqual(["r2", "r3"]);
     unmount();
-    queryClient.clear();
   });
 });
