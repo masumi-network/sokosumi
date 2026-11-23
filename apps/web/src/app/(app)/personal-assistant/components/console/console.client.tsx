@@ -200,13 +200,20 @@ function ScheduleRow({
         {rhythm?.description ?? schedule.prompt}
       </p>
       <p className="text-muted-foreground text-xs">
-        {t("Schedules.nextRun")}{" "}
-        <span className="text-foreground tabular-nums">
-          {schedule.enabled ? nextRun.schedule : t("Schedules.disabled")}
-        </span>
-        {schedule.enabled && nextRun.local ? (
-          <> {t("Schedules.yourTime", { datetime: nextRun.local })}</>
-        ) : null}
+        {/* A switched-off schedule has no next run; "Next disabled" read as broken. */}
+        {schedule.enabled ? (
+          <>
+            {t("Schedules.nextRun")}{" "}
+            <span className="text-foreground tabular-nums">
+              {nextRun.schedule}
+            </span>
+            {nextRun.local ? (
+              <> {t("Schedules.yourTime", { datetime: nextRun.local })}</>
+            ) : null}
+          </>
+        ) : (
+          t("Schedules.disabled")
+        )}
         {schedule.consecutiveFailures > 0 ? (
           <span className="text-semantic-destructive ml-3 tabular-nums">
             {t("Schedules.failures")} {schedule.consecutiveFailures}

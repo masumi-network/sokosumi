@@ -132,6 +132,16 @@ describe("TeamSection", () => {
     expect(screen.getByText("notSetUp")).toBeInTheDocument();
     expect(screen.getByText("Sandro")).toBeInTheDocument();
   });
+
+  it("says nobody else is here yet and links to invites in a team of one", async () => {
+    render(await TeamSection({ team: { ...team, members: [me] } }));
+
+    expect(screen.getByText("teamEmpty")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "inviteTeam" })).toHaveAttribute(
+      "href",
+      "/organization",
+    );
+  });
 });
 
 describe("YourAssistantSection", () => {

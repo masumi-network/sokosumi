@@ -114,6 +114,8 @@ export const APP_MESSAGE_PATHS = [
 export const SOKO_BOT_MESSAGE_PATHS = [
   ...APP_SHELL_MESSAGE_PATHS,
   "App.SokoBot",
+  // An archived shared bot's page (`/soko-bots/[id]`) offers Reactivate.
+  "App.SokoBots.Shared.Archived",
   "App.Projects.SocialPosts.preview",
   // The console's New schedule form reuses the Task schedule "When" picker.
   "App.Tasks.Schedules.Dialog.When",

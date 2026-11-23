@@ -401,6 +401,29 @@ describe("SokoBotConsole", () => {
     expect(row).toHaveTextContent("Schedules.yourTime(date)");
   });
 
+  it("says a switched-off schedule is off, with no next run", () => {
+    viewMock.mockReturnValue(null);
+    const state = chatState(true);
+    state.bot.schedules = [
+      {
+        id: "s1",
+        name: "Dreaming",
+        systemKey: null,
+        cronExpression: "0 3 * * *",
+        timezone: "UTC",
+        prompt: "Tidy memory",
+        enabled: false,
+        nextRunAt: "2030-01-02T03:00:00.000Z",
+        consecutiveFailures: 0,
+      } as (typeof state.bot.schedules)[number],
+    ];
+    render(consoleElement({ initialState: state }));
+
+    const row = screen.getByText("Dreaming").closest("li");
+    expect(row).toHaveTextContent("Schedules.disabled");
+    expect(row).not.toHaveTextContent("Schedules.nextRun");
+  });
+
   it("lands a chat card's schedule link on its row: scrolled to, focused and marked", () => {
     viewMock.mockReturnValue(null);
     scheduleParamMock.mockReturnValue("s2");
