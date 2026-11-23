@@ -15,7 +15,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const useSessionMock = vi.fn();
 const listDriveItemsMock = vi.fn();
+const deleteDriveFilesDeleteMock = vi.fn();
 const deleteDriveFoldersDeleteMock = vi.fn();
+const patchDriveFilesRenameMock = vi.fn();
 const patchDriveFoldersRenameMock = vi.fn();
 const patchDriveFilesMoveMock = vi.fn();
 const postDriveFoldersMock = vi.fn();
@@ -139,13 +141,15 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
 
 vi.mock("@sokosumi/core-client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@sokosumi/core-client")>()),
-  deleteDriveFilesDelete: vi.fn(),
+  deleteDriveFilesDelete: (...args: unknown[]) =>
+    deleteDriveFilesDeleteMock(...args),
   deleteDriveFoldersDelete: (...args: unknown[]) =>
     deleteDriveFoldersDeleteMock(...args),
   getUsersByIdOrganizations: (...args: unknown[]) =>
     getUsersByIdOrganizationsMock(...args),
   patchDriveFilesMove: (...args: unknown[]) => patchDriveFilesMoveMock(...args),
-  patchDriveFilesRename: vi.fn(),
+  patchDriveFilesRename: (...args: unknown[]) =>
+    patchDriveFilesRenameMock(...args),
   patchDriveFoldersRename: (...args: unknown[]) =>
     patchDriveFoldersRenameMock(...args),
   postDriveFolders: (...args: unknown[]) => postDriveFoldersMock(...args),
@@ -1090,6 +1094,102 @@ describe("DrivePage recents view", () => {
     await waitFor(() => {
       expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
+  });
+
+  it("invalidates Drive cache after rename, move, and delete from recents without a reload token", async () => {
+    const user = userEvent.setup();
+    const orgA = { scope: "org" as const, organizationId: "org_a" };
+    const recentsFile = (
+      name: string,
+      pathname = `drive/orgs/org_a/${name}`,
+    ) => ({
+      kind: "drive-file" as const,
+      name,
+      fileUrl: `https://example.com/${pathname}`,
+      pathname,
+      size: 100,
+      activityAt: "2026-08-28T10:00:00.000Z",
+      resourceId: "res_1",
+      category: null,
+      tags: [],
+      dataRoom: false,
+    });
+
+    patchDriveFilesRenameMock.mockReset();
+    patchDriveFilesRenameMock.mockResolvedValue({});
+    patchDriveFilesMoveMock.mockReset();
+    patchDriveFilesMoveMock.mockResolvedValue({});
+    deleteDriveFilesDeleteMock.mockReset();
+    deleteDriveFilesDeleteMock.mockResolvedValue({});
+    fetchWorkspaceFoldersMock.mockReset();
+    fetchWorkspaceFoldersMock.mockResolvedValue(["Archive"]);
+
+    const deleteRefetch = Promise.withResolvers<{
+      items: unknown[];
+      nextCursor: string | null;
+    }>();
+
+    fetchDriveRecentsPageMock
+      .mockResolvedValueOnce({
+        items: [recentsFile("notes.txt")],
+        nextCursor: null,
+      })
+      .mockResolvedValueOnce({
+        items: [recentsFile("renamed.txt")],
+        nextCursor: null,
+      })
+      .mockResolvedValueOnce({
+        items: [
+          recentsFile("renamed.txt", "drive/orgs/org_a/Archive/renamed.txt"),
+        ],
+        nextCursor: null,
+      })
+      .mockImplementationOnce(() => deleteRefetch.promise);
+
+    // Seed a cached catalog query to verify recents writes invalidate the shared prefix.
+    const catalogKey = driveQueryKeys.folders(orgA);
+    queryClient.setQueryData(catalogKey, ["Archive"]);
+
+    renderDrive();
+
+    expect(await screen.findByText("notes.txt")).toBeVisible();
+
+    // Rename from recents invalidates shared Drive cache and updates recents.
+    await user.click(screen.getByRole("button", { name: "renameAction" }));
+    const renameInput = screen.getByDisplayValue("notes.txt");
+    await user.clear(renameInput);
+    await user.type(renameInput, "renamed.txt{Enter}");
+
+    expect(await screen.findByText("renamed.txt")).toBeVisible();
+    expect(patchDriveFilesRenameMock).toHaveBeenCalledTimes(1);
+    expect(queryClient.getQueryState(catalogKey)?.isInvalidated).toBe(true);
+
+    // Move from recents invalidates shared Drive cache and refetches recents.
+    await user.click(screen.getByRole("button", { name: "moveAction" }));
+    await user.click(await screen.findByRole("button", { name: "Archive" }));
+    await user.click(screen.getByRole("button", { name: "moveHere" }));
+
+    await waitFor(() => {
+      expect(patchDriveFilesMoveMock).toHaveBeenCalledTimes(1);
+      expect(fetchDriveRecentsPageMock).toHaveBeenCalledTimes(3);
+    });
+
+    // Delete from recents drops the row immediately before the refetch returns.
+    await user.click(screen.getByRole("button", { name: "deleteAction" }));
+    await user.click(
+      await screen.findByRole("button", { name: "deleteDialogConfirm" }),
+    );
+
+    await waitFor(() => {
+      expect(deleteDriveFilesDeleteMock).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText("renamed.txt")).toBeNull();
+    });
+
+    await act(async () => {
+      deleteRefetch.resolve({ items: [], nextCursor: null });
+      await deleteRefetch.promise;
+    });
+    expect(await screen.findByText("recentsEmptyTitle")).toBeVisible();
   });
 });
 
