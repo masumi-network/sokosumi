@@ -246,6 +246,73 @@ describe("useRoomShellRoster", () => {
     expect(result.current.organizationMembers).toEqual([alice, bob]);
   });
 
+  it("keeps the settled roster while a same-room refresh promise is pending until the new roster arrives", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const alice = makeMember("m-1", "Alice");
+    const bob = makeMember("m-2", "Bob");
+    const firstPromise = Promise.resolve<RoomShellRosterPage>({
+      organizationMembers: [alice],
+      membersLoadFailed: false,
+      coworkers: [],
+      sokoBots: [],
+    });
+    const refreshDeferred = Promise.withResolvers<RoomShellRosterPage>();
+
+    const { result, rerender } = renderHook(
+      ({
+        roomId,
+        rosterPromise,
+      }: {
+        roomId: string;
+        rosterPromise: Promise<RoomShellRosterPage>;
+      }) =>
+        useRoomShellRoster({
+          currentUserId: "user-1",
+          workspaceId: "org-1",
+          roomId,
+          rosterPromise,
+          fallback: EMPTY_FALLBACK,
+        }),
+      {
+        wrapper: createWrapper(queryClient),
+        initialProps: { roomId: "room-1", rosterPromise: firstPromise },
+      },
+    );
+
+    await waitFor(() => {
+      expect(result.current.organizationMembers).toEqual([alice]);
+    });
+    expect(result.current.ready).toBe(true);
+
+    // Same-room RSC refresh delivers a pending promise: roster must stay [Alice].
+    rerender({ roomId: "room-1", rosterPromise: refreshDeferred.promise });
+    expect(result.current.ready).toBe(true);
+    expect(result.current.organizationMembers).toEqual([alice]);
+
+    // Once the refresh settles, roster updates to [Bob].
+    await act(async () => {
+      refreshDeferred.resolve({
+        organizationMembers: [bob],
+        membersLoadFailed: false,
+        coworkers: [],
+        sokoBots: [],
+      });
+      await refreshDeferred.promise;
+    });
+
+    await waitFor(() => {
+      expect(result.current.organizationMembers).toEqual([bob]);
+    });
+
+    // Switching to another room drops the previous room's roster while pending.
+    const otherRoomDeferred = Promise.withResolvers<RoomShellRosterPage>();
+    rerender({ roomId: "room-2", rosterPromise: otherRoomDeferred.promise });
+    expect(result.current.ready).toBe(false);
+    expect(result.current.organizationMembers).toEqual([]);
+  });
+
   it("reads a new server promise when returning to a previously cached workspace and drops the prior workspace while pending", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },

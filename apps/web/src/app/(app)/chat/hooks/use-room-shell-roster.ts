@@ -70,6 +70,27 @@ export function useRoomShellRoster({
       }
     },
     enabled,
+    placeholderData: (previousData, previousQuery) => {
+      const previousKey = previousQuery?.queryKey;
+      if (
+        previousData === undefined ||
+        !Array.isArray(previousKey) ||
+        previousKey.length < 4
+      ) {
+        return undefined;
+      }
+      const previousScope = previousKey[0] as
+        | { userId?: string | null; workspaceId?: string | null }
+        | undefined;
+      const sameScope =
+        previousScope?.userId === queryKey[0].userId &&
+        previousScope?.workspaceId === queryKey[0].workspaceId;
+      const sameRoom =
+        previousKey[1] === queryKey[1] &&
+        previousKey[2] === queryKey[2] &&
+        previousKey[3] === queryKey[3];
+      return sameScope && sameRoom ? previousData : undefined;
+    },
     staleTime: Number.POSITIVE_INFINITY,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
