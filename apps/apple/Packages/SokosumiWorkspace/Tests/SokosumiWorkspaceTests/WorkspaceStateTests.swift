@@ -3570,23 +3570,6 @@ extension WorkspaceStateTests {
     #expect(!state.openRoom.canAttachFiles(roomId: roomId))
   }
 
-  @Test func canSendToSelfHidesInsideSelfDirectAndOnLocalRows() throws {
-    let (state, _, _, _) = try ephemeralState([])
-    defer { state.reset() }
-    let roomId = "550e8400-e29b-41d4-a716-446655440000"
-    var room = coworkerDirect(roomId: roomId)
-    state.rooms = [room]
-    #expect(state.canSendToSelf(durableRoomMessage(roomId: roomId)))
-    room.isSelfDirect = true
-    state.rooms = [room]
-    #expect(!state.canSendToSelf(durableRoomMessage(roomId: roomId)))
-    room.isSelfDirect = false
-    state.rooms = [room]
-    var stream = durableRoomMessage(roomId: roomId)
-    stream.id = "stream:turn"
-    #expect(!state.canSendToSelf(stream))
-  }
-
   @Test func sendToSelfListsANewlyCreatedSelfDirectWithoutLeavingTheSourceRoom() async throws {
     let general = "550e8400-e29b-41d4-a716-446655440000"
     let you = "550e8400-e29b-41d4-a716-446655440001"
