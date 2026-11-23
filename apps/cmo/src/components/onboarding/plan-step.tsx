@@ -744,8 +744,8 @@ export function PlanReview({
           // start over (NMKR, 2026-11-23, had no way back from Subscribe).
           <p className="ob-small muted">
             Want a different one? {AGENT_NAME} writes a whole new strategy from
-            your Brand Brain. This one stays until you approve the new one; then
-            its posts that have not gone out are canceled.{" "}
+            your Brand Brain, and you approve it before you pick a plan. Then
+            this one's posts that have not gone out are canceled.{" "}
             <button
               type="button"
               className="sc-link"

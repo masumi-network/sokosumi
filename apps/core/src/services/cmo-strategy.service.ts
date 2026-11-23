@@ -33,6 +33,7 @@ import {
   requestBrandBrainFix,
   withdrawBrandBrainFix,
 } from "@/services/brand-brain.service";
+import { isCmoProjectUnpaid } from "@/services/cmo-billing.service";
 import {
   CmoConflictError,
   CmoNotFoundError,
@@ -373,6 +374,59 @@ async function requestStrategyForCuso(
     input.note ? { note: input.note, patch: input.patch ?? false } : null,
     input.siteLanguage,
   );
+}
+
+/**
+ * A new strategy for a Cuso whose Project never paid goes back to hiring:
+ * his approved strategy only led to Subscribe, and from approval an unpaid
+ * Cuso is paused (ADR 0068), so NMKR's "Write a new strategy" (2026-11-23)
+ * was refused. Un-approving it brings back free hiring; the new version's
+ * approval cancels the old one's posts that have not gone out, as before.
+ * Returns what was un-approved, so a turn that does not start restores it.
+ */
+async function reopenUnpaidStrategy(
+  cuso: Cuso,
+): Promise<
+  { id: string; approvedAt: Date; approvedByUserId: string | null }[]
+> {
+  const approved = (
+    await prisma.marketingStrategy.findMany({
+      where: { projectId: cuso.projectId, approvedAt: { not: null } },
+      select: { id: true, approvedAt: true, approvedByUserId: true },
+    })
+  ).flatMap(({ id, approvedAt, approvedByUserId }) =>
+    approvedAt ? [{ id, approvedAt, approvedByUserId }] : [],
+  );
+  if (
+    approved.length === 0 ||
+    (await isEvalCusoProject(cuso.projectId)) ||
+    !(await isCmoProjectUnpaid(cuso.projectId))
+  )
+    return [];
+  await prisma.marketingStrategy.updateMany({
+    where: { projectId: cuso.projectId, approvedAt: { not: null } },
+    data: { approvedAt: null, approvedByUserId: null },
+  });
+  return approved;
+}
+
+async function restoreApproval(
+  versions: readonly {
+    id: string;
+    approvedAt: Date;
+    approvedByUserId: string | null;
+  }[],
+): Promise<void> {
+  for (const version of versions)
+    await prisma.marketingStrategy
+      .update({
+        where: { id: version.id },
+        data: {
+          approvedAt: version.approvedAt,
+          approvedByUserId: version.approvedByUserId,
+        },
+      })
+      .catch(() => undefined);
 }
 
 /**
@@ -832,7 +886,11 @@ async function startCmoStrategy(
   // A new strategy over a draft starts from an empty month: NMKR's
   // "Write a new strategy" (2026-11-22) kept the draft's 296 pieces, and Cuso
   // only patched around them. The draft stays as the version before.
+  let reopened: Awaited<ReturnType<typeof reopenUnpaidStrategy>> = [];
   if (!change) {
+    // An unpaid hire's approved strategy goes back to being a draft first,
+    // so the clear below starts the new one on a fresh version over it.
+    reopened = await reopenUnpaidStrategy(cuso);
     await clearDraftCalendar(cuso);
     // cmo-v21: the plan rests on the buyer's industry, researched first.
     await cmoIndustryBeforePlan(cuso);
@@ -852,6 +910,7 @@ async function startCmoStrategy(
     const writing = change ? null : await strategyTurnRunning(cuso.sokoBotId);
     if (writing && cmoChangeKind(writing.clientTurnId) === null)
       return { turnId: writing.id };
+    await restoreApproval(reopened);
     throw error;
   }
 }
