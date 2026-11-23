@@ -105,26 +105,27 @@ test("a generic write sends --input-json or --input-file as the body", async () 
     command: "things move",
     usage: "ID",
     operation: "POST /things/{id}/move",
-  };
+  } as const;
   const dir = await mkdtemp(join(tmpdir(), "sokosumi-generic-"));
   const file = join(dir, "input.json");
   await writeFile(file, '{"to":"b"}');
-  for (const options of [
-    { "input-json": '{"to":"a"}' },
-    { "input-file": file },
-    {},
-  ])
-    await runGenericCommand({
+  const run = (options: Record<string, string>) =>
+    runGenericCommand({
       client,
       stdout: { write: (value) => output.push(value) },
       row,
       args: ["x-1"],
       options,
     });
+  await run({ "input-json": '{"to":"a"}' });
+  await run({ "input-file": file });
+  await assert.rejects(
+    run({}),
+    /`things move` needs --input-json or --input-file/,
+  );
   assert.deepEqual(calls, [
     { path: "/v1/things/x-1/move", body: { to: "a" } },
     { path: "/v1/things/x-1/move", body: { to: "b" } },
-    { path: "/v1/things/x-1/move", body: {} },
   ]);
   assert.deepEqual(JSON.parse(output[0]!), { data: { id: "x-1" } });
 });
@@ -141,9 +142,19 @@ for (const [name, argv, message] of [
     /Unexpected argument: job-2/,
   ],
   [
-    "a dot segment",
+    "a dot-dot segment",
     ["jobs", "events", ".."],
     /Usage: sokosumi jobs events JOB_ID/,
+  ],
+  [
+    "a dot segment",
+    ["jobs", "events", "."],
+    /Usage: sokosumi jobs events JOB_ID/,
+  ],
+  [
+    "an option it does not use",
+    ["jobs", "events", "job-1", "--limit", "5"],
+    /`jobs events` does not take --limit/,
   ],
   [
     "a --query without =",
@@ -164,14 +175,40 @@ for (const [name, argv, message] of [
   });
 }
 
+test("a generic command encodes a path value so it stays one segment", async (t) => {
+  const f = fixture(t);
+  await runCli([...API, "jobs", "events", "a/b?x#y"], f.deps);
+  assert.equal(
+    f.calls[0]?.url,
+    "https://fixture.invalid/v1/jobs/a%2Fb%3Fx%23y/events",
+  );
+});
+
+test("jobs commands send the selected Workspace", async (t) => {
+  const f = fixture(t, { data: { id: "job-1", status: "COMPLETED" } });
+  await runCli(
+    [...API, "jobs", "get", "job-1", "--organization-slug", "utxo", "--json"],
+    f.deps,
+  );
+  assert.deepEqual(
+    f.calls.map(({ url, slug }) => ({ url, slug })),
+    [{ url: "https://fixture.invalid/v1/jobs/job-1", slug: "utxo" }],
+  );
+});
+
 for (const [argv, message] of [
   [
     ["tasks", "list", "--query", "status=READY"],
     /--query is only supported by jobs events, jobs files, jobs links/,
   ],
+  [["skills", "--query", "a=b"], /--query is only supported by jobs events/],
   [
-    ["jobs", "get", "job-1", "--organization-slug", "utxo"],
-    /--organization-slug is only supported by tasks commands and jobs events/,
+    ["runtime", "receipt", "task-1", "--query", "a=b"],
+    /--query is only supported by jobs events/,
+  ],
+  [
+    ["agents", "list", "--organization-slug", "utxo"],
+    /--organization-slug is only supported by tasks and jobs commands/,
   ],
 ] as const) {
   test(`${argv.slice(0, 2).join(" ")} rejects ${argv.at(-2)} before calling Core`, async (t) => {

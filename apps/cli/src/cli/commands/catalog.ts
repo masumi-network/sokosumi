@@ -1,3 +1,5 @@
+export type CoreMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
 export interface CliCommandCatalogEntry {
   readonly command: string;
   readonly usage: string;
@@ -5,7 +7,7 @@ export interface CliCommandCatalogEntry {
    * The Core operation (`METHOD /path`, as in apps/core/agent-surface) a row
    * without a bespoke handler runs: positionals fill the path parameters.
    */
-  readonly operation?: string;
+  readonly operation?: `${CoreMethod} /${string}`;
 }
 
 export const CLI_COMMAND_CATALOG = [
@@ -101,9 +103,15 @@ export const CLI_COMMAND_CATALOG = [
     usage:
       "TASK_ID [--parent TASK_ID | --detach] [--after TASK_ID | --first] [--organization-slug WORKSPACE_SLUG]",
   },
-  { command: "jobs list", usage: "" },
-  { command: "jobs get", usage: "JOB_ID" },
-  { command: "jobs input", usage: "JOB_ID" },
+  { command: "jobs list", usage: "[--organization-slug WORKSPACE_SLUG]" },
+  {
+    command: "jobs get",
+    usage: "JOB_ID [--details] [--organization-slug WORKSPACE_SLUG]",
+  },
+  {
+    command: "jobs input",
+    usage: "JOB_ID --event-id EVENT_ID [--organization-slug WORKSPACE_SLUG]",
+  },
   {
     command: "jobs events",
     usage: "JOB_ID",

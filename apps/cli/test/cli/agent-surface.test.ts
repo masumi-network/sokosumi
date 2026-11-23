@@ -17,17 +17,33 @@ interface Manifest {
   readonly operations?: Record<string, { readonly cli?: unknown }>;
 }
 
-/** Every manifest row whose `cli` names a command: [file, operation, command]. */
-const CLI_ROWS = readdirSync(MANIFEST_DIR)
+/** Every manifest row: [file, operation, cli]. */
+const ALL_ROWS = readdirSync(MANIFEST_DIR)
   .filter((name) => name.endsWith(".json"))
   .flatMap((name) => {
     const manifest: Manifest = JSON.parse(
       readFileSync(new URL(name, MANIFEST_DIR), "utf8"),
     );
-    return Object.entries(manifest.operations ?? {}).flatMap(([op, row]) =>
-      typeof row.cli === "string" ? [[name, op, row.cli] as const] : [],
+    return Object.entries(manifest.operations ?? {}).map(
+      ([op, row]) => [name, op, row.cli] as const,
     );
   });
+
+/** Every manifest row whose `cli` names a command. */
+const CLI_ROWS = ALL_ROWS.flatMap(([name, op, cli]) =>
+  typeof cli === "string" ? [[name, op, cli] as const] : [],
+);
+
+test("the manifests have CLI rows, and each operation is in one group file", () => {
+  assert.ok(CLI_ROWS.length > 0, "No manifest row names a CLI command.");
+  const files = new Map<string, string[]>();
+  for (const [name, op] of ALL_ROWS)
+    files.set(op, [...(files.get(op) ?? []), name]);
+  assert.deepEqual(
+    [...files].filter(([, names]) => names.length > 1),
+    [],
+  );
+});
 
 test("every CLI command in the agent-surface manifests is in the catalog", () => {
   const catalog = new Set<string>(

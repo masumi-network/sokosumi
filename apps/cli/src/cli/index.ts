@@ -302,6 +302,12 @@ export async function runCli(
     return { version: CLI_VERSION };
   }
 
+  if (options.query !== undefined && !genericRow) {
+    const error = new Error(`--query is only supported by ${GENERIC_COMMANDS}`);
+    if (options.json) writeJsonError(stdout, error);
+    throw error;
+  }
+
   if (positionals[0] === "skills") {
     try {
       await runSkillsCommand({
@@ -370,12 +376,14 @@ export async function runCli(
       throw new Error(
         "--personal cannot be combined with organization or Workspace flags",
       );
-    if (options.query !== undefined && !genericRow)
-      throw new Error(`--query is only supported by ${GENERIC_COMMANDS}`);
     if (options["organization-slug"] !== undefined) {
-      if (positionals[0] !== "tasks" && !genericRow) {
+      if (
+        positionals[0] !== "tasks" &&
+        positionals[0] !== "jobs" &&
+        !genericRow
+      ) {
         throw new Error(
-          `--organization-slug is only supported by tasks commands and ${GENERIC_COMMANDS}`,
+          `--organization-slug is only supported by tasks and jobs commands and ${GENERIC_COMMANDS}`,
         );
       }
       organizationSlug = validateOrganizationSlug(options["organization-slug"]);
@@ -557,7 +565,7 @@ export async function runCli(
     }
     if (section === "jobs") {
       await runJobsCommand({
-        client: getCoreClient(session, dependencies),
+        client: getCoreClient(session, dependencies, organizationSlug),
         stdout,
         json: options.json,
         subcommand: command,

@@ -256,8 +256,8 @@ Commands that call one Core operation (${CLI_COMMAND_CATALOG.filter(
     .map((entry) => entry.command)
     .join(", ")}):
   Positionals fill the path. --query KEY=VALUE (repeatable) adds a query parameter.
-  --input-json JSON or --input-file FILE sends the body of a write. --organization-slug WORKSPACE_SLUG selects the Workspace.
-  They print Core's JSON body as is.
+  A write needs --input-json JSON or --input-file FILE as its body. --organization-slug WORKSPACE_SLUG selects the Workspace.
+  Other options are an error. They print Core's JSON body as is. Every jobs command takes --organization-slug.
 
 Organization Tasks:
   Add --organization-slug WORKSPACE_SLUG to any tasks command to select that organization.

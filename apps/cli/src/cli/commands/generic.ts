@@ -1,8 +1,12 @@
 import type { CoreHttpClient } from "../../api/http-client.js";
-import type { CliCommandCatalogEntry } from "./catalog.js";
+import {
+  type CliOptions,
+  GLOBAL_BOOLEAN_FLAG_BY_TOKEN,
+  GLOBAL_VALUE_OPTIONS,
+} from "../help.js";
+import type { CliCommandCatalogEntry, CoreMethod } from "./catalog.js";
 import {
   asArray,
-  type CommandOptions,
   type CommandOutput,
   option,
   readJsonObject,
@@ -10,14 +14,22 @@ import {
 } from "./command-helpers.js";
 
 const PATH_PARAM = /\{[^}]+\}/g;
+const OPTIONS = new Set<string>([
+  ...GLOBAL_VALUE_OPTIONS,
+  ...Object.values(GLOBAL_BOOLEAN_FLAG_BY_TOKEN),
+  "query",
+  "input-json",
+  "input-file",
+  "organization-slug",
+]);
 
 export interface GenericCommandContext {
   client: CoreHttpClient;
   stdout: CommandOutput;
-  row: CliCommandCatalogEntry & { readonly operation: string };
+  row: Required<CliCommandCatalogEntry>;
   /** The positionals after the command words, in path-parameter order. */
   args: readonly string[];
-  options?: CommandOptions;
+  options?: CliOptions;
   signal?: AbortSignal;
 }
 
@@ -30,7 +42,9 @@ export async function runGenericCommand({
   options,
   signal,
 }: GenericCommandContext): Promise<void> {
-  const [method, template] = row.operation.split(" ");
+  const unknown = Object.keys(options ?? {}).find((name) => !OPTIONS.has(name));
+  if (unknown) throw new Error(`\`${row.command}\` does not take --${unknown}`);
+  const [method, template] = row.operation.split(" ") as [CoreMethod, string];
   const params = template.match(PATH_PARAM) ?? [];
   if (args.length > params.length)
     throw new Error(`Unexpected argument: ${args[params.length]}`);
@@ -52,16 +66,33 @@ export async function runGenericCommand({
   const inputJson = option(options, "input-json");
   const inputFile = option(options, "input-file");
   const read = method === "GET" || method === "DELETE";
-  if (read && (inputJson !== undefined || inputFile !== undefined))
+  const input = inputJson !== undefined || inputFile !== undefined;
+  if (read && input)
     throw new Error(`\`${row.command}\` takes no --input-json or --input-file`);
+  if (!read && !input)
+    throw new Error(`\`${row.command}\` needs --input-json or --input-file`);
   const body = read
     ? undefined
     : await readJsonObject(inputJson, inputFile, "--input");
   let response: unknown;
-  if (method === "GET") response = await client.get(path, signal);
-  else if (method === "DELETE") response = await client.delete(path, signal);
-  else if (method === "POST") response = await client.post(path, body, signal);
-  else if (method === "PUT") response = await client.put(path, body, signal);
-  else response = await client.patch(path, body, signal);
+  switch (method) {
+    case "GET":
+      response = await client.get(path, signal);
+      break;
+    case "DELETE":
+      response = await client.delete(path, signal);
+      break;
+    case "POST":
+      response = await client.post(path, body, signal);
+      break;
+    case "PUT":
+      response = await client.put(path, body, signal);
+      break;
+    case "PATCH":
+      response = await client.patch(path, body, signal);
+      break;
+    default:
+      throw new Error(`Unsupported method in ${row.operation}`);
+  }
   writeJson(stdout, response ?? null);
 }
