@@ -50,7 +50,7 @@ export interface SendEmailInput {
 
 function toResendPayload(input: SendEmailInput) {
   return {
-    from: input.from ?? getEnv().RESEND_FROM_EMAIL,
+    from: input.from ?? `Sokosumi <${getEnv().RESEND_FROM_EMAIL}>`,
     to: input.to,
     subject: input.subject,
     html: input.html,
