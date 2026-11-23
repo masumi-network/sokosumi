@@ -16,7 +16,6 @@ import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { type ExaSearchResult, searchExa } from "@/lib/soko-bot/exa";
 import { gatewayCallUsage, gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { sokoBotModelRequest } from "@/lib/soko-bot/model-policy";
-import { askSmallModel } from "@/lib/soko-bot/small-model";
 import { parseBrandBrain } from "@/services/brand-brain.service";
 import {
   readCmoResearchJson,
@@ -252,6 +251,15 @@ const TREND_DAYS = 365;
 
 type Result = ExaSearchResult["results"][number] & { id: string };
 
+function callCostUsd(call: Awaited<ReturnType<typeof generateText>>): number {
+  const usage = gatewayCallUsage(call as never);
+  return (
+    gatewayCostUsd(call.providerMetadata) ||
+    usage.inputTokens * SYNTHESIS_PRICE.input +
+      usage.outputTokens * SYNTHESIS_PRICE.output
+  );
+}
+
 /**
  * The model's items held to the search results: an item whose source is no
  * result is dropped, its address and date come from the result itself, and
@@ -325,17 +333,26 @@ export async function researchCmoIndustry(
         }).catch(() => undefined)
       : undefined;
 
-  const plan = await askSmallModel({
-    purpose: "cmo",
+  // The small Gemini model ran out of its 1,500 tokens on six long queries
+  // (entry.fyi, 2026-11-23: AI_NoObjectGeneratedError), so Haiku plans too.
+  const planCall = await generateText({
+    ...sokoBotModelRequest({
+      role: "agent",
+      model: SYNTHESIS_MODEL,
+      purpose: "cmo",
+    }),
     system: CMO_INDUSTRY_PLAN_SYSTEM,
     prompt: JSON.stringify({
       business: cuso.businessName,
       website: cuso.websiteUrl,
       brand: brandForResearch(brain),
     }),
-    schema: planSchema,
-  });
-  await charge("plan", plan.costUsd);
+    output: Output.object({ schema: planSchema }),
+    maxOutputTokens: 3_000,
+    abortSignal: AbortSignal.timeout(45_000),
+  }).catch(rethrowAiGatewayFailure);
+  await charge("plan", callCostUsd(planCall));
+  const plan = { output: planSchema.parse(planCall.output) };
 
   const searches = await Promise.all(
     plan.output.queries.slice(0, QUERIES).map((query) =>
@@ -399,13 +416,7 @@ export async function researchCmoIndustry(
       maxOutputTokens: 5_000,
       abortSignal: AbortSignal.timeout(60_000),
     }).catch(rethrowAiGatewayFailure);
-    const usage = gatewayCallUsage(call as never);
-    await charge(
-      "synthesis",
-      gatewayCostUsd(call.providerMetadata) ||
-        usage.inputTokens * SYNTHESIS_PRICE.input +
-          usage.outputTokens * SYNTHESIS_PRICE.output,
-    );
+    await charge("synthesis", callCostUsd(call));
     found = cmoIndustryFromAnswer({
       answer: synthesisSchema.parse(call.output),
       results,
@@ -440,9 +451,10 @@ const researching = new Map<string, Promise<CmoIndustryResearch | null>>();
 function researchOnce(cuso: Cuso): Promise<CmoIndustryResearch | null> {
   const going = researching.get(cuso.sokoBotId);
   if (going) return going;
-  const run = researchCmoIndustry(cuso).finally(() =>
-    researching.delete(cuso.sokoBotId),
-  );
+  // One model reply that misses the schema should not leave the plan without it.
+  const run = researchCmoIndustry(cuso)
+    .catch(() => researchCmoIndustry(cuso))
+    .finally(() => researching.delete(cuso.sokoBotId));
   researching.set(cuso.sokoBotId, run);
   return run;
 }
@@ -463,7 +475,7 @@ function warn(sokoBotId: string, error: unknown): void {
 }
 
 /** How long a strategy waits for its research before it starts without. */
-const BEFORE_PLAN_MS = 90_000;
+const BEFORE_PLAN_MS = 150_000;
 
 /**
  * Before a cmo-v21 Cuso writes a plan: the research when it is due, so the
