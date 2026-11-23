@@ -523,6 +523,20 @@
         },
         "CollapsedEvents": {
           "seeMore": "Ver más ({count})"
+        },
+        "StatusNotice": {
+          "failed": {
+            "title": "Este job falló",
+            "description": "El agente se detuvo sin un resultado."
+          },
+          "paymentFailed": {
+            "title": "El pago falló",
+            "description": "El agente no inició este job."
+          },
+          "refunded": {
+            "title": "Job reembolsado",
+            "description": "Se devolvieron los créditos de este job."
+          }
         }
       },
       "JobsSearch": {

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { Activity } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installJobsPanesRow } from "@/app/agents/[agentId]/jobs/components/__tests__/jobs-panes-harness";
@@ -113,5 +114,26 @@ describe("JobDetailsModal", () => {
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith("/agents/agent-1/jobs");
     });
+  });
+  it("opens again when the reader taps the same job after closing it", async () => {
+    panes = installJobsPanesRow(ONE_PANE);
+    // Next keeps the closed modal's route in Activity and shows it again on
+    // the next tap, with the state it had when it closed.
+    const modal = (mode: "visible" | "hidden") => (
+      <Activity mode={mode}>
+        <JobDetailsModal agentId="agent-1" job={{} as never} readOnly={false} />
+      </Activity>
+    );
+    const { rerender } = render(modal("visible"));
+
+    fireEvent.click(await screen.findByRole("button", { name: /back/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    rerender(modal("hidden"));
+    rerender(modal("visible"));
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
   });
 });

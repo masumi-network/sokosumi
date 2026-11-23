@@ -4,7 +4,7 @@ import type { Job, MemberWithOrganization } from "@sokosumi/core-client";
 import { ArrowLeft } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type TouchEvent, useCallback, useRef, useState } from "react";
+import { type TouchEvent, useCallback, useRef } from "react";
 import { useJobsTwoPaneFit } from "@/app/agents/[agentId]/jobs/components/use-jobs-two-pane-fit";
 import JobDetails from "@/components/jobs/job-details/job-details";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useJobDetailsModalOpen } from "@/hooks/effects/use-job-details-modal-open";
 
 interface JobDetailsModalProps {
   agentId: string;
@@ -36,7 +37,7 @@ export function JobDetailsModal({
   readOnly,
 }: JobDetailsModalProps) {
   const t = useTranslations("App.Agents.Jobs.Modal");
-  const [isOpen, setIsOpen] = useState(true);
+  const { open: isOpen, close } = useJobDetailsModalOpen();
   const twoPaneFits = useJobsTwoPaneFit();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -44,11 +45,11 @@ export function JobDetailsModal({
   const touchStartYRef = useRef<number | null>(null);
 
   const handleClose = useCallback(() => {
-    setIsOpen(false);
+    close();
     const qs = searchParams.toString();
     const basePath = `/agents/${agentId}/jobs`;
     router.replace(qs ? `${basePath}?${qs}` : basePath);
-  }, [agentId, router, searchParams]);
+  }, [agentId, close, router, searchParams]);
 
   const handleTouchStart = useCallback((event: TouchEvent<HTMLDivElement>) => {
     const touch = event.changedTouches[0];

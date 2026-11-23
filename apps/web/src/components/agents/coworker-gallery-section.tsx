@@ -582,12 +582,20 @@ function CoworkerGallerySectionInner({
         </div>
       </div>
 
-      {scope !== "agents" && vendorGroups.length > 0 ? (
+      {/* A search that misses every coworker keeps the group heading (· 0) and
+          says so, as the agent catalog below does; under All the group
+          otherwise vanished and left only a gap. */}
+      {scope !== "agents" && (vendorGroups.length > 0 || isSearching) ? (
         <div className="space-y-8">
           <GalleryGroupHeading
             title={t("coworkersTitle")}
             count={isSearching ? matchingCoworkers : undefined}
           />
+          {vendorGroups.length === 0 ? (
+            <p className="text-muted-foreground text-center text-sm">
+              {t("noResults")}
+            </p>
+          ) : null}
           <div>
             {visibleGroups.map(
               ({ vendor, coworkers: members, offers }, index) => (
@@ -643,7 +651,7 @@ function CoworkerGallerySectionInner({
         </div>
       ) : scope === "coworkers" ? (
         <p className="text-muted-foreground text-center text-sm">
-          {isSearching ? t("noResults") : t("noCoworkers")}
+          {t("noCoworkers")}
         </p>
       ) : null}
 

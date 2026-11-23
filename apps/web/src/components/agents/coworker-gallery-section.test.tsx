@@ -71,4 +71,22 @@ describe("CoworkerGallerySection with no coworkers", () => {
 
     expect(screen.getByRole("status")).toHaveTextContent("coworkersFound:0");
   });
+  it("shows, not only announces, that no coworkers match a search under All", () => {
+    renderAt("?query=zebra");
+
+    expect(
+      screen.getByRole("heading", { name: /coworkersTitle/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("noResults", { selector: "p:not([role=status])" }),
+    ).toBeInTheDocument();
+  });
+
+  it("leaves the coworker group out under All when nobody searches", () => {
+    renderAt("");
+
+    expect(
+      screen.queryByRole("heading", { name: /coworkersTitle/ }),
+    ).not.toBeInTheDocument();
+  });
 });

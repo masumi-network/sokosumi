@@ -523,6 +523,20 @@
         },
         "CollapsedEvents": {
           "seeMore": "Mehr anzeigen ({count})"
+        },
+        "StatusNotice": {
+          "failed": {
+            "title": "Dieser Job ist fehlgeschlagen",
+            "description": "Der Agent hat ohne Ergebnis aufgehört."
+          },
+          "paymentFailed": {
+            "title": "Zahlung fehlgeschlagen",
+            "description": "Der Agent hat diesen Job nicht gestartet."
+          },
+          "refunded": {
+            "title": "Job erstattet",
+            "description": "Die Credits für diesen Job wurden zurückgebucht."
+          }
         }
       },
       "JobsSearch": {

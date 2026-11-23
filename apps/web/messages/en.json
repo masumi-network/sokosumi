@@ -539,6 +539,20 @@
         },
         "CollapsedEvents": {
           "seeMore": "See more ({count})"
+        },
+        "StatusNotice": {
+          "failed": {
+            "title": "This job failed",
+            "description": "The agent stopped without a result."
+          },
+          "paymentFailed": {
+            "title": "Payment failed",
+            "description": "The agent didn't start this job."
+          },
+          "refunded": {
+            "title": "Job refunded",
+            "description": "The credits for this job were returned."
+          }
         }
       },
       "JobsSearch": {
