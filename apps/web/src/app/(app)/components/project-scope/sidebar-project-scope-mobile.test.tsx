@@ -298,6 +298,28 @@ describe("sidebar project scope chip", () => {
     expect(chip()).toHaveFocus();
   });
 
+  it("gives the chip the row on a project's own page, × inside its pill", () => {
+    mocks.pathname = "/projects/p-1";
+    renderHarness();
+
+    const pill = chip().parentElement;
+    expect(pill?.className).toContain("flex-1");
+    expect(chip().className).toContain("flex-1");
+    expect(chip().className).not.toContain("max-w-[40vw]");
+    expect(pill).toContainElement(
+      screen.getByTestId("project-scope-chip-clear"),
+    );
+  });
+
+  // The visible name is part of the accessible name (WCAG 2.5.3).
+  it("names the chip by its text, not an aria-label", async () => {
+    mocks.search = "projectId=p-1";
+    renderHarness();
+
+    await waitFor(() => expect(chip()).toHaveAccessibleName("label: Acme"));
+    expect(chip()).not.toHaveAttribute("aria-label");
+  });
+
   it("shows no × on the chip in the workspace view", () => {
     renderHarness();
 

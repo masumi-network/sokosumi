@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useId, useRef } from "react";
 import { useChromePathname } from "@/app/chat/components/room-cache-provider";
 import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
+import { projectPageSection } from "@/app/components/project-scope/project-scope-href";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
 import { returnFocusTo } from "@/app/components/project-scope/use-project-scope";
 import { usePrefetchScopeProjects } from "@/app/components/project-scope/use-scope-projects";
@@ -42,7 +43,10 @@ import {
 
 /**
  * Below md: a compact scope chip in the header that opens a bottom sheet.
- * While a project is picked, an × beside it returns to All projects.
+ * While a project is picked, an × beside it returns to All projects. On a
+ * project's own pages the chip takes the row's free width, holds its × inside
+ * one pill, and the header drops the workspace switcher (You keeps it), so the
+ * name reads whole.
  * A page that needs a project opens the same sheet (`openProjectScope`); a
  * required ask keeps it open on a tap outside.
  */
@@ -56,6 +60,7 @@ export function SidebarScopeMobileChip() {
   const required = open && request?.required === true;
   const reasonId = useId();
   const { projectId, name, closed, label, mark, select } = useCurrentScope();
+  const inProject = projectId !== null && projectPageSection(pathname) !== null;
   const chipRef = useRef<HTMLButtonElement>(null);
   const clearScope = useClearScope(chipRef);
 
@@ -67,6 +72,7 @@ export function SidebarScopeMobileChip() {
       <div
         className={cn(
           "flex min-w-0 shrink md:hidden",
+          inProject && "bg-muted h-10 flex-1 items-center rounded-full",
           // A chat room's toolbar takes this row on phones. The sheet and the
           // dialog stay mounted: the sidebar row opens them through the store.
           isChatRoomPathname(pathname) && "hidden",
@@ -79,17 +85,27 @@ export function SidebarScopeMobileChip() {
               type="button"
               variant="ghost"
               size="sm"
-              aria-label={label}
               title={name}
               data-testid="project-scope-sidebar-chip"
               onPointerDown={prefetch}
-              className="h-11 max-w-[40vw] min-w-0 shrink gap-1.5 px-2 font-medium data-[state=open]:bg-accent"
+              className={cn(
+                "min-w-0 shrink gap-1.5 px-2 font-medium data-[state=open]:bg-accent",
+                inProject
+                  ? "h-10 flex-1 justify-start rounded-full ps-3"
+                  : "h-11 max-w-[40vw]",
+              )}
             >
               {/* The mark's glyph names no size, so this box gives it one. */}
               <span aria-hidden className="flex shrink-0 [&>svg]:size-4">
                 {mark}
               </span>
-              <span className="min-w-0 truncate">{name}</span>
+              {/* Named by its content, not aria-label: the mark's initial is
+                  visible text, and an aria-label that skips it fails WCAG
+                  2.5.3. The whole label is read out; the name shows. */}
+              <span className="sr-only">{label}</span>
+              <span aria-hidden className="min-w-0 truncate">
+                {name}
+              </span>
               {closed ? <ScopeClosedBadge /> : null}
               <ChevronsUpDown
                 className="text-muted-foreground size-3.5 shrink-0"
@@ -142,6 +158,9 @@ export function SidebarScopeMobileChip() {
             />
           </SheetContent>
         </Sheet>
+        {inProject ? (
+          <span aria-hidden className="bg-border h-5 w-px shrink-0" />
+        ) : null}
         {projectId !== null && (
           <Button
             type="button"
@@ -151,7 +170,10 @@ export function SidebarScopeMobileChip() {
             title={t("clearProject")}
             data-testid="project-scope-chip-clear"
             onClick={clearScope}
-            className="text-muted-foreground hover:text-foreground size-11 shrink-0"
+            className={cn(
+              "text-muted-foreground hover:text-foreground shrink-0",
+              inProject ? "size-10 rounded-full" : "size-11",
+            )}
           >
             <X className="size-4" aria-hidden />
           </Button>
