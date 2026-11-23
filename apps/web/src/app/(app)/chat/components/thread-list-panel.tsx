@@ -57,6 +57,8 @@ export interface ThreadListPanelLabels {
 
 interface ThreadListPanelProps {
   roomId: string;
+  userId?: string | null;
+  workspaceId?: string | null;
   /** Display names by member id, so a mention in a row reads as a name. */
   mentionNames?: ReadonlyMap<string, string>;
   labels: ThreadListPanelLabels;
@@ -74,8 +76,31 @@ interface ThreadListPage {
   nextCursor: string | null;
 }
 
+let nextThreadListVisitId = 0;
+
+async function fetchThreadListPage(
+  roomId: string,
+  cursor: string | undefined,
+  fallbackError: string,
+): Promise<ThreadListPage> {
+  let result: Awaited<ReturnType<typeof listThreadsAction>>;
+  try {
+    result = cursor
+      ? await listThreadsAction(roomId, { cursor })
+      : await listThreadsAction(roomId);
+  } catch {
+    throw new Error(fallbackError);
+  }
+  if (!result.ok) {
+    throw new Error(result.error.message || fallbackError);
+  }
+  return result.value;
+}
+
 export function ThreadListPanel({
   roomId,
+  userId,
+  workspaceId,
   mentionNames,
   labels,
   onOpenThread,
@@ -83,6 +108,7 @@ export function ThreadListPanel({
   onAllThreadsLooked,
 }: ThreadListPanelProps) {
   const queryClient = useQueryClient();
+  const [visitId] = useState(() => ++nextThreadListVisitId);
   const [markingRoomId, setMarkingRoomId] = useState<string | null>(null);
   const [markAllError, setMarkAllError] = useState<{
     roomId: string;
@@ -90,26 +116,18 @@ export function ThreadListPanel({
   } | null>(null);
   const { formatTimeAgo } = useLocalizedDateTime();
 
-  const queryKey = chatQueryKeys.threads({}, roomId);
+  const queryKey = chatQueryKeys.threads(
+    { userId, workspaceId },
+    roomId,
+    visitId,
+  );
   const threadsQuery = useInfiniteQuery({
     queryKey,
-    queryFn: async ({ pageParam }): Promise<ThreadListPage> => {
-      let result: Awaited<ReturnType<typeof listThreadsAction>>;
-      try {
-        result = pageParam
-          ? await listThreadsAction(roomId, { cursor: pageParam })
-          : await listThreadsAction(roomId);
-      } catch {
-        throw new Error(labels.error);
-      }
-      if (!result.ok) {
-        throw new Error(result.error.message || labels.error);
-      }
-      return result.value;
-    },
+    queryFn: ({ pageParam }) =>
+      fetchThreadListPage(roomId, pageParam, labels.error),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
-    staleTime: 0,
+    gcTime: 0,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     retry: false,
@@ -175,20 +193,33 @@ export function ThreadListPanel({
       }
       onAllThreadsLooked?.(stillUnreadMutedIds);
       await queryClient.cancelQueries({ queryKey: targetQueryKey });
-      queryClient.setQueryData<
-        InfiniteData<ThreadListPage, string | undefined>
-      >(targetQueryKey, (existing) =>
-        existing && existing.pages.length > 1
-          ? {
-              pages: existing.pages.slice(0, 1),
-              pageParams: existing.pageParams.slice(0, 1),
-            }
-          : existing,
-      );
-      await queryClient.refetchQueries({
-        queryKey: targetQueryKey,
-        exact: true,
-      });
+      try {
+        const freshPage = await fetchThreadListPage(
+          targetRoomId,
+          undefined,
+          labels.error,
+        );
+        queryClient.setQueryData<
+          InfiniteData<ThreadListPage, string | undefined>
+        >(targetQueryKey, {
+          pages: [freshPage],
+          pageParams: [undefined],
+        });
+      } catch (reloadError) {
+        queryClient.setQueryData<
+          InfiniteData<ThreadListPage, string | undefined>
+        >(targetQueryKey, {
+          pages: [{ threads: [], nextCursor: null }],
+          pageParams: [undefined],
+        });
+        setMarkAllError({
+          roomId: targetRoomId,
+          message:
+            reloadError instanceof Error && reloadError.message
+              ? reloadError.message
+              : labels.error,
+        });
+      }
     } catch {
       setMarkAllError({
         roomId: targetRoomId,

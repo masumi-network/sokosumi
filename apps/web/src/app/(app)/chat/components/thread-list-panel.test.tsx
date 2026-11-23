@@ -121,15 +121,22 @@ function unreadAndReadPair() {
   };
 }
 
-function createQueryClient() {
+function createQueryClient(staleTime?: number) {
   return new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: {
+        retry: false,
+        ...(staleTime !== undefined ? { staleTime } : {}),
+      },
+    },
   });
 }
 
 function renderPanel(
   options: {
     roomId?: string;
+    userId?: string | null;
+    workspaceId?: string | null;
     queryClient?: QueryClient;
     onOpenThread?: (parent: ChatRoomMessage) => boolean | Promise<boolean>;
     onClose?: () => void;
@@ -139,6 +146,8 @@ function renderPanel(
 ) {
   const queryClient = options.queryClient ?? createQueryClient();
   const roomId = options.roomId ?? ROOM_ID;
+  const userId = options.userId ?? "user_1";
+  const workspaceId = options.workspaceId ?? "org_1";
   const onOpenThread = options.onOpenThread ?? vi.fn().mockResolvedValue(true);
   const onClose = options.onClose ?? vi.fn();
   const panelLabels = options.labels ?? labels;
@@ -146,6 +155,8 @@ function renderPanel(
     <QueryClientProvider client={queryClient}>
       <ThreadListPanel
         roomId={roomId}
+        userId={userId}
+        workspaceId={workspaceId}
         labels={panelLabels}
         onOpenThread={onOpenThread}
         onClose={onClose}
@@ -156,11 +167,19 @@ function renderPanel(
   return {
     ...result,
     queryClient,
-    rerenderRoom(nextRoomId: string) {
+    rerenderPanel(next: {
+      roomId?: string;
+      userId?: string | null;
+      workspaceId?: string | null;
+    }) {
       result.rerender(
         <QueryClientProvider client={queryClient}>
           <ThreadListPanel
-            roomId={nextRoomId}
+            roomId={next.roomId ?? roomId}
+            userId={next.userId !== undefined ? next.userId : userId}
+            workspaceId={
+              next.workspaceId !== undefined ? next.workspaceId : workspaceId
+            }
             labels={panelLabels}
             onOpenThread={onOpenThread}
             onClose={onClose}
@@ -867,12 +886,12 @@ describe("ThreadListPanel", () => {
       });
     });
 
-    const { rerenderRoom, queryClient } = renderPanel();
+    const { rerenderPanel, queryClient } = renderPanel();
     await waitFor(() => {
       expect(listThreadsActionMock).toHaveBeenCalledWith(ROOM_ID);
     });
 
-    rerenderRoom(otherRoomId);
+    rerenderPanel({ roomId: otherRoomId });
     expect(await screen.findByText("Room B thread")).toBeInTheDocument();
 
     // Room A's first page finishes late: it must not replace Room B's list.
@@ -897,8 +916,13 @@ describe("ThreadListPanel", () => {
     expect(screen.getByText("Room B thread")).toBeInTheDocument();
     expect(screen.queryByText("Room A stale thread")).not.toBeInTheDocument();
     expect(
-      queryClient.getQueryData(chatQueryKeys.threads({}, otherRoomId)),
-    ).toBeDefined();
+      queryClient.getQueriesData({
+        queryKey: chatQueryKeys.threads(
+          { userId: "user_1", workspaceId: "org_1" },
+          otherRoomId,
+        ),
+      }),
+    ).toHaveLength(1);
   });
 
   it("refetches only the first page after mark-all even when older pages were loaded", async () => {
@@ -960,5 +984,238 @@ describe("ThreadListPanel", () => {
       "data-unread",
       "false",
     );
+  });
+
+  it("clears rows and cursor when mark-all succeeds but the page-one reload fails", async () => {
+    markAllUnreadThreadsReadActionMock.mockResolvedValueOnce({
+      ok: true,
+      value: { markedCount: 1 },
+    });
+    const reloadDeferred = Promise.withResolvers<unknown>();
+    listThreadsActionMock
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          threads: [threadItem()],
+          nextCursor: "cursor-1",
+        },
+      })
+      .mockReturnValueOnce(reloadDeferred.promise);
+
+    renderPanel();
+
+    fireEvent.click(await screen.findByTestId("thread-list-mark-all-read"));
+    await waitFor(() => {
+      expect(listThreadsActionMock).toHaveBeenCalledTimes(2);
+    });
+    // While the reload is in flight, the masked row stays visible.
+    expect(screen.getByTestId("thread-list-item")).toHaveAttribute(
+      "data-unread",
+      "false",
+    );
+
+    await act(async () => {
+      reloadDeferred.resolve({
+        ok: false,
+        error: { message: labels.error },
+      });
+    });
+
+    expect(screen.getByTestId("thread-list-error")).toHaveTextContent(
+      labels.error,
+    );
+    expect(screen.queryByTestId("thread-list-item")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("thread-list-load-more"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("thread-list-empty")).not.toBeInTheDocument();
+  });
+
+  it("reopening after load-older starts empty and reads page 1 only", async () => {
+    const queryClient = createQueryClient(60 * 1000);
+    const olderId = "550e8400-e29b-41d4-a716-446655440098";
+    const reopenDeferred = Promise.withResolvers<unknown>();
+    listThreadsActionMock
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          threads: [threadItem()],
+          nextCursor: "cursor-1",
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          threads: [
+            threadItem({
+              parentMessage: parentMessage({
+                id: olderId,
+                content: "Older page thread",
+              }),
+              unreadReplyCount: 0,
+              lastUnreadReplyAt: null,
+            }),
+          ],
+          nextCursor: "cursor-2",
+        },
+      })
+      .mockReturnValueOnce(reopenDeferred.promise);
+
+    const firstMount = renderPanel({ queryClient });
+    fireEvent.click(
+      within(await screen.findByTestId("thread-list-load-more")).getByRole(
+        "button",
+      ),
+    );
+    expect(await screen.findByText("Older page thread")).toBeInTheDocument();
+    expect(listThreadsActionMock).toHaveBeenCalledTimes(2);
+
+    firstMount.unmount();
+
+    renderPanel({ queryClient });
+    expect(screen.queryByTestId("thread-list-item")).not.toBeInTheDocument();
+    expect(screen.queryByText("Older page thread")).not.toBeInTheDocument();
+    expect(screen.getByText(labels.loading)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(listThreadsActionMock).toHaveBeenCalledTimes(3);
+    });
+    expect(listThreadsActionMock).toHaveBeenLastCalledWith(ROOM_ID);
+
+    await act(async () => {
+      reopenDeferred.resolve({
+        ok: true,
+        value: {
+          threads: [
+            threadItem({
+              parentMessage: parentMessage({
+                id: "550e8400-e29b-41d4-a716-446655440055",
+                content: "Fresh page 1 thread",
+              }),
+            }),
+          ],
+          nextCursor: "cursor-fresh",
+        },
+      });
+    });
+
+    expect(await screen.findByText("Fresh page 1 thread")).toBeInTheDocument();
+    expect(screen.queryByText("Older page thread")).not.toBeInTheDocument();
+    expect(listThreadsActionMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("closing and reopening during the first request issues a new read", async () => {
+    const queryClient = createQueryClient(60 * 1000);
+    const firstVisitDeferred = Promise.withResolvers<unknown>();
+    const secondVisitDeferred = Promise.withResolvers<unknown>();
+    listThreadsActionMock
+      .mockReturnValueOnce(firstVisitDeferred.promise)
+      .mockReturnValueOnce(secondVisitDeferred.promise);
+
+    const firstMount = renderPanel({ queryClient });
+    await waitFor(() => {
+      expect(listThreadsActionMock).toHaveBeenCalledTimes(1);
+    });
+
+    firstMount.unmount();
+    renderPanel({ queryClient });
+
+    await waitFor(() => {
+      expect(listThreadsActionMock).toHaveBeenCalledTimes(2);
+    });
+
+    await act(async () => {
+      firstVisitDeferred.resolve({
+        ok: true,
+        value: {
+          threads: [
+            threadItem({
+              parentMessage: parentMessage({
+                id: "550e8400-e29b-41d4-a716-446655440066",
+                content: "First visit stale thread",
+              }),
+            }),
+          ],
+          nextCursor: null,
+        },
+      });
+    });
+    expect(
+      screen.queryByText("First visit stale thread"),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      secondVisitDeferred.resolve({
+        ok: true,
+        value: {
+          threads: [
+            threadItem({
+              parentMessage: parentMessage({
+                id: "550e8400-e29b-41d4-a716-446655440077",
+                content: "Second visit fresh thread",
+              }),
+            }),
+          ],
+          nextCursor: null,
+        },
+      });
+    });
+    expect(
+      await screen.findByText("Second visit fresh thread"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("First visit stale thread"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("never shows another viewer's rows when sharing one QueryClient", async () => {
+    const queryClient = createQueryClient(60 * 1000);
+    const viewerBDeferred = Promise.withResolvers<unknown>();
+    listThreadsActionMock
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          threads: [
+            threadItem({
+              parentMessage: parentMessage({
+                id: "550e8400-e29b-41d4-a716-446655440088",
+                content: "Viewer A thread",
+              }),
+            }),
+          ],
+          nextCursor: null,
+        },
+      })
+      .mockReturnValueOnce(viewerBDeferred.promise);
+
+    const { rerenderPanel } = renderPanel({
+      queryClient,
+      userId: "user_a",
+      workspaceId: "org_a",
+    });
+    expect(await screen.findByText("Viewer A thread")).toBeInTheDocument();
+
+    rerenderPanel({ userId: "user_b", workspaceId: "org_a" });
+    expect(screen.queryByText("Viewer A thread")).not.toBeInTheDocument();
+    expect(screen.getByText(labels.loading)).toBeInTheDocument();
+
+    await act(async () => {
+      viewerBDeferred.resolve({
+        ok: true,
+        value: {
+          threads: [
+            threadItem({
+              parentMessage: parentMessage({
+                id: "550e8400-e29b-41d4-a716-446655440089",
+                content: "Viewer B thread",
+              }),
+            }),
+          ],
+          nextCursor: null,
+        },
+      });
+    });
+
+    expect(await screen.findByText("Viewer B thread")).toBeInTheDocument();
+    expect(screen.queryByText("Viewer A thread")).not.toBeInTheDocument();
   });
 });
