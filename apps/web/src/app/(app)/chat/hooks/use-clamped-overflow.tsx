@@ -1,21 +1,12 @@
 "use client";
 
+import { createContext, type ReactNode, useContext, useState } from "react";
+
 import {
-  createContext,
-  type ReactNode,
-  useContext,
-  useLayoutEffect,
-  useState,
-} from "react";
-
+  type ClampedOverflowState,
+  useClampedOverflowCacheSync,
+} from "@/hooks/effects/use-clamped-overflow-cache-sync";
 import { useLayoutResizeObserver } from "@/hooks/effects/use-resize-observer";
-
-interface ClampedOverflowState {
-  cacheKey: string;
-  resetKey: string;
-  expanded: boolean;
-  overflows: boolean;
-}
 
 const ClampedOverflowContext = createContext<Map<
   string,
@@ -63,9 +54,7 @@ export function useClampedOverflow({
 
   // Keep only the latest version per body or quote, including when no text
   // element is mounted (for example, a message containing only jumbo emoji).
-  useLayoutEffect(() => {
-    states?.set(cacheKey, current);
-  }, [cacheKey, current, states]);
+  useClampedOverflowCacheSync(states, cacheKey, current);
 
   useLayoutResizeObserver(
     expanded ? null : contentElement,
