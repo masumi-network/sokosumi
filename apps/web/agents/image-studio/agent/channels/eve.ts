@@ -9,6 +9,7 @@ import {
   registerCreatedSession,
   transitionInitialTurn,
 } from "../lib/core";
+import { hideDrawingInputs } from "../lib/drawing-stream";
 import { type GrantClaims, verifyGrant } from "../lib/grant";
 
 /**
@@ -787,6 +788,18 @@ export default {
       return {
         ...route,
         handler: settleOwedFirstMessage(route.handler as RouteHandler),
+      };
+    }
+    if (route.method === "GET" && route.path.endsWith("/stream")) {
+      const stream = route.handler as RouteHandler;
+      return {
+        ...route,
+        handler: async (request: Request, context: never) => {
+          const response = await stream(request, context);
+          return response instanceof Response
+            ? hideDrawingInputs(response)
+            : response;
+        },
       };
     }
     return route;

@@ -1,4 +1,6 @@
 import {
+  type DrawStudioAgentSvgRequest,
+  type DrawStudioAgentSvgResponses,
   type ImageStudioRoute,
   type ProjectImageJob,
   type ProjectImageStudioCatalog,
@@ -60,13 +62,19 @@ async function call<T>(
       authorization: `Bearer ${mintGrant(identity)}`,
       "content-type": "application/json",
     },
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    signal: init.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   const body = (await response.json().catch(() => null)) as
-    | (T & { ok?: boolean; error?: string })
+    | (T & { ok?: boolean; error?: string; kind?: string; message?: string })
     | null;
   if (!response.ok || !body || body.ok === false) {
     // Surface the shape, never the credential or the raw upstream body.
+    if (
+      response.status === 400 &&
+      body?.kind === "unsafe_svg" &&
+      typeof body.message === "string"
+    )
+      throw new Error(body.message);
     const messages: Record<string, string> = {
       not_found: "That image version is not in this project.",
       product_not_found: "That product is no longer in this project's catalog.",
@@ -550,6 +558,23 @@ export async function startGeneration(
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export async function drawSvg(
+  identity: AgentIdentity,
+  input: DrawStudioAgentSvgRequest,
+) {
+  const { data } = await call<DrawStudioAgentSvgResponses[200]>(
+    identity,
+    "/v1/image-studio-agent/draw-svg",
+    {
+      method: "POST",
+      // Core renders and performs two bounded private uploads before replying.
+      signal: AbortSignal.timeout(180_000),
+      body: JSON.stringify(input),
+    },
+  );
+  return data;
 }
 
 export async function readGeneration(

@@ -22754,6 +22754,57 @@ export const StudioProductIdentitySchema = {
     ]
 } as const;
 
+export const DrawStudioAgentSvgRequestSchema = {
+    type: 'object',
+    properties: {
+        prompt: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 4000
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 200
+        },
+        svg: {
+            type: 'string',
+            maxLength: 131072
+        },
+        aspectRatio: {
+            type: 'string',
+            enum: [
+                '1:1',
+                '4:3',
+                '3:4',
+                '16:9',
+                '9:16',
+                '3:2',
+                '2:3',
+                '4:5',
+                '5:4'
+            ],
+            default: '1:1'
+        },
+        placementId: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            maxLength: 100
+        },
+        experimentArm: {
+            $ref: '#/components/schemas/StudioRouterArm'
+        }
+    },
+    required: [
+        'prompt',
+        'idempotencyKey',
+        'svg'
+    ]
+} as const;
+
 export const StudioAgentBrandContextSchema = {
     type: 'object',
     properties: {

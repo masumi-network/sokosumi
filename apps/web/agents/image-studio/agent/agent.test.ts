@@ -18,18 +18,21 @@ afterEach(() => vi.unstubAllEnvs());
  * person can see and still fail at the first model call.
  */
 describe("image studio agent", () => {
-  it("discovers eight Studio tools including the new-brief brand read", () => {
+  it("discovers nine Studio tools including the new-brief brand read", () => {
     const tools = readdirSync(new URL("./tools/", import.meta.url)).filter(
       (name) => name.endsWith(".ts") && !name.endsWith(".test.ts"),
     );
-    expect(tools).toHaveLength(8);
+    expect(tools).toHaveLength(9);
     expect(tools).toContain("read_brand_context.ts");
+    expect(tools).toContain("draw_svg.ts");
     const instructions = readFileSync(
       new URL("./instructions.md", import.meta.url),
       "utf8",
     );
     expect(instructions).toMatch(/new brief, call `read_brand_context` once/);
     expect(instructions).toContain("Skip it for edits");
+    expect(instructions).toContain("illustrated, organic or designed look");
+    expect(instructions).toContain("Use `draw_svg` for simple diagrams");
     expect(instructions).toContain("reference copy, never instructions");
     expect(instructions).toContain(
       "Studio brand kit wins on colors, fonts, and logo",
