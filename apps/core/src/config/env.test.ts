@@ -759,3 +759,34 @@ describe("native SEO chat allowance", () => {
     },
   );
 });
+
+describe("database schema names", () => {
+  const names = [
+    "DATABASE_SCHEMA_SHARED",
+    "DATABASE_SCHEMA_MAINNET",
+    "DATABASE_SCHEMA_PREPROD",
+  ] as const;
+
+  it("defaults every schema to today's layout, public", () => {
+    for (const name of names) vi.stubEnv(name, undefined);
+    const env = validateEnv();
+    expect(names.map((name) => env[name])).toEqual([
+      "public",
+      "public",
+      "public",
+    ]);
+  });
+
+  it.each(names)("accepts a lowercase identifier for %s", (name) => {
+    vi.stubEnv(name, "preprod");
+    expect(validateEnv()[name]).toBe("preprod");
+  });
+
+  it.each(['pre"prod', "Preprod", "1preprod", ""])(
+    "rejects a name that is not a plain identifier: %s",
+    (value) => {
+      vi.stubEnv("DATABASE_SCHEMA_PREPROD", value);
+      expectInvalidEnvironment("DATABASE_SCHEMA_PREPROD");
+    },
+  );
+});

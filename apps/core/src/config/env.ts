@@ -64,6 +64,11 @@ const emailAllowlistSchema = z
       .filter(Boolean),
   );
 
+const databaseSchemaName = z
+  .string()
+  .regex(/^[a-z_][a-z0-9_]*$/)
+  .default("public");
+
 const baseEnvSchema = z.object({
   NETWORK: z.enum(["Preprod", "Mainnet"]).default("Preprod"),
 
@@ -78,6 +83,11 @@ const baseEnvSchema = z.object({
 
   // Database
   DATABASE_URL: z.url(),
+  // Schema of the `shared` tables and of each Network's tables. All three are
+  // `public` until the move splits them. They reach SQL as quoted identifiers.
+  DATABASE_SCHEMA_SHARED: databaseSchemaName,
+  DATABASE_SCHEMA_MAINNET: databaseSchemaName,
+  DATABASE_SCHEMA_PREPROD: databaseSchemaName,
 
   // Task tags use global Jev routing with enforced retention/no-training options.
   TASK_TAG_CLASSIFICATION_ENABLED: z
