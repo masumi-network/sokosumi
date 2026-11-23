@@ -1,6 +1,5 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Check, Copy, LockKeyhole } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -15,6 +14,8 @@ import { cn } from "@/lib/utils";
 import { fetchDataRoom } from "@/lib/utils/data-room.client";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
+import { driveQueryKeys, splitDriveQueryKey } from "@/queries/drive";
+import { useScopedQuery } from "@/queries/scoped-queries";
 import { DataRoomActivity } from "./data-room-activity";
 import { DataRoomColleagues } from "./data-room-colleagues";
 import { DataRoomCompanyPanel } from "./data-room-company";
@@ -53,9 +54,9 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
   const store: FileStore = driveStoreForActiveWorkspace(
     session?.session?.activeOrganizationId ?? null,
   );
-  const query = useQuery({
-    queryKey: ["drive", "data-room", roomId, store],
-    queryFn: () => fetchDataRoom({ store, roomId }),
+  const query = useScopedQuery({
+    ...splitDriveQueryKey(driveQueryKeys.dataRoom(store, roomId)),
+    queryFn: ({ signal }) => fetchDataRoom({ store, roomId, signal }),
     enabled: Boolean(session),
   });
   const { copied, copy } = useClipboard({
@@ -85,7 +86,6 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
     typeof window === "undefined"
       ? ""
       : `${window.location.origin}/share/rooms/${encodeURIComponent(room.token)}`;
-  const refresh = () => void query.refetch();
 
   return (
     <div className="flex w-full flex-col gap-4 p-4">
@@ -162,7 +162,6 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
                 makerId={room.createdByUserId}
                 colleagues={colleagues}
                 canChoose={canChooseColleagues}
-                onChanged={refresh}
               />
             ) : null}
             <DataRoomPeople
@@ -170,7 +169,6 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
               roomId={room.id}
               members={members}
               rows={rows}
-              onChanged={refresh}
               focusInvite={focusInvite}
             />
           </TabsContent>
@@ -191,28 +189,13 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
             />
           </TabsContent>
           <TabsContent value="contents">
-            <DataRoomContents
-              store={store}
-              roomId={room.id}
-              rows={rows}
-              onChanged={refresh}
-            />
+            <DataRoomContents store={store} roomId={room.id} rows={rows} />
           </TabsContent>
           <TabsContent value="company">
-            <DataRoomCompanyPanel
-              store={store}
-              room={room}
-              rows={rows}
-              onChanged={refresh}
-            />
+            <DataRoomCompanyPanel store={store} room={room} rows={rows} />
           </TabsContent>
           <TabsContent value="settings">
-            <DataRoomSettingsPanel
-              store={store}
-              room={room}
-              rows={rows}
-              onChanged={refresh}
-            />
+            <DataRoomSettingsPanel store={store} room={room} rows={rows} />
           </TabsContent>
         </div>
       </Tabs>
