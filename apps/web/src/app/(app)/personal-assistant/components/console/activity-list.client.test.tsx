@@ -101,9 +101,10 @@ it.each([
   expect(rowButton(new RegExp(`^Mail check · ${outcome}`))).toBeInTheDocument();
 });
 
-it("marks a run with approvals waiting on the owner", () => {
-  const decision = (id: string, status: ChatDecision["status"]) =>
-    ({ id, status }) as ChatDecision;
+const decision = (id: string, status: ChatDecision["status"]) =>
+  ({ id, status }) as ChatDecision;
+
+it("marks a run with approvals still waiting", () => {
   renderList([
     turn({
       id: "waiting",
@@ -117,6 +118,25 @@ it("marks a run with approvals waiting on the owner", () => {
     }),
   ]);
 
-  expect(rowButton(/^Mail check · Done.*2 need you/)).toBeInTheDocument();
-  expect(rowButton(/^Work update/)).not.toHaveTextContent(/need/i);
+  expect(
+    rowButton(/^Mail check · Done.*2 waiting for approval/),
+  ).toBeInTheDocument();
+  expect(rowButton(/^Work update/)).not.toHaveTextContent(/approval/i);
+});
+
+// The list renders for a shared bot's members too, and Core lets only an
+// owner or admin (or the member who asked) answer. The row carries no viewer
+// permission, so the mark says the run waits, never that the viewer must act.
+it("tells a viewer who cannot approve that a run waits, not that it needs them", () => {
+  renderList([
+    turn({
+      source: "SCHEDULE",
+      schedule: { name: "Daily stand-up", systemKey: "standup" },
+      decisions: [decision("a", "PENDING")],
+    }),
+  ]);
+
+  const row = rowButton(/^Daily stand-up · Done/);
+  expect(row).toHaveTextContent("Waiting for approval");
+  expect(row).not.toHaveTextContent(/needs? you/i);
 });

@@ -11261,7 +11261,7 @@
             "failed": "No terminó",
             "cancelled": "Cancelado"
           },
-          "needsYou": "{count, plural, one {Te necesita} other {# te necesitan}}"
+          "waiting": "{count, plural, one {Pendiente de aprobación} other {# pendientes de aprobación}}"
         },
         "showMore": "Mostrar {count} más",
         "skillsTitle": "Skills",

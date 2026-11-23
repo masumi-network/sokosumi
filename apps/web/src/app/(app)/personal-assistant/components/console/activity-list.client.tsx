@@ -56,7 +56,7 @@ function runOutcome(turn: ChatTurn, t: Translate): string {
 
 /**
  * One turn folded to a single line: what the run was and how it ended, what
- * waits on the owner, how it was routed, by whom and where, and when. Opens
+ * waits for approval, how it was routed, by whom and where, and when. Opens
  * to the full transcript with approvals, delegated work, and the explain view.
  */
 function ActivityRow({
@@ -110,7 +110,8 @@ function ActivityRow({
           </span>
         </span>
         {waiting > 0 ? (
-          <Badge>{tConsole("Activity.needsYou", { count: waiting })}</Badge>
+          // Viewer-neutral: a shared bot's member may not be allowed to answer.
+          <Badge>{tConsole("Activity.waiting", { count: waiting })}</Badge>
         ) : null}
         <span className="text-muted-foreground hidden shrink-0 items-center gap-2 text-xs sm:flex">
           {turn.route ? <span>{tRoute(turn.route)}</span> : null}

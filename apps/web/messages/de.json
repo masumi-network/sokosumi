@@ -11261,7 +11261,7 @@
             "failed": "Nicht beendet",
             "cancelled": "Abgebrochen"
           },
-          "needsYou": "{count, plural, one {Braucht dich} other {# brauchen dich}}"
+          "waiting": "{count, plural, one {Wartet auf Freigabe} other {# warten auf Freigabe}}"
         },
         "showMore": "{count} weitere anzeigen",
         "skillsTitle": "Skills",
