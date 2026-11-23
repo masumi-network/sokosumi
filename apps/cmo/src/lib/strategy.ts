@@ -166,3 +166,28 @@ export function postRate(count: number, days: number): string {
   }
   return `${count} this month`;
 }
+
+/**
+ * About how much of the month's posts serves each funnel step, in whole
+ * percent, from the step Cuso tags each piece with (cmo-v18). A short video
+ * counts on every network it goes out on. Null when no piece is tagged.
+ */
+export function stageShares(
+  calendar: readonly CalendarEntry[],
+): Map<string, number> | null {
+  const counts = new Map<string, number>();
+  let total = 0;
+  for (const entry of calendar) {
+    if (!entry.stage || entry.status === "skipped" || entry.videoOf) continue;
+    const posts = 1 + (entry.alsoOn?.length ?? 0);
+    counts.set(entry.stage, (counts.get(entry.stage) ?? 0) + posts);
+    total += posts;
+  }
+  if (total === 0) return null;
+  return new Map(
+    [...counts].map(([stage, posts]) => [
+      stage,
+      Math.round((posts / total) * 100),
+    ]),
+  );
+}

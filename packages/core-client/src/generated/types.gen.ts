@@ -9256,6 +9256,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             campaignId?: string;
             approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
             pillar?: string;
+            stage?: 'awareness' | 'interest' | 'desire' | 'action';
         }>;
         previews?: Array<{
             kind: 'post' | 'ad' | 'seo' | 'newsletter';
@@ -9320,6 +9321,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 campaignId?: string;
                 approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
                 pillar?: string;
+                stage?: 'awareness' | 'interest' | 'desire' | 'action';
             } | null;
         }>;
     };
@@ -9589,6 +9591,7 @@ export type MarketingStrategyRequest = {
             campaignId?: string;
             approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
             pillar?: string;
+            stage?: 'awareness' | 'interest' | 'desire' | 'action';
         }>;
         previews?: Array<{
             kind: 'post' | 'ad' | 'seo' | 'newsletter';
@@ -9653,6 +9656,7 @@ export type MarketingStrategyRequest = {
                 campaignId?: string;
                 approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
                 pillar?: string;
+                stage?: 'awareness' | 'interest' | 'desire' | 'action';
             } | null;
         }>;
     };
@@ -11349,6 +11353,7 @@ export type SocialPost = {
         why?: string;
         approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
         pillar?: string;
+        stage?: 'awareness' | 'interest' | 'desire' | 'action';
         campaignId?: string;
         visual?: string;
         visualFileIds?: Array<string>;
@@ -15083,6 +15088,7 @@ export type CmoPlan = {
         campaignId?: string;
         approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
         pillar?: string;
+        stage?: 'awareness' | 'interest' | 'desire' | 'action';
     }>;
     previews?: Array<{
         kind: 'post' | 'ad' | 'seo' | 'newsletter';
@@ -15147,6 +15153,7 @@ export type CmoPlan = {
             campaignId?: string;
             approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
             pillar?: string;
+            stage?: 'awareness' | 'interest' | 'desire' | 'action';
         } | null;
     }>;
 };

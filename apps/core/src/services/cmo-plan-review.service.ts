@@ -5,6 +5,7 @@ import {
   CMO_CLAIMS_STRATEGY_SKILL,
   CMO_PART_PATCH_STRATEGY_SKILL,
   CMO_PLAIN_WORDS_STRATEGY_SKILL,
+  CMO_STAGE_SPREAD_STRATEGY_SKILL,
   type MarketingStrategyPlan,
 } from "@sokosumi/soko-bot";
 import {
@@ -191,7 +192,8 @@ export function cmoPlanProblems(
       ...unaskedAdProblems(strategy),
       ...askedForNothingProblems(strategy),
     );
-  if (options.channelFit) problems.push(...cmoChannelFitProblems(strategy));
+  if (options.channelFit)
+    problems.push(...cmoChannelFitProblems(strategy, options));
   if (options.plainWords) problems.push(...cmoPlainWordsProblems(strategy));
   if (!strategy.idea)
     problems.push(
@@ -351,6 +353,8 @@ export interface PlanReviewOptions {
   channelFit?: boolean;
   /** What the owner reads is in plain words, no marketing jargon (cmo-v15's strategy skill). */
   plainWords?: boolean;
+  /** Every calendar entry names its funnel step, every network spread across them (cmo-v18's strategy skill). */
+  stageSpread?: boolean;
   /** The social networks the Project has connected, which are never left out. */
   connectedNetworks?: readonly string[];
 }
@@ -363,8 +367,11 @@ export const EVERY_NETWORK_STRATEGY_SKILL = "cmo-strategy-every-network";
 
 /** What the strategy review asks of a Cuso, from the strategy skill his version reads. */
 export function cmoStrategyRules(skills: readonly string[]): PlanReviewOptions {
+  // cmo-v18's strategy skill is cmo-v15's with every step on every network.
+  const stageSpread = skills.includes(CMO_STAGE_SPREAD_STRATEGY_SKILL);
   // cmo-v15's strategy skill is cmo-v14's in plain words.
-  const plainWords = skills.includes(CMO_PLAIN_WORDS_STRATEGY_SKILL);
+  const plainWords =
+    stageSpread || skills.includes(CMO_PLAIN_WORDS_STRATEGY_SKILL);
   // cmo-v14's strategy skill is cmo-v13's with each network at its own rate.
   const channelFit =
     plainWords || skills.includes(CMO_CHANNEL_FIT_STRATEGY_SKILL);
@@ -382,6 +389,7 @@ export function cmoStrategyRules(skills: readonly string[]): PlanReviewOptions {
     partPatch,
     channelFit,
     plainWords,
+    stageSpread,
   };
 }
 
@@ -1068,6 +1076,7 @@ const GENERIC_VIDEO_NAME = /\b(talking|short)[ -]videos?\b/i;
  */
 export function cmoChannelFitProblems(
   strategy: MarketingStrategyPlan,
+  options: PlanReviewOptions = {},
 ): string[] {
   const problems: string[] = [];
   const pieces = strategy.calendar.filter(
@@ -1101,7 +1110,9 @@ export function cmoChannelFitProblems(
     strategy.funnel.find((item) => item.stage === name);
   const playsOn = (item: MarketingStrategyPlan["funnel"][number] | undefined) =>
     (item?.plays ?? []).map((play) => play.channel.toLowerCase());
-  problems.push(...funnelStageProblems(strategy, social));
+  problems.push(
+    ...funnelStageProblems(strategy, social, options.stageSpread === true),
+  );
   const desire = stage("desire");
   if (desire && !playsOn(desire).some(social))
     problems.push(
@@ -1128,9 +1139,6 @@ export function cmoChannelFitProblems(
     );
   return problems;
 }
-
-/** The stages a network's posts serve; action may repeat one for offer posts. */
-const FUNNEL_WORK_STAGES = ["awareness", "interest", "desire"] as const;
 
 /**
  * A buyer's inner state in journey words instead of what happens for the
@@ -1161,15 +1169,15 @@ function brandWords(strategy: MarketingStrategyPlan): string[] {
 
 /**
  * cmo-v14's funnel reads as what happens for the business: each stage's goal
- * names the brand or its product and says it plainly, every social network
- * sits at the one stage its posts serve (awareness, interest or desire; the
- * offer posts may also go at action), and each of those stages has one.
- * NMKR's funnel once put every network at awareness and the same YouTube
- * Shorts at interest, leaving interest with YouTube and SEO only.
+ * names the brand or its product and says it plainly. Networks are not
+ * placed at stages (owner, 2026-11-23: "every network carries every step");
+ * on cmo-v18 each calendar entry names its step instead, and every network
+ * spreads across them.
  */
 export function funnelStageProblems(
   strategy: MarketingStrategyPlan,
   social: (key: string) => boolean,
+  stageSpread = false,
 ): string[] {
   const problems: string[] = [];
   const brand = brandWords(strategy);
@@ -1187,39 +1195,54 @@ export function funnelStageProblems(
         `the ${stage.stage} stage's goal "${goal}" does not name ${brand.join(" or ")}; name the business or its product and who it is for.`,
       );
   }
-  const networks = strategy.channels.filter((channel) =>
-    social(channel.channel.toLowerCase()),
-  ).length;
-  const at = new Map<string, string[]>();
-  for (const name of FUNNEL_WORK_STAGES) {
-    const plays = strategy.funnel
-      .find((item) => item.stage === name)
-      ?.plays.map((play) => play.channel.toLowerCase())
-      .filter(social);
-    if (!plays || plays.length === 0) {
-      // With three networks or more each of these stages gets one.
-      if (networks >= FUNNEL_WORK_STAGES.length)
-        problems.push(
-          `the ${name} stage has no social network; give it the network whose posts do that job.`,
-        );
-      continue;
-    }
-    for (const key of new Set(plays))
-      at.set(key, [...(at.get(key) ?? []), name]);
-  }
-  for (const [key, stages] of at)
-    if (stages.length > 1)
-      problems.push(
-        `${key} sits at ${stages.join(" and ")}; give each network the one stage its posts serve (its offer posts may also go at action), so each stage says what its own posts do.`,
-      );
-  const placed = new Set(at.keys());
-  const unplaced = strategy.channels
-    .map((channel) => channel.channel.toLowerCase())
-    .filter((key) => social(key) && !placed.has(key));
-  if (unplaced.length > 0)
+  return stageSpread
+    ? [...problems, ...stageSpreadProblems(strategy, social)]
+    : problems;
+}
+
+/** A network with this many pieces spreads them over two steps or more. */
+const SPREAD_FROM = 8;
+
+/**
+ * cmo-v18: every calendar entry names the funnel step it serves, every
+ * step gets pieces, and no network with a few pieces serves one step only.
+ */
+function stageSpreadProblems(
+  strategy: MarketingStrategyPlan,
+  social: (key: string) => boolean,
+): string[] {
+  const pieces = strategy.calendar.filter(
+    (entry) => entry.status !== "skipped",
+  );
+  if (pieces.length === 0) return [];
+  const untagged = pieces.filter((entry) => !entry.stage);
+  if (untagged.length > 0)
+    return [
+      `${untagged.length} calendar entries have no stage (${untagged
+        .slice(0, 6)
+        .map((entry) => entry.id)
+        .join(
+          ", ",
+        )}${untagged.length > 6 ? ", …" : ""}); give each the funnel step it serves: awareness, interest, desire or action.`,
+    ];
+  const problems: string[] = [];
+  const empty = CMO_AIDA_STAGES.filter(
+    (stage) => !pieces.some((entry) => entry.stage === stage),
+  );
+  if (empty.length > 0)
     problems.push(
-      `${unplaced.join(", ")} ${unplaced.length === 1 ? "is" : "are"} at no stage; name each at the stage its posts serve (awareness, interest or desire).`,
+      `no piece serves ${empty.join(" or ")}; give every step pieces across the networks.`,
     );
+  const networks = new Set(pieces.map((entry) => entry.channel));
+  for (const network of networks) {
+    if (!social(network)) continue;
+    const own = pieces.filter((entry) => entry.channel === network);
+    const stages = new Set(own.map((entry) => entry.stage));
+    if (own.length >= SPREAD_FROM && stages.size === 1)
+      problems.push(
+        `all ${own.length} ${network} pieces serve ${[...stages][0]}; every network carries every step. It may lean toward what it does best, but give it pieces at other steps too.`,
+      );
+  }
   return problems;
 }
 
