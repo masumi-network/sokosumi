@@ -1,6 +1,6 @@
 # Agents draft and stop; a person publishes, sends and starts ad spend
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-23
 
 An agent that works through the CLI or the MCP server may prepare anything and may stop anything. Only a person starts something the world sees or that spends ad money: approving or publishing a Social post, approving, scheduling or sending a newsletter, and resuming an ad campaign. An agent's Social post therefore lands as **Needs approval**, as a Coworker's already does, and a newsletter issue goes through the submit-and-approve step it already has. Ad campaigns are created paused, as they already are, and an agent may change one only while it is paused. Credit spend in the image studio is open to agents, as hiring an agent with credits already is.
