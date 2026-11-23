@@ -35,6 +35,34 @@ async function expectStep(page: Page, path: RegExp, heading: string) {
   assert.equal(await main.count(), 1, `${page.url()} has one main landmark`);
 }
 
+/** How many lines the code hint draws the address on, as the visitor sees it. */
+async function addressLines(page: Page, address: string) {
+  const hint = page.getByText(/^We sent a 6-digit code to /);
+  await hint.waitFor();
+  return hint.evaluate((p, address) => {
+    const start = (p.textContent ?? "").indexOf(address);
+    if (start < 0) return 0;
+    const end = start + address.length;
+    const range = document.createRange();
+    const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+    let offset = 0;
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const length = node.textContent?.length ?? 0;
+      if (start >= offset && start < offset + length) {
+        range.setStart(node, start - offset);
+      }
+      if (end > offset && end <= offset + length) {
+        range.setEnd(node, end - offset);
+      }
+      offset += length;
+    }
+    const tops = [...range.getClientRects()].map((rect) =>
+      Math.round(rect.top),
+    );
+    return new Set(tops).size;
+  }, address);
+}
+
 /** Setup lists the same policies as sign-up, each a 24px-tall target. */
 async function expectLegalLinks(page: Page) {
   for (const policy of [
@@ -103,11 +131,13 @@ for (const { name, ...viewport } of PROJECTS) {
       // send, must not throw.
       await codeField.dispatchEvent("paste");
       await codeField.pressSequentially(await mailbox.nextCode());
-      // The address in "We sent a 6-digit code to …" sits in a box of its own,
-      // so it moves to the next line whole instead of breaking at a hyphen.
-      await page
-        .locator("p span.inline-block", { hasText: mailbox.address })
-        .waitFor();
+      // "We sent a 6-digit code to …" never splits the address at a hyphen:
+      // on a phone it moves to the next line whole.
+      assert.equal(
+        await addressLines(page, mailbox.address),
+        1,
+        "the code hint draws the address on one line",
+      );
       await shot("1-code");
       await page.getByRole("button", { name: "Register" }).click();
 
@@ -209,11 +239,14 @@ for (const { name, ...viewport } of PROJECTS) {
       await page.waitForURL(/\/chat\/rooms\//);
       const message = page.getByRole("textbox", { name: `Message ${BOT}` });
       await message.fill("What should I set up first?");
-      await page.getByRole("button", { name: "Send message" }).click();
-      await page
+      // The question shows at once; the tick says the server has it. Watch
+      // for the tick before sending: it fades after a moment.
+      const sent = page
         .getByRole("main")
-        .getByText("What should I set up first?")
+        .getByRole("img", { name: "Sent", exact: true })
         .waitFor();
+      await page.getByRole("button", { name: "Send message" }).click();
+      await sent;
       await shot("4-chat");
       // Home lists that first question as the reader's own, sent to the bot.
       await page.goto(`${BASE_URL}/`);

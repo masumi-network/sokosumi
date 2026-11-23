@@ -3,14 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { createRef, type Ref, useRef, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  EmailCodeField,
-  keepAddressWhole,
-  useEmailCodeRefusal,
-} from "./email-code-field";
+import { EmailCodeField, useEmailCodeRefusal } from "./email-code-field";
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  // Keys stand for their copy; the address shows where the copy puts it.
+  useTranslations: () => (key: string, values?: { email?: string }) =>
+    values?.email ? `${key} ${values.email}` : key,
 }));
 
 /** The field is controlled; this holds its value the way every page does. */
@@ -234,12 +232,14 @@ describe("EmailCodeField", () => {
   it("describes the field by where the code went, and by the error once there is one", () => {
     const { rerender } = render(<Field />);
     expect(codeField()).not.toHaveAttribute("aria-invalid");
-    expect(codeField()).toHaveAccessibleDescription("sent");
+    expect(codeField()).toHaveAccessibleDescription("sent ada@example.com");
 
     rerender(<Field error="That code is wrong." />);
 
     expect(codeField()).toHaveAttribute("aria-invalid", "true");
-    expect(codeField()).toHaveAccessibleDescription("sent That code is wrong.");
+    expect(codeField()).toHaveAccessibleDescription(
+      "sent ada@example.com That code is wrong.",
+    );
   });
 
   it("says no code went out without calling the empty field invalid", () => {
@@ -286,7 +286,7 @@ describe("EmailCodeField", () => {
       />,
     );
 
-    const sent = screen.getByText("sent");
+    const sent = screen.getByText("sent", { exact: false });
     expect(sent).toBeVisible();
     // A long address wraps instead of being cut off.
     expect(sent).toHaveClass("wrap-anywhere");
@@ -330,24 +330,14 @@ describe("EmailCodeField", () => {
   });
 });
 
-describe("keepAddressWhole", () => {
-  it("wraps the address so it never breaks at its hyphen", () => {
-    render(
-      <p>
-        {keepAddressWhole(
-          "We sent a 6-digit code to soko-ux-1@example.com.",
-          "soko-ux-1@example.com",
-        )}
-      </p>,
-    );
-    const address = screen.getByText("soko-ux-1@example.com");
-    expect(address).toHaveClass("inline-block");
-    expect(address.parentElement).toHaveTextContent(
-      "We sent a 6-digit code to soko-ux-1@example.com.",
-    );
-  });
+describe("the hint's address", () => {
+  it("sits in its own box inside the sentence, so it is never split at a hyphen", () => {
+    render(<Field />);
 
-  it("leaves a sentence without the address as it is", () => {
-    expect(keepAddressWhole("sent", "ada@example.com")).toBe("sent");
+    const address = screen.getByText("ada@example.com");
+    const hint = screen.getByText("sent", { exact: false });
+    expect(address).not.toBe(hint);
+    expect(hint).toContainElement(address);
+    expect(hint).toHaveTextContent("sent ada@example.com");
   });
 });

@@ -30,7 +30,7 @@ export function useEmailCodeSchema() {
  * the next line whole instead of breaking at a hyphen. An address wider than
  * the line still wraps (the box is never wider than the line).
  */
-export function keepAddressWhole(text: string, email: string): ReactNode {
+function keepAddressWhole(text: string, email: string): ReactNode {
   const at = text.indexOf(email);
   if (at < 0) return text;
   return (
