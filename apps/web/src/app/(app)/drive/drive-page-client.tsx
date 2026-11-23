@@ -472,7 +472,9 @@ function DrivePageWorkspace({
     enabled: moveDialogOpen,
   });
   const allFolders = foldersQuery.data ?? [];
-  const loadingAllFolders = foldersQuery.isPending || foldersQuery.isFetching;
+  const loadingAllFolders = foldersQuery.isPending;
+  const foldersUnavailable =
+    foldersQuery.isPending || foldersQuery.isFetching || foldersQuery.isError;
 
   const filesSortSelection = parseFilesSortSelection(
     driveNavQuery.sortBy,
@@ -1219,7 +1221,7 @@ function DrivePageWorkspace({
 
   async function handleMoveConfirm() {
     if (
-      loadingAllFolders ||
+      foldersQuery.isFetching ||
       selectedDestination === null ||
       !hasValidMoveDestination
     ) {
@@ -1381,10 +1383,14 @@ function DrivePageWorkspace({
     return destinations;
   })();
 
+  const isTypedMoveDestination = moveNewFolderName.trim().length > 0;
   const hasValidMoveDestination =
     selectedDestination !== null &&
-    (moveNewFolderName.trim().length > 0 ||
-      availableDestinations.some((dest) => dest.path === selectedDestination));
+    (isTypedMoveDestination ||
+      (!foldersUnavailable &&
+        availableDestinations.some(
+          (dest) => dest.path === selectedDestination,
+        )));
 
   const exploreItems: ExploreItem[] = (() => {
     if (isTasksView) {
@@ -2453,12 +2459,13 @@ function DrivePageWorkspace({
                 <button
                   key={dest.path}
                   type="button"
+                  disabled={foldersUnavailable}
                   onClick={() => {
                     setMoveNewFolderName("");
                     setSelectedDestination(dest.path);
                   }}
                   className={cn(
-                    "text-foreground press hover:bg-accent flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                    "text-foreground press hover:bg-accent flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors disabled:pointer-events-none disabled:opacity-50",
                     selectedDestination === dest.path &&
                       "bg-muted border-foreground",
                   )}
@@ -2508,7 +2515,9 @@ function DrivePageWorkspace({
             <Button
               onClick={() => void handleMoveConfirm()}
               disabled={
-                movingItem || loadingAllFolders || !hasValidMoveDestination
+                movingItem ||
+                foldersQuery.isFetching ||
+                !hasValidMoveDestination
               }
             >
               {t("moveHere")}

@@ -737,16 +737,17 @@ describe("DrivePage move dialog", () => {
     await user.click(clientsButton);
     expect(screen.getByRole("button", { name: "moveHere" })).toBeEnabled();
 
-    // While folders refetch after invalidation, stale destinations are replaced
-    // by the loading state and Submit is disabled.
+    // While folders refetch after invalidation, cached destinations stay visible
+    // but disabled (no loading text replacing them), and Submit is disabled.
     const invalidation = queryClient.invalidateQueries({
       queryKey: driveQueryKeys.prefix(store),
     });
 
     await waitFor(() => {
-      expect(screen.getByText("loadingFolders")).toBeVisible();
+      expect(screen.getByRole("button", { name: "Clients" })).toBeDisabled();
     });
-    expect(screen.queryByRole("button", { name: "Clients" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Clients" })).toBeVisible();
+    expect(screen.queryByText("loadingFolders")).toBeNull();
     expect(screen.getByRole("button", { name: "moveHere" })).toBeDisabled();
 
     await act(async () => {
@@ -754,15 +755,91 @@ describe("DrivePage move dialog", () => {
       await invalidation;
     });
 
-    expect(
-      await screen.findByRole("button", { name: "Archive" }),
-    ).toBeVisible();
+    const archiveButton = await screen.findByRole("button", {
+      name: "Archive",
+    });
+    expect(archiveButton).toBeVisible();
+    expect(archiveButton).toBeEnabled();
     expect(screen.queryByRole("button", { name: "Clients" })).toBeNull();
     // Fresh response dropped Clients, so Submit stays disabled until a valid destination is chosen.
     expect(screen.getByRole("button", { name: "moveHere" })).toBeDisabled();
-    await user.click(screen.getByRole("button", { name: "Archive" }));
+    await user.click(archiveButton);
     expect(screen.getByRole("button", { name: "moveHere" })).toBeEnabled();
     expect(fetchWorkspaceFoldersMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps destinations and submit disabled after a held-then-failed folders refresh while allowing a typed new folder", async () => {
+    const user = userEvent.setup();
+    queryClient = createDriveQueryClient();
+    const store = { scope: "org" as const, organizationId: "org_a" };
+    const failedRefetch = Promise.withResolvers<string[]>();
+    fetchWorkspaceFoldersMock.mockReset();
+    fetchWorkspaceFoldersMock.mockResolvedValue(["Reports", "Archive"]);
+    fetchWorkspaceFoldersMock.mockImplementationOnce(
+      () => failedRefetch.promise,
+    );
+    queryClient.setQueryData(driveQueryKeys.folders(store), [
+      "Reports",
+      "Clients",
+    ]);
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("files-move-folder")).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId("files-move-folder"));
+
+    const clientsButton = await screen.findByRole("button", {
+      name: "Clients",
+    });
+    await user.click(clientsButton);
+    expect(screen.getByRole("button", { name: "moveHere" })).toBeEnabled();
+
+    const failedInvalidation = queryClient.invalidateQueries({
+      queryKey: driveQueryKeys.prefix(store),
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Clients" })).toBeDisabled();
+    });
+    expect(screen.getByRole("button", { name: "Clients" })).toBeVisible();
+    expect(screen.queryByText("loadingFolders")).toBeNull();
+    expect(screen.getByRole("button", { name: "moveHere" })).toBeDisabled();
+
+    await act(async () => {
+      failedRefetch.reject(new Error("folders refresh failed"));
+      await failedInvalidation;
+    });
+
+    // After a failed refresh, listed destinations stay visible & disabled and Submit stays disabled.
+    expect(screen.getByRole("button", { name: "Clients" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Clients" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "rootFolder" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "moveHere" })).toBeDisabled();
+
+    // A typed new folder stays allowed after the failed refresh.
+    const newFolderInput = screen.getByLabelText("moveNewFolderLabel");
+    await user.type(newFolderInput, "Inbox");
+    expect(screen.getByRole("button", { name: "moveHere" })).toBeEnabled();
+    await user.clear(newFolderInput);
+    expect(screen.getByRole("button", { name: "moveHere" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Clients" })).toBeDisabled();
+
+    // A subsequent successful read re-enables listed destinations.
+    await act(async () => {
+      await queryClient.invalidateQueries({
+        queryKey: driveQueryKeys.prefix(store),
+      });
+    });
+
+    const archiveButton = await screen.findByRole("button", {
+      name: "Archive",
+    });
+    expect(archiveButton).toBeEnabled();
+    await user.click(archiveButton);
+    expect(screen.getByRole("button", { name: "moveHere" })).toBeEnabled();
   });
 });
 

@@ -508,6 +508,60 @@ describe("DriveAllFilesPanel on the Drive cache", () => {
     expect(screen.getByRole("button", { name: "loadMore" })).toBeEnabled();
   });
 
+  it("shows Retry instead of the empty state when deleting every loaded row is followed by a held-then-failed refresh", async () => {
+    const user = userEvent.setup();
+    const onlyFile = makeFile("res_only", "only.pdf");
+    const recoveredFile = makeFile("res_recovered", "recovered.pdf");
+    const refreshDeferred = Promise.withResolvers<FileSearchPage>();
+
+    api.fetchFileSearchPage
+      .mockResolvedValueOnce({
+        items: [onlyFile],
+        search: makeMeta({ windowCount: 1 }),
+      })
+      .mockImplementationOnce(() => refreshDeferred.promise)
+      .mockResolvedValueOnce({
+        items: [recoveredFile],
+        search: makeMeta({ windowCount: 1 }),
+      });
+    api.deleteDriveUploads.mockResolvedValueOnce([]);
+
+    renderPanel();
+
+    expect(await screen.findByText("only.pdf")).toBeVisible();
+
+    await user.click(
+      screen.getByRole("checkbox", { name: 'selectFile:{"name":"only.pdf"}' }),
+    );
+    await user.click(screen.getByRole("button", { name: "bulkDelete" }));
+    const deleteButtons = screen.getAllByRole("button", { name: "bulkDelete" });
+    await user.click(deleteButtons[deleteButtons.length - 1]);
+
+    // Deleted row disappears immediately while the refresh GET is held.
+    await waitFor(() => {
+      expect(screen.queryByText("only.pdf")).toBeNull();
+    });
+    expect(api.fetchFileSearchPage).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText("emptyTitle")).toBeNull();
+
+    // Failing the held refresh GET renders Retry, not the empty state.
+    await act(async () => {
+      refreshDeferred.reject(new Error("refresh failed"));
+      await refreshDeferred.promise.catch(() => {});
+    });
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("searchError");
+    expect(screen.queryByText("emptyTitle")).toBeNull();
+    const retry = screen.getByRole("button", { name: "retry" });
+    expect(retry).toBeEnabled();
+
+    await user.click(retry);
+
+    expect(await screen.findByText("recovered.pdf")).toBeVisible();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("keeps loaded pages and shows Retry when loading a later page fails", async () => {
     const user = userEvent.setup();
     const file1 = makeFile("res_1", "first.pdf");
@@ -631,17 +685,10 @@ describe("DriveAllFilesPanel on the Drive cache", () => {
     await waitFor(() => {
       expect(api.fetchFileCollections).toHaveBeenCalledTimes(3);
     });
-    // Shelf stays visible while collections refetch, with chip controls disabled.
-    const chipButton = screen.getByRole("button", {
-      name: "Receipts (server)",
-    });
-    expect(chipButton).toBeVisible();
-    expect(chipButton).toBeDisabled();
+    // Shelf waits for the collections GET refetch rather than patching deletedIds.
     expect(
-      screen.getByRole("button", {
-        name: 'collectionActions:{"name":"Receipts (server)"}',
-      }),
-    ).toBeDisabled();
+      screen.getByRole("button", { name: "Receipts (server)" }),
+    ).toBeVisible();
 
     await act(async () => {
       deleteRefetchDeferred.resolve([]);

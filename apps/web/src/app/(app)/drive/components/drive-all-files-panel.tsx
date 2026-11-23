@@ -344,7 +344,7 @@ export function DriveAllFilesPanel({
   const { items, meta, restarted } = foldLoadedFilePages(
     searchQuery.data?.pages ?? [],
   );
-  const isInitialError = searchQuery.isError && searchQuery.data === undefined;
+  const isEmptyError = searchQuery.isError && items.length === 0;
   const isLoadingList =
     searchQuery.isPending || (items.length === 0 && searchQuery.isFetching);
   const isRefreshingPageOne =
@@ -849,7 +849,7 @@ export function DriveAllFilesPanel({
                 key={collection.id}
                 collection={collection}
                 active={activeCollectionId === collection.id}
-                disabled={collectionBusy || collectionsQuery.isFetching}
+                disabled={collectionBusy}
                 saving={renamingId === collection.id}
                 onOpen={() => {
                   const definition = collection.definition as Partial<
@@ -888,7 +888,7 @@ export function DriveAllFilesPanel({
       >
         {isLoadingList
           ? t("statusLoading")
-          : isInitialError
+          : isEmptyError
             ? ""
             : meta
               ? [
@@ -1010,7 +1010,7 @@ export function DriveAllFilesPanel({
 
       {isLoadingList ? (
         <DriveListSkeleton viewMode={viewMode} />
-      ) : isInitialError ? (
+      ) : isEmptyError ? (
         <div
           className="bg-card-background rounded-lg border p-6 text-center text-sm"
           role="alert"
