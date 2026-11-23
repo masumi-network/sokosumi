@@ -72,7 +72,9 @@ export function SidebarScopeMobileChip() {
       <div
         className={cn(
           "flex min-w-0 shrink md:hidden",
-          inProject && "bg-muted h-10 flex-1 items-center rounded-full",
+          // -mx-1: the row's 8px gaps shrink to 4px beside the pill, so the
+          // name gets the width (back, bell and Search keep their 40px).
+          inProject && "bg-muted -mx-1 h-10 flex-1 items-center rounded-full",
           // A chat room's toolbar takes this row on phones. The sheet and the
           // dialog stay mounted: the sidebar row opens them through the store.
           isChatRoomPathname(pathname) && "hidden",
@@ -91,12 +93,20 @@ export function SidebarScopeMobileChip() {
               className={cn(
                 "min-w-0 shrink gap-1.5 px-2 font-medium data-[state=open]:bg-accent",
                 inProject
-                  ? "h-10 flex-1 justify-start rounded-full ps-3"
+                  ? // Tight insets leave the name about 120px at 375.
+                    "h-10 flex-1 justify-start gap-1 rounded-full has-[>svg]:ps-2 has-[>svg]:pe-1"
                   : "h-11 max-w-[40vw]",
               )}
             >
               {/* The mark's glyph names no size, so this box gives it one. */}
-              <span aria-hidden className="flex shrink-0 [&>svg]:size-4">
+              <span
+                aria-hidden
+                className={cn(
+                  "flex shrink-0 [&>svg]:size-4",
+                  inProject &&
+                    "[&>*]:size-4 [&_[data-slot=avatar-fallback]]:text-2xs",
+                )}
+              >
                 {mark}
               </span>
               {/* Named by its content, not aria-label: the mark's initial is
@@ -108,7 +118,10 @@ export function SidebarScopeMobileChip() {
               </span>
               {closed ? <ScopeClosedBadge /> : null}
               <ChevronsUpDown
-                className="text-muted-foreground size-3.5 shrink-0"
+                className={cn(
+                  "text-muted-foreground shrink-0",
+                  inProject ? "size-3" : "size-3.5",
+                )}
                 aria-hidden
               />
             </Button>

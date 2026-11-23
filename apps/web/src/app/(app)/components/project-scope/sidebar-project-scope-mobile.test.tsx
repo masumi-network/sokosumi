@@ -306,6 +306,14 @@ describe("sidebar project scope chip", () => {
     expect(pill?.className).toContain("flex-1");
     expect(chip().className).toContain("flex-1");
     expect(chip().className).not.toContain("max-w-[40vw]");
+    // The name gets about 120px at 375: tight insets, the pill eats the
+    // row's gaps, and × keeps its 40px.
+    expect(pill?.className).toContain("-mx-1");
+    expect(chip().className).toContain("has-[>svg]:ps-2");
+    expect(chip().className).toContain("h-10");
+    expect(screen.getByTestId("project-scope-chip-clear").className).toContain(
+      "size-10",
+    );
     expect(pill).toContainElement(
       screen.getByTestId("project-scope-chip-clear"),
     );

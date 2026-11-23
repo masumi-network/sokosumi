@@ -208,9 +208,10 @@ function SearchToolbar({
       )}
     </>
   );
-  const sticky =
-    finding &&
-    "bg-background sticky top-[calc(5rem+env(safe-area-inset-top))] z-10 md:top-0";
+  // `main` is the scroller and its top padding already clears the phone
+  // header, so the bar sticks at the padding edge: an extra offset drew it
+  // over the content below its own slot.
+  const sticky = finding && "bg-background sticky top-0 z-10";
   if (renderHeader)
     return <div className={cn(sticky)}>{renderHeader(controls)}</div>;
   return (

@@ -21,7 +21,10 @@ import {
   requestPanelFeed,
   WorkspaceColumn,
 } from "@/app/projects/components/workspace-column";
-import { WORKSPACE_COLUMN_ROWS } from "@/app/projects/constants";
+import {
+  PROJECT_LINE_DATE,
+  WORKSPACE_COLUMN_ROWS,
+} from "@/app/projects/constants";
 import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import { notificationService } from "@/lib/services/notification.service";
 import { projectService } from "@/lib/services/project.service";
@@ -74,6 +77,8 @@ export default async function ProjectDetailPage({
       cmo={project.cmo}
       createdAt={formatter.dateTime(project.createdAt, "dateTime")}
       updatedAt={formatter.dateTime(project.updatedAt, "dateTime")}
+      createdOn={formatter.dateTime(project.createdAt, PROJECT_LINE_DATE)}
+      updatedOn={formatter.dateTime(project.updatedAt, PROJECT_LINE_DATE)}
       labels={workspaceLabels}
       identifier={project.identifier}
       projectId={project.id}

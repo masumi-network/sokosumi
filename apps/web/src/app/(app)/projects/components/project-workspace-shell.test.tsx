@@ -147,6 +147,32 @@ describe("the project detail layout", () => {
     ).toBeInTheDocument();
     expect(within(line).getByText("Updated")).toBeInTheDocument();
     expect(within(line).getByText("Today")).toBeInTheDocument();
+    // One row, dot-separated, like the mock.
+    expect(line.classList).toContain("whitespace-nowrap");
+    expect(line.className).toContain("before:content-['·']");
+  });
+
+  it("shows the dates without the time on the Properties line", () => {
+    render(
+      <ProjectWorkspaceShell
+        createdAt="Nov 21, 11:56 PM"
+        createdOn="Nov 21"
+        labels={LABELS}
+        projectId="p1"
+        projectName="Example project"
+        updatedAt="Nov 22, 9:00 AM"
+        updatedOn="Nov 22"
+      >
+        <p>area content</p>
+      </ProjectWorkspaceShell>,
+    );
+
+    const line = screen.getByLabelText("Properties");
+    expect(within(line).getByText("Nov 22")).toBeInTheDocument();
+    expect(within(line).getByText("Nov 21")).toBeInTheDocument();
+    const rail = screen.getByRole("complementary");
+    expect(within(rail).getByText("Nov 22, 9:00 AM")).toBeInTheDocument();
+    expect(within(rail).getByText("Nov 21, 11:56 PM")).toBeInTheDocument();
   });
 
   it("orders name, rail, tabs, content, so the tabs touch their content", () => {

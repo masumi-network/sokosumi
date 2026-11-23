@@ -92,7 +92,8 @@ export function ProjectProperties({
 /**
  * The Properties as one quiet line under the tabs, for the single column
  * below `xl`: the rail's rows would push the tabs down a phone's first
- * screen. Same facts and qualifiers, smaller.
+ * screen. "OKA · Updated Nov 21 · Created Nov 21": dates without the time,
+ * one row; a long website shortens with "…".
  */
 export function ProjectPropertiesLine({
   labels,
@@ -103,13 +104,14 @@ export function ProjectPropertiesLine({
   className,
 }: ProjectPropertiesProps & { className?: string }) {
   const websiteHostname = websiteUrl ? getHostname(websiteUrl) : null;
-  const item = "flex min-w-0 items-center gap-1";
+  const item = "flex shrink-0 items-center gap-1";
 
   return (
     <dl
       aria-label={labels.title}
       className={cn(
-        "text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs",
+        "text-muted-foreground flex min-w-0 items-center gap-1 overflow-hidden text-xs whitespace-nowrap",
+        "[&>div:not(:first-child)]:before:content-['·']",
         className,
       )}
     >
@@ -120,7 +122,7 @@ export function ProjectPropertiesLine({
         </div>
       ) : null}
       {websiteUrl && websiteHostname ? (
-        <div className={item}>
+        <div className="flex min-w-0 shrink items-center gap-1">
           <dt className="sr-only">{labels.website}</dt>
           <dd className="min-w-0">
             <a

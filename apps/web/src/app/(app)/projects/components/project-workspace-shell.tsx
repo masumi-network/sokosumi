@@ -83,6 +83,9 @@ interface ProjectWorkspaceShellProps {
   /** Formatted by the page, which already holds a formatter. */
   createdAt: string;
   updatedAt: string;
+  /** The dates without the time, for the phone's Properties line. */
+  createdOn?: string;
+  updatedOn?: string;
   projectId: string;
   projectLogo?: string | null;
   projectName: string;
@@ -115,6 +118,8 @@ export function ProjectWorkspaceShell({
   labels,
   createdAt,
   updatedAt,
+  createdOn = createdAt,
+  updatedOn = updatedAt,
   projectId,
   projectLogo,
   projectName,
@@ -222,10 +227,10 @@ export function ProjectWorkspaceShell({
             <ProjectTabs ariaLabel={labels.ariaLabel} tabs={tabs} />
             <ProjectPropertiesLine
               className="xl:hidden"
-              createdAt={createdAt}
+              createdAt={createdOn}
               identifier={identifier}
               labels={labels.properties}
-              updatedAt={updatedAt}
+              updatedAt={updatedOn}
               websiteUrl={websiteUrl}
             />
           </div>
