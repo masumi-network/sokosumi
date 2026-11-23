@@ -282,9 +282,11 @@ export function CmoApp({
           },
     );
   }, []);
+  const [focusEntry, setFocusEntry] = useState<string | null>(null);
   // Each page has its own address, so reload, Back and new tabs land on it.
   const go = useCallback(
     (next: View) => {
+      setFocusEntry(null);
       selectView(next);
       if (window.location.pathname !== VIEW_PATHS[next]) {
         window.history.pushState(null, "", VIEW_PATHS[next]);
@@ -292,12 +294,20 @@ export function CmoApp({
     },
     [selectView],
   );
-  useEventListener("window", "popstate", () =>
-    selectView(viewFromPath(window.location.pathname) ?? "today"),
+  useEventListener("window", "popstate", () => {
+    setFocusEntry(null);
+    selectView(viewFromPath(window.location.pathname) ?? "today");
+  });
+  // A post picked on Today or Pictures opens on the Calendar, once: any
+  // other way onto the Calendar opens it with nothing selected.
+  const openOnCalendar = useCallback(
+    (entryId: string) => {
+      go("calendar");
+      setFocusEntry(entryId);
+    },
+    [go],
   );
   const [draft, setDraft] = useState("");
-  // A post opened from Today opens on the Calendar.
-  const [focusEntry, setFocusEntry] = useState<string | null>(null);
   const [sending, startSending] = useTransition();
   const [sendFailed, setSendFailed] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -566,10 +576,7 @@ export function CmoApp({
                   overview={overview}
                   firstName={name.trim().split(/\s+/)[0] ?? ""}
                   open={go}
-                  openEntry={(id) => {
-                    setFocusEntry(id);
-                    go("calendar");
-                  }}
+                  openEntry={openOnCalendar}
                 />
               ) : view === "calendar" ? (
                 <CalendarPage
@@ -645,10 +652,7 @@ export function CmoApp({
                 <PicturesPage
                   projectId={overview.projectId}
                   actions={actions.pictures}
-                  openPost={(id) => {
-                    setFocusEntry(id);
-                    go("calendar");
-                  }}
+                  openPost={openOnCalendar}
                 />
               ) : view === "competitors" ? (
                 <CompetitorsPage
