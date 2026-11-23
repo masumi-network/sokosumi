@@ -465,7 +465,6 @@ export function CmoApp({
 
         {view === "chat" ? (
           <>
-            {lead ? <PageLead {...lead} /> : null}
             <div className="scroll chat">
               <div className="thread">
                 {thread.map((item) => (

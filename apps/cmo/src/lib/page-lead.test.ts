@@ -67,6 +67,10 @@ describe("pageLead", () => {
     expect(pageLead("today", cmoOverview(), NOW)).toBeNull();
   });
 
+  it("gives the chat no lead: the thread starts at the top", () => {
+    expect(pageLead("chat", cmoOverview(), NOW)).toBeNull();
+  });
+
   it("counts the posts that wait for a network on Channels", () => {
     const overview = cmoOverview({
       ...month([entry("a", "facebook", "draft"), entry("b", "x", "draft")]),

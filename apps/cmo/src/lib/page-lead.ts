@@ -8,7 +8,6 @@ import { AGENT_NAME } from "./agent";
 import { connectedNetworks } from "./calendar";
 import { trendLine } from "./seo-next";
 import { strategyApproved } from "./strategy";
-import { cusoStatus } from "./thread";
 import { dayIn, monthEntries, monthProgress, waitingByNetwork } from "./today";
 import type { View } from "./views";
 
@@ -135,6 +134,7 @@ function channelsLead(overview: CmoOverview): PageLeadText {
 
 /**
  * The lead of a page whose answer the overview holds. Today greets instead,
+ * the chat leads with the thread itself,
  * and SEO and Competitors read their own data (`seoLead`, `competitorsLead`).
  */
 export function pageLead(
@@ -143,11 +143,6 @@ export function pageLead(
   now: Date = new Date(),
 ): PageLeadText | null {
   switch (view) {
-    case "chat":
-      return {
-        kicker: `Chat · ${cusoStatus(overview)}`,
-        title: "Tell me what to change.",
-      };
     case "calendar":
       return {
         kicker: `Calendar · ${monthName(overview.timeZone, now)}`,
