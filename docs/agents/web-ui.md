@@ -44,7 +44,7 @@ Commands and backticked paths are relative to the repository root unless stated 
 
 ## Effects
 
-Product code in Web and CMO never calls `useEffect`, `useLayoutEffect`, or `useMountEffect` directly (named import or `React.*` form). `biome-plugins/no-direct-effects.grit` warns across product files and `biome-plugins/no-effect-aliases.grit` errors on aliases and indirections ([ADR-0075](../adr/0075-effects-live-only-in-named-hooks.md)); locally `pnpm effects:check` (run in Husky pre-commit) enforces each app's `effect-baseline.json` (sorted, one entry per line — the only file a migration PR updates), and CI's `Biome` job runs the full `scripts/ci/__tests__/no-direct-effects.test.mjs` suite against the base SHA (`EFFECT_BASELINE_BASE_REF`) to reject any baseline growth or `biome-ignore` suppression for the effect rules.
+Product code in Web and CMO never calls `useEffect` or `useLayoutEffect` directly (named import or `React.*` form), and never wraps them in a general effect-callback hook (the former `useMountEffect` wrapper is deleted and remains blocked by Biome). `biome-plugins/no-direct-effects.grit` warns across product files and `biome-plugins/no-effect-aliases.grit` errors on aliases and indirections ([ADR-0075](../adr/0075-effects-live-only-in-named-hooks.md)); locally `pnpm effects:check` (run in Husky pre-commit) enforces each app's `effect-baseline.json` (sorted, one entry per line — the only file a migration PR updates), and CI's `Biome` job runs the full `scripts/ci/__tests__/no-direct-effects.test.mjs` suite against the base SHA (`EFFECT_BASELINE_BASE_REF`) to reject any baseline growth or `biome-ignore` suppression for the effect rules.
 
 Before reaching for an effect, read React's [You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect) and [Separating Events from Effects](https://react.dev/learn/separating-events-from-effects), and prefer:
 
@@ -68,21 +68,28 @@ Shared hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo
 - `use-timeout` (`useTimeout`) — one-shot timer paused on `null` delay with optional `resetKey` (CMO has `useTimeout` under `apps/cmo/src/hooks/effects/use-timeout.ts`)
 - `use-scheduled-timeout` (`useScheduledTimeout`, `useScheduledTimeoutMap`) — imperative handler-started timeout(s) with synchronous cancel and unmount cleanup
 - `use-abort-controller` (`useAbortController`, `useAbortControllers`) — imperative handler-started `AbortController`(s) aborted on unmount or `resetKey` change
+- `use-replace-route-on-media` (`useReplaceRouteOnMedia`) — one-shot `router.replace` when a CSS media query matches
+- `use-keyboard-open` (`useKeyboardOpen`) — soft keyboard open state via `visualViewport`
 - `use-clipboard` (`useClipboard`, `copyTextWithToast`) — clipboard write with toast feedback and timed reset
 - `use-load-when-visible` (`useLoadWhenVisible`) — `IntersectionObserver` pagination boundary trigger
 - `use-intersection-observer` (`useIntersectionObserver`) — live-element `IntersectionObserver` subscription with unmount disconnect
 - `use-resize-observer` (`useResizeObserver`, `useLayoutResizeObserver`) — live-element `ResizeObserver` subscriptions with unmount disconnect
 - `use-mutation-observer` (`useMutationObserver`, `useLayoutMutationObserver`) — live-node / `"body"` / `"documentElement"` `MutationObserver` subscriptions with unmount disconnect
+- `use-drag-to-scroll` (`useDragToScroll`) — horizontal pointer drag scrolling
 - `use-focus-when` (`useFocusWhen`, `useLayoutFocusWhen`) — focus a ref or getter target when a condition turns true (reads the target at effect time; optional `preventScroll`, `deferToFrame`, and `resetKey`)
 - `use-focus-form-field-on-mount` (`useFocusFormFieldOnMount`) — focus a `react-hook-form` field once on mount (or Activity reveal)
 - `use-scroll-into-view-when` (`useScrollIntoViewWhen`) — scroll a ref or getter target into view when a condition turns true (reads the target at effect time; optional reduced-motion downgrade and `resetKey`; CMO has `useScrollIntoViewWhen` under `apps/cmo/src/hooks/effects/use-scroll-into-view-when.ts`)
 - `use-scroll-child-into-view-x` (`useScrollChildIntoViewX`) — horizontally scroll a container's `scrollLeft` just enough to reveal a matched child without moving vertical page scroll
-- `use-scroll-to-end` (`useScrollToEnd`) — scroll `targetRef.current` to its vertical or horizontal end when a trigger changes
+- `use-scroll-to-end` (`useScrollToEnd`) — scroll `targetRef.current` to its vertical or horizontal end when a trigger changes (CMO also has `useFocusFirstInvalid` under `apps/cmo/src/hooks/effects/use-focus-first-invalid.ts`)
 - `use-page-search-shortcut` (`usePageSearchShortcut`) — Cmd/Ctrl+F search input focus shortcut
+- `use-prevent-enter-submit` (`usePreventEnterSubmit`) — form Enter submission guard
 - `use-intent-prefetch` (`useIntentPrefetch`) — ForesightJS pointer-intent route prefetching
 - `use-self-presence` (`useSelfPresence`) — local online/AFK/offline presence tracking
+- `use-org-presence-map` (`useOrgPresenceMap`, `useOrgPresenceMapSync`, `createOrgPresenceStore`) — Ably organization presence subscription backed by an external store
+- `use-room-typing` (`useRoomTyping`, `useRoomTypingSync`, `createRoomTypingStore`) — Ably room typing subscription and publisher backed by an external store
 - `use-notification-realtime` (`useNotificationRealtime`) — Ably notifications channel subscription and attachment reconciliation
 - `use-files-archive-download` (`useFilesArchiveDownload`) — zip download aborted on unmount
+- `use-location-replace` (`useLocationReplace`) — `window.location.replace` redirect when a target URL is set
 - `use-format-toolbar-open-preference` (`useFormatToolbarOpenPreference`) — before-paint chat formatting toolbar preference read and persistence
 - `use-normalized-query-tab` (`useNormalizedQueryTab`) — URL query tab validation against enabled tabs with invalid-URL cleanup
 - `use-unauthenticated-error-handler` (`useUnAuthenticatedErrorHandler`) — `/signin` redirect for unauthenticated error boundaries
@@ -93,7 +100,6 @@ Shared hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo
 - `use-track-view` (`useTrackView`) — fires a typed GTM view event (`view_login_area`, `view_register_area`, `view_credits`, `view_agent`) once on mount or when an explicit key changes
 - `use-report-route-error` (`useReportRouteError`, `useGlobalRouteError`) — reports route error boundary failures to Sentry and handles one-shot stale-deployment refresh in the global error boundary
 - `use-router-redirect` (`useRouterRedirect`) — client-side Next.js App Router navigation (`replace`/`push`, optional one-shot) driven by state
-- `use-room-panel-slide-out` (`useRoomPanelSlideOut`) — Web Animations API exit slide for closing chat room side panels under `AnimatePresence`
 - `use-quiet-hover-while-scrolling` (`useQuietHoverWhileScrolling`, `CHAT_SCROLLING_ATTRIBUTE`) — marks a chat transcript scroller with `data-chat-scrolling` while scrolling and clears after settle
 
 ### React Query in migrations
