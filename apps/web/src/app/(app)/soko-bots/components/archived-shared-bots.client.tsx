@@ -1,5 +1,6 @@
 "use client";
 
+import { useFormatter } from "next-intl";
 import { type ReactNode, useState } from "react";
 
 import { DisclosureContent, DisclosureTrigger } from "@/components/disclosure";
@@ -23,6 +24,7 @@ interface ArchivedSharedBotsProps {
  * that matches an archived bot opens the row; one that matches none hides it.
  */
 export function ArchivedSharedBots({ label, rows }: ArchivedSharedBotsProps) {
+  const format = useFormatter();
   const query = usePageSearchQuery();
   const visible = usePageListSearch(rows, (row) => row);
   const matched = query !== "" && visible.length > 0;
@@ -39,7 +41,7 @@ export function ArchivedSharedBots({ label, rows }: ArchivedSharedBotsProps) {
     <Collapsible open={open} onOpenChange={setOpen}>
       <DisclosureTrigger className="text-muted-foreground hover:text-foreground mx-2 my-1 text-sm font-medium">
         {label}
-        <span className="tabular-nums">{visible.length}</span>
+        <span className="tabular-nums">{format.number(visible.length)}</span>
       </DisclosureTrigger>
       <DisclosureContent>
         {/* Room around the cards for the focus ring that the fold clips. */}

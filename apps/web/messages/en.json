@@ -11616,7 +11616,7 @@
       "Shared": {
         "title": "Shared bots",
         "count": "{count, plural, one {# bot} other {# bots}}",
-        "countSplit": "{active} active · {archived} archived",
+        "countSplit": "{active, number} active · {archived, number} archived",
         "empty": "No shared bots yet. A shared bot works for one project or the whole workspace, and everyone talks to it in one room.",
         "noneActive": "No shared bot is active right now.",
         "scopeWorkspace": "Works for the whole workspace",

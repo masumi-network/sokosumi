@@ -1,5 +1,6 @@
 import type { SharedSokoBotSummary } from "@sokosumi/core-client";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { createTranslator } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 import { PageListSearchContext } from "@/components/page-list-search";
 
@@ -7,6 +8,10 @@ vi.mock("next-intl/server", () => ({
   getTranslations:
     async () => (key: string, values?: Record<string, unknown>) =>
       values ? `${key}:${JSON.stringify(values)}` : key,
+}));
+vi.mock("next-intl", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next-intl")>()),
+  useFormatter: () => ({ number: (value: number) => `n${value}` }),
 }));
 vi.mock("@/components/soko-bot/bot-face", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/components/soko-bot/bot-face")>()),
@@ -35,23 +40,23 @@ function bot(overrides: Partial<SharedSokoBotSummary>): SharedSokoBotSummary {
   };
 }
 
-async function renderSection(
-  bots: SharedSokoBotSummary[],
-  query = "",
-): Promise<void> {
-  render(
-    <PageListSearchContext.Provider value={{ query, register: () => () => {} }}>
-      {
-        await SharedBotsSection({
-          bots,
-          projects: [{ id: "p1", name: "Launch" }],
-          canCreatePersonal: false,
-          defaultScope: "workspace",
-          title: "Shared",
-        })
-      }
-    </PageListSearchContext.Provider>,
+async function renderSection(bots: SharedSokoBotSummary[], query = "") {
+  const section = await SharedBotsSection({
+    bots,
+    projects: [{ id: "p1", name: "Launch" }],
+    canCreatePersonal: false,
+    defaultScope: "workspace",
+    title: "Shared",
+  });
+  const withQuery = (value: string) => (
+    <PageListSearchContext.Provider
+      value={{ query: value, register: () => () => {} }}
+    >
+      {section}
+    </PageListSearchContext.Provider>
   );
+  const { rerender } = render(withQuery(query));
+  return { setQuery: (value: string) => rerender(withQuery(value)) };
 }
 
 const archivedAt = new Date("2026-10-01");
@@ -96,7 +101,7 @@ describe("SharedBotsSection", () => {
     expect(screen.queryByText("Old")).not.toBeInTheDocument();
     const toggle = screen.getByRole("button", { name: /Shared.archivedGroup/ });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(toggle).toHaveTextContent("2");
+    expect(toggle).toHaveTextContent("n2");
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("Old")).toBeInTheDocument();
@@ -152,5 +157,43 @@ describe("SharedBotsSection", () => {
     await renderSection([]);
     expect(screen.getByText("Shared.empty")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "create" })).toBeInTheDocument();
+  });
+
+  it("opens on a typed match and hides on a query without one", async () => {
+    const { setQuery } = await renderSection([
+      bot({ id: "b2", name: "Live" }),
+      bot({ id: "a1", name: "Old", archivedAt }),
+    ]);
+    const toggle = screen.getByRole("button", { name: /Shared.archivedGroup/ });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+    setQuery("old");
+    expect(
+      screen.getByRole("button", { name: /Shared.archivedGroup/ }),
+    ).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Old")).toBeInTheDocument();
+
+    setQuery("live");
+    expect(
+      screen.queryByRole("button", { name: /Shared.archivedGroup/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Live")).toBeInTheDocument();
+  });
+});
+
+describe("Shared.countSplit", () => {
+  it.each([
+    ["en", "12,345 active · 2 archived"],
+    ["de", "12.345 aktiv · 2 archiviert"],
+    ["es", "12.345 activos · 2 archivados"],
+  ])("formats counts for %s", async (locale, expected) => {
+    const messages = (await import(`../../../../../messages/${locale}.json`))
+      .default;
+    const t = createTranslator({
+      locale,
+      messages,
+      namespace: "App.SokoBots.Shared",
+    });
+    expect(t("countSplit", { active: 12345, archived: 2 })).toBe(expected);
   });
 });
