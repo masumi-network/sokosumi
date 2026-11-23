@@ -128,7 +128,7 @@ export function OrganizationRemoveBlocked({
                       ? `${href}?organizationId=${organization.id}`
                       : href
                   }
-                  className="font-medium underline underline-offset-4"
+                  className="inline-flex min-h-6 items-center font-medium underline underline-offset-4"
                   onClick={(event) => {
                     if (link !== "members") return;
                     event.preventDefault();
