@@ -1060,6 +1060,67 @@ describe("DrivePage tasks view cache", () => {
     expect(fetchDriveTasksPageMock).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps page-2 breadcrumb and filter names during a search that returns no rows without extra fetches", async () => {
+    searchParams = new URLSearchParams(
+      "view=tasks&projectId=proj-p2&taskId=task-p2",
+    );
+    fetchDriveTasksPageMock
+      .mockResolvedValueOnce({
+        items: [
+          {
+            type: "task-file",
+            id: "tf-1",
+            name: "mockup-v2.pdf",
+            fileUrl: "https://example.com/mockup-v2.pdf",
+            size: 1024,
+            mimeType: "application/pdf",
+            updatedAt: new Date("2026-08-25T10:00:00.000Z"),
+          },
+        ],
+        nextCursor: null,
+        selectedProject: { id: "proj-p2", name: "Page 2 Project" },
+        selectedTask: { id: "task-p2", name: "Page 2 Task" },
+      })
+      .mockResolvedValueOnce({
+        items: [],
+        nextCursor: null,
+      });
+
+    renderDrive();
+
+    expect(await screen.findByText("mockup-v2.pdf")).toBeVisible();
+    const nav = screen.getByRole("navigation", { name: "breadcrumbNavLabel" });
+    expect(
+      within(nav).getByRole("button", { name: "Page 2 Project" }),
+    ).toBeVisible();
+    expect(
+      within(nav).getByRole("button", { name: "Page 2 Task" }),
+    ).toBeVisible();
+
+    const [searchInput] = screen.getAllByPlaceholderText(
+      "tasksSearchPlaceholder",
+    );
+    fireEvent.change(searchInput!, { target: { value: "nonexistent" } });
+
+    expect(await screen.findByText("tasksNoMatchTitle")).toBeVisible();
+    expect(
+      within(nav).getByRole("button", { name: "Page 2 Project" }),
+    ).toBeVisible();
+    expect(
+      within(nav).getByRole("button", { name: "Page 2 Task" }),
+    ).toBeVisible();
+    const filterStub = screen.getByTestId("drive-tasks-filters-stub");
+    expect(filterStub).toHaveAttribute(
+      "data-selected-project",
+      "Page 2 Project",
+    );
+    expect(filterStub).toHaveAttribute("data-selected-task", "Page 2 Task");
+    expect(fetchDriveTasksPageMock).toHaveBeenCalledTimes(2);
+    expect(fetchDriveTasksPageMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ q: "nonexistent" }),
+    );
+  });
+
   it("refetches on return to Drive tasks view while keeping cached rows visible", async () => {
     const refetchDeferred = Promise.withResolvers<{
       items: unknown[];

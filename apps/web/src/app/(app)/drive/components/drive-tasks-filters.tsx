@@ -143,6 +143,7 @@ export function buildDriveTasksFilterParams(
   searchParams: URLSearchParams,
   param: "assigneeId" | "projectId" | "taskId",
   value: string | null,
+  currentProjectId?: string | null,
 ): URLSearchParams {
   const params = new URLSearchParams(searchParams.toString());
   if (value) {
@@ -156,6 +157,12 @@ export function buildDriveTasksFilterParams(
     params.delete("taskId");
   } else if (param === "projectId") {
     params.delete("taskId");
+  } else if (
+    param === "taskId" &&
+    currentProjectId &&
+    !params.has("projectId")
+  ) {
+    params.set("projectId", currentProjectId);
   }
 
   return params;
@@ -238,10 +245,15 @@ export function DriveTasksFilters({
 
   const handleFilterChange = useCallback(
     (param: "assigneeId" | "projectId" | "taskId", value: string | null) => {
-      const params = buildDriveTasksFilterParams(searchParams, param, value);
+      const params = buildDriveTasksFilterParams(
+        searchParams,
+        param,
+        value,
+        projectId,
+      );
       router.replace(`${pathname}?${params.toString()}`);
     },
-    [pathname, router, searchParams],
+    [pathname, projectId, router, searchParams],
   );
 
   const resolvedSelectedProject =

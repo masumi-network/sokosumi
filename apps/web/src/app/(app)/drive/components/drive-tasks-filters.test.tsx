@@ -33,10 +33,12 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
   getBrowserCoreClient: () => ({ id: "browser-core-client" }),
 }));
 
+let currentSearchParams = new URLSearchParams("view=tasks");
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: replaceMock }),
   usePathname: () => "/drive",
-  useSearchParams: () => new URLSearchParams("view=tasks"),
+  useSearchParams: () => currentSearchParams,
 }));
 
 import {
@@ -130,10 +132,20 @@ describe("buildDriveTasksFilterParams", () => {
     expect(next.has("projectId")).toBe(false);
     expect(next.has("taskId")).toBe(false);
   });
+
+  it("writes the displayed projectId when clearing taskId on a task-only URL", () => {
+    const params = new URLSearchParams("view=tasks&taskId=task-p2");
+
+    const next = buildDriveTasksFilterParams(params, "taskId", null, "proj-p2");
+
+    expect(next.get("projectId")).toBe("proj-p2");
+    expect(next.has("taskId")).toBe(false);
+  });
 });
 
 describe("DriveTasksFilters", () => {
   beforeEach(() => {
+    currentSearchParams = new URLSearchParams("view=tasks");
     fetchDriveTasksPageMock.mockReset();
     getCoworkersMock.mockReset();
     getProjectsByIdMock.mockReset();
@@ -522,5 +534,33 @@ describe("DriveTasksFilters", () => {
       await screen.findByRole("button", { name: "Project Page 2 Project" }),
     ).toBeVisible();
     expect(getProjectsByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the inferred projectId in the URL when clearing Task on a task-only link", async () => {
+    const user = userEvent.setup();
+    const client = makeQueryClient();
+    currentSearchParams = new URLSearchParams("view=tasks&taskId=task-p2");
+
+    render(
+      <QueryClientProvider client={client}>
+        <DriveTasksFilters
+          activeOrganizationId="org_a"
+          assigneeId={null}
+          projectId="proj-p2"
+          taskId="task-p2"
+          selectedProject={{ id: "proj-p2", name: "Page 2 Project" }}
+          selectedTask={{ id: "task-p2", name: "Page 2 Task" }}
+          labels={DEFAULT_LABELS}
+          sheetOpen
+        />
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Task Page 2 Task" }));
+    await user.click(screen.getByRole("option", { name: "All" }));
+
+    expect(replaceMock).toHaveBeenCalledWith(
+      "/drive?view=tasks&projectId=proj-p2",
+    );
   });
 });

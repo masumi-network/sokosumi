@@ -517,9 +517,43 @@ function DrivePageWorkspace({
     staleTime: 0,
   });
 
-  const firstTasksPage = !isTasksSearchActive
-    ? tasksQuery.data?.pages[0]
-    : undefined;
+  const drillDownSelectionQuery = useScopedInfiniteQuery({
+    ...splitDriveQueryKey(
+      driveQueryKeys.tasks(driveStore, {
+        projectId: projectIdParam,
+        taskId: taskIdParam,
+        assigneeId: assigneeIdParam,
+        q: "",
+        sortBy: filesSortQuery.sortBy,
+        sortOrder: filesSortQuery.sortOrder,
+      }),
+    ),
+    queryFn: ({ pageParam, signal }) =>
+      fetchDriveTasksPage({
+        scope,
+        ...(scope === "org" && activeOrganizationId
+          ? { organizationId: activeOrganizationId }
+          : {}),
+        ...(taskIdParam
+          ? { taskId: taskIdParam }
+          : projectIdParam
+            ? { projectId: projectIdParam }
+            : {}),
+        ...(assigneeIdParam ? { assigneeId: assigneeIdParam } : {}),
+        ...filesSortQuery,
+        ...(pageParam ? { cursor: pageParam } : {}),
+        signal,
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    // Cache-only reader: keeps the unsearched drill-down's selectedProject /
+    // selectedTask names visible during search without issuing another fetch.
+    enabled: false,
+  });
+
+  const firstTasksPage = isTasksSearchActive
+    ? drillDownSelectionQuery.data?.pages[0]
+    : tasksQuery.data?.pages[0];
   const selectedProject = firstTasksPage?.selectedProject ?? null;
   const selectedTask = firstTasksPage?.selectedTask ?? null;
   const effectiveProjectId =

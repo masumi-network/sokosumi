@@ -148,16 +148,19 @@ export const driveTasksSelectedEntitySchema = z
 export const driveTasksPaginationMetaSchema = z
   .object({
     ...cursorPaginationMetaSchema.shape,
-    selectedProject: driveTasksSelectedEntitySchema
-      .nullable()
+    selectedProject: z
+      .union([driveTasksSelectedEntitySchema, z.null()])
       .optional()
       .openapi({
         description:
           "Selected project (id + name) for projectId/taskId drill-down, or null when unscoped or unmatched",
       }),
-    selectedTask: driveTasksSelectedEntitySchema.nullable().optional().openapi({
-      description: "Selected task (id + name) for taskId drill-down",
-    }),
+    selectedTask: z
+      .union([driveTasksSelectedEntitySchema, z.null()])
+      .optional()
+      .openapi({
+        description: "Selected task (id + name) for taskId drill-down",
+      }),
   })
   .openapi("DriveTasksPaginationMetadata");
 

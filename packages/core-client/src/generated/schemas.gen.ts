@@ -21765,48 +21765,24 @@ export const DriveTasksPaginationMetadataSchema = {
             description: 'Cursor for the next page'
         },
         selectedProject: {
-            type: [
-                'object',
-                'null'
-            ],
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'prj_abc123',
-                    description: 'Selected project or task ID'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/DriveTasksSelectedEntity'
                 },
-                name: {
-                    type: 'string',
-                    example: 'Q4 Campaign',
-                    description: 'Selected project or task display name'
+                {
+                    type: 'null'
                 }
-            },
-            required: [
-                'id',
-                'name'
             ],
             description: 'Selected project (id + name) for projectId/taskId drill-down, or null when unscoped or unmatched'
         },
         selectedTask: {
-            type: [
-                'object',
-                'null'
-            ],
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'prj_abc123',
-                    description: 'Selected project or task ID'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/DriveTasksSelectedEntity'
                 },
-                name: {
-                    type: 'string',
-                    example: 'Q4 Campaign',
-                    description: 'Selected project or task display name'
+                {
+                    type: 'null'
                 }
-            },
-            required: [
-                'id',
-                'name'
             ],
             description: 'Selected task (id + name) for taskId drill-down'
         }
@@ -21816,6 +21792,26 @@ export const DriveTasksPaginationMetadataSchema = {
         'limit',
         'total',
         'nextCursor'
+    ]
+} as const;
+
+export const DriveTasksSelectedEntitySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'prj_abc123',
+            description: 'Selected project or task ID'
+        },
+        name: {
+            type: 'string',
+            example: 'Q4 Campaign',
+            description: 'Selected project or task display name'
+        }
+    },
+    required: [
+        'id',
+        'name'
     ]
 } as const;
 

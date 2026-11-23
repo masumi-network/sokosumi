@@ -6119,29 +6119,22 @@ export type DriveTasksPaginationMetadata = {
     /**
      * Selected project (id + name) for projectId/taskId drill-down, or null when unscoped or unmatched
      */
-    selectedProject?: {
-        /**
-         * Selected project or task ID
-         */
-        id: string;
-        /**
-         * Selected project or task display name
-         */
-        name: string;
-    } | null;
+    selectedProject?: DriveTasksSelectedEntity | null;
     /**
      * Selected task (id + name) for taskId drill-down
      */
-    selectedTask?: {
-        /**
-         * Selected project or task ID
-         */
-        id: string;
-        /**
-         * Selected project or task display name
-         */
-        name: string;
-    } | null;
+    selectedTask?: DriveTasksSelectedEntity | null;
+};
+
+export type DriveTasksSelectedEntity = {
+    /**
+     * Selected project or task ID
+     */
+    id: string;
+    /**
+     * Selected project or task display name
+     */
+    name: string;
 };
 
 export type CopyTaskFileToDriveResponse = {
