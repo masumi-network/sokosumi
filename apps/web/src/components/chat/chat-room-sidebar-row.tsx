@@ -251,6 +251,32 @@ function MentionBadge({
   );
 }
 
+/**
+ * The name, then a status at the end of its line. Hidden from assistive
+ * technology: the row's leading mark announces the status, in full.
+ *
+ * In a narrow row the status gives way first, ending in an ellipsis and then
+ * going altogether, so the name keeps the line and stays whole. A translated status runs long ("Konnte nicht antworten"
+ * beside a focused row's menu in a 192px sidebar), and a row whose name is
+ * cut off no longer says who the Direct is with.
+ */
+export function RoomRowNameLine({
+  name,
+  status,
+}: {
+  name: ReactNode;
+  status: ReactNode;
+}) {
+  return (
+    <span className="flex min-w-0 items-baseline gap-2">
+      <span className="flex max-w-full min-w-0 shrink-0">{name}</span>
+      <span aria-hidden className="ml-auto flex min-w-0">
+        {status}
+      </span>
+    </span>
+  );
+}
+
 export function ChatRoomSidebarRow({
   room,
   href,
@@ -453,16 +479,7 @@ export function ChatRoomSidebarRow({
             It is drawn in the trailing cluster now, so only its announcement
             is left here, and a counted row must not keep a hole after the
             name for text nobody sees. */}
-        {status ? (
-          <span className="flex min-w-0 items-baseline gap-2">
-            {name}
-            <span aria-hidden className="ml-auto flex shrink-0">
-              {status}
-            </span>
-          </span>
-        ) : (
-          name
-        )}
+        {status ? <RoomRowNameLine name={name} status={status} /> : name}
         {hasTile ? (
           <span className="sr-only">
             {tChannels("inWorkspace", { workspace: workspaceName })}

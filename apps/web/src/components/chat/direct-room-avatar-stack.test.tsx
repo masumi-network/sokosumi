@@ -192,14 +192,39 @@ describe("DirectRoomAvatarStack", () => {
 
       // The words the sidebar row and the bot's page use for ERROR.
       const face = screen.getByTestId("dm-sidebar-avatar-bot-1");
-      expect(screen.getByTestId("dm-sidebar-bot-status")).toHaveAttribute(
-        "title",
-        "ERROR",
-      );
       expect(face).toHaveTextContent("ERROR");
       expect(face).not.toHaveTextContent("Online");
     } finally {
       act(() => clearFailed());
+    }
+  });
+
+  it("gives your bot's dot no hover word of its own to disagree with the row", () => {
+    const clearIdle = publishLiveSokoBot({
+      id: "bot-1",
+      status: SokoBotStatus.IDLE,
+      lastActivityAt: null,
+    });
+    try {
+      render(
+        <DirectRoomAvatarStack
+          room={makeDirectRoom({
+            userMembers: [makeUser("me", "Me")],
+            sokoBotMembers: [makeSokoBot("bot-1", "Zero")],
+          })}
+          currentUserId="me"
+        />,
+      );
+
+      // The row's words ("Ready"), never the badge's ("Idle").
+      const face = screen.getByTestId("dm-sidebar-avatar-bot-1");
+      expect(screen.getByTestId("dm-sidebar-bot-status")).not.toHaveAttribute(
+        "title",
+      );
+      expect(face).toHaveTextContent("ready");
+      expect(face).not.toHaveTextContent("IDLE");
+    } finally {
+      act(() => clearIdle());
     }
   });
 

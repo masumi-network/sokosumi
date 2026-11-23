@@ -1,6 +1,5 @@
 import type { ChatRoom } from "@sokosumi/core-client";
 import { MessageCircle } from "lucide-react";
-import { useTranslations } from "next-intl";
 import { getDirectParticipants } from "@/components/chat/direct-room-participants";
 import {
   LiveMemberPresenceDot,
@@ -66,7 +65,6 @@ export function DirectRoomAvatarStack({
   currentUserId,
 }: DirectRoomAvatarStackProps) {
   const participants = getDirectParticipants(room, currentUserId);
-  const tStatus = useTranslations("Components.SokoBot.BotStatus");
   const liveSokoBot = useLiveSokoBotStatus();
   // Former members are not here to be online, and their faces sit back.
   const showsPresence = !room.isSelfDirect && !room.isReadOnly;
@@ -120,10 +118,12 @@ export function DirectRoomAvatarStack({
             </Avatar>
             {showsPresence && ownBot ? (
               <>
+                {/* No title: the badge's one word ("Idle") would contradict
+                    the row's own ("Active 2h ago"), which the row already
+                    shows and the text below announces. */}
                 <span
                   aria-hidden
                   data-testid="dm-sidebar-bot-status"
-                  title={tStatus(ownBot.status)}
                   className={cn(
                     "border-sidebar absolute -right-0.5 -bottom-0.5 size-2 rounded-full border",
                     STATUS_TONE_DOT_CLASS[SOKO_BOT_STATUS_TONE[ownBot.status]],
