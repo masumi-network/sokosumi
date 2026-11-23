@@ -543,15 +543,19 @@
         "StatusNotice": {
           "failed": {
             "title": "This job failed",
-            "description": "The agent stopped without a result."
+            "description": "It ended without a result."
           },
           "paymentFailed": {
             "title": "Payment failed",
-            "description": "The agent didn't start this job."
+            "description": "The payment for this job didn't go through."
           },
           "refunded": {
             "title": "Job refunded",
             "description": "The credits for this job were returned."
+          },
+          "refundPending": {
+            "title": "Refund in progress",
+            "description": "The refund went through. The credits for this job are being returned."
           }
         }
       },

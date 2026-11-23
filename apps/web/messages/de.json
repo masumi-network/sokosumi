@@ -527,15 +527,19 @@
         "StatusNotice": {
           "failed": {
             "title": "Dieser Job ist fehlgeschlagen",
-            "description": "Der Agent hat ohne Ergebnis aufgehört."
+            "description": "Er wurde ohne Ergebnis beendet."
           },
           "paymentFailed": {
             "title": "Zahlung fehlgeschlagen",
-            "description": "Der Agent hat diesen Job nicht gestartet."
+            "description": "Die Zahlung für diesen Job ist nicht durchgegangen."
           },
           "refunded": {
             "title": "Job erstattet",
             "description": "Die Credits für diesen Job wurden zurückgebucht."
+          },
+          "refundPending": {
+            "title": "Erstattung läuft",
+            "description": "Die Erstattung ist durch. Die Credits für diesen Job werden zurückgebucht."
           }
         }
       },

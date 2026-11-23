@@ -25,6 +25,8 @@ const NOTICES: Partial<
 /**
  * Says in words why a job has no result. A failed job otherwise shows only a
  * status badge and an empty activity row, and its refund is out of reach.
+ * The copy claims only what the status proves: several on-chain outcomes map
+ * to each status, so it never says what the agent did.
  */
 export function JobStatusNotice({
   job,
@@ -39,7 +41,13 @@ export function JobStatusNotice({
     return null;
   }
 
-  const { key, Icon } = notice;
+  const { Icon } = notice;
+  // Core marks a job refunded when the on-chain refund lands; the credits are
+  // back only once the ledger catches up (`jobStatusSettled`).
+  const key =
+    notice.key === "refunded" && !job.jobStatusSettled
+      ? "refundPending"
+      : notice.key;
   const refundJob =
     canManage &&
     job.status === SokosumiJobStatus.FAILED &&
