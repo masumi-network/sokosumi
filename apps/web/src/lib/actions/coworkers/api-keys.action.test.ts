@@ -144,13 +144,28 @@ describe("revokeDeveloperCoworkerApiKeyAction", () => {
     );
   });
 
-  it("rejects a malformed key id without calling Core", async () => {
+  it("rejects an empty key id without calling Core", async () => {
     const result = await revokeDeveloperCoworkerApiKeyAction({
       coworkerId: COWORKER_ID,
-      keyId: "not-a-uuid",
+      keyId: "   ",
     });
 
     expect(result.ok).toBe(false);
     expect(revokeApiKeyMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts legacy CUID ids from before the UUID switch", async () => {
+    revokeApiKeyMock.mockResolvedValue({ id: "cm8x0legacykey0000000001" });
+
+    const result = await revokeDeveloperCoworkerApiKeyAction({
+      coworkerId: "cm8x0legacycoworker00001",
+      keyId: "cm8x0legacykey0000000001",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(revokeApiKeyMock).toHaveBeenCalledWith(
+      "cm8x0legacycoworker00001",
+      "cm8x0legacykey0000000001",
+    );
   });
 });

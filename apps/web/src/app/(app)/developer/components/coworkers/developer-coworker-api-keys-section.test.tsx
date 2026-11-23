@@ -20,6 +20,7 @@ vi.mock("@/lib/actions/coworkers/api-keys.action", () => ({
 }));
 
 import { expectConsole } from "@sokosumi/utils/test-console";
+import { createFormats } from "@/i18n/time-format";
 import messages from "@/messages/en.json";
 import { mockCoreCoworker } from "@/test-fixtures/coworker";
 import { DeveloperCoworkerApiKeysSection } from "./developer-coworker-api-keys-section";
@@ -44,7 +45,12 @@ function key(overrides: Record<string, unknown>) {
 async function renderSection() {
   const element = await DeveloperCoworkerApiKeysSection({ coworker });
   render(
-    <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+    <NextIntlClientProvider
+      locale="en"
+      messages={messages}
+      formats={createFormats()}
+      timeZone="UTC"
+    >
       {element}
     </NextIntlClientProvider>,
   );
@@ -100,6 +106,17 @@ describe("DeveloperCoworkerApiKeysSection", () => {
         keyId: "key-active",
       }),
     );
+  });
+
+  it("shows when a key was last used", async () => {
+    listApiKeysMock.mockResolvedValue([
+      key({ lastUsedAt: new Date("2026-11-20T14:30:00.000Z") }),
+    ]);
+
+    await renderSection();
+
+    expect(screen.getByText(/Nov 20, 2026/)).toBeInTheDocument();
+    expect(screen.queryByText("No recorded use")).not.toBeInTheDocument();
   });
 
   it("shows the empty state", async () => {

@@ -18,8 +18,11 @@ import {
   withSession,
 } from "@/middleware/auth-middleware";
 
+// Ids are not always UUIDs: rows created before #2851 keep their CUIDs.
+const coworkerIdSchema = z.string().trim().min(1);
+
 const createCoworkerApiKeySchema = z.object({
-  coworkerId: z.string().uuid(),
+  coworkerId: coworkerIdSchema,
   name: z.string().trim().min(1).max(120),
 });
 
@@ -58,8 +61,8 @@ export const createDeveloperCoworkerApiKeyAction = withSession<
 });
 
 const revokeCoworkerApiKeySchema = z.object({
-  coworkerId: z.string().uuid(),
-  keyId: z.string().uuid(),
+  coworkerId: coworkerIdSchema,
+  keyId: z.string().trim().min(1),
 });
 
 interface RevokeDeveloperCoworkerApiKeyParameters extends AuthenticatedRequest {

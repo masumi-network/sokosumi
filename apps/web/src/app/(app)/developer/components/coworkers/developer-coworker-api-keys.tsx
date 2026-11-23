@@ -72,18 +72,22 @@ export function DeveloperCoworkerApiKeys({
   async function createApiKey(
     data: CreateApiKeyRequest,
   ): Promise<CreateApiKeyResult> {
-    const result = await createDeveloperCoworkerApiKeyAction({
-      coworkerId,
-      name: data.name,
-    });
-    if (!result.ok) {
-      // Core's message is English; the toast stays in the page's language.
-      const message = t("createError");
-      toast.error(message);
-      return { ok: false, error: { message } };
+    // Core's message is English; the toast stays in the page's language.
+    const message = t("createError");
+    try {
+      const result = await createDeveloperCoworkerApiKeyAction({
+        coworkerId,
+        name: data.name,
+      });
+      if (result.ok) {
+        toast.success(t("createSuccess"));
+        return result;
+      }
+    } catch {
+      // A rejected action (expired session, network) gets the same toast.
     }
-    toast.success(t("createSuccess"));
-    return result;
+    toast.error(message);
+    return { ok: false, error: { message } };
   }
 
   async function handleConfirmRevoke() {
@@ -102,6 +106,8 @@ export function DeveloperCoworkerApiKeys({
       }
       toast.success(t("revokeSuccess"));
       setKeyToRevoke(null);
+    } catch {
+      toast.error(t("revokeError"));
     } finally {
       setRevoking(false);
     }
