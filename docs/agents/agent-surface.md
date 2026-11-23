@@ -40,7 +40,7 @@ A group sets `backlog` or `excluded`, not both. Several operations may map to on
 - Machine callers: webhooks, provider callbacks, Web-server leases, runtime-only variants.
 - Public or anonymous routes, share links, and invite flows a person completes in a browser.
 - Payments, billing, and pricing.
-- Publishing, sending, and spending, until the ADR from SOKD-379 decides.
+- The steps a person takes: approving, rejecting or publishing a Social post, approving, scheduling or sending a newsletter, resuming an ad campaign, and connecting a social or ad account ([ADR 0077](../adr/0077-agents-draft-and-stop-a-person-publishes-sends-and-starts-ad-spend.md)). The other writes on those routes (drafting or scheduling a Social post, ad campaign changes, image-studio generations) stay `false` with the same citation until that ADR's follow-up tickets open them.
 - The admin back office: CLI only, `mcp: false`.
 
 "Nobody needs it yet" is not a reason. Leave the operation to the group's `backlog` instead.
