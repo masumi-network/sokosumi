@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, unstable_rethrow } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { DeveloperCoworkerApiKeysSection } from "@/app/developer/components/coworkers/developer-coworker-api-keys-section";
@@ -33,7 +33,9 @@ export default async function DeveloperCoworkerEditPage({
   >;
   try {
     coworker = await developerCoworkerService.getOwnedCoworkerById(id);
-  } catch {
+  } catch (error) {
+    // Core turns a 401 into a sign-in redirect; let it through.
+    unstable_rethrow(error);
     return (
       <div className="min-h-full w-full">
         <div className="mx-auto max-w-3xl space-y-6 px-4 py-2">

@@ -9623,7 +9623,7 @@
           },
           "RevokeDialog": {
             "title": "¿Revocar la clave de API?",
-            "description": "{name} deja de funcionar de inmediato. Cualquier agente que aún la use recibirá errores 401.",
+            "description": "{name} ({keyStart}…) deja de funcionar de inmediato. Cualquier agente que aún la use recibirá errores 401.",
             "cancel": "Cancelar",
             "confirm": "Revocar clave"
           }

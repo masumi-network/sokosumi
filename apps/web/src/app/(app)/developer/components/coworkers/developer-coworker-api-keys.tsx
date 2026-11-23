@@ -76,7 +76,8 @@ export function DeveloperCoworkerApiKeys({
       name: data.name,
     });
     if (!result.ok) {
-      const message = result.error.message ?? t("createError");
+      // Core's message is English; the toast stays in the page's language.
+      const message = t("createError");
       toast.error(message);
       return { ok: false, error: { message } };
     }
@@ -95,7 +96,7 @@ export function DeveloperCoworkerApiKeys({
         keyId: keyToRevoke.id,
       });
       if (!result.ok) {
-        toast.error(result.error.message ?? t("revokeError"));
+        toast.error(t("revokeError"));
         return;
       }
       toast.success(t("revokeSuccess"));
@@ -127,9 +128,7 @@ export function DeveloperCoworkerApiKeys({
             <TableHeader>
               <TableRow>
                 <TableHead>{t("Table.name")}</TableHead>
-                <TableHead className="hidden sm:table-cell">
-                  {t("Table.key")}
-                </TableHead>
+                <TableHead>{t("Table.key")}</TableHead>
                 <TableHead className="hidden sm:table-cell">
                   {t("Table.created")}
                 </TableHead>
@@ -143,7 +142,7 @@ export function DeveloperCoworkerApiKeys({
               {rows.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell>{row.name ?? t("unnamed")}</TableCell>
-                  <TableCell className="hidden font-mono text-xs sm:table-cell">
+                  <TableCell className="font-mono text-xs">
                     {row.keyStart}…
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
@@ -194,7 +193,8 @@ export function DeveloperCoworkerApiKeys({
               <AlertDialogTitle>{t("RevokeDialog.title")}</AlertDialogTitle>
               <AlertDialogDescription>
                 {t("RevokeDialog.description", {
-                  name: keyToRevoke?.name ?? keyToRevoke?.keyStart ?? "",
+                  name: keyToRevoke?.name ?? t("unnamed"),
+                  keyStart: keyToRevoke?.keyStart ?? "",
                 })}
               </AlertDialogDescription>
             </AlertDialogHeader>

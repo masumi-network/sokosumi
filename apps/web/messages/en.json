@@ -9650,7 +9650,7 @@
           },
           "RevokeDialog": {
             "title": "Revoke API key?",
-            "description": "{name} stops working at once. Any agent still using it gets 401 errors.",
+            "description": "{name} ({keyStart}…) stops working at once. Any agent still using it gets 401 errors.",
             "cancel": "Cancel",
             "confirm": "Revoke key"
           }

@@ -30,6 +30,7 @@ vi.mock("@/middleware/auth-middleware", () => ({
 }));
 
 import { expectConsole } from "@sokosumi/utils/test-console";
+import { redirect } from "next/navigation";
 import {
   createDeveloperCoworkerApiKeyAction,
   revokeDeveloperCoworkerApiKeyAction,
@@ -92,6 +93,34 @@ describe("createDeveloperCoworkerApiKeyAction", () => {
     expect(errorCalls[0]?.[1]).toBe(error);
     expect(result.ok).toBe(false);
     expect(revalidatePathMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("sign-in redirect", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("lets Core's 401 redirect through on create and revoke", async () => {
+    createApiKeyMock.mockImplementation(() => redirect("/signin"));
+    revokeApiKeyMock.mockImplementation(() => redirect("/signin"));
+
+    await expect(
+      createDeveloperCoworkerApiKeyAction({
+        coworkerId: COWORKER_ID,
+        name: "Production",
+      }),
+    ).rejects.toMatchObject({
+      digest: expect.stringContaining("NEXT_REDIRECT"),
+    });
+    await expect(
+      revokeDeveloperCoworkerApiKeyAction({
+        coworkerId: COWORKER_ID,
+        keyId: KEY_ID,
+      }),
+    ).rejects.toMatchObject({
+      digest: expect.stringContaining("NEXT_REDIRECT"),
+    });
   });
 });
 

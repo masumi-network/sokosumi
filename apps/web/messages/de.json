@@ -9623,7 +9623,7 @@
           },
           "RevokeDialog": {
             "title": "API-Schlüssel widerrufen?",
-            "description": "{name} funktioniert sofort nicht mehr. Agenten, die ihn noch nutzen, erhalten 401-Fehler.",
+            "description": "{name} ({keyStart}…) funktioniert sofort nicht mehr. Agenten, die ihn noch nutzen, erhalten 401-Fehler.",
             "cancel": "Abbrechen",
             "confirm": "Schlüssel widerrufen"
           }

@@ -2,6 +2,7 @@
 
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
 import * as z from "zod";
 
 import {
@@ -49,6 +50,8 @@ export const createDeveloperCoworkerApiKeyAction = withSession<
     revalidatePath(`/developer/coworkers/${parsed.data.coworkerId}`);
     return toActionResult(ok({ key: created.token }));
   } catch (error) {
+    // Core turns a 401 into a sign-in redirect; let it through.
+    unstable_rethrow(error);
     console.error("Failed to create developer coworker API key", error);
     return toActionResult(err(toCoreApiActionError(error)));
   }
@@ -83,6 +86,8 @@ export const revokeDeveloperCoworkerApiKeyAction = withSession<
     revalidatePath(`/developer/coworkers/${parsed.data.coworkerId}`);
     return toActionResult(ok({ keyId: revoked.id }));
   } catch (error) {
+    // Core turns a 401 into a sign-in redirect; let it through.
+    unstable_rethrow(error);
     console.error("Failed to revoke developer coworker API key", error);
     return toActionResult(err(toCoreApiActionError(error)));
   }

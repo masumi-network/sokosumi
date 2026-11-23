@@ -20,9 +20,8 @@ vi.mock("@/lib/actions/coworkers/api-keys.action", () => ({
 }));
 
 import { expectConsole } from "@sokosumi/utils/test-console";
+import messages from "@/messages/en.json";
 import { mockCoreCoworker } from "@/test-fixtures/coworker";
-
-import messages from "../../../../../../messages/en.json";
 import { DeveloperCoworkerApiKeysSection } from "./developer-coworker-api-keys-section";
 
 const coworker = mockCoreCoworker();
