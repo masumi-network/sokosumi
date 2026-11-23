@@ -1212,6 +1212,10 @@ export type SokoBotTurn = {
         name: string | null;
         kind: string;
     } | null;
+    schedule?: {
+        name: string;
+        systemKey: string | null;
+    } | null;
     createdAt: Date;
     updatedAt: Date;
 };

@@ -11249,6 +11249,20 @@
         "activityTitle": "Letzte Aktivität",
         "activityDescription": "Was er zuletzt getan hat.",
         "activityEmpty": "Noch keine Durchläufe. Öffne den Chat und bitte um etwas.",
+        "Activity": {
+          "mailCheck": "Mail-Check",
+          "scheduled": "Geplanter Durchlauf",
+          "event": "Arbeits-Update",
+          "retry": "Wiederholung",
+          "other": "Durchlauf",
+          "outcome": {
+            "running": "Läuft",
+            "done": "Erledigt",
+            "failed": "Nicht beendet",
+            "cancelled": "Abgebrochen"
+          },
+          "needsYou": "{count, plural, one {Braucht dich} other {# brauchen dich}}"
+        },
         "showMore": "{count} weitere anzeigen",
         "skillsTitle": "Skills",
         "skillsDescription": "Was dein Assistent kann. Mehr gibt es auf skills.sh.",
