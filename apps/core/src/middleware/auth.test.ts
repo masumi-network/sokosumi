@@ -1210,7 +1210,6 @@ describe("authMiddleware", () => {
         organizationId: null,
         role: "user",
         authenticationMethod: "oauth",
-        oauthClientId: "mcp-client",
       },
     };
 

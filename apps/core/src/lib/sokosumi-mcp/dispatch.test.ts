@@ -28,7 +28,6 @@ const caller: ToolCaller = {
     organizationId: null,
     role: "user",
     authenticationMethod: "oauth",
-    oauthClientId: "mcp-client",
   },
   origin: "https://core.example.test",
   requestId: "req-mcp-1",
@@ -193,6 +192,14 @@ describe("callTool", () => {
       { id: "t1", workspace: 7 },
       'Argument "workspace" must be a workspace slug.',
     ],
+    [
+      { id: "t1", workspace: "acme\nX-Admin: 1" },
+      'Argument "workspace" must be a workspace slug.',
+    ],
+    [
+      { id: "t1", workspace: "ünïcode" },
+      'Argument "workspace" must be a workspace slug.',
+    ],
   ])(
     "rejects %j, which would reach another operation or workspace",
     async (args, message) => {
@@ -204,6 +211,17 @@ describe("callTool", () => {
       expect(result.structuredContent).toEqual({ status: 422, message });
     },
   );
+
+  it("answers a fault before Core answers with the generic error", async () => {
+    vi.spyOn(coreV1, "fetch").mockRejectedValue(new Error("boom"));
+    const result = await callTool(patchThing, { id: "t1" }, caller);
+
+    expect(result.structuredContent).toEqual({
+      status: 500,
+      message: "Sokosumi could not complete this request.",
+      requestId: "req-mcp-1",
+    });
+  });
 
   it("answers a route /v1 does not serve with route_not_found", async () => {
     const gone: ToolInput = {
@@ -219,6 +237,21 @@ describe("callTool", () => {
       kind: "route_not_found",
       message: "Not Found",
     });
+  });
+
+  it("keeps another user's data closed to an MCP caller", async () => {
+    const usersGet: ToolInput = {
+      method: "GET",
+      path: "/users/{id}",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: false,
+      inputSchema: { type: "object", properties: { id: { type: "string" } } },
+    };
+
+    const result = await callTool(usersGet, { id: "user_other" }, caller);
+
+    expect(result.structuredContent).toMatchObject({ status: 403 });
   });
 
   it("keeps interactive-only routes closed to MCP callers", async () => {

@@ -83,7 +83,7 @@ Core serves MCP at `{Core origin}/mcp` (`apps/core/src/routes/mcp/index.ts`; tok
 
 - **Input** comes from the operation's OpenAPI definition (`tool-schema.ts`): path and query parameters by name, the JSON body as `body`, and `workspace` (an organization slug, sent as `X-Organization-Slug`) on every tool. Name clashes fail the derivation.
 - **Annotations** come from the method: `GET` is read-only; `DELETE` is destructive unless the row says otherwise.
-- **A call** runs the operation through `/v1` in process as the token's user (`dispatch.ts`), so every guard applies: a route that needs an interactive session answers 403.
+- **A call** runs the operation through `/v1` in process as the token's user (`dispatch.ts`), so every guard applies: a route that needs an interactive session answers 403. The caller is always a plain user: never the admin role, never first-party, no OAuth client id. Admin work stays on the CLI.
 - **Results**: Core's `data` and `pagination` as `structuredContent`. A Core error is `isError` with `{status, kind, message, details}`; a 5xx gives a generic message and the request id.
 
 ## Production safety

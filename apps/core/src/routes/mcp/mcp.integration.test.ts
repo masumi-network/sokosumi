@@ -45,7 +45,6 @@ vi.mock("@/lib/sokosumi-mcp/auth", () => ({
             organizationId: null,
             role: "user",
             authenticationMethod: "oauth",
-            oauthClientId: "mcp-client",
           },
         }
       : { status: "invalid_token" },
@@ -162,7 +161,7 @@ describe("Sokosumi MCP server", () => {
       notifications: { toolsListChanged: true },
     });
     expect(listen.headers.get("Content-Type")).toContain("application/json");
-    expect(await listen.json()).toMatchObject({ error: { code: -32603 } });
+    expect(await listen.json()).toMatchObject({ error: { code: -32601 } });
   });
 
   it("challenges a client without a token to sign in", async () => {

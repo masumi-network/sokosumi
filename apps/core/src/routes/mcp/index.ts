@@ -63,13 +63,37 @@ app.post("/", async (c) => {
     requestId: c.var.requestId,
   };
   // The default response mode answers JSON while a handler sends no
-  // notification before its result, which ours never do. No
-  // `subscriptions/listen`: nothing here would ever publish to the stream,
-  // and an open one holds the function until it times out.
-  return createMcpHandler(() => createSokosumiMcpServer(caller), {
-    maxSubscriptions: 0,
-  }).fetch(c.req.raw);
+  // notification before its result, which ours never do.
+  return (
+    (await refuseListen(c.req.raw)) ??
+    createMcpHandler(() => createSokosumiMcpServer(caller)).fetch(c.req.raw)
+  );
 });
+
+/**
+ * The SDK holds a `subscriptions/listen` stream open until the client leaves,
+ * but nothing here ever publishes to it, so it would only keep the function
+ * running. Answer it as a method this server does not have.
+ */
+async function refuseListen(request: Request): Promise<Response | undefined> {
+  const message: unknown = await request
+    .clone()
+    .json()
+    .catch(() => undefined);
+  if (
+    typeof message !== "object" ||
+    message === null ||
+    !("method" in message) ||
+    message.method !== "subscriptions/listen"
+  ) {
+    return undefined;
+  }
+  return Response.json({
+    jsonrpc: "2.0",
+    id: "id" in message ? message.id : null,
+    error: { code: -32601, message: "Method not found: subscriptions/listen" },
+  });
+}
 
 // Stateless: no SSE stream to open (GET) and no session to end (DELETE).
 app.all("/", (c) => c.body(null, 405, { Allow: "POST" }));

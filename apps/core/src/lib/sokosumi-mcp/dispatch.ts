@@ -1,9 +1,12 @@
 import type { CallToolResult } from "@modelcontextprotocol/server";
+import { createError } from "evlog";
 import { Hono } from "hono";
 import { requestId } from "hono/request-id";
 
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
+import { tryUseLogger } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   type AuthenticationContext,
   preAuthenticatedRequests,
@@ -11,6 +14,8 @@ import {
 import apiV1 from "@/routes/v1/index";
 
 import type { ToolInput } from "./tool-schema";
+
+const SERVER_ERROR_MESSAGE = "Sokosumi could not complete this request.";
 
 /** Who a tool call acts for, and the MCP request it belongs to. */
 export interface ToolCaller {
@@ -34,6 +39,12 @@ coreV1.notFound((c) =>
 );
 
 /**
+ * A workspace slug as Core creates them, and safe in a header: `Headers.set`
+ * throws on a newline or a character above U+00FF.
+ */
+const SLUG = /^[a-z0-9][a-z0-9_-]{0,99}$/i;
+
+/**
  * Runs a tool call as a `/v1` request, in process: `authMiddleware` takes
  * the caller from `preAuthenticatedRequests`, so every guard, organization
  * check and validation `/v1` applies still applies. A route that needs an
@@ -49,12 +60,29 @@ export async function callTool(
     return toolError({ status: 422, message: problem });
   }
 
-  const request = buildRequest(input, args, caller);
-  preAuthenticatedRequests.set(request, {
-    isAuthenticated: true,
-    authContext: caller.authContext,
-  });
-  return toToolResult(await coreV1.fetch(request), caller.requestId);
+  try {
+    const request = buildRequest(input, args, caller);
+    preAuthenticatedRequests.set(request, {
+      isAuthenticated: true,
+      authContext: caller.authContext,
+    });
+    return await toToolResult(await coreV1.fetch(request), caller.requestId);
+  } catch (error) {
+    // `/v1` answers its own errors, so this is a fault in building the call.
+    tryUseLogger()?.error(
+      createError({
+        message: "An MCP tool call failed before Core answered it",
+        why: "Building or sending the /v1 request threw",
+        fix: "failure names the error; the tool name is on the event.",
+      }),
+      { failure: messageSafeErrorFields(error) },
+    );
+    return toolError({
+      status: 500,
+      message: SERVER_ERROR_MESSAGE,
+      requestId: caller.requestId,
+    });
+  }
 }
 
 function argumentProblem(
@@ -66,7 +94,10 @@ function argumentProblem(
   if (unknown !== undefined) {
     return `Unknown argument "${unknown}". This tool takes: ${known.join(", ")}.`;
   }
-  if (args.workspace != null && typeof args.workspace !== "string") {
+  if (
+    args.workspace != null &&
+    (typeof args.workspace !== "string" || !SLUG.test(args.workspace))
+  ) {
     return 'Argument "workspace" must be a workspace slug.';
   }
   for (const name of input.pathParams) {
@@ -142,7 +173,7 @@ async function toToolResult(
     // Core's 5xx message can name internals; the request id finds the logs.
     return toolError({
       status,
-      message: "Sokosumi could not complete this request.",
+      message: SERVER_ERROR_MESSAGE,
       requestId,
     });
   }

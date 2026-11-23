@@ -39,7 +39,6 @@ vi.mock("./auth", () => ({
       organizationId: null,
       role: "user",
       authenticationMethod: "oauth",
-      oauthClientId: "mcp-client",
     },
   }),
 }));

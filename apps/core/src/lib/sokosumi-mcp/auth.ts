@@ -100,11 +100,14 @@ export async function verifyMcpAccessToken(
       actor: "user",
       userId,
       organizationId: null,
-      role: user?.role ?? DEFAULT_USER_ROLE,
+      // An MCP caller is a plain user whatever the person's role or the
+      // client: no admin role (admins reach other users' data), no
+      // `oauthClientId` (the CMO write check trusts it) and no
+      // `firstPartyClient` (ADR 0046 opens first-party routes to the app
+      // itself, not to whatever it reaches through MCP). Admin work stays on
+      // the CLI.
+      role: DEFAULT_USER_ROLE,
       authenticationMethod: "oauth",
-      oauthClientId: clientId,
-      // Never `firstPartyClient`: ADR 0046 opens first-party routes to the
-      // first-party app itself, not to whatever it reaches through MCP.
     },
   };
 }
