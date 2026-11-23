@@ -1,70 +1,195 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TableAttachDialog } from "./table-attach-dialog";
 
-const f = vi.hoisted(() => ({ list: vi.fn(), file: vi.fn() }));
+const f = vi.hoisted(() => ({
+  list: vi.fn(),
+  file: vi.fn(),
+  workspace: "org-a" as string | null,
+}));
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({ dateTime: () => "Nov 23, 2026" }),
+}));
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({
+    data: { session: { activeOrganizationId: f.workspace } },
+  }),
 }));
 vi.mock("@/lib/services/data-table.client", () => ({
   dataTableService: { list: f.list },
 }));
 vi.mock("./table-csv", () => ({ tableCsvFile: f.file }));
 
-function renderDialog() {
+const leads = {
+  id: "t1",
+  title: "Leads",
+  columnCount: 3,
+  updatedAt: new Date(),
+};
+
+function renderDialog(client = new QueryClient()) {
   const onPick = vi.fn();
   const onClose = vi.fn();
-  render(
-    <QueryClientProvider client={new QueryClient()}>
+  const view = render(
+    <QueryClientProvider client={client}>
       <TableAttachDialog onClose={onClose} onPick={onPick} />
     </QueryClientProvider>,
   );
-  return { onPick, onClose };
+  return { onPick, onClose, view };
 }
 
+async function choose(title: RegExp) {
+  fireEvent.click(await screen.findByRole("radio", { name: title }));
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "add" }));
+  });
+}
+
+beforeEach(() => {
+  f.workspace = "org-a";
+});
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
 });
 
 describe("TableAttachDialog", () => {
-  it("hands back the picked Table as a CSV file and closes", async () => {
-    f.list.mockResolvedValue({
-      items: [
-        { id: "t1", title: "Leads", columnCount: 3, updatedAt: new Date() },
-      ],
-    });
+  it("copies only after the reader confirms, and says the copy opens by link", async () => {
+    f.list.mockResolvedValue({ items: [leads], nextCursor: null });
     const csv = new File(["a"], "Leads (2026-11-23).csv");
     f.file.mockResolvedValue(csv);
     const { onPick, onClose } = renderDialog();
 
-    const row = await screen.findByRole("button", { name: /Leads/ });
-    fireEvent.click(row);
+    fireEvent.click(await screen.findByRole("radio", { name: /Leads/ }));
+    expect(f.file).not.toHaveBeenCalled();
+    expect(screen.getByText("publicCopy")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "add" }));
 
-    await waitFor(() => expect(row).toBeEnabled());
-    expect(onPick).toHaveBeenCalledWith(csv);
+    await waitFor(() => expect(onPick).toHaveBeenCalledWith(csv));
     expect(f.file).toHaveBeenCalledWith("t1", expect.any(Date));
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("never hands back a copy that finishes after the picker was dismissed", async () => {
+    f.list.mockResolvedValue({ items: [leads], nextCursor: null });
+    const pending = Promise.withResolvers<File>();
+    f.file.mockReturnValue(pending.promise);
+    const { onPick, onClose } = renderDialog();
+
+    await choose(/Leads/);
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      pending.resolve(new File(["a"], "Leads.csv"));
+      await pending.promise;
+    });
+
+    expect(onPick).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("lists only the active workspace's Tables from a shared cache", async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { staleTime: 60_000 } },
+    });
+    f.list.mockImplementation(() =>
+      Promise.resolve({
+        items: [
+          { ...leads, id: String(f.workspace), title: `Plan ${f.workspace}` },
+        ],
+        nextCursor: null,
+      }),
+    );
+    const first = renderDialog(client);
+    await screen.findByRole("radio", { name: /Plan org-a/ });
+    first.view.unmount();
+
+    f.workspace = "org-b";
+    renderDialog(client);
+
+    expect(
+      await screen.findByRole("radio", { name: /Plan org-b/ }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Plan org-a")).not.toBeInTheDocument();
+  });
+
+  it("loads the next page of Tables on request", async () => {
+    f.list.mockImplementation(({ cursor }: { cursor?: string }) =>
+      Promise.resolve(
+        cursor === "p2"
+          ? {
+              items: [{ ...leads, id: "t2", title: "Older" }],
+              nextCursor: null,
+            }
+          : { items: [leads], nextCursor: "p2" },
+      ),
+    );
+    renderDialog();
+
+    fireEvent.click(await screen.findByRole("button", { name: "loadMore" }));
+
+    expect(
+      await screen.findByRole("radio", { name: /Older/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Leads/ })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "loadMore" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("gives keyboard focus back to the attach button when dismissed", async () => {
+    f.list.mockResolvedValue({ items: [leads], nextCursor: null });
+    const attach = document.createElement("button");
+    document.body.append(attach);
+    const onClose = vi.fn();
+    const view = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <TableAttachDialog
+          onClose={onClose}
+          onPick={vi.fn()}
+          returnFocusRef={{ current: attach }}
+        />
+      </QueryClientProvider>,
+    );
+    await screen.findByRole("radio", { name: /Leads/ });
+
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(onClose).toHaveBeenCalled();
+    // The form unmounts the picker on close.
+    view.unmount();
+
+    await waitFor(() => expect(document.activeElement).toBe(attach));
+    attach.remove();
+  });
+
+  it("caps search at the 200 characters Core accepts", async () => {
+    f.list.mockResolvedValue({ items: [], nextCursor: null });
+    renderDialog();
+
+    expect(await screen.findByRole("searchbox")).toHaveAttribute(
+      "maxLength",
+      "200",
+    );
+  });
+
   it("says why a Table over the row limit can't be added, and stays open", async () => {
     f.list.mockResolvedValue({
-      items: [
-        { id: "t1", title: "Huge", columnCount: 3, updatedAt: new Date() },
-      ],
+      items: [{ ...leads, title: "Huge" }],
+      nextCursor: null,
     });
     f.file.mockResolvedValue(null);
     const { onPick, onClose } = renderDialog();
 
-    fireEvent.click(await screen.findByRole("button", { name: /Huge/ }));
+    await choose(/Huge/);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("tooLarge");
     expect(onPick).not.toHaveBeenCalled();
@@ -72,7 +197,7 @@ describe("TableAttachDialog", () => {
   });
 
   it("points to Files when there are no Tables yet", async () => {
-    f.list.mockResolvedValue({ items: [] });
+    f.list.mockResolvedValue({ items: [], nextCursor: null });
     renderDialog();
 
     expect(await screen.findByText("empty")).toBeInTheDocument();

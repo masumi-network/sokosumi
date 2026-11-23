@@ -12011,7 +12011,11 @@
         "openTables": "Abrir tablas en Archivos",
         "tooLarge": "Esta tabla tiene más de 10.000 filas, demasiadas para añadirla. Exporta una vista filtrada desde la tabla.",
         "error": "No se pudo añadir esta tabla. Inténtalo de nuevo.",
-        "loadError": "No se pudieron cargar tus tablas. Cierra esto e inténtalo de nuevo."
+        "loadError": "No se pudieron cargar tus tablas. Cierra esto e inténtalo de nuevo.",
+        "publicCopy": "Cualquiera con el enlace puede abrir la copia, como cualquier archivo adjunto. Añádela solo si eso está bien para estos datos.",
+        "cancel": "Cancelar",
+        "add": "Añadir copia",
+        "loadMore": "Mostrar más tablas"
       }
     },
     "ProjectScope": {

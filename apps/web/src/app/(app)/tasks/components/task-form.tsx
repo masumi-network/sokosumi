@@ -11,7 +11,7 @@ import {
   Lock,
   Paperclip,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { TableAttachDialog } from "@/app/drive/tables/table-attach-dialog";
 import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
 import { isOtherHumanAssignee } from "@/app/tasks/utils/coworker-options";
@@ -85,6 +85,7 @@ function TaskFormContent({
   const model = useTaskFormModel(props, session);
   const handleSave = useTaskFormSubmission(model);
   const [isTablePickerOpen, setIsTablePickerOpen] = useState(false);
+  const attachButtonRef = useRef<HTMLButtonElement>(null);
   const {
     mode,
     taskId,
@@ -623,6 +624,7 @@ function TaskFormContent({
                 }
               >
                 <button
+                  ref={attachButtonRef}
                   type="button"
                   aria-label={labels.uploadFile}
                   disabled={
@@ -646,6 +648,7 @@ function TaskFormContent({
                 <TableAttachDialog
                   onClose={() => setIsTablePickerOpen(false)}
                   onPick={(file) => void handleAttachFiles([file])}
+                  returnFocusRef={attachButtonRef}
                 />
               )}
               <TaskStatusPicker

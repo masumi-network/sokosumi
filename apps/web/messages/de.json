@@ -12011,7 +12011,11 @@
         "openTables": "Tabellen in Dateien öffnen",
         "tooLarge": "Diese Tabelle hat mehr als 10.000 Zeilen, zu viele zum Hinzufügen. Exportiere stattdessen eine gefilterte Ansicht aus der Tabelle.",
         "error": "Die Tabelle konnte nicht hinzugefügt werden. Versuch es noch einmal.",
-        "loadError": "Deine Tabellen konnten nicht geladen werden. Schließe das Fenster und versuch es noch einmal."
+        "loadError": "Deine Tabellen konnten nicht geladen werden. Schließe das Fenster und versuch es noch einmal.",
+        "publicCopy": "Die Kopie kann jede Person mit ihrem Link öffnen, wie jede angehängte Datei. Füge sie nur hinzu, wenn das für diese Daten in Ordnung ist.",
+        "cancel": "Abbrechen",
+        "add": "Kopie hinzufügen",
+        "loadMore": "Weitere Tabellen anzeigen"
       }
     },
     "ProjectScope": {
