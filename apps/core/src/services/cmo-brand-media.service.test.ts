@@ -617,9 +617,17 @@ describe("the Project's brand research", () => {
 
   it("gives Cuso the page screenshots, the sections with the plain ones last, then the pictures", async () => {
     expect(await listCmoBrandPictures("project-1")).toEqual([
-      { fileId: "f-home", alt: "Home page screenshot" },
-      { fileId: "f-phone", alt: "Home on a phone page screenshot" },
-      { fileId: "f-pricing", alt: "Pricing page screenshot" },
+      {
+        fileId: "f-home",
+        alt: "Home page screenshot",
+        phoneFileId: "f-phone",
+        wideFileIds: ["f-home"],
+      },
+      {
+        fileId: "f-pricing",
+        alt: "Pricing page screenshot",
+        wideFileIds: ["f-pricing", "f-plans"],
+      },
       {
         fileId: "f-plans",
         alt: "Pricing cards, Pricing page: plans starter pro",
@@ -636,6 +644,15 @@ describe("the Project's brand research", () => {
         }),
       }),
     );
+  });
+
+  it("offers a page with only its phone shot as that shot", async () => {
+    db.fileProjectLink.findMany.mockResolvedValue([
+      researchFile("f-phone", "home-mobile.jpg"),
+    ]);
+    expect(await listCmoBrandPictures("project-1")).toEqual([
+      { fileId: "f-phone", alt: "Home on a phone page screenshot" },
+    ]);
   });
 
   it("shows CMO the pages read, their sections, competitors and pictures from the Project's files", async () => {

@@ -112,7 +112,7 @@ export async function loadCmoMarketingContext(
     },
     /** The brand's own photos, the Project's files: generate_image references. */
     brandPictures: brandPictures.map((picture) => ({
-      ...picture,
+      fileId: picture.fileId,
       alt: picture.alt.slice(0, 80),
     })),
     /**
