@@ -123,6 +123,17 @@ describe("ConsentDetails", () => {
       ).toBeInTheDocument();
     });
 
+    it.each([
+      ["http://localhost:3000/cb", "localhost:3000"],
+      ["http://[::1]:3000/cb", "[::1]:3000"],
+    ])("names the loopback redirect %s by its host", (redirectUri, host) => {
+      render(<ConsentDetails {...selfRegistered} redirectUri={redirectUri} />);
+
+      expect(
+        screen.getByText(`redirectHost ${JSON.stringify({ host })}`),
+      ).toBeInTheDocument();
+    });
+
     it("names an https redirect by its host", () => {
       render(
         <ConsentDetails
