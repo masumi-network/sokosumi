@@ -444,12 +444,35 @@ export async function afterCmoTurn(input: {
   const mayPlan =
     input.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX) ||
     cmoChangeKind(input.clientTurnId) === "fix";
-  return (
+  const next =
     (mayPlan ? await startCmoPlanAfterResearch(input, cuso) : null) ??
     (await startCmoMonthFinish(input, cuso)) ??
     (await startNextCmoChange(input, cuso)) ??
-    (await startQueuedAdBudget(cuso))
+    (await startQueuedAdBudget(cuso));
+  if (!next && input.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX))
+    await announceCmoStrategyReady(cuso);
+  return next;
+}
+
+/**
+ * Strategy turns post nothing: entry.fyi's first round, still short of its
+ * weeks, pinged the owner as if the plan were done. Once no turn follows,
+ * Cuso says so once per saved version.
+ */
+async function announceCmoStrategyReady(cuso: Cuso): Promise<void> {
+  const version = await newestMarketingStrategy(cuso.projectId);
+  if (!version || version.approvedAt) return;
+  const summary = parseMarketingPlan(version.plan)?.summary?.trim();
+  const { postSokoBotOwnerNotice } = await import(
+    "@/services/soko-bot-chat.service"
   );
+  await postSokoBotOwnerNotice({
+    sokoBotId: cuso.sokoBotId,
+    content: summary
+      ? `Your strategy is ready. ${summary}`
+      : "Your strategy is ready.",
+    key: `cmo-strategy-ready:${version.id}:${version.updatedAt.getTime()}`,
+  });
 }
 
 /** How far back the sync looks for a hiring strategy left short. */

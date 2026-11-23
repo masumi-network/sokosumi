@@ -1,3 +1,4 @@
+import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -412,6 +413,33 @@ describe("durable delivery", () => {
     );
   });
 
+  it("keeps every round of a Cuso's strategy out of the chat: Core says once when it is ready", async () => {
+    for (const clientTurnId of [
+      "cmo:strategy:bot:1795249520088",
+      "cmo:strategy:bot:finish:1795249520088:1",
+      "cmo:strategy:bot:patch:1795249520088",
+    ]) {
+      mocks.upsertDelivery.mockClear();
+      mocks.turn.mockResolvedValue(
+        turn({
+          source: "EVENT",
+          finalAnswer:
+            "The strategy starts with the December 1 Game Off deadline.",
+          clientTurnId,
+        }),
+      );
+      await enqueueSokoBotDelivery(prisma, "turn");
+      expect(mocks.upsertDelivery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            status: "SUPPRESSED",
+            reason: "CMO_STRATEGY",
+          }),
+        }),
+      );
+    }
+  });
+
   it("creates one stable keyed message and records PERSISTED before transport", async () => {
     mocks.publish.mockImplementation(async () => {
       expect(mocks.update).toHaveBeenCalledWith(
@@ -686,6 +714,21 @@ describe("durable delivery", () => {
     expect(mocks.message).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({ content: "@owner Saved result" }),
+      }),
+    );
+  });
+
+  it("never pings the owner from a Cuso's room: his reports stay quiet", async () => {
+    mocks.bot.mockResolvedValue(botRow({ userId: null, sharedRoomId: "room" }));
+    mocks.find.mockResolvedValue(
+      delivery({
+        turn: turn({ source: "EVENT", versionId: CMO_SOKO_BOT_VERSION_IDS[0] }),
+      }),
+    );
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.message).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ content: "Saved result" }),
       }),
     );
   });
