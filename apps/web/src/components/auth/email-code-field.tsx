@@ -27,17 +27,23 @@ export function useEmailCodeSchema() {
 
 /**
  * The sentence with its address in a box of its own, so the address moves to
- * the next line whole instead of breaking at a hyphen. An address wider than
- * the line still wraps (the box is never wider than the line).
+ * the next line whole instead of breaking at a hyphen. The box takes the
+ * punctuation after it, so a full stop never stands alone. An address wider
+ * than the line still wraps (the box is never wider than the line).
  */
 function keepAddressWhole(text: string, email: string): ReactNode {
   const at = text.indexOf(email);
   if (at < 0) return text;
+  const end = at + email.length;
+  const stop = text.slice(end).match(/^\S*/)?.[0] ?? "";
   return (
     <>
       {text.slice(0, at)}
-      <span className="inline-block max-w-full">{email}</span>
-      {text.slice(at + email.length)}
+      <span className="inline-block max-w-full">
+        {email}
+        {stop}
+      </span>
+      {text.slice(end + stop.length)}
     </>
   );
 }

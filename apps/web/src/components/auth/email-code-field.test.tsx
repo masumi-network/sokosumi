@@ -8,7 +8,7 @@ import { EmailCodeField, useEmailCodeRefusal } from "./email-code-field";
 vi.mock("next-intl", () => ({
   // Keys stand for their copy; the address shows where the copy puts it.
   useTranslations: () => (key: string, values?: { email?: string }) =>
-    values?.email ? `${key} ${values.email}` : key,
+    values?.email ? `${key} ${values.email}.` : key,
 }));
 
 /** The field is controlled; this holds its value the way every page does. */
@@ -232,13 +232,13 @@ describe("EmailCodeField", () => {
   it("describes the field by where the code went, and by the error once there is one", () => {
     const { rerender } = render(<Field />);
     expect(codeField()).not.toHaveAttribute("aria-invalid");
-    expect(codeField()).toHaveAccessibleDescription("sent ada@example.com");
+    expect(codeField()).toHaveAccessibleDescription("sent ada@example.com.");
 
     rerender(<Field error="That code is wrong." />);
 
     expect(codeField()).toHaveAttribute("aria-invalid", "true");
     expect(codeField()).toHaveAccessibleDescription(
-      "sent ada@example.com That code is wrong.",
+      "sent ada@example.com. That code is wrong.",
     );
   });
 
@@ -331,13 +331,13 @@ describe("EmailCodeField", () => {
 });
 
 describe("the hint's address", () => {
-  it("sits in its own box inside the sentence, so it is never split at a hyphen", () => {
+  it("sits in its own box with the full stop, so it moves to a new line whole and the stop never stands alone", () => {
     render(<Field />);
 
-    const address = screen.getByText("ada@example.com");
     const hint = screen.getByText("sent", { exact: false });
+    const address = screen.getByText("ada@example.com.");
     expect(address).not.toBe(hint);
     expect(hint).toContainElement(address);
-    expect(hint).toHaveTextContent("sent ada@example.com");
+    expect(codeField()).toHaveAccessibleDescription("sent ada@example.com.");
   });
 });
