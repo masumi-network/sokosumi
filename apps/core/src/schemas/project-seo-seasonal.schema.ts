@@ -1,6 +1,5 @@
 import { z } from "@hono/zod-openapi";
-
-import { publicExplorationText } from "@/helpers/project-seo-exploration-privacy";
+import { publicExplorationText } from "@sokosumi/utils";
 
 const period = z.string().regex(/^\d{4}-(?:0[1-9]|1[0-2])$/);
 const day = z.iso.date();

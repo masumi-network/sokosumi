@@ -1,9 +1,6 @@
 import { z } from "@hono/zod-openapi";
+import { publicExplorationText, publicExplorationUrl } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
-import {
-  publicExplorationText,
-  publicExplorationUrl,
-} from "@/helpers/project-seo-exploration-privacy";
 import { seoIdSchema, seoUrlSchema } from "./seo-page.schema";
 
 export const MAX_RANKED_DECISIONS = 5;

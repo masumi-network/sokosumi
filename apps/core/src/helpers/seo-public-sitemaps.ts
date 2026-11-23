@@ -1,8 +1,7 @@
 import { z } from "@hono/zod-openapi";
-import { isValidHttpUrl } from "@sokosumi/utils";
+import { isValidHttpUrl, publicExplorationUrl } from "@sokosumi/utils";
 
 import { seoUrlSchema } from "@/schemas/seo-page.schema";
-import { publicExplorationUrl } from "./project-seo-exploration-privacy";
 import { reportObject } from "./project-seo-public-report";
 
 function publicSitemapUrl(value: string) {

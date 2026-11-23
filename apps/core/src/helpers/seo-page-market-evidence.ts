@@ -1,6 +1,6 @@
 import { z } from "@hono/zod-openapi";
+import { publicExplorationUrl } from "@sokosumi/utils";
 import { seoPageMarketEvidence } from "@/schemas/seo-audit-coverage.schema";
-import { publicExplorationUrl } from "./project-seo-exploration-privacy";
 import type { PublicSeoPayload } from "./project-seo-report";
 import { auditedSeoPageKey } from "./project-seo-site-findings";
 

@@ -18,11 +18,8 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { runClaudeCodeJudge } from "@/lib/soko-bot/claude-code-judge";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
-import {
-  modelCallTelemetryFor,
-  recordModelCall,
-  withModelCallTurn,
-} from "@/lib/soko-bot/model-calls";
+import { modelCallTelemetryFor } from "@/lib/soko-bot/model-call-roles";
+import { recordModelCall, withModelCallTurn } from "@/lib/soko-bot/model-calls";
 import {
   assertSokoBotInferenceRegion,
   SokoBotModelPolicyError,
