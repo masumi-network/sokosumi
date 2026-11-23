@@ -206,3 +206,39 @@ export function relativeDay(date: string, today: string): string {
     timeZone: "UTC",
   });
 }
+
+/**
+ * One card per piece: a short video's copies on other networks (`alsoOn`
+ * before approval, `videoOf` entries after it) fold into the video, which
+ * lists every network it goes out on.
+ */
+export function foldCopies<
+  T extends {
+    id: string;
+    channel: string;
+    alsoOn?: string[] | null;
+    videoOf?: string | null;
+  },
+>(calendar: readonly T[]): { entry: T; channels: string[] }[] {
+  const ids = new Set(calendar.map((entry) => entry.id));
+  const copies = new Map<string, string[]>();
+  for (const entry of calendar) {
+    if (!entry.videoOf || !ids.has(entry.videoOf)) continue;
+    copies.set(entry.videoOf, [
+      ...(copies.get(entry.videoOf) ?? []),
+      entry.channel,
+    ]);
+  }
+  return calendar
+    .filter((entry) => !(entry.videoOf && ids.has(entry.videoOf)))
+    .map((entry) => ({
+      entry,
+      channels: [
+        ...new Set([
+          entry.channel,
+          ...(entry.alsoOn ?? []),
+          ...(copies.get(entry.id) ?? []),
+        ]),
+      ],
+    }));
+}

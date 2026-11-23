@@ -1341,9 +1341,8 @@ it("never blocks approval on a short month: one line, one number, Approve", asyn
   );
   expect(text()).not.toContain("promises about");
   expect(text()).not.toContain("Write it again");
-  expect(text()).toContain(
-    "Up to 3 posts a month. Nothing goes out until you approve.",
-  );
+  expect(text()).toContain("Up to 3 posts");
+  expect(text()).toContain("Nothing goes out until you approve.");
   expect(text()).toContain("Approve strategy");
 });
 

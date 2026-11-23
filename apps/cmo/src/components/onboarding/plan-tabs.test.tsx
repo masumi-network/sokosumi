@@ -32,7 +32,7 @@ const withMedia: Strategy = {
   ],
 };
 
-it("says the month is topics made after approval, with its pictures, videos and pillars", () => {
+it("says the month is topics made after approval, with its pictures and videos, no pillar chips", () => {
   const html = renderToStaticMarkup(
     <MonthPanel strategy={withMedia} onOpen={() => {}} pending />,
   );
@@ -40,7 +40,7 @@ it("says the month is topics made after approval, with its pictures, videos and 
   expect(html).toContain("5 posts · 1 with pictures · 1 video");
   expect(html).toContain('aria-label="Image"');
   expect(html).toContain('aria-label="Video"');
-  expect(html).toContain("Behind the build");
+  expect(html).not.toContain("Behind the build");
   expect(html).toContain("ob-entry pending");
 });
 
@@ -50,6 +50,53 @@ it("drops the topics note once the plan is approved", () => {
   );
   expect(html).not.toContain("These are the topics.");
   expect(html).not.toContain("ob-entry pending");
+});
+
+it("shows a short video and its copies as one card with every network", () => {
+  const video = {
+    date: "2026-10-08",
+    time: "08:30",
+    title: "Mint in one minute",
+    format: "video",
+    status: "scheduled" as const,
+  } as const;
+  const html = renderToStaticMarkup(
+    <MonthPanel
+      strategy={{
+        ...strategy,
+        calendar: [
+          {
+            ...video,
+            id: "v",
+            channel: "youtube",
+            alsoOn: ["instagram", "tiktok"],
+          },
+          { ...video, id: "v-ig", channel: "instagram", videoOf: "v" },
+          { ...video, id: "v-tt", channel: "tiktok", videoOf: "v" },
+        ],
+      }}
+      onOpen={() => {}}
+    />,
+  );
+  // Once in Up first, once on its day; the copies add no cards.
+  expect(html.match(/Mint in one minute/g)).toHaveLength(2);
+});
+
+it("shows three cards a day and opens the rest from +N more", () => {
+  const calendar = Array.from({ length: 5 }, (_, index) => ({
+    id: `p${index}`,
+    date: "2026-10-08",
+    time: `0${index}:00`,
+    channel: "x",
+    title: `Post ${index}`,
+    format: "text",
+    status: "scheduled" as const,
+  }));
+  const html = renderToStaticMarkup(
+    <MonthPanel strategy={{ ...strategy, calendar }} onOpen={() => {}} />,
+  );
+  expect(html).toContain("+2 more");
+  expect(html).not.toContain("Post 4");
 });
 
 it("shows each step's goal and its share of the month, and no network", () => {

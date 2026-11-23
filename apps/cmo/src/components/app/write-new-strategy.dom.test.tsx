@@ -6,7 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { cmoOverview } from "../../test-fixtures/cmo";
-import { WriteNewStrategy } from "./strategy-page";
+import { WriteNewStrategy } from "./write-new-strategy";
 
 let container: HTMLDivElement;
 let root: Root;

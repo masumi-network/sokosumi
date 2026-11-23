@@ -530,8 +530,8 @@ describe("pages", () => {
         connectMeasurement={async () => ({ url: null, error: null })}
       />,
     );
-    expect(html).toContain(strategy.summary);
     expect(html).toContain("40 trial sign-ups");
+    expect(html).toContain("Up to 1 post");
     expect(html).toContain("in your calendar");
     expect(html).not.toContain("Week 1");
     // Parts an older plan does not have stay out instead of showing empty.

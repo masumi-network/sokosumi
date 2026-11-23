@@ -802,7 +802,7 @@ body:has(.ob) .site-header {
 
 /* Facts to read, not rows to open: no box and no fill, only a hairline. */
 .ob-plan .ob-goal-facts {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   width: 100%;
   gap: 16px 24px;
   padding-top: 20px;
@@ -840,6 +840,19 @@ body:has(.ob) .site-header {
 
 .ob-goal-facts dd {
   margin: 2px 0 0;
+}
+
+/* Write a new strategy: a quiet button under the goal, not a bar. */
+.ob-plan-body > .button-small {
+  justify-self: center;
+}
+
+/* Where: the networks as marks, named for screen readers and on hover. */
+.ob-goal-networks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
 }
 
 /* Tiles: one idea a row, in one group; the row opens its sheet. */
@@ -1828,6 +1841,29 @@ body:has(.ob) .site-header {
 }
 
 /* Before approval a piece is a topic: a dashed outline until it is made. */
+/* "+N more": a quiet line under a day's first cards that opens the rest. */
+.ob-day-more {
+  justify-self: start;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--radius-mark);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ob-day-more:hover {
+  color: var(--foreground);
+}
+
+.ob-day-more:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
 .ob-entry.pending {
   border-style: dashed;
 }
@@ -1835,20 +1871,6 @@ body:has(.ob) .site-header {
 .ob-entry-media {
   margin-left: auto;
   color: var(--foreground);
-}
-
-.ob-entry-pillar {
-  justify-self: start;
-  max-width: 100%;
-  overflow: hidden;
-  margin-top: 2px;
-  padding: 0 6px;
-  border-radius: var(--radius-mark);
-  background: var(--surface);
-  color: var(--muted);
-  font-size: 0.6875rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .ob-month-pending {

@@ -12,7 +12,7 @@ interface GoalBlockProps {
   /** The long sentence under it, in the muted inverted colour. */
   statement?: string;
   headline?: boolean;
-  facts: { term: string; value: string }[];
+  facts: { term: string; value: ReactNode }[];
 }
 
 /** The plan's goal: an ink block that inverts again in dark. */
