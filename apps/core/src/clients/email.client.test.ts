@@ -37,7 +37,7 @@ describe("sendEmail", () => {
     vi.clearAllMocks();
   });
 
-  it("sends from RESEND_FROM_EMAIL with category tags and returns id", async () => {
+  it("sends as Sokosumi from RESEND_FROM_EMAIL with category tags and returns id", async () => {
     emailsSendMock.mockResolvedValue({
       data: { id: "email_123" },
       error: null,
@@ -56,7 +56,7 @@ describe("sendEmail", () => {
 
     expect(resendConstructorMock).toHaveBeenCalledWith("re_test_key");
     expect(emailsSendMock).toHaveBeenCalledWith({
-      from: "no-reply@example.com",
+      from: "Sokosumi <no-reply@example.com>",
       to: "user@example.com",
       subject: "Hello",
       html: "<p>Hi</p>",
@@ -81,13 +81,34 @@ describe("sendEmail", () => {
     });
 
     expect(emailsSendMock).toHaveBeenCalledWith({
-      from: "no-reply@example.com",
+      from: "Sokosumi <no-reply@example.com>",
       to: ["author@example.com"],
       bcc: ["ops@example.com"],
       subject: "Failure",
       html: "<p>Failed</p>",
       tags: [{ name: "category", value: "job-failure-notification" }],
     });
+  });
+
+  it("keeps a caller's own from unchanged", async () => {
+    emailsSendMock.mockResolvedValue({
+      data: { id: "email_from" },
+      error: null,
+    });
+
+    const { sendEmail } = await import("./email.client");
+
+    await sendEmail({
+      from: "Brand <news@example.com>",
+      to: "reader@example.com",
+      subject: "News",
+      html: "<p>News</p>",
+      tag: "newsletter",
+    });
+
+    expect(emailsSendMock).toHaveBeenCalledWith(
+      expect.objectContaining({ from: "Brand <news@example.com>" }),
+    );
   });
 
   it("throws ErrorResponse fields when Resend returns an API error", async () => {
@@ -207,14 +228,14 @@ describe("sendEmails", () => {
     expect(batchSendMock).toHaveBeenCalledTimes(1);
     expect(batchSendMock).toHaveBeenCalledWith([
       {
-        from: "no-reply@example.com",
+        from: "Sokosumi <no-reply@example.com>",
         to: "a@example.com",
         subject: "A",
         html: "<p>A</p>",
         tags: [{ name: "category", value: "job-final-status" }],
       },
       {
-        from: "no-reply@example.com",
+        from: "Sokosumi <no-reply@example.com>",
         to: "b@example.com",
         subject: "B",
         html: "<p>B</p>",
@@ -244,7 +265,7 @@ describe("sendEmails", () => {
 
     expect(batchSendMock).toHaveBeenCalledWith([
       {
-        from: "no-reply@example.com",
+        from: "Sokosumi <no-reply@example.com>",
         to: ["author@example.com"],
         bcc: ["ops@example.com"],
         subject: "Failure",

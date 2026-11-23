@@ -26,6 +26,13 @@ describe("JobsListHeader", () => {
     expect(screen.getByText("yourJobsCount:42")).toBeInTheDocument();
   });
 
+  it("says whose jobs these are before the count loads", () => {
+    render(<JobsListHeader agent={agent} />);
+
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(name);
+    expect(screen.getByText("yourJobs")).toBeInTheDocument();
+  });
+
   it("goes back to the agent's page, not the catalog", () => {
     render(<JobsListHeader agent={agent} total={1} />);
 

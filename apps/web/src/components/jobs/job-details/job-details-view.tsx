@@ -39,6 +39,7 @@ import JobDetailsName, {
 } from "./job-details-name";
 import { JobMetaDetails } from "./job-meta-details";
 import JobShareButton from "./job-share-button";
+import { JobStatusNotice } from "./job-status-notice";
 import { MoveJobToWorkspaceDialog } from "./move-job-to-workspace-dialog";
 import JobDetailsOutputs from "./outputs";
 import JobDetailsProvideInput from "./provide-input";
@@ -154,6 +155,8 @@ export default function JobDetailsView({
                 showInlineActions={!showAgentHeader}
                 controller={nameController}
               />
+
+              <JobStatusNotice job={job} canManage={canManage} />
 
               <div className="md:hidden">
                 <JobMetaDetails job={job} projectName={projectName} />

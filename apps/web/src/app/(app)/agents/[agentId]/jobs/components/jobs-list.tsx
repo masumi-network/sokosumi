@@ -6,7 +6,13 @@ import { makeAgentJobsChannelName } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useMemo, useState, useTransition } from "react";
+import {
+  type ReactNode,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 import { loadMoreOwnedAgentJobs } from "@/app/agents/[agentId]/jobs/actions";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
@@ -102,6 +108,7 @@ export function JobsList({
     () => new Map<string, JobStatusPatch>(),
   );
   const { searchValue, handleInputChange, handleClear } = useJobsSearchQuery();
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [isLoadingMore, startLoadMoreTransition] = useTransition();
   const activeJobId = selectedJobId ?? routeParams.jobId;
 
@@ -135,6 +142,10 @@ export function JobsList({
     () => filterJobsByQuery(localJobs, searchValue),
     [localJobs, searchValue],
   );
+
+  const query = searchValue.trim();
+  const isMiss =
+    query !== "" && localJobs.length > 0 && filteredJobs.length === 0;
 
   const dayGroups = useMemo(
     () => buildJobDayGroups(filteredJobs, locale),
@@ -223,6 +234,7 @@ export function JobsList({
           filteredCount={filteredJobs.length}
           totalCount={localJobs.length}
           hasMoreHistory={Boolean(nextCursor)}
+          inputRef={searchInputRef}
         />
 
         <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto px-2 pb-24 md:p-2 md:pr-4 md:pl-0 @4xl/jobs-panes:pb-2">
@@ -245,11 +257,39 @@ export function JobsList({
                 </ul>
               </section>
             ))
-          ) : (
-            <div className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 duration-200 px-2 py-8 text-sm text-pretty">
-              {localJobs.length > 0 ? t("noMatches") : t("emptyJobs")}
+          ) : !isMiss ? (
+            <p className="text-muted-foreground px-2 py-8 text-sm text-pretty">
+              {t("emptyJobs")}
+            </p>
+          ) : null}
+          {/* Stands empty from the start, so a miss typed into the field is
+              announced while focus stays there. The button sits outside: a
+              status region is read, not operated. */}
+          <p
+            role="status"
+            className={
+              isMiss
+                ? "text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 px-2 pt-8 text-sm text-pretty wrap-anywhere duration-200"
+                : "sr-only"
+            }
+          >
+            {isMiss ? t("noMatches", { query }) : null}
+          </p>
+          {isMiss ? (
+            <div className="px-2 pt-3 pb-8">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  handleClear();
+                  searchInputRef.current?.focus();
+                }}
+              >
+                {t("clearSearch")}
+              </Button>
             </div>
-          )}
+          ) : null}
           {nextCursor ? (
             <div className="flex justify-center px-2 pb-2">
               <Button
