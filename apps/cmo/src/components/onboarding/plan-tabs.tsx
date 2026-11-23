@@ -36,7 +36,7 @@ import {
   ChannelPlan,
   Mix,
   outcomeLine,
-  Pillars,
+  Topics,
 } from "../strategy-reveal";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
@@ -111,13 +111,14 @@ export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
           </div>
         </Section>
       ) : null}
-      {strategy.pillars.length > 0 ? (
-        <Section title="Content pillars">
-          <Pillars
-            pillars={strategy.pillars}
+      {mix.length > 0 ? (
+        <Section title="What the posts do">
+          <Mix
+            mix={mix}
             calendar={strategy.calendar}
-            made={overview.production.pillars}
+            business={businessDisplayName(overview)}
           />
+          <Topics pillars={strategy.pillars} />
         </Section>
       ) : null}
       {alternatives.length > 0 ? (
@@ -142,19 +143,18 @@ export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
       <Section title={`Where ${AGENT_NAME} works`} wide>
         <ChannelPlan strategy={strategy} />
       </Section>
-      <Everything overview={overview} strategy={strategy} />
+      <Everything strategy={strategy} />
     </div>
   );
 }
 
 /** The rest of the plan, closed until the founder wants it. */
-function Everything({ overview, strategy }: PlanPanelProps) {
+function Everything({ strategy }: Pick<PlanPanelProps, "strategy">) {
   const improvements = strategy.improvements ?? [];
   const beforeAfter = strategy.beforeAfter ?? [];
   if (
     !strategy.ladder &&
     !strategy.why &&
-    (strategy.mix ?? []).length === 0 &&
     improvements.length === 0 &&
     beforeAfter.length === 0
   ) {
@@ -163,15 +163,6 @@ function Everything({ overview, strategy }: PlanPanelProps) {
   return (
     <details className="ob-more">
       <summary>Everything in the strategy</summary>
-      {(strategy.mix ?? []).length > 0 ? (
-        <Section title="What the posts do">
-          <Mix
-            mix={strategy.mix ?? []}
-            calendar={strategy.calendar}
-            business={businessDisplayName(overview)}
-          />
-        </Section>
-      ) : null}
       {strategy.why ? (
         <Section title="Why this strategy">
           <p>{strategy.why}</p>
