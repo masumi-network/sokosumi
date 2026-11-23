@@ -52,9 +52,6 @@ export function useOtherWorkspaceRoomsLiveSync(
 
     const stopRoomsChanged = subscribeOrganizationChatRoomsChanged({
       onRemoved: (removedRoomId) => {
-        window.clearTimeout(timer);
-        timer = undefined;
-        lastReadAt = Date.now();
         void queryClient.cancelQueries({
           queryKey: chatQueryKeys.anyElsewhere(),
         });

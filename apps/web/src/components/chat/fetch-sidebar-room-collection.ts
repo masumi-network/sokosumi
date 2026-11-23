@@ -21,21 +21,60 @@ type SidebarRoomCollection =
   | "elsewhere"
   | "invitations";
 
-let queuedReads: Map<SidebarRoomCollection, ((raw: unknown) => void)[]> | null =
-  null;
+interface CollectionWaiter {
+  resolve: (raw: unknown) => void;
+  signal?: AbortSignal;
+}
 
-function readOneCollection(collection: SidebarRoomCollection) {
+let queuedReads: Map<SidebarRoomCollection, CollectionWaiter[]> | null = null;
+
+function linkAbortSignals(waiters: readonly CollectionWaiter[]): {
+  signal: AbortSignal | undefined;
+  cleanup: () => void;
+} {
+  if (waiters.length === 0 || waiters.some((waiter) => !waiter.signal)) {
+    return { signal: undefined, cleanup: () => {} };
+  }
+  const controller = new AbortController();
+  const onAbort = () => {
+    if (waiters.every((waiter) => waiter.signal?.aborted)) {
+      controller.abort();
+    }
+  };
+  for (const waiter of waiters) {
+    waiter.signal?.addEventListener("abort", onAbort, { once: true });
+  }
+  onAbort();
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      for (const waiter of waiters) {
+        waiter.signal?.removeEventListener("abort", onAbort);
+      }
+    },
+  };
+}
+
+function readOneCollection(
+  collection: SidebarRoomCollection,
+  signal?: AbortSignal,
+) {
   return fetchBackgroundJson(
     `/api/chat/rooms?collection=${collection}`,
     SIDEBAR_ROOM_REQUEST_TIMEOUT_MS,
+    undefined,
+    signal,
   );
 }
 
 async function readQueuedParts(
   collections: SidebarRoomCollection[],
+  signal?: AbortSignal,
 ): Promise<Map<SidebarRoomCollection, unknown>> {
   if (collections.length === 1) {
-    return new Map([[collections[0], await readOneCollection(collections[0])]]);
+    return new Map([
+      [collections[0], await readOneCollection(collections[0], signal)],
+    ]);
   }
   let status: number | undefined;
   const raw = await fetchBackgroundJson(
@@ -44,10 +83,13 @@ async function readQueuedParts(
     (answered) => {
       status = answered;
     },
+    signal,
   );
   // A server from before batched reads refuses the list: ask one by one.
   if (status === 400) {
-    const answers = await Promise.all(collections.map(readOneCollection));
+    const answers = await Promise.all(
+      collections.map((c) => readOneCollection(c, signal)),
+    );
     return new Map(collections.map((c, index) => [c, answers[index]]));
   }
   const parts = (raw as { data?: Record<string, unknown> } | null)?.data;
@@ -58,7 +100,7 @@ async function readQueuedParts(
     collections.map((c) => {
       const part = parts?.[c] ?? null;
       const stalled = (part as { stalled?: unknown } | null)?.stalled;
-      return [c, stalled === true ? readOneCollection(c) : part];
+      return [c, stalled === true ? readOneCollection(c, signal) : part];
     }),
   );
 }
@@ -67,22 +109,27 @@ async function sendQueuedReads(): Promise<void> {
   const batch = queuedReads;
   queuedReads = null;
   if (!batch) return;
-  // Every caller settles, even if the read threw: null, like any failure.
-  const parts = await readQueuedParts([...batch.keys()]).catch(
-    () => new Map<SidebarRoomCollection, unknown>(),
-  );
-  await Promise.all(
-    [...batch].map(async ([collection, waiters]) => {
-      const part = await Promise.resolve(parts.get(collection) ?? null).catch(
-        () => null,
-      );
-      // Each caller transforms its own copy: the generated transformers
-      // rewrite dates in place.
-      waiters.forEach((resolve, index) => {
-        resolve(index === 0 || part == null ? part : structuredClone(part));
-      });
-    }),
-  );
+  const { signal, cleanup } = linkAbortSignals([...batch.values()].flat());
+  try {
+    // Every caller settles, even if the read threw: null, like any failure.
+    const parts = await readQueuedParts([...batch.keys()], signal).catch(
+      () => new Map<SidebarRoomCollection, unknown>(),
+    );
+    await Promise.all(
+      [...batch].map(async ([collection, waiters]) => {
+        const part = await Promise.resolve(parts.get(collection) ?? null).catch(
+          () => null,
+        );
+        // Each caller transforms its own copy: the generated transformers
+        // rewrite dates in place.
+        waiters.forEach(({ resolve }, index) => {
+          resolve(index === 0 || part == null ? part : structuredClone(part));
+        });
+      }),
+    );
+  } finally {
+    cleanup();
+  }
 }
 
 /**
@@ -92,6 +139,7 @@ async function sendQueuedReads(): Promise<void> {
  */
 function readCollectionJson(
   collection: SidebarRoomCollection,
+  signal?: AbortSignal,
 ): Promise<unknown> {
   return new Promise((resolve) => {
     if (!queuedReads) {
@@ -99,24 +147,28 @@ function readCollectionJson(
       queueMicrotask(() => void sendQueuedReads());
     }
     const waiters = queuedReads.get(collection) ?? [];
-    waiters.push(resolve);
+    waiters.push({ resolve, signal });
     queuedReads.set(collection, waiters);
   });
 }
 
 export function fetchSidebarRoomCollection(
   collection: "invitations",
+  signal?: AbortSignal,
 ): Promise<ChatRoomInvitation[] | null>;
 export function fetchSidebarRoomCollection(
   collection: "elsewhere",
+  signal?: AbortSignal,
 ): Promise<ChatRoom[] | null>;
 export function fetchSidebarRoomCollection(
   collection: "active" | "archived",
+  signal?: AbortSignal,
 ): Promise<SidebarRoomsPage | null>;
 export async function fetchSidebarRoomCollection(
   collection: SidebarRoomCollection,
+  signal?: AbortSignal,
 ): Promise<SidebarRoomsPage | ChatRoom[] | ChatRoomInvitation[] | null> {
-  const data = await readCollectionJson(collection);
+  const data = await readCollectionJson(collection, signal);
   if (data == null) return null;
   try {
     if (collection === "invitations") {
