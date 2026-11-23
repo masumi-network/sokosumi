@@ -7,9 +7,10 @@ import { type Browser, chromium, type Page } from "playwright";
 import { resolveBaseUrl } from "./base-url.ts";
 import { createMailbox } from "./mailbox.ts";
 
-// A new user adds a second, overlapping CSV export to a Files Table: headers
-// match by name, an unknown header is left out, and the row already in the
-// Table is skipped. Each size signs up its own disposable mail.tm inbox.
+// A new user adds a second, overlapping CSV export to a Files Table: a file
+// whose headers fill nothing is refused, the same file chosen again after
+// fixing it is read, headers match by name, an unknown header is left out,
+// and the row already in the Table is skipped. Each size signs up its own disposable mail.tm inbox.
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 const WEEK_1 = ["Company,Contact", "Acme,Lena Ortiz", "Globex,Sam Reid"].join(
@@ -21,6 +22,9 @@ const WEEK_2 = [
   "Priya Shah,Initech,Web",
   "Tom Berg,Umbrella,Expo",
 ].join("\n");
+
+/** The same export before its headers were renamed to the Table's. */
+const WEEK_2_UNFIXED = WEEK_2.replace("contact,Company", "Person,Firm");
 
 const PROJECTS = [
   { name: "phone", width: 375, height: 812, isMobile: true },
@@ -87,7 +91,23 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await menu.click();
       await page.getByRole("menuitem", { name: "Add rows from CSV" }).click();
       const dialog = page.getByRole("dialog", { name: "Add rows from CSV" });
-      await dialog.locator('input[type="file"]').setInputFiles({
+      const picker = dialog.locator('input[type="file"]');
+      // First the export with unfixed headers: nothing to fill, Add disabled.
+      await picker.setInputFiles({
+        name: "week-2.csv",
+        mimeType: "text/csv",
+        buffer: Buffer.from(WEEK_2_UNFIXED),
+      });
+      await dialog
+        .getByText("No CSV column has the name of a text column")
+        .waitFor();
+      assert.ok(
+        await dialog.getByRole("button", { name: "Add rows" }).isDisabled(),
+      );
+      // The picker is cleared, so choosing the same file again after fixing
+      // its headers reads it again.
+      assert.equal(await picker.inputValue(), "");
+      await picker.setInputFiles({
         name: "week-2.csv",
         mimeType: "text/csv",
         buffer: Buffer.from(WEEK_2),

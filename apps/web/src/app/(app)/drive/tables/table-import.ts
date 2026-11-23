@@ -73,8 +73,8 @@ export function isNumericCsvColumn(header: string, values: string[]): boolean {
  * Plans adding CSV rows to an existing Table: headers match Text column
  * names ignoring case and outer spaces; every other header is skipped, so
  * other column types stay empty and no value is converted. A header that
- * names two columns, or two headers that name one column, are `ambiguous` and
- * plan no rows. `newRows` leaves out
+ * names two columns, or two headers that name one column, are `ambiguous`;
+ * then, or when no header names a Text column, it plans no rows. `newRows` leaves out
  * the rows whose matched cells equal an existing row's, so overlapping
  * exports can skip them.
  */
@@ -108,32 +108,33 @@ export function planCsvAppend(
   );
   const key = (values: TableRow["values"]) =>
     JSON.stringify(pairs.map(({ column }) => values[column.id] ?? null));
-  const rows = ambiguous.length
-    ? []
-    : csv.slice(1).map((cells, i) => {
-        try {
-          const row = tableInsertRowSchema.parse({
-            values: Object.fromEntries(
-              pairs.map(({ column, index }) => [
-                column.id,
-                parseTableInput(column, cells[index]),
-              ]),
-            ),
-          });
-          validateTableValues(
-            pairs.map(({ column }) => ({
-              ...column,
-              options: column.options ?? [],
-              description: "",
-            })),
-            row.values,
-            row.evidence,
-          );
-          return row;
-        } catch (error) {
-          throw new Error(describe(i + 2, error));
-        }
-      });
+  const rows =
+    ambiguous.length || !pairs.length
+      ? []
+      : csv.slice(1).map((cells, i) => {
+          try {
+            const row = tableInsertRowSchema.parse({
+              values: Object.fromEntries(
+                pairs.map(({ column, index }) => [
+                  column.id,
+                  parseTableInput(column, cells[index]),
+                ]),
+              ),
+            });
+            validateTableValues(
+              pairs.map(({ column }) => ({
+                ...column,
+                options: column.options ?? [],
+                description: "",
+              })),
+              row.values,
+              row.evidence,
+            );
+            return row;
+          } catch (error) {
+            throw new Error(describe(i + 2, error));
+          }
+        });
   const held = new Set(existing.map((row) => key(row.values)));
   return {
     matched: pairs.map(({ column }) => column.name),

@@ -119,6 +119,8 @@ it("plans no rows when no header names a Text column", () => {
   const plan = planCsvAppend([name, amount], [["Amount"], ["many"]], []);
   expect(plan.matched).toEqual([]);
   expect(plan.skipped).toEqual(["Amount"]);
+  expect(plan.rows).toEqual([]);
+  expect(plan.newRows).toEqual([]);
 });
 
 it("counts CSV rows the Table already holds in the matched columns", () => {

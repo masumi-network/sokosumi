@@ -89,14 +89,21 @@ export function TableAppendCsv({
     try {
       if (picked.size > 5_000_000) throw new Error(t("csvLimit"));
       const csv = parseTableCsv(await picked.text());
+      const plan = (existing: Pick<TableRow, "values">[]) =>
+        planCsvAppend(
+          table.columns,
+          csv,
+          existing,
+          (row, error) => `${t("row")} ${row}: ${tableError(error, t)}`,
+        );
+      // Headers that fill nothing are refused before scanning the Table.
+      const local = plan([]);
+      if (!local.rows.length) {
+        setFile({ name: picked.name, room: Infinity, plan: local });
+        return;
+      }
       const { rows, room } = await readTable(table.id);
-      const plan = planCsvAppend(
-        table.columns,
-        csv,
-        rows,
-        (row, error) => `${t("row")} ${row}: ${tableError(error, t)}`,
-      );
-      setFile({ name: picked.name, room, plan });
+      setFile({ name: picked.name, room, plan: plan(rows) });
     } catch (error) {
       setError(tableError(error, t));
     } finally {
@@ -274,7 +281,13 @@ function CsvPicker({
             type="file"
             accept=".csv,text/csv"
             disabled={disabled}
-            onChange={(event) => onPick(event.target.files?.[0])}
+            onChange={(event) => {
+              const picked = event.target.files?.[0];
+              // Clear, so choosing the same file again (after fixing its
+              // headers) still fires change.
+              event.target.value = "";
+              onPick(picked);
+            }}
           />
         </span>
       </div>

@@ -141,6 +141,12 @@ describe("TableAppendCsv", () => {
     expect(
       screen.getByText('appendCsv.skipped {"columns":"Amount"}'),
     ).toBeTruthy();
+    // Headers that cannot fill anything never scan the Table.
+    expect(f.query).not.toHaveBeenCalled();
+    // Cleared, so choosing the same file again after fixing it fires change.
+    expect(
+      (screen.getByLabelText("appendCsv.file") as HTMLInputElement).value,
+    ).toBe("");
     expect(
       screen
         .getByRole("button", { name: 'appendCsv.add {"count":0}' })
