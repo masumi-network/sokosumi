@@ -40,8 +40,10 @@ export const chatQueryKeys = {
   sidebarRooms: (scope: ChatQueryScopeInput) => chatKey(scope, "sidebar-rooms"),
   sidebarRoomCollection: (scope: ChatQueryScopeInput, collection: string) =>
     chatKey(scope, "sidebar-rooms", collection),
-  roster: (scope: ChatQueryScopeInput, roomId: string) =>
-    chatKey(scope, "roster", roomId),
+  roster: (scope: ChatQueryScopeInput, roomId: string, promiseId?: number) =>
+    promiseId === undefined
+      ? chatKey(scope, "roster", roomId)
+      : chatKey(scope, "roster", roomId, promiseId),
   transcripts: (scope: ChatQueryScopeInput) => chatKey(scope, "transcript"),
   transcript: (scope: ChatQueryScopeInput, roomId: string) =>
     chatKey(scope, "transcript", roomId),
