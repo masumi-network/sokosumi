@@ -1,16 +1,20 @@
-import { Pool } from "pg";
+import type { Pool } from "pg";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Network } from "@/lib/network";
 
 const mocks = vi.hoisted(() => ({
   attachDatabasePool: vi.fn(),
+  attachedPools: [] as Pool[],
   captureException: vi.fn(),
   createPrismaClient: vi.fn(),
 }));
 vi.mock("@vercel/functions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@vercel/functions")>()),
-  attachDatabasePool: mocks.attachDatabasePool,
+  attachDatabasePool: (pool: Pool) => {
+    mocks.attachedPools.push(pool);
+    mocks.attachDatabasePool(pool);
+  },
 }));
 vi.mock("@sentry/node", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@sentry/node")>()),
@@ -51,13 +55,22 @@ async function loadClients(
   delete cache.coreDatabase;
   for (const name of SCHEMA_VARIABLES) vi.stubEnv(name, schemas[name]);
   mocks.attachDatabasePool.mockClear();
+  mocks.attachedPools.length = 0;
   mocks.createPrismaClient.mockClear();
-  const query = vi
-    .spyOn(Pool.prototype, "query")
-    .mockImplementation(() => Promise.resolve(EMPTY_RESULT));
   const module = await importClients();
-  const [pool] = mocks.attachDatabasePool.mock.calls[0] ?? [];
-  if (!(pool instanceof Pool)) throw new Error("No pool was attached");
+  // The attached instance itself, not `instanceof`: a module reset can load
+  // another copy of `pg`, whose Pool class is a different object.
+  const [pool, ...others] = mocks.attachedPools;
+  if (!pool || others.length > 0) {
+    throw new Error(
+      `Expected one attached pool, got ${mocks.attachedPools.length}`,
+    );
+  }
+  // Spying on that instance: a client with its own pool would reach the
+  // network and fail, not land in this spy.
+  const query = vi
+    .spyOn(pool, "query")
+    .mockImplementation(() => Promise.resolve(EMPTY_RESULT));
   return { ...module, query, pool };
 }
 
