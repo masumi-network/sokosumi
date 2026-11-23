@@ -8,7 +8,7 @@ import {
   validateTableValues,
 } from "@sokosumi/utils";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Upload } from "lucide-react";
+import { Plus, Table, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
@@ -48,8 +48,11 @@ export const TABLE_TYPES: TableColumn["type"][] = [
 ];
 export function TableCreateDialog({
   workspaceId,
+  csvFile,
 }: {
   workspaceId: string | null;
+  /** A CSV already in Files: the trigger reads it into the import, ready to map. */
+  csvFile?: { url: string; name: string };
 }) {
   const t = useTranslations("App.Tables");
   const router = useRouter();
@@ -109,6 +112,30 @@ export function TableCreateDialog({
       setError("");
     } catch (error) {
       setError(tableError(error, t));
+    }
+  }
+  async function handleOpenChange(value: boolean) {
+    if (pending) return;
+    setOpen(value);
+    if (!value || !csvFile || csv.length) return;
+    setPending(true);
+    try {
+      const response = await fetch(csvFile.url);
+      if (!response.ok)
+        throw Object.assign(new Error(response.statusText), {
+          error:
+            response.status === 404
+              ? "NotFound"
+              : response.status === 403
+                ? "Forbidden"
+                : "Request",
+        });
+      setTitle(csvFile.name.replace(/\.csv$/i, ""));
+      await handleCsv(new File([await response.blob()], csvFile.name));
+    } catch (error) {
+      setError(tableError(error, t));
+    } finally {
+      setPending(false);
     }
   }
   async function handleCreate() {
@@ -178,22 +205,34 @@ export function TableCreateDialog({
     }
   }
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(value) => {
-        if (!pending) setOpen(value);
-      }}
-    >
+    <Dialog open={open} onOpenChange={(value) => void handleOpenChange(value)}>
       <DialogTrigger asChild>
-        {/* The Files toolbar states the house rule for this row: 32px
-        controls, and the view's own create action is the solid one. */}
-        {/* This trigger sits inside the drive header row's `@container`, so it
+        {csvFile ? (
+          // Matches the file viewer's header buttons: icon on phones, label from sm.
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-10 sm:w-auto sm:gap-1.5 sm:px-3 md:h-8"
+            aria-label={t("openAsTable")}
+            title={t("openAsTable")}
+          >
+            <Table className="size-3.5" aria-hidden />
+            <span className="hidden sm:inline">{t("openAsTable")}</span>
+          </Button>
+        ) : (
+          /* The Files toolbar states the house rule for this row: 32px
+        controls, and the view's own create action is the solid one. */
+          /* This trigger sits inside the drive header row's `@container`, so it
         takes that row's shared height rather than open-coding one: a control
-        here taller than the tab strip lifts the row and moves the strip. */}
-        <Button size="sm" className={cn("gap-1.5", DRIVE_HEADER_CONTROL_CLASS)}>
-          <Plus aria-hidden className="size-4" />
-          {t("newTable")}
-        </Button>
+        here taller than the tab strip lifts the row and moves the strip. */
+          <Button
+            size="sm"
+            className={cn("gap-1.5", DRIVE_HEADER_CONTROL_CLASS)}
+          >
+            <Plus aria-hidden className="size-4" />
+            {t("newTable")}
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="app-scrollbar max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>

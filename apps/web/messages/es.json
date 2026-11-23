@@ -11798,6 +11798,7 @@
     "Tables": {
       "tables": "Tablas",
       "newTable": "Nueva tabla",
+      "openAsTable": "Abrir como tabla",
       "createDescription": "Empieza con una tabla vacía o importa un archivo CSV.",
       "title": "Título",
       "description": "Descripción",

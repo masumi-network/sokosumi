@@ -11,6 +11,7 @@ import {
   effectiveType,
 } from "@/app/drive/components/drive-file-preview";
 import { GoogleSheetBar } from "@/app/drive/components/google-sheet-bar";
+import { TableCreateDialog } from "@/app/drive/tables/table-create-dialog";
 import { CapTableFileView } from "@/components/cap-table/cap-table-view";
 import { SpreadsheetFileView } from "@/components/spreadsheet/spreadsheet-view";
 import { TeamFileView } from "@/components/team/team-view";
@@ -85,7 +86,18 @@ export function DriveFileViewer({
   if (isTeamFileName(file.displayName) || capTable || sheet) {
     // Same header as every other file: a table preview still needs Download.
     return (
-      <FileMediaDialog {...media} media={null}>
+      <FileMediaDialog
+        {...media}
+        media={null}
+        action={
+          sheet === "csv" ? (
+            <TableCreateDialog
+              workspaceId={store.organizationId ?? null}
+              csvFile={{ url, name: file.displayName }}
+            />
+          ) : null
+        }
+      >
         {capTable ? (
           <CapTableFileView url={url} />
         ) : sheet ? (
@@ -153,6 +165,8 @@ export interface FileMediaDialogProps {
   onClose: () => void;
   /** A preview to show in place of the player or the download fallback. */
   children?: ReactNode;
+  /** One more header button, before Details. */
+  action?: ReactNode;
 }
 
 /**
@@ -168,6 +182,7 @@ export function FileMediaDialog({
   media,
   onClose,
   children,
+  action,
 }: FileMediaDialogProps) {
   const t = useTranslations("App.Drive.Files");
   const sizeLabel = formatBytes(sizeBytes);
@@ -205,6 +220,7 @@ export function FileMediaDialog({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+            {action}
             {detailsHref ? (
               <Button
                 asChild
