@@ -437,6 +437,19 @@ describe("ChatRoomSidebarRow row height", () => {
   }
 
   it("adds nothing to the row primitive's height on an ordinary room", () => {
+    expect(
+      render(
+        <ChatRoomSidebarRow
+          room={makeRoom()}
+          href="/chat/rooms/room-1"
+          label="general"
+          isActive={false}
+          leading={<span>#</span>}
+          onRoomUpdated={vi.fn()}
+        />,
+      ).container.querySelector('[data-slot="room-status-reveal"]'),
+    ).toBeNull();
+
     // `h-11 md:h-7` lives on `sidebarMenuButtonVariants`, pinned by
     // `ui/__tests__/sidebar-geometry.test.tsx`. A room row used to
     // restate it here, which is how the two could drift apart.
@@ -484,9 +497,15 @@ describe("ChatRoomSidebarRow status", () => {
       />,
     );
 
-    const status = screen.getByText("Active 1m ago").parentElement;
+    const [status] = screen
+      .getAllByText("Active 1m ago")
+      .map((element) => element.parentElement);
     expect(status).toHaveAttribute("aria-hidden");
     expect(status?.parentElement).toHaveTextContent("JunoActive 1m ago");
+    // The full words, for keyboard focus to reveal under the row.
+    const reveal = container.querySelector('[data-slot="room-status-reveal"]');
+    expect(reveal).toHaveTextContent("Active 1m ago");
+    expect(reveal).toHaveAttribute("aria-hidden");
     // One line still: the status shares the name's.
     expect(
       container

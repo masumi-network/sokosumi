@@ -256,9 +256,10 @@ function MentionBadge({
  * technology: the row's leading mark announces the status, in full.
  *
  * In a narrow row the status gives way first, ending in an ellipsis and then
- * going altogether, so the name keeps the line and stays whole. A translated status runs long ("Konnte nicht antworten"
- * beside a focused row's menu in a 192px sidebar), and a row whose name is
- * cut off no longer says who the Direct is with.
+ * going altogether, so the name keeps the line and stays whole. A translated
+ * status runs long ("Konnte nicht antworten" beside a focused row's menu in a
+ * 192px sidebar), and a row whose name is cut off no longer says who the
+ * Direct is with. `RoomRowStatusReveal` shows what was cut.
  */
 export function RoomRowNameLine({
   name,
@@ -273,6 +274,24 @@ export function RoomRowNameLine({
       <span aria-hidden className="ml-auto flex min-w-0">
         {status}
       </span>
+    </span>
+  );
+}
+
+/**
+ * The status in full, under the row while its link has keyboard focus, so a
+ * status the name line shortened or dropped can still be read. Wraps inside
+ * the row's width. Hidden from assistive technology like the line itself:
+ * the link's name already carries the full words.
+ */
+export function RoomRowStatusReveal({ status }: { status: ReactNode }) {
+  return (
+    <span
+      aria-hidden
+      data-slot="room-status-reveal"
+      className="bg-popover text-popover-foreground pointer-events-none absolute top-full right-1 left-1 z-20 mt-1 hidden rounded-md border px-2 py-1 shadow-md group-has-[a:focus-visible]/room-row:block *:overflow-visible *:whitespace-normal"
+    >
+      {status}
     </span>
   );
 }
@@ -574,6 +593,7 @@ export function ChatRoomSidebarRow({
           the inset thread rows that follow it inside the same item. */}
       <div data-slot="room-row-main" className="group/room-row relative">
         {roomButton}
+        {status ? <RoomRowStatusReveal status={status} /> : null}
         <div data-slot="room-trailing" className={TRAILING_CLUSTER_CLASS}>
           {hasTile ? (
             <RoomWorkspaceTile
