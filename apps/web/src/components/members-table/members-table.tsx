@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { useIsMobile } from "@/hooks/effects/use-mobile";
+import { useMediaQuery } from "@/hooks/effects/use-media-query";
 import { InvitationDisplayStatus } from "@/lib/constants/invitation-display-status";
 import type { OrganizationMembershipSelf } from "@/lib/types/core-dto";
 import { rankPageItems } from "@/lib/utils/page-search";
@@ -58,7 +58,8 @@ export default function MembersTable({
   // Shared by the column headers and the phone's Sort menu, so a sort
   // survives a resize.
   const [sorting, setSorting] = useState<SortingState>([]);
-  const compact = useIsMobile();
+  // Phones and tablets: below Tailwind `lg` the five columns clip in the card.
+  const compact = useMediaQuery(COMPACT_MEDIA_QUERY);
 
   // The card's own field searches every page: names first, then emails.
   const rows = rankPageItems(
@@ -147,7 +148,9 @@ export default function MembersTable({
   );
 }
 
-/** Phones hide Email and Last seen, so their sorts move to this menu. */
+const COMPACT_MEDIA_QUERY = "not all and (min-width: 1024px)";
+
+/** Compact rows hide Email and Last seen, so their sorts move to this menu. */
 function MembersSortMenu({
   sorting,
   onSortingChange,

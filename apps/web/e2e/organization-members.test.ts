@@ -96,8 +96,8 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       }
       await search.fill("");
       await row.waitFor();
-      if (name === "phone") {
-        // Email and Last seen are hidden here; their sorts live in Sort.
+      if (name !== "desktop") {
+        // Phones and tablets hide Email and Last seen; their sorts live in Sort.
         await members.getByRole("button", { name: "Sort" }).click();
         await page
           .getByRole("menuitemradio", { name: "Email, descending" })

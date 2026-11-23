@@ -17,8 +17,11 @@ const { cancelInvitation, refresh, mobile } = vi.hoisted(() => ({
   mobile: { value: false },
 }));
 
-vi.mock("@/hooks/effects/use-mobile", () => ({
-  useIsMobile: () => mobile.value,
+vi.mock("@/hooks/effects/use-media-query", () => ({
+  useMediaQuery: (query: string) => {
+    expect(query).toBe("not all and (min-width: 1024px)");
+    return mobile.value;
+  },
 }));
 
 vi.mock("next-intl", () => ({

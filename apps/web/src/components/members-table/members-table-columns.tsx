@@ -146,7 +146,7 @@ export function getMembersTableColumnList(
   },
 ) {
   const cols = getMembersTableColumns(t, me);
-  // Phones keep every column so its sort still applies; the table hides
+  // Compact rows (phones, tablets) keep every column so its sort still applies; the table hides
   // COMPACT_HIDDEN_COLUMNS and shrinks role and actions to their content.
   const fit = options.compact ? { size: 1, minSize: 0 } : {};
   return columnHelper.columns([
