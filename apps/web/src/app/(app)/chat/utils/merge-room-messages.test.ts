@@ -247,6 +247,38 @@ describe("applyFullChatRoomMessageEvent", () => {
     expect(next).toHaveLength(1);
     expect(next[0]?.deletedAt).not.toBeNull();
   });
+
+  it("ignores an edit for a message not yet loaded instead of creating it", () => {
+    const loaded = [message("m10", "2026-07-01T10:10:00.000Z", "loaded")];
+    const unloadedEdited = {
+      ...message("m1", "2026-07-01T10:00:00.000Z", "edited older message"),
+      editedAt: new Date("2026-07-01T10:15:00.000Z"),
+    };
+
+    const next = applyFullChatRoomMessageEvent(loaded, {
+      eventType: "update",
+      message: unloadedEdited,
+    });
+
+    expect(next).toBe(loaded);
+    expect(next.map((row) => row.id)).toEqual(["m10"]);
+  });
+
+  it("ignores a tombstone delete for a message not yet loaded instead of creating it", () => {
+    const loaded = [message("m10", "2026-07-01T10:10:00.000Z", "loaded")];
+    const unloadedDeleted = {
+      ...message("m1", "2026-07-01T10:00:00.000Z", ""),
+      deletedAt: new Date("2026-07-01T10:15:00.000Z"),
+    };
+
+    const next = applyFullChatRoomMessageEvent(loaded, {
+      eventType: "delete",
+      message: unloadedDeleted,
+    });
+
+    expect(next).toBe(loaded);
+    expect(next.map((row) => row.id)).toEqual(["m10"]);
+  });
 });
 
 describe("applyThreadUnreadReplyCounts", () => {

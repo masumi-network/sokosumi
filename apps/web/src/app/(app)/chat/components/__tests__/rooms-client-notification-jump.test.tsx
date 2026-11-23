@@ -456,7 +456,7 @@ describe("RoomsClient notification deep link", () => {
       await headPage;
     });
 
-    expect(screen.getByText("head body")).toBeInTheDocument();
+    expect(await screen.findByText("head body")).toBeInTheDocument();
     // And the window the reader was sent to is still there beside it.
     expect(screen.getByText("window body")).toBeInTheDocument();
   });

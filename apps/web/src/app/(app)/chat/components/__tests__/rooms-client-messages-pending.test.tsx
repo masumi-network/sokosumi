@@ -347,14 +347,16 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
     );
     expect(screen.getByTestId("room-session-composer")).toBe(composer);
     expect(composer).toHaveAttribute("data-focus-on-mount", "true");
-    expect(rememberRoomRead).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: "room-channel",
-        unreadCount: 0,
-        unreadMentionCount: 0,
-        markedUnread: false,
-      }),
-    );
+    await waitFor(() => {
+      expect(rememberRoomRead).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "room-channel",
+          unreadCount: 0,
+          unreadMentionCount: 0,
+          markedUnread: false,
+        }),
+      );
+    });
     expect(markOrganizationChatRoomReadAction).toHaveBeenCalledWith(
       "room-channel",
     );

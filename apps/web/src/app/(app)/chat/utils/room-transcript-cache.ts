@@ -407,7 +407,7 @@ export class RoomTranscriptCache {
     for (const key of this.reads.keys()) {
       if (JSON.parse(key)[0] === roomId) this.reads.delete(key);
     }
-    this.client.removeQueries({ queryKey: this.key(roomId), exact: true });
+    this.client.removeQueries({ queryKey: this.key(roomId) });
   }
   clear() {
     this.valid = false;

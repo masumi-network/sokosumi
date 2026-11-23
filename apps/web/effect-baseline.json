@@ -1,7 +1,6 @@
 {
   "src/app/(app)/calendar/components/workspace-calendar.tsx": 1,
   "src/app/(app)/chat/components/persistent-room-view.tsx": 1,
-  "src/app/(app)/chat/components/room-messages-hydrator.tsx": 1,
   "src/app/(app)/chat/components/rooms-client.tsx": 3,
   "src/app/(app)/chat/components/thread-list-panel.tsx": 1,
   "src/app/(app)/chat/components/transcript-viewport.tsx": 2,

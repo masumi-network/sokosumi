@@ -85,6 +85,13 @@ describe("chatQueryKeys", () => {
       "transcript",
       "room_1",
     ]);
+    expect(chatQueryKeys.transcript(scopeA, "room_1", 3)).toEqual([
+      scopeA,
+      "chat",
+      "transcript",
+      "room_1",
+      3,
+    ]);
     expect(chatQueryKeys.elsewhere(scopeA)).toEqual([
       scopeA,
       "chat",
