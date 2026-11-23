@@ -45,14 +45,8 @@ export const chatQueryKeys = {
       ? chatKey(scope, "roster", roomId)
       : chatKey(scope, "roster", roomId, promiseId),
   transcripts: (scope: ChatQueryScopeInput) => chatKey(scope, "transcript"),
-  transcript: (
-    scope: ChatQueryScopeInput,
-    roomId: string,
-    promiseId?: number,
-  ) =>
-    promiseId === undefined
-      ? chatKey(scope, "transcript", roomId)
-      : chatKey(scope, "transcript", roomId, promiseId),
+  transcript: (scope: ChatQueryScopeInput, roomId: string) =>
+    chatKey(scope, "transcript", roomId),
   noRoomTranscript: () => chatKey({}, "transcript", "no-room"),
   anyTranscript: () => anyChatScopeKey("transcript"),
   elsewhere: (scope: ChatQueryScopeInput) => chatKey(scope, "elsewhere"),

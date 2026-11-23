@@ -268,10 +268,6 @@ function sampleMessage(
   };
 }
 
-function settledMessages(messages: ChatRoomMessage[] = []) {
-  return Promise.resolve({ messages, nextCursor: null, failed: false });
-}
-
 const baseProps = roomsClientBaseProps();
 
 /**
@@ -302,9 +298,7 @@ describe("RoomsClient notification deep link", () => {
   });
 
   it("does not read a message when the URL names none", async () => {
-    renderWithQueryClient(
-      <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
-    );
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
 
     await waitFor(() => {
       expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
@@ -320,9 +314,7 @@ describe("RoomsClient notification deep link", () => {
       value: null,
     });
 
-    renderWithQueryClient(
-      <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
-    );
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
 
     await waitFor(() => {
       expect(getRoomMessageAction).toHaveBeenCalledWith(
@@ -339,9 +331,7 @@ describe("RoomsClient notification deep link", () => {
       value: null,
     });
 
-    renderWithQueryClient(
-      <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
-    );
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith("/chat/rooms/room-channel", {
@@ -357,9 +347,7 @@ describe("RoomsClient notification deep link", () => {
       value: null,
     });
 
-    renderWithQueryClient(
-      <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
-    );
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith(
@@ -376,9 +364,7 @@ describe("RoomsClient notification deep link", () => {
       value: null,
     });
 
-    renderWithQueryClient(
-      <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
-    );
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
 
     await waitFor(() => {
       expect(getRoomMessageAction).toHaveBeenCalled();
@@ -395,9 +381,7 @@ describe("RoomsClient notification deep link", () => {
       error: { message: "boom" },
     } as never);
 
-    renderWithQueryClient(
-      <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
-    );
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
 
     await waitFor(() => {
       expect(listRoomMessagesAction).toHaveBeenCalledWith("room-channel", {
@@ -410,9 +394,7 @@ describe("RoomsClient notification deep link", () => {
   it("ignores a message parameter that is only spaces", async () => {
     mockSearch.current = "message=%20%20";
 
-    renderWithQueryClient(
-      <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
-    );
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
 
     await waitFor(() => {
       expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
@@ -434,9 +416,7 @@ describe("RoomsClient notification deep link", () => {
       },
     });
 
-    const { rerender } = renderWithQueryClient(
-      <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
-    );
+    const { rerender } = renderWithQueryClient(<RoomsClient {...baseProps} />);
 
     await waitFor(() => {
       expect(listRoomMessagesAction).toHaveBeenCalledWith("room-channel", {
@@ -450,13 +430,16 @@ describe("RoomsClient notification deep link", () => {
     // window around an old message and leaves the head on screen, so the room
     // still looks live to the reader, and a room that looks live must not
     // silently drop what arrives in it.
-    const headPage = settledMessages([sampleMessage("head body", "msg-head")]);
     await act(async () => {
-      rerender(<RoomsClient {...baseProps} messagesPromise={headPage} />);
-      await headPage;
+      rerender(
+        <RoomsClient
+          {...baseProps}
+          messages={[sampleMessage("head body", "msg-head")]}
+        />,
+      );
     });
 
-    expect(await screen.findByText("head body")).toBeInTheDocument();
+    expect(screen.getByText("head body")).toBeInTheDocument();
     // And the window the reader was sent to is still there beside it.
     expect(screen.getByText("window body")).toBeInTheDocument();
   });
@@ -496,9 +479,7 @@ describe("RoomsClient notification deep link", () => {
       value: { messages: [reply], nextCursor: null },
     });
 
-    renderWithQueryClient(
-      <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
-    );
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
 
     // A reply never appears in the room timeline, so landing on the message a
     // notification named means opening the thread that holds it. The id the
@@ -561,12 +542,7 @@ describe("RoomsClient notification deep link", () => {
 
     // The parent is in the loaded page, so the thread never has to be fetched
     // for it and the transcript has a row to land on.
-    renderWithQueryClient(
-      <RoomsClient
-        {...baseProps}
-        messagesPromise={settledMessages([parent])}
-      />,
-    );
+    renderWithQueryClient(<RoomsClient {...baseProps} messages={[parent]} />);
 
     await waitFor(() => {
       expect(screen.getByTestId("thread-panel")).toHaveAttribute(
@@ -622,10 +598,7 @@ describe("RoomsClient notification deep link", () => {
     });
 
     const view = renderWithQueryClient(
-      <RoomsClient
-        {...baseProps}
-        messagesPromise={settledMessages([parent])}
-      />,
+      <RoomsClient {...baseProps} messages={[parent]} />,
     );
 
     const transcriptParent = () =>
@@ -644,12 +617,7 @@ describe("RoomsClient notification deep link", () => {
     }
 
     mockSearch.current = "message=msg-reply-2";
-    view.rerender(
-      <RoomsClient
-        {...baseProps}
-        messagesPromise={settledMessages([parent])}
-      />,
-    );
+    view.rerender(<RoomsClient {...baseProps} messages={[parent]} />);
 
     // The second reply is rendered in the panel already. It must not be taken
     // for a landing: the room behind the panel still has to move.
@@ -708,9 +676,7 @@ describe("RoomsClient notification deep link", () => {
       }),
     );
 
-    const { rerender } = renderWithQueryClient(
-      <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
-    );
+    const { rerender } = renderWithQueryClient(<RoomsClient {...baseProps} />);
 
     await waitFor(() => {
       expect(getRoomThreadAction).toHaveBeenCalledWith(
@@ -727,7 +693,6 @@ describe("RoomsClient notification deep link", () => {
         {...baseProps}
         rooms={[channelRoom(), otherRoom]}
         selectedRoomId="room-other"
-        messagesPromise={settledMessages()}
       />,
     );
 
@@ -765,9 +730,7 @@ describe("RoomsClient notification deep link", () => {
       }),
     );
 
-    const { rerender } = renderWithQueryClient(
-      <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
-    );
+    const { rerender } = renderWithQueryClient(<RoomsClient {...baseProps} />);
 
     await waitFor(() => {
       expect(getRoomThreadAction).toHaveBeenCalledWith(
@@ -782,7 +745,6 @@ describe("RoomsClient notification deep link", () => {
         {...baseProps}
         rooms={[channelRoom(), otherRoom]}
         selectedRoomId="room-other"
-        messagesPromise={settledMessages()}
       />,
     );
     const releasesBeforeTheMove =
@@ -828,7 +790,6 @@ describe("RoomsClient notification deep link", () => {
           {...baseProps}
           rooms={[channelRoom(), otherRoom()]}
           selectedRoomId="room-other"
-          messagesPromise={settledMessages()}
         />,
       );
     }
@@ -848,7 +809,7 @@ describe("RoomsClient notification deep link", () => {
       );
 
       const { rerender } = renderWithQueryClient(
-        <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
+        <RoomsClient {...baseProps} />,
       );
 
       await waitFor(() => {
@@ -889,7 +850,7 @@ describe("RoomsClient notification deep link", () => {
       );
 
       const { rerender } = renderWithQueryClient(
-        <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
+        <RoomsClient {...baseProps} />,
       );
 
       // The hold is taken for room-channel before the window is asked for.
@@ -929,7 +890,7 @@ describe("RoomsClient notification deep link", () => {
       );
 
       const { rerender } = renderWithQueryClient(
-        <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
+        <RoomsClient {...baseProps} />,
       );
 
       const hit = await screen.findByTestId("search-hit");
@@ -980,11 +941,7 @@ describe("RoomsClient notification deep link", () => {
       );
 
       const { rerender } = renderWithQueryClient(
-        <RoomsClient
-          {...baseProps}
-          messages={[parent]}
-          messagesPromise={settledMessages([parent])}
-        />,
+        <RoomsClient {...baseProps} messages={[parent]} />,
       );
 
       await waitFor(() => {
@@ -1039,11 +996,7 @@ describe("RoomsClient notification deep link", () => {
       );
 
       const { rerender } = renderWithQueryClient(
-        <RoomsClient
-          {...baseProps}
-          messages={[parent]}
-          messagesPromise={settledMessages([parent])}
-        />,
+        <RoomsClient {...baseProps} messages={[parent]} />,
       );
 
       await waitFor(() => {
@@ -1066,7 +1019,6 @@ describe("RoomsClient notification deep link", () => {
   it("keeps the latest rendered notification target when an older window finishes", async () => {
     mockSearch.current = "message=msg-1";
     const latest = sampleMessage("latest target", "msg-2");
-    const page = settledMessages([latest]);
     vi.mocked(getRoomMessageAction).mockResolvedValue({
       ok: true,
       value: sampleMessage("older target", "msg-1"),
@@ -1086,7 +1038,7 @@ describe("RoomsClient notification deep link", () => {
         }),
     );
     const { rerender } = renderWithQueryClient(
-      <RoomsClient {...baseProps} messages={[latest]} messagesPromise={page} />,
+      <RoomsClient {...baseProps} messages={[latest]} />,
     );
     await waitFor(() => {
       expect(listRoomMessagesAction).toHaveBeenCalledWith("room-channel", {
@@ -1096,9 +1048,7 @@ describe("RoomsClient notification deep link", () => {
     });
 
     mockSearch.current = "message=msg-2";
-    rerender(
-      <RoomsClient {...baseProps} messages={[latest]} messagesPromise={page} />,
-    );
+    rerender(<RoomsClient {...baseProps} messages={[latest]} />);
     await waitFor(() => expect(mockReplace).toHaveBeenCalledTimes(2));
     expect(getRoomMessageAction).toHaveBeenCalledTimes(1);
     await act(async () => finishWindow());
@@ -1136,17 +1086,13 @@ describe("RoomsClient notification deep link", () => {
         }),
     );
 
-    const { rerender } = renderWithQueryClient(
-      <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
-    );
+    const { rerender } = renderWithQueryClient(<RoomsClient {...baseProps} />);
     await waitFor(() => {
       expect(windows.has("msg-1")).toBe(true);
     });
 
     mockSearch.current = "message=msg-2";
-    rerender(
-      <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
-    );
+    rerender(<RoomsClient {...baseProps} />);
     await waitFor(() => {
       expect(windows.has("msg-2")).toBe(true);
     });
@@ -1189,9 +1135,7 @@ describe("RoomsClient notification deep link", () => {
       error: { code: "NOT_FOUND", message: "Could not load thread." },
     });
 
-    renderWithQueryClient(
-      <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
-    );
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
 
     const hit = await screen.findByTestId("search-hit");
     await act(async () => {
@@ -1219,9 +1163,7 @@ describe("RoomsClient notification deep link", () => {
       error: { code: "INTERNAL_ERROR", message: "Server error" },
     });
 
-    renderWithQueryClient(
-      <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
-    );
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Server error");
@@ -1244,9 +1186,7 @@ describe("RoomsClient notification deep link", () => {
       error: { code: "NOT_FOUND", message: "Could not load thread." },
     });
 
-    renderWithQueryClient(
-      <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
-    );
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
 
     await waitFor(() => {
       expect(getRoomThreadAction).toHaveBeenCalledWith(

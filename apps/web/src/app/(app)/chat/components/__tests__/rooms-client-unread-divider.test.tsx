@@ -605,23 +605,6 @@ describe("RoomsClient opens a room at the Unread divider", () => {
       expect(screen.getByText("body of peer-new")).toBeTruthy();
       expect(divider()).toBeNull();
     });
-
-    it("draws the divider the deferred first page names, and keeps it", async () => {
-      await openOnNamedMessage({
-        rooms: [unreadRoom()],
-        messagesPromise: Promise.resolve({
-          messages: [read1, read2, unread1, unread2],
-          nextCursor: null,
-          failed: false,
-          firstUnreadMessageId: "unread-1",
-        }),
-      });
-      expect(dividerMessageId()).toBe("unread-1");
-
-      await readAgainNaming(message("peer-new", 5));
-
-      expect(dividerMessageId()).toBe("unread-1");
-    });
   });
 
   it("shares one row with the day separator when both sit above the same message", async () => {

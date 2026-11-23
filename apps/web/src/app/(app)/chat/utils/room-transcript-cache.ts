@@ -200,15 +200,11 @@ export class RoomTranscriptCache {
     const roomId = props.selectedRoomId ?? "";
     const existing = this.get(roomId);
     if (existing) return existing;
-    const resolved =
-      !props.messagesPromise &&
-      !props.loadHistoryOnClient &&
-      !props.messageLoadFailed;
+    const resolved = !props.loadHistoryOnClient && !props.messageLoadFailed;
     return {
       bootstrap: {
         ...props,
         messages: [],
-        messagesPromise: undefined,
         loadHistoryOnClient: true,
       },
       transcript: resolved
@@ -407,7 +403,7 @@ export class RoomTranscriptCache {
     for (const key of this.reads.keys()) {
       if (JSON.parse(key)[0] === roomId) this.reads.delete(key);
     }
-    this.client.removeQueries({ queryKey: this.key(roomId) });
+    this.client.removeQueries({ queryKey: this.key(roomId), exact: true });
   }
   clear() {
     this.valid = false;

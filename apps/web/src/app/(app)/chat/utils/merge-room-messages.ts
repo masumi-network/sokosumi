@@ -17,8 +17,6 @@ import {
  * Apply a full Ably chat_room_message event.
  * Hard-delete (`delete` with `deletedAt == null`) removes the row — user
  * tombstones (`deletedAt` set) still merge so the deleted chrome stays.
- * Updates and deletes only patch rows already loaded in the transcript so an
- * edit or delete of an older unloaded message never invents a row.
  */
 export function applyFullChatRoomMessageEvent(
   existing: readonly ChatRoomMessage[],
@@ -27,12 +25,6 @@ export function applyFullChatRoomMessageEvent(
     message: ChatRoomMessage;
   },
 ): ChatRoomMessage[] {
-  if (
-    event.eventType !== "create" &&
-    !existing.some((row) => row.id === event.message.id)
-  ) {
-    return existing as ChatRoomMessage[];
-  }
   if (event.eventType === "delete" && event.message.deletedAt == null) {
     return existing.filter((row) => row.id !== event.message.id);
   }

@@ -270,36 +270,33 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
   });
 
   it("does not advance Room last-read while history is still pending", () => {
-    const messagesPromise = new Promise<{
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }>(() => undefined);
-
-    renderWithQueryClient(
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<Response>(() => {})),
+    );
+    render(
       <RoomsClient
         {...baseProps}
+        loadHistoryOnClient
         rooms={[{ ...channelRoom(), unreadCount: 4 }]}
-        messagesPromise={messagesPromise}
       />,
+      { wrapper: CacheWrapper },
     );
 
     expect(screen.getByTestId("room-message-list-skeleton")).toBeTruthy();
     expect(markOrganizationChatRoomReadAction).not.toHaveBeenCalled();
     expect(rememberRoomRead).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 
   it("shows list skeleton and real composer while history is pending", () => {
-    // Intentionally never settles — pending shell only.
-    const messagesPromise = new Promise<{
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }>(() => undefined);
-
-    renderWithQueryClient(
-      <RoomsClient {...baseProps} messagesPromise={messagesPromise} />,
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<Response>(() => {})),
     );
+    render(<RoomsClient {...baseProps} loadHistoryOnClient />, {
+      wrapper: CacheWrapper,
+    });
 
     expect(screen.getByTestId("room-message-list-skeleton")).toBeTruthy();
     expect(screen.queryByTestId("chat-message-row")).toBeNull();
@@ -308,58 +305,7 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
       "data-focus-on-mount",
       "false",
     );
-  });
-
-  it("hydrates history into the same instance and enables composer focus", async () => {
-    let resolvePage!: (page: {
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }) => void;
-    const messagesPromise = new Promise<{
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }>((resolve) => {
-      resolvePage = resolve;
-    });
-
-    renderWithQueryClient(
-      <RoomsClient {...baseProps} messagesPromise={messagesPromise} />,
-    );
-
-    const composer = screen.getByTestId("room-session-composer");
-
-    await act(async () => {
-      resolvePage({
-        messages: [sampleMessage("hydrated history body")],
-        nextCursor: null,
-        failed: false,
-      });
-      await messagesPromise;
-    });
-
-    await waitFor(() => {
-      expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
-    });
-    expect(screen.getByTestId("chat-message-row")).toHaveTextContent(
-      "hydrated history body",
-    );
-    expect(screen.getByTestId("room-session-composer")).toBe(composer);
-    expect(composer).toHaveAttribute("data-focus-on-mount", "true");
-    await waitFor(() => {
-      expect(rememberRoomRead).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: "room-channel",
-          unreadCount: 0,
-          unreadMentionCount: 0,
-          markedUnread: false,
-        }),
-      );
-    });
-    expect(markOrganizationChatRoomReadAction).toHaveBeenCalledWith(
-      "room-channel",
-    );
+    vi.unstubAllGlobals();
   });
 
   it("remembers local Room last-read before mark-read returns", async () => {
@@ -370,19 +316,6 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
           resolveRead = resolve;
         }),
     );
-
-    let resolvePage!: (page: {
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }) => void;
-    const messagesPromise = new Promise<{
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }>((resolve) => {
-      resolvePage = resolve;
-    });
 
     renderWithQueryClient(
       <RoomsClient
@@ -397,18 +330,9 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
             unreadMentionCount: 1,
           },
         ]}
-        messagesPromise={messagesPromise}
+        messages={[sampleMessage("hydrated history body")]}
       />,
     );
-
-    await act(async () => {
-      resolvePage({
-        messages: [sampleMessage("hydrated history body")],
-        nextCursor: null,
-        failed: false,
-      });
-      await messagesPromise;
-    });
 
     await waitFor(() => {
       expect(rememberRoomRead).toHaveBeenCalledWith(
@@ -558,252 +482,6 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
     );
     dispatchSpy.mockRestore();
   });
-
-  it("shows load-failed empty state when deferred history fails", async () => {
-    let resolvePage!: (page: {
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }) => void;
-    const messagesPromise = new Promise<{
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }>((resolve) => {
-      resolvePage = resolve;
-    });
-
-    renderWithQueryClient(
-      <RoomsClient {...baseProps} messagesPromise={messagesPromise} />,
-    );
-
-    expect(screen.getByTestId("room-message-list-skeleton")).toBeTruthy();
-    const composer = screen.getByTestId("room-session-composer");
-
-    await act(async () => {
-      resolvePage({
-        messages: [],
-        nextCursor: null,
-        failed: true,
-      });
-      await messagesPromise;
-    });
-
-    await waitFor(() => {
-      expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
-    });
-    expect(screen.getByText("Empty.messagesLoadFailedTitle")).toBeTruthy();
-    expect(screen.queryByTestId("chat-message-row")).toBeNull();
-    expect(screen.getByTestId("room-session-composer")).toBe(composer);
-    expect(markOrganizationChatRoomReadAction).not.toHaveBeenCalled();
-    expect(rememberRoomRead).not.toHaveBeenCalled();
-  });
-
-  it("settles to load-failed when deferred history promise rejects", async () => {
-    let rejectPage!: (reason?: unknown) => void;
-    const messagesPromise = new Promise<{
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }>((_resolve, reject) => {
-      rejectPage = reject;
-    });
-
-    renderWithQueryClient(
-      <RoomsClient {...baseProps} messagesPromise={messagesPromise} />,
-    );
-
-    await act(async () => {
-      rejectPage(new Error("network boom"));
-      await messagesPromise.catch(() => undefined);
-    });
-
-    await waitFor(() => {
-      expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
-    });
-    expect(screen.getByText("Empty.messagesLoadFailedTitle")).toBeTruthy();
-    expect(screen.getByTestId("room-session-composer")).toBeTruthy();
-    expect(markOrganizationChatRoomReadAction).not.toHaveBeenCalled();
-    expect(rememberRoomRead).not.toHaveBeenCalled();
-  });
-
-  it("clears prior room messages when progressive room switches", async () => {
-    let resolveA!: (page: {
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }) => void;
-    let resolveB!: (page: {
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }) => void;
-    const promiseA = new Promise<{
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }>((resolve) => {
-      resolveA = resolve;
-    });
-    const promiseB = new Promise<{
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }>((resolve) => {
-      resolveB = resolve;
-    });
-
-    const roomA = channelRoom();
-    const roomB: ChatRoom = {
-      ...channelRoom(),
-      id: "room-other",
-      name: "other",
-      slug: "other",
-    };
-
-    const { rerender } = renderWithQueryClient(
-      <RoomsClient
-        {...baseProps}
-        rooms={[roomA]}
-        selectedRoomId={roomA.id}
-        messagesPromise={promiseA}
-      />,
-    );
-
-    await act(async () => {
-      resolveA({
-        messages: [sampleMessage("from room A")],
-        nextCursor: null,
-        failed: false,
-      });
-      await promiseA;
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("chat-message-row")).toHaveTextContent(
-        "from room A",
-      );
-    });
-
-    rerender(
-      <RoomsClient
-        {...baseProps}
-        rooms={[roomA, roomB]}
-        selectedRoomId={roomB.id}
-        messagesPromise={promiseB}
-      />,
-    );
-
-    expect(screen.queryByText("from room A")).toBeNull();
-    expect(screen.getByTestId("room-message-list-skeleton")).toBeTruthy();
-
-    await act(async () => {
-      resolveB({
-        messages: [
-          {
-            ...sampleMessage("from room B"),
-            id: "msg-b",
-            roomId: roomB.id,
-          },
-        ],
-        nextCursor: null,
-        failed: false,
-      });
-      await promiseB;
-    });
-
-    await waitFor(() => {
-      expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
-    });
-    expect(screen.queryByText("from room A")).toBeNull();
-    expect(screen.getByTestId("chat-message-row")).toHaveTextContent(
-      "from room B",
-    );
-  });
-
-  it("does not re-enter pending or flip focus on same-room promise swap", async () => {
-    let resolveA!: (page: {
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }) => void;
-    const promiseA = new Promise<{
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }>((resolve) => {
-      resolveA = resolve;
-    });
-
-    const { rerender } = renderWithQueryClient(
-      <RoomsClient {...baseProps} messagesPromise={promiseA} />,
-    );
-
-    await act(async () => {
-      resolveA({
-        messages: [sampleMessage("stable history")],
-        nextCursor: null,
-        failed: false,
-      });
-      await promiseA;
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("chat-message-row")).toHaveTextContent(
-        "stable history",
-      );
-    });
-    const composer = screen.getByTestId("room-session-composer");
-    expect(composer).toHaveAttribute("data-focus-on-mount", "true");
-
-    let resolveB!: (page: {
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }) => void;
-    const promiseB = new Promise<{
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }>((resolve) => {
-      resolveB = resolve;
-    });
-
-    // RSC refresh: new promise, same room — must not show skeleton / defocus.
-    rerender(<RoomsClient {...baseProps} messagesPromise={promiseB} />);
-
-    expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
-    expect(screen.getByTestId("chat-message-row")).toHaveTextContent(
-      "stable history",
-    );
-    expect(screen.getByTestId("room-session-composer")).toHaveAttribute(
-      "data-focus-on-mount",
-      "true",
-    );
-
-    await act(async () => {
-      resolveB({
-        messages: [
-          {
-            ...sampleMessage("refreshed page"),
-            id: "msg-refresh",
-          },
-        ],
-        nextCursor: null,
-        failed: false,
-      });
-      await promiseB;
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText("refreshed page")).toBeTruthy();
-    });
-    expect(screen.getByText("stable history")).toBeTruthy();
-    expect(screen.getByTestId("room-session-composer")).toHaveAttribute(
-      "data-focus-on-mount",
-      "true",
-    );
-  });
 });
 
 describe("RoomsClient progressive roster (header + composer without members)", () => {
@@ -814,11 +492,6 @@ describe("RoomsClient progressive roster (header + composer without members)", (
   });
 
   it("paints room title and composer while rosterPromise is pending", () => {
-    const messagesPromise = new Promise<{
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }>(() => undefined);
     const rosterPromise = new Promise<{
       organizationMembers: [];
       membersLoadFailed: boolean;
@@ -827,16 +500,11 @@ describe("RoomsClient progressive roster (header + composer without members)", (
     }>(() => undefined);
 
     renderWithQueryClient(
-      <RoomsClient
-        {...baseProps}
-        messagesPromise={messagesPromise}
-        rosterPromise={rosterPromise}
-      />,
+      <RoomsClient {...baseProps} rosterPromise={rosterPromise} />,
     );
 
     expect(screen.getByText("general")).toBeTruthy();
     expect(screen.getByTestId("room-session-composer")).toBeTruthy();
-    expect(screen.getByTestId("room-message-list-skeleton")).toBeTruthy();
     fireEvent.click(screen.getByTestId("room-open-title"));
     const probe = screen.getByTestId("add-members-dialog-probe");
     expect(probe).toHaveAttribute("data-members-load-failed", "false");
@@ -848,11 +516,6 @@ describe("RoomsClient progressive roster (header + composer without members)", (
     mockIsMobileMedia.mockReturnValue(undefined);
     mockHeaderRoomSlotHost.mockReturnValue(null);
 
-    const messagesPromise = new Promise<{
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }>(() => undefined);
     const rosterPromise = new Promise<{
       organizationMembers: [];
       membersLoadFailed: boolean;
@@ -861,11 +524,7 @@ describe("RoomsClient progressive roster (header + composer without members)", (
     }>(() => undefined);
 
     renderWithQueryClient(
-      <RoomsClient
-        {...baseProps}
-        messagesPromise={messagesPromise}
-        rosterPromise={rosterPromise}
-      />,
+      <RoomsClient {...baseProps} rosterPromise={rosterPromise} />,
     );
 
     // Title must not wait on isMobile===true portal, roster, or avatars.
@@ -879,11 +538,6 @@ describe("RoomsClient progressive roster (header + composer without members)", (
     document.body.appendChild(host);
     mockHeaderRoomSlotHost.mockReturnValue(host);
 
-    const messagesPromise = new Promise<{
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }>(() => undefined);
     const rosterPromise = new Promise<{
       organizationMembers: [];
       membersLoadFailed: boolean;
@@ -892,11 +546,7 @@ describe("RoomsClient progressive roster (header + composer without members)", (
     }>(() => undefined);
 
     renderWithQueryClient(
-      <RoomsClient
-        {...baseProps}
-        messagesPromise={messagesPromise}
-        rosterPromise={rosterPromise}
-      />,
+      <RoomsClient {...baseProps} rosterPromise={rosterPromise} />,
     );
 
     // Portal flips in useEffect; title must still be present with composer
@@ -954,18 +604,9 @@ describe("RoomsClient progressive roster (header + composer without members)", (
     const rosterPromise = new Promise<RoomShellRosterPage>((resolve) => {
       resolveRoster = resolve;
     });
-    const messagesPromise = new Promise<{
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }>(() => undefined);
 
     renderWithQueryClient(
-      <RoomsClient
-        {...baseProps}
-        messagesPromise={messagesPromise}
-        rosterPromise={rosterPromise}
-      />,
+      <RoomsClient {...baseProps} rosterPromise={rosterPromise} />,
     );
 
     const composer = screen.getByTestId("room-session-composer");
@@ -997,18 +638,9 @@ describe("RoomsClient progressive roster (header + composer without members)", (
 
   it("shows failed roster state when rosterPromise rejects without remounting composer", async () => {
     const deferred = Promise.withResolvers<RoomShellRosterPage>();
-    const messagesPromise = new Promise<{
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }>(() => undefined);
 
     renderWithQueryClient(
-      <RoomsClient
-        {...baseProps}
-        messagesPromise={messagesPromise}
-        rosterPromise={deferred.promise}
-      />,
+      <RoomsClient {...baseProps} rosterPromise={deferred.promise} />,
     );
 
     const composer = screen.getByTestId("room-session-composer");
@@ -1097,9 +729,7 @@ describe("retained channel history", () => {
       />,
     );
     expect(await screen.findByText("history B")).toBeTruthy();
-    view.rerender(
-      <RoomsClient {...baseProps} messagesPromise={new Promise(() => {})} />,
-    );
+    view.rerender(<RoomsClient {...baseProps} loadHistoryOnClient />);
     expect(screen.getByText("retained A")).toBeTruthy();
     expect(screen.queryByText("history B")).toBeNull();
     expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
@@ -1138,9 +768,7 @@ describe("channel cache access and navigation", () => {
       sent.resolve({ ok: true, value: sampleMessage("confirmed send") }),
     );
     expect(sendRoomMessageAction).toHaveBeenCalledTimes(1);
-    view.rerender(
-      <RoomsClient {...baseProps} messagesPromise={new Promise(() => {})} />,
-    );
+    view.rerender(<RoomsClient {...baseProps} loadHistoryOnClient />);
     expect(screen.getByText("confirmed")).toBeTruthy();
     expect(screen.queryByText("local outbound")).toBeNull();
   });
@@ -1350,9 +978,7 @@ describe("channel cache access and navigation", () => {
       expect(
         transcriptViewportSpies.position.mock.calls.at(-1)![0].initialPosition,
       ).toBeUndefined();
-      view.rerender(
-        <RoomsClient {...propsA} messagesPromise={new Promise(() => {})} />,
-      );
+      view.rerender(<RoomsClient {...propsA} loadHistoryOnClient />);
       expect(
         transcriptViewportSpies.position.mock.calls.at(-1)![0].initialPosition,
       ).toEqual(position);
@@ -1375,9 +1001,7 @@ describe("channel cache access and navigation", () => {
     });
     expect(screen.getByText("Empty.noMessagesTitle")).toBeTruthy();
     view.rerender(<RoomsClient {...roomBProps} />);
-    view.rerender(
-      <RoomsClient {...baseProps} messagesPromise={new Promise(() => {})} />,
-    );
+    view.rerender(<RoomsClient {...baseProps} loadHistoryOnClient />);
     expect(screen.getByText("Empty.noMessagesTitle")).toBeTruthy();
     expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
   });

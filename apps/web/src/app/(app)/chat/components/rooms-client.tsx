@@ -56,11 +56,6 @@ import {
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
 import { useOpenRoomUnreadRecheck } from "@/app/chat/hooks/use-open-room-unread-recheck";
 import {
-  getRoomMessagesPromiseId,
-  type RoomMessagePage,
-  useRoomInitialMessages,
-} from "@/app/chat/hooks/use-room-initial-messages";
-import {
   TRANSCRIPT_SNAPSHOT_RETRIES,
   useRoomMessageJumps,
 } from "@/app/chat/hooks/use-room-message-jumps";
@@ -294,11 +289,6 @@ export interface RoomsClientProps {
   /** Cursor for the next older page; null when the initial page is complete. */
   messagesNextCursor: string | null;
   /**
-   * Deferred initial history (Server → Client promise). Hydrates into this
-   * instance so real header + composer stay mounted while the list skeletons.
-   */
-  messagesPromise?: Promise<RoomMessagePage>;
-  /**
    * Deferred org members + coworkers. Room chrome paints from `rooms` alone;
    * roster streams in for pickers / mentions / admin gates.
    */
@@ -422,7 +412,6 @@ function visibleRoomLocation(
 interface RetainedTranscriptBinding {
   entry: RoomTranscriptEntry;
   position?: TranscriptPosition;
-  initialUnreadPage: RoomMessagePage | null;
   setTranscript: (update: SetStateAction<RoomTranscript>) => void;
   /** Merge a jump window into the cache alone, so a render may call it. */
   joinWindow: (page: RoomTranscriptPage) => void;
@@ -471,49 +460,6 @@ function RetainedRoomsClient({
   const lifetime = entry.lifetime;
   const activeRef = useRoomsClientTranscriptActive();
   const refreshRef = useRef<() => void>(() => {});
-  const [resolvedUnreadPage, setResolvedUnreadPage] =
-    useState<RoomMessagePage | null>(null);
-  const activeInitialPromise = entry.resolved
-    ? undefined
-    : props.messagesPromise;
-  const activeInitialPromiseIdRef = useRef<number | undefined>(undefined);
-  activeInitialPromiseIdRef.current =
-    activeInitialPromise != null
-      ? getRoomMessagesPromiseId(activeInitialPromise)
-      : undefined;
-  useRoomInitialMessages({
-    currentUserId: props.currentUserId,
-    workspaceId: props.activeOrganization?.id ?? null,
-    roomId,
-    messagesPromise: activeInitialPromise,
-    queryClient: cache.client,
-    onSettled: (page, settledPromiseId) => {
-      if (
-        settledPromiseId !== activeInitialPromiseIdRef.current ||
-        !cache.current(roomId, lifetime)
-      ) {
-        return;
-      }
-      cache.update(roomId, lifetime, (current) =>
-        current.resolved
-          ? current
-          : page.failed
-            ? { ...current, failed: true }
-            : {
-                ...current,
-                resolved: true,
-                failed: false,
-                transcript: mergeRoomHeadPage(current.transcript, {
-                  messages: page.messages,
-                  nextCursor: page.nextCursor,
-                }),
-              },
-      );
-      if (!page.failed && page.firstUnreadMessageId !== undefined) {
-        setResolvedUnreadPage(page);
-      }
-    },
-  });
   const [pending, setPending] = useState<ChatRoomMessage[]>([]);
   const pendingRef = useRef(pending);
   pendingRef.current = pending;
@@ -529,7 +475,6 @@ function RetainedRoomsClient({
   const binding: RetainedTranscriptBinding = {
     entry: { ...entry, transcript },
     position: cache.getPosition(roomId),
-    initialUnreadPage: resolvedUnreadPage,
     setTranscript: (update) => {
       if (!cache.current(roomId, lifetime)) return;
       cache.setTranscript(roomId, lifetime, (confirmed) => {
@@ -603,7 +548,6 @@ function RoomView({
   membersLoadFailed: membersLoadFailedProp,
   messages,
   messagesNextCursor,
-  messagesPromise,
   rosterPromise,
   retained,
   registerRefresh,
@@ -735,11 +679,6 @@ function RoomView({
   >({});
   const [messageLoadFailedState, setMessageLoadFailedState] =
     useState(messageLoadFailed);
-  const [appliedInitialPromiseId, setAppliedInitialPromiseId] = useState<
-    number | undefined
-  >(undefined);
-  const [notedRetainedUnreadPage, setNotedRetainedUnreadPage] =
-    useState<RoomMessagePage | null>(null);
   const [syncedHistoryRoomId, setSyncedHistoryRoomId] =
     useState(selectedRoomId);
   const [editChannelOpen, setEditChannelOpen] = useState(false);
@@ -781,16 +720,6 @@ function RoomView({
       );
     });
   }, []);
-  const initialMessages = useRoomInitialMessages({
-    currentUserId,
-    workspaceId: activeOrganization?.id ?? null,
-    roomId: selectedRoomId,
-    messagesPromise: retained ? undefined : messagesPromise,
-  });
-  // RoomsClient stays mounted across /chat/rooms/[id] navigations. Progressive
-  // room switch must drop the prior timeline so skeleton shows and hydrate
-  // cannot merge room A into room B (or show A under B's header).
-  const effectiveDeferredHistoryPending = initialMessages.pending;
   if (selectedRoomId !== syncedHistoryRoomId) {
     setSyncedHistoryRoomId(selectedRoomId);
     historicalThreadRef.current = false;
@@ -801,37 +730,6 @@ function RoomView({
     // handed to the next one.
     setEditChannelOpen(false);
     setSearchHoldOffBottom(false);
-    if (messagesPromise != null) {
-      setAppliedInitialPromiseId(undefined);
-      setTranscript(emptyRoomTranscript());
-      setMessageLoadFailedState(false);
-    }
-  }
-  if (messagesPromise == null && appliedInitialPromiseId !== undefined) {
-    setAppliedInitialPromiseId(undefined);
-  }
-  if (
-    !retained &&
-    initialMessages.settledPage != null &&
-    initialMessages.settledPromiseId !== appliedInitialPromiseId
-  ) {
-    const page = initialMessages.settledPage;
-    setAppliedInitialPromiseId(initialMessages.settledPromiseId);
-    setLocalTranscript((current) =>
-      mergeRoomHeadPage(current, {
-        messages: page.messages,
-        nextCursor: page.nextCursor,
-      }),
-    );
-    setMessageLoadFailedState(page.failed);
-    if (!page.failed) noteUnreadDivider(page);
-  }
-  if (
-    retained?.initialUnreadPage &&
-    retained.initialUnreadPage !== notedRetainedUnreadPage
-  ) {
-    setNotedRetainedUnreadPage(retained.initialUnreadPage);
-    noteUnreadDivider(retained.initialUnreadPage);
   }
   const {
     organizationMembers,
@@ -853,7 +751,7 @@ function RoomView({
   });
   const messagesPending = retained
     ? !retained.entry.resolved && !retained.entry.failed
-    : effectiveDeferredHistoryPending;
+    : false;
   const effectiveMessageLoadFailed = messagesPending
     ? false
     : retained
@@ -1829,54 +1727,41 @@ function RoomView({
   }
 
   const [syncedPropSnapshot, setSyncedPropSnapshot] = useState(() => ({
-    deferredHistoryPending: effectiveDeferredHistoryPending,
     messageLoadFailed,
     messages,
     messagesNextCursor,
-    messagesPromise,
     selectedRoomId,
   }));
   if (
     !retained &&
-    (syncedPropSnapshot.deferredHistoryPending !==
-      effectiveDeferredHistoryPending ||
-      syncedPropSnapshot.messageLoadFailed !== messageLoadFailed ||
+    (syncedPropSnapshot.messageLoadFailed !== messageLoadFailed ||
       syncedPropSnapshot.messages !== messages ||
       syncedPropSnapshot.messagesNextCursor !== messagesNextCursor ||
-      syncedPropSnapshot.messagesPromise !== messagesPromise ||
       syncedPropSnapshot.selectedRoomId !== selectedRoomId)
   ) {
     const isChannelSwitch =
       syncedPropSnapshot.selectedRoomId !== selectedRoomId;
     setSyncedPropSnapshot({
-      deferredHistoryPending: effectiveDeferredHistoryPending,
       messageLoadFailed,
       messages,
       messagesNextCursor,
-      messagesPromise,
       selectedRoomId,
     });
 
-    // Deferred promise owns the first page until hydrate completes, and
-    // progressive open keeps messagesPromise after hydrate while props stay
-    // empty — do not re-apply prop messages / messageLoadFailed or we wipe
-    // hydrate and clobber failed:true from the hydrator.
-    if (!effectiveDeferredHistoryPending && messagesPromise == null) {
-      // Room switch: replace. Same room RSC refresh (e.g. revalidatePath):
-      // merge so client-loaded older pages are not wiped by the latest page.
-      const page = { messages, nextCursor: messagesNextCursor };
-      if (isChannelSwitch) {
-        setLocalTranscript(mergeRoomHeadPage(emptyRoomTranscript(), page));
-      } else {
-        setLocalTranscript((current) => mergeRoomHeadPage(current, page));
-      }
-      setMessageLoadFailedState(messageLoadFailed);
-      setThreadParentMessage((current) =>
-        current
-          ? (messages.find((message) => message.id === current.id) ?? current)
-          : current,
-      );
+    // Room switch: replace. Same room RSC refresh (e.g. revalidatePath):
+    // merge so client-loaded older pages are not wiped by the latest page.
+    const page = { messages, nextCursor: messagesNextCursor };
+    if (isChannelSwitch) {
+      setLocalTranscript(mergeRoomHeadPage(emptyRoomTranscript(), page));
+    } else {
+      setLocalTranscript((current) => mergeRoomHeadPage(current, page));
     }
+    setMessageLoadFailedState(messageLoadFailed);
+    setThreadParentMessage((current) =>
+      current
+        ? (messages.find((message) => message.id === current.id) ?? current)
+        : current,
+    );
   }
 
   // A Look clears the thread's unread everywhere at once: the header count
