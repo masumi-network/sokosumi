@@ -19,6 +19,7 @@ const PROJECTS = [
   { name: "desktop", width: 1440, height: 900 },
 ];
 const BOT = "Juno";
+const QUESTION = "What should I set up first?";
 
 let browser: Browser;
 before(async () => {
@@ -33,6 +34,25 @@ async function expectStep(page: Page, path: RegExp, heading: string) {
   const main = page.getByRole("main");
   await main.getByRole("heading", { name: heading }).waitFor();
   assert.equal(await main.count(), 1, `${page.url()} has one main landmark`);
+}
+
+/** Reloads `url` until its transcript, drawn by the server, shows `text`. */
+async function reloadUntilShown(page: Page, url: string, text: string) {
+  const deadline = Date.now() + 60_000;
+  await page.goto(url);
+  for (;;) {
+    const shown = page
+      .getByRole("main")
+      .getByText(text, { exact: true })
+      .first();
+    try {
+      await shown.waitFor({ timeout: 5_000 });
+      return;
+    } catch (error) {
+      if (Date.now() > deadline) throw error;
+    }
+    await page.reload();
+  }
 }
 
 /** How many lines the code hint draws the address on, as the visitor sees it. */
@@ -238,24 +258,25 @@ for (const { name, ...viewport } of PROJECTS) {
 
       await page.waitForURL(/\/chat\/rooms\//);
       const message = page.getByRole("textbox", { name: `Message ${BOT}` });
-      await message.fill("What should I set up first?");
-      // The question shows at once; the tick says the server has it. Watch
-      // for the tick before sending: it fades after a moment.
-      const sent = page
-        .getByRole("main")
-        .getByRole("img", { name: "Sent", exact: true })
-        .waitFor();
+      await message.fill(QUESTION);
       await page.getByRole("button", { name: "Send message" }).click();
-      await sent;
       await shot("4-chat");
+      // The question shows at once, before the server has it, and a quick
+      // save shows no tick. A second tab, so this one keeps sending, reads
+      // the room from the server until the question is there.
+      const saved = await context.newPage();
+      saved.on("pageerror", (e) => errors.push(e.message));
+      await reloadUntilShown(saved, page.url(), QUESTION);
       // Home lists that first question as the reader's own, sent to the bot.
-      await page.goto(`${BASE_URL}/`);
-      await page
+      await saved.goto(`${BASE_URL}/`);
+      await saved
         .getByRole("link", {
-          name: new RegExp(`What should I set up first\\?.*You to ${BOT}`),
+          name: new RegExp(`${RegExp.escape(QUESTION)}.*You to ${BOT}`),
         })
         .waitFor();
-      await shot("5-home");
+      await saved.screenshot({
+        path: `${RESULTS_DIR}onboarding-${name}-5-home.png`,
+      });
       await context.close();
       assert.deepEqual(errors, []);
     });
