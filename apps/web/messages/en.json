@@ -8820,6 +8820,9 @@
           "denyError": "Failed to deny application"
         },
         "apiAccessNotice": "Authorizing grants full API access to your account (openid and sokosumi:api). Only approve apps you trust.",
+        "mcpAccessNotice": "Authorizing lets this app use Sokosumi as you through an MCP client (sokosumi:mcp).",
+        "unverifiedNotice": "Unverified app. It registered itself, so Sokosumi can't confirm who runs it.",
+        "redirectHost": "After you answer, Sokosumi sends you to {host}.",
         "offlineAccessNotice": "This app can stay logged in and get new access tokens later without asking you again (refresh tokens, up to 90 days)."
       },
       "OAuthClients": {
@@ -9620,6 +9623,39 @@
           "statusRevoked": "Revoked",
           "workspaceKindOrganization": "Organization",
           "workspaceKindUser": "User"
+        },
+        "ApiKeys": {
+          "title": "API keys",
+          "description": "Runtime keys this coworker uses to call Sokosumi. To replace a key, create a new one, switch the agent to it, then revoke the old one.",
+          "createButton": "Create key",
+          "empty": "No API keys yet.",
+          "loadError": "Could not load the API keys. Reload the page to try again.",
+          "unnamed": "Unnamed",
+          "revokeButton": "Revoke",
+          "createSuccess": "API key created",
+          "createError": "Could not create the API key",
+          "revokeSuccess": "API key revoked",
+          "revokeError": "Could not revoke the API key",
+          "Table": {
+            "name": "Name",
+            "key": "Key",
+            "created": "Created",
+            "status": "Status",
+            "actions": "Actions",
+            "lastUsed": "Last used"
+          },
+          "Status": {
+            "active": "Active",
+            "revoked": "Revoked",
+            "expired": "Expired"
+          },
+          "RevokeDialog": {
+            "title": "Revoke API key?",
+            "description": "{name} ({keyStart}…) stops working at once. Any agent still using it gets 401 errors.",
+            "cancel": "Cancel",
+            "confirm": "Revoke key"
+          },
+          "noRecordedUse": "No recorded use"
         }
       },
       "Tasks": {

@@ -15,8 +15,7 @@ import {
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
-
-const FIRST_STEPS_QUERY_KEY = "chat-catch-up-first-steps";
+import { chatQueryKeys } from "@/queries/chat";
 
 interface FirstSteps {
   canCreateChannel: boolean;
@@ -70,7 +69,7 @@ export function CatchUpEmpty({
   // announce it) can end or bring back the first visit: ask again.
   const refresh = () => {
     void queryClient.invalidateQueries({
-      queryKey: [FIRST_STEPS_QUERY_KEY],
+      queryKey: chatQueryKeys.anyCatchUpFirstSteps(),
     });
   };
   useOrganizationChatRoomsChanged({
@@ -80,7 +79,10 @@ export function CatchUpEmpty({
   });
   const { data: firstSteps, isPending } = useQuery({
     // Per reader and workspace: rooms and channel rights differ by workspace.
-    queryKey: [FIRST_STEPS_QUERY_KEY, currentUserId, organizationId],
+    queryKey: chatQueryKeys.catchUpFirstSteps({
+      userId: currentUserId,
+      workspaceId: organizationId,
+    }),
     queryFn: loadFirstSteps,
     // A room made or joined elsewhere ends the first visit: read again on
     // every return instead of trusting the app's one-minute freshness.

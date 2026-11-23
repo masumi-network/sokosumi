@@ -196,7 +196,10 @@ and `tasks comment` also accept command options for JSON fields. Use
 `--metadata-json` or `--metadata-file` for coworker metadata. Use
 `--channel provider=value` to add coworker channel metadata. The
 `coworkers api-key` command prints a masked token in text mode and returns the
-one-time token only in JSON mode.
+one-time token only in JSON mode. `coworkers list-api-keys COWORKER_ID` lists a
+Coworker's keys (without tokens), and `coworkers revoke-api-key COWORKER_ID KEY_ID`
+revokes one at once. To replace a key, create the new one, switch the agent to it,
+then revoke the old one.
 
 Use `jobs input JOB_ID --event-id EVENT_ID` with `--input-json` or `--input-file` to submit a pending job input request; the command also supports `--json`.
 

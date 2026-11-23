@@ -20,6 +20,7 @@ import {
 import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
 import { useFocusWhen } from "@/hooks/effects/use-focus-when";
 import { cn } from "@/lib/utils";
+import { chatQueryKeys } from "@/queries/chat";
 
 import { fetchChatSkills } from "./fetch-chat-skills";
 
@@ -104,7 +105,7 @@ function SkillPickerPanel({
   useFocusWhen(inputRef, true, { deferToFrame: true });
 
   const { data, isPending, isError, isPlaceholderData } = useQuery({
-    queryKey: ["chat-skills", debouncedQuery],
+    queryKey: chatQueryKeys.skills(debouncedQuery),
     queryFn: async () => {
       const skills = await fetchChatSkills(debouncedQuery);
       if (!skills) throw new Error("Skills unavailable");

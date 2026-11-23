@@ -52,6 +52,8 @@ export function CreateApiKeyDialog({
 
   const { isSubmitting } = form.formState;
   const showingCredentials = createdKey !== null;
+  // A pending create may still return the one-time key, so it cannot close either.
+  const lockedOpen = showingCredentials || isSubmitting;
 
   const resetDialogState = () => {
     setCreatedKey(null);
@@ -72,7 +74,7 @@ export function CreateApiKeyDialog({
 
   const handleOpenChange = (nextOpen: boolean) => {
     // One-time key must only dismiss via Done.
-    if (!nextOpen && showingCredentials) {
+    if (!nextOpen && lockedOpen) {
       return;
     }
 
@@ -104,19 +106,19 @@ export function CreateApiKeyDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className={showingCredentials ? "[&>button]:hidden" : undefined}
+        className={lockedOpen ? "[&>button]:hidden" : undefined}
         onEscapeKeyDown={(event) => {
-          if (showingCredentials) {
+          if (lockedOpen) {
             event.preventDefault();
           }
         }}
         onPointerDownOutside={(event) => {
-          if (showingCredentials) {
+          if (lockedOpen) {
             event.preventDefault();
           }
         }}
         onInteractOutside={(event) => {
-          if (showingCredentials) {
+          if (lockedOpen) {
             event.preventDefault();
           }
         }}

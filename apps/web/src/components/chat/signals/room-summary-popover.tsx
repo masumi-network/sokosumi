@@ -16,6 +16,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
+import { chatQueryKeys } from "@/queries/chat";
 
 interface RoomSummaryPopoverProps {
   roomId: string;
@@ -31,7 +32,7 @@ interface RoomSummaryPopoverProps {
  */
 export function useRoomSummary(roomId: string, enabled: boolean) {
   return useQuery({
-    queryKey: ["chat-room-summary", roomId],
+    queryKey: chatQueryKeys.roomSummary(roomId),
     queryFn: () => fetchCatchUpSummary(roomId),
     enabled,
     staleTime: Number.POSITIVE_INFINITY,

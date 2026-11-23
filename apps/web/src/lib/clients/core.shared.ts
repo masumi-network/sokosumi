@@ -238,6 +238,7 @@ import {
   deleteChatsRoomsByIdThreadsByParentMessageIdMute as coreDeleteChatsRoomsByIdThreadsByParentMessageIdMute,
   deleteChatsSavedMessagesByMessageId as coreDeleteChatsSavedMessagesByMessageId,
   deleteCoworkersById as coreDeleteCoworkersById,
+  deleteCoworkersByIdApiKeysByKeyId as coreDeleteCoworkersByIdApiKeysByKeyId,
   deleteCoworkersByIdImage as coreDeleteCoworkersByIdImage,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
   deleteOrganizationsByIdInviteLinksByToken as coreDeleteOrganizationsByIdInviteLinksByToken,
@@ -304,6 +305,7 @@ import {
   getCouponDetails as coreGetCouponDetails,
   getCoworkers as coreGetCoworkers,
   getCoworkersById as coreGetCoworkersById,
+  getCoworkersByIdApiKeys as coreGetCoworkersByIdApiKeys,
   getCreditTopUpPriceCatalog as coreGetCreditTopUpPriceCatalog,
   getDeveloperOwnedCoworkerTask as coreGetDeveloperOwnedCoworkerTask,
   getEnterpriseContracts as coreGetEnterpriseContracts,
@@ -482,6 +484,7 @@ import {
   postChatsRoomsByIdThreadsRead as corePostChatsRoomsByIdThreadsRead,
   postChatsRoomsByIdUnread as corePostChatsRoomsByIdUnread,
   postComposioCallbackComplete as corePostComposioCallbackComplete,
+  postCoworkersByIdApiKeys as corePostCoworkersByIdApiKeys,
   postCoworkersByIdImage as corePostCoworkersByIdImage,
   postCoworkersByIdUnarchive as corePostCoworkersByIdUnarchive,
   postEnterpriseContracts as corePostEnterpriseContracts,
@@ -6319,6 +6322,44 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getCoworkerApiKeys(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetCoworkersByIdApiKeys({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch coworker API keys",
+    );
+  }
+
+  async function createCoworkerApiKey(id: string, body: { name: string }) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostCoworkersByIdApiKeys({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to create coworker API key",
+    );
+  }
+
+  async function revokeCoworkerApiKey(id: string, keyId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteCoworkersByIdApiKeysByKeyId({
+          client,
+          path: { id, keyId },
+        }),
+      "Failed to revoke coworker API key",
+    );
+  }
+
   async function patchCoworkerWhitelist(
     id: string,
     body: NonNullable<PatchCoworkersByIdWhitelistData["body"]>,
@@ -7337,6 +7378,9 @@ export function createCoreClient(getClient: GetCoreClient) {
     unarchiveCoworker,
     uploadCoworkerImage,
     deleteCoworkerImage,
+    getCoworkerApiKeys,
+    createCoworkerApiKey,
+    revokeCoworkerApiKey,
     searchAdminUsers,
     listAdminUsers,
     getUserById,

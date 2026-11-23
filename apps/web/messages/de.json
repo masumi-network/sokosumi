@@ -8783,6 +8783,9 @@
           "denyError": "Anwendung konnte nicht abgelehnt werden"
         },
         "apiAccessNotice": "Die Autorisierung gewährt vollen API-Zugriff auf dein Konto (openid und sokosumi:api). Genehmige nur Apps, denen du vertraust.",
+        "mcpAccessNotice": "Die Autorisierung erlaubt dieser App, Sokosumi über einen MCP-Client in deinem Namen zu nutzen (sokosumi:mcp).",
+        "unverifiedNotice": "Nicht verifizierte App. Sie hat sich selbst registriert, daher kann Sokosumi nicht bestätigen, wer sie betreibt.",
+        "redirectHost": "Nach deiner Antwort leitet Sokosumi dich zu {host} weiter.",
         "descriptionWithApi": "Eine Anwendung möchte auf dein Konto zugreifen und die Sokosumi-API in deinem Namen aufrufen",
         "offlineAccessNotice": "Diese App kann angemeldet bleiben und später neue Access-Tokens holen, ohne dich erneut zu fragen (Refresh-Tokens, bis zu 90 Tage)."
       },
@@ -9593,6 +9596,39 @@
           "statusRevoked": "Widerrufen",
           "workspaceKindOrganization": "Organisation",
           "workspaceKindUser": "Benutzer"
+        },
+        "ApiKeys": {
+          "title": "API-Schlüssel",
+          "description": "Laufzeit-Schlüssel, mit denen dieser Coworker Sokosumi aufruft. Zum Ersetzen einen neuen Schlüssel erstellen, den Agenten umstellen und dann den alten widerrufen.",
+          "createButton": "Schlüssel erstellen",
+          "empty": "Noch keine API-Schlüssel.",
+          "loadError": "Die API-Schlüssel konnten nicht geladen werden. Lade die Seite neu, um es erneut zu versuchen.",
+          "unnamed": "Ohne Namen",
+          "revokeButton": "Widerrufen",
+          "createSuccess": "API-Schlüssel erstellt",
+          "createError": "Der API-Schlüssel konnte nicht erstellt werden",
+          "revokeSuccess": "API-Schlüssel widerrufen",
+          "revokeError": "Der API-Schlüssel konnte nicht widerrufen werden",
+          "Table": {
+            "name": "Name",
+            "key": "Schlüssel",
+            "created": "Erstellt",
+            "status": "Status",
+            "actions": "Aktionen",
+            "lastUsed": "Zuletzt verwendet"
+          },
+          "Status": {
+            "active": "Aktiv",
+            "revoked": "Widerrufen",
+            "expired": "Abgelaufen"
+          },
+          "RevokeDialog": {
+            "title": "API-Schlüssel widerrufen?",
+            "description": "{name} ({keyStart}…) funktioniert sofort nicht mehr. Agenten, die ihn noch nutzen, erhalten 401-Fehler.",
+            "cancel": "Abbrechen",
+            "confirm": "Schlüssel widerrufen"
+          },
+          "noRecordedUse": "Keine Nutzung erfasst"
         }
       },
       "Tasks": {
