@@ -208,10 +208,12 @@ function SearchToolbar({
       )}
     </>
   );
-  // `main` is the scroller and its top padding already clears the phone
-  // header, so the bar sticks at the padding edge: an extra offset drew it
-  // over the content below its own slot.
-  const sticky = finding && "bg-background sticky top-0 z-10";
+  // `main` is the scroller and sticky offsets count from its padding edge.
+  // On a phone that edge sits 1rem below the fixed header (APP_MAIN_MOBILE_PT
+  // is the header's 4rem + 1rem), so -top-4 docks the bar flush under the
+  // header; an offset of the header's own height drew it over the content
+  // below its slot.
+  const sticky = finding && "bg-background sticky -top-4 z-10 md:top-0";
   if (renderHeader)
     return <div className={cn(sticky)}>{renderHeader(controls)}</div>;
   return (

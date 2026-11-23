@@ -139,10 +139,11 @@ describe("page content search", () => {
     fireEvent.click(icon);
     expect(input).toHaveFocus();
     fireEvent.change(input, { target: { value: "launch" } });
-    // `main` scrolls and its padding clears the header: the open bar sticks
-    // at that edge, with no offset that would draw it over the title.
+    // `main` scrolls and its padding clears the header: the open bar docks
+    // under the header, with no offset that would draw it over the title.
     expect(toolbar?.className).toContain("sticky");
-    expect(toolbar?.className).toContain("top-0");
+    expect(toolbar?.className).toContain("-top-4");
+    expect(toolbar?.className).toContain("md:top-0");
     expect(toolbar?.className).not.toContain("top-[calc");
     fireEvent.keyDown(input, { key: "Escape" });
     expect(input).toHaveValue("");
