@@ -8783,6 +8783,9 @@
           "denyError": "Anwendung konnte nicht abgelehnt werden"
         },
         "apiAccessNotice": "Die Autorisierung gewährt vollen API-Zugriff auf dein Konto (openid und sokosumi:api). Genehmige nur Apps, denen du vertraust.",
+        "mcpAccessNotice": "Die Autorisierung erlaubt dieser App, Sokosumi über einen MCP-Client in deinem Namen zu nutzen (sokosumi:mcp).",
+        "unverifiedNotice": "Nicht verifizierte App. Sie hat sich selbst registriert, daher kann Sokosumi nicht bestätigen, wer sie betreibt.",
+        "redirectHost": "Nach deiner Antwort leitet Sokosumi dich zu {host} weiter.",
         "descriptionWithApi": "Eine Anwendung möchte auf dein Konto zugreifen und die Sokosumi-API in deinem Namen aufrufen",
         "offlineAccessNotice": "Diese App kann angemeldet bleiben und später neue Access-Tokens holen, ohne dich erneut zu fragen (Refresh-Tokens, bis zu 90 Tage)."
       },

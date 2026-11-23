@@ -12,6 +12,7 @@ import { useThreadSearchRows } from "@/components/chat/use-thread-search-rows";
 import { usePageSearchPagination } from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 import type { ChatUnreadThreadsPage } from "@/lib/services/chat-room.service";
+import { chatQueryKeys } from "@/queries/chat";
 
 import { fetchChatUnreadThreads } from "./fetch-chat-threads";
 
@@ -82,7 +83,7 @@ export function useUnreadThreadsQuery({
     ? unreadThreadsFingerprint(initial.rooms)
     : null;
   return useInfiniteQuery({
-    queryKey: ["chat", "unread-threads", fingerprint],
+    queryKey: chatQueryKeys.unreadThreads(fingerprint),
     queryFn: ({ pageParam }) => fetchChatUnreadThreads(pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,

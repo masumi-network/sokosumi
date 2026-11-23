@@ -777,10 +777,7 @@ describe("authMiddleware", () => {
         clientId: "client_123",
       },
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-      select: {
-        id: true,
-        scopes: true,
-      },
+      select: { scopes: true },
     });
   });
 

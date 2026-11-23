@@ -38,6 +38,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 import { getInitials } from "@/lib/utils/text";
+import { chatQueryKeys } from "@/queries/chat";
 
 /** Every room with something unread. */
 function unreadRoomIds(summary: ChatCatchUpSummary): string[] {
@@ -49,9 +50,6 @@ function unreadRoomIds(summary: ChatCatchUpSummary): string[] {
   ];
 }
 
-/** The query that holds the page's summary. */
-export const CATCH_UP_SUMMARY_QUERY_KEY = ["chat-catch-up-summary"];
-
 /** One Mark read at a time: every button that starts one waits on it. */
 const MARK_READ_MUTATION_KEY = ["chat-catch-up-mark-read"];
 
@@ -62,6 +60,7 @@ const MARK_READ_MUTATION_KEY = ["chat-catch-up-mark-read"];
 function useMarkRead(onDone: () => void) {
   const t = useTranslations("App.Channels.Signals");
   const queryClient = useQueryClient();
+  const summaryQueryKey = chatQueryKeys.catchUpSummary();
   const isMarking = useIsMutating({ mutationKey: MARK_READ_MUTATION_KEY }) > 0;
   const { mutate } = useMutation({
     mutationKey: MARK_READ_MUTATION_KEY,
@@ -78,16 +77,15 @@ function useMarkRead(onDone: () => void) {
       if (!result.ok) throw new Error("Mark read was refused");
     },
     onMutate: (roomIds) => {
-      const before = queryClient.getQueryData<ChatCatchUpSummary>(
-        CATCH_UP_SUMMARY_QUERY_KEY,
-      );
+      const before =
+        queryClient.getQueryData<ChatCatchUpSummary>(summaryQueryKey);
       if (before) {
         // A summary read that is still out would put the rooms back.
         void queryClient.cancelQueries({
-          queryKey: CATCH_UP_SUMMARY_QUERY_KEY,
+          queryKey: summaryQueryKey,
         });
         queryClient.setQueryData(
-          CATCH_UP_SUMMARY_QUERY_KEY,
+          summaryQueryKey,
           withoutCatchUpRooms(before, roomIds),
         );
       }
@@ -95,7 +93,7 @@ function useMarkRead(onDone: () => void) {
     },
     onError: (_error, _roomIds, before) => {
       if (before) {
-        queryClient.setQueryData(CATCH_UP_SUMMARY_QUERY_KEY, before);
+        queryClient.setQueryData(summaryQueryKey, before);
       }
       toast.error(t("markAllReadError"));
     },

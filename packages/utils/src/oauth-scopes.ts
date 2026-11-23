@@ -4,12 +4,19 @@
  * - `openid` — OIDC identity only (ID token / userinfo)
  * - `sokosumi:api` — delegated Core `/v1` API access as the consenting user
  * - `offline_access` — refresh tokens (new access tokens without re-consent)
+ * - `sokosumi:mcp` — calling Core's MCP server at `{origin}/mcp` (ADR 0076).
+ *   Never grants `/v1`.
  */
 export const OAUTH_SCOPE_OPENID = "openid";
 export const OAUTH_SCOPE_CORE_API = "sokosumi:api";
 export const OAUTH_SCOPE_OFFLINE_ACCESS = "offline_access";
+export const OAUTH_SCOPE_MCP = "sokosumi:mcp";
 
-/** Scopes advertised by the OAuth provider (authorization server). */
+/**
+ * Scopes the OAuth provider offers web clients. CMO requests exactly this list
+ * at sign-in, and Core rejects an authorize request that asks for a scope the
+ * client is not allowed, so `sokosumi:mcp` stays out: Core adds it itself.
+ */
 export const OAUTH_PROVIDER_SCOPES = [
   OAUTH_SCOPE_OPENID,
   OAUTH_SCOPE_CORE_API,
@@ -60,14 +67,21 @@ function normalizeOAuthScopes(
   );
 }
 
+export function hasOAuthScope(
+  scopes: readonly string[] | string | null | undefined,
+  scope: string,
+): boolean {
+  return normalizeOAuthScopes(scopes).includes(scope);
+}
+
 export function hasCoreApiOAuthScope(
   scopes: readonly string[] | string | null | undefined,
 ): boolean {
-  return normalizeOAuthScopes(scopes).includes(OAUTH_SCOPE_CORE_API);
+  return hasOAuthScope(scopes, OAUTH_SCOPE_CORE_API);
 }
 
 export function hasOfflineAccessOAuthScope(
   scopes: readonly string[] | string | null | undefined,
 ): boolean {
-  return normalizeOAuthScopes(scopes).includes(OAUTH_SCOPE_OFFLINE_ACCESS);
+  return hasOAuthScope(scopes, OAUTH_SCOPE_OFFLINE_ACCESS);
 }

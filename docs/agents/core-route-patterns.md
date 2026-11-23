@@ -5,6 +5,8 @@ Paths are relative to `apps/core/` unless stated otherwise.
 
 ## Creating a New Route
 
+A user-facing route also ships on the CLI and MCP: map it in `apps/core/agent-surface/<group>.json` as [Agent surface](./agent-surface.md) describes.
+
 Routes follow a modular pattern with separate files for each endpoint:
 
 ```typescript

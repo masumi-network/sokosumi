@@ -1,0 +1,44 @@
+{
+  "backlog": "SOKD-369",
+  "operations": {
+    "GET /tasks": {
+      "cli": "tasks list"
+    },
+    "POST /tasks": {
+      "cli": "tasks create"
+    },
+    "GET /tasks/{id}": {
+      "cli": "tasks get"
+    },
+    "PATCH /tasks/{id}": {
+      "cli": "tasks update"
+    },
+    "DELETE /tasks/{id}": {
+      "cli": "tasks archive"
+    },
+    "GET /tasks/{id}/events": {
+      "cli": "tasks events"
+    },
+    "POST /tasks/{id}/events": {
+      "cli": "tasks comment"
+    },
+    "GET /tasks/{id}/jobs": {
+      "cli": "tasks jobs"
+    },
+    "GET /tasks/{id}/links": {
+      "cli": "tasks links"
+    },
+    "POST /tasks/{id}/links": {
+      "cli": "tasks link"
+    },
+    "DELETE /tasks/{id}/links/{linkId}": {
+      "cli": "tasks unlink"
+    },
+    "POST /tasks/{id}/move": {
+      "cli": "tasks move"
+    },
+    "GET /tasks/{id}/receipt": {
+      "cli": "runtime receipt"
+    }
+  }
+}

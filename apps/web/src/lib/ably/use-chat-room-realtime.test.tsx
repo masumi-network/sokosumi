@@ -22,15 +22,7 @@ const {
     connectedListeners,
     authorizeMock: authorize,
     getMock: get,
-    channelsByName: new Map<
-      string,
-      {
-        name: string;
-        subscribe: ReturnType<typeof vi.fn>;
-        unsubscribe: ReturnType<typeof vi.fn>;
-        detach: ReturnType<typeof vi.fn>;
-      }
-    >(),
+    channelsByName: new Map<string, FakeChannel>(),
     // Stable client identity — new object each useAbly() would full-reset attach.
     ablyClient: {
       connection: {
@@ -51,19 +43,60 @@ vi.mock("ably/react", () => ({
 }));
 
 import { expectConsole } from "@sokosumi/utils/test-console";
+import { useChatControlChannel } from "@/hooks/effects/use-chat-control-channel";
 import { useRoomTyping } from "@/hooks/effects/use-room-typing";
 import { getAblyChatRoomScope } from "./chat-room-auth-scope.client";
 import { useChatRoomRealtime } from "./use-chat-room-realtime";
 
-function channelFor(name: string) {
+type FakeChannelListener = (message: { data: unknown }) => void;
+
+interface FakeChannel {
+  name: string;
+  attached: boolean;
+  listeners: Map<string, Set<FakeChannelListener>>;
+  subscribe: ReturnType<typeof vi.fn>;
+  unsubscribe: ReturnType<typeof vi.fn>;
+  detach: ReturnType<typeof vi.fn>;
+  emit: (event: string, data: unknown) => void;
+}
+
+function channelFor(name: string): FakeChannel {
   let channel = channelsByName.get(name);
   if (!channel) {
-    channel = {
+    const listeners = new Map<string, Set<FakeChannelListener>>();
+    const created: FakeChannel = {
       name,
-      subscribe: vi.fn(),
-      unsubscribe: vi.fn(),
-      detach: vi.fn(),
+      attached: false,
+      listeners,
+      subscribe: vi.fn((event: string, listener: FakeChannelListener) => {
+        created.attached = true;
+        let set = listeners.get(event);
+        if (!set) {
+          set = new Set();
+          listeners.set(event, set);
+        }
+        set.add(listener);
+      }),
+      unsubscribe: vi.fn((event: string, listener?: FakeChannelListener) => {
+        if (!listener) {
+          listeners.delete(event);
+          return;
+        }
+        listeners.get(event)?.delete(listener);
+      }),
+      detach: vi.fn(() => {
+        created.attached = false;
+      }),
+      emit: (event: string, data: unknown) => {
+        if (!created.attached) {
+          return;
+        }
+        for (const listener of listeners.get(event) ?? []) {
+          listener({ data });
+        }
+      },
     };
+    channel = created;
     channelsByName.set(name, channel);
   }
   return channel;
@@ -763,7 +796,7 @@ describe("useChatRoomRealtime", () => {
     });
   });
 
-  it("detaches all channels on unmount", async () => {
+  it("detaches room channels on unmount without detaching the shared control channel", async () => {
     const { unmount } = renderHook(() =>
       useChatRoomRealtime({
         roomIds: ["room-a", "room-b"],
@@ -786,8 +819,57 @@ describe("useChatRoomRealtime", () => {
     expect(channelFor("chat_rooms:room_room-b").detach).toHaveBeenCalled();
     expect(
       channelFor("chat_control:user_user_1").unsubscribe,
-    ).toHaveBeenCalled();
-    expect(channelFor("chat_control:user_user_1").detach).toHaveBeenCalled();
+    ).toHaveBeenCalledWith("chat_membership_revoked", expect.any(Function));
+    expect(
+      channelFor("chat_control:user_user_1").detach,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("keeps delivering chat_rooms_changed on the shared control channel after leaving a Room", async () => {
+    const onRevoked = vi.fn();
+    const onRoomsChanged = vi.fn();
+
+    const control = renderHook(() =>
+      useChatControlChannel({
+        currentUserId: "user_1",
+        onRevoked,
+        onRoomsChanged,
+      }),
+    );
+
+    const room = renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a"],
+        currentUserId: "user_1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(channelFor("chat_rooms:room_room-a").subscribe).toHaveBeenCalled();
+    });
+
+    act(() => {
+      room.unmount();
+    });
+
+    act(() => {
+      channelFor("chat_control:user_user_1").emit("chat_rooms_changed", {
+        collections: ["active"],
+        roomId: "room-new",
+        at: "2026-11-23T18:00:00.000Z",
+      });
+    });
+
+    expect(onRoomsChanged).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collections: ["active"],
+        roomId: "room-new",
+      }),
+    );
+
+    act(() => {
+      control.unmount();
+    });
   });
 
   it("does not surface attach/detach race rejections on unmount", async () => {
@@ -806,9 +888,6 @@ describe("useChatRoomRealtime", () => {
 
     channelFor("chat_rooms:room_room-a").detach.mockRejectedValue(
       new Error("Attach request superseded by a subsequent detach request"),
-    );
-    channelFor("chat_control:user_user_1").detach.mockRejectedValue(
-      new Error("Detach request superseded by a subsequent attach request"),
     );
 
     act(() => {
