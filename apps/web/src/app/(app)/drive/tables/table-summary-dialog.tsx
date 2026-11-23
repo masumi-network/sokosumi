@@ -62,14 +62,17 @@ export function TableSummaryDialog({
   });
   const summary =
     column && rows.data ? summarizeTableRows(rows.data, column, numbers) : null;
-  const sum = (value: number | null) =>
-    value === null ? "–" : format.number(value);
+  // Significant digits, not the default three decimals, so 0.0004 never reads
+  // as 0, while a float sum's noise (0.30000000000000004) still reads 0.3.
+  const number = (value: number) =>
+    format.number(value, { maximumSignificantDigits: 15 });
+  const sum = (value: number | null) => (value === null ? "–" : number(value));
   function label(value: TableSummaryGroup["value"]) {
     if (value === null) return t("summary.empty");
     if (Array.isArray(value)) return t("summary.noOptions");
     if (value === "") return t("summary.blank");
     if (typeof value === "boolean") return value ? t("yes") : t("no");
-    return typeof value === "number" ? format.number(value) : value;
+    return typeof value === "number" ? number(value) : value;
   }
   return (
     <Dialog

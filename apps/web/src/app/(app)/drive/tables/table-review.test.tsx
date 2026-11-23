@@ -1489,3 +1489,16 @@ it("a summary pick replaces a full filter set and leaves archived rows", async (
     { columnId: f.column.id, operator: "equals", value: "Original" },
   ]);
 });
+it("names a blank-text filter picked from the summary on its chip", async () => {
+  f.shown = [{ ...f.row, values: { [f.column.id]: "" } }];
+  render(<TableEditor id={f.column.tableId} />);
+  fireEvent.pointerDown(screen.getByRole("button", { name: "tableMenu" }), {
+    button: 0,
+    ctrlKey: false,
+  });
+  fireEvent.click(
+    await screen.findByRole("menuitem", { name: "summary.title" }),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "summary.blank" }));
+  expect(await screen.findByText("Company: summary.blank")).toBeInTheDocument();
+});

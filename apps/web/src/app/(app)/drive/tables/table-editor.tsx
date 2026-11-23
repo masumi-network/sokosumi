@@ -586,8 +586,10 @@ function TableWorkspace({
     return filter.operator === "empty"
       ? t("isEmpty")
       : Array.isArray(filter.value)
-        ? filter.value.join(", ")
-        : tableValueText(filter.value ?? null);
+        ? filter.value.join(", ") || t("summary.noOptions")
+        : filter.value === ""
+          ? t("summary.blank")
+          : tableValueText(filter.value ?? null);
   }
   function handleDefinition(next: TableView["definition"]) {
     // Edited rows stay pinned; view changes must not hide their cells.

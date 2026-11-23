@@ -11,11 +11,16 @@ import { afterEach, expect, it, vi } from "vitest";
 import { TableSummaryDialog } from "./table-summary-dialog";
 
 const f = vi.hoisted(() => ({ query: vi.fn() }));
-vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
-    values ? `${key} ${JSON.stringify(values)}` : key,
-  useFormatter: () => ({ number: (value: number) => String(value) }),
-}));
+vi.mock("next-intl", async (original) => {
+  const intl = await original<typeof import("next-intl")>();
+  // The real formatter, so the test sees what readers see.
+  const formatter = intl.createFormatter({ locale: "en", timeZone: "UTC" });
+  return {
+    useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+      values ? `${key} ${JSON.stringify(values)}` : key,
+    useFormatter: () => formatter,
+  };
+});
 vi.mock("@/lib/services/data-table.client", () => ({
   dataTableService: { query: f.query },
 }));
@@ -126,4 +131,32 @@ it("names a multiple select stored with no options apart from a missing value", 
   fireEvent.click(screen.getByRole("button", { name: "summary.noOptions" }));
   expect(onPick).toHaveBeenCalledWith(tags, []);
   expect(screen.getByRole("button", { name: "summary.empty" })).toBeTruthy();
+});
+
+it("keeps small numbers apart and totals them without rounding to zero", async () => {
+  f.query.mockResolvedValueOnce({
+    rows: [
+      row({ deal: 0, stage: "Won" }),
+      row({ deal: 0.0004, stage: "Won" }),
+      row({ deal: 1234567.5, stage: "Lead" }),
+    ],
+    nextCursor: null,
+  });
+  open();
+  await screen.findByText(/^summary\.scope/);
+  fireEvent.change(screen.getByLabelText("summary.groupBy"), {
+    target: { value: "deal" },
+  });
+  expect(screen.getByRole("button", { name: "0" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "0.0004" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "1,234,567.5" })).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("summary.groupBy"), {
+    target: { value: "stage" },
+  });
+  const won = screen.getByRole("button", { name: "Won" }).closest("tr")!;
+  expect(
+    within(won)
+      .getAllByRole("cell")
+      .map((cell) => cell.textContent),
+  ).toEqual(["Won", "2", "0.0004"]);
 });
