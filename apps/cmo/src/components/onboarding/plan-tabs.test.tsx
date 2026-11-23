@@ -32,12 +32,12 @@ const withMedia: Strategy = {
   ],
 };
 
-it("says the month is topics made after approval, with its pictures and videos, no pillar chips", () => {
+it("says the month is topics made after approval, with media marks, no counts or pillar chips", () => {
   const html = renderToStaticMarkup(
     <MonthPanel strategy={withMedia} onOpen={() => {}} pending />,
   );
   expect(html).toContain("These are the topics.");
-  expect(html).toContain("5 posts · 1 with pictures · 1 video");
+  expect(html).not.toContain("5 posts");
   expect(html).toContain('aria-label="Image"');
   expect(html).toContain('aria-label="Video"');
   expect(html).not.toContain("Behind the build");

@@ -14,17 +14,11 @@ import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
 import { changeIdeas } from "../../lib/change-ideas";
 import { channelInfo } from "../../lib/channels";
-import {
-  monthPostCount,
-  planChosen,
-  planCount,
-  strategyApproved,
-} from "../../lib/strategy";
+import { strategyApproved } from "../../lib/strategy";
 import { WriteNewStrategy } from "../app/write-new-strategy";
 import { ChannelIcon } from "../channel-icon";
 import { CusoAvatar } from "../cuso";
 import { EntrySheet } from "../entry-sheet";
-import { PlanSizes } from "../plan-sizes";
 import { AdsChoice, money } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
 import { SubmitButton } from "../submit-button";
@@ -121,16 +115,13 @@ export function planningRows(
     }
   }
   if (running) {
-    const pieces = strategy ? monthPostCount(strategy.calendar) : 0;
     // On top, so what Cuso is on stays in view above the plan so far.
     rows.unshift({
       id: strategy ? "calendar" : "plan",
       kind: "strategy",
       label: !strategy
         ? "Choosing your idea, channels and pillars"
-        : pieces > 0
-          ? `Writing four weeks, day by day: ${pieces} posts so far`
-          : "Writing four weeks, day by day",
+        : "Writing four weeks, day by day",
       url: null,
       status: "running",
     });
@@ -486,10 +477,6 @@ export function PlanReview({
     ...overview,
     strategy: { ...strategy, questions },
   });
-  const count = planCount(strategy.calendar, overview.production.beyondPlan);
-  // Before a plan is picked the month is the most a plan makes: "Up to …".
-  const atMost = !planChosen(overview);
-  const month = atMost ? `Up to ${count.label}` : count.label;
 
   // Plain async, not a transition: React holds a transition's state updates
   // until it ends, and the re-planning screen must show on the tap. A refusal
@@ -526,7 +513,7 @@ export function PlanReview({
     send("Fitting your strategy to your answers", onUpdate).catch(() => {});
   };
 
-  // The number is a fact under the goal; before approval one line says what approving does.
+  // Before approval one line says what approving does; no post count.
   const line = approved ? null : "Nothing goes out until you approve.";
   // The short goal is the headline.
   const sentence = strategy.idea?.sentence ?? strategy.summary;
@@ -713,12 +700,8 @@ export function PlanReview({
           label="The goal"
           headline
           goal={goal}
-          facts={goalFacts(strategy, {
-            term: approved ? "This month" : "Each month",
-            value: month,
-          })}
+          facts={goalFacts(strategy)}
         />
-        {approved ? null : <PlanSizes strategy={strategy} />}
 
         {fitted.length > 0 && !writing ? (
           <div className="card ob-changed">
@@ -975,11 +958,8 @@ function firstClause(text: string): string {
   return clause || text;
 }
 
-/** Who, what, where and how much, from whatever the plan fills in. */
-function goalFacts(
-  strategy: Strategy,
-  posts: { term: string; value: string },
-): { term: string; value: ReactNode }[] {
+/** Who, what and where, from whatever the plan fills in; no post counts (owner, 2026-11-23). */
+function goalFacts(strategy: Strategy): { term: string; value: ReactNode }[] {
   const who =
     strategy.focus?.segment ?? strategy.idea?.who ?? strategy.audience;
   const offer =
@@ -999,7 +979,6 @@ function goalFacts(
     { term: "Who", value: who },
     { term: "The offer", value: offer },
     { term: "Where", value: where },
-    posts,
   ];
   return facts.filter((fact) => Boolean(fact.value));
 }

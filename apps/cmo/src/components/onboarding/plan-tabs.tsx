@@ -16,7 +16,6 @@ import { useMemo, useState } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { foldCopies, formatDay, planWeeks } from "../../lib/calendar";
 import { formatMedia } from "../../lib/channels";
-import { monthLabel } from "../../lib/strategy";
 import { brandStyle, Section } from "../brand-profile";
 import { businessDisplayName } from "../business-mark";
 import { ChannelIcon } from "../channel-icon";
@@ -290,16 +289,6 @@ export function MonthPanel({
       if (!next.delete(day)) next.add(day);
       return next;
     });
-  const counts = useMemo(() => {
-    const media = strategy.calendar.map((entry) =>
-      formatMedia(entry.channel, entry.format),
-    );
-    return {
-      pictures: media.filter((kind) => kind === "image" || kind === "images")
-        .length,
-      videos: media.filter((kind) => kind === "video").length,
-    };
-  }, [strategy.calendar]);
   return (
     <div className="ob-month">
       {pending ? (
@@ -308,17 +297,6 @@ export function MonthPanel({
           <p>
             <b>These are the topics.</b> Once you approve, I write every post
             and make its pictures and videos.
-          </p>
-          <p className="ob-month-counts num">
-            {[
-              monthLabel(strategy.calendar),
-              counts.pictures > 0 ? `${counts.pictures} with pictures` : "",
-              counts.videos > 0
-                ? `${counts.videos} ${counts.videos === 1 ? "video" : "videos"}`
-                : "",
-            ]
-              .filter(Boolean)
-              .join(" · ")}
           </p>
         </div>
       ) : null}

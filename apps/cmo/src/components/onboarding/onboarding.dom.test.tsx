@@ -913,8 +913,8 @@ it("leaves the volume to the plan: no pace to tap on the strategy", async () => 
   );
   expect(() => button("All-in")).toThrow();
   // What each plan makes, per network, instead of a pace.
-  expect(text()).toContain("What each plan makes");
-  expect(text()).toContain("StarterGrowthScale");
+  // No per-plan post counts on the strategy (owner, 2026-11-23).
+  expect(text()).not.toContain("What each plan makes");
 });
 
 it("re-plans on a new ad budget at once, and keeps the amount when it is refused", async () => {
@@ -1326,7 +1326,7 @@ it("updates the plan after a No with a note, and shows it fitting", async () => 
   await act(async () => fitting.answer(null));
 });
 
-it("never blocks approval on a short month: one line, one number, Approve", async () => {
+it("never blocks approval on a short month: one line, no number, Approve", async () => {
   await act(async () =>
     root.render(
       <OnboardingFlow
@@ -1341,7 +1341,7 @@ it("never blocks approval on a short month: one line, one number, Approve", asyn
   );
   expect(text()).not.toContain("promises about");
   expect(text()).not.toContain("Write it again");
-  expect(text()).toContain("Up to 3 posts");
+  expect(text()).not.toContain("Up to 3 posts");
   expect(text()).toContain("Nothing goes out until you approve.");
   expect(text()).toContain("Approve strategy");
 });

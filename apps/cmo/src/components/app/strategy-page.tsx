@@ -99,10 +99,6 @@ export function StrategyPage({
       </div>
     );
   }
-  const pieces = strategy.calendar.filter(
-    (entry) => entry.status !== "skipped",
-  ).length;
-
   return (
     <div className="plan">
       <PlanReview
@@ -122,7 +118,7 @@ export function StrategyPage({
           onClick={onOpenCalendar}
         >
           <CalendarDays size={15} aria-hidden="true" />
-          See all {pieces} posts in your calendar
+          See your month in the calendar
           <ArrowRight size={15} aria-hidden="true" />
         </button>
         <StrategyVersions overview={overview} onApprove={onApprove} />

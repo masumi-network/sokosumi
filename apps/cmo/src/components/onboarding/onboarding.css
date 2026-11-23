@@ -1893,12 +1893,6 @@ body:has(.ob) .site-header {
   margin-top: 2px;
 }
 
-.ob-month-counts {
-  grid-column: 2;
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-
 .ob-entry-title {
   display: -webkit-box;
   overflow: hidden;
