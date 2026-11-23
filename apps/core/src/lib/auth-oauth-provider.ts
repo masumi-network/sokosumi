@@ -10,7 +10,7 @@ import {
   OAUTH_SCOPE_OPENID,
 } from "@sokosumi/utils";
 import type { DBAdapter, GenericEndpointContext } from "better-auth";
-import { getOAuthState } from "better-auth/api";
+import { APIError, getOAuthState } from "better-auth/api";
 import { symmetricDecrypt } from "better-auth/crypto";
 import type { Jwk, JwtOptions } from "better-auth/plugins/jwt";
 
@@ -56,15 +56,25 @@ export function clientRegistrationOptions(mcpResourceIdentifier: string) {
   } satisfies Partial<OAuthOptions<string[]>>;
 }
 
+/** Registration fields that serve confidential clients or back-channel logout. */
+const UNREGISTRABLE_CLIENT_FIELDS = [
+  "jwks",
+  "jwks_uri",
+  "backchannel_logout_uri",
+  "backchannel_logout_session_required",
+];
+
 /**
  * Before hook: dynamic registration makes public clients only, with no secret
  * and PKCE on every authorization. RFC 7591 §3.2.1 lets the server replace a
- * requested value; the response tells the client the method it got.
+ * requested value; the response tells the client the method it got. Keys serve
+ * only confidential clients, and a back-channel logout URI would have Core post
+ * logout tokens to a host anyone chose, so a request with either is refused.
  */
 export function registerPublicClientsOnly(ctx: {
   path?: string;
   body?: unknown;
-}) {
+}): { context: { body: Record<string, unknown> } } | undefined {
   if (
     ctx.path !== "/oauth2/register" ||
     typeof ctx.body !== "object" ||
@@ -72,8 +82,16 @@ export function registerPublicClientsOnly(ctx: {
   ) {
     return;
   }
+  const body = ctx.body as Record<string, unknown>;
+  const refused = UNREGISTRABLE_CLIENT_FIELDS.find((field) => field in body);
+  if (refused) {
+    throw new APIError("BAD_REQUEST", {
+      error: "invalid_client_metadata",
+      error_description: `${refused} cannot be registered`,
+    });
+  }
   return {
-    context: { body: { ...ctx.body, token_endpoint_auth_method: "none" } },
+    context: { body: { ...body, token_endpoint_auth_method: "none" } },
   };
 }
 

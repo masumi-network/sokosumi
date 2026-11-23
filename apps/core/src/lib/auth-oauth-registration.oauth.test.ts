@@ -142,7 +142,11 @@ async function authorize(options: {
   scope: string;
   resource?: string;
   pkce?: boolean;
-}): Promise<{ code: string | null; error: string | null }> {
+}): Promise<{
+  code: string | null;
+  error: string | null;
+  description: string | null;
+}> {
   const query = new URLSearchParams({
     client_id: options.clientId,
     redirect_uri: options.redirectUri,
@@ -183,6 +187,7 @@ async function authorize(options: {
   return {
     code: location.searchParams.get("code"),
     error: location.searchParams.get("error"),
+    description: location.searchParams.get("error_description"),
   };
 }
 
@@ -255,6 +260,19 @@ describe("dynamic client registration", () => {
     expect(client.token_endpoint_auth_method).toBe("none");
   });
 
+  it.each([
+    ["backchannel_logout_uri", "https://agent.example.test/logout"],
+    ["jwks_uri", "https://agent.example.test/jwks.json"],
+  ])("refuses a registration with %s", async (field, value) => {
+    const response = await register({ ...MCP_CLIENT, [field]: value });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      error: "invalid_client_metadata",
+    });
+    expect(store.oauthClient).toHaveLength(0);
+  });
+
   it("refuses a registration that asks for sokosumi:api", async () => {
     const response = await register({
       ...MCP_CLIENT,
@@ -279,7 +297,7 @@ describe("dynamic client registration", () => {
       resource,
     });
 
-    expect(result).toEqual({ code: null, error: "invalid_scope" });
+    expect(result).toMatchObject({ code: null, error: "invalid_scope" });
   });
 
   it("refuses to authorize without PKCE", async () => {
@@ -293,8 +311,11 @@ describe("dynamic client registration", () => {
       pkce: false,
     });
 
-    expect(result.code).toBeNull();
-    expect(result.error).toBeTruthy();
+    expect(result).toEqual({
+      code: null,
+      error: "invalid_request",
+      description: expect.stringMatching(/pkce|code_challenge/i),
+    });
   });
 
   it("gets an MCP token through authorize, consent and the token endpoint", async () => {
