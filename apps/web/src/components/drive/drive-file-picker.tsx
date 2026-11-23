@@ -134,7 +134,6 @@ function DriveFilePickerContent({
         ...(trimmedQuery ? { q: trimmedQuery } : {}),
         signal,
       }),
-    staleTime: 0,
     enabled: open,
   });
 
@@ -286,6 +285,7 @@ function DriveFilePickerContent({
                       <button
                         key={itemKey}
                         type="button"
+                        disabled={itemsQuery.isFetching}
                         className={cn(
                           buttonVariants({ variant: "ghost" }),
                           "h-auto whitespace-normal flex w-full min-w-0 max-w-full items-start gap-3 overflow-hidden rounded-md p-3 text-left",
@@ -312,6 +312,7 @@ function DriveFilePickerContent({
                     <button
                       key={itemKey}
                       type="button"
+                      disabled={itemsQuery.isFetching}
                       className={cn(
                         buttonVariants({ variant: "ghost" }),
                         "h-auto whitespace-normal flex w-full min-w-0 max-w-full items-start gap-3 overflow-hidden rounded-md p-3 text-left",

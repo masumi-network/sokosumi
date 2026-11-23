@@ -78,7 +78,7 @@ function makeFolder(name: string, dataRoom = false): DriveItem {
 
 function createQueryClient() {
   return new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: { queries: { retry: false, staleTime: 60_000 } },
   });
 }
 
@@ -213,17 +213,10 @@ describe("DriveFilePicker", () => {
     });
   });
 
-  it("reopens with cached rows immediately while refetching in the background", async () => {
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false, staleTime: 60_000 } },
-    });
+  it("reopens unchanged with the cached list and makes no GET", async () => {
+    const queryClient = createQueryClient();
     const cachedFile = makeFile("cached-brief.pdf");
-    const addedFile = makeFile("newly-uploaded.pdf");
-    const reopenRefetch = Promise.withResolvers<DriveItem[]>();
-
-    listDriveItemsMock
-      .mockResolvedValueOnce([cachedFile])
-      .mockImplementationOnce(() => reopenRefetch.promise);
+    listDriveItemsMock.mockResolvedValue([cachedFile]);
 
     const { rerender } = render(
       <QueryClientProvider client={queryClient}>
@@ -233,7 +226,7 @@ describe("DriveFilePicker", () => {
 
     expect(
       await screen.findByRole("button", { name: /cached-brief\.pdf/ }),
-    ).toBeInTheDocument();
+    ).toBeEnabled();
     expect(listDriveItemsMock).toHaveBeenCalledTimes(1);
 
     rerender(
@@ -252,68 +245,76 @@ describe("DriveFilePicker", () => {
       </QueryClientProvider>,
     );
 
-    // Cached row is rendered immediately while the background refetch is held.
     expect(
       await screen.findByRole("button", { name: /cached-brief\.pdf/ }),
-    ).toBeInTheDocument();
-    await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalledTimes(2);
-    });
-
-    await act(async () => {
-      reopenRefetch.resolve([cachedFile, addedFile]);
-      await reopenRefetch.promise;
-    });
-
-    expect(
-      await screen.findByRole("button", { name: /newly-uploaded\.pdf/ }),
-    ).toBeInTheDocument();
+    ).toBeEnabled();
+    expect(listDriveItemsMock).toHaveBeenCalledTimes(1);
   });
 
-  it("drops cached files under a deleted folder before the refetch returns", async () => {
+  it("disables cached rows on reopen after a Drive write until the refetch returns", async () => {
     const user = userEvent.setup();
     const queryClient = createQueryClient();
+    const staleFile = makeFile("stale.pdf");
+    const freshFile = makeFile("fresh.pdf");
     const docsFolder = makeFolder("docs");
-    const docsReport = makeFile("report.pdf", {
-      pathname: "drive/users/user_1/docs/report.pdf",
-    });
     const refetchDeferred = Promise.withResolvers<DriveItem[]>();
+    const onSelect = vi.fn();
 
     listDriveItemsMock
-      .mockResolvedValueOnce([docsFolder])
-      .mockResolvedValueOnce([docsReport])
+      .mockResolvedValueOnce([docsFolder, staleFile])
       .mockImplementationOnce(() => refetchDeferred.promise);
 
-    render(
+    const { rerender } = render(
       <QueryClientProvider client={queryClient}>
-        <DriveFilePicker open onOpenChange={vi.fn()} onSelect={vi.fn()} />
+        <DriveFilePicker open onOpenChange={vi.fn()} onSelect={onSelect} />
       </QueryClientProvider>,
     );
 
-    await user.click(await screen.findByRole("button", { name: /docs/ }));
     expect(
-      await screen.findByRole("button", { name: /report\.pdf/ }),
-    ).toBeInTheDocument();
+      await screen.findByRole("button", { name: /stale\.pdf/ }),
+    ).toBeEnabled();
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <DriveFilePicker
+          open={false}
+          onOpenChange={vi.fn()}
+          onSelect={onSelect}
+        />
+      </QueryClientProvider>,
+    );
 
     await act(async () => {
-      void invalidateDrive(
-        queryClient,
-        { scope: "me" },
-        { deletedIds: ["docs"] },
-      );
+      await invalidateDrive(queryClient, { scope: "me" });
     });
 
-    await waitFor(() => {
-      expect(
-        screen.queryByRole("button", { name: /report\.pdf/ }),
-      ).not.toBeInTheDocument();
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <DriveFilePicker open onOpenChange={vi.fn()} onSelect={onSelect} />
+      </QueryClientProvider>,
+    );
+
+    const staleButton = await screen.findByRole("button", {
+      name: /stale\.pdf/,
     });
-    expect(listDriveItemsMock).toHaveBeenCalledTimes(3);
+    const folderButton = screen.getByRole("button", { name: /docs/ });
+    expect(staleButton).toBeDisabled();
+    expect(folderButton).toBeDisabled();
+    await user.click(staleButton);
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(listDriveItemsMock).toHaveBeenCalledTimes(2);
 
     await act(async () => {
-      refetchDeferred.resolve([]);
+      refetchDeferred.resolve([freshFile]);
       await refetchDeferred.promise;
     });
+
+    const freshButton = await screen.findByRole("button", {
+      name: /fresh\.pdf/,
+    });
+    expect(freshButton).toBeEnabled();
+    await user.click(freshButton);
+    expect(onSelect).toHaveBeenCalledWith(freshFile);
   });
 
   it("resolves organization name, filters non-pickable items, navigates folders, and isolates workspaces", async () => {

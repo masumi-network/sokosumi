@@ -51,39 +51,8 @@ export function splitDriveQueryKey<const TRest extends readonly unknown[]>(
 }
 
 export interface InvalidateDriveOptions {
-  /** Resource ids, entity ids, Drive file pathnames, or folder paths to drop from loaded lists before refetch returns. */
+  /** Resource ids, entity ids, or Drive pathnames to drop from loaded lists before refetch returns. */
   deletedIds?: readonly string[];
-}
-
-const DRIVE_OWNER_PREFIX_RE = /^drive\/(?:users|organizations|orgs)\/[^/]+\//;
-
-function stripDriveOwnerPrefix(path: string): string {
-  return path.replace(DRIVE_OWNER_PREFIX_RE, "");
-}
-
-function normalizeDeletedEntry(entry: string): string {
-  return entry.endsWith("/") ? entry.slice(0, -1) : entry;
-}
-
-function matchesDeletedPath(
-  candidate: string,
-  deleted: ReadonlySet<string>,
-  deletedPrefixes: readonly string[],
-): boolean {
-  const relative = stripDriveOwnerPrefix(candidate);
-  if (deleted.has(candidate) || deleted.has(relative)) {
-    return true;
-  }
-  return deletedPrefixes.some(
-    (prefix) => candidate.startsWith(prefix) || relative.startsWith(prefix),
-  );
-}
-
-function pickerQueryFolder(queryKey: readonly unknown[]): string {
-  const params = queryKey[2] === "picker" ? queryKey[3] : null;
-  return isRecord(params) && typeof params.folder === "string"
-    ? params.folder
-    : "";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -103,8 +72,6 @@ function isInfiniteData(
 function removeDeletedFromArray(
   items: readonly unknown[],
   deleted: ReadonlySet<string>,
-  deletedPrefixes: readonly string[],
-  queryFolder: string,
 ): readonly unknown[] {
   let changed = false;
   const next: unknown[] = [];
@@ -115,20 +82,11 @@ function removeDeletedFromArray(
       const resourceId =
         typeof item.resourceId === "string" ? item.resourceId : null;
       const pathname = typeof item.pathname === "string" ? item.pathname : null;
-      const folderPath =
-        item.type === "folder" && typeof item.path === "string"
-          ? queryFolder
-            ? `${queryFolder}/${item.path}`
-            : item.path
-          : null;
 
       if (
         (id !== null && deleted.has(id)) ||
         (resourceId !== null && deleted.has(resourceId)) ||
-        (pathname !== null &&
-          matchesDeletedPath(pathname, deleted, deletedPrefixes)) ||
-        (folderPath !== null &&
-          matchesDeletedPath(folderPath, deleted, deletedPrefixes))
+        (pathname !== null && deleted.has(pathname))
       ) {
         changed = true;
         continue;
@@ -144,19 +102,12 @@ function removeDeletedFromArray(
 function removeDeletedFromList(
   value: unknown,
   deleted: ReadonlySet<string>,
-  deletedPrefixes: readonly string[],
-  queryFolder: string,
 ): unknown {
   if (Array.isArray(value)) {
-    return removeDeletedFromArray(value, deleted, deletedPrefixes, queryFolder);
+    return removeDeletedFromArray(value, deleted);
   }
   if (isRecord(value) && Array.isArray(value.items)) {
-    const nextItems = removeDeletedFromArray(
-      value.items,
-      deleted,
-      deletedPrefixes,
-      queryFolder,
-    );
+    const nextItems = removeDeletedFromArray(value.items, deleted);
     return nextItems === value.items ? value : { ...value, items: nextItems };
   }
   return value;
@@ -165,25 +116,18 @@ function removeDeletedFromList(
 function removeDeletedFromData(
   data: unknown,
   deleted: ReadonlySet<string>,
-  deletedPrefixes: readonly string[],
-  queryFolder: string,
 ): unknown {
   if (isInfiniteData(data)) {
     let changed = false;
     const nextPages = data.pages.map((page) => {
-      const nextPage = removeDeletedFromList(
-        page,
-        deleted,
-        deletedPrefixes,
-        queryFolder,
-      );
+      const nextPage = removeDeletedFromList(page, deleted);
       if (nextPage !== page) changed = true;
       return nextPage;
     });
     return changed ? { ...data, pages: nextPages } : data;
   }
 
-  return removeDeletedFromList(data, deleted, deletedPrefixes, queryFolder);
+  return removeDeletedFromList(data, deleted);
 }
 
 /**
@@ -200,14 +144,7 @@ export async function invalidateDrive(
   const prefix = driveQueryKeys.prefix(store);
   await queryClient.cancelQueries({ queryKey: prefix });
 
-  const deleted = new Set<string>();
-  for (const raw of options?.deletedIds ?? []) {
-    const normalized = normalizeDeletedEntry(raw);
-    if (normalized.length > 0) {
-      deleted.add(normalized);
-    }
-  }
-  const deletedPrefixes = Array.from(deleted, (entry) => `${entry}/`);
+  const deleted = new Set(options?.deletedIds ?? []);
 
   if (deleted.size > 0) {
     for (const query of queryClient
@@ -217,12 +154,7 @@ export async function invalidateDrive(
       const current = query.state.data;
       if (current === undefined) continue;
 
-      const next = removeDeletedFromData(
-        current,
-        deleted,
-        deletedPrefixes,
-        pickerQueryFolder(query.queryKey),
-      );
+      const next = removeDeletedFromData(current, deleted);
       if (next !== current) {
         queryClient.setQueryData(query.queryKey, next);
       }
