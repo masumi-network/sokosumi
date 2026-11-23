@@ -38,6 +38,11 @@ describe("cmo-v21", () => {
     );
     expect(strategy).toContain("about 60 educational");
     expect(strategy).toContain("Never invent a market number");
+    // Owner, 2026-11-23: NMKR's rewrite had no proof although TURF is in its
+    // Brand Brain.
+    expect(strategy).toContain(
+      "Keep social-proof whenever the Brand Brain names",
+    );
   });
 
   it("leaves the strategy out of a production run", () => {
