@@ -80,6 +80,10 @@ const labels = {
     title: "No closed projects",
     description: "A project you close moves here",
   },
+  noOpen: {
+    title: "No open projects",
+    description: "Your other projects are in another view.",
+  },
   onlyClosed: {
     title: "All projects are closed",
     description: "Closed projects keep their history in the Closed view.",
@@ -364,10 +368,23 @@ describe("ProjectsView empty states", () => {
   });
 
   it("says every project is closed, and links there, when only Closed has any", () => {
-    renderView({ projects: [], hasClosedProjects: true });
+    renderView({ projects: [], otherViews: ["closed"] });
 
     expect(screen.getByText("All projects are closed")).toBeInTheDocument();
     expect(screen.queryByText("No projects yet")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Show closed projects" }),
+    ).toHaveAttribute("href", "/projects?state=closed");
+  });
+
+  it("says Open is empty, not that there are none, when a project is hidden", () => {
+    renderView({ projects: [], otherViews: ["hidden", "closed"] });
+
+    expect(screen.getByText("No open projects")).toBeInTheDocument();
+    expect(screen.queryByText("No projects yet")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Show hidden projects" }),
+    ).toHaveAttribute("href", "/projects?state=hidden");
     expect(
       screen.getByRole("link", { name: "Show closed projects" }),
     ).toHaveAttribute("href", "/projects?state=closed");

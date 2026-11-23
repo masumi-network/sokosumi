@@ -2803,6 +2803,10 @@
           "title": "No hidden projects",
           "description": "Hide a project that isn't yours from its menu. It leaves Open, the project switcher and Recent activity, and waits here."
         },
+        "noOpen": {
+          "title": "No open projects",
+          "description": "Your other projects are in another view."
+        },
         "onlyClosed": {
           "title": "All projects are closed",
           "description": "Closed projects keep their history in the Closed view.",

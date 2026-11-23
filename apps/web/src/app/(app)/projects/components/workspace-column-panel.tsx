@@ -13,7 +13,8 @@ import { WORKSPACE_COLUMN_FOCUS_RING } from "./workspace-column-row";
 
 const ACTION_CLASS = cn(
   WORKSPACE_COLUMN_FOCUS_RING,
-  "text-muted-foreground hover:text-foreground cursor-pointer rounded-sm text-xs font-medium transition-colors",
+  // A 24px box and a finger-sized `hit-area`: the row stays min-h-6.
+  "text-muted-foreground hover:text-foreground hit-area inline-flex min-h-6 cursor-pointer items-center rounded-sm text-xs font-medium transition-colors",
 );
 
 type WorkspaceColumnPanelAction =

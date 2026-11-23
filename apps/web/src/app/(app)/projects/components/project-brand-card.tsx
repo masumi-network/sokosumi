@@ -535,6 +535,8 @@ export function ProjectBrandCard({
               size="sm"
               disabled={menuBusy}
               onClick={() => setShowUpload(true)}
+              // Matches Generate above it on a phone: full width, 40px.
+              className="h-10 w-full sm:h-8 sm:w-auto"
             >
               <Upload aria-hidden />
               {t("brandCard.upload")}
