@@ -8820,6 +8820,9 @@
           "denyError": "Failed to deny application"
         },
         "apiAccessNotice": "Authorizing grants full API access to your account (openid and sokosumi:api). Only approve apps you trust.",
+        "mcpAccessNotice": "Authorizing lets this app use Sokosumi as you through an MCP client (sokosumi:mcp).",
+        "unverifiedNotice": "Unverified app. It registered itself, so Sokosumi can't confirm who runs it.",
+        "redirectHost": "After you answer, Sokosumi sends you to {host}.",
         "offlineAccessNotice": "This app can stay logged in and get new access tokens later without asking you again (refresh tokens, up to 90 days)."
       },
       "OAuthClients": {
