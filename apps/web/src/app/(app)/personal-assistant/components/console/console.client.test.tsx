@@ -414,8 +414,9 @@ describe("SokoBotConsole", () => {
         prompt: "Tidy memory",
         enabled: false,
         nextRunAt: "2030-01-02T03:00:00.000Z",
+        lastRunAt: null,
         consecutiveFailures: 0,
-      } as (typeof state.bot.schedules)[number],
+      },
     ];
     render(consoleElement({ initialState: state }));
 

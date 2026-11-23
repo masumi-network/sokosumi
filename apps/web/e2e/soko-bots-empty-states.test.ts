@@ -88,6 +88,17 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       const reactivate = page.getByRole("button", { name: "Reactivate" });
       await reactivate.waitFor();
       const rawKeys = await page.getByText("App.SokoBots").count();
+      // Both archived actions stay inside the viewport, wrapping on a phone.
+      const offScreen: string[] = [];
+      for (const control of [
+        reactivate,
+        page.getByRole("link", { name: "Back to Soko Bots" }),
+      ]) {
+        const box = await control.boundingBox();
+        if (!box || box.x < 0 || box.x + box.width > viewport.width) {
+          offScreen.push((await control.textContent()) ?? "?");
+        }
+      }
       await page.screenshot({
         path: `${RESULTS_DIR}${name}-soko-bots-archived.png`,
       });
@@ -98,6 +109,7 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       assert.equal(nextDisabled, 0, '"Next disabled" on a schedule');
       assert.ok(off > 0, '"Off" on the switched-off schedules');
       assert.equal(rawKeys, 0, "untranslated App.SokoBots key on the page");
+      assert.deepEqual(offScreen, [], "archived actions outside the viewport");
       assert.deepEqual(errors, []);
     });
   });
