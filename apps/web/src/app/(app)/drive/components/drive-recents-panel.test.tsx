@@ -1,11 +1,8 @@
-import type {
-  DriveRecentsItem,
-  FileCollection,
-  FileResource,
-} from "@sokosumi/core-client";
+import type { DriveRecentsItem, FileResource } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DriveRecentsPageResult } from "@/lib/utils/drive-recents-list.client";
@@ -17,8 +14,13 @@ const api = vi.hoisted(() => ({
   fetchWorkspaceFolders: vi.fn(),
   fetchWorkspaceLabels: vi.fn(),
   fetchFileCollections: vi.fn(),
-  updateFileCollection: vi.fn(),
+  fetchDataRooms: vi.fn(),
+  patchDriveFoldersRename: vi.fn(),
+  patchDriveFilesRename: vi.fn(),
+  getUsersByIdOrganizations: vi.fn(),
 }));
+
+const useSessionMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/utils/drive-recents-list.client", () => ({
   fetchDriveRecentsPage: (...args: unknown[]) =>
@@ -38,12 +40,53 @@ vi.mock("@/lib/utils/file-search.client", async (importOriginal) => {
       api.fetchWorkspaceLabels(...args),
     fetchFileCollections: (...args: unknown[]) =>
       api.fetchFileCollections(...args),
-    updateFileCollection: (...args: unknown[]) =>
-      api.updateFileCollection(...args),
   };
 });
 
+vi.mock("@/lib/utils/data-room.client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/utils/data-room.client")>()),
+  fetchDataRooms: (...args: unknown[]) => api.fetchDataRooms(...args),
+}));
+
+vi.mock("@sokosumi/core-client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/core-client")>()),
+  getUsersByIdOrganizations: (...args: unknown[]) =>
+    api.getUsersByIdOrganizations(...args),
+  patchDriveFoldersRename: (...args: unknown[]) =>
+    api.patchDriveFoldersRename(...args),
+  patchDriveFilesRename: (...args: unknown[]) =>
+    api.patchDriveFilesRename(...args),
+}));
+
+vi.mock("@/lib/clients/core.browser.client", () => ({
+  getBrowserCoreClient: () => ({ id: "browser-core-client" }),
+}));
+
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => useSessionMock(),
+}));
+
+vi.mock("@/hooks/effects/use-mobile", () => ({
+  useIsMobile: () => false,
+  useIsMobileMedia: () => false,
+  MOBILE_BREAKPOINT: 768,
+}));
+
+vi.mock("@/config/env.public", () => ({
+  getEnvPublicConfig: () => ({ NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME: 0 }),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    replace: vi.fn(),
+    push: vi.fn(),
+  }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => "/drive",
+}));
+
 vi.mock("next-intl", () => ({
+  useTimeZone: () => "UTC",
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({
     dateTime: () => "Aug 25, 2026",
@@ -74,6 +117,10 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
   DropdownMenuContent: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
+  DropdownMenuLabel: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuSeparator: () => <hr />,
   DropdownMenuItem: ({
     children,
     onSelect,
@@ -104,8 +151,8 @@ vi.mock("@/app/drive/components/drive-file-viewer", () => ({
   DriveFileViewer: () => null,
 }));
 
-import { DriveAllFilesPanel } from "@/app/drive/components/drive-all-files-panel";
 import { DriveRecentsPanel } from "@/app/drive/components/drive-recents-panel";
+import { DrivePageClient } from "@/app/drive/drive-page-client";
 import { invalidateDrive } from "@/queries/drive";
 
 const orgA = { scope: "org" as const, organizationId: "org_a" };
@@ -116,6 +163,7 @@ function makeQueryClient() {
     defaultOptions: {
       queries: {
         retry: false,
+        staleTime: 60_000,
       },
     },
   });
@@ -138,6 +186,19 @@ function makeRecentsFile(
     tags: [],
     dataRoom: false,
     ...overrides,
+  };
+}
+
+function makeRecentsTable(
+  tableId: string,
+  name: string,
+): Extract<DriveRecentsItem, { kind: "table" }> {
+  return {
+    kind: "table",
+    tableId,
+    name,
+    activityAt: new Date("2026-08-25T10:00:00.000Z"),
+    projectId: null,
   };
 }
 
@@ -172,9 +233,9 @@ function makeSearchPage(items: FileResource[]): FileSearchPage {
       resultWindowLimit: 120,
       windowCount: items.length,
       remainingWindowCount: 0,
+      truncated: false,
       hasMore: false,
       nextCursor: null,
-      truncated: false,
       restarted: false,
       indexCoverage: {
         indexed: items.length,
@@ -183,15 +244,6 @@ function makeSearchPage(items: FileResource[]): FileSearchPage {
       },
     },
   } as unknown as FileSearchPage;
-}
-
-function makeCollection(id: string, name: string): FileCollection {
-  return {
-    id,
-    name,
-    isOwner: true,
-    definition: { query: "", typeFamilies: ["document"] },
-  } as unknown as FileCollection;
 }
 
 function renderRecents(
@@ -225,6 +277,13 @@ describe("DriveRecentsPanel", () => {
     for (const mock of Object.values(api)) {
       mock.mockReset();
     }
+    useSessionMock.mockReset();
+    useSessionMock.mockReturnValue({
+      data: {
+        user: { id: "user_1" },
+        session: { activeOrganizationId: "org_a" },
+      },
+    });
     api.fetchDriveRecentsPage.mockResolvedValue({
       items: [],
       nextCursor: null,
@@ -233,111 +292,187 @@ describe("DriveRecentsPanel", () => {
     api.fetchWorkspaceFolders.mockResolvedValue([]);
     api.fetchWorkspaceLabels.mockResolvedValue([]);
     api.fetchFileCollections.mockResolvedValue([]);
+    api.fetchDataRooms.mockResolvedValue([]);
+    api.getUsersByIdOrganizations.mockResolvedValue({
+      data: { data: [{ id: "org_a", name: "Org A" }] },
+    });
   });
 
-  it("updates recents after a rename in the catalog and updates the catalog after a rename in recents", async () => {
+  it("updates recents after a folder rename in the catalog and updates the catalog after a file rename in recents", async () => {
     const user = userEvent.setup();
     const client = makeQueryClient();
-    const initialCollection = makeCollection("col_1", "Invoices");
-    const renamedCollection = makeCollection("col_1", "Receipts");
 
-    api.fetchFileCollections
-      .mockResolvedValueOnce([initialCollection])
-      .mockResolvedValue([renamedCollection]);
-    api.updateFileCollection.mockResolvedValue(renamedCollection);
+    // Stateful fake Drive backend: reads derive strictly from successful writes.
+    const driveState = {
+      folder: "Reports",
+      fileName: "draft.pdf",
+    };
+    const currentPathname = () =>
+      `drive/orgs/org_a/${driveState.folder}/${driveState.fileName}`;
 
-    api.fetchFileSearchPage
-      .mockResolvedValueOnce(
-        makeSearchPage([makeCatalogFile("res_1", "draft.pdf")]),
-      )
-      .mockResolvedValueOnce(
-        makeSearchPage([makeCatalogFile("res_1", "after-catalog-rename.pdf")]),
-      )
-      .mockResolvedValueOnce(
-        makeSearchPage([makeCatalogFile("res_1", "after-recents-rename.pdf")]),
+    api.fetchWorkspaceFolders.mockImplementation(async () => [
+      driveState.folder,
+    ]);
+    api.fetchFileSearchPage.mockImplementation(
+      async ({ filters }: { filters: { folder: string } }) => {
+        if (filters.folder === driveState.folder) {
+          return makeSearchPage([
+            makeCatalogFile("res_1", driveState.fileName, {
+              pathname: currentPathname(),
+            }),
+          ]);
+        }
+        return makeSearchPage([]);
+      },
+    );
+    api.fetchDriveRecentsPage.mockImplementation(async () => ({
+      items: [
+        makeRecentsFile("res_1", driveState.fileName, {
+          pathname: currentPathname(),
+          fileUrl: `https://example.com/${currentPathname()}`,
+        }),
+      ],
+      nextCursor: null,
+    }));
+    api.patchDriveFoldersRename.mockImplementation(
+      async ({
+        body,
+      }: {
+        body: { oldFolderPath: string; newFolderPath: string };
+      }) => {
+        if (body.oldFolderPath !== driveState.folder) {
+          throw new Error(`Unexpected folder ${body.oldFolderPath}`);
+        }
+        driveState.folder = body.newFolderPath;
+        return { data: {} };
+      },
+    );
+    api.patchDriveFilesRename.mockImplementation(
+      async ({
+        body,
+      }: {
+        body: { oldPathname: string; newFilename: string };
+      }) => {
+        if (body.oldPathname !== currentPathname()) {
+          throw new Error(
+            `Stale file pathname ${body.oldPathname} (expected ${currentPathname()})`,
+          );
+        }
+        driveState.fileName = body.newFilename;
+        return { data: {} };
+      },
+    );
+
+    vi.stubGlobal("prompt", () => "Investors");
+
+    render(
+      <NuqsTestingAdapter searchParams="" hasMemory>
+        <QueryClientProvider client={client}>
+          <DrivePageClient defaultFilesViewMode="list" />
+        </QueryClientProvider>
+      </NuqsTestingAdapter>,
+    );
+
+    // 1. Recents initially loads the file under Reports.
+    expect(await screen.findByText("draft.pdf")).toBeVisible();
+
+    // 2. Switch to Workspace catalog, open Reports, and rename it to Investors.
+    await user.click(screen.getByRole("tab", { name: "workspaceTab" }));
+    await user.click(await screen.findByRole("button", { name: "Reports" }));
+    expect(await screen.findByText("draft.pdf")).toBeVisible();
+
+    await user.click(screen.getByTestId("files-rename-folder"));
+
+    await waitFor(() => {
+      expect(api.patchDriveFoldersRename).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.objectContaining({
+            oldFolderPath: "Reports",
+            newFolderPath: "Investors",
+          }),
+        }),
       );
+    });
+    expect(
+      await screen.findByRole("button", { name: "Investors" }),
+    ).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Reports" })).toBeNull();
+    expect(await screen.findByText("draft.pdf")).toBeVisible();
+
+    // 3. Return to Recents and rename draft.pdf -> final.pdf through the real handler.
+    //    This only succeeds if Recents refreshed to the renamed Investors pathname.
+    await user.click(screen.getByRole("tab", { name: "recentsTab" }));
+    await waitFor(() => {
+      expect(api.fetchDriveRecentsPage).toHaveBeenCalledTimes(2);
+    });
+    expect(await screen.findByText("draft.pdf")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "renameAction" }));
+    const renameInput = screen.getByDisplayValue("draft.pdf");
+    await user.clear(renameInput);
+    await user.type(renameInput, "final.pdf{Enter}");
+
+    await waitFor(() => {
+      expect(api.patchDriveFilesRename).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: {
+            oldPathname: "drive/orgs/org_a/Investors/draft.pdf",
+            newFilename: "final.pdf",
+          },
+        }),
+      );
+    });
+    expect(await screen.findByText("final.pdf")).toBeVisible();
+    expect(screen.queryByText("draft.pdf")).toBeNull();
+
+    // 4. Return to Workspace catalog and reopen Investors (which was cached with staleTime: 60_000).
+    await user.click(screen.getByRole("tab", { name: "workspaceTab" }));
+    await user.click(await screen.findByRole("button", { name: "Investors" }));
+
+    expect(await screen.findByText("final.pdf")).toBeVisible();
+    expect(screen.queryByText("draft.pdf")).toBeNull();
+
+    vi.unstubAllGlobals();
+  });
+
+  it("shows cached rows and refetches on return to Recents after a table rename", async () => {
+    const client = makeQueryClient();
+    const refetchDeferred = Promise.withResolvers<DriveRecentsPageResult>();
 
     api.fetchDriveRecentsPage
       .mockResolvedValueOnce({
-        items: [makeRecentsFile("res_1", "draft.pdf")],
+        items: [makeRecentsTable("table_1", "Leads")],
         nextCursor: null,
       })
-      .mockResolvedValueOnce({
-        items: [makeRecentsFile("res_1", "after-catalog-rename.pdf")],
-        nextCursor: null,
-      })
-      .mockResolvedValueOnce({
-        items: [makeRecentsFile("res_1", "after-recents-rename.pdf")],
-        nextCursor: null,
-      });
+      .mockImplementationOnce(() => refetchDeferred.promise);
 
-    vi.stubGlobal("prompt", () => "Receipts");
+    const { unmount } = renderRecents({}, client);
 
-    const onRenameFile = vi.fn(async () => {
-      void invalidateDrive(client, orgA);
+    expect(await screen.findByRole("link", { name: /Leads/ })).toBeVisible();
+
+    // User opens the table editor, renames the table, and returns to Drive.
+    unmount();
+
+    renderRecents({}, client);
+
+    // Cached row stays visible immediately while the background refetch runs.
+    expect(screen.getByRole("link", { name: /Leads/ })).toBeVisible();
+    await waitFor(() => {
+      expect(api.fetchDriveRecentsPage).toHaveBeenCalledTimes(2);
     });
 
-    render(
-      <QueryClientProvider client={client}>
-        <section aria-label="catalog">
-          <DriveAllFilesPanel store={orgA} viewMode="list" isMobile={false} />
-        </section>
-        <section aria-label="recents">
-          <DriveRecentsPanel
-            driveStore={orgA}
-            searchQuery=""
-            tagLabelIds={[]}
-            onOpenMoveDialog={vi.fn()}
-            onShareFile={vi.fn()}
-            onOpenDeleteDialog={vi.fn()}
-            onRenameFile={onRenameFile}
-            onOpenCopyDialog={vi.fn()}
-            onUpload={vi.fn()}
-            uploading={false}
-            onOpenWorkspace={vi.fn()}
-          />
-        </section>
-      </QueryClientProvider>,
-    );
-
-    const catalog = screen.getByRole("region", { name: "catalog" });
-    const recents = screen.getByRole("region", { name: "recents" });
-
-    expect(await within(catalog).findByText("draft.pdf")).toBeVisible();
-    expect(await within(recents).findByText("draft.pdf")).toBeVisible();
-
-    // 1. Rename started in the catalog updates recents.
-    await user.click(
-      within(catalog).getByRole("button", { name: "collectionRename" }),
-    );
+    await act(async () => {
+      refetchDeferred.resolve({
+        items: [makeRecentsTable("table_1", "Qualified Leads")],
+        nextCursor: null,
+      });
+      await refetchDeferred.promise;
+    });
 
     expect(
-      await within(recents).findByText("after-catalog-rename.pdf"),
+      await screen.findByRole("link", { name: /Qualified Leads/ }),
     ).toBeVisible();
-    expect(
-      await within(catalog).findByText("after-catalog-rename.pdf"),
-    ).toBeVisible();
-
-    // 2. Rename started in recents updates the catalog.
-    await user.click(
-      within(recents).getByRole("button", { name: "renameAction" }),
-    );
-    const renameInput = within(recents).getByRole("textbox");
-    await user.clear(renameInput);
-    await user.type(renameInput, "after-recents-rename.pdf{Enter}");
-
-    expect(onRenameFile).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "after-catalog-rename.pdf" }),
-      "after-recents-rename.pdf",
-    );
-    expect(
-      await within(catalog).findByText("after-recents-rename.pdf"),
-    ).toBeVisible();
-    expect(
-      await within(recents).findByText("after-recents-rename.pdf"),
-    ).toBeVisible();
-
-    vi.unstubAllGlobals();
+    expect(screen.queryByRole("link", { name: /^Leads$/ })).toBeNull();
   });
 
   it("disables Load more while page one refreshes and deduplicates appended pages", async () => {

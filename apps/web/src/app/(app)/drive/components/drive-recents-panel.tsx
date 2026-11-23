@@ -165,6 +165,9 @@ export function DriveRecentsPanel({
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: isEnabled,
+    // Table editor writes live outside the Drive cache, so returning to
+    // Recents shows cached rows and refetches in the background.
+    staleTime: 0,
   });
 
   const items = useMemo(() => {
