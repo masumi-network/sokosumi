@@ -1443,3 +1443,49 @@ it("filters the rows to a value picked from the summary", async () => {
     }),
   );
 });
+it("a summary pick replaces a full filter set and leaves archived rows", async () => {
+  f.columns = [
+    f.column,
+    ...Array.from({ length: 9 }, (_, index) => ({
+      ...f.column,
+      id: `00000000-0000-4000-8000-0000000001${String(index).padStart(2, "0")}`,
+      name: `Field ${index}`,
+      position: index + 1,
+    })),
+  ];
+  const tenFilters = f.columns.map((column, index) => ({
+    columnId: column.id,
+    operator: "contains" as const,
+    value: `part ${index}`,
+  }));
+  f.views = [
+    {
+      id: "00000000-0000-4000-8000-000000000006",
+      tableId: f.column.tableId,
+      name: "Busy",
+      version: 1,
+      definition: { filters: tenFilters, sort: null, visibleColumnIds: [] },
+    },
+  ];
+  render(<TableEditor id={f.column.tableId} />);
+  fireEvent.change(screen.getByLabelText("view"), {
+    target: { value: f.views[0].id },
+  });
+  await waitFor(() => expect(JSON.stringify(f.rowsKey)).toContain("part 9"));
+  const menu = screen.getByRole("button", { name: "tableMenu" });
+  fireEvent.pointerDown(menu, { button: 0, ctrlKey: false });
+  fireEvent.click(
+    await screen.findByRole("menuitemcheckbox", { name: "showArchivedRows" }),
+  );
+  await waitFor(() => expect(f.rowsKey.at(-1)).toBe(true));
+  fireEvent.pointerDown(menu, { button: 0, ctrlKey: false });
+  fireEvent.click(
+    await screen.findByRole("menuitem", { name: "summary.title" }),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Original" }));
+  await waitFor(() => expect(f.rowsKey.at(-1)).toBe(false));
+  const definition = f.rowsKey[2] as TableView["definition"];
+  expect(definition.filters).toEqual([
+    { columnId: f.column.id, operator: "equals", value: "Original" },
+  ]);
+});

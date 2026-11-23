@@ -1,6 +1,7 @@
-import type { TableColumn, TableRow } from "@sokosumi/core-client";
+import type { TableColumn, TableRow, TableView } from "@sokosumi/core-client";
 
-type Value = string | number | boolean | null;
+/** One summary group's value. `[]` is a multiple select stored with no options. */
+type Value = string | number | boolean | null | [];
 /** A number column's total, or null when no row in it holds a number. */
 type Sums = (number | null)[];
 export type TableSummaryGroup = { value: Value; count: number; sums: Sums };
@@ -42,10 +43,12 @@ export function summarizeTableRows(
   const total = { count: rows.length, sums: numbers.map(() => null) as Sums };
   for (const row of rows) {
     const cell = row.values[column.id] ?? null;
+    // Missing, `[]` and `""` stay apart: Core's empty filter matches only
+    // missing and null, so each group must be one filter's exact rows.
     const values: Value[] = Array.isArray(cell)
       ? cell.length
         ? cell
-        : [null]
+        : [[]]
       : [cell];
     for (const value of values) {
       const key = JSON.stringify(value);
@@ -68,4 +71,14 @@ export function summarizeTableRows(
     ),
     total,
   };
+}
+
+type TableFilter = NonNullable<TableView["definition"]["filters"]>[number];
+
+/** The view filter that shows exactly the rows one summary group counted. */
+export function summaryFilter(column: TableColumn, value: Value): TableFilter {
+  if (value === null) return { columnId: column.id, operator: "empty" };
+  if (column.type === "multiple_select" && typeof value === "string")
+    return { columnId: column.id, operator: "contains", value: [value] };
+  return { columnId: column.id, operator: "equals", value };
 }

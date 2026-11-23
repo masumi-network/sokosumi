@@ -66,6 +66,8 @@ export function TableSummaryDialog({
     value === null ? "–" : format.number(value);
   function label(value: TableSummaryGroup["value"]) {
     if (value === null) return t("summary.empty");
+    if (Array.isArray(value)) return t("summary.noOptions");
+    if (value === "") return t("summary.blank");
     if (typeof value === "boolean") return value ? t("yes") : t("no");
     return typeof value === "number" ? format.number(value) : value;
   }
@@ -142,7 +144,7 @@ export function TableSummaryDialog({
                   <TableCell className="max-w-64">
                     <button
                       type="button"
-                      className="min-h-6 truncate text-start underline-offset-4 hover:underline focus-visible:underline"
+                      className="min-h-6 max-w-full truncate text-start underline underline-offset-4"
                       title={t("summary.show", { value: label(group.value) })}
                       onClick={() => onPick(column, group.value)}
                     >
@@ -178,6 +180,11 @@ export function TableSummaryDialog({
               </TableRow>
             </TableBody>
           </Table>
+        )}
+        {summary && summary.total.count > 0 && (
+          <p className="text-muted-foreground text-sm">
+            {t("summary.pickHint")}
+          </p>
         )}
         {column?.type === "multiple_select" && (
           <p className="text-muted-foreground text-sm">

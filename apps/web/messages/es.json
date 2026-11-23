@@ -11974,6 +11974,9 @@
         "sumOf": "Suma de {column}",
         "total": "Total",
         "empty": "Sin valor",
+        "noOptions": "Sin opciones",
+        "blank": "Texto en blanco",
+        "pickHint": "Haz clic en un valor para ver solo sus filas. Eso sustituye los filtros actuales de la tabla y sale de las filas archivadas.",
         "show": "Mostrar filas con {value}",
         "multipleNote": "Una fila con varias opciones cuenta una vez en cada una, así que las filas de arriba pueden sumar más que el total."
       },

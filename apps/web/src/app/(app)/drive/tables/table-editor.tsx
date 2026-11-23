@@ -106,6 +106,7 @@ import { TableFindReplace } from "./table-find-replace";
 import { cellWrap, columnWidth } from "./table-layout";
 import { createTableMutations, isTableRejection } from "./table-mutations";
 import { archivePatch, hideRows, saveArchive } from "./table-row-archive";
+import { summaryFilter, type TableSummaryGroup } from "./table-summary";
 import { TableSummaryDialog } from "./table-summary-dialog";
 import {
   parseTableInput,
@@ -563,24 +564,19 @@ function TableWorkspace({
           : [option],
     );
   }
-  /** Shows only the rows holding one value, picked from the summary. */
-  function showValue(
-    column: TableColumn,
-    value: string | number | boolean | null,
-  ) {
+  /**
+   * Shows exactly the live rows one summary group counted: the summary reads
+   * every live row unfiltered, so the pick replaces the view's filters (also
+   * keeping it within Core's ten) and leaves archived rows. Sort and visible
+   * columns stay.
+   */
+  function showValue(column: TableColumn, value: TableSummaryGroup["value"]) {
     setSummary(false);
-    if (typeof value === "string" && optionColumns.includes(column))
-      return setPickedOptions(column, [value]);
-    const others = filters.filter((filter) => filter.columnId !== column.id);
+    setArchivedRows(false);
     setFilterDraft("");
     handleDefinition({
       ...definition,
-      filters: [
-        ...others,
-        value === null
-          ? { columnId: column.id, operator: "empty" }
-          : { columnId: column.id, operator: "equals", value },
-      ],
+      filters: [summaryFilter(column, value)],
     });
   }
   function handleTagClick(column: TableColumn, tag: string) {

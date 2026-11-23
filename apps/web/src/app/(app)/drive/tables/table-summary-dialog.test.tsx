@@ -1,4 +1,4 @@
-import type { DataTable, TableRow } from "@sokosumi/core-client";
+import type { DataTable, TableColumn, TableRow } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
@@ -20,14 +20,48 @@ vi.mock("@/lib/services/data-table.client", () => ({
   dataTableService: { query: f.query },
 }));
 
-const stage = { id: "stage", name: "Stage", type: "single_select" };
-const deal = { id: "deal", name: "Deal", type: "number" };
-const table = {
+const column = (
+  id: string,
+  name: string,
+  type: TableColumn["type"],
+): TableColumn => ({
+  id,
+  name,
+  type,
+  options: [],
+  width: null,
+  wrap: null,
+  tableId: "table-1",
+  position: 0,
+  version: 1,
+});
+const stage = column("stage", "Stage", "single_select");
+const deal = column("deal", "Deal", "number");
+const tags = column("tags", "Tags", "multiple_select");
+const table: DataTable = {
   id: "table-1",
-  columns: [{ id: "notes", name: "Notes", type: "long_text" }, stage, deal],
-} as unknown as DataTable;
-const row = (stageValue: string | null, dealValue: number) =>
-  ({ values: { stage: stageValue, deal: dealValue } }) as unknown as TableRow;
+  workspaceId: "workspace",
+  projectId: null,
+  title: "Pipeline",
+  description: "",
+  createdBy: "user",
+  version: 1,
+  archivedAt: null,
+  createdAt: new Date(0),
+  updatedAt: new Date(0),
+  columns: [column("notes", "Notes", "long_text"), stage, deal, tags],
+  views: [],
+};
+const row = (values: TableRow["values"]): TableRow => ({
+  id: crypto.randomUUID(),
+  tableId: "table-1",
+  values,
+  evidence: {},
+  version: 1,
+  archivedAt: null,
+  createdAt: new Date(0),
+  updatedAt: new Date(0),
+});
 
 afterEach(() => {
   cleanup();
@@ -46,9 +80,12 @@ function open() {
 
 it("summarizes every page of live rows, not only the first", async () => {
   f.query
-    .mockResolvedValueOnce({ rows: [row("Won", 10)], nextCursor: "c1" })
     .mockResolvedValueOnce({
-      rows: [row("Won", 5), row(null, 1)],
+      rows: [row({ stage: "Won", deal: 10 })],
+      nextCursor: "c1",
+    })
+    .mockResolvedValueOnce({
+      rows: [row({ stage: "Won", deal: 5 }), row({ stage: null, deal: 1 })],
       nextCursor: null,
     });
   const onPick = open();
@@ -74,4 +111,19 @@ it("summarizes every page of live rows, not only the first", async () => {
 
   fireEvent.click(screen.getByRole("button", { name: "summary.empty" }));
   expect(onPick).toHaveBeenCalledWith(stage, null);
+});
+
+it("names a multiple select stored with no options apart from a missing value", async () => {
+  f.query.mockResolvedValueOnce({
+    rows: [row({ tags: [] }), row({}), row({ tags: ["a"] })],
+    nextCursor: null,
+  });
+  const onPick = open();
+  await screen.findByText(/^summary\.scope/);
+  fireEvent.change(screen.getByLabelText("summary.groupBy"), {
+    target: { value: "tags" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "summary.noOptions" }));
+  expect(onPick).toHaveBeenCalledWith(tags, []);
+  expect(screen.getByRole("button", { name: "summary.empty" })).toBeTruthy();
 });

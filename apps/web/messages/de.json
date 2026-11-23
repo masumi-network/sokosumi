@@ -11974,6 +11974,9 @@
         "sumOf": "Summe von {column}",
         "total": "Gesamt",
         "empty": "Kein Wert",
+        "noOptions": "Keine Optionen",
+        "blank": "Leerer Text",
+        "pickHint": "Klicke auf einen Wert, um nur seine Zeilen anzuzeigen. Das ersetzt die aktuellen Filter der Tabelle und verlässt die archivierten Zeilen.",
         "show": "Zeilen mit {value} anzeigen",
         "multipleNote": "Eine Zeile mit mehreren Optionen zählt unter jeder einmal, daher können die Zeilen oben mehr ergeben als die Gesamtzahl."
       },

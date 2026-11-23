@@ -11974,6 +11974,9 @@
         "sumOf": "Sum of {column}",
         "total": "Total",
         "empty": "No value",
+        "noOptions": "No options",
+        "blank": "Blank text",
+        "pickHint": "Click a value to show only its rows. That replaces the Table's current filters and leaves archived rows.",
         "show": "Show rows with {value}",
         "multipleNote": "A row with several options counts once under each, so the rows above can add up to more than the total."
       },
