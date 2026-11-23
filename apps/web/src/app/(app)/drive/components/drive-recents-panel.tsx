@@ -88,7 +88,6 @@ interface DriveRecentsPanelProps {
   onOpenDeleteDialog: (item: DriveItem) => void;
   onRenameFile: (item: DriveItem, newName: string) => Promise<void>;
   onOpenCopyDialog: (item: DriveRecentsItem & { kind: "task-output" }) => void;
-  onItemsChanged: () => void;
   /** Opens the file picker; the upload lands in the workspace root. */
   onUpload: () => void;
   uploading: boolean;
@@ -134,7 +133,6 @@ export function DriveRecentsPanel({
   onOpenDeleteDialog,
   onRenameFile,
   onOpenCopyDialog,
-  onItemsChanged,
   onUpload,
   uploading,
   onOpenWorkspace,
@@ -301,8 +299,6 @@ export function DriveRecentsPanel({
     await onRenameFile(item, newName);
     setEditingPathname(null);
     setEditingName("");
-    onItemsChanged();
-    await loadRecents();
   }
 
   if (loading) {

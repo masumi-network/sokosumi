@@ -5,6 +5,7 @@ import {
   CMO_PICKED_PRODUCTION_SKILL,
   CMO_SCENE_PRODUCTION_SKILL,
   CMO_V20_STRATEGY_SKILL,
+  CMO_V21_STRATEGY_SKILL,
   CMO_VARIED_PRODUCTION_SKILL,
   type CmoCalendarEntry,
   getSokoBotVersion,
@@ -308,7 +309,11 @@ export function cmoMakesVariedMonth(
  * site instead of one picture animated.
  */
 export function cmoWritesShorts(versionId: string | null | undefined): boolean {
-  return getSokoBotVersion(versionId).skills.includes(CMO_V20_STRATEGY_SKILL);
+  const { skills } = getSokoBotVersion(versionId);
+  return (
+    skills.includes(CMO_V20_STRATEGY_SKILL) ||
+    skills.includes(CMO_V21_STRATEGY_SKILL)
+  );
 }
 
 /** Whether a Cuso version writes a styled picture's visual as a scene alone (cmo-v9). */

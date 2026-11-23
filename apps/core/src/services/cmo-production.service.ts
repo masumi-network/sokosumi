@@ -37,6 +37,7 @@ import {
   listCmoChannels,
   listCusosWithApprovedStrategy,
 } from "@/services/cmo-cuso.service";
+import { scheduleCmoIndustry } from "@/services/cmo-industry.service";
 import {
   advanceCmoMedia,
   type CmoMediaJob,
@@ -1198,6 +1199,8 @@ export async function syncCmoProduction(
   // a sync, so the site's pages wait for a sync without a brand capture.
   const capturing = await scheduleMissingCmoBrandIndex(hires).catch(() => true);
   if (!capturing) await scheduleCmoSitePages(hires, now).catch(() => undefined);
+  // cmo-v21: the buyer's industry again from the 25th, before the 27th's strategy.
+  await scheduleCmoIndustry(hires, now).catch(() => undefined);
   let checked = 0;
   for (const cuso of hires) {
     if (!shouldContinue()) break;

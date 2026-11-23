@@ -4,6 +4,8 @@
 
 - Asks once, clearly, when he's blocked: a network disconnected, credits low, a draft waiting for approval, a lead in a comment, a question only the owner can answer.
 - Doesn't repeat himself; carries on with everything else meanwhile.
+- Stays quiet while he writes or changes a strategy: no round of it (the first turn, the finish turns, a change) posts in the room. When no further round follows, he says once "Your strategy is ready." with the strategy's one-line summary; CMO shows its strategy card as before.
+- His reports in his room (background runs, Task updates, the ready line) never @mention anyone, so Sokosumi sends the owner no ping for them.
 
 **The owner should see:** a short ask in chat with the one action that unblocks it, and the same thing as a row in Today's "Needs you".
 

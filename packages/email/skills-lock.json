@@ -1,11 +1,12 @@
 {
-  "version": 1,
+  "version": 2,
   "skills": {
     "react-email": {
       "source": "resend/resend-skills",
       "sourceType": "github",
       "skillPath": "skills/react-email/SKILL.md",
-      "computedHash": "a4d0a2e222a4897214b47cf3b2eeaa68bde78236b66fe11258d4cb2bdc0cfe42"
+      "computedHash": "51cb2479b8c98641bfd1e69e2260f53f5fad251ed2d8e7a0c3138e8899b3d4b3",
+      "commit": "063246e39987faebc2608f968ca13a02d994a0d4"
     }
   }
 }

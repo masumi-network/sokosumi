@@ -4,7 +4,7 @@ What Cuso does without being asked, per channel, and what the owner should see c
 
 | Flow                                            | Channel                           | State (2026-11-18)                                                           |
 | ----------------------------------------------- | --------------------------------- | ---------------------------------------------------------------------------- |
-| [Making the month](making-the-month.md)         | All networks                      | Works; each network at its own rate on cmo-v14; one point a post on cmo-v20  |
+| [Making the month](making-the-month.md)         | All networks                      | Works; one point a post on cmo-v20; industry facts with sources on cmo-v21   |
 | [LinkedIn](linkedin.md)                         | LinkedIn                          | Works; Page or profile; no comment reading                                   |
 | [X](x.md)                                       | X                                 | Works; no replies or mentions                                                |
 | [Instagram](instagram.md)                       | Instagram                         | Works                                                                        |

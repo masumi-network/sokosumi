@@ -5,7 +5,7 @@ import {
   type Member,
   MemberRole,
 } from "@sokosumi/core-client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -21,6 +21,7 @@ import {
   saveDataRoomColleagues,
 } from "@/lib/utils/data-room.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
+import { invalidateDrive } from "@/queries/drive";
 
 /** Who in the organization is always in, whatever is ticked. */
 export function alwaysIn(member: Member, makerId: string): boolean {
@@ -43,7 +44,6 @@ export function DataRoomColleagues({
   makerId,
   colleagues,
   canChoose,
-  onChanged,
 }: {
   store: FileStore;
   organizationId: string;
@@ -51,9 +51,9 @@ export function DataRoomColleagues({
   makerId: string;
   colleagues: DataRoomColleague[];
   canChoose: boolean;
-  onChanged: () => void;
 }) {
   const t = useTranslations("App.Drive.DataRoom.Colleagues");
+  const queryClient = useQueryClient();
   const saved = colleagues.map((colleague) => colleague.userId);
   const [chosen, setChosen] = useState<string[]>(saved);
   const [busy, setBusy] = useState(false);
@@ -70,8 +70,8 @@ export function DataRoomColleagues({
     setBusy(true);
     try {
       await saveDataRoomColleagues({ store, roomId, userIds: chosen });
+      void invalidateDrive(queryClient, store);
       toast.success(t("saved"));
-      onChanged();
     } catch (error) {
       toast.error(dataRoomRefusal(error) ?? t("saveFailed"));
     } finally {

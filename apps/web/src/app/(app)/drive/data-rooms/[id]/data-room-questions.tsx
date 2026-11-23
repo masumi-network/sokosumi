@@ -1,7 +1,7 @@
 "use client";
 
 import type { DataRoomQuestion, DataRoomTreeRow } from "@sokosumi/core-client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -19,7 +19,13 @@ import {
   fetchDataRoomQuestions,
 } from "@/lib/utils/data-room.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
+import {
+  driveQueryKeys,
+  invalidateDrive,
+  splitDriveQueryKey,
+} from "@/queries/drive";
 import { NEEDS_YOU_DATA_ROOM_QUESTIONS_QUERY_KEY } from "@/queries/needs-you-data-room-questions";
+import { useScopedQuery } from "@/queries/scoped-queries";
 import { rowLabel } from "./data-room-activity";
 
 /** Viewers' questions about documents, each answerable in place. */
@@ -37,9 +43,9 @@ export function DataRoomQuestions({
 }) {
   const t = useTranslations("App.Drive.DataRoom.Questions");
   const queryClient = useQueryClient();
-  const query = useQuery({
-    queryKey: ["drive", "data-room", roomId, "questions", store],
-    queryFn: () => fetchDataRoomQuestions({ store, roomId }),
+  const query = useScopedQuery({
+    ...splitDriveQueryKey(driveQueryKeys.dataRoomQuestions(store, roomId)),
+    queryFn: ({ signal }) => fetchDataRoomQuestions({ store, roomId, signal }),
   });
 
   if (query.isError)
@@ -66,7 +72,7 @@ export function DataRoomQuestions({
           label={rowLabel(rows, question.path)}
           focused={question.id === focusQuestionId}
           onAnswered={() => {
-            void query.refetch();
+            void invalidateDrive(queryClient, store);
             // Needs you lists this question until it has an answer.
             void queryClient.invalidateQueries({
               queryKey: NEEDS_YOU_DATA_ROOM_QUESTIONS_QUERY_KEY,

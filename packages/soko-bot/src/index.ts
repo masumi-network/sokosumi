@@ -115,7 +115,6 @@ export {
   CMO_BRAND_ANSWERS,
   CMO_BRAND_SECTION_KEYS,
   CMO_BUYING_BARRIERS,
-  CMO_CALENDAR_MAX_ENTRIES,
   CMO_CALENDAR_STATUSES,
   CMO_CONTENT_APPROACHES,
   CMO_IMPROVEMENT_AREAS,
@@ -314,6 +313,11 @@ export {
   cmoRevisedWritingSkills,
   cmoTurnSkills,
 } from "./versions/cmo-v20-skills.js";
+export {
+  CMO_INDUSTRY_SKILL,
+  CMO_V21_STRATEGY_SKILL,
+  cmoReadsIndustry,
+} from "./versions/cmo-v21-skills.js";
 export {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,

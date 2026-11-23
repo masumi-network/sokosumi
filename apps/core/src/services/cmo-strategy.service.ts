@@ -1,7 +1,6 @@
 import { type MarketingStrategy, Prisma } from "@sokosumi/database";
 import {
   type BrandBrain,
-  CMO_CALENDAR_MAX_ENTRIES,
   CMO_PRODUCTION_TURN_PREFIX,
   type CmoBrandAnswer,
   type CmoBrandQuestion,
@@ -47,6 +46,10 @@ import {
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
 import {
+  cmoIndustryBeforePlan,
+  cmoIndustryPillarProblems,
+} from "@/services/cmo-industry.service";
+import {
   cmoPictureStyleProblem,
   cmoPieceTakesStyle,
   cmoSceneVisualProblem,
@@ -64,6 +67,7 @@ import {
   cmoStrategyRules,
   cmoWeekGaps,
   cmoWithOwnerPace,
+  type PlanReviewOptions,
 } from "@/services/cmo-plan-review.service";
 import {
   approvedMarketingStrategy,
@@ -440,12 +444,35 @@ export async function afterCmoTurn(input: {
   const mayPlan =
     input.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX) ||
     cmoChangeKind(input.clientTurnId) === "fix";
-  return (
+  const next =
     (mayPlan ? await startCmoPlanAfterResearch(input, cuso) : null) ??
     (await startCmoMonthFinish(input, cuso)) ??
     (await startNextCmoChange(input, cuso)) ??
-    (await startQueuedAdBudget(cuso))
+    (await startQueuedAdBudget(cuso));
+  if (!next && input.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX))
+    await announceCmoStrategyReady(cuso);
+  return next;
+}
+
+/**
+ * Strategy turns post nothing: entry.fyi's first round, still short of its
+ * weeks, pinged the owner as if the plan were done. Once no turn follows,
+ * Cuso says so once per saved version.
+ */
+async function announceCmoStrategyReady(cuso: Cuso): Promise<void> {
+  const version = await newestMarketingStrategy(cuso.projectId);
+  if (!version || version.approvedAt) return;
+  const summary = parseMarketingPlan(version.plan)?.summary?.trim();
+  const { postSokoBotOwnerNotice } = await import(
+    "@/services/soko-bot-chat.service"
   );
+  await postSokoBotOwnerNotice({
+    sokoBotId: cuso.sokoBotId,
+    content: summary
+      ? `Your strategy is ready. ${summary}`
+      : "Your strategy is ready.",
+    key: `cmo-strategy-ready:${version.id}:${version.updatedAt.getTime()}`,
+  });
 }
 
 /** How far back the sync looks for a hiring strategy left short. */
@@ -522,7 +549,19 @@ async function cmoThinPillars(
   plan: MarketingStrategyPlan,
   versionId: string,
   round: number,
+  rules: PlanReviewOptions,
 ): Promise<string[]> {
+  const topics = rules.industryTopics
+    ? await cmoIndustryPillarProblems(cuso.projectId, plan).catch(() => null)
+    : null;
+  if (topics) {
+    await recordSokoBotCheckUsage({
+      sokoBotId: cuso.sokoBotId,
+      key: `cmo-pillars:${versionId}:${round}`,
+      costUsd: topics.costUsd,
+    });
+    return topics.problems;
+  }
   const brain = parseBrandBrain(cuso.brandBrain);
   if (!brain) return [];
   const counted = await cmoPillarFacts(plan, brain).catch(() => null);
@@ -570,7 +609,7 @@ async function startCmoMonthFinish(
   // gets a turn of its own to merge or reframe it.
   const pillars =
     gaps.length === 0 && rules.pillarFacts && round < most
-      ? await cmoThinPillars(cuso, plan, version.id, round)
+      ? await cmoThinPillars(cuso, plan, version.id, round, rules)
       : [];
   if (gaps.length === 0 && pillars.length === 0) return null;
   if (round >= most) {
@@ -793,7 +832,11 @@ async function startCmoStrategy(
   // A new strategy over a draft starts from an empty month: NMKR's
   // "Write a new strategy" (2026-11-22) kept the draft's 296 pieces, and Cuso
   // only patched around them. The draft stays as the version before.
-  if (!change) await clearDraftCalendar(cuso);
+  if (!change) {
+    await clearDraftCalendar(cuso);
+    // cmo-v21: the plan rests on the buyer's industry, researched first.
+    await cmoIndustryBeforePlan(cuso);
+  }
   try {
     return await startStrategyTurn(
       cuso,
@@ -1064,7 +1107,6 @@ function ownerAnswers(brain: BrandBrain): string[] {
 
 /** Matches the calendar slice in the turn packet. A full plan with drafts does not fit. */
 export const CMO_VISIBLE_CALENDAR_DAYS = 31;
-const CMO_CALENDAR_LIMIT = CMO_CALENDAR_MAX_ENTRIES;
 
 export function calendarBounds(
   now: Date,
@@ -1099,12 +1141,8 @@ function withHiddenCalendar(
       (entry.date < from || entry.date > to) &&
       !covered.has(`${entry.date}\0${entry.channel}`),
   );
-  const room = CMO_CALENDAR_LIMIT - incoming.length;
-  if (room <= 0 || hidden.length === 0) return incoming;
-  const kept = hidden
-    .sort((left, right) => left.date.localeCompare(right.date))
-    .slice(-room);
-  return [...incoming, ...kept].sort((left, right) =>
+  if (hidden.length === 0) return incoming;
+  return [...incoming, ...hidden].sort((left, right) =>
     left.date === right.date
       ? left.id.localeCompare(right.id)
       : left.date.localeCompare(right.date),

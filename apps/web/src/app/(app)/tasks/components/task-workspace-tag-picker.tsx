@@ -275,13 +275,10 @@ function TagChoices({
         displayName: name.displayName,
         ...(newColor ? { color: newColor } : {}),
       });
-      client.setQueryData<WorkspaceLabel[]>(
-        workspaceTagsQueryKey(activeOrganizationId),
-        (current) =>
-          [...(current ?? []).filter((item) => item.id !== tag.id), tag].sort(
-            (a, b) => a.displayName.localeCompare(b.displayName),
-          ),
-      );
+      void client.invalidateQueries({
+        queryKey: workspaceTagsQueryKey(activeOrganizationId),
+        exact: true,
+      });
       onChange([...selected, tag]);
       setSearch("");
       setNewColor(null);

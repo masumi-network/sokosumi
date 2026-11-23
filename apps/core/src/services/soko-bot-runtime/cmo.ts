@@ -41,6 +41,7 @@ import {
   requireCuso,
   startCmoProduction,
 } from "@/services/cmo-cuso.service";
+import { cmoIndustryPillarProblems } from "@/services/cmo-industry.service";
 import {
   cmoMakesVariedMonth,
   cmoWritesSceneVisuals,
@@ -406,8 +407,25 @@ export async function reviewCmoPlan(
     : null;
   if (rules.everyNetwork && brain)
     problems.push(...cmoNewNetworkProblems(strategy, brain));
+  // cmo-v21: every pillar is an industry topic resting on the research.
+  const topics =
+    rules.industryTopics && plan.planSent && bot?.projectId
+      ? await cmoIndustryPillarProblems(bot.projectId, strategy).catch(
+          () => null,
+        )
+      : null;
+  if (topics) {
+    await chargeCheck(input, COMPETITOR_CHECK_MODEL, topics.costUsd);
+    problems.push(...topics.problems);
+  }
   // cmo-v20: every pillar rests on at least three Brand Brain facts.
-  if (rules.pillarFacts && plan.planSent && brain && bot?.projectId) {
+  if (
+    !topics &&
+    rules.pillarFacts &&
+    plan.planSent &&
+    brain &&
+    bot?.projectId
+  ) {
     const pillars = await cmoPillarFacts(
       strategy,
       brain,

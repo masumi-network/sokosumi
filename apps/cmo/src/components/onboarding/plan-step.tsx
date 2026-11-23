@@ -108,7 +108,7 @@ export function planningRows(
         ...done,
         id: `pillar:${pillar.name}`,
         kind: "brain",
-        label: `${pillar.name}: ${pillar.share}% of posts`,
+        label: `Topic: ${pillar.name}`,
       });
     }
   }
@@ -739,6 +739,28 @@ export function PlanReview({
           </div>
         ) : null}
 
+        {approved && !readOnly ? (
+          // An approved strategy before the first plan: the owner can still
+          // start over (NMKR, 2026-11-23, had no way back from Subscribe).
+          <p className="ob-small muted">
+            Want a different one? {AGENT_NAME} writes a whole new strategy from
+            your Brand Brain. This one stays until you approve the new one; then
+            its posts that have not gone out are canceled.{" "}
+            <button
+              type="button"
+              className="sc-link"
+              disabled={busy}
+              onClick={() => {
+                setRefusal(null);
+                send("Writing your strategy again", () => onRequest()).catch(
+                  () => {},
+                );
+              }}
+            >
+              Write a new strategy
+            </button>
+          </p>
+        ) : null}
         {locked ? (
           // "No ads" alone is no answer worth a card.
           answers.length > 0 || (ads && ads.monthly > 0) ? (

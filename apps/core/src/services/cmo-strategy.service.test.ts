@@ -39,7 +39,15 @@ import {
 } from "@/test-fixtures/cmo-service";
 
 const kickCmoProduction = vi.hoisted(() => vi.fn());
+const postSokoBotOwnerNotice = vi.hoisted(() => vi.fn());
+vi.mock("@/services/soko-bot-chat.service", () => ({
+  postSokoBotOwnerNotice,
+}));
 vi.mock("@/services/cmo-production.service", () => ({ kickCmoProduction }));
+vi.mock("@/services/cmo-industry.service", () => ({
+  cmoIndustryBeforePlan: vi.fn(async () => undefined),
+  cmoIndustryPillarProblems: vi.fn(async () => null),
+}));
 
 const libraryAvailable = vi.hoisted(() => vi.fn(() => false));
 vi.mock("@/services/reference-library.service", () => ({
@@ -699,6 +707,36 @@ describe("the plan starts when the research ends", () => {
     expect(message).toContain(
       "first add the network to the alsoOn of talking videos already planned",
     );
+  });
+
+  it("says once that the strategy is ready, only when no round follows", async () => {
+    seedStrategy(strategy);
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v5" });
+    startTurn.mockResolvedValue({ turnId: "finish-1" });
+    const ended = {
+      sokoBotId: "bot-1",
+      userId: "user-1",
+      clientTurnId: "cmo:strategy:bot-1:1",
+    };
+    await afterCmoTurn(ended);
+    expect(postSokoBotOwnerNotice).not.toHaveBeenCalled();
+
+    await afterCmoTurn({
+      ...ended,
+      clientTurnId: "cmo:strategy:bot-1:finish:1:2",
+    });
+    expect(postSokoBotOwnerNotice).toHaveBeenCalledTimes(1);
+    const notice = postSokoBotOwnerNotice.mock.calls[0]?.[0];
+    expect(notice).toMatchObject({ sokoBotId: "bot-1" });
+    expect(notice.content).toMatch(/^Your strategy is ready\./);
+    expect(notice.content).not.toContain("@");
+    expect(notice.key).toMatch(/^cmo-strategy-ready:/);
+
+    postSokoBotOwnerNotice.mockClear();
+    seedStrategy(strategy, { approvedAt: new Date() });
+    await afterCmoTurn(ended);
+    await afterCmoTurn({ ...ended, clientTurnId: "chat:1" });
+    expect(postSokoBotOwnerNotice).not.toHaveBeenCalled();
   });
 
   it("finishes nothing for a whole month, an approved one, or a Cuso who saves in two calls", async () => {

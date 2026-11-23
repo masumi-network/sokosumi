@@ -3659,19 +3659,6 @@ video.draft-media {
 }
 
 /* The networks a content pillar goes out on */
-.bb-pillar-networks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-
-.bb-pillar-networks > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
 
 .bb-mix-head {
   display: flex;
