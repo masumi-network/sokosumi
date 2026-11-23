@@ -25,6 +25,7 @@ import { BillingPortalErrorToast } from "@/components/billing/billing-portal-err
 import MembersTable from "@/components/members-table/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations/role-badge";
 import { TeamStandupSettings } from "@/components/team-standup/team-standup-settings";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { coreClient } from "@/lib/clients/core.client";
 import { organizationService } from "@/lib/services/organization.service";
@@ -54,6 +55,7 @@ export async function OrganizationSettingsContent({
   const tDeletion = await getTranslations(
     "Components.Organizations.RemoveModal",
   );
+  const tMembers = await getTranslations("Components.MembersTable");
 
   const member = await userService.getMyMemberInOrganization(organization.id);
   if (!member) {
@@ -126,6 +128,9 @@ export async function OrganizationSettingsContent({
   const { data: members } = await coreClient.getOrganizationMembers(
     organization.id,
   );
+  // `/organizations/[slug]` can show a workspace other than the active one.
+  const isActiveOrganization =
+    (await userService.getActiveOrganizationId()) === organization.id;
   const seatSummary = isOwnerOrAdmin
     ? await organizationSeatService.getSeatSummary(organization.id)
     : null;
@@ -167,6 +172,10 @@ export async function OrganizationSettingsContent({
           deletionBlockers={deletionBlockers}
           deletionPreflightFailed={deletionPreflightFailed}
           deletionPreflightLoadError={deletionPreflightLoadError}
+          otherMemberCount={
+            members.filter((entry) => entry.id !== member.id).length
+          }
+          isActiveOrganization={isActiveOrganization}
         />
         <AdDataConsentSettings organizationId={organization.id} />
         <TeamStandupSettings
@@ -202,23 +211,43 @@ export async function OrganizationSettingsContent({
             inviteLinksLoadError={inviteLinksLoadError}
           />
         ) : null}
-        <div className="space-y-4">
-          {isOwnerOrAdmin ? (
-            <div className="flex items-center justify-end gap-1.5">
-              <OrganizationInviteButton
-                organizationId={organization.id}
-                className="h-7 px-2.5 text-xs"
-              />
-            </div>
-          ) : null}
-          <MembersTable
-            me={member}
-            members={members}
-            pendingInvitations={pendingInvitations}
-            showSeatManagement={isOwnerOrAdmin && seatSummary?.paidPlan != null}
-            unusedSeats={seatSummary?.unusedSeats ?? 0}
-          />
-        </div>
+        {/* Focus target for the blocked-deletion dialog's "Go to members". */}
+        <Card
+          id="members"
+          tabIndex={-1}
+          aria-labelledby="members-title"
+          className="scroll-mt-24 outline-none"
+        >
+          <CardHeader className="flex flex-wrap items-center justify-between gap-3 max-sm:px-4">
+            <CardTitle>
+              <h2 id="members-title" className="flex items-baseline gap-2">
+                {tMembers("title")}
+                <span className="text-muted-foreground text-sm font-normal tabular-nums">
+                  {members.length}
+                </span>
+              </h2>
+            </CardTitle>
+            {isOwnerOrAdmin ? (
+              <div className="flex items-center gap-1.5">
+                <OrganizationInviteButton
+                  organizationId={organization.id}
+                  className="h-7 px-2.5 text-xs"
+                />
+              </div>
+            ) : null}
+          </CardHeader>
+          <CardContent className="max-sm:px-4">
+            <MembersTable
+              me={member}
+              members={members}
+              pendingInvitations={pendingInvitations}
+              showSeatManagement={
+                isOwnerOrAdmin && seatSummary?.paidPlan != null
+              }
+              unusedSeats={seatSummary?.unusedSeats ?? 0}
+            />
+          </CardContent>
+        </Card>
         <div aria-hidden className="h-12 shrink-0" />
       </div>
     </div>

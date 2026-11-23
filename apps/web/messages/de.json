@@ -238,6 +238,14 @@
       }
     },
     "MembersTable": {
+      "title": "Mitglieder",
+      "search": "Mitglieder suchen",
+      "searchResults": "{count, plural, =0 {Keine Mitglieder gefunden} one {# Treffer} other {# Treffer}}",
+      "Sort": {
+        "label": "Sortieren",
+        "ascending": "{column}, aufsteigend",
+        "descending": "{column}, absteigend"
+      },
       "Header": {
         "name": "Name",
         "email": "E-Mail",
@@ -687,7 +695,6 @@
         "error": "Organisation konnte nicht entfernt werden",
         "confirmLabelPrefix": "Tippe",
         "confirmLabelSuffix": "zur Bestätigung der Löschung:",
-        "blockersTitle": "Du kannst diese Organisation erst entfernen, wenn Folgendes geklärt ist:",
         "preflightError": "Es konnte nicht geprüft werden, ob diese Organisation entfernt werden kann.",
         "loadErrorTitle": "Organisationslöschung konnte nicht geprüft werden",
         "retry": "Erneut versuchen",
@@ -697,14 +704,28 @@
           "unauthorizedAction": "Anmelden",
           "runningSubscription": "Kündige dein laufendes Abo und warte, bis der bezahlte Zeitraum endet.",
           "enterpriseContractActive": "Diese Organisation hat einen aktiven Enterprise-Vertrag und kann nicht gelöscht werden.",
-          "billingLink": "Zur Abrechnung",
           "inFlightJob": "Warte, bis laufende Jobs in dieser Organisation abgeschlossen sind, bevor du sie löschst.",
           "unsettledOnChainJob": "Warte, bis On-Chain-Jobkäufe in dieser Organisation abgeschlossen sind, bevor du sie löschst.",
           "inFlightTask": "Warte, bis laufende Tasks in dieser Organisation abgeschlossen sind, bevor du sie löschst."
         },
-        "Links": {
-          "jobs": "Jobs",
-          "tasks": "Tasks"
+        "Blocked": {
+          "title": "{organization} kann noch nicht gelöscht werden",
+          "description": "Kläre zuerst diese Punkte. Danach kannst du sie hier löschen.",
+          "close": "Schließen",
+          "additionalMembers": "{count, plural, =0 {Es gibt noch weitere Mitglieder} one {# weiteres Mitglied} other {# weitere Mitglieder}}",
+          "runningSubscription": "Ein kostenpflichtiges Abo läuft noch",
+          "enterpriseContractActive": "Ein Enterprise-Vertrag ist aktiv",
+          "lastWorkspace": "Das ist dein einziger Workspace. Erstelle zuerst einen weiteren oder tritt einem bei.",
+          "inFlightJob": "Jobs laufen noch",
+          "unsettledOnChainJob": "Job-Zahlungen werden noch abgewickelt",
+          "inFlightTask": "Tasks sind noch in Bearbeitung",
+          "switchWorkspace": "Wechsle zu diesem Workspace, um sie zu sehen.",
+          "Links": {
+            "members": "Zu den Mitgliedern",
+            "billing": "Abrechnung öffnen",
+            "jobs": "Jobs öffnen",
+            "tasks": "Tasks öffnen"
+          }
         },
         "Schema": {
           "Organization": {
