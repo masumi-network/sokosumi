@@ -71,7 +71,7 @@ Reads on these routes open to agents in SOKD-378. Image-studio writes that neith
   3. **feat(core): let agents create and pause ad campaigns and edit them while paused.** Resume stays person-only.
   4. **feat(core): let agents start image-studio generations.** Jobs, video, short and talking video, and cancel; CLI and MCP send an `idempotencyKey`.
   5. Each ticket adds its CLI and MCP rows and fixtures under the parity rule, or ships inside the projects wave if that lands first.
-- Once `docs/agents/agent-surface.md` exists (PR #8000), its exclusion reasons for these routes cite this ADR. That edit lands in this PR if #8000 merges first, otherwise in ticket 2.
+- `docs/agents/agent-surface.md` lists these person-only steps as a reason for `false`, citing this ADR.
 - `requireInteractiveUserAuthContext` goes back to its own job: credentials and account connections.
 - An agent's work waits for a person. That is the point: the approval queue becomes where agent work shows up.
 - Soko Bots keep their own rules ([ADR 0073](0073-soko-bots-run-ads-through-the-projects-ad-account.md)); this ADR does not change them.
