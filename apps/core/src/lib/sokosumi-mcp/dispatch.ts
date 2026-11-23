@@ -2,6 +2,7 @@ import type { CallToolResult } from "@modelcontextprotocol/server";
 import { Hono } from "hono";
 import { requestId } from "hono/request-id";
 
+import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import {
   type AuthenticationContext,
@@ -21,12 +22,16 @@ export interface ToolCaller {
 }
 
 /**
- * `/v1` as Core serves it, without the prefix: the error envelope and a
- * request id (read from `X-Request-Id`, which only `callTool` sets) come from
- * the main app there, so this wrapper adds them back.
+ * `/v1` as Core serves it, without the prefix: the error envelope, the 404
+ * for an unknown route and a request id (read from `X-Request-Id`, which only
+ * `callTool` sets) come from the main app there, so this wrapper adds them
+ * back.
  */
 export const coreV1 = new Hono().use(requestId()).route("/", apiV1);
 coreV1.onError(errorHandler);
+coreV1.notFound((c) =>
+  errorHandler(notFound("Not Found", { kind: "route_not_found" }), c),
+);
 
 /**
  * Runs a tool call as a `/v1` request, in process: `authMiddleware` takes
@@ -61,11 +66,22 @@ function argumentProblem(
   if (unknown !== undefined) {
     return `Unknown argument "${unknown}". This tool takes: ${known.join(", ")}.`;
   }
-  const missing = input.pathParams.find(
-    (name) => args[name] === undefined || args[name] === "",
-  );
-  if (missing !== undefined) {
-    return `Missing argument "${missing}".`;
+  if (args.workspace != null && typeof args.workspace !== "string") {
+    return 'Argument "workspace" must be a workspace slug.';
+  }
+  for (const name of input.pathParams) {
+    const value = args[name];
+    if (value === undefined || value === "") {
+      return `Missing argument "${name}".`;
+    }
+    // `.` and `..` would make the URL resolve to another operation.
+    if (
+      (typeof value !== "string" && typeof value !== "number") ||
+      value === "." ||
+      value === ".."
+    ) {
+      return `Argument "${name}" must be an id.`;
+    }
   }
   return undefined;
 }

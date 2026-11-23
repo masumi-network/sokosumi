@@ -117,6 +117,54 @@ describe("Sokosumi MCP server", () => {
     });
   }, 15_000);
 
+  it("answers a 2026-07-28 request with JSON, and opens no subscription stream", async () => {
+    const post = (method: string, params: Record<string, unknown>) =>
+      app.request(`${CORE}/mcp`, {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer mcp-token",
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+          "MCP-Protocol-Version": "2026-07-28",
+          "Mcp-Method": method,
+          ...(typeof params.name === "string"
+            ? { "Mcp-Name": params.name }
+            : {}),
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method,
+          params: {
+            ...params,
+            _meta: {
+              "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+              "io.modelcontextprotocol/clientInfo": {
+                name: "test",
+                version: "1",
+              },
+              "io.modelcontextprotocol/clientCapabilities": {},
+            },
+          },
+        }),
+      });
+
+    const call = await post("tools/call", {
+      name: "users_get",
+      arguments: { id: "me" },
+    });
+    expect(call.headers.get("Content-Type")).toContain("application/json");
+    expect(await call.json()).toMatchObject({
+      result: { structuredContent: { data: { id: USER.id } } },
+    });
+
+    const listen = await post("subscriptions/listen", {
+      notifications: { toolsListChanged: true },
+    });
+    expect(listen.headers.get("Content-Type")).toContain("application/json");
+    expect(await listen.json()).toMatchObject({ error: { code: -32603 } });
+  });
+
   it("challenges a client without a token to sign in", async () => {
     await expect(connect({})).rejects.toThrow();
 

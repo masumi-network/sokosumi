@@ -185,6 +185,42 @@ describe("callTool", () => {
     });
   });
 
+  it.each([
+    [{ id: ".." }, 'Argument "id" must be an id.'],
+    [{ id: "." }, 'Argument "id" must be an id.'],
+    [{ id: { nested: true } }, 'Argument "id" must be an id.'],
+    [
+      { id: "t1", workspace: 7 },
+      'Argument "workspace" must be a workspace slug.',
+    ],
+  ])(
+    "rejects %j, which would reach another operation or workspace",
+    async (args, message) => {
+      const fetch = vi.spyOn(coreV1, "fetch");
+
+      const result = await callTool(patchThing, args, caller);
+
+      expect(fetch).not.toHaveBeenCalled();
+      expect(result.structuredContent).toEqual({ status: 422, message });
+    },
+  );
+
+  it("answers a route /v1 does not serve with route_not_found", async () => {
+    const gone: ToolInput = {
+      ...patchThing,
+      method: "GET",
+      path: "/gone/{id}",
+    };
+
+    const result = await callTool(gone, { id: "x" }, caller);
+
+    expect(result.structuredContent).toEqual({
+      status: 404,
+      kind: "route_not_found",
+      message: "Not Found",
+    });
+  });
+
   it("keeps interactive-only routes closed to MCP callers", async () => {
     const sessions: ToolInput = {
       method: "GET",

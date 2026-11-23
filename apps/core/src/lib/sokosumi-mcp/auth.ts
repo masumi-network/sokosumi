@@ -103,7 +103,8 @@ export async function verifyMcpAccessToken(
       role: user?.role ?? DEFAULT_USER_ROLE,
       authenticationMethod: "oauth",
       oauthClientId: clientId,
-      ...(client?.skipConsent ? { firstPartyClient: true } : {}),
+      // Never `firstPartyClient`: ADR 0046 opens first-party routes to the
+      // first-party app itself, not to whatever it reaches through MCP.
     },
   };
 }

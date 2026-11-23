@@ -63,10 +63,12 @@ app.post("/", async (c) => {
     requestId: c.var.requestId,
   };
   // The default response mode answers JSON while a handler sends no
-  // notification before its result, which ours never do.
-  return createMcpHandler(() => createSokosumiMcpServer(caller)).fetch(
-    c.req.raw,
-  );
+  // notification before its result, which ours never do. No
+  // `subscriptions/listen`: nothing here would ever publish to the stream,
+  // and an open one holds the function until it times out.
+  return createMcpHandler(() => createSokosumiMcpServer(caller), {
+    maxSubscriptions: 0,
+  }).fetch(c.req.raw);
 });
 
 // Stateless: no SSE stream to open (GET) and no session to end (DELETE).

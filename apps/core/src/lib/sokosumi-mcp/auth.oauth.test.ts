@@ -343,6 +343,16 @@ describe("verifyMcpAccessToken", () => {
     });
   });
 
+  it("never makes an MCP caller a first-party client", async () => {
+    store.oauthClient[0].skipConsent = true;
+    const token = await issueAccessToken({ scope: MCP_SCOPE, resource: MCP });
+
+    const verification = await verifyMcpAccessToken(token.access_token, auth);
+
+    expect(verification).toMatchObject({ status: "active" });
+    expect(verification).not.toHaveProperty("authContext.firstPartyClient");
+  });
+
   it("rejects the token of a client disabled after it was issued", async () => {
     const token = await issueAccessToken({ scope: MCP_SCOPE, resource: MCP });
     store.oauthClient[0].disabled = true;
