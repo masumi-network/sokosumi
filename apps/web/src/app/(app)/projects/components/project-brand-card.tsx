@@ -455,7 +455,11 @@ export function ProjectBrandCard({
                 ? t("brandCard.websiteLabel")
                 : t("brandCard.missingWebsite")}
             </label>
-            <div className="flex flex-col gap-2 sm:flex-row">
+            {/* Field, Generate and Upload read as one tool: one row where
+                they fit; on a phone the field takes its own row and the
+                actions share the next. Long labels wrap a button down
+                instead of overflowing. */}
+            <div className="flex flex-wrap gap-2">
               <Input
                 id="project-brand-website"
                 inputMode="url"
@@ -473,19 +477,35 @@ export function ProjectBrandCard({
                   shownFailure?.website === projectBrandWebsite(website)
                 }
                 aria-describedby={websiteDescription}
-                className="min-w-0 sm:h-8 sm:flex-1"
+                className="min-w-0 basis-full sm:h-8 sm:min-w-48 sm:flex-1 sm:basis-0"
               />
-              <Button
-                type="submit"
-                variant="outline"
-                size="sm"
-                loading={isSavingWebsite}
-                disabled={menuBusy}
-                className="h-10 sm:h-8"
-              >
-                <RefreshCw aria-hidden />
-                {t("brandCard.generate")}
-              </Button>
+              <div className="flex grow flex-wrap gap-2 sm:grow-0">
+                <Button
+                  type="submit"
+                  variant="outline"
+                  size="sm"
+                  loading={isSavingWebsite}
+                  disabled={menuBusy}
+                  className="h-10 grow sm:h-8"
+                >
+                  <RefreshCw aria-hidden />
+                  {t("brandCard.generate")}
+                </Button>
+                {!showUpload ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={menuBusy}
+                    onClick={() => setShowUpload(true)}
+                    // Matches Generate beside it: 40px on a phone, 32px up.
+                    className="h-10 grow sm:h-8"
+                  >
+                    <Upload aria-hidden />
+                    {t("brandCard.upload")}
+                  </Button>
+                ) : null}
+              </div>
             </div>
             {websiteError ? (
               <p
@@ -525,23 +545,6 @@ export function ProjectBrandCard({
           <p className="text-destructive text-xs" role="alert">
             {generation.errorMessage}
           </p>
-        ) : null}
-
-        {!readOnly && !designMd && !generation.isRunning && !showUpload ? (
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={menuBusy}
-              onClick={() => setShowUpload(true)}
-              // Matches Generate above it on a phone: full width, 40px.
-              className="h-10 w-full sm:h-8 sm:w-auto"
-            >
-              <Upload aria-hidden />
-              {t("brandCard.upload")}
-            </Button>
-          </div>
         ) : null}
 
         {!readOnly && !designMd && showUpload ? (
