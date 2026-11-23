@@ -107,7 +107,7 @@ it("shows Subscribe as the fourth step, before Launch, and starts Polar's checko
   );
   expect(currentStep()).toContain("4");
   expect(currentStep()).toContain("Subscribe");
-  expect(text()).toContain("25,000 credits a month");
+  expect(text()).toContain("$500 a month");
   expect(text()).not.toContain("Launch Cuso");
   await press("Scale");
   await press("Start Scale");
