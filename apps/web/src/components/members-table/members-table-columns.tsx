@@ -18,6 +18,29 @@ function getMembersTableColumns(
   me: OrganizationMembershipSelf,
 ) {
   return {
+    // Phones: name over email, so role and actions stay on screen.
+    personColumn: columnHelper.accessor("name", {
+      id: "name",
+      minSize: 120,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t("Header.name")} />
+      ),
+      cell: ({ row }) => (
+        <div className="p-2 [overflow-wrap:anywhere]">
+          <div className="font-medium">
+            {row.original.name ?? row.original.email}
+          </div>
+          {row.original.name ? (
+            <div className="text-muted-foreground text-xs">
+              {row.original.email}
+            </div>
+          ) : null}
+        </div>
+      ),
+      enableSorting: true,
+      enableHiding: false,
+    }),
+
     nameColumn: columnHelper.accessor("name", {
       id: "name",
       minSize: 160,
@@ -111,9 +134,22 @@ function getMembersTableColumns(
 export function getMembersTableColumnList(
   t: ReturnType<typeof useTranslations>,
   me: OrganizationMembershipSelf,
-  options: { showSeatManagement: boolean; includeActions: boolean },
+  options: {
+    showSeatManagement: boolean;
+    includeActions: boolean;
+    compact?: boolean;
+  },
 ) {
   const cols = getMembersTableColumns(t, me);
+  if (options.compact) {
+    return columnHelper.columns([
+      cols.personColumn,
+      { ...cols.roleColumn, size: 1, minSize: 0 },
+      ...(options.includeActions
+        ? [{ ...cols.actionColumn, size: 1, minSize: 0 }]
+        : []),
+    ]);
+  }
   return columnHelper.columns([
     cols.nameColumn,
     cols.emailColumn,

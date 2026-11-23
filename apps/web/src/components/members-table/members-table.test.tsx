@@ -3,7 +3,7 @@ import {
   MemberRole,
   type PendingInvitation,
 } from "@sokosumi/core-client";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,9 +11,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PageListSearchContext } from "@/components/page-list-search";
 import MembersTable from "./members-table";
 
-const { cancelInvitation, refresh } = vi.hoisted(() => ({
+const { cancelInvitation, refresh, mobile } = vi.hoisted(() => ({
   cancelInvitation: vi.fn(),
   refresh: vi.fn(),
+  mobile: { value: false },
+}));
+
+vi.mock("@/hooks/effects/use-mobile", () => ({
+  useIsMobile: () => mobile.value,
 }));
 
 vi.mock("next-intl", () => ({
@@ -65,6 +70,10 @@ async function cancelFirstInvitation() {
   await userEvent.click(screen.getByRole("menuitem", { name: "cancel" }));
   await userEvent.click(screen.getByRole("button", { name: "confirm" }));
 }
+
+beforeEach(() => {
+  mobile.value = false;
+});
 
 describe("cancelling an invitation", () => {
   beforeEach(() => {
@@ -165,4 +174,71 @@ it("finds later members and puts their name before a matching email", () => {
   );
   rerender(table(""));
   expect(screen.queryByText("Member Eleven")).toBeNull();
+});
+
+function elevenMembers(): Member[] {
+  return Array.from({ length: 11 }, (_, index) => ({
+    id: `member-${index}`,
+    organizationId: "org-1",
+    role: index === 0 ? MemberRole.OWNER : MemberRole.MEMBER,
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    seatAssignedAt: null,
+    lastSeenAt: null,
+    user: {
+      id: `user-${index}`,
+      name: `Person ${String(index + 1).padStart(2, "0")}`,
+      email: `p${index + 1}@example.com`,
+      image: null,
+    },
+  }));
+}
+
+describe("searching members", () => {
+  it("finds a member on a later page by name or email, then restores the pages", async () => {
+    render(
+      <MembersTable
+        me={{ id: "member-0", role: MemberRole.OWNER }}
+        members={elevenMembers()}
+        pendingInvitations={[invitation("pending@example.com")]}
+      />,
+    );
+    const search = screen.getByRole("searchbox", { name: "search" });
+    expect(screen.queryByText("Person 11")).toBeNull();
+
+    await userEvent.type(search, "person 11");
+    expect(screen.getByText("Person 11")).toBeInTheDocument();
+    expect(screen.queryByText("Person 01")).toBeNull();
+
+    await userEvent.clear(search);
+    await userEvent.type(search, "PENDING@example");
+    expect(screen.getByText("pending@example.com")).toBeInTheDocument();
+    expect(screen.queryByText("Person 01")).toBeNull();
+
+    await userEvent.clear(search);
+    expect(screen.getByText("Person 01")).toBeInTheDocument();
+    expect(screen.queryByText("Person 11")).toBeNull();
+  });
+});
+
+describe("on a phone", () => {
+  it("shows one row per person with role and actions, without the wide columns", () => {
+    mobile.value = true;
+    render(
+      <MembersTable
+        me={{ id: "member-0", role: MemberRole.OWNER }}
+        members={elevenMembers().slice(0, 2)}
+        pendingInvitations={[]}
+      />,
+    );
+
+    expect(
+      screen.getAllByRole("columnheader").map((cell) => cell.textContent),
+    ).toEqual(["Header.name", "Header.role", "Header.actions"]);
+    const row = screen.getByText("Person 02").closest("tr");
+    expect(row).toHaveTextContent("p2@example.com");
+    expect(row).toHaveTextContent("member");
+    expect(
+      within(row as HTMLElement).getByRole("button", { name: "open" }),
+    ).toBeInTheDocument();
+  });
 });

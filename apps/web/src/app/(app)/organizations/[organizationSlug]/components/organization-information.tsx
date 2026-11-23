@@ -31,6 +31,7 @@ interface OrganizationInformationProps {
   deletionBlockers?: OrganizationDeletionEvaluation["blockers"];
   deletionPreflightFailed?: boolean;
   deletionPreflightLoadError?: ReactNode;
+  otherMemberCount?: number;
 }
 
 export default async function OrganizationInformation({
@@ -39,6 +40,7 @@ export default async function OrganizationInformation({
   deletionBlockers = [],
   deletionPreflightFailed = false,
   deletionPreflightLoadError,
+  otherMemberCount = 0,
 }: OrganizationInformationProps) {
   const t = await getTranslations("App.Organizations.OrganizationDetail");
   const { role } = member;
@@ -126,6 +128,7 @@ export default async function OrganizationInformation({
                     className="h-7 gap-1.5 px-2 text-xs"
                     blockers={deletionBlockers}
                     preflightFailed={deletionPreflightFailed}
+                    otherMemberCount={otherMemberCount}
                   />
                 ) : null}
               </div>

@@ -2,13 +2,15 @@
 
 import type { PendingInvitation } from "@sokosumi/core-client";
 import { InvitationStatus, MemberRole } from "@sokosumi/core-client";
+import { SearchIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import DataTable from "@/components/data-table/data-table";
 import { usePageSearchQuery } from "@/components/page-list-search";
+import { Input } from "@/components/ui/input";
+import { useIsMobile } from "@/hooks/effects/use-mobile";
 import { InvitationDisplayStatus } from "@/lib/constants/invitation-display-status";
 import type { OrganizationMembershipSelf } from "@/lib/types/core-dto";
-import { cn } from "@/lib/utils";
 import { rankPageItems } from "@/lib/utils/page-search";
 import InvitationActionsModal from "./invitation-actions-modal";
 import { InvitationActionsModalContextProvider } from "./invitation-actions-modal-context";
@@ -39,12 +41,19 @@ export default function MembersTable({
     me.role === MemberRole.OWNER || me.role === MemberRole.ADMIN;
   // Invitations with a cancel on its way: off the table before Core answers.
   const [cancelling, setCancelling] = useState<readonly string[]>([]);
+  const [search, setSearch] = useState("");
+  const compact = useIsMobile();
 
-  const rows = combineMembersAndPendingInvitations(
-    members,
-    pendingInvitations.filter(
-      (invitation) => !cancelling.includes(invitation.id),
+  // The card's own field searches every page: names first, then emails.
+  const rows = rankPageItems(
+    combineMembersAndPendingInvitations(
+      members,
+      pendingInvitations.filter(
+        (invitation) => !cancelling.includes(invitation.id),
+      ),
     ),
+    search,
+    (row) => ({ primary: [row.name], secondary: [row.email] }),
   );
   // Keep translated roles, seats and dates available to the dashboard finder after name hits.
   const named = new Set(
@@ -68,10 +77,25 @@ export default function MembersTable({
             )
           }
         >
+          <div className="relative mb-4">
+            <SearchIcon
+              aria-hidden="true"
+              className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2"
+            />
+            <Input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={t("search")}
+              aria-label={t("search")}
+              className="ps-9"
+            />
+          </div>
           <DataTable
             columns={getMembersTableColumnList(t, me, {
               showSeatManagement,
               includeActions: isOwnerOrAdmin,
+              compact,
             })}
             data={
               named.size
@@ -81,9 +105,9 @@ export default function MembersTable({
             rowClassName={() =>
               "text-foreground active:bg-accent hover:bg-accent"
             }
-            containerClassName={cn("w-full rounded-xl bg-card-background p-2")}
+            containerClassName="w-full"
             // The organization finder also reads roles, seat labels and translated dates on later pages.
-            showPagination={!query && members.length > 10}
+            showPagination={!query && rows.length > 10}
             showRowsPerPage={false}
             enableRowSelection={false}
             initialPageSize={10}
