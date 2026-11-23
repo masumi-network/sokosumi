@@ -28,14 +28,14 @@ overrides:
   # GHSA-9v6h-8rgp-m69f, GHSA-3g9m-rv3r-w5w2, GHSA-r4pc-4jcp-7pqc): dropped.
   # Fixed in 7.30.2 and 8.12.4. 6.x is not named. Audit does not index these
   # GHSAs. 2026-11-23 re-resolve without overrides landed undici@6.29.1,
-  # 7.30.2, 8.12.4, and 8.13.1. No 8.12.3. @scalar/json-magic@0.22.0,
-  # @vercel/drives@1.0.0, and @vercel/sandbox@4.1.0 depend on undici@^8.12.4.
+  # 7.30.2, 8.12.4, and 8.13.1. No 8.12.3. @scalar/json-magic@0.22.0
+  # and @vercel/sandbox@4.0.0 depend on undici@^8.12.4.
   # eve@1.3.0 depends on undici@8.12.4. The incremental lockfile keeps 8.12.4
   # for the caret ranges.
   # 6.29.1 and 7.30.2 are still the newest of the 6.x and 7.x lines. npm
   # `latest` is 8.13.1. The audit did not report undici, so 8.12.4 stays.
   # zod GHSA-mrhx-c7xc-m3w5 patched in 4.6.6. @vercel/oidc 3.8.10
-  # (@vercel/blob 2.9.0) and 4.0.0 (@vercel/sandbox 4.1.0) pin
+  # (@vercel/blob 2.9.0) and 4.0.0 (@vercel/sandbox 4.0.0) pin
   # @vercel/cli-config 0.3.1, which pins zod 4.1.11. @vercel/oidc 4.0.9 uses
   # @vercel/cli-config 0.4.0 (zod ^4.6.6). Workspace pins are already 4.6.7.
   # 2026-11-23 re-resolve with overrides removed landed zod@4.1.11
