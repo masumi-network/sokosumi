@@ -27,7 +27,13 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import { type ReactNode, useState, useTransition } from "react";
+import {
+  type ReactNode,
+  type RefObject,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 import {
   correctChatSignalTagAction,
@@ -53,6 +59,7 @@ import {
 import { POPOVER_ROW_CLASS } from "@/components/ui/popover-row-classes";
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
   SheetHeader,
@@ -135,6 +142,9 @@ export function MessageSignalBar({
   const touch = useMediaQuery("(hover: none)");
   const [sheetChip, setSheetChip] = useState<ChatSignalChip | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Where focus goes when the sheet closes: the chip that opened it.
+  const openerRef = useRef<HTMLButtonElement | null>(null);
+  const barRef = useRef<HTMLDivElement>(null);
   const signal = override ?? message.signal ?? null;
   if (!signal) return null;
   const chips = signalChips(signal, currentUserId);
@@ -211,6 +221,7 @@ export function MessageSignalBar({
 
   return (
     <div
+      ref={barRef}
       data-testid="message-signal-bar"
       className="mt-1 flex flex-wrap items-center gap-1"
     >
@@ -221,7 +232,8 @@ export function MessageSignalBar({
           label={chipLabel(chip)}
           touch={touch}
           disabled={isSaving}
-          onOpen={() => {
+          onOpen={(opener) => {
+            openerRef.current = opener;
             setSheetChip(chip);
             setSheetOpen(true);
           }}
@@ -233,6 +245,8 @@ export function MessageSignalBar({
         labelFor={chipLabel}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
+        openerRef={openerRef}
+        barRef={barRef}
         onRemove={(chip) => {
           setSheetOpen(false);
           correct(chipTags(chip, signal), false);
@@ -300,7 +314,7 @@ function SignalChip({
   label: string;
   touch: boolean;
   disabled: boolean;
-  onOpen: () => void;
+  onOpen: (opener: HTMLButtonElement) => void;
   onRemove: () => void;
 }) {
   const t = useTranslations("App.Channels.Signals");
@@ -317,7 +331,7 @@ function SignalChip({
         aria-haspopup="dialog"
         disabled={disabled}
         className={cn(chipClass, "press pe-1.5 disabled:opacity-50")}
-        onClick={onOpen}
+        onClick={(event) => onOpen(event.currentTarget)}
       >
         <Icon className="size-3 shrink-0" aria-hidden />
         <span>{label}</span>
@@ -348,6 +362,8 @@ function TagActionsSheet({
   labelFor,
   open,
   onOpenChange,
+  openerRef,
+  barRef,
   onRemove,
 }: {
   /** Null until a chip is tapped; it stays set while the sheet closes. */
@@ -355,21 +371,37 @@ function TagActionsSheet({
   labelFor: (chip: ChatSignalChip) => string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** The chip that opened the sheet, where focus returns. */
+  openerRef: RefObject<HTMLButtonElement | null>;
+  /** The bar, whose tag button takes focus when the chip is removed. */
+  barRef: RefObject<HTMLDivElement | null>;
   onRemove: (chip: ChatSignalChip) => void;
 }) {
   const t = useTranslations("App.Channels.Signals");
+  const tChannels = useTranslations("App.Channels");
+  const removed = useRef(false);
   if (!chip) return null;
+
+  function returnFocus(event: Event) {
+    event.preventDefault();
+    const target = removed.current
+      ? barRef.current?.querySelector<HTMLElement>(
+          "[data-testid=message-signal-edit]",
+        )
+      : openerRef.current;
+    removed.current = false;
+    target?.focus();
+  }
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
         showCloseButton={false}
+        onCloseAutoFocus={returnFocus}
         className="gap-0 rounded-t-2xl pb-[max(1rem,env(safe-area-inset-bottom))]"
       >
-        <SheetHeader className="items-center gap-2 pt-1 pb-2">
-          <div className="flex w-full justify-center py-3" aria-hidden>
-            <div className="bg-tertiary h-1.5 w-12 shrink-0 rounded-full" />
-          </div>
+        <SheetHeader className="items-center gap-2 pt-5 pb-3">
           <SheetTitle>{t("tagSheetTitle", { tag: labelFor(chip) })}</SheetTitle>
           <SheetDescription className="sr-only">
             {t("editTagsNote")}
@@ -395,11 +427,23 @@ function TagActionsSheet({
             type="button"
             variant="ghost"
             className="text-destructive hover:text-destructive h-11 justify-start gap-3 px-3"
-            onClick={() => onRemove(chip)}
+            onClick={() => {
+              removed.current = true;
+              onRemove(chip);
+            }}
           >
             <X className="size-4 shrink-0" aria-hidden />
             {t("removeTagAction")}
           </Button>
+          <SheetClose asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 justify-center px-3"
+            >
+              {tChannels("Actions.cancel")}
+            </Button>
+          </SheetClose>
         </div>
       </SheetContent>
     </Sheet>

@@ -370,4 +370,106 @@ describe("DecisionsView", () => {
       }),
     ).toBeNull();
   });
+
+  it("frees the button and says so when the request itself fails, then retries", async () => {
+    const user = userEvent.setup();
+    correctMock.mockRejectedValueOnce(new Error("offline"));
+    correctMock.mockResolvedValueOnce({
+      ok: true,
+      value: decision("m-1", "We launch Monday"),
+    });
+    render(
+      view({
+        messages: [decision("m-1", "We launch Monday")],
+        nextCursor: null,
+      }),
+    );
+    const button = screen.getByRole("button", {
+      name: "Not a decision: We launch Monday",
+    });
+
+    await user.click(button);
+    await waitFor(() => {
+      expect(toastMock.error).toHaveBeenCalledWith(
+        "Couldn't change that. Try again.",
+      );
+    });
+    expect(button).toBeEnabled();
+    expect(button).not.toHaveAttribute("aria-busy", "true");
+
+    await user.click(button);
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("link", { name: /We launch Monday/ }),
+      ).not.toBeInTheDocument();
+    });
+    expect(correctMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps a row whose Decision tag another reader put back", async () => {
+    const user = userEvent.setup();
+    const stillDecision = {
+      ...decision("m-1", "We launch Monday"),
+      signal: {
+        tags: ["decisionMade" as const],
+        probabilities: {},
+        addressedUserIds: [],
+        commitmentDueAt: null,
+        loopClosedAt: null,
+        loopTaskId: null,
+        correctedTags: ["decisionMade" as const],
+      },
+    };
+    correctMock.mockResolvedValue({ ok: true, value: stillDecision });
+    render(
+      view({
+        messages: [decision("m-1", "We launch Monday")],
+        nextCursor: null,
+      }),
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Not a decision: We launch Monday" }),
+    );
+
+    await waitFor(() => expect(correctMock).toHaveBeenCalled());
+    expect(
+      screen.getByRole("link", { name: /We launch Monday/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("moves focus to the next row, then the previous, then the heading", async () => {
+    const user = userEvent.setup();
+    correctMock.mockImplementation(async (id: string) => ({
+      ok: true,
+      value: decision(id, "x"),
+    }));
+    render(
+      view({
+        messages: [
+          decision("m-1", "First call"),
+          decision("m-2", "Second call"),
+          decision("m-3", "Third call"),
+        ],
+        nextCursor: null,
+      }),
+    );
+    const notDecision = (preview: string) =>
+      screen.getByRole("button", { name: `Not a decision: ${preview}` });
+
+    await user.click(notDecision("First call"));
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: /Second call/ })).toHaveFocus();
+    });
+
+    await user.click(notDecision("Third call"));
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: /Second call/ })).toHaveFocus();
+    });
+
+    await user.click(notDecision("Second call"));
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Decisions" })).toHaveFocus();
+    });
+  });
 });

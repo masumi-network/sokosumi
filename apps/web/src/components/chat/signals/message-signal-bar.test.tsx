@@ -155,4 +155,54 @@ describe("MessageSignalBar on a touch screen", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Decision" })).toBeNull();
   });
+
+  it("gives focus back to the chip when the sheet closes without a change", async () => {
+    touch.current = true;
+    const user = userEvent.setup();
+    render(bar(tagged(["decisionMade"])));
+    const chip = screen.getByRole("button", { name: "Decision" });
+
+    await user.click(chip);
+    await screen.findByRole("dialog", { name: "Decision tag" });
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(chip).toHaveFocus();
+
+    await user.click(chip);
+    await user.click(await screen.findByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(chip).toHaveFocus();
+    expect(correctMock).not.toHaveBeenCalled();
+  });
+
+  it("moves focus to the tag button once the tag is removed", async () => {
+    touch.current = true;
+    const user = userEvent.setup();
+    const message = tagged(["decisionMade", "announcement"]);
+    correctMock.mockResolvedValue({
+      ok: true,
+      value: {
+        ...message,
+        signal: { ...message.signal, tags: ["announcement"] },
+      },
+    });
+    render(bar(message));
+
+    await user.click(screen.getByRole("button", { name: "Decision" }));
+    await user.click(await screen.findByRole("button", { name: "Remove tag" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Edit tags" })).toHaveFocus();
+    });
+  });
+
+  it("draws no drag handle on a sheet that cannot be dragged", async () => {
+    touch.current = true;
+    const user = userEvent.setup();
+    render(bar(tagged(["decisionMade"])));
+
+    await user.click(screen.getByRole("button", { name: "Decision" }));
+    const sheet = await screen.findByRole("dialog", { name: "Decision tag" });
+    expect(sheet.querySelector(".rounded-full")).toBeNull();
+  });
 });
