@@ -1,3 +1,4 @@
+import { SHORT_VIDEO_FORMATS } from "@sokosumi/utils";
 import { z } from "zod";
 
 /**
@@ -496,6 +497,13 @@ export const cmoCalendarEntrySchema = z.object({
   presenter: z.string().trim().min(1).max(40).optional(),
   /** The stock voice that speaks it. */
   voice: z.string().trim().min(1).max(40).optional(),
+  /**
+   * A short video's kind (cmo-v16): Core cuts it from the brand's pictures
+   * and website to its script. Left out, a short animates its picture.
+   */
+  shortFormat: z.enum(SHORT_VIDEO_FORMATS).optional(),
+  /** A short video's words on screen over its first seconds. */
+  hookLine: z.string().trim().min(1).max(48).optional(),
   /** ISO 639-1 language of the script, e.g. "de". */
   languageCode: z.string().trim().length(2).optional(),
   /**
@@ -578,6 +586,8 @@ export const socialPostPlanningSchema = cmoCalendarEntrySchema.pick({
   script: true,
   presenter: true,
   voice: true,
+  shortFormat: true,
+  hookLine: true,
   languageCode: true,
   alsoOn: true,
   videoOf: true,

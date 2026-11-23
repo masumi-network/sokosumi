@@ -1516,19 +1516,22 @@ export async function saveCmoStrategy(
   // A changed cadence reaches the funnel and the calendar, not the label alone.
   if (options.turnId && !options.executing)
     stored = cmoFollowCadenceChange(stored, before);
-  // A talking video shows a generated presenter: its script speaks for the
-  // brand, never as a customer of it.
+  // A talking video shows a generated presenter, and a short a generated
+  // voice: its script speaks for the brand, never as a customer of it.
   const testimonial = options.turnId
     ? (strategy.calendar ?? []).find(
         (entry) =>
-          isCmoTalkingFormat(entry.channel, entry.format) &&
+          (isCmoTalkingFormat(entry.channel, entry.format) ||
+            entry.shortFormat) &&
           entry.script &&
           posesAsCustomerTestimonial(entry.script),
       )
     : undefined;
   if (testimonial)
     throw unprocessableEntity(
-      `The talking video ${testimonial.id} speaks as a customer. ${TALKING_VIDEO_TESTIMONIAL_MESSAGE} Rewrite its script and save again.`,
+      testimonial.shortFormat
+        ? `The short video ${testimonial.id} speaks as a customer. Its voice is generated, so it speaks for the brand only. Rewrite its script in the brand's own voice and save again.`
+        : `The talking video ${testimonial.id} speaks as a customer. ${TALKING_VIDEO_TESTIMONIAL_MESSAGE} Rewrite its script and save again.`,
     );
   // A month is planned without scripts and production writes them; a change
   // in chat makes the piece now, so it needs its words.

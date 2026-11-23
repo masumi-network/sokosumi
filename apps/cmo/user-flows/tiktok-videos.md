@@ -6,7 +6,7 @@
 
 1. Connects TikTok in Channels, or on Launch when the strategy posts there.
 2. Asks in chat for a TikTok, or lets the month's strategy include them.
-3. Cuso writes the script and makes a presenter video: hook in the first second, captions in the safe area, music, B-roll of the product or site, an end card.
+3. Cuso writes the script and makes the video: a presenter video (hook in the first second, captions in the safe area, music, B-roll of the product or site, an end card) or, from cmo-v16, a short without a presenter: a story with a voice, a tour of their website, a top 3 list or a photo slideshow, from their own pictures and their real website, with the same hook, captions, music and end card.
 4. The video waits under "Waiting for you" in the Calendar, and in chat when it was asked for there. The owner watches it and can rewrite its caption or decline it.
 5. To post it, the owner sees who it posts as and that everyone can see it, chooses whether comments, Duet and Stitch are allowed, ticks the confirmation of this video and of TikTok's Music Usage Confirmation, and presses Post to TikTok.
 6. It goes out at once, labelled as promotional content and as made with AI. The same video goes to Reels and Shorts on their own schedule.
@@ -14,6 +14,7 @@
 **They expect**
 
 - It looks native to TikTok, not like an ad.
+- Any screen in it is their real website, never a made-up one.
 - They never have to film or edit.
 - Nothing reaches TikTok without their own tap, and nothing is ticked for them.
 - The AI label is set for them.

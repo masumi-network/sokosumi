@@ -305,6 +305,10 @@ export { CMO_CHANNEL_FIT_STRATEGY_SKILL } from "./versions/cmo-v14-skills.js";
 export { CMO_PLAIN_WORDS_STRATEGY_SKILL } from "./versions/cmo-v15-skills.js";
 export { CMO_STAGE_SPREAD_STRATEGY_SKILL } from "./versions/cmo-v18-skills.js";
 export {
+  CMO_SHORTS_STRATEGY_SKILL,
+  CMO_SHORTS_WRITING_GUIDE,
+} from "./versions/cmo-v16-skills.js";
+export {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
   CMO_SOKO_BOT_VERSION_IDS,

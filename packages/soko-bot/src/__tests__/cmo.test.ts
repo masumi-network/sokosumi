@@ -50,6 +50,10 @@ import { CMO_PART_PATCH_STRATEGY_SKILL } from "../versions/cmo-v13-skills.js";
 import { CMO_CHANNEL_FIT_STRATEGY_SKILL } from "../versions/cmo-v14-skills.js";
 import { CMO_PLAIN_WORDS_STRATEGY_SKILL } from "../versions/cmo-v15-skills.js";
 import {
+  CMO_SHORTS_STRATEGY_SKILL,
+  CMO_SHORTS_WRITING_GUIDE,
+} from "../versions/cmo-v16-skills.js";
+import {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
   CMO_SOKO_BOT_VERSION_IDS,
@@ -407,6 +411,29 @@ describe("CMO version", () => {
     expect(strategy).toContain(
       '"funnel" → the steps from first hearing of you to buying',
     );
+  });
+
+  // Owner, 2026-11-23: the daily shorts were one picture moving for five
+  // seconds, with no voice and made-up screen text.
+  it("has cmo-v16 be cmo-v15 with shorts cut from a script", () => {
+    const v15 = getSokoBotVersion("cmo-v15");
+    const v16 = getSokoBotVersion("cmo-v16");
+    expect(CMO_SOKO_BOT_VERSION_ID).not.toBe("cmo-v16");
+    expect(v16.systemPrompt).toBe(v15.systemPrompt);
+    expect(v16.skills).toEqual(
+      v15.skills.map((skill) =>
+        skill === CMO_PLAIN_WORDS_STRATEGY_SKILL
+          ? CMO_SHORTS_STRATEGY_SKILL
+          : skill,
+      ),
+    );
+    const strategy = getSokoBotSkill(CMO_SHORTS_STRATEGY_SKILL).content;
+    expect(strategy).not.toContain("five vertical seconds");
+    expect(strategy).not.toContain("A five-second vertical video");
+    expect(strategy).toContain("A short video costs about 15 credits");
+    expect(strategy).toContain("# Words for an owner who is not a marketer");
+    for (const format of ["voiceover", "site_tour", "top_three", "slideshow"])
+      expect(CMO_SHORTS_WRITING_GUIDE).toContain(`  - ${format}: `);
   });
 
   it("keeps a piece's claim on its plan entry and its Social post", () => {
