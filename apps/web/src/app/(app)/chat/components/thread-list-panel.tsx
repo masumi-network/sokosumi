@@ -2,6 +2,7 @@
 
 import type { ChatRoomMessage, ChatRoomThread } from "@sokosumi/core-client";
 import {
+  hashKey,
   type InfiniteData,
   useInfiniteQuery,
   useQueryClient,
@@ -27,6 +28,7 @@ import {
   threadListRowClassName,
 } from "@/components/chat/thread-list-row";
 import { Button } from "@/components/ui/button";
+import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { chatQueryKeys } from "@/queries/chat";
 
@@ -58,7 +60,6 @@ export interface ThreadListPanelLabels {
 interface ThreadListPanelProps {
   roomId: string;
   userId?: string | null;
-  workspaceId?: string | null;
   /** Display names by member id, so a mention in a row reads as a name. */
   mentionNames?: ReadonlyMap<string, string>;
   labels: ThreadListPanelLabels;
@@ -100,7 +101,6 @@ async function fetchThreadListPage(
 export function ThreadListPanel({
   roomId,
   userId,
-  workspaceId,
   mentionNames,
   labels,
   onOpenThread,
@@ -116,11 +116,8 @@ export function ThreadListPanel({
   } | null>(null);
   const { formatTimeAgo } = useLocalizedDateTime();
 
-  const queryKey = chatQueryKeys.threads(
-    { userId, workspaceId },
-    roomId,
-    visitId,
-  );
+  const queryKey = chatQueryKeys.threads({ userId }, roomId, visitId);
+  const latestQueryKeyRef = useLatestRef(queryKey);
   const threadsQuery = useInfiniteQuery({
     queryKey,
     queryFn: ({ pageParam }) =>
@@ -193,12 +190,26 @@ export function ThreadListPanel({
       }
       onAllThreadsLooked?.(stillUnreadMutedIds);
       await queryClient.cancelQueries({ queryKey: targetQueryKey });
+      const targetQueryHash = hashKey(targetQueryKey);
+      const isTargetActive = () => {
+        if (hashKey(latestQueryKeyRef.current) !== targetQueryHash) {
+          return false;
+        }
+        const query = queryClient.getQueryCache().find({
+          queryKey: targetQueryKey,
+          exact: true,
+        });
+        return query != null && query.getObserversCount() > 0;
+      };
       try {
         const freshPage = await fetchThreadListPage(
           targetRoomId,
           undefined,
           labels.error,
         );
+        if (!isTargetActive()) {
+          return;
+        }
         queryClient.setQueryData<
           InfiniteData<ThreadListPage, string | undefined>
         >(targetQueryKey, {
@@ -206,6 +217,9 @@ export function ThreadListPanel({
           pageParams: [undefined],
         });
       } catch (reloadError) {
+        if (!isTargetActive()) {
+          return;
+        }
         queryClient.setQueryData<
           InfiniteData<ThreadListPage, string | undefined>
         >(targetQueryKey, {

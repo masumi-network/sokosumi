@@ -136,7 +136,6 @@ function renderPanel(
   options: {
     roomId?: string;
     userId?: string | null;
-    workspaceId?: string | null;
     queryClient?: QueryClient;
     onOpenThread?: (parent: ChatRoomMessage) => boolean | Promise<boolean>;
     onClose?: () => void;
@@ -147,7 +146,6 @@ function renderPanel(
   const queryClient = options.queryClient ?? createQueryClient();
   const roomId = options.roomId ?? ROOM_ID;
   const userId = options.userId ?? "user_1";
-  const workspaceId = options.workspaceId ?? "org_1";
   const onOpenThread = options.onOpenThread ?? vi.fn().mockResolvedValue(true);
   const onClose = options.onClose ?? vi.fn();
   const panelLabels = options.labels ?? labels;
@@ -156,7 +154,6 @@ function renderPanel(
       <ThreadListPanel
         roomId={roomId}
         userId={userId}
-        workspaceId={workspaceId}
         labels={panelLabels}
         onOpenThread={onOpenThread}
         onClose={onClose}
@@ -167,19 +164,12 @@ function renderPanel(
   return {
     ...result,
     queryClient,
-    rerenderPanel(next: {
-      roomId?: string;
-      userId?: string | null;
-      workspaceId?: string | null;
-    }) {
+    rerenderPanel(next: { roomId?: string; userId?: string | null } = {}) {
       result.rerender(
         <QueryClientProvider client={queryClient}>
           <ThreadListPanel
             roomId={next.roomId ?? roomId}
             userId={next.userId !== undefined ? next.userId : userId}
-            workspaceId={
-              next.workspaceId !== undefined ? next.workspaceId : workspaceId
-            }
             labels={panelLabels}
             onOpenThread={onOpenThread}
             onClose={onClose}
@@ -917,10 +907,7 @@ describe("ThreadListPanel", () => {
     expect(screen.queryByText("Room A stale thread")).not.toBeInTheDocument();
     expect(
       queryClient.getQueriesData({
-        queryKey: chatQueryKeys.threads(
-          { userId: "user_1", workspaceId: "org_1" },
-          otherRoomId,
-        ),
+        queryKey: chatQueryKeys.threads({ userId: "user_1" }, otherRoomId),
       }),
     ).toHaveLength(1);
   });
@@ -1190,11 +1177,10 @@ describe("ThreadListPanel", () => {
     const { rerenderPanel } = renderPanel({
       queryClient,
       userId: "user_a",
-      workspaceId: "org_a",
     });
     expect(await screen.findByText("Viewer A thread")).toBeInTheDocument();
 
-    rerenderPanel({ userId: "user_b", workspaceId: "org_a" });
+    rerenderPanel({ userId: "user_b" });
     expect(screen.queryByText("Viewer A thread")).not.toBeInTheDocument();
     expect(screen.getByText(labels.loading)).toBeInTheDocument();
 
@@ -1217,5 +1203,106 @@ describe("ThreadListPanel", () => {
 
     expect(await screen.findByText("Viewer B thread")).toBeInTheDocument();
     expect(screen.queryByText("Viewer A thread")).not.toBeInTheDocument();
+  });
+
+  it("keeps loaded rows and cursor with no new read when the parent re-renders on a workspace switch", async () => {
+    const queryClient = createQueryClient(60 * 1000);
+    const olderId = "550e8400-e29b-41d4-a716-446655440098";
+    listThreadsActionMock
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          threads: [threadItem()],
+          nextCursor: "cursor-1",
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          threads: [
+            threadItem({
+              parentMessage: parentMessage({
+                id: olderId,
+                content: "Older page thread",
+              }),
+              unreadReplyCount: 0,
+              lastUnreadReplyAt: null,
+            }),
+          ],
+          nextCursor: "cursor-2",
+        },
+      });
+
+    const { rerenderPanel } = renderPanel({ queryClient });
+    fireEvent.click(
+      within(await screen.findByTestId("thread-list-load-more")).getByRole(
+        "button",
+      ),
+    );
+    expect(await screen.findByText("Older page thread")).toBeInTheDocument();
+    expect(listThreadsActionMock).toHaveBeenCalledTimes(2);
+
+    // Simulates a workspace switch keeping the room and panel mounted.
+    rerenderPanel();
+
+    expect(screen.getByText("Budget review parent")).toBeInTheDocument();
+    expect(screen.getByText("Older page thread")).toBeInTheDocument();
+    expect(screen.getByTestId("thread-list-load-more")).toBeInTheDocument();
+    expect(listThreadsActionMock).toHaveBeenCalledTimes(2);
+    expect(
+      queryClient.getQueriesData({
+        queryKey: chatQueryKeys.threads({ userId: "user_1" }, ROOM_ID),
+      }),
+    ).toHaveLength(1);
+  });
+
+  it("drops a late mark-all reload instead of recreating an abandoned cache entry", async () => {
+    const queryClient = createQueryClient(60 * 1000);
+    markAllUnreadThreadsReadActionMock.mockResolvedValueOnce({
+      ok: true,
+      value: { markedCount: 1 },
+    });
+    const reloadDeferred = Promise.withResolvers<unknown>();
+    listThreadsActionMock
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          threads: [threadItem()],
+          nextCursor: "cursor-1",
+        },
+      })
+      .mockReturnValueOnce(reloadDeferred.promise);
+
+    const { unmount } = renderPanel({ queryClient });
+    fireEvent.click(await screen.findByTestId("thread-list-mark-all-read"));
+    await waitFor(() => {
+      expect(listThreadsActionMock).toHaveBeenCalledTimes(2);
+    });
+
+    // Closing the panel abandons the visit key (gcTime: 0 removes it).
+    unmount();
+    await waitFor(() => {
+      expect(
+        queryClient.getQueryCache().findAll({
+          queryKey: chatQueryKeys.threads({ userId: "user_1" }, ROOM_ID),
+        }),
+      ).toHaveLength(0);
+    });
+
+    await act(async () => {
+      reloadDeferred.resolve({
+        ok: true,
+        value: {
+          threads: [threadItem({ unreadReplyCount: 0 })],
+          nextCursor: null,
+        },
+      });
+    });
+
+    expect(
+      queryClient.getQueryCache().findAll({
+        queryKey: chatQueryKeys.threads({ userId: "user_1" }, ROOM_ID),
+      }),
+    ).toHaveLength(0);
   });
 });

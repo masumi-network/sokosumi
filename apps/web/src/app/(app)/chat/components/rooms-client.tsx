@@ -3469,7 +3469,6 @@ function RoomView({
               <ThreadListPanel
                 roomId={selectedRoom.id}
                 userId={currentUserId}
-                workspaceId={organizationId}
                 mentionNames={roomMentionNames}
                 onOpenThread={handleOpenThreadFromList}
                 onClose={() => {
