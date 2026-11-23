@@ -896,6 +896,7 @@ export function SocialPostComposerDialog({
     file: File,
     attached: SocialPostMediaRef[],
     partId: string | null,
+    onUploaded?: () => void,
   ): Promise<SocialPostMediaRef | null> {
     const candidate = buildSocialPostMediaRef({
       name: file.name,
@@ -918,6 +919,7 @@ export function SocialPostComposerDialog({
     }
     try {
       const uploaded = await uploadDriveFile(file, driveStore);
+      onUploaded?.();
       const ref = buildSocialPostMediaRef({
         name: file.name,
         size: file.size,
@@ -952,10 +954,11 @@ export function SocialPostComposerDialog({
     let uploadedAny = false;
     try {
       for (const file of files) {
-        const ref = await uploadOne(file, attached, partId);
+        const ref = await uploadOne(file, attached, partId, () => {
+          uploadedAny = true;
+        });
         if (ref) {
           attached = [...attached, ref];
-          uploadedAny = true;
         }
       }
     } finally {
