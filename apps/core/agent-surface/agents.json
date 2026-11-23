@@ -1,0 +1,14 @@
+{
+  "backlog": "SOKD-370",
+  "operations": {
+    "GET /agents": {
+      "cli": "agents list"
+    },
+    "GET /agents/{id}/input-schema": {
+      "cli": "agents hire"
+    },
+    "POST /agents/{id}/jobs": {
+      "cli": "agents hire"
+    }
+  }
+}
