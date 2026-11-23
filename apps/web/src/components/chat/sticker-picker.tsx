@@ -16,6 +16,7 @@ import {
   getSavedChatStickers,
   saveChatSticker,
 } from "@/lib/services/chat-sticker.browser";
+import { chatQueryKeys } from "@/queries/chat";
 
 interface StickerPickerProps {
   userId: string;
@@ -73,7 +74,7 @@ function StickerPickerPanel({
   const t = useTranslations("App.Channels.Stickers");
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
-  const queryKey = ["chat-stickers", userId];
+  const queryKey = chatQueryKeys.stickers({ userId });
   const {
     data = [],
     isPending,

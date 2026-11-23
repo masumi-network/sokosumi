@@ -8,11 +8,12 @@ import {
   useLayoutEffect,
 } from "react";
 import type { RoomTranscriptEntry } from "@/app/chat/utils/room-transcript-cache";
+import { chatQueryKeys } from "@/queries/chat";
 import { usePaintedRoom, useRoomCache } from "./room-cache-provider";
 import { RoomOpenLoadingView } from "./room-open-loading-view";
 import { RoomsClient, type RoomsClientProps } from "./rooms-client";
 
-const NO_ROOM_KEY = ["room-transcript", "no-room"];
+const NO_ROOM_KEY = chatQueryKeys.noRoomTranscript();
 
 const RoomBootstrapContext = createContext<
   ((props: RoomsClientProps) => void) | null

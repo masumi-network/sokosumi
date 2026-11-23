@@ -11,6 +11,7 @@ import { unreadThreadsFingerprint } from "@/components/chat/unread-threads-list"
 import { useThreadSearchRows } from "@/components/chat/use-thread-search-rows";
 import { usePageSearchPagination } from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
+import { chatQueryKeys } from "@/queries/chat";
 
 import { fetchChatEarlierThreads } from "./fetch-chat-threads";
 
@@ -49,7 +50,10 @@ export function EarlierThreadsList({
   const headingId = useId();
 
   const query = useInfiniteQuery({
-    queryKey: ["chat", "earlier-threads", earlierThreadsFingerprint(rooms)],
+    queryKey: chatQueryKeys.earlierThreads(
+      { userId: currentUserId },
+      earlierThreadsFingerprint(rooms),
+    ),
     queryFn: ({ pageParam }) => fetchChatEarlierThreads(pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,

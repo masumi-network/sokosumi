@@ -8,10 +8,8 @@ import {
   notifyOrganizationChatRoomsChanged,
   ORGANIZATION_CHAT_ROOM_READ_EVENT,
 } from "@/components/chat/organization-chat-events";
-import {
-  OTHER_WORKSPACE_ROOMS_KEY,
-  useOtherWorkspaceRoomsLiveSync,
-} from "./use-other-workspace-rooms-live-sync";
+import { chatQueryKeys } from "@/queries/chat";
+import { useOtherWorkspaceRoomsLiveSync } from "./use-other-workspace-rooms-live-sync";
 
 function LiveSyncProbe({
   queryClient,
@@ -46,7 +44,7 @@ describe("useOtherWorkspaceRoomsLiveSync", () => {
 
   it("removes rooms, applies read updates preserving workspace metadata, and throttles active invalidations", () => {
     const queryClient = new QueryClient();
-    const key = [...OTHER_WORKSPACE_ROOMS_KEY, "u1", "org1"];
+    const key = chatQueryKeys.elsewhere({ userId: "u1", workspaceId: "org1" });
     queryClient.setQueryData<ChatRoom[]>(key, [
       sampleRoom("r1"),
       sampleRoom("r2"),
@@ -160,7 +158,7 @@ describe("useOtherWorkspaceRoomsLiveSync", () => {
     expect(requestRead).toHaveBeenCalledTimes(2);
 
     unmount();
-    const key = [...OTHER_WORKSPACE_ROOMS_KEY, "u1", "org1"];
+    const key = chatQueryKeys.elsewhere({ userId: "u1", workspaceId: "org1" });
     queryClient.setQueryData<ChatRoom[]>(key, [sampleRoom("r1")]);
     act(() => {
       notifyOrganizationChatRoomsChanged({ collections: ["active"] });

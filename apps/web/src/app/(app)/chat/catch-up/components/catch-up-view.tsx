@@ -14,10 +14,10 @@ import {
 } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { chatQueryKeys } from "@/queries/chat";
 import {
   BriefingHeader,
   BriefingTopics,
-  CATCH_UP_SUMMARY_QUERY_KEY,
   OpenLoopsList,
   QuietRooms,
 } from "./catch-up-briefing";
@@ -42,6 +42,7 @@ export function CatchUpView({
   organizationId,
 }: CatchUpViewProps) {
   const t = useTranslations("App.Channels.Signals");
+  const scope = { userId: currentUserId, workspaceId: organizationId };
   const { rooms: elsewhereRooms, answered: elsewhereAnswered } =
     useOtherWorkspaceRooms({
       currentUserId,
@@ -49,7 +50,7 @@ export function CatchUpView({
       enabled: true,
     });
   const { data, isError, refetch, isFetching } = useQuery({
-    queryKey: CATCH_UP_SUMMARY_QUERY_KEY,
+    queryKey: chatQueryKeys.catchUpSummary(scope),
     queryFn: (): Promise<ChatCatchUpSummary> => fetchCatchUpSummary(),
     refetchOnWindowFocus: false,
     retry: false,
@@ -110,7 +111,7 @@ export function CatchUpView({
       ) : (
         <>
           <div data-testid="catch-up-summary">
-            <BriefingHeader summary={data} onChanged={reload} />
+            <BriefingHeader summary={data} onChanged={reload} scope={scope} />
           </div>
           {/* Two columns only when both hold a group. A lone group, or groups
               on one side only, read as one full-width list instead of
@@ -133,7 +134,11 @@ export function CatchUpView({
             ) : null}
             <div className="flex min-w-0 flex-col gap-4">
               <OpenLoopsList items={data.openLoops} onChanged={reload} />
-              <QuietRooms rooms={data.quietRooms} onChanged={reload} />
+              <QuietRooms
+                rooms={data.quietRooms}
+                onChanged={reload}
+                scope={scope}
+              />
               {elsewhere}
               <p className="text-muted-foreground px-2 text-xs text-pretty">
                 {t("aiNote")}

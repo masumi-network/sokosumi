@@ -73,6 +73,7 @@ import { withBotIdParam } from "@/lib/soko-bot/bot-id-param";
 import { SOKO_BOT_ROUTE, sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
+import { chatQueryKeys } from "@/queries/chat";
 import { ProjectSelectionMessage } from "./project-selection-message";
 import { loadRoomMessageResults } from "./room-message-results";
 import { selectChatProjectAction } from "./select-project-action";
@@ -679,13 +680,14 @@ function AuthorizedResultPreviews({
   const source =
     "turnId" in givenSource && botId ? { ...givenSource, botId } : givenSource;
   const query = useQuery({
-    queryKey: [
-      "chat-results",
-      viewerId,
-      session?.session.activeOrganizationId,
+    queryKey: chatQueryKeys.results(
+      {
+        userId: viewerId,
+        workspaceId: session?.session.activeOrganizationId,
+      },
       source,
       descriptors.map((d) => d.id),
-    ],
+    ),
     enabled: !!viewerId,
     queryFn: async ({ signal }) => {
       if (!("turnId" in source))

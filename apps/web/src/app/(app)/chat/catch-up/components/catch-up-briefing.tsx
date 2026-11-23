@@ -38,6 +38,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 import { getInitials } from "@/lib/utils/text";
+import { type ChatQueryScopeInput, chatQueryKeys } from "@/queries/chat";
 
 /** Every room with something unread. */
 function unreadRoomIds(summary: ChatCatchUpSummary): string[] {
@@ -49,9 +50,6 @@ function unreadRoomIds(summary: ChatCatchUpSummary): string[] {
   ];
 }
 
-/** The query that holds the page's summary. */
-export const CATCH_UP_SUMMARY_QUERY_KEY = ["chat-catch-up-summary"];
-
 /** One Mark read at a time: every button that starts one waits on it. */
 const MARK_READ_MUTATION_KEY = ["chat-catch-up-mark-read"];
 
@@ -59,9 +57,10 @@ const MARK_READ_MUTATION_KEY = ["chat-catch-up-mark-read"];
  * Reads each room in full: its messages and its Threads. The rooms leave
  * the page at once; a refused or failed write puts them back and says so.
  */
-function useMarkRead(onDone: () => void) {
+function useMarkRead(onDone: () => void, scope: ChatQueryScopeInput = {}) {
   const t = useTranslations("App.Channels.Signals");
   const queryClient = useQueryClient();
+  const summaryQueryKey = chatQueryKeys.catchUpSummary(scope);
   const isMarking = useIsMutating({ mutationKey: MARK_READ_MUTATION_KEY }) > 0;
   const { mutate } = useMutation({
     mutationKey: MARK_READ_MUTATION_KEY,
@@ -78,16 +77,15 @@ function useMarkRead(onDone: () => void) {
       if (!result.ok) throw new Error("Mark read was refused");
     },
     onMutate: (roomIds) => {
-      const before = queryClient.getQueryData<ChatCatchUpSummary>(
-        CATCH_UP_SUMMARY_QUERY_KEY,
-      );
+      const before =
+        queryClient.getQueryData<ChatCatchUpSummary>(summaryQueryKey);
       if (before) {
         // A summary read that is still out would put the rooms back.
         void queryClient.cancelQueries({
-          queryKey: CATCH_UP_SUMMARY_QUERY_KEY,
+          queryKey: summaryQueryKey,
         });
         queryClient.setQueryData(
-          CATCH_UP_SUMMARY_QUERY_KEY,
+          summaryQueryKey,
           withoutCatchUpRooms(before, roomIds),
         );
       }
@@ -95,7 +93,7 @@ function useMarkRead(onDone: () => void) {
     },
     onError: (_error, _roomIds, before) => {
       if (before) {
-        queryClient.setQueryData(CATCH_UP_SUMMARY_QUERY_KEY, before);
+        queryClient.setQueryData(summaryQueryKey, before);
       }
       toast.error(t("markAllReadError"));
     },
@@ -157,14 +155,16 @@ function useDone(onChanged: () => void) {
 export function BriefingHeader({
   summary,
   onChanged,
+  scope,
 }: {
   summary: ChatCatchUpSummary;
   onChanged: () => void;
+  scope?: ChatQueryScopeInput;
 }) {
   const t = useTranslations("App.Channels.Signals.Briefing");
   const tSignals = useTranslations("App.Channels.Signals");
   const format = useFormatter();
-  const { isMarking, markRead } = useMarkRead(onChanged);
+  const { isMarking, markRead } = useMarkRead(onChanged, scope);
   const roomIds = unreadRoomIds(summary);
   const unread = t("unread", {
     messages: summary.unreadMessageCount,
@@ -638,16 +638,18 @@ export function OpenLoopsList({
 export function QuietRooms({
   rooms,
   onChanged,
+  scope,
 }: {
   rooms: ChatCatchUpSummary["quietRooms"];
   onChanged: () => void;
+  scope?: ChatQueryScopeInput;
 }) {
   const t = useTranslations("App.Channels.Signals.Briefing");
   const tSignals = useTranslations("App.Channels.Signals");
   const format = useFormatter();
   const now = useNow({ updateInterval: 60_000 });
   const headingId = useId();
-  const { isMarking, markRead } = useMarkRead(onChanged);
+  const { isMarking, markRead } = useMarkRead(onChanged, scope);
   const matching = usePageListSearch(rooms, (room) => ({
     primary: [room.roomName],
     secondary: [room.latest?.excerpt, room.latest?.senderName],

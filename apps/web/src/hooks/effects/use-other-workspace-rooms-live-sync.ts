@@ -7,13 +7,10 @@ import {
   subscribeOrganizationChatRoomRead,
   subscribeOrganizationChatRoomsChanged,
 } from "@/components/chat/organization-chat-events";
+import { chatQueryKeys } from "@/queries/chat";
 
 /** At most one read per window, so a busy room costs less than its messages. */
 const OTHER_WORKSPACE_READ_WINDOW_MS = 2_000;
-
-export const OTHER_WORKSPACE_ROOMS_KEY = [
-  "chat-other-workspace-rooms",
-] as const;
 
 /** A room action's answer does not load the Organization the row shows. */
 export function withWorkspaceOf(
@@ -48,7 +45,7 @@ export function useOtherWorkspaceRoomsLiveSync(
 
     function updateRooms(update: (current: ChatRoom[]) => ChatRoom[]) {
       queryClient.setQueriesData<ChatRoom[]>(
-        { queryKey: OTHER_WORKSPACE_ROOMS_KEY },
+        { queryKey: chatQueryKeys.anyElsewhere() },
         (current) => current && update(current),
       );
     }

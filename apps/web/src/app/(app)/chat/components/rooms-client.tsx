@@ -198,6 +198,7 @@ import {
   type ChatRoomMessageLink,
   chatRoomMessageHref,
 } from "@/lib/utils/notification-href";
+import { chatQueryKeys } from "@/queries/chat";
 import { CoworkerFirstPrompts } from "./coworker-first-prompts";
 import {
   openDirectWithParticipant,
@@ -827,7 +828,11 @@ function RoomView({
     // revisit asks Core again and nothing refetches it within one. Nothing
     // else reads the key, so it goes when the visit does; unmounting then
     // aborts a read still out, through the signal.
-    queryKey: ["room-open-at-unread", selectedRoomId, roomAtOpen.visit],
+    queryKey: chatQueryKeys.openAtUnread(
+      { userId: currentUserId, workspaceId: activeOrganization?.id ?? null },
+      selectedRoomId,
+      roomAtOpen.visit,
+    ),
     queryFn: ({ signal }) => {
       const read = () =>
         fetchRoomMessages(selectedRoomId ?? "", null, {
