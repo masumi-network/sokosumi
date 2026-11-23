@@ -1,11 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import type {
-  OrganizationDeletionEvaluation,
-  OrganizationRecord,
-} from "@sokosumi/core-client";
-import Link from "next/link";
+import type { OrganizationRecord } from "@sokosumi/core-client";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { Dispatch, SetStateAction } from "react";
@@ -44,75 +40,31 @@ interface OrganizationRemoveFormProps {
   organization: OrganizationRecord;
   setIsLoading: Dispatch<SetStateAction<boolean>>;
   onOpenChange: Dispatch<SetStateAction<boolean>>;
-  blockers?: OrganizationDeletionEvaluation["blockers"];
   preflightFailed?: boolean;
 }
 
-interface DeletionBlockerCopy {
-  message: string;
-  href?: string;
-  linkLabel?: string;
-}
-
-function organizationDeletionBlockerCopy(
-  code: string,
-  t: ReturnType<typeof useTranslations>,
-): DeletionBlockerCopy {
-  if (code === ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE) {
-    return { message: t("Errors.additionalMembers") };
-  }
-  if (code === LAST_WORKSPACE_ERROR_CODE) {
-    return { message: t("Errors.lastWorkspace") };
-  }
-  if (code === RUNNING_SUBSCRIPTION_ERROR_CODE) {
-    return { message: t("Errors.runningSubscription") };
-  }
-  if (code === ENTERPRISE_CONTRACT_ACTIVE_ERROR_CODE) {
-    return { message: t("Errors.enterpriseContractActive") };
-  }
-  if (code === IN_FLIGHT_JOB_ERROR_CODE) {
-    return {
-      message: t("Errors.inFlightJob"),
-      href: "/history",
-      linkLabel: t("Links.jobs"),
-    };
-  }
-  if (code === UNSETTLED_ON_CHAIN_JOB_ERROR_CODE) {
-    return {
-      message: t("Errors.unsettledOnChainJob"),
-      href: "/history",
-      linkLabel: t("Links.jobs"),
-    };
-  }
-  if (code === IN_FLIGHT_TASK_ERROR_CODE) {
-    return {
-      message: t("Errors.inFlightTask"),
-      href: "/tasks",
-      linkLabel: t("Links.tasks"),
-    };
-  }
-  return { message: t("error") };
-}
-
-function organizationDeletionBlockerHasBillingLink(code: string): boolean {
-  return (
-    code === RUNNING_SUBSCRIPTION_ERROR_CODE ||
-    code === ENTERPRISE_CONTRACT_ACTIVE_ERROR_CODE
-  );
-}
+// Core re-checks every blocker on submit; these map a late refusal to a toast.
+const DELETION_ERROR_KEYS: Record<string, string> = {
+  [ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE]: "Errors.additionalMembers",
+  [LAST_WORKSPACE_ERROR_CODE]: "Errors.lastWorkspace",
+  [RUNNING_SUBSCRIPTION_ERROR_CODE]: "Errors.runningSubscription",
+  [ENTERPRISE_CONTRACT_ACTIVE_ERROR_CODE]: "Errors.enterpriseContractActive",
+  [IN_FLIGHT_JOB_ERROR_CODE]: "Errors.inFlightJob",
+  [UNSETTLED_ON_CHAIN_JOB_ERROR_CODE]: "Errors.unsettledOnChainJob",
+  [IN_FLIGHT_TASK_ERROR_CODE]: "Errors.inFlightTask",
+};
 
 function organizationDeletionBlockerMessage(
   code: string,
   t: ReturnType<typeof useTranslations>,
 ): string {
-  return organizationDeletionBlockerCopy(code, t).message;
+  return t(DELETION_ERROR_KEYS[code] ?? "error");
 }
 
 export default function OrganizationRemoveForm({
   organization,
   setIsLoading,
   onOpenChange,
-  blockers = [],
   preflightFailed = false,
 }: OrganizationRemoveFormProps) {
   const t = useTranslations("Components.Organizations.RemoveModal");
@@ -166,7 +118,7 @@ export default function OrganizationRemoveForm({
   };
 
   const { isSubmitting, isValid } = form.formState;
-  const confirmDisabled = !isValid || blockers.length > 0 || preflightFailed;
+  const confirmDisabled = !isValid || preflightFailed;
 
   return (
     <Form {...form}>
@@ -185,37 +137,6 @@ export default function OrganizationRemoveForm({
               >
                 {t("retry")}
               </Button>
-            </div>
-          ) : null}
-          {blockers.length > 0 ? (
-            <div className="space-y-2">
-              <p className="text-destructive text-sm">{t("blockersTitle")}</p>
-              <ul className="text-destructive list-disc space-y-1 pl-5 text-sm">
-                {blockers.map((code) => {
-                  const copy = organizationDeletionBlockerCopy(code, t);
-                  return (
-                    <li key={code}>
-                      {copy.message}
-                      {copy.href && copy.linkLabel ? (
-                        <>
-                          {" "}
-                          <Link href={copy.href} className="underline">
-                            {copy.linkLabel}
-                          </Link>
-                        </>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ul>
-              {blockers.some(organizationDeletionBlockerHasBillingLink) ? (
-                <Link
-                  href="/billing"
-                  className="text-destructive text-sm underline underline-offset-2"
-                >
-                  {t("Errors.billingLink")}
-                </Link>
-              ) : null}
             </div>
           ) : null}
           <FormField

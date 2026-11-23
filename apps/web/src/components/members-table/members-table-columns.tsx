@@ -18,6 +18,30 @@ function getMembersTableColumns(
   me: OrganizationMembershipSelf,
 ) {
   return {
+    // Phones: name over email, so role and actions stay on screen.
+    personColumn: columnHelper.accessor("name", {
+      id: "name",
+      minSize: 96,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t("Header.name")} />
+      ),
+      cell: ({ row }) => (
+        // Table cells default to nowrap; this one wraps so role and actions fit.
+        <div className="p-2 whitespace-normal [overflow-wrap:anywhere]">
+          <div className="font-medium">
+            {row.original.name ?? row.original.email}
+          </div>
+          {row.original.name ? (
+            <div className="text-muted-foreground text-xs">
+              {row.original.email}
+            </div>
+          ) : null}
+        </div>
+      ),
+      enableSorting: true,
+      enableHiding: false,
+    }),
+
     nameColumn: columnHelper.accessor("name", {
       id: "name",
       minSize: 160,
@@ -108,19 +132,30 @@ function getMembersTableColumns(
   };
 }
 
+export const COMPACT_HIDDEN_COLUMNS = ["email", "lastSeen", "seat"];
+/** Sorts a phone can still pick from the Sort menu. */
+export const SORTABLE_COLUMNS = ["name", "email", "role", "lastSeen"] as const;
+
 export function getMembersTableColumnList(
   t: ReturnType<typeof useTranslations>,
   me: OrganizationMembershipSelf,
-  options: { showSeatManagement: boolean; includeActions: boolean },
+  options: {
+    showSeatManagement: boolean;
+    includeActions: boolean;
+    compact?: boolean;
+  },
 ) {
   const cols = getMembersTableColumns(t, me);
+  // Compact rows (phones, tablets) keep every column so its sort still applies; the table hides
+  // COMPACT_HIDDEN_COLUMNS and shrinks role and actions to their content.
+  const fit = options.compact ? { size: 1, minSize: 0 } : {};
   return columnHelper.columns([
-    cols.nameColumn,
+    options.compact ? cols.personColumn : cols.nameColumn,
     cols.emailColumn,
-    cols.roleColumn,
+    { ...cols.roleColumn, ...fit },
     cols.lastSeenColumn,
     ...(options.showSeatManagement ? [cols.seatColumn] : []),
-    ...(options.includeActions ? [cols.actionColumn] : []),
+    ...(options.includeActions ? [{ ...cols.actionColumn, ...fit }] : []),
   ]);
 }
 

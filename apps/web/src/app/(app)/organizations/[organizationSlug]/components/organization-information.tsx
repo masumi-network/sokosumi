@@ -31,6 +31,8 @@ interface OrganizationInformationProps {
   deletionBlockers?: OrganizationDeletionEvaluation["blockers"];
   deletionPreflightFailed?: boolean;
   deletionPreflightLoadError?: ReactNode;
+  otherMemberCount?: number;
+  isActiveOrganization?: boolean;
 }
 
 export default async function OrganizationInformation({
@@ -39,6 +41,8 @@ export default async function OrganizationInformation({
   deletionBlockers = [],
   deletionPreflightFailed = false,
   deletionPreflightLoadError,
+  otherMemberCount = 0,
+  isActiveOrganization = false,
 }: OrganizationInformationProps) {
   const t = await getTranslations("App.Organizations.OrganizationDetail");
   const { role } = member;
@@ -83,7 +87,7 @@ export default async function OrganizationInformation({
   return (
     <OrganizationMetadataProvider organization={organization}>
       <Card className="shadow-none">
-        <CardHeader className="gap-6">
+        <CardHeader className="gap-6 max-sm:gap-x-0">
           <div className="flex items-center gap-4 sm:gap-5">
             <Avatar className="bg-muted size-16 items-center justify-center rounded-2xl">
               <OrganizationLogo organization={organization} size={28} />
@@ -112,7 +116,9 @@ export default async function OrganizationInformation({
             </div>
           </div>
           {isOwnerOrAdmin && (
-            <CardAction>
+            // On a phone the name leaves no room beside it, so Edit and
+            // Delete go on their own row instead of past the screen edge.
+            <CardAction className="max-sm:col-start-1 max-sm:row-span-1 max-sm:row-start-auto max-sm:justify-self-start">
               <div className="flex items-center gap-1.5">
                 <OrganizationEditButton
                   organization={organization}
@@ -124,6 +130,8 @@ export default async function OrganizationInformation({
                     className="h-7 gap-1.5 px-2 text-xs"
                     blockers={deletionBlockers}
                     preflightFailed={deletionPreflightFailed}
+                    otherMemberCount={otherMemberCount}
+                    isActiveOrganization={isActiveOrganization}
                   />
                 ) : null}
               </div>

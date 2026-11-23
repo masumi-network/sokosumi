@@ -19,7 +19,15 @@ interface DesignMdEditorProps {
   returnHref: string;
 }
 
-export function DesignMdEditor({
+export function DesignMdEditor(props: DesignMdEditorProps) {
+  const router = useRouter();
+  // Next keeps a left edit page mounted but hidden, with the draft in it.
+  // Each Edit click is a new navigation with a new bfcacheId, so the editor
+  // opens from the saved file, not from an edit that was discarded.
+  return <DesignMdEditorForm key={router.bfcacheId} {...props} />;
+}
+
+function DesignMdEditorForm({
   initialMarkdown,
   owner,
   returnHref,
