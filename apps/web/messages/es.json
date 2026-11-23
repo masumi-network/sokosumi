@@ -10527,6 +10527,7 @@
       "selectDescription": "Elige un archivo de tus Archivos personales o de la organización",
       "uploadFile": "Subir desde el dispositivo",
       "fromDrive": "Desde Archivos",
+      "fromTable": "Desde una tabla",
       "moreActions": "Más acciones",
       "uploadFab": "Subir archivo",
       "folder": "Carpeta",
@@ -12000,7 +12001,23 @@
       "contactsPinned": "Fijado",
       "contactsCount": "{count, plural, =1 {1 contacto} other {# contactos}}",
       "searchPlaceholder": "Buscar tablas",
-      "noMatches": "Ninguna tabla coincide"
+      "noMatches": "Ninguna tabla coincide",
+      "attach": {
+        "title": "Añadir una tabla",
+        "description": "Añade una copia CSV de todas las filas tal como están ahora. Los cambios posteriores en la tabla no la modifican.",
+        "search": "Buscar tablas…",
+        "empty": "Aún no hay tablas.",
+        "noMatches": "Ninguna tabla coincide con tu búsqueda.",
+        "openTables": "Abrir tablas en Archivos",
+        "tooLarge": "Esta tabla tiene más de 10.000 filas, demasiadas para añadirla. Exporta una vista filtrada desde la tabla.",
+        "error": "No se pudo añadir esta tabla. Inténtalo de nuevo.",
+        "loadError": "No se pudieron cargar tus tablas. Cierra esto e inténtalo de nuevo.",
+        "publicCopy": "Cualquiera con el enlace puede abrir la copia, como cualquier archivo adjunto. Añádela solo si eso está bien para estos datos.",
+        "cancel": "Cancelar",
+        "add": "Añadir copia",
+        "loadMore": "Mostrar más tablas",
+        "loadMoreError": "No se pudieron cargar más tablas. Inténtalo de nuevo."
+      }
     },
     "ProjectScope": {
       "clearSearch": "Borrar búsqueda",
