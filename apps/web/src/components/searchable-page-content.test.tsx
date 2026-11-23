@@ -146,6 +146,52 @@ describe("page content search", () => {
     expect(icon).toHaveFocus();
   });
 
+  // Tabbing to a result control and back keeps the way back to the icon.
+  it("returns focus to the Find icon after a trip through the result controls", () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={english}>
+        <PathnameContext.Provider value="/projects/p-1">
+          <SearchablePageContent sidebar>
+            <ProjectFindButton label="Find on this page" />
+            <p>Launch</p>
+          </SearchablePageContent>
+        </PathnameContext.Provider>
+      </NextIntlClientProvider>,
+    );
+    const input = screen.getByRole("searchbox");
+    const icon = screen.getByRole("button", { name: "Find on this page" });
+
+    fireEvent.click(icon);
+    fireEvent.change(input, { target: { value: "launch" } });
+    const next = screen.getByRole("button", { name: "Next match" });
+    next.focus();
+    expect(next).toHaveFocus();
+    input.focus();
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(input).toHaveValue("");
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(icon).toHaveFocus();
+  });
+
+  it("lets go of Escape once focus leaves Find", () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={english}>
+        <PathnameContext.Provider value="/projects/p-1">
+          <SearchablePageContent sidebar>
+            <ProjectFindButton label="Find on this page" />
+            <button type="button">Elsewhere</button>
+          </SearchablePageContent>
+        </PathnameContext.Provider>
+      </NextIntlClientProvider>,
+    );
+    const input = screen.getByRole("searchbox");
+    fireEvent.click(screen.getByRole("button", { name: "Find on this page" }));
+    screen.getByRole("button", { name: "Elsewhere" }).focus();
+    input.focus();
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(input).toHaveFocus();
+  });
+
   it("keeps Find in sight on pages without an icon", () => {
     render(
       <NextIntlClientProvider locale="en" messages={english}>

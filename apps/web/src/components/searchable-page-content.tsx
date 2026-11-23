@@ -215,6 +215,7 @@ function SearchToolbar({
     return <div className={cn(sticky)}>{renderHeader(controls)}</div>;
   return (
     <div
+      data-page-search-toolbar
       className={cn(
         "@container/page-toolbar flex flex-wrap items-center gap-2 py-2",
         sticky,

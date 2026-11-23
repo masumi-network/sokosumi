@@ -8,7 +8,7 @@ import { activeSearchField } from "@/hooks/effects/use-page-search-shortcut";
 /**
  * Find on this page, as an icon in a project's title row below md: the page's
  * field stays out of sight there until this focuses it. Escape on an empty
- * field brings focus back here.
+ * field brings focus back here, while focus stays anywhere in the toolbar.
  */
 export function ProjectFindButton({ label }: { label: string }) {
   const ref = useRef<HTMLButtonElement>(null);
@@ -18,17 +18,21 @@ export function ProjectFindButton({ label }: { label: string }) {
     if (!input) return;
     // Inside the tap, so a phone opens its keyboard.
     input.focus();
+    // The whole toolbar, so a trip to Previous or Next keeps the way back.
+    const toolbar =
+      input.closest<HTMLElement>("[data-page-search-toolbar]") ?? input;
     function onKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape" || input?.value) return;
       event.preventDefault();
       ref.current?.focus();
     }
-    input.addEventListener("keydown", onKeyDown);
-    input.addEventListener(
-      "blur",
-      () => input.removeEventListener("keydown", onKeyDown),
-      { once: true },
-    );
+    function onFocusOut(event: FocusEvent) {
+      if (toolbar.contains(event.relatedTarget as Node | null)) return;
+      toolbar.removeEventListener("keydown", onKeyDown);
+      toolbar.removeEventListener("focusout", onFocusOut);
+    }
+    toolbar.addEventListener("keydown", onKeyDown);
+    toolbar.addEventListener("focusout", onFocusOut);
   }
 
   return (

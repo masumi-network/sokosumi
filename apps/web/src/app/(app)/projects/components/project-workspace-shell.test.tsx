@@ -100,6 +100,13 @@ describe("the project detail layout", () => {
     const tabsBlock = tabsBlockOf();
     expect(tabsBlock.classList).not.toContain("max-xl:mt-4");
     expect(tabsBlock.classList).toContain("space-y-8");
+    // The tabs' own 12px to the Properties line is below xl only, where the
+    // line shows: from xl the tabs keep their 32px to the content.
+    const tabsGroup = screen.getByRole("navigation", {
+      name: "Project sections",
+    }).parentElement as HTMLElement;
+    expect(tabsGroup.classList).toContain("max-xl:space-y-3");
+    expect(tabsGroup.classList).not.toContain("space-y-3");
   });
 
   it("puts the Properties rail in the task sidebar slot", () => {

@@ -216,7 +216,9 @@ export function ProjectWorkspaceShell({
             panels && "xl:col-start-1 xl:row-span-2 xl:row-start-2",
           )}
         >
-          <div className="space-y-3">
+          {/* Below xl only: from xl the line is hidden, and the tabs keep
+              their 32px to the content. */}
+          <div className="max-xl:space-y-3">
             <ProjectTabs ariaLabel={labels.ariaLabel} tabs={tabs} />
             <ProjectPropertiesLine
               className="xl:hidden"
