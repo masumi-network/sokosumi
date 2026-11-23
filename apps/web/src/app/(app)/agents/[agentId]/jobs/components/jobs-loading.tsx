@@ -18,7 +18,8 @@ export function JobsListHeaderSkeleton() {
   return (
     <div aria-hidden className="flex flex-col gap-3 px-2 pb-3 md:px-0 md:pr-4">
       <div className="max-md:hidden @4xl/jobs-panes:hidden">
-        <Skeleton className="h-5 w-48 max-w-full" />
+        {/* The loaded line box is 24px around 20px of text. */}
+        <Skeleton className="my-0.5 h-5 w-48 max-w-full" />
       </div>
       <div className="flex min-w-0 items-center gap-3">
         <Skeleton className="size-10 shrink-0 rounded-lg" />

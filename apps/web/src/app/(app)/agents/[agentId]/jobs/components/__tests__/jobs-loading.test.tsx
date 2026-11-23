@@ -55,6 +55,8 @@ describe("jobs loading shells", () => {
     const boneRows = bones.firstElementChild?.children;
     expect(backRow).toBeTruthy();
     expect(boneRows?.[0]?.className).toBe(backRow?.className);
+    // 20px bar plus 2px above and below: the loaded line box is 24px.
+    expect(boneRows?.[0]?.firstElementChild?.className).toContain("my-0.5 h-5");
     expect(bones.firstElementChild?.className).toBe(
       loaded.firstElementChild?.className,
     );
