@@ -42,15 +42,15 @@ interface SocialButtonsProps {
 }
 
 /**
- * Marks the method used last. It sits on the button's top edge, the same
- * pill as the email field's marker, so a long label (Spanish, German) at
- * 40px never runs under it.
+ * Marks the method used last: the email field's pill, on its own row above
+ * the button, so it never shares space with a label that is long (Spanish,
+ * German) or wraps on a narrow phone.
  */
 function LastUsedBadge({ label }: { label: string }) {
   return (
     <span
       aria-hidden="true"
-      className="bg-background text-foreground border-border pointer-events-none absolute -top-2 right-2 z-10 rounded-full border px-2 py-0.5 text-2xs leading-none font-medium group-has-[:disabled]/provider:opacity-50"
+      className="bg-background text-foreground border-border pointer-events-none mr-2 mb-1 self-end rounded-full border px-2 py-0.5 text-2xs leading-none font-medium group-has-[:disabled]/provider:opacity-50"
     >
       {label}
     </span>
@@ -184,7 +184,7 @@ export default function SocialButtons({
         return (
           <div
             className={cn(
-              "group/provider relative",
+              "group/provider relative flex flex-col",
               // The provider button is third-party, so it cannot take
               // `loading`: draw the same bar over it and keep its logo.
               isPending && "text-foreground overflow-hidden rounded-md",
@@ -192,17 +192,14 @@ export default function SocialButtons({
             aria-busy={isPending || undefined}
             key={socialButton.key}
           >
-            {/* The pending bar clips this wrapper, so the edge mark steps aside. */}
-            {isLastUsed && !isPending && (
-              <LastUsedBadge label={t("lastUsed")} />
-            )}
+            {isLastUsed && <LastUsedBadge label={t("lastUsed")} />}
             <socialButton.Button
               onClick={() => handleClick(socialButton.key)}
               // The pending one stays enabled, so it keeps focus and full
               // contrast; handleClick already ignores clicks while waiting.
               disabled={isWaiting && !isPending}
               className={cn(
-                "text-foreground! m-0! flex h-10! w-full! rounded-md! border! px-4! py-2! text-sm! shadow-none! transition-colors! duration-300! disabled:pointer-events-none! disabled:opacity-50! [&>div]:justify-center! [&>div]:gap-2! [&>div_div]:w-auto!",
+                "text-foreground! m-0! flex h-auto! min-h-10! w-full! rounded-md! border! px-4! py-2! text-sm! shadow-none! transition-colors! duration-300! disabled:pointer-events-none! disabled:opacity-50! [&>div]:justify-center! [&>div]:gap-2! [&>div_div]:w-auto!",
                 isPending && "cursor-progress!",
                 isLastUsed
                   ? "border-border! bg-muted! hover:bg-quinary!"
@@ -220,7 +217,7 @@ export default function SocialButtons({
         );
       })}
       {showPasskey && (
-        <div className="group/provider relative">
+        <div className="group/provider relative flex flex-col">
           {lastUsedMethod === "passkey" && (
             <LastUsedBadge label={t("lastUsed")} />
           )}
