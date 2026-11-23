@@ -19,7 +19,6 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import {
   type ReactNode,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -44,6 +43,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useFocusWhen } from "@/hooks/effects/use-focus-when";
 import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
+import { useSokoBotIntegrationOutcomeToast } from "@/hooks/effects/use-soko-bot-integration-outcome-toast";
 import type { ChatSchedule, SokoBotChatState } from "@/lib/soko-bot/chat-state";
 import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { describeSchedule } from "@/lib/soko-bot/describe-cron";
@@ -322,13 +322,12 @@ export function SokoBotConsole({
   const format = useFormatter();
   const router = useRouter();
   const { state, refresh } = useSokoBotState(initialState, botId);
-  useEffect(() => {
-    if (!integrationOutcome) return;
-    if (integrationOutcome === "active")
-      toast.success(t("Integrations.connected"));
-    else toast.error(t("Integrations.connectFailed"));
-    router.replace(consoleRoute);
-  }, [integrationOutcome, router, t, consoleRoute]);
+  useSokoBotIntegrationOutcomeToast({
+    integrationOutcome,
+    router,
+    t,
+    consoleRoute,
+  });
   const { bot } = state;
   const botName = bot.name?.trim() || t("Chat.defaultName");
   // Same seed Core hands chat participants, so console and room match. Not

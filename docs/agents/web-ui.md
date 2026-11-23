@@ -192,6 +192,11 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-rooms-client-scroll-on-history-loaded` (`useRoomsClientScrollOnHistoryLoaded`) — pins `RoomsClient` to the bottom in layout when message history transitions from pending to loaded
 - `use-rooms-client-transcript-active` (`useRoomsClientTranscriptActive`) — before-paint active/mounted ref lifecycle for `RetainedRoomsClient` and its `positionChanged` guard
 - `use-unread-thread-reply-counts` (`useUnreadThreadReplyCounts`) — debounced unread thread reply count reader per room with local `clear` override
+- `use-guest-invite-section-data` (`useGuestInviteSectionData`) — loads pending guest invitations and non-revoked invite links on mount for `GuestInviteSection` with explicit retry
+- `use-pinned-messages-list` (`usePinnedMessagesList`) — loads the initial page of pinned messages for `PinnedMessagesPanel` when room or list generation changes
+- `use-room-cache-session-lifecycle` (`useRoomCacheSessionLifecycle`) — activates `RoomTranscriptCache`, handles `chat-session-ended` and `organization-chat-rooms-changed` events, and clears cache on cleanup
+- `use-room-search-query` (`useRoomSearchQuery`) — runs revision-guarded room message searches while `RoomSearchPanel` is open
+- `use-clamped-overflow-cache-sync` (`useClampedOverflowCacheSync`) — before-paint cache map synchronization for `useClampedOverflow` disclosure state
 - `use-outbound-pending-spinner` (`useOutboundPendingSpinner`) — delays showing the pending outbound chat message spinner until `OUTBOUND_PENDING_SPINNER_DELAY_MS` elapses
 - `use-outbound-sent-tick-fade` (`useOutboundSentTickFade`) — starts fading the outbound chat message sent tick halfway through `OUTBOUND_SENT_TICK_MS`
 - `use-thread-mute-status` (`useThreadMuteStatus`) — loads the reader's mute status for the open chat thread while unknown, retrying on `replyCount` changes only while the status is unknown

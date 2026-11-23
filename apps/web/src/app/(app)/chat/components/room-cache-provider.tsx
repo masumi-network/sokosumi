@@ -6,8 +6,6 @@ import {
   createContext,
   type ReactNode,
   useContext,
-  useEffect,
-  useEffectEvent,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -23,12 +21,9 @@ import {
   type RoomTranscriptEntry,
 } from "@/app/chat/utils/room-transcript-cache";
 import { getLatestMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
-import {
-  ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
-  type OrganizationChatRoomsChangedDetail,
-} from "@/components/chat/organization-chat-events";
 import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { useIntentPrefetch } from "@/hooks/effects/use-intent-prefetch";
+import { useRoomCacheSessionLifecycle } from "@/hooks/effects/use-room-cache-session-lifecycle";
 import { markPageOnScreen } from "@/lib/navigation/navigation-start";
 import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 import { shouldUseCoworkerRoomStream } from "./room-helpers";
@@ -284,8 +279,6 @@ function RoomCacheSession({
     setNavigation({ pathname, target: pathname });
   const target =
     navigation.pathname === pathname ? navigation.target : pathname;
-  const replace = useEffectEvent((href: string) => router.replace(href));
-  const [generation, setGeneration] = useState(0);
   const [cache, setCache] = useState(
     () => new RoomTranscriptCache(client, currentUserId, workspaceId),
   );
@@ -343,40 +336,7 @@ function RoomCacheSession({
   useEventListener("window", "popstate", () =>
     select(new URL(window.location.href)),
   );
-  useEffect(() => {
-    // Next hides the app shell in an Activity while a flow outside it is
-    // open, which runs the cleanup below. A room opened as the shell comes
-    // back rendered against the cleared cache and would wait on it forever.
-    if (cache.activate()) setGeneration((value) => value + 1);
-    const ended = () => {
-      cache.clear();
-      setGeneration((value) => value + 1);
-    };
-    const removed = (event: Event) => {
-      const detail = (event as CustomEvent<OrganizationChatRoomsChangedDetail>)
-        .detail;
-      if (detail?.joinedRoomId) {
-        cache.joined(detail.joinedRoomId);
-        setGeneration((value) => value + 1);
-      }
-      if (detail?.removedRoomId) {
-        cache.evict(detail.removedRoomId);
-        setGeneration((value) => value + 1);
-        if (window.location.pathname === `/chat/rooms/${detail.removedRoomId}`)
-          replace("/?notice=room-unavailable");
-      }
-    };
-    window.addEventListener("chat-session-ended", ended);
-    window.addEventListener(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, removed);
-    return () => {
-      window.removeEventListener("chat-session-ended", ended);
-      window.removeEventListener(
-        ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
-        removed,
-      );
-      cache.clear();
-    };
-  }, [cache]);
+  const generation = useRoomCacheSessionLifecycle(cache, router);
   return (
     <RoomCacheContext value={{ cache, generation, currentUserId, workspaceId }}>
       <RoomSelectionContext value={target}>
