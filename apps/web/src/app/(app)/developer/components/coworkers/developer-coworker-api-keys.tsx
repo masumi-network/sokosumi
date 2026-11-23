@@ -160,7 +160,7 @@ export function DeveloperCoworkerApiKeys({
                   <TableCell className="hidden sm:table-cell">
                     {format.dateTime(row.createdAt, { dateStyle: "medium" })}
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell">
+                  <TableCell className="hidden whitespace-normal sm:table-cell">
                     {row.lastUsedAt
                       ? format.dateTime(row.lastUsedAt, "dateTimeMedium")
                       : t("noRecordedUse")}
