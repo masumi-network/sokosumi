@@ -1,4 +1,4 @@
-import { CMO_CHANNELS } from "@sokosumi/utils";
+import { CMO_CHANNELS, type CmoChannelKey } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -6,14 +6,19 @@ import {
   renderWritingSkill,
   WRITING_SKILL_GROUPS,
   WRITING_SKILLS,
-  writingSkillForChannel,
   writingSkillsForChannels,
 } from "../index.js";
 
 describe("writing skills", () => {
   it("gives every CMO channel its own skill", () => {
-    for (const channel of Object.keys(CMO_CHANNELS))
-      expect(writingSkillForChannel(channel)?.channels).toContain(channel);
+    for (const channel of Object.keys(CMO_CHANNELS)) {
+      const skill = WRITING_SKILLS.find(
+        (candidate) =>
+          candidate.group !== "foundations" &&
+          candidate.channels.includes(channel as CmoChannelKey),
+      );
+      expect(skill?.channels).toContain(channel);
+    }
   });
 
   it("keeps ids unique and every group shown", () => {
@@ -115,7 +120,10 @@ describe("writing skills", () => {
   });
 
   it("ends each skill with its checklist", () => {
-    const linkedin = writingSkillForChannel("linkedin");
+    const linkedin = WRITING_SKILLS.find(
+      (skill) =>
+        skill.group !== "foundations" && skill.channels.includes("linkedin"),
+    );
     expect(linkedin).toBeDefined();
     const text = renderWritingSkill(linkedin!);
     expect(text).toContain("## Before you save");

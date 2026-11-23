@@ -1,5 +1,3 @@
-import type { CmoChannelKey } from "@sokosumi/utils";
-
 import { AD_WRITING_SKILLS } from "./ads.js";
 import { FOUNDATION_WRITING_SKILLS } from "./foundations.js";
 import { LONG_FORM_WRITING_SKILLS } from "./long-form.js";
@@ -23,17 +21,6 @@ export const WRITING_SKILLS: readonly WritingSkill[] = [
   ...AD_WRITING_SKILLS,
   ...LONG_FORM_WRITING_SKILLS,
 ];
-
-/** The skill a channel's pieces follow, apart from the foundations. */
-export function writingSkillForChannel(
-  channel: string,
-): WritingSkill | undefined {
-  return WRITING_SKILLS.find(
-    (skill) =>
-      skill.group !== "foundations" &&
-      skill.channels.includes(channel as CmoChannelKey),
-  );
-}
 
 /** Every skill a set of channels needs: the foundations they use, then each channel's own. */
 export function writingSkillsForChannels(
