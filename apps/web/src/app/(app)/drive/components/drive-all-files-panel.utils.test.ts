@@ -1,7 +1,10 @@
 import type { FileResource, FileSearchMeta } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 
-import { mergeLoadedFilePage } from "./drive-all-files-panel.utils";
+import {
+  foldLoadedFilePages,
+  mergeLoadedFilePage,
+} from "./drive-all-files-panel.utils";
 
 /**
  * Five minutes after a search — or after browsing a file list — pressing
@@ -139,5 +142,40 @@ describe("folding a loaded page into the list on screen", () => {
 
     expect(merged.items.map((item) => item.id)).toEqual(["a", "b"]);
     expect(merged.restarted).toBe(false);
+  });
+});
+
+describe("folding infinite query pages", () => {
+  it("never marks page one as restarted even when the server rebuilt a window", () => {
+    const folded = foldLoadedFilePages([
+      { items: items("a", "b"), search: meta({ restarted: true }) },
+    ]);
+
+    expect(folded.items.map((item) => item.id)).toEqual(["a", "b"]);
+    expect(folded.restarted).toBe(false);
+  });
+
+  it("replaces earlier pages when a later page restarts and continues appending after", () => {
+    const restarted = foldLoadedFilePages([
+      { items: items("old-1", "old-2"), search: meta({ restarted: false }) },
+      { items: items("new-1", "new-2"), search: meta({ restarted: true }) },
+    ]);
+    expect(restarted.items.map((item) => item.id)).toEqual(["new-1", "new-2"]);
+    expect(restarted.restarted).toBe(true);
+
+    const continued = foldLoadedFilePages([
+      { items: items("old-1", "old-2"), search: meta({ restarted: false }) },
+      { items: items("new-1", "new-2"), search: meta({ restarted: true }) },
+      {
+        items: items("new-3"),
+        search: meta({ restarted: false, hasMore: false, nextCursor: null }),
+      },
+    ]);
+    expect(continued.items.map((item) => item.id)).toEqual([
+      "new-1",
+      "new-2",
+      "new-3",
+    ]);
+    expect(continued.restarted).toBe(false);
   });
 });

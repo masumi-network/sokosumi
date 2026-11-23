@@ -3,9 +3,9 @@
 import type {
   FileCollection,
   FileResource,
-  FileSearchMeta,
   WorkspaceLabel,
 } from "@sokosumi/core-client";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Bookmark,
   FolderInput,
@@ -15,13 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type ReactNode, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { DriveFileFilters } from "@/app/drive/components/drive-file-filters";
@@ -50,23 +44,34 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
-import { useWorkspaceFolders } from "@/hooks/effects/use-workspace-folders";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
 import {
   countActiveFileFilters,
   createFileCollection,
   decideSuggestion,
+  deleteDriveUploads,
+  deleteFileCollection,
   EMPTY_FILE_FILTERS,
   type FileSearchFilterState,
   type FileStore,
   fetchFileCollections,
   fetchFileSearchPage,
+  fetchWorkspaceFolders,
   fetchWorkspaceLabels,
   updateFileCollection,
 } from "@/lib/utils/file-search.client";
-import * as moves from "./drive-all-files-moves";
-import { mergeLoadedFilePage } from "./drive-all-files-panel.utils";
+import {
+  type DriveCatalogQueryParams,
+  driveQueryKeys,
+  invalidateDrive,
+  splitDriveQueryKey,
+} from "@/queries/drive";
+import {
+  useScopedInfiniteQuery,
+  useScopedQuery,
+} from "@/queries/scoped-queries";
+import { foldLoadedFilePages } from "./drive-all-files-panel.utils";
 import { DriveCollectionChip } from "./drive-collection-chip";
 
 /**
@@ -75,9 +80,9 @@ import { DriveCollectionChip } from "./drive-collection-chip";
  *
  * Three behaviours here are deliberate rather than incidental:
  *
- * - A superseded response never lands. Each request carries a sequence
- *   number and an abort signal, so a fast second keystroke cannot be
- *   overwritten by a slow first one.
+ * - A superseded response never lands. Reads live in the Drive React Query
+ *   cache keyed by store, query and filters, so a slow response for an earlier
+ *   query or workspace cannot overwrite the active view.
  * - "Select all" means the result window the reader was shown, and the
  *   button says so. There is no selection of unseen matches.
  * - Counts describe this bounded window, never the corpus. When a retrieval
@@ -152,35 +157,10 @@ export interface DriveAllFilesPanelProps {
   virtualFolder?: { label: string; onOpen: () => void };
   /** Folders that are data rooms, marked in the folder grid and trail. */
   dataRoomPaths?: readonly string[];
-  /**
-   * Bumped when the page changed the files behind this list — an upload, a
-   * folder rename, a delete.
-   *
-   * The catalog reads the search index and the page's own mutations go through
-   * the blob store, so nothing else connects the two. Without it an upload on
-   * this tab landed in the store and appeared nowhere.
-   */
-  reloadToken?: number;
   /** Opens the link dialog for one uploaded file. */
   onShareFile?: (item: DriveShareItem) => void;
   /** Opens the move dialog for the ticked uploads. */
   onMoveFiles?: (files: { pathname: string; name: string }[]) => void;
-}
-
-interface SearchState {
-  items: FileResource[];
-  meta: FileSearchMeta | null;
-  loading: boolean;
-  loadingMore: boolean;
-  error: string | null;
-  /**
-   * The last page replaced this list because its window had expired.
-   *
-   * Shown beside Load more, and cleared by anything that starts a fresh
-   * list, so the notice describes the list currently on screen rather
-   * than lingering over a later one.
-   */
-  restarted: boolean;
 }
 
 export function DriveAllFilesPanel({
@@ -195,9 +175,9 @@ export function DriveAllFilesPanel({
   dataRoomPaths,
   onShareFile,
   onMoveFiles,
-  reloadToken = 0,
 }: DriveAllFilesPanelProps) {
   const t = useTranslations("App.Drive.Files");
+  const queryClient = useQueryClient();
 
   // "See all files" in global search navigates to `/drive?view=all&q=…`.
   // The panel used to start empty and drop it, so the reader arrived at an
@@ -208,20 +188,6 @@ export function DriveAllFilesPanel({
     ...EMPTY_FILE_FILTERS,
     folder: initialFolder,
   });
-  const folders = useWorkspaceFolders(store, reloadToken);
-  const [labels, setLabels] = useState<WorkspaceLabel[]>([]);
-  const [labelsState, setLabelsState] = useState<
-    "loading" | "ready" | "failed"
-  >("loading");
-  const [collections, setCollections] = useState<FileCollection[]>([]);
-  /**
-   * Collections load separately from results, so they get their own three
-   * states. "Loading" and "failed" are distinct from "you have none" — the
-   * ones that get skipped and then found in a browser.
-   */
-  const [collectionsState, setCollectionsState] = useState<
-    "loading" | "ready" | "failed"
-  >("loading");
   const [collectionBusy, setCollectionBusy] = useState(false);
   /** The collection whose new name has not saved yet. */
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -239,14 +205,6 @@ export function DriveAllFilesPanel({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-  const [state, setState] = useState<SearchState>({
-    items: [],
-    meta: null,
-    loading: true,
-    loadingMore: false,
-    error: null,
-    restarted: false,
-  });
 
   /**
    * The one way filters change, so a folder change cannot reach the list
@@ -266,15 +224,11 @@ export function DriveAllFilesPanel({
     [onFolderChange],
   );
 
-  const sequenceRef = useRef(0);
-  const abortRef = useRef<AbortController | null>(null);
   const lastSelectedIndexRef = useRef<number | null>(null);
-  /** Runs the search the list shows now, not the one a late caller saw. */
-  const reloadRef = useRef(async (_keepSelection?: boolean) => {});
 
   /**
-   * A stable identity for the active store, used as an effect dependency
-   * so a workspace switch re-runs the load.
+   * A stable identity for the active store, used to reset local selection
+   * state when the workspace changes.
    *
    * Not rendered. It used to also be written into an `sr-only` span with
    * a `data-testid`, which hides it from sight and not from assistive
@@ -283,73 +237,6 @@ export function DriveAllFilesPanel({
    * referenced that test id: it was a hook that shipped without its test.
    */
   const storeKey = `${store.scope}:${store.organizationId ?? ""}`;
-
-  const runSearch = useCallback(
-    async (input: {
-      query: string;
-      filters: FileSearchFilterState;
-      /**
-       * Keep whatever is selected, narrowed to rows that came back.
-       *
-       * The refresh after a partial bulk edit deliberately leaves the failed
-       * rows selected so the reader can retry exactly those — and then this
-       * function cleared them a tick later, defeating the comment above it.
-       */
-      keepSelection?: boolean;
-    }) => {
-      const sequence = sequenceRef.current + 1;
-      sequenceRef.current = sequence;
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
-
-      setState((current) => ({ ...current, loading: true, error: null }));
-
-      try {
-        const request = requestFor(input.query, input.filters);
-        const page = await fetchFileSearchPage({
-          store,
-          query: input.query,
-          filters: request.filters,
-          directOnly: request.browsing,
-          sortBy: request.sortBy,
-          sortOrder: request.sortOrder,
-          signal: controller.signal,
-        });
-        // A response from a superseded request is dropped, not rendered.
-        if (sequence !== sequenceRef.current) return;
-        setState({
-          items: page.items,
-          meta: page.search,
-          loading: false,
-          loadingMore: false,
-          error: null,
-          // A search the reader just asked for is not a refreshed list,
-          // even when the server rebuilt a window to serve it.
-          restarted: false,
-        });
-        if (input.keepSelection) {
-          // A row that is no longer in the result set cannot be retried, so
-          // it does not stay selected either.
-          setSelectedIds((current) =>
-            current.filter((id) => page.items.some((item) => item.id === id)),
-          );
-        } else {
-          setSelectedIds([]);
-        }
-      } catch {
-        if (controller.signal.aborted) return;
-        if (sequence !== sequenceRef.current) return;
-        setState((current) => ({
-          ...current,
-          loading: false,
-          loadingMore: false,
-          error: t("searchError"),
-        }));
-      }
-    },
-    [store, t],
-  );
 
   /**
    * A folder arriving from outside: a deep link, Back, or the page head having
@@ -366,17 +253,67 @@ export function DriveAllFilesPanel({
     }
   }
 
+  // Switching workspace is a different scope: drop selection and active
+  // collection rather than letting one store's selection carry into another.
+  const [prevStoreKey, setPrevStoreKey] = useState(storeKey);
+  if (prevStoreKey !== storeKey) {
+    setPrevStoreKey(storeKey);
+    setSelectedIds([]);
+    setActiveCollectionId(null);
+  }
+
+  const [prevSearchScope, setPrevSearchScope] = useState({
+    appliedQuery,
+    filters,
+  });
+  if (
+    prevSearchScope.appliedQuery !== appliedQuery ||
+    prevSearchScope.filters !== filters
+  ) {
+    setPrevSearchScope({ appliedQuery, filters });
+    if (selectedIds.length > 0) {
+      setSelectedIds([]);
+    }
+  }
+
   const debouncedSearch = useDebouncedCallback((value: string) => {
     setAppliedQuery(value);
   }, SEARCH_DEBOUNCE_MS);
 
-  useEffect(() => {
-    reloadRef.current = (keepSelection) =>
-      runSearch({ query: appliedQuery, filters, keepSelection });
-    void reloadRef.current();
-    // `reloadToken` is a signal, not an input: the same query and filters run
-    // again because the files under them changed.
-  }, [appliedQuery, filters, runSearch, reloadToken]);
+  const request = requestFor(appliedQuery, filters);
+  const catalogParams: DriveCatalogQueryParams = {
+    query: appliedQuery.trim(),
+    filters: request.filters,
+    directOnly: request.browsing,
+    sortBy: request.sortBy,
+    sortOrder: request.sortOrder,
+  };
+
+  const searchQuery = useScopedInfiniteQuery({
+    ...splitDriveQueryKey(driveQueryKeys.catalog(store, catalogParams)),
+    queryFn: ({ pageParam, signal }) =>
+      fetchFileSearchPage({
+        store,
+        query: catalogParams.query,
+        filters: catalogParams.filters,
+        directOnly: catalogParams.directOnly,
+        sortBy: catalogParams.sortBy,
+        sortOrder: catalogParams.sortOrder,
+        cursor: pageParam,
+        signal,
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) =>
+      lastPage.search.hasMore
+        ? (lastPage.search.nextCursor ?? undefined)
+        : undefined,
+  });
+
+  const foldersQuery = useScopedQuery({
+    ...splitDriveQueryKey(driveQueryKeys.folders(store)),
+    queryFn: ({ signal }) => fetchWorkspaceFolders({ store, signal }),
+  });
+  const folders = foldersQuery.data ?? [];
 
   /**
    * Two loads, reported separately, because they fail separately.
@@ -390,102 +327,48 @@ export function DriveAllFilesPanel({
    * that appears to work while half the data is still missing is worse
    * than an error that stays on screen.
    */
-  useEffect(() => {
-    const controller = new AbortController();
-    setLabelsState("loading");
-    setCollectionsState("loading");
+  const labelsQuery = useScopedQuery({
+    ...splitDriveQueryKey(driveQueryKeys.labels(store)),
+    queryFn: ({ signal }) => fetchWorkspaceLabels({ store, signal }),
+  });
+  const labels: WorkspaceLabel[] = labelsQuery.data ?? [];
 
-    void (async () => {
-      const [labelResult, collectionResult] = await Promise.allSettled([
-        fetchWorkspaceLabels({ store, signal: controller.signal }),
-        fetchFileCollections({ store, signal: controller.signal }),
-      ]);
-      if (controller.signal.aborted) return;
+  const collectionsQuery = useScopedQuery({
+    ...splitDriveQueryKey(driveQueryKeys.collections(store)),
+    queryFn: ({ signal }) => fetchFileCollections({ store, signal }),
+  });
+  const collections: FileCollection[] = collectionsQuery.data ?? [];
 
-      if (labelResult.status === "fulfilled") {
-        setLabels(labelResult.value);
-        setLabelsState("ready");
-      } else {
-        // Vocabulary is an aid, not the list: a failure here must not empty
-        // the results the reader came for.
-        setLabelsState("failed");
-      }
+  const { items, meta, restarted } = foldLoadedFilePages(
+    searchQuery.data?.pages ?? [],
+  );
+  const isInitialError =
+    searchQuery.isError && !searchQuery.isFetchNextPageError;
+  const isLoadingList =
+    searchQuery.isPending || (items.length === 0 && searchQuery.isFetching);
+  const isRefreshingPageOne =
+    searchQuery.isFetching && !searchQuery.isFetchingNextPage;
 
-      if (collectionResult.status === "fulfilled") {
-        setCollections(collectionResult.value);
-        setCollectionsState("ready");
-      } else {
-        setCollectionsState("failed");
-      }
-    })();
-
-    return () => controller.abort();
-  }, [store]);
-
-  // Switching workspace is a different scope: drop everything rather than
-  // letting one store's rows linger under another store's header.
-  const [prevStoreKey, setPrevStoreKey] = useState(storeKey);
-  if (prevStoreKey !== storeKey) {
-    setPrevStoreKey(storeKey);
-    setSelectedIds([]);
-    setState({
-      items: [],
-      meta: null,
-      loading: true,
-      loadingMore: false,
-      error: null,
-      restarted: false,
-    });
-  }
-
-  async function loadMore() {
-    const cursor = state.meta?.nextCursor;
-    if (!cursor || state.loadingMore) return;
-
-    setState((current) => ({ ...current, loadingMore: true }));
-    try {
-      const request = requestFor(appliedQuery, filters);
-      const page = await fetchFileSearchPage({
-        store,
-        query: appliedQuery,
-        filters: request.filters,
-        directOnly: request.browsing,
-        sortBy: request.sortBy,
-        sortOrder: request.sortOrder,
-        cursor,
-      });
-      setState((current) => {
-        const merged = mergeLoadedFilePage(current.items, page);
-        return {
-          items: merged.items,
-          meta: merged.meta,
-          loading: false,
-          loadingMore: false,
-          error: null,
-          restarted: merged.restarted,
-        };
-      });
-    } catch {
-      setState((current) => ({
-        ...current,
-        loadingMore: false,
-        error: t("searchError"),
-      }));
-    }
-  }
+  const visibleItemIds = new Set(items.map((item) => item.id));
+  const activeSelectedIds = selectedIds.filter((id) => visibleItemIds.has(id));
 
   function toggleRow(index: number, id: string, shiftKey: boolean) {
     setSelectedIds((current) => {
-      if (shiftKey && lastSelectedIndexRef.current !== null) {
+      const visible = current.filter((entry) => visibleItemIds.has(entry));
+      if (
+        shiftKey &&
+        visible.length > 0 &&
+        lastSelectedIndexRef.current !== null
+      ) {
         const [from, to] = [lastSelectedIndexRef.current, index].sort(
           (a, b) => a - b,
         );
-        const range = state.items.slice(from, to + 1).map((item) => item.id);
-        return [...new Set([...current, ...range])];
+        const range = items.slice(from, to + 1).map((item) => item.id);
+        return [...new Set([...visible, ...range])];
       }
-      return current.includes(id)
-        ? current.filter((entry) => entry !== id)
-        : [...current, id];
+      return visible.includes(id)
+        ? visible.filter((entry) => entry !== id)
+        : [...visible, id];
     });
     lastSelectedIndexRef.current = index;
   }
@@ -525,12 +408,9 @@ export function DriveAllFilesPanel({
           // The revision the dismissal produced, not the one it consumed.
           expectedMetadataRevision: updated.metadataRevision,
         });
-        await runSearch({ query: appliedQuery, filters, keepSelection: true });
+        void invalidateDrive(queryClient, store);
       };
-      setState((current) => ({
-        ...current,
-        items: current.items.map((row) => (row.id === item.id ? updated : row)),
-      }));
+      void invalidateDrive(queryClient, store);
     } catch {
       toast.error(t("tagRemoveFailed"));
       return;
@@ -544,28 +424,6 @@ export function DriveAllFilesPanel({
         },
       },
     });
-  }
-
-  async function reloadCollections() {
-    // "loading" first, so pressing Retry says something immediately rather
-    // than looking inert until the request resolves.
-    setCollectionsState("loading");
-    try {
-      setCollections(await fetchFileCollections({ store }));
-      setCollectionsState("ready");
-    } catch {
-      setCollectionsState("failed");
-    }
-  }
-
-  async function reloadLabels() {
-    setLabelsState("loading");
-    try {
-      setLabels(await fetchWorkspaceLabels({ store }));
-      setLabelsState("ready");
-    } catch {
-      setLabelsState("failed");
-    }
   }
 
   async function saveCollection(applied: FileSearchFilterState = filters) {
@@ -584,7 +442,7 @@ export function DriveAllFilesPanel({
         definition: currentDefinition(applied),
       });
       setActiveCollectionId(created.id);
-      await reloadCollections();
+      void invalidateDrive(queryClient, store);
       toast.success(t("collectionSaved", { name }));
     } catch {
       toast.error(t("collectionSaveFailed"));
@@ -601,7 +459,7 @@ export function DriveAllFilesPanel({
         collectionId: collection.id,
         definition: currentDefinition(),
       });
-      await reloadCollections();
+      void invalidateDrive(queryClient, store);
       toast.success(t("collectionUpdated", { name: collection.name }));
     } catch {
       toast.error(t("collectionSaveFailed"));
@@ -618,32 +476,37 @@ export function DriveAllFilesPanel({
 
     // Still busy during the save, so two renames cannot pass each other.
     setCollectionBusy(true);
-    const saved = await moves.rename(
-      store,
-      collection,
-      name,
-      setCollections,
-      setRenamingId,
-      t,
-    );
-    // The shelf is in name order, and only Core knows the new place.
-    if (saved) await reloadCollections();
-    setCollectionBusy(false);
+    setRenamingId(collection.id);
+    try {
+      await updateFileCollection({
+        store,
+        collectionId: collection.id,
+        name,
+      });
+      void invalidateDrive(queryClient, store);
+    } catch {
+      toast.error(t("collectionRenameFailed", { name: collection.name }));
+    } finally {
+      setRenamingId(null);
+      setCollectionBusy(false);
+    }
   }
 
   async function removeCollection(collection: FileCollection) {
     setCollectionBusy(true);
-    const removed = await moves.remove(
-      store,
-      collection,
-      collections,
-      setCollections,
-      t,
-    );
-    if (removed && activeCollectionId === collection.id) {
-      setActiveCollectionId(null);
+    try {
+      await deleteFileCollection({ store, collectionId: collection.id });
+      if (activeCollectionId === collection.id) {
+        setActiveCollectionId(null);
+      }
+      void invalidateDrive(queryClient, store, {
+        deletedIds: [collection.id],
+      });
+    } catch {
+      toast.error(t("collectionDeleteFailed", { name: collection.name }));
+    } finally {
+      setCollectionBusy(false);
     }
-    setCollectionBusy(false);
   }
 
   // The folder is the trail's job, not a filter chip's, so it does not count.
@@ -660,37 +523,48 @@ export function DriveAllFilesPanel({
    * row sat below the fold on a list of ten files.
    */
   // Only uploads can be deleted here: task outputs belong to their task.
-  const deletableSelection = state.items.filter(
-    (item) => selectedIds.includes(item.id) && item.pathname !== null,
+  const deletableSelection = items.filter(
+    (item) => activeSelectedIds.includes(item.id) && item.pathname !== null,
   );
 
   async function deleteSelected() {
     const targets = deletableSelection;
     if (targets.length === 0) return;
-    // The list loads again only after a failure, when a search open now or
-    // started during the delete can bring rows back, or when no row is left.
-    const noRowLeft = targets.length === state.items.length;
-    const mustReload = state.loading || noRowLeft;
-    // Not the empty state: files that are not loaded yet can be behind it.
-    if (noRowLeft) setState((current) => ({ ...current, loading: true }));
-    const searchAtStart = sequenceRef.current;
+
     setBulkBusy(true);
-    setConfirmDeleteOpen(false);
-    setSelectedIds([]);
     try {
-      const failedIds = await moves.deleteUploads(targets, setState);
-      const deleted = targets.length - failedIds.length;
-      if (failedIds.length === 0) {
-        toast.success(t("bulkDeleted", { count: deleted }));
-        if (!mustReload && sequenceRef.current === searchAtStart) return;
-      } else {
-        toast.warning(
-          t("bulkDeletePartial", { deleted, failed: failedIds.length }),
+      const failedPathnames = await deleteDriveUploads(
+        targets.flatMap((item) => (item.pathname ? [item.pathname] : [])),
+      );
+      const failedSet = new Set(failedPathnames);
+      const failedIds = targets
+        .filter((item) => failedSet.has(item.pathname ?? ""))
+        .map((item) => item.id);
+      const deletedTargets = targets.filter(
+        (item) => !failedSet.has(item.pathname ?? ""),
+      );
+
+      setConfirmDeleteOpen(false);
+      if (deletedTargets.length > 0) {
+        const deletedIds = deletedTargets.flatMap((item) =>
+          item.pathname ? [item.id, item.pathname] : [item.id],
         );
-        // The failed rows stay selected, so trying again is one click.
-        setSelectedIds((now) => [...new Set([...now, ...failedIds])]);
+        void invalidateDrive(queryClient, store, { deletedIds });
       }
-      await reloadRef.current(true);
+
+      if (failedIds.length === 0) {
+        setSelectedIds([]);
+        toast.success(t("bulkDeleted", { count: deletedTargets.length }));
+      } else {
+        // The failed rows stay selected, so trying again is one click.
+        setSelectedIds(failedIds);
+        toast.warning(
+          t("bulkDeletePartial", {
+            deleted: deletedTargets.length,
+            failed: failedIds.length,
+          }),
+        );
+      }
     } finally {
       setBulkBusy(false);
     }
@@ -752,8 +626,8 @@ export function DriveAllFilesPanel({
     })),
   ];
 
-  const browsing = isBrowsing(appliedQuery, filters);
-  const selectionCount = selectedIds.length;
+  const browsing = request.browsing;
+  const selectionCount = activeSelectedIds.length;
 
   return (
     <div className="flex flex-col gap-4" data-testid="drive-all-files">
@@ -828,14 +702,14 @@ export function DriveAllFilesPanel({
           />
         </div>
 
-        {labelsState === "failed" ? (
+        {labelsQuery.isError ? (
           // Named for what actually failed, with a retry that retries it.
           <span className="text-muted-foreground flex basis-full items-center gap-2 text-xs">
             {t("labelsUnavailable")}
             <button
               type="button"
               className="underline underline-offset-2"
-              onClick={() => void reloadLabels()}
+              onClick={() => void labelsQuery.refetch()}
             >
               {t("retry")}
             </button>
@@ -951,17 +825,17 @@ export function DriveAllFilesPanel({
        * A failed load still says so: "you have none" and "we could not tell"
        * look identical otherwise, and only one of them is worth retrying.
        */}
-      {collectionsState === "failed" || collections.length > 0 ? (
+      {collectionsQuery.isError || collections.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
           <Bookmark className="text-muted-foreground size-4" aria-hidden />
 
-          {collectionsState === "failed" ? (
+          {collectionsQuery.isError ? (
             <span className="text-muted-foreground flex items-center gap-2 text-xs">
               {t("collectionsUnavailable")}
               <button
                 type="button"
                 className="underline underline-offset-2"
-                onClick={() => void reloadCollections()}
+                onClick={() => void collectionsQuery.refetch()}
               >
                 {t("retry")}
               </button>
@@ -1009,23 +883,25 @@ export function DriveAllFilesPanel({
         aria-live="polite"
         data-testid="drive-all-files-status"
       >
-        {state.loading
+        {isLoadingList
           ? t("statusLoading")
-          : state.meta
-            ? [
-                appliedQuery.trim().length > 0 || activeFilterCount > 0
-                  ? t("statusMatches", { count: state.items.length })
-                  : null,
-                state.meta.truncated ? t("statusTruncated") : null,
-                state.meta.indexCoverage.processing > 0
-                  ? t("statusProcessing", {
-                      count: state.meta.indexCoverage.processing,
-                    })
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(" \u00b7 ")
-            : ""}
+          : isInitialError
+            ? ""
+            : meta
+              ? [
+                  appliedQuery.trim().length > 0 || activeFilterCount > 0
+                    ? t("statusMatches", { count: items.length })
+                    : null,
+                  meta.truncated ? t("statusTruncated") : null,
+                  meta.indexCoverage.processing > 0
+                    ? t("statusProcessing", {
+                        count: meta.indexCoverage.processing,
+                      })
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" \u00b7 ")
+              : ""}
       </p>
 
       {selectionCount > 0 ? (
@@ -1053,7 +929,7 @@ export function DriveAllFilesPanel({
             </Button>
           ) : null}
           {onShareFile &&
-          selectedIds.length === 1 &&
+          activeSelectedIds.length === 1 &&
           deletableSelection.length === 1 ? (
             <Button
               size="sm"
@@ -1094,14 +970,19 @@ export function DriveAllFilesPanel({
         </div>
       ) : null}
 
-      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+      <AlertDialog
+        open={confirmDeleteOpen}
+        onOpenChange={(open) => {
+          if (!bulkBusy) setConfirmDeleteOpen(open);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
               {t("bulkDeleteTitle", { count: deletableSelection.length })}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {deletableSelection.length < selectedIds.length
+              {deletableSelection.length < activeSelectedIds.length
                 ? t("bulkDeleteDescriptionSkipsTaskFiles")
                 : t("bulkDeleteDescription")}
             </AlertDialogDescription>
@@ -1124,23 +1005,26 @@ export function DriveAllFilesPanel({
         </AlertDialogContent>
       </AlertDialog>
 
-      {state.loading ? (
+      {isLoadingList ? (
         <DriveListSkeleton viewMode={viewMode} />
-      ) : state.error ? (
-        <div className="bg-card-background rounded-lg border p-6 text-center text-sm">
-          <p>{state.error}</p>
+      ) : isInitialError ? (
+        <div
+          className="bg-card-background rounded-lg border p-6 text-center text-sm"
+          role="alert"
+        >
+          <p>{t("searchError")}</p>
           <Button
             className="mt-3"
             variant="outline"
-            onClick={() => void runSearch({ query: appliedQuery, filters })}
+            onClick={() => void searchQuery.refetch()}
           >
             {t("retry")}
           </Button>
         </div>
-      ) : state.items.length === 0 &&
+      ) : items.length === 0 &&
         browsing &&
-        childFolders(folders, filters.folder).length > 0 ? null : state.items
-          .length === 0 ? (
+        childFolders(folders, filters.folder).length >
+          0 ? null : items.length === 0 ? (
         <div className="bg-card-background motion-safe:animate-in motion-safe:fade-in-0 duration-200 rounded-lg border p-10 text-center">
           <p className="text-sm font-medium">
             {appliedQuery || activeFilterCount > 0
@@ -1182,12 +1066,12 @@ export function DriveAllFilesPanel({
                 : "divide-border bg-card-background divide-y rounded-lg border",
             )}
           >
-            {state.items.map((item, index) => (
+            {items.map((item, index) => (
               <DriveFileRow
                 key={item.id}
                 item={item}
                 viewMode={viewMode}
-                selected={selectedIds.includes(item.id)}
+                selected={activeSelectedIds.includes(item.id)}
                 onToggle={(shiftKey) => toggleRow(index, item.id, shiftKey)}
                 onOpen={() =>
                   setOpenFile({
@@ -1202,7 +1086,7 @@ export function DriveAllFilesPanel({
             ))}
           </ul>
 
-          {state.restarted ? (
+          {restarted ? (
             /**
              * Beside Load more, because that is where the surprise
              * happens. Deliberately plain: nothing about the reader's
@@ -1217,16 +1101,35 @@ export function DriveAllFilesPanel({
             </p>
           ) : null}
 
-          {state.meta?.hasMore ? (
+          {searchQuery.isFetchNextPageError ? (
+            <div
+              className="flex items-center justify-center gap-2 text-sm"
+              role="alert"
+            >
+              <span className="text-muted-foreground">{t("searchError")}</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                loading={searchQuery.isFetchingNextPage}
+                disabled={isRefreshingPageOne}
+                onClick={() => void searchQuery.fetchNextPage()}
+              >
+                {t("retry")}
+              </Button>
+            </div>
+          ) : searchQuery.hasNextPage ? (
             <Button
+              type="button"
               variant="outline"
               className="self-center"
-              loading={state.loadingMore}
-              onClick={() => void loadMore()}
+              loading={searchQuery.isFetchingNextPage}
+              disabled={isRefreshingPageOne}
+              onClick={() => void searchQuery.fetchNextPage()}
             >
               {t("loadMore")}
             </Button>
-          ) : state.meta?.truncated ? (
+          ) : meta?.truncated ? (
             <p className="text-muted-foreground text-center text-xs">
               {t("statusTruncated")}
             </p>

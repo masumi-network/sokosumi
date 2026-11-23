@@ -72,3 +72,36 @@ export function mergeLoadedFilePage(
     restarted: false,
   };
 }
+
+export interface FoldedFilePages {
+  items: FileResource[];
+  meta: FileSearchMeta | null;
+  restarted: boolean;
+}
+
+/**
+ * Folds an infinite query's loaded pages into the list currently on screen.
+ * Page one is always a fresh list (never marked restarted); later pages pass
+ * through `mergeLoadedFilePage` so a rebuilt search window replaces earlier
+ * pages instead of duplicating them.
+ */
+export function foldLoadedFilePages(
+  pages: readonly LoadedFilePage[],
+): FoldedFilePages {
+  if (pages.length === 0) {
+    return { items: [], meta: null, restarted: false };
+  }
+
+  let items = pages[0].items;
+  let meta = pages[0].search;
+  let restarted = false;
+
+  for (let index = 1; index < pages.length; index += 1) {
+    const merged = mergeLoadedFilePage(items, pages[index]);
+    items = merged.items;
+    meta = merged.meta;
+    restarted = merged.restarted;
+  }
+
+  return { items, meta, restarted };
+}

@@ -1,5 +1,6 @@
 import { type InfiniteData, QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
+import { EMPTY_FILE_FILTERS } from "@/lib/utils/file-search.client";
 import {
   driveQueryKeys,
   invalidateDrive,
@@ -32,6 +33,26 @@ describe("driveQueryKeys", () => {
     ).toEqual(driveQueryKeys.dataRooms(personal));
 
     expect(driveQueryKeys.prefix(orgA)).toEqual([orgA, "drive"]);
+    const catalogParams = {
+      query: "invoice",
+      filters: EMPTY_FILE_FILTERS,
+      directOnly: false,
+      sortBy: "relevance" as const,
+      sortOrder: "desc" as const,
+    };
+    expect(driveQueryKeys.catalog(orgA, catalogParams)).toEqual([
+      orgA,
+      "drive",
+      "catalog",
+      catalogParams,
+    ]);
+    expect(driveQueryKeys.collections(orgA)).toEqual([
+      orgA,
+      "drive",
+      "collections",
+    ]);
+    expect(driveQueryKeys.folders(orgA)).toEqual([orgA, "drive", "folders"]);
+    expect(driveQueryKeys.labels(orgA)).toEqual([orgA, "drive", "labels"]);
     expect(driveQueryKeys.dataRooms(orgA)).toEqual([
       orgA,
       "drive",

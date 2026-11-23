@@ -699,6 +699,44 @@ describe("DrivePage move dialog", () => {
       expect(screen.getByText("Clients / Acme")).toBeVisible();
     });
   });
+
+  it("shares the Drive folders cache key and refreshes after a folder write", async () => {
+    const user = userEvent.setup();
+    queryClient = createDriveQueryClient();
+    const store = { scope: "org" as const, organizationId: "org_a" };
+    fetchWorkspaceFoldersMock.mockReset();
+    fetchWorkspaceFoldersMock.mockResolvedValue([
+      "Reports",
+      "Clients",
+      "Archive",
+    ]);
+    // Pre-seed the shared Drive folders cache (as the catalog facet populates).
+    queryClient.setQueryData(driveQueryKeys.folders(store), [
+      "Reports",
+      "Clients",
+    ]);
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("files-move-folder")).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId("files-move-folder"));
+
+    expect(await screen.findByText("Clients")).toBeVisible();
+    // Stale time is 60s in this harness, so the shared cache avoids a duplicate fetch.
+    expect(fetchWorkspaceFoldersMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await queryClient.invalidateQueries({
+        queryKey: driveQueryKeys.prefix(store),
+      });
+    });
+
+    expect(await screen.findByText("Archive")).toBeVisible();
+    expect(fetchWorkspaceFoldersMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("DrivePage tasks mobile toolbar", () => {
