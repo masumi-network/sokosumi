@@ -46,6 +46,7 @@ export interface CoworkerApiKeyRow {
   name: string | null;
   keyStart: string;
   createdAt: Date;
+  lastUsedAt: Date | null;
   status: "active" | "revoked" | "expired";
 }
 
@@ -134,6 +135,9 @@ export function DeveloperCoworkerApiKeys({
                 <TableHead className="hidden sm:table-cell">
                   {t("Table.created")}
                 </TableHead>
+                <TableHead className="hidden sm:table-cell">
+                  {t("Table.lastUsed")}
+                </TableHead>
                 <TableHead>{t("Table.status")}</TableHead>
                 <TableHead>
                   <span className="sr-only">{t("Table.actions")}</span>
@@ -155,6 +159,11 @@ export function DeveloperCoworkerApiKeys({
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
                     {format.dateTime(row.createdAt, { dateStyle: "medium" })}
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    {row.lastUsedAt
+                      ? format.dateTime(row.lastUsedAt, "dateTimeMedium")
+                      : t("neverUsed")}
                   </TableCell>
                   <TableCell>
                     <Badge

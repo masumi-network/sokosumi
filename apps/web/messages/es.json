@@ -9614,7 +9614,8 @@
             "key": "Clave",
             "created": "Creada",
             "status": "Estado",
-            "actions": "Acciones"
+            "actions": "Acciones",
+            "lastUsed": "Último uso"
           },
           "Status": {
             "active": "Activa",
@@ -9626,7 +9627,8 @@
             "description": "{name} ({keyStart}…) deja de funcionar de inmediato. Cualquier agente que aún la use recibirá errores 401.",
             "cancel": "Cancelar",
             "confirm": "Revocar clave"
-          }
+          },
+          "neverUsed": "Nunca"
         }
       },
       "Tasks": {

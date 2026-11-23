@@ -16579,6 +16579,10 @@ export type CoworkerApiKey = {
     keyStart: string;
     expiresAt: Date | null;
     revokedAt: Date | null;
+    /**
+     * Last successful authentication, updated at most once a minute.
+     */
+    lastUsedAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
 };

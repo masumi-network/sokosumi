@@ -67584,6 +67584,15 @@ export const CoworkerApiKeySchema = {
             format: 'date-time',
             example: null
         },
+        lastUsedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-01-02T08:00:00.000Z',
+            description: 'Last successful authentication, updated at most once a minute.'
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -67602,6 +67611,7 @@ export const CoworkerApiKeySchema = {
         'keyStart',
         'expiresAt',
         'revokedAt',
+        'lastUsedAt',
         'createdAt',
         'updatedAt'
     ]
