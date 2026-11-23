@@ -313,7 +313,7 @@ describe("SocialButtons", () => {
     const badgeContainer = button.parentElement;
 
     expect(lastUsedLabel).toBeInTheDocument();
-    expect(lastUsedLabel).toHaveClass("absolute", "top-1.5", "right-2");
+    expect(lastUsedLabel).toHaveClass("absolute", "-top-2", "right-2");
     // The marker sits beside the button, so it fades with it on its own.
     expect(lastUsedLabel).toHaveClass(
       "group-has-[:disabled]/provider:opacity-50",
@@ -335,6 +335,8 @@ describe("SocialButtons", () => {
     expect(google).toBeEnabled();
     expect(google.parentElement).toHaveAttribute("aria-busy", "true");
     expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
+    // The pending bar clips the wrapper, so the edge marker steps aside.
+    expect(screen.queryByText("last-used")).not.toBeInTheDocument();
   });
 
   it("shows an inline marker on the passkey button", () => {
@@ -347,7 +349,7 @@ describe("SocialButtons", () => {
     const badgeContainer = button.parentElement;
 
     expect(lastUsedLabel).toBeInTheDocument();
-    expect(lastUsedLabel).toHaveClass("absolute", "top-1.5", "right-2");
+    expect(lastUsedLabel).toHaveClass("absolute", "-top-2", "right-2");
     expect(button).toHaveClass("border-border", "bg-muted");
     expect(badgeContainer).toHaveClass("relative");
     expect(badgeContainer).toContainElement(lastUsedLabel);

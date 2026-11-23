@@ -41,12 +41,16 @@ interface SocialButtonsProps {
   onPendingChange?: (pending: boolean) => void;
 }
 
-/** Marks the method used last, in the corner of its button. */
+/**
+ * Marks the method used last. It sits on the button's top edge, the same
+ * pill as the email field's marker, so a long label (Spanish, German) at
+ * 40px never runs under it.
+ */
 function LastUsedBadge({ label }: { label: string }) {
   return (
     <span
       aria-hidden="true"
-      className="text-foreground pointer-events-none absolute top-1.5 right-2 z-10 text-2xs font-medium group-has-[:disabled]/provider:opacity-50"
+      className="bg-background text-foreground border-border pointer-events-none absolute -top-2 right-2 z-10 rounded-full border px-2 py-0.5 text-2xs leading-none font-medium group-has-[:disabled]/provider:opacity-50"
     >
       {label}
     </span>
@@ -188,7 +192,10 @@ export default function SocialButtons({
             aria-busy={isPending || undefined}
             key={socialButton.key}
           >
-            {isLastUsed && <LastUsedBadge label={t("lastUsed")} />}
+            {/* The pending bar clips this wrapper, so the edge mark steps aside. */}
+            {isLastUsed && !isPending && (
+              <LastUsedBadge label={t("lastUsed")} />
+            )}
             <socialButton.Button
               onClick={() => handleClick(socialButton.key)}
               // The pending one stays enabled, so it keeps focus and full
