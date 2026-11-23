@@ -6,7 +6,7 @@ import type {
 } from "@sokosumi/core-client";
 import { AGENT_NAME } from "./agent";
 import { connectedNetworks } from "./calendar";
-import { trendLine } from "./seo-next";
+import { isSiteFix, trendLine } from "./seo-next";
 import { strategyApproved } from "./strategy";
 import { dayIn, monthEntries, monthProgress, waitingByNetwork } from "./today";
 import type { View } from "./views";
@@ -210,22 +210,35 @@ export function seoLead(
   const kicker = latest
     ? `SEO · audit of ${hostOf(seo.websiteUrl)}, ${shortDate(latest.observedAt)}`
     : "SEO";
+  const next = seo.audit.nextRunAt;
+  const passed = latest
+    ? `${latest.passed} of ${latest.checked} checks passed. `
+    : "";
+  const nextCheck = next ? ` Next check ${dayName(next, timeZone, now)}.` : "";
   const open = seo.pageChanges.filter((change) => change.status === "open");
-  if (open.length > 0) {
+  const own = open.filter((change) => !isSiteFix(change));
+  const fixes = open.length - own.length;
+  if (own.length > 0) {
     return {
       kicker,
-      title: `${count(open.length, "change", "changes")} to make.`,
-      line: `${latest ? `${latest.passed} of ${latest.checked} checks passed. ` : ""}${open.length === 1 ? "The change below comes" : "Each change below comes"} with the exact new text to copy.`,
+      title: `${count(own.length, "change", "changes")} to make.`,
+      line: `${passed}${own.length === 1 ? "The change below comes" : "Each change below comes"} with the exact new text to copy.${nextCheck}`,
+    };
+  }
+  if (fixes > 0) {
+    return {
+      kicker,
+      title: `${count(fixes, "fix", "fixes")} for whoever builds your site.`,
+      line: `${passed}Copy ${fixes === 1 ? "it" : "each one"} and send it on.${nextCheck}`,
     };
   }
   if (latest) {
     return {
       kicker,
       title: "Nothing to change.",
-      line: `${latest.passed} of ${latest.checked} checks passed.`,
+      line: `${passed.trim()}${nextCheck}`,
     };
   }
-  const next = seo.audit.nextRunAt;
   return {
     kicker,
     title: next
