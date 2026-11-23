@@ -183,7 +183,10 @@ function BrandLookSummary({ look }: { look: PersistedDesignMd["look"] }) {
       : null,
     look?.tone ? { label: t("Brand.tone"), value: look.tone } : null,
     look?.voice
-      ? { label: t("Brand.voice"), value: stripInlineMarkdown(look.voice) }
+      ? {
+          label: t("Brand.voice"),
+          value: <BrandVoice voice={stripInlineMarkdown(look.voice)} />,
+        }
       : null,
   ].filter((row) => row !== null);
 
@@ -198,12 +201,46 @@ function BrandLookSummary({ look }: { look: PersistedDesignMd["look"] }) {
   return (
     <dl className="bg-card-background mx-auto w-full max-w-sm divide-y rounded-xl border text-left text-sm">
       {rows.map((row) => (
-        <div key={row.label} className="flex items-center gap-4 px-4 py-3">
+        <div key={row.label} className="flex items-start gap-4 px-4 py-3">
           <dt className="text-muted-foreground w-24 shrink-0">{row.label}</dt>
           <dd className="min-w-0 break-words">{row.value}</dd>
         </div>
       ))}
     </dl>
+  );
+}
+
+/** Longest voice shown whole; a longer one opens from a preview this long. */
+const VOICE_PREVIEW_CHARS = 48;
+
+/**
+ * The voice can be a paragraph, which would push the settings hint and the
+ * step's actions out of view. A long one shows its first words and opens in
+ * place with a native disclosure, so a tap or the keyboard reads all of it.
+ */
+function BrandVoice({ voice }: { voice: string }) {
+  const t = useTranslations(
+    "Components.Organizations.CreateOrganizationWizard",
+  );
+  if (voice.length <= VOICE_PREVIEW_CHARS) return voice;
+  const preview = voice
+    .slice(0, VOICE_PREVIEW_CHARS)
+    .replace(/\s+\S*$/, "")
+    .replace(/[\s,;:.]+$/, "");
+
+  return (
+    <details className="group">
+      <summary className="focus-visible:ring-ring cursor-pointer list-none rounded-sm outline-none focus-visible:ring-2 [&::-webkit-details-marker]:hidden">
+        <span className="group-open:hidden">{preview}… </span>
+        <span className="font-medium underline underline-offset-4">
+          <span className="group-open:hidden">{t("Brand.voiceShowAll")}</span>
+          <span className="hidden group-open:inline">
+            {t("Brand.voiceShowLess")}
+          </span>
+        </span>
+      </summary>
+      <p className="mt-1">{voice}</p>
+    </details>
   );
 }
 

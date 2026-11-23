@@ -651,7 +651,9 @@
           "fonts": "Tipografías",
           "tone": "Tono",
           "noSummary": "Tus directrices de marca están guardadas. No pudimos extraer colores, tipografías ni tono para mostrarlos aquí.",
-          "voice": "Voz"
+          "voice": "Voz",
+          "voiceShowAll": "Mostrar todo",
+          "voiceShowLess": "Mostrar menos"
         },
         "Invite": {
           "title": "{organization} está lista",
