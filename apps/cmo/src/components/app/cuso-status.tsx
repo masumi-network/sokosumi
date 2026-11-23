@@ -1,8 +1,8 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
-import Image from "next/image";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useCusoRig } from "../../hooks/effects/use-cuso-rig";
 import { useMediaQuery } from "../../hooks/effects/use-media-query";
 import { useTimeout } from "../../hooks/effects/use-timeout";
 
@@ -16,10 +16,10 @@ import { ViewLink } from "./view-link";
 
 /** The drawing each state shows: he points at the owner when needed. */
 const ART: Record<CusoPose, CusoArt> = {
-  reading: "searching",
+  reading: "researching",
   thinking: "thinking",
-  reporting: "walking",
-  done: "thumbs-up",
+  reporting: "friendly",
+  done: "done",
   "needs-you": "pointing",
 };
 
@@ -33,15 +33,6 @@ interface Mood {
   /** The month stopped or could not start: no page line hides it. */
   alarm: boolean;
 }
-
-/** Every drawing he has, with its size, kept on the stage so a change never loads one. */
-const POSES: readonly (readonly [CusoArt, number, number])[] = [
-  ["pointing", 624, 652],
-  ["thinking", 495, 657],
-  ["searching", 601, 641],
-  ["walking", 627, 649],
-  ["thumbs-up", 592, 661],
-];
 
 /** "148 of 169 made": the month's posts, as Today and the Calendar count them. */
 function madeLine(overview: CmoOverview): string {
@@ -125,17 +116,17 @@ export function cusoBubble(
   if (mood.needs > 0 || mood.busy || mood.alarm) return mood;
   return {
     ...mood,
-    art: LOOKING.has(view) ? "searching" : mood.art,
+    art: LOOKING.has(view) ? "researching" : mood.art,
     line: pageLine(view, overview, now) ?? mood.line,
   };
 }
 
 /** How long a passing pose holds before he settles back. */
-export const MOMENT_MS = { walking: 1200, "thumbs-up": 2600 } as const;
+export const MOMENT_MS = { walking: 1200, done: 2600 } as const;
 
 /**
  * A passing pose on top of his state: he walks for a moment when the owner
- * opens another page, and gives a thumbs-up when his work just finished.
+ * opens another page, and shows his check mark when his work just finished.
  * Without motion he keeps the pose of his state.
  */
 export function useCusoMoment(
@@ -149,7 +140,7 @@ export function useCusoMoment(
   if (seen.view !== view || seen.busy !== busy) {
     setSeen({ view, busy });
     if (seen.view !== view) setMoment("walking");
-    else if (seen.busy && !busy) setMoment("thumbs-up");
+    else if (seen.busy && !busy) setMoment("done");
   }
   useTimeout(
     () => setMoment(null),
@@ -173,9 +164,10 @@ interface CusoStatusProps {
 
 /**
  * Cuso at the foot of the sidebar on every page: large, on an Iris stage, in
- * a light porthole, his arm out over its rim and the sidebar's edge into the
- * page's gutter. His pill says what he is doing and links to Today. The
- * drawing never takes a press; the words carry the state.
+ * a spotlight. His pill says what he is doing and links to Today. He is
+ * animated (`cuso-rig.ts`) once his poses load; until then, or with motion
+ * off, he is the still of his pose. The drawing never takes a press; the
+ * words carry the state.
  */
 export function CusoStatus({
   overview,
@@ -186,6 +178,9 @@ export function CusoStatus({
   const mood = cusoBubble(overview, view, now);
   const { pose, line } = mood;
   const { art, moving } = useCusoMoment(mood.art, view, mood.busy);
+  const host = useRef<HTMLSpanElement>(null);
+  const still = useMediaQuery("(prefers-reduced-motion: reduce)", true);
+  const live = useCusoRig(host, art, !still);
   const working = pose === "reading" || pose === "thinking";
   const words = (
     <>
@@ -217,26 +212,13 @@ export function CusoStatus({
         className="cuso-figure"
         aria-hidden="true"
         data-moving={moving ? "" : undefined}
+        data-live={live ? "" : undefined}
       >
         <span className="cuso-ground" />
-        {/* Every pose stays mounted; the one shown fades in over the last. */}
-        <span className="cuso-poses" data-art={art}>
-          {POSES.map(([pose, width, height]) => (
-            <Image
-              key={pose}
-              className={`cuso-pose cuso-pose-${pose}`}
-              data-on={pose === art ? "" : undefined}
-              src={cusoArt(pose)}
-              alt=""
-              width={width}
-              height={height}
-              // He is the page's largest picture on a wide screen; a phone
-              // hides the sidebar and takes the smallest file.
-              sizes="(max-width: 860px) 16px, 240px"
-              loading="eager"
-              preload={pose === art}
-            />
-          ))}
+        {/* The rig adds his animated drawing here; React keeps these two. */}
+        <span className="cuso-poses" data-art={art} ref={host}>
+          <span className="cuso-shadow" />
+          <img className="cuso-still" src={cusoArt(art)} alt="" />
         </span>
       </span>
     </div>

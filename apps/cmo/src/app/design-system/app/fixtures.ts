@@ -19,7 +19,7 @@ export function isView(value: string): value is View {
 type Plan = NonNullable<CmoOverview["strategy"]>;
 type Entry = Plan["calendar"][number];
 
-const PICTURE = "/cuso/walking.png";
+const PICTURE = "/cuso/walking.svg";
 
 function entry(
   day: number,
@@ -593,7 +593,7 @@ export const chat = {
       state: "ready",
       at: new Date("2026-11-04T10:20:10Z"),
       title: "The launch on a phone",
-      url: "/cuso/walking.png",
+      url: "/cuso/walking.svg",
     },
     {
       ...media,
@@ -618,7 +618,7 @@ export const chat = {
       state: "ready",
       at: new Date("2026-11-04T10:21:00Z"),
       title: "Launch brief.md",
-      url: "/cuso/walking.png",
+      url: "/cuso/walking.svg",
       readable: true,
     },
     {
@@ -650,7 +650,7 @@ export const chat = {
       by: "Market Scout",
       text: "Three trends stand out this quarter: loyalty passes replace one-off drops, brands mint on their own site, and buyers pay by card.",
       readable: true,
-      files: [{ name: "market-scan.pdf", url: "/cuso/walking.png" }],
+      files: [{ name: "market-scan.pdf", url: "/cuso/walking.svg" }],
     },
     {
       ...media,

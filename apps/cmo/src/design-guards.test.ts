@@ -634,35 +634,43 @@ describe("Cuso on every page", () => {
     expect(rule(".cuso-figure")).toContain("pointer-events: none");
   });
 
-  it("stands in his light porthole in both themes, so his black line reads", () => {
+  it("stands in his light pool in both themes, so his black line reads", () => {
     expect(rule(".cuso-ground")).toContain("background: var(--stage)");
     expect(rule(".cuso-ground")).toContain("border-radius: 50%");
   });
 
-  it("leans no further into the page than its gutter", () => {
+  it("keeps every pose inside the sidebar, where the stage clips him", () => {
     const px = (name: string) =>
       Number(css.match(new RegExp(`${name}: (\\d+)px;`))?.[1]);
-    const percent = (selector: string, property: string) =>
-      Number(
-        rule(selector).match(
-          new RegExp(`\\n\\s*${property}: ([\\d.]+)%;`),
-        )?.[1],
-      ) / 100;
-    // The circle is centred on the sidebar; the pointing drawing's hand is its right edge.
+    // The figure is a square centred on the sidebar; each pose's box fills it.
     expect(rule(".cuso-figure")).toMatch(
       /\n\s*left: 50%;[\s\S]*translate: -50% 0;/,
     );
     const largest = Number(
       rule(".cuso-figure").match(/\n\s*height: min\((\d+)px/)?.[1],
     );
-    const drawing = 624 / 652;
-    const hand =
-      largest *
-      (percent(".cuso-pose-pointing", "left") +
-        percent(".cuso-pose-pointing", "height") * drawing);
-    const past = hand - largest / 2 - px("--side-width") / 2;
-    expect(Number.isFinite(past)).toBe(true);
-    expect(past).toBeLessThanOrEqual(px("--gutter") + px("--page-x"));
+    const svg = readFileSync(
+      path.join(SRC_ROOT, "../public/cuso/poses.svg"),
+      "utf8",
+    );
+    const poses = svg.split('<svg data-pose="').slice(1);
+    expect(poses.length).toBeGreaterThan(5);
+    for (const pose of poses) {
+      const [x, , size] = (pose.match(/viewBox="([^"]+)"/)?.[1] ?? "")
+        .split(" ")
+        .map(Number);
+      // The rightmost point any of its paths reaches, in the pose's units.
+      const right = Math.max(
+        ...[...pose.matchAll(/ d="([^"]*)"/g)].flatMap((d) =>
+          [...d[1].matchAll(/(-?[\d.]+)[ ,]-?[\d.]+/g)].map((m) =>
+            Number(m[1]),
+          ),
+        ),
+      );
+      const past =
+        (largest * (right - x)) / size - largest / 2 - px("--side-width") / 2;
+      expect(past, pose.slice(0, pose.indexOf('"'))).toBeLessThanOrEqual(0);
+    }
   });
 
   it("sizes his stage without a container query, which restarts his motion on every page", () => {
@@ -681,7 +689,9 @@ describe("Cuso on every page", () => {
   });
 
   it("moves only when motion is allowed", () => {
-    const moving = [...css.matchAll(/\n( *)\.cuso-poses \{[^}]*animation/g)];
+    const moving = [
+      ...css.matchAll(/\n( *)[^\n{]*\.cuso-poses \{[^}]*animation/g),
+    ];
     expect(moving.length).toBeGreaterThan(0);
     for (const match of moving) {
       const before = css.slice(0, match.index);

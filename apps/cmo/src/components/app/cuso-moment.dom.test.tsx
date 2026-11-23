@@ -58,13 +58,13 @@ it("walks for a moment when the owner opens another page, then settles", async (
   expect(shown).toEqual({ art: "pointing", moving: false });
 });
 
-it("gives a thumbs-up when his work just finished", async () => {
+it("shows his check mark when his work just finished", async () => {
   await render("thinking", "chat", true);
-  await render("thumbs-up", "chat", false);
-  expect(shown).toEqual({ art: "thumbs-up", moving: true });
+  await render("done", "chat", false);
+  expect(shown).toEqual({ art: "done", moving: true });
   await render("walking", "chat", false);
   expect(shown?.moving).toBe(true);
-  await act(async () => vi.advanceTimersByTime(MOMENT_MS["thumbs-up"]));
+  await act(async () => vi.advanceTimersByTime(MOMENT_MS["done"]));
   expect(shown).toEqual({ art: "walking", moving: false });
 });
 

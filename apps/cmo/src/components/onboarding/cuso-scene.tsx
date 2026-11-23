@@ -10,10 +10,10 @@ export type Scene =
   | "hero";
 
 const ART: Record<Scene, CusoArt> = {
-  research: "searching",
+  research: "researching",
   brand: "pointing",
   planning: "thinking",
-  subscribe: "thumbs-up",
+  subscribe: "done",
   launch: "walking",
   hero: "pointing",
 };
@@ -22,7 +22,7 @@ const ALT: Record<Scene, string> = {
   research: `${AGENT_NAME} looking through a magnifier`,
   brand: `${AGENT_NAME} pointing`,
   planning: `${AGENT_NAME} thinking`,
-  subscribe: `${AGENT_NAME} giving a thumbs up`,
+  subscribe: `${AGENT_NAME} holding up a check mark`,
   launch: `${AGENT_NAME} walking`,
   hero: `${AGENT_NAME} pointing at you`,
 };

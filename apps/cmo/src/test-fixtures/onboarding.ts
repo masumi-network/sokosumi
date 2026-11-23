@@ -157,19 +157,19 @@ export const richMedia: NonNullable<CmoOverview["brandMedia"]> = {
   capturedAt: "2026-10-05T09:02:00Z",
   pages: [
     {
-      ...shot("/cuso/walking.png"),
+      ...shot("/cuso/walking.svg"),
       label: "Home",
       device: "desktop",
       fullUrl: null,
     },
     {
-      ...shot("/cuso/walking.png"),
+      ...shot("/cuso/walking.svg"),
       label: "Home",
       device: "mobile",
       fullUrl: null,
     },
     {
-      ...shot("/cuso/thinking.png"),
+      ...shot("/cuso/thinking.svg"),
       label: "Pricing",
       device: "desktop",
       fullUrl: null,
@@ -177,19 +177,19 @@ export const richMedia: NonNullable<CmoOverview["brandMedia"]> = {
   ],
   sections: [
     {
-      ...shot("/cuso/pointing.png"),
+      ...shot("/cuso/pointing.svg"),
       kind: "pricing",
       title: "Plans for every launch",
       pageLabel: "Pricing",
     },
     {
-      ...shot("/cuso/thumbs-up.png"),
+      ...shot("/cuso/done.svg"),
       kind: "testimonials",
       title: "What mission leads say",
       pageLabel: "Home",
     },
   ],
-  competitors: [{ ...shot("/cuso/searching.png"), name: "Moonshot" }],
+  competitors: [{ ...shot("/cuso/researching.svg"), name: "Moonshot" }],
   pictures: [],
   logos: {
     logo: { url: "/logo/cmo-xyz-lockup-stacked-text-black.svg", fileId: null },
@@ -205,8 +205,8 @@ export const richMedia: NonNullable<CmoOverview["brandMedia"]> = {
         summary:
           "Rockets for small teams that need a launch date they can trust.",
         facts: ["On-time launches since 2019", "Teams of 5 to 50"],
-        desktop: { url: "/cuso/walking.png", fileId: null },
-        phone: { url: "/cuso/walking.png", fileId: null },
+        desktop: { url: "/cuso/walking.svg", fileId: null },
+        phone: { url: "/cuso/walking.svg", fileId: null },
       },
       {
         url: "https://acme.io/pricing",
@@ -218,7 +218,7 @@ export const richMedia: NonNullable<CmoOverview["brandMedia"]> = {
           "Team $2,400 a month",
           "Free first consult",
         ],
-        desktop: { url: "/cuso/thinking.png", fileId: null },
+        desktop: { url: "/cuso/thinking.svg", fileId: null },
         phone: null,
       },
       {
