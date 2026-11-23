@@ -1,3 +1,7 @@
+import {
+  CMO_SEO_PLAIN_SKILL,
+  CMO_SEO_REPORTS_SKILL,
+} from "./cmo-v12-skills.js";
 import { cmoV15 } from "./cmo-v15.js";
 import { CMO_MONTH_POINTS_SKILL } from "./cmo-v17-skills.js";
 import type { SokoBotVersion } from "./types.js";
@@ -21,8 +25,15 @@ export const cmoV17: SokoBotVersion = {
     "Each post now makes its own point, so your month repeats itself less.",
     "Your offer goes out with its link twice a week, as your plan promises.",
     "LinkedIn posts now tell one real story or number from your business.",
+    "Your weekly search report is in plain words, with tech fixes ready to send on.",
   ],
   releaseNote:
     "Each post of your month now makes its own point, your offer goes out with its link twice a week as the plan says, and my LinkedIn posts tell one real story or number from your business.",
-  skills: [...cmoV15.skills, CMO_MONTH_POINTS_SKILL],
+  // The SEO report in plain words (owner, 2026-11-22: "EASY" for non-marketers).
+  skills: [
+    ...cmoV15.skills.map((skill) =>
+      skill === CMO_SEO_REPORTS_SKILL ? CMO_SEO_PLAIN_SKILL : skill,
+    ),
+    CMO_MONTH_POINTS_SKILL,
+  ],
 };

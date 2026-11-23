@@ -30,7 +30,7 @@ import {
   pickedPieceWritingGuide,
   pickedProduction,
 } from "./cmo-v11-skills.js";
-import { seoReports } from "./cmo-v12-skills.js";
+import { seoPlain, seoReports } from "./cmo-v12-skills.js";
 import { partPatchStrategy } from "./cmo-v13-skills.js";
 import { channelFitStrategy } from "./cmo-v14-skills.js";
 import { plainWordsStrategy } from "./cmo-v15-skills.js";
@@ -728,6 +728,7 @@ export const CMO_SKILLS: readonly SokoBotSkill[] = [
   pickedProduction(scenes),
   claims,
   seoReports(seo),
+  seoPlain(seoReports(seo)),
   partPatchStrategy(claims),
   channelFitStrategy(partPatchStrategy(claims)),
   plainWordsStrategy(channelFitStrategy(partPatchStrategy(claims))),

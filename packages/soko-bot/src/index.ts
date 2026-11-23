@@ -296,6 +296,7 @@ export {
 export { CMO_SCENE_PRODUCTION_SKILL } from "./versions/cmo-v9-skills.js";
 export { CMO_PICKED_PRODUCTION_SKILL } from "./versions/cmo-v11-skills.js";
 export {
+  CMO_SEO_PLAIN_SKILL,
   CMO_SEO_REPORTS_SKILL,
   cmoReportsSeo,
   cmoSeoReportBrief,

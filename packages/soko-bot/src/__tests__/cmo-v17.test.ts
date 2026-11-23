@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  CMO_SEO_PLAIN_SKILL,
+  CMO_SEO_REPORTS_SKILL,
+  cmoReportsSeo,
+} from "../versions/cmo-v12-skills.js";
+import {
   CMO_MONTH_POINTS_SKILL,
   cmoMarksPoints,
   cmoRevisedWritingSkills,
@@ -12,8 +17,14 @@ describe("cmo-v17", () => {
   const v15 = getSokoBotVersion("cmo-v15");
   const v17 = getSokoBotVersion("cmo-v17");
 
-  it("is cmo-v15 with the points skill, and not the default", () => {
-    expect(v17.skills).toEqual([...v15.skills, CMO_MONTH_POINTS_SKILL]);
+  it("is cmo-v15 with the points skill and the plain SEO skill, and not the default", () => {
+    expect(v17.skills).toEqual([
+      ...v15.skills.map((skill) =>
+        skill === CMO_SEO_REPORTS_SKILL ? CMO_SEO_PLAIN_SKILL : skill,
+      ),
+      CMO_MONTH_POINTS_SKILL,
+    ]);
+    expect(cmoReportsSeo(v17.skills)).toBe(true);
     expect(cmoMarksPoints(v17.skills)).toBe(true);
     expect(cmoMarksPoints(v15.skills)).toBe(false);
   });
@@ -40,5 +51,12 @@ describe("cmo-v17", () => {
       clientTurnId: run,
     });
     expect(full.length - production.length).toBeGreaterThan(60_000);
+  });
+
+  it("reports on SEO in plain words and hands technical fixes to whoever builds the site", () => {
+    const prompt = composeSystemPrompt(v17);
+    expect(prompt).toContain("## Plain words for search");
+    expect(prompt).toContain('"For whoever builds your site"');
+    expect(composeSystemPrompt(v15)).not.toContain("## Plain words for search");
   });
 });
