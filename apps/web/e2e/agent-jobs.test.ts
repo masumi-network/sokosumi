@@ -63,11 +63,14 @@ for (const { name: size, ...viewport } of PROJECTS) {
       const rows = list.getByRole("listitem");
       await rows.first().waitFor();
       const rowCount = await rows.count();
-      // The loading label is gone once the list is in.
-      assert.equal(
-        await page.locator("#agent-loading-status").textContent(),
-        "",
-        "the loading announcement clears",
+      // With two panes the first job opens on the right by itself. Typing
+      // before that lands races it (the search URL update undoes it, and the
+      // pane keeps its spinner), which is a separate, older issue.
+      if (size === "desktop") await page.waitForURL(/\/jobs\/[^/?]+/);
+      // The loading label clears once the list and any job pane are in.
+      await page.waitForFunction(
+        () =>
+          document.getElementById("agent-loading-status")?.textContent === "",
       );
       // The search status stands empty before any search.
       const status = list.getByRole("status");
@@ -84,7 +87,11 @@ for (const { name: size, ...viewport } of PROJECTS) {
       );
       await shot("0-miss");
 
-      await list.getByRole("button", { name: "Clear search" }).click();
+      // The field's × shares the name; this is the one under the message.
+      await list
+        .getByRole("button", { name: "Clear search" })
+        .filter({ hasText: "Clear search" })
+        .click();
       await page.waitForURL((url) => !url.searchParams.get("query"));
       assert.equal(await search.inputValue(), "");
       assert.ok(
