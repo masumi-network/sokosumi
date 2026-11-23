@@ -46,6 +46,7 @@ import { checkStyledPicture } from "@/lib/reference-library/style-check";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import type { StudioLogoPosition } from "@/schemas/project-image-studio.schema";
 import {
+  type CmoBrandPicture,
   listCmoBrandPictures,
   readCmoBrandLogo,
 } from "@/services/cmo-brand-media.service";
@@ -1243,6 +1244,46 @@ export function cmoLayoutPrompt(input: {
 /** Brand pictures a styled picture may show inside its style. */
 export const MAX_STYLE_BRAND_PICTURES = 2;
 
+/** A number from the piece's id, so each piece starts somewhere else. */
+function pieceSeed(piece: CmoMediaPiece): number {
+  return [...piece.id].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+}
+
+/**
+ * The shot of a named page that fits the piece's shape: a tall (9:16) piece
+ * shows the page on a phone, any other the desktop page or one of its best
+ * sections, a different one per piece, so a month does not reuse one shot.
+ * Any other picture stays as named.
+ */
+export function cmoShotForPiece(
+  piece: CmoMediaPiece,
+  fileId: string,
+  brandPictures: readonly CmoBrandPicture[],
+): string {
+  const picture = brandPictures.find(
+    (candidate) => candidate.fileId === fileId,
+  );
+  if (!picture) return fileId;
+  if (aspectRatio(piece) === "9:16") return picture.phoneFileId ?? fileId;
+  const wide = picture.wideFileIds ?? [];
+  return wide[pieceSeed(piece) % wide.length] ?? fileId;
+}
+
+/** The pieces' named brand pictures, each as the shot that fits its shape. */
+function namedShots(
+  piece: CmoMediaPiece,
+  brandPictures: readonly CmoBrandPicture[],
+): string[] {
+  const known = new Set(brandPictures.map((picture) => picture.fileId));
+  return [
+    ...new Set(
+      (piece.visualFileIds ?? [])
+        .filter((id) => known.has(id))
+        .map((id) => cmoShotForPiece(piece, id, brandPictures)),
+    ),
+  ];
+}
+
 /**
  * The pictures a visual is made from: those it names, else the brand's own.
  * Each piece starts at another of them (by its id), so a month draws on
@@ -1250,24 +1291,25 @@ export const MAX_STYLE_BRAND_PICTURES = 2;
  */
 function references(
   piece: CmoMediaPiece,
-  brandPictures: readonly { fileId: string; alt: string }[],
+  brandPictures: readonly CmoBrandPicture[],
 ): string[] {
-  const known = new Set(brandPictures.map((picture) => picture.fileId));
-  const named = (piece.visualFileIds ?? []).filter((id) => known.has(id));
+  const named = namedShots(piece, brandPictures);
   if (named.length > 0) return named;
   const own = brandPictures.filter(
     (picture) => !picture.alt.endsWith("page screenshot"),
   );
-  const start =
-    own.length > 0
-      ? [...piece.id].reduce((sum, char) => sum + char.charCodeAt(0), 0) %
-        own.length
-      : 0;
-  const turned = [...own.slice(start), ...own.slice(0, start)];
+  const start = own.length > 0 ? pieceSeed(piece) % own.length : 0;
+  const turned = [...own.slice(start), ...own.slice(0, start)].map(
+    (picture) => picture.fileId,
+  );
   const home = brandPictures.find((picture) => picture.alt.startsWith("Home"));
-  return [...turned.slice(0, 1), ...(home ? [home] : []), ...turned.slice(1)]
-    .slice(0, DEFAULT_REFERENCES)
-    .map((picture) => picture.fileId);
+  return [
+    ...new Set([
+      ...turned.slice(0, 1),
+      ...(home ? [cmoShotForPiece(piece, home.fileId, brandPictures)] : []),
+      ...turned.slice(1),
+    ]),
+  ].slice(0, DEFAULT_REFERENCES);
 }
 
 /**
@@ -1277,12 +1319,9 @@ function references(
  */
 function styleBrandPictures(
   piece: CmoMediaPiece,
-  brandPictures: readonly { fileId: string }[],
+  brandPictures: readonly CmoBrandPicture[],
 ): string[] {
-  const known = new Set(brandPictures.map((picture) => picture.fileId));
-  return (piece.visualFileIds ?? [])
-    .filter((id) => known.has(id))
-    .slice(0, MAX_STYLE_BRAND_PICTURES);
+  return namedShots(piece, brandPictures).slice(0, MAX_STYLE_BRAND_PICTURES);
 }
 
 interface MediaContext {
@@ -1420,7 +1459,7 @@ export async function advanceCmoMedia(
     (await prisma.projectImageJob.count({
       where: { projectId, status: { in: [...LIVE] } },
     }));
-  let brandPictures: { fileId: string; alt: string }[] | null = null;
+  let brandPictures: CmoBrandPicture[] | null = null;
   let styleBrand: StyleBrand | null = null;
   const brandFor = async () => (styleBrand ??= await loadStyleBrand(projectId));
   const picks = picker

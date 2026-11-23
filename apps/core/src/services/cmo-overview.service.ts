@@ -449,7 +449,7 @@ export async function getCmoOverview(
       timezone: true,
     },
   });
-  const routines = SOKO_BOT_CMO_RHYTHMS.map((routine) => {
+  const rhythms = SOKO_BOT_CMO_RHYTHMS.map((routine) => {
     const row = schedules.find((s) => s.systemKey === routine.key);
     return {
       key: routine.key,
@@ -460,6 +460,11 @@ export async function getCmoOverview(
       timezone: row?.timezone ?? null,
     };
   });
+  const { cmoSeoAuditRoutine } = await import(
+    "@/services/cmo-seo-audit.service"
+  );
+  const searchCheck = await cmoSeoAuditRoutine(cuso, bot.ingestTimezone);
+  const routines = searchCheck ? [...rhythms, searchCheck] : rhythms;
   return {
     cuso,
     onboardingStep: cmoOnboardingStep({

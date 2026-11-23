@@ -18,6 +18,14 @@ export const CORE_API_ERROR_KINDS = {
   CMO_PROJECT_READ_ONLY: "cmo_project_read_only",
   /** The person already hired a Cuso nobody paid for; `unpaidCuso` names him. */
   CMO_UNPAID_CUSO: "cmo_unpaid_cuso",
+  /** A test copy's source has no live Cuso the person can see (ADR 0073). */
+  CMO_TEST_COPY_SOURCE_NOT_HIRED: "cmo_test_copy_source_not_hired",
+  /** A test copy was asked for in another organization than its source's. */
+  CMO_TEST_COPY_OTHER_ORGANIZATION: "cmo_test_copy_other_organization",
+  /** The source is itself a test copy. */
+  CMO_TEST_COPY_OF_TEST_COPY: "cmo_test_copy_of_test_copy",
+  /** Only an owner or admin of the source's organization, or a tester, copies. */
+  CMO_TEST_COPY_NOT_ALLOWED: "cmo_test_copy_not_allowed",
   CONCURRENCY_CONFLICT: "concurrency_conflict",
   /** A channel being added already belongs to another contact; `existingContactId` names it. */
   CONTACT_CHANNEL_TAKEN: "contact_channel_taken",

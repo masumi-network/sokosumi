@@ -217,6 +217,11 @@ const HIRE_REFUSALS: Partial<Record<CoreApiErrorKind, string>> = {
     "You've reached the organization limit. Choose one of your organizations instead.",
   [CORE_API_ERROR_KINDS.ORGANIZATION_MEMBERSHIP_REQUIRED]:
     "You're no longer a member of that organization. Choose another one.",
+  [CORE_API_ERROR_KINDS.CMO_TEST_COPY_SOURCE_NOT_HIRED]: `There's no ${AGENT_NAME} to copy at this link: he isn't hired any more, or you're not in his organization.`,
+  [CORE_API_ERROR_KINDS.CMO_TEST_COPY_OTHER_ORGANIZATION]: `A test copy goes into the same organization as the ${AGENT_NAME} it copies. Choose that one.`,
+  [CORE_API_ERROR_KINDS.CMO_TEST_COPY_OF_TEST_COPY]: `This ${AGENT_NAME} is already a test copy. Copy the original instead.`,
+  [CORE_API_ERROR_KINDS.CMO_TEST_COPY_NOT_ALLOWED]:
+    "Only an owner or admin of that organization, or a tester, can make a test copy.",
 };
 
 /**

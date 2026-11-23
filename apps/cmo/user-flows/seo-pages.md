@@ -6,10 +6,11 @@
 
 1. Connects Search Console (optional, for real positions).
 2. Opens SEO from the brand menu: clicks from Google and their trend first, then the next three things to do (page changes with the exact new text, articles to write), then the audit's technical fixes in their own card for whoever builds the site (Copy for them, the audit's words one click deeper), with the audit and keyword search one click deeper.
-3. Reads Cuso's weekly SEO message in the chat (cmo-v12): what moved on Google and the changes worth most, each as before and after.
-4. Presses "Write an article" or "Write it" on an idea, or asks Cuso in chat for articles; each comes back whole, ready to copy.
-5. Copies the text to their own website and marks the change Done; the next audit checks it.
-6. Asks Cuso where they rank for a search a few weeks later.
+3. Sees the weekly search check in Settings with Cuso's other routines ("Every Monday morning" and its next run). Core starts it on that clock, never Cuso.
+4. Reads the audit's card in the chat (checks passed, things to fix, or a short note when it failed, nothing charged), then Cuso's weekly SEO message (cmo-v12): what moved on Google and the changes worth most, each as before and after.
+5. Presses "Write an article" or "Write it" on an idea, or asks Cuso in chat for articles; each comes back whole, ready to copy.
+6. Copies the text to their own website and marks the change Done; the next audit checks it.
+7. Asks Cuso where they rank for a search a few weeks later.
 
 **They expect**
 

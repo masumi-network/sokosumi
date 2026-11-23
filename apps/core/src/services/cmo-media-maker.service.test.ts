@@ -187,6 +187,7 @@ import {
   cmoPictureOutdated,
   cmoPictureStyleProblem,
   cmoPieceSlides,
+  cmoShotForPiece,
   cmoSlotAction,
   cmoStyleHeadline,
   cmoStyleInks,
@@ -228,6 +229,55 @@ function job(patch: Partial<CmoMediaJob>): CmoMediaJob {
     ...patch,
   };
 }
+
+describe("cmoShotForPiece", () => {
+  const pictures = [
+    {
+      fileId: "home",
+      alt: "Home page screenshot",
+      phoneFileId: "home-phone",
+      wideFileIds: ["home", "home-hero", "home-pricing"],
+    },
+    { fileId: "photo", alt: "red sneaker" },
+  ];
+
+  it("shows a page on a phone in a tall short, reel or story", () => {
+    for (const patch of [
+      { channel: "tiktok", format: "short" },
+      { channel: "instagram", format: "story" },
+      { channel: "instagram", format: "reel" },
+    ])
+      expect(cmoShotForPiece(piece(patch), "home", pictures)).toBe(
+        "home-phone",
+      );
+  });
+
+  it("shows the desktop page or one of its sections in a feed picture, another per piece", () => {
+    const shots = new Set(
+      ["a", "b", "c", "d", "e", "f"].map((id) =>
+        cmoShotForPiece(
+          piece({ id, channel: "linkedin", format: "image" }),
+          "home",
+          pictures,
+        ),
+      ),
+    );
+    expect(shots.size).toBeGreaterThan(1);
+    for (const shot of shots)
+      expect(["home", "home-hero", "home-pricing"]).toContain(shot);
+  });
+
+  it("keeps a picture that is not a page shot, and a page without a twin", () => {
+    expect(cmoShotForPiece(piece({ format: "short" }), "photo", pictures)).toBe(
+      "photo",
+    );
+    expect(
+      cmoShotForPiece(piece({ format: "short" }), "phone-only", [
+        { fileId: "phone-only", alt: "Home on a phone page screenshot" },
+      ]),
+    ).toBe("phone-only");
+  });
+});
 
 describe("cmoSlotAction", () => {
   it("starts a picture, waits for it, attaches it, and gives up after two failures", () => {

@@ -1,4 +1,4 @@
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect, unstable_rethrow } from "next/navigation";
 
 import { coreClientFor, getAuth, getPageAccessToken } from "./auth";
@@ -29,6 +29,19 @@ export async function asSignedInPersonOrHome() {
     unstable_rethrow(error);
     redirect("/");
   }
+}
+
+/**
+ * The request's headers as a page render should read them. A server action
+ * that renews the access token sets new cookies, and Next re-renders the page
+ * in the same request: `cookies()` holds the new ones, but `headers()` keeps
+ * the old Cookie header, whose token has expired.
+ */
+export async function renderRequestHeaders(): Promise<Headers> {
+  const [incoming, jar] = await Promise.all([headers(), cookies()]);
+  const current = new Headers(incoming);
+  current.set("cookie", jar.toString());
+  return current;
 }
 
 /**
