@@ -10,118 +10,49 @@ const DIRECTORIES = [
   "packages/database/scripts",
 ];
 
-// Every mention of search_path fails unless it is `SET LOCAL search_path`,
-// which lasts one transaction. SQL comments count as whitespace. No file needs
-// an exception today; add one here with its reason if one ever does.
-const SEARCH_PATH = /search_path/gi;
-const GAP = String.raw`(?:\s|/\*[\s\S]*?\*/|--[^\n]*\n)+`;
-const SET_LOCAL_BEFORE = new RegExp(String.raw`\bSET${GAP}LOCAL${GAP}"?$`, "i");
+// The three clients share connections, so a search_path set on one is seen by
+// the others. Production SQL never touches it; it names schemas instead.
+// A file that must mention it goes here, with its reason.
+const ALLOWED: Record<string, string> = {};
 
-function lineOf(text: string, offset: number): number {
-  return text.slice(0, offset).split("\n").length;
+function mentionsSearchPath(text: string): boolean {
+  return /search_path/i.test(text);
 }
 
-function sessionSearchPathLines(text: string): number[] {
-  return [...text.matchAll(SEARCH_PATH)]
-    .filter(
-      (match) =>
-        !SET_LOCAL_BEFORE.test(
-          text.slice(Math.max(0, match.index - 200), match.index),
-        ),
-    )
-    .map((match) => lineOf(text, match.index));
-}
-
-function sourceFiles(directory: string): string[] {
+function productionFiles(directory: string): string[] {
   return readdirSync(join(ROOT, directory), {
     recursive: true,
     withFileTypes: true,
   })
     .filter((entry) => entry.isFile() && /\.[cm]?ts$/.test(entry.name))
-    .map((entry) => join(entry.parentPath, entry.name))
+    .map((entry) => relative(ROOT, join(entry.parentPath, entry.name)))
     .filter(
       (file) =>
-        !file.includes("/generated/") &&
-        file !== fileURLToPath(import.meta.url),
+        !/\.test\.[cm]?ts$/.test(file) &&
+        !file.includes("/__tests__/") &&
+        !file.includes("/generated/"),
     );
 }
 
-describe("session state on the shared pool", () => {
+describe("search_path on the shared pool", () => {
   it.each([
-    [
-      "multi-line SET SESSION",
-      "await prisma.$executeRawUnsafe(`SET SESSION\n  search_path TO x`);",
-    ],
-    [
-      "quoted name",
-      'await prisma.$executeRawUnsafe(`SET "search_path" TO x`);',
-    ],
-    [
-      "multi-line set_config",
-      "await prisma.$queryRaw`\n  SELECT set_config(\n    'search_path',\n    ${schema},\n    false\n  )\n`;",
-    ],
-    [
-      "quote_ident",
-      "SELECT set_config('search_path', quote_ident(${schema}), false)",
-    ],
-    [
-      "parameterised false",
-      "SELECT set_config('search_path', ${schema}, ${false})",
-    ],
-    [
-      "parameterised flag",
-      "SELECT set_config('search_path', ${schema}, ${isLocal})",
-    ],
-    ["text cast", "SELECT set_config('search_path'::text, 'x', false)"],
-    [
-      "comment between the words",
-      "await prisma.$executeRawUnsafe(`SET /* why */ search_path TO x`);",
-    ],
-    [
-      "set_config with true",
-      "SELECT set_config(\n  'search_path',\n  quote_ident(${schema}),\n  TRUE\n)",
-    ],
-  ])("finds a session search_path written as %s", (_name, source) => {
-    expect(sessionSearchPathLines(source)).toHaveLength(1);
+    "await tx.$executeRawUnsafe(`SET LOCAL search_path TO x`);",
+    "SELECT set_config('SEARCH_PATH', 'x', true)",
+    "// search_path",
+  ])("finds a mention: %s", (source) => {
+    expect(mentionsSearchPath(source)).toBe(true);
   });
 
-  it.each([
-    [
-      "SET LOCAL",
-      'await tx.$executeRawUnsafe(`SET LOCAL "search_path" TO x`);',
-    ],
-    [
-      "multi-line SET LOCAL",
-      "await tx.$executeRawUnsafe(`SET\n  LOCAL search_path TO x`);",
-    ],
-    [
-      "comments between the words",
-      "await tx.$executeRawUnsafe(`SET /* why */ LOCAL -- note\n search_path TO x`);",
-    ],
-  ])("allows %s", (_name, source) => {
-    expect(sessionSearchPathLines(source)).toEqual([]);
+  it("passes a file that names its schemas", () => {
+    expect(mentionsSearchPath('SELECT key FROM "mainnet"."Lock"')).toBe(false);
   });
 
-  it("finds every search_path that is not SET LOCAL, with its line", () => {
-    expect(
-      sessionSearchPathLines(
-        [
-          'await tx.$executeRawUnsafe(`SET LOCAL search_path TO "x"`);',
-          "await prisma.$executeRawUnsafe(`SET search_path TO x`);",
-          "await prisma.$executeRawUnsafe(`set session search_path = x`);",
-          "SELECT set_config('search_path', 'x', false)",
-          "SELECT set_config('search_path', 'x', true)",
-        ].join("\n"),
-      ),
-    ).toEqual([2, 3, 4, 5]);
-  });
-
-  it("never sets search_path for the session: the three clients share connections", () => {
-    const found = DIRECTORIES.flatMap(sourceFiles).flatMap((file) =>
-      sessionSearchPathLines(readFileSync(file, "utf8")).map(
-        (line) => `${relative(ROOT, file)}:${line}`,
-      ),
+  it("is never mentioned in production code of Core or the database package", () => {
+    const found = DIRECTORIES.flatMap(productionFiles).filter(
+      (file) =>
+        !(file in ALLOWED) &&
+        mentionsSearchPath(readFileSync(join(ROOT, file), "utf8")),
     );
-    expect(found, "Use SET LOCAL inside a transaction.").toEqual([]);
+    expect(found, "Name the schema in the SQL instead.").toEqual([]);
   });
 });

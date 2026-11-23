@@ -23,8 +23,8 @@ const globalForPrisma = globalThis as typeof globalThis & {
 /**
  * One pool for the `shared` client and the client of each Network. The clients
  * share its connections, so session state set on one is seen by the others:
- * use `SET LOCAL` inside a transaction or schema-qualified names, never a
- * plain `SET` (`__tests__/no-session-set.test.ts`).
+ * name schemas in raw SQL and never set the search path
+ * (`__tests__/no-session-set.test.ts`).
  */
 function createCoreDatabase(): CoreDatabase {
   const env = getEnv();
