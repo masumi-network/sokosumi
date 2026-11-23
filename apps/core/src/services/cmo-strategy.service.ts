@@ -1,7 +1,6 @@
 import { type MarketingStrategy, Prisma } from "@sokosumi/database";
 import {
   type BrandBrain,
-  CMO_CALENDAR_MAX_ENTRIES,
   CMO_PRODUCTION_TURN_PREFIX,
   type CmoBrandAnswer,
   type CmoBrandQuestion,
@@ -1064,7 +1063,6 @@ function ownerAnswers(brain: BrandBrain): string[] {
 
 /** Matches the calendar slice in the turn packet. A full plan with drafts does not fit. */
 export const CMO_VISIBLE_CALENDAR_DAYS = 31;
-const CMO_CALENDAR_LIMIT = CMO_CALENDAR_MAX_ENTRIES;
 
 export function calendarBounds(
   now: Date,
@@ -1099,12 +1097,8 @@ function withHiddenCalendar(
       (entry.date < from || entry.date > to) &&
       !covered.has(`${entry.date}\0${entry.channel}`),
   );
-  const room = CMO_CALENDAR_LIMIT - incoming.length;
-  if (room <= 0 || hidden.length === 0) return incoming;
-  const kept = hidden
-    .sort((left, right) => left.date.localeCompare(right.date))
-    .slice(-room);
-  return [...incoming, ...kept].sort((left, right) =>
+  if (hidden.length === 0) return incoming;
+  return [...incoming, ...hidden].sort((left, right) =>
     left.date === right.date
       ? left.id.localeCompare(right.id)
       : left.date.localeCompare(right.date),

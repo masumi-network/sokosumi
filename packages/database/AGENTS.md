@@ -189,6 +189,10 @@ pnpm prisma:generate
 1. Regenerate Prisma client: `pnpm prisma:generate`
 2. Restart TypeScript server
 
+## Prisma skills
+
+This package is Prisma 7 (`package.json`). CLI reference: [`.agents/skills/prisma-cli/`](.agents/skills/prisma-cli/). Connection setup and repair for the installed version: [`.agents/skills/prisma-orm-setup/`](.agents/skills/prisma-orm-setup/). Driver-adapter work: [`.agents/skills/prisma-driver-adapter-implementation/`](.agents/skills/prisma-driver-adapter-implementation/).
+
 ## Additional Rules
 
 - [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – do not re-export `@sokosumi/utils` (or other packages) from helpers

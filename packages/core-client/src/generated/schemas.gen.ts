@@ -34189,6 +34189,20 @@ export const MarketingStrategySchema = {
                                         minLength: 1,
                                         maxLength: 40
                                     },
+                                    shortFormat: {
+                                        type: 'string',
+                                        enum: [
+                                            'voiceover',
+                                            'site_tour',
+                                            'top_three',
+                                            'slideshow'
+                                        ]
+                                    },
+                                    hookLine: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 48
+                                    },
                                     languageCode: {
                                         type: 'string',
                                         minLength: 2,
@@ -34385,8 +34399,7 @@ export const MarketingStrategySchema = {
                                     'format',
                                     'status'
                                 ]
-                            },
-                            maxItems: 560
+                            }
                         },
                         previews: {
                             type: 'array',
@@ -34594,6 +34607,20 @@ export const MarketingStrategySchema = {
                                                 minLength: 1,
                                                 maxLength: 40
                                             },
+                                            shortFormat: {
+                                                type: 'string',
+                                                enum: [
+                                                    'voiceover',
+                                                    'site_tour',
+                                                    'top_three',
+                                                    'slideshow'
+                                                ]
+                                            },
+                                            hookLine: {
+                                                type: 'string',
+                                                minLength: 1,
+                                                maxLength: 48
+                                            },
                                             languageCode: {
                                                 type: 'string',
                                                 minLength: 2,
@@ -34797,7 +34824,6 @@ export const MarketingStrategySchema = {
                                     'was'
                                 ]
                             },
-                            maxItems: 560,
                             default: []
                         }
                     },
@@ -36148,6 +36174,20 @@ export const MarketingStrategyRequestSchema = {
                                 minLength: 1,
                                 maxLength: 40
                             },
+                            shortFormat: {
+                                type: 'string',
+                                enum: [
+                                    'voiceover',
+                                    'site_tour',
+                                    'top_three',
+                                    'slideshow'
+                                ]
+                            },
+                            hookLine: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 48
+                            },
                             languageCode: {
                                 type: 'string',
                                 minLength: 2,
@@ -36344,8 +36384,7 @@ export const MarketingStrategyRequestSchema = {
                             'format',
                             'status'
                         ]
-                    },
-                    maxItems: 560
+                    }
                 },
                 previews: {
                     type: 'array',
@@ -36553,6 +36592,20 @@ export const MarketingStrategyRequestSchema = {
                                         minLength: 1,
                                         maxLength: 40
                                     },
+                                    shortFormat: {
+                                        type: 'string',
+                                        enum: [
+                                            'voiceover',
+                                            'site_tour',
+                                            'top_three',
+                                            'slideshow'
+                                        ]
+                                    },
+                                    hookLine: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 48
+                                    },
                                     languageCode: {
                                         type: 'string',
                                         minLength: 2,
@@ -36756,7 +36809,6 @@ export const MarketingStrategyRequestSchema = {
                             'was'
                         ]
                     },
-                    maxItems: 560,
                     default: []
                 }
             },
@@ -42973,6 +43025,20 @@ export const SocialPostSchema = {
                     type: 'string',
                     minLength: 1,
                     maxLength: 40
+                },
+                shortFormat: {
+                    type: 'string',
+                    enum: [
+                        'voiceover',
+                        'site_tour',
+                        'top_three',
+                        'slideshow'
+                    ]
+                },
+                hookLine: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 48
                 },
                 languageCode: {
                     type: 'string',
@@ -61488,6 +61554,20 @@ export const CmoPlanSchema = {
                         minLength: 1,
                         maxLength: 40
                     },
+                    shortFormat: {
+                        type: 'string',
+                        enum: [
+                            'voiceover',
+                            'site_tour',
+                            'top_three',
+                            'slideshow'
+                        ]
+                    },
+                    hookLine: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 48
+                    },
                     languageCode: {
                         type: 'string',
                         minLength: 2,
@@ -61684,8 +61764,7 @@ export const CmoPlanSchema = {
                     'format',
                     'status'
                 ]
-            },
-            maxItems: 560
+            }
         },
         previews: {
             type: 'array',
@@ -61893,6 +61972,20 @@ export const CmoPlanSchema = {
                                 minLength: 1,
                                 maxLength: 40
                             },
+                            shortFormat: {
+                                type: 'string',
+                                enum: [
+                                    'voiceover',
+                                    'site_tour',
+                                    'top_three',
+                                    'slideshow'
+                                ]
+                            },
+                            hookLine: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 48
+                            },
                             languageCode: {
                                 type: 'string',
                                 minLength: 2,
@@ -62096,7 +62189,6 @@ export const CmoPlanSchema = {
                     'was'
                 ]
             },
-            maxItems: 560,
             default: []
         }
     },
