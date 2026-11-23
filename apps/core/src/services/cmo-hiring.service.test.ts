@@ -759,6 +759,18 @@ describe("startCmoOnboarding", () => {
     expect(projectCreate).not.toHaveBeenCalled();
   });
 
+  it("lets a tester hire beside an unpaid Cuso: Tester credits can pay for either", async () => {
+    unpaidCuso.mockResolvedValue({
+      projectId: "project-0",
+      businessName: "old.io",
+    });
+    envOverrides.CMO_SUBSCRIPTION_SKIP_ALLOWLIST = ["@harborbikes.com"];
+    await expect(startCmoOnboarding(input)).resolves.toMatchObject({
+      projectId: "project-1",
+    });
+    expect(unpaidCuso).not.toHaveBeenCalled();
+  });
+
   it("hires Cuso into a new organization named after the website", async () => {
     await expect(startCmoOnboarding(input)).resolves.toMatchObject({
       sokoBotId: "bot-1",
