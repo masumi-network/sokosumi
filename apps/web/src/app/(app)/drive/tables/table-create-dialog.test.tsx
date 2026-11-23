@@ -85,7 +85,8 @@ describe("TableCreateDialog from a Files CSV", () => {
   it("says the file could not be read and offers no mapping", async () => {
     openFromFiles(new Response("", { status: 404 }));
 
-    expect(await screen.findByText("errors.missing")).toBeTruthy();
+    expect(await screen.findByText("fileMissing")).toBeTruthy();
+    expect(screen.getByText("Leads.csv")).toBeTruthy();
     expect(screen.queryByLabelText("columnName")).toBeNull();
   });
 
@@ -162,6 +163,7 @@ describe("TableCreateDialog from a Files CSV", () => {
     );
 
     expect(await screen.findByText("loadingCsv")).toBeTruthy();
+    expect(screen.getByText("Leads.csv")).toBeTruthy();
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(signal?.aborted).toBe(true);

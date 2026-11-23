@@ -75,19 +75,21 @@ async function readCsvFile(response: Response, name: string, tooLarge: string) {
 async function fetchCsvFile(
   file: { url: string; name: string },
   signal: AbortSignal,
-  tooLarge: string,
+  copy: CsvFileCopy,
 ) {
   const response = await fetch(file.url, { signal });
+  // A file, not a table or row, is what went missing.
+  if (response.status === 404) throw new Error(copy.missing);
   if (!response.ok)
     throw Object.assign(new Error(response.statusText), {
-      error:
-        response.status === 404
-          ? "NotFound"
-          : response.status === 403
-            ? "Forbidden"
-            : "Request",
+      error: response.status === 403 ? "Forbidden" : "Request",
     });
-  return readCsvFile(response, file.name, tooLarge);
+  return readCsvFile(response, file.name, copy.tooLarge);
+}
+
+interface CsvFileCopy {
+  tooLarge: string;
+  missing: string;
 }
 
 /**
@@ -117,11 +119,11 @@ function OpenAsTableButton({
 function useCsvFileRead() {
   const active = useAbortController();
   const [reading, setReading] = useState<AbortController | null>(null);
-  async function read(file: { url: string; name: string }, tooLarge: string) {
+  async function read(file: { url: string; name: string }, copy: CsvFileCopy) {
     const controller = active.start();
     setReading(controller);
     try {
-      return await fetchCsvFile(file, controller.signal, tooLarge);
+      return await fetchCsvFile(file, controller.signal, copy);
     } catch (error) {
       if (controller.signal.aborted) return null;
       // The browser's own network wording is not ours and not translated.
@@ -213,8 +215,13 @@ export function TableCreateDialog({
     setError("");
     // Before the read, so a title typed while it loads is kept.
     setTitle((current) => current || csvFile.name.replace(/\.csv$/i, ""));
+    // Names the file being read, and the one that failed, as a chosen CSV is named.
+    setCsvName(csvFile.name);
     try {
-      const file = await fileRead.read(csvFile, t("csvLimit"));
+      const file = await fileRead.read(csvFile, {
+        tooLarge: t("csvLimit"),
+        missing: t("fileMissing"),
+      });
       if (!file) return;
       await handleCsv(file);
     } catch (error) {
@@ -364,7 +371,7 @@ export function TableCreateDialog({
             clipped input cannot paint for itself; put the colour on
             `focus-visible:` instead and the wrapper, which is never focusable,
             never matches, so the ring falls back to `currentColor`. */}
-            <div className="ring-offset-background has-[:focus-visible]:ring-ring flex w-fit items-center gap-3 rounded-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2">
+            <div className="ring-offset-background has-[:focus-visible]:ring-ring flex w-fit max-w-full min-w-0 items-center gap-3 rounded-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2">
               <Button
                 type="button"
                 aria-hidden
