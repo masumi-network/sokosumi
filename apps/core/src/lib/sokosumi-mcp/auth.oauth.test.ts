@@ -164,11 +164,17 @@ beforeEach(async () => {
   });
 });
 
+interface TokenResponse {
+  access_token: string;
+  expires_in: number;
+  refresh_token?: string;
+}
+
 /** Authorize with PKCE, then exchange the code, as an MCP client does. */
 async function issueAccessToken(options: {
   scope: string;
   resource?: string;
-}): Promise<{ access_token: string; expires_in: number }> {
+}): Promise<TokenResponse> {
   const query = new URLSearchParams({
     client_id: CLIENT_ID,
     redirect_uri: REDIRECT_URI,
@@ -240,6 +246,30 @@ describe("verifyMcpAccessToken", () => {
         oauthClientId: CLIENT_ID,
       },
     });
+  });
+
+  it("refreshes into another MCP JWT", async () => {
+    const first = await issueAccessToken({ scope: MCP_SCOPE, resource: MCP });
+
+    const response = await auth.handler(
+      new Request(`${CORE}/auth/oauth2/token`, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: first.refresh_token ?? "",
+          client_id: CLIENT_ID,
+          resource: MCP,
+        }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    const refreshed: TokenResponse = await response.json();
+
+    expect(refreshed.refresh_token).not.toBe(first.refresh_token);
+    await expect(
+      verifyMcpAccessToken(refreshed.access_token, auth),
+    ).resolves.toMatchObject({ status: "active" });
   });
 
   it("drops sokosumi:api from a token for the MCP resource", async () => {

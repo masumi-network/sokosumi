@@ -656,6 +656,10 @@ export const auth = betterAuth({
       // resource links stay enforced (the plugin default), so a client gets
       // MCP tokens only once it is linked to the resource.
       resources: [mcpOAuthResource(betterAuthBaseUrl)],
+      // This config is the resource's only source of truth: each cold start
+      // writes its policy onto the row, so a TTL or scope change ships with
+      // the deploy instead of being skipped for an existing row.
+      resourceSeedMode: "merge",
       // Defaults to identity-only; allow-list keeps sokosumi:api opt-in available
       // for authenticated create-client and for DCR if enabled later.
       clientRegistrationDefaultScopes: ["openid"],

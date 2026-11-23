@@ -3,7 +3,10 @@ import { OAUTH_SCOPE_MCP } from "@sokosumi/utils";
 import { isAPIError } from "better-auth/api";
 
 import prisma from "@/lib/db/prisma";
-import type { UserAuthenticationContext } from "@/middleware/auth";
+import {
+  DEFAULT_USER_ROLE,
+  type UserAuthenticationContext,
+} from "@/middleware/auth";
 import { BEARER_USER_SELECT } from "@/middleware/auth-active-user";
 import {
   checkOAuthGrant,
@@ -97,7 +100,7 @@ export async function verifyMcpAccessToken(
       actor: "user",
       userId,
       organizationId: null,
-      role: user?.role ?? "user",
+      role: user?.role ?? DEFAULT_USER_ROLE,
       authenticationMethod: "oauth",
       oauthClientId: clientId,
       ...(client?.skipConsent ? { firstPartyClient: true } : {}),

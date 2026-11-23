@@ -22,7 +22,7 @@ import { BEARER_USER_SELECT, isActiveUser } from "./auth-active-user";
 import { checkOAuthGrant, OAUTH_GRANT_CLIENT_SELECT } from "./auth-oauth-grant";
 import { syncAuthObservers } from "./auth-observability";
 
-const DEFAULT_USER_ROLE = "user";
+export const DEFAULT_USER_ROLE = "user";
 
 export interface UserAuthenticationContext {
   actor: "user";
