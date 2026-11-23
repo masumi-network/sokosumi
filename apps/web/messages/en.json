@@ -11799,6 +11799,7 @@
       "tables": "Tables",
       "newTable": "New table",
       "openAsTable": "Open as table",
+      "loadingCsv": "Reading the CSV…",
       "createDescription": "Start with a blank table or import a CSV file.",
       "title": "Title",
       "description": "Description",

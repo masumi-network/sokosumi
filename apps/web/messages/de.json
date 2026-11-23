@@ -11799,6 +11799,7 @@
       "tables": "Tabellen",
       "newTable": "Neue Tabelle",
       "openAsTable": "Als Tabelle öffnen",
+      "loadingCsv": "CSV wird gelesen…",
       "createDescription": "Mit einer leeren Tabelle beginnen oder eine CSV-Datei importieren.",
       "title": "Titel",
       "description": "Beschreibung",

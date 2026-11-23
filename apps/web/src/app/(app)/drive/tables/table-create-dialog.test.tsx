@@ -29,8 +29,13 @@ vi.mock("@/lib/services/data-table.client", () => ({
 
 const URL = "/api/drive/files/res-1/content?scope=me";
 
-function openFromFiles(response: Response) {
-  const fetch = vi.fn().mockResolvedValue(response);
+function openFromFiles(
+  response: Response | Promise<Response> | (() => Promise<Response>),
+) {
+  const fetch =
+    typeof response === "function"
+      ? vi.fn(response)
+      : vi.fn().mockResolvedValue(response);
   vi.stubGlobal("fetch", fetch);
   render(
     <QueryClientProvider client={new QueryClient()}>
@@ -54,7 +59,7 @@ describe("TableCreateDialog from a Files CSV", () => {
     const fetch = openFromFiles(new Response("Name,Zip\nAda,007\n"));
 
     expect(await screen.findByText("007")).toBeTruthy();
-    expect(fetch).toHaveBeenCalledWith(URL);
+    expect(fetch).toHaveBeenCalledWith(URL, expect.anything());
     expect(screen.getByLabelText("title")).toHaveValue("Leads");
     const names = screen.getAllByLabelText("columnName");
     expect(names.map((input) => (input as HTMLInputElement).value)).toEqual([
@@ -81,5 +86,72 @@ describe("TableCreateDialog from a Files CSV", () => {
 
     expect(await screen.findByText("errors.missing")).toBeTruthy();
     expect(screen.queryByLabelText("columnName")).toBeNull();
+  });
+
+  it("never creates an empty Table when the file is not a readable CSV", async () => {
+    openFromFiles(new Response('Name\n"open quote\n'));
+
+    expect(await screen.findByText("errors.csv")).toBeTruthy();
+    const create = screen.getByRole("button", { name: "create" });
+    expect(create).toBeDisabled();
+    fireEvent.click(create);
+    expect(f.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses a file over 5 MB from its length without reading it", async () => {
+    const response = new Response("Name\nAda\n", {
+      headers: { "content-length": "6000000" },
+    });
+    const read = vi.spyOn(response, "blob");
+    openFromFiles(response);
+
+    expect(await screen.findByText("csvLimit")).toBeTruthy();
+    expect(read).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText("columnName")).toBeNull();
+  });
+
+  it("stops reading a file of unknown length once it passes 5 MB", async () => {
+    const chunk = new Uint8Array(1_000_000).fill(65);
+    let pulled = 0;
+    const cancel = vi.fn();
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled++;
+        controller.enqueue(chunk);
+      },
+      cancel,
+    });
+    openFromFiles(new Response(body));
+
+    expect(await screen.findByText("csvLimit")).toBeTruthy();
+    expect(cancel).toHaveBeenCalled();
+    expect(pulled).toBeLessThan(10);
+  });
+
+  it("announces the read and can be closed while it runs, cancelling it", async () => {
+    let signal: AbortSignal | undefined;
+    openFromFiles(
+      () =>
+        new Promise<Response>((_resolve, reject) => {
+          signal = (
+            fetch as unknown as { mock: { calls: [string, RequestInit][] } }
+          ).mock.calls[0][1].signal as AbortSignal;
+          signal.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError")),
+          );
+        }),
+    );
+
+    expect(await screen.findByText("loadingCsv")).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(signal?.aborted).toBe(true);
+  });
+
+  it("says the request failed, in the app's words, when the network drops", async () => {
+    openFromFiles(() => Promise.reject(new TypeError("Failed to fetch")));
+
+    expect(await screen.findByText("errors.request")).toBeTruthy();
+    expect(screen.queryByText("Failed to fetch")).toBeNull();
   });
 });
