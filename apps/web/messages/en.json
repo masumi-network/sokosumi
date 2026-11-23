@@ -667,7 +667,7 @@
           "fonts": "Fonts",
           "tone": "Tone",
           "noSummary": "Your brand guidelines are saved. We couldn't pick out colors, fonts, or tone to show here.",
-          "viewFull": "View full guidelines"
+          "voice": "Voice"
         },
         "Invite": {
           "title": "{organization} is ready",

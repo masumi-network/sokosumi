@@ -93,6 +93,7 @@ Primary #5850ec drives every call to action.
       colors: ["#5850ec", "#374151"],
       fonts: [],
       tone: "plain, factual and confident",
+      voice: "Favouring short declarative claims over hype.",
     });
     expect(
       designMdBrandLook(
@@ -102,6 +103,7 @@ Primary #5850ec drives every call to action.
       colors: [],
       fonts: ["Inter"],
       tone: "formal, impersonal and precise",
+      voice: "Written as a notice.",
     });
   });
 
@@ -117,6 +119,8 @@ Primary #5850ec drives every call to action.
       colors: ["#2b5c78", "#6400ff"],
       fonts: ["Inter"],
       tone: "plain, professional and colleague-like",
+      voice:
+        'Coworkers are introduced by name and role, briefs are described as plain language, and the product is framed as work that "arrives as a file."',
     });
   });
 
@@ -177,6 +181,13 @@ Primary #5850ec drives every call to action.
   it("states no tone rather than guess one", () => {
     expect(designMdBrandLook("The voice is a mix of styles.").tone).toBeNull();
     expect(designMdBrandLook("# Brand").tone).toBeNull();
+  });
+
+  it("states no voice when nothing follows the tone", () => {
+    expect(
+      designMdBrandLook("The voice is plain and calm.\n\nMore.").voice,
+    ).toBeNull();
+    expect(designMdBrandLook("The voice is a mix of styles.").voice).toBeNull();
   });
 });
 

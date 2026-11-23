@@ -14,7 +14,6 @@ import {
   Check,
   CloudUpload,
   Copy,
-  ExternalLink,
   ImageOff,
   Info,
   Link2,
@@ -150,9 +149,9 @@ interface CreateOrganizationWizardProps {
 }
 
 /**
- * What the saved brand guidelines say, in plain words: colour swatches, fonts
- * and tone. Rows the guidelines leave out are skipped; with none, one line
- * says they are saved.
+ * What the saved brand guidelines say, in plain words: colour swatches, fonts,
+ * tone and voice. Rows the guidelines leave out are skipped; with none, one
+ * line says they are saved.
  */
 function BrandLookSummary({ look }: { look: PersistedDesignMd["look"] }) {
   const t = useTranslations(
@@ -182,6 +181,7 @@ function BrandLookSummary({ look }: { look: PersistedDesignMd["look"] }) {
       ? { label: t("Brand.fonts"), value: look.fonts.join(", ") }
       : null,
     look?.tone ? { label: t("Brand.tone"), value: look.tone } : null,
+    look?.voice ? { label: t("Brand.voice"), value: look.voice } : null,
   ].filter((row) => row !== null);
 
   if (rows.length === 0) {
@@ -988,17 +988,6 @@ function CreateOrganizationWizardContent({
                     <p className="text-muted-foreground mx-auto mt-4 max-w-[46ch] text-sm text-balance">
                       {t("Brand.editHint")}
                     </p>
-                    {brandResult && (
-                      <a
-                        href={brandResult.previewUrl ?? brandResult.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-foreground focus-visible:ring-ring mt-3 inline-flex items-center gap-1.5 rounded-sm text-sm font-medium underline underline-offset-4 outline-none focus-visible:ring-2"
-                      >
-                        {t("Brand.viewFull")}
-                        <ExternalLink aria-hidden className="size-3.5" />
-                      </a>
-                    )}
                   </div>
                 )}
 

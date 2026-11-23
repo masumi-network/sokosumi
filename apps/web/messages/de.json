@@ -651,7 +651,7 @@
           "fonts": "Schriften",
           "tone": "Tonalität",
           "noSummary": "Deine Markenrichtlinien sind gespeichert. Farben, Schriften oder Tonalität konnten wir hier nicht herauslesen.",
-          "viewFull": "Vollständige Richtlinien ansehen"
+          "voice": "Stimme"
         },
         "Invite": {
           "title": "{organization} ist bereit",

@@ -244,8 +244,8 @@ describe("designMdService", () => {
     });
     expect(persisted).toEqual({
       extractionId: "42",
-      // "# Brand" names no colours, fonts or tone.
-      look: { colors: [], fonts: [], tone: null },
+      // "# Brand" names no colours, fonts, tone or voice.
+      look: { colors: [], fonts: [], tone: null, voice: null },
       previewUrl: "https://www.masumi.example/tools/design-md?cached=42",
       url: "https://blob.example/design-md/42-hash.md",
     });

@@ -239,13 +239,23 @@ describe("CreateOrganizationWizard", () => {
 
   it.each([
     [
-      "shows the saved colours, fonts and tone in plain words",
-      { colors: ["#5850ec"], fonts: ["Inter"], tone: "plain and confident" },
-      ["#5850ec", "Inter", "plain and confident"],
+      "shows the saved colours, fonts, tone and voice in plain words",
+      {
+        colors: ["#5850ec"],
+        fonts: ["Inter"],
+        tone: "plain and confident",
+        voice: "Short sentences. No jargon.",
+      },
+      [
+        "#5850ec",
+        "Inter",
+        "plain and confident",
+        "Short sentences. No jargon.",
+      ],
     ],
     [
       "says the guidelines are saved when none of it can be shown",
-      { colors: [], fonts: [], tone: null },
+      { colors: [], fonts: [], tone: null, voice: null },
       ["Brand.noSummary"],
     ],
   ])("%s", async (_, look, texts) => {
@@ -278,12 +288,8 @@ describe("CreateOrganizationWizard", () => {
 
     for (const text of texts) expect(screen.getByText(text)).toBeTruthy();
     expect(screen.queryByText("DESIGN.md")).toBeNull();
-    expect(
-      screen.getByRole("link", { name: "Brand.viewFull" }),
-    ).toHaveAttribute(
-      "href",
-      "https://www.masumi.network/tools/design-md?cached=1",
-    );
+    // Setup never sends the owner to another site to read them.
+    expect(screen.queryByRole("link")).toBeNull();
   });
 
   it.each(["Close", "Finish"])(

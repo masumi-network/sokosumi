@@ -243,12 +243,17 @@ export interface DesignMdBrandLook {
   fonts: string[];
   /** The voice's adjectives, e.g. "plain, factual and confident". */
   tone: string | null;
+  /**
+   * The first sentence after the tone, e.g. "Favouring short declarative
+   * claims over hype."
+   */
+  voice: string | null;
 }
 
 /**
- * Colours, fonts and tone in a DESIGN.md: its brand colour roles, the
- * `fontFamily` entries (CSS `font-family` too), and the words after
- * "The voice is" or "Tone of voice is", when they list them.
+ * Colours, fonts, tone and voice in a DESIGN.md: its brand colour roles, the
+ * `fontFamily` entries (CSS `font-family` too), the words after "The voice
+ * is" or "Tone of voice is" when they list them, and the sentence after those.
  */
 export function designMdBrandLook(content: string): DesignMdBrandLook {
   const fonts = [
@@ -258,13 +263,17 @@ export function designMdBrandLook(content: string): DesignMdBrandLook {
     .filter((font): font is string => font !== null);
   // ponytail: reads the generator's English list ("plain, factual and
   // confident"); any other wording gives no tone rather than a guess.
-  const tone = content.match(
-    /\bvoice is ([a-z-]+(?:, [a-z-]+)*,? and [a-z-]+)\b/i,
-  )?.[1];
+  const voiceLine = content.match(
+    /\bvoice is ([a-z-]+(?:, [a-z-]+)*,? and [a-z-]+)\b[.,;]?[ \t]*([^\n]*)/i,
+  );
+  const tone = voiceLine?.[1];
+  // The rest of that line up to its first full stop, quotes kept whole.
+  const voice = voiceLine?.[2]?.match(/^.*?[.!?]["”']?(?=\s|$)|^.+/)?.[0];
   return {
     colors: designMdRoleColors(content) ?? brandColors(content, 5),
     fonts: [...new Set(fonts)].slice(0, 4),
     tone: tone ?? null,
+    voice: voice ? voice.charAt(0).toUpperCase() + voice.slice(1) : null,
   };
 }
 
