@@ -94,6 +94,23 @@ describe("driveQueryKeys", () => {
     expect(
       driveQueryKeys.picker(orgA, { folder: "docs", q: "  report  " }),
     ).toEqual([orgA, "drive", "picker", { folder: "docs", q: "report" }]);
+    expect(driveQueryKeys.recents(orgA)).toEqual([
+      orgA,
+      "drive",
+      "recents",
+      { q: "", tagLabelIds: [] },
+    ]);
+    expect(
+      driveQueryKeys.recents(orgA, {
+        q: "  invoice  ",
+        tagLabelIds: ["tag_a", "", "tag_b"],
+      }),
+    ).toEqual([
+      orgA,
+      "drive",
+      "recents",
+      { q: "invoice", tagLabelIds: ["tag_a", "tag_b"] },
+    ]);
     expect(driveQueryKeys.tags(orgA)).toEqual([orgA, "drive", "tags"]);
   });
 

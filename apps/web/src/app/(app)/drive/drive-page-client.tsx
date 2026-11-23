@@ -311,7 +311,6 @@ function DrivePageWorkspace({
   const [tasksNextCursor, setTasksNextCursor] = useState<string | null>(null);
   const [tasksLoadingMore, setTasksLoadingMore] = useState(false);
   const [copyDialogOpen, setCopyDialogOpen] = useState(false);
-  const [recentsReloadToken, setRecentsReloadToken] = useState(0);
   const [tasksFilterSheetOpen, setTasksFilterSheetOpen] = useState(false);
   const [taskFileToCopy, setTaskFileToCopy] =
     useState<DriveTasksListItem | null>(null);
@@ -858,8 +857,6 @@ function DrivePageWorkspace({
     }
     if (uploaded > 0) {
       refreshDriveItems();
-      // Empty Recents can start an upload, and the new file belongs there.
-      setRecentsReloadToken((token) => token + 1);
       if (plan.rootFolder) applyFolderFacet(plan.rootFolder);
     }
 
@@ -941,7 +938,6 @@ function DrivePageWorkspace({
         );
       }
       refreshDriveItems();
-      setRecentsReloadToken((token) => token + 1);
     } catch (err) {
       console.error(`Failed to rename ${item.type}`, err);
       if (isDuplicateResourceError(err)) {
@@ -992,7 +988,6 @@ function DrivePageWorkspace({
       refreshDriveItems(
         deletedPathname ? { deletedIds: [deletedPathname] } : undefined,
       );
-      setRecentsReloadToken((token) => token + 1);
     } catch (err) {
       void invalidateDrive(queryClient, driveStore);
       console.error(`Failed to delete ${itemToDelete.type}`, err);
@@ -1237,7 +1232,6 @@ function DrivePageWorkspace({
         setSelectedDestination(null);
         if (moved > 0) {
           refreshDriveItems();
-          setRecentsReloadToken((token) => token + 1);
         }
       } finally {
         setMovingItem(false);
@@ -1263,7 +1257,6 @@ function DrivePageWorkspace({
       setItemToMove(null);
       setSelectedDestination(null);
       refreshDriveItems();
-      setRecentsReloadToken((token) => token + 1);
     } catch (err) {
       console.error(`Failed to move ${itemToMove.type}`, err);
       toast.error(
@@ -1954,10 +1947,8 @@ function DrivePageWorkspace({
       ) : isRecentsView ? (
         <DriveRecentsPanel
           driveStore={driveStore}
-          activeOrganizationId={activeOrganizationId}
           searchQuery={debouncedSearchQuery}
           tagLabelIds={driveNavQuery.tags}
-          reloadToken={recentsReloadToken}
           viewMode={layoutMode}
           onOpenMoveDialog={openMoveDialog}
           onOpenDeleteDialog={openDeleteDialog}

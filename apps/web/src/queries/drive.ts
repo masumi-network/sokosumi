@@ -16,6 +16,11 @@ export interface DriveCatalogQueryParams {
   sortOrder: "asc" | "desc";
 }
 
+export interface DriveRecentsQueryParams {
+  q?: string;
+  tagLabelIds?: readonly string[];
+}
+
 export function normalizeDriveStore(store: FileStore): DriveWorkspaceStore {
   return store.scope === "org" && store.organizationId
     ? { scope: "org", organizationId: store.organizationId }
@@ -52,6 +57,11 @@ export const driveQueryKeys = {
     driveKey(store, "picker", {
       folder: params.folder ?? "",
       q: params.q?.trim() ?? "",
+    }),
+  recents: (store: FileStore, params: DriveRecentsQueryParams = {}) =>
+    driveKey(store, "recents", {
+      q: params.q?.trim() ?? "",
+      tagLabelIds: params.tagLabelIds?.filter(Boolean) ?? [],
     }),
   tags: (store: FileStore) => driveKey(store, "tags"),
 } as const;
