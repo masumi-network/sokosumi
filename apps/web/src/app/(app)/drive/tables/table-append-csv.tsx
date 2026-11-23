@@ -337,7 +337,10 @@ function AppendPlan({
             disabled={locked}
             onCheckedChange={(value) => onSkip(value === true)}
           />
-          <Label htmlFor="append-csv-skip" className="font-normal">
+          <Label
+            htmlFor="append-csv-skip"
+            className="leading-normal font-normal"
+          >
             {t("appendCsv.skipDuplicates", { count: repeats })}
           </Label>
         </div>
