@@ -1020,20 +1020,28 @@ describe("advanceCmoProduction", () => {
     expect(warnings[0]?.event.path).toBeUndefined();
   });
 
-  it("stops after four runs in a day and tries again the next", async () => {
+  it("waits three hours after four runs that made nothing, not a day", async () => {
+    // CodePat's test copy, 2026-11-21: three writer timeouts, then the cap
+    // held the retry past the copy's 10-hour life at 67 of 171.
     pgClock.now = NOW;
     const runs = [1, 2, 3, 4].map((n) => ({
       clientTurnId: `${RUN}:${5 - n}:0`,
       status: "FAILED",
-      createdAt: hoursAgo(n),
+      createdAt: hoursAgo(n / 4),
     }));
     const stuck = await advanceCmoProduction(cuso([post({})], runs), NOW);
     expect(stuck.state).toBe("stuck");
+    expect(stuck.retryAt).toBe(hoursAgo(0.25 - 3).toISOString());
     expect(startTurn).not.toHaveBeenCalled();
-    const nextDay = new Date(NOW.getTime() + 24 * 60 * 60 * 1_000);
-    pgClock.now = nextDay;
-    await advanceCmoProduction(cuso([post({})], runs), nextDay);
+    const alerts = expectCoreLog(
+      "error",
+      "A CMO month stopped and Core restarted it",
+    );
+    const later = hoursAgo(0.25 - 3);
+    pgClock.now = later;
+    await advanceCmoProduction(cuso([post({})], runs), later);
     expect(startTurn).toHaveBeenCalledTimes(1);
+    expect(alerts).toHaveLength(1);
   });
 
   it("keeps making the month after four runs in a day that each made pieces", async () => {

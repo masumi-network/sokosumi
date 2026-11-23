@@ -1,5 +1,5 @@
 import type { ProjectSeoObservation } from "@sokosumi/database";
-import { publicExplorationText } from "@/helpers/project-seo-exploration-privacy";
+import { publicExplorationText } from "@sokosumi/utils";
 import {
   queryContainsTopic,
   topicKey,

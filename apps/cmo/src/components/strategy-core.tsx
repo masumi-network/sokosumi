@@ -15,6 +15,7 @@ import { useState, useTransition } from "react";
 
 import { channelLabel } from "../lib/calendar";
 import { channelKey } from "../lib/channels";
+import { stageShares } from "../lib/strategy";
 import { ChannelIcon } from "./channel-icon";
 import { StatusText } from "./status";
 
@@ -124,23 +125,25 @@ export function stageLabel(stage: Stage["stage"]): string {
 
 /**
  * The funnel: one drawing at fixed proportions, a slice per stage narrowing
- * to the sale, beside the stages in the same order. Each stage says its goal,
- * what Cuso does there on which channels, the owner's part, and the number
- * that shows it works. Nothing is folded away.
+ * to the sale, beside the steps in the same order. Each step says its goal
+ * and about how much of the month serves it; every network carries every
+ * step, so the networks stay in "Where it shows up".
  */
 export function FunnelPlan({
   stages,
-  improvements,
+  calendar,
 }: {
   stages: Stage[];
-  improvements: NonNullable<Strategy["improvements"]>;
+  calendar: Strategy["calendar"];
 }) {
+  const shares = stageShares(calendar);
   return (
     <div className="sc-funnel-wrap">
       <FunnelShape stages={stages} />
       <ol className="sc-funnel">
         {stages.map((stage, index) => {
           const { label, people } = STAGES[stage.stage];
+          const share = shares?.get(stage.stage);
           return (
             <li key={stage.stage} className="sc-stage">
               <div className="sc-stage-head">
@@ -153,26 +156,11 @@ export function FunnelPlan({
                 <span className="sc-stage-people">{people}</span>
               </div>
               <p className="sc-goal">{stage.goal}</p>
-              <dl className="sc-stage-parts">
-                <div>
-                  <dt>What {AGENT_NAME} does</dt>
-                  <dd>
-                    <CusoPart stage={stage} />
-                  </dd>
-                </div>
-                <div>
-                  <dt>What you do</dt>
-                  <dd>
-                    <OwnerPart stage={stage} improvements={improvements} />
-                  </dd>
-                </div>
-                <div>
-                  <dt>How we know it works</dt>
-                  <dd>
-                    <MeasurePart stage={stage} />
-                  </dd>
-                </div>
-              </dl>
+              {share !== undefined ? (
+                <p className="sc-share">
+                  About <b className="num">{share}%</b> of this month's posts
+                </p>
+              ) : null}
             </li>
           );
         })}
@@ -230,131 +218,6 @@ function FunnelShape({ stages }: { stages: Stage[] }) {
           {STAGES[stage.stage].label}
         </span>
       ))}
-    </div>
-  );
-}
-
-/** Cuso's work at a stage: his own sentence, then one line a channel. */
-function CusoPart({ stage }: { stage: Stage }) {
-  const plays = stage.plays ?? [];
-  if (plays.length > 0) {
-    return (
-      <>
-        {stage.cusoDoes ? <p className="sc-says">{stage.cusoDoes}</p> : null}
-        <ul className="sc-plays">
-          {plays.map((play) => (
-            <li key={`${play.channel}:${play.what}`}>
-              <span className="sc-play-channel">
-                <ChannelIcon
-                  channel={channelKey(play.channel) ?? play.channel}
-                  size={16}
-                />
-                {channelLabel(play.channel)}
-              </span>
-              <span>{play.what}</span>
-            </li>
-          ))}
-        </ul>
-      </>
-    );
-  }
-  if (stage.cusoDoes) return <p>{stage.cusoDoes}</p>;
-  const channels = stage.channels ?? [];
-  if (stage.owner === "you" || channels.length === 0) {
-    return <p>Nothing here. This step is yours.</p>;
-  }
-  return (
-    <ul className="sc-plays">
-      {channels.map((channel) => (
-        <li key={channel}>
-          <span className="sc-play-channel">
-            <ChannelIcon channel={channelKey(channel) ?? channel} size={16} />
-            {channelLabel(channel)}
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/** The stages where the sale happens, on the owner's own pages. */
-const SALE_STAGES: readonly Stage["stage"][] = ["action", "conversion"];
-
-/** The owner's part: their own sentence, and at the sale Cuso's ideas for their pages. */
-function OwnerPart({
-  stage,
-  improvements,
-}: {
-  stage: Stage;
-  improvements: NonNullable<Strategy["improvements"]>;
-}) {
-  const owner = stage.owner ?? "cuso";
-  if (owner === "cuso" && !stage.youDo)
-    return <p>Nothing. {AGENT_NAME} runs this step.</p>;
-  const ideas =
-    owner !== "cuso" && SALE_STAGES.includes(stage.stage)
-      ? improvements.filter((item) =>
-          ["landing", "pricing", "checkout"].includes(item.area),
-        )
-      : [];
-  const says =
-    stage.youDo ??
-    (ideas.length > 0
-      ? null
-      : owner === "you"
-        ? "This step happens on your own pages, product or sales."
-        : `Your pages and offer do the rest. ${AGENT_NAME} suggests changes, you decide.`);
-  return (
-    <>
-      {says ? (
-        <p className={ideas.length > 0 ? "sc-says" : undefined}>{says}</p>
-      ) : null}
-      {ideas.length > 0 ? (
-        <ul className="sc-ideas">
-          {ideas.map((item) => (
-            <li key={item.idea}>
-              <span>{item.idea}</span>
-              <span className="note">{item.why}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </>
-  );
-}
-
-/**
- * A value short enough to stand as a big number: "About 400 a month". A
- * sentence ("X has 33.4K followers; visits are not reported.") reads as words.
- */
-function isFigure(value: string): boolean {
-  return value.trim().split(/\s+/).length <= 5;
-}
-
-/** The stage's number, today's value and whether it is measured or estimated. */
-function MeasurePart({ stage }: { stage: Stage }) {
-  const { measure } = stage;
-  return (
-    <div className="sc-measure">
-      <span>{stage.metric}</span>
-      {measure?.value && measure.basis !== "unknown" ? (
-        isFigure(measure.value) ? (
-          <b className="num">{measure.value}</b>
-        ) : (
-          <span>{measure.value}</span>
-        )
-      ) : null}
-      {measure?.basis === "measured" ? (
-        <StatusText>
-          {measure.source ? `Measured in ${measure.source}` : "Measured"}
-        </StatusText>
-      ) : (
-        <span className="note">
-          {measure?.basis === "estimated"
-            ? `${AGENT_NAME}'s estimate`
-            : "Counted once your accounts are connected"}
-        </span>
-      )}
     </div>
   );
 }

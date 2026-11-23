@@ -6691,6 +6691,7 @@ export type ProjectTalkingVideo = {
     siteShots: boolean;
     broll: boolean;
     music: boolean;
+    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | null;
 };
 
 export type ImageStudioRecentProjects = {
@@ -9255,6 +9256,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             campaignId?: string;
             approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
             pillar?: string;
+            stage?: 'awareness' | 'interest' | 'desire' | 'action';
         }>;
         previews?: Array<{
             kind: 'post' | 'ad' | 'seo' | 'newsletter';
@@ -9263,6 +9265,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             body: string;
         }>;
         changes?: Array<string>;
+        fitted?: Array<string>;
         patched?: Array<{
             id: string;
             was: {
@@ -9318,6 +9321,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 campaignId?: string;
                 approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
                 pillar?: string;
+                stage?: 'awareness' | 'interest' | 'desire' | 'action';
             } | null;
         }>;
     };
@@ -9587,6 +9591,7 @@ export type MarketingStrategyRequest = {
             campaignId?: string;
             approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
             pillar?: string;
+            stage?: 'awareness' | 'interest' | 'desire' | 'action';
         }>;
         previews?: Array<{
             kind: 'post' | 'ad' | 'seo' | 'newsletter';
@@ -9595,6 +9600,7 @@ export type MarketingStrategyRequest = {
             body: string;
         }>;
         changes?: Array<string>;
+        fitted?: Array<string>;
         patched?: Array<{
             id: string;
             was: {
@@ -9650,6 +9656,7 @@ export type MarketingStrategyRequest = {
                 campaignId?: string;
                 approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
                 pillar?: string;
+                stage?: 'awareness' | 'interest' | 'desire' | 'action';
             } | null;
         }>;
     };
@@ -11346,6 +11353,7 @@ export type SocialPost = {
         why?: string;
         approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
         pillar?: string;
+        stage?: 'awareness' | 'interest' | 'desire' | 'action';
         campaignId?: string;
         visual?: string;
         visualFileIds?: Array<string>;
@@ -11852,6 +11860,17 @@ export type CreateProjectTalkingVideoJobRequest = {
     siteShots?: boolean;
     broll?: boolean;
     music?: boolean;
+    idempotencyKey: string;
+};
+
+export type CreateProjectShortVideoJobRequest = {
+    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+    script: string;
+    hookLine?: string;
+    voice?: 'Aria' | 'Roger' | 'Sarah' | 'Laura' | 'Charlie' | 'George' | 'Callum' | 'River' | 'Liam' | 'Charlotte' | 'Alice' | 'Matilda' | 'Will' | 'Jessica' | 'Eric' | 'Chris' | 'Brian' | 'Daniel' | 'Lily' | 'Bill';
+    languageCode?: string;
+    pictureAssetIds?: Array<string>;
+    pictureFileIds?: Array<string>;
     idempotencyKey: string;
 };
 
@@ -15089,6 +15108,7 @@ export type CmoPlan = {
         campaignId?: string;
         approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
         pillar?: string;
+        stage?: 'awareness' | 'interest' | 'desire' | 'action';
     }>;
     previews?: Array<{
         kind: 'post' | 'ad' | 'seo' | 'newsletter';
@@ -15097,6 +15117,7 @@ export type CmoPlan = {
         body: string;
     }>;
     changes?: Array<string>;
+    fitted?: Array<string>;
     patched?: Array<{
         id: string;
         was: {
@@ -15152,6 +15173,7 @@ export type CmoPlan = {
             campaignId?: string;
             approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
             pillar?: string;
+            stage?: 'awareness' | 'interest' | 'desire' | 'action';
         } | null;
     }>;
 };
@@ -78133,6 +78155,162 @@ export type PostProjectsByIdImageStudioTalkingVideoJobsResponses = {
 };
 
 export type PostProjectsByIdImageStudioTalkingVideoJobsResponse = PostProjectsByIdImageStudioTalkingVideoJobsResponses[keyof PostProjectsByIdImageStudioTalkingVideoJobsResponses];
+
+export type PostProjectsByIdImageStudioShortVideoJobsData = {
+    body: CreateProjectShortVideoJobRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/short-video-jobs';
+};
+
+export type PostProjectsByIdImageStudioShortVideoJobsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too Many Requests
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable - storage unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioShortVideoJobsError = PostProjectsByIdImageStudioShortVideoJobsErrors[keyof PostProjectsByIdImageStudioShortVideoJobsErrors];
+
+export type PostProjectsByIdImageStudioShortVideoJobsResponses = {
+    /**
+     * Short started
+     */
+    201: {
+        data: ProjectImageJob;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioShortVideoJobsResponse = PostProjectsByIdImageStudioShortVideoJobsResponses[keyof PostProjectsByIdImageStudioShortVideoJobsResponses];
 
 export type PostProjectsByIdImageStudioTalkingVideoScriptsData = {
     body: WriteProjectTalkingVideoScriptsRequest;

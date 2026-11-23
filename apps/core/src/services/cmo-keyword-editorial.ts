@@ -13,7 +13,6 @@ export const EDITORS = [
   "openai/gpt-5.3-codex",
 ] as const;
 export type Editor = (typeof EDITORS)[number];
-export { EDITORIAL_BATCH_SIZE } from "@/lib/ads/native-keyword-ideas";
 
 const MAX_PHRASES = 12;
 const MIN_VOLUME = 10;

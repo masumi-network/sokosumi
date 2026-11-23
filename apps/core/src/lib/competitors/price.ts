@@ -10,7 +10,6 @@ import { PAID_DATA_MARKUP_PERCENT } from "@sokosumi/utils";
  * competitors, whose pages had no earlier reading to compare, cost $0.0088
  * each.
  */
-export const COMPETITOR_CHECK_PRICE_VERIFIED_AT = "2026-11-18";
 export const COMPETITOR_CHECK_COST_USD = {
   /** One Exa search with ten results and their passages. */
   newsSearch: 0.007,

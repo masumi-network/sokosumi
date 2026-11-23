@@ -87,12 +87,9 @@ export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
       {stages.length > 0 ? (
         <Section title="Your funnel" wide>
           <p className="note">
-            How strangers become customers, and what I do at each step.
+            How strangers become customers. Every network helps at every step.
           </p>
-          <FunnelPlan
-            stages={stages}
-            improvements={strategy.improvements ?? []}
-          />
+          <FunnelPlan stages={stages} calendar={strategy.calendar} />
         </Section>
       ) : null}
       {strategy.calendar.length > 0 ? (

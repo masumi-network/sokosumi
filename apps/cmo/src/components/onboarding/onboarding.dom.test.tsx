@@ -1494,3 +1494,28 @@ it("shows a connected handle that already starts with @ once", async () => {
     "@test_channel",
   );
 });
+
+it("tells the owner what Core cut when Cuso could not fill the month", async () => {
+  await act(async () =>
+    root.render(
+      <PlanStep
+        overview={draft({
+          viewerCanApprove: true,
+          strategy: {
+            ...strategy,
+            fitted: ["YouTube: 1 a day instead of 7 Shorts a day."],
+          },
+        })}
+        phase="review"
+        onRequest={async () => null}
+        onSetAds={async () => null}
+        onAnswer={noop}
+        onUpdate={async () => null}
+        onApprove={noop}
+        onConnectMeasurement={async () => ({ url: null, error: null })}
+      />,
+    ),
+  );
+  expect(text()).toContain("Less than Cuso planned");
+  expect(text()).toContain("YouTube: 1 a day instead of 7 Shorts a day.");
+});

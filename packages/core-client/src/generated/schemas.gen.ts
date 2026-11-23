@@ -23901,6 +23901,22 @@ export const ProjectTalkingVideoSchema = {
         },
         music: {
             type: 'boolean'
+        },
+        format: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: [
+                        'voiceover',
+                        'site_tour',
+                        'top_three',
+                        'slideshow'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     required: [
@@ -23909,7 +23925,8 @@ export const ProjectTalkingVideoSchema = {
         'languageCode',
         'siteShots',
         'broll',
-        'music'
+        'music',
+        'format'
     ]
 } as const;
 
@@ -34329,6 +34346,15 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
+                                    },
+                                    stage: {
+                                        type: 'string',
+                                        enum: [
+                                            'awareness',
+                                            'interest',
+                                            'desire',
+                                            'action'
+                                        ]
                                     }
                                 },
                                 required: [
@@ -34391,6 +34417,15 @@ export const MarketingStrategySchema = {
                             },
                             maxItems: 10,
                             default: []
+                        },
+                        fitted: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 12
                         },
                         patched: {
                             type: 'array',
@@ -34716,6 +34751,15 @@ export const MarketingStrategySchema = {
                                                 type: 'string',
                                                 minLength: 1,
                                                 maxLength: 400
+                                            },
+                                            stage: {
+                                                type: 'string',
+                                                enum: [
+                                                    'awareness',
+                                                    'interest',
+                                                    'desire',
+                                                    'action'
+                                                ]
                                             }
                                         },
                                         required: [
@@ -36261,6 +36305,15 @@ export const MarketingStrategyRequestSchema = {
                                 type: 'string',
                                 minLength: 1,
                                 maxLength: 400
+                            },
+                            stage: {
+                                type: 'string',
+                                enum: [
+                                    'awareness',
+                                    'interest',
+                                    'desire',
+                                    'action'
+                                ]
                             }
                         },
                         required: [
@@ -36323,6 +36376,15 @@ export const MarketingStrategyRequestSchema = {
                     },
                     maxItems: 10,
                     default: []
+                },
+                fitted: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    maxItems: 12
                 },
                 patched: {
                     type: 'array',
@@ -36648,6 +36710,15 @@ export const MarketingStrategyRequestSchema = {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
+                                    },
+                                    stage: {
+                                        type: 'string',
+                                        enum: [
+                                            'awareness',
+                                            'interest',
+                                            'desire',
+                                            'action'
+                                        ]
                                     }
                                 },
                                 required: [
@@ -42805,6 +42876,15 @@ export const SocialPostSchema = {
                     minLength: 1,
                     maxLength: 400
                 },
+                stage: {
+                    type: 'string',
+                    enum: [
+                        'awareness',
+                        'interest',
+                        'desire',
+                        'action'
+                    ]
+                },
                 campaignId: {
                     type: 'string',
                     minLength: 1,
@@ -44934,6 +45014,90 @@ export const CreateProjectTalkingVideoJobRequestSchema = {
     required: [
         'script',
         'presenter',
+        'idempotencyKey'
+    ]
+} as const;
+
+export const CreateProjectShortVideoJobRequestSchema = {
+    type: 'object',
+    properties: {
+        format: {
+            type: 'string',
+            enum: [
+                'voiceover',
+                'site_tour',
+                'top_three',
+                'slideshow'
+            ]
+        },
+        script: {
+            type: 'string',
+            minLength: 20,
+            maxLength: 600
+        },
+        hookLine: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 48
+        },
+        voice: {
+            type: 'string',
+            enum: [
+                'Aria',
+                'Roger',
+                'Sarah',
+                'Laura',
+                'Charlie',
+                'George',
+                'Callum',
+                'River',
+                'Liam',
+                'Charlotte',
+                'Alice',
+                'Matilda',
+                'Will',
+                'Jessica',
+                'Eric',
+                'Chris',
+                'Brian',
+                'Daniel',
+                'Lily',
+                'Bill'
+            ],
+            default: 'Sarah'
+        },
+        languageCode: {
+            type: 'string',
+            pattern: '^[a-z]{2}$',
+            default: 'en'
+        },
+        pictureAssetIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 6,
+            default: []
+        },
+        pictureFileIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 6,
+            default: []
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 200
+        }
+    },
+    required: [
+        'format',
+        'script',
         'idempotencyKey'
     ]
 } as const;
@@ -61469,6 +61633,15 @@ export const CmoPlanSchema = {
                         type: 'string',
                         minLength: 1,
                         maxLength: 400
+                    },
+                    stage: {
+                        type: 'string',
+                        enum: [
+                            'awareness',
+                            'interest',
+                            'desire',
+                            'action'
+                        ]
                     }
                 },
                 required: [
@@ -61531,6 +61704,15 @@ export const CmoPlanSchema = {
             },
             maxItems: 10,
             default: []
+        },
+        fitted: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 12
         },
         patched: {
             type: 'array',
@@ -61856,6 +62038,15 @@ export const CmoPlanSchema = {
                                 type: 'string',
                                 minLength: 1,
                                 maxLength: 400
+                            },
+                            stage: {
+                                type: 'string',
+                                enum: [
+                                    'awareness',
+                                    'interest',
+                                    'desire',
+                                    'action'
+                                ]
                             }
                         },
                         required: [

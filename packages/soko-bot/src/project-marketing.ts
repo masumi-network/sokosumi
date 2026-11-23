@@ -416,6 +416,14 @@ export const cmoSearchAdSchema = z.object({
 });
 export type CmoSearchAd = z.infer<typeof cmoSearchAdSchema>;
 
+/** The funnel's four stages, top to bottom: the classic AIDA funnel. */
+export const CMO_AIDA_STAGES = [
+  "awareness",
+  "interest",
+  "desire",
+  "action",
+] as const;
+
 export const cmoCalendarEntrySchema = z.object({
   /** Stable id Cuso chooses so later saves update the same entry. */
   id: z.string().trim().min(1).max(64),
@@ -539,6 +547,8 @@ export const cmoCalendarEntrySchema = z.object({
   approach: z.enum(CMO_CONTENT_APPROACHES).optional(),
   /** The topic (pillar) it covers. */
   pillar: shortText.optional(),
+  /** The funnel step it serves (cmo-v18): every network carries every step. */
+  stage: z.enum(CMO_AIDA_STAGES).optional(),
 });
 export type CmoCalendarEntry = z.infer<typeof cmoCalendarEntrySchema>;
 
@@ -556,6 +566,7 @@ export const socialPostPlanningSchema = cmoCalendarEntrySchema.pick({
   why: true,
   approach: true,
   pillar: true,
+  stage: true,
   campaignId: true,
   visual: true,
   visualFileIds: true,
@@ -603,14 +614,6 @@ export const REFERENCE_PURPOSES = [
   "people",
   "story",
   "brand",
-] as const;
-
-/** The funnel's four stages, top to bottom: the classic AIDA funnel. */
-export const CMO_AIDA_STAGES = [
-  "awareness",
-  "interest",
-  "desire",
-  "action",
 ] as const;
 
 /**
@@ -1050,6 +1053,12 @@ export const marketingStrategyPlanSchema = z.object({
   previews: z.array(cmoPreviewSchema).max(4).default([]),
   /** After a change request: what is different from the last version. */
   changes: z.array(shortText).max(10).default([]),
+  /**
+   * Set by Core when Cuso's finish turns could not fill the month and the
+   * strategy was fitted to its calendar: each cadence it lowered, in words
+   * the owner reads. The next whole save clears it.
+   */
+  fitted: z.array(shortText).max(12).optional(),
   /**
    * What the last patch changed: each entry it touched, with the entry as it
    * was before (null when the patch added it), so CMO can strike it through.

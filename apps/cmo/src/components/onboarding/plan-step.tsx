@@ -469,6 +469,7 @@ export function PlanReview({
   // From the tap until the new plan lands, the old one is not shown as if it held.
   const replanning = sending ?? (writing && asked ? asked : null);
   const changes = strategy.changes ?? [];
+  const fitted = strategy.fitted ?? [];
   const approved = strategyApproved(overview);
   const locked = readOnly || approved;
   const [questions, answer] = useAnswers(strategy.questions ?? [], onAnswer);
@@ -711,6 +712,21 @@ export function PlanReview({
         />
         {readOnly ? <p className="note ob-plan-built">{line}</p> : null}
         {approved ? null : <PlanSizes strategy={strategy} />}
+
+        {fitted.length > 0 && !writing ? (
+          <div className="card ob-changed">
+            <h2>Less than Cuso planned</h2>
+            <p className="note">
+              Cuso could not fill the whole month, so these networks post less
+              than he first wrote:
+            </p>
+            <ul className="ob-list">
+              {fitted.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         {changes.length > 0 && !writing ? (
           <div className="card ob-changed">

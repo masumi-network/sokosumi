@@ -167,70 +167,16 @@
   text-wrap: pretty;
 }
 
-/* The same three answers at every stage, so the columns line up down the page. */
-.sc-stage-parts {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px 24px;
+/* About how much of the month serves the step. */
+.sc-share {
   margin: 0;
-}
-
-.sc-stage-parts dt {
-  margin-bottom: 6px;
   color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.875rem;
 }
 
-.sc-stage-parts dd,
-.sc-stage-parts p {
-  margin: 0;
-}
-
-/* Cuso's or the owner's sentence, above the lines that detail it. */
-.sc-stage-parts .sc-says {
-  margin-bottom: 12px;
-  font-weight: 500;
-}
-
-.sc-plays,
-.sc-ideas {
-  display: grid;
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.sc-plays li,
-.sc-ideas li {
-  display: grid;
-  gap: 2px;
-}
-
-.sc-play-channel {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.sc-share b {
+  color: var(--foreground);
   font-weight: 600;
-}
-
-.sc-measure {
-  display: grid;
-  justify-items: start;
-  gap: 2px;
-}
-
-.sc-measure b {
-  font-size: 1.5rem;
-  font-weight: 300;
-  line-height: 1.75rem;
-}
-
-@media (max-width: 640px) {
-  .sc-stage-parts {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 /* Before and after, one row a channel */

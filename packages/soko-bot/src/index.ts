@@ -303,6 +303,7 @@ export {
 export { CMO_PART_PATCH_STRATEGY_SKILL } from "./versions/cmo-v13-skills.js";
 export { CMO_CHANNEL_FIT_STRATEGY_SKILL } from "./versions/cmo-v14-skills.js";
 export { CMO_PLAIN_WORDS_STRATEGY_SKILL } from "./versions/cmo-v15-skills.js";
+export { CMO_STAGE_SPREAD_STRATEGY_SKILL } from "./versions/cmo-v18-skills.js";
 export {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
@@ -326,7 +327,6 @@ export {
   renderWritingSkill,
   WRITING_SKILL_GROUPS,
   WRITING_SKILLS,
-  writingSkillForChannel,
   writingSkillsBrief,
   writingSkillsForChannels,
 } from "./writing-skills/index.js";
