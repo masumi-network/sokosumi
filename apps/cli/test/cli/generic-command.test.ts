@@ -157,6 +157,11 @@ for (const [name, argv, message] of [
     /`jobs events` does not take --limit/,
   ],
   [
+    "--api-key-stdin",
+    ["jobs", "events", "job-1", "--api-key-stdin"],
+    /`jobs events` does not take --api-key-stdin/,
+  ],
+  [
     "a --query without =",
     ["jobs", "events", "job-1", "--query", "limit"],
     /--query expects KEY=VALUE/,

@@ -1,9 +1,5 @@
 import type { CoreHttpClient } from "../../api/http-client.js";
-import {
-  type CliOptions,
-  GLOBAL_BOOLEAN_FLAG_BY_TOKEN,
-  GLOBAL_VALUE_OPTIONS,
-} from "../help.js";
+import { type CliOptions, GLOBAL_VALUE_OPTIONS } from "../help.js";
 import type { CliCommandCatalogEntry, CoreMethod } from "./catalog.js";
 import {
   asArray,
@@ -16,7 +12,8 @@ import {
 const PATH_PARAM = /\{[^}]+\}/g;
 const OPTIONS = new Set<string>([
   ...GLOBAL_VALUE_OPTIONS,
-  ...Object.values(GLOBAL_BOOLEAN_FLAG_BY_TOKEN),
+  "json",
+  "preprod",
   "query",
   "input-json",
   "input-file",
