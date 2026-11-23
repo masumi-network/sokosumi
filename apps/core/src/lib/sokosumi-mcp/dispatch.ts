@@ -39,10 +39,11 @@ coreV1.notFound((c) =>
 );
 
 /**
- * A workspace slug as Core creates them, and safe in a header: `Headers.set`
- * throws on a newline or a character above U+00FF.
+ * Safe in a header (`Headers.set` throws on a newline or a character above
+ * U+00FF). Whether the slug names a workspace is Core's to answer: older
+ * organizations may have slugs outside today's format.
  */
-const SLUG = /^[a-z0-9][a-z0-9_-]{0,99}$/i;
+const SLUG = /^[\x21-\x7e]{1,200}$/;
 
 /**
  * Runs a tool call as a `/v1` request, in process: `authMiddleware` takes
@@ -73,9 +74,12 @@ export async function callTool(
       createError({
         message: "An MCP tool call failed before Core answered it",
         why: "Building or sending the /v1 request threw",
-        fix: "failure names the error; the tool name is on the event.",
+        fix: "failure names the error; mcp.operation names the tool's operation.",
       }),
-      { failure: messageSafeErrorFields(error) },
+      {
+        failure: messageSafeErrorFields(error),
+        mcp: { operation: `${input.method} ${input.path}` },
+      },
     );
     return toolError({
       status: 500,

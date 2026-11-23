@@ -197,7 +197,11 @@ describe("callTool", () => {
       'Argument "workspace" must be a workspace slug.',
     ],
     [
-      { id: "t1", workspace: "ünïcode" },
+      { id: "t1", workspace: "acme corp" },
+      'Argument "workspace" must be a workspace slug.',
+    ],
+    [
+      { id: "t1", workspace: "acme\u0101" },
       'Argument "workspace" must be a workspace slug.',
     ],
   ])(
