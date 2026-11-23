@@ -11803,6 +11803,21 @@
       "descending": "descendente",
       "noHistory": "No hay cambios registrados.",
       "undoBatch": "Deshacer lote",
+      "appendCsv": {
+        "title": "Añadir filas desde CSV",
+        "description": "Añade las filas del CSV al final de esta tabla. Solo se rellenan las columnas de texto, desde columnas del CSV con el mismo nombre. Las demás columnas quedan vacías.",
+        "file": "Archivo CSV",
+        "matched": "Rellena: {columns}",
+        "skipped": "Omitidas, no hay columna de texto con este nombre: {columns}",
+        "noMatch": "Ninguna columna del CSV tiene el nombre de una columna de texto de esta tabla. Solo se pueden rellenar columnas de texto. Cambia los encabezados del CSV para que coincidan y vuelve a elegir el archivo.",
+        "skipDuplicates": "{count, plural, one {Omitir # fila que ya está en esta tabla} other {Omitir # filas que ya están en esta tabla}}",
+        "add": "{count, plural, =0 {Añadir filas} one {Añadir # fila} other {Añadir # filas}}",
+        "done": "{count, plural, one {# fila añadida.} other {# filas añadidas.}}",
+        "reading": "Leyendo el archivo y comprobando la tabla…",
+        "ambiguous": "Estas columnas del CSV podrían ir a más de una columna de la tabla, o comparten una: {columns}. Da a cada columna su propio nombre y vuelve a elegir el archivo.",
+        "full": "{room, plural, =0 {Esta tabla está llena: tiene 10.000 filas, incluidas las archivadas.} one {Esta tabla tiene espacio para # fila más (10.000 como máximo, incluidas las archivadas).} other {Esta tabla tiene espacio para # filas más (10.000 como máximo, incluidas las archivadas).}} El CSV añade {count}. No se ha añadido nada.",
+        "stopped": "{added, plural, one {Se detuvo. Sokosumi confirmó # de {count} filas como añadidas.} other {Se detuvo. Sokosumi confirmó # de {count} filas como añadidas.}} La tabla muestra lo que se guardó. Reintentar añade el resto sin duplicar ninguna fila."
+      },
       "findReplace": {
         "title": "Buscar y reemplazar",
         "description": "Cambia cada celda de una columna que contenga exactamente el valor que buscas, sin distinguir mayúsculas. Se guarda como un solo cambio que puedes deshacer desde Historial y fuentes.",
