@@ -7,6 +7,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { track } from "@vercel/analytics";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import {
   afterAll,
@@ -20,7 +21,6 @@ import {
 
 import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
 import { type EmailCode, useEmailCode } from "@/auth/components/use-email-code";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
   captchaErrorMessageMock,
@@ -126,9 +126,9 @@ function renderForm(
  */
 function SignInCodeStep() {
   const emailCode = useEmailCode({ eventType: "signIn", returnUrl: "/chat" });
-  useMountEffect(() => {
+  useEffect(() => {
     void emailCode.sendCode(EMAIL);
-  });
+  }, []);
   return (
     <>
       <SignInForm

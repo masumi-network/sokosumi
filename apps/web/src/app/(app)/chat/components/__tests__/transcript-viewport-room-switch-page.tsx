@@ -12,7 +12,7 @@
  */
 import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { NextIntlClientProvider } from "next-intl";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 
 import { RoomShellLayout } from "@/app/chat/components/room-shell-layout";
@@ -21,7 +21,6 @@ import {
   TranscriptViewport,
 } from "@/app/chat/components/transcript-viewport";
 import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-ranges";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import { createFormats } from "@/i18n/time-format";
 import messages from "@/messages/en.json";
 
@@ -86,10 +85,10 @@ const positions = new Map<string, TranscriptPosition>();
 /** A one-line loading state that becomes a card, like result previews. */
 function Preview() {
   const [loaded, setLoaded] = useState(false);
-  useMountEffect(() => {
+  useEffect(() => {
     const timer = setTimeout(() => setLoaded(true), 150);
     return () => clearTimeout(timer);
-  });
+  }, []);
   return loaded ? (
     <div className="h-40 rounded border">card</div>
   ) : (
@@ -124,7 +123,7 @@ function Room({ room }: { room: string }) {
     return cached;
   });
   const [initialPosition] = useState(() => positions.get(room));
-  useMountEffect(() => {
+  useEffect(() => {
     if (!REFRESH) return;
     // The mount refresh: same messages, every object new.
     const timer = setTimeout(() => {
@@ -137,7 +136,7 @@ function Room({ room }: { room: string }) {
       setRows(next);
     }, 50);
     return () => clearTimeout(timer);
-  });
+  }, []);
   return (
     <RoomShellLayout
       rootClassName="flex h-[600px] min-h-0 min-w-0 flex-col overflow-hidden"

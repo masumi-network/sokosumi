@@ -1,6 +1,7 @@
 /** Playwright capture page for Social preview footer vs menu actions. */
 import { MoreHorizontal } from "lucide-react";
 import { NextIntlClientProvider } from "next-intl";
+import { useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { SocialPostPreview } from "@/app/projects/components/social-posts/social-post-preview";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import { createFormats } from "@/i18n/time-format";
 import messages from "@/messages/en.json";
 
@@ -19,9 +19,9 @@ function duplicateMenu(): boolean {
 }
 
 export function SocialPreviewActionsPage() {
-  useMountEffect(() => {
+  useEffect(() => {
     document.body.dataset.hydrated = "true";
-  });
+  }, []);
 
   const showComposeInMenu = duplicateMenu();
 

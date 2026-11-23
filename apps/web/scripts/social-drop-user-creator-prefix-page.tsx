@@ -1,9 +1,9 @@
 /** Playwright capture page for Social post creator labels. */
+import { useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { socialPostCreatorLabel } from "@/app/projects/components/social-posts/social-post-creator-label";
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 
 const ROWS = [
   {
@@ -23,9 +23,9 @@ const ROWS = [
 ];
 
 export function SocialDropUserCreatorPrefixPage() {
-  useMountEffect(() => {
+  useEffect(() => {
     document.body.dataset.hydrated = "true";
-  });
+  }, []);
 
   return (
     <div className="bg-muted p-6">

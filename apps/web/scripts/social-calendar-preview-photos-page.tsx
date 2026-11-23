@@ -1,11 +1,11 @@
 /** Playwright capture page for Social calendar preview account photos. */
 import type { ProjectSocialConnection } from "@sokosumi/core-client";
 import { NextIntlClientProvider } from "next-intl";
+import { useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { AccountChipMark } from "@/components/social-account-chip-mark";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import { createFormats } from "@/i18n/time-format";
 import messages from "@/messages/en.json";
 
@@ -69,9 +69,9 @@ export function CalendarPreviewPhotosPage() {
       ? "before"
       : "after";
 
-  useMountEffect(() => {
+  useEffect(() => {
     document.body.dataset.hydrated = "true";
-  });
+  }, []);
 
   return (
     <NextIntlClientProvider
