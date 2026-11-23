@@ -83,12 +83,14 @@ it("shows every network a month goes out on, a talking video on each of its netw
   ]) {
     expect(html).toContain(`<b>${name}</b>`);
   }
-  expect(html).toMatch(/<b class="num">1<\/b> Reel<\/span>/);
-  expect(html).toMatch(/<b class="num">1<\/b> YouTube Short</);
-  expect(html).toMatch(/<b class="num">1<\/b> TikTok</);
+  // Named, never counted (owner, 2026-11-23).
+  expect(html).toContain("<figcaption>Reels");
+  expect(html).toContain("<figcaption>YouTube Shorts");
+  expect(html).toContain("<figcaption>TikToks");
+  expect(html).not.toContain('class="num"');
 });
 
-it("shows one short video on TikTok, Reels and Shorts, each counted in its own words", () => {
+it("shows one short video on TikTok, Reels and Shorts, each named in its own words", () => {
   const html = feeds([
     piece("sv", {
       channel: "tiktok",
@@ -96,7 +98,7 @@ it("shows one short video on TikTok, Reels and Shorts, each counted in its own w
       alsoOn: ["instagram", "youtube"],
     }),
   ]);
-  expect(html).toMatch(/<b class="num">1<\/b> TikTok</);
-  expect(html).toMatch(/<b class="num">1<\/b> Reel</);
-  expect(html).toMatch(/<b class="num">1<\/b> YouTube Short</);
+  expect(html).toContain("<figcaption>TikToks");
+  expect(html).toContain("<figcaption>Reels");
+  expect(html).toContain("<figcaption>YouTube Shorts");
 });

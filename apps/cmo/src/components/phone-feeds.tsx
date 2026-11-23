@@ -38,7 +38,6 @@ type Screen = {
   entries: Entry[];
   /** A proposed channel: shown as what the month could add, per month. */
   optional?: boolean;
-  perMonth?: number;
   /** The ads platform the month's ads run on; they need its account. */
   ads?: "google_ads" | "meta_ads";
 };
@@ -162,28 +161,22 @@ const VIDEO_NAMES: Record<string, [string, string]> = {
   tiktok: ["TikTok", "TikToks"],
 };
 
-/**
- * What a phone holds in the network's own words: "8 Reels · 11 posts", "26
- * YouTube Shorts". Videos count apart where the network names them.
- */
-export function screenCounts(
-  screen: Screen,
-): { count: number; name: string }[] {
+/** What a phone shows, without counts: "Reels · Instagram posts". */
+function screenKinds(screen: Screen): string[] {
   const names = VIDEO_NAMES[screen.key];
-  const videos = names
-    ? screen.entries.filter((entry) =>
-        formatHasVideo(entry.channel, entry.format),
-      ).length
-    : 0;
-  const rest = screen.entries.length - videos;
-  return [
-    ...(videos > 0 && names
-      ? [{ count: videos, name: videos === 1 ? names[0] : names[1] }]
-      : []),
-    ...(rest > 0
-      ? [{ count: rest, name: rest === 1 ? screen.one : screen.many }]
-      : []),
+  const videos =
+    names &&
+    screen.entries.some((entry) => formatHasVideo(entry.channel, entry.format));
+  const rest = screen.entries.some(
+    (entry) => !names || !formatHasVideo(entry.channel, entry.format),
+  );
+  const kinds = [
+    ...(videos && names ? [names[1]] : []),
+    ...(rest ? [screen.many] : []),
   ];
+  return kinds.map((kind, index) =>
+    index === 0 ? `${kind.charAt(0).toUpperCase()}${kind.slice(1)}` : kind,
+  );
 }
 
 /**
@@ -215,7 +208,6 @@ export function proposalScreens(strategy: Strategy): Screen[] {
         icon: proposal.channel,
         entries,
         optional: true,
-        perMonth: proposal.perMonth,
       },
     ];
   });
@@ -285,17 +277,11 @@ export function PhoneFeeds({
           <figcaption>
             {screen.optional ? (
               <>
-                <b className="num">+{screen.perMonth}</b> {screen.many} if you
-                add {screen.name}
+                {screen.many} if you add {screen.name}
               </>
             ) : (
               <>
-                {screenCounts(screen).map(({ count, name }, index) => (
-                  <span key={name}>
-                    {index > 0 ? " · " : null}
-                    <b className="num">{count}</b> {name}
-                  </span>
-                ))}
+                {screenKinds(screen).join(" · ")}
                 {screen.ads && !overview.adProviders.includes(screen.ads) ? (
                   <small>
                     Planned. Connect {screen.name} in Channels to launch them.

@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { cmoOverview } from "../test-fixtures/cmo";
 import { PlanPanel } from "./onboarding/plan-tabs";
 import { planPieces } from "./phone-feeds";
-import { goalLine, plural } from "./strategy-reveal";
+import { goalLine, pluralName } from "./strategy-reveal";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
@@ -176,33 +176,34 @@ describe("strategy reveal", () => {
   });
 });
 
-describe("plural", () => {
-  it("counts the post in a name that goes on after it", () => {
-    expect(plural("Post with a reply", 8)).toBe("8 posts with a reply");
-    expect(plural("Post with a reply", 1)).toBe("1 post with a reply");
+describe("pluralName", () => {
+  it("puts the post in a name that goes on after it in the plural", () => {
+    expect(pluralName("Post with a reply")).toBe("posts with a reply");
   });
 
-  it("still counts a plain name", () => {
-    expect(plural("Image post", 13)).toBe("13 image posts");
-    expect(plural("YouTube Short", 2)).toBe("2 YouTube Shorts");
+  it("names a plain format in the plural, no count", () => {
+    expect(pluralName("Image post")).toBe("image posts");
+    expect(pluralName("YouTube Short")).toBe("YouTube Shorts");
   });
 
   it("keeps the platforms' format names", () => {
-    expect(plural("Reel", 31)).toBe("31 Reels");
-    expect(plural("Talking Reel", 1)).toBe("1 Talking Reel");
-    expect(plural("Talking YouTube Short", 1)).toBe("1 Talking YouTube Short");
+    expect(pluralName("Reel")).toBe("Reels");
+    expect(pluralName("Talking YouTube Short")).toBe("Talking YouTube Shorts");
   });
 });
 
-it("counts a talking video on YouTube too, and names a network left out with its reason", async () => {
+it("shows a talking video on YouTube too, without counts, and names a network left out with its reason", async () => {
   const { richPlan } = await import("../test-fixtures/onboarding");
   const { ChannelPlan } = await import("./strategy-reveal");
   const html = renderToStaticMarkup(<ChannelPlan strategy={richPlan} />);
   // YouTube has no entry of its own: its piece is LinkedIn's talking video.
   const youtube = html.slice(html.indexOf("YouTube</p>"));
   expect(youtube.slice(0, youtube.indexOf("</li>"))).toMatch(
-    /1 this month.*1 Talking YouTube Short/,
+    /Talking YouTube Shorts/,
   );
+  // What Cuso makes, never how many or how often (owner, 2026-11-23).
+  expect(html).not.toMatch(/\d+ (a day|a week|this month)|\d+ (image )?posts/);
+  expect(youtube.slice(0, youtube.indexOf("</li>"))).not.toMatch(/\d/);
   expect(html).toContain(
     "<b>Not on Facebook.</b> Product teams do not follow software vendors on Facebook.",
   );
