@@ -210,8 +210,12 @@ function BrandLookSummary({ look }: { look: PersistedDesignMd["look"] }) {
   );
 }
 
-/** Longest voice shown whole; a longer one opens from a preview this long. */
+/**
+ * Longest voice shown whole, in characters as read (graphemes); a longer one
+ * opens from a preview this long.
+ */
 const VOICE_PREVIEW_CHARS = 48;
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
 /**
  * The voice can be a paragraph, which would push the settings hint and the
@@ -222,15 +226,19 @@ function BrandVoice({ voice }: { voice: string }) {
   const t = useTranslations(
     "Components.Organizations.CreateOrganizationWizard",
   );
-  if (voice.length <= VOICE_PREVIEW_CHARS) return voice;
-  const preview = voice
-    .slice(0, VOICE_PREVIEW_CHARS)
-    .replace(/\s+\S*$/, "")
-    .replace(/[\s,;:.]+$/, "");
+  const graphemes = Array.from(GRAPHEMES.segment(voice), (g) => g.segment);
+  if (graphemes.length <= VOICE_PREVIEW_CHARS) return voice;
+  const head = graphemes.slice(0, VOICE_PREVIEW_CHARS).join("");
+  // Drop a word the cut lands in, unless it is the only one.
+  const preview = (
+    /\s/.test(graphemes[VOICE_PREVIEW_CHARS] ?? "")
+      ? head
+      : head.replace(/\s+\S*$/, "")
+  ).replace(/[\s,;:.]+$/, "");
 
   return (
     <details className="group">
-      <summary className="focus-visible:ring-ring cursor-pointer list-none rounded-sm outline-none focus-visible:ring-2 [&::-webkit-details-marker]:hidden">
+      <summary className="focus-visible:outline-ring cursor-pointer list-none rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 [&::-webkit-details-marker]:hidden">
         <span className="group-open:hidden">{preview}… </span>
         <span className="font-medium underline underline-offset-4">
           <span className="group-open:hidden">{t("Brand.voiceShowAll")}</span>

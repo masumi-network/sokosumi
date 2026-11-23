@@ -325,6 +325,36 @@ describe("CreateOrganizationWizard", () => {
     expect(details?.open).toBe(true);
     expect(screen.getByText(voice)).toBeVisible();
     expect(screen.queryByRole("link")).toBeNull();
+
+    // The same summary closes it again.
+    await user.click(toggle as HTMLElement);
+    expect(details?.open).toBe(false);
+  });
+
+  it.each([
+    ["shows 48 characters whole", `${"word ".repeat(9)}end`, null],
+    [
+      "previews from 49 characters",
+      `${"word ".repeat(9)}ends`,
+      `${"word ".repeat(8)}word…`,
+    ],
+    [
+      "never splits a character when no word fits",
+      `${"x".repeat(47)}\u{1F680}\u{1F680} then more`,
+      `${"x".repeat(47)}\u{1F680}…`,
+    ],
+  ])("%s", async (_, voice, preview) => {
+    await showBrandLook({ colors: [], fonts: [], tone: null, voice });
+
+    const toggle = screen.queryByText("Brand.voiceShowAll")?.closest("summary");
+    if (preview === null) {
+      expect(toggle).toBeFalsy();
+      expect(screen.getByText(voice)).toBeVisible();
+    } else {
+      expect(toggle?.textContent).toBe(
+        `${preview} Brand.voiceShowAllBrand.voiceShowLess`,
+      );
+    }
   });
 
   it("shows a short voice whole, with nothing to open", async () => {
