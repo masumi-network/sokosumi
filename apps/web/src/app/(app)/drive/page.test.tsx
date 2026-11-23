@@ -21,6 +21,9 @@ const patchDriveFilesRenameMock = vi.fn();
 const patchDriveFoldersRenameMock = vi.fn();
 const patchDriveFilesMoveMock = vi.fn();
 const postDriveFoldersMock = vi.fn();
+const postDriveTasksCopyMock = vi.fn();
+const getProjectsByIdMock = vi.fn();
+const getTasksByIdMock = vi.fn();
 const getUsersByIdOrganizationsMock = vi.fn();
 const replaceMock = vi.fn();
 const pushMock = vi.fn();
@@ -153,13 +156,9 @@ vi.mock("@sokosumi/core-client", async (importOriginal) => ({
   patchDriveFoldersRename: (...args: unknown[]) =>
     patchDriveFoldersRenameMock(...args),
   postDriveFolders: (...args: unknown[]) => postDriveFoldersMock(...args),
-  // A project or task named in the URL but not yet listed: its name is read.
-  getProjectsById: async ({ path }: { path: { id: string } }) => ({
-    data: { data: { id: path.id, name: `Project ${path.id}` } },
-  }),
-  getTasksById: async ({ path }: { path: { id: string } }) => ({
-    data: { data: { id: path.id, name: `Task ${path.id}` } },
-  }),
+  postDriveTasksCopy: (...args: unknown[]) => postDriveTasksCopyMock(...args),
+  getProjectsById: (...args: unknown[]) => getProjectsByIdMock(...args),
+  getTasksById: (...args: unknown[]) => getTasksByIdMock(...args),
 }));
 
 vi.mock("@/lib/utils/drive-file-list.client", async (importOriginal) => {
@@ -209,6 +208,10 @@ vi.mock("@/lib/utils/drive-tasks-list.client", () => ({
 vi.mock("@/lib/utils/drive-recents-list.client", () => ({
   fetchDriveRecentsPage: (...args: unknown[]) =>
     fetchDriveRecentsPageMock(...args),
+}));
+
+vi.mock("@/app/drive/components/drive-cmo-project-banner", () => ({
+  DriveCmoProjectBanner: () => null,
 }));
 
 vi.mock("@/app/drive/components/drive-tasks-filters", () => ({
@@ -926,6 +929,311 @@ describe("DrivePage tasks mobile toolbar", () => {
 
     await user.click(screen.getByTestId("tasks-mobile-filter"));
     expect(screen.getByRole("dialog", { name: "filterTitle" })).toBeVisible();
+  });
+});
+
+describe("DrivePage tasks view cache", () => {
+  beforeEach(() => {
+    queryClient = createDriveQueryClient();
+    searchParams = new URLSearchParams("view=tasks");
+    replaceMock.mockReset();
+    pushMock.mockReset();
+    useSessionMock.mockReset();
+    fetchDriveTasksPageMock.mockReset();
+    fetchDriveRecentsPageMock.mockReset();
+    postDriveTasksCopyMock.mockReset();
+    getProjectsByIdMock.mockReset();
+    getTasksByIdMock.mockReset();
+    getUsersByIdOrganizationsMock.mockReset();
+    useIsMobileMock.mockReset();
+    useIsMobileMock.mockReturnValue(false);
+
+    fetchDriveTasksPageMock.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    fetchDriveRecentsPageMock.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    postDriveTasksCopyMock.mockResolvedValue({ data: {} });
+    getUsersByIdOrganizationsMock.mockResolvedValue({
+      data: { data: [{ id: "org_a", name: "Org A" }] },
+    });
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+  });
+
+  it("reads breadcrumb names from loaded Drive tasks rows without calling getProjectsById or getTasksById", async () => {
+    searchParams = new URLSearchParams(
+      "view=tasks&projectId=proj-1&taskId=task-1",
+    );
+    fetchDriveTasksPageMock.mockImplementation(
+      async ({
+        projectId,
+        taskId,
+      }: {
+        projectId?: string;
+        taskId?: string;
+      }) => {
+        if (taskId === "task-1") {
+          return {
+            items: [
+              {
+                type: "task-file",
+                id: "tf-1",
+                name: "mockup-v2.pdf",
+                fileUrl: "https://example.com/mockup-v2.pdf",
+                size: 1024,
+                mimeType: "application/pdf",
+                updatedAt: new Date("2026-08-25T10:00:00.000Z"),
+              },
+            ],
+            nextCursor: null,
+          };
+        }
+        if (projectId === "proj-1") {
+          return {
+            items: [
+              {
+                type: "task",
+                id: "task-1",
+                name: "Design mockups",
+                latestFileUpdatedAt: new Date("2026-08-25T10:00:00.000Z"),
+              },
+            ],
+            nextCursor: null,
+          };
+        }
+        return {
+          items: [
+            {
+              type: "project",
+              id: "proj-1",
+              name: "Q4 Campaign",
+              latestFileUpdatedAt: new Date("2026-08-25T10:00:00.000Z"),
+            },
+          ],
+          nextCursor: null,
+        };
+      },
+    );
+
+    renderDrive();
+
+    expect(await screen.findByText("mockup-v2.pdf")).toBeVisible();
+    const nav = screen.getByRole("navigation", { name: "breadcrumbNavLabel" });
+    await waitFor(() => {
+      expect(
+        within(nav).getByRole("button", { name: "Q4 Campaign" }),
+      ).toBeVisible();
+      expect(
+        within(nav).getByRole("button", { name: "Design mockups" }),
+      ).toBeVisible();
+    });
+    expect(getProjectsByIdMock).not.toHaveBeenCalled();
+    expect(getTasksByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("refetches on return to Drive tasks view while keeping cached rows visible", async () => {
+    const refetchDeferred = Promise.withResolvers<{
+      items: unknown[];
+      nextCursor: string | null;
+    }>();
+
+    fetchDriveTasksPageMock
+      .mockResolvedValueOnce({
+        items: [
+          {
+            type: "project",
+            id: "proj-1",
+            name: "Alpha",
+            latestFileUpdatedAt: new Date("2026-08-25T10:00:00.000Z"),
+          },
+        ],
+        nextCursor: null,
+      })
+      .mockImplementationOnce(() => refetchDeferred.promise);
+
+    const { unmount } = renderDrive();
+    expect(await screen.findByText("Alpha")).toBeVisible();
+
+    unmount();
+    renderDrive();
+
+    expect(screen.getByText("Alpha")).toBeVisible();
+    await waitFor(() => {
+      expect(fetchDriveTasksPageMock).toHaveBeenCalledTimes(2);
+    });
+
+    await act(async () => {
+      refetchDeferred.resolve({
+        items: [
+          {
+            type: "project",
+            id: "proj-1",
+            name: "Alpha",
+            latestFileUpdatedAt: new Date("2026-08-25T10:00:00.000Z"),
+          },
+          {
+            type: "project",
+            id: "proj-2",
+            name: "Beta",
+            latestFileUpdatedAt: new Date("2026-08-26T10:00:00.000Z"),
+          },
+        ],
+        nextCursor: null,
+      });
+      await refetchDeferred.promise;
+    });
+
+    expect(await screen.findByText("Beta")).toBeVisible();
+  });
+
+  it("disables Load more while Copy to Files refreshes page one and shows Retry when Load more or refresh fails", async () => {
+    const user = userEvent.setup();
+    searchParams = new URLSearchParams("view=tasks&taskId=task-1");
+
+    const file1 = {
+      type: "task-file" as const,
+      id: "tf-1",
+      name: "mockup-v2.pdf",
+      fileUrl: "https://example.com/mockup-v2.pdf",
+      size: 1024,
+      mimeType: "application/pdf",
+      updatedAt: new Date("2026-08-25T10:00:00.000Z"),
+    };
+    const file2 = {
+      type: "task-file" as const,
+      id: "tf-2",
+      name: "spec.pdf",
+      fileUrl: "https://example.com/spec.pdf",
+      size: 2048,
+      mimeType: "application/pdf",
+      updatedAt: new Date("2026-08-24T10:00:00.000Z"),
+    };
+
+    const copyRefreshDeferred = Promise.withResolvers<{
+      items: unknown[];
+      nextCursor: string | null;
+    }>();
+
+    fetchDriveTasksPageMock
+      .mockResolvedValueOnce({ items: [file1], nextCursor: "cursor-2" })
+      .mockImplementationOnce(() => copyRefreshDeferred.promise)
+      .mockRejectedValueOnce(new Error("page 2 failed"))
+      .mockResolvedValueOnce({ items: [file2], nextCursor: null })
+      .mockRejectedValueOnce(new Error("page 1 refresh failed"))
+      .mockResolvedValueOnce({ items: [file1, file2], nextCursor: null });
+
+    renderDrive();
+
+    expect(await screen.findByText("mockup-v2.pdf")).toBeVisible();
+    expect(screen.getByRole("button", { name: "loadMore" })).toBeEnabled();
+
+    // Production write flow: Copy to Files invalidates the Drive cache.
+    await user.click(screen.getByRole("button", { name: "copyToFilesAction" }));
+    await user.click(
+      await screen.findByRole("button", { name: "copyToFilesDialogConfirm" }),
+    );
+
+    await waitFor(() => {
+      expect(postDriveTasksCopyMock).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("button", { name: "loadMore" })).toBeDisabled();
+    });
+    expect(screen.getByText("mockup-v2.pdf")).toBeVisible();
+
+    await act(async () => {
+      copyRefreshDeferred.resolve({ items: [file1], nextCursor: "cursor-2" });
+      await copyRefreshDeferred.promise;
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "loadMore" })).toBeEnabled();
+    });
+
+    // Next page fails: loaded page stays visible, Retry replaces Load more.
+    await user.click(screen.getByRole("button", { name: "loadMore" }));
+    const retryNext = await screen.findByRole("button", {
+      name: "Files.retry",
+    });
+    expect(screen.getByText("mockup-v2.pdf")).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent("loadMoreTasksError");
+    expect(screen.queryByRole("button", { name: "loadMore" })).toBeNull();
+
+    await user.click(retryNext);
+    expect(await screen.findByText("spec.pdf")).toBeVisible();
+    expect(screen.getByText("mockup-v2.pdf")).toBeVisible();
+
+    // Failed page-one refresh after another write keeps loaded rows and shows Retry.
+    await user.click(
+      screen.getAllByRole("button", { name: "copyToFilesAction" })[0]!,
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "copyToFilesDialogConfirm" }),
+    );
+
+    const retryRefresh = await screen.findByRole("button", {
+      name: "Files.retry",
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent("loadTasksError");
+    expect(screen.getByText("mockup-v2.pdf")).toBeVisible();
+    expect(screen.getByText("spec.pdf")).toBeVisible();
+
+    await user.click(retryRefresh);
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "Files.retry" })).toBeNull();
+    });
+    expect(screen.getByText("mockup-v2.pdf")).toBeVisible();
+    expect(screen.getByText("spec.pdf")).toBeVisible();
+  });
+
+  it("never renders a late workspace A tasks response under workspace B", async () => {
+    const orgADeferred = Promise.withResolvers<{
+      items: unknown[];
+      nextCursor: string | null;
+    }>();
+
+    fetchDriveTasksPageMock
+      .mockImplementationOnce(() => orgADeferred.promise)
+      .mockResolvedValueOnce({
+        items: [
+          {
+            type: "project",
+            id: "proj-b",
+            name: "Org B Project",
+            latestFileUpdatedAt: new Date("2026-08-25T10:00:00.000Z"),
+          },
+        ],
+        nextCursor: null,
+      });
+
+    const { rerender } = renderDrive();
+    await waitFor(() => {
+      expect(fetchDriveTasksPageMock).toHaveBeenCalledTimes(1);
+    });
+
+    useSessionMock.mockReturnValue(sessionFor("org_b"));
+    rerender(driveTree());
+
+    expect(await screen.findByText("Org B Project")).toBeVisible();
+
+    await act(async () => {
+      orgADeferred.resolve({
+        items: [
+          {
+            type: "project",
+            id: "proj-a",
+            name: "Org A Project",
+            latestFileUpdatedAt: new Date("2026-08-25T10:00:00.000Z"),
+          },
+        ],
+        nextCursor: null,
+      });
+      await orgADeferred.promise;
+    });
+
+    expect(screen.queryByText("Org A Project")).toBeNull();
+    expect(screen.getByText("Org B Project")).toBeVisible();
   });
 });
 

@@ -59,4 +59,50 @@ describe("useDriveTasksFilterCoworkers", () => {
     });
     expect(result.current).toEqual([]);
   });
+
+  it("drops workspace A coworkers immediately on switch and ignores a late workspace A response under workspace B", async () => {
+    const coworkerA = { id: "cw-a", name: "Alice", slug: "alice" } as Coworker;
+    const coworkerB = { id: "cw-b", name: "Bob", slug: "bob" } as Coworker;
+    const orgAPending = Promise.withResolvers<{ data: { data: Coworker[] } }>();
+    const orgBPending = Promise.withResolvers<{ data: { data: Coworker[] } }>();
+    let orgASignal: AbortSignal | undefined;
+
+    getCoworkersMock
+      .mockResolvedValueOnce({ data: { data: [coworkerA] } })
+      .mockImplementationOnce(({ signal }: { signal?: AbortSignal }) => {
+        orgASignal = signal;
+        return orgAPending.promise;
+      })
+      .mockImplementationOnce(() => orgBPending.promise);
+
+    // Start in org-a with loaded coworkers, then verify switching clears immediately.
+    const { result, rerender } = renderHook(
+      ({ orgId }) => useDriveTasksFilterCoworkers(orgId),
+      { initialProps: { orgId: "org-a" as string | null } },
+    );
+
+    await waitFor(() => expect(result.current).toEqual([coworkerA]));
+
+    // Switch to personal workspace (in-flight) -> org-a coworkers disappear immediately.
+    rerender({ orgId: null });
+    expect(result.current).toEqual([]);
+
+    // Switch to org-b while the previous workspace request is still pending.
+    rerender({ orgId: "org-b" });
+    expect(orgASignal?.aborted).toBe(true);
+    expect(result.current).toEqual([]);
+
+    // Late response from the previous workspace must never appear under org-b.
+    await act(async () => {
+      orgAPending.resolve({ data: { data: [coworkerA] } });
+      await orgAPending.promise;
+    });
+    expect(result.current).toEqual([]);
+
+    await act(async () => {
+      orgBPending.resolve({ data: { data: [coworkerB] } });
+      await orgBPending.promise;
+    });
+    expect(result.current).toEqual([coworkerB]);
+  });
 });
