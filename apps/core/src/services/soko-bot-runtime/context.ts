@@ -46,13 +46,20 @@ export async function getContext(
   }
   const version = await resolveSokoBotVersion(authorized.turn.versionId);
   const persona = await loadSokoBotPersona(authorized.turn.sokoBotId);
+  // A cmo-v17 production run leaves out the skills it never uses.
+  const turn = await prisma.sokoBotTurn.findUnique({
+    where: { id: authorized.turn.id },
+    select: { clientTurnId: true },
+  });
   return {
     ...snapshot,
     version: {
       id: version.id,
       name: version.name,
       model: version.model,
-      systemPrompt: composeSystemPrompt(version, persona),
+      systemPrompt: composeSystemPrompt(version, persona, {
+        clientTurnId: turn?.clientTurnId ?? null,
+      }),
       skills: [...version.skills],
     },
   };
