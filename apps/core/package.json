@@ -70,7 +70,7 @@
     "@vercel/blob": "2.9.0",
     "@vercel/functions": "3.11.3",
     "@vercel/related-projects": "1.1.1",
-    "@vercel/sandbox": "4.1.0",
+    "@vercel/sandbox": "4.0.0",
     "ably": "2.30.0",
     "ai": "7.0.179",
     "better-auth": "1.7.27",
