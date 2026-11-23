@@ -18,9 +18,6 @@ const { captureExceptionMock, uploadProfileImageMock } = vi.hoisted(() => ({
   uploadProfileImageMock: vi.fn(),
 }));
 
-// Core's real `auth` seeds the MCP resource row at startup.
-vi.mock("@/lib/db/prisma", () => import("@/test/seeded-oauth-resource-prisma"));
-
 vi.mock("@sentry/node", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@sentry/node")>()),
   captureException: captureExceptionMock,

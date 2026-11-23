@@ -1,8 +1,5 @@
 import { Hono } from "hono";
-import { describe, expect, it, vi } from "vitest";
-
-// Core's real `auth` seeds the MCP resource row at startup.
-vi.mock("@/lib/db/prisma", () => import("@/test/seeded-oauth-resource-prisma"));
+import { describe, expect, it } from "vitest";
 
 /**
  * Integration smoke against real Better Auth metadata (no mocked oauthProvider* helpers).
