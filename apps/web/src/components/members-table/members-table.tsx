@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { useMediaQuery } from "@/hooks/effects/use-media-query";
+import { useLayoutResizeObserver } from "@/hooks/effects/use-resize-observer";
 import { InvitationDisplayStatus } from "@/lib/constants/invitation-display-status";
 import type { OrganizationMembershipSelf } from "@/lib/types/core-dto";
 import { rankPageItems } from "@/lib/utils/page-search";
@@ -58,8 +58,15 @@ export default function MembersTable({
   // Shared by the column headers and the phone's Sort menu, so a sort
   // survives a resize.
   const [sorting, setSorting] = useState<SortingState>([]);
-  // Phones and tablets: below Tailwind `lg` the five columns clip in the card.
-  const compact = useMediaQuery(COMPACT_MEDIA_QUERY);
+  // The five columns need about 960px; narrower cards (phones, tablets, a
+  // laptop with the sidebar open) get the compact rows instead.
+  const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
+  const [compact, setCompact] = useState(false);
+  useLayoutResizeObserver(
+    toolbar,
+    () => setCompact((toolbar?.clientWidth ?? Infinity) < COMPACT_BELOW_PX),
+    { immediate: true },
+  );
 
   // The card's own field searches every page: names first, then emails.
   const rows = rankPageItems(
@@ -94,7 +101,7 @@ export default function MembersTable({
             )
           }
         >
-          <div className="mb-4 flex items-center gap-2">
+          <div ref={setToolbar} className="mb-4 flex items-center gap-2">
             <div className="relative min-w-0 flex-1">
               <SearchIcon
                 aria-hidden="true"
@@ -148,7 +155,7 @@ export default function MembersTable({
   );
 }
 
-const COMPACT_MEDIA_QUERY = "not all and (min-width: 1024px)";
+const COMPACT_BELOW_PX = 960;
 
 /** Compact rows hide Email and Last seen, so their sorts move to this menu. */
 function MembersSortMenu({

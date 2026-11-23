@@ -17,13 +17,6 @@ const { cancelInvitation, refresh, mobile } = vi.hoisted(() => ({
   mobile: { value: false },
 }));
 
-vi.mock("@/hooks/effects/use-media-query", () => ({
-  useMediaQuery: (query: string) => {
-    expect(query).toBe("not all and (min-width: 1024px)");
-    return mobile.value;
-  },
-}));
-
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, string>) =>
     [key, ...Object.values(values ?? {})].join(" "),
@@ -78,6 +71,10 @@ async function cancelFirstInvitation() {
 
 beforeEach(() => {
   mobile.value = false;
+  // happy-dom has no layout: give the card a phone or a desktop width.
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(
+    () => (mobile.value ? 343 : 1100),
+  );
 });
 
 describe("cancelling an invitation", () => {
@@ -344,4 +341,26 @@ describe("on a phone", () => {
     await userEvent.click(screen.getByRole("button", { name: "nextPage" }));
     expect(names()).toEqual(["Person 01"]);
   });
+});
+
+it("switches to compact rows when the card is narrower than 960px", () => {
+  const widths = vi.spyOn(HTMLElement.prototype, "clientWidth", "get");
+  const headers = () =>
+    screen.getAllByRole("columnheader").map((cell) => cell.textContent);
+  const table = () => (
+    <MembersTable
+      me={{ id: "member-0", role: MemberRole.OWNER }}
+      members={elevenMembers(2)}
+      pendingInvitations={[]}
+    />
+  );
+
+  widths.mockReturnValue(960);
+  const { unmount } = render(table());
+  expect(headers()).toHaveLength(5);
+  unmount();
+
+  widths.mockReturnValue(959);
+  render(table());
+  expect(headers()).toEqual(["Header.name", "Header.role", "Header.actions"]);
 });
