@@ -42,6 +42,7 @@ import {
   cmoSpreadPoints,
   cmoStrategyRules,
   cmoTopVolumeProblems,
+  cmoWeekGaps,
   cmoWithOwnerPace,
   funnelStageProblems,
   mixProblems,
@@ -531,6 +532,111 @@ describe("the funnel strategy", () => {
     expect(fitted.pace?.perWeek).toBe(59);
     // Nothing in the calendar changes.
     expect(fitted.calendar).toBe(top.calendar);
+  });
+
+  it("fits every network, its pictures and Reels apart, its plays too, and says what it cut", () => {
+    // entry.fyi, 2026-11-22: the fit lowered X and YouTube but left
+    // Instagram at "2 images, 7 Reels daily" over 35 Instagram pieces.
+    const day = (index: number) =>
+      `2026-11-${String(2 + (index % 28)).padStart(2, "0")}`;
+    const calendar = [
+      ...Array.from({ length: 28 }, (_, index) => ({
+        ...entry(`ig-${index}`, "instagram", "carousel"),
+        date: day(index),
+      })),
+      ...Array.from({ length: 7 }, (_, index) => ({
+        ...entry(`v-${index}`, "youtube", "short"),
+        date: day(index * 4),
+        alsoOn: ["instagram", "tiktok"],
+      })),
+    ];
+    const month = plan({
+      calendar,
+      channels: [
+        {
+          channel: "instagram",
+          cadence: "2 images, 7 Reels daily",
+          role: "main",
+        },
+        { channel: "youtube", cadence: "7 Shorts a day", role: "main" },
+        { channel: "tiktok", cadence: "7 TikToks a day", role: "main" },
+        { channel: "facebook", cadence: "2 a day", role: "main" },
+      ],
+      funnel: [
+        {
+          stage: "interest",
+          goal: "They look at what Entry does",
+          channels: ["instagram", "facebook"],
+          metric: "Visits",
+          plays: [
+            {
+              channel: "instagram",
+              what: "Carousels and Reels",
+              cadence: "2 images, 7 Reels daily",
+            },
+            { channel: "facebook", what: "Posts", cadence: "2 a day" },
+          ],
+        },
+      ],
+    });
+
+    const fitted = cmoFitMonthToCalendar(month);
+    const instagram = "1 a day in pictures and 1 a week in Reels";
+    expect(
+      fitted.channels.find((channel) => channel.channel === "instagram")
+        ?.cadence,
+    ).toBe(instagram);
+    expect(fitted.funnel[0]?.plays).toEqual([
+      { channel: "instagram", what: "Carousels and Reels", cadence: instagram },
+    ]);
+    expect(fitted.funnel[0]?.channels).toEqual(["instagram"]);
+    expect(fitted.fitted).toEqual([
+      `Instagram: ${instagram} instead of 2 images, 7 Reels daily.`,
+      "YouTube: 1 a week instead of 7 Shorts a day.",
+      "TikTok: 1 a week instead of 7 TikToks a day.",
+      "Facebook: not this month (planned 2 a day).",
+    ]);
+  });
+
+  it("names each short week's missing pieces and what it already holds", () => {
+    // Four weeks of X at 3 a day against "6 a day", the last week full.
+    const calendar = Array.from({ length: 28 }, (_, index) =>
+      Array.from({ length: index >= 21 ? 6 : 3 }, (_, slot) => ({
+        ...entry(`x-${index}-${slot}`, "x", "post"),
+        title: `X ${index}-${slot}`,
+        date: `2026-11-${String(2 + index).padStart(2, "0")}`,
+      })),
+    ).flat();
+    const gaps = cmoWeekGaps(
+      plan({
+        calendar,
+        channels: [
+          { channel: "x", cadence: "6 a day", role: "main" },
+          { channel: "newsletter", cadence: "2 a month", role: "side" },
+        ],
+      }),
+    );
+    expect(
+      gaps.map(({ from, to, missing }) => ({ from, to, missing })),
+    ).toEqual([
+      {
+        from: "2026-11-02",
+        to: "2026-11-08",
+        missing: [{ channel: "x", count: 21 }],
+      },
+      {
+        from: "2026-11-09",
+        to: "2026-11-15",
+        missing: [{ channel: "x", count: 21 }],
+      },
+      {
+        from: "2026-11-16",
+        to: "2026-11-22",
+        missing: [{ channel: "x", count: 21 }],
+      },
+    ]);
+    expect(gaps[0]?.titles).toHaveLength(21);
+    expect(gaps[0]?.titles[0]).toBe("X 0-0");
   });
 
   it("holds a weekly Cuso's side channels to a buyer and three a week", () => {

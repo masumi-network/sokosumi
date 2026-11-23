@@ -1051,6 +1051,12 @@ export const marketingStrategyPlanSchema = z.object({
   /** After a change request: what is different from the last version. */
   changes: z.array(shortText).max(10).default([]),
   /**
+   * Set by Core when Cuso's finish turns could not fill the month and the
+   * strategy was fitted to its calendar: each cadence it lowered, in words
+   * the owner reads. The next whole save clears it.
+   */
+  fitted: z.array(shortText).max(12).optional(),
+  /**
    * What the last patch changed: each entry it touched, with the entry as it
    * was before (null when the patch added it), so CMO can strike it through.
    * Set by Core; the next whole save clears it.

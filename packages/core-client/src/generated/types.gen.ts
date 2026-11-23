@@ -9263,6 +9263,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             body: string;
         }>;
         changes?: Array<string>;
+        fitted?: Array<string>;
         patched?: Array<{
             id: string;
             was: {
@@ -9595,6 +9596,7 @@ export type MarketingStrategyRequest = {
             body: string;
         }>;
         changes?: Array<string>;
+        fitted?: Array<string>;
         patched?: Array<{
             id: string;
             was: {
@@ -15077,6 +15079,7 @@ export type CmoPlan = {
         body: string;
     }>;
     changes?: Array<string>;
+    fitted?: Array<string>;
     patched?: Array<{
         id: string;
         was: {
