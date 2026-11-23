@@ -87,6 +87,7 @@ import {
   ClientTimeoutError,
   raceWithTimeout,
 } from "@/lib/utils/race-with-timeout";
+import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
 import {
   cleanupOwnedLogoBestEffort,
   getUserFileUploadErrorMessage,
@@ -181,7 +182,9 @@ function BrandLookSummary({ look }: { look: PersistedDesignMd["look"] }) {
       ? { label: t("Brand.fonts"), value: look.fonts.join(", ") }
       : null,
     look?.tone ? { label: t("Brand.tone"), value: look.tone } : null,
-    look?.voice ? { label: t("Brand.voice"), value: look.voice } : null,
+    look?.voice
+      ? { label: t("Brand.voice"), value: stripInlineMarkdown(look.voice) }
+      : null,
   ].filter((row) => row !== null);
 
   if (rows.length === 0) {

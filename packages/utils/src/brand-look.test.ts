@@ -189,6 +189,32 @@ Primary #5850ec drives every call to action.
     ).toBeNull();
     expect(designMdBrandLook("The voice is a mix of styles.").voice).toBeNull();
   });
+
+  it("reads no tone or voice from a list that runs on into the sentence", () => {
+    // "plain and easy" is not the whole list, and "to read." no guideline.
+    expect(
+      designMdBrandLook("The voice is plain and easy to read."),
+    ).toMatchObject({ tone: null, voice: null });
+  });
+
+  it("keeps the voice whole past abbreviations", () => {
+    expect(
+      designMdBrandLook(
+        "The voice is plain and calm. Use e.g. short examples. Never hype.",
+      ).voice,
+    ).toBe("Use e.g. short examples.");
+  });
+
+  it.each([
+    ["The voice is plain and confident: short sentences, no hype."],
+    ["The voice is plain and confident \u2014 short sentences, no hype."],
+    ["The voice is plain and confident (short sentences, no hype)."],
+  ])("drops the separator before the voice in %j", (content) => {
+    expect(designMdBrandLook(content)).toMatchObject({
+      tone: "plain and confident",
+      voice: "Short sentences, no hype.",
+    });
+  });
 });
 
 describe("designMdPalette", () => {
