@@ -125,28 +125,20 @@ function removeDeletedFromData(
   return removeDeletedFromList(data, deleted);
 }
 
-/** Cancel every in-flight Drive query for this store before a write starts. */
-export async function cancelDriveQueries(
-  queryClient: QueryClient,
-  store: FileStore,
-): Promise<void> {
-  await queryClient.cancelQueries({ queryKey: driveQueryKeys.prefix(store) });
-}
-
 /**
- * Single Drive write invalidation path: cancels pending reads under the store
- * prefix, removes deletedIds from loaded (`status === "success"`) entries, and
- * invalidates the whole store prefix.
+ * Single Drive write invalidation path: runs only after a successful write.
+ * Removes deletedIds from loaded (`status === "success"`) entries, then
+ * invalidates the store prefix (whose default cancelRefetch cancels stale
+ * in-flight reads and refetches).
  */
-export async function invalidateDrive(
+export function invalidateDrive(
   queryClient: QueryClient,
   store: FileStore,
   options?: InvalidateDriveOptions,
 ): Promise<void> {
   const prefix = driveQueryKeys.prefix(store);
-  await queryClient.cancelQueries({ queryKey: prefix });
-
   const deleted = new Set(options?.deletedIds ?? []);
+
   if (deleted.size > 0) {
     for (const query of queryClient
       .getQueryCache()
@@ -162,5 +154,5 @@ export async function invalidateDrive(
     }
   }
 
-  await queryClient.invalidateQueries({ queryKey: prefix });
+  return queryClient.invalidateQueries({ queryKey: prefix });
 }

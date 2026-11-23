@@ -175,7 +175,6 @@ import {
 } from "@/lib/utils/files-sort";
 import { formatBytes } from "@/lib/utils/format-bytes";
 import {
-  cancelDriveQueries,
   driveQueryKeys,
   type InvalidateDriveOptions,
   invalidateDrive,
@@ -505,8 +504,8 @@ function DrivePageWorkspace({
   // The catalog renders its own skeleton, so the Workspace tab never uses this.
   const loading = isTasksView ? tasksLoading : false;
 
-  async function refreshDriveItems(options?: InvalidateDriveOptions) {
-    await invalidateDrive(queryClient, driveStore, options);
+  function refreshDriveItems(options?: InvalidateDriveOptions) {
+    void invalidateDrive(queryClient, driveStore, options);
     /**
      * And the catalog, which is the list a reader on this tab is looking at.
      *
@@ -836,7 +835,6 @@ function DrivePageWorkspace({
       return;
     }
 
-    await cancelDriveQueries(queryClient, driveStore);
     let uploaded = 0;
     let failed = 0;
     let duplicate = false;
@@ -865,7 +863,7 @@ function DrivePageWorkspace({
         }
       }
     }
-    await refreshDriveItems();
+    refreshDriveItems();
     // Empty Recents can start an upload, and the new file belongs there.
     if (uploaded > 0) setRecentsReloadToken((token) => token + 1);
     if (uploaded > 0 && plan.rootFolder) applyFolderFacet(plan.rootFolder);
@@ -907,7 +905,6 @@ function DrivePageWorkspace({
     }
 
     try {
-      await cancelDriveQueries(queryClient, driveStore);
       if (item.type === "file") {
         await patchDriveFilesRename({
           client: getBrowserCoreClient(),
@@ -948,7 +945,7 @@ function DrivePageWorkspace({
           `${item.name.slice(0, item.name.lastIndexOf("/") + 1)}${newName.trim()}`,
         );
       }
-      await refreshDriveItems();
+      refreshDriveItems();
     } catch (err) {
       console.error(`Failed to rename ${item.type}`, err);
       if (isDuplicateResourceError(err)) {
@@ -970,7 +967,6 @@ function DrivePageWorkspace({
     }
 
     try {
-      await cancelDriveQueries(queryClient, driveStore);
       if (itemToDelete.type === "file") {
         await deleteDriveFilesDelete({
           client: getBrowserCoreClient(),
@@ -997,7 +993,7 @@ function DrivePageWorkspace({
       // A deleted folder cannot go on narrowing the catalog.
       if (itemToDelete.type === "folder") applyFolderFacet("");
       setItemToDelete(null);
-      await refreshDriveItems(
+      refreshDriveItems(
         deletedPathname ? { deletedIds: [deletedPathname] } : undefined,
       );
       setRecentsReloadToken((token) => token + 1);
@@ -1131,7 +1127,6 @@ function DrivePageWorkspace({
     setCreatingFolder(true);
     try {
       const targetFolder = snapshotFolder ?? currentFolder;
-      await cancelDriveQueries(queryClient, driveStore);
       const result = await postDriveFolders({
         client: getBrowserCoreClient(),
         body: {
@@ -1179,7 +1174,7 @@ function DrivePageWorkspace({
           ? `${targetFolder}/${newFolderName.trim()}`
           : newFolderName.trim(),
       );
-      await refreshDriveItems();
+      refreshDriveItems();
     } catch (err) {
       console.error("Failed to create folder", err);
       toast.error(t("createFolderError"));
@@ -1269,12 +1264,11 @@ function DrivePageWorkspace({
       if (filesToMove.length === 0) return;
       setMovingItem(true);
       try {
-        await cancelDriveQueries(queryClient, driveStore);
         await moveFiles(selectedDestination);
         setMoveDialogOpen(false);
         setFilesToMove([]);
         setSelectedDestination(null);
-        await refreshDriveItems();
+        refreshDriveItems();
         setRecentsReloadToken((token) => token + 1);
       } finally {
         setMovingItem(false);
@@ -1284,7 +1278,6 @@ function DrivePageWorkspace({
 
     setMovingItem(true);
     try {
-      await cancelDriveQueries(queryClient, driveStore);
       await patchDriveFilesMove({
         client: getBrowserCoreClient(),
         body: {
@@ -1300,7 +1293,7 @@ function DrivePageWorkspace({
       setMoveDialogOpen(false);
       setItemToMove(null);
       setSelectedDestination(null);
-      await refreshDriveItems();
+      refreshDriveItems();
       setRecentsReloadToken((token) => token + 1);
     } catch (err) {
       console.error(`Failed to move ${itemToMove.type}`, err);
@@ -1329,7 +1322,6 @@ function DrivePageWorkspace({
 
     setCopying(true);
     try {
-      await cancelDriveQueries(queryClient, driveStore);
       await postDriveTasksCopy({
         client: getBrowserCoreClient(),
         body: {
@@ -1345,7 +1337,7 @@ function DrivePageWorkspace({
       toast.success(t("copyToFilesSuccess"));
       setCopyDialogOpen(false);
       setTaskFileToCopy(null);
-      await refreshDriveItems();
+      refreshDriveItems();
     } catch (err) {
       console.error("Failed to copy file", err);
       if (isDuplicateResourceError(err)) {
@@ -2006,7 +1998,7 @@ function DrivePageWorkspace({
             setCopyDialogOpen(true);
           }}
           onItemsChanged={() => {
-            void refreshDriveItems();
+            refreshDriveItems();
           }}
           onUpload={openFilePicker}
           uploading={uploading}

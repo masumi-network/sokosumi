@@ -18,7 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
-import { cancelDriveQueries, invalidateDrive } from "@/queries/drive";
+import { invalidateDrive } from "@/queries/drive";
 
 const SHEET_LINK = /^https:\/\/docs\.google\.com\/spreadsheets\/d\/[\w-]{20,}/;
 
@@ -63,14 +63,13 @@ export function DriveLinkSheetDialog({
     setLinking(true);
     setError(null);
     try {
-      await cancelDriveQueries(queryClient, store);
       const result = await postDriveFilesGoogleSheets({
         client: getBrowserCoreClient(),
         body: { url: address, folder, ...store },
         throwOnError: false,
       });
       if (result.data) {
-        await invalidateDrive(queryClient, store);
+        void invalidateDrive(queryClient, store);
         toast.success(t("linked", { name: result.data.data.name }));
         onLinked?.();
         setUrl("");

@@ -46,6 +46,7 @@ export function DataRoomActivity({
   rows: DataRoomTreeRow[];
 }) {
   const t = useTranslations("App.Drive.DataRoom.Activity");
+  const tFiles = useTranslations("App.Drive.Files");
   const format = useFormatter();
   const [memberId, setMemberId] = useState(EVERYONE);
   const query = useScopedInfiniteQuery({
@@ -88,7 +89,7 @@ export function DataRoomActivity({
           </SelectContent>
         </Select>
       </div>
-      {query.isError ? (
+      {query.isError && events.length === 0 ? (
         <p className="text-muted-foreground p-4 text-sm" role="alert">
           {t("loadFailed")}
         </p>
@@ -116,7 +117,24 @@ export function DataRoomActivity({
           ))}
         </ul>
       )}
-      {query.hasNextPage ? (
+      {query.isFetchNextPageError ? (
+        <div
+          className="flex items-center justify-center gap-2 text-sm"
+          role="alert"
+        >
+          <span className="text-muted-foreground">{t("loadFailed")}</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            loading={query.isFetchingNextPage}
+            disabled={query.isFetching && !query.isFetchingNextPage}
+            onClick={() => void query.fetchNextPage()}
+          >
+            {tFiles("retry")}
+          </Button>
+        </div>
+      ) : query.hasNextPage ? (
         <Button
           type="button"
           variant="outline"

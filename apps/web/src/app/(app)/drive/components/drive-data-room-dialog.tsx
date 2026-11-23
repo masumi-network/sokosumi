@@ -32,7 +32,7 @@ import {
   dataRoomRefusal,
 } from "@/lib/utils/data-room.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
-import { cancelDriveQueries, invalidateDrive } from "@/queries/drive";
+import { invalidateDrive } from "@/queries/drive";
 
 export interface DriveDataRoomFolder {
   path: string;
@@ -67,19 +67,14 @@ export function DriveDataRoomDialog({
   const room = folder?.room;
   const isRoot = room?.folderPath === folder?.path;
 
-  async function run(
-    action: () => Promise<(() => void) | undefined | void>,
-    done: string,
-  ) {
+  async function run(action: () => Promise<unknown>, done: string) {
     setBusy(true);
     try {
-      await cancelDriveQueries(queryClient, store);
-      const after = await action();
-      await invalidateDrive(queryClient, store);
+      await action();
+      void invalidateDrive(queryClient, store);
       toast.success(done);
       onChanged?.();
       onOpenChange(false);
-      after?.();
     } catch (error) {
       toast.error(dataRoomRefusal(error) ?? t("saveFailed"));
     } finally {
@@ -142,8 +137,7 @@ export function DriveDataRoomDialog({
                     store,
                     folderPath: folder.path,
                   });
-                  return () =>
-                    router.push(`/drive/data-rooms/${made.id}?invite=1`);
+                  router.push(`/drive/data-rooms/${made.id}?invite=1`);
                 }, t("made"))
               }
             >

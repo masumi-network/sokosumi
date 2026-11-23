@@ -1,8 +1,6 @@
-import type { DataRoom } from "@sokosumi/core-client";
 import { type InfiniteData, QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 import {
-  cancelDriveQueries,
   driveQueryKeys,
   invalidateDrive,
   normalizeDriveStore,
@@ -81,43 +79,7 @@ describe("driveQueryKeys", () => {
   });
 });
 
-describe("cancelDriveQueries and invalidateDrive", () => {
-  it("cancels only in-flight queries for the given store prefix", async () => {
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    const deferredA = Promise.withResolvers<DataRoom[]>();
-    const deferredB = Promise.withResolvers<DataRoom[]>();
-    let signalA: AbortSignal | undefined;
-    let signalB: AbortSignal | undefined;
-
-    const fetchA = queryClient
-      .fetchQuery({
-        queryKey: driveQueryKeys.dataRooms(orgA),
-        queryFn: ({ signal }) => {
-          signalA = signal;
-          return deferredA.promise;
-        },
-      })
-      .catch(() => undefined);
-    const fetchB = queryClient.fetchQuery({
-      queryKey: driveQueryKeys.dataRooms(orgB),
-      queryFn: ({ signal }) => {
-        signalB = signal;
-        return deferredB.promise;
-      },
-    });
-
-    await cancelDriveQueries(queryClient, orgA);
-
-    expect(signalA?.aborted).toBe(true);
-    expect(signalB?.aborted).toBe(false);
-
-    deferredA.resolve([]);
-    deferredB.resolve([]);
-    await Promise.all([fetchA, fetchB]);
-  });
-
+describe("invalidateDrive", () => {
   it("removes deletedIds only from status === 'success' entries across list shapes and invalidates the store prefix", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },

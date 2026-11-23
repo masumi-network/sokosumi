@@ -20,7 +20,6 @@ import {
 } from "@/lib/utils/data-room.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
 import {
-  cancelDriveQueries,
   driveQueryKeys,
   invalidateDrive,
   splitDriveQueryKey,
@@ -72,8 +71,8 @@ export function DataRoomQuestions({
           question={question}
           label={rowLabel(rows, question.path)}
           focused={question.id === focusQuestionId}
-          onAnswered={async () => {
-            await invalidateDrive(queryClient, store);
+          onAnswered={() => {
+            void invalidateDrive(queryClient, store);
             // Needs you lists this question until it has an answer.
             void queryClient.invalidateQueries({
               queryKey: NEEDS_YOU_DATA_ROOM_QUESTIONS_QUERY_KEY,
@@ -98,11 +97,10 @@ function QuestionItem({
   question: DataRoomQuestion;
   label: string;
   focused: boolean;
-  onAnswered: () => Promise<void>;
+  onAnswered: () => void;
 }) {
   const t = useTranslations("App.Drive.DataRoom.Questions");
   const format = useFormatter();
-  const queryClient = useQueryClient();
   const [answer, setAnswer] = useState(question.answer ?? "");
   const [shared, setShared] = useState(question.sharedAt !== null);
   const [busy, setBusy] = useState(false);
@@ -137,7 +135,6 @@ function QuestionItem({
           if (!answer.trim()) return;
           setBusy(true);
           try {
-            await cancelDriveQueries(queryClient, store);
             await answerDataRoomQuestion({
               store,
               roomId,
@@ -146,7 +143,7 @@ function QuestionItem({
               shared,
             });
             toast.success(shared ? t("answeredShared") : t("answered"));
-            await onAnswered();
+            onAnswered();
           } catch (error) {
             toast.error(dataRoomRefusal(error) ?? t("answerFailed"));
           } finally {

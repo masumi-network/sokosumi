@@ -40,14 +40,8 @@ afterEach(() => {
 
 describe("DataRoomCompanyPanel", () => {
   it("saves the edited details with the room", async () => {
-    const onChanged = vi.fn();
     const { client } = renderWithClient(
-      <DataRoomCompanyPanel
-        store={store}
-        room={room}
-        rows={[]}
-        onChanged={onChanged}
-      />,
+      <DataRoomCompanyPanel store={store} room={room} rows={[]} />,
     );
     client.setQueryData(driveQueryKeys.dataRoom(store, "room_1"), { room });
     expect(screen.getByLabelText("fields.legalName")).toHaveProperty(
@@ -78,19 +72,13 @@ describe("DataRoomCompanyPanel", () => {
       client.getQueryState(driveQueryKeys.dataRoom(store, "room_1"))
         ?.isInvalidated,
     ).toBe(true);
-    expect(onChanged).toHaveBeenCalled();
   });
 
   it.each(["fields.contactEmail", "fields.eu.email", "fields.uk.email"])(
     "refuses to save a %s that is not an email address",
     async (label) => {
       renderWithClient(
-        <DataRoomCompanyPanel
-          store={store}
-          room={room}
-          rows={[]}
-          onChanged={vi.fn()}
-        />,
+        <DataRoomCompanyPanel store={store} room={room} rows={[]} />,
       );
       const field = screen.getByLabelText(label);
       await userEvent.type(field, "legal-at-sumico");
@@ -111,12 +99,7 @@ describe("DataRoomCompanyPanel", () => {
       },
     } as DataRoom;
     renderWithClient(
-      <DataRoomCompanyPanel
-        store={store}
-        room={legacy}
-        rows={[]}
-        onChanged={vi.fn()}
-      />,
+      <DataRoomCompanyPanel store={store} room={legacy} rows={[]} />,
     );
     await userEvent.clear(screen.getByLabelText("fields.legalName"));
     await userEvent.click(screen.getByRole("button", { name: "save" }));

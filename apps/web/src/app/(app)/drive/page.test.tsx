@@ -182,11 +182,15 @@ vi.mock("@/lib/utils/file-search.client", async (importOriginal) => {
 
 const fetchDataRoomsMock = vi.fn();
 const fetchDataRoomMock = vi.fn();
+const updateDataRoomMock = vi.fn();
+const inviteToDataRoomMock = vi.fn();
 
 vi.mock("@/lib/utils/data-room.client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/utils/data-room.client")>()),
   fetchDataRooms: (...args: unknown[]) => fetchDataRoomsMock(...args),
   fetchDataRoom: (...args: unknown[]) => fetchDataRoomMock(...args),
+  updateDataRoom: (...args: unknown[]) => updateDataRoomMock(...args),
+  inviteToDataRoom: (...args: unknown[]) => inviteToDataRoomMock(...args),
 }));
 
 const fetchDriveTasksPageMock = vi.fn();
@@ -2094,6 +2098,90 @@ describe("one catalog, not two", () => {
         "OrgBRoom",
       );
     });
+  });
+
+  it("keeps a pending room refetch alive when a subsequent write fails", async () => {
+    const user = userEvent.setup();
+    const refetchAfterSave = Promise.withResolvers<unknown>();
+    let refetchSignal: AbortSignal | undefined;
+
+    fetchDataRoomMock.mockReset();
+    updateDataRoomMock.mockReset();
+    inviteToDataRoomMock.mockReset();
+
+    const makeRoomDetail = (title: string) => ({
+      room: {
+        id: "room_1",
+        folderPath: "Reports",
+        title,
+        welcomeNote: null,
+        logoFileId: null,
+        allowedDomains: [],
+        expiresAt: null,
+        allowDownload: false,
+        watermark: true,
+        notifyOnFirstVisit: true,
+        storage: "private",
+        token: "tok",
+        createdByUserId: "user_1",
+      },
+      members: [],
+      rows: [],
+      colleagues: null,
+      canChooseColleagues: false,
+    });
+
+    fetchDataRoomMock
+      .mockResolvedValueOnce(makeRoomDetail("Old Title"))
+      .mockImplementationOnce(({ signal }: { signal?: AbortSignal }) => {
+        refetchSignal = signal;
+        return refetchAfterSave.promise;
+      });
+    updateDataRoomMock.mockResolvedValue(makeRoomDetail("New Title").room);
+    inviteToDataRoomMock.mockRejectedValue(new Error("invite refused"));
+
+    render(
+      <NuqsTestingAdapter searchParams="?tab=settings" hasMemory>
+        <QueryClientProvider client={queryClient}>
+          <DataRoomClient roomId="room_1" />
+        </QueryClientProvider>
+      </NuqsTestingAdapter>,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Old Title" }),
+    ).toBeVisible();
+
+    const titleInput = screen.getByLabelText("titleLabel");
+    await user.clear(titleInput);
+    await user.type(titleInput, "New Title");
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => {
+      expect(fetchDataRoomMock).toHaveBeenCalledTimes(2);
+    });
+
+    // While the refetch from saving settings is still pending, trigger a failing write.
+    await user.click(screen.getByRole("tab", { name: "tabs.people" }));
+    await user.type(
+      screen.getByLabelText("emailsLabel"),
+      "investor@example.com",
+    );
+    await user.click(screen.getByRole("button", { name: "invite" }));
+
+    await waitFor(() => {
+      expect(inviteToDataRoomMock).toHaveBeenCalledTimes(1);
+    });
+    expect(refetchSignal?.aborted).toBe(false);
+
+    await act(async () => {
+      refetchAfterSave.resolve(makeRoomDetail("New Title"));
+      await refetchAfterSave.promise;
+    });
+
+    expect(
+      await screen.findByRole("heading", { name: "New Title" }),
+    ).toBeVisible();
   });
 
   it("offers no folder actions when no folder is applied", async () => {

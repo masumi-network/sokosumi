@@ -14,7 +14,7 @@ import {
   saveDataRoomOrder,
 } from "@/lib/utils/data-room.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
-import { cancelDriveQueries, invalidateDrive } from "@/queries/drive";
+import { invalidateDrive } from "@/queries/drive";
 
 function parentOf(path: string): string {
   return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
@@ -74,12 +74,10 @@ export function DataRoomContents({
   store,
   roomId,
   rows,
-  onChanged,
 }: {
   store: FileStore;
   roomId: string;
   rows: DataRoomTreeRow[];
-  onChanged?: () => void;
 }) {
   const t = useTranslations("App.Drive.DataRoom.Contents");
   const queryClient = useQueryClient();
@@ -149,15 +147,13 @@ export function DataRoomContents({
         onClick={async () => {
           setBusy(true);
           try {
-            await cancelDriveQueries(queryClient, store);
             await saveDataRoomOrder({
               store,
               roomId,
               entries: orderEntries(order),
             });
-            await invalidateDrive(queryClient, store);
+            void invalidateDrive(queryClient, store);
             toast.success(t("saved"));
-            onChanged?.();
           } catch (error) {
             toast.error(dataRoomRefusal(error) ?? t("saveFailed"));
           } finally {

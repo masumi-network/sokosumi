@@ -29,7 +29,7 @@ import {
   removeDataRoomMember,
 } from "@/lib/utils/data-room.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
-import { cancelDriveQueries, invalidateDrive } from "@/queries/drive";
+import { invalidateDrive } from "@/queries/drive";
 import { DataRoomDateField } from "./data-room-date-field";
 
 /** Splits pasted addresses on commas, semicolons, spaces and new lines. */
@@ -49,14 +49,12 @@ export function DataRoomPeople({
   roomId,
   members,
   rows,
-  onChanged,
   focusInvite = false,
 }: {
   store: FileStore;
   roomId: string;
   members: DataRoomMember[];
   rows: DataRoomTreeRow[];
-  onChanged?: () => void;
   /** Put the cursor in the invite field on arrival. */
   focusInvite?: boolean;
 }) {
@@ -82,7 +80,6 @@ export function DataRoomPeople({
     if (parsed.length === 0) return;
     setBusy(true);
     try {
-      await cancelDriveQueries(queryClient, store);
       await inviteToDataRoom({
         store,
         roomId,
@@ -90,12 +87,11 @@ export function DataRoomPeople({
         expiresAt,
         folderPaths: folders,
       });
-      await invalidateDrive(queryClient, store);
+      void invalidateDrive(queryClient, store);
       toast.success(t("invited", { count: parsed.length }));
       setEmails("");
       setExpiresAt(null);
       setFolders([]);
-      onChanged?.();
     } catch (error) {
       toast.error(dataRoomRefusal(error) ?? t("inviteFailed"));
     } finally {
@@ -106,11 +102,9 @@ export function DataRoomPeople({
   async function handleRemove(member: DataRoomMember) {
     setBusy(true);
     try {
-      await cancelDriveQueries(queryClient, store);
       await removeDataRoomMember({ store, roomId, memberId: member.id });
-      await invalidateDrive(queryClient, store);
+      void invalidateDrive(queryClient, store);
       toast.success(t("removed", { email: member.email }));
-      onChanged?.();
     } catch (error) {
       toast.error(dataRoomRefusal(error) ?? t("removeFailed"));
     } finally {

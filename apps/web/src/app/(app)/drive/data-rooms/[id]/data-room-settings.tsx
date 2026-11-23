@@ -21,7 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { dataRoomRefusal, updateDataRoom } from "@/lib/utils/data-room.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
-import { cancelDriveQueries, invalidateDrive } from "@/queries/drive";
+import { invalidateDrive } from "@/queries/drive";
 import { rowLabel } from "./data-room-activity";
 import { DataRoomDateField } from "./data-room-date-field";
 
@@ -37,12 +37,10 @@ export function DataRoomSettingsPanel({
   store,
   room,
   rows,
-  onChanged,
 }: {
   store: FileStore;
   room: DataRoom;
   rows: DataRoomTreeRow[];
-  onChanged?: () => void;
 }) {
   const t = useTranslations("App.Drive.DataRoom.Settings");
   const queryClient = useQueryClient();
@@ -79,7 +77,6 @@ export function DataRoomSettingsPanel({
         event.preventDefault();
         setBusy(true);
         try {
-          await cancelDriveQueries(queryClient, store);
           await updateDataRoom({
             store,
             roomId: room.id,
@@ -97,9 +94,8 @@ export function DataRoomSettingsPanel({
               notifyOnFirstVisit: notify,
             },
           });
-          await invalidateDrive(queryClient, store);
+          void invalidateDrive(queryClient, store);
           toast.success(t("saved"));
-          onChanged?.();
         } catch (error) {
           toast.error(dataRoomRefusal(error) ?? t("saveFailed"));
         } finally {

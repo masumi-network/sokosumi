@@ -21,7 +21,7 @@ import {
   saveDataRoomColleagues,
 } from "@/lib/utils/data-room.client";
 import type { FileStore } from "@/lib/utils/file-search.client";
-import { cancelDriveQueries, invalidateDrive } from "@/queries/drive";
+import { invalidateDrive } from "@/queries/drive";
 
 /** Who in the organization is always in, whatever is ticked. */
 export function alwaysIn(member: Member, makerId: string): boolean {
@@ -44,7 +44,6 @@ export function DataRoomColleagues({
   makerId,
   colleagues,
   canChoose,
-  onChanged,
 }: {
   store: FileStore;
   organizationId: string;
@@ -52,7 +51,6 @@ export function DataRoomColleagues({
   makerId: string;
   colleagues: DataRoomColleague[];
   canChoose: boolean;
-  onChanged?: () => void;
 }) {
   const t = useTranslations("App.Drive.DataRoom.Colleagues");
   const queryClient = useQueryClient();
@@ -71,11 +69,9 @@ export function DataRoomColleagues({
   async function handleSave() {
     setBusy(true);
     try {
-      await cancelDriveQueries(queryClient, store);
       await saveDataRoomColleagues({ store, roomId, userIds: chosen });
-      await invalidateDrive(queryClient, store);
+      void invalidateDrive(queryClient, store);
       toast.success(t("saved"));
-      onChanged?.();
     } catch (error) {
       toast.error(dataRoomRefusal(error) ?? t("saveFailed"));
     } finally {

@@ -14,7 +14,6 @@ import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import { cn } from "@/lib/utils";
 import type { FileStore } from "@/lib/utils/file-search.client";
 import {
-  cancelDriveQueries,
   driveQueryKeys,
   invalidateDrive,
   splitDriveQueryKey,
@@ -57,14 +56,13 @@ export function GoogleSheetBar({
   });
 
   const refresh = useMutation({
-    onMutate: () => cancelDriveQueries(queryClient, store),
     mutationFn: async () => {
       const result = await postDriveResourcesByIdGoogleSheetRefresh(options);
       if (!result.data) throw new Error("Refresh failed");
       return result.data.data;
     },
-    onSuccess: async (next) => {
-      await invalidateDrive(queryClient, store);
+    onSuccess: (next) => {
+      void invalidateDrive(queryClient, store);
       if (!next.error) onRefreshed?.();
     },
   });
