@@ -10,7 +10,8 @@ import { signUpWithOrganization } from "./sign-up.ts";
 /**
  * A brand-new organization's Soko Bots: the team section says nobody else is
  * here and links to the invites; a new shared bot's switched-off schedules
- * read "Off"; an archived shared bot offers a translated Reactivate.
+ * read "Off"; an archived shared bot folds under a closed "Archived" row
+ * and offers a translated Reactivate.
  */
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
@@ -78,12 +79,19 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
         .getByRole("button", { name: "Archive" })
         .click();
       await page.waitForURL(`${BASE_URL}/soko-bots`);
+      const main = page.getByRole("main");
+      await main.getByText("0 active · 1 archived").waitFor();
+      const noneActive = await main
+        .getByText("No shared bot is active right now.")
+        .count();
+      // The archived card waits behind a closed disclosure.
+      const archivedRow = main.getByRole("button", { name: /^Archived/ });
+      const expandedBefore = await archivedRow.getAttribute("aria-expanded");
       // The sidebar lists the bot's room by the same name; open its card.
-      await page
-        .getByRole("main")
-        .getByRole("link", { name: /^Studio Desk/ })
-        .first()
-        .click();
+      const card = main.getByRole("link", { name: /^Studio Desk/ }).first();
+      const cardHiddenBefore = !(await card.isVisible());
+      await archivedRow.click();
+      await card.click();
       await page
         .getByRole("heading", { name: "Studio Desk is archived" })
         .waitFor();
@@ -109,6 +117,9 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       await context.close();
 
       assert.equal(nextDisabled, 0, '"Next disabled" on a schedule');
+      assert.equal(noneActive, 1, "no-active note with only archived bots");
+      assert.equal(expandedBefore, "false", "Archived row starts closed");
+      assert.ok(cardHiddenBefore, "archived card hidden until opened");
       assert.ok(off > 0, '"Off" on the switched-off schedules');
       assert.equal(rawKeys, 0, "untranslated App.SokoBots key on the page");
       assert.deepEqual(offScreen, [], "archived actions outside the viewport");

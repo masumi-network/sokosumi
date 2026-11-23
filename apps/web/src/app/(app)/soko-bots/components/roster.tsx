@@ -150,7 +150,8 @@ export async function SokoBotsHero({ team }: { team: SokoBotTeam | null }) {
         <p className="text-muted-foreground max-w-xl text-sm text-pretty md:text-base">
           {t("heroBody")}
         </p>
-        {me?.bot ? (
+        {/* Without the team we can't tell whether you have one yet. */}
+        {!team ? null : me?.bot ? (
           <ChatWithBotButton
             sokoBotId={me.bot.id}
             label={t("chatWith", { name: botName(me.bot, t) })}
@@ -196,9 +197,12 @@ export function SectionHeader({
 export async function YourAssistantSection({
   me,
   stats,
+  unavailable = false,
 }: {
   me: Member | null;
   stats: SokoBotDailyStats | null;
+  /** The team read failed: hold the card's place instead of offering Create. */
+  unavailable?: boolean;
 }) {
   const [t, tStatus, format] = await Promise.all([
     getTranslations("App.SokoBots"),
@@ -215,7 +219,20 @@ export async function YourAssistantSection({
     <section className="space-y-6">
       <SectionHeader title={t("yourAssistantTitle")} />
       <div className={HOLDER_CLASS}>
-        {!bot || !me ? (
+        {unavailable ? (
+          <div className="flex flex-col gap-3">
+            <div aria-hidden className={shell}>
+              <span className="bg-muted size-14 shrink-0 rounded-full sm:size-16" />
+              <span className="flex min-w-0 flex-1 flex-col gap-2">
+                <span className="bg-muted h-4 w-2/5 rounded" />
+                <span className="bg-muted h-3 w-3/5 rounded" />
+              </span>
+            </div>
+            <p className="text-muted-foreground px-2 pb-1 text-sm">
+              {t("Unavailable.placeholder")}
+            </p>
+          </div>
+        ) : !bot || !me ? (
           <div className={shell}>
             <span className="bg-muted text-foreground inline-flex size-14 shrink-0 items-center justify-center rounded-full sm:size-16">
               <Plus aria-hidden className="size-6" />

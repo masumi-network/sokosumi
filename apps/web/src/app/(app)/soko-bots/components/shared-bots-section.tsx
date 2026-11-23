@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/holder-surface";
 import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
-
+import { ArchivedSharedBots } from "./archived-shared-bots.client";
 import {
   CreateSokoBotDialog,
   type CreateSokoBotProject,
@@ -144,40 +144,54 @@ export async function SharedBotsSection({
     getTranslations("Components.SokoBot.BotStatus"),
   ]);
 
+  const live = bots.filter((bot) => bot.archivedAt === null);
+  const archived = bots.filter((bot) => bot.archivedAt !== null);
+  const rows = (list: SharedSokoBotSummary[]) =>
+    list.map((bot) => ({
+      primary: [bot.name, bot.id],
+      secondary: [tStatus(bot.status), scopeLabel(bot, projects, t)],
+      content: (
+        <SharedBotCard
+          key={bot.id}
+          bot={bot}
+          projects={projects}
+          t={t}
+          tStatus={tStatus}
+        />
+      ),
+    }));
+
   return (
     <section className="space-y-6" data-testid="shared-bots-section">
       <SectionHeader
         title={title}
         note={
-          bots.length > 0
-            ? t("Shared.count", { count: bots.length })
-            : undefined
+          archived.length > 0
+            ? t("Shared.countSplit", {
+                active: live.length,
+                archived: archived.length,
+              })
+            : bots.length > 0
+              ? t("Shared.count", { count: bots.length })
+              : undefined
         }
       />
       <div className={cn(HOLDER_CLASS, "flex flex-col gap-2")}>
-        {bots.length > 0 ? (
+        {live.length > 0 ? (
           <ul className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(16.25rem,1fr))]">
-            <PageSearchRows
-              rows={bots.map((bot) => ({
-                primary: [bot.name, bot.id],
-                secondary: [tStatus(bot.status), scopeLabel(bot, projects, t)],
-                content: (
-                  <SharedBotCard
-                    key={bot.id}
-                    bot={bot}
-                    projects={projects}
-                    t={t}
-                    tStatus={tStatus}
-                  />
-                ),
-              }))}
-            />
+            <PageSearchRows rows={rows(live)} />
           </ul>
         ) : (
           <p className="text-muted-foreground px-2 py-1 text-sm">
-            {t("Shared.empty")}
+            {t(archived.length > 0 ? "Shared.noneActive" : "Shared.empty")}
           </p>
         )}
+        {archived.length > 0 ? (
+          <ArchivedSharedBots
+            label={t("Shared.archivedGroup")}
+            rows={rows(archived)}
+          />
+        ) : null}
         {canCreate ? (
           <div className="px-1 pb-1">
             <CreateSokoBotDialog

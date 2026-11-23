@@ -164,6 +164,18 @@ describe("YourAssistantSection", () => {
       screen.getByRole("link", { name: "createAssistant" }),
     ).toBeInTheDocument();
   });
+
+  it("holds a placeholder, not a create offer, while the team is unavailable", async () => {
+    render(
+      await YourAssistantSection({ me: null, stats: null, unavailable: true }),
+    );
+
+    expect(screen.getByText("Unavailable.placeholder")).toBeInTheDocument();
+    expect(screen.queryByText("noAssistantYou")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "createAssistant" }),
+    ).not.toBeInTheDocument();
+  });
 });
 
 describe("SokoBotsHero", () => {
@@ -189,5 +201,16 @@ describe("SokoBotsHero", () => {
     expect(
       screen.getByRole("link", { name: "createAssistant" }),
     ).toBeInTheDocument();
+  });
+
+  it("offers no create button while the team is unavailable", async () => {
+    render(await SokoBotsHero({ team: null }));
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "heroTitle" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "createAssistant" }),
+    ).not.toBeInTheDocument();
   });
 });

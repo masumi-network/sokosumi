@@ -11580,7 +11580,12 @@
     "SokoBots": {
       "title": "Soko Bots",
       "description": "Persönliche Assistenten, die Arbeit delegieren, nachhaken und dich im Chat auf dem Laufenden halten.",
-      "unavailable": "Die Teamübersicht ist gerade nicht verfügbar.",
+      "Unavailable": {
+        "title": "Die Assistenten deines Teams konnten nicht geladen werden",
+        "description": "Es ist nichts verloren. Versuche es gleich noch einmal.",
+        "retry": "Erneut versuchen",
+        "placeholder": "Dein Assistent erscheint hier, sobald das Team geladen ist."
+      },
       "createAssistant": "Erstelle deinen Assistenten",
       "createAssistantHint": "Hol dir einen Assistenten, der Tasks übernimmt, nachhakt und dich auf dem Laufenden hält. Die Einrichtung dauert eine Minute.",
       "assistantFallback": "Persönlicher Assistent",
@@ -11611,11 +11616,14 @@
       "Shared": {
         "title": "Geteilte Bots",
         "count": "{count, plural, one {# Bot} other {# Bots}}",
+        "countSplit": "{active} aktiv · {archived} archiviert",
         "empty": "Noch keine geteilten Bots. Ein geteilter Bot arbeitet für ein Projekt oder den ganzen Workspace, und alle sprechen in einem Raum mit ihm.",
+        "noneActive": "Gerade ist kein geteilter Bot aktiv.",
         "scopeWorkspace": "Arbeitet für den ganzen Workspace",
         "scopeProject": "Arbeitet für ein Projekt",
         "scopeProjectNamed": "Arbeitet für {project}",
         "archived": "Archiviert",
+        "archivedGroup": "Archiviert",
         "fallbackName": "Geteilter Assistent",
         "openBot": "Einstellungen für {name}",
         "Create": {

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { GALLERY_PAGE_SECTIONS_CLASS } from "@/components/agents/gallery-page-classes";
+import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
@@ -48,8 +49,15 @@ export default async function SokoBotsPage() {
       <div className={GALLERY_PAGE_SECTIONS_CLASS}>
         {/* One tier, spaced the way the Agents hero and its gallery are. */}
         <div className="space-y-12 md:space-y-16">
+          {team ? null : (
+            <CoreAuthReadRetry
+              title={t("Unavailable.title")}
+              description={t("Unavailable.description")}
+              retryLabel={t("Unavailable.retry")}
+            />
+          )}
           <SokoBotsHero team={team} />
-          <YourAssistantSection me={me} stats={stats} />
+          <YourAssistantSection me={me} stats={stats} unavailable={!team} />
           {/* Shared bots exist only in organization workspaces. */}
           {shared && team?.workspace.kind === "organization" ? (
             <SharedBotsSection
@@ -60,11 +68,7 @@ export default async function SokoBotsPage() {
               title={t("Shared.title")}
             />
           ) : null}
-          {team ? (
-            <TeamSection team={team} />
-          ) : (
-            <p className="text-muted-foreground text-sm">{t("unavailable")}</p>
-          )}
+          {team ? <TeamSection team={team} /> : null}
         </div>
       </div>
     </div>
