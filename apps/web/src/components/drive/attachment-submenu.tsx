@@ -1,6 +1,6 @@
 "use client";
 
-import { HardDrive, Upload } from "lucide-react";
+import { HardDrive, Table2, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   DropdownMenu,
@@ -13,6 +13,8 @@ interface AttachmentSubmenuProps {
   children: React.ReactNode;
   onUploadClick: () => void;
   onDriveClick: () => void;
+  /** Shown only where a Table snapshot can be attached. */
+  onTableClick?: () => void;
   disabled?: boolean;
 }
 
@@ -20,6 +22,7 @@ export function AttachmentSubmenu({
   children,
   onUploadClick,
   onDriveClick,
+  onTableClick,
   disabled = false,
 }: AttachmentSubmenuProps) {
   const t = useTranslations("App.Drive");
@@ -38,6 +41,12 @@ export function AttachmentSubmenu({
           <HardDrive className="size-4" />
           <span>{t("fromDrive")}</span>
         </DropdownMenuItem>
+        {onTableClick && (
+          <DropdownMenuItem onClick={onTableClick}>
+            <Table2 className="size-4" />
+            <span>{t("fromTable")}</span>
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

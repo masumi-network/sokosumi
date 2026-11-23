@@ -20,7 +20,6 @@ import type {
   TableRow,
   TableView,
 } from "@sokosumi/core-client";
-import { encodeTableCsv } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -102,6 +101,7 @@ import { moveIdToSlot } from "@/lib/utils/move-id";
 import { TableAppendCsv } from "./table-append-csv";
 import { TableCell, TableUpdatedCell } from "./table-cell";
 import { TableColumnDialog } from "./table-column-dialog";
+import { tableCsv } from "./table-csv";
 import { TableFindReplace } from "./table-find-replace";
 import { cellWrap, columnWidth } from "./table-layout";
 import { createTableMutations, isTableRejection } from "./table-mutations";
@@ -588,29 +588,13 @@ function TableWorkspace({
     setSelected([]);
   }
   async function handleExport() {
-    const output: unknown[][] = [columns.map((column) => column.name)];
-    let next: string | undefined;
-    do {
-      const page = await dataTableService.query(table.id, {
-        ...definition,
-        limit: 100,
-        cursor: next,
-        archived: archivedRows,
-      });
-      output.push(
-        ...page.rows.map((row) =>
-          columns.map((column) =>
-            column.type === "last_updated"
-              ? new Date(row.updatedAt).toISOString()
-              : row.values[column.id],
-          ),
-        ),
-      );
-      next = page.nextCursor ?? undefined;
-      if (output.length > 10001) throw new Error(t("exportLimit"));
-    } while (next);
+    const csv = await tableCsv(table.id, columns, {
+      ...definition,
+      archived: archivedRows,
+    });
+    if (csv === null) throw new Error(t("exportLimit"));
     const url = URL.createObjectURL(
-      new Blob([encodeTableCsv(output)], { type: "text/csv;charset=utf-8" }),
+      new Blob([csv], { type: "text/csv;charset=utf-8" }),
     );
     const link = document.createElement("a");
     link.href = url;

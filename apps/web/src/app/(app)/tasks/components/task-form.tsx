@@ -11,6 +11,8 @@ import {
   Lock,
   Paperclip,
 } from "lucide-react";
+import { useState } from "react";
+import { TableAttachDialog } from "@/app/drive/tables/table-attach-dialog";
 import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
 import { isOtherHumanAssignee } from "@/app/tasks/utils/coworker-options";
 import { VendorMark } from "@/components/agents/vendor-mark";
@@ -82,6 +84,7 @@ function TaskFormContent({
 }) {
   const model = useTaskFormModel(props, session);
   const handleSave = useTaskFormSubmission(model);
+  const [isTablePickerOpen, setIsTablePickerOpen] = useState(false);
   const {
     mode,
     taskId,
@@ -612,6 +615,7 @@ function TaskFormContent({
                 onDriveClick={() =>
                   markdownEditorRef.current?.openDrivePicker()
                 }
+                onTableClick={() => setIsTablePickerOpen(true)}
                 disabled={
                   createdTask !== null ||
                   isSubmittingAny ||
@@ -638,6 +642,12 @@ function TaskFormContent({
                   )}
                 </button>
               </AttachmentSubmenu>
+              {isTablePickerOpen && (
+                <TableAttachDialog
+                  onClose={() => setIsTablePickerOpen(false)}
+                  onPick={(file) => void handleAttachFiles([file])}
+                />
+              )}
               <TaskStatusPicker
                 value={status}
                 options={statusOptions}
