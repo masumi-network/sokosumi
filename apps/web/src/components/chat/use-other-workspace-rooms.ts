@@ -7,17 +7,17 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useState } from "react";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import {
+  OTHER_WORKSPACE_ROOMS_KEY,
+  useOtherWorkspaceRoomsLiveSync,
+  withWorkspaceOf,
+} from "@/hooks/effects/use-other-workspace-rooms-live-sync";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import { useSession } from "@/lib/auth/auth.client";
 
 import { withPinnedOrder } from "./chat-room-activity-sort";
 import { fetchSidebarRoomCollection } from "./fetch-sidebar-room-collection";
-import {
-  subscribeOrganizationChatRoomRead,
-  subscribeOrganizationChatRoomsChanged,
-  useOrganizationChatRoomsChanged,
-} from "./organization-chat-events";
+import { useOrganizationChatRoomsChanged } from "./organization-chat-events";
 import { getRememberedPinnedRooms } from "./remembered-pinned-rooms";
 import { roomHasUnread } from "./room-attention";
 import {
@@ -27,9 +27,6 @@ import {
   rememberRoomRead,
 } from "./room-read-overlay";
 import { useChatRefreshScheduler } from "./use-chat-refresh-scheduler";
-
-/** At most one read per window, so a busy room costs less than its messages. */
-const OTHER_WORKSPACE_READ_WINDOW_MS = 2_000;
 
 const NOTHING_UNREAD = {
   unreadCount: 0,
@@ -44,8 +41,6 @@ const NOTHING_UNREAD = {
 } satisfies Partial<ChatRoom>;
 
 const NO_ROOMS: ChatRoom[] = [];
-
-const OTHER_WORKSPACE_ROOMS_KEY = ["chat-other-workspace-rooms"] as const;
 
 /** When the reader last pinned, unpinned or reordered here. */
 let pinsChangedAtRevision = 0;
@@ -89,55 +84,7 @@ export function OtherWorkspaceRoomsLive(): null {
     refreshOnForeground: true,
   });
 
-  useMountEffect(() => {
-    let timer: number | undefined;
-    let lastReadAt = 0;
-
-    function read() {
-      timer = undefined;
-      lastReadAt = Date.now();
-      requestRead();
-    }
-
-    function updateRooms(update: (current: ChatRoom[]) => ChatRoom[]) {
-      queryClient.setQueriesData<ChatRoom[]>(
-        { queryKey: OTHER_WORKSPACE_ROOMS_KEY },
-        (current) => current && update(current),
-      );
-    }
-
-    const stopRoomsChanged = subscribeOrganizationChatRoomsChanged({
-      onRemoved: (removedRoomId) =>
-        updateRooms((current) =>
-          current.filter((room) => room.id !== removedRoomId),
-        ),
-      // A room handed over whole is one the reader just joined or edited here,
-      // so no `onRoom`.
-      onInvalidated: (collections) => {
-        // Only the active collection's changes hold what is unread.
-        if (collections && !collections.includes("active")) {
-          return;
-        }
-        if (timer !== undefined) return;
-        // The first message of a quiet spell reads at once; a burst waits.
-        const wait = lastReadAt + OTHER_WORKSPACE_READ_WINDOW_MS - Date.now();
-        if (wait <= 0) {
-          read();
-        } else {
-          timer = window.setTimeout(read, wait);
-        }
-      },
-    });
-    const stopRoomRead = subscribeOrganizationChatRoomRead(
-      updateRooms,
-      withWorkspaceOf,
-    );
-    return () => {
-      window.clearTimeout(timer);
-      stopRoomsChanged();
-      stopRoomRead();
-    };
-  });
+  useOtherWorkspaceRoomsLiveSync(queryClient, requestRead);
 
   return null;
 }
@@ -345,15 +292,5 @@ export function useOtherWorkspaceRooms({
     applyPinnedOrder,
     readAgain,
     answered,
-  };
-}
-
-/** A room action's answer does not load the Organization the row shows. */
-function withWorkspaceOf(current: ChatRoom, updated: ChatRoom): ChatRoom {
-  return {
-    ...updated,
-    organizationName: current.organizationName,
-    organizationLogo: current.organizationLogo,
-    organizationWebsiteUrl: current.organizationWebsiteUrl,
   };
 }

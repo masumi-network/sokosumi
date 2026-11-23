@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 
 import { ProjectDetailActions } from "@/app/projects/components/project-detail-actions";
 import { ProjectDetailPinButton } from "@/app/projects/components/project-detail-pin-button";
+import { ProjectFindButton } from "@/app/projects/components/project-find-button";
 import { projectService } from "@/lib/services/project.service";
 
 interface ProjectHeaderActionsProps {
@@ -9,6 +10,8 @@ interface ProjectHeaderActionsProps {
   cmo?: boolean;
   closedAt?: Date | string | null;
   closingAt?: Date | string | null;
+  /** The tab has Find on this page: a phone gets its icon here. */
+  find?: boolean;
   /** Already read, such as inside a prefetch cache. Read here when left out. */
   isHidden?: boolean;
   projectId: string;
@@ -24,14 +27,16 @@ export async function ProjectHeaderActions({
   cmo = false,
   closedAt,
   closingAt,
+  find = false,
   isHidden: knownHidden,
   projectId,
   projectRevision,
   scheduledSocialPostCount = 0,
 }: ProjectHeaderActionsProps) {
-  const [t, tList, isHidden] = await Promise.all([
+  const [t, tList, tSearch, isHidden] = await Promise.all([
     getTranslations("App.Projects.Detail"),
     getTranslations("App.Projects.list"),
+    getTranslations("App.PageSearch"),
     knownHidden ??
       // A failed read offers Hide, which Core treats as a no-op if it is Hidden.
       projectService.isProjectHidden(projectId).catch(() => false),
@@ -40,6 +45,7 @@ export async function ProjectHeaderActions({
 
   return (
     <div className="flex items-center gap-2">
+      {find ? <ProjectFindButton label={tSearch("find")} /> : null}
       <ProjectDetailPinButton
         projectId={projectId}
         isClosed={isClosingOrClosed}

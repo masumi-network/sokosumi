@@ -1,8 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import {
-  publicExplorationText,
-  publicExplorationUrl,
-} from "./project-seo-exploration-privacy";
+import { publicExplorationText, publicExplorationUrl } from "@sokosumi/utils";
 import { reportObject } from "./project-seo-public-report";
 import {
   headlinePhrases,

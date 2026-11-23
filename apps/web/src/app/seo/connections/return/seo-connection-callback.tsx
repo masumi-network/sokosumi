@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { useSeoConnectionCallback } from "@/hooks/effects/use-seo-connection-callback";
 import type { SeoConnectionCallbackContext } from "@/lib/seo/connection-callback";
-import { useSeoConnectionCallback } from "./use-seo-connection-callback";
 
 export function SeoConnectionCallback({
   context,

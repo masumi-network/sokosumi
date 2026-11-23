@@ -7,7 +7,8 @@ import type {
   CmoSeoSuggestion,
 } from "@sokosumi/core-client";
 import { Download, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useSeoPageRefresh } from "../../hooks/effects/use-seo-page-refresh";
 import { AGENT_NAME } from "../../lib/agent";
 import { seoLead } from "../../lib/page-lead";
 import {
@@ -17,10 +18,12 @@ import {
 } from "../../lib/seo-copy";
 import {
   changeText,
+  isSiteFix,
   NEXT_SHOWN,
   positionChangeText,
   type SeoStep,
   seoSteps,
+  siteFixes,
 } from "../../lib/seo-next";
 import { DraftText } from "../draft-text";
 import { LocalDay } from "../local-day";
@@ -65,9 +68,6 @@ export interface SeoActions {
 
 /** What writing one article costs: about $0.015 of model time in the cmo-v12 eval run (1,085 words), at 100 credits a dollar. */
 const ARTICLE_COST = "Each article uses about 2 credits of your plan.";
-
-/** While the tab is open it reads again this often, so Cuso's new ideas show up. */
-const REFRESH_MS = 20_000;
 
 const SOURCE: Record<CmoSeoEvidence["source"], string> = {
   keyword_research: "Keyword research",
@@ -289,6 +289,14 @@ function AuditReadings({
   );
 }
 
+/** A technical fix as the owner forwards it: what, where, and the audit's reasons. */
+function forBuilder(change: CmoSeoSuggestion): string {
+  const copy = pageChangeCopy(change);
+  return [copy.title, change.pageUrl, copy.what, copy.why, copy.detail]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 function PageChange({
   change,
   setStatus,
@@ -298,6 +306,42 @@ function PageChange({
 }) {
   const copy = pageChangeCopy(change);
   const detail = copy.detail?.split("\n\n") ?? [];
+  // A technical fix keeps the audit's words for whoever builds the site,
+  // one click deeper, and copies whole.
+  const technical = isSiteFix(change) && change.status === "open";
+  if (technical)
+    return (
+      <li className="li seo-item">
+        <div className="grow stack-sm">
+          <b>{copy.title}</b>
+          <span className="note">{pagePath(change.pageUrl)}</span>
+          <div>
+            <CopyButton text={forBuilder(change)} label="Copy for them" />
+          </div>
+          <details>
+            <summary className="note">What it says</summary>
+            {[copy.what, copy.why, ...detail].filter(Boolean).map((part) => (
+              <p key={part} className="note">
+                {part}
+              </p>
+            ))}
+            <Evidence items={change.evidence} />
+          </details>
+        </div>
+        <div className="seo-actions">
+          <form action={() => setStatus("done")}>
+            <SubmitButton className="button button-small">Done</SubmitButton>
+          </form>
+          <button
+            type="button"
+            className="button button-ghost button-small"
+            onClick={() => setStatus("dismissed")}
+          >
+            Skip
+          </button>
+        </div>
+      </li>
+    );
   return (
     <li className="li seo-item">
       <div className="grow stack-sm">
@@ -647,11 +691,7 @@ export function SeoPage({
       setFailed(true);
     }
   }, [actions]);
-  useEffect(() => {
-    void refresh();
-    const timer = setInterval(() => void refresh(), REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [refresh]);
+  useSeoPageRefresh(refresh);
 
   if (!seo)
     return (
@@ -694,6 +734,7 @@ export function SeoPage({
   };
   const landingPages = seo.landingPages.filter((p) => p.status !== "dismissed");
   const steps = seoSteps(seo);
+  const fixes = siteFixes(seo);
   const next = steps.slice(0, NEXT_SHOWN);
   const later = steps.slice(NEXT_SHOWN);
   const closed = seo.pageChanges.filter(
@@ -744,8 +785,9 @@ export function SeoPage({
           </h3>
           {next.length === 0 ? (
             <p className="note">
-              Nothing to do right now. The weekly audit and {AGENT_NAME} add the
-              next change here.
+              {fixes.length > 0
+                ? "Nothing for you to write right now. Send the fixes below on."
+                : `Nothing to do right now. The weekly audit and ${AGENT_NAME} add the next change here.`}
             </p>
           ) : (
             <ol className="list">{next.map(step)}</ol>
@@ -771,6 +813,29 @@ export function SeoPage({
             </details>
           ) : null}
         </section>
+        {fixes.length > 0 ? (
+          <section className="card">
+            <h3>For whoever builds your site</h3>
+            <p className="muted">
+              The audit found{" "}
+              {fixes.length === 1
+                ? "1 technical fix"
+                : `${fixes.length} technical fixes`}
+              . You don't need to follow {fixes.length === 1 ? "it" : "them"}:
+              copy {fixes.length === 1 ? "it" : "each one"} and send it to
+              whoever builds your site, then mark it Done.
+            </p>
+            <ul className="list">
+              {fixes.map((change) => (
+                <PageChange
+                  key={change.id}
+                  change={change}
+                  setStatus={setStatus(change.id)}
+                />
+              ))}
+            </ul>
+          </section>
+        ) : null}
         <section className="card">
           <div className="seo-head">
             <h3>Articles</h3>

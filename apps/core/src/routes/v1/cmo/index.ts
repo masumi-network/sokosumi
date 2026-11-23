@@ -61,6 +61,7 @@ import mountTearDownCmoTestCopyForProject from "./projects/[projectId]/test-copy
 import mountSetCmoTimeZoneForProject from "./projects/[projectId]/time-zone/put.js";
 import mountStartCmoTopUpForProject from "./projects/[projectId]/top-up/post.js";
 import mountRevertCmoUpdateForProject from "./projects/[projectId]/updates/[id]/revert/post.js";
+import mountMarkCmoUpgradeSeenForProject from "./projects/[projectId]/upgrade-seen/post.js";
 
 /**
  * CMO.xyz's API. The CMO app calls it server side with the person's Sign in
@@ -106,6 +107,7 @@ mountStartCmoOverForProject(app);
 mountCheckCmoTestCopyForProject(app);
 mountTearDownCmoTestCopyForProject(app);
 mountSetCmoTimeZoneForProject(app);
+mountMarkCmoUpgradeSeenForProject(app);
 mountGetCmoSeoForProject(app);
 mountSearchCmoKeywordsForProject(app);
 mountRequestCmoArticleIdeasForProject(app);

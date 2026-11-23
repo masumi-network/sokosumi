@@ -7,6 +7,7 @@ import {
   CORE_API_ERROR_KINDS,
   SEO_FULL_AUDIT_MAX_PROVIDER_USD,
   seasonalUpdateHasPassed,
+  seoFullAuditAutoPages,
   seoTaskDescription,
 } from "@sokosumi/utils";
 
@@ -115,6 +116,7 @@ export function seoTaskPacket(
     throw badRequest(
       "Select each audit page once, including equivalent URL encodings",
     );
+  const autoPages = seoFullAuditAutoPages(pageUrls.length);
   const packet: Prisma.InputJsonObject =
     input.kind === "audit_full"
       ? {
@@ -123,6 +125,8 @@ export function seoTaskPacket(
           requestId,
           pageUrls,
           ...(price ? { price, inspectRelated: true } : {}),
+          // The worker adds pages only with this count. The stored request freezes it for the import.
+          ...(price && autoPages ? { autoPages } : {}),
           ...auditSitemapInput(input, pageUrls),
           ...(input.keywords[0] ? { keyword: input.keywords[0] } : {}),
           countryCode: input.countryCode,
@@ -198,10 +202,6 @@ export function validateSeoAnalysis(
       throw badRequest("A full audit accepts one optional target keyword");
     if (input.devices.length !== 2)
       throw badRequest("A full audit checks both mobile and desktop");
-    if (pageUrls.length === 1 && input.fullAuditLimits)
-      throw badRequest(
-        "A single-page full audit uses the worker's page deadline; site limits require related pages",
-      );
     if (new Set(pageUrls.map((url) => new URL(url).host)).size !== 1)
       throw badRequest("A full related-page audit uses pages on the same host");
     return;

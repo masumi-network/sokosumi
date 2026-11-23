@@ -72,20 +72,25 @@ vi.mock("@/lib/actions/image-studio/brand-kit", async (importOriginal) => ({
   getStudioBrandKit: mocks.loadBrandKit,
 }));
 
-vi.mock("./studio-headline-image", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./studio-headline-image")>()),
-  useStudioHeadlineImage: (
-    _asset: StudioAsset,
-    _ratio: string,
-    _logo: StudioLogoPosition | undefined,
-    headline: string | undefined,
-  ) => ({
-    result: headline
-      ? { status: "ready", blob: new Blob([headline]), url: "blob:studio-ad" }
-      : null,
-    retry: vi.fn(),
+vi.mock(
+  "@/hooks/effects/use-studio-headline-image",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/hooks/effects/use-studio-headline-image")
+    >()),
+    useStudioHeadlineImage: (
+      _asset: StudioAsset,
+      _ratio: string,
+      _logo: StudioLogoPosition | undefined,
+      headline: string | undefined,
+    ) => ({
+      result: headline
+        ? { status: "ready", blob: new Blob([headline]), url: "blob:studio-ad" }
+        : null,
+      retry: vi.fn(),
+    }),
   }),
-}));
+);
 
 vi.mock("./studio-ad-download", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./studio-ad-download")>()),

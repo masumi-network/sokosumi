@@ -26,6 +26,7 @@ What Cuso does without being asked, per channel, and what the owner should see c
 Count and grade the output per channel, not only whether a flow ran. Track it over days and weeks.
 
 - **Volume against the strategy:** pieces planned vs made vs published per network and week (for example, on cmo-v14 at the top plan: X 6 a day, LinkedIn 1 a day, Instagram 2 picture posts or carousels a day, Facebook 2 a day, 7 short videos a day each on TikTok, Reels and YouTube Shorts, at most 4 talking videos a month); missed days; posts that failed to publish and why.
+- **Funnel steps:** on cmo-v18 every piece names the step it serves (`stage`). Count the share per step and check every network carries more than one step: a network may lean toward what it does best but is never pinned to one.
 - **Quality per piece:** fits the network (length, format, hook in the first line or second), sounds like the Brand Brain, says something specific and true about the business, no repeats of another post, no reused picture, links tagged, no hashtag walls or markdown.
 - **Pictures and videos:** on brand and not obviously AI, readable text, right size for the network; videos with a hook in the first second, captions inside the safe area, music and B-roll where planned, the AI label where the network has one, and the video plays.
 - **Replies and reactions:** how many comments answered, how many left for the owner and whether that was right, reaction posts the same day as the news, competitor moves sourced.

@@ -176,14 +176,14 @@ describe("SEO form intent", () => {
     expect(body.keywords).toEqual([]);
     expect(body.competitorUrls).toEqual(["https://competitor.example/"]);
   });
-  it("omits a single-page full-audit limit the worker cannot honor", () => {
+  it("sends the same limits for a full audit of one page, never the form's own", () => {
     const form = analysisForm();
     form.set("kind", "audit_full");
     form.set("keywords", "stablecoins");
     form.set("usd", "10");
     form.set("seconds", "120");
     const body = analysisSeoBody(form, seoTestWorkspace());
-    expect(body.fullAuditLimits).toBeUndefined();
+    expect(body.fullAuditLimits).toEqual({ usd: 5, seconds: 5_400 });
     expect(body.maxProviderCalls).toBeUndefined();
   });
 

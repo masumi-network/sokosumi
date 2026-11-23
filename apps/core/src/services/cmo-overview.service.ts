@@ -58,6 +58,7 @@ import {
   listCmoReports,
 } from "@/services/cmo-reports.service";
 import { cmoStrategyShortfall } from "@/services/cmo-strategy.service";
+import { type CmoUpgrade, cmoUpgradeFor } from "@/services/cmo-upgrade.service";
 import { contactListNameKey } from "@/services/contact-lists.service";
 import {
   approvedMarketingStrategy,
@@ -142,6 +143,8 @@ export interface CmoOverview {
   projectLogo: string | null;
   /** The owner gave their photo, with consent, to front talking videos. */
   presenterSet: boolean;
+  /** Cuso's newest version move, while this member has not closed its dialog. */
+  upgrade: CmoUpgrade | null;
   /** What Cuso does when, for Settings. */
   routines: {
     key: string;
@@ -446,7 +449,7 @@ export async function getCmoOverview(
       timezone: true,
     },
   });
-  const routines = SOKO_BOT_CMO_RHYTHMS.map((routine) => {
+  const rhythms = SOKO_BOT_CMO_RHYTHMS.map((routine) => {
     const row = schedules.find((s) => s.systemKey === routine.key);
     return {
       key: routine.key,
@@ -457,6 +460,11 @@ export async function getCmoOverview(
       timezone: row?.timezone ?? null,
     };
   });
+  const { cmoSeoAuditRoutine } = await import(
+    "@/services/cmo-seo-audit.service"
+  );
+  const searchCheck = await cmoSeoAuditRoutine(cuso, bot.ingestTimezone);
+  const routines = searchCheck ? [...rhythms, searchCheck] : rhythms;
   return {
     cuso,
     onboardingStep: cmoOnboardingStep({
@@ -481,6 +489,11 @@ export async function getCmoOverview(
     presenterSet: Boolean(
       project.presenterFileId && project.presenterConsentAt,
     ),
+    upgrade: await cmoUpgradeFor({
+      sokoBotId: cuso.sokoBotId,
+      versionId: bot.versionId,
+      userId,
+    }),
     routines,
     timeZone: bot.ingestTimezone,
     organizationSlug: organization?.slug ?? null,

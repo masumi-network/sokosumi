@@ -40,7 +40,6 @@ import {
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
   useCallback,
-  useEffect,
   useId,
   useMemo,
   useRef,
@@ -68,14 +67,10 @@ import {
 } from "@/app/chat/utils/jumbo-emoji";
 import {
   isOutboundLocalMessage,
-  OUTBOUND_PENDING_SPINNER_DELAY_MS,
-  OUTBOUND_SENT_TICK_MS,
   type OutboundDeliveryStatus,
-  outboundPendingAgeMs,
   readClientTurnId,
   readOutboundDeliveryStatus,
   readOutboundErrorMessage,
-  shouldShowOutboundPendingSpinner,
 } from "@/app/chat/utils/outbound-room-message";
 import { isOutboundSentTickActive } from "@/app/chat/utils/outbound-sent-tick";
 import { resolveQuickReactions } from "@/app/chat/utils/quick-reactions";
@@ -136,6 +131,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { copyTextWithToast } from "@/hooks/effects/use-clipboard";
+import { useOutboundPendingSpinner } from "@/hooks/effects/use-outbound-pending-spinner";
+import { useOutboundSentTickFade } from "@/hooks/effects/use-outbound-sent-tick-fade";
 import {
   recordEmojiUse,
   useFrequentlyUsedEmojis,
@@ -1982,55 +1979,17 @@ function MessageTimeOrOutboundStatus({
   outboundContentLength?: number;
 }) {
   const t = useTranslations("App.Channels");
-  const [sentFading, setSentFading] = useState(false);
-  const [showPendingSpinner, setShowPendingSpinner] = useState(() =>
-    outboundStatus === "pending"
-      ? shouldShowOutboundPendingSpinner(createdAt)
-      : false,
+  const showPendingSpinner = useOutboundPendingSpinner(
+    outboundStatus,
+    createdAt,
   );
+  const sentFading = useOutboundSentTickFade(showSentTick, createdAt);
   const isGutter = !reserveHeaderWidth;
   const markClass = reserveHeaderWidth
     ? OUTBOUND_HEADER_MARK_CLASS
     : OUTBOUND_GUTTER_MARK_CLASS;
   // Smaller icon in the narrow continuation gutter.
   const iconClass = reserveHeaderWidth ? "size-3" : "size-2.5";
-
-  useEffect(() => {
-    if (outboundStatus !== "pending") {
-      setShowPendingSpinner(false);
-      return;
-    }
-    if (shouldShowOutboundPendingSpinner(createdAt)) {
-      setShowPendingSpinner(true);
-      return;
-    }
-    setShowPendingSpinner(false);
-    const remainingMs =
-      OUTBOUND_PENDING_SPINNER_DELAY_MS - outboundPendingAgeMs(createdAt);
-    const timeoutId = window.setTimeout(
-      () => {
-        setShowPendingSpinner(true);
-      },
-      Math.max(0, remainingMs),
-    );
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [outboundStatus, createdAt]);
-
-  useEffect(() => {
-    if (!showSentTick) {
-      setSentFading(false);
-      return;
-    }
-    setSentFading(false);
-    const fadeAt = window.setTimeout(() => {
-      setSentFading(true);
-    }, OUTBOUND_SENT_TICK_MS / 2);
-    return () => {
-      window.clearTimeout(fadeAt);
-    };
-  }, [showSentTick, createdAt]);
 
   if (outboundStatus === "pending") {
     if (!showPendingSpinner) {

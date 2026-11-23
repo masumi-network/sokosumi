@@ -90,13 +90,31 @@ it("says the audit's findings in plain words, without its check ids", async () =
     'did not pass the check "Script and style files for rendering load and are not blocked"',
   );
   const details = [...container.querySelectorAll("details:not([open])")]
-    .filter(
-      (fold) => fold.querySelector("summary")?.textContent === "More detail",
+    .filter((fold) =>
+      ["More detail", "What it says"].includes(
+        fold.querySelector("summary")?.textContent ?? "",
+      ),
     )
     .map((fold) => fold.textContent);
   expect(details.join(" ")).toContain(
     "update it to the current embed code from the HubSpot account",
   );
+});
+
+it("hands a technical fix to whoever builds the site, with the audit's words one click deeper", async () => {
+  await render(actions(seo));
+  const card = [...container.querySelectorAll("section")].find(
+    (section) =>
+      section.querySelector("h3")?.textContent ===
+      "For whoever builds your site",
+  );
+  expect(card).toBeDefined();
+  expect(card?.textContent).toContain("Copy for them");
+  expect(card?.textContent).toContain("You don't need to follow");
+  const next = [...container.querySelectorAll("section")].find((section) =>
+    section.querySelector("h3")?.textContent?.startsWith("Next"),
+  );
+  expect(next?.textContent).not.toContain("Copy for them");
 });
 
 it("explains every check that did not pass, so the numbers add up", async () => {

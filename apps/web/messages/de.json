@@ -659,7 +659,9 @@
           "fonts": "Schriften",
           "tone": "Tonalität",
           "noSummary": "Deine Markenrichtlinien sind gespeichert. Farben, Schriften oder Tonalität konnten wir hier nicht herauslesen.",
-          "viewFull": "Vollständige Richtlinien ansehen"
+          "voice": "Stimme",
+          "voiceShowAll": "Alles anzeigen",
+          "voiceShowLess": "Weniger anzeigen"
         },
         "Invite": {
           "title": "{organization} ist bereit",
@@ -2824,6 +2826,10 @@
           "title": "Keine ausgeblendeten Projekte",
           "description": "Blende ein Projekt, das nicht deins ist, über sein Menü aus. Es verschwindet aus Offen, dem Projektwechsler und den letzten Aktivitäten und wartet hier."
         },
+        "noOpen": {
+          "title": "Keine offenen Projekte",
+          "description": "Deine anderen Projekte sind in einer anderen Ansicht."
+        },
         "onlyClosed": {
           "title": "Alle Projekte sind geschlossen",
           "description": "Geschlossene Projekte behalten ihren Verlauf in der Ansicht „Geschlossen“.",
@@ -4566,9 +4572,9 @@
       "postToTikTok": "Auf TikTok posten",
       "title": "TikTok Studio",
       "pickTitle": "Projekt auswählen",
-      "pickBody": "Ein Sprechvideo gehört zu einem Projekt. Dessen Marke schreibt die Skripte, und dessen Dateien bewahren das Video auf.",
+      "pickBody": "Ein Video gehört zu einem Projekt. Dessen Marke schreibt die Skripte, und dessen Dateien bewahren das Video auf.",
       "pickUnavailable": "Dieses Projekt ist in diesem Workspace nicht verfügbar. Wähle ein anderes.",
-      "formLabel": "Neues Sprechvideo",
+      "formLabel": "Neues Video",
       "script": "Skript",
       "scriptPlaceholder": "Stopp. Das hier machen die meisten falsch …",
       "scriptHint": "Der erste Satz ist der Aufhänger.",
@@ -4627,7 +4633,54 @@
       "loadFailed": "Video konnte nicht geladen werden",
       "loadFailedBody": "Die Datei ist nicht angekommen. Versuche es gleich noch einmal.",
       "tryAgain": "Erneut versuchen",
-      "checking": "Das Video wird geprüft. Wenn es nicht startet, drücke auf Abspielen."
+      "checking": "Das Video wird geprüft. Wenn es nicht startet, drücke auf Abspielen.",
+      "kind": "Art des Videos",
+      "stepKind": "Welche Art Video",
+      "kinds": {
+        "presenter": "Jemand spricht",
+        "voiceover": "Geschichte mit Stimme",
+        "site_tour": "Website-Tour",
+        "top_three": "Top-3-Liste",
+        "slideshow": "Foto-Slideshow"
+      },
+      "kindHints": {
+        "presenter": "Eine Person spricht dein Skript in die Kamera.",
+        "voiceover": "Eine Stimme erzählt eine kurze Geschichte zu deinen Bildern und deiner Website.",
+        "site_tour": "Eine Stimme führt durch deine Website.",
+        "top_three": "Eine Stimme nennt drei nummerierte Punkte.",
+        "slideshow": "Deine Bilder mit Musik, auf jedem eine Zeile."
+      },
+      "kindNeedsSite": "Füge dem Projekt zuerst deine Website hinzu.",
+      "stepShows": "Was es zeigt",
+      "pictures": "Bilder",
+      "noPictures": "Dieses Projekt hat noch keine Bilder. Erstelle welche im Content Studio.",
+      "pictureChoose": "Dieses Bild verwenden",
+      "pictureChosen": "Bild {place} im Video. Entfernen",
+      "picturesNote": "Bis zu {max} Bilder, in der Reihenfolge, in der du sie wählst.",
+      "picturesNoteWithSite": "Bis zu {max} Bilder, in der Reihenfolge, in der du sie wählst. Deine Website wird auch gezeigt.",
+      "picturesMissing": "Wähle mindestens ein Bild.",
+      "stepScriptVoice": "Was die Stimme sagt",
+      "stepScriptSlideshow": "Der Text im Bild",
+      "scriptPlaceholders": {
+        "voiceover": "Das machen die meisten falsch bei…",
+        "site_tour": "Das ist unsere Website. Das kannst du hier tun…",
+        "top_three": "Drei Wege, um… Erstens, … Zweitens, … Drittens, … Probier es heute aus.",
+        "slideshow": "Code fertig?\nJetzt die Seite.\nHeute kostenlos testen"
+      },
+      "scriptHints": {
+        "voiceover": "Der erste Satz ist der Hook.",
+        "site_tour": "Sag, was man auf deiner Website sieht, von oben nach unten.",
+        "top_three": "Ein Satz, der die Liste nennt, einer pro Punkt, dann der nächste Schritt.",
+        "slideshow": "Eine kurze Zeile pro Bild, eine pro Zeile."
+      },
+      "hookLine": "Text im Bild am Anfang",
+      "hookLinePlaceholder": "Leer lassen, dann schreiben wir ihn für dich",
+      "hookLineHint": "Bis zu sechs Wörter, die sagen, warum man weiterschauen soll.",
+      "shortIncludes": "Untertitel, Musik und dein Logo am Ende sind inbegriffen.",
+      "slideshowIncludes": "Musik und dein Logo am Ende sind inbegriffen.",
+      "costDetailShort": "wird erst berechnet, wenn das Video fertig ist, in etwa einer Minute",
+      "previewMetaSlideshow": "Keine Stimme: Musik und deine Zeilen im Bild",
+      "aiLabelHintShort": "Dieses Video hat eine generierte Stimme oder Musik. Beim Veröffentlichen wird es als KI-generiert gekennzeichnet."
     },
     "Studio": {
       "back": "Zurück zum Projekt",
@@ -6013,7 +6066,7 @@
     },
     "HistorySearchDialog": {
       "title": "Suche",
-      "description": "Suche nach Aufgaben, Tags, Personen, Projekten, Kanälen, Jobs, Job-Ergebnissen, Bildern oder Dateien",
+      "description": "Suche nach Aufgaben, Tags, Personen, Projekten, Kanälen, Zeitplänen, Coworkern, Jobs, Job-Ergebnissen, Bildern oder Dateien",
       "searchPlaceholder": "Suchen...",
       "empty": "Keine Ergebnisse gefunden",
       "loading": "Lädt...",
@@ -6032,7 +6085,10 @@
       "tagsError": "Tags konnten nicht geladen werden",
       "tagTasksError": "Diese Aufgaben konnten nicht geladen werden",
       "projectsGroup": "Projekte",
-      "channelsGroup": "Kanäle"
+      "channelsGroup": "Kanäle",
+      "schedulesGroup": "Zeitpläne",
+      "coworkersGroup": "Coworker",
+      "newTask": "Neue Aufgabe"
     },
     "NoticeDialog": {
       "defaultTitle": "Hinweis",
@@ -11025,10 +11081,9 @@
         "failures": "Fehler",
         "disabled": "deaktiviert",
         "yourTime": "({datetime} bei dir)",
-        "enable": "Zeitplan aktivieren",
-        "disable": "Zeitplan deaktivieren",
         "delete": "Löschen",
-        "deleteTitle": "Zeitplan löschen?",
+        "deleteNamed": "{name} löschen",
+        "deleteTitle": "{name} löschen?",
         "deleteDescription": "Zukünftige Läufe werden entfernt. Vergangene Turns bleiben in deinem Verlauf.",
         "deleteCancel": "Behalten",
         "deleteConfirm": "Löschen",
@@ -11271,6 +11326,20 @@
         "activityTitle": "Letzte Aktivität",
         "activityDescription": "Was er zuletzt getan hat.",
         "activityEmpty": "Noch keine Durchläufe. Öffne den Chat und bitte um etwas.",
+        "Activity": {
+          "mailCheck": "Mail-Check",
+          "scheduled": "Geplanter Durchlauf",
+          "event": "Arbeits-Update",
+          "retry": "Wiederholung",
+          "other": "Durchlauf",
+          "outcome": {
+            "running": "Läuft",
+            "done": "Erledigt",
+            "failed": "Nicht beendet",
+            "cancelled": "Abgebrochen"
+          },
+          "waiting": "{count, plural, one {Wartet auf Freigabe} other {# warten auf Freigabe}}"
+        },
         "showMore": "{count} weitere anzeigen",
         "skillsTitle": "Skills",
         "skillsDescription": "Was dein Assistent kann. Mehr gibt es auf skills.sh.",
@@ -11824,6 +11893,21 @@
       "descending": "absteigend",
       "noHistory": "Keine Änderungen erfasst.",
       "undoBatch": "Stapel rückgängig",
+      "appendCsv": {
+        "title": "Zeilen aus CSV hinzufügen",
+        "description": "Fügt die Zeilen der CSV am Ende dieser Tabelle an. Nur Textspalten werden befüllt, aus CSV-Spalten mit demselben Namen. Andere Spalten bleiben leer.",
+        "file": "CSV-Datei",
+        "matched": "Füllt: {columns}",
+        "skipped": "Ausgelassen, keine Textspalte mit diesem Namen: {columns}",
+        "noMatch": "Keine CSV-Spalte heißt wie eine Textspalte dieser Tabelle. Nur Textspalten können befüllt werden. Benenne die CSV-Spalten passend um und wähle die Datei dann erneut.",
+        "skipDuplicates": "{count, plural, one {# Zeile auslassen, die schon in dieser Tabelle steht} other {# Zeilen auslassen, die schon in dieser Tabelle stehen}}",
+        "add": "{count, plural, =0 {Zeilen hinzufügen} one {# Zeile hinzufügen} other {# Zeilen hinzufügen}}",
+        "done": "{count, plural, one {# Zeile hinzugefügt.} other {# Zeilen hinzugefügt.}}",
+        "reading": "Datei wird gelesen und Tabelle geprüft…",
+        "ambiguous": "Diese CSV-Spalten passen zu mehr als einer Tabellenspalte oder teilen sich eine: {columns}. Gib jeder Spalte einen eigenen Namen und wähle die Datei erneut.",
+        "full": "{room, plural, =0 {Diese Tabelle ist voll: Sie enthält 10.000 Zeilen, archivierte eingeschlossen.} one {Diese Tabelle hat Platz für # weitere Zeile (höchstens 10.000, archivierte eingeschlossen).} other {Diese Tabelle hat Platz für # weitere Zeilen (höchstens 10.000, archivierte eingeschlossen).}} Die CSV fügt {count} hinzu. Es wurde nichts hinzugefügt.",
+        "stopped": "{added, plural, one {Angehalten. Sokosumi hat # von {count} Zeilen als hinzugefügt bestätigt.} other {Angehalten. Sokosumi hat # von {count} Zeilen als hinzugefügt bestätigt.}} Die Tabelle zeigt, was gespeichert wurde. Erneut versuchen fügt den Rest hinzu, ohne eine Zeile doppelt anzulegen."
+      },
       "findReplace": {
         "title": "Suchen und ersetzen",
         "description": "Ändert jede Zelle einer Spalte, die genau den gesuchten Wert enthält, egal ob groß oder klein geschrieben. Wird als eine Änderung gespeichert, die du in Verlauf und Quellen rückgängig machen kannst.",
@@ -13591,7 +13675,7 @@
         "failed": "Fehlgeschlagen",
         "invalid": "Prüfe Seiten, Keywords, Markt und Geräte. Vollständige Audits erlauben ein Keyword und beide Geräte.",
         "keywordsHelp": "Gib bis zu 20 Keywords mit jeweils bis zu 80 Zeichen ein.",
-        "relatedPages": "Prüft auch die Indexierung relevanter Seiten dieser Website, insgesamt bis zu {count} Seiten. Vollständige Audits prüfen nur ausgewählte Seiten.",
+        "relatedPages": "{added, plural, =0 {Das Audit prüft die ausgewählten Seiten.} one {Das Audit prüft die ausgewählten Seiten und kann # weitere Seite dieser Website ergänzen, die zu deinem Ziel passt.} other {Das Audit prüft die ausgewählten Seiten und kann bis zu # weitere Seiten dieser Website ergänzen, die zu deinem Ziel passen.}} Es prüft außerdem die Indexierung weiterer relevanter Seiten, insgesamt bis zu {count} Seiten.",
         "fullHelp": "Vollständige Audits erlauben ein Keyword und beide Geräte. Alle ausgewählten Seiten verwenden denselben Markt.",
         "serviceUnavailable": "Prüfungen sind in diesem Arbeitsbereich nicht verfügbar. Kehre zum Audit zurück.",
         "returnToAudit": "Zurück zum Audit",
@@ -14306,7 +14390,7 @@
           "title": "Aktionen aus der Keyword-Strategie",
           "more": "{count, plural, one {# weitere Aktion anzeigen} other {# weitere Aktionen anzeigen}}",
           "limit": "Grenze",
-          "prompt": "Das Website-Audit empfiehlt: „{title}“. Entwirf einen Plan mit den Schritten in Reihenfolge.{hasLimit, select, yes { Halte diese Grenze ein: {limit}} other {}}{count, plural, =0 {} one { Der Ort: {targets}} other { Die Orte: {targets}}}",
+          "prompt": "Das SEO-Audit empfiehlt: „{title}“. Entwirf einen Plan mit den Schritten in Reihenfolge.{hasLimit, select, yes { Halte diese Grenze ein: {limit}} other {}}{count, plural, =0 {} one { Der Ort: {targets}} other { Die Orte: {targets}}}",
           "place": "Ort"
         },
         "placeForm": {
@@ -14319,11 +14403,11 @@
         },
         "places": {
           "title": "Orte für Werbung",
-          "help": "Warum das Website-Audit für einige Orte keine Aktion oder keinen fertigen Text hat. Die Hinweise sind auf Englisch."
+          "help": "Warum das Audit für einige Orte keine Aktion oder keinen fertigen Text hat. Die Hinweise sind auf Englisch."
         },
         "draft": {
           "title": "Textvorschlag",
-          "help": "Das Website-Audit hat diesen Text geschrieben. Lies ihn und die Regeln des Ortes, bevor du ihn veröffentlichst.",
+          "help": "Das Audit hat diesen Text geschrieben. Lies ihn und die Regeln des Ortes, bevor du ihn veröffentlichst.",
           "copy": "Text kopieren",
           "copied": "Text kopiert",
           "copyError": "Der Text konnte nicht kopiert werden"

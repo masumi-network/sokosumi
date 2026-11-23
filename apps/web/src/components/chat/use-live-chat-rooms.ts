@@ -20,13 +20,9 @@ import {
 } from "@/components/chat/room-read-overlay";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import { useLatestRef } from "@/hooks/effects/use-latest-ref";
-import { MOBILE_BREAKPOINT } from "@/hooks/effects/use-mobile";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useLiveChatRoomsOwnershipSettled } from "@/hooks/effects/use-live-chat-rooms-ownership-settled";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import { useSession } from "@/lib/auth/auth.client";
-
-/** How long a desktop page waits for its sidebar to take over the reads. */
-const SIDEBAR_REGISTRATION_WAIT_MS = 2_000;
 
 /** Poll cadence while the Ably connection is unavailable. */
 const LIVE_CHAT_ROOMS_FALLBACK_MS = 15_000;
@@ -116,18 +112,7 @@ export function useLiveChatRoomsRead(): {
   // later streamed commit than this hook's. Reading at once would read the
   // same collection twice, so on desktop this waits a moment for it; on a
   // phone there is no sidebar to wait for.
-  const [ownershipSettled, setOwnershipSettled] = useState(false);
-  useMountEffect(() => {
-    if (window.innerWidth < MOBILE_BREAKPOINT) {
-      setOwnershipSettled(true);
-      return;
-    }
-    const timer = window.setTimeout(
-      () => setOwnershipSettled(true),
-      SIDEBAR_REGISTRATION_WAIT_MS,
-    );
-    return () => window.clearTimeout(timer);
-  });
+  const ownershipSettled = useLiveChatRoomsOwnershipSettled();
   const liveSnapshot = useSyncExternalStore(
     subscribeMembershipVisibleRooms,
     getLatestMembershipVisibleRoomsSnapshot,

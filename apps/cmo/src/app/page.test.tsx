@@ -32,6 +32,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("../lib/auth", () => ({ getAuth: () => ({ api: { getSession } }) }));
 
 vi.mock("../lib/core", () => ({
+  renderRequestHeaders: async () => new Headers(),
   asSignedInPersonInPage: async () => ({
     headers: { authorization: "Bearer token_123" },
   }),

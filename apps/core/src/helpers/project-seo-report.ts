@@ -39,6 +39,7 @@ import {
   FEATURE_CHARS,
   legacyReportKeywords,
 } from "./project-seo-report-keywords";
+import { seoReportPageScope } from "./project-seo-report-scope";
 import {
   focusedSerpFields,
   seoAlertRowsSchema,
@@ -170,6 +171,7 @@ export type PublicSeoPayload = z.infer<typeof publicSeoPayloadSchema>;
 
 const frozenRequest = z.object({
   pageUrls: z.array(seoUrlSchema).min(1),
+  autoPages: z.number().int().min(1).optional(),
   countryCode: text,
   languageCode: text,
   keywords: z.array(text).optional(),
@@ -194,23 +196,21 @@ export function assertSeoArtifactMatchesRequest(
   const parsed = frozenRequest.safeParse(expected.request);
   if (!parsed.success)
     throw badRequest("The frozen SEO request is not readable");
-  const request = parsed.data,
-    pageUrls = request.pageUrls.map(auditedSeoPageKey),
-    reported = payload.pageUrls.map(auditedSeoPageKey),
-    skipped = skippedPages(raw).map((page) => auditedSeoPageKey(page.url));
-  // Every reported page is in scope, and every page in scope is reported or named as skipped, never both.
+  const request = parsed.data;
   if (
     payload.kind !== expected.kind ||
-    new Set(reported).size !== reported.length ||
-    reported.some((url) => !pageUrls.includes(url)) ||
-    pageUrls.some((url) => !reported.includes(url) && !skipped.includes(url)) ||
-    skipped.some((url) => !pageUrls.includes(url) || reported.includes(url)) ||
     payload.countryCode !== request.countryCode ||
     payload.languageCode !== request.languageCode
   )
     throw badRequest(
       "The report does not match its frozen page scope or Market",
     );
+  const { scope: pageUrls, reported } = seoReportPageScope(
+    raw,
+    payload.pageUrls,
+    request,
+    expected.kind === "audit_full",
+  );
   if (
     payload.checks.some(
       (row) => !pageUrls.includes(auditedSeoPageKey(row.pageUrl)),

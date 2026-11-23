@@ -5,6 +5,7 @@ import {
   type KeywordIdea,
 } from "@/lib/ads/dataforseo";
 import {
+  EDITORIAL_BATCH_SIZE,
   keywordKey,
   type NativeKeywordReceipt,
 } from "@/lib/ads/native-keyword-ideas";
@@ -14,7 +15,6 @@ import {
   askCmoEditor,
   cmoEditorialChoices,
   cmoRankedPhrases,
-  EDITORIAL_BATCH_SIZE,
   EDITORS,
   type EditorialRun,
   eligibleCmoIdea,

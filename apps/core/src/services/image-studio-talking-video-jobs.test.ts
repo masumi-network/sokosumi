@@ -405,6 +405,8 @@ describe("starting a talking video", () => {
           brollRequestId: null,
           music: false,
           musicRequestId: null,
+          format: null,
+          picturePathnames: [],
         },
         // 10 s at $0.05, plus the voice and timing its words.
         chargedCents: convertCreditsToCents(52),

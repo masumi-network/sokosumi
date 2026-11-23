@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { publicExplorationText, publicExplorationUrl } from "@sokosumi/utils";
 import {
   fieldTimings,
   labTimings,
@@ -6,10 +7,6 @@ import {
   type PageSpeedRows,
   speedInsight,
 } from "@/schemas/seo-page-speed.schema";
-import {
-  publicExplorationText,
-  publicExplorationUrl,
-} from "./project-seo-exploration-privacy";
 import { reportObject } from "./project-seo-public-report";
 import { auditedSeoPageKey } from "./project-seo-site-findings";
 

@@ -24,10 +24,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useStudioHeadlineImage } from "@/hooks/effects/use-studio-headline-image";
 import { cn } from "@/lib/utils";
 import { fetchStudioAd, saveStudioDownload } from "./studio-ad-download";
 import type { StudioHeadlineLook } from "./studio-ad-headline";
-import { useStudioHeadlineImage } from "./studio-headline-image";
 import { readStudioHeadlineKit } from "./studio-headline-kit";
 import { StudioHeadlineSelect } from "./studio-headline-select";
 import { StudioImage } from "./studio-image";

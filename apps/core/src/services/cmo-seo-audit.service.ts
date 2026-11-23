@@ -541,6 +541,30 @@ export async function readCmoSeoAudit(cuso: Cuso): Promise<CmoSeoAudit> {
   };
 }
 
+/**
+ * The weekly SEO audit as one of Cuso's routines in Settings. Core starts it
+ * on the monitor's clock (Mondays 06:00 UTC), never a model turn, so it never
+ * skips or runs twice; its result comes to the chat as the audit's card and
+ * Cuso's report. Null where audits are off or the brand has no site.
+ */
+export async function cmoSeoAuditRoutine(cuso: Cuso, timeZone: string) {
+  const { enabled, executor } = getSeoAnalysisExecution();
+  if (!enabled || !executor?.canSchedule || !cuso.websiteUrl) return null;
+  const live = (await cmoSeoMonitors(cuso.projectId)).find(
+    (schedule) => schedule.state !== "ENDED",
+  );
+  return {
+    key: "cmo-weekly-seo-audit",
+    name: "Weekly search check",
+    when: "Every Monday morning",
+    description:
+      "Checks your site the way Google reads it and tells you in the chat what to fix.",
+    nextRunAt: live?.state === "ACTIVE" ? live.nextRunAt : null,
+    // The clock is UTC; its next run reads in the time zone Cuso works in.
+    timezone: timeZone,
+  };
+}
+
 /** An audit takes about ten minutes; one still running after this never ends. */
 const AUDIT_GIVE_UP_MS = 3 * 60 * 60 * 1000;
 

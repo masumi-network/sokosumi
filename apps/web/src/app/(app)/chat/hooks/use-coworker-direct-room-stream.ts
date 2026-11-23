@@ -398,12 +398,6 @@ export function useCoworkerDirectRoomStream({
     setStreamParentMessageId(readStoredStreamParentMessageId(roomId));
   }, [roomId]);
 
-  useEffect(() => {
-    if (!enabled) {
-      overlayCreatedAtByMessageIdRef.current.clear();
-    }
-  }, [enabled]);
-
   const transport = useMemo(
     () =>
       new DefaultChatTransport({

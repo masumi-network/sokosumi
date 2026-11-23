@@ -8,19 +8,26 @@ import { PREFETCHED_CONTENT_STALE_SECONDS } from "@/lib/navigation/prefetched-co
 import { imageStudioService } from "@/lib/services/image-studio.service";
 import { projectService } from "@/lib/services/project.service";
 
+const SHORT_PICTURE_CHOICES = 18;
+
 async function readTikTokStudioPageData(projectId: string | undefined) {
   const project = projectId
     ? await projectService.getProjectById(projectId)
     : null;
   // Not `notFound()`: the id came from a switchable scope, not from the path,
   // so the repair is to pick another project rather than to leave the page.
-  const [catalog, videos] = await Promise.all([
+  const [catalog, videos, studio] = await Promise.all([
     imageStudioService.getCatalog(),
     project
       ? imageStudioService.getTalkingVideos(project.id)
       : Promise.resolve({ jobs: [], assets: [] }),
+    project ? imageStudioService.getState(project.id) : null,
   ]);
-  return { project, talkingVideo: catalog.talkingVideo, videos };
+  // The newest of the Project's studio pictures, for a short to show.
+  const pictures = (studio?.assets ?? [])
+    .filter((asset) => asset.mediaType === "IMAGE")
+    .slice(0, SHORT_PICTURE_CHOICES);
+  return { project, talkingVideo: catalog.talkingVideo, videos, pictures };
 }
 
 type TikTokStudioPageData = Awaited<

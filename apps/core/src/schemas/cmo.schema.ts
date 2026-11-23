@@ -120,7 +120,7 @@ export const cmoProductionSchema = z
     state: z
       .enum(["waiting", "starting", "running", "ready", "stuck", "blocked"])
       .describe(
-        "starting: approved, but no run is working yet; the next sync starts one. blocked: no run could start for half an hour; Core keeps trying.",
+        "starting: approved, but no run is working yet; the next sync starts one. stuck: the last run made nothing ready; the next starts at retryAt. blocked: no run could start for half an hour; Core keeps trying.",
       ),
     ready: z.number().int(),
     total: z.number().int(),
@@ -158,6 +158,16 @@ export const cmoProductionSchema = z
       .array(z.string())
       .describe(
         "Calendar entries the plan bought does not make. A bigger plan makes them.",
+      ),
+    withoutPicture: z
+      .array(z.string())
+      .describe(
+        "Written entries whose picture failed the brand check on every visual Cuso wrote. They stay drafts without a picture and no longer hold the month back.",
+      ),
+    retryAt: z
+      .union([z.string(), z.null()])
+      .describe(
+        "When a stuck month's next production run starts. Null unless state is stuck.",
       ),
   })
   .openapi("CmoProduction");
@@ -680,6 +690,24 @@ export const cmoBrandMediaSchema = z
       .describe(
         "The brand's logo as its site shows it, read from its DESIGN.md: the full logo, its version for a dark background and the square mark, each a PNG. Null where the site gave none.",
       ),
+    site: z
+      .object({
+        pages: z.array(
+          z.object({
+            url: z.string(),
+            title: z.string(),
+            summary: z.string(),
+            facts: z.array(z.string()),
+            desktop: z.union([cmoMediaFileSchema, z.null()]),
+            phone: z.union([cmoMediaFileSchema, z.null()]),
+          }),
+        ),
+        complete: z.boolean(),
+      })
+      .optional()
+      .describe(
+        "Every page of the brand's site Cuso read, home first: what it says and how it looks on a desktop and a phone. complete is false while pages are still to be read. Absent before the first page was read.",
+      ),
   })
   .openapi("CmoBrandMedia");
 export type CmoBrandMedia = z.infer<typeof cmoBrandMediaSchema>;
@@ -732,6 +760,17 @@ export const cmoOverviewSchema = z
     projectLogo: z.union([z.string(), z.null()]),
     /** The owner gave their photo, with consent, to front talking videos. */
     presenterSet: z.boolean(),
+    upgrade: z
+      .union([
+        z.object({
+          versionId: z.string(),
+          lines: z.array(z.string()),
+        }),
+        z.null(),
+      ])
+      .describe(
+        "Cuso was moved onto a newer version and this member has not closed the dialog that says what changed: the version and its plain lines. Null otherwise.",
+      ),
     onboardingStep: z
       .enum(CMO_ONBOARDING_STEPS)
       .describe(

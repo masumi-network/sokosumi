@@ -108,6 +108,31 @@ describe("formatting a bot's post", () => {
     ).toBeNull();
   });
 
+  it("refuses a post that points to a link its first comment does not hold", () => {
+    // entry.fyi's 30 Nov LinkedIn post said "Link in the first comment." with no first comment.
+    for (const body of [
+      "Preview your free homepage. Link in the first comment.",
+      "See how it works. The link is in the comments.",
+      "Preview your free homepage; the link is in the comments.",
+    ]) {
+      expect(socialPostFormattingError("linkedin", post(body))).toBe(
+        "Rewrite the post: it says the link is in the first comment, but firstComment holds no link; put the link in firstComment.",
+      );
+      expect(
+        socialPostFormattingError(
+          "linkedin",
+          post(body, { firstComment: "Thanks for reading" }),
+        ),
+      ).toMatch(/firstComment holds no link/);
+      expect(
+        socialPostFormattingError(
+          "linkedin",
+          post(body, { firstComment: "https://entry.fyi" }),
+        ),
+      ).toBeNull();
+    }
+  });
+
   it("keeps a link the owner asked for in the post", () => {
     expect(
       socialPostFormattingError(

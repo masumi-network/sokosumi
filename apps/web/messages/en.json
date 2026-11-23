@@ -675,7 +675,9 @@
           "fonts": "Fonts",
           "tone": "Tone",
           "noSummary": "Your brand guidelines are saved. We couldn't pick out colors, fonts, or tone to show here.",
-          "viewFull": "View full guidelines"
+          "voice": "Voice",
+          "voiceShowAll": "Show all",
+          "voiceShowLess": "Show less"
         },
         "Invite": {
           "title": "{organization} is ready",
@@ -2824,6 +2826,10 @@
           "title": "No hidden projects",
           "description": "Hide a project that isn't yours from its menu. It leaves Open, the project switcher and Recent activity, and waits here."
         },
+        "noOpen": {
+          "title": "No open projects",
+          "description": "Your other projects are in another view."
+        },
         "onlyClosed": {
           "title": "All projects are closed",
           "description": "Closed projects keep their history in the Closed view.",
@@ -4566,9 +4572,9 @@
       "postToTikTok": "Post to TikTok",
       "title": "TikTok Studio",
       "pickTitle": "Choose a project",
-      "pickBody": "A talking video belongs to a project. Its brand writes the scripts and its Files keep the video.",
+      "pickBody": "A video belongs to a project. Its brand writes the scripts and its Files keep the video.",
       "pickUnavailable": "That project is not available in this workspace. Choose another one.",
-      "formLabel": "New talking video",
+      "formLabel": "New video",
       "script": "Script",
       "scriptPlaceholder": "Stop scrolling. Here is the one thing most people get wrong about…",
       "scriptHint": "The first sentence is the hook.",
@@ -4627,7 +4633,54 @@
       "loadFailed": "Failed to load video",
       "loadFailedBody": "Its file did not come through. Try again in a moment.",
       "tryAgain": "Try again",
-      "checking": "Checking the video. If it does not start, press play."
+      "checking": "Checking the video. If it does not start, press play.",
+      "kind": "Kind of video",
+      "stepKind": "What kind of video",
+      "kinds": {
+        "presenter": "Someone speaks",
+        "voiceover": "Story with voice",
+        "site_tour": "Website tour",
+        "top_three": "Top 3 list",
+        "slideshow": "Photo slideshow"
+      },
+      "kindHints": {
+        "presenter": "A presenter says your script to camera.",
+        "voiceover": "A voice tells a short story over your pictures and website.",
+        "site_tour": "A voice walks people through your website.",
+        "top_three": "A voice gives three numbered points.",
+        "slideshow": "Your pictures to music, with one line on each."
+      },
+      "kindNeedsSite": "Add your website to the project first.",
+      "stepShows": "What it shows",
+      "pictures": "Pictures",
+      "noPictures": "This project has no pictures yet. Make some in the Content Studio.",
+      "pictureChoose": "Use this picture",
+      "pictureChosen": "Picture {place} in the video. Remove it",
+      "picturesNote": "Up to {max} pictures, in the order you choose them.",
+      "picturesNoteWithSite": "Up to {max} pictures, in the order you choose them. Your website is shown too.",
+      "picturesMissing": "Choose at least one picture.",
+      "stepScriptVoice": "What the voice says",
+      "stepScriptSlideshow": "The words on screen",
+      "scriptPlaceholders": {
+        "voiceover": "Most people get this wrong about…",
+        "site_tour": "This is our website. Here is what you can do on it…",
+        "top_three": "Three ways to… One, … Two, … Three, … Try it today.",
+        "slideshow": "Shipped the code?\nNow ship the page.\nTry it free today"
+      },
+      "scriptHints": {
+        "voiceover": "The first sentence is the hook.",
+        "site_tour": "Say what people see on your site, from the top down.",
+        "top_three": "A sentence that names the list, one per point, then what to do next.",
+        "slideshow": "One short line per picture, one per row."
+      },
+      "hookLine": "Words on screen at the start",
+      "hookLinePlaceholder": "Leave empty and we write them for you",
+      "hookLineHint": "Up to six words that tell people why to keep watching.",
+      "shortIncludes": "Captions, music and your logo at the end are included.",
+      "slideshowIncludes": "Music and your logo at the end are included.",
+      "costDetailShort": "charged only when the video is ready, in about a minute",
+      "previewMetaSlideshow": "No voice: music and your lines on screen",
+      "aiLabelHintShort": "This video has a generated voice or music. It is labeled as AI-generated when it is published."
     },
     "Studio": {
       "back": "Back to project",
@@ -6013,7 +6066,7 @@
     },
     "HistorySearchDialog": {
       "title": "Search",
-      "description": "Search for tasks, tags, people, projects, channels, jobs, job results, images or files",
+      "description": "Search for tasks, tags, people, projects, channels, schedules, coworkers, jobs, job results, images or files",
       "searchPlaceholder": "Search...",
       "empty": "No results found",
       "loading": "Loading...",
@@ -6032,7 +6085,10 @@
       "tagsError": "Couldn't load tags",
       "tagTasksError": "Couldn't load these tasks",
       "projectsGroup": "Projects",
-      "channelsGroup": "Channels"
+      "channelsGroup": "Channels",
+      "schedulesGroup": "Schedules",
+      "coworkersGroup": "Coworkers",
+      "newTask": "New task"
     },
     "NoticeDialog": {
       "defaultTitle": "Notice",
@@ -11025,10 +11081,9 @@
         "failures": "Failures",
         "disabled": "disabled",
         "yourTime": "({datetime} your time)",
-        "enable": "Enable schedule",
-        "disable": "Disable schedule",
         "delete": "Delete",
-        "deleteTitle": "Delete schedule?",
+        "deleteNamed": "Delete {name}",
+        "deleteTitle": "Delete {name}?",
         "deleteDescription": "Future runs are removed. Past turns stay in your history.",
         "deleteCancel": "Keep",
         "deleteConfirm": "Delete",
@@ -11271,6 +11326,20 @@
         "activityTitle": "Recent activity",
         "activityDescription": "What it did recently.",
         "activityEmpty": "No turns yet. Open the chat and ask for something.",
+        "Activity": {
+          "mailCheck": "Mail check",
+          "scheduled": "Scheduled run",
+          "event": "Work update",
+          "retry": "Retry",
+          "other": "Run",
+          "outcome": {
+            "running": "Running",
+            "done": "Done",
+            "failed": "Didn't finish",
+            "cancelled": "Cancelled"
+          },
+          "waiting": "{count, plural, one {Waiting for approval} other {# waiting for approval}}"
+        },
         "showMore": "Show {count} more",
         "skillsTitle": "Skills",
         "skillsDescription": "What your assistant knows how to do. Add more from skills.sh.",
@@ -11824,6 +11893,21 @@
       "descending": "descending",
       "noHistory": "No changes recorded.",
       "undoBatch": "Undo batch",
+      "appendCsv": {
+        "title": "Add rows from CSV",
+        "description": "Adds the CSV's rows to the end of this table. Only text columns are filled, from CSV columns with the same name. Other columns stay empty.",
+        "file": "CSV file",
+        "matched": "Fills: {columns}",
+        "skipped": "Left out, no text column with this name: {columns}",
+        "noMatch": "No CSV column has the name of a text column in this table. Only text columns can be filled. Rename the CSV headers to match, then choose the file again.",
+        "skipDuplicates": "{count, plural, one {Leave out # row that is already in this table} other {Leave out # rows that are already in this table}}",
+        "add": "{count, plural, =0 {Add rows} one {Add # row} other {Add # rows}}",
+        "done": "{count, plural, one {Added # row.} other {Added # rows.}}",
+        "reading": "Reading the file and checking the table…",
+        "ambiguous": "These CSV columns could go into more than one table column, or share one: {columns}. Give each column its own name, then choose the file again.",
+        "full": "{room, plural, =0 {This table is full: it holds 10,000 rows, archived rows included.} one {This table has room for # more row (10,000 at most, archived rows included).} other {This table has room for # more rows (10,000 at most, archived rows included).}} The CSV adds {count}. Nothing was added.",
+        "stopped": "{added, plural, one {Stopped. Sokosumi confirmed # of {count} rows as added.} other {Stopped. Sokosumi confirmed # of {count} rows as added.}} The table shows what was saved. Retry adds the rest without adding any row twice."
+      },
       "findReplace": {
         "title": "Find and replace",
         "description": "Change every cell in one column that holds exactly the value you look for, ignoring capitals. It saves as one change you can undo from History and sources.",
@@ -13591,7 +13675,7 @@
         "failed": "Failed",
         "invalid": "Check the page selection, keywords, market and devices. Full audits accept one keyword and both devices.",
         "keywordsHelp": "Enter up to 20 keywords, each with up to 80 characters.",
-        "relatedPages": "Also checks indexing for relevant pages from this site, up to {count} pages total. Full audits cover selected pages only.",
+        "relatedPages": "{added, plural, =0 {The audit covers the pages you selected.} one {The audit covers the pages you selected and can add # more page of this site that fits your goal.} other {The audit covers the pages you selected and can add up to # more pages of this site that fit your goal.}} It also checks indexing for other relevant pages, up to {count} pages total.",
         "fullHelp": "Full audits accept one keyword and both devices. Each selected page keeps the same market.",
         "serviceUnavailable": "Checks are unavailable in this workspace. Return to the audit.",
         "returnToAudit": "Return to audit",
@@ -14306,7 +14390,7 @@
           "title": "Actions from the keyword strategy",
           "more": "{count, plural, one {Show # more action} other {Show # more actions}}",
           "limit": "Limit",
-          "prompt": "The site audit recommends: “{title}”. Draft a plan with the steps in order.{hasLimit, select, yes { Keep to this limit: {limit}} other {}}{count, plural, =0 {} one { The place: {targets}} other { The places: {targets}}}",
+          "prompt": "The SEO audit recommends: “{title}”. Draft a plan with the steps in order.{hasLimit, select, yes { Keep to this limit: {limit}} other {}}{count, plural, =0 {} one { The place: {targets}} other { The places: {targets}}}",
           "place": "Place"
         },
         "placeForm": {
@@ -14323,7 +14407,7 @@
         },
         "draft": {
           "title": "Suggested text",
-          "help": "The site audit wrote this text. Read it and the rules of the place before you post it.",
+          "help": "The audit wrote this text. Read it and the rules of the place before you post it.",
           "copy": "Copy text",
           "copied": "Text copied",
           "copyError": "Could not copy the text"

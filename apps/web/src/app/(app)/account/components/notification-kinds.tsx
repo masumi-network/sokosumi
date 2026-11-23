@@ -431,9 +431,10 @@ export function NotificationKinds({
 
             `overflow-hidden` on both: an open fold at the bottom of the first
             and the head at the top of the second each carry a fill that would
-            stand outside the border's curve. */}
+            stand outside the border's curve. `bg-background` makes each a
+            white block on the page's gray panel. */}
         {folding.length > 0 ? (
-          <div className="divide-y overflow-hidden rounded-lg border">
+          <div className="bg-background divide-y overflow-hidden rounded-lg border">
             {folding.map((group) => (
               <GroupRows
                 key={group.spec.id}
@@ -445,7 +446,7 @@ export function NotificationKinds({
           </div>
         ) : null}
         {/* Marketing email stays available while the matrix loads. */}
-        <div className="divide-y overflow-hidden rounded-lg border">
+        <div className="bg-background divide-y overflow-hidden rounded-lg border">
           {single.length > 0 ? (
             <div className="bg-card-background px-4">
               <ChannelLegend pushBlock={choices.pushBlock} named="row" />

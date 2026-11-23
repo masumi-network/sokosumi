@@ -14,7 +14,6 @@ import {
   Check,
   CloudUpload,
   Copy,
-  ExternalLink,
   ImageOff,
   Info,
   Link2,
@@ -58,6 +57,7 @@ import {
 import {
   Form,
   FormControl,
+  FormErrorText,
   FormField,
   FormItem,
   FormLabel,
@@ -87,6 +87,7 @@ import {
   ClientTimeoutError,
   raceWithTimeout,
 } from "@/lib/utils/race-with-timeout";
+import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
 import {
   cleanupOwnedLogoBestEffort,
   getUserFileUploadErrorMessage,
@@ -149,9 +150,9 @@ interface CreateOrganizationWizardProps {
 }
 
 /**
- * What the saved brand guidelines say, in plain words: colour swatches, fonts
- * and tone. Rows the guidelines leave out are skipped; with none, one line
- * says they are saved.
+ * What the saved brand guidelines say, in plain words: colour swatches, fonts,
+ * tone and voice. Rows the guidelines leave out are skipped; with none, one
+ * line says they are saved.
  */
 function BrandLookSummary({ look }: { look: PersistedDesignMd["look"] }) {
   const t = useTranslations(
@@ -181,6 +182,12 @@ function BrandLookSummary({ look }: { look: PersistedDesignMd["look"] }) {
       ? { label: t("Brand.fonts"), value: look.fonts.join(", ") }
       : null,
     look?.tone ? { label: t("Brand.tone"), value: look.tone } : null,
+    look?.voice
+      ? {
+          label: t("Brand.voice"),
+          value: <BrandVoice voice={stripInlineMarkdown(look.voice)} />,
+        }
+      : null,
   ].filter((row) => row !== null);
 
   if (rows.length === 0) {
@@ -194,12 +201,54 @@ function BrandLookSummary({ look }: { look: PersistedDesignMd["look"] }) {
   return (
     <dl className="bg-card-background mx-auto w-full max-w-sm divide-y rounded-xl border text-left text-sm">
       {rows.map((row) => (
-        <div key={row.label} className="flex items-center gap-4 px-4 py-3">
+        <div key={row.label} className="flex items-start gap-4 px-4 py-3">
           <dt className="text-muted-foreground w-24 shrink-0">{row.label}</dt>
           <dd className="min-w-0 break-words">{row.value}</dd>
         </div>
       ))}
     </dl>
+  );
+}
+
+/**
+ * Longest voice shown whole, in characters as read (graphemes); a longer one
+ * opens from a preview this long.
+ */
+const VOICE_PREVIEW_CHARS = 48;
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+/**
+ * The voice can be a paragraph, which would push the settings hint and the
+ * step's actions out of view. A long one shows its first words and opens in
+ * place with a native disclosure, so a tap or the keyboard reads all of it.
+ */
+function BrandVoice({ voice }: { voice: string }) {
+  const t = useTranslations(
+    "Components.Organizations.CreateOrganizationWizard",
+  );
+  const graphemes = Array.from(GRAPHEMES.segment(voice), (g) => g.segment);
+  if (graphemes.length <= VOICE_PREVIEW_CHARS) return voice;
+  const head = graphemes.slice(0, VOICE_PREVIEW_CHARS).join("");
+  // Drop a word the cut lands in, unless it is the only one.
+  const preview = (
+    /\s/.test(graphemes[VOICE_PREVIEW_CHARS] ?? "")
+      ? head
+      : head.replace(/\s+\S*$/, "")
+  ).replace(/[\s,;:.]+$/, "");
+
+  return (
+    <details className="group">
+      <summary className="focus-visible:outline-ring cursor-pointer list-none rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 [&::-webkit-details-marker]:hidden">
+        <span className="group-open:hidden">{preview}… </span>
+        <span className="font-medium underline underline-offset-4">
+          <span className="group-open:hidden">{t("Brand.voiceShowAll")}</span>
+          <span className="hidden group-open:inline">
+            {t("Brand.voiceShowLess")}
+          </span>
+        </span>
+      </summary>
+      <p className="mt-1">{voice}</p>
+    </details>
   );
 }
 
@@ -248,7 +297,7 @@ function CreateOrganizationWizardContent({
   const [copied, setCopied] = useState(false);
   const [emails, setEmails] = useState("");
   const [isSendingInvites, setIsSendingInvites] = useState(false);
-  /** Shared error id for the details step (message lives outside FormField). */
+  /** Error id prefix for the details step (messages live outside FormField). */
   const detailsErrorId = useId();
   const inviteFieldsId = useId();
   const logoDropzoneTitleId = useId();
@@ -722,7 +771,7 @@ function CreateOrganizationWizardContent({
                             <FormControl
                               aria-describedby={
                                 form.formState.errors.name
-                                  ? detailsErrorId
+                                  ? `${detailsErrorId}-name`
                                   : undefined
                               }
                             >
@@ -747,7 +796,7 @@ function CreateOrganizationWizardContent({
                             <FormControl
                               aria-describedby={
                                 form.formState.errors.url
-                                  ? detailsErrorId
+                                  ? `${detailsErrorId}-url`
                                   : undefined
                               }
                             >
@@ -762,20 +811,25 @@ function CreateOrganizationWizardContent({
                         )}
                       />
                     </div>
-                    {/* Fixed slot so a validation message never resizes the stage */}
-                    <div className="min-h-5 text-left">
-                      {/* Plain <p>, not <FormMessage>: lives outside FormField so
-                          both fields can share one error line without growing
-                          the card. FormControl aria-invalid still comes from
-                          field state; aria-describedby points here. */}
-                      <p
-                        id={detailsErrorId}
-                        role="alert"
-                        className="text-destructive text-sm"
-                      >
-                        {form.formState.errors.name?.message ??
-                          form.formState.errors.url?.message}
-                      </p>
+                    {/* Reserved slot so the first message does not move the hint */}
+                    <div className="mt-2 flex min-h-5 flex-col gap-1 text-left">
+                      {/* Below the card, not <FormMessage> inside it, so the
+                          card keeps its shape. Each field's error is its own
+                          line, so both show at once and each field's
+                          aria-describedby names only its own error.
+                          FormControl aria-invalid still comes from field state. */}
+                      {(["name", "url"] as const).map((field) => {
+                        const message = form.formState.errors[field]?.message;
+                        return message ? (
+                          <FormErrorText
+                            key={field}
+                            id={`${detailsErrorId}-${field}`}
+                            role="alert"
+                          >
+                            {message}
+                          </FormErrorText>
+                        ) : null;
+                      })}
                     </div>
                     <p className="text-muted-foreground text-left text-sm">
                       {t("Details.urlHint")}
@@ -982,17 +1036,6 @@ function CreateOrganizationWizardContent({
                     <p className="text-muted-foreground mx-auto mt-4 max-w-[46ch] text-sm text-balance">
                       {t("Brand.editHint")}
                     </p>
-                    {brandResult && (
-                      <a
-                        href={brandResult.previewUrl ?? brandResult.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-foreground focus-visible:ring-ring mt-3 inline-flex items-center gap-1.5 rounded-sm text-sm font-medium underline underline-offset-4 outline-none focus-visible:ring-2"
-                      >
-                        {t("Brand.viewFull")}
-                        <ExternalLink aria-hidden className="size-3.5" />
-                      </a>
-                    )}
                   </div>
                 )}
 

@@ -27,10 +27,8 @@ import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { runAsBackgroundWork } from "@/lib/evlog";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
-import {
-  modelCallTelemetryFor,
-  withModelCallTurn,
-} from "@/lib/soko-bot/model-calls";
+import { modelCallTelemetryFor } from "@/lib/soko-bot/model-call-roles";
+import { withModelCallTurn } from "@/lib/soko-bot/model-calls";
 import {
   assertSokoBotInferenceRegion,
   sokoBotInferenceEvidence,

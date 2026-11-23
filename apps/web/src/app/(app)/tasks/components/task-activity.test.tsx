@@ -573,6 +573,31 @@ describe("TaskActivitySection", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("links a result that has its own page in place of the export of its done comment", () => {
+    const events: TaskEvent[] = [
+      createEvent("completed-with-comment", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.COMPLETED,
+        comment: "The SEO audit is done. The Report follows as a file.",
+      }),
+    ];
+
+    render(
+      <TaskActivitySection
+        {...baseProps}
+        events={events}
+        resultLink={{ href: "/seo?auditId=a1", label: "Open SEO audit" }}
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", { name: "Open SEO audit" }),
+    ).toHaveAttribute("href", "/seo?auditId=a1");
+    expect(
+      screen.queryByRole("button", { name: "download" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("does not force-expand a non-completed comment's markdown", () => {
     const events: TaskEvent[] = [
       createEvent("running-with-comment", {

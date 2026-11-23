@@ -3,6 +3,7 @@
 import {
   SEO_FULL_AUDIT_CREDITS,
   SEO_FULL_AUDIT_MARKUP_PERCENT,
+  seoFullAuditAutoPages,
 } from "@sokosumi/utils";
 import { CalendarClock, ChevronDown, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -179,7 +180,12 @@ export function SeoAnalysisDialog({
             ) : null}
             {full ? (
               <p className="text-muted-foreground text-sm">
-                {t("analysis.relatedPages", { count: SEO_MAX_PAGES })}
+                {t("analysis.relatedPages", {
+                  count: SEO_MAX_PAGES,
+                  added: seoFullAuditAutoPages(
+                    form.workspace.scope.pageIds.length,
+                  ),
+                })}
               </p>
             ) : null}
             <Button

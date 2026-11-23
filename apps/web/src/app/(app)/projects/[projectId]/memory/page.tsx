@@ -6,6 +6,7 @@ import {
   getProjectWorkspaceLabels,
   ProjectWorkspaceShell,
 } from "@/app/projects/components/project-workspace-shell";
+import { PROJECT_LINE_DATE } from "@/app/projects/constants";
 import { projectService } from "@/lib/services/project.service";
 
 // Wait for the current session and project access before rendering, as the
@@ -59,6 +60,8 @@ export default async function ProjectMemoryPage({
       cmo={project.cmo}
       createdAt={formatter.dateTime(project.createdAt, "dateTime")}
       updatedAt={formatter.dateTime(project.updatedAt, "dateTime")}
+      createdOn={formatter.dateTime(project.createdAt, PROJECT_LINE_DATE)}
+      updatedOn={formatter.dateTime(project.updatedAt, PROJECT_LINE_DATE)}
       labels={workspaceLabels}
       identifier={project.identifier}
       projectId={project.id}

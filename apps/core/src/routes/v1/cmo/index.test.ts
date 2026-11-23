@@ -163,6 +163,7 @@ function overview() {
     brandMedia: null,
     projectLogo: null,
     presenterSet: false,
+    upgrade: null,
     routines: [],
     timeZone: "Europe/Berlin",
     updates: [
@@ -200,6 +201,8 @@ function overview() {
       pillars: null,
       level: "all_in",
       beyondPlan: [],
+      withoutPicture: [],
+      retryAt: null,
     },
     mailingListSize: 0,
     comments: [],

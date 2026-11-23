@@ -111,6 +111,7 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     brandBrainConfirmedAt: null,
     projectLogo: null,
     presenterSet: false,
+    upgrade: null,
     onboardingStep: "done",
     timeZone: "Europe/Berlin",
     routines: [
@@ -159,6 +160,8 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
       pillars: null,
       level: "all_in",
       beyondPlan: [],
+      withoutPicture: [],
+      retryAt: null,
     },
     measurement: [
       {

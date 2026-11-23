@@ -60,6 +60,7 @@ import {
   cmoPlanRulesBrokenSince,
   cmoPromiseGaps,
   cmoStrategyRules,
+  cmoWeekGaps,
   cmoWithOwnerPace,
 } from "@/services/cmo-plan-review.service";
 import {
@@ -557,6 +558,8 @@ async function startCmoMonthFinish(
   const userId = input.userId ?? (await cmoRunnerUserId(cuso));
   if (!userId) return null;
   const weeks = cmoCalendarWeeks(plan.calendar);
+  // Two weeks a turn keeps the titles short enough to read.
+  const weekGaps = weeks >= 4 ? cmoWeekGaps(plan).slice(0, 2) : [];
   const last = plan.calendar
     .filter((entry) => entry.status !== "skipped")
     .map((entry) => entry.date)
@@ -577,17 +580,35 @@ async function startCmoMonthFinish(
               ]
             : []),
         ]
-      : [
-          `Finish ${cuso.businessName}'s marketing strategy: its calendar does not hold what the strategy promises.`,
-          ...gaps.map((gap) => `- ${gap}`),
-          `Add the missing pieces with save_strategy part patch, one week a call (only that week's new entries, new ids), until every week holds the pace's perWeek pieces and each channel its cadence, in the mix and pillar shares, and each video the funnel promises goes out where it says. Never lower the pace or a posting network's cadence to match: the plan the owner buys decides how much of the month is made. ${
-            rules.channelFit
-              ? "A short video is one entry on TikTok (format video), Instagram (format reel) or YouTube (format short) that lists the other two in alsoOn: it counts on all three networks, so seven such entries a day give TikTok, Reels and Shorts seven each. To make room, you may turn a short video entry already saved into a shared one (part patch, same id, add alsoOn) and skip its duplicates on the other two networks (status skipped). The month keeps at most four talking videos."
-              : `The month keeps at most ${CMO_MAX_VIDEOS_PER_MONTH} videos: for a video network or a play that promises video, first add the network to the alsoOn of talking videos already planned (part patch, same id); YouTube or TikTok may take a cadence that matches those videos, and a play may drop the video in its words (part plan).`
-          } Change nothing else already saved.`,
-        ]
+      : weekGaps.length > 0
+        ? [
+            `Finish ${cuso.businessName}'s marketing strategy: some weeks hold fewer pieces than its cadences say. Fill these weeks now; the next turn takes any others.`,
+            ...weekGaps.map(
+              (week) =>
+                `- ${week.from} to ${week.to}: add ${week.missing.map((gap) => `${gap.count} on ${gap.channel}`).join(", ")}. Saved that week, so make each new piece say something else: ${week.titles.join(" · ") || "nothing yet"}.`,
+            ),
+            `These counts and titles are the whole of each week: you need nothing more from the calendar, and a new id never replaces a saved piece. Save each week with save_strategy part patch (only its new entries, new ids, dated inside the week), in the mix and pillar shares. Never lower the pace or a cadence, and do not ask the owner: the plan the owner buys decides how much of the month is made.${
+              rules.channelFit
+                ? " A short video is one entry on TikTok (format video), Instagram (format reel) or YouTube (format short) that lists the other two in alsoOn: it counts on all three networks."
+                : ""
+            } Change nothing already saved.`,
+          ]
+        : [
+            `Finish ${cuso.businessName}'s marketing strategy: its calendar does not hold what the strategy promises.`,
+            ...gaps.map((gap) => `- ${gap}`),
+            `Add the missing pieces with save_strategy part patch, one week a call (only that week's new entries, new ids), until every week holds the pace's perWeek pieces and each channel its cadence, in the mix and pillar shares, and each video the funnel promises goes out where it says. Never lower the pace or a posting network's cadence to match: the plan the owner buys decides how much of the month is made. ${
+              rules.channelFit
+                ? "A short video is one entry on TikTok (format video), Instagram (format reel) or YouTube (format short) that lists the other two in alsoOn: it counts on all three networks, so seven such entries a day give TikTok, Reels and Shorts seven each. To make room, you may turn a short video entry already saved into a shared one (part patch, same id, add alsoOn) and skip its duplicates on the other two networks (status skipped). The month keeps at most four talking videos."
+                : `The month keeps at most ${CMO_MAX_VIDEOS_PER_MONTH} videos: for a video network or a play that promises video, first add the network to the alsoOn of talking videos already planned (part patch, same id); YouTube or TikTok may take a cadence that matches those videos, and a play may drop the video in its words (part plan).`
+            } Change nothing else already saved.`,
+          ]
     )
       .concat([
+        ...(rules.stageSpread
+          ? [
+              "Give each new entry the funnel step it serves in stage, and spread each network's pieces across the steps.",
+            ]
+          : []),
         "When a save is refused or names problems, fix them and save again.",
         "Then tell the owner in one sentence that the month is complete. The strategy card is your report: do not call report_update.",
       ])
@@ -1329,7 +1350,8 @@ export async function saveCmoStrategy(
 ): Promise<MarketingStrategy> {
   const cuso = await requireCuso(where, db);
   // What the last patch changed is Core's to say.
-  const { patched, ...strategy } = save;
+  // So is what the fit cut: a save of Cuso's starts over.
+  const { patched, fitted: _fitted, ...strategy } = save;
   const alsoOn = (strategy.calendar ?? [])
     .map((entry) => cmoAlsoOnProblem(entry))
     .find((problem) => problem !== null);
@@ -1419,9 +1441,10 @@ export async function saveCmoStrategy(
     const sent = options.turnId
       ? withoutDashes({ ...strategy, calendar: strategy.calendar ?? [] })
       : { ...strategy, calendar: strategy.calendar ?? [] };
-    stored = keepOwnerAds(
-      patchPlan(before, withLineBreaks(sent), own ? before.patched : []),
-    );
+    stored = keepOwnerAds({
+      ...patchPlan(before, withLineBreaks(sent), own ? before.patched : []),
+      fitted: undefined,
+    });
   } else {
     const left = (value: unknown, key?: string) =>
       value === undefined ||
@@ -1448,6 +1471,7 @@ export async function saveCmoStrategy(
           ? strategy.calendar
           : (before?.calendar ?? []),
       patched: [],
+      fitted: undefined,
     });
     // A channel the plan now runs is no longer a proposal.
     const running = new Set(whole.channels.map((channel) => channel.channel));

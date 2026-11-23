@@ -41,6 +41,7 @@ function mapOverview(overview: CmoOverview) {
     brandVisual: overview.brandVisual,
     projectLogo: overview.projectLogo,
     presenterSet: overview.presenterSet,
+    upgrade: overview.upgrade,
     onboardingStep: overview.onboardingStep,
     routines: overview.routines,
     timeZone: overview.timeZone,

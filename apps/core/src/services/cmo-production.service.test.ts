@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { coreEvlogMiddleware, recordCoreWarning } from "@/lib/evlog";
 import { findCusoForBot } from "@/services/cmo-cuso.service";
 
+import { cmoVisualKey } from "@/services/cmo-media-maker.service";
 import type { MarketingStrategyPost } from "@/services/marketing-strategy.service";
 import {
   coreLogEvents,
@@ -393,6 +394,44 @@ describe("cmoReadyPieceIds", () => {
     });
   });
 
+  it("finishes a short's Reel and TikTok, which show its file", () => {
+    // entry.fyi, 2026-11-22: 46 shared Shorts never counted as made.
+    const pieces = [
+      piece({ id: "yt", channel: "youtube", format: "short", draft: "A" }, [
+        "drive/s.mp4",
+      ]),
+      piece(
+        {
+          id: "yt@tiktok",
+          channel: "tiktok",
+          format: "video",
+          draft: "B",
+          videoOf: "yt",
+        },
+        ["drive/s.mp4"],
+      ),
+      piece(
+        {
+          id: "yt@instagram",
+          channel: "instagram",
+          format: "reel",
+          draft: "C",
+          videoOf: "yt",
+        },
+        ["drive/s.mp4"],
+      ),
+    ];
+    expect([...cmoReadyPieceIds(pieces, new Set())]).toEqual([
+      "yt",
+      "yt@tiktok",
+      "yt@instagram",
+    ]);
+    expect(cmoProductionSteps(pieces)).toMatchObject({
+      pictured: 3,
+      needPictures: 3,
+    });
+  });
+
   it("finishes a carousel only with its slides, none shared with another piece", () => {
     const carousel = {
       channel: "instagram",
@@ -539,7 +578,13 @@ describe("cmoProductionMessage", () => {
           id: "written",
           script: "Stop emailing back and forth.",
         }),
-        piece({ ...talking, id: "yt", channel: "youtube", videoOf: "tv" }),
+        piece({
+          ...talking,
+          id: "yt",
+          channel: "youtube",
+          videoOf: "tv",
+          script: "Book a demo in one click.",
+        }),
       ],
       connected: new Set(),
       attempt: 1,
@@ -547,7 +592,7 @@ describe("cmoProductionMessage", () => {
     });
     expect(message).toContain("(write its script)");
     expect(message).toContain(
-      "(the talking video of tv on youtube: the same file, so write only this post's own caption, in youtube's own format; its script stays on tv)",
+      "(the talking video of tv on youtube: the same file, so write only this post's own caption, in youtube's own format, about what the video says: \"Book a demo in one click.\"; its script stays on tv)",
     );
     expect(message).not.toContain("(write its visual)");
   });
@@ -975,20 +1020,28 @@ describe("advanceCmoProduction", () => {
     expect(warnings[0]?.event.path).toBeUndefined();
   });
 
-  it("stops after four runs in a day and tries again the next", async () => {
+  it("waits three hours after four runs that made nothing, not a day", async () => {
+    // CodePat's test copy, 2026-11-21: three writer timeouts, then the cap
+    // held the retry past the copy's 10-hour life at 67 of 171.
     pgClock.now = NOW;
     const runs = [1, 2, 3, 4].map((n) => ({
       clientTurnId: `${RUN}:${5 - n}:0`,
       status: "FAILED",
-      createdAt: hoursAgo(n),
+      createdAt: hoursAgo(n / 4),
     }));
     const stuck = await advanceCmoProduction(cuso([post({})], runs), NOW);
     expect(stuck.state).toBe("stuck");
+    expect(stuck.retryAt).toBe(hoursAgo(0.25 - 3).toISOString());
     expect(startTurn).not.toHaveBeenCalled();
-    const nextDay = new Date(NOW.getTime() + 24 * 60 * 60 * 1_000);
-    pgClock.now = nextDay;
-    await advanceCmoProduction(cuso([post({})], runs), nextDay);
+    const alerts = expectCoreLog(
+      "error",
+      "A CMO month stopped and Core restarted it",
+    );
+    const later = hoursAgo(0.25 - 3);
+    pgClock.now = later;
+    await advanceCmoProduction(cuso([post({})], runs), later);
     expect(startTurn).toHaveBeenCalledTimes(1);
+    expect(alerts).toHaveLength(1);
   });
 
   it("keeps making the month after four runs in a day that each made pieces", async () => {
@@ -1032,7 +1085,7 @@ describe("advanceCmoProduction", () => {
     expect(startTurn).not.toHaveBeenCalled();
   });
 
-  it("waits a day when the last run made nothing ready", async () => {
+  it("waits three hours, not a day, when the last run made nothing ready, then restarts and alerts us", async () => {
     pgClock.now = NOW;
     const posts = [
       post({ draft: "Done." }),
@@ -1044,7 +1097,25 @@ describe("advanceCmoProduction", () => {
     ];
     const stalled = await advanceCmoProduction(cuso(posts, runs), NOW);
     expect(stalled.state).toBe("stuck");
+    expect(stalled.retryAt).toBe(hoursAgo(-3).toISOString());
     expect(startTurn).not.toHaveBeenCalled();
+    const alerts = expectCoreLog(
+      "error",
+      "A CMO month stopped and Core restarted it",
+    );
+    const later = hoursAgo(-3);
+    pgClock.now = later;
+    await advanceCmoProduction(cuso(posts, runs), later);
+    expect(startTurn).toHaveBeenCalledTimes(1);
+    expect(startTurn.mock.calls[0]?.[0].clientTurnId).toBe(`${RUN}:2:1`);
+    expect(alerts[0]?.event).toMatchObject({
+      alert: "cmo_month_unfinished",
+      attempt: 2,
+      ready: 1,
+      total: 2,
+    });
+    startTurn.mockClear();
+    pgClock.now = NOW;
     // A run that crashed is tried again at once.
     await advanceCmoProduction(
       cuso(posts, [{ ...runs[0]!, status: "FAILED" }]),
@@ -1206,6 +1277,71 @@ describe("syncCmoProduction", () => {
       expect.arrayContaining([{ id: "bot-1" }, { id: "bot-2" }]),
     );
     expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-PLAN");
+  });
+});
+
+describe("a picture that fails on every visual", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    pgClock.now = NOW;
+    isCmoSubscribed.mockResolvedValue(true);
+    listCmoChannels.mockResolvedValue([]);
+    turnCount.mockResolvedValue(0);
+    advanceMedia.mockResolvedValue(undefined);
+  });
+
+  const words = post({ id: "words", draft: "Done." });
+  const picture = post({
+    id: "pic",
+    format: "image",
+    draft: "Words",
+    visual: "A card on a desk",
+  });
+  const failedJobs = (visuals: string[]) =>
+    visuals.flatMap((visualKey) =>
+      ["1", "2"].map((attempt) => ({
+        id: `${visualKey}-${attempt}`,
+        pieceId: "pic",
+        slot: 0,
+        step: "image",
+        visualKey,
+        status: "FAILED",
+        assetId: null,
+        prompt: "",
+        rejected: false,
+        attempt,
+        createdAt: NOW,
+      })),
+    );
+
+  it("leaves it a draft without one after three visuals, and the month is made", async () => {
+    // entry.fyi, 2026-11-22: one X post failed the brand check on four
+    // visuals and the month read "stopped" for a day.
+    listMediaJobs.mockResolvedValue(
+      failedJobs(["old-1", "old-2", cmoVisualKey(picture.entry)]),
+    );
+    const { status, pending } = await readCmoProduction(
+      cuso([words, picture]),
+      { connected: new Set(), subscribed: true, now: NOW },
+    );
+    expect(status).toMatchObject({
+      state: "ready",
+      withoutPicture: ["pic"],
+    });
+    expect(pending).toEqual([]);
+  });
+
+  it("asks a run for another visual while it failed on fewer", async () => {
+    listMediaJobs.mockResolvedValue(
+      failedJobs(["old-1", cmoVisualKey(picture.entry)]),
+    );
+    const { status, pending } = await readCmoProduction(
+      cuso([words, picture]),
+      { connected: new Set(), subscribed: true, now: NOW },
+    );
+    expect(status.state).not.toBe("ready");
+    expect(status.withoutPicture).toEqual([]);
+    expect(pending.map((piece) => piece.id)).toEqual(["pic"]);
   });
 });
 

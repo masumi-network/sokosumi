@@ -31,6 +31,9 @@ export const cmoV15: SokoBotVersion = {
   createdAt: "2026-11-22",
   summary:
     "Cuso on cmo-v14 who writes the strategy and his messages for a founder who is not a marketer: no marketing jargon, the brand, the buyer and the concrete action named, and nothing about his own bookkeeping.",
+  whatsNew: [
+    "Your strategy and Cuso's messages now use plain words, without marketing jargon.",
+  ],
   releaseNote:
     "I now write your strategy and my messages in plain words: who it is for, what they do, and what happens for your business. No marketing jargon.",
   systemPrompt: (() => {

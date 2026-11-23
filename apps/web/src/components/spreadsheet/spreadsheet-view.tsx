@@ -2,22 +2,14 @@
 
 import { Sheet as SheetIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLayoutResizeObserver } from "@/hooks/effects/use-resize-observer";
-import {
-  MAX_ROWS,
-  readSpreadsheet,
-  type Spreadsheet,
-} from "@/lib/spreadsheet-file";
+import { useSpreadsheetFile } from "@/hooks/effects/use-spreadsheet-file";
+import { MAX_ROWS, type Spreadsheet } from "@/lib/spreadsheet-file";
 import { cn } from "@/lib/utils";
-
-type LoadState =
-  | { status: "loading" }
-  | { status: "ready"; sheets: Spreadsheet[] }
-  | { status: "failed" };
 
 /**
  * An `.xlsx` or `.csv` read from `url` and shown as a table.
@@ -33,29 +25,7 @@ export function SpreadsheetFileView({
   kind: "xlsx" | "csv";
 }) {
   const t = useTranslations("Components.SpreadsheetView");
-  const [state, setState] = useState<LoadState>({ status: "loading" });
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setState({ status: "loading" });
-    fetch(url, { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error("Failed to fetch spreadsheet");
-        return response.arrayBuffer();
-      })
-      .then((bytes) => readSpreadsheet(kind, bytes))
-      .then((sheets) =>
-        setState(
-          sheets.length > 0
-            ? { status: "ready", sheets }
-            : { status: "failed" },
-        ),
-      )
-      .catch(() => {
-        if (!controller.signal.aborted) setState({ status: "failed" });
-      });
-    return () => controller.abort();
-  }, [url, kind]);
+  const state = useSpreadsheetFile(url, kind);
 
   if (state.status === "loading")
     return (

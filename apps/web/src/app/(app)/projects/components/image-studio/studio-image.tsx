@@ -2,9 +2,10 @@
 
 import type { StudioLogoPosition } from "@sokosumi/core-client";
 import { ImageOff, RefreshCw } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useStudioImageRetryCleanup } from "@/hooks/effects/use-studio-image-retry-cleanup";
 import { cn } from "@/lib/utils";
 
 import type { PlacementRatio } from "./studio-placements";
@@ -84,13 +85,7 @@ export function StudioImage({
   const reload = current?.reload ?? 0;
   const outcome = current?.outcome ?? null;
 
-  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(
-    () => () => {
-      if (retryTimer.current) clearTimeout(retryTimer.current);
-    },
-    [],
-  );
+  const retryTimer = useStudioImageRetryCleanup();
 
   const base = assetContentUrl(asset, { logo: logoPosition, placement });
 

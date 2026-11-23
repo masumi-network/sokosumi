@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +13,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useMermaidDiagramObjectUrl } from "@/hooks/effects/use-mermaid-diagram-object-url";
+import { useMermaidDiagramRender } from "@/hooks/effects/use-mermaid-diagram-render";
 
 import { mermaidSourceError } from "./mermaid-policy";
 
@@ -47,12 +49,6 @@ const MermaidDiagram = memo(function MermaidDiagram({
 }: MermaidBlockProps & { dark: boolean }) {
   const t = useTranslations("Components.Mermaid");
   const root = useRef<HTMLElement>(null);
-  const [result, setResult] = useState<{
-    source: string;
-    dark: boolean;
-    url?: string;
-    failed?: boolean;
-  }>();
   const [copyResult, setCopyResult] = useState<{
     source: string;
     status: "copied" | "copyFailed";
@@ -60,76 +56,28 @@ const MermaidDiagram = memo(function MermaidDiagram({
   const copyStatus = copyResult?.source === source ? copyResult.status : null;
   const [zoom, setZoom] = useState(1);
   const error = overLimit ? "tooMany" : mermaidSourceError(source);
-  const current =
-    result?.source === source && result.dark === dark ? result : undefined;
-  const url = complete && !error ? current?.url : undefined;
-  const status = !complete
-    ? "waiting"
-    : (error ?? (current?.failed ? "failed" : !url ? "loading" : null));
 
-  useEffect(() => {
-    if (!complete || error) return;
-    let controller: AbortController | undefined;
-    let objectUrl: string | undefined;
-    let disposed = false;
-    async function start() {
-      if (controller || objectUrl) return;
-      const attempt = new AbortController();
-      controller = attempt;
-      try {
-        const { renderMermaid } = await import("./render-mermaid");
-        if (attempt.signal.aborted) return;
-        const svg = await renderMermaid(source, dark, attempt.signal);
-        if (attempt.signal.aborted) return;
-        objectUrl = URL.createObjectURL(
-          new Blob([svg], { type: "image/svg+xml" }),
-        );
-        setResult({ source, dark, url: objectUrl });
-        observer.disconnect();
-      } catch {
-        if (!attempt.signal.aborted) {
-          setResult({ source, dark, failed: true });
-          observer.disconnect();
-        }
-      }
-    }
-    // Observe the chat's scrollport, so ancestor clipping does not erase the
-    // preload margin. The document viewport remains the fallback.
-    let scrollRoot = root.current?.parentElement ?? null;
-    while (
-      scrollRoot &&
-      !/auto|scroll/.test(getComputedStyle(scrollRoot).overflowY)
-    ) {
-      scrollRoot = scrollRoot.parentElement;
-    }
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (disposed) return;
-        if (entries.some((entry) => entry.isIntersecting)) {
-          void start();
-        } else if (!objectUrl) {
-          controller?.abort();
-          controller = undefined;
-        }
-      },
-      { root: scrollRoot, rootMargin: "600px 0px" },
-    );
-    if (root.current) observer.observe(root.current);
-    return () => {
-      disposed = true;
-      controller?.abort();
-      observer.disconnect();
-    };
-  }, [source, complete, error, dark]);
+  const { result, setResult } = useMermaidDiagramRender({
+    root,
+    source,
+    complete,
+    error,
+    dark,
+  });
 
   // Retain the last image until its replacement arrives, including when a
   // streamed block briefly reopens. Never reuse an already revoked URL.
-  useEffect(() => {
-    const objectUrl = result?.url;
-    return () => {
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [result?.url]);
+  const objectUrl = useMermaidDiagramObjectUrl(result);
+
+  const current =
+    result?.source === source && result.dark === dark ? result : undefined;
+  const url =
+    complete && !error && current && objectUrl?.result === current
+      ? objectUrl.url
+      : undefined;
+  const status = !complete
+    ? "waiting"
+    : (error ?? (current?.failed ? "failed" : !url ? "loading" : null));
 
   async function handleCopy() {
     try {

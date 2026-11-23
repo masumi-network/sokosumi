@@ -121,6 +121,7 @@ function render(overview: CmoOverview, actions: Partial<CmoAppActions>) {
           loadAdCampaigns: async () => [],
           startOver: async () => null,
           setTimeZone: async () => null,
+          markUpgradeSeen: async () => undefined,
           startTopUp: none,
           subscribe: none,
           changePlan: async () => ({ change: null, error: null }),

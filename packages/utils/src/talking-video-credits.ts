@@ -28,7 +28,7 @@ const QUOTED_CHARACTERS_PER_SECOND = 13;
 
 /** Bracketed audio tags such as `[excited]` steer the voice and are not spoken. */
 function spokenLength(script: string): number {
-  return script.replace(/\[[^\]]*\]/g, "").trim().length;
+  return script.replace(/\[[^[\]]*\]/g, "").trim().length;
 }
 
 /** The length a script is quoted at, in whole seconds. */
@@ -127,3 +127,65 @@ export const TALKING_VIDEO_PLANNED_CREDITS = {
       planned(TALKING_VIDEO_PLANNED_SCRIPT.longest)) /
     TALKING_VIDEO_PLANNED_SCRIPT.longest,
 };
+
+/**
+ * A short: a vertical video without a presenter, made from the brand's
+ * pictures and site. Each format is a way of telling it that works without
+ * a person on camera (the platforms' own creative guides, 2026-11-23).
+ */
+export const SHORT_VIDEO_FORMATS = [
+  /** A voice tells a short story over the brand's pictures and site. */
+  "voiceover",
+  /** A voice walks through the brand's site, page by page. */
+  "site_tour",
+  /** A voice gives three numbered points. */
+  "top_three",
+  /** The brand's pictures to music, a short line on each. */
+  "slideshow",
+] as const;
+export type ShortVideoFormat = (typeof SHORT_VIDEO_FORMATS)[number];
+
+/** Formats whose words are shown, not spoken. */
+export const SHORT_VIDEO_TEXT_FORMATS: readonly ShortVideoFormat[] = [
+  "slideshow",
+];
+
+/**
+ * How a script is written for each format: one source for the studio's
+ * script writer and the bots that write shorts.
+ */
+export const SHORT_VIDEO_FORMAT_GUIDE: Record<ShortVideoFormat, string> = {
+  voiceover:
+    "A voice tells a short story over the brand's pictures and website: open on the problem or a surprising fact, say what the brand does about it, end on one next step. 3 to 6 short sentences, 15 to 30 seconds spoken.",
+  site_tour:
+    "A voice walks through the brand's website, top to bottom: start with what the site is, then one sentence per thing a visitor sees or can do there, end on one next step. 4 to 6 short sentences, 15 to 30 seconds spoken. Name only what the site really shows.",
+  top_three:
+    'A voice gives three numbered points. Exactly 5 sentences: the first names the list ("Three ways to..."), then one sentence per point, then one next step. Each point sentence says one concrete thing. 15 to 30 seconds spoken.',
+  slideshow:
+    "No voice: the brand's pictures play to music with one line of text on each. Write 4 to 7 lines, one per row, each at most 6 words and read in a second: a first line that stops the scroll, then the story, then a last line with the next step.",
+};
+
+/** A short shows at most this many of the brand's pictures. */
+export const SHORT_VIDEO_MAX_PICTURES = 6;
+
+/**
+ * Credits (= cents) for one short. Every short has music; a spoken one adds
+ * its voice and the timing of its words. No presenter, so no per-second
+ * cost, and no generated clip: it needs an AI label and shows nothing of the
+ * brand's own.
+ */
+export function creditsPerShortVideoCents(
+  price: TalkingVideoPriceFigures,
+  script: string,
+  format: ShortVideoFormat,
+): number {
+  const spoken = !SHORT_VIDEO_TEXT_FORMATS.includes(format);
+  const seconds = talkingVideoQuotedSeconds(script);
+  const usd =
+    price.musicUsd +
+    (spoken
+      ? (script.length / 1000) * price.voicePer1000CharactersUsd +
+        (seconds / 60) * price.captionsPerMinuteUsd
+      : 0);
+  return Math.ceil(usd * 100);
+}

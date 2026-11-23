@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  creditsPerShortVideoCents,
   creditsPerTalkingVideoCents,
   TALKING_VIDEO_PLANNED_CREDITS,
+  TALKING_VIDEO_PRICE,
   talkingVideoQuotedSeconds,
 } from "./talking-video-credits";
 
@@ -76,5 +78,22 @@ describe("TALKING_VIDEO_PLANNED_CREDITS", () => {
     expect(TALKING_VIDEO_PLANNED_CREDITS.longest).toBe(191);
     expect(TALKING_VIDEO_PLANNED_CREDITS.perCharacter).toBeCloseTo(0.4, 1);
     expect(TALKING_VIDEO_PLANNED_CREDITS.sitePerCharacter).toBeCloseTo(0.1, 1);
+  });
+});
+
+describe("creditsPerShortVideoCents", () => {
+  const script = "x".repeat(300);
+
+  it("charges music, the voice and timing its words for a spoken short", () => {
+    // $0.10 + 300 characters at $0.08 per 1,000 + 24 s at $0.008 a minute.
+    expect(
+      creditsPerShortVideoCents(TALKING_VIDEO_PRICE, script, "voiceover"),
+    ).toBe(13);
+  });
+
+  it("charges only the music for a slideshow, which speaks nothing", () => {
+    expect(
+      creditsPerShortVideoCents(TALKING_VIDEO_PRICE, script, "slideshow"),
+    ).toBe(10);
   });
 });

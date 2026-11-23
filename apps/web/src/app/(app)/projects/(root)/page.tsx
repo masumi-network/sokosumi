@@ -52,7 +52,7 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
         }
       : null;
 
-  const [{ projectsPage, hasClosedProjects, otherMatches }, t, tCmo] =
+  const [{ projectsPage, otherViews, otherMatches }, t, tCmo] =
     await Promise.all([
       projectsPageDataPromise,
       translationsPromise,
@@ -68,7 +68,7 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
         nextCursor={projectsPage.pagination?.nextCursor ?? null}
         query={query}
         state={state}
-        hasClosedProjects={hasClosedProjects}
+        otherViews={otherViews}
         otherMatches={otherMatches}
         initialCreateProjectOpen={initialCreateProjectOpen}
         createProjectModalResetKey={String(initialCreateProjectOpen)}
@@ -98,6 +98,10 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
           emptyHidden: {
             title: t("list.emptyHidden.title"),
             description: t("list.emptyHidden.description"),
+          },
+          noOpen: {
+            title: t("list.noOpen.title"),
+            description: t("list.noOpen.description"),
           },
           onlyClosed: {
             title: t("list.onlyClosed.title"),

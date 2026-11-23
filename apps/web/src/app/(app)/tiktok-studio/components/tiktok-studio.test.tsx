@@ -17,12 +17,17 @@ import { prepareStudioAssetSocialMedia } from "@/lib/actions/image-studio/action
 import { coreClient } from "@/lib/clients/core.browser.client";
 import { TestQueryProvider } from "@/test/query-provider";
 
-const { startTalkingVideoMock, writeScriptsMock, uploadDriveFileMock } =
-  vi.hoisted(() => ({
-    startTalkingVideoMock: vi.fn(),
-    writeScriptsMock: vi.fn(),
-    uploadDriveFileMock: vi.fn(),
-  }));
+const {
+  startTalkingVideoMock,
+  startShortVideoMock,
+  writeScriptsMock,
+  uploadDriveFileMock,
+} = vi.hoisted(() => ({
+  startTalkingVideoMock: vi.fn(),
+  startShortVideoMock: vi.fn(),
+  writeScriptsMock: vi.fn(),
+  uploadDriveFileMock: vi.fn(),
+}));
 
 vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: { getProjectsByIdSocialConnections: vi.fn() },
@@ -54,6 +59,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/lib/actions/image-studio/action", () => ({
   prepareStudioAssetSocialMedia: vi.fn(),
   startTalkingVideo: startTalkingVideoMock,
+  startShortVideo: startShortVideoMock,
   writeTalkingVideoScripts: writeScriptsMock,
 }));
 vi.mock("@/lib/auth/auth.client", () => ({
@@ -123,6 +129,7 @@ function renderStudio({ hasWebsite = false } = {}) {
     <TestQueryProvider>
       <TikTokStudio
         catalog={CATALOG}
+        pictures={[]}
         initialVideos={{ jobs: [], assets: [] }}
         hasWebsite={hasWebsite}
         projectId="project-1"
@@ -319,6 +326,7 @@ describe("TikTokStudio", () => {
             projectId="project-1"
             readOnly={false}
             hasWebsite={false}
+            pictures={[]}
             initialVideos={{
               jobs: [
                 {
@@ -398,6 +406,7 @@ describe("TikTokStudio", () => {
       <TestQueryProvider>
         <TikTokStudio
           catalog={CATALOG}
+          pictures={[]}
           initialVideos={{
             jobs: [
               {
@@ -426,6 +435,7 @@ describe("TikTokStudio", () => {
       <TestQueryProvider>
         <TikTokStudio
           catalog={CATALOG}
+          pictures={[]}
           initialVideos={{
             jobs: [
               {
@@ -480,6 +490,7 @@ describe("TikTokStudio", () => {
         <TestQueryProvider>
           <TikTokStudio
             catalog={CATALOG}
+            pictures={[]}
             initialVideos={{ jobs, assets }}
             hasWebsite={false}
             projectId="project-1"
@@ -508,6 +519,7 @@ describe("TikTokStudio", () => {
           <SearchablePageContent>
             <TikTokStudio
               catalog={CATALOG}
+              pictures={[]}
               initialVideos={{ jobs: recent, assets: [], hasMore: true }}
               hasWebsite={false}
               projectId="project-1"
@@ -596,6 +608,7 @@ describe("TikTokStudio", () => {
           <SearchablePageContent>
             <TikTokStudio
               catalog={CATALOG}
+              pictures={[]}
               initialVideos={recent}
               hasWebsite={false}
               projectId="project-1"
@@ -648,6 +661,7 @@ describe("TikTokStudio", () => {
           <SearchablePageContent>
             <TikTokStudio
               catalog={CATALOG}
+              pictures={[]}
               initialVideos={recent}
               hasWebsite={false}
               projectId="project-1"
@@ -873,5 +887,134 @@ describe("TikTokStudio", () => {
         screen.queryByRole("button", { name: "newVideo" }),
       ).not.toBeInTheDocument();
     });
+  });
+});
+
+describe("making a short", () => {
+  const picture = (id: string) =>
+    ({
+      id,
+      projectId: "project-1",
+      mediaType: "IMAGE",
+    }) as ProjectTalkingVideos["assets"][number];
+  const PICTURES = ["p1", "p2", "p3", "p4", "p5"].map(picture);
+
+  function renderShortStudio({ hasWebsite = true, pictures = PICTURES } = {}) {
+    render(
+      <TestQueryProvider>
+        <TikTokStudio
+          catalog={CATALOG}
+          pictures={pictures}
+          initialVideos={{ jobs: [], assets: [] }}
+          hasWebsite={hasWebsite}
+          projectId="project-1"
+          readOnly={false}
+        />
+      </TestQueryProvider>,
+    );
+  }
+
+  beforeEach(() => {
+    startShortVideoMock.mockReset();
+    startShortVideoMock.mockResolvedValue({
+      ok: true,
+      job: {
+        id: "job-short",
+        status: "PENDING",
+        prompt: SCRIPT,
+        createdAt: new Date().toISOString(),
+      },
+    });
+  });
+
+  it("starts a story with voice from the newest pictures, its hook line and price", async () => {
+    renderShortStudio();
+    fireEvent.click(screen.getByRole("radio", { name: /kinds\.voiceover/ }));
+
+    expect(screen.getByText("stepShows")).toBeTruthy();
+    // The four newest pictures are chosen, in order.
+    expect(
+      screen
+        .getAllByRole("button", { pressed: true })
+        .map((button) => button.getAttribute("aria-label")),
+    ).toEqual([
+      "pictureChosen",
+      "pictureChosen",
+      "pictureChosen",
+      "pictureChosen",
+    ]);
+    fireEvent.change(screen.getByLabelText("script"), {
+      target: { value: SCRIPT },
+    });
+    fireEvent.change(screen.getByLabelText("hookLine"), {
+      target: { value: "Fresh every week" },
+    });
+    // Music, the voice and timing its words: no presenter seconds.
+    expect(screen.getByText("creditsCount")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "create" }));
+
+    await waitFor(() => expect(startShortVideoMock).toHaveBeenCalledTimes(1));
+    expect(startShortVideoMock.mock.calls[0]![0]).toMatchObject({
+      projectId: "project-1",
+      format: "voiceover",
+      script: SCRIPT,
+      hookLine: "Fresh every week",
+      voice: "Sarah",
+      languageCode: "en",
+      pictureAssetIds: ["p1", "p2", "p3", "p4"],
+    });
+    expect(startTalkingVideoMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the order pictures are chosen in", async () => {
+    renderShortStudio();
+    fireEvent.click(screen.getByRole("radio", { name: /kinds\.top_three/ }));
+    const tiles = screen.getAllByRole("button", { name: /^picture/ });
+    // Take the first one off and put the fifth on: it plays last.
+    fireEvent.click(tiles[0]!);
+    fireEvent.click(tiles[4]!);
+    fireEvent.change(screen.getByLabelText("script"), {
+      target: { value: SCRIPT },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "create" }));
+
+    await waitFor(() => expect(startShortVideoMock).toHaveBeenCalled());
+    expect(startShortVideoMock.mock.calls[0]![0].pictureAssetIds).toEqual([
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+    ]);
+  });
+
+  it("asks no voice and no hook line for a slideshow", () => {
+    renderShortStudio();
+    fireEvent.click(screen.getByRole("radio", { name: /kinds\.slideshow/ }));
+
+    expect(screen.queryByLabelText("voice")).toBeNull();
+    expect(screen.queryByLabelText("hookLine")).toBeNull();
+    expect(screen.getByText("slideshowIncludes")).toBeTruthy();
+  });
+
+  it("offers a website tour only to a Project with a website", () => {
+    renderShortStudio({ hasWebsite: false });
+
+    const tour = screen.getByRole("radio", { name: /kinds\.site_tour/ });
+    expect(tour.hasAttribute("disabled")).toBe(true);
+    expect(within(tour).getByText("kindNeedsSite")).toBeTruthy();
+  });
+
+  it("asks for a picture when the Project has neither pictures nor a website", () => {
+    renderShortStudio({ hasWebsite: false, pictures: [] });
+    fireEvent.click(screen.getByRole("radio", { name: /kinds\.voiceover/ }));
+    fireEvent.change(screen.getByLabelText("script"), {
+      target: { value: SCRIPT },
+    });
+
+    expect(screen.getByText("noPictures")).toBeTruthy();
+    expect(screen.getByText("picturesMissing")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "create" }).hasAttribute("disabled"),
+    ).toBe(true);
   });
 });

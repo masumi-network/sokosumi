@@ -27,7 +27,14 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/clients/core.browser.client", () => ({
-  coreClient: { getHistory: getHistoryMock, getTasks: getTasksMock },
+  coreClient: {
+    getHistory: getHistoryMock,
+    getTasks: getTasksMock,
+    listTaskSchedules: async () => ({ data: [] }),
+    getTaskScheduleAssignees: async () => ({
+      data: { coworkers: [], sokoBot: null },
+    }),
+  },
 }));
 
 vi.mock("@/lib/utils/file-search.client", () => ({
@@ -65,6 +72,9 @@ const labels = {
   tagTasksError: "Couldn't load these tasks",
   projectsGroup: "Projects",
   channelsGroup: "Channels",
+  schedulesGroup: "Schedules",
+  coworkersGroup: "Coworkers",
+  newTask: "New task",
 };
 
 function tag(id: string, displayName: string, archived = false) {

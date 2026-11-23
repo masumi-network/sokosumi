@@ -147,6 +147,33 @@ export const CMO_SOKO_BOT_VERSION_IDS: readonly string[] =
     (version) => version.id,
   );
 
+/** A Cuso version's number (cmo-v15 is 15); null for a model trial. */
+function cmoVersionNumber(id: string | null | undefined): number | null {
+  const match = /^cmo-v(\d+)$/.exec(id ?? "");
+  return match ? Number(match[1]) : null;
+}
+
+/**
+ * What an owner reads after their Cuso moved from one version to a newer
+ * one: the `whatsNew` lines of every version the move skipped over, newest
+ * first, at most four. Empty for a move that is not an upgrade.
+ */
+export function cmoWhatsNew(
+  fromVersionId: string | null | undefined,
+  toVersionId: string | null | undefined,
+): string[] {
+  const from = cmoVersionNumber(fromVersionId);
+  const to = cmoVersionNumber(toVersionId);
+  if (from === null || to === null || to <= from) return [];
+  return SOKO_BOT_PRODUCT_VERSIONS.filter((version) => {
+    const n = cmoVersionNumber(version.id);
+    return n !== null && n > from && n <= to;
+  })
+    .reverse()
+    .flatMap((version) => version.whatsNew ?? [])
+    .slice(0, 4);
+}
+
 export type { SokoBotSkill, SokoBotVersion };
 export { getSokoBotSkill, SOKO_BOT_SKILLS };
 

@@ -22,7 +22,12 @@ import {
 import { CHAT_THREADS_PATH } from "@/app/chat/utils/chat-route-base";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import { fetchBackgroundJson } from "@/components/chat/fetch-background-json";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useFeatureBadgeExpiryTick } from "@/hooks/effects/use-feature-badge-expiry-tick";
+import { useFeatureBadgesLifecycle } from "@/hooks/effects/use-feature-badges-lifecycle";
+import {
+  CAMPAIGNS_STALE_MS,
+  useFeatureBadgesNavigationRefresh,
+} from "@/hooks/effects/use-feature-badges-navigation-refresh";
 import { markBadgeCampaignSeenAction } from "@/lib/actions/badge-campaign/action";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { isPathActive } from "@/lib/utils/is-path-active";
@@ -104,15 +109,7 @@ export function FeatureBadgesProvider({
   const requestedIds = useRef(new Set<string>());
   const exitTimers = useRef(new Map<string, number[]>());
   const mounted = useRef(true);
-  useMountEffect(() => {
-    mounted.current = true;
-    const timers = exitTimers.current;
-    return () => {
-      mounted.current = false;
-      for (const ids of timers.values()) ids.forEach(window.clearTimeout);
-      timers.clear();
-    };
-  });
+  useFeatureBadgesLifecycle(mounted, exitTimers);
 
   const scheduleExit = useCallback(({ id, feature }: BadgeCampaignSummary) => {
     if (exitTimers.current.has(id)) return;
@@ -174,9 +171,6 @@ export function FeatureBadgesProvider({
   );
 }
 
-/** Campaigns this new are not read again by a returning tab or a navigation. */
-const CAMPAIGNS_STALE_MS = 60_000;
-
 /** Pills and the visit observer share one user-scoped background read. */
 function useCampaigns(value: FeatureBadgesValue) {
   const initial = use(value.campaigns);
@@ -198,20 +192,12 @@ function useCampaigns(value: FeatureBadgesValue) {
         .badgeCampaigns;
     },
   });
-  const [clockTick, tick] = useState(0);
   const nextEnd = Math.min(
     ...query.data
       .map((campaign) => campaign.endsAt.getTime())
       .filter((end) => end > Date.now()),
   );
-  useEffect(() => {
-    if (!Number.isFinite(nextEnd)) return;
-    const timer = window.setTimeout(
-      () => tick((current) => current + 1),
-      Math.min(nextEnd - Date.now(), 2_147_483_647),
-    );
-    return () => window.clearTimeout(timer);
-  }, [nextEnd]);
+  const clockTick = useFeatureBadgeExpiryTick(nextEnd);
   const active = useMemo(() => {
     // A timer tick expires the data even when the browser has not fetched.
     void clockTick;
@@ -229,15 +215,12 @@ function MarkSeenOnOpen() {
   const { data: resolved, dataUpdatedAt, refetch } = useCampaigns(value);
   const pathname = usePathname();
   const lastPathname = useRef(pathname);
-  useEffect(() => {
-    if (lastPathname.current !== pathname) {
-      lastPathname.current = pathname;
-      // A navigation reads again only when the campaigns are a minute old,
-      // like a returning tab. A read on every page change cost a Core round
-      // trip each time.
-      if (Date.now() - dataUpdatedAt >= CAMPAIGNS_STALE_MS) void refetch();
-    }
-  }, [pathname, refetch, dataUpdatedAt]);
+  useFeatureBadgesNavigationRefresh({
+    pathname,
+    lastPathname,
+    dataUpdatedAt,
+    refetch,
+  });
   const { markSeen, seenIds, latestCampaigns } = value;
   useEffect(() => {
     latestCampaigns.current = resolved;

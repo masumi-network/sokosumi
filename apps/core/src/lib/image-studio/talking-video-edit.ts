@@ -2,6 +2,11 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import {
+  SHORT_VIDEO_TEXT_FORMATS,
+  type ShortVideoFormat,
+} from "@sokosumi/utils";
+
 import { CAPTION_FONT_FAMILY, captionFontsDir, runFfmpeg } from "@/lib/ffmpeg";
 
 /**
@@ -14,6 +19,10 @@ import { CAPTION_FONT_FAMILY, captionFontsDir, runFfmpeg } from "@/lib/ffmpeg";
  *
  * All of it is planned from the voice's word timings: the presenter model
  * lip-syncs to that audio, so the clip runs on the same clock.
+ *
+ * A short has no presenter. The same plan times its shots (the brand's
+ * pictures, its site, a text card) per sentence under the voice, or under the
+ * music alone when its words are only on screen (`planShortVideo`).
  */
 
 /** A type alias, not an interface: it is stored in the job's JSON settings. */
@@ -25,17 +34,36 @@ export type SpokenWord = {
 
 /**
  * What a cut shows: the presenter as filmed, the presenter cut out over the
- * brand's page, the page alone, or a B-roll clip, while the voice goes on.
+ * brand's page, the page alone, a B-roll clip, one of a short's pictures, or
+ * a plain card when a short has neither pictures nor a page.
  */
-export type EditShot = "camera" | "over-page" | "page" | "broll";
+export type EditShot =
+  | "camera"
+  | "over-page"
+  | "page"
+  | "broll"
+  | "picture"
+  | "card";
 
 /** A stretch of the presenter clip that is kept, and how it is shown. */
 export interface EditCut {
   start: number;
   end: number;
-  /** How far a camera shot is punched in. */
+  /** How far a camera or page shot is punched in; under 1, a page is inset. */
   zoom: number;
   shot: EditShot;
+  /** The picture a short's picture shot shows. */
+  picture?: number;
+  /** How far down the page a short's page shot starts, in pixels. */
+  pageFrom?: number;
+}
+
+/** Words a short shows one sentence at a time instead of captions. */
+export interface ScreenLine {
+  start: number;
+  end: number;
+  text: string;
+  style: "Label" | "Number";
 }
 
 export interface CaptionEvent {
@@ -48,7 +76,14 @@ export interface CaptionEvent {
 
 export interface TalkingVideoEditPlan {
   cuts: EditCut[];
+  /** The sentence each cut belongs to, by index. */
+  cutSentence: number[];
   captions: CaptionEvent[];
+  lines: ScreenLine[];
+  /** Captions sit on a box: a short's shots include pages full of their own text. */
+  captionBox: boolean;
+  /** How long the hook line shows. */
+  hookSeconds: number;
   /** The cuts' length together, before the end card. */
   speechSeconds: number;
   durationSeconds: number;
@@ -89,6 +124,7 @@ const BROLL_MAX_SECONDS = 3;
 /** The music bed under the voice, as a share of full volume. */
 const MUSIC_VOLUME = 0.3;
 const MUSIC_FADE_SECONDS = 0.6;
+const LOUDNESS_LUFS = -14;
 export const END_CARD_SECONDS = 1.7;
 export const TALKING_VIDEO_HOOK_MAX_LENGTH = 48;
 
@@ -101,6 +137,7 @@ const SENTENCE_END = /[.!?]["')\]]*$/;
  */
 function showBrollInHook(
   cuts: EditCut[],
+  cutSentence: number[],
   words: readonly SpokenWord[],
   wordCut: number[],
 ): void {
@@ -115,6 +152,7 @@ function showBrollInHook(
     ...(until < first.end ? [{ ...first, start: until }] : []),
   ];
   cuts.splice(0, 1, ...pieces);
+  cutSentence.splice(0, 1, ...pieces.map(() => 0));
   wordCut.forEach((cut, index) => {
     if (cut > 0) {
       wordCut[index] = cut + pieces.length - 1;
@@ -155,8 +193,13 @@ export function planTalkingVideoEdit(
     (SENTENCE_END.test(words.at(-1)!.text.trim()) ? 0 : 1);
 
   const cuts: EditCut[] = [];
+  const cutSentence: number[] = [];
   const wordCut: number[] = [];
   let sentence = 0;
+  const keep = (cut: EditCut) => {
+    cuts.push(cut);
+    cutSentence.push(sentence);
+  };
   let start = Math.max(0, words[0]!.start - LEAD_SECONDS);
   words.forEach((word, index) => {
     wordCut.push(cuts.length);
@@ -169,7 +212,7 @@ export function planTalkingVideoEdit(
     };
     const endsSentence = SENTENCE_END.test(word.text.trim());
     if (!next) {
-      cuts.push({
+      keep({
         start,
         end: Math.min(clipSeconds, word.end + FINAL_TAIL_SECONDS),
         ...look,
@@ -178,17 +221,17 @@ export function planTalkingVideoEdit(
     }
     const gap = next.start - word.end;
     if (gap > MAX_PAUSE_SECONDS) {
-      cuts.push({ start, end: word.end + TAIL_SECONDS, ...look });
+      keep({ start, end: word.end + TAIL_SECONDS, ...look });
       start = next.start - LEAD_SECONDS;
     } else if (endsSentence) {
       const boundary = word.end + Math.max(0, gap) / 2;
-      cuts.push({ start, end: boundary, ...look });
+      keep({ start, end: boundary, ...look });
       start = boundary;
     }
     if (endsSentence) sentence += 1;
   });
 
-  if (options.broll) showBrollInHook(cuts, words, wordCut);
+  if (options.broll) showBrollInHook(cuts, cutSentence, words, wordCut);
 
   const offsets: number[] = [];
   let speechSeconds = 0;
@@ -235,10 +278,198 @@ export function planTalkingVideoEdit(
   }
   return {
     cuts,
+    cutSentence,
     captions: captions.filter((caption) => caption.end > caption.start),
+    lines: [],
+    captionBox: false,
+    hookSeconds: Math.min(HOOK_SECONDS, speechSeconds),
     speechSeconds,
     durationSeconds: speechSeconds + (options.endCard ? END_CARD_SECONDS : 0),
   };
+}
+
+/** A short cuts to a new shot at least this often, inside a long sentence. */
+const SHORT_SHOT_MAX_SECONDS = 2.6;
+/** How far down the page each of a short's page shots starts after the last. */
+const SHORT_PAGE_STEP = 640;
+/** How many points a list numbers. */
+const TOP_THREE_POINTS = 3;
+/**
+ * A website tour shows every other page shot inset, like a screen, over a
+ * blurred copy of itself: a punch-in cut the page's text at its sides.
+ */
+const SHORT_TOUR_INSET = 0.84;
+
+export interface ShortVideoPlanOptions {
+  format: ShortVideoFormat;
+  /** How many of the brand's pictures the short can show. */
+  pictures: number;
+  /** A screenshot of the brand's site can be shown. */
+  page: boolean;
+  endCard: boolean;
+}
+
+/**
+ * What a short's cut shows. Each format leans on its own source and falls
+ * back to the next one the short has: pictures, then the page, then a card.
+ */
+function shortShot(
+  options: ShortVideoPlanOptions,
+  index: number,
+  sentence: number,
+  sentences: number,
+): Pick<EditCut, "shot" | "zoom" | "picture" | "pageFrom"> {
+  const page = (step: number, zoom = 1) =>
+    ({ shot: "page", zoom, pageFrom: step * SHORT_PAGE_STEP }) as const;
+  const picture = (step: number) =>
+    options.pictures > 0
+      ? ({
+          shot: "picture",
+          zoom: 1,
+          picture: step % options.pictures,
+        } as const)
+      : options.page
+        ? page(step)
+        : ({ shot: "card", zoom: 1 } as const);
+  switch (options.format) {
+    case "site_tour":
+      return options.page
+        ? page(index, index % 2 === 1 ? SHORT_TOUR_INSET : 1)
+        : picture(index);
+    case "top_three":
+      return options.page && sentences >= 3 && sentence === sentences - 1
+        ? page(0)
+        : picture(index);
+    case "slideshow":
+      return picture(index);
+    case "voiceover":
+      return options.page && options.pictures > 0 && index % 2 === 1
+        ? page((index - 1) / 2)
+        : picture(options.page ? index / 2 : index);
+  }
+}
+
+/** The text of each sentence, in the order the plan counts them. */
+function sentenceTexts(words: readonly SpokenWord[]): string[] {
+  const texts: string[][] = [[]];
+  for (const word of words) {
+    const text = word.text.trim();
+    if (!text) continue;
+    texts.at(-1)!.push(text);
+    if (SENTENCE_END.test(text)) texts.push([]);
+  }
+  return texts
+    .filter((sentence) => sentence.length > 0)
+    .map((sentence) => sentence.join(" "));
+}
+
+/**
+ * Plans a short without a presenter: the voice (or, for words shown on
+ * screen, their reading time) is cut like a presenter clip, and each cut
+ * shows one of the brand's pictures or its site. A long sentence
+ * is split into several shots, so the picture keeps changing.
+ */
+export function planShortVideo(
+  spoken: readonly SpokenWord[],
+  clipSeconds: number,
+  options: ShortVideoPlanOptions,
+): TalkingVideoEditPlan | null {
+  const base = planTalkingVideoEdit(spoken, clipSeconds, {
+    endCard: options.endCard,
+  });
+  if (!base) return null;
+  const onScreen = SHORT_VIDEO_TEXT_FORMATS.includes(options.format);
+  const cuts: EditCut[] = [];
+  const cutSentence: number[] = [];
+  base.cuts.forEach((cut, index) => {
+    const length = cut.end - cut.start;
+    const pieces = Math.max(1, Math.ceil(length / SHORT_SHOT_MAX_SECONDS));
+    for (let piece = 0; piece < pieces; piece += 1) {
+      cuts.push({
+        ...cut,
+        start: cut.start + (piece * length) / pieces,
+        end: cut.start + ((piece + 1) * length) / pieces,
+      });
+      cutSentence.push(base.cutSentence[index]!);
+    }
+  });
+  const sentences = (cutSentence.at(-1) ?? 0) + 1;
+  const shots = cuts.map((cut, index) => ({
+    start: cut.start,
+    end: cut.end,
+    ...shortShot(options, index, cutSentence[index]!, sentences),
+  }));
+
+  const spans: { start: number; end: number }[] = [];
+  let at = 0;
+  shots.forEach((cut, index) => {
+    const sentence = cutSentence[index]!;
+    const end = at + cut.end - cut.start;
+    spans[sentence] = { start: spans[sentence]?.start ?? at, end };
+    at = end;
+  });
+  const texts = sentenceTexts(spoken);
+  const lines: ScreenLine[] = [];
+  if (onScreen) {
+    spans.forEach((span, sentence) => {
+      const text = texts[sentence];
+      if (span && text) lines.push({ ...span, text, style: "Label" });
+    });
+  }
+  // The first sentence names the list, the next three are its points, and
+  // what follows says what to do next.
+  if (options.format === "top_three") {
+    const last = Math.min(TOP_THREE_POINTS, sentences - 2);
+    for (let sentence = 1; sentence <= last; sentence += 1) {
+      const span = spans[sentence];
+      if (span)
+        lines.push({ ...span, text: String(sentence), style: "Number" });
+    }
+  }
+  return {
+    ...base,
+    cuts: shots,
+    cutSentence,
+    captions: onScreen ? [] : base.captions,
+    lines,
+    captionBox: true,
+    hookSeconds:
+      options.format === "top_three" && sentences > 1
+        ? (spans[0]?.end ?? base.hookSeconds)
+        : base.hookSeconds,
+  };
+}
+
+/** Seconds a word shown on screen stays, by its length, and a sentence's hold. */
+const READ_WORD_SECONDS = 0.22;
+const READ_CHARACTER_SECONDS = 0.035;
+const READ_SENTENCE_HOLD_SECONDS = 0.5;
+
+/**
+ * Times the words of a short that is read, not spoken: as long as a person
+ * takes to read them, with a hold after each sentence. A line without an end
+ * mark is its own sentence.
+ */
+export function readingTimings(script: string): SpokenWord[] {
+  const words = script
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .flatMap((line) => {
+      const parts = line.split(/\s+/);
+      const last = parts.length - 1;
+      if (!SENTENCE_END.test(parts[last]!)) parts[last] = `${parts[last]}.`;
+      return parts;
+    });
+  let at = 0;
+  return words.map((text) => {
+    const start = at;
+    at +=
+      READ_WORD_SECONDS +
+      READ_CHARACTER_SECONDS * text.length +
+      (SENTENCE_END.test(text) ? READ_SENTENCE_HOLD_SECONDS : 0);
+    return { text, start, end: at };
+  });
 }
 
 function assTime(seconds: number): string {
@@ -313,7 +544,7 @@ export function talkingVideoSubtitles(
   const events = [
     ...(hook
       ? [
-          `Dialogue: 1,${assTime(0)},${assTime(Math.min(HOOK_SECONDS, plan.speechSeconds))},Hook,,0,0,0,,${hook}`,
+          `Dialogue: 1,${assTime(0)},${assTime(plan.hookSeconds)},Hook,,0,0,0,,${hook}`,
         ]
       : []),
     ...(endCard && assText(endCard.text)
@@ -321,6 +552,13 @@ export function talkingVideoSubtitles(
           `Dialogue: 1,${assTime(plan.speechSeconds)},${assTime(plan.durationSeconds)},Card,,0,0,0,,${assText(endCard.text)}`,
         ]
       : []),
+    ...plan.lines.flatMap((line) =>
+      assText(line.text)
+        ? [
+            `Dialogue: 1,${assTime(line.start)},${assTime(line.end)},${line.style},,0,0,0,,${assText(line.text)}`,
+          ]
+        : [],
+    ),
     ...plan.captions.map((caption) => {
       const text = caption.words
         .map(assText)
@@ -347,8 +585,9 @@ export function talkingVideoSubtitles(
       size: 100,
       colour: WHITE,
       outlineColour: INK,
-      borderStyle: 1,
-      outline: 8,
+      ...(plan.captionBox
+        ? { borderStyle: 3, outline: 14 }
+        : { borderStyle: 1, outline: 8 }),
       alignment: 2,
       marginV: FRAME.height - bottom + 30,
     }),
@@ -360,6 +599,25 @@ export function talkingVideoSubtitles(
       outline: 16,
       alignment: 8,
       marginV: top + 50,
+    }),
+    // A short's own words: a label over a picture, or a list point's number.
+    style("Label", {
+      size: 80,
+      colour: INK,
+      outlineColour: WHITE,
+      borderStyle: 3,
+      outline: 22,
+      alignment: 8,
+      marginV: top + 50,
+    }),
+    style("Number", {
+      size: 200,
+      colour: SPOKEN,
+      outlineColour: INK,
+      borderStyle: 1,
+      outline: 10,
+      alignment: 8,
+      marginV: top + 20,
     }),
     style("Card", {
       size: 64,
@@ -384,24 +642,50 @@ function filterPath(value: string): string {
 }
 
 export interface TalkingVideoEditFiles {
-  /** The presenter clip, with its sound. */
-  clip: string;
+  /** The presenter clip, with its sound. A short has none. */
+  clip?: string;
+  /** A short's voice. A short whose words are only on screen has none. */
+  voice?: string;
   subtitles: string;
   fontsDir: string;
   output: string;
-  /** For the shots that show the brand's site. */
-  site?: {
-    /** The clip's matte: white where the presenter is. Same frames as `clip`. */
-    alpha: string;
-    /** A screenshot of the page, 1080 wide and at least 1920 high. */
-    page: string;
-  };
+  /** A screenshot of the brand's page, 1080 wide and at least 1920 high. */
+  page?: string;
+  /** The clip's matte: white where the presenter is. Same frames as `clip`. */
+  alpha?: string;
+  /** A short's pictures, each 1080 x 1920. */
+  pictures?: string[];
+  /** The colour of a card with no picture behind it, as `0xRRGGBB`. */
+  cardColour?: string;
   /** Present when the video ends on a card. */
   endCard?: { logo: string; dark: boolean };
-  /** A clip shown in the hook, at least three seconds long. */
+  /** A clip shown in the hook. */
   broll?: string;
   /** An instrumental bed, looped under the whole video. */
   music?: string;
+}
+
+/** A picture is drawn this much larger than the frame, to pan across. */
+const PICTURE_PAN = { width: 1188, height: 2112 } as const;
+/** Music under a voice is a bed; without one, it carries the short. */
+const MUSIC_UNDER_WORDS_VOLUME = 0.9;
+
+/**
+ * The shot a cut can show with the files there are. A presenter video falls
+ * back to its camera; a short to its pictures, its page, then a card.
+ */
+function availableShot(cut: EditCut, files: TalkingVideoEditFiles): EditShot {
+  const has: Record<EditShot, boolean> = {
+    camera: Boolean(files.clip),
+    "over-page": Boolean(files.clip && files.alpha && files.page),
+    page: Boolean(files.page),
+    broll: Boolean(files.broll),
+    picture: Boolean(files.pictures?.length),
+    card: true,
+  };
+  if (has[cut.shot]) return cut.shot;
+  if (files.clip) return "camera";
+  return (["picture", "page", "card"] as const).find((shot) => has[shot])!;
 }
 
 /**
@@ -424,17 +708,21 @@ export function talkingVideoEditArgs(
     "aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo";
   const graph: string[] = [];
   const parts: string[] = [];
+  const pictures = files.pictures ?? [];
 
   plan.cuts.forEach((cut, index) => {
     const seconds = (cut.end - cut.start).toFixed(3);
     const seek = ["-ss", cut.start.toFixed(3), "-t", seconds];
     const still = ["-loop", "1", "-framerate", "30", "-t", seconds];
-    const clip = addInput(...seek, "-i", files.clip);
-    const shot =
-      (cut.shot === "broll" && !files.broll) ||
-      (cut.shot !== "broll" && cut.shot !== "camera" && !files.site)
-        ? "camera"
-        : cut.shot;
+    const spoken = files.clip ?? files.voice;
+    const audio = spoken
+      ? addInput(...seek, "-i", spoken)
+      : addInput(
+          ...["-f", "lavfi", "-t", seconds],
+          ...["-i", "anullsrc=r=44100:cl=stereo"],
+        );
+    const clip = audio;
+    const shot = availableShot(cut, files);
     if (shot === "camera") {
       const width = 2 * Math.round(FRAME.width / cut.zoom / 2);
       const height = 2 * Math.round(FRAME.height / cut.zoom / 2);
@@ -443,18 +731,53 @@ export function talkingVideoEditArgs(
         `[${clip}:v]scale=${size},crop=${width}:${height}:(iw-ow)/2:0,scale=${size},setsar=1,fps=30[v${index}]`,
       );
     } else if (shot === "broll") {
-      const broll = addInput("-t", seconds, "-i", files.broll!);
+      const broll = addInput(
+        ...(files.clip ? [] : ["-stream_loop", "-1"]),
+        ...["-t", seconds, "-i", files.broll!],
+      );
       graph.push(
         `[${broll}:v]scale=${size}:force_original_aspect_ratio=increase,crop=${size},setsar=1,fps=30[v${index}]`,
       );
-    } else if (shot === "page") {
-      const page = addInput(...still, "-i", files.site!.page);
+    } else if (shot === "picture") {
+      const picture = addInput(
+        ...still,
+        "-i",
+        pictures[(cut.picture ?? index) % pictures.length]!,
+      );
+      // Every other picture pans up instead of down.
+      const along = index % 2 === 0 ? `t/${seconds}` : `(1-t/${seconds})`;
       graph.push(
-        `[${page}:v]crop=${size}:0:'min(ih-oh,${PAGE_PAN_FROM}+${PAGE_PAN}*t)',setsar=1,fps=30[v${index}]`,
+        `[${picture}:v]scale=${PICTURE_PAN.width}:${PICTURE_PAN.height},crop=${size}:(iw-ow)/2:'(ih-oh)*${along}',setsar=1,fps=30[v${index}]`,
+      );
+    } else if (shot === "card") {
+      const card = addInput(
+        ...["-f", "lavfi", "-t", seconds],
+        ...[
+          "-i",
+          `color=c=${files.cardColour ?? "0x101010"}:s=${FRAME.width}x${FRAME.height}:r=30`,
+        ],
+      );
+      graph.push(`[${card}:v]setsar=1,fps=30[v${index}]`);
+    } else if (shot === "page" && cut.zoom < 1) {
+      const page = addInput(...still, "-i", files.page!);
+      const width = 2 * Math.round((FRAME.width * cut.zoom) / 2);
+      const height = 2 * Math.round((FRAME.height * cut.zoom) / 2);
+      graph.push(
+        `[${page}:v]split[pa${index}][pf${index}]`,
+        `[pa${index}]crop=${size}:0:${cut.pageFrom ?? PAGE_PAN_FROM},boxblur=24,drawbox=c=black@0.35:t=fill,setsar=1[pb${index}]`,
+        `[pf${index}]scale=${width}:-2,crop=${width}:${height}:0:'min(ih-oh,${Math.round((cut.pageFrom ?? PAGE_PAN_FROM) * cut.zoom)}+${PAGE_PAN}*t)'[pt${index}]`,
+        `[pb${index}][pt${index}]overlay=(W-w)/2:(H-h)/2,setsar=1,fps=30[v${index}]`,
+      );
+    } else if (shot === "page") {
+      const page = addInput(...still, "-i", files.page!);
+      const width = 2 * Math.round(FRAME.width / cut.zoom / 2);
+      const height = 2 * Math.round(FRAME.height / cut.zoom / 2);
+      graph.push(
+        `[${page}:v]crop=${width}:${height}:(iw-ow)/2:'min(ih-oh,${cut.pageFrom ?? PAGE_PAN_FROM}+${PAGE_PAN}*t)',scale=${size},setsar=1,fps=30[v${index}]`,
       );
     } else {
-      const alpha = addInput(...seek, "-i", files.site!.alpha);
-      const page = addInput(...still, "-i", files.site!.page);
+      const alpha = addInput(...seek, "-i", files.alpha!);
+      const page = addInput(...still, "-i", files.page!);
       const person = `${OVER_PAGE_PRESENTER.width}:${OVER_PAGE_PRESENTER.height}`;
       graph.push(
         `[${clip}:v]scale=${person}[p${index}]`,
@@ -467,7 +790,7 @@ export function talkingVideoEditArgs(
         `[b${index}][c${index}]overlay=(W-w)/2:H-h:shortest=1,setsar=1,fps=30[v${index}]`,
       );
     }
-    graph.push(`[${clip}:a]${sound}[a${index}]`);
+    graph.push(`[${audio}:a]${sound}[a${index}]`);
     parts.push(`[v${index}][a${index}]`);
   });
 
@@ -498,12 +821,14 @@ export function talkingVideoEditArgs(
     const fadeFrom = Math.max(0, plan.durationSeconds - MUSIC_FADE_SECONDS);
     graph.push(
       `${parts.join("")}concat=n=${parts.length}:v=1:a=1[cut][voice]`,
-      `[${music}:a]${sound},volume=${MUSIC_VOLUME},afade=t=out:st=${fadeFrom.toFixed(3)}:d=${MUSIC_FADE_SECONDS}[bed]`,
-      "[voice][bed]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[audio]",
+      `[${music}:a]${sound},volume=${files.clip || files.voice ? MUSIC_VOLUME : MUSIC_UNDER_WORDS_VOLUME},afade=t=out:st=${fadeFrom.toFixed(3)}:d=${MUSIC_FADE_SECONDS}[bed]`,
+      "[voice][bed]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[mix]",
     );
   } else {
-    graph.push(`${parts.join("")}concat=n=${parts.length}:v=1:a=1[cut][audio]`);
+    graph.push(`${parts.join("")}concat=n=${parts.length}:v=1:a=1[cut][mix]`);
   }
+  // As loud as the feeds play their own videos (about -14 LUFS).
+  graph.push(`[mix]loudnorm=I=${LOUDNESS_LUFS}:TP=-1.5:LRA=11,${sound}[audio]`);
   graph.push(
     `[cut]ass=${filterPath(files.subtitles)}:fontsdir=${filterPath(files.fontsDir)}[video]`,
   );
@@ -522,13 +847,8 @@ export function talkingVideoEditArgs(
 /** Under the settlement lease, with room for the download and the upload. */
 const EDIT_TIMEOUT_MS = 110_000;
 
-export interface TalkingVideoEditInput {
-  clip: Uint8Array;
-  words: readonly SpokenWord[];
-  clipSeconds: number;
-  hookLine: string | null;
-  /** The clip's matte and a screenshot of the brand's page, for site shots. */
-  site?: { alpha: Uint8Array; page: Uint8Array };
+/** What both kinds of edit can lay over their shots. */
+interface EditExtras {
   /** A PNG of the logo fitted to `END_CARD_LOGO_BOX`, and the line under it. */
   endCard?: { logo: Uint8Array; dark: boolean; text: string };
   /** A generated clip for the hook. */
@@ -537,54 +857,93 @@ export interface TalkingVideoEditInput {
   music?: Uint8Array;
 }
 
-/** The edited video, or null when the clip has no word timings to plan from. */
-export async function editTalkingVideo(
-  input: TalkingVideoEditInput,
-): Promise<{ bytes: Uint8Array; durationSeconds: number } | null> {
-  const plan = planTalkingVideoEdit(input.words, input.clipSeconds, {
-    siteShots: Boolean(input.site),
-    endCard: Boolean(input.endCard),
-    broll: Boolean(input.broll),
-  });
-  if (!plan) return null;
+export interface TalkingVideoEditInput extends EditExtras {
+  clip: Uint8Array;
+  words: readonly SpokenWord[];
+  clipSeconds: number;
+  hookLine: string | null;
+  /** The clip's matte and a screenshot of the brand's page, for site shots. */
+  site?: { alpha: Uint8Array; page: Uint8Array };
+}
+
+export interface ShortVideoEditInput extends Omit<EditExtras, "broll"> {
+  format: ShortVideoFormat;
+  /** The voice, or none when the short's words are only on screen. */
+  voice?: Uint8Array;
+  /** When each word is spoken, or shown (`readingTimings`). */
+  words: readonly SpokenWord[];
+  /** The voice's length, or the words' reading time. */
+  seconds: number;
+  hookLine: string | null;
+  /** The brand's pictures, each a 1080 x 1920 JPEG. */
+  pictures: Uint8Array[];
+  /** A screenshot of the brand's page, 1080 wide and at least 1920 high. */
+  page?: Uint8Array;
+  /** A card with no picture behind it, as `0xRRGGBB`. */
+  cardColour?: string;
+}
+
+interface EditResult {
+  bytes: Uint8Array;
+  durationSeconds: number;
+}
+
+/** Writes the edit's files to a scratch folder, runs ffmpeg and reads the video. */
+async function renderEdit(
+  plan: TalkingVideoEditPlan,
+  hookLine: string | null,
+  sources: EditExtras & {
+    clip?: Uint8Array;
+    voice?: Uint8Array;
+    alpha?: Uint8Array;
+    page?: Uint8Array;
+    pictures?: Uint8Array[];
+    cardColour?: string;
+  },
+): Promise<EditResult> {
   const dir = await mkdtemp(path.join(tmpdir(), "talking-video-"));
   try {
+    const pictures = (sources.pictures ?? []).map(
+      (_, index) => `picture-${index}.jpg`,
+    );
+    const named: [string | undefined, Uint8Array | undefined][] = [
+      [sources.clip && "clip.mp4", sources.clip],
+      [sources.voice && "voice.mp3", sources.voice],
+      [sources.alpha && "alpha.mp4", sources.alpha],
+      [sources.page && "page.jpg", sources.page],
+      [sources.endCard && "logo.png", sources.endCard?.logo],
+      [sources.broll && "broll.mp4", sources.broll],
+      [sources.music && "music.wav", sources.music],
+      ...pictures.map(
+        (name, index) =>
+          [name, sources.pictures![index]] as [string, Uint8Array],
+      ),
+    ];
     await Promise.all([
-      writeFile(path.join(dir, "clip.mp4"), input.clip),
       writeFile(
         path.join(dir, "captions.ass"),
-        talkingVideoSubtitles(plan, input.hookLine, input.endCard ?? null),
+        talkingVideoSubtitles(plan, hookLine, sources.endCard ?? null),
       ),
-      ...(input.site
-        ? [
-            writeFile(path.join(dir, "alpha.mp4"), input.site.alpha),
-            writeFile(path.join(dir, "page.jpg"), input.site.page),
-          ]
-        : []),
-      ...(input.endCard
-        ? [writeFile(path.join(dir, "logo.png"), input.endCard.logo)]
-        : []),
-      ...(input.broll
-        ? [writeFile(path.join(dir, "broll.mp4"), input.broll)]
-        : []),
-      ...(input.music
-        ? [writeFile(path.join(dir, "music.wav"), input.music)]
-        : []),
+      ...named.flatMap(([name, bytes]) =>
+        name && bytes ? [writeFile(path.join(dir, name), bytes)] : [],
+      ),
     ]);
     await runFfmpeg(
       talkingVideoEditArgs(plan, {
-        clip: "clip.mp4",
         subtitles: "captions.ass",
         fontsDir: await captionFontsDir(),
         output: "edited.mp4",
-        ...(input.site
-          ? { site: { alpha: "alpha.mp4", page: "page.jpg" } }
+        ...(sources.clip ? { clip: "clip.mp4" } : {}),
+        ...(sources.voice ? { voice: "voice.mp3" } : {}),
+        ...(sources.alpha ? { alpha: "alpha.mp4" } : {}),
+        ...(sources.page ? { page: "page.jpg" } : {}),
+        ...(pictures.length ? { pictures } : {}),
+        ...(sources.cardColour ? { cardColour: sources.cardColour } : {}),
+        ...(sources.endCard
+          ? { endCard: { logo: "logo.png", dark: sources.endCard.dark } }
           : {}),
-        ...(input.endCard
-          ? { endCard: { logo: "logo.png", dark: input.endCard.dark } }
-          : {}),
-        ...(input.broll ? { broll: "broll.mp4" } : {}),
-        ...(input.music ? { music: "music.wav" } : {}),
+        ...(sources.broll ? { broll: "broll.mp4" } : {}),
+        ...(sources.music ? { music: "music.wav" } : {}),
       }),
       { cwd: dir, timeoutMs: EDIT_TIMEOUT_MS },
     );
@@ -595,4 +954,35 @@ export async function editTalkingVideo(
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+/** The edited video, or null when the clip has no word timings to plan from. */
+export async function editTalkingVideo(
+  input: TalkingVideoEditInput,
+): Promise<EditResult | null> {
+  const plan = planTalkingVideoEdit(input.words, input.clipSeconds, {
+    siteShots: Boolean(input.site),
+    endCard: Boolean(input.endCard),
+    broll: Boolean(input.broll),
+  });
+  if (!plan) return null;
+  const { site, ...rest } = input;
+  return await renderEdit(plan, input.hookLine, {
+    ...rest,
+    ...(site ? { alpha: site.alpha, page: site.page } : {}),
+  });
+}
+
+/** The short, or null when it has no words to time its shots by. */
+export async function editShortVideo(
+  input: ShortVideoEditInput,
+): Promise<EditResult | null> {
+  const plan = planShortVideo(input.words, input.seconds, {
+    format: input.format,
+    pictures: input.pictures.length,
+    page: Boolean(input.page),
+    endCard: Boolean(input.endCard),
+  });
+  if (!plan) return null;
+  return await renderEdit(plan, input.hookLine, input);
 }

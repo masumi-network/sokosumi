@@ -397,6 +397,48 @@ export async function startCmoProductionForProject(
   if (cuso) await startCmoProduction(cuso.id);
 }
 
+/**
+ * The social networks the business already has an account on: connected to
+ * this Cuso's Project or to another Cuso's for the same website in the same
+ * organization. NMKR's Facebook Page, connected to its first Cuso, read as
+ * "New: Open an account" to the Cuso hired again for nmkr.io.
+ */
+export async function cmoSiteAccountNetworks(
+  cuso: Pick<Cuso, "projectId" | "workspaceId" | "businessName">,
+): Promise<string[]> {
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: cuso.workspaceId },
+    select: { organizationId: true },
+  });
+  const projects = workspace?.organizationId
+    ? await prisma.project.findMany({
+        where: {
+          workspace: { organizationId: workspace.organizationId },
+          websiteUrl: { not: null },
+        },
+        select: { id: true, websiteUrl: true },
+      })
+    : [];
+  const sameSite = projects
+    .filter(
+      (project) =>
+        cmoBusinessNameFromUrl(project.websiteUrl ?? "") === cuso.businessName,
+    )
+    .map((project) => project.id);
+  const connections = await prisma.projectSocialConnection.findMany({
+    where: {
+      projectId: { in: [...new Set([cuso.projectId, ...sameSite])] },
+      status: "active",
+    },
+    select: { provider: true },
+  });
+  return [
+    ...new Set(
+      connections.map((connection) => connection.provider.toLowerCase()),
+    ),
+  ].sort();
+}
+
 /** What the founder reads when a step cannot start for lack of credits. */
 export const CMO_OUT_OF_CREDITS = "You're out of credits";
 

@@ -7,7 +7,6 @@ import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { gatewayCostUsd } from "./gateway-cost";
 import { type ModelCallRole, modelCallRoleOf } from "./model-call-roles";
 
-export { modelCallTelemetryFor } from "./model-call-roles";
 export type { ModelCallRole };
 
 /**

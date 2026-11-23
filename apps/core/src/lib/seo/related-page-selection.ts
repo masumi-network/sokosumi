@@ -2,10 +2,10 @@ import {
   isPublicSeoSitemapPage,
   isSeoUtilityOrFilePath,
   isValidHttpUrl,
+  publicExplorationUrl,
 } from "@sokosumi/utils";
 import { z } from "zod";
 import { badRequest, conflict } from "@/helpers/error";
-import { publicExplorationUrl } from "@/helpers/project-seo-exploration-privacy";
 import { gscPropertyCovers } from "@/lib/seo/native-gsc-property";
 import { SEO_MAX_PAGES } from "@/schemas/project-seo.schema";
 import {

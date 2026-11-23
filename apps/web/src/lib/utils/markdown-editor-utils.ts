@@ -53,3 +53,22 @@ export function normalizeUrl(input: string): string | null {
 
   return null;
 }
+
+export function isMarkdownEditorDomEmpty(editor: HTMLElement): boolean {
+  const html = editor.innerHTML;
+  return (
+    html === "" ||
+    html === "<br>" ||
+    html === "<div><br></div>" ||
+    html === "<p><br></p>" ||
+    (editor.textContent ?? "").replace(/\u200b/g, "").trim() === ""
+  );
+}
+
+export function syncMarkdownEditorEmptyState(editor: HTMLElement): void {
+  if (isMarkdownEditorDomEmpty(editor)) {
+    editor.setAttribute("data-empty", "");
+  } else {
+    editor.removeAttribute("data-empty");
+  }
+}

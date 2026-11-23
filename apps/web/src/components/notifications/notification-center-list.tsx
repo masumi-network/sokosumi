@@ -7,7 +7,7 @@ import {
 } from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useState } from "react";
 import { toast } from "sonner";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { NotificationsSkeletonRows } from "@/app/notifications/components/notifications-loading-view";
@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
 import { usePrefersReducedMotion } from "@/hooks/effects/use-media-query";
+import { useNotificationRowDeparture } from "@/hooks/effects/use-notification-row-departure";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 import {
@@ -317,9 +318,6 @@ export function NotificationCenterList({
   );
 }
 
-/** How long the collapse takes, matched to the transition below. */
-const LEAVE_DURATION_MS = 200;
-
 interface LeavingRowProps {
   notificationId: string;
   /** Whether the row no longer belongs to the view it is drawn in. */
@@ -352,20 +350,12 @@ function LeavingRow({
   const reduceMotion = usePrefersReducedMotion();
   const isCollapsed = isLeaving && !isPointerInside && !isFocusInside;
 
-  // The hide waits for the fold to finish. A row put back to unread mid
-  // fold is no longer collapsed, and the cleanup drops the pending hide.
-  useEffect(() => {
-    if (!isCollapsed) return;
-    if (reduceMotion) {
-      onDeparted(notificationId);
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      onDeparted(notificationId);
-    }, LEAVE_DURATION_MS);
-
-    return () => window.clearTimeout(timer);
-  }, [isCollapsed, notificationId, onDeparted, reduceMotion]);
+  useNotificationRowDeparture(
+    isCollapsed,
+    notificationId,
+    onDeparted,
+    reduceMotion,
+  );
 
   return (
     <div

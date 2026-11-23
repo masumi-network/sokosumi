@@ -6,6 +6,7 @@ import {
 import { NextIntlClientProvider } from "next-intl";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
+import { ProjectFindButton } from "@/app/projects/components/project-find-button";
 import english from "../../messages/en.json";
 import { PageSearchRows } from "./page-list-search";
 import { PageSearchField } from "./page-search-field";
@@ -112,6 +113,104 @@ describe("page content search", () => {
         true,
       );
     }
+  });
+
+  // A project's phone title row has the Find icon: the field waits out of
+  // sight (sr-only, so focus inside the tap opens the keyboard) and Escape on
+  // an empty field returns to the icon.
+  it("opens a project's collapsed Find from its icon and returns focus", () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={english}>
+        <PathnameContext.Provider value="/projects/p-1">
+          <SearchablePageContent sidebar>
+            <ProjectFindButton label="Find on this page" />
+            <p>Launch</p>
+          </SearchablePageContent>
+        </PathnameContext.Provider>
+      </NextIntlClientProvider>,
+    );
+    const input = screen.getByRole("searchbox");
+    const toolbar = input.closest(".\\@container\\/page-toolbar");
+    expect(toolbar?.className).toContain(
+      "max-md:not-focus-within:has-[input:placeholder-shown]:sr-only",
+    );
+    const icon = screen.getByRole("button", { name: "Find on this page" });
+
+    fireEvent.click(icon);
+    expect(input).toHaveFocus();
+    fireEvent.change(input, { target: { value: "launch" } });
+    // `main` scrolls and its padding clears the header: the open bar docks
+    // under the header, with no offset that would draw it over the title.
+    expect(toolbar?.className).toContain("sticky");
+    expect(toolbar?.className).toContain("-top-4");
+    expect(toolbar?.className).toContain("md:top-0");
+    expect(toolbar?.className).not.toContain("top-[calc");
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(input).toHaveValue("");
+    expect(input).toHaveFocus();
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(icon).toHaveFocus();
+  });
+
+  // Tabbing to a result control and back keeps the way back to the icon.
+  it("returns focus to the Find icon after a trip through the result controls", () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={english}>
+        <PathnameContext.Provider value="/projects/p-1">
+          <SearchablePageContent sidebar>
+            <ProjectFindButton label="Find on this page" />
+            <p>Launch</p>
+          </SearchablePageContent>
+        </PathnameContext.Provider>
+      </NextIntlClientProvider>,
+    );
+    const input = screen.getByRole("searchbox");
+    const icon = screen.getByRole("button", { name: "Find on this page" });
+
+    fireEvent.click(icon);
+    fireEvent.change(input, { target: { value: "launch" } });
+    const next = screen.getByRole("button", { name: "Next match" });
+    next.focus();
+    expect(next).toHaveFocus();
+    input.focus();
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(input).toHaveValue("");
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(icon).toHaveFocus();
+  });
+
+  it("lets go of Escape once focus leaves Find", () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={english}>
+        <PathnameContext.Provider value="/projects/p-1">
+          <SearchablePageContent sidebar>
+            <ProjectFindButton label="Find on this page" />
+            <button type="button">Elsewhere</button>
+          </SearchablePageContent>
+        </PathnameContext.Provider>
+      </NextIntlClientProvider>,
+    );
+    const input = screen.getByRole("searchbox");
+    fireEvent.click(screen.getByRole("button", { name: "Find on this page" }));
+    screen.getByRole("button", { name: "Elsewhere" }).focus();
+    input.focus();
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(input).toHaveFocus();
+  });
+
+  it("keeps Find in sight on pages without an icon", () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={english}>
+        <PathnameContext.Provider value="/studio">
+          <SearchablePageContent sidebar>
+            <p>Launch</p>
+          </SearchablePageContent>
+        </PathnameContext.Provider>
+      </NextIntlClientProvider>,
+    );
+    expect(
+      screen.getByRole("searchbox").closest("div.flex-wrap")?.className,
+    ).not.toContain("sr-only");
   });
 
   it("keeps the field focused and the query active across tabs within the same project", () => {

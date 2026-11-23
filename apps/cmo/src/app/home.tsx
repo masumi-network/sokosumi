@@ -5,7 +5,7 @@ import {
   getUsersByIdOrganizations,
   getUsersByIdSignUp,
 } from "@sokosumi/core-client";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { CmoApp } from "../components/app/cmo-app";
 import { CusoPicker } from "../components/cuso-picker";
@@ -19,7 +19,7 @@ import {
   connectReturnError,
   measureReturnError,
 } from "../lib/connect-return";
-import { asSignedInPersonInPage } from "../lib/core";
+import { asSignedInPersonInPage, renderRequestHeaders } from "../lib/core";
 import { LAST_CUSO_COOKIE } from "../lib/last-cuso";
 import { isValidPersonName } from "../lib/person-name";
 import { CMO_SIGN_IN_ERROR } from "../lib/sign-in-errors";
@@ -62,6 +62,7 @@ import {
   loadSeo,
   loadState,
   markLandingPageLive,
+  markUpgradeSeen,
   onboard,
   openPortal,
   pauseEntry,
@@ -212,7 +213,7 @@ interface HomeProps {
  * owns every address.
  */
 export async function Home({ searchParams, view }: HomeProps) {
-  const requestHeaders = await headers();
+  const requestHeaders = await renderRequestHeaders();
   const session = await getAuth().api.getSession({ headers: requestHeaders });
   const params = await searchParams;
   const error = first(params.error);
@@ -435,6 +436,7 @@ export async function Home({ searchParams, view }: HomeProps) {
         setAdCampaignStatus: setAdCampaignStatus.bind(null, projectId),
         loadAdCampaigns: loadAdCampaigns.bind(null, projectId),
         setTimeZone: setTimeZone.bind(null, projectId),
+        markUpgradeSeen: markUpgradeSeen.bind(null, projectId),
         startOver: startOver.bind(null, projectId),
         startTopUp: startTopUp.bind(null, projectId),
         skipSubscription: skipSubscription.bind(null, projectId),

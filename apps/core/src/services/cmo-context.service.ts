@@ -12,7 +12,11 @@ import {
 } from "@/services/brand-brain.service";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import { listCmoBrandPictures } from "@/services/cmo-brand-media.service";
-import { findCusoForBot, listCmoChannels } from "@/services/cmo-cuso.service";
+import {
+  cmoSiteAccountNetworks,
+  findCusoForBot,
+  listCmoChannels,
+} from "@/services/cmo-cuso.service";
 import { listCmoReports } from "@/services/cmo-reports.service";
 import {
   CMO_VISIBLE_CALENDAR_DAYS,
@@ -92,6 +96,11 @@ export async function loadCmoMarketingContext(
         socialConnectionId: channel.id,
       }),
     ),
+    /**
+     * Networks the business already has an account on (connected here or to
+     * its other Cuso for this website): plan them as existing accounts.
+     */
+    existingAccounts: await cmoSiteAccountNetworks(cuso),
     brandBrain: compactBrandBrain(parseBrandBrain(cuso.brandBrain)),
     /**
      * The Project's logo and DESIGN.md (colours, fonts, type): use them in
@@ -102,10 +111,12 @@ export async function loadCmoMarketingContext(
       designMd: designMd?.slice(0, CMO_DESIGN_MD_CHARS) ?? null,
     },
     /** The brand's own photos, the Project's files: generate_image references. */
-    brandPictures: brandPictures.map((picture) => ({
-      ...picture,
-      alt: picture.alt.slice(0, 80),
-    })),
+    brandPictures: brandPictures
+      .filter((picture) => !picture.fromSite)
+      .map((picture) => ({
+        fileId: picture.fileId,
+        alt: picture.alt.slice(0, 80),
+      })),
     /**
      * The owner gave their photo, with consent, to be the face of talking
      * videos: presenter "owner" uses it.

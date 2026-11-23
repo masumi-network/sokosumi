@@ -113,6 +113,28 @@ describe("CreateOrganizationWizard", () => {
     });
   });
 
+  it("shows the name and website errors together, each on its own field", async () => {
+    const user = userEvent.setup();
+    render(<WizardHarness />);
+
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+
+    const name = screen.getByLabelText("Details.nameLabel");
+    const url = screen.getByLabelText("Details.urlLabel");
+    expect(name).toHaveAccessibleDescription("Details.nameInvalid");
+    expect(url).toHaveAccessibleDescription("Details.urlInvalid");
+    expect(screen.getAllByRole("alert").map((el) => el.textContent)).toEqual([
+      "Details.nameInvalid",
+      "Details.urlInvalid",
+    ]);
+
+    await user.type(name, "Acme");
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    expect(name).not.toHaveAccessibleDescription();
+    expect(url).toHaveAccessibleDescription("Details.urlInvalid");
+    expect(createOrganizationWorkspaceActionMock).not.toHaveBeenCalled();
+  });
+
   it("keeps the invite link labeled while it loads", async () => {
     const user = userEvent.setup();
     createOrganizationInviteLinkMock.mockReturnValue(new Promise(() => {}));
@@ -215,18 +237,8 @@ describe("CreateOrganizationWizard", () => {
     expect(help.textContent).toContain("Brand.tooltip");
   });
 
-  it.each([
-    [
-      "shows the saved colours, fonts and tone in plain words",
-      { colors: ["#5850ec"], fonts: ["Inter"], tone: "plain and confident" },
-      ["#5850ec", "Inter", "plain and confident"],
-    ],
-    [
-      "says the guidelines are saved when none of it can be shown",
-      { colors: [], fonts: [], tone: null },
-      ["Brand.noSummary"],
-    ],
-  ])("%s", async (_, look, texts) => {
+  /** Walks to the Brand step and completes generation with `look`. */
+  async function showBrandLook(look: Record<string, unknown>) {
     const user = userEvent.setup();
     render(<WizardHarness />);
 
@@ -254,14 +266,107 @@ describe("CreateOrganizationWizard", () => {
       });
     });
 
+    return user;
+  }
+
+  it.each([
+    [
+      "shows the saved colours, fonts, tone and voice in plain words",
+      {
+        colors: ["#5850ec"],
+        fonts: ["Inter"],
+        tone: "plain and confident",
+        voice: "Prefer **short sentences.** Use `plain` words.",
+      },
+      [
+        "#5850ec",
+        "Inter",
+        "plain and confident",
+        "Prefer short sentences. Use plain words.",
+      ],
+    ],
+    [
+      "says the guidelines are saved when none of it can be shown",
+      { colors: [], fonts: [], tone: null, voice: null },
+      ["Brand.noSummary"],
+    ],
+  ])("%s", async (_, look, texts) => {
+    await showBrandLook(look);
+
     for (const text of texts) expect(screen.getByText(text)).toBeTruthy();
     expect(screen.queryByText("DESIGN.md")).toBeNull();
-    expect(
-      screen.getByRole("link", { name: "Brand.viewFull" }),
-    ).toHaveAttribute(
-      "href",
-      "https://www.masumi.network/tools/design-md?cached=1",
+    // Setup never sends the owner to another site to read them.
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("previews a long voice and opens the rest in place", async () => {
+    const voice =
+      "Written in full sentences with no exclamations, no marketing vocabulary and no calls to emotion. Sentences state a rule, then a restriction.";
+    const user = await showBrandLook({
+      colors: [],
+      fonts: [],
+      tone: "formal and precise",
+      voice,
+    });
+
+    // The label sits on the first line, beside a short preview.
+    expect(screen.getByText("Brand.voice").parentElement).toHaveClass(
+      "items-start",
     );
+    const toggle = screen.getByText("Brand.voiceShowAll").closest("summary");
+    expect(toggle?.textContent).toContain(
+      "Written in full sentences with no exclamations…",
+    );
+    const details = toggle?.closest("details");
+    expect(details?.open).toBe(false);
+
+    // A tap or Enter on the summary shows all of it, still in setup.
+    await user.click(toggle as HTMLElement);
+    expect(details?.open).toBe(true);
+    expect(screen.getByText(voice)).toBeVisible();
+    expect(screen.queryByRole("link")).toBeNull();
+
+    // The same summary closes it again.
+    await user.click(toggle as HTMLElement);
+    expect(details?.open).toBe(false);
+  });
+
+  it.each([
+    ["shows 48 characters whole", `${"word ".repeat(9)}end`, null],
+    [
+      "previews from 49 characters",
+      `${"word ".repeat(9)}ends`,
+      `${"word ".repeat(8)}word…`,
+    ],
+    [
+      "never splits a character when no word fits",
+      `${"x".repeat(47)}\u{1F680}\u{1F680} then more`,
+      `${"x".repeat(47)}\u{1F680}…`,
+    ],
+  ])("%s", async (_, voice, preview) => {
+    await showBrandLook({ colors: [], fonts: [], tone: null, voice });
+
+    const toggle = screen.queryByText("Brand.voiceShowAll")?.closest("summary");
+    if (preview === null) {
+      expect(toggle).toBeFalsy();
+      expect(screen.getByText(voice)).toBeVisible();
+    } else {
+      expect(toggle?.textContent).toBe(
+        `${preview} Brand.voiceShowAllBrand.voiceShowLess`,
+      );
+    }
+  });
+
+  it("shows a short voice whole, with nothing to open", async () => {
+    await showBrandLook({
+      colors: [],
+      fonts: [],
+      tone: "plain and calm",
+      voice: "Short sentences. No jargon.",
+    });
+
+    expect(screen.getByText("Short sentences. No jargon.")).toBeVisible();
+    expect(screen.queryByText("Brand.voiceShowAll")).toBeNull();
   });
 
   it.each(["Close", "Finish"])(
