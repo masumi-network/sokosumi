@@ -13,6 +13,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const TESTER_EMAIL = vi.hoisted(() => {
@@ -42,10 +43,7 @@ vi.mock("./zernio-tiktok-connection.service", async (original) => ({
 }));
 
 import prisma from "@/lib/db/prisma";
-import {
-  CmoConflictError,
-  CmoForbiddenError,
-} from "@/services/cmo-cuso.service";
+import { CmoForbiddenError } from "@/services/cmo-cuso.service";
 import {
   checkTestCopy,
   checkTestCopyFor,
@@ -610,22 +608,28 @@ describe.skipIf(!enabled)("CMO test copy against PostgreSQL", () => {
         sourceProjectId: source.projectId,
         organizationId: other.organizationId,
       }),
-    ).rejects.toBeInstanceOf(CmoForbiddenError);
-    // An outsider cannot even see the source.
+    ).rejects.toMatchObject({
+      kind: CORE_API_ERROR_KINDS.CMO_TEST_COPY_OTHER_ORGANIZATION,
+    });
+    // An outsider cannot even see the source: to them it is not hired.
     await expect(
       requireTestCopySource({
         userId: other.ownerId,
         sourceProjectId: source.projectId,
         organizationId: other.organizationId,
       }),
-    ).rejects.toThrow("Project not found");
+    ).rejects.toMatchObject({
+      kind: CORE_API_ERROR_KINDS.CMO_TEST_COPY_SOURCE_NOT_HIRED,
+    });
     await expect(
       requireTestCopySource({
         userId: organization.ownerId,
         sourceProjectId: copy.projectId,
         organizationId: organization.organizationId,
       }),
-    ).rejects.toBeInstanceOf(CmoConflictError);
+    ).rejects.toMatchObject({
+      kind: CORE_API_ERROR_KINDS.CMO_TEST_COPY_OF_TEST_COPY,
+    });
   });
 
   it("lets the member who made a copy approve its strategy, and only its", async () => {
