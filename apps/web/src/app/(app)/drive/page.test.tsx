@@ -1447,7 +1447,7 @@ describe("DrivePage recents view", () => {
       "aria-selected",
       "true",
     );
-    expect(screen.getByText("recentsEmptyTitle")).toBeVisible();
+    expect(await screen.findByText("recentsEmptyTitle")).toBeVisible();
     expect(screen.getAllByPlaceholderText("searchPlaceholder")).toHaveLength(2);
     expect(
       screen.queryByRole("button", { name: "createFolder" }),
