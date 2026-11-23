@@ -21,24 +21,24 @@ export function useDriveFilePreviewText(
 
   useEffect(() => {
     if (!isText) return;
-    let cancelled = false;
+    const controller = new AbortController();
 
     void (async () => {
       setText({ kind: "loading" });
       try {
-        const response = await fetch(source);
+        const response = await fetch(source, { signal: controller.signal });
         if (!response.ok) throw new Error(String(response.status));
         const body = await response.text();
-        if (!cancelled) setText({ kind: "ready", text: body });
+        if (!controller.signal.aborted) setText({ kind: "ready", text: body });
       } catch {
         // A preview that cannot load is not an error screen: the download
         // below still works, and that is what the reader came for.
-        if (!cancelled) setText({ kind: "failed" });
+        if (!controller.signal.aborted) setText({ kind: "failed" });
       }
     })();
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [isText, source]);
 
