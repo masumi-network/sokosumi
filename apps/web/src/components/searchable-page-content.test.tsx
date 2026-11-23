@@ -96,24 +96,27 @@ describe("page content search", () => {
     },
   );
 
-  it("leaves browser find available on Home", () => {
-    render(
-      <NextIntlClientProvider locale="en" messages={english}>
-        <PathnameContext.Provider value="/">
-          <SearchablePageContent sidebar>
-            <h1>Home</h1>
-          </SearchablePageContent>
-        </PathnameContext.Provider>
-      </NextIntlClientProvider>,
-    );
-    expect(screen.getByRole("heading", { name: "Home" })).toBeVisible();
-    expect(screen.queryByRole("searchbox")).toBeNull();
-    for (const modifier of ["ctrlKey", "metaKey"]) {
-      expect(fireEvent.keyDown(window, { key: "f", [modifier]: true })).toBe(
-        true,
+  it.each(["/", "/chat", "/you"])(
+    "leaves browser find available on %s",
+    (pathname) => {
+      render(
+        <NextIntlClientProvider locale="en" messages={english}>
+          <PathnameContext.Provider value={pathname}>
+            <SearchablePageContent sidebar>
+              <h1>Home</h1>
+            </SearchablePageContent>
+          </PathnameContext.Provider>
+        </NextIntlClientProvider>,
       );
-    }
-  });
+      expect(screen.getByRole("heading", { name: "Home" })).toBeVisible();
+      expect(screen.queryByRole("searchbox")).toBeNull();
+      for (const modifier of ["ctrlKey", "metaKey"]) {
+        expect(fireEvent.keyDown(window, { key: "f", [modifier]: true })).toBe(
+          true,
+        );
+      }
+    },
+  );
 
   // A project's phone title row has the Find icon: the field waits out of
   // sight (sr-only, so focus inside the tap opens the keyboard) and Escape on
