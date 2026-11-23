@@ -42,6 +42,29 @@ import {
 } from "./sidebar-project-scope-state";
 
 /**
+ * The chip's look: compact in the row, or on a project's own pages a pill
+ * that takes the row. -mx-1 shrinks the row's 8px gaps to 4px beside the
+ * pill and the insets are tight, so the name gets about 120px at 375 while
+ * back, bell, Search and × keep their 40px.
+ */
+const CHIP_LOOK = {
+  row: {
+    wrap: "",
+    chip: "h-11 max-w-[40vw]",
+    mark: "",
+    chevron: "size-3.5",
+    clear: "size-11",
+  },
+  pill: {
+    wrap: "bg-muted -mx-1 h-10 flex-1 items-center rounded-full",
+    chip: "h-10 flex-1 justify-start gap-1 rounded-full has-[>svg]:ps-2 has-[>svg]:pe-1",
+    mark: "[&>*]:size-4 [&_[data-slot=avatar-fallback]]:text-2xs",
+    chevron: "size-3",
+    clear: "size-10 rounded-full",
+  },
+} as const;
+
+/**
  * Below md: a compact scope chip in the header that opens a bottom sheet.
  * While a project is picked, an × beside it returns to All projects. On a
  * project's own pages the chip takes the row's free width, holds its × inside
@@ -61,6 +84,7 @@ export function SidebarScopeMobileChip() {
   const reasonId = useId();
   const { projectId, name, closed, label, mark, select } = useCurrentScope();
   const inProject = projectId !== null && projectPageSection(pathname) !== null;
+  const look = CHIP_LOOK[inProject ? "pill" : "row"];
   const chipRef = useRef<HTMLButtonElement>(null);
   const clearScope = useClearScope(chipRef);
 
@@ -72,9 +96,7 @@ export function SidebarScopeMobileChip() {
       <div
         className={cn(
           "flex min-w-0 shrink md:hidden",
-          // -mx-1: the row's 8px gaps shrink to 4px beside the pill, so the
-          // name gets the width (back, bell and Search keep their 40px).
-          inProject && "bg-muted -mx-1 h-10 flex-1 items-center rounded-full",
+          look.wrap,
           // A chat room's toolbar takes this row on phones. The sheet and the
           // dialog stay mounted: the sidebar row opens them through the store.
           isChatRoomPathname(pathname) && "hidden",
@@ -92,20 +114,13 @@ export function SidebarScopeMobileChip() {
               onPointerDown={prefetch}
               className={cn(
                 "min-w-0 shrink gap-1.5 px-2 font-medium data-[state=open]:bg-accent",
-                inProject
-                  ? // Tight insets leave the name about 120px at 375.
-                    "h-10 flex-1 justify-start gap-1 rounded-full has-[>svg]:ps-2 has-[>svg]:pe-1"
-                  : "h-11 max-w-[40vw]",
+                look.chip,
               )}
             >
               {/* The mark's glyph names no size, so this box gives it one. */}
               <span
                 aria-hidden
-                className={cn(
-                  "flex shrink-0 [&>svg]:size-4",
-                  inProject &&
-                    "[&>*]:size-4 [&_[data-slot=avatar-fallback]]:text-2xs",
-                )}
+                className={cn("flex shrink-0 [&>svg]:size-4", look.mark)}
               >
                 {mark}
               </span>
@@ -118,10 +133,7 @@ export function SidebarScopeMobileChip() {
               </span>
               {closed ? <ScopeClosedBadge /> : null}
               <ChevronsUpDown
-                className={cn(
-                  "text-muted-foreground shrink-0",
-                  inProject ? "size-3" : "size-3.5",
-                )}
+                className={cn("text-muted-foreground shrink-0", look.chevron)}
                 aria-hidden
               />
             </Button>
@@ -185,7 +197,7 @@ export function SidebarScopeMobileChip() {
             onClick={clearScope}
             className={cn(
               "text-muted-foreground hover:text-foreground shrink-0",
-              inProject ? "size-10 rounded-full" : "size-11",
+              look.clear,
             )}
           >
             <X className="size-4" aria-hidden />
