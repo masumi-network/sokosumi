@@ -99,8 +99,9 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
 
       await create.getByRole("button", { name: "Create table" }).click();
       await page.waitForURL(/\/drive\/tables\//);
-      await page.getByText("Harbour Deli").waitFor();
-      await page.getByText("04109").waitFor();
+      const grid = page.getByRole("grid");
+      await grid.getByText("Harbour Deli").waitFor();
+      await grid.getByText("04109").waitFor();
       await shot(page, size, "3-table");
 
       const overflow = await page.evaluate(
