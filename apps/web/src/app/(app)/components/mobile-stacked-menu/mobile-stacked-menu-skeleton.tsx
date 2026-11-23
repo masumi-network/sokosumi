@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function MobileStackedMenuSkeleton(): React.ReactElement {
   return (
     <div
-      className="mx-auto w-full py-6 md:max-w-4xl md:py-8"
+      className="mx-auto w-full pb-6 md:max-w-4xl md:pb-8"
       data-testid="mobile-stacked-menu-loading"
     >
       <div className="space-y-6">

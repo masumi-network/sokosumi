@@ -77,7 +77,7 @@ describe("Preview toolbar spacer (WebKit touch)", () => {
         <div data-app-main-inner class="flex min-h-full flex-1 flex-col overflow-visible">
           <div class="flex min-h-full flex-1 flex-col">
             <div class="flex flex-1 flex-col">
-              <div class="w-full py-6">
+              <div class="w-full pb-6">
                 <div class="h-72">You header and credits</div>
                 <nav class="border-border divide-border divide-y overflow-hidden rounded-lg border">${rows}</nav>
               </div>

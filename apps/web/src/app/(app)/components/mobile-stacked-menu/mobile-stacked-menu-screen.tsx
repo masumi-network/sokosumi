@@ -16,7 +16,7 @@ export function MobileStackedMenuScreen({
 }): ReactElement {
   return (
     <div
-      className="mx-auto w-full py-6 md:max-w-4xl md:py-8"
+      className="mx-auto w-full pb-6 md:max-w-4xl md:pb-8"
       data-testid={testId}
     >
       <div className="space-y-6">

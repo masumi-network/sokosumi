@@ -97,7 +97,8 @@ describe("YouPageClient", () => {
     // Fills the width like every app page (DESIGN.md, Fill the width).
     expect(shell.className).not.toContain("max-w-");
     expect(shell.className).not.toContain("px-4");
-    expect(shell.className).not.toMatch(/\bp[ty]-/);
+    expect(shell.className).not.toMatch(/\bp[txy]?-/);
+    expect(shell.className).toContain("pb-6");
     expect(shell.className).not.toContain("max-w-lg");
     expect(
       screen.getByRole("heading", { name: "Patrick Tobler" }),
