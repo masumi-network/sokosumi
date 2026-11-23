@@ -25,7 +25,8 @@ describe("YouPageSkeleton", () => {
 
     expect(shell?.className).toContain("w-full");
     expect(shell?.className).not.toContain("max-w-");
-    expect(shell?.className).toContain("py-6");
+    // main's p-4 is the only top gap, as on Projects and Tasks.
+    expect(shell?.className).not.toMatch(/\bp[ty]-/);
     expect(shell?.className).not.toContain("max-w-lg");
     expect(shell?.className).not.toContain("items-center");
   });
