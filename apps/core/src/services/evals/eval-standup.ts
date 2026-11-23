@@ -28,11 +28,12 @@ const MIRA_ANSWER =
   "From my EU marketplace pricing research: in DACH, Langdock and Agentur.ai are the two that matter for small companies; my notes and sources are in the research Task.";
 const ANSWER_TIMEOUT_MS = 5 * 60_000;
 
+/** The case runs the stand-up itself, so the lane's stays off and the cron never posts there. */
 async function standupFor(lane: EvalLaneRecord) {
   return prisma.teamStandup.upsert({
     where: { organizationId: lane.organizationId },
-    create: { organizationId: lane.organizationId, enabled: true },
-    update: { enabled: true },
+    create: { organizationId: lane.organizationId, enabled: false },
+    update: { enabled: false, nextRunAt: null, weekInReviewNextRunAt: null },
     select: { id: true },
   });
 }
