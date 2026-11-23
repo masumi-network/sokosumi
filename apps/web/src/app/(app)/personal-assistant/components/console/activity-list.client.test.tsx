@@ -4,6 +4,7 @@ import { expect, it } from "vitest";
 
 import { createFormats } from "@/i18n/time-format";
 import type { ChatDecision, ChatTurn } from "@/lib/soko-bot/chat-state";
+import deMessages from "@/messages/de.json";
 import messages from "@/messages/en.json";
 import { TestQueryProvider } from "@/test/query-provider";
 
@@ -36,12 +37,12 @@ function turn(overrides: Partial<ChatTurn>): ChatTurn {
   };
 }
 
-function renderList(turns: ChatTurn[]) {
+function renderList(turns: ChatTurn[], locale: "en" | "de" = "en") {
   render(
     <TestQueryProvider>
       <NextIntlClientProvider
-        locale="en"
-        messages={messages}
+        locale={locale}
+        messages={locale === "de" ? deMessages : messages}
         formats={createFormats()}
         timeZone="UTC"
       >
@@ -141,9 +142,9 @@ it("tells a viewer who cannot approve that a run waits, not that it needs them",
   expect(row).not.toHaveTextContent(/needs? you/i);
 });
 
-// A phone row is ~150px wide. A long schedule name ellipsizes, but the status
-// and the approval mark sit outside the truncating name, so they never get
-// cut with it (they wrap under the name instead).
+// Structure only: happy-dom does no layout, so this cannot prove wrapping or
+// bounds. It fails if the outcome or the approval mark moves back inside the
+// name's ellipsis. Rendered bounds at 375 and 320 are checked on the preview.
 it("keeps the status and approval mark outside a long name's ellipsis", () => {
   const name = "Evening: merged pull requests with a long roundup graphic";
   renderList([
@@ -159,4 +160,29 @@ it("keeps the status and approval mark outside a long name's ellipsis", () => {
   expect(
     screen.getByText("Waiting for approval").closest(".truncate"),
   ).toBeNull();
+});
+
+// Structure only, as above. A long translated outcome next to a long name must
+// be allowed to break inside the ~94px column of a 320px phone, so it carries
+// no no-wrap rule, and the name still reads with its separator.
+it("lets a long translated outcome wrap and keeps the separator in the name", () => {
+  const name = "Abend: zusammengeführte Pull Requests mit Grafik";
+  renderList(
+    [
+      turn({
+        source: "SCHEDULE",
+        status: "FAILED",
+        schedule: { name, systemKey: null },
+        decisions: [decision("a", "PENDING")],
+      }),
+    ],
+    "de",
+  );
+
+  const row = rowButton(new RegExp(`^${name} · Nicht beendet`));
+  expect(row).toHaveTextContent("Wartet auf Freigabe");
+  const outcome = screen.getByText(/· Nicht beendet/);
+  expect(outcome.closest(".truncate")).toBeNull();
+  expect(outcome.className).not.toMatch(/whitespace-(pre|nowrap)/);
+  expect(outcome).toHaveClass("max-w-full");
 });

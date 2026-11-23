@@ -55,9 +55,10 @@ function runOutcome(turn: ChatTurn, t: Translate): string {
 }
 
 /**
- * One turn folded to a single line: what the run was and how it ended, what
- * waits for approval, how it was routed, by whom and where, and when. Opens
- * to the full transcript with approvals, delegated work, and the explain view.
+ * One turn folded to a row: what the run was and how it ended, what waits for
+ * approval, how it was routed, by whom and where, and when. A long name wraps
+ * the outcome and approval mark onto further lines. Opens to the full
+ * transcript with approvals, delegated work, and the explain view.
  */
 function ActivityRow({
   turn,
@@ -102,20 +103,22 @@ function ActivityRow({
           aria-hidden
           className={cn("size-1.5 shrink-0 rounded-full", statusDotClass(turn))}
         />
-        {/* Only the name ellipsizes. On a phone a long name leaves no room,
-            so the status and approval mark wrap under it instead of being
-            cut off with it. */}
+        {/* Only the name ellipsizes. The outcome and approval mark sit
+            outside it and wrap under a long name; each can break across
+            lines itself, for a long translation, a 320px screen or larger
+            text. The leading space keeps "name · outcome" in the button's
+            name; the browser drops it at a line start. */}
         <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1 text-sm">
           <span className="text-foreground max-w-full truncate">
             {runTitle(turn, tConsole)}
           </span>
-          <span className="text-muted-foreground whitespace-pre">
-            {"· "}
+          <span className="text-muted-foreground max-w-full wrap-anywhere">
+            {" · "}
             {runOutcome(turn, tConsole)}
           </span>
           {waiting > 0 ? (
             // Viewer-neutral: a shared bot's member may not be allowed to answer.
-            <Badge className="max-w-full whitespace-normal">
+            <Badge className="max-w-full whitespace-normal wrap-anywhere">
               {tConsole("Activity.waiting", { count: waiting })}
             </Badge>
           ) : null}
