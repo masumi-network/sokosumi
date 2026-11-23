@@ -28,7 +28,7 @@ const QUOTED_CHARACTERS_PER_SECOND = 13;
 
 /** Bracketed audio tags such as `[excited]` steer the voice and are not spoken. */
 function spokenLength(script: string): number {
-  return script.replace(/\[[^\]]*\]/g, "").trim().length;
+  return script.replace(/\[[^[\]]*\]/g, "").trim().length;
 }
 
 /** The length a script is quoted at, in whole seconds. */
