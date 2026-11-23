@@ -144,7 +144,9 @@ export function MessageSignalBar({
   const [sheetOpen, setSheetOpen] = useState(false);
   // Where focus goes when the sheet closes: the chip that opened it.
   const openerRef = useRef<HTMLButtonElement | null>(null);
-  const barRef = useRef<HTMLDivElement>(null);
+  // Where focus goes after a removal: a row control that outlives the bar,
+  // which goes with its last chip.
+  const restoreRef = useRef<HTMLElement | null>(null);
   const signal = override ?? message.signal ?? null;
   if (!signal) return null;
   const chips = signalChips(signal, currentUserId);
@@ -221,7 +223,6 @@ export function MessageSignalBar({
 
   return (
     <div
-      ref={barRef}
       data-testid="message-signal-bar"
       className="mt-1 flex flex-wrap items-center gap-1"
     >
@@ -246,7 +247,7 @@ export function MessageSignalBar({
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         openerRef={openerRef}
-        barRef={barRef}
+        restoreRef={restoreRef}
         onRemove={(chip) => {
           setSheetOpen(false);
           correct(chipTags(chip, signal), false);
@@ -356,6 +357,21 @@ function SignalChip({
   );
 }
 
+/**
+ * The message row's own actions button, which every row with actions keeps
+ * mounted; else the row itself.
+ */
+function survivingRowControl(from: HTMLElement | null): HTMLElement | null {
+  const row = from?.closest("article");
+  if (!row) return null;
+  const actions = row.querySelector<HTMLElement>(
+    "[data-message-actions-trigger]",
+  );
+  if (actions) return actions;
+  row.tabIndex = -1;
+  return row;
+}
+
 /** A touch chip's actions, in the same bottom sheet as a message's own. */
 function TagActionsSheet({
   chip,
@@ -363,7 +379,7 @@ function TagActionsSheet({
   open,
   onOpenChange,
   openerRef,
-  barRef,
+  restoreRef,
   onRemove,
 }: {
   /** Null until a chip is tapped; it stays set while the sheet closes. */
@@ -373,8 +389,8 @@ function TagActionsSheet({
   onOpenChange: (open: boolean) => void;
   /** The chip that opened the sheet, where focus returns. */
   openerRef: RefObject<HTMLButtonElement | null>;
-  /** The bar, whose tag button takes focus when the chip is removed. */
-  barRef: RefObject<HTMLDivElement | null>;
+  /** Set on removal to a row control that survives the chip and the bar. */
+  restoreRef: RefObject<HTMLElement | null>;
   onRemove: (chip: ChatSignalChip) => void;
 }) {
   const t = useTranslations("App.Channels.Signals");
@@ -384,11 +400,7 @@ function TagActionsSheet({
 
   function returnFocus(event: Event) {
     event.preventDefault();
-    const target = removed.current
-      ? barRef.current?.querySelector<HTMLElement>(
-          "[data-testid=message-signal-edit]",
-        )
-      : openerRef.current;
+    const target = removed.current ? restoreRef.current : openerRef.current;
     removed.current = false;
     target?.focus();
   }
@@ -429,6 +441,7 @@ function TagActionsSheet({
             className="text-destructive hover:text-destructive h-11 justify-start gap-3 px-3"
             onClick={() => {
               removed.current = true;
+              restoreRef.current = survivingRowControl(openerRef.current);
               onRemove(chip);
             }}
           >

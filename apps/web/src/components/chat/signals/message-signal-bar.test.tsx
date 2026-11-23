@@ -77,6 +77,22 @@ function bar(message: ChatRoomMessage) {
   );
 }
 
+/** The bar inside a message row, as the room draws it. */
+function row(message: ChatRoomMessage, { actions = true } = {}) {
+  return (
+    <NextIntlClientProvider locale="en" messages={messages}>
+      <article>
+        <MessageSignalBar message={message} currentUserId="user-1" />
+        {actions ? (
+          <button type="button" data-message-actions-trigger>
+            Message actions
+          </button>
+        ) : null}
+      </article>
+    </NextIntlClientProvider>
+  );
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   touch.current = false;
@@ -175,7 +191,7 @@ describe("MessageSignalBar on a touch screen", () => {
     expect(correctMock).not.toHaveBeenCalled();
   });
 
-  it("moves focus to the tag button once the tag is removed", async () => {
+  it("moves focus to the message's actions once a tag is removed", async () => {
     touch.current = true;
     const user = userEvent.setup();
     const message = tagged(["decisionMade", "announcement"]);
@@ -186,13 +202,84 @@ describe("MessageSignalBar on a touch screen", () => {
         signal: { ...message.signal, tags: ["announcement"] },
       },
     });
-    render(bar(message));
+    render(row(message));
 
     await user.click(screen.getByRole("button", { name: "Decision" }));
     await user.click(await screen.findByRole("button", { name: "Remove tag" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Edit tags" })).toHaveFocus();
+      expect(
+        screen.getByRole("button", { name: "Message actions" }),
+      ).toHaveFocus();
+    });
+  });
+
+  it("keeps focus in the row when the last chip goes with the bar", async () => {
+    touch.current = true;
+    const user = userEvent.setup();
+    const message = tagged(["decisionMade"]);
+    correctMock.mockResolvedValue({
+      ok: true,
+      value: { ...message, signal: { ...message.signal, tags: [] } },
+    });
+    render(row(message));
+
+    await user.click(screen.getByRole("button", { name: "Decision" }));
+    await user.click(await screen.findByRole("button", { name: "Remove tag" }));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("message-signal-bar")).toBeNull();
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Message actions" }),
+      ).toHaveFocus();
+    });
+  });
+
+  it("keeps focus in the row when the last chip goes after the sheet closed", async () => {
+    touch.current = true;
+    const user = userEvent.setup();
+    const message = tagged(["decisionMade"]);
+    let settle: (value: unknown) => void = () => {};
+    correctMock.mockReturnValue(
+      new Promise((resolve) => {
+        settle = resolve;
+      }),
+    );
+    render(row(message));
+
+    await user.click(screen.getByRole("button", { name: "Decision" }));
+    await user.click(await screen.findByRole("button", { name: "Remove tag" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    const actions = screen.getByRole("button", { name: "Message actions" });
+    await waitFor(() => expect(actions).toHaveFocus());
+
+    settle({
+      ok: true,
+      value: { ...message, signal: { ...message.signal, tags: [] } },
+    });
+    await waitFor(() => {
+      expect(screen.queryByTestId("message-signal-bar")).toBeNull();
+    });
+    expect(actions).toHaveFocus();
+  });
+
+  it("falls back to the row itself when it has no actions button", async () => {
+    touch.current = true;
+    const user = userEvent.setup();
+    const message = tagged(["decisionMade"]);
+    correctMock.mockResolvedValue({
+      ok: true,
+      value: { ...message, signal: { ...message.signal, tags: [] } },
+    });
+    render(row(message, { actions: false }));
+
+    await user.click(screen.getByRole("button", { name: "Decision" }));
+    await user.click(await screen.findByRole("button", { name: "Remove tag" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("article")).toHaveFocus();
     });
   });
 
