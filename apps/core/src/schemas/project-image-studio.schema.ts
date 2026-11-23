@@ -2,6 +2,8 @@ import { z } from "@hono/zod-openapi";
 import { SOKO_BOT_VOICEOVER_VOICES } from "@sokosumi/soko-bot";
 import {
   MAX_STUDIO_HEADLINE_LENGTH,
+  SHORT_VIDEO_FORMATS,
+  SHORT_VIDEO_MAX_PICTURES,
   TALKING_VIDEO_SCRIPT_MAX_LENGTH,
   TALKING_VIDEO_SCRIPT_MIN_LENGTH,
 } from "@sokosumi/utils";
@@ -124,6 +126,8 @@ export const imageStudioTalkingVideoSchema = z
     broll: z.boolean(),
     /** Generated music plays under the voice. */
     music: z.boolean(),
+    /** A short without a presenter, in this format. Null for a presenter video. */
+    format: z.union([z.enum(SHORT_VIDEO_FORMATS), z.null()]),
   })
   .openapi("ProjectTalkingVideo");
 
@@ -422,6 +426,50 @@ export const createTalkingVideoJobRequestSchema = z
     idempotencyKey: z.string().trim().min(8).max(200),
   })
   .openapi("CreateProjectTalkingVideoJobRequest");
+
+export const createShortVideoJobRequestSchema = z
+  .object({
+    /**
+     * How the short tells it: a voice over the brand's pictures and site
+     * (`voiceover`), a voice walking through the site (`site_tour`), a voice
+     * giving three numbered points (`top_three`), or pictures to music with
+     * a line on each (`slideshow`).
+     */
+    format: z.enum(SHORT_VIDEO_FORMATS),
+    /**
+     * What the voice says, in sentences. A `top_three` script is a first
+     * sentence naming the list, one sentence per point, then the next step.
+     * A `slideshow` script is its lines, one per picture, one per row.
+     */
+    script: z
+      .string()
+      .trim()
+      .min(TALKING_VIDEO_SCRIPT_MIN_LENGTH)
+      .max(TALKING_VIDEO_SCRIPT_MAX_LENGTH),
+    /** The words over the first seconds. Omitted, they are written from the script. */
+    hookLine: z.string().trim().min(1).max(48).optional(),
+    voice: z
+      .enum(SOKO_BOT_VOICEOVER_VOICES)
+      .default(DEFAULT_TALKING_VIDEO_VOICE),
+    /** ISO 639-1 language of the script. */
+    languageCode: z
+      .string()
+      .trim()
+      .regex(/^[a-z]{2}$/)
+      .default("en"),
+    /** Studio pictures to show, in order. */
+    pictureAssetIds: z
+      .array(z.string().uuid())
+      .max(SHORT_VIDEO_MAX_PICTURES)
+      .default([]),
+    /** Images in Files to show, after the studio pictures. */
+    pictureFileIds: z
+      .array(z.string().uuid())
+      .max(SHORT_VIDEO_MAX_PICTURES)
+      .default([]),
+    idempotencyKey: z.string().trim().min(8).max(200),
+  })
+  .openapi("CreateProjectShortVideoJobRequest");
 
 export const imageStudioStateQuerySchema = z.object({
   sort: z.enum(["newest", "best"]).default("newest"),

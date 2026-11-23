@@ -23901,6 +23901,22 @@ export const ProjectTalkingVideoSchema = {
         },
         music: {
             type: 'boolean'
+        },
+        format: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: [
+                        'voiceover',
+                        'site_tour',
+                        'top_three',
+                        'slideshow'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     required: [
@@ -23909,7 +23925,8 @@ export const ProjectTalkingVideoSchema = {
         'languageCode',
         'siteShots',
         'broll',
-        'music'
+        'music',
+        'format'
     ]
 } as const;
 
@@ -44952,6 +44969,90 @@ export const CreateProjectTalkingVideoJobRequestSchema = {
     required: [
         'script',
         'presenter',
+        'idempotencyKey'
+    ]
+} as const;
+
+export const CreateProjectShortVideoJobRequestSchema = {
+    type: 'object',
+    properties: {
+        format: {
+            type: 'string',
+            enum: [
+                'voiceover',
+                'site_tour',
+                'top_three',
+                'slideshow'
+            ]
+        },
+        script: {
+            type: 'string',
+            minLength: 20,
+            maxLength: 600
+        },
+        hookLine: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 48
+        },
+        voice: {
+            type: 'string',
+            enum: [
+                'Aria',
+                'Roger',
+                'Sarah',
+                'Laura',
+                'Charlie',
+                'George',
+                'Callum',
+                'River',
+                'Liam',
+                'Charlotte',
+                'Alice',
+                'Matilda',
+                'Will',
+                'Jessica',
+                'Eric',
+                'Chris',
+                'Brian',
+                'Daniel',
+                'Lily',
+                'Bill'
+            ],
+            default: 'Sarah'
+        },
+        languageCode: {
+            type: 'string',
+            pattern: '^[a-z]{2}$',
+            default: 'en'
+        },
+        pictureAssetIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 6,
+            default: []
+        },
+        pictureFileIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 6,
+            default: []
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 200
+        }
+    },
+    required: [
+        'format',
+        'script',
         'idempotencyKey'
     ]
 } as const;

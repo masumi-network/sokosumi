@@ -1,6 +1,9 @@
 import { SOKO_BOT_VOICEOVER_VOICES } from "@sokosumi/soko-bot";
 import {
+  creditsPerShortVideoCents,
   creditsPerTalkingVideoCents,
+  SHORT_VIDEO_FORMATS,
+  type ShortVideoFormat,
   TALKING_VIDEO_PRICE,
   TALKING_VIDEO_PRICE_VERIFIED_AT,
   TALKING_VIDEO_SCRIPT_MAX_LENGTH,
@@ -257,7 +260,19 @@ export function posesAsCustomerTestimonial(script: string): boolean {
 export const TALKING_VIDEO_TESTIMONIAL_MESSAGE =
   "A talking video shows a generated presenter, so it cannot speak as a customer. Write it in the brand's own voice.";
 
-/** A talking video's stored settings: a video's, plus who speaks and how. */
+/** Credits (= cents) for one short of this script in this format. */
+export function creditsPerShortVideo(
+  script: string,
+  format: ShortVideoFormat,
+): number {
+  return creditsPerShortVideoCents(TALKING_VIDEO_PRICE, script, format);
+}
+
+/**
+ * A talking video's stored settings: a video's, plus who speaks and how. A
+ * short is stored the same way, without a presenter: its `format` is set, its
+ * one paid request is its music, and its pictures are copied in.
+ */
 export interface TalkingVideoSettings extends VideoSettings {
   voice: string;
   /** A stock presenter, or null when the photo is the job's reference File. */
@@ -278,6 +293,10 @@ export interface TalkingVideoSettings extends VideoSettings {
   /** Generated music plays under the voice; its provider request, once sent. */
   music: boolean;
   musicRequestId: string | null;
+  /** A short's format, or null for a video with a presenter. */
+  format: ShortVideoFormat | null;
+  /** A short's pictures in the studio's store, once copied in. */
+  picturePathnames: string[];
 }
 
 function readSpokenWords(value: unknown): SpokenWord[] {
@@ -321,6 +340,14 @@ export function readTalkingVideoSettings(value: unknown): TalkingVideoSettings {
     music: raw.music === true,
     musicRequestId:
       typeof raw.musicRequestId === "string" ? raw.musicRequestId : null,
+    format: (SHORT_VIDEO_FORMATS as readonly unknown[]).includes(raw.format)
+      ? (raw.format as ShortVideoFormat)
+      : null,
+    picturePathnames: Array.isArray(raw.picturePathnames)
+      ? raw.picturePathnames.filter(
+          (pathname): pathname is string => typeof pathname === "string",
+        )
+      : [],
   };
 }
 
