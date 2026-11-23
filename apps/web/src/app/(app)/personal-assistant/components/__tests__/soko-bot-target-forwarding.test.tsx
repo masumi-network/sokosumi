@@ -173,12 +173,12 @@ describe("console panels act on the shared bot in context", () => {
   });
 
   it("schedule toggle and delete", async () => {
-    renderShared(<ScheduleRowActions scheduleId="s1" enabled />);
+    renderShared(<ScheduleRowActions scheduleId="s1" name="Weekly" enabled />);
     fireEvent.click(screen.getByRole("switch"));
     await waitFor(() =>
       expect(actions.updateSokoBotScheduleAction).toHaveBeenCalledWith(withBot),
     );
-    fireEvent.click(screen.getByRole("button", { name: "delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "deleteNamed" }));
     fireEvent.click(
       await screen.findByRole("button", { name: "deleteConfirm" }),
     );

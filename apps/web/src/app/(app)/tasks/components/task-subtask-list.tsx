@@ -12,7 +12,7 @@ import {
 import { TaskStatus } from "@sokosumi/core-client";
 import { GripVertical, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { type KeyboardEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import {
@@ -22,6 +22,7 @@ import {
 } from "@/app/tasks/utils/task-subtask-row";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useTaskSubtaskMoveFocus } from "@/hooks/effects/use-task-subtask-move-focus";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { moveIdToSlot } from "@/lib/utils/move-id";
@@ -91,11 +92,7 @@ export function TaskSubtaskList({
   const order = ids.join();
 
   // Runs when the order changes.
-  useEffect(() => {
-    // React moves the row's node, which can drop focus on the way.
-    if (movedId.current) handles.current.get(movedId.current)?.focus();
-    movedId.current = null;
-  }, [order]);
+  useTaskSubtaskMoveFocus(handles, movedId, order);
 
   function moveTo(id: string, next: string[]) {
     if (next === ids) return;

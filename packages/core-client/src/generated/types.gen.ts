@@ -1212,6 +1212,10 @@ export type SokoBotTurn = {
         name: string | null;
         kind: string;
     } | null;
+    schedule?: {
+        name: string;
+        systemKey: string | null;
+    } | null;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -9259,6 +9263,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             body: string;
         }>;
         changes?: Array<string>;
+        fitted?: Array<string>;
         patched?: Array<{
             id: string;
             was: {
@@ -9591,6 +9596,7 @@ export type MarketingStrategyRequest = {
             body: string;
         }>;
         changes?: Array<string>;
+        fitted?: Array<string>;
         patched?: Array<{
             id: string;
             was: {
@@ -14140,6 +14146,13 @@ export type CmoOverview = {
     projectLogo: string | null;
     presenterSet: boolean;
     /**
+     * Cuso was moved onto a newer version and this member has not closed the dialog that says what changed: the version and its plain lines. Null otherwise.
+     */
+    upgrade: {
+        versionId: string;
+        lines: Array<string>;
+    } | null;
+    /**
      * Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the checkout until his Project has a CMO subscription (or Tester credits), then the accounts until the Project has a Social connection. CMO opens on the chat once done.
      */
     onboardingStep: 'brandBrain' | 'strategy' | 'checkout' | 'accounts' | 'done';
@@ -15066,6 +15079,7 @@ export type CmoPlan = {
         body: string;
     }>;
     changes?: Array<string>;
+    fitted?: Array<string>;
     patched?: Array<{
         id: string;
         was: {
@@ -15200,7 +15214,7 @@ export type CmoMeasurement = {
  */
 export type CmoProduction = {
     /**
-     * starting: approved, but no run is working yet; the next sync starts one. blocked: no run could start for half an hour; Core keeps trying.
+     * starting: approved, but no run is working yet; the next sync starts one. stuck: the last run made nothing ready; the next starts at retryAt. blocked: no run could start for half an hour; Core keeps trying.
      */
     state: 'waiting' | 'starting' | 'running' | 'ready' | 'stuck' | 'blocked';
     ready: number;
@@ -15235,6 +15249,14 @@ export type CmoProduction = {
      * Calendar entries the plan bought does not make. A bigger plan makes them.
      */
     beyondPlan: Array<string>;
+    /**
+     * Written entries whose picture failed the brand check on every visual Cuso wrote. They stay drafts without a picture and no longer hold the month back.
+     */
+    withoutPicture: Array<string>;
+    /**
+     * When a stuck month's next production run starts. Null unless state is stuck.
+     */
+    retryAt: string | null;
 };
 
 export type CmoOnboardingConflictError = {
@@ -15621,6 +15643,10 @@ export type CmoTestCopyTeardown = {
 
 export type CmoTimeZone = {
     timeZone: string;
+};
+
+export type CmoUpgradeSeen = {
+    versionId: string;
 };
 
 export type CmoSeo = {
@@ -92853,6 +92879,81 @@ export type SetCmoTimeZoneForProjectResponses = {
 };
 
 export type SetCmoTimeZoneForProjectResponse = SetCmoTimeZoneForProjectResponses[keyof SetCmoTimeZoneForProjectResponses];
+
+export type MarkCmoUpgradeSeenForProjectData = {
+    body: CmoUpgradeSeen;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/upgrade-seen';
+};
+
+export type MarkCmoUpgradeSeenForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type MarkCmoUpgradeSeenForProjectError = MarkCmoUpgradeSeenForProjectErrors[keyof MarkCmoUpgradeSeenForProjectErrors];
+
+export type MarkCmoUpgradeSeenForProjectResponses = {
+    /**
+     * The dialog stays closed for this member
+     */
+    200: {
+        data: CmoUpgradeSeen;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type MarkCmoUpgradeSeenForProjectResponse = MarkCmoUpgradeSeenForProjectResponses[keyof MarkCmoUpgradeSeenForProjectResponses];
 
 export type GetCmoSeoForProjectData = {
     body?: never;

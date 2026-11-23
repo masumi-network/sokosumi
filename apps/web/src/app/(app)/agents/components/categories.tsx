@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useCategoriesDragCursor } from "@/hooks/effects/use-categories-drag-cursor";
 import type { Category } from "@/lib/types/category";
 import { cn } from "@/lib/utils";
 
@@ -164,17 +164,7 @@ export default function Categories({
     }, 0);
   }, []);
 
-  useMountEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    container.style.cursor = "grab";
-
-    return () => {
-      container.style.cursor = "";
-      container.style.userSelect = "";
-    };
-  });
+  useCategoriesDragCursor(scrollContainerRef);
 
   if (validCategories.length === 0) {
     return null;

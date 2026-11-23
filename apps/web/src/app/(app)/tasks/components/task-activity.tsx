@@ -1,27 +1,12 @@
 "use client";
 
 import type { TaskEvent, TaskFile } from "@sokosumi/core-client";
-import {
-  BlobStatus,
-  Channel,
-  TaskEventStatus,
-  TaskStatus,
-} from "@sokosumi/core-client";
-import {
-  extractFileLikeLinks,
-  extractHttpLinks,
-  type SubscriptionPlanName,
-} from "@sokosumi/utils";
+import { Channel, TaskEventStatus, TaskStatus } from "@sokosumi/core-client";
+import { extractHttpLinks, type SubscriptionPlanName } from "@sokosumi/utils";
 import { ArrowDown } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import {
-  type ReactNode,
-  useEffect,
-  useMemo,
-  useState,
-  useTransition,
-} from "react";
+import { type ReactNode, useMemo, useState, useTransition } from "react";
 import { CHAT_MESSAGE_LIST_ATTRIBUTE } from "@/app/chat/chat-message-list";
 import { highlightListMessage } from "@/app/chat/utils/room-message-highlight";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
@@ -37,6 +22,7 @@ import {
   mergeTaskActivityEvents,
   TASK_ACTIVITY_MESSAGE_LIST,
 } from "@/app/tasks/utils/task-activity-feed";
+import { commentFiles } from "@/app/tasks/utils/task-comment-files";
 import { getTaskEventChargePresentation } from "@/app/tasks/utils/task-event-charge-presentation";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
@@ -45,6 +31,7 @@ import { TimeAgo } from "@/components/time-ago";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useTaskActivityJumpHighlight } from "@/hooks/effects/use-task-activity-jump-highlight";
 import { useTaskActivityRowEnter } from "@/hooks/effects/use-task-activity-row-enter";
 import {
   createTaskComment,
@@ -61,9 +48,8 @@ import {
   parseMentions,
 } from "@/lib/utils/mention-parser";
 import { getInitials } from "@/lib/utils/text";
-import { getFileNameFromUrl } from "@/lib/utils/url";
 import { TaskActivityComposer } from "./task-activity-composer";
-import { TaskResultDownload } from "./task-result-download";
+import { TaskResultAction } from "./task-result-action";
 import { useTaskResultTableComponents } from "./task-result-table-action";
 import {
   getTaskStatusDotColorClass,
@@ -118,6 +104,8 @@ interface TaskActivityProps {
   };
   /** Names the files a finished result downloads as. */
   taskName?: string;
+  /** A result with its own page: the done comment links to it, where a plain result offers its export. */
+  resultLink?: { href: string; label: string };
 }
 
 export interface MentionableUser {
@@ -151,43 +139,6 @@ function AnimatedNewRow({ children }: { children: ReactNode }) {
       {children}
     </div>
   );
-}
-
-/**
- * Match a comment file URL to a TaskFile. Prefers exact sourceUrl (keeps ?token=),
- * then fileUrl, then pathname basename === name (only when exactly one file matches).
- */
-function matchTaskFile(
-  url: string,
-  taskFiles: TaskFile[],
-): TaskFile | undefined {
-  // Try exact sourceUrl match first
-  for (const file of taskFiles) {
-    if (file.sourceUrl === url) {
-      return file;
-    }
-  }
-  // Try fileUrl match
-  for (const file of taskFiles) {
-    if (file.fileUrl === url) {
-      return file;
-    }
-  }
-  // Try pathname basename match (only if unique)
-  const urlBasename = url.split("/").pop()?.split("?")[0];
-  if (urlBasename) {
-    const basenameMatches: TaskFile[] = [];
-    for (const file of taskFiles) {
-      if (file.name === urlBasename) {
-        basenameMatches.push(file);
-      }
-    }
-    // Return basename match only when exactly one file matches
-    if (basenameMatches.length === 1) {
-      return basenameMatches[0];
-    }
-  }
-  return undefined;
 }
 
 export function TaskActivitySection(props: TaskActivityProps) {
@@ -224,6 +175,7 @@ function TaskActivityContent({
   headerAction,
   tableSource,
   taskName = "result",
+  resultLink,
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
   const markdownComponents = useTaskResultTableComponents(
@@ -238,7 +190,6 @@ function TaskActivityContent({
   const [, startExpandTransition] = useTransition();
   const [localEvents, setLocalEvents] = useState<TaskEvent[]>(events);
   const [commentsExpanded, setCommentsExpanded] = useState(false);
-  const [pendingJumpId, setPendingJumpId] = useState<string | null>(null);
   // Match chat and Core `excludeUserId`: @ of yourself does not enroll the writer.
   const viewerId = currentUser?.id;
   const mentionOptions = useMemo(() => {
@@ -313,14 +264,11 @@ function TaskActivityContent({
     localEvents[0]?.id ??
     null;
 
-  useEffect(() => {
-    if (!pendingJumpId) {
-      return;
-    }
-    if (highlightListMessage(TASK_ACTIVITY_MESSAGE_LIST, pendingJumpId)) {
-      setPendingJumpId(null);
-    }
-  }, [pendingJumpId, localEvents, commentsExpanded, feedItems]);
+  const setPendingJumpId = useTaskActivityJumpHighlight(
+    localEvents,
+    commentsExpanded,
+    feedItems,
+  );
 
   function handleJumpToRecent() {
     if (!latestCommentId) {
@@ -544,31 +492,7 @@ function TaskActivityContent({
                   mentionUserNameById,
                 )
               : null;
-            const sourceFiles = formattedComment
-              ? extractFileLikeLinks(formattedComment).map((url, fileIndex) => {
-                  const matchedFile = matchTaskFile(url, taskFiles);
-                  if (matchedFile) {
-                    return {
-                      id: `${event.id}-file-${fileIndex}`,
-                      sourceUrl: url,
-                      fileUrl: matchedFile.fileUrl,
-                      name: matchedFile.name,
-                      status: matchedFile.status,
-                      size: matchedFile.size,
-                      mimeType: matchedFile.mimeType,
-                    };
-                  }
-                  return {
-                    id: `${event.id}-file-${fileIndex}`,
-                    sourceUrl: url,
-                    fileUrl: url,
-                    name: getFileNameFromUrl(url),
-                    status: BlobStatus.READY,
-                    size: null,
-                    mimeType: null,
-                  };
-                })
-              : [];
+            const sourceFiles = commentFiles(formattedComment, taskFiles);
             const sourceLinks = formattedComment
               ? extractHttpLinks(formattedComment).map((url, linkIndex) => ({
                   id: `${event.id}-link-${linkIndex}`,
@@ -728,7 +652,8 @@ function TaskActivityContent({
                       </TaskTableEvent>
                     ) : null}
                     {shouldHighlightDoneBorder && formattedComment ? (
-                      <TaskResultDownload
+                      <TaskResultAction
+                        link={resultLink}
                         markdown={formatMentionsAsMarkdownLinks(
                           event.comment ?? "",
                           NO_AGENT_LINKS,

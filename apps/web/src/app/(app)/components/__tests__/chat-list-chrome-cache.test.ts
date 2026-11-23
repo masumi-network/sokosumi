@@ -248,7 +248,7 @@ describe("chat list chrome single-source composition contract", () => {
     expect(headerTrailingTools).toMatch(/HeaderNotificationBell/);
     expect(headerProfile).not.toMatch(/<Suspense/);
     expect(headerProfile).toMatch(
-      /<WorkspaceSwitcherMenu[\s\S]*\/>[\s\S]*<HeaderTrailingTools/,
+      /<HeaderPhoneWorkspaceSwitcher[\s\S]*\/>[\s\S]*<HeaderTrailingTools/,
     );
 
     const fallback = switcherSkeleton.slice(

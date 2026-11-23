@@ -282,6 +282,14 @@ export const sokoBotTurnSchema = z
       })
       .nullable()
       .optional(),
+    /**
+     * Schedule a scheduled turn ran for; `systemKey` names a built-in rhythm.
+     * Null for other turns and when the schedule has been deleted.
+     */
+    schedule: z
+      .object({ name: z.string(), systemKey: z.string().nullable() })
+      .nullable()
+      .optional(),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
   })

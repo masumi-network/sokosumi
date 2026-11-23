@@ -2,13 +2,14 @@
 
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   CHAT_WELCOME_PATH,
   roomIdFromPath,
 } from "@/app/chat/utils/chat-route-base";
 import { PROJECT_SCOPE_PARAM } from "@/app/components/project-scope/project-scope-href";
+import { useWorkspaceSwitchSettlers } from "@/hooks/effects/use-workspace-switch-settlers";
 import {
   activateOrganizationWorkspace,
   isUserNotMemberOfOrganizationError,
@@ -265,12 +266,7 @@ export function useWorkspaceSwitcher() {
   const isPending = isActivating || isRefreshing;
   const settlersRef = useRef<Array<() => void>>([]);
 
-  // The refresh runs in this hook's transition, so only its pending state
-  // says when the new workspace has rendered.
-  useEffect(() => {
-    if (isPending) return;
-    for (const settle of settlersRef.current.splice(0)) settle();
-  }, [isPending]);
+  useWorkspaceSwitchSettlers(settlersRef, isPending);
 
   /** Resolves once the next switch has rendered. Ask before starting it. */
   const whenSettled = () =>

@@ -1,0 +1,88 @@
+"use client";
+
+import type { ChatRoom } from "@sokosumi/core-client";
+import type { QueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import {
+  subscribeOrganizationChatRoomRead,
+  subscribeOrganizationChatRoomsChanged,
+} from "@/components/chat/organization-chat-events";
+
+/** At most one read per window, so a busy room costs less than its messages. */
+const OTHER_WORKSPACE_READ_WINDOW_MS = 2_000;
+
+export const OTHER_WORKSPACE_ROOMS_KEY = [
+  "chat-other-workspace-rooms",
+] as const;
+
+/** A room action's answer does not load the Organization the row shows. */
+export function withWorkspaceOf(
+  current: ChatRoom,
+  updated: ChatRoom,
+): ChatRoom {
+  return {
+    ...updated,
+    organizationName: current.organizationName,
+    organizationLogo: current.organizationLogo,
+    organizationWebsiteUrl: current.organizationWebsiteUrl,
+  };
+}
+
+/**
+ * Subscribes `OtherWorkspaceRoomsLive` to organization chat room removal,
+ * read, and throttled active-collection invalidation events while mounted.
+ */
+export function useOtherWorkspaceRoomsLiveSync(
+  queryClient: QueryClient,
+  requestRead: () => void,
+): void {
+  useEffect(() => {
+    let timer: number | undefined;
+    let lastReadAt = 0;
+
+    function read() {
+      timer = undefined;
+      lastReadAt = Date.now();
+      requestRead();
+    }
+
+    function updateRooms(update: (current: ChatRoom[]) => ChatRoom[]) {
+      queryClient.setQueriesData<ChatRoom[]>(
+        { queryKey: OTHER_WORKSPACE_ROOMS_KEY },
+        (current) => current && update(current),
+      );
+    }
+
+    const stopRoomsChanged = subscribeOrganizationChatRoomsChanged({
+      onRemoved: (removedRoomId) =>
+        updateRooms((current) =>
+          current.filter((room) => room.id !== removedRoomId),
+        ),
+      // A room handed over whole is one the reader just joined or edited here,
+      // so no `onRoom`.
+      onInvalidated: (collections) => {
+        // Only the active collection's changes hold what is unread.
+        if (collections && !collections.includes("active")) {
+          return;
+        }
+        if (timer !== undefined) return;
+        // The first message of a quiet spell reads at once; a burst waits.
+        const wait = lastReadAt + OTHER_WORKSPACE_READ_WINDOW_MS - Date.now();
+        if (wait <= 0) {
+          read();
+        } else {
+          timer = window.setTimeout(read, wait);
+        }
+      },
+    });
+    const stopRoomRead = subscribeOrganizationChatRoomRead(
+      updateRooms,
+      withWorkspaceOf,
+    );
+    return () => {
+      window.clearTimeout(timer);
+      stopRoomsChanged();
+      stopRoomRead();
+    };
+  }, []);
+}

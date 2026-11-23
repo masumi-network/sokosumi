@@ -2803,6 +2803,10 @@
           "title": "No hay proyectos ocultos",
           "description": "Oculta desde su menú un proyecto que no es tuyo. Sale de Abiertos, del selector de proyectos y de la actividad reciente, y queda aquí."
         },
+        "noOpen": {
+          "title": "No hay proyectos abiertos",
+          "description": "Tus otros proyectos están en otra vista."
+        },
         "onlyClosed": {
           "title": "Todos los proyectos están cerrados",
           "description": "Los proyectos cerrados conservan su historial en la vista Cerrados.",
@@ -11007,10 +11011,9 @@
         "failures": "Fallos",
         "disabled": "deshabilitada",
         "yourTime": "({datetime} en tu hora)",
-        "enable": "Habilitar programación",
-        "disable": "Deshabilitar programación",
         "delete": "Eliminar",
-        "deleteTitle": "¿Eliminar la programación?",
+        "deleteNamed": "Eliminar {name}",
+        "deleteTitle": "¿Eliminar {name}?",
         "deleteDescription": "Se eliminan las ejecuciones futuras. Los turnos pasados permanecen en tu historial.",
         "deleteCancel": "Conservar",
         "deleteConfirm": "Eliminar",
@@ -11253,6 +11256,20 @@
         "activityTitle": "Actividad reciente",
         "activityDescription": "Lo que hizo últimamente.",
         "activityEmpty": "Aún no hay turnos. Abre el chat y pide algo.",
+        "Activity": {
+          "mailCheck": "Revisión de correo",
+          "scheduled": "Ejecución programada",
+          "event": "Actualización de trabajo",
+          "retry": "Reintento",
+          "other": "Ejecución",
+          "outcome": {
+            "running": "En curso",
+            "done": "Hecho",
+            "failed": "No terminó",
+            "cancelled": "Cancelado"
+          },
+          "waiting": "{count, plural, one {Pendiente de aprobación} other {# pendientes de aprobación}}"
+        },
         "showMore": "Mostrar {count} más",
         "skillsTitle": "Skills",
         "skillsDescription": "Lo que sabe hacer tu asistente. Añade más desde skills.sh.",
@@ -11806,6 +11823,21 @@
       "descending": "descendente",
       "noHistory": "No hay cambios registrados.",
       "undoBatch": "Deshacer lote",
+      "appendCsv": {
+        "title": "Añadir filas desde CSV",
+        "description": "Añade las filas del CSV al final de esta tabla. Solo se rellenan las columnas de texto, desde columnas del CSV con el mismo nombre. Las demás columnas quedan vacías.",
+        "file": "Archivo CSV",
+        "matched": "Rellena: {columns}",
+        "skipped": "Omitidas, no hay columna de texto con este nombre: {columns}",
+        "noMatch": "Ninguna columna del CSV tiene el nombre de una columna de texto de esta tabla. Solo se pueden rellenar columnas de texto. Cambia los encabezados del CSV para que coincidan y vuelve a elegir el archivo.",
+        "skipDuplicates": "{count, plural, one {Omitir # fila que ya está en esta tabla} other {Omitir # filas que ya están en esta tabla}}",
+        "add": "{count, plural, =0 {Añadir filas} one {Añadir # fila} other {Añadir # filas}}",
+        "done": "{count, plural, one {# fila añadida.} other {# filas añadidas.}}",
+        "reading": "Leyendo el archivo y comprobando la tabla…",
+        "ambiguous": "Estas columnas del CSV podrían ir a más de una columna de la tabla, o comparten una: {columns}. Da a cada columna su propio nombre y vuelve a elegir el archivo.",
+        "full": "{room, plural, =0 {Esta tabla está llena: tiene 10.000 filas, incluidas las archivadas.} one {Esta tabla tiene espacio para # fila más (10.000 como máximo, incluidas las archivadas).} other {Esta tabla tiene espacio para # filas más (10.000 como máximo, incluidas las archivadas).}} El CSV añade {count}. No se ha añadido nada.",
+        "stopped": "{added, plural, one {Se detuvo. Sokosumi confirmó # de {count} filas como añadidas.} other {Se detuvo. Sokosumi confirmó # de {count} filas como añadidas.}} La tabla muestra lo que se guardó. Reintentar añade el resto sin duplicar ninguna fila."
+      },
       "findReplace": {
         "title": "Buscar y reemplazar",
         "description": "Cambia cada celda de una columna que contenga exactamente el valor que buscas, sin distinguir mayúsculas. Se guarda como un solo cambio que puedes deshacer desde Historial y fuentes.",
@@ -13573,7 +13605,7 @@
         "failed": "Fallida",
         "invalid": "Revisa las páginas, palabras clave, mercado y dispositivos. Las auditorías completas admiten una palabra clave y ambos dispositivos.",
         "keywordsHelp": "Introduce hasta 20 palabras clave, con un máximo de 80 caracteres cada una.",
-        "relatedPages": "También comprueba la indexación de páginas relevantes de este sitio, hasta {count} páginas en total. Las auditorías completas cubren solo las páginas seleccionadas.",
+        "relatedPages": "{added, plural, =0 {La auditoría cubre las páginas seleccionadas.} one {La auditoría cubre las páginas seleccionadas y puede añadir # página más de este sitio que encaje con tu objetivo.} other {La auditoría cubre las páginas seleccionadas y puede añadir hasta # páginas más de este sitio que encajen con tu objetivo.}} También comprueba la indexación de otras páginas relevantes, hasta {count} páginas en total.",
         "fullHelp": "Las auditorías completas admiten una palabra clave y ambos dispositivos. Todas las páginas seleccionadas usan el mismo mercado.",
         "serviceUnavailable": "Las comprobaciones no están disponibles en este espacio de trabajo. Vuelve a la auditoría.",
         "returnToAudit": "Volver a la auditoría",
@@ -14288,7 +14320,7 @@
           "title": "Acciones de la estrategia de palabras clave",
           "more": "{count, plural, one {Mostrar # acción más} other {Mostrar # acciones más}}",
           "limit": "Límite",
-          "prompt": "La auditoría del sitio recomienda: «{title}». Redacta un plan con los pasos en orden.{hasLimit, select, yes { Respeta este límite: {limit}} other {}}{count, plural, =0 {} one { El lugar: {targets}} other { Los lugares: {targets}}}",
+          "prompt": "La auditoría SEO recomienda: «{title}». Redacta un plan con los pasos en orden.{hasLimit, select, yes { Respeta este límite: {limit}} other {}}{count, plural, =0 {} one { El lugar: {targets}} other { Los lugares: {targets}}}",
           "place": "Lugar"
         },
         "placeForm": {
@@ -14301,11 +14333,11 @@
         },
         "places": {
           "title": "Lugares de promoción",
-          "help": "Por qué la auditoría del sitio no tiene acción ni texto listo para algunos lugares. Las notas están en inglés."
+          "help": "Por qué la auditoría no tiene acción ni texto listo para algunos lugares. Las notas están en inglés."
         },
         "draft": {
           "title": "Texto sugerido",
-          "help": "La auditoría del sitio escribió este texto. Léelo y lee las normas del lugar antes de publicarlo.",
+          "help": "La auditoría escribió este texto. Léelo y lee las normas del lugar antes de publicarlo.",
           "copy": "Copiar texto",
           "copied": "Texto copiado",
           "copyError": "No se pudo copiar el texto"

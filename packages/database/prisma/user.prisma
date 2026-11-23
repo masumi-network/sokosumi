@@ -128,6 +128,7 @@ model User {
   noticeAcknowledgments            NoticeAcknowledgment[]
   badgeCampaignsCreated            BadgeCampaign[]               @relation("BadgeCampaignCreatedBy")
   badgeCampaignsSeen               BadgeCampaignSeen[]
+  cmoUpgradesSeen                  CmoUpgradeSeen[]
   projectStars                     ProjectStar[]
   projectHides                     ProjectHide[]
   confirmedBrandBrains             BrandBrain[]                  @relation("BrandBrainConfirmedBy")

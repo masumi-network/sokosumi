@@ -50,6 +50,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
+import { useWorkspaceFolders } from "@/hooks/effects/use-workspace-folders";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
 import {
@@ -67,7 +68,6 @@ import {
 import * as moves from "./drive-all-files-moves";
 import { mergeLoadedFilePage } from "./drive-all-files-panel.utils";
 import { DriveCollectionChip } from "./drive-collection-chip";
-import { useWorkspaceFolders } from "./use-workspace-folders";
 
 /**
  * All files: one search field over filenames, extracted text and confirmed

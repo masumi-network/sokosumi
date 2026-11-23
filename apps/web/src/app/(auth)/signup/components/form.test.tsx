@@ -10,6 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { betterAuth } from "better-auth/minimal";
 import { emailOTP } from "better-auth/plugins/email-otp";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import {
   afterAll,
@@ -21,7 +22,6 @@ import {
   vi,
 } from "vitest";
 import { useEmailCode } from "@/auth/components/use-email-code";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import { fireGTMEvent } from "@/lib/gtm-events";
 
 import SignUpForm from "./form";
@@ -43,9 +43,9 @@ function SignUpStep({
     returnUrl: undefined,
     beforeLeaving: () => mockHandleUtmConversion(),
   });
-  useMountEffect(() => {
+  useEffect(() => {
     if (codeSent) void emailCode.sendCode(EMAIL);
-  });
+  }, []);
   return (
     <SignUpForm
       email={EMAIL}

@@ -19,7 +19,6 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import {
   type ReactNode,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -44,6 +43,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useFocusWhen } from "@/hooks/effects/use-focus-when";
 import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
+import { useSokoBotIntegrationOutcomeToast } from "@/hooks/effects/use-soko-bot-integration-outcome-toast";
 import type { ChatSchedule, SokoBotChatState } from "@/lib/soko-bot/chat-state";
 import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { describeSchedule } from "@/lib/soko-bot/describe-cron";
@@ -170,10 +170,11 @@ function ScheduleRow({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="flex items-center gap-1.5 truncate text-sm font-medium">
-            <span className="truncate">{schedule.name}</span>
+          {/* Wraps: on a phone the controls leave room for a few letters. */}
+          <p className="text-sm font-medium wrap-anywhere">
+            {schedule.name}
             {schedule.systemKey ? (
-              <span className="text-muted-foreground shrink-0 text-2xs">
+              <span className="text-muted-foreground ml-1.5 text-2xs whitespace-nowrap">
                 {t("Schedules.builtIn")}
               </span>
             ) : null}
@@ -188,6 +189,7 @@ function ScheduleRow({
         {readOnly ? null : (
           <ScheduleRowActions
             scheduleId={schedule.id}
+            name={schedule.name}
             enabled={schedule.enabled}
             deletable={!schedule.systemKey}
             onRemovedChange={setRemoved}
@@ -322,13 +324,12 @@ export function SokoBotConsole({
   const format = useFormatter();
   const router = useRouter();
   const { state, refresh } = useSokoBotState(initialState, botId);
-  useEffect(() => {
-    if (!integrationOutcome) return;
-    if (integrationOutcome === "active")
-      toast.success(t("Integrations.connected"));
-    else toast.error(t("Integrations.connectFailed"));
-    router.replace(consoleRoute);
-  }, [integrationOutcome, router, t, consoleRoute]);
+  useSokoBotIntegrationOutcomeToast({
+    integrationOutcome,
+    router,
+    t,
+    consoleRoute,
+  });
   const { bot } = state;
   const botName = bot.name?.trim() || t("Chat.defaultName");
   // Same seed Core hands chat participants, so console and room match. Not
@@ -598,10 +599,12 @@ export function SokoBotConsole({
                               ? t("Settings.sharedArchiveDescription")
                               : t("Settings.archiveDescription")}
                           </p>
-                          <ArchiveSokoBotButton />
-                          <DeleteSokoBotButton
-                            botName={state.bot.name ?? null}
-                          />
+                          <div className="flex flex-wrap gap-2">
+                            <ArchiveSokoBotButton />
+                            <DeleteSokoBotButton
+                              botName={state.bot.name ?? null}
+                            />
+                          </div>
                         </div>
                       ) : null}
                     </div>

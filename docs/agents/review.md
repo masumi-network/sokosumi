@@ -22,7 +22,7 @@ Only introduced Critical and Important findings block a merge. Record each pre-e
 ## Always check
 
 - **Effect baseline never grows** ([ADR-0075](../adr/0075-effects-live-only-in-named-hooks.md)): flag as Critical any edit to `apps/web/effect-baseline.json` or `apps/cmo/effect-baseline.json` that adds a file or raises a file's count, and any `biome-ignore` suppressing the effect rule.
-- **No general-callback hook in `src/hooks/effects/`**: flag as Critical any hook in `apps/web/src/hooks/effects/` or `apps/cmo/src/hooks/effects/` that accepts a general effect callback (such as a replacement for `useMountEffect`); hooks in `effects/` must own one specific external synchronization job (callbacks for that job, like an event handler or interval tick, are fine).
+- **No general-callback hook in `src/hooks/effects/`**: flag as Critical any hook in `apps/web/src/hooks/effects/` or `apps/cmo/src/hooks/effects/` that accepts a general effect callback (such as reintroducing the deleted `useMountEffect` wrapper); hooks in `effects/` must own one specific external synchronization job (callbacks for that job, like an event handler or interval tick, are fine).
 - **`useEffectEvent` only in effect-scoped code**: flag as Important a `useEffectEvent` function called anywhere except inside an Effect or a callback that Effect registers (e.g. during render, from a JSX event handler, or passed to a child or library).
 
 ## Rounds

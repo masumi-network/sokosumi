@@ -8,7 +8,9 @@ import { resolveBaseUrl } from "./base-url.ts";
 import { createMailbox } from "./mailbox.ts";
 
 // A new user names their Soko Bot, first with only spaces, then for real, and
-// opens its Advanced view: the empty and error states say what is missing.
+// opens its Advanced view: the empty and error states say what is missing,
+// the Daily limit shows its whole number, and each schedule's controls carry
+// the schedule's name.
 // Each size signs up a new throwaway user; nothing is paid for or connected.
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
@@ -101,9 +103,51 @@ for (const { name, ...viewport } of PROJECTS) {
       await page.goto(`${BASE_URL}/personal-assistant?view=advanced`);
       const main = page.getByRole("main");
       await main.getByRole("heading", { name: "Memory" }).waitFor();
-      await main.getByText("No memory yet.").waitFor();
-      assert.equal(await main.getByText("None", { exact: true }).count(), 0);
+      // Scoped to Memory: the MCP servers form's hidden native select has a
+      // "None" option of its own.
+      const memory = main.locator("section", {
+        has: page.getByRole("heading", { name: "Memory" }),
+      });
+      await memory.getByText("No memory yet.").waitFor();
+      assert.equal(await memory.getByText("None", { exact: true }).count(), 0);
       await shot("2-empty-memory");
+
+      // The text beside the Daily limit once squeezed it to one digit on a
+      // phone ("2" for 20).
+      const limit = main.getByRole("spinbutton", { name: "Daily limit" });
+      await limit.scrollIntoViewIfNeeded();
+      assert.equal(await limit.inputValue(), "20");
+      assert.ok(
+        await limit.evaluate((el) => el.scrollWidth <= el.clientWidth),
+        "the Daily limit field cuts its number",
+      );
+      // Archive and Delete sit apart, not flush.
+      const archive = await main
+        .getByRole("button", { name: "Archive", exact: true })
+        .boundingBox();
+      const remove = await main
+        .getByRole("button", { name: "Delete", exact: true })
+        .boundingBox();
+      assert.ok(archive && remove);
+      // gap-2: 8px apart in one row, or 8px below when Delete wraps.
+      const sameRow = Math.abs(remove.y - archive.y) < 1;
+      assert.ok(
+        sameRow
+          ? remove.x - (archive.x + archive.width) >= 8
+          : remove.y - (archive.y + archive.height) >= 8,
+        "Archive and Delete touch",
+      );
+      await shot("3-settings");
+
+      // Each schedule's controls carry its name, so a cut-off row is clear.
+      await page.goto(`${BASE_URL}/personal-assistant`);
+      const dreaming = main.getByRole("switch", {
+        name: "Dreaming",
+        exact: true,
+      });
+      await dreaming.waitFor();
+      assert.equal(await dreaming.getAttribute("aria-checked"), "true");
+      await shot("4-schedules");
 
       await context.close();
       assert.deepEqual(errors, []);

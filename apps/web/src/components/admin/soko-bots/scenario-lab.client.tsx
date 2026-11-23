@@ -15,18 +15,17 @@ import { useQuery } from "@tanstack/react-query";
 import { Check, Play, X } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import { parseAsString, useQueryState } from "nuqs";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { formatUsd } from "@/components/soko-bot/format";
 import { Button } from "@/components/ui/button";
 import { useInterval } from "@/hooks/effects/use-interval";
+import { useScenarioLabMountedRef } from "@/hooks/effects/use-scenario-lab-mounted-ref";
+import { useScenarioLabVersion } from "@/hooks/effects/use-scenario-lab-version";
 import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   judgeSokoBotLabTurnAction,
   listSokoBotLabRunsAction,
   runSokoBotLabIngestAction,
-  setSokoBotVersionAction,
   simulateSokoBotTaskEventAction,
   startSokoBotTurnAction,
 } from "@/lib/actions/soko-bot/action";
@@ -240,89 +239,22 @@ export function ScenarioLab({
   onTurnFinished?: () => void;
 }) {
   const t = useTranslations("App.Admin.SokoBots.Lab");
-  const [activeVersion, setActiveVersion] = useState<string | null>(versionId);
   const activeVersionRef = useRef<string | null>(versionId);
-  const [requestedVersionId, setRequestedVersionId] = useQueryState(
-    "version",
-    parseAsString.withOptions({ history: "replace" }),
-  );
-  const [switching, setSwitching] = useState(false);
-  const [promptOpen, setPromptOpen] = useState(false);
-  const current = versions.find((v) => v.id === activeVersion) ?? null;
-
-  useEffect(() => {
-    let cancelled = false;
-    const fallbackVersionId = versionId ?? versions[0]?.id ?? null;
-    const requested = versions.some(
-      (version) => version.id === requestedVersionId,
-    )
-      ? requestedVersionId
-      : null;
-    if (requestedVersionId && !requested) {
-      void setRequestedVersionId(null);
-    }
-    if (!requested || requested === activeVersionRef.current) {
-      activeVersionRef.current = requested ?? fallbackVersionId;
-      setActiveVersion(requested ?? fallbackVersionId);
-      return;
-    }
-
-    setSwitching(true);
-    void setSokoBotVersionAction({ versionId: requested }).then(
-      (switchResult) => {
-        if (cancelled) return;
-        setSwitching(false);
-        if (!switchResult.ok) {
-          void setRequestedVersionId(null);
-          return;
-        }
-        activeVersionRef.current = requested;
-        setActiveVersion(requested);
-        onTurnFinished?.();
-      },
-      // A server action rejects instead of answering with a result when the
-      // POST comes back as something other than RSC. Release the switch, or
-      // the picker stays disabled.
-      () => {
-        if (cancelled) return;
-        setSwitching(false);
-        void setRequestedVersionId(null);
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    onTurnFinished,
-    requestedVersionId,
-    setRequestedVersionId,
+  const { activeVersion, switching, chooseVersion } = useScenarioLabVersion({
     versionId,
     versions,
-  ]);
-
-  async function chooseVersion(id: string) {
-    setSwitching(true);
-    const result = await setSokoBotVersionAction({ versionId: id });
-    setSwitching(false);
-    if (result.ok) {
-      activeVersionRef.current = id;
-      setActiveVersion(id);
-      await setRequestedVersionId(id);
-      onTurnFinished?.();
-    }
-  }
+    activeVersionRef,
+    onTurnFinished,
+  });
+  const [promptOpen, setPromptOpen] = useState(false);
+  const current = versions.find((v) => v.id === activeVersion) ?? null;
   const [running, setRunning] = useState<Set<string>>(new Set());
   const [failures, setFailures] = useState<Record<string, string>>({});
   // One at a time: turns share the bot's session lock, so this is the run the
   // whole page is waiting on rather than one of several.
   const [live, setLive] = useState<LiveRun | null>(null);
   const mountedRef = useRef(false);
-  useMountEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  });
+  useScenarioLabMountedRef(mountedRef);
   /** Where a Run all has got to, so the wait has a denominator. */
   const [batch, setBatch] = useState<{
     done: number;

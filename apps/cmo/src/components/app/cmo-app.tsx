@@ -6,8 +6,9 @@ import "../onboarding/onboarding.css";
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { ArrowUp, CalendarDays } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useRef, useState, useTransition } from "react";
 import { useCmoAppInitialUrl } from "../../hooks/effects/use-cmo-app-initial-url";
+import { useCmoAppPoll } from "../../hooks/effects/use-cmo-app-poll";
 import { useEventListener } from "../../hooks/effects/use-event-listener";
 import { useScrollIntoViewWhen } from "../../hooks/effects/use-scroll-into-view-when";
 import { AGENT_NAME } from "../../lib/agent";
@@ -59,8 +60,7 @@ import { StrategyPage } from "./strategy-page";
 import { type ChangePlan, type OpenPortal } from "./subscription-card";
 import { TabBar } from "./tab-bar";
 import { TodayPage } from "./today-page";
-
-const POLL_MS = 4_000;
+import { UpgradeNotice } from "./upgrade-notice";
 
 export interface CmoAppActions
   extends AdActions,
@@ -125,6 +125,8 @@ export interface CmoAppActions
   startOver: () => Promise<string | null>;
   /** Moves Cuso's routines to this time zone; a refusal comes back as text. */
   setTimeZone: (timeZone: string) => Promise<string | null>;
+  /** The member closed the dialog that says what Cuso's newer version changed. */
+  markUpgradeSeen: (versionId: string) => Promise<void>;
   /** Starts the checkout for a Project top-up of this Cuso. */
   startTopUp: StartTopUp;
   /** Starts the CMO plan checkout, for a paused Cuso or from Settings. */
@@ -280,9 +282,11 @@ export function CmoApp({
           },
     );
   }, []);
+  const [focusEntry, setFocusEntry] = useState<string | null>(null);
   // Each page has its own address, so reload, Back and new tabs land on it.
   const go = useCallback(
     (next: View) => {
+      setFocusEntry(null);
       selectView(next);
       if (window.location.pathname !== VIEW_PATHS[next]) {
         window.history.pushState(null, "", VIEW_PATHS[next]);
@@ -290,12 +294,20 @@ export function CmoApp({
     },
     [selectView],
   );
-  useEventListener("window", "popstate", () =>
-    selectView(viewFromPath(window.location.pathname) ?? "today"),
+  useEventListener("window", "popstate", () => {
+    setFocusEntry(null);
+    selectView(viewFromPath(window.location.pathname) ?? "today");
+  });
+  // A post picked on Today or Pictures opens on the Calendar, once: any
+  // other way onto the Calendar opens it with nothing selected.
+  const openOnCalendar = useCallback(
+    (entryId: string) => {
+      go("calendar");
+      setFocusEntry(entryId);
+    },
+    [go],
   );
   const [draft, setDraft] = useState("");
-  // A post opened from Today opens on the Calendar.
-  const [focusEntry, setFocusEntry] = useState<string | null>(null);
   const [sending, startSending] = useTransition();
   const [sendFailed, setSendFailed] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -316,17 +328,7 @@ export function CmoApp({
     setMessages(state.messages);
   }, [actions]);
 
-  useEffect(() => {
-    const poll = () => {
-      if (document.visibilityState === "visible") void refresh();
-    };
-    const timer = window.setInterval(poll, POLL_MS);
-    document.addEventListener("visibilitychange", poll);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", poll);
-    };
-  }, [refresh]);
+  useCmoAppPoll(refresh);
 
   const thread = buildThread(overview, messages, work);
   const threadLength = thread.length;
@@ -425,6 +427,17 @@ export function CmoApp({
     );
   }
 
+  // Closed at once; the next overview read no longer carries it.
+  const [closedUpgrade, setClosedUpgrade] = useState<string | null>(null);
+  const upgrade =
+    overview.upgrade && overview.upgrade.versionId !== closedUpgrade
+      ? overview.upgrade
+      : null;
+  const closeUpgrade = (versionId: string) => {
+    setClosedUpgrade(versionId);
+    void actions.markUpgradeSeen(versionId).catch(() => undefined);
+  };
+
   const lead = pageLead(view, overview);
   const outOfCredits =
     strategyApproved(overview) && overview.billing.availableCredits <= 0;
@@ -462,7 +475,6 @@ export function CmoApp({
 
         {view === "chat" ? (
           <>
-            {lead ? <PageLead {...lead} /> : null}
             <div className="scroll chat">
               <div className="thread">
                 {thread.map((item) => (
@@ -563,10 +575,7 @@ export function CmoApp({
                   overview={overview}
                   firstName={name.trim().split(/\s+/)[0] ?? ""}
                   open={go}
-                  openEntry={(id) => {
-                    setFocusEntry(id);
-                    go("calendar");
-                  }}
+                  openEntry={openOnCalendar}
                 />
               ) : view === "calendar" ? (
                 <CalendarPage
@@ -642,10 +651,7 @@ export function CmoApp({
                 <PicturesPage
                   projectId={overview.projectId}
                   actions={actions.pictures}
-                  openPost={(id) => {
-                    setFocusEntry(id);
-                    go("calendar");
-                  }}
+                  openPost={openOnCalendar}
                 />
               ) : view === "competitors" ? (
                 <CompetitorsPage
@@ -704,6 +710,12 @@ export function CmoApp({
           </div>
         )}
       </main>
+      {upgrade ? (
+        <UpgradeNotice
+          upgrade={upgrade}
+          onClose={() => closeUpgrade(upgrade.versionId)}
+        />
+      ) : null}
       <TabBar
         view={view}
         onSelect={go}

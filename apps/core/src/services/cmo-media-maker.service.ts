@@ -748,6 +748,37 @@ export function cmoMediaState(
   return "making";
 }
 
+/**
+ * How many visuals a piece's picture failed on: every job of the visual
+ * ended, and none made a picture that passed. A visual Cuso replaced while
+ * its jobs still ran counts only once they ended.
+ */
+export function cmoFailedVisuals(
+  piece: CmoMediaPiece,
+  jobs: readonly CmoMediaJob[],
+): number {
+  const byVisual = new Map<string, CmoMediaJob[]>();
+  for (const job of jobs) {
+    if (job.pieceId !== mediaPieceId(piece) || job.step === "talking") continue;
+    byVisual.set(job.visualKey, [...(byVisual.get(job.visualKey) ?? []), job]);
+  }
+  const current = cmoVisualKey(piece);
+  let failed = 0;
+  for (const [key, tried] of byVisual) {
+    const ended = tried.every((job) => !LIVE.has(job.status));
+    const passed = tried.some(
+      (job) =>
+        job.status === ProjectImageJobStatus.SUCCEEDED &&
+        job.assetId &&
+        !job.rejected,
+    );
+    if (key === current) {
+      if (cmoMediaState(piece, jobs) === "failed") failed += 1;
+    } else if (ended && !passed) failed += 1;
+  }
+  return failed;
+}
+
 /** The piece id in a talking video's job key: its posts share the one job. */
 const SHARED_VIDEO = "video";
 

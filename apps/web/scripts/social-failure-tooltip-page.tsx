@@ -1,17 +1,17 @@
 /** Playwright capture page for Social failure reason tooltips. */
+import { useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { SocialPostStatusReasonTooltip } from "@/app/projects/components/social-posts/social-post-status-reason-tooltip";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 
 const REASON =
   "Coworker scheduling access was revoked. Reschedule this post to publish it.";
 
 export function SocialFailureTooltipPage() {
-  useMountEffect(() => {
+  useEffect(() => {
     document.body.dataset.hydrated = "true";
-  });
+  }, []);
 
   return (
     <div

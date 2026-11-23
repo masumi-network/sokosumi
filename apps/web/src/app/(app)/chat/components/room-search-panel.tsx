@@ -2,7 +2,7 @@
 
 import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { Loader2, Search } from "lucide-react";
-import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { messageSender } from "@/app/chat/components/room-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,14 +13,13 @@ import {
 } from "@/components/ui/popover";
 import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { useIsMobile } from "@/hooks/effects/use-mobile";
+import { useRoomSearchQuery } from "@/hooks/effects/use-room-search-query";
 import { useTimeout } from "@/hooks/effects/use-timeout";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
-import { coreClient } from "@/lib/clients/core.browser.client";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { splitVoiceTranscript } from "@/lib/utils/voice-message";
 
-const SEARCH_PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE_MS = 250;
 const SEARCH_HOTKEY = "f";
 
@@ -48,10 +47,6 @@ export function RoomSearchPanel({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [results, setResults] = useState<ChatRoomMessage[]>([]);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const requestIdRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -74,41 +69,6 @@ export function RoomSearchPanel({
   // because it only mounts inside the popover.
   const isExpanded = isMobile || isFocused || open || query !== "";
 
-  const searchMessages = useEffectEvent(async (searchQuery: string) => {
-    const requestId = ++requestIdRef.current;
-    if (!searchQuery) {
-      setResults([]);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await coreClient.getChatRoomMessages(roomId, {
-        q: searchQuery,
-        limit: SEARCH_PAGE_SIZE,
-      });
-      if (requestId !== requestIdRef.current) {
-        return;
-      }
-      setResults(response.data);
-      setActiveIndex(0);
-    } catch {
-      if (requestId !== requestIdRef.current) {
-        return;
-      }
-      setResults([]);
-      setError(labels.error);
-    } finally {
-      if (requestId === requestIdRef.current) {
-        setIsLoading(false);
-      }
-    }
-  });
-
   useTimeout(
     () => {
       setDebouncedQuery(query.trim());
@@ -117,12 +77,14 @@ export function RoomSearchPanel({
     query,
   );
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    void searchMessages(debouncedQuery);
-  }, [debouncedQuery, open, roomId]);
+  const {
+    results,
+    activeIndex,
+    setActiveIndex,
+    error,
+    isLoading,
+    resetSearch,
+  } = useRoomSearchQuery(roomId, open, debouncedQuery, labels, requestIdRef);
 
   function focusField() {
     // On mobile the field only mounts with the popover, so wait a frame.
@@ -175,14 +137,10 @@ export function RoomSearchPanel({
     // query itself does survive, because the field stays on screen and
     // emptying it under the user would look like data loss; reopening
     // re-runs the search from that query.
-    setResults([]);
-    setActiveIndex(0);
-    setError(null);
     // A surviving query means the next open starts a fetch, so hand the
     // reopen a loading state. Without it the first frame reads "no matches"
     // for a query that has hits.
-    setIsLoading(Boolean(debouncedQuery));
-    requestIdRef.current += 1;
+    resetSearch(Boolean(debouncedQuery));
     setOpen(false);
   }
 
@@ -311,11 +269,7 @@ export function RoomSearchPanel({
           // on the previous fetch. Mobile keeps the popover because the
           // field lives inside it.
           setDebouncedQuery("");
-          setResults([]);
-          setActiveIndex(0);
-          setError(null);
-          setIsLoading(false);
-          requestIdRef.current += 1;
+          resetSearch(false);
           if (!isMobile) {
             setOpen(false);
           }

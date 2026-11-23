@@ -2,13 +2,13 @@
 
 import { useFormatter, useTranslations } from "next-intl";
 
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardTitle,
 } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 
 import {
   formatPlanPrice,
@@ -37,21 +37,14 @@ export function SubscriptionFreePlanRow({
   );
 
   return (
-    <Card
-      className={cn(
-        "overflow-hidden",
-        plan.isCurrent ? "border-foreground" : undefined,
-      )}
-    >
+    <Card className="overflow-hidden">
       <CardContent className="grid gap-6 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] md:items-start md:gap-10">
         <div className="space-y-3">
           <div className="space-y-2">
             <CardTitle className="flex items-center gap-2">
               <span>{t(`Plans.${translationKey}.name`)}</span>
               {plan.isCurrent ? (
-                <span className="text-foreground text-xs font-medium">
-                  {t("currentPlanBadge")}
-                </span>
+                <Badge variant="muted">{t("currentPlanBadge")}</Badge>
               ) : null}
             </CardTitle>
             <CardDescription>

@@ -1,7 +1,9 @@
 "use client";
 
 import type { StudioAssetRating } from "@sokosumi/core-client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+
+import { useStudioStatePolling } from "@/hooks/effects/use-studio-state-polling";
 
 import type { StudioAsset, StudioJob, StudioState } from "./types";
 import { isActive } from "./types";
@@ -29,9 +31,6 @@ import { isActive } from "./types";
  * draft prompt and the in-page queue; this hook is correct without that, so
  * neither is load-bearing on its own.
  */
-
-const IDLE_POLL_MS = 15_000;
-const ACTIVE_POLL_MS = 3_000;
 
 interface Selection {
   assetId: string | null;
@@ -266,16 +265,7 @@ export function useStudioState(options: {
   const activeJobs = shownState.jobs.filter(isActive);
   const hasActive = activeJobs.length > 0;
 
-  // Synchronizing with a server is exactly what an Effect is for. The interval
-  // tightens while something is in flight and relaxes when nothing is.
-  useEffect(() => {
-    if (!projectId) return;
-    const period = hasActive ? ACTIVE_POLL_MS : IDLE_POLL_MS;
-    const timer = setInterval(() => {
-      void refresh();
-    }, period);
-    return () => clearInterval(timer);
-  }, [projectId, hasActive, refresh]);
+  useStudioStatePolling(projectId, hasActive, refresh);
 
   /**
    * Fetch the next page of older versions and keep what is already shown.

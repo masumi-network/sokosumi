@@ -49,6 +49,11 @@ export interface ProjectsViewLabels {
     title: string;
     description: string;
   };
+  /** The Open view when Hidden has projects too (Closed may). */
+  noOpen: {
+    title: string;
+    description: string;
+  };
   /** The Open view when every project in the workspace is Closed. */
   onlyClosed: {
     title: string;
@@ -91,8 +96,8 @@ interface ProjectsViewProps {
   nextCursor: string | null;
   query: string;
   state: ProjectsListState;
-  /** Open view only: an empty Open list says so when Closed has projects. */
-  hasClosedProjects?: boolean;
+  /** Empty, unfiltered Open view only: the other views that hold projects. */
+  otherViews?: ProjectsListState[];
   /** Other views the filter matches when this one has none. */
   otherMatches?: ProjectsListState[];
   initialCreateProjectOpen: boolean;
@@ -133,7 +138,7 @@ export function ProjectsView({
   nextCursor,
   query,
   state,
-  hasClosedProjects = false,
+  otherViews = [],
   otherMatches = [],
   initialCreateProjectOpen,
   createProjectModalResetKey,
@@ -179,17 +184,25 @@ export function ProjectsView({
         ? labels.emptyClosed
         : state === "hidden"
           ? labels.emptyHidden
-          : hasClosedProjects
-            ? {
-                ...labels.onlyClosed,
-                actions: [
-                  {
-                    label: labels.onlyClosed.action,
-                    href: projectsHref("closed", ""),
-                  },
-                ],
-              }
-            : labels.empty;
+          : otherViews.length === 0
+            ? labels.empty
+            : otherViews.includes("hidden")
+              ? {
+                  ...labels.noOpen,
+                  actions: otherViews.map((other) => ({
+                    label: labels.showIn[other],
+                    href: projectsHref(other, ""),
+                  })),
+                }
+              : {
+                  ...labels.onlyClosed,
+                  actions: [
+                    {
+                      label: labels.onlyClosed.action,
+                      href: projectsHref("closed", ""),
+                    },
+                  ],
+                };
 
   function handleLoadMore() {
     if (!cursor || isPending) return;

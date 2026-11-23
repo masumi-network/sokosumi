@@ -36,6 +36,8 @@ import {
 import { syncTrackedCompetitorsFromBrandBrain } from "@/services/cmo-competitors.service";
 import {
   CmoNotFoundError,
+  cmoSiteAccountNetworks,
+  findCusoForBot,
   requireCuso,
   startCmoProduction,
 } from "@/services/cmo-cuso.service";
@@ -318,14 +320,11 @@ export async function reviewCmoPlan(
     cmoChangeKind(turn.clientTurnId) === null &&
     !turn.userMessage.includes("The owner asked: ");
   // cmo-v14: a network the business connected is never left out.
-  const connectedNetworks = rules.channelFit
-    ? (
-        await prisma.projectSocialConnection.findMany({
-          where: { projectId: plan.projectId, status: "active" },
-          select: { provider: true },
-        })
-      ).map((connection) => connection.provider)
-    : [];
+  // Its other Cuso's accounts for the same website count too.
+  const cuso = rules.channelFit
+    ? await findCusoForBot(authorized.turn.sokoBotId)
+    : null;
+  const connectedNetworks = cuso ? await cmoSiteAccountNetworks(cuso) : [];
   const problems = cmoPlanProblemsSince(strategy, earlier, {
     ...rules,
     fresh,

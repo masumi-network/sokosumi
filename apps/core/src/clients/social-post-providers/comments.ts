@@ -271,7 +271,8 @@ export async function listXReplies(
         execute({
           id: context.externalAccountId,
           max_results: 100,
-          start_time: input.startTime.toISOString(),
+          // Whole seconds: Composio passes ".123Z" on as ".123000Z", which X refuses.
+          start_time: input.startTime.toISOString().replace(/\.\d+Z$/, "Z"),
           ...(input.sinceId ? { since_id: input.sinceId } : {}),
           tweet_fields: ["conversation_id", "created_at", "text"],
           expansions: ["author_id"],
