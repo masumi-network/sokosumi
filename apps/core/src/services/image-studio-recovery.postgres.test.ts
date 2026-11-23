@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { convertCreditsToCents } from "@sokosumi/utils";
 import {
   afterAll,
   beforeAll,
@@ -52,7 +52,7 @@ vi.mock("@/config/env", async (importOriginal) => {
   };
 });
 vi.mock("@/services/image-studio-drive.service", () => ({
-  publishStudioAssetToFiles: vi.fn(),
+  publishStudioAssetToFiles: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@vercel/blob", () => ({ put: putMock }));
 vi.mock("@/lib/image-studio/access", () => ({
@@ -79,10 +79,12 @@ import type { EnvVariables } from "@/lib/hono";
 import mountBatchAssets from "@/routes/v1/projects/[id]/image-studio/batch-assets-get";
 import mountTalkingVideos from "@/routes/v1/projects/[id]/image-studio/talking-videos-get";
 import {
+  createDrawnSvgJob,
   reconcileJob,
   reconcileProjectJobs,
   reconcileStaleJobs,
   settleWithMedia,
+  sweepStalledSubmissions,
 } from "@/services/image-studio-jobs.service";
 import { pngBytes } from "@/test/image-bytes";
 
@@ -150,6 +152,79 @@ beforeEach(() => {
     kind: "media",
     media: [{ url: "https://v3b.fal.media/files/a.png" }],
   });
+});
+
+describe.skipIf(!enabled)("drawing delivery and stale recovery", () => {
+  it.each(["sweeper", "delivery"])(
+    "charges only when %s wins the job",
+    async (winner) => {
+      const amount = convertCreditsToCents(1);
+      const grant = await prisma.transaction.create({
+        data: { userId, amount },
+      });
+      await prisma.creditBucket.create({
+        data: { userId, amount, sourceTransactionId: grant.id },
+      });
+      const debits = () =>
+        prisma.transaction.count({ where: { userId, amount: -amount } });
+      const before = await debits();
+      accessMock.mockResolvedValue({
+        projectId,
+        workspaceId,
+        userId,
+        organizationId: null,
+      });
+      const input = {
+        projectId,
+        workspaceId,
+        userId,
+        aspectRatio: "1:1",
+        prompt: "Square",
+        svg: '<svg width="2" height="2"></svg>',
+        idempotencyKey: randomUUID(),
+      };
+      const uploading = Promise.withResolvers<void>();
+      const resume = Promise.withResolvers<void>();
+      putMock.mockImplementationOnce(async (pathname: string) => {
+        uploading.resolve();
+        await resume.promise;
+        return { pathname };
+      });
+      const render = createDrawnSvgJob(input);
+      try {
+        await Promise.race([
+          uploading.promise,
+          render.then(() => {
+            throw new Error("Drawing ended before upload");
+          }),
+        ]);
+        const replay = await createDrawnSvgJob(input);
+        expect(replay.status).toBe("RUNNING");
+        await prisma.projectImageJob.update({
+          where: { id: replay.id },
+          data: { createdAt: new Date(Date.now() - 600_000) },
+        });
+        if (winner === "sweeper") await sweepStalledSubmissions();
+      } finally {
+        resume.resolve();
+      }
+      const drawn = await render;
+      if (winner === "delivery") await sweepStalledSubmissions();
+      const final = await prisma.projectImageJob.findUniqueOrThrow({
+        where: { id: drawn.id },
+        include: { asset: true },
+      });
+      if (winner === "delivery") {
+        expect(final.status).toBe("SUCCEEDED");
+        expect(final.asset?.contentType).toBe("image/png");
+        expect(await debits()).toBe(before + 1);
+      } else {
+        expect(final.failureReason).toBe("invalid_vector_image");
+        expect(final.asset).toBeNull();
+        expect(await debits()).toBe(before);
+      }
+    },
+  );
 });
 
 describe.skipIf(!enabled)("Talking video history", () => {

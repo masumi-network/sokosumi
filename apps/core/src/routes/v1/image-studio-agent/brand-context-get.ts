@@ -6,6 +6,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { readDesignMdContent } from "@/lib/design-md-blob";
 import type { AgentGrantContext } from "@/routes/image-studio-agent/authorize";
+import { studioBrandLookSchema } from "@/schemas/studio-brand-kit.schema";
 import { parseBrandBrain } from "@/services/brand-brain.service";
 import {
   newestMarketingStrategy,
@@ -43,7 +44,7 @@ const route = createRoute({
               themes: list,
             })
             .optional(),
-          colors: list.optional(),
+          colors: studioBrandLookSchema.shape.colors.optional(),
           fonts: list.optional(),
         })
         .openapi("StudioAgentBrandContext"),
@@ -71,16 +72,25 @@ export default function mount(
     const [project, version] = await Promise.all([
       prisma.project.findUniqueOrThrow({
         where: { id: projectId, workspaceId },
-        select: { brandBrain: { select: { body: true } }, designMdUrl: true },
+        select: {
+          brandBrain: { select: { body: true } },
+          designMdUrl: true,
+          studioBrandLook: true,
+        },
       }),
       newestMarketingStrategy(projectId),
     ]);
     const brain = parseBrandBrain(project.brandBrain?.body);
     const plan = parseMarketingPlan(version?.plan);
-    if (!brain && !plan) return ok(c, {});
+    const kit = studioBrandLookSchema.safeParse(project.studioBrandLook).data;
 
-    const design = await readDesignMdContent(project.designMdUrl);
-    const look = designMdBrandLook(design ?? "");
+    const look =
+      kit ??
+      designMdBrandLook(
+        (project.designMdUrl &&
+          (await readDesignMdContent(project.designMdUrl))) ??
+          "",
+      );
     return ok(c, {
       brand: brain
         ? {
@@ -100,7 +110,7 @@ export default function mount(
             themes: firstFew(plan.pillars.map((pillar) => pillar.name)),
           }
         : undefined,
-      colors: look.colors.length ? firstFew(look.colors) : undefined,
+      colors: look.colors.length ? look.colors : undefined,
       fonts: look.fonts.length ? firstFew(look.fonts) : undefined,
     });
   });

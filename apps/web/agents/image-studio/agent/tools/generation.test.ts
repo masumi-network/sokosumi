@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 const {
+  drawSvg,
   startGeneration,
   listImageOptions,
   readGeneration,
@@ -12,6 +13,7 @@ const {
   readAdHeadline,
   saveAdHeadline,
 } = vi.hoisted(() => ({
+  drawSvg: vi.fn(),
   startGeneration: vi.fn(),
   listImageOptions: vi.fn(),
   readGeneration: vi.fn(),
@@ -21,6 +23,7 @@ const {
   saveAdHeadline: vi.fn(),
 }));
 vi.mock("../lib/core", () => ({
+  drawSvg,
   startGeneration,
   listImageOptions,
   readGeneration,
@@ -32,6 +35,7 @@ vi.mock("../lib/core", () => ({
 
 import adHeadline from "./ad_headline";
 import check from "./check_generation";
+import draw from "./draw_svg";
 import generate from "./generate_image";
 import options from "./list_image_options";
 import products from "./list_products";
@@ -98,6 +102,55 @@ describe("image generation tools", () => {
         settings: {},
       },
     });
+  });
+
+  it("sends a bounded drawing with a per-variant replay key and returns only the job summary", async () => {
+    const schema = draw.inputSchema as z.ZodType<
+      Parameters<typeof draw.execute>[0]
+    >;
+    const args = { svg: '<svg width="2" height="2"></svg>', prompt: "Square" };
+    const input = schema.parse(args);
+    expect(input).toEqual({ ...args, variant: 1, aspectRatio: "1:1" });
+    for (const invalid of [
+      { variant: 4 },
+      { svg: "" },
+      { aspectRatio: "2:1" },
+    ]) {
+      expect(schema.safeParse({ ...args, ...invalid }).success).toBe(false);
+    }
+    drawSvg.mockResolvedValue({
+      id: "job",
+      model: "studio-draw-svg",
+      status: "SUCCEEDED",
+      settings: {},
+      svg: args.svg,
+    });
+    expect(await draw.execute(input, ctx)).toEqual({
+      jobId: "job",
+      model: "studio-draw-svg",
+      status: "SUCCEEDED",
+      settings: {},
+      note: "The PNG is ready.",
+    });
+    expect(drawSvg).toHaveBeenCalledWith(
+      { userId: "user-1", projectId: "project-1" },
+      expect.objectContaining({
+        ...args,
+        aspectRatio: "1:1",
+        experimentArm: "router:sonnet-5",
+        idempotencyKey: expect.stringMatching(/^eve:/),
+      }),
+    );
+    await draw.execute({ ...input, variant: 2 }, ctx);
+    expect(drawSvg.mock.calls[0]?.[1].idempotencyKey).not.toEqual(
+      drawSvg.mock.calls[1]?.[1].idempotencyKey,
+    );
+    drawSvg.mockRejectedValueOnce(
+      new Error("An SVG may not contain event handlers"),
+    );
+    await expect(draw.execute(input, ctx)).rejects.toThrow(
+      "An SVG may not contain event handlers",
+    );
   });
 
   it("reads and saves an approved headline without starting a generation", async () => {
@@ -329,7 +382,7 @@ describe("non-billed agent behavior contract", () => {
       "Default to one image",
       "Photos, ads and product scenes: use `generate_image` with `gemini-pro`",
       "Text-heavy images (posters, typography, quotes, infographics with words, signage): use `generate_image` with `ideogram-v3`",
-      "Logos, icons and flat diagrams: use `generate_image` with",
+      "Never use either vector path for posters, ads or photos",
       "recraft-v4-1-text-to-vector",
       "Edits to an existing image: use `refine_image`",
       "preserve them unless the person asks for a change",

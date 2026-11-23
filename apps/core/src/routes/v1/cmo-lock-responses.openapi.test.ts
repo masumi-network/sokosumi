@@ -38,6 +38,7 @@ const DIRECT_LOCKED = new Set([
   "PATCH /drive/files/rename",
   "PUT /jobs/{id}/workspace",
   "POST /agents/{id}/jobs",
+  "POST /image-studio-agent/draw-svg",
   "POST /image-studio-agent/sessions",
   "POST /image-studio-agent/sessions/{eveSessionId}/initial-turn",
   "PUT /image-studio-agent/assets/{assetId}/headline",

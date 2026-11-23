@@ -1,3 +1,4 @@
+import type { RouteHandlerArgs } from "eve/channels";
 import { type AuthFn, withAuthChallenges } from "eve/channels/auth";
 import { eveChannel } from "eve/channels/eve";
 
@@ -9,6 +10,7 @@ import {
   registerCreatedSession,
   transitionInitialTurn,
 } from "../lib/core";
+import { hideDrawingInputs } from "../lib/drawing-stream";
 import { type GrantClaims, verifyGrant } from "../lib/grant";
 
 /**
@@ -787,6 +789,36 @@ export default {
       return {
         ...route,
         handler: settleOwedFirstMessage(route.handler as RouteHandler),
+      };
+    }
+    if (route.method === "GET" && route.path.endsWith("/stream")) {
+      const stream = route.handler as (
+        request: Request,
+        context: RouteHandlerArgs,
+      ) => Promise<Response>;
+      return {
+        ...route,
+        handler: async (request: Request, context: RouteHandlerArgs) => {
+          const response = await stream(request, context);
+          const startIndex = Number(
+            new URL(request.url).searchParams.get("startIndex"),
+          );
+          const id = context.params.sessionId;
+          return hideDrawingInputs(
+            response,
+            startIndex > 0 &&
+              id &&
+              response.headers.get("x-eve-session-id") === id
+              ? {
+                  startIndex,
+                  read: () =>
+                    context
+                      .attachSession(id)
+                      .stream({ follow: false, signal: request.signal }),
+                }
+              : undefined,
+          );
+        },
       };
     }
     return route;

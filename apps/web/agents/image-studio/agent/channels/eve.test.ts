@@ -266,6 +266,77 @@ describe("an existing conversation", () => {
     expect(response.status).toBe(401);
   });
 
+  it.each([0, 2])(
+    "keeps drawing arguments private from line %i and preserves other tool failures",
+    async (startIndex) => {
+      const requested = (callId: string, name: string, input: object) => ({
+        type: "call.requested",
+        data: { callId, capability: { kind: "tool", name }, input },
+      });
+      const calls = [
+        requested("drawing", "draw_svg", { svg: "<svg>private</svg>" }),
+        requested("other", "generate_image", { prompt: "Studio photo" }),
+      ];
+      const lines = [
+        ...calls.map((call) => ({ facts: [call] })),
+        {
+          facts: calls.map(({ data: { callId } }) => ({
+            type: "call.settled",
+            data: {
+              callId,
+              outcome: "failed",
+              error: {
+                code: "tool_error",
+                message:
+                  callId === "drawing" ? "private" : "Studio limit reached",
+              },
+            },
+          })),
+        },
+      ];
+      const sessionId = "wrun_drawing";
+      const stream = vi.fn(() =>
+        (async function* () {
+          yield* calls.map((call, line) => ({
+            ...call,
+            meta: { position: { line } },
+          }));
+        })(),
+      );
+      const response = await route("/eve/v1/session/:sessionId/stream").handler(
+        new Request(
+          `http://local/eve/v1/session/${sessionId}/stream?startIndex=${startIndex}`,
+          {
+            headers: { authorization: browserBearer() },
+          },
+        ),
+        {
+          params: { sessionId },
+          attachSession: () => ({
+            id: sessionId,
+            stream,
+            getLineStream: async ({
+              startIndex: from,
+            }: {
+              startIndex: number;
+            }) =>
+              new ReadableStream({
+                start(controller) {
+                  for (const line of lines.slice(from))
+                    controller.enqueue(line);
+                  controller.close();
+                },
+              }),
+          }),
+        },
+      );
+      const body = await response.text();
+      expect(body).toContain("Studio limit reached");
+      expect(body).not.toContain("private");
+      expect(stream).toHaveBeenCalledTimes(startIndex === 0 ? 0 : 1);
+    },
+  );
+
   it("streams one that is", async () => {
     let attached = 0;
     const response = await route("/eve/v1/session/:sessionId/stream").handler(

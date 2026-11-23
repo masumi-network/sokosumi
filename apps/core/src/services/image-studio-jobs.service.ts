@@ -24,6 +24,7 @@ import { LIMITS } from "@/config/constants";
 import { getBetterAuthPublicBaseUrl } from "@/config/env";
 import { DriveFileDownloadError } from "@/helpers/drive-file-download";
 import {
+  badRequest,
   notFound,
   tooManyRequests,
   unprocessableEntity,
@@ -76,6 +77,7 @@ import {
   composeStudioProductCutout,
   validateStudioProductCutout,
 } from "@/lib/image-studio/product-cutout";
+import { rasterizeStudioSvg } from "@/lib/image-studio/rasterize-svg";
 import { requireStudioReferenceFiles } from "@/lib/image-studio/reference-files";
 import {
   applyStudioBrandPrompt,
@@ -173,6 +175,28 @@ import { unsafeSvgReason } from "./soko-bot-svg";
  *    between the lease and the response leaves `SUBMITTING`, and the sweeper
  *    resolves that to `SUBMISSION_UNCERTAIN` — never back to `PENDING`.
  */
+
+const DRAW_SVG_MODEL = "studio-draw-svg";
+
+function studioObjectPath(job: { projectId: string; id: string }) {
+  return `projects/${job.projectId}/image-studio/${job.id}`;
+}
+
+function putStudioBlob(
+  path: string,
+  bytes: Uint8Array,
+  contentType: string,
+  token: string,
+) {
+  return put(path, bytes as Buffer, {
+    access: "private",
+    token,
+    addRandomSuffix: false,
+    allowOverwrite: true,
+    contentType,
+    abortSignal: AbortSignal.timeout(60_000),
+  });
+}
 
 /** How long a submitter may hold the lease before the sweeper calls it. */
 const SUBMIT_LEASE_MS = 90_000;
@@ -645,7 +669,24 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         styleLayoutOnly: input.styleLayoutOnly ?? false,
         parentAssetId: input.parentAssetId,
         idempotencyKey: input.idempotencyKey,
-        status: ProjectImageJobStatus.PENDING,
+        ...(input.model === DRAW_SVG_MODEL
+          ? {
+              status: ProjectImageJobStatus.RUNNING,
+              promptSnapshot: {
+                create: {
+                  finalPrompt: input.prompt,
+                  route: "svg_diagram",
+                  experimentArm: input.experimentArm ?? null,
+                  // Core adds no brand prompt block to agent-authored artwork.
+                  brandContextHash: crypto
+                    .createHash("sha256")
+                    .update("")
+                    .digest("hex"),
+                  assemblyVersion: STUDIO_PROMPT_ASSEMBLY_VERSION,
+                },
+              },
+            }
+          : { status: ProjectImageJobStatus.PENDING }),
         // The price the person was shown, kept so the figure taken at delivery is
         // the figure they agreed to even if the catalog refreshes in between.
         // `transactionId` stays null until there is an image to charge for.
@@ -1003,6 +1044,98 @@ function webhookUrl(): string | null {
     return null;
   }
   return `${base.replace(/\/$/, "")}/webhooks/fal/image-jobs`;
+}
+
+export async function createDrawnSvgJob(
+  input: Pick<
+    CreateImageJobInput,
+    | "projectId"
+    | "workspaceId"
+    | "userId"
+    | "prompt"
+    | "experimentArm"
+    | "idempotencyKey"
+  > & {
+    svg: string;
+    aspectRatio: string;
+    placementId?: string | null;
+  },
+) {
+  const access = await requireProjectAccess(input);
+  const reason = unsafeSvgReason(input.svg);
+  if (reason) throw badRequest(reason, { kind: "unsafe_svg" });
+  if (/<svg\b/i.test(input.prompt) || /<svg\b/i.test(input.placementId ?? ""))
+    throw badRequest("Keep SVG markup in the drawing field only.");
+  const token = requireStudioBlobToken();
+  const settings = {
+    ...DEFAULT_SETTINGS,
+    aspectRatio: input.aspectRatio,
+    ...(input.placementId && { placementId: input.placementId }),
+  };
+  const { job, created } = await reserveJob({
+    ...input,
+    settings,
+    route: "svg_diagram",
+    model: DRAW_SVG_MODEL,
+    kind: ProjectImageJobKind.GENERATE,
+    sessionId: null,
+    parentAssetId: null,
+    referenceAssetIds: [],
+    organizationId: access.organizationId,
+    chargedCredits: 1,
+  });
+  if (!created) return job;
+
+  let png: Buffer;
+  let assetId: string;
+  try {
+    const source = Buffer.from(input.svg);
+    png = await rasterizeStudioSvg(source);
+    const checksum = crypto.createHash("sha256").update(png).digest("hex");
+    const path = studioObjectPath(job);
+    await putStudioBlob(`${path}-source.svg`, source, "image/svg+xml", token);
+    const blob = await putStudioBlob(
+      `${path}-${checksum.slice(0, 16)}`,
+      png,
+      "image/png",
+      token,
+    );
+    const dimensions = readImageDimensionsFromBytes(png)!;
+    const delivered = await insertAsset({
+      job: { ...job, organizationId: access.organizationId },
+      blobPathname: blob.pathname,
+      contentType: "image/png",
+      mediaType: ProjectImageMediaType.IMAGE,
+      aiGenerated: false,
+      durationSeconds: null,
+      ...dimensions,
+      bytes: png.byteLength,
+      checksum,
+    });
+    assetId = delivered.assetId;
+  } catch {
+    await failImageJob(job.id, "invalid_vector_image");
+    return await prisma.projectImageJob.findUniqueOrThrow({
+      where: { id: job.id },
+    });
+  }
+  waitUntil(
+    runAsBackgroundWork(() =>
+      publishStudioAssetToFiles({
+        assetId,
+        jobId: job.id,
+        workspaceId: job.workspaceId,
+        organizationId: access.organizationId,
+        userId: input.userId,
+        prompt: job.prompt,
+        bytes: png,
+        contentType: "image/png",
+      }),
+    ),
+  );
+  return await prisma.projectImageJob.findUniqueOrThrow({
+    where: { id: job.id },
+  });
 }
 
 /**
@@ -2280,7 +2413,22 @@ export async function sweepStalledSubmissions(
       submitLeaseAt: null,
     },
   });
-  return result.count;
+  // Agent markup lives only on the request until stored. A crashed renderer
+  // cannot be resumed by polling a provider.
+  const drawings = await prisma.projectImageJob.updateMany({
+    where: {
+      model: DRAW_SVG_MODEL,
+      status: ProjectImageJobStatus.RUNNING,
+      createdAt: { lt: new Date(now.getTime() - SETTLE_LEASE_MS) },
+    },
+    data: {
+      status: ProjectImageJobStatus.FAILED,
+      failureReason: "invalid_vector_image",
+      error: imageJobFailureMessage("invalid_vector_image"),
+      settledAt: now,
+    },
+  });
+  return result.count + drawings.count;
 }
 
 /**
@@ -3051,14 +3199,7 @@ async function storeMedia(
         downloaded.bytes,
       );
       if (unsafeSvgReason(svg)) throw new Error("Unsafe SVG");
-      const bytes = await sharp(downloaded.bytes, {
-        limitInputPixels: 16_000_000,
-      })
-        .timeout({ seconds: 10 })
-        .png()
-        .toBuffer();
-      if (bytes.length > LIMITS.IMAGE_STUDIO_MAX_ASSET_BYTES)
-        throw new Error("PNG exceeds the asset limit");
+      const bytes = await rasterizeStudioSvg(downloaded.bytes);
       vectorSource = downloaded.bytes;
       downloaded = { bytes, contentType: "image/png" };
     } catch {
@@ -3250,44 +3391,33 @@ async function storeMedia(
   let blob: Awaited<ReturnType<typeof put>>;
   let backdropBlobPathname: string | undefined;
   try {
-    const storageOptions = {
-      access: "private" as const,
-      token: studioBlobToken,
-      addRandomSuffix: false,
-      allowOverwrite: true,
-    };
-    const objectPath = `projects/${job.projectId}/image-studio/${job.id}`;
+    const objectPath = studioObjectPath(job);
     if (vectorSource) {
-      await put(`${objectPath}-source.svg`, Buffer.from(vectorSource), {
-        ...storageOptions,
-        contentType: "image/svg+xml",
-        abortSignal: AbortSignal.timeout(60_000),
-      });
+      await putStudioBlob(
+        `${objectPath}-source.svg`,
+        Buffer.from(vectorSource),
+        "image/svg+xml",
+        studioBlobToken,
+      );
     }
     if (backdrop) {
       const backdropHash = crypto
         .createHash("sha256")
         .update(backdrop.bytes)
         .digest("hex");
-      const backdropBlob = await put(
+      const backdropBlob = await putStudioBlob(
         `${objectPath}-backdrop-${backdropHash.slice(0, 16)}`,
-        backdrop.bytes as unknown as Buffer,
-        {
-          ...storageOptions,
-          contentType: backdrop.contentType,
-          abortSignal: AbortSignal.timeout(60_000),
-        },
+        backdrop.bytes,
+        backdrop.contentType,
+        studioBlobToken,
       );
       backdropBlobPathname = backdropBlob.pathname;
     }
-    blob = await put(
+    blob = await putStudioBlob(
       `${objectPath}-${checksum.slice(0, 16)}`,
-      downloaded.bytes as unknown as Buffer,
-      {
-        ...storageOptions,
-        contentType: downloaded.contentType,
-        abortSignal: AbortSignal.timeout(60_000),
-      },
+      downloaded.bytes,
+      downloaded.contentType,
+      studioBlobToken,
     );
   } catch (error) {
     // The same reasoning as the download above, and the same treatment. This
@@ -3626,8 +3756,13 @@ async function insertAsset(input: {
       letteringJobId = letteringJob.id;
     }
 
-    await tx.projectImageJob.updateMany({
-      where: { id: input.job.id },
+    const completion = await tx.projectImageJob.updateMany({
+      where: {
+        id: input.job.id,
+        ...(input.job.model === DRAW_SVG_MODEL && {
+          status: ProjectImageJobStatus.RUNNING,
+        }),
+      },
       data: {
         status: ProjectImageJobStatus.SUCCEEDED,
         settledAt: new Date(),
@@ -3645,6 +3780,9 @@ async function insertAsset(input: {
         unreachableSource: null,
       },
     });
+    // Roll back the debit and asset if the sweeper already closed this drawing.
+    if (input.job.model === DRAW_SVG_MODEL && completion.count !== 1)
+      throw new Error("The drawing job is closed");
     return { assetId: id, version, letteringJobId };
   }, "Another image finished in this lineage at the same moment. Try again.");
 }

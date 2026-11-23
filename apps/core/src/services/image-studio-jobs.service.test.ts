@@ -1,7 +1,10 @@
 import { createHash } from "node:crypto";
-
 import { FileSourceKind, Prisma } from "@sokosumi/database";
+import { convertCreditsToCents } from "@sokosumi/utils";
+import { put } from "@vercel/blob";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import prisma from "@/lib/db/prisma";
+import { publishStudioAssetToFiles } from "@/services/image-studio-drive.service";
 
 const {
   jobCountMock,
@@ -60,6 +63,8 @@ const {
   adEventCreateMock: vi.fn(),
   readReferenceImageMock: vi.fn(async () => null),
 }));
+
+vi.mock("@vercel/blob", () => ({ put: vi.fn() }));
 
 vi.mock("@vercel/functions", () => ({ waitUntil: waitUntilMock }));
 
@@ -157,6 +162,7 @@ vi.mock("@sokosumi/net", async (importOriginal) => ({
 import { imageModel } from "@/lib/image-studio/catalog";
 import { STUDIO_PROMPT_ASSEMBLY_VERSION } from "@/lib/image-studio/studio-brand";
 import {
+  createDrawnSvgJob,
   createImageJob,
   readProviderSize,
   recoverUnclaimedReservations,
@@ -252,6 +258,115 @@ describe("image studio job submission", () => {
     });
   });
 
+  describe("agent drawings", () => {
+    const input = {
+      ...BASE_INPUT,
+      svg: '<svg width="4" height="3"><rect width="4" height="3" fill="blue"/></svg>',
+      aspectRatio: "4:3",
+      placementId: "slide",
+      experimentArm: "router:sonnet-5" as const,
+    };
+    it("refuses unsafe markup before reservation or debit", async () => {
+      await expect(
+        createDrawnSvgJob({ ...input, svg: "<svg onload='bad()'></svg>" }),
+      ).rejects.toThrow("An SVG may not contain event handlers");
+      expect(jobCreateMock).not.toHaveBeenCalled();
+      expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
+    });
+    it("delivers one PNG, debits its quote and replays the finished row", async () => {
+      jobCreateMock.mockImplementation(({ data }) => jobRow(data));
+      const done = jobRow({ status: "SUCCEEDED", model: "studio-draw-svg" });
+      jobFindUniqueOrThrowMock.mockResolvedValue(done);
+      vi.mocked(put).mockImplementation(async (pathname, _bytes, options) => ({
+        pathname,
+        url: "",
+        downloadUrl: "",
+        contentType: options.contentType!,
+        contentDisposition: "",
+        etag: "",
+      }));
+      expect(await createDrawnSvgJob(input)).toEqual(done);
+      expect(jobCreateMock).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          chargedCents: convertCreditsToCents(1),
+          model: "studio-draw-svg",
+          status: "RUNNING",
+          settings: {
+            ...BASE_INPUT.settings,
+            aspectRatio: "4:3",
+            placementId: "slide",
+            route: "svg_diagram",
+            experimentArm: input.experimentArm,
+          },
+          promptSnapshot: {
+            create: expect.objectContaining({
+              finalPrompt: input.prompt,
+              route: "svg_diagram",
+              experimentArm: input.experimentArm,
+            }),
+          },
+        }),
+      });
+      expect(put).toHaveBeenNthCalledWith(
+        1,
+        "projects/project-1/image-studio/job-1-source.svg",
+        Buffer.from(input.svg),
+        expect.objectContaining({
+          access: "private",
+          contentType: "image/svg+xml",
+        }),
+      );
+      const png = vi.mocked(put).mock.calls[1]![1] as Buffer;
+      expect(png.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+      expect(prisma.projectImageAsset.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          width: 4,
+          height: 3,
+          contentType: "image/png",
+          blobPathname: vi.mocked(put).mock.calls[1]![0],
+        }),
+      });
+      expect(publishStudioAssetToFiles).toHaveBeenCalledWith(
+        expect.objectContaining({ contentType: "image/png", bytes: png }),
+      );
+      jobFindUniqueMock.mockResolvedValue(done);
+      expect(await createDrawnSvgJob(input)).toEqual(done);
+      expect(put).toHaveBeenCalledTimes(2);
+      expect(jobCreateMock).toHaveBeenCalledTimes(1);
+      expect(createTaskEventTransactionMock).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ cents: convertCreditsToCents(1) }),
+      );
+      expect(submitToQueueMock).not.toHaveBeenCalled();
+    });
+    it.each(["render", "storage"])(
+      "fails a %s error without charging",
+      async (kind) => {
+        if (kind === "storage")
+          vi.mocked(put).mockRejectedValueOnce(new Error("Unavailable"));
+        jobFindUniqueOrThrowMock.mockResolvedValue(
+          jobRow({ status: "FAILED" }),
+        );
+        expect(
+          (
+            await createDrawnSvgJob({
+              ...input,
+              svg: kind === "render" ? "<svg >" : input.svg,
+            })
+          ).status,
+        ).toBe("FAILED");
+        expect(jobUpdateManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              status: "FAILED",
+              failureReason: "invalid_vector_image",
+            }),
+          }),
+        );
+        expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
+        expect(submitToQueueMock).not.toHaveBeenCalled();
+      },
+    );
+  });
   it("persists the chosen model before submitting the model-specific payload", async () => {
     const stored = jobRow({
       model: "fal-ai/flux-2-pro",
@@ -1340,7 +1455,21 @@ describe("stalled submission sweep", () => {
       new Date("2026-09-25T12:00:00.000Z"),
     );
 
-    expect(swept).toBe(2);
+    expect(swept).toBe(4);
+    expect(jobUpdateManyMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: {
+          model: "studio-draw-svg",
+          status: "RUNNING",
+          createdAt: { lt: new Date("2026-09-25T11:57:00.000Z") },
+        },
+        data: expect.objectContaining({
+          status: "FAILED",
+          failureReason: "invalid_vector_image",
+        }),
+      }),
+    );
     const call = jobUpdateManyMock.mock.calls[0]![0];
     expect(call.where.status).toBe("SUBMITTING");
     expect(call.data.status).toBe("SUBMISSION_UNCERTAIN");

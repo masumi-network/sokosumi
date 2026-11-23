@@ -6465,6 +6465,15 @@ export type StudioProductIdentity = {
     name: string;
 };
 
+export type DrawStudioAgentSvgRequest = {
+    prompt: string;
+    idempotencyKey: string;
+    svg: string;
+    aspectRatio?: '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3' | '4:5' | '5:4';
+    placementId?: string | null;
+    experimentArm?: StudioRouterArm;
+};
+
 export type StudioAgentBrandContext = {
     brand?: {
         positioning: string;
@@ -51996,6 +52005,144 @@ export type ListStudioAgentProductsResponses = {
 };
 
 export type ListStudioAgentProductsResponse = ListStudioAgentProductsResponses[keyof ListStudioAgentProductsResponses];
+
+export type DrawStudioAgentSvgData = {
+    body: DrawStudioAgentSvgRequest;
+    path?: never;
+    query?: never;
+    url: '/image-studio-agent/draw-svg';
+};
+
+export type DrawStudioAgentSvgErrors = {
+    /**
+     * Invalid SVG or request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Project not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Project is read only or busy
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid request or insufficient balance
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Studio limit reached
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DrawStudioAgentSvgError = DrawStudioAgentSvgErrors[keyof DrawStudioAgentSvgErrors];
+
+export type DrawStudioAgentSvgResponses = {
+    /**
+     * Drawing job
+     */
+    200: {
+        data: {
+            id: string;
+            status: 'PENDING' | 'SUBMITTING' | 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED' | 'SUBMISSION_UNCERTAIN' | 'ORPHANED';
+            model: string;
+            settings?: unknown;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DrawStudioAgentSvgResponse = DrawStudioAgentSvgResponses[keyof DrawStudioAgentSvgResponses];
 
 export type ReadStudioAgentBrandContextData = {
     body?: never;

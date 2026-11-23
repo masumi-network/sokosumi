@@ -27,6 +27,7 @@ const state = vi.hoisted(() => ({
   strategy: vi.fn(),
   design: vi.fn(),
   saveHeadline: vi.fn(),
+  draw: vi.fn(),
   /** The Project with a live Cuso: a CMO Project. */
   cmoProjectId: "aaaaaaaa-aaaa-4aaa-8aaa-0000000000c0",
 }));
@@ -43,6 +44,9 @@ vi.mock("@/config/env", async (importOriginal) => {
 });
 vi.mock("@/lib/image-studio/access", () => ({
   requireProjectAccessForUser: state.access,
+}));
+vi.mock("@/services/image-studio-jobs.service", () => ({
+  createDrawnSvgJob: state.draw,
 }));
 vi.mock("@/services/image-studio-sessions.service", () => ({
   registerCreatedSession: state.register,
@@ -157,6 +161,17 @@ describe("reading brand context", () => {
     expect(state.design).not.toHaveBeenCalled();
   });
 
+  it("returns the full Studio kit palette even without a brand brief", async () => {
+    const colors = ["#123456", "#789abc", "#def012", "#345678"];
+    state.project.mockResolvedValueOnce({
+      brandBrain: null,
+      designMdUrl: "site-design",
+      studioBrandLook: { colors, fonts: [] },
+    });
+    state.strategy.mockResolvedValueOnce(null);
+    expect((await (await read()).json()).data).toEqual({ colors });
+    expect(state.design).not.toHaveBeenCalled();
+  });
   it("selects and caps reference copy from the authorized project", async () => {
     const long = "a".repeat(250);
     state.project.mockResolvedValueOnce({
@@ -427,5 +442,55 @@ describe("saving an export headline", () => {
     await saveHeadline(ORDINARY_PROJECT);
 
     expect(state.saveHeadline).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("drawing an SVG", () => {
+  const body = {
+    prompt: "A square",
+    svg: "<svg></svg>",
+    idempotencyKey: "drawing-1",
+  };
+  it("returns only the job summary", async () => {
+    const summary = {
+      id: "job-1",
+      model: "studio-draw-svg",
+      status: "SUCCEEDED",
+      settings: { route: "svg_diagram" },
+    };
+    state.draw.mockResolvedValue({ ...summary, ...body });
+    const response = await post("/draw-svg", token("agent"), body);
+    expect(response.status).toBe(200);
+    expect(response.json).toMatchObject({ data: summary });
+    expect(JSON.stringify(response.json)).not.toContain(body.svg);
+    expect(state.draw).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...body,
+        projectId: "project-a",
+        aspectRatio: "1:1",
+      }),
+    );
+  });
+  it("refuses a CMO project before rendering", async () => {
+    state.access.mockResolvedValue({
+      userId: "user-a",
+      projectId: state.cmoProjectId,
+      workspaceId: "workspace-a",
+    });
+    const response = await post("/draw-svg", token("agent"), body);
+    expect(response.status).toBe(409);
+    expect(response.json).toMatchObject({ kind: "cmo_project_read_only" });
+    expect(state.draw).not.toHaveBeenCalled();
+  });
+  it("bounds the SVG before calling the service", async () => {
+    expect(
+      (
+        await post("/draw-svg", token("agent"), {
+          ...body,
+          svg: "x".repeat(128 * 1024 + 1),
+        })
+      ).status,
+    ).toBe(422);
+    expect(state.draw).not.toHaveBeenCalled();
   });
 });

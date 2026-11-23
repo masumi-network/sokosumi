@@ -270,3 +270,25 @@ it("unwraps brand reference data from a grant-authenticated GET", async () => {
   expect(init?.method).toBe("GET");
   expect(new Headers(init?.headers).get("authorization")).toMatch(/^Bearer /);
 });
+
+it("posts the drawing with a grant and surfaces Core's SVG refusal", async () => {
+  const { drawSvg } = await import("./core");
+  const input = {
+    svg: "<svg></svg>",
+    prompt: "Drawing",
+    idempotencyKey: "drawing-1",
+  };
+  const reason = "An SVG may not contain event handlers";
+  respond({ kind: "unsafe_svg", message: reason }, 400);
+  await expect(drawSvg(IDENTITY, input)).rejects.toThrow(reason);
+  expect(fetch).toHaveBeenCalledWith(
+    "http://core.invalid/v1/image-studio-agent/draw-svg",
+    expect.objectContaining({
+      method: "POST",
+      headers: expect.objectContaining({
+        authorization: expect.stringMatching(/^Bearer /),
+      }),
+      body: JSON.stringify(input),
+    }),
+  );
+});
