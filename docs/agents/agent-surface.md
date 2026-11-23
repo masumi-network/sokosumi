@@ -32,7 +32,7 @@ One file per route group: `apps/core/agent-surface/<group>.json`. The group is t
 
 A group sets `backlog` or `excluded`, not both. Several operations may map to one command when the command calls them all (`agents hire` reads the input schema, then creates the job).
 
-**Naming.** The MCP tool name is the CLI command with spaces and hyphens replaced by `_`: `tasks list` → `tasks_list`, `coworkers api-key` → `coworkers_api_key`.
+**Naming.** The MCP tool name is the CLI command with spaces and hyphens replaced by `_`: `tasks list` → `tasks_list`, `coworkers api-key` → `coworkers_api_key`. When the command is named for something other than its operation's group, or calls several operations, the tool is `<group>_<verb>` for its one operation: `auth whoami` → `users_get` for `GET /users/{id}`.
 
 ## What may be `false`
 
@@ -47,16 +47,17 @@ A group sets `backlog` or `excluded`, not both. Several operations may map to on
 
 ## Checks
 
-| Check                    | Where                                                   | Fails when                                                                                                                                               |
-| ------------------------ | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Completeness             | `apps/core/src/routes/v1/agent-surface.openapi.test.ts` | An operation is unmapped outside a `backlog` or `excluded` group, a row or file names no served operation, `false` lacks a `reason`, or a key is unknown |
-| CLI binding              | `apps/cli/test/cli/agent-surface.test.ts`               | A `cli` value is not in `CLI_COMMAND_CATALOG`, or a catalog `operation` is mapped to another command                                                     |
-| MCP binding and fixtures | Arrive with SOKD-366                                    | A manifest tool is not registered, or a tool has no fixture                                                                                              |
-| CLI fixtures             | `apps/cli/test/cli/agent-surface.test.ts`               | A `cli` row has no fixture, a fixture names no `cli` row, or the fixture's run fails, runs another command, or does not send the row's operation         |
+| Check        | Where                                                   | Fails when                                                                                                                                               |
+| ------------ | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Completeness | `apps/core/src/routes/v1/agent-surface.openapi.test.ts` | An operation is unmapped outside a `backlog` or `excluded` group, a row or file names no served operation, `false` lacks a `reason`, or a key is unknown |
+| CLI binding  | `apps/cli/test/cli/agent-surface.test.ts`               | A `cli` value is not in `CLI_COMMAND_CATALOG`, or a catalog `operation` is mapped to another command                                                     |
+| MCP binding  | `apps/core/src/routes/v1/agent-surface.openapi.test.ts` | A manifest `mcp` value is not in `MCP_TOOLS` or calls another operation, or a tool in `MCP_TOOLS` has no row                                             |
+| CLI fixtures | `apps/cli/test/cli/agent-surface.test.ts`               | A `cli` row has no fixture, a fixture names no `cli` row, or the fixture's run fails, runs another command, or does not send the row's operation         |
+| MCP fixtures | `apps/core/src/lib/sokosumi-mcp/tools.surface.test.ts`  | A tool has no fixture, or its fixture's `/v1` request is not the tool's operation                                                                        |
 
 `apps/core/agent-surface/**` is part of the `cli` filter in `.github/js-paths-filter.yml` and an input of the CLI's `test` tasks in `turbo.json`, so a manifest change reruns the CLI check.
 
-**Fixtures.** Each mapped row gets a surface-test fixture in the same PR. SOKD-366 adds the MCP fixture format.
+**Fixtures.** Each mapped command and tool gets a surface-test fixture in the same PR as its row. CLI fixtures are described under [CLI commands and fixtures](#cli-commands-and-fixtures). An MCP tool's fixture is the arguments an agent would send, in `FIXTURES` in `tools.surface.test.ts`; the test calls the tool through a real MCP client and checks the method and path of the `/v1` request it makes.
 
 ## CLI commands and fixtures
 
@@ -76,6 +77,15 @@ CLI fixtures live in `apps/cli/test/cli/agent-surface.fixtures.ts`, keyed by the
 
 The check runs `argv` through `runCli` with `fetch` mocked. Core answers from the shared fake `core` (unknown requests get `{ "data": [] }`); add a `response(request)` function when a command needs other data. Requests are written `METHOD /path` without `/v1` or the query. `stdin` feeds `--api-key-stdin`. A command that sends different operations by flag gets one fixture per operation (`workspaces list` and `workspaces list --personal`).
 
+## MCP tools
+
+Core serves MCP at `{Core origin}/mcp` (`apps/core/src/routes/mcp/index.ts`; tokens in [ADR 0076](../adr/0076-mcp-tokens-are-audience-bound-jwts-for-a-core-hosted-resource.md)). A tool is one row in `MCP_TOOLS` (`apps/core/src/lib/sokosumi-mcp/tools.ts`): `name`, `operation`, a `description` written for an agent, and `destructive: true` for a write that deletes or overwrites.
+
+- **Input** comes from the operation's OpenAPI definition (`tool-schema.ts`): path and query parameters by name, the JSON body as `body`, and `workspace` (an organization slug, sent as `X-Organization-Slug`) on every tool. Name clashes fail the derivation.
+- **Annotations** come from the method: `GET` is read-only; `DELETE` is destructive unless the row says otherwise.
+- **A call** runs the operation through `/v1` in process as the token's user (`dispatch.ts`), so every guard applies: a route that needs an interactive session answers 403.
+- **Results**: Core's `data` and `pagination` as `structuredContent`. A Core error is `isError` with `{status, kind, message, details}`; a 5xx gives a generic message and the request id.
+
 ## Production safety
 
 An MCP tool that writes acts on whatever Core issued its token. MCP writes to mainnet fall under the same gate as CLI writes: follow **Production safety** in [`apps/cli/AGENTS.md`](../../apps/cli/AGENTS.md) and get an explicit `yes` first.
@@ -84,11 +94,11 @@ An MCP tool that writes acts on whatever Core issued its token. MCP writes to ma
 
 1. Add or change the route ([Core route patterns](./core-route-patterns.md)).
 2. Map it in its group's manifest, or confirm the group's `backlog` or `excluded` covers it.
-3. Add the CLI command and the MCP tool the row names.
+3. Add the CLI command and the MCP tool the row names, each with its fixture.
 4. Run the checks:
 
    ```bash
-   pnpm exec turbo run test --filter=@sokosumi/core -- src/routes/v1/agent-surface.openapi.test.ts
+   pnpm exec turbo run test --filter=@sokosumi/core -- src/routes/v1/agent-surface.openapi.test.ts src/lib/sokosumi-mcp/tools.surface.test.ts
    pnpm exec turbo run test --filter=@masumi_network/sokosumi
    ```
 

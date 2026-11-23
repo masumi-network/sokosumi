@@ -55,9 +55,12 @@ describe("well-known oauth issuer metadata integration", () => {
     ]) {
       const response = await app.request(
         `http://localhost:8787/.well-known${path}`,
+        { headers: { Origin: "https://inspector.example.test" } },
       );
 
       expect(response.status).toBe(200);
+      // Browser-based MCP clients read it cross-origin.
+      expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
       expect(await response.json()).toEqual({
         resource: new URL("/mcp", authServer.issuer).href,
         resource_name: "Sokosumi MCP",

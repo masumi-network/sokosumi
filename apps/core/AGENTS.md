@@ -49,6 +49,7 @@ The live tree is `apps/core/src/`.
 | `routes/v1/`                                         | Versioned HTTP handlers (one file per method)                                               |
 | `routes/auth/`, `routes/sync/`, `routes/well-known/` | Auth, cron/sync, discovery                                                                  |
 | `routes/health/`                                     | Unauthenticated liveness probe (`GET /health`), no database call                            |
+| `routes/mcp/`, `lib/sokosumi-mcp/`                   | MCP server at `/mcp`: token check, tool registry, tool calls run through `/v1` in process   |
 | `routes/image-studio-agent/`                         | Grant-authenticated surface the image-studio agent calls; no browser session                |
 | `routes/webhooks/fal/`                               | fal completion callback for image jobs; ED25519 signature, not a session                    |
 | `schemas/`                                           | Zod / OpenAPI                                                                               |

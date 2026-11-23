@@ -2,13 +2,15 @@
   "backlog": "SOKD-369",
   "operations": {
     "GET /tasks": {
-      "cli": "tasks list"
+      "cli": "tasks list",
+      "mcp": "tasks_list"
     },
     "POST /tasks": {
       "cli": "tasks create"
     },
     "GET /tasks/{id}": {
-      "cli": "tasks get"
+      "cli": "tasks get",
+      "mcp": "tasks_get"
     },
     "PATCH /tasks/{id}": {
       "cli": "tasks update"
