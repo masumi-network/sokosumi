@@ -1,0 +1,55 @@
+{
+  "excluded": "Admin back office. Admins use the Web app; the rows below are the CLI-only admin commands.",
+  "operations": {
+    "GET /admin/users": {
+      "cli": "admin add-member",
+      "mcp": false,
+      "reason": "Admin back office stays off MCP."
+    },
+    "GET /admin/organizations/{slug}": {
+      "cli": "admin members",
+      "mcp": false,
+      "reason": "Admin back office stays off MCP."
+    },
+    "GET /admin/organizations/{slug}/members": {
+      "cli": "admin members",
+      "mcp": false,
+      "reason": "Admin back office stays off MCP."
+    },
+    "POST /admin/organizations/{slug}/members": {
+      "cli": "admin add-member",
+      "mcp": false,
+      "reason": "Admin back office stays off MCP."
+    },
+    "PUT /admin/organizations/{slug}/members/{memberId}/seat": {
+      "cli": "admin assign-seat",
+      "mcp": false,
+      "reason": "Admin back office stays off MCP."
+    },
+    "GET /admin/evals/cases": {
+      "cli": "evals cases",
+      "mcp": false,
+      "reason": "Admin back office stays off MCP."
+    },
+    "GET /admin/evals/runs": {
+      "cli": "evals list",
+      "mcp": false,
+      "reason": "Admin back office stays off MCP."
+    },
+    "POST /admin/evals/runs": {
+      "cli": "evals run",
+      "mcp": false,
+      "reason": "Admin back office stays off MCP."
+    },
+    "GET /admin/evals/runs/{id}": {
+      "cli": "evals show",
+      "mcp": false,
+      "reason": "Admin back office stays off MCP."
+    },
+    "POST /admin/evals/tick": {
+      "cli": "evals run",
+      "mcp": false,
+      "reason": "Admin back office stays off MCP."
+    }
+  }
+}

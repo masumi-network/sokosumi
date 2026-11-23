@@ -9,14 +9,16 @@ js: &js
   - "!apps/cli/**"
 
 # apps/cli has no workspace dependencies — only external packages and its
-# own tsconfig — so nothing outside this folder can break its tests, and
+# own tsconfig — so nothing outside this folder can break its code, and
 # nothing in it can break the rest of the repo. That symmetry is why it is
 # both its own filter and a `js` exclusion. Because `js` excludes it, root
 # `pnpm build`, `pnpm typecheck` and `pnpm check` never see the CLI on a
-# CLI-only PR — the Test CLI job runs those itself instead. One positive
-# pattern, so `every` at the call site is the same as `some`.
+# CLI-only PR — the Test CLI job runs those itself instead. The one outside
+# input is the agent-surface manifests its tests read
+# (docs/agents/agent-surface.md). One positive pattern, so `every` at the
+# call site is the same as `some`.
 cli:
-  - "apps/cli/**"
+  - "{apps/cli/**,apps/core/agent-surface/**}"
 
 # Per-leg filters for the required test jobs. Each is `js` minus the
 # sibling apps its turbo filter cannot reach: web, core, and cmo share no

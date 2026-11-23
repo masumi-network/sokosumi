@@ -1,0 +1,11 @@
+{
+  "backlog": "SOKD-372",
+  "operations": {
+    "GET /vendors/me": {
+      "cli": "vendors me"
+    },
+    "POST /vendors": {
+      "cli": "vendors create"
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "backlog": "SOKD-370",
+  "operations": {
+    "GET /jobs": {
+      "cli": "jobs list"
+    },
+    "GET /jobs/{id}": {
+      "cli": "jobs get"
+    },
+    "GET /jobs/{id}/input-request": {
+      "cli": "jobs input"
+    },
+    "POST /jobs/{id}/inputs": {
+      "cli": "jobs input"
+    }
+  }
+}

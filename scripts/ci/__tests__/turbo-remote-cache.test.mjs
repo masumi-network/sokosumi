@@ -352,13 +352,16 @@ describe("GitHub OIDC remote cache wiring", () => {
     );
   });
 
-  it("Test CLI runs only when apps/cli changes", async () => {
+  it("Test CLI runs only when apps/cli or the agent-surface manifests change", async () => {
     const test = await readRepoFile(".github", "workflows", "ci.yml");
     const filter = await readRepoFile(".github", "js-paths-filter.yml");
 
     // A single positive pattern, so `predicate-quantifier: every` at the
     // call site behaves the same as the default `some`.
-    assert.match(filter, /^cli:\n  - "apps\/cli\/\*\*"$/m);
+    assert.match(
+      filter,
+      /^cli:\n  - "\{apps\/cli\/\*\*,apps\/core\/agent-surface\/\*\*\}"$/m,
+    );
     assert.match(jobBlock(test, "changes"), /steps\.filter\.outputs\.cli/);
     assert.match(jobBlock(test, "cli"), /Smoke the built CLI\n/);
   });

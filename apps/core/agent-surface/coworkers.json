@@ -1,0 +1,28 @@
+{
+  "backlog": "SOKD-372",
+  "operations": {
+    "GET /coworkers": {
+      "cli": "coworkers list"
+    },
+    "POST /coworkers": {
+      "cli": "coworkers register"
+    },
+    "GET /coworkers/me": {
+      "cli": "coworkers me"
+    },
+    "GET /coworkers/{id}": {
+      "cli": "coworkers connect"
+    },
+    "PATCH /coworkers/{id}": {
+      "cli": "coworkers update"
+    },
+    "POST /coworkers/{id}/api-keys": {
+      "cli": "coworkers api-key",
+      "mcp": false,
+      "reason": "Mints a long-lived credential."
+    },
+    "POST /coworkers/{id}/workspace-access": {
+      "cli": "coworkers connect"
+    }
+  }
+}

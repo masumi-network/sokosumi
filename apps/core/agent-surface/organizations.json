@@ -1,0 +1,8 @@
+{
+  "backlog": "SOKD-371",
+  "operations": {
+    "GET /organizations/{id}/members/me/seat": {
+      "cli": "workspaces check"
+    }
+  }
+}
