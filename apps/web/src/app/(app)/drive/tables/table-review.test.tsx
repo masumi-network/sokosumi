@@ -74,7 +74,7 @@ const f = vi.hoisted(() => {
 });
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
-  useFormatter: () => ({ dateTime: () => "date" }),
+  useFormatter: () => ({ dateTime: () => "date", number: String }),
 }));
 vi.mock("sonner", () => ({
   toast: { error: f.toastError, success: vi.fn() },
@@ -135,7 +135,9 @@ vi.mock("@tanstack/react-query", () => ({
                 }
               : queryKey[0] === "table-project-options"
                 ? []
-                : { items: [] },
+                : queryKey[0] === "table-summary-rows"
+                  ? f.shown
+                  : { items: [] },
     };
   },
 }));
@@ -1417,4 +1419,27 @@ it("opens Find and replace from the table menu, not on an archived table", async
   expect(
     screen.queryByRole("menuitem", { name: "findReplace.title" }),
   ).not.toBeInTheDocument();
+});
+it("filters the rows to a value picked from the summary", async () => {
+  render(<TableEditor id={f.column.tableId} />);
+  fireEvent.pointerDown(screen.getByRole("button", { name: "tableMenu" }), {
+    button: 0,
+    ctrlKey: false,
+  });
+  fireEvent.click(
+    await screen.findByRole("menuitem", { name: "summary.title" }),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Original" }));
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("dialog", { name: "summary.title" }),
+    ).not.toBeInTheDocument(),
+  );
+  expect(JSON.stringify(f.rowsKey)).toContain(
+    JSON.stringify({
+      columnId: f.column.id,
+      operator: "equals",
+      value: "Original",
+    }),
+  );
 });

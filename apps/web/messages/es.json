@@ -11962,6 +11962,21 @@
         "apply": "{count, plural, one {Reemplazar # celda} other {Reemplazar # celdas}}",
         "done": "{count, plural, one {Se reemplazó # celda.} other {Se reemplazaron # celdas.}} Puedes deshacerlo desde Historial y fuentes."
       },
+      "summary": {
+        "title": "Resumir",
+        "description": "Cuenta las filas de cada valor de una columna y suma cada columna numérica. Lee todas las filas de la tabla, no solo esta página; las filas archivadas quedan fuera.",
+        "groupBy": "Agrupar por",
+        "reading": "Leyendo todas las filas…",
+        "scope": "{count, plural, one {# fila} other {Las # filas}}, {values, plural, one {# valor} other {# valores}}.",
+        "tooMany": "Los resúmenes leen hasta 10.000 filas.",
+        "noColumns": "Añade una columna de texto, número, fecha, casilla o selección para resumir.",
+        "rows": "Filas",
+        "sumOf": "Suma de {column}",
+        "total": "Total",
+        "empty": "Sin valor",
+        "show": "Mostrar filas con {value}",
+        "multipleNote": "Una fila con varias opciones cuenta una vez en cada una, así que las filas de arriba pueden sumar más que el total."
+      },
       "before": "Antes",
       "after": "Después",
       "openTask": "Abrir tarea",

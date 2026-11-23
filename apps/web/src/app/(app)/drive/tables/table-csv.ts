@@ -1,6 +1,7 @@
 import type {
   PostDriveTablesByIdQueryData,
   TableColumn,
+  TableRow,
 } from "@sokosumi/core-client";
 import { encodeTableCsv } from "@sokosumi/utils";
 import { dataTableService } from "@/lib/services/data-table.client";
@@ -13,13 +14,12 @@ type TableQuery = Omit<
 /** The most rows one CSV holds; the Table's own export says so. */
 const TABLE_CSV_ROW_LIMIT = 10_000;
 
-/** The CSV of a Table's rows in the given view, or null over the row limit. */
-export async function tableCsv(
+/** Every row of a Table in the given view, read page by page, or null over the row limit. */
+export async function tableRows(
   tableId: string,
-  columns: TableColumn[],
   query: TableQuery,
-): Promise<string | null> {
-  const output: unknown[][] = [columns.map((column) => column.name)];
+): Promise<TableRow[] | null> {
+  const rows: TableRow[] = [];
   let cursor: string | undefined;
   do {
     const page = await dataTableService.query(tableId, {
@@ -27,19 +27,31 @@ export async function tableCsv(
       limit: 100,
       cursor,
     });
-    output.push(
-      ...page.rows.map((row) =>
-        columns.map((column) =>
-          column.type === "last_updated"
-            ? new Date(row.updatedAt).toISOString()
-            : row.values[column.id],
-        ),
-      ),
-    );
+    rows.push(...page.rows);
     cursor = page.nextCursor ?? undefined;
-    if (output.length > TABLE_CSV_ROW_LIMIT + 1) return null;
+    if (rows.length > TABLE_CSV_ROW_LIMIT) return null;
   } while (cursor);
-  return encodeTableCsv(output);
+  return rows;
+}
+
+/** The CSV of a Table's rows in the given view, or null over the row limit. */
+export async function tableCsv(
+  tableId: string,
+  columns: TableColumn[],
+  query: TableQuery,
+): Promise<string | null> {
+  const rows = await tableRows(tableId, query);
+  if (rows === null) return null;
+  return encodeTableCsv([
+    columns.map((column) => column.name),
+    ...rows.map((row) =>
+      columns.map((column) =>
+        column.type === "last_updated"
+          ? new Date(row.updatedAt).toISOString()
+          : row.values[column.id],
+      ),
+    ),
+  ]);
 }
 
 /**

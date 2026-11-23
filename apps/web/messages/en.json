@@ -11962,6 +11962,21 @@
         "apply": "{count, plural, one {Replace # cell} other {Replace # cells}}",
         "done": "{count, plural, one {Replaced # cell.} other {Replaced # cells.}} You can undo it from History and sources."
       },
+      "summary": {
+        "title": "Summarize",
+        "description": "Count the rows for each value in one column and add up every number column. It reads every row in the Table, not just this page; archived rows are left out.",
+        "groupBy": "Group by",
+        "reading": "Reading every row…",
+        "scope": "All {count, plural, one {# row} other {# rows}}, {values, plural, one {# value} other {# values}}.",
+        "tooMany": "Summaries read up to 10,000 rows.",
+        "noColumns": "Add a text, number, date, checkbox or select column to summarize.",
+        "rows": "Rows",
+        "sumOf": "Sum of {column}",
+        "total": "Total",
+        "empty": "No value",
+        "show": "Show rows with {value}",
+        "multipleNote": "A row with several options counts once under each, so the rows above can add up to more than the total."
+      },
       "before": "Before",
       "after": "After",
       "openTask": "Open task",

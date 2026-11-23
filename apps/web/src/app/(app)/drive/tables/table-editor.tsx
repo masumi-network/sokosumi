@@ -106,6 +106,7 @@ import { TableFindReplace } from "./table-find-replace";
 import { cellWrap, columnWidth } from "./table-layout";
 import { createTableMutations, isTableRejection } from "./table-mutations";
 import { archivePatch, hideRows, saveArchive } from "./table-row-archive";
+import { TableSummaryDialog } from "./table-summary-dialog";
 import {
   parseTableInput,
   tableError,
@@ -342,6 +343,7 @@ function TableWorkspace({
   const [pending, setPending] = useState(false);
   const [column, setColumn] = useState<TableColumn | "new" | null>(null);
   const [findReplace, setFindReplace] = useState(false);
+  const [summary, setSummary] = useState(false);
   const [appendCsv, setAppendCsv] = useState(false);
   const tableMenu = useRef<HTMLButtonElement>(null);
   const [dialog, setDialog] = useState<
@@ -560,6 +562,26 @@ function TableWorkspace({
           ? [...picked, option]
           : [option],
     );
+  }
+  /** Shows only the rows holding one value, picked from the summary. */
+  function showValue(
+    column: TableColumn,
+    value: string | number | boolean | null,
+  ) {
+    setSummary(false);
+    if (typeof value === "string" && optionColumns.includes(column))
+      return setPickedOptions(column, [value]);
+    const others = filters.filter((filter) => filter.columnId !== column.id);
+    setFilterDraft("");
+    handleDefinition({
+      ...definition,
+      filters: [
+        ...others,
+        value === null
+          ? { columnId: column.id, operator: "empty" }
+          : { columnId: column.id, operator: "equals", value },
+      ],
+    });
   }
   function handleTagClick(column: TableColumn, tag: string) {
     if (!pickedOptions(column.id).includes(tag)) toggleOption(column, tag);
@@ -820,6 +842,9 @@ function TableWorkspace({
                   {t("appendCsv.title")}
                 </DropdownMenuItem>
               )}
+              <DropdownMenuItem onClick={() => setSummary(true)}>
+                {t("summary.title")}
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => void run(handleExport)}>
                 {t("exportCsv")}
               </DropdownMenuItem>
@@ -1501,6 +1526,14 @@ function TableWorkspace({
           onChanged={() => void refresh()}
           onClose={() => setAppendCsv(false)}
           onDone={(count) => toast.success(t("appendCsv.done", { count }))}
+        />
+      )}
+      {summary && (
+        <TableSummaryDialog
+          table={table}
+          returnFocus={tableMenu}
+          onClose={() => setSummary(false)}
+          onPick={showValue}
         />
       )}
       {findReplace && (

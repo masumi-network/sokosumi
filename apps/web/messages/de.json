@@ -11962,6 +11962,21 @@
         "apply": "{count, plural, one {# Zelle ersetzen} other {# Zellen ersetzen}}",
         "done": "{count, plural, one {# Zelle ersetzt.} other {# Zellen ersetzt.}} Du kannst es in Verlauf und Quellen rückgängig machen."
       },
+      "summary": {
+        "title": "Zusammenfassen",
+        "description": "Zählt die Zeilen für jeden Wert einer Spalte und summiert jede Zahlenspalte. Gelesen werden alle Zeilen der Tabelle, nicht nur diese Seite; archivierte Zeilen bleiben außen vor.",
+        "groupBy": "Gruppieren nach",
+        "reading": "Alle Zeilen werden gelesen…",
+        "scope": "Alle {count, plural, one {# Zeile} other {# Zeilen}}, {values, plural, one {# Wert} other {# Werte}}.",
+        "tooMany": "Zusammenfassungen lesen bis zu 10.000 Zeilen.",
+        "noColumns": "Füge eine Text-, Zahl-, Datums-, Kontrollkästchen- oder Auswahlspalte hinzu, um zusammenzufassen.",
+        "rows": "Zeilen",
+        "sumOf": "Summe von {column}",
+        "total": "Gesamt",
+        "empty": "Kein Wert",
+        "show": "Zeilen mit {value} anzeigen",
+        "multipleNote": "Eine Zeile mit mehreren Optionen zählt unter jeder einmal, daher können die Zeilen oben mehr ergeben als die Gesamtzahl."
+      },
       "before": "Vorher",
       "after": "Nachher",
       "openTask": "Aufgabe öffnen",
