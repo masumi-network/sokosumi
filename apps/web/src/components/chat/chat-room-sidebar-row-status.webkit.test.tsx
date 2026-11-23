@@ -177,6 +177,32 @@ describe("ChatRoomSidebarRow status in a narrow row", () => {
     },
   );
 
+  // The menu button's focus ring is `ring-2` with `ring-offset-2`: it paints
+  // 4px outside the button. The status must end before that band, or the
+  // ring covers its last letters ("Active just nov").
+  it.each([
+    { rowPx: 224, status: "Active just now" },
+    { rowPx: 192, status: "Active just now" },
+    { rowPx: 224, status: "Konnte nicht antworten" },
+    { rowPx: 192, status: "Konnte nicht antworten" },
+  ])(
+    "keeps the status 4px clear of the menu's focus ring at %o",
+    async ({ rowPx, status }) => {
+      const { atRest, focused, onMenu } = await layout("Juno", status, {
+        rowPx,
+      });
+
+      for (const state of [atRest, focused, onMenu]) {
+        if (state.status.width === 0) continue;
+        expect(state.status.right).toBeLessThanOrEqual(state.menu.left - 4);
+        expect(state.name.clipped).toBe(false);
+      }
+      // The menu's own box, and so its hit area, is unchanged.
+      expect(onMenu.menu.width).toBe(28);
+      expect(onMenu.focused).toBe("menu");
+    },
+  );
+
   it("shortens the status, not the name, when both do not fit", async () => {
     const { focused } = await layout("Juno", "Konnte nicht antworten", {
       rowRem: 10,

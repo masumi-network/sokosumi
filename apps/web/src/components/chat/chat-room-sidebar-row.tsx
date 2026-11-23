@@ -272,7 +272,10 @@ export function RoomRowNameLine({
   return (
     <span className="flex min-w-0 items-baseline gap-2">
       <span className="flex max-w-full min-w-0 shrink-0">{name}</span>
-      <span aria-hidden className="ml-auto flex min-w-0">
+      {/* `pr-1`: the menu button beside the row draws its focus ring 4px
+          outside its box (`ring-2` + `ring-offset-2`), and the label ends
+          at that box. The gap keeps the ring off the status's last letters. */}
+      <span aria-hidden className="ml-auto flex min-w-0 pr-1">
         {status}
       </span>
     </span>
