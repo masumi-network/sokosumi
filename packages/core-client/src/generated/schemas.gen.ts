@@ -22898,7 +22898,7 @@ export const StudioAgentBrandContextSchema = {
             type: 'array',
             items: {
                 type: 'string',
-                pattern: '^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i'
+                pattern: '^#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$'
             },
             maxItems: 8
         },
@@ -44708,7 +44708,7 @@ export const StudioBrandLookSchema = {
             type: 'array',
             items: {
                 type: 'string',
-                pattern: '^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i'
+                pattern: '^#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$'
             },
             maxItems: 8
         },

@@ -31,7 +31,7 @@ export const studioBrandLookSchema = z
         z
           .string()
           .trim()
-          .regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i),
+          .regex(/^#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/),
       )
       .max(8),
     fonts: z
