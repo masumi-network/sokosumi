@@ -128,7 +128,9 @@ export function DeveloperCoworkerApiKeys({
             <TableHeader>
               <TableRow>
                 <TableHead>{t("Table.name")}</TableHead>
-                <TableHead>{t("Table.key")}</TableHead>
+                <TableHead className="hidden sm:table-cell">
+                  {t("Table.key")}
+                </TableHead>
                 <TableHead className="hidden sm:table-cell">
                   {t("Table.created")}
                 </TableHead>
@@ -141,8 +143,14 @@ export function DeveloperCoworkerApiKeys({
             <TableBody>
               {rows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell>{row.name ?? t("unnamed")}</TableCell>
-                  <TableCell className="font-mono text-xs">
+                  <TableCell>
+                    {row.name ?? t("unnamed")}
+                    {/* Below sm the Key column is hidden; keep the prefix so two keys with one name stay apart. */}
+                    <span className="text-muted-foreground block font-mono text-xs sm:hidden">
+                      {row.keyStart}…
+                    </span>
+                  </TableCell>
+                  <TableCell className="hidden font-mono text-xs sm:table-cell">
                     {row.keyStart}…
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
