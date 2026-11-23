@@ -6,6 +6,7 @@ vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
 import {
   listMarketingStrategyPosts,
+  planMarketingStrategyPosts,
   socialPostNotSent,
 } from "@/services/marketing-strategy.service";
 
@@ -171,5 +172,80 @@ describe("a post that did not go out", () => {
     expect(post?.entry.notSent).toBe(
       "X paused our posting for a day. Ask Cuso to post it again.",
     );
+  });
+});
+
+describe("a talking video's post planned again", () => {
+  const media = [
+    {
+      kind: "video",
+      name: "old.mp4",
+      size: 1,
+      fileUrl: "https://blob.example/old.mp4",
+      mimeType: "video/mp4",
+      pathname: "drive/old.mp4",
+    },
+  ];
+
+  async function plan(newScript: string) {
+    const updates: { where: { id: string }; data: Record<string, unknown> }[] =
+      [];
+    const tx = {
+      socialPost: {
+        findMany: async () => [
+          {
+            id: "post-1",
+            status: "SCHEDULED",
+            provider: "linkedin",
+            media,
+            planning: {
+              id: "w2",
+              title: "A free homepage",
+              format: "talking_video",
+              script: "Entry Free costs zero euros forever.",
+              presenter: "maya",
+              voice: "Aria",
+            },
+          },
+        ],
+        update: async (input: (typeof updates)[number]) => {
+          updates.push(input);
+        },
+        createMany: async () => undefined,
+      },
+      projectSocialConnection: { findMany: async () => [] },
+      sokoBotSchedule: { findMany: async () => [] },
+    } as unknown as Prisma.TransactionClient;
+    await planMarketingStrategyPosts(tx, {
+      version: { id: "version-2", projectId: "project-1" },
+      workspaceId: "workspace-1",
+      creator: { userId: "user-1" },
+      entries: [
+        {
+          id: "w2",
+          date: "2026-11-30",
+          time: "11:00",
+          channel: "linkedin",
+          format: "talking_video",
+          title: "A free homepage",
+          status: "draft",
+          script: newScript,
+          presenter: "maya",
+          voice: "Aria",
+        } as never,
+      ],
+    });
+    return updates[0]?.data;
+  }
+
+  it("drops a video made for other words, so Core makes the new one", async () => {
+    const data = await plan("Your work already has a home in GitHub.");
+    expect(data).toMatchObject({ media: [], status: "DRAFT" });
+  });
+
+  it("keeps a video whose words did not change", async () => {
+    const data = await plan("Entry Free costs zero euros forever.");
+    expect(data).not.toHaveProperty("media");
+    expect(data).not.toHaveProperty("status");
   });
 });
