@@ -9236,6 +9236,8 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             script?: string;
             presenter?: string;
             voice?: string;
+            shortFormat?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+            hookLine?: string;
             languageCode?: string;
             alsoOn?: Array<string>;
             videoOf?: string;
@@ -9301,6 +9303,8 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 script?: string;
                 presenter?: string;
                 voice?: string;
+                shortFormat?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+                hookLine?: string;
                 languageCode?: string;
                 alsoOn?: Array<string>;
                 videoOf?: string;
@@ -9571,6 +9575,8 @@ export type MarketingStrategyRequest = {
             script?: string;
             presenter?: string;
             voice?: string;
+            shortFormat?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+            hookLine?: string;
             languageCode?: string;
             alsoOn?: Array<string>;
             videoOf?: string;
@@ -9636,6 +9642,8 @@ export type MarketingStrategyRequest = {
                 script?: string;
                 presenter?: string;
                 voice?: string;
+                shortFormat?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+                hookLine?: string;
                 languageCode?: string;
                 alsoOn?: Array<string>;
                 videoOf?: string;
@@ -11374,6 +11382,8 @@ export type SocialPost = {
         script?: string;
         presenter?: string;
         voice?: string;
+        shortFormat?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+        hookLine?: string;
         languageCode?: string;
         alsoOn?: Array<string>;
         videoOf?: string;
@@ -15090,6 +15100,8 @@ export type CmoPlan = {
         script?: string;
         presenter?: string;
         voice?: string;
+        shortFormat?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+        hookLine?: string;
         languageCode?: string;
         alsoOn?: Array<string>;
         videoOf?: string;
@@ -15155,6 +15167,8 @@ export type CmoPlan = {
             script?: string;
             presenter?: string;
             voice?: string;
+            shortFormat?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+            hookLine?: string;
             languageCode?: string;
             alsoOn?: Array<string>;
             videoOf?: string;
