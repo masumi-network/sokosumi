@@ -5,6 +5,7 @@ import type {
 import type { Account } from "@sokosumi/utils";
 import type { ReactNode } from "react";
 import type { DesignMdProfileValue } from "@/components/design-md/types";
+import { MyWeekCard } from "@/components/team-standup/my-week-card";
 import type { TimeFormatPreference } from "@/i18n/time-format";
 import type { EmailChangeStatus } from "@/lib/auth/auth.server";
 import { AccountProvider } from "@/lib/auth/types";
@@ -12,7 +13,6 @@ import { AccountBillingDetails } from "./account-billing-details";
 import { AccountCoworkerAccess } from "./account-coworker-access";
 import { AccountVendorGrants } from "./account-vendor-grants";
 import { BrandProfileSection } from "./brand-profile-section";
-
 import { DeleteAccountForm } from "./delete-account-form";
 import { DeletePersonalWorkspaceForm } from "./delete-personal-workspace-form";
 import { EmailForm } from "./email-form";
@@ -47,6 +47,7 @@ interface AccountSettingsProps {
   deletionPreflightLoadError?: ReactNode;
   ownedOrganizationSlug?: string | null;
   initialTimeFormat?: TimeFormatPreference;
+  includeWeekInStandup?: boolean;
 }
 
 export function AccountSettings({
@@ -72,6 +73,7 @@ export function AccountSettings({
   deletionPreflightLoadError,
   ownedOrganizationSlug = null,
   initialTimeFormat,
+  includeWeekInStandup = true,
 }: AccountSettingsProps) {
   const hasCredentialAccount = accounts.some(
     (account) => account.providerId === AccountProvider.CREDENTIAL,
@@ -133,6 +135,12 @@ export function AccountSettings({
       <div className="border-t pt-8">
         <PreferencesSection initialTimeFormat={initialTimeFormat} />
       </div>
+
+      {hasOrganizationMembership ? (
+        <div className="border-t pt-8">
+          <MyWeekCard included={includeWeekInStandup} />
+        </div>
+      ) : null}
 
       <div className="border-t pt-8">
         {billingDetailsLoadError ? (

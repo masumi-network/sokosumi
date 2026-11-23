@@ -17,6 +17,7 @@ const standupSchema = z.object({
   timeOfDay: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   weekdays: z.array(z.number().int().min(1).max(7)).min(1).max(7),
   timezone: z.string().trim().min(1).max(64),
+  weekInReviewWeekday: z.number().int().min(1).max(7),
 });
 
 interface SaveStandupParameters extends AuthenticatedRequest {
@@ -25,6 +26,7 @@ interface SaveStandupParameters extends AuthenticatedRequest {
   timeOfDay: string;
   weekdays: number[];
   timezone: string;
+  weekInReviewWeekday: number;
 }
 
 export const saveTeamStandup = withSession(
