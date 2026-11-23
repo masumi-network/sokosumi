@@ -62,6 +62,11 @@ import {
   readCmoProduction,
 } from "@/services/cmo-production.service";
 import {
+  cmoReadsSitePages,
+  cmoWriterSitePages,
+  readCmoSitePages,
+} from "@/services/cmo-site-pages.service";
+import {
   findStyleReferences,
   infographicSuits,
   referenceLibraryAvailable,
@@ -185,6 +190,8 @@ export function cmoWriterSystem(input: {
   scenes?: boolean;
   /** cmo-v11: pictures borrow a print's layout, in a varied picture kind. */
   picked?: boolean;
+  /** cmo-v19: the site's pages, one line each with its screenshot. */
+  sitePages?: readonly string[];
 }): string {
   const { strategy } = input;
   const live = strategy.calendar.filter((entry) => entry.status !== "skipped");
@@ -215,6 +222,12 @@ export function cmoWriterSystem(input: {
     ...input.brandPictures.map(
       (picture) => `- ${picture.fileId}: ${picture.alt}`,
     ),
+    input.sitePages && input.sitePages.length > 0
+      ? [
+          "The site's pages (path: what it says; shot is its screenshot, a brand picture for visualFileIds when a piece shows that page). Take offers, prices and facts from these, never guess them:",
+          ...input.sitePages.map((line) => `- ${line}`),
+        ].join("\n")
+      : "",
     "Strategy:",
     JSON.stringify({
       summary: strategy.summary,
@@ -409,6 +422,12 @@ export async function writeCmoMonthPieces(
     varied,
     scenes: cmoWritesSceneVisuals(authorized.turn.versionId),
     picked: picksPictures,
+    sitePages: cmoReadsSitePages(authorized.turn.versionId)
+      ? cmoWriterSitePages(
+          (await readCmoSitePages(cuso.projectId).catch(() => null))?.pages ??
+            [],
+        )
+      : undefined,
   });
   const modelId = getSokoBotVersion(authorized.turn.versionId).model;
   const request = sokoBotModelRequest({
