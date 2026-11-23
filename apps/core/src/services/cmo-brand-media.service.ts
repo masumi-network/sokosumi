@@ -186,31 +186,83 @@ function pictureAlt(name: string): string {
 /** Sections Cuso is offered: enough for a month, short enough for his context. */
 const MAX_OFFERED_SECTIONS = 16;
 
+/** Sections that show a page at its best: not a plain block or the questions. */
+const SHOWN_SECTION_KINDS = new Set<SiteSectionKind>([
+  "hero",
+  "pricing",
+  "testimonials",
+  "customers",
+  "product",
+  "features",
+  "cta",
+]);
+
+/** A brand picture Cuso can name, and what Core may show in its place. */
+export interface CmoBrandPicture {
+  fileId: string;
+  alt: string;
+  /** A page screenshot's phone shot, for a tall (9:16) picture or video. */
+  phoneFileId?: string;
+  /**
+   * A page screenshot's desktop first screen and its best sections, for a
+   * feed picture: each piece shows another of them.
+   */
+  wideFileIds?: string[];
+}
+
 /**
  * The brand's own pictures from the Project's files, references for images:
  * its page screenshots first (for software they are the product), then the
  * sections cut from those pages (pricing cards, testimonials, product shots;
- * a plain section last), then the photos from its pages.
+ * a plain section last), then the photos from its pages. A page is offered
+ * once, as its desktop shot where there is one; Core shows its phone shot or
+ * one of its sections instead where the picture's shape asks for it.
  */
 export async function listCmoBrandPictures(
   projectId: string,
-): Promise<{ fileId: string; alt: string }[]> {
+): Promise<CmoBrandPicture[]> {
   const files = await listResearchFiles(projectId);
-  const shot = (name: string, alt: string) => {
-    const page = files.find((file) => file.folder === "" && file.name === name);
-    return page ? [{ fileId: page.fileId, alt }] : [];
-  };
-  const pages = Object.entries(PAGE_LABELS).flatMap(([name, label]) => [
-    ...shot(name, `${label} page screenshot`),
-    ...(name === "home"
-      ? shot(`home${MOBILE_SUFFIX}`, "Home on a phone page screenshot")
-      : []),
-  ]);
-  const sections = files
-    .flatMap((file) => {
-      const section = sectionOf(file);
-      return section ? [{ file, ...section }] : [];
-    })
+  const sectionFiles = files.flatMap((file) => {
+    const section = sectionOf(file);
+    return section ? [{ file, ...section }] : [];
+  });
+  const pageFile = (name: string) =>
+    files.find((file) => file.folder === "" && file.name === name);
+  const pages = Object.entries(PAGE_LABELS).flatMap(
+    ([name, label]): CmoBrandPicture[] => {
+      const desktop = pageFile(name);
+      const phone = pageFile(`${name}${MOBILE_SUFFIX}`);
+      if (!desktop) {
+        return phone
+          ? [
+              {
+                fileId: phone.fileId,
+                alt: `${label} on a phone page screenshot`,
+              },
+            ]
+          : [];
+      }
+      return [
+        {
+          fileId: desktop.fileId,
+          alt: `${label} page screenshot`,
+          ...(phone ? { phoneFileId: phone.fileId } : {}),
+          wideFileIds: [
+            desktop.fileId,
+            ...sectionFiles
+              .filter(
+                (section) =>
+                  section.page === name &&
+                  SHOWN_SECTION_KINDS.has(section.kind),
+              )
+              .sort((a, b) => a.file.name.localeCompare(b.file.name))
+              .map((section) => section.file.fileId),
+          ],
+        },
+      ];
+    },
+  );
+  const sections = sectionFiles
     .sort(
       (a, b) =>
         Number(a.kind === "section") - Number(b.kind === "section") ||
