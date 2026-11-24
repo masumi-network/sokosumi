@@ -954,6 +954,16 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       '{"shareForImprovement":false,"allowTraining":false}',
     ],
   },
+  "POST /workspaces/{id}/calendar/identity-labels": {
+    argv: [
+      ...API,
+      "workspaces",
+      "calendar-labels",
+      "ws-1",
+      "--input-json",
+      '{"refs":["ref-1"]}',
+    ],
+  },
   "GET /workspaces/design-md": { argv: [...API, "workspaces", "design-md"] },
   "POST /workspaces/design-md/adhoc": {
     argv: [

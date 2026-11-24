@@ -251,6 +251,7 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
   workspaces_delete: { id: "me", workspaceId: "ws-1" },
   workspaces_get: { id: "ws-1" },
   workspaces_ad_data_consent: { id: "ws-1" },
+  workspaces_calendar_labels: { id: "ws-1", body: { refs: ["ref-1"] } },
   workspaces_design_md: { workspace: "acme" },
   workspaces_adhoc_design_md: {
     body: { content: "# Other brand", extractionId: null },

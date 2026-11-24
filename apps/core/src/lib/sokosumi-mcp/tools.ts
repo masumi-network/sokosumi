@@ -903,6 +903,12 @@ export const MCP_TOOLS: readonly McpTool[] = [
       "Get a workspace's choices on internal use of its ad data. A person changes them in Sokosumi.",
   },
   {
+    name: "workspaces_calendar_labels",
+    operation: "POST /workspaces/{id}/calendar/identity-labels",
+    description:
+      "Turn up to 50 Calendar actor references into names. Pass the active workspace's id and `body.refs`; a person who left shows as a former member.",
+  },
+  {
     name: "workspaces_design_md",
     operation: "GET /workspaces/design-md",
     description:

@@ -30,9 +30,8 @@
       "mcp": "workspaces_calendar_sources"
     },
     "POST /workspaces/{id}/calendar/identity-labels": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Resolves actor references that only Calendar reads return, and those need an interactive session until SOKD-378."
+      "cli": "workspaces calendar-labels",
+      "mcp": "workspaces_calendar_labels"
     },
     "GET /workspaces/social-posts": {
       "cli": "workspaces social-posts",

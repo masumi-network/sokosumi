@@ -731,6 +731,11 @@ export const CLI_COMMAND_CATALOG = [
     operation: "GET /workspaces/design-md",
   },
   {
+    command: "workspaces calendar-labels",
+    usage: "WORKSPACE_ID --input-json JSON",
+    operation: "POST /workspaces/{id}/calendar/identity-labels",
+  },
+  {
     command: "workspaces adhoc-design-md",
     usage: "--input-json JSON",
     operation: "POST /workspaces/design-md/adhoc",
