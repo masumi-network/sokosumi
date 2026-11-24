@@ -2,7 +2,6 @@
 
 import type { ChatRoom } from "@sokosumi/core-client";
 import { useCallback, useRef, useState, useSyncExternalStore } from "react";
-import { fetchSidebarRoomCollection } from "@/components/chat/fetch-sidebar-room-collection";
 import {
   getLatestMembershipVisibleRoomsSnapshot,
   hasLiveMembershipVisibleRoomsPublisher,
@@ -15,17 +14,13 @@ import {
 import { keepRoomUnreadState } from "@/components/chat/room-attention";
 import {
   applyRoomReadOverlays,
-  beginRoomAttentionRefresh,
   reconcileRoomAttention,
 } from "@/components/chat/room-read-overlay";
-import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { useLiveChatRoomsOwnershipSettled } from "@/hooks/effects/use-live-chat-rooms-ownership-settled";
+import { useLiveChatRoomsReader } from "@/hooks/effects/use-live-chat-rooms-reader";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import { useSession } from "@/lib/auth/auth.client";
-
-/** Poll cadence while the Ably connection is unavailable. */
-const LIVE_CHAT_ROOMS_FALLBACK_MS = 15_000;
 
 /** The user and workspace a list of rooms belongs to. */
 function roomsScope(
@@ -166,14 +161,13 @@ export function useLiveChatRoomsRead(): {
   // (SOK-986): timer reads pause while hidden or unfocused with one read on
   // return, invalidations read at once, and a slow recovery cadence while
   // Ably is connected.
-  const refreshRooms = useCallback(
-    async (isCurrent: () => boolean) => {
-      const requestRevision = beginRoomAttentionRefresh();
+  const requestRefresh = useLiveChatRoomsReader({
+    scope: scope && ownershipSettled && !sidebarOwnsReads ? scope : null,
+    healthy: useAblyConnectionHealthy(),
+    onAnswer: ({ scope: requestScope, revision: requestRevision, page }) => {
       // The ref moves in the layout phase, before the scheduler's passive
       // cleanup makes `isCurrent` false, so an answer can land between them.
-      const requestScope = scopeRef.current;
-      const page = await fetchSidebarRoomCollection("active");
-      if (!isCurrent() || scopeRef.current !== requestScope) return;
+      if (scopeRef.current !== requestScope) return;
       if (!page) {
         setFailedScope(requestScope);
         return;
@@ -186,16 +180,16 @@ export function useLiveChatRoomsRead(): {
         rooms: reconcileRoomAttention(page.rooms, requestRevision),
       });
     },
-    [scopeRef],
-  );
-  const requestRefresh = useChatRefreshScheduler({
-    key:
-      scope && ownershipSettled && !sidebarOwnsReads ? `${scope}:unread` : null,
-    refresh: refreshRooms,
-    healthy: useAblyConnectionHealthy(),
-    fallbackIntervalMs: LIVE_CHAT_ROOMS_FALLBACK_MS,
-    refreshOnMount: true,
-    refreshOnRecovery: true,
+    onSeed: ({ scope: answerScope, revision: answerRevision, rows }) => {
+      if (scopeRef.current !== answerScope) return;
+      if (answerRevision <= latestAppliedRefreshRef.current) return;
+      setFailedScope(null);
+      latestAppliedRefreshRef.current = answerRevision;
+      setHeld({
+        scope: answerScope,
+        rooms: applyRoomReadOverlays([...rows]),
+      });
+    },
   });
 
   useOrganizationChatRoomRead((apply) => updateRooms(apply));
