@@ -85,51 +85,60 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await page.getByRole("link", { name: "Later" }).click();
       await page.waitForURL(`${BASE_URL}/`);
 
-      await page.goto(`${BASE_URL}/tasks`);
-      await page.getByRole("heading", { name: "Backlog" }).waitFor();
+      // A scheduled Task would start on its own one day, so every run
+      // cancels and archives the ones it made, pass or fail.
+      try {
+        await page.goto(`${BASE_URL}/tasks`);
+        await page.getByRole("heading", { name: "Backlog" }).waitFor();
 
-      let newTask = await openNewTask(
-        page,
-        /E2E Tester/,
-        "Review the photos for the spring newsletter",
-      );
-      await newTask.getByRole("button", { name: "Create task" }).click();
-      await newTask
-        .getByRole("button", { name: "Create another task" })
-        .click({ timeout: 120_000 });
+        let newTask = await openNewTask(
+          page,
+          /E2E Tester/,
+          "Review the photos for the spring newsletter",
+        );
+        await newTask.getByRole("button", { name: "Create task" }).click();
+        await newTask
+          .getByRole("button", { name: "Create another task" })
+          .click({ timeout: 120_000 });
 
-      newTask = await openNewTaskInOpenDialog(page);
-      await newTask.getByRole("button", { name: "Set start time" }).click();
-      const startTime = page.getByRole("dialog", { name: "Start time" });
-      await startTime.getByLabel("Start at").fill(laterStart());
-      await startTime.getByRole("button", { name: "Apply" }).click();
-      await newTask.getByRole("button", { name: "Schedule task" }).click();
-      await newTask
-        .getByRole("button", { name: "Close" })
-        .click({ timeout: 120_000 });
+        newTask = await openNewTaskInOpenDialog(page);
+        await newTask.getByRole("button", { name: "Set start time" }).click();
+        const startTime = page.getByRole("dialog", { name: "Start time" });
+        await startTime.getByLabel("Start at").fill(laterStart());
+        await startTime.getByRole("button", { name: "Apply" }).click();
+        await newTask.getByRole("button", { name: "Schedule task" }).click();
+        await newTask
+          .getByRole("button", { name: "Close" })
+          .click({ timeout: 120_000 });
 
-      // Both Tasks wait in Backlog: a Draft and a scheduled one.
-      const board = page.getByRole("region", { name: "Backlog" });
-      await board.getByRole("link").nth(1).waitFor();
-      assert.equal(await board.getByRole("link").count(), 2);
+        // Both Tasks wait in Backlog: a Draft and a scheduled one.
+        const board = page.getByRole("region", { name: "Backlog" });
+        await board.getByRole("link").nth(1).waitFor();
+        assert.equal(await board.getByRole("link").count(), 2);
 
-      await page.getByRole("radio", { name: "Handed off" }).click();
-      await page.waitForURL(/scope=handedOff/);
-      await board.getByRole("img", { name: "Elena" }).waitFor();
-      await board.getByRole("link").nth(1).waitFor({ state: "detached" });
-      assert.equal(await board.getByRole("link").count(), 1);
-      assert.equal(
-        await board.getByRole("img", { name: "E2E Tester" }).count(),
-        0,
-      );
-      const overflow = await page.evaluate(
-        () => document.documentElement.scrollWidth - window.innerWidth,
-      );
-      assert.ok(overflow <= 1, `page scrolls sideways by ${overflow}px`);
-      await shot(page, size, "handed-off");
+        await page.getByRole("radio", { name: "Handed off" }).click();
+        await page.waitForURL(/scope=handedOff/);
+        await board.getByRole("img", { name: "Elena" }).waitFor();
+        await board.getByRole("link").nth(1).waitFor({ state: "detached" });
+        assert.equal(await board.getByRole("link").count(), 1);
+        assert.equal(
+          await board.getByRole("img", { name: "E2E Tester" }).count(),
+          0,
+        );
+        const overflow = await page.evaluate(
+          () => document.documentElement.scrollWidth - window.innerWidth,
+        );
+        assert.ok(overflow <= 1, `page scrolls sideways by ${overflow}px`);
+        await shot(page, size, "handed-off");
 
-      assert.deepEqual(errors, []);
-      await context.close();
+        assert.deepEqual(errors, []);
+      } finally {
+        try {
+          assert.equal(await cancelScheduledTasks(page), 0);
+        } finally {
+          await context.close();
+        }
+      }
     });
   });
 }
@@ -143,4 +152,43 @@ async function openNewTaskInOpenDialog(page: Page) {
     .getByRole("textbox", { name: "Details" })
     .fill("Draft a launch plan for the spring newsletter");
   return newTask;
+}
+
+/** Task pages the reader owns, from the Tasks list. */
+async function ownTaskUrls(page: Page): Promise<string[]> {
+  await page.goto(`${BASE_URL}/tasks?scope=owned`);
+  await page.getByRole("radiogroup", { name: "Tasks view" }).waitFor();
+  await page.waitForLoadState("networkidle");
+  return page
+    .locator('main a[href*="/tasks/"]')
+    .evaluateAll((links) => [
+      ...new Set(links.map((link) => (link as HTMLAnchorElement).href)),
+    ]);
+}
+
+/**
+ * Cancels and archives every scheduled Task this account owns, then checks
+ * again. Returns how many scheduled Tasks are left: 0 when it worked.
+ */
+async function cancelScheduledTasks(page: Page): Promise<number> {
+  for (const url of await ownTaskUrls(page)) {
+    await page.goto(url);
+    const scheduled = page.getByRole("combobox", { name: "Status: Scheduled" });
+    await page.getByRole("combobox", { name: /^Status: / }).waitFor();
+    if ((await scheduled.count()) === 0) continue;
+    await scheduled.click();
+    await page.getByRole("option", { name: /^Canceled/ }).click();
+    await page.getByRole("combobox", { name: "Status: Canceled" }).waitFor();
+    await page.getByRole("button", { name: "Archive" }).click();
+    await page.waitForURL((next) => next.pathname === "/tasks");
+  }
+  let left = 0;
+  for (const url of await ownTaskUrls(page)) {
+    await page.goto(url);
+    await page.getByRole("combobox", { name: /^Status: / }).waitFor();
+    left += await page
+      .getByRole("combobox", { name: "Status: Scheduled" })
+      .count();
+  }
+  return left;
 }

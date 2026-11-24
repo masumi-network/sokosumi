@@ -732,7 +732,7 @@ test("tasks list filters by project, person, and sort", async () => {
         stdout: { write() {} },
         options: { sort: "name" },
       }),
-    /--sort must be one of: createdAt, updatedAt, priority/,
+    /--sort must be one of: createdAt, updatedAt, priority, oldest/,
   );
   await assert.rejects(
     () =>
@@ -743,6 +743,19 @@ test("tasks list filters by project, person, and sort", async () => {
       }),
     /--sort priority needs --limit/,
   );
+});
+
+test("tasks list forwards Handed off, oldest first", async () => {
+  const calls: Call[] = [];
+  await runTasksCommand({
+    client: recordingClient(calls, () => ({ data: [] })),
+    stdout: { write() {} },
+    json: true,
+    options: { scope: "handedOff", sort: "oldest" },
+  });
+  const query = new URL(`https://core.invalid${calls[0]?.path}`).searchParams;
+  assert.equal(query.get("scope"), "handedOff");
+  assert.equal(query.get("sort"), "oldest");
 });
 
 function linksClient(

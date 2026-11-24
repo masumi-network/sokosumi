@@ -277,7 +277,7 @@ Organization Tasks:
     Parent links are now sub-tasks: use tasks move TASK_ID --parent PARENT_ID, not a link.
     tasks unlink TASK_ID --to OTHER_TASK_ID [--relation REL] removes a link, a leftover parent or child link too.
     tasks relink TASK_ID --to OTHER_TASK_ID --relation REL replaces it (deletes, then creates; keeps the note).
-  List filters: --status, --search, --project-id ID (or null), --coworker-id, --assignee-user-id, --sort createdAt|updatedAt|priority.
+  List filters: --status, --search, --project-id ID (or null), --coworker-id, --assignee-user-id, --sort createdAt|updatedAt|priority|oldest, --scope owned|workspace|mine|handedOff.
     tasks list fetches every page unless --limit N is set. --sort updatedAt|priority requires --limit.
   Sub-tasks: tasks create --parent TASK_ID [--after SIBLING_ID] adds an ordered sub-task (last by default).
     tasks subtasks TASK_ID lists them in order. tasks move TASK_ID --after SIBLING_ID (or --first) reorders one.

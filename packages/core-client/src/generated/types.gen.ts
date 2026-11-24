@@ -104364,7 +104364,7 @@ export type GetTasksData = {
          */
         status?: Array<TaskStatus>;
         /**
-         * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace, 'mine' for tasks the caller owns or is assigned to as a workspace member, or 'handedOff' for open tasks (not draft, completed, failed or canceled) the caller owns that a coworker, a Soko Bot or another member is assigned to, oldest first unless sort is given. People and delegated coworkers only, and not with parentTaskId.
+         * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace, 'mine' for tasks the caller owns or is assigned to as a workspace member, or 'handedOff' for open tasks (not draft, completed, failed or canceled) the caller owns that a coworker, a Soko Bot or another member is assigned to, oldest first unless sort is given (archived=true too). People and delegated coworkers only, and not with parentTaskId.
          */
         scope?: 'workspace' | 'owned' | 'mine' | 'handedOff';
         /**
@@ -104372,7 +104372,7 @@ export type GetTasksData = {
          */
         projectId?: string | 'null';
         /**
-         * createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable. priority: urgent first, none last, then most recently updated. dueOn: earliest due day first, Tasks without one last. oldest: oldest created first, the default for scope=handedOff.
+         * createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable. priority: urgent first, none last, then most recently updated. dueOn: earliest due day first, Tasks without one last. oldest: oldest created first, the default for scope=handedOff, archived or not.
          */
         sort?: 'createdAt' | 'updatedAt' | 'priority' | 'dueOn' | 'oldest';
         /**

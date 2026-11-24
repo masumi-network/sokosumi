@@ -93,7 +93,7 @@ const taskScopeQuerySchema = z
   .openapi({
     param: { name: "scope", in: "query" },
     description:
-      "workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace, 'mine' for tasks the caller owns or is assigned to as a workspace member, or 'handedOff' for open tasks (not draft, completed, failed or canceled) the caller owns that a coworker, a Soko Bot or another member is assigned to, oldest first unless sort is given. People and delegated coworkers only, and not with parentTaskId.",
+      "workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace, 'mine' for tasks the caller owns or is assigned to as a workspace member, or 'handedOff' for open tasks (not draft, completed, failed or canceled) the caller owns that a coworker, a Soko Bot or another member is assigned to, oldest first unless sort is given (archived=true too). People and delegated coworkers only, and not with parentTaskId.",
     example: "workspace",
   });
 
@@ -113,7 +113,7 @@ const taskSortQuerySchema = z
   .openapi({
     param: { name: "sort", in: "query" },
     description:
-      "createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable. priority: urgent first, none last, then most recently updated. dueOn: earliest due day first, Tasks without one last. oldest: oldest created first, the default for scope=handedOff.",
+      "createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable. priority: urgent first, none last, then most recently updated. dueOn: earliest due day first, Tasks without one last. oldest: oldest created first, the default for scope=handedOff, archived or not.",
     example: "createdAt",
   });
 
@@ -545,7 +545,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const orderBy =
       parentTaskId && sort === undefined
         ? ([{ position: "asc" as const }, { id: "asc" as const }] as const)
-        : archived && sort === undefined
+        : // Handed off keeps its own default in the archive too.
+          archived && sort === undefined && scope !== "handedOff"
           ? ([
               { archivedAt: "desc" as const },
               { id: "desc" as const },

@@ -83,7 +83,7 @@ function taskIdOption(
   return value;
 }
 
-const SORTS = ["createdAt", "updatedAt", "priority"];
+const SORTS = ["createdAt", "updatedAt", "priority", "oldest"];
 
 const TASK_ID_COMMANDS = [
   "get",

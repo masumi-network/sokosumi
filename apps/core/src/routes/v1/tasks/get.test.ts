@@ -1115,6 +1115,19 @@ describe("GET /tasks", () => {
       );
     });
 
+    it("keeps Handed off oldest first in the archive", async () => {
+      const response = await createApp().request(
+        "http://localhost/?scope=handedOff&archived=true",
+      );
+
+      expect(response.status).toBe(200);
+      expect(taskFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        }),
+      );
+    });
+
     it("keeps a picked sort with scope=handedOff", async () => {
       const response = await createApp().request(
         "http://localhost/?scope=handedOff&sort=updatedAt",
