@@ -4,6 +4,7 @@ import { DndContext, DragOverlay } from "@dnd-kit/core";
 import type { TaskStatus } from "@sokosumi/core-client";
 import { makeUserTasksChannelName } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
+import { useQueryState } from "nuqs";
 import { useMemo, useRef } from "react";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { TASKS_TOOLBAR_ROW_CLASS } from "@/app/tasks/constants";
@@ -279,6 +280,7 @@ export function TasksView(props: TasksViewProps) {
   };
 
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const [, setSearchQuery] = useQueryState("q", { shallow: false });
   const handleClearFilters = () => {
     replaceTasksQuery(
       router,
@@ -291,9 +293,11 @@ export function TasksView(props: TasksViewProps) {
     );
     focusToolbarControl(toolbarRef.current);
   };
-  // Clear search unmounts itself: keep the keyboard on the search field.
+  // The search field keeps its text in nuqs `q`, which a router.replace does
+  // not reach, so Clear search empties it there. It unmounts itself: the
+  // keyboard goes straight back to the field.
   const handleClearSearch = () => {
-    handleClearFilters();
+    void setSearchQuery(null);
     toolbarRef.current
       ?.querySelector<HTMLInputElement>('input[type="search"]')
       ?.focus();
