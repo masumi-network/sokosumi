@@ -1,8 +1,10 @@
 /**
  * The `shared` client and the Network clients on one pool, against PostgreSQL.
  * Every client is pointed at a throwaway schema: `shared` gets an empty copy of
- * every `public` table, each Network copies of `Lock` and `sync_metadata`. A
- * row that lands in another schema, `public` included, shows.
+ * every table of the database's own shared schema (`public` on today's layout,
+ * `DATABASE_SCHEMA_SHARED` on the split one), each Network copies of `Lock`
+ * and `sync_metadata`. A row that lands in another schema, that one included,
+ * shows.
  * RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… pnpm --filter core test src/lib/db/prisma.postgres.test.ts
  */
 import { randomUUID } from "node:crypto";
@@ -21,6 +23,8 @@ import {
   vi,
 } from "vitest";
 
+import { testSchemaNames } from "@/test/split-layout";
+
 const pools = vi.hoisted(() => [] as Pool[]);
 vi.mock("@vercel/functions", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@vercel/functions")>();
@@ -38,6 +42,9 @@ const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   url?.startsWith("postgres");
 
+// Where the migrated shared tables are: the copies' source, and where a client
+// that ignored its schema would write.
+const sharedSchema = testSchemaNames().DATABASE_SCHEMA_SHARED;
 const suffix = randomUUID().replaceAll("-", "").slice(0, 12);
 const schemas = {
   shared: `n15_shared_${suffix}`,
@@ -79,7 +86,7 @@ describe.runIf(enabled)("Core database clients on PostgreSQL", () => {
   }
 
   beforeAll(async () => {
-    admin = createPrismaClient(url ?? "");
+    admin = createPrismaClient(url ?? "", { schema: sharedSchema });
     for (const schema of Object.values(schemas)) {
       await admin.$executeRawUnsafe(`CREATE SCHEMA "${schema}"`);
     }
@@ -89,14 +96,14 @@ describe.runIf(enabled)("Core database clients on PostgreSQL", () => {
       DO $$
       DECLARE t text;
       BEGIN
-        FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
-          EXECUTE format('CREATE TABLE %I.%I (LIKE public.%I INCLUDING ALL)', '${schemas.shared}', t, t);
+        FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = '${sharedSchema}' LOOP
+          EXECUTE format('CREATE TABLE %I.%I (LIKE %I.%I INCLUDING ALL)', '${schemas.shared}', t, '${sharedSchema}', t);
         END LOOP;
       END $$`);
     for (const schema of [schemas.mainnet, schemas.preprod]) {
       for (const name of ["Lock", "sync_metadata"]) {
         await admin.$executeRawUnsafe(
-          `CREATE TABLE "${schema}"."${name}" (LIKE public."${name}" INCLUDING ALL)`,
+          `CREATE TABLE "${schema}"."${name}" (LIKE "${sharedSchema}"."${name}" INCLUDING ALL)`,
         );
       }
     }
@@ -120,7 +127,7 @@ describe.runIf(enabled)("Core database clients on PostgreSQL", () => {
       () => clients?.networkPrisma("mainnet").$disconnect(),
       () => clients?.networkPrisma("preprod").$disconnect(),
       ...pools.map((pool) => () => pool.end()),
-      // A client sent to `public` by mistake leaves its rows there.
+      // A client sent to the database's own schema by mistake leaves its rows there.
       () => admin?.lock.deleteMany({ where: { key: { startsWith: key } } }),
       () => admin?.user.deleteMany({ where: { email } }),
       ...Object.values(schemas).map(
@@ -155,7 +162,7 @@ describe.runIf(enabled)("Core database clients on PostgreSQL", () => {
     expect(await lockKeysIn(schemas.shared)).toEqual(expected("shared"));
     expect(await lockKeysIn(schemas.mainnet)).toEqual(expected("mainnet"));
     expect(await lockKeysIn(schemas.preprod)).toEqual(expected("preprod"));
-    expect(await lockKeysIn("public")).toEqual([]);
+    expect(await lockKeysIn(sharedSchema)).toEqual([]);
   });
 
   it("writes shared and Network rows in one interactive transaction, and rolls both back", async () => {
@@ -231,6 +238,6 @@ describe.runIf(enabled)("Core database clients on PostgreSQL", () => {
       SELECT count(*) AS count FROM ${table(schema, "session")}
       WHERE "userId" = ${userId}`;
     expect((await sessions(schemas.shared))[0]?.count).toBe(1n);
-    expect((await sessions("public"))[0]?.count).toBe(0n);
+    expect((await sessions(sharedSchema))[0]?.count).toBe(0n);
   });
 });

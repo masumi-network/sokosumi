@@ -148,6 +148,25 @@ const shuffleFiles =
     }),
   );
 
+/**
+ * CI's split-layout job runs the PostgreSQL files in two parts: `must-pass`
+ * runs every file not in `src/test/split-layout-pending.txt` and Vitest's exit
+ * code decides, `pending` runs only the listed ones, which
+ * `scripts/split-layout-pending.mts` checks still fail. Both refuse to start
+ * off the split layout, so a Preprod test cannot skip there.
+ */
+const splitLayoutRun = process.env.SPLIT_LAYOUT_RUN;
+// Loaded only in that job and by URL, so an ordinary run imports no local
+// module, as before (Vite's native config loader needs file extensions).
+const pendingFiles: string[] =
+  splitLayoutRun === undefined
+    ? []
+    : (
+        (await import(
+          new URL("./src/test/split-layout-pending.ts", import.meta.url).href
+        )) as typeof import("./src/test/split-layout-pending")
+      ).splitLayoutPendingGlobs(splitLayoutRun, process.env);
+
 export default defineConfig({
   resolve: {
     tsconfigPaths: true,
@@ -169,6 +188,7 @@ export default defineConfig({
       // it, because it throws rather than skipping. See above.
       ...unprovisionedDbFiles,
       ...(optInDbRun ? [] : optInDbExclude),
+      ...(splitLayoutRun === "must-pass" ? pendingFiles : []),
     ],
     // One database per worker for the parallel PostgreSQL run in CI. See
     // `src/test/postgres-worker-databases.ts`. At the root, so it runs once
@@ -186,7 +206,8 @@ export default defineConfig({
         extends: true,
         test: {
           name: "unit",
-          include: ["src/**/*.test.ts"],
+          include:
+            splitLayoutRun === "pending" ? pendingFiles : ["src/**/*.test.ts"],
           exclude: integrationFiles,
           // Reuses workers across files, so each file must clean up after
           // itself: `src/test/reset-per-file.ts`. Shuffled file order makes

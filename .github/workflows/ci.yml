@@ -138,7 +138,8 @@ jobs:
       # dependencies; `pnpm --filter core test` below runs vitest directly and
       # builds nothing itself. Same command as `write-openapi-snapshot`. Runs
       # while the database finishes booting.
-      - name: Build Core dependencies
+      - &build-core-dependencies
+        name: Build Core dependencies
         run: pnpm exec turbo run build prisma:generate --filter=@sokosumi/core^... --output-logs=errors-only
 
       # TCP, not the socket: the image's init server listens on the socket
@@ -149,7 +150,8 @@ jobs:
 
       # Apply migrations so Calendar erasure also exercises the actual cascade
       # and outbox triggers, which prisma db push does not install.
-      - name: Apply migrations to PostgreSQL
+      - &apply-migrations
+        name: Apply migrations to PostgreSQL
         env: &migrated-db
           DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
           DATABASE_URL_UNPOOLED: "postgresql://user:password@localhost:5432/sokosumi"
@@ -227,6 +229,70 @@ jobs:
           RUN_DATABASE_INTEGRATION_TESTS=true POSTGRES_TEST_DATABASE_PER_WORKER=true \
             pnpm --filter core --fail-if-no-match test .postgres.test.ts \
             --passWithNoTests=false
+
+  # The same PostgreSQL suites on the new layout: one database, its tables in
+  # `shared`, `mainnet` and `preprod`, and Core given those three names. Beside
+  # `Test Core PostgreSQL`, which keeps today's layout (every name `public`),
+  # so neither waits on the other. Not a required check yet.
+  #
+  # Most files cannot pass here until Core reads each Network's tables through
+  # that Network's client and raw SQL names its schema. They are listed, each
+  # with the ticket it waits for, in `apps/core/src/test/split-layout-pending.txt`.
+  # Every other file, a new one included, must pass here as on today's layout;
+  # a listed file that starts passing fails the job until its line goes.
+  # Preprod tests run only here (`onSplitLayout` in
+  # `apps/core/src/test/split-layout.ts`); `SPLIT_LAYOUT_RUN` refuses to start
+  # off the split layout, so they cannot skip here.
+  core-postgres-split:
+    name: Test Core PostgreSQL split layout
+    needs: changes
+    if: ${{ !cancelled() && !github.event.pull_request.draft && needs.changes.outputs.core != 'false' }}
+    runs-on: ubuntu-latest
+    permissions: *turbo-permissions
+    env: *migrated-db
+    steps:
+      - *start-postgres
+      - *checkout
+      - *setup
+      - *build-core-dependencies
+      - *wait-postgres
+      - *apply-migrations
+
+      # Test only, never a production path. Runs psql and pg_dump in the
+      # container, whose versions match the server.
+      - name: Split the database into shared, mainnet and preprod
+        env:
+          PSQL: docker exec -i postgres psql
+          PG_DUMP: docker exec postgres pg_dump
+        run: packages/database/scripts/split-network-layout.sh "postgresql://user:password@localhost:5432/sokosumi"
+
+      # Every file not on the pending list, as `Test Core PostgreSQL` runs
+      # them: Vitest's exit code is the verdict.
+      - name: Test against PostgreSQL on the split layout
+        env: &split-layout
+          DATABASE_SCHEMA_SHARED: shared
+          DATABASE_SCHEMA_MAINNET: mainnet
+          DATABASE_SCHEMA_PREPROD: preprod
+        run: |
+          SPLIT_LAYOUT_RUN=must-pass RUN_DATABASE_INTEGRATION_TESTS=true POSTGRES_TEST_DATABASE_PER_WORKER=true \
+            pnpm --filter core --fail-if-no-match test .postgres.test.ts \
+            --passWithNoTests=false
+
+      # Only the listed files. They are expected to fail, so Vitest's exit
+      # code is not the verdict: the check after it requires every listed
+      # file to have run and failed. Also runs when the step above failed,
+      # so one run reports both.
+      - name: Check the pending files still fail on the split layout
+        if: ${{ !cancelled() }}
+        env: *split-layout
+        run: |
+          report="$RUNNER_TEMP/split-layout-pending.json"
+          rm -f "$report"
+          SPLIT_LAYOUT_RUN=pending RUN_DATABASE_INTEGRATION_TESTS=true POSTGRES_TEST_DATABASE_PER_WORKER=true \
+            pnpm --filter core --fail-if-no-match test .postgres.test.ts \
+            --passWithNoTests=false --reporter=default --reporter=json \
+            --outputFile.json="$report" || true
+          pnpm --filter core exec tsx scripts/split-layout-pending.mts "$report"
 
   # One job for the same reason as `web`: the unit suite, behind the same
   # `Setup`. Its PostgreSQL suites, migrations and drift check run beside it
