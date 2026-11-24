@@ -12,9 +12,9 @@ const ROOT = fileURLToPath(new URL("../../../../../..", import.meta.url));
 //
 // The rule is plain on purpose, and it only reports. A finding is an uppercase
 // SQL keyword that takes a table, followed by the SQL name of one of our
-// tables (`network-tables.json`) with no schema before it, in its exact
-// spelling; a table whose name is all lowercase also bare in any case
-// (PostgreSQL folds a bare name).
+// tables (`network-tables.json`) with no schema before it: in double quotes in
+// its exact spelling, or, for a table whose name is all lowercase, bare in any
+// case (PostgreSQL folds a bare name, so a bare `Lock` is not `"Lock"`).
 // `CREATE TEMP TABLE <name>` is no finding: a temporary table has no schema
 // to name.
 // What it cannot see:
@@ -109,7 +109,7 @@ const anyCase = tableNames
   .join("|");
 
 const UNQUALIFIED = new RegExp(
-  `(?<!CREATE\\s+(?:TEMP|TEMPORARY)\\s+)\\b(?:${KEYWORDS})\\s+(?:IF\\s+(?:NOT\\s+)?EXISTS\\s+)?(?:("?)(?:${exact})\\1|(?i:${anyCase}))(?![\\w".])`,
+  `(?<!CREATE\\s+(?:TEMP|TEMPORARY)\\s+)\\b(?:${KEYWORDS})\\s+(?:IF\\s+(?:NOT\\s+)?EXISTS\\s+)?(?:"(?:${exact})"|(?i:${anyCase}))(?![\\w".])`,
   "g",
 );
 
@@ -199,6 +199,7 @@ describe("unqualified table names in raw SQL", () => {
     "// reads the title from task and project",
     'SELECT id FROM "WORKSPACE"',
     "SELECT 1 FROM x FOR UPDATE lock",
+    "SELECT key FROM Lock",
     "CREATE TEMP TABLE workspace (id uuid PRIMARY KEY) ON COMMIT DROP",
     "CREATE TEMPORARY TABLE\n  workspace_label (LIKE x INCLUDING ALL)",
   ])("passes %s", (source) => {

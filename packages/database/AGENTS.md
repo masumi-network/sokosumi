@@ -80,7 +80,7 @@ import { computeJobStatus, mapJobWithStatus } from "@sokosumi/database/helpers";
 - **Tests restore what was there.** `configureSqlTables` returns a function that puts back the layout configured before: `onTestFinished(configureSqlTables(layout))`. Never restore a layout you wrote down yourself.
 - **Temporary tables no longer shadow.** A test that isolated a statement behind `CREATE TEMP TABLE workspace …` now reads the real table, because the statement names its schema. Give the function under test its tables instead: `backfillTaskWorkTypePresets` takes `tables` in its options, and its test passes a `sharedTable` that names `pg_temp` (`apps/core/src/services/task-work-type-presets.postgres.test.ts`).
 - **This package's statements** name Mainnet (`netTable("mainnet", …)`) until their callers pass a Network.
-- **Check**: `apps/core/src/lib/db/__tests__/unqualified-raw-sql.test.ts` reports unqualified table names in this package, Core and the scripts,; it fails nothing yet. Its header lists what it cannot see and the files it leaves out.
+- **Check**: `apps/core/src/lib/db/__tests__/unqualified-raw-sql.test.ts` reports unqualified table names in this package, Core and the scripts. It is advisory: it fails nothing yet. Its header lists what it cannot see and the files it leaves out.
 
 ```typescript
 import { netTable, sharedTable } from "@sokosumi/database/sql-tables";
