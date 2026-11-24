@@ -75,6 +75,7 @@ describe("useGenerationQueueMountLifecycle", () => {
     // Layout cleanup ran before passive cleanup flipped mountedRef.
     expect(siblingLayoutCleanup).toEqual([true]);
     expect(mountedRef.current).toBe(false);
+    expect(retryTimerRef.current).toBeNull();
 
     vi.advanceTimersByTime(5_000);
     expect(onRetry).not.toHaveBeenCalled();
@@ -133,6 +134,7 @@ describe("useGenerationQueueMountLifecycle", () => {
       </StrictMode>,
     );
     expect(mounted.ref.current).toBe(false);
+    expect(retryTimerRef.current).toBeNull();
     expect(mounted.writes).toEqual([true, false, true, false]);
     vi.advanceTimersByTime(5_000);
     expect(onRetry).not.toHaveBeenCalled();
