@@ -2284,50 +2284,6 @@ it("refreshes Tasks when a pending archive settles while visible, and skips refr
   }
 });
 
-it("keeps the archived column pinned when a settled archive reveals the same cached Activity snapshot, then resyncs on a new snapshot", async () => {
-  const archived: TaskWithCoworker = {
-    ...CANCELED_TASK,
-    id: "task-settled-while-hidden-same-snapshot",
-  };
-  vi.mocked(loadMoreTasksColumn).mockResolvedValueOnce({
-    tasks: [archived],
-    nextCursor: null,
-  });
-
-  const view = boardView([TASK], undefined, "cursor-1", 1);
-  const { rerender } = render(<Activity mode="visible">{view}</Activity>);
-
-  act(() => screen.getByRole("button", { name: "Load more" }).click());
-  expect(
-    await screen.findByTestId(`board-card-${archived.id}`),
-  ).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
-
-  rerender(<Activity mode="hidden">{view}</Activity>);
-  markTaskArchived(archived.id);
-  settleTaskArchive(archived.id);
-  rerender(<Activity mode="visible">{view}</Activity>);
-
-  expect(
-    screen.queryByTestId(`board-card-${archived.id}`),
-  ).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
-  expect(
-    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
-  ).toBe("0");
-
-  rerender(
-    <Activity mode="visible">
-      {boardView([TASK], undefined, "cursor-2", 2)}
-    </Activity>,
-  );
-
-  expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
-  expect(
-    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
-  ).toBe("2");
-});
-
 it("subtracts retained rows from the server hidden count when restoring Load more after a failed page, and counts only newly appended rows on Load more", async () => {
   vi.mocked(toast.error).mockClear();
   const pageOneDone: TaskWithCoworker[] = Array.from(

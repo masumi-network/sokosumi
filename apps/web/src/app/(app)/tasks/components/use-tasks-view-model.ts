@@ -84,7 +84,6 @@ interface PendingBoardReopen {
 }
 
 interface TasksBoardDataState {
-  snapshot: TaskWithCoworker[];
   items: TaskWithCoworker[];
   columnCursorById: Record<KanbanColumnId, string | null>;
   columnHiddenById: Record<KanbanColumnId, number>;
@@ -284,7 +283,6 @@ export function useTasksBoardModel({
     showCalendarClientUpgradeModal();
   };
   const [boardData, setBoardData] = useState<TasksBoardDataState>(() => ({
-    snapshot: tasks,
     items: tasks,
     columnCursorById: buildInitialColumnCursorById(
       columns,
@@ -359,7 +357,6 @@ export function useTasksBoardModel({
 
     itemsRef.current = tasks;
     setBoardData({
-      snapshot: tasks,
       items: tasks,
       columnCursorById: buildInitialColumnCursorById(
         columns,
@@ -400,7 +397,6 @@ export function useTasksBoardModel({
     );
 
     setBoardData((prev) => {
-      const isNewSnapshot = prev.snapshot !== tasks;
       const next = mergeTasksOnServerRefresh({
         prev: prev.items.filter((task) => !isTaskArchived(task.id)),
         serverTasks,
@@ -420,7 +416,6 @@ export function useTasksBoardModel({
 
       if (isListView) {
         return {
-          snapshot: tasks,
           items: next,
           columnCursorById: nextColumnCursorById,
           columnHiddenById: initialColumnHiddenCountById,
@@ -454,27 +449,23 @@ export function useTasksBoardModel({
         }
       }
 
-      // Pin a column's cursor while a loaded row's background DELETE is still
-      // pending, or when re-merging the same kept snapshot after settle (e.g.
-      // Activity reveal); once a new server snapshot arrives after settle (or
-      // the archive fails and unmarks), stop pinning so the fresh server read
-      // supplies the current cursor.
-      const shouldPinArchivedTask = (id: string) =>
-        isTaskArchived(id) && (isTaskArchivePending(id) || !isNewSnapshot);
+      // Pin a column's cursor only while a loaded row's background DELETE is
+      // still pending; once DELETE settles (or fails), stop pinning so the
+      // fresh server read can supply the current cursor.
       const nextPendingArchiveIdsByColumn = new Map<
         KanbanColumnId,
         readonly string[]
       >();
       for (const [columnId, ids] of prev.pendingArchiveIdsByColumn) {
         if (droppedNonArchivedColumns.has(columnId)) continue;
-        const stillPendingIds = ids.filter(shouldPinArchivedTask);
+        const stillPendingIds = ids.filter((id) => isTaskArchivePending(id));
         if (stillPendingIds.length > 0) {
           nextPendingArchiveIdsByColumn.set(columnId, stillPendingIds);
         }
       }
 
       for (const task of prev.items) {
-        if (!shouldPinArchivedTask(task.id)) continue;
+        if (!isTaskArchivePending(task.id)) continue;
         const loadedColumn = prev.loadedBoardColumnByTaskId.get(task.id);
         if (!loadedColumn || droppedNonArchivedColumns.has(loadedColumn)) {
           continue;
@@ -525,7 +516,6 @@ export function useTasksBoardModel({
       }
 
       return {
-        snapshot: tasks,
         items: next,
         columnCursorById: nextColumnCursorById,
         columnHiddenById: nextColumnHiddenById,
