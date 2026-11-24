@@ -670,17 +670,6 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   "GET /users/{id}/coworker-access": {
     argv: [...API, "users", "coworker-access", "me"],
   },
-  "POST /users/{id}/coworker-access/{accessId}/approve": {
-    argv: [
-      ...API,
-      "users",
-      "approve-coworker-access",
-      "me",
-      "access-1",
-      "--input-json",
-      "{}",
-    ],
-  },
   "POST /users/{id}/coworker-access/{accessId}/deny": {
     argv: [
       ...API,
@@ -705,27 +694,6 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   },
   "GET /users/{id}/vendor-grants": {
     argv: [...API, "users", "vendor-grants", "me"],
-  },
-  "POST /users/{id}/vendor-grants": {
-    argv: [
-      ...API,
-      "users",
-      "grant-vendor",
-      "me",
-      "--input-json",
-      '{"vendorId":"vendor-1"}',
-    ],
-  },
-  "POST /users/{id}/vendor-grants/{grantId}/approve": {
-    argv: [
-      ...API,
-      "users",
-      "approve-vendor-grant",
-      "me",
-      "grant-1",
-      "--input-json",
-      "{}",
-    ],
   },
   "POST /users/{id}/vendor-grants/{grantId}/deny": {
     argv: [
@@ -838,17 +806,6 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   "GET /organizations/{id}/coworker-access": {
     argv: [...API, "organizations", "coworker-access", "org-1"],
   },
-  "POST /organizations/{id}/coworker-access/{accessId}/approve": {
-    argv: [
-      ...API,
-      "organizations",
-      "approve-coworker-access",
-      "org-1",
-      "access-1",
-      "--input-json",
-      "{}",
-    ],
-  },
   "POST /organizations/{id}/coworker-access/{accessId}/deny": {
     argv: [
       ...API,
@@ -873,27 +830,6 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   },
   "GET /organizations/{id}/vendor-grants": {
     argv: [...API, "organizations", "vendor-grants", "org-1"],
-  },
-  "POST /organizations/{id}/vendor-grants": {
-    argv: [
-      ...API,
-      "organizations",
-      "grant-vendor",
-      "org-1",
-      "--input-json",
-      '{"vendorId":"vendor-1"}',
-    ],
-  },
-  "POST /organizations/{id}/vendor-grants/{grantId}/approve": {
-    argv: [
-      ...API,
-      "organizations",
-      "approve-vendor-grant",
-      "org-1",
-      "grant-1",
-      "--input-json",
-      "{}",
-    ],
   },
   "POST /organizations/{id}/vendor-grants/{grantId}/deny": {
     argv: [

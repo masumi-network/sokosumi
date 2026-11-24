@@ -53,9 +53,9 @@
       "mcp": "organizations_coworker_access"
     },
     "POST /organizations/{id}/coworker-access/{accessId}/approve": {
-      "cli": "organizations approve-coworker-access",
+      "cli": false,
       "mcp": false,
-      "reason": "Granting a Coworker access to a workspace is the person's decision; an agent could approve its own request."
+      "reason": "A person approves access (ADR 0077): an agent could approve its own Coworker or vendor."
     },
     "POST /organizations/{id}/coworker-access/{accessId}/deny": {
       "cli": "organizations deny-coworker-access",
@@ -70,14 +70,14 @@
       "mcp": "organizations_vendor_grants"
     },
     "POST /organizations/{id}/vendor-grants": {
-      "cli": "organizations grant-vendor",
+      "cli": false,
       "mcp": false,
-      "reason": "Granting a vendor access to a workspace is the person's decision; an agent could approve its own vendor."
+      "reason": "A person approves access (ADR 0077): an agent could approve its own Coworker or vendor."
     },
     "POST /organizations/{id}/vendor-grants/{grantId}/approve": {
-      "cli": "organizations approve-vendor-grant",
+      "cli": false,
       "mcp": false,
-      "reason": "Granting a vendor access to a workspace is the person's decision; an agent could approve its own vendor."
+      "reason": "A person approves access (ADR 0077): an agent could approve its own Coworker or vendor."
     },
     "POST /organizations/{id}/vendor-grants/{grantId}/deny": {
       "cli": "organizations deny-vendor-grant",

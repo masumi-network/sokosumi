@@ -651,11 +651,6 @@ export const CLI_COMMAND_CATALOG = [
     operation: "GET /users/{id}/coworker-access",
   },
   {
-    command: "users approve-coworker-access",
-    usage: "me ACCESS_ID --input-json '{}'",
-    operation: "POST /users/{id}/coworker-access/{accessId}/approve",
-  },
-  {
     command: "users deny-coworker-access",
     usage: "me ACCESS_ID --input-json '{}'",
     operation: "POST /users/{id}/coworker-access/{accessId}/deny",
@@ -669,16 +664,6 @@ export const CLI_COMMAND_CATALOG = [
     command: "users vendor-grants",
     usage: "me [--query status=STATUS]",
     operation: "GET /users/{id}/vendor-grants",
-  },
-  {
-    command: "users grant-vendor",
-    usage: "me --input-json JSON",
-    operation: "POST /users/{id}/vendor-grants",
-  },
-  {
-    command: "users approve-vendor-grant",
-    usage: "me GRANT_ID --input-json '{}'",
-    operation: "POST /users/{id}/vendor-grants/{grantId}/approve",
   },
   {
     command: "users deny-vendor-grant",
@@ -811,11 +796,6 @@ export const CLI_COMMAND_CATALOG = [
     operation: "GET /organizations/{id}/coworker-access",
   },
   {
-    command: "organizations approve-coworker-access",
-    usage: "ORGANIZATION_ID ACCESS_ID --input-json '{}'",
-    operation: "POST /organizations/{id}/coworker-access/{accessId}/approve",
-  },
-  {
     command: "organizations deny-coworker-access",
     usage: "ORGANIZATION_ID ACCESS_ID --input-json '{}'",
     operation: "POST /organizations/{id}/coworker-access/{accessId}/deny",
@@ -829,16 +809,6 @@ export const CLI_COMMAND_CATALOG = [
     command: "organizations vendor-grants",
     usage: "ORGANIZATION_ID [--query status=STATUS]",
     operation: "GET /organizations/{id}/vendor-grants",
-  },
-  {
-    command: "organizations grant-vendor",
-    usage: "ORGANIZATION_ID --input-json JSON",
-    operation: "POST /organizations/{id}/vendor-grants",
-  },
-  {
-    command: "organizations approve-vendor-grant",
-    usage: "ORGANIZATION_ID GRANT_ID --input-json '{}'",
-    operation: "POST /organizations/{id}/vendor-grants/{grantId}/approve",
   },
   {
     command: "organizations deny-vendor-grant",
