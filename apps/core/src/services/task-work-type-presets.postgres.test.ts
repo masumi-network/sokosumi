@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { backfillTaskWorkTypePresets } from "@sokosumi/database/helpers";
+import {
+  configureSqlTables,
+  PUBLIC_LAYOUT,
+} from "@sokosumi/database/sql-tables";
 import { CURATED_VOCABULARY_VERSION, TASK_TAG_PRESETS } from "@sokosumi/utils";
-import { expect, it } from "vitest";
+import { expect, it, onTestFinished } from "vitest";
 import prisma from "@/lib/db/prisma";
 
 const enabled =
@@ -11,6 +15,10 @@ const enabled =
 it.skipIf(!enabled)(
   "backfills old workspaces in batches, preserving collisions and later edits",
   async () => {
+    // The statement names its tables with their schema, so the temporary
+    // tables below no longer shadow the real ones: name their schema instead.
+    configureSqlTables({ ...PUBLIC_LAYOUT, shared: "pg_temp" });
+    onTestFinished(() => configureSqlTables(PUBLIC_LAYOUT));
     await prisma.$transaction(async (tx) => {
       // The production statement scans all workspaces. Isolate it from other suites
       // with transaction-local tables and copy the real label schema and unique index.

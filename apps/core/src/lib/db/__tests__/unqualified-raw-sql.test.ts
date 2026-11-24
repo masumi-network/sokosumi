@@ -19,6 +19,8 @@ const ROOT = fileURLToPath(new URL("../../../../../..", import.meta.url));
 //   (`CREATE INDEX … ON "x"`);
 // - SQL built from string pieces, a table name held in a variable, and
 //   anything passed to `$queryRawUnsafe` that is not literal text;
+// - a sequence or any other object that is not a table
+//   (`nextval('table_change_sequence_seq')`);
 // - a schema written out by hand (`public."user"`): it counts as qualified;
 // - a common table expression named like a table is a false finding.
 const KEYWORDS = "FROM|JOIN|INTO|UPDATE|USING|TABLE|TRUNCATE|ONLY|REFERENCES";
@@ -52,10 +54,15 @@ const EXCLUDED: Record<string, string> = {
 /**
  * Where a finding fails the build. Everywhere else it is only reported.
  * Ticket 17 adds "core", "scripts" and "tests" once their SQL is converted.
+ * Turbo replays a cached pass of Core's tests when only files outside Core and
+ * its dependencies changed (root `scripts/`), so "scripts" also needs those
+ * paths in the inputs of Core's test task.
  */
 const ENFORCED: readonly Group[] = ["database"];
 
-type Group = "database" | "core" | "scripts" | "tests";
+/** "scripts" is every file outside the three other groups. */
+const GROUPS = ["database", "core", "scripts", "tests"] as const;
+type Group = (typeof GROUPS)[number];
 
 interface Finding {
   file: string;
@@ -74,12 +81,11 @@ const tables = JSON.parse(
   shared: Record<string, string>;
 };
 
-// Longest first, so `task_file` is not read as `task`.
 const tableNames = [
   ...Object.values(tables.network),
   ...tables.networkJoinTables,
   ...Object.values(tables.shared),
-].sort((a, b) => b.length - a.length);
+];
 
 const UNQUALIFIED = new RegExp(
   `\\b(?:${KEYWORDS})\\s+(?:IF\\s+(?:NOT\\s+)?EXISTS\\s+)?("?)(?:${tableNames.join("|")})\\1(?![\\w".])`,
@@ -181,13 +187,11 @@ describe("unqualified table names in raw SQL", () => {
 
   it("is found nowhere it is enforced, and reported elsewhere", () => {
     const found = repositoryFindings();
-    const counts = (["database", "core", "scripts", "tests"] as const).map(
-      (group) => {
-        const inGroup = found.filter(({ file }) => groupOf(file) === group);
-        const files = new Set(inGroup.map(({ file }) => file)).size;
-        return `${group} ${inGroup.length} in ${files} files`;
-      },
-    );
+    const counts = GROUPS.map((group) => {
+      const inGroup = found.filter(({ file }) => groupOf(file) === group);
+      const files = new Set(inGroup.map(({ file }) => file)).size;
+      return `${group} ${inGroup.length} in ${files} files`;
+    });
     // RAW_SQL_LIST=1 prints every finding as file:line.
     const list = process.env.RAW_SQL_LIST
       ? found.map(({ file, line, text }) => `\n${file}:${line}: ${text}`)

@@ -6,7 +6,7 @@ import {
   CreditBucketReferenceType,
   Prisma,
 } from "../generated/prisma/client.js";
-import { configureSqlTables } from "../sql-tables.js";
+import { configureSqlTables, PUBLIC_LAYOUT } from "../sql-tables.js";
 import {
   creditBucketRepository,
   InsufficientBalanceError,
@@ -468,12 +468,7 @@ describe("creditBucketRepository.listProjectBucketsWithBalances", () => {
         tx,
       );
     } finally {
-      configureSqlTables({
-        shared: "public",
-        mainnet: "public",
-        preprod: "public",
-        preprodOn: false,
-      });
+      configureSqlTables(PUBLIC_LAYOUT);
     }
 
     const [strings, ...parts] = queryArgs as [

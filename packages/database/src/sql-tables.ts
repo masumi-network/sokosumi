@@ -50,8 +50,8 @@ function quoted(identifier: string): string {
 }
 
 /**
- * The two helpers for one layout. Core builds them from its `DATABASE_SCHEMA_*`
- * names; a test passes its own.
+ * The two helpers for one layout: the schema names of the process that owns
+ * the configuration, or a test's own.
  *
  * The fragments are raw SQL text, not parameters. That is safe because no part
  * of them is input: the schema names are deployment configuration, a table
@@ -97,14 +97,16 @@ export function createSqlTables(layout: SqlTableLayout): SqlTables {
   };
 }
 
-// Today's layout, until the process that owns the configuration passes its
-// names: every schema `public`, Preprod off.
-let configured = createSqlTables({
+/** Today's layout: every schema `public`, Preprod off. */
+export const PUBLIC_LAYOUT: SqlTableLayout = {
   shared: "public",
   mainnet: "public",
   preprod: "public",
   preprodOn: false,
-});
+};
+
+// Until the process that owns the configuration passes its names.
+let configured = createSqlTables(PUBLIC_LAYOUT);
 
 /**
  * Sets the layout for `sharedTable` and `netTable` below, which this

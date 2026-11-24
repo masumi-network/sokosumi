@@ -10,6 +10,7 @@ import { creditBucketRepository } from "@sokosumi/database/repositories";
 import {
   configureSqlTables,
   createSqlTables,
+  PUBLIC_LAYOUT,
   type SqlTableLayout,
   type TableNetwork,
 } from "@sokosumi/database/sql-tables";
@@ -19,12 +20,6 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { onSplitLayout, testSchemaNames } from "@/test/split-layout";
 
 const NETWORKS: readonly TableNetwork[] = ["mainnet", "preprod"];
-const TODAY: SqlTableLayout = {
-  shared: "public",
-  mainnet: "public",
-  preprod: "public",
-  preprodOn: false,
-};
 const key = `n16-${randomUUID().slice(0, 12)}`;
 
 describe.runIf(onSplitLayout)("raw SQL tables on the split layout", () => {
@@ -67,7 +62,7 @@ describe.runIf(onSplitLayout)("raw SQL tables on the split layout", () => {
   });
 
   afterAll(async () => {
-    configureSqlTables(TODAY);
+    configureSqlTables(PUBLIC_LAYOUT);
     for (const network of NETWORKS) {
       await models[network].tag.deleteMany({
         where: { name: { startsWith: key } },
@@ -120,7 +115,7 @@ describe.runIf(onSplitLayout)("raw SQL tables on the split layout", () => {
   it("runs the database package's own statements once it is given the layout", async () => {
     const userId = `${key}-nobody`;
     // Unconfigured, the package names `public`, where the split layout has no tables.
-    configureSqlTables(TODAY);
+    configureSqlTables(PUBLIC_LAYOUT);
     await expect(
       creditBucketRepository.getBalance(userId, null, models.shared),
     ).rejects.toThrow(/credit_bucket/);

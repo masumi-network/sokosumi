@@ -6,16 +6,11 @@ import {
   configureSqlTables,
   createSqlTables,
   netTable,
+  PUBLIC_LAYOUT,
   type SqlTableLayout,
   sharedTable,
 } from "./sql-tables.js";
 
-const TODAY: SqlTableLayout = {
-  shared: "public",
-  mainnet: "public",
-  preprod: "public",
-  preprodOn: false,
-};
 const SPLIT: SqlTableLayout = {
   shared: "shared",
   mainnet: "mainnet",
@@ -25,7 +20,7 @@ const SPLIT: SqlTableLayout = {
 
 describe("createSqlTables", () => {
   it("names the schema on today's layout too", () => {
-    const tables = createSqlTables(TODAY);
+    const tables = createSqlTables(PUBLIC_LAYOUT);
     expect(tables.sharedTable("user").sql).toBe('"public"."user"');
     expect(tables.netTable("mainnet", "Job").sql).toBe('"public"."Job"');
   });
@@ -93,7 +88,7 @@ describe("createSqlTables", () => {
 
   it("refuses Preprod while its schema is Mainnet's, even switched on", () => {
     for (const layout of [
-      { ...TODAY, preprodOn: true },
+      { ...PUBLIC_LAYOUT, preprodOn: true },
       { ...SPLIT, preprod: "mainnet" },
     ]) {
       expect(() => createSqlTables(layout).netTable("preprod", "Job")).toThrow(
@@ -130,7 +125,7 @@ describe("createSqlTables", () => {
 });
 
 describe("the configured tables", () => {
-  afterEach(() => configureSqlTables(TODAY));
+  afterEach(() => configureSqlTables(PUBLIC_LAYOUT));
 
   it("is today's layout until configured: public, Preprod off", () => {
     expect(sharedTable("user").sql).toBe('"public"."user"');
