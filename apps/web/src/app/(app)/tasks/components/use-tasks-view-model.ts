@@ -495,6 +495,11 @@ export function useTasksBoardModel({
         if (preserveForPendingArchive || preserveForRetainedRows) {
           nextColumnCursorById[columnId] = prev.columnCursorById[columnId];
           nextColumnHiddenById[columnId] = prev.columnHiddenById[columnId];
+        } else if (retainedCount > 0) {
+          nextColumnHiddenById[columnId] = Math.max(
+            0,
+            reportedOverflow - retainedCount,
+          );
         }
       }
 

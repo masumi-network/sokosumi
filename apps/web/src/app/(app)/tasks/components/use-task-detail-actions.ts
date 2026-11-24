@@ -397,7 +397,6 @@ export function useTaskDetailActions({
       .archive(taskId)
       .then(() => {
         settleTaskArchive(taskId);
-        router.refresh();
       })
       .catch((error: unknown) => {
         console.error("Failed to archive task", error);

@@ -23,6 +23,10 @@ import {
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadMoreTasksColumn, loadMoreTasksList } from "@/app/tasks/actions";
+import {
+  TASKS_BOARD_REFRESH_DEBOUNCE_MS,
+  TASKS_BOARD_REFRESH_MAX_WAIT_MS,
+} from "@/app/tasks/constants";
 import type {
   KanbanColumnId,
   TaskWithCoworker,
@@ -2198,4 +2202,90 @@ it("resyncs Load more on a tagged board when the first post-DELETE refresh pushe
   } finally {
     searchParamsRef.current = new URLSearchParams();
   }
+});
+
+it("refreshes Tasks when a pending archive settles while visible, and skips refreshing when hidden under Activity", () => {
+  vi.useFakeTimers();
+  refreshMock.mockClear();
+  try {
+    const view = boardView([TASK]);
+    const { rerender } = render(<Activity mode="visible">{view}</Activity>);
+
+    markTaskArchived("task-settle-while-visible");
+    act(() => {
+      settleTaskArchive("task-settle-while-visible");
+      vi.advanceTimersByTime(TASKS_BOARD_REFRESH_DEBOUNCE_MS);
+    });
+    expect(refreshMock).toHaveBeenCalledTimes(1);
+
+    refreshMock.mockClear();
+    rerender(<Activity mode="hidden">{view}</Activity>);
+
+    // User left /tasks (e.g. moved to /chat) before DELETE finished.
+    markTaskArchived("task-settle-while-hidden");
+    act(() => {
+      settleTaskArchive("task-settle-while-hidden");
+      vi.advanceTimersByTime(TASKS_BOARD_REFRESH_MAX_WAIT_MS);
+    });
+    expect(refreshMock).not.toHaveBeenCalled();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("subtracts retained rows from the server hidden count when restoring Load more after a failed page", async () => {
+  vi.mocked(toast.error).mockClear();
+  const pageOneDone: TaskWithCoworker[] = Array.from(
+    { length: 20 },
+    (_, index) => ({
+      ...CANCELED_TASK,
+      id: `done-p1-${index + 1}`,
+    }),
+  );
+  const pageTwoDone: TaskWithCoworker[] = Array.from(
+    { length: 20 },
+    (_, index) => ({
+      ...CANCELED_TASK,
+      id: `done-p2-${index + 1}`,
+    }),
+  );
+  vi.mocked(loadMoreTasksColumn)
+    .mockResolvedValueOnce({ tasks: pageTwoDone, nextCursor: "cursor-2" })
+    .mockRejectedValueOnce(new Error("network"));
+
+  // 41 Done tasks: 20 on page 1 + 21 hidden.
+  const { rerender } = render(
+    boardView(pageOneDone, undefined, "cursor-1", 21),
+  );
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("21");
+
+  // Load page 2: 40 shown + 1 hidden.
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(
+    await screen.findByTestId("board-card-done-p2-20"),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("1");
+
+  // Page 3 fails: Load more disappears while 40 rows remain shown.
+  await act(async () => {
+    screen.getByRole("button", { name: "Load more" }).click();
+    await Promise.resolve();
+  });
+  expect(toast.error).toHaveBeenCalledWith("Could not load more");
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+
+  // Ordinary refresh returns page 1 (20 shown + 21 hidden behind page 1).
+  // Restoring the server cursor must subtract the 20 retained page-2 rows so
+  // the header reports 1 hidden (40 + 1 = 41), not 21 (40 + 21 = 61).
+  rerender(boardView(pageOneDone, undefined, "cursor-1", 21));
+
+  expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+  expect(boardCard("done-p2-20")).toBeInTheDocument();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("1");
 });

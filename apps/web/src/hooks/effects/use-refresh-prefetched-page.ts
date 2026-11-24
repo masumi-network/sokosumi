@@ -39,6 +39,12 @@ let traversedAt = Number.NEGATIVE_INFINITY;
  * `router.refresh()` of the page that now shows, so a second is not needed.
  */
 let refreshRunning = false;
+let pendingArrivalRefreshPage: string | null = null;
+
+/** An arrival refresh is queued to start after control-in-use clears, so it will fetch fresh post-mutation data. */
+export function hasPendingArrivalRefresh(page: string): boolean {
+  return pendingArrivalRefreshPage === page;
+}
 // The document load rendered everything fresh.
 let refreshedAt = Number.NEGATIVE_INFINITY;
 /**
@@ -148,11 +154,16 @@ export function useRefreshPrefetchedPage(everyVisit: boolean): void {
       return;
     }
     const startBy = Date.now() + MAX_REFRESH_WAIT_MS;
+    pendingArrivalRefreshPage = page;
     const check = setInterval(() => {
       if (controlInUse() && Date.now() < startBy) return;
       clearInterval(check);
+      if (pendingArrivalRefreshPage === page) pendingArrivalRefreshPage = null;
       refreshNow(page, router);
     }, CONTROL_IN_USE_CHECK_MS);
-    return () => clearInterval(check);
+    return () => {
+      clearInterval(check);
+      if (pendingArrivalRefreshPage === page) pendingArrivalRefreshPage = null;
+    };
   }, [router, everyVisit]);
 }
