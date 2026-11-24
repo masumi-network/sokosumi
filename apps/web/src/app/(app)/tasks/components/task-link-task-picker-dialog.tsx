@@ -7,7 +7,8 @@ import type {
 import type { LucideIcon } from "lucide-react";
 import { Link2, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useState } from "react";
+import { useDebounce } from "use-debounce";
 import {
   CommandDialog,
   CommandEmpty,
@@ -16,8 +17,8 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { useTimeout } from "@/hooks/effects/use-timeout";
 import { coreClient } from "@/lib/clients/core.browser.client";
+import { useScopedInfiniteQuery } from "@/queries/scoped-queries";
 
 import {
   mapTaskListItemToTaskPickerTask,
@@ -25,6 +26,7 @@ import {
 } from "./task-detail-api-types";
 
 const TASK_PICKER_PAGE_SIZE = 20;
+const TASK_PICKER_SEARCH_DEBOUNCE_MS = 250;
 
 /** What a picked Task is for: a link relation, or a sub-task move. */
 export interface TaskPickerOption {
@@ -45,6 +47,7 @@ export interface TaskLinkActionOption extends TaskPickerOption {
 
 interface TaskLinkTaskPickerDialogProps<TOption extends TaskPickerOption> {
   taskId: string;
+  workspaceId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedOption: TOption | null;
@@ -87,6 +90,7 @@ export function TaskLinkTaskPickerDialog<TOption extends TaskPickerOption>({
 
 function TaskPickerBody<TOption extends TaskPickerOption>({
   taskId,
+  workspaceId,
   selectedOption,
   isLinkPending,
   onSelectTask,
@@ -94,122 +98,70 @@ function TaskPickerBody<TOption extends TaskPickerOption>({
 }: TaskPickerBodyProps<TOption>) {
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
   const [taskPickerQuery, setTaskPickerQuery] = useState("");
-  const [debouncedTaskPickerQuery, setDebouncedTaskPickerQuery] = useState("");
-  const [taskPickerResults, setTaskPickerResults] = useState<TaskPickerTask[]>(
-    [],
+  const [debouncedTaskPickerQuery] = useDebounce(
+    taskPickerQuery.trim(),
+    TASK_PICKER_SEARCH_DEBOUNCE_MS,
   );
-  const [taskPickerNextCursor, setTaskPickerNextCursor] = useState<
-    string | null
-  >(null);
-  const [taskPickerError, setTaskPickerError] = useState<string | null>(null);
-  const [isTaskPickerLoading, setIsTaskPickerLoading] = useState(false);
-  const [isTaskPickerLoadingMore, setIsTaskPickerLoadingMore] = useState(false);
-  const taskPickerRequestIdRef = useRef(0);
+  const includeSubtasks = Boolean(selectedOption?.includeSubtasks);
 
-  const loadTaskPickerTasks = useEffectEvent(
-    async ({
-      query,
-      cursor,
-      append,
-    }: {
-      query: string;
-      cursor?: string | null;
-      append: boolean;
-    }) => {
-      const requestId = ++taskPickerRequestIdRef.current;
+  const {
+    data,
+    error,
+    hasNextPage,
+    isPending,
+    isFetching,
+    isFetchingNextPage,
+    isFetchNextPageError,
+    fetchNextPage,
+  } = useScopedInfiniteQuery({
+    scope: workspaceId,
+    queryKey: [
+      "task-link-picker",
+      { q: debouncedTaskPickerQuery, includeSubtasks },
+    ],
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }) => {
+      const response = (await coreClient.getTasks({
+        q: debouncedTaskPickerQuery || undefined,
+        cursor: pageParam ?? undefined,
+        limit: TASK_PICKER_PAGE_SIZE,
+        ...(includeSubtasks ? { includeSubtasks: "true" as const } : {}),
+      })) as GetTasksResponse;
 
-      if (append) {
-        setIsTaskPickerLoadingMore(true);
-      } else {
-        setIsTaskPickerLoading(true);
-      }
-
-      setTaskPickerError(null);
-
-      try {
-        const response = (await coreClient.getTasks({
-          q: query || undefined,
-          cursor: cursor ?? undefined,
-          limit: TASK_PICKER_PAGE_SIZE,
-          ...(selectedOption?.includeSubtasks
-            ? { includeSubtasks: "true" as const }
-            : {}),
-        })) as GetTasksResponse;
-
-        if (requestId !== taskPickerRequestIdRef.current) {
-          return;
-        }
-
-        const nextTasks = response.data
-          .map(mapTaskListItemToTaskPickerTask)
-          .filter(
-            (taskOption) =>
-              taskOption.id !== taskId &&
-              !excludeTaskIds.includes(taskOption.id),
-          );
-
-        setTaskPickerResults((currentResults) =>
-          append ? [...currentResults, ...nextTasks] : nextTasks,
-        );
-        setTaskPickerNextCursor(response.meta?.pagination?.nextCursor ?? null);
-      } catch (_error) {
-        if (requestId !== taskPickerRequestIdRef.current) {
-          return;
-        }
-
-        const message = append
-          ? tDetailActions("taskPickerLoadMoreError")
-          : tDetailActions("taskPickerError");
-
-        if (!append) {
-          setTaskPickerResults([]);
-          setTaskPickerNextCursor(null);
-        }
-
-        setTaskPickerError(message);
-      } finally {
-        if (requestId !== taskPickerRequestIdRef.current) {
-          return;
-        }
-
-        if (append) {
-          setIsTaskPickerLoadingMore(false);
-        } else {
-          setIsTaskPickerLoading(false);
-        }
-      }
+      return {
+        tasks: response.data.map(mapTaskListItemToTaskPickerTask),
+        nextCursor: response.meta?.pagination?.nextCursor ?? null,
+      };
     },
-  );
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    staleTime: 0,
+  });
 
-  useTimeout(
-    () => {
-      setDebouncedTaskPickerQuery(taskPickerQuery.trim());
-    },
-    250,
-    taskPickerQuery,
-  );
-
-  useEffect(() => {
-    void loadTaskPickerTasks({
-      query: debouncedTaskPickerQuery,
-      append: false,
-    });
-  }, [debouncedTaskPickerQuery]);
+  const taskPickerResults = (data?.pages ?? [])
+    .flatMap((page) => page.tasks)
+    .filter(
+      (taskOption) =>
+        taskOption.id !== taskId && !excludeTaskIds.includes(taskOption.id),
+    );
+  const isInitialLoading =
+    isPending ||
+    (Boolean(error) &&
+      isFetching &&
+      !isFetchingNextPage &&
+      taskPickerResults.length === 0);
+  const taskPickerError =
+    error && !isFetching
+      ? isFetchNextPageError
+        ? tDetailActions("taskPickerLoadMoreError")
+        : tDetailActions("taskPickerError")
+      : null;
 
   function handleLoadMoreTaskOptions() {
-    if (
-      !taskPickerNextCursor ||
-      isTaskPickerLoadingMore ||
-      isTaskPickerLoading
-    ) {
+    if (!hasNextPage || isFetchingNextPage || isFetching) {
       return;
     }
 
-    void loadTaskPickerTasks({
-      query: debouncedTaskPickerQuery,
-      cursor: taskPickerNextCursor,
-      append: true,
-    });
+    void fetchNextPage();
   }
 
   return (
@@ -220,13 +172,13 @@ function TaskPickerBody<TOption extends TaskPickerOption>({
         onValueChange={setTaskPickerQuery}
       />
       <CommandList>
-        {isTaskPickerLoading && taskPickerResults.length === 0 ? (
+        {isInitialLoading && taskPickerResults.length === 0 ? (
           <div className="text-muted-foreground px-2 py-6 text-center text-sm">
             {tDetailActions("taskPickerLoading")}
           </div>
         ) : null}
 
-        {!isTaskPickerLoading &&
+        {!isInitialLoading &&
         taskPickerError &&
         taskPickerResults.length === 0 ? (
           <div className="text-muted-foreground px-2 py-6 text-center text-sm">
@@ -234,7 +186,7 @@ function TaskPickerBody<TOption extends TaskPickerOption>({
           </div>
         ) : null}
 
-        {!isTaskPickerLoading &&
+        {!isInitialLoading &&
         !taskPickerError &&
         taskPickerResults.length === 0 ? (
           <CommandEmpty>{tDetailActions("taskPickerEmpty")}</CommandEmpty>
@@ -269,13 +221,13 @@ function TaskPickerBody<TOption extends TaskPickerOption>({
           </div>
         ) : null}
 
-        {taskPickerNextCursor ? (
+        {hasNextPage ? (
           <CommandItem
             value="load-more"
-            disabled={isTaskPickerLoadingMore || isTaskPickerLoading}
+            disabled={isFetchingNextPage || isFetching}
             onSelect={handleLoadMoreTaskOptions}
           >
-            {isTaskPickerLoadingMore ? (
+            {isFetchingNextPage ? (
               <Loader2
                 className="size-4 animate-spin motion-reduce:animate-pulse"
                 aria-hidden

@@ -357,6 +357,7 @@ export function TaskScheduleActions({
       ) : null}
       {schedule.canEditPlan && copy === "pick" ? (
         <TaskScheduleCopyProjectPicker
+          workspaceId={schedule.workspaceId}
           currentProjectId={schedule.projectId}
           onSelect={(project) => setCopy({ projectId: project.id, project })}
           onClose={() => setCopy(null)}

@@ -1,13 +1,20 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { type TaskListItem, TaskStatus } from "@sokosumi/core-client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { ListTree } from "lucide-react";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskLinkTaskPickerDialog } from "./task-link-task-picker-dialog";
+
+const { getTasksMock } = vi.hoisted(() => ({
+  getTasksMock: vi.fn(),
+}));
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 vi.mock("@/lib/clients/core.browser.client", () => ({
-  coreClient: { getTasks: async () => ({ data: [], meta: {} }) },
+  coreClient: { getTasks: getTasksMock },
 }));
 
 const option = {
@@ -18,12 +25,42 @@ const option = {
   icon: ListTree,
 };
 
-function picker(open: boolean, onCloseAutoFocus: (event: Event) => void) {
+function taskItem(id: string, name: string): TaskListItem {
+  return {
+    id,
+    name,
+    status: TaskStatus.READY,
+    parentTaskId: null,
+  } as TaskListItem;
+}
+
+function tasksPage(tasks: TaskListItem[], nextCursor: string | null = null) {
+  return {
+    data: tasks,
+    meta: {
+      pagination: {
+        cursor: null,
+        limit: 20,
+        total: tasks.length,
+        nextCursor,
+      },
+    },
+  };
+}
+
+let queryClient = new QueryClient();
+
+function picker(
+  open: boolean,
+  onCloseAutoFocus: (event: Event) => void,
+  { workspaceId = "ws-1" }: { workspaceId?: string } = {},
+) {
   return (
-    <>
+    <QueryClientProvider client={queryClient}>
       <button type="button">Actions</button>
       <TaskLinkTaskPickerDialog
         taskId="task-1"
+        workspaceId={workspaceId}
         open={open}
         onOpenChange={() => {}}
         selectedOption={open ? option : null}
@@ -31,12 +68,18 @@ function picker(open: boolean, onCloseAutoFocus: (event: Event) => void) {
         onSelectTask={() => {}}
         onCloseAutoFocus={onCloseAutoFocus}
       />
-    </>
+    </QueryClientProvider>
   );
 }
 
 beforeAll(() => {
   HTMLElement.prototype.scrollIntoView = vi.fn();
+});
+
+beforeEach(() => {
+  queryClient = new QueryClient();
+  getTasksMock.mockReset();
+  getTasksMock.mockResolvedValue(tasksPage([]));
 });
 
 describe("TaskLinkTaskPickerDialog", () => {
@@ -68,5 +111,150 @@ describe("TaskLinkTaskPickerDialog", () => {
         .getByText("Pick the task this one goes under.")
         .closest(".sr-only"),
     ).toBeNull();
+  });
+
+  it("blanks previous rows to loading while a new search loads", async () => {
+    const betaSearch = Promise.withResolvers<ReturnType<typeof tasksPage>>();
+    getTasksMock
+      .mockResolvedValueOnce(tasksPage([taskItem("task-a", "Alpha task")]))
+      .mockReturnValueOnce(betaSearch.promise);
+
+    const user = userEvent.setup();
+    render(picker(true, () => {}));
+    expect(
+      await screen.findByRole("option", { name: "Alpha task" }),
+    ).toBeInTheDocument();
+
+    await user.type(screen.getByRole("combobox"), "Beta");
+
+    expect(await screen.findByText("taskPickerLoading")).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Alpha task" })).toBeNull();
+
+    await act(async () => {
+      betaSearch.resolve(tasksPage([taskItem("task-b", "Beta task")]));
+      await betaSearch.promise;
+    });
+
+    expect(
+      await screen.findByRole("option", { name: "Beta task" }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not leave Load more stuck when a search interrupts an in-flight load-more", async () => {
+    const staleLoadMore = Promise.withResolvers<ReturnType<typeof tasksPage>>();
+    getTasksMock
+      .mockResolvedValueOnce(
+        tasksPage([taskItem("task-a", "Alpha task")], "cursor-a1"),
+      )
+      .mockReturnValueOnce(staleLoadMore.promise)
+      .mockResolvedValueOnce(
+        tasksPage([taskItem("task-b1", "Beta 1")], "cursor-b1"),
+      )
+      .mockResolvedValueOnce(tasksPage([taskItem("task-b2", "Beta 2")], null));
+
+    const user = userEvent.setup();
+    render(picker(true, () => {}));
+
+    await screen.findByRole("option", { name: "Alpha task" });
+    await user.click(
+      screen.getByRole("option", { name: "taskPickerLoadMore" }),
+    );
+
+    // Type a new search before the first query's load-more resolves.
+    await user.type(screen.getByRole("combobox"), "Beta");
+    expect(
+      await screen.findByRole("option", { name: "Beta 1" }),
+    ).toBeInTheDocument();
+
+    // Settle the superseded page-2 request after the search has loaded.
+    await act(async () => {
+      staleLoadMore.resolve(
+        tasksPage([taskItem("task-stale", "Stale task")], null),
+      );
+      await staleLoadMore.promise;
+    });
+
+    expect(screen.queryByRole("option", { name: "Stale task" })).toBeNull();
+
+    const loadMore = screen.getByRole("option", { name: "taskPickerLoadMore" });
+    expect(loadMore).not.toHaveAttribute("aria-disabled", "true");
+
+    await user.click(loadMore);
+
+    expect(
+      await screen.findByRole("option", { name: "Beta 2" }),
+    ).toBeInTheDocument();
+    expect(getTasksMock).toHaveBeenLastCalledWith({
+      q: "Beta",
+      cursor: "cursor-b1",
+      limit: 20,
+    });
+  });
+
+  it("keeps loaded rows visible when load-more fails and lets the user retry", async () => {
+    getTasksMock
+      .mockResolvedValueOnce(
+        tasksPage([taskItem("task-a", "Alpha task")], "cursor-a1"),
+      )
+      .mockRejectedValueOnce(new Error("page 2 failed"))
+      .mockResolvedValueOnce(
+        tasksPage([taskItem("task-b", "Gamma task")], null),
+      );
+
+    const user = userEvent.setup();
+    render(picker(true, () => {}));
+
+    await screen.findByRole("option", { name: "Alpha task" });
+    await user.click(
+      screen.getByRole("option", { name: "taskPickerLoadMore" }),
+    );
+
+    expect(
+      await screen.findByText("taskPickerLoadMoreError"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "Alpha task" }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("option", { name: "taskPickerLoadMore" }),
+    );
+
+    expect(
+      await screen.findByRole("option", { name: "Gamma task" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("taskPickerLoadMoreError")).toBeNull();
+  });
+
+  it("isolates cached picker results per workspaceId", async () => {
+    const wsTwoLoad = Promise.withResolvers<ReturnType<typeof tasksPage>>();
+    getTasksMock
+      .mockResolvedValueOnce(
+        tasksPage([taskItem("task-a", "Workspace A task")]),
+      )
+      .mockReturnValueOnce(wsTwoLoad.promise);
+
+    const { rerender } = render(
+      picker(true, () => {}, { workspaceId: "ws-a" }),
+    );
+    expect(
+      await screen.findByRole("option", { name: "Workspace A task" }),
+    ).toBeInTheDocument();
+
+    rerender(picker(true, () => {}, { workspaceId: "ws-b" }));
+
+    expect(await screen.findByText("taskPickerLoading")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "Workspace A task" }),
+    ).toBeNull();
+
+    await act(async () => {
+      wsTwoLoad.resolve(tasksPage([taskItem("task-b", "Workspace B task")]));
+      await wsTwoLoad.promise;
+    });
+
+    expect(
+      await screen.findByRole("option", { name: "Workspace B task" }),
+    ).toBeInTheDocument();
   });
 });

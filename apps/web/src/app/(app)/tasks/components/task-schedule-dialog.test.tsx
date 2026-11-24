@@ -686,12 +686,14 @@ describe("TaskScheduleDialog", () => {
     });
     const user = userEvent.setup();
     render(
-      <TaskScheduleActions
-        schedule={SCHEDULE}
-        coworkerOptions={[COWORKER]}
-        projectOptions={[{ id: "p_near", name: "Near Project" }]}
-        canCreatePrivate={false}
-      />,
+      <TestQueryProvider>
+        <TaskScheduleActions
+          schedule={SCHEDULE}
+          coworkerOptions={[COWORKER]}
+          projectOptions={[{ id: "p_near", name: "Near Project" }]}
+          canCreatePrivate={false}
+        />
+      </TestQueryProvider>,
     );
 
     await user.click(screen.getByRole("button", { name: "more" }));

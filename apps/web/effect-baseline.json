@@ -9,8 +9,6 @@
   "src/app/(app)/projects/components/project-brand-setup.tsx": 1,
   "src/app/(app)/seo/components/seo-connection-button.tsx": 1,
   "src/app/(app)/tasks/components/task-follow-control.tsx": 1,
-  "src/app/(app)/tasks/components/task-link-task-picker-dialog.tsx": 1,
-  "src/app/(app)/tasks/components/task-schedule-copy-project-picker.tsx": 1,
   "src/app/(app)/tasks/components/use-task-tag-suggestions.ts": 4,
   "src/app/(app)/tasks/components/use-tasks-view-model.ts": 2,
   "src/components/chat/composer-wysiwyg-editor.tsx": 2,

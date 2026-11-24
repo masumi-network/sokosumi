@@ -1,5 +1,6 @@
 import type { ProjectListItem, TaskSchedule } from "@sokosumi/core-client";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -108,14 +109,18 @@ function schedule(state: TaskSchedule["state"]): TaskSchedule {
   };
 }
 
+let queryClient = new QueryClient();
+
 function renderActions(state: TaskSchedule["state"]) {
   return render(
-    <TaskScheduleActions
-      schedule={schedule(state)}
-      coworkerOptions={[]}
-      projectOptions={[]}
-      canCreatePrivate={false}
-    />,
+    <QueryClientProvider client={queryClient}>
+      <TaskScheduleActions
+        schedule={schedule(state)}
+        coworkerOptions={[]}
+        projectOptions={[]}
+        canCreatePrivate={false}
+      />
+    </QueryClientProvider>,
   );
 }
 
@@ -138,14 +143,20 @@ function page(projects: ProjectListItem[], nextCursor: string | null) {
   return { projects, nextCursor };
 }
 
-function renderCopyToProject() {
+function renderCopyToProject(scheduleOverrides: Partial<TaskSchedule> = {}) {
   return render(
-    <TaskScheduleActions
-      schedule={{ ...schedule("ACTIVE"), projectId: "p_here" }}
-      coworkerOptions={[]}
-      projectOptions={[]}
-      canCreatePrivate={false}
-    />,
+    <QueryClientProvider client={queryClient}>
+      <TaskScheduleActions
+        schedule={{
+          ...schedule("ACTIVE"),
+          projectId: "p_here",
+          ...scheduleOverrides,
+        }}
+        coworkerOptions={[]}
+        projectOptions={[]}
+        canCreatePrivate={false}
+      />
+    </QueryClientProvider>,
   );
 }
 
@@ -159,6 +170,7 @@ const OK = { ok: true, value: { scheduleId: SCHEDULE_ID } };
 describe("TaskScheduleActions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient = new QueryClient();
     loadMoreProjectsMock.mockReset();
     loadMoreProjectsMock.mockResolvedValue(page([], null));
     changeTaskScheduleStateMock.mockResolvedValue(OK);
@@ -277,16 +289,22 @@ describe("TaskScheduleActions", () => {
         projectOptions: [],
         canCreatePrivate: false,
       };
-      const { rerender } = render(<TaskScheduleActions {...props} />);
+      const { rerender } = render(
+        <QueryClientProvider client={queryClient}>
+          <TaskScheduleActions {...props} />
+        </QueryClientProvider>,
+      );
       await user.click(screen.getByRole("button", { name: "more" }));
       await user.click(screen.getByRole("menuitem", { name: action }));
       expect(await screen.findByRole("dialog")).toBeInTheDocument();
 
       rerender(
-        <TaskScheduleActions
-          {...props}
-          schedule={{ ...props.schedule, canEditPlan: false }}
-        />,
+        <QueryClientProvider client={queryClient}>
+          <TaskScheduleActions
+            {...props}
+            schedule={{ ...props.schedule, canEditPlan: false }}
+          />
+        </QueryClientProvider>,
       );
 
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -570,6 +588,167 @@ describe("TaskScheduleActions", () => {
 
     expect(await screen.findByText("copyToProjectFailed")).toBeInTheDocument();
     expect(screen.queryByText("copyToProjectNone")).toBeNull();
+  });
+
+  it("blanks previous destination projects to loading while a new search loads", async () => {
+    const searchPage = Promise.withResolvers<ReturnType<typeof page>>();
+    loadMoreProjectsMock
+      .mockResolvedValueOnce(page([project("p_first")], null))
+      .mockResolvedValueOnce(page([], null))
+      .mockReturnValueOnce(searchPage.promise)
+      .mockResolvedValueOnce(page([], null));
+    const user = userEvent.setup();
+    renderCopyToProject();
+
+    await openProjectPicker(user);
+    expect(
+      await screen.findByRole("option", { name: /p_first$/ }),
+    ).toBeInTheDocument();
+
+    await user.type(screen.getByRole("combobox"), "old");
+
+    expect(await screen.findByText("copyToProjectLoading")).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /p_first$/ })).toBeNull();
+
+    await act(async () => {
+      searchPage.resolve(page([project("p_old")], null));
+      await searchPage.promise;
+    });
+
+    expect(
+      await screen.findByRole("option", { name: /p_old$/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not leave Show more stuck or overwrite results when a search interrupts an in-flight load-more", async () => {
+    const staleLoadMore = Promise.withResolvers<ReturnType<typeof page>>();
+    loadMoreProjectsMock.mockImplementation(
+      async ({
+        cursor,
+        query,
+        state,
+      }: {
+        cursor: string | null;
+        query?: string;
+        state: string;
+      }) => {
+        if (!query && state === "open" && cursor === null) {
+          return page([project("p_first")], "c1");
+        }
+        if (!query && state === "open" && cursor === "c1") {
+          return staleLoadMore.promise;
+        }
+        if (query === "old" && state === "open" && cursor === null) {
+          return page([project("p_old_1")], "c2");
+        }
+        if (query === "old" && state === "open" && cursor === "c2") {
+          return page([project("p_old_2")], null);
+        }
+        return page([], null);
+      },
+    );
+    const user = userEvent.setup();
+    renderCopyToProject();
+
+    await openProjectPicker(user);
+    await user.click(
+      await screen.findByRole("option", { name: "copyToProjectLoadMore" }),
+    );
+
+    await user.type(screen.getByRole("combobox"), "old");
+    expect(
+      await screen.findByRole("option", { name: /p_old_1$/ }),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      staleLoadMore.resolve(page([project("p_stale")], null));
+      await staleLoadMore.promise;
+    });
+
+    expect(screen.queryByRole("option", { name: /p_stale$/ })).toBeNull();
+
+    const loadMore = screen.getByRole("option", {
+      name: "copyToProjectLoadMore",
+    });
+    expect(loadMore).not.toHaveAttribute("aria-disabled", "true");
+
+    await user.click(loadMore);
+
+    expect(
+      await screen.findByRole("option", { name: /p_old_2$/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("isolates cached destination projects per workspaceId", async () => {
+    const wsTwoLoad = Promise.withResolvers<ReturnType<typeof page>>();
+    loadMoreProjectsMock
+      .mockResolvedValueOnce(page([project("p_ws_a")], null))
+      .mockResolvedValueOnce(page([], null))
+      .mockReturnValueOnce(wsTwoLoad.promise)
+      .mockResolvedValueOnce(page([], null));
+    const user = userEvent.setup();
+    const { rerender } = renderCopyToProject({ workspaceId: "ws-a" });
+
+    await openProjectPicker(user);
+    expect(
+      await screen.findByRole("option", { name: /p_ws_a$/ }),
+    ).toBeInTheDocument();
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <TaskScheduleActions
+          schedule={{
+            ...schedule("ACTIVE"),
+            workspaceId: "ws-b",
+            projectId: "p_here",
+          }}
+          coworkerOptions={[]}
+          projectOptions={[]}
+          canCreatePrivate={false}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText("copyToProjectLoading")).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /p_ws_a$/ })).toBeNull();
+
+    await act(async () => {
+      wsTwoLoad.resolve(page([project("p_ws_b")], null));
+      await wsTwoLoad.promise;
+    });
+
+    expect(
+      await screen.findByRole("option", { name: /p_ws_b$/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps loaded projects visible when load-more fails and lets the user retry", async () => {
+    loadMoreProjectsMock
+      .mockResolvedValueOnce(page([project("p_first")], "c1"))
+      .mockRejectedValueOnce(new Error("page 2 failed"))
+      .mockResolvedValueOnce(page([project("p_second")], null))
+      .mockResolvedValueOnce(page([], null));
+    const user = userEvent.setup();
+    renderCopyToProject();
+
+    await openProjectPicker(user);
+    await user.click(
+      await screen.findByRole("option", { name: "copyToProjectLoadMore" }),
+    );
+
+    expect(await screen.findByText("copyToProjectFailed")).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: /p_first$/ }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("option", { name: "copyToProjectLoadMore" }),
+    );
+
+    expect(
+      await screen.findByRole("option", { name: /p_second$/ }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("copyToProjectFailed")).toBeNull();
   });
 
   it("says when no other Project can take the copy, and cancelling writes nothing", async () => {
