@@ -7,7 +7,7 @@ import type {
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useRef, useState } from "react";
 import { LoadErrorState } from "@/components/common/load-error-state";
 import { PageListSearchContext } from "@/components/page-list-search";
 import { PageSearchField } from "@/components/page-search-field";
@@ -26,6 +26,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useScrollIntoViewWhen } from "@/hooks/effects/use-scroll-into-view-when";
 import { useTimeout } from "@/hooks/effects/use-timeout";
+import { useToolConnectorsLinkedQuerySeed } from "@/hooks/effects/use-tool-connectors-linked-query-seed";
 import { searchSokoBotIntegrationCatalogAction } from "@/lib/actions/soko-bot/action";
 import { cn } from "@/lib/utils";
 import {
@@ -118,12 +119,12 @@ export function ToolConnectors({
   const linkedQuery = (focusProvider ?? "").slice(0, SEARCH_MAX_LENGTH);
   const [localQuery, setLocalQuery] = useState(linkedQuery);
   const pageSearch = useContext(PageListSearchContext);
-  const setPageQuery = pageSearch?.setQuery;
   const query = (pageSearch?.query ?? localQuery).slice(0, SEARCH_MAX_LENGTH);
-  useEffect(() => {
-    if (linkedQuery && !readOnly && integrations.configured)
-      setPageQuery?.(linkedQuery);
-  }, [linkedQuery, readOnly, integrations.configured, setPageQuery]);
+  useToolConnectorsLinkedQuerySeed(
+    linkedQuery,
+    readOnly,
+    integrations.configured,
+  );
   const catalog = useCatalog(query, !readOnly);
   const focused = useRef<HTMLLIElement>(null);
   // A connect link never searches on a read-only bot.
