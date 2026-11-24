@@ -1,3 +1,7 @@
+import { createError } from "evlog";
+
+import { getEnv } from "@/config/env";
+
 export const NETWORKS = ["mainnet", "preprod"] as const;
 
 /**
@@ -14,8 +18,26 @@ export type Network = (typeof NETWORKS)[number];
  */
 export function requireNetwork(value: unknown): Network {
   const network = NETWORKS.find((candidate) => candidate === value);
-  if (!network) throw new Error(`Unknown Network: ${String(value)}`);
+  if (!network) {
+    throw createError({
+      message: `Unknown Network: ${String(value)}`,
+      why: "A caller passed a value that is not a Network",
+      fix: `Pass one of ${NETWORKS.join(", ")}`,
+    });
+  }
   return network;
+}
+
+/**
+ * Whether Preprod, the Network in this database, is on:
+ * `NETWORK_PREPROD_ENABLED`, which Core's startup check allows only while the
+ * three schema names are all different and none is `public`. `networkPrisma`
+ * refuses Preprod while it is false.
+ * Unrelated to the deployment's `NETWORK`: the old Preprod deployment runs with
+ * this off.
+ */
+export function isPreprodOn(): boolean {
+  return getEnv().NETWORK_PREPROD_ENABLED;
 }
 
 /**

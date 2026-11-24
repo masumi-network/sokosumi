@@ -105,6 +105,7 @@ describe.runIf(enabled)("Core database clients on PostgreSQL", () => {
     vi.stubEnv("DATABASE_SCHEMA_SHARED", schemas.shared);
     vi.stubEnv("DATABASE_SCHEMA_MAINNET", schemas.mainnet);
     vi.stubEnv("DATABASE_SCHEMA_PREPROD", schemas.preprod);
+    vi.stubEnv("NETWORK_PREPROD_ENABLED", "true");
     clients = await import("./prisma");
   }, 120_000);
 

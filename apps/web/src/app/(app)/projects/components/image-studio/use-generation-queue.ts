@@ -4,6 +4,7 @@ import type { StudioProductIdentity } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useGenerationQueueMountLifecycle } from "@/hooks/effects/use-generation-queue-mount-lifecycle";
 import { startImageGeneration } from "@/lib/actions/image-studio/action";
 
 import type { StudioJob, StudioSettings } from "./types";
@@ -149,13 +150,7 @@ export function useGenerationQueue({
   onAcceptedRef.current = onAccepted;
   const mountedRef = useRef(true);
 
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-    };
-  }, []);
+  useGenerationQueueMountLifecycle(mountedRef, retryTimerRef);
 
   /**
    * Draining the queue, one request at a time.

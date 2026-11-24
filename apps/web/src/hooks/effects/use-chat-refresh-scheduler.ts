@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef } from "react";
 import {
   type ChatRefreshScheduler,
   createChatRefreshScheduler,
-} from "./chat-refresh-scheduler";
+} from "@/components/chat/chat-refresh-scheduler";
 
 interface UseChatRefreshSchedulerOptions {
   /** Identity of the data set; a new key restarts, null disables. */

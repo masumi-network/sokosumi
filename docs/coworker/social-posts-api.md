@@ -1,6 +1,6 @@
 # Coworker Social post scheduling
 
-Coworkers with the `tasks` capability can draft, read, edit, schedule, reschedule, and cancel Social posts through an account a human has already connected to the Project. Posts they create or duplicate always land as `NEEDS_APPROVAL`, including when created with `scheduledAt`, and wait for a person to approve them before publishing. See [Approval for agent posts](#approval-for-agent-posts).
+Coworkers with the `tasks` capability can draft, read, edit, schedule, reschedule, and cancel Social posts through an account a human has already connected to the Project. Every post they create, duplicate, edit, schedule or queue lands as `NEEDS_APPROVAL`, whatever its status was, and waits for a person to approve it before publishing ([ADR 0077](../adr/0077-agents-draft-and-stop-a-person-publishes-sends-and-starts-ad-spend.md)). See [Approval for agent posts](#approval-for-agent-posts).
 
 Social scheduling is public for X, YouTube, LinkedIn, Instagram, and Facebook. Every workspace, including `utxo`, gets the same enabled providers: `socialProvidersForWorkspace` in [`packages/utils/src/social-post.ts`](../../packages/utils/src/social-post.ts) returns `SOCIAL_PUBLIC_PROVIDERS`. TikTok and other platforms show Coming soon and cannot be connected or used to create, edit, schedule, approve, publish, duplicate, or recycle posts. Existing posts on unavailable providers remain readable and fail when due with the coming-soon reason without contacting the platform. Ads remains `utxo`-only.
 
@@ -12,7 +12,7 @@ Authenticate with a Coworker API key and `X-Context-User-Id` plus `X-Context-Org
 4. Copy a published, failed, or missed post into a new post awaiting approval with `POST /v1/projects/{id}/social-posts/{postId}/duplicate`. The copy keeps text, media, and the account when it is still connected. It does not copy the provider post id or the old schedule.
 5. Read the latest post revision before editing, rescheduling, or canceling. The same workspace/project boundaries and revision conflicts apply as in the human UI.
 
-Core records the Coworker as creator independently of the contextual human. `scheduledByUserId` is the human on whose behalf scheduling occurred; `scheduledByCoworkerId` identifies the delegating Coworker. Editing scheduled content also updates scheduler attribution. Human rescheduling, editing scheduled content, or Publish now takes over scheduling responsibility.
+Core records the Coworker as creator independently of the contextual human. `scheduledByUserId` is the human on whose behalf scheduling occurred; `scheduledByCoworkerId` identifies the delegating Coworker. A Coworker's edit or schedule also updates scheduler attribution until a person approves it. Approval, human rescheduling, editing scheduled content, or Publish now takes over scheduling responsibility.
 
 Before a delayed provider call, Core rechecks that the contextual user is active, Coworker capability, delegated-user access, current workspace membership, and the Project's workspace provider availability. Revoked access or an unavailable provider fails the post without contacting the provider. Lease recovery of an already confirmed publication remains idempotent. A human can reschedule or publish a failed post explicitly when its provider is enabled.
 
@@ -20,7 +20,7 @@ Connecting, reconnecting, replacing, disconnecting accounts, OAuth completion, P
 
 ## Approval for agent posts
 
-Posts and duplicates created by a Coworker or Soko Bot always land as `NEEDS_APPROVAL` and never publish until a person approves them. Setting a planned time while a post still needs approval keeps that status.
+Posts and duplicates created by a Coworker or Soko Bot always land as `NEEDS_APPROVAL` and never publish until a person approves them. A Coworker's edit, schedule or queue of any post, including a person's draft or Scheduled post, sends it back to `NEEDS_APPROVAL` too. Setting a planned time while a post still needs approval keeps that status.
 
 A person approves from Project Social or from the Approve button on the post's card in Soko Bot chat. The chat card also offers Reject when permitted; it uses Core's reject action to cancel the pending post. Project Social emphasizes Approve and Cancel. Agents never approve or reject posts.
 

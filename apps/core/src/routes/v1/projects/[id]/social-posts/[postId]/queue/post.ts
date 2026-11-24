@@ -26,7 +26,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "post",
     path: "/{id}/social-posts/{postId}/queue",
     description:
-      "Schedule a Social post in the Project connection's next free queue slot. Allowed from DRAFT, NEEDS_APPROVAL, SCHEDULED, FAILED and MISSED. A post that needs approval keeps that status. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access.",
+      "Schedule a Social post in the Project connection's next free queue slot. Allowed from DRAFT, NEEDS_APPROVAL, SCHEDULED, FAILED and MISSED. A post that needs approval keeps that status, and a Coworker's queue always lands as Needs approval. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access.",
     tags: ["Projects"],
     request: {
       params: socialPostParamsSchema,

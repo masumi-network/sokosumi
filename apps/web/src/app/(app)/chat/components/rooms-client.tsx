@@ -17,8 +17,6 @@ import {
   type Dispatch,
   type SetStateAction,
   useCallback,
-  useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -61,7 +59,6 @@ import {
 } from "@/app/chat/hooks/use-room-message-jumps";
 import { useRoomMessageMutations } from "@/app/chat/hooks/use-room-message-mutations";
 import { useRoomNotificationDeepLink } from "@/app/chat/hooks/use-room-notification-deep-link";
-import { useRoomReadAttention } from "@/app/chat/hooks/use-room-read-attention";
 import { useRoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
 import { useRoomShellRoster } from "@/app/chat/hooks/use-room-shell-roster";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
@@ -162,15 +159,20 @@ import {
 } from "@/components/chat/membership-visible-rooms-store";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { RoomCatchUpLine } from "@/components/chat/signals/room-catch-up-line";
-import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import { useChatRefreshScheduler } from "@/hooks/effects/use-chat-refresh-scheduler";
+import { useChatRoomRealtime } from "@/hooks/effects/use-chat-room-realtime";
 import { useIsMobileMedia } from "@/hooks/effects/use-mobile";
 import { useQuietHoverWhileScrolling } from "@/hooks/effects/use-quiet-hover-while-scrolling";
 import { useMarkRoomCacheDirtyOnExit } from "@/hooks/effects/use-room-cache-dirty";
+import { useRoomReadAttention } from "@/hooks/effects/use-room-read-attention";
 import { useRoomUrlAsk } from "@/hooks/effects/use-room-url-ask";
 import { useRoomsClientClassicOutboundCleanup } from "@/hooks/effects/use-rooms-client-classic-outbound-cleanup";
+import { useRoomsClientHeaderParticipantsShown } from "@/hooks/effects/use-rooms-client-header-participants-shown";
+import { useRoomsClientMobileHeaderPortaled } from "@/hooks/effects/use-rooms-client-mobile-header-portaled";
 import { useRoomsClientReopenActiveStreamThread } from "@/hooks/effects/use-rooms-client-reopen-active-stream-thread";
+import { useRoomsClientRoomSurfaceGuard } from "@/hooks/effects/use-rooms-client-room-surface-guard";
 import { useRoomsClientScrollOnHistoryLoaded } from "@/hooks/effects/use-rooms-client-scroll-on-history-loaded";
 import { useRoomsClientTranscriptActive } from "@/hooks/effects/use-rooms-client-transcript-active";
 import { useScheduledTimeoutMap } from "@/hooks/effects/use-scheduled-timeout";
@@ -190,7 +192,6 @@ import {
   isChatRoomMessageIdEnvelope,
   isChatRoomMessagePatchEvent,
 } from "@/lib/ably/schema";
-import { useChatRoomRealtime } from "@/lib/ably/use-chat-room-realtime";
 import { isRoomOfWorkspace } from "@/lib/chat/room-workspace-scope";
 import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
@@ -617,21 +618,11 @@ function RoomView({
   const isApple = useIsApplePlatform();
   const isMobile = useIsMobileMedia();
   const headerRoomSlotHost = useHeaderRoomSlotHost();
-  // Defer portal until after first paint so getRoom title lands in-column with
-  // the composer (useLayoutEffect host + isMobile would portal before paint and
-  // leave the app header blank on the first real chrome frame).
-  const [mobileHeaderPortaled, setMobileHeaderPortaled] = useState(false);
-  useEffect(() => {
-    setMobileHeaderPortaled(isMobile === true && headerRoomSlotHost != null);
-  }, [isMobile, headerRoomSlotHost]);
-  // Defer participant avatars one frame so the title string is not gated on
-  // the avatar stack committing in the same first paint.
-  // Approved LCP exception: mount-only Effect keeps title-with-composer paint
-  // order; do not replace with render-time/portal-only avatar mounting.
-  const [showHeaderParticipants, setShowHeaderParticipants] = useState(false);
-  useEffect(() => {
-    setShowHeaderParticipants(true);
-  }, []);
+  const mobileHeaderPortaled = useRoomsClientMobileHeaderPortaled(
+    isMobile,
+    headerRoomSlotHost,
+  );
+  const showHeaderParticipants = useRoomsClientHeaderParticipantsShown();
   // Defer local day separators / continuation until after hydrate (SOKOSUMI-A).
   const localCalendarReady = useClientLocalCalendarReady();
   const locale = useLocale();
@@ -946,14 +937,12 @@ function RoomView({
   // Async handlers must stop when their room surface is replaced.
   const selectedRoomIdRef = useRef(selectedRoomId);
   selectedRoomIdRef.current = selectedRoomId;
-  useLayoutEffect(() => {
-    selectedRoomIdRef.current = selectedRoomId;
-    return () => {
-      selectedRoomIdRef.current = null;
-      boundaryLoadGenerationRef.current += 1;
-      threadLoadGenerationRef.current += 1;
-    };
-  }, [selectedRoomId]);
+  useRoomsClientRoomSurfaceGuard(
+    selectedRoomId,
+    selectedRoomIdRef,
+    boundaryLoadGenerationRef,
+    threadLoadGenerationRef,
+  );
 
   // Classic outbound uses pending shells + a queue; composer stays unlocked.
   // Stream rooms still pass isCoworkerStreaming into isSending* props below.
