@@ -22,9 +22,15 @@ const dataModel = (
   }
 )._runtimeDataModel.models;
 
+/** The SQL table of every model. */
+const modelTables = new Set(
+  Object.entries(dataModel).map(([model, { dbName }]) => dbName ?? model),
+);
+
 /**
- * Prisma's implicit many-to-many join tables and the tables they join, from
- * the SQL Prisma writes for this schema (no database needed).
+ * Prisma's implicit many-to-many join tables and the two tables each joins,
+ * read from the SQL Prisma writes for this schema (no database needed): a
+ * table no model maps to, whose only foreign keys are on "A" and "B".
  */
 function implicitJoinTables(): Map<string, string[]> {
   const sql = execFileSync(
@@ -41,11 +47,17 @@ function implicitJoinTables(): Map<string, string[]> {
     ],
     { cwd: fileURLToPath(new URL("..", import.meta.url)), encoding: "utf8" },
   );
-  const joins = new Map<string, string[]>();
-  for (const [, table, target] of sql.matchAll(
-    /^ALTER TABLE "(_\w+)" ADD CONSTRAINT .* REFERENCES "(\w+)"/gm,
+  const keys = new Map<string, Map<string, string>>();
+  for (const [, table, column, target] of sql.matchAll(
+    /^ALTER TABLE "([^"]+)" ADD CONSTRAINT "[^"]+" FOREIGN KEY \("([^"]+)"\) REFERENCES "([^"]+)"/gm,
   )) {
-    joins.set(table, [...(joins.get(table) ?? []), target]);
+    if (!table || !column || !target || modelTables.has(table)) continue;
+    keys.set(table, (keys.get(table) ?? new Map()).set(column, target));
+  }
+  const joins = new Map<string, string[]>();
+  for (const [table, columns] of keys) {
+    const [a, b] = [columns.get("A"), columns.get("B")];
+    if (a && b && columns.size === 2) joins.set(table, [a, b]);
   }
   return joins;
 }

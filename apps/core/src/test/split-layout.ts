@@ -1,4 +1,5 @@
 import { networkLayoutSchema } from "../config/network-layout";
+import { isSplitLayout } from "./split-layout-pending";
 
 /**
  * The schema names of this run, read the way Core reads them: blank means
@@ -8,10 +9,6 @@ export function testSchemaNames() {
   return networkLayoutSchema.parse(process.env);
 }
 
-// `vitest.config.ts` reads this too, before setup.ts clears the names of a
-// unit run, so a mixed layout in the shell must not throw here.
-const layout = networkLayoutSchema.safeParse(process.env);
-
 /**
  * True in a PostgreSQL run on the new layout: a real database and three
  * different schema names, none `public` (CI's `Test Core PostgreSQL split
@@ -20,8 +17,4 @@ const layout = networkLayoutSchema.safeParse(process.env);
  * Mainnet's. The split job refuses to start without it
  * (`SPLIT_LAYOUT_RUN` in `vitest.config.ts`), so there such a test cannot skip.
  */
-export const onSplitLayout =
-  process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
-  Boolean(process.env.DATABASE_URL?.startsWith("postgres")) &&
-  layout.success &&
-  layout.data.DATABASE_SCHEMA_SHARED !== "public";
+export const onSplitLayout = isSplitLayout(process.env);

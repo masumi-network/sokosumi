@@ -1,10 +1,7 @@
-import { globSync, readFileSync } from "node:fs";
+import { globSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { configDefaults, defineConfig } from "vitest/config";
-
-import { onSplitLayout } from "./src/test/split-layout";
-import { literalGlob, parsePending } from "./src/test/split-layout-pending";
 
 /**
  * Opt-in Postgres / DB files skip in the unit run. Keep them out of collect
@@ -159,29 +156,16 @@ const shuffleFiles =
  * off the split layout, so a Preprod test cannot skip there.
  */
 const splitLayoutRun = process.env.SPLIT_LAYOUT_RUN;
-if (splitLayoutRun !== undefined) {
-  if (splitLayoutRun !== "must-pass" && splitLayoutRun !== "pending") {
-    throw new Error(
-      `SPLIT_LAYOUT_RUN must be must-pass or pending, not ${splitLayoutRun}`,
-    );
-  }
-  if (!onSplitLayout) {
-    throw new Error(
-      "SPLIT_LAYOUT_RUN is set, but this run is not on the split layout: it needs RUN_DATABASE_INTEGRATION_TESTS=true, a PostgreSQL DATABASE_URL and three different DATABASE_SCHEMA_* names, none public.",
-    );
-  }
-}
-const pendingFiles =
+// Loaded only in that job and by URL, so an ordinary run imports no local
+// module, as before (Vite's native config loader needs file extensions).
+const pendingFiles: string[] =
   splitLayoutRun === undefined
     ? []
-    : [
-        ...parsePending(
-          readFileSync(
-            new URL("./src/test/split-layout-pending.txt", import.meta.url),
-            "utf8",
-          ),
-        ).keys(),
-      ].map(literalGlob);
+    : (
+        (await import(
+          new URL("./src/test/split-layout-pending.ts", import.meta.url).href
+        )) as typeof import("./src/test/split-layout-pending")
+      ).splitLayoutPendingGlobs(splitLayoutRun, process.env);
 
 export default defineConfig({
   resolve: {

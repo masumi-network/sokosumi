@@ -15,7 +15,7 @@ describe("the split-layout pending list", () => {
   it("accepts a listed file that still fails", () => {
     expect(
       pendingProblems(
-        [{ file: "src/a.postgres.test.ts", failed: true }],
+        [{ file: "src/a.postgres.test.ts", status: "failed" }],
         pending,
       ),
     ).toEqual([]);
@@ -24,11 +24,22 @@ describe("the split-layout pending list", () => {
   it("fails a listed file that passes", () => {
     expect(
       pendingProblems(
-        [{ file: "src/a.postgres.test.ts", failed: false }],
+        [{ file: "src/a.postgres.test.ts", status: "passed" }],
         pending,
       ),
     ).toEqual([
       "src/a.postgres.test.ts passes on the split layout: remove it from split-layout-pending.txt (ticket 20).",
+    ]);
+  });
+
+  it("fails a listed file with any other status", () => {
+    expect(
+      pendingProblems(
+        [{ file: "src/a.postgres.test.ts", status: "pending" }],
+        pending,
+      ),
+    ).toEqual([
+      'src/a.postgres.test.ts has the status "pending", neither failed nor passed.',
     ]);
   });
 
@@ -42,8 +53,8 @@ describe("the split-layout pending list", () => {
     expect(
       pendingProblems(
         [
-          { file: "src/a.postgres.test.ts", failed: true },
-          { file: "src/b.postgres.test.ts", failed: true },
+          { file: "src/a.postgres.test.ts", status: "failed" },
+          { file: "src/b.postgres.test.ts", status: "failed" },
         ],
         pending,
       ),

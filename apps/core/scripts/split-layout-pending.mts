@@ -32,7 +32,7 @@ const core = path.resolve(import.meta.dirname, "..");
 const report = JSON.parse(readFileSync(reportPath, "utf8")) as Report;
 const results = report.testResults.map((result) => ({
   file: path.relative(core, result.name),
-  failed: result.status !== "passed",
+  status: result.status,
 }));
 const pending = parsePending(
   readFileSync(path.join(core, "src/test/split-layout-pending.txt"), "utf8"),
@@ -41,6 +41,6 @@ const pending = parsePending(
 const problems = pendingProblems(results, pending);
 for (const problem of problems) console.error(problem);
 console.log(
-  `Split layout: ${results.filter((result) => result.failed).length} of ${pending.size} listed files still fail.`,
+  `Split layout: ${results.filter((result) => result.status === "failed").length} of ${pending.size} listed files still fail.`,
 );
 process.exit(problems.length > 0 ? 1 : 0);
