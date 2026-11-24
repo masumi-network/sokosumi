@@ -16,7 +16,7 @@ Then run `/mcp` in Claude Code, pick `sokosumi` and sign in.
 
 **Claude.ai**
 
-Settings → Connectors → Add custom connector. Enter the URL `https://api.sokosumi.com/mcp`, then **Connect** and sign in.
+Add a custom connector (in Claude.ai's settings, under Connectors) with the URL `https://api.sokosumi.com/mcp`, then connect it and sign in.
 
 The consent page marks the client as unverified and shows where it sends you back to. That is expected for a client that registered itself.
 
@@ -38,18 +38,20 @@ Each tool acts in your personal workspace unless it gets a `workspace` argument:
 
 ## Toolsets
 
-A toolset is one route group, such as `tasks` or `jobs`. By default the server lists `workspaces`, `users`, `tasks`, `jobs`, `agents` and `coworkers`. Pick others with `?toolsets=` on the URL:
+Coming with SOKD-367; until then the server lists every tool it has.
+
+A toolset is one route group, such as `tasks` or `jobs`. By default the server will list `workspaces`, `users`, `tasks`, `jobs`, `agents` and `coworkers`. Pick others with `?toolsets=` on the URL:
 
 ```bash
 claude mcp add --transport http sokosumi "https://api.sokosumi.com/mcp?toolsets=tasks,jobs"
 ```
 
-An unknown toolset name is an error. Toolset selection lands with SOKD-367.
+An unknown toolset name is an error.
 
 ## For developers
 
 - Route: `apps/core/src/routes/mcp/index.ts`. Tools: `MCP_TOOLS` in `apps/core/src/lib/sokosumi-mcp/tools.ts`. Adding a tool: [Agent surface](./agents/agent-surface.md#mcp-tools).
-- The whole sign-in, from the first 401 to a tool call, is tested in `apps/core/src/routes/mcp/mcp-oauth.integration.test.ts`.
+- The whole sign-in, from the first 401 to a tool call, is tested for a native (Claude Code) and a web (Claude.ai) client in `apps/core/src/routes/mcp/mcp-oauth.integration.test.ts`.
 - Previews: `claude mcp add --transport http sokosumi <preview Core URL>/mcp`. Previews run live Turnstile, so a person signs in, not an agent.
 
 Last updated: 2026-11-24

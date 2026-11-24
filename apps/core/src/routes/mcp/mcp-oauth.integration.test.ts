@@ -8,6 +8,7 @@ import {
   type OAuthClientMetadata,
   type OAuthClientProvider,
   type OAuthTokens,
+  UnauthorizedError,
 } from "@ai-sdk/mcp";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import {
@@ -68,6 +69,7 @@ vi.mock("@/lib/db/prisma", () => {
     ) ?? null;
   const model = (name: string) => ({
     findUnique: async ({ where }: { where: Row }) => find(name, where),
+    // Ignores `orderBy`: each test has at most one consent per client.
     findFirst: async ({ where }: { where: Row }) => find(name, where),
   });
   return {
@@ -117,7 +119,10 @@ vi.mock("@/lib/auth", () => ({
 const CORE = "https://core.example.test";
 const WEB = "https://web.example.test";
 const MCP = mcpResourceIdentifier(CORE);
+// Claude Code listens on loopback (a native client); Claude.ai calls back
+// to its own https page (a web client).
 const REDIRECT_URI = "http://127.0.0.1:33418/callback";
+const CLAUDE_AI_REDIRECT_URI = "https://claude.ai/api/mcp/auth_callback";
 const MCP_SCOPES = [
   OAUTH_SCOPE_OPENID,
   OAUTH_SCOPE_MCP,
@@ -244,14 +249,19 @@ class TestOAuthProvider implements OAuthClientProvider {
   verifier = "";
   callback?: URL;
 
+  constructor(
+    readonly name = "Claude Code",
+    readonly redirectUri = REDIRECT_URI,
+  ) {}
+
   get redirectUrl() {
-    return REDIRECT_URI;
+    return this.redirectUri;
   }
 
   get clientMetadata(): OAuthClientMetadata {
     return {
-      client_name: "Claude Code",
-      redirect_uris: [REDIRECT_URI],
+      client_name: this.name,
+      redirect_uris: [this.redirectUri],
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
       token_endpoint_auth_method: "none",
@@ -308,9 +318,13 @@ async function connectWithOAuth(provider = new TestOAuthProvider()) {
     authProvider: provider,
     fetch: fetchCore,
   };
-  await expect(createMCPClient({ transport })).rejects.toThrow();
+  await expect(createMCPClient({ transport })).rejects.toThrow(
+    UnauthorizedError,
+  );
   const callback = provider.callback;
-  expect(callback?.origin + (callback?.pathname ?? "")).toBe(REDIRECT_URI);
+  expect(callback?.origin + (callback?.pathname ?? "")).toBe(
+    provider.redirectUri,
+  );
 
   await expect(
     mcpAuth(provider, {
@@ -335,61 +349,70 @@ function decodeJwt(token: string): Row {
 }
 
 describe("MCP OAuth", () => {
-  it("signs an MCP client in from a 401 and runs a tool as the person", async () => {
-    const { client, provider } = await connectWithOAuth();
+  it.each([
+    { name: "Claude Code", redirectUri: REDIRECT_URI, type: "native" },
+    { name: "Claude.ai", redirectUri: CLAUDE_AI_REDIRECT_URI, type: "web" },
+  ])(
+    "signs $name in from a 401 and runs a tool as the person",
+    async ({ name, redirectUri, type }) => {
+      const { client, provider } = await connectWithOAuth(
+        new TestOAuthProvider(name, redirectUri),
+      );
 
-    // 401 → protected-resource metadata → AS metadata → register; then, after
-    // the browser's authorize and consent, the code for a token, and the MCP
-    // request again.
-    expect(sent).toEqual([
-      "POST /mcp",
-      "GET /.well-known/oauth-protected-resource/mcp",
-      "GET /.well-known/oauth-authorization-server/auth",
-      "POST /auth/oauth2/register",
-      "GET /.well-known/oauth-protected-resource/mcp",
-      "GET /.well-known/oauth-authorization-server/auth",
-      "POST /auth/oauth2/token",
-      "POST /mcp",
-    ]);
+      // 401 → protected-resource metadata → AS metadata → register; then, after
+      // the browser's authorize and consent, the code for a token, and the MCP
+      // request again.
+      expect(sent).toEqual([
+        "POST /mcp",
+        "GET /.well-known/oauth-protected-resource/mcp",
+        "GET /.well-known/oauth-authorization-server/auth",
+        "POST /auth/oauth2/register",
+        "GET /.well-known/oauth-protected-resource/mcp",
+        "GET /.well-known/oauth-authorization-server/auth",
+        "POST /auth/oauth2/token",
+        "POST /mcp",
+      ]);
 
-    // Registered as a public native client (no secret), capped at the MCP
-    // scopes and linked to the MCP resource.
-    const registered = store.oauthClient.find(
-      (row) => row.clientId === provider.client?.client_id,
-    );
-    expect(registered).toMatchObject({
-      applicationType: "native",
-      tokenEndpointAuthMethod: "none",
-      scopes: MCP_SCOPES,
-    });
-    expect(registered?.clientSecret).toBeUndefined();
-    expect(store.oauthClientResource).toContainEqual(
-      expect.objectContaining({
-        clientId: registered?.clientId,
-        resourceId: MCP,
-      }),
-    );
+      // Registered as a public client (no secret), capped at the MCP scopes
+      // and linked to the MCP resource.
+      const registered = store.oauthClient.find(
+        (row) => row.clientId === provider.client?.client_id,
+      );
+      expect(registered).toMatchObject({
+        applicationType: type,
+        tokenEndpointAuthMethod: "none",
+        scopes: MCP_SCOPES,
+      });
+      expect(registered?.clientSecret).toBeUndefined();
+      expect(store.oauthClientResource).toContainEqual(
+        expect.objectContaining({
+          clientId: registered?.clientId,
+          resourceId: MCP,
+        }),
+      );
 
-    // A 15-minute JWT for the MCP resource.
-    const tokens = provider.saved;
-    expect(tokens).toMatchObject({ token_type: "Bearer", expires_in: 900 });
-    const claims = decodeJwt(tokens?.access_token ?? "");
-    expect([claims.aud].flat()).toContain(MCP);
-    expect(claims.iss).toBe(`${CORE}/auth`);
-    expect(String(claims.scope).split(" ")).toContain(OAUTH_SCOPE_MCP);
+      // A 15-minute JWT for the MCP resource.
+      const tokens = provider.saved;
+      expect(tokens).toMatchObject({ token_type: "Bearer", expires_in: 900 });
+      const claims = decodeJwt(tokens?.access_token ?? "");
+      expect([claims.aud].flat()).toContain(MCP);
+      expect(claims.iss).toBe(`${CORE}/auth`);
+      expect(String(claims.scope).split(" ")).toContain(OAUTH_SCOPE_MCP);
 
-    const me = await client.callTool({
-      name: "users_get",
-      arguments: { id: "me" },
-    });
-    expect(me.isError).toBeFalsy();
-    expect(me.structuredContent).toEqual({
-      data: expect.objectContaining({
-        id: store.user[0].id,
-        email: "agent-owner@example.test",
-      }),
-    });
-  }, 30_000);
+      const me = await client.callTool({
+        name: "users_get",
+        arguments: { id: "me" },
+      });
+      expect(me.isError).toBeFalsy();
+      expect(me.structuredContent).toEqual({
+        data: expect.objectContaining({
+          id: store.user[0].id,
+          email: "agent-owner@example.test",
+        }),
+      });
+    },
+    30_000,
+  );
 
   it("refuses the MCP token at /v1", async () => {
     const { provider } = await connectWithOAuth();
