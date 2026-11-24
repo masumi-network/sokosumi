@@ -34,6 +34,7 @@ import {
   type SubtaskRow,
 } from "@/app/tasks/utils/task-subtask-row";
 import {
+  archiveTask,
   type CreateTaskResult,
   createTaskAndLink,
   createTaskLink,
@@ -398,12 +399,8 @@ vi.mock("@/components/ui/dropdown-menu", () => {
   };
 });
 
-const archiveMock = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/services/task.client", () => ({
-  taskClientService: { archive: archiveMock },
-}));
-
 vi.mock("@/lib/actions/task/action", () => ({
+  archiveTask: vi.fn(),
   setTaskStatusFromDrag: vi.fn(),
   moveTaskToWorkspace: vi.fn(),
   createTaskLink: vi.fn(),
@@ -817,7 +814,7 @@ describe("TaskDetailActions", () => {
     vi.mocked(setTaskStatusFromDrag).mockReset();
     vi.mocked(createTaskLink).mockReset();
     vi.mocked(createTaskAndLink).mockReset();
-    archiveMock.mockReset().mockResolvedValue(undefined);
+    vi.mocked(archiveTask).mockReset().mockResolvedValue(undefined);
     vi.mocked(deleteTaskLink).mockReset();
   });
 
@@ -1045,7 +1042,7 @@ describe("TaskDetailActions", () => {
   it("marks the task archived for the board before leaving and settles pending state without calling router.refresh", async () => {
     const user = userEvent.setup();
     const pendingArchive = Promise.withResolvers<void>();
-    archiveMock.mockReturnValueOnce(pendingArchive.promise);
+    vi.mocked(archiveTask).mockReturnValueOnce(pendingArchive.promise);
     renderActions({
       status: "GRANT_PENDING" as TaskStatus,
       organizations: undefined,
@@ -1056,6 +1053,7 @@ describe("TaskDetailActions", () => {
     await user.click(screen.getByRole("button", { name: labels.archive }));
 
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/tasks"));
+    expect(archiveTask).toHaveBeenCalledWith({ taskId: "task-1" });
     expect(isTaskArchived("task-1")).toBe(true);
     expect(isTaskArchivePending("task-1")).toBe(true);
     expect(refreshMock).not.toHaveBeenCalled();
@@ -1069,7 +1067,7 @@ describe("TaskDetailActions", () => {
   it("shows the task again on the board when the archive fails", async () => {
     expectConsole("error", "Failed to archive task");
     const user = userEvent.setup();
-    archiveMock.mockRejectedValueOnce(new Error("nope"));
+    vi.mocked(archiveTask).mockRejectedValueOnce(new Error("nope"));
     renderActions({ organizations: undefined });
 
     await user.click(screen.getByRole("button", { name: labels.archive }));
@@ -1077,6 +1075,7 @@ describe("TaskDetailActions", () => {
     expect(pushMock).toHaveBeenCalledWith("/tasks");
     await waitFor(() => expect(isTaskArchived("task-1")).toBe(false));
     expect(toast.error).toHaveBeenCalledWith(labels.archiveError);
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("reports a stale status list instead of opening the upgrade modal", async () => {
@@ -2171,7 +2170,7 @@ describe("TaskDetailActions", () => {
     await user.click(screen.getByRole("menuitem", { name: labels.archive }));
 
     await waitFor(() => {
-      expect(archiveMock).toHaveBeenCalledWith("task-1");
+      expect(archiveTask).toHaveBeenCalledWith({ taskId: "task-1" });
       expect(pushMock).toHaveBeenCalledWith("/tasks");
     });
     expect(screen.queryByRole("alertdialog")).toBeNull();
@@ -2363,7 +2362,7 @@ describe("TaskDetailActions", () => {
       expect(setTaskStatusFromDrag).not.toHaveBeenCalled();
       expect(createTaskLink).not.toHaveBeenCalled();
       expect(createTaskAndLink).not.toHaveBeenCalled();
-      expect(archiveMock).not.toHaveBeenCalled();
+      expect(archiveTask).not.toHaveBeenCalled();
     });
 
     it("is not offered where no schedule can be created", async () => {
@@ -2415,7 +2414,7 @@ describe("TaskDetailActions", () => {
       expect(setTaskStatusFromDrag).not.toHaveBeenCalled();
       expect(createTaskLink).not.toHaveBeenCalled();
       expect(createTaskAndLink).not.toHaveBeenCalled();
-      expect(archiveMock).not.toHaveBeenCalled();
+      expect(archiveTask).not.toHaveBeenCalled();
     });
 
     it("is not offered where the viewer cannot create a Task", async () => {

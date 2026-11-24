@@ -1157,3 +1157,50 @@ describe("setTaskDueOn", () => {
     expect(result).toEqual({ ok: true, value: { taskId: "task-1" } });
   });
 });
+
+describe("archiveTask", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    taskServiceMock.deleteTask.mockReset();
+    taskServiceMock.deleteTask.mockResolvedValue(buildTask({ id: "t1" }));
+    toCoreApiActionErrorMock.mockReset();
+    toCoreApiActionErrorMock.mockImplementation((error: unknown) => ({
+      message:
+        error instanceof Error
+          ? error.message
+          : "Failed to communicate with Core API",
+    }));
+  });
+
+  it("deletes the trimmed task id and revalidates /tasks", async () => {
+    const { revalidatePath } = await import("next/cache");
+    const { archiveTask } = await import("./action");
+
+    await archiveTask({ taskId: "  t1  " });
+
+    expect(taskServiceMock.deleteTask).toHaveBeenCalledWith("t1");
+    expect(revalidatePath).toHaveBeenCalledWith("/tasks");
+    expect(revalidatePath).toHaveBeenCalledWith("/tasks/[taskId]", "page");
+  });
+
+  it("rethrows without revalidating when deleteTask rejects", async () => {
+    expectConsole("error", "Failed to archive task");
+    const { revalidatePath } = await import("next/cache");
+    taskServiceMock.deleteTask.mockRejectedValueOnce(new Error("Core down"));
+    const { archiveTask } = await import("./action");
+
+    await expect(archiveTask({ taskId: "t1" })).rejects.toThrow("Core down");
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("throws when taskId is blank without calling deleteTask or revalidating", async () => {
+    const { revalidatePath } = await import("next/cache");
+    const { archiveTask } = await import("./action");
+
+    await expect(archiveTask({ taskId: "   " })).rejects.toThrow(
+      "Task required",
+    );
+    expect(taskServiceMock.deleteTask).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});

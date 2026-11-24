@@ -34,12 +34,12 @@ import { listOrganizationChatRoomsAction } from "@/components/chat/organization-
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { useIsMobile } from "@/hooks/effects/use-mobile";
 import {
+  archiveTask,
   createTaskLink,
   deleteTaskLink,
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
 import { viewerIsOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
-import { taskClientService } from "@/lib/services/task.client";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import type { TaskMutationErrorKind } from "@/lib/utils/task-mutation-error-kinds";
 import type { TaskPickerTask } from "./task-detail-api-types";
@@ -393,8 +393,7 @@ export function useTaskDetailActions({
   const handleArchive = () => {
     markTaskArchived(taskId);
     router.push("/tasks");
-    taskClientService
-      .archive(taskId)
+    archiveTask({ taskId })
       .then(() => {
         settleTaskArchive(taskId);
       })
@@ -402,7 +401,6 @@ export function useTaskDetailActions({
         console.error("Failed to archive task", error);
         unmarkTaskArchived(taskId);
         toast.error(labels.archiveError);
-        router.refresh();
       });
   };
 

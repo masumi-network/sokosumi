@@ -143,6 +143,10 @@ interface DeleteTaskLinkParameters extends AuthenticatedRequest {
   linkId: string;
 }
 
+interface ArchiveTaskParameters extends AuthenticatedRequest {
+  taskId: string;
+}
+
 interface CreateAndLinkTaskParameters
   extends AuthenticatedRequest,
     TaskTagWrite {
@@ -590,6 +594,26 @@ export const deleteTaskLink = withSession<
     );
   }
 });
+
+export const archiveTask = withSession<ArchiveTaskParameters, void>(
+  async ({ taskId }) => {
+    const normalizedTaskId = taskId.trim();
+    if (!normalizedTaskId) {
+      throw new Error("Task required");
+    }
+
+    try {
+      await taskService.deleteTask(normalizedTaskId);
+      revalidateTaskMutationRoutes();
+    } catch (error) {
+      rethrowTaskActionError(
+        error,
+        "Failed to archive task",
+        "Failed to archive task",
+      );
+    }
+  },
+);
 
 export const createTaskAndLink = withSession<
   CreateAndLinkTaskParameters,
