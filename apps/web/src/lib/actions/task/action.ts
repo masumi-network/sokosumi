@@ -13,11 +13,13 @@ import {
 } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
+import { hasSessionCookie } from "@/lib/auth/session-cookie";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
 import { taskService } from "@/lib/services/task.service";
 import { normalizeTaskNameForCoreApi } from "@/lib/utils/task-transformer";
@@ -141,10 +143,6 @@ interface CreateTaskLinkParameters extends AuthenticatedRequest {
 interface DeleteTaskLinkParameters extends AuthenticatedRequest {
   taskId: string;
   linkId: string;
-}
-
-interface ArchiveTaskParameters extends AuthenticatedRequest {
-  taskId: string;
 }
 
 interface CreateAndLinkTaskParameters
@@ -595,25 +593,15 @@ export const deleteTaskLink = withSession<
   }
 });
 
-export const archiveTask = withSession<ArchiveTaskParameters, void>(
-  async ({ taskId }) => {
-    const normalizedTaskId = taskId.trim();
-    if (!normalizedTaskId) {
-      throw new Error("Task required");
-    }
-
-    try {
-      await taskService.deleteTask(normalizedTaskId);
-      revalidateTaskMutationRoutes();
-    } catch (error) {
-      rethrowTaskActionError(
-        error,
-        "Failed to archive task",
-        "Failed to archive task",
-      );
-    }
-  },
-);
+/**
+ * Revalidates `/tasks` after a browser-direct archive DELETE settles, so Next
+ * drops its cached `/tasks` pages without making another Core call.
+ */
+export async function revalidateTasksAfterArchive(): Promise<boolean> {
+  if (!hasSessionCookie(await headers())) return false;
+  revalidatePath("/tasks");
+  return true;
+}
 
 export const createTaskAndLink = withSession<
   CreateAndLinkTaskParameters,
