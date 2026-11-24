@@ -1,12 +1,15 @@
 # PostgreSQL test files that do not pass on the split layout yet, each with the
-# ticket that will make it pass. CI's `Test Core PostgreSQL split layout` job
+# ticket it waits for. CI's `Test Core PostgreSQL split layout` job
 # fails when a file not listed here fails there, and when a listed file passes
 # there: delete its line. Never add a line for a file that passes on today's
 # layout and is new: it must pass on both. Checked by
 # `scripts/split-layout-ratchet.mts` (`src/test/split-layout-ratchet.ts`).
 #
-# The ticket is the one that removes the file's last reason, from the first
-# error of each failing test (2026-11-24):
+# Ticket numbers are the Network switch plan's issues. Each is the first
+# ticket the file waits for, read from the first error of each failing test
+# (2026-11-24). A file can fail for a later reason once that ticket lands
+# (many also read Network tables through the shared client, tickets 20 to
+# 33): then change its ticket instead of deleting the line.
 #   19  a trigger or function body names `public.` or an unqualified table
 #   30, 29  the shared client reads a Network table (Soko Bot, Coworker usage)
 #   18  the test replays a migration written for one schema

@@ -9,6 +9,7 @@ import { createPrismaClient, PrismaRaw } from "@sokosumi/database/client";
 import type { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
+import type { Network } from "@/lib/network";
 import { onSplitLayout } from "@/test/split-layout";
 
 const pools = vi.hoisted(() => [] as Pool[]);
@@ -27,7 +28,6 @@ vi.mock("@vercel/functions", async (importOriginal) => {
 vi.unmock("@/lib/db/prisma");
 
 type Clients = typeof import("./prisma");
-type Network = "mainnet" | "preprod";
 
 const key = `n56-${randomUUID().slice(0, 12)}`;
 

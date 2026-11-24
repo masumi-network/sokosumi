@@ -42,7 +42,7 @@ const enabled =
 
 // Where the migrated shared tables are: the copies' source, and where a client
 // that ignored its schema would write.
-const home = process.env.DATABASE_SCHEMA_SHARED ?? "public";
+const sharedSchema = process.env.DATABASE_SCHEMA_SHARED ?? "public";
 const suffix = randomUUID().replaceAll("-", "").slice(0, 12);
 const schemas = {
   shared: `n15_shared_${suffix}`,
@@ -84,7 +84,7 @@ describe.runIf(enabled)("Core database clients on PostgreSQL", () => {
   }
 
   beforeAll(async () => {
-    admin = createPrismaClient(url ?? "", { schema: home });
+    admin = createPrismaClient(url ?? "", { schema: sharedSchema });
     for (const schema of Object.values(schemas)) {
       await admin.$executeRawUnsafe(`CREATE SCHEMA "${schema}"`);
     }
@@ -94,14 +94,14 @@ describe.runIf(enabled)("Core database clients on PostgreSQL", () => {
       DO $$
       DECLARE t text;
       BEGIN
-        FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = '${home}' LOOP
-          EXECUTE format('CREATE TABLE %I.%I (LIKE %I.%I INCLUDING ALL)', '${schemas.shared}', t, '${home}', t);
+        FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = '${sharedSchema}' LOOP
+          EXECUTE format('CREATE TABLE %I.%I (LIKE %I.%I INCLUDING ALL)', '${schemas.shared}', t, '${sharedSchema}', t);
         END LOOP;
       END $$`);
     for (const schema of [schemas.mainnet, schemas.preprod]) {
       for (const name of ["Lock", "sync_metadata"]) {
         await admin.$executeRawUnsafe(
-          `CREATE TABLE "${schema}"."${name}" (LIKE "${home}"."${name}" INCLUDING ALL)`,
+          `CREATE TABLE "${schema}"."${name}" (LIKE "${sharedSchema}"."${name}" INCLUDING ALL)`,
         );
       }
     }
@@ -160,7 +160,7 @@ describe.runIf(enabled)("Core database clients on PostgreSQL", () => {
     expect(await lockKeysIn(schemas.shared)).toEqual(expected("shared"));
     expect(await lockKeysIn(schemas.mainnet)).toEqual(expected("mainnet"));
     expect(await lockKeysIn(schemas.preprod)).toEqual(expected("preprod"));
-    expect(await lockKeysIn(home)).toEqual([]);
+    expect(await lockKeysIn(sharedSchema)).toEqual([]);
   });
 
   it("writes shared and Network rows in one interactive transaction, and rolls both back", async () => {
@@ -236,6 +236,6 @@ describe.runIf(enabled)("Core database clients on PostgreSQL", () => {
       SELECT count(*) AS count FROM ${table(schema, "session")}
       WHERE "userId" = ${userId}`;
     expect((await sessions(schemas.shared))[0]?.count).toBe(1n);
-    expect((await sessions(home))[0]?.count).toBe(0n);
+    expect((await sessions(sharedSchema))[0]?.count).toBe(0n);
   });
 });
