@@ -1,3 +1,4 @@
+import { oauthProvider } from "@better-auth/oauth-provider";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { betterAuth } from "better-auth/minimal";
 import { jwt } from "better-auth/plugins";
@@ -43,6 +44,10 @@ function createTestAuth() {
       jwt({
         disableSettingJwtHeader: true,
         ...jwtKeyStoreOptions(false),
+      }),
+      oauthProvider({
+        loginPage: "https://app.sokosumi.com/signin",
+        consentPage: "https://app.sokosumi.com/oauth/consent",
       }),
     ],
   });
@@ -114,6 +119,7 @@ describe("pollCoworkerResponseStatus", () => {
       "https://api.coworker.example.com/v1/responses/resp_pending",
       expect.objectContaining({
         method: "GET",
+        redirect: "manual",
         maxResponseBytes: 16 * 1024 * 1024,
         headers: {
           Authorization: expect.stringMatching(/^Bearer /),
@@ -193,6 +199,28 @@ describe("pollCoworkerResponseStatus", () => {
       expect(result.cause).toBeInstanceOf(Error);
     }
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("treats a 3xx redirect as a failed poll without following", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response("", {
+        status: 302,
+        headers: { location: "https://other.example.com/steal" },
+      }),
+    );
+
+    const result = await pollCoworkerResponseStatus(DEFAULT_PARAMS);
+
+    expect(result).toMatchObject({
+      status: "error",
+      responseId: "resp_pending",
+      httpStatus: 302,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.coworker.example.com/v1/responses/resp_pending",
+      expect.objectContaining({ redirect: "manual" }),
+    );
   });
 
   it("returns failed when coworker reports failure", async () => {
@@ -341,6 +369,7 @@ describe("retrieveCoworkerResponse default transport", () => {
       "https://api.coworker.example.com/v1/responses/resp_pending",
       expect.objectContaining({
         method: "GET",
+        redirect: "manual",
         maxResponseBytes: 16 * 1024 * 1024,
         headers: expect.objectContaining({
           Authorization: expect.stringMatching(/^Bearer /),

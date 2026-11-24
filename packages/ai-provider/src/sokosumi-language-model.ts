@@ -392,6 +392,7 @@ async function streamCoworker(
 
     return ssrfSafeStreamFetch(url, {
       method: "POST",
+      redirect: "manual",
       maxResponseBytes: MAX_COWORKER_STREAM_RESPONSE_BYTES,
       headers: {
         ...headers,
@@ -410,6 +411,7 @@ async function streamCoworker(
     if (!response.ok) {
       const errorText = await response.text().catch(() => "Unknown error");
       const isInvalidConversationId =
+        response.status >= 400 &&
         Boolean(requestBody.conversation) &&
         (errorText.includes("invalid_conversation") ||
           errorText.includes("conversation not found") ||

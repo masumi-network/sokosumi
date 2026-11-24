@@ -187,6 +187,7 @@ export async function createCoworkerConversation(
   try {
     response = await ssrfSafeFetch(url, {
       method: "POST",
+      redirect: "manual",
       maxResponseBytes: MAX_COWORKER_CONVERSATION_RESPONSE_BYTES,
       headers: requestHeaders,
       body: JSON.stringify({ metadata }),

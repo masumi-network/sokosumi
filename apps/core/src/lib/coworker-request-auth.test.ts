@@ -1,3 +1,4 @@
+import { oauthProvider } from "@better-auth/oauth-provider";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { betterAuth } from "better-auth/minimal";
 import { jwt } from "better-auth/plugins";
@@ -15,10 +16,15 @@ const EXPECTED_ISSUER = `${ISSUER_ORIGIN}/auth`;
 const SECRET = "coworker-request-auth-test-secret-that-is-long-enough";
 const OTHER_SECRET = "another-secret-for-forked-production-jwks-in-tests";
 
-function createTestAuth(db: MemoryDb, secret: string, isProduction: boolean) {
+function createTestAuth(
+  db: MemoryDb,
+  secret: string,
+  isProduction: boolean,
+  baseURL = ISSUER_ORIGIN,
+) {
   return betterAuth({
     logger: betterAuthLogger,
-    baseURL: ISSUER_ORIGIN,
+    baseURL,
     basePath: "/auth",
     secret,
     database: memoryAdapter(db),
@@ -26,6 +32,10 @@ function createTestAuth(db: MemoryDb, secret: string, isProduction: boolean) {
       jwt({
         disableSettingJwtHeader: true,
         ...jwtKeyStoreOptions(isProduction),
+      }),
+      oauthProvider({
+        loginPage: "https://app.sokosumi.com/signin",
+        consentPage: "https://app.sokosumi.com/oauth/consent",
       }),
     ],
   });
@@ -228,6 +238,106 @@ describe("coworker-request-auth", () => {
         coworkerSlug: "elena",
       }),
     ).rejects.toThrow("Failed to decrypt private key");
+  });
+
+  it("takes iss from OIDC discovery rather than raw context.baseURL", async () => {
+    authState.current = createTestAuth(
+      db,
+      SECRET,
+      false,
+      "https://API.example.test:443",
+    );
+
+    const rawContext = await authState.current.$context;
+    expect(rawContext.baseURL).toBe("https://API.example.test:443/auth");
+
+    const openIdConfig = await authState.current.api.getOpenIdConfig();
+    expect(openIdConfig.issuer).toBe("https://api.example.test/auth");
+
+    const token = await signCoworkerRequestToken({
+      coworkerBaseUrl: "https://coworker.example.com/v1",
+      userId: "user_123",
+      organizationId: null,
+      coworkerSlug: "elena",
+    });
+
+    const jwks = await authState.current.api.getJwks();
+    const verified = await jwtVerify(token, createLocalJWKSet(jwks), {
+      issuer: openIdConfig.issuer,
+      audience: "https://coworker.example.com/v1",
+      typ: "coworker+jwt",
+    });
+    expect(verified.payload.iss).toBe("https://api.example.test/auth");
+  });
+
+  it("refuses non-https coworker base URLs in production", async () => {
+    const env = getEnv();
+    env.NODE_ENV = "production";
+    env.VERCEL_ENV = "production";
+    authState.current = createTestAuth(db, SECRET, true);
+
+    await expect(
+      signCoworkerRequestToken({
+        coworkerBaseUrl: "http://coworker.example.com/v1",
+        userId: "user_123",
+        organizationId: null,
+        coworkerSlug: "elena",
+      }),
+    ).rejects.toThrow(/https/i);
+
+    await expect(
+      signCoworkerRequestToken({
+        coworkerBaseUrl: "https://coworker.example.com/v1",
+        userId: "user_123",
+        organizationId: null,
+        coworkerSlug: "elena",
+      }),
+    ).resolves.toEqual(expect.any(String));
+  });
+
+  it("allows http coworker base URLs outside production for local coworkers", async () => {
+    const env = getEnv();
+    for (const [nodeEnv, vercelEnv] of [
+      ["development", undefined],
+      ["production", "preview"],
+    ] as const) {
+      env.NODE_ENV = nodeEnv;
+      env.VERCEL_ENV = vercelEnv;
+
+      const token = await signCoworkerRequestToken({
+        coworkerBaseUrl: "http://localhost:8080/v1/",
+        userId: "user_123",
+        organizationId: null,
+        coworkerSlug: "local-agent",
+      });
+      const jwks = await authState.current!.api.getJwks();
+      const verified = await jwtVerify(token, createLocalJWKSet(jwks), {
+        issuer: EXPECTED_ISSUER,
+        audience: "http://localhost:8080/v1",
+        typ: "coworker+jwt",
+      });
+      expect(verified.payload.aud).toBe("http://localhost:8080/v1");
+    }
+  });
+
+  it("rejects non-http(s) and malformed coworker base URLs everywhere", async () => {
+    await expect(
+      signCoworkerRequestToken({
+        coworkerBaseUrl: "ftp://coworker.example.com/v1",
+        userId: "user_123",
+        organizationId: null,
+        coworkerSlug: "elena",
+      }),
+    ).rejects.toThrow(/http|https/i);
+
+    await expect(
+      signCoworkerRequestToken({
+        coworkerBaseUrl: "not-a-url",
+        userId: "user_123",
+        organizationId: null,
+        coworkerSlug: "elena",
+      }),
+    ).rejects.toThrow(/coworkerBaseUrl/);
   });
 
   it("rejects when required claims are blank", async () => {

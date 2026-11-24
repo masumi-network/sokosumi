@@ -1,3 +1,4 @@
+import { oauthProvider } from "@better-auth/oauth-provider";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { betterAuth } from "better-auth/minimal";
 import { jwt } from "better-auth/plugins";
@@ -47,6 +48,10 @@ function createTestAuth() {
       jwt({
         disableSettingJwtHeader: true,
         ...jwtKeyStoreOptions(false),
+      }),
+      oauthProvider({
+        loginPage: "https://app.sokosumi.com/signin",
+        consentPage: "https://app.sokosumi.com/oauth/consent",
       }),
     ],
   });
@@ -117,6 +122,7 @@ describe("coworker-conversation", () => {
       "https://api.coworker.example.com/v1/conversations",
       expect.objectContaining({
         method: "POST",
+        redirect: "manual",
         maxResponseBytes: 1024 * 1024,
         headers: expect.objectContaining({
           Authorization: expect.stringMatching(/^Bearer /),
@@ -199,6 +205,31 @@ describe("coworker-conversation", () => {
       }),
     ).rejects.toThrow("JWKS unavailable");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("treats a 3xx redirect as a failed conversation create without following", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 302,
+      text: async () => "",
+    });
+
+    await expect(
+      createCoworkerConversation({
+        responsesApiBaseUrl: DEFAULT_BASE_URL,
+        sokosumiUserId: "user_1",
+        sokosumiOrganizationId: null,
+        coworkerSlug: "ops-agent",
+        sokosumiConversationId: "conv-local-1",
+      }),
+    ).rejects.toMatchObject({
+      name: "CoworkerConversationError",
+      upstreamStatus: 302,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.coworker.example.com/v1/conversations",
+      expect.objectContaining({ redirect: "manual" }),
+    );
   });
 
   it("throws CoworkerConversationError with billing_required on OpenAI 403", async () => {

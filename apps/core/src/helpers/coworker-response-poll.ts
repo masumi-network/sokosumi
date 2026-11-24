@@ -134,6 +134,7 @@ export async function retrieveCoworkerResponse(
     });
     const init = {
       method: "GET",
+      redirect: "manual" as const,
       headers: buildCoworkerRetrieveHeaders({
         authorization,
         userId: params.userId,

@@ -63,6 +63,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
     for (const [, init] of ssrfSafeStreamFetchMock.mock.calls) {
       expect(init.maxResponseBytes).toBe(16 * 1024 * 1024);
       expect(init.headers?.["Accept-Encoding"]).toBe("identity");
+      expect(init.redirect).toBe("manual");
     }
     vi.unstubAllGlobals();
   });
@@ -566,5 +567,43 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
     expect(call).toBe(1);
     const text = await collectStreamText(stream);
     expect(text).toBe("This is a complete coworker reply with enough text.");
+  });
+
+  it("treats a 3xx redirect as a failed request without following or retrying", async () => {
+    const getAuthorization = vi.fn(async () => "Bearer signed-redirect");
+    ssrfSafeStreamFetchMock.mockResolvedValueOnce(
+      new Response("", {
+        status: 307,
+        headers: { location: "https://other.example/responses" },
+      }),
+    );
+
+    const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
+      openRouterApiKey: "sk-or-test",
+    });
+
+    await expect(
+      model.doStream({
+        prompt: [
+          {
+            role: "user",
+            content: [{ type: "text", text: "Hello" }],
+          },
+        ],
+        providerOptions: {
+          sokosumi: {
+            mode: "coworker",
+            coworkerBaseUrl: "https://cow.example/api",
+            coworkerSlug: "agent",
+            sokosumiUserId: "user-1",
+            providerConversationId: "conv_new",
+            getAuthorization,
+          },
+        },
+      }),
+    ).rejects.toMatchObject({ statusCode: 307 });
+
+    expect(ssrfSafeStreamFetchMock).toHaveBeenCalledTimes(1);
+    expect(getAuthorization).toHaveBeenCalledTimes(1);
   });
 });

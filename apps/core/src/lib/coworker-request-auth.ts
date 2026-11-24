@@ -29,6 +29,27 @@ export async function signCoworkerRequestToken(
   if (!aud) {
     throw new Error("Coworker token signing requires coworkerBaseUrl");
   }
+  let parsedBaseUrl: URL;
+  try {
+    parsedBaseUrl = new URL(aud);
+  } catch {
+    throw new Error("Coworker token signing requires a valid coworkerBaseUrl");
+  }
+  const isProduction = isProductionEnvironment(getEnv());
+  if (isProduction) {
+    if (parsedBaseUrl.protocol !== "https:") {
+      throw new Error(
+        "Coworker token signing requires an https coworkerBaseUrl in production",
+      );
+    }
+  } else if (
+    parsedBaseUrl.protocol !== "https:" &&
+    parsedBaseUrl.protocol !== "http:"
+  ) {
+    throw new Error(
+      "Coworker token signing requires an http or https coworkerBaseUrl",
+    );
+  }
   if (!userId) {
     throw new Error("Coworker token signing requires userId");
   }
@@ -37,13 +58,14 @@ export async function signCoworkerRequestToken(
   }
 
   const context = await auth.$context;
+  const { issuer } = await auth.api.getOpenIdConfig();
   const iat = Math.floor(Date.now() / 1000);
 
   return signJWT({ context } as Parameters<typeof signJWT>[0], {
-    options: jwtKeyStoreOptions(isProductionEnvironment(getEnv())),
+    options: jwtKeyStoreOptions(isProduction),
     header: { typ: COWORKER_TOKEN_TYPE },
     payload: {
-      iss: context.baseURL,
+      iss: issuer,
       aud,
       sub: userId,
       ...(organizationId ? { org: organizationId } : {}),
