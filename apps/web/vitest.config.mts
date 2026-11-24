@@ -58,6 +58,7 @@ const DOM_TEST_TS = [
   "src/app/(app)/chat/utils/room-message-highlight.test.ts",
   "src/app/(app)/chat/utils/room-search-jump.test.ts",
   "src/app/__tests__/agent-fullbleed-activity-leak.harness.test.ts",
+  "src/test/happy-dom-zero-delay-timer.test.ts",
   "src/test/waapi-cancel-abort.test.ts",
 ] as const;
 
