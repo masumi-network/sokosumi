@@ -80,6 +80,37 @@ interface PendingBoardReopen {
   moveVersion: number;
 }
 
+interface PreservedArchiveColumn {
+  readonly archivedTaskIds: readonly string[];
+  readonly serverCursor: string | null;
+  readonly serverHidden: number;
+  readonly serverTaskIds: readonly string[];
+}
+
+interface TasksBoardDataState {
+  items: TaskWithCoworker[];
+  columnCursorById: Record<KanbanColumnId, string | null>;
+  columnHiddenById: Record<KanbanColumnId, number>;
+  loadedBoardColumnByTaskId: ReadonlyMap<string, KanbanColumnId>;
+  preservedArchiveByColumn: ReadonlyMap<KanbanColumnId, PreservedArchiveColumn>;
+}
+
+function sameStringList(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+function withoutPreservedColumn(
+  prev: ReadonlyMap<KanbanColumnId, PreservedArchiveColumn>,
+  columnId: KanbanColumnId,
+): ReadonlyMap<KanbanColumnId, PreservedArchiveColumn> {
+  if (!prev.has(columnId)) {
+    return prev;
+  }
+  const next = new Map(prev);
+  next.delete(columnId);
+  return next;
+}
+
 const hydrationStore = (() => {
   let isHydrated = false;
   const listeners = new Set<() => void>();
@@ -259,13 +290,17 @@ export function useTasksBoardModel({
     }
     showCalendarClientUpgradeModal();
   };
-  const [items, setItems] = useState<TaskWithCoworker[]>(tasks);
-  const [columnCursorById, setColumnCursorById] = useState<
-    Record<KanbanColumnId, string | null>
-  >(() => buildInitialColumnCursorById(columns, initialColumnNextCursorById));
-  const [columnHiddenById, setColumnHiddenById] = useState(
-    initialColumnHiddenCountById,
-  );
+  const [boardData, setBoardData] = useState<TasksBoardDataState>(() => ({
+    items: tasks,
+    columnCursorById: buildInitialColumnCursorById(
+      columns,
+      initialColumnNextCursorById,
+    ),
+    columnHiddenById: initialColumnHiddenCountById,
+    loadedBoardColumnByTaskId: new Map(),
+    preservedArchiveByColumn: new Map(),
+  }));
+  const { items, columnCursorById, columnHiddenById } = boardData;
   const [listCursor, setListCursor] = useState<string | null>(
     initialListNextCursor,
   );
@@ -329,11 +364,16 @@ export function useTasksBoardModel({
     pendingMoveVersionByTaskIdRef.current.clear();
 
     itemsRef.current = tasks;
-    setItems(tasks);
-    setColumnCursorById(
-      buildInitialColumnCursorById(columns, initialColumnNextCursorById),
-    );
-    setColumnHiddenById(initialColumnHiddenCountById);
+    setBoardData({
+      items: tasks,
+      columnCursorById: buildInitialColumnCursorById(
+        columns,
+        initialColumnNextCursorById,
+      ),
+      columnHiddenById: initialColumnHiddenCountById,
+      loadedBoardColumnByTaskId: new Map(),
+      preservedArchiveByColumn: new Map(),
+    });
     setListCursor(initialListNextCursor);
     listCursorRef.current = initialListNextCursor;
     setLoadingColumnIds(new Set());
@@ -342,6 +382,7 @@ export function useTasksBoardModel({
   }, [
     columns,
     defaultViewMode,
+    initialColumnHiddenCountById,
     initialColumnNextCursorById,
     initialListNextCursor,
     tasks,
@@ -351,34 +392,171 @@ export function useTasksBoardModel({
   // and the board must not show a frame without either.
   useLayoutEffect(() => {
     const isListView = defaultViewMode === "list";
+    const keepLocalOnlyTasks =
+      !isListView &&
+      !initialFilters.search &&
+      !initialFilters.tag &&
+      !initialFilters.needsMe &&
+      !initialFilters.mentions;
     const serverTasks = tasks.filter((task) => !isTaskArchived(task.id));
-    const next = mergeTasksOnServerRefresh({
-      prev: itemsRef.current.filter((task) => !isTaskArchived(task.id)),
-      serverTasks,
-      pendingMoveTaskIds: new Set(pendingMoveVersionByTaskIdRef.current.keys()),
-      // List is a single updatedAt stream: keep load-more rows across
-      // router.refresh() and listCursor goes stale vs the new first page.
-      // A missing Task on a tagged board may have lost its tag, and under
-      // Needs me it may no longer wait for a person. Under Mentions the
-      // reader may have answered.
-      keepLocalOnlyTasks:
-        !isListView &&
-        !initialFilters.search &&
-        !initialFilters.tag &&
-        !initialFilters.needsMe &&
-        !initialFilters.mentions,
+    const serverTaskIds = new Set(serverTasks.map((task) => task.id));
+    const pendingMoveTaskIds = new Set(
+      pendingMoveVersionByTaskIdRef.current.keys(),
+    );
+
+    setBoardData((prev) => {
+      const next = mergeTasksOnServerRefresh({
+        prev: prev.items.filter((task) => !isTaskArchived(task.id)),
+        serverTasks,
+        pendingMoveTaskIds,
+        // List is a single updatedAt stream: keep load-more rows across
+        // router.refresh() and listCursor goes stale vs the new first page.
+        // A missing Task on a tagged board may have lost its tag, and under
+        // Needs me it may no longer wait for a person. Under Mentions the
+        // reader may have answered.
+        keepLocalOnlyTasks,
+      });
+
+      const nextColumnCursorById = buildInitialColumnCursorById(
+        columns,
+        initialColumnNextCursorById,
+      );
+
+      if (isListView) {
+        return {
+          items: next,
+          columnCursorById: nextColumnCursorById,
+          columnHiddenById: initialColumnHiddenCountById,
+          loadedBoardColumnByTaskId: new Map(),
+          preservedArchiveByColumn: new Map(),
+        };
+      }
+
+      const localOnlyColumns = new Set<KanbanColumnId>();
+      for (const task of next) {
+        if (serverTaskIds.has(task.id)) continue;
+        localOnlyColumns.add(
+          prev.loadedBoardColumnByTaskId.get(task.id) ?? task.columnId,
+        );
+      }
+
+      // On filtered boards where keepLocalOnlyTasks is false, archive membership
+      // cannot tell whether a missing non-archived loaded row still matches the
+      // filter or lost its tag, so dropping it requires resyncing that column's
+      // cursor instead of stranding the row.
+      const droppedNonArchivedLoadedColumns = new Set<KanbanColumnId>();
+      if (!keepLocalOnlyTasks) {
+        for (const task of prev.items) {
+          if (isTaskArchived(task.id) || serverTaskIds.has(task.id)) continue;
+          const loadedColumn = prev.loadedBoardColumnByTaskId.get(task.id);
+          if (loadedColumn) {
+            droppedNonArchivedLoadedColumns.add(loadedColumn);
+          }
+        }
+      }
+
+      const serverTaskIdsByColumn = new Map<KanbanColumnId, string[]>();
+      for (const task of serverTasks) {
+        const list = serverTaskIdsByColumn.get(task.columnId);
+        if (list) {
+          list.push(task.id);
+        } else {
+          serverTaskIdsByColumn.set(task.columnId, [task.id]);
+        }
+      }
+
+      // Carry over a column's archive preservation while follow-up refreshes
+      // (StrictMode Activity reveal, or racing RSC fetches before background
+      // archive finishes on Core) still report the exact same stale server
+      // state for that column and the archive is still active.
+      const nextPreservedArchiveByColumn = new Map<
+        KanbanColumnId,
+        PreservedArchiveColumn
+      >();
+      for (const [columnId, entry] of prev.preservedArchiveByColumn) {
+        if (droppedNonArchivedLoadedColumns.has(columnId)) continue;
+        const stillArchivedIds = entry.archivedTaskIds.filter((id) =>
+          isTaskArchived(id),
+        );
+        if (stillArchivedIds.length === 0) continue;
+        const columnServerCursor = nextColumnCursorById[columnId] ?? null;
+        const columnServerHidden = initialColumnHiddenCountById[columnId] ?? 0;
+        const columnServerTaskIds = serverTaskIdsByColumn.get(columnId) ?? [];
+        if (
+          entry.serverCursor === columnServerCursor &&
+          entry.serverHidden === columnServerHidden &&
+          sameStringList(entry.serverTaskIds, columnServerTaskIds)
+        ) {
+          nextPreservedArchiveByColumn.set(columnId, {
+            ...entry,
+            archivedTaskIds: stillArchivedIds,
+          });
+        }
+      }
+
+      for (const task of prev.items) {
+        if (!isTaskArchived(task.id)) continue;
+        const loadedColumn = prev.loadedBoardColumnByTaskId.get(task.id);
+        if (
+          !loadedColumn ||
+          droppedNonArchivedLoadedColumns.has(loadedColumn)
+        ) {
+          continue;
+        }
+        const existing = nextPreservedArchiveByColumn.get(loadedColumn);
+        if (existing) {
+          if (!existing.archivedTaskIds.includes(task.id)) {
+            nextPreservedArchiveByColumn.set(loadedColumn, {
+              ...existing,
+              archivedTaskIds: [...existing.archivedTaskIds, task.id],
+            });
+          }
+        } else {
+          nextPreservedArchiveByColumn.set(loadedColumn, {
+            archivedTaskIds: [task.id],
+            serverCursor: nextColumnCursorById[loadedColumn] ?? null,
+            serverHidden: initialColumnHiddenCountById[loadedColumn] ?? 0,
+            serverTaskIds: serverTaskIdsByColumn.get(loadedColumn) ?? [],
+          });
+        }
+      }
+
+      const preservedColumns = new Set<KanbanColumnId>([
+        ...localOnlyColumns,
+        ...nextPreservedArchiveByColumn.keys(),
+      ]);
+      const nextColumnHiddenById = { ...initialColumnHiddenCountById };
+      for (const columnId of preservedColumns) {
+        if (columnId in nextColumnCursorById) {
+          nextColumnCursorById[columnId] = prev.columnCursorById[columnId];
+        }
+        nextColumnHiddenById[columnId] = prev.columnHiddenById[columnId];
+      }
+
+      const remainingLoadedBoardColumnByTaskId = new Map<
+        string,
+        KanbanColumnId
+      >();
+      for (const task of next) {
+        if (serverTaskIds.has(task.id)) continue;
+        const loadedColumn = prev.loadedBoardColumnByTaskId.get(task.id);
+        if (loadedColumn) {
+          remainingLoadedBoardColumnByTaskId.set(task.id, loadedColumn);
+        }
+      }
+
+      return {
+        items: next,
+        columnCursorById: nextColumnCursorById,
+        columnHiddenById: nextColumnHiddenById,
+        loadedBoardColumnByTaskId: remainingLoadedBoardColumnByTaskId,
+        preservedArchiveByColumn: nextPreservedArchiveByColumn,
+      };
     });
 
-    setItems(next);
-
-    // List always resyncs. Board only when no client-only load-more rows remain.
-    if (isListView || next.length <= serverTasks.length) {
-      setColumnCursorById(
-        buildInitialColumnCursorById(columns, initialColumnNextCursorById),
-      );
-      setColumnHiddenById(initialColumnHiddenCountById);
-      setListCursor(initialListNextCursor);
-      listCursorRef.current = initialListNextCursor;
+    setListCursor(initialListNextCursor);
+    listCursorRef.current = initialListNextCursor;
+    if (isListView) {
       setLoadingColumnIds(new Set());
       setIsLoadingListMore(false);
       isLoadingListMoreRef.current = false;
@@ -386,9 +564,12 @@ export function useTasksBoardModel({
   }, [
     columns,
     defaultViewMode,
+    initialColumnHiddenCountById,
+    initialColumnNextCursorById,
+    initialFilters.mentions,
+    initialFilters.needsMe,
     initialFilters.search,
     initialFilters.tag,
-    initialColumnNextCursorById,
     initialListNextCursor,
     tasks,
   ]);
@@ -462,8 +643,9 @@ export function useTasksBoardModel({
     const moveVersion = (moveVersionRef.current += 1);
     pendingMoveVersionByTaskIdRef.current.set(activeId, moveVersion);
 
-    setItems((prev) =>
-      prev.map((task) =>
+    setBoardData((prev) => ({
+      ...prev,
+      items: prev.items.map((task) =>
         task.id === activeId
           ? {
               ...task,
@@ -474,7 +656,7 @@ export function useTasksBoardModel({
             }
           : task,
       ),
-    );
+    }));
 
     if (
       userTaskStatusTransitionRequiresComment(
@@ -503,8 +685,9 @@ export function useTasksBoardModel({
       if (pendingVersion !== moveVersion) return;
 
       pendingMoveVersionByTaskIdRef.current.delete(activeId);
-      setItems((prev) =>
-        prev.map((task) =>
+      setBoardData((prev) => ({
+        ...prev,
+        items: prev.items.map((task) =>
           task.id === activeId &&
           task.columnId === toColumn &&
           task.status === desiredStatus
@@ -516,7 +699,7 @@ export function useTasksBoardModel({
               }
             : task,
         ),
-      );
+      }));
     };
 
     startTransition(async () => {
@@ -549,8 +732,9 @@ export function useTasksBoardModel({
     if (pendingVersion !== pending.moveVersion) return;
 
     pendingMoveVersionByTaskIdRef.current.delete(pending.taskId);
-    setItems((prev) =>
-      prev.map((task) =>
+    setBoardData((prev) => ({
+      ...prev,
+      items: prev.items.map((task) =>
         task.id === pending.taskId &&
         task.columnId === pending.toColumn &&
         task.status === pending.desiredStatus
@@ -562,7 +746,7 @@ export function useTasksBoardModel({
             }
           : task,
       ),
-    );
+    }));
   };
 
   const handleBoardReopenOpenChange = (open: boolean) => {
@@ -644,27 +828,57 @@ export function useTasksBoardModel({
           sort: effectiveTasksSort(routeFilters.sort, "board"),
         });
         if (pagingContextRef.current !== pagingContext) return;
-        setItems((prev) => appendUniqueTasks(prev, result.tasks));
         const nextCursor = result.nextCursor;
-        setColumnHiddenById((prev) => ({
-          ...prev,
-          [columnId]: nextCursor
-            ? Math.max(0, (prev[columnId] ?? 0) - result.tasks.length)
-            : 0,
-        }));
-        setColumnCursorById((prev) => ({
-          ...prev,
-          [columnId]: nextCursor,
-        }));
+        setBoardData((prev) => {
+          const existingIds = new Set(prev.items.map((task) => task.id));
+          const nextLoadedBoardColumnByTaskId = new Map(
+            prev.loadedBoardColumnByTaskId,
+          );
+          for (const task of result.tasks) {
+            if (!existingIds.has(task.id)) {
+              nextLoadedBoardColumnByTaskId.set(task.id, columnId);
+            }
+          }
+          return {
+            ...prev,
+            items: appendUniqueTasks(prev.items, result.tasks),
+            columnHiddenById: {
+              ...prev.columnHiddenById,
+              [columnId]: nextCursor
+                ? Math.max(
+                    0,
+                    (prev.columnHiddenById[columnId] ?? 0) -
+                      result.tasks.length,
+                  )
+                : 0,
+            },
+            columnCursorById: {
+              ...prev.columnCursorById,
+              [columnId]: nextCursor,
+            },
+            loadedBoardColumnByTaskId: nextLoadedBoardColumnByTaskId,
+            preservedArchiveByColumn: withoutPreservedColumn(
+              prev.preservedArchiveByColumn,
+              columnId,
+            ),
+          };
+        });
         columnCursorByIdRef.current = {
           ...columnCursorByIdRef.current,
           [columnId]: nextCursor,
         };
       } catch {
         if (pagingContextRef.current !== pagingContext) return;
-        setColumnCursorById((prev) => ({
+        setBoardData((prev) => ({
           ...prev,
-          [columnId]: null,
+          columnCursorById: {
+            ...prev.columnCursorById,
+            [columnId]: null,
+          },
+          preservedArchiveByColumn: withoutPreservedColumn(
+            prev.preservedArchiveByColumn,
+            columnId,
+          ),
         }));
         columnCursorByIdRef.current = {
           ...columnCursorByIdRef.current,
@@ -704,7 +918,10 @@ export function useTasksBoardModel({
         ...routeFilters,
       });
       if (pagingContextRef.current !== pagingContext) return;
-      setItems((prev) => appendUniqueTasks(prev, result.tasks));
+      setBoardData((prev) => ({
+        ...prev,
+        items: appendUniqueTasks(prev.items, result.tasks),
+      }));
       const nextCursor = result.nextCursor;
       setListCursor(nextCursor);
       listCursorRef.current = nextCursor;

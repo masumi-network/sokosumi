@@ -14,6 +14,7 @@ import {
   type ComponentProps,
   cloneElement,
   type ReactNode,
+  StrictMode,
   Suspense,
   startTransition,
   use,
@@ -26,7 +27,10 @@ import type {
   KanbanColumnId,
   TaskWithCoworker,
 } from "@/app/tasks/types/task-board";
-import { markTaskArchived } from "@/app/tasks/utils/archived-task-ids";
+import {
+  markTaskArchived,
+  unmarkTaskArchived,
+} from "@/app/tasks/utils/archived-task-ids";
 import type { TasksFilters } from "@/app/tasks/utils/tasks-filters";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
@@ -90,6 +94,7 @@ vi.mock("./kanban-board", () => ({
       data-testid="board-density"
       data-compact={compact}
       data-done-hidden={columnHiddenCountById?.done ?? 0}
+      data-todo-hidden={columnHiddenCountById?.todo ?? 0}
     >
       {tasks.map((task) => (
         <div
@@ -1635,4 +1640,457 @@ it("does not remount the board or lose loaded pages when createTaskModalResetKey
       expect.objectContaining({ cursor: "cursor-2" }),
     ),
   );
+});
+
+it("does not rewind the column cursor when archiving the only loaded task", async () => {
+  const archived: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-only-loaded-archived",
+  };
+  vi.mocked(loadMoreTasksColumn).mockResolvedValue({
+    tasks: [archived],
+    nextCursor: null,
+  });
+
+  const { rerender } = render(boardView([TASK], undefined, "cursor-1", 1));
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(
+    await screen.findByTestId(`board-card-${archived.id}`),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+
+  markTaskArchived(archived.id);
+  rerender(boardView([TASK], undefined, "cursor-1", 1));
+
+  expect(
+    screen.queryByTestId(`board-card-${archived.id}`),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("0");
+});
+
+it("does not rewind the column cursor when archiving the only loaded task on a tagged board", async () => {
+  const archived: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-tagged-only-loaded-archived",
+  };
+  vi.mocked(loadMoreTasksColumn).mockResolvedValue({
+    tasks: [archived],
+    nextCursor: null,
+  });
+
+  const taggedBoard = (
+    tasks: TaskWithCoworker[],
+    doneCursor: string | null,
+    doneHidden: number,
+  ) => {
+    searchParamsRef.current = new URLSearchParams({ tag: "research" });
+    return cloneElement(boardView(tasks, undefined, doneCursor, doneHidden), {
+      initialFilters: { ...EMPTY_FILTERS, tag: "research" },
+    });
+  };
+
+  try {
+    const { rerender } = render(taggedBoard([TASK], "cursor-1", 1));
+    act(() => screen.getByRole("button", { name: "Load more" }).click());
+    expect(
+      await screen.findByTestId(`board-card-${archived.id}`),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+
+    markTaskArchived(archived.id);
+    rerender(taggedBoard([TASK], "cursor-1", 1));
+
+    expect(
+      screen.queryByTestId(`board-card-${archived.id}`),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+    expect(
+      screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+    ).toBe("0");
+  } finally {
+    searchParamsRef.current = new URLSearchParams();
+  }
+});
+
+it("resyncs the column cursor on an ordinary refresh after loading a page", async () => {
+  const loaded: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-loaded-ordinary-refresh",
+  };
+  vi.mocked(loadMoreTasksColumn).mockResolvedValue({
+    tasks: [loaded],
+    nextCursor: null,
+  });
+
+  const { rerender } = render(boardView([TASK], undefined, "cursor-1", 1));
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(
+    await screen.findByTestId(`board-card-${loaded.id}`),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+
+  // Ordinary server refresh now includes the loaded task on page 1 and reports
+  // newer rows waiting behind a fresh cursor.
+  rerender(boardView([TASK, loaded], undefined, "cursor-2", 3));
+
+  expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("3");
+});
+
+it("keeps archive cursor preservation idempotent on Activity reveal under StrictMode", async () => {
+  const archived: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-strict-activity-archived",
+  };
+  vi.mocked(loadMoreTasksColumn).mockResolvedValue({
+    tasks: [archived],
+    nextCursor: null,
+  });
+
+  const view = boardView([TASK], undefined, "cursor-1", 1);
+  const { rerender } = render(
+    <StrictMode>
+      <Activity mode="visible">{view}</Activity>
+    </StrictMode>,
+  );
+
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(
+    await screen.findByTestId(`board-card-${archived.id}`),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+
+  rerender(
+    <StrictMode>
+      <Activity mode="hidden">{view}</Activity>
+    </StrictMode>,
+  );
+  markTaskArchived(archived.id);
+  rerender(
+    <StrictMode>
+      <Activity mode="visible">{view}</Activity>
+    </StrictMode>,
+  );
+
+  expect(
+    screen.queryByTestId(`board-card-${archived.id}`),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("0");
+});
+
+it("preserves only the archived column's cursor when another column gains an overflow cursor", async () => {
+  const archived: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-done-archived-concurrent-todo",
+  };
+  vi.mocked(loadMoreTasksColumn).mockResolvedValueOnce({
+    tasks: [archived],
+    nextCursor: null,
+  });
+
+  const withTodoAndDone = (
+    doneCursor: string | null,
+    doneHidden: number,
+    todoCursor: string | null,
+    todoHidden: number,
+  ) =>
+    cloneElement(boardView([TASK], undefined, doneCursor, doneHidden), {
+      columnNextCursorById: {
+        backlog: null,
+        todo: todoCursor,
+        "in-progress": null,
+        "input-required": null,
+        done: doneCursor,
+      },
+      columnHiddenCountById: {
+        backlog: 0,
+        todo: todoHidden,
+        "in-progress": 0,
+        "input-required": 0,
+        done: doneHidden,
+      },
+    });
+
+  const { rerender } = render(withTodoAndDone("done-cursor-1", 1, null, 0));
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(
+    await screen.findByTestId(`board-card-${archived.id}`),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+
+  // Archive the loaded Done task while a concurrent change adds overflow to To do.
+  markTaskArchived(archived.id);
+  rerender(withTodoAndDone("done-cursor-1", 1, "todo-cursor-1", 1));
+
+  expect(
+    screen.queryByTestId(`board-card-${archived.id}`),
+  ).not.toBeInTheDocument();
+  // Done stays exhausted; To do receives its new cursor and hidden count.
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("0");
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-todo-hidden"),
+  ).toBe("1");
+
+  vi.mocked(loadMoreTasksColumn).mockResolvedValueOnce({
+    tasks: [],
+    nextCursor: null,
+  });
+  await act(async () => {
+    screen.getByRole("button", { name: "Load more" }).click();
+    await Promise.resolve();
+  });
+  expect(loadMoreTasksColumn).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      columnId: "todo",
+      cursor: "todo-cursor-1",
+    }),
+  );
+});
+
+it("restores Load more after a failed page when returning via cached Activity reveal", async () => {
+  vi.mocked(toast.error).mockClear();
+  vi.mocked(loadMoreTasksColumn).mockRejectedValueOnce(new Error("network"));
+
+  const view = boardView([TASK], undefined, "cursor-1", 1);
+  const { rerender } = render(<Activity mode="visible">{view}</Activity>);
+
+  await act(async () => {
+    screen.getByRole("button", { name: "Load more" }).click();
+    await Promise.resolve();
+  });
+  expect(toast.error).toHaveBeenCalledWith("Could not load more");
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+
+  rerender(<Activity mode="hidden">{view}</Activity>);
+  rerender(<Activity mode="visible">{view}</Activity>);
+
+  expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+});
+
+it("resyncs the column cursor on a tagged board when archiving one of two loaded rows drops the other", async () => {
+  const loaded: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-tagged-loaded-sibling",
+  };
+  const archived: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-tagged-archived-sibling",
+  };
+  vi.mocked(loadMoreTasksColumn).mockResolvedValueOnce({
+    tasks: [loaded, archived],
+    nextCursor: null,
+  });
+
+  const taggedBoard = (
+    tasks: TaskWithCoworker[],
+    doneCursor: string | null,
+    doneHidden: number,
+  ) => {
+    searchParamsRef.current = new URLSearchParams({ tag: "research" });
+    return cloneElement(boardView(tasks, undefined, doneCursor, doneHidden), {
+      initialFilters: { ...EMPTY_FILTERS, tag: "research" },
+    });
+  };
+
+  try {
+    const { rerender } = render(taggedBoard([TASK], "cursor-1", 2));
+    act(() => screen.getByRole("button", { name: "Load more" }).click());
+    expect(
+      await screen.findByTestId(`board-card-${archived.id}`),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+
+    // Archive one loaded row; keepLocalOnlyTasks=false drops the sibling because
+    // archive membership cannot tell whether the sibling still holds the tag,
+    // so Done must resync its cursor instead of stranding the sibling.
+    markTaskArchived(archived.id);
+    rerender(taggedBoard([TASK], "cursor-1", 1));
+
+    expect(
+      screen.queryByTestId(`board-card-${archived.id}`),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId(`board-card-${loaded.id}`),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+    expect(
+      screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+    ).toBe("1");
+  } finally {
+    searchParamsRef.current = new URLSearchParams();
+  }
+});
+
+it("keeps the archived column's remaining loaded row and cursor while another column gains overflow", async () => {
+  const loaded: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-done-loaded-sibling-concurrent-todo",
+  };
+  const archived: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-done-archived-sibling-concurrent-todo",
+  };
+  vi.mocked(loadMoreTasksColumn).mockResolvedValueOnce({
+    tasks: [loaded, archived],
+    nextCursor: null,
+  });
+
+  const withTodoAndDone = (
+    doneCursor: string | null,
+    doneHidden: number,
+    todoCursor: string | null,
+    todoHidden: number,
+  ) =>
+    cloneElement(boardView([TASK], undefined, doneCursor, doneHidden), {
+      columnNextCursorById: {
+        backlog: null,
+        todo: todoCursor,
+        "in-progress": null,
+        "input-required": null,
+        done: doneCursor,
+      },
+      columnHiddenCountById: {
+        backlog: 0,
+        todo: todoHidden,
+        "in-progress": 0,
+        "input-required": 0,
+        done: doneHidden,
+      },
+    });
+
+  const { rerender } = render(withTodoAndDone("done-cursor-1", 2, null, 0));
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(
+    await screen.findByTestId(`board-card-${archived.id}`),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+
+  markTaskArchived(archived.id);
+  rerender(withTodoAndDone("done-cursor-1", 1, "todo-cursor-1", 1));
+
+  expect(
+    screen.queryByTestId(`board-card-${archived.id}`),
+  ).not.toBeInTheDocument();
+  expect(boardCard(loaded.id)).toBeInTheDocument();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("0");
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-todo-hidden"),
+  ).toBe("1");
+  expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+});
+
+it("does not freeze a column's cursor when archiving a page-1 task", () => {
+  const pageOneDone: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-page-one-archived",
+  };
+  const promotedDone: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-promoted-after-archive",
+  };
+
+  const { rerender } = render(
+    boardView([TASK, pageOneDone], undefined, "cursor-1", 5),
+  );
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("5");
+
+  markTaskArchived(pageOneDone.id);
+  rerender(boardView([TASK, promotedDone], undefined, "cursor-2", 4));
+
+  expect(
+    screen.queryByTestId(`board-card-${pageOneDone.id}`),
+  ).not.toBeInTheDocument();
+  expect(boardCard(promotedDone.id)).toBeInTheDocument();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("4");
+});
+
+it("restores Load more on cached Activity reveal if a background archive fails", async () => {
+  const archived: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-failed-archive-restore-cursor",
+  };
+  vi.mocked(loadMoreTasksColumn).mockResolvedValueOnce({
+    tasks: [archived],
+    nextCursor: null,
+  });
+
+  const view = boardView([TASK], undefined, "cursor-1", 1);
+  const { rerender } = render(<Activity mode="visible">{view}</Activity>);
+
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(
+    await screen.findByTestId(`board-card-${archived.id}`),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+
+  rerender(<Activity mode="hidden">{view}</Activity>);
+  markTaskArchived(archived.id);
+  rerender(<Activity mode="visible">{view}</Activity>);
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+
+  rerender(<Activity mode="hidden">{view}</Activity>);
+  unmarkTaskArchived(archived.id);
+  rerender(<Activity mode="visible">{view}</Activity>);
+
+  expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("1");
+});
+
+it("keeps the archived column's cursor across a racing pre-delete server refresh, then resyncs on new server data", async () => {
+  const archived: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-racing-pre-delete-refresh",
+  };
+  vi.mocked(loadMoreTasksColumn).mockResolvedValueOnce({
+    tasks: [archived],
+    nextCursor: null,
+  });
+
+  const { rerender } = render(boardView([TASK], undefined, "cursor-1", 1));
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(
+    await screen.findByTestId(`board-card-${archived.id}`),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+
+  // Reveal / first refresh drops the archived task and preserves Done.
+  markTaskArchived(archived.id);
+  rerender(boardView([TASK], undefined, "cursor-1", 1));
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("0");
+
+  // Second refresh arrives with fresh prop objects before DELETE finishes on Core,
+  // still reporting the same stale Done cursor and hidden count.
+  rerender(boardView([TASK], undefined, "cursor-1", 1));
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("0");
+
+  // Once a later refresh reports genuinely new Done pagination, Done resyncs.
+  rerender(boardView([TASK], undefined, "cursor-2", 2));
+  expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("2");
 });
