@@ -23,10 +23,14 @@ export function ChatHomePageSkeleton(): React.ReactElement {
           <Skeleton className="h-9 w-64 max-w-full md:h-10" />
         </div>
         <div className="flex flex-col gap-4">
-          <Skeleton
-            className="h-24 w-full rounded-xl"
-            data-testid="home-loading-composer"
-          />
+          {/* RoomComposer's form gutter and card height, so the chips below
+              land where the page draws them. */}
+          <div className="px-3 pb-3 md:px-5 md:pb-6">
+            <Skeleton
+              className="h-27.5 w-full rounded-xl md:h-25.5"
+              data-testid="home-loading-composer"
+            />
+          </div>
           <div
             className="flex flex-wrap justify-center gap-2"
             data-testid="home-loading-chips"

@@ -112,10 +112,9 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       const bones = await page
         .getByTestId("home-loading-composer")
         .boundingBox();
-      const chips = await page
-        .getByTestId("home-loading-chips")
-        .locator('[data-slot="skeleton"]')
-        .count();
+      const chipBones = page.getByTestId("home-loading-chips");
+      const chipsBone = await chipBones.boundingBox();
+      const chips = await chipBones.locator('[data-slot="skeleton"]').count();
       // The retired picker's featured face and four teammates.
       const pickerFaces = await shell.locator(".size-20, .size-11").count();
       await page.screenshot({ path: `${RESULTS_DIR}home-loading-${name}.png` });
@@ -130,19 +129,30 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       await page
         .getByRole("heading", { name: "In the last 24 hours" })
         .waitFor();
-      const loaded = await composer.boundingBox();
+      const loaded = await page
+        .locator("[data-room-composer-mention-anchor]")
+        .boundingBox();
+      const firstChip = await page
+        .getByRole("button", { name: "Catch me up" })
+        .boundingBox();
       await context.close();
 
-      assert.ok(bones);
-      assert.ok(loaded);
+      assert.ok(bones && chipsBone);
+      assert.ok(loaded && firstChip);
       assert.equal(chips, 3, "three suggestion chip bones");
       assert.equal(pickerFaces, 0, "the coworker picker's faces are gone");
-      // The composer lands where its bone stood (24px slack for the
-      // greeting's line height).
-      assert.ok(
-        Math.abs(bones.y - loaded.y) <= 24,
-        `composer jumps ${Math.round(loaded.y - bones.y)}px after loading`,
-      );
+      // The composer card and the chips land where their bones stood.
+      const moves = {
+        "composer top": loaded.y - bones.y,
+        "composer left": loaded.x - bones.x,
+        "composer width": loaded.width - bones.width,
+        "composer height": loaded.height - bones.height,
+        "chips top": firstChip.y - chipsBone.y,
+      };
+      for (const [what, px] of Object.entries(moves)) {
+        assert.ok(Math.abs(px) <= 4, `${what} moves ${Math.round(px)}px`);
+      }
+      console.log(name, JSON.stringify(moves));
       assert.deepEqual(errors, []);
     });
   });
