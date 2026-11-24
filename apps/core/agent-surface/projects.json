@@ -169,37 +169,37 @@
     "PUT /projects/{id}/ads/market": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
     },
     "PUT /projects/{id}/image-studio/batches/{batchId}/compare": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
     },
     "PUT /projects/{id}/image-studio/brand-kit": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
     },
     "POST /projects/{id}/image-studio/website-draft": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
     },
     "PUT /projects/{id}/image-studio/brand-kit/look": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
     },
     "POST /projects/{id}/image-studio/brand-kit/logo": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
     },
     "POST /projects/{id}/image-studio/brand-kit/logo/website": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
     },
     "POST /projects/{id}/image-studio/jobs": {
       "cli": false,
@@ -209,17 +209,17 @@
     "PUT /projects/{id}/image-studio/products": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
     },
     "POST /projects/{id}/image-studio/products/import": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
     },
     "POST /projects/{id}/image-studio/products/photo": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
     },
     "POST /projects/{id}/image-studio/video-jobs": {
       "cli": false,
@@ -254,17 +254,17 @@
     "PUT /projects/{id}/image-studio/assets/{assetId}/feedback": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
     },
     "POST /projects/{id}/image-studio/assets/{assetId}/hide": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
     },
     "PUT /projects/{id}/image-studio/assets/{assetId}/headline": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
     },
     "POST /projects/{id}/image-studio/assets/{assetId}/caption": {
       "cli": false,
