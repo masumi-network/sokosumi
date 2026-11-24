@@ -6,13 +6,7 @@ import {
 } from "@sokosumi/utils";
 import type * as Ably from "ably";
 import { useAbly } from "ably/react";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { capabilityGrants } from "@/lib/ably/ably-capability-map";
 import { authorizeAbly } from "@/lib/ably/authorize.client";
 import { registerAblyChatRoomScope } from "@/lib/ably/chat-room-auth-scope.client";
@@ -52,11 +46,6 @@ export interface RoomTypingActions {
   handleComposerChange: (composerHasText: boolean) => void;
   /** Send, blur, or leaving the room. Safe to call when not announced. */
   handleStopTyping: () => void;
-}
-
-export interface RoomTyping extends RoomTypingActions {
-  /** Live typists in this room, in the order they started. Never includes you. */
-  typistIds: readonly string[];
 }
 
 export interface RoomTypingSnapshot {
@@ -358,28 +347,4 @@ export function useRoomTypingSync(
       tearDown();
     };
   }, [ably, handleComposerChange, handleStopTyping, roomId, selfUserId, store]);
-}
-
-/** Typing for one room (ADR-0033): publish and observe live typists. */
-export function useRoomTyping(
-  roomId: string | null | undefined,
-  selfUserId: string | null | undefined,
-): RoomTyping {
-  const [store] = useState(createRoomTypingStore);
-  useRoomTypingSync(roomId, selfUserId, store);
-  const snapshot = useSyncExternalStore(
-    store.subscribe,
-    store.getSnapshot,
-    store.getServerSnapshot,
-  );
-  const typistIds =
-    roomId && snapshot.roomId === roomId
-      ? snapshot.typistIds
-      : EMPTY_TYPIST_IDS;
-
-  return {
-    typistIds,
-    handleComposerChange: store.handleComposerChange,
-    handleStopTyping: store.handleStopTyping,
-  };
 }

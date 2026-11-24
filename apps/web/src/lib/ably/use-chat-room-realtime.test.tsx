@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/ably/realtime-channel-environment", () => ({
@@ -44,7 +45,10 @@ vi.mock("ably/react", () => ({
 
 import { expectConsole } from "@sokosumi/utils/test-console";
 import { useChatControlChannel } from "@/hooks/effects/use-chat-control-channel";
-import { useRoomTyping } from "@/hooks/effects/use-room-typing";
+import {
+  createRoomTypingStore,
+  useRoomTypingSync,
+} from "@/hooks/effects/use-room-typing";
 import { getAblyChatRoomScope } from "./chat-room-auth-scope.client";
 import { useChatRoomRealtime } from "./use-chat-room-realtime";
 
@@ -172,7 +176,10 @@ describe("useChatRoomRealtime", () => {
     const messages = renderHook(() =>
       useChatRoomRealtime({ roomIds: ["room-a"], currentUserId: "user_1" }),
     );
-    const typing = renderHook(() => useRoomTyping("room-a", "user_1"));
+    const typing = renderHook(() => {
+      const [store] = useState(createRoomTypingStore);
+      useRoomTypingSync("room-a", "user_1", store);
+    });
     messages.unmount();
     expect(getAblyChatRoomScope()).toEqual(["room-a"]);
 
