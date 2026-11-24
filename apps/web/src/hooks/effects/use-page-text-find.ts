@@ -1,8 +1,8 @@
 "use client";
 
 import { type RefObject, useEffect, useState } from "react";
+import "@/components/page-text-find.css";
 import { pageTextMatches } from "@/lib/utils/page-text-matches";
-import "./page-text-find.css";
 
 export function usePageTextFind(
   content: RefObject<HTMLElement | null>,

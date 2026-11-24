@@ -59,7 +59,6 @@ import {
 } from "@/app/chat/hooks/use-room-message-jumps";
 import { useRoomMessageMutations } from "@/app/chat/hooks/use-room-message-mutations";
 import { useRoomNotificationDeepLink } from "@/app/chat/hooks/use-room-notification-deep-link";
-import { useRoomReadAttention } from "@/app/chat/hooks/use-room-read-attention";
 import { useRoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
 import { useRoomShellRoster } from "@/app/chat/hooks/use-room-shell-roster";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
@@ -163,9 +162,11 @@ import { RoomCatchUpLine } from "@/components/chat/signals/room-catch-up-line";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useChatRefreshScheduler } from "@/hooks/effects/use-chat-refresh-scheduler";
+import { useChatRoomRealtime } from "@/hooks/effects/use-chat-room-realtime";
 import { useIsMobileMedia } from "@/hooks/effects/use-mobile";
 import { useQuietHoverWhileScrolling } from "@/hooks/effects/use-quiet-hover-while-scrolling";
 import { useMarkRoomCacheDirtyOnExit } from "@/hooks/effects/use-room-cache-dirty";
+import { useRoomReadAttention } from "@/hooks/effects/use-room-read-attention";
 import { useRoomUrlAsk } from "@/hooks/effects/use-room-url-ask";
 import { useRoomsClientClassicOutboundCleanup } from "@/hooks/effects/use-rooms-client-classic-outbound-cleanup";
 import { useRoomsClientHeaderParticipantsShown } from "@/hooks/effects/use-rooms-client-header-participants-shown";
@@ -191,7 +192,6 @@ import {
   isChatRoomMessageIdEnvelope,
   isChatRoomMessagePatchEvent,
 } from "@/lib/ably/schema";
-import { useChatRoomRealtime } from "@/lib/ably/use-chat-room-realtime";
 import { isRoomOfWorkspace } from "@/lib/chat/room-workspace-scope";
 import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
