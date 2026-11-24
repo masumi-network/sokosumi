@@ -41,7 +41,15 @@ const SCHEMA_VARIABLES = [
   "DATABASE_SCHEMA_SHARED",
   "DATABASE_SCHEMA_MAINNET",
   "DATABASE_SCHEMA_PREPROD",
+  "NETWORK_PREPROD_ENABLED",
 ] as const;
+/** The split layout with Preprod on: every client can be obtained. */
+const PREPROD_ON = {
+  DATABASE_SCHEMA_SHARED: "shared",
+  DATABASE_SCHEMA_MAINNET: "mainnet",
+  DATABASE_SCHEMA_PREPROD: "preprod",
+  NETWORK_PREPROD_ENABLED: "true",
+} as const;
 
 const cache = globalThis as { coreDatabase?: unknown };
 const cachedByOtherFiles = cache.coreDatabase;
@@ -51,7 +59,7 @@ async function importClients() {
   return await import("./prisma");
 }
 
-/** A fresh database module; every schema name is unset unless given. */
+/** A fresh database module; every schema name and the flag are unset unless given. */
 async function loadClients(
   schemas: Partial<Record<(typeof SCHEMA_VARIABLES)[number], string>> = {},
 ) {
@@ -97,7 +105,12 @@ afterEach(() => {
 
 describe("Core database clients", () => {
   it("sends every client's queries through the one attached pool", async () => {
-    const { default: prisma, networkPrisma, query, pool } = await loadClients();
+    const {
+      default: prisma,
+      networkPrisma,
+      query,
+      pool,
+    } = await loadClients(PREPROD_ON);
 
     const clients = [
       prisma,
@@ -114,7 +127,11 @@ describe("Core database clients", () => {
   });
 
   it("builds a Network's client on first use and keeps it across a module reload", async () => {
-    const { default: prisma, networkPrisma, pool } = await loadClients();
+    const {
+      default: prisma,
+      networkPrisma,
+      pool,
+    } = await loadClients(PREPROD_ON);
     expect(mocks.createPrismaClient).toHaveBeenCalledTimes(1);
 
     const mainnet = networkPrisma("mainnet");
@@ -147,28 +164,46 @@ describe("Core database clients", () => {
     },
   );
 
-  it("names today's public schema in every client's queries by default", async () => {
+  it("names today's public schema in the shared and Mainnet queries by default", async () => {
     const { default: prisma, networkPrisma, query } = await loadClients();
 
-    for (const client of [
-      prisma,
-      networkPrisma("mainnet"),
-      networkPrisma("preprod"),
-    ]) {
+    for (const client of [prisma, networkPrisma("mainnet")]) {
       expect(await lockSql(client, query)).toContain('"public"."Lock"');
     }
   });
+
+  it.each([
+    ["today's layout", {}],
+    [
+      "the split layout",
+      {
+        DATABASE_SCHEMA_SHARED: "shared",
+        DATABASE_SCHEMA_MAINNET: "mainnet",
+        DATABASE_SCHEMA_PREPROD: "preprod",
+      },
+    ],
+    [
+      "the flag set to false",
+      { ...PREPROD_ON, NETWORK_PREPROD_ENABLED: "false" },
+    ],
+  ])(
+    "refuses the Preprod client while Preprod is off, on %s",
+    async (_, env) => {
+      const { networkPrisma } = await loadClients(env);
+
+      expect(() => networkPrisma("preprod")).toThrow("Preprod is off");
+
+      expect(mocks.createPrismaClient).toHaveBeenCalledTimes(1);
+      expect(networkPrisma("mainnet")).toBeDefined();
+    },
+  );
 
   it("names each client's configured schema", async () => {
     const {
       default: prisma,
       networkPrisma,
       query,
-    } = await loadClients({
-      DATABASE_SCHEMA_SHARED: "shared",
-      DATABASE_SCHEMA_MAINNET: "mainnet",
-      DATABASE_SCHEMA_PREPROD: "preprod",
-    });
+    } = await loadClients(PREPROD_ON);
 
     expect(await lockSql(prisma, query)).toContain('"shared"."Lock"');
     expect(await lockSql(networkPrisma("mainnet"), query)).toContain(
@@ -180,7 +215,12 @@ describe("Core database clients", () => {
   });
 
   it("reports an idle pool error once, though three clients use the pool", async () => {
-    const { default: prisma, networkPrisma, query, pool } = await loadClients();
+    const {
+      default: prisma,
+      networkPrisma,
+      query,
+      pool,
+    } = await loadClients(PREPROD_ON);
     for (const client of [
       prisma,
       networkPrisma("mainnet"),

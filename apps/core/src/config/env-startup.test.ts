@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { fileURLToPath } from "node:url";
@@ -99,5 +100,48 @@ describe("importing the environment module", () => {
     expect(output).toContain("[redacted:env-secret]");
     expect(output).not.toContain(secret);
     expect(output).not.toContain("without initLogger()");
+  }, 30_000);
+});
+
+describe("the deploy step that checks the schema layout", () => {
+  const script = fileURLToPath(
+    new URL("../../scripts/check-network-layout.mts", import.meta.url),
+  );
+
+  it("fails the deploy on a half-changed layout, naming the rule", async () => {
+    const { code, output } = await start(
+      { DATABASE_SCHEMA_PREPROD: "preprod" },
+      script,
+    );
+
+    expect(code).toBe(1);
+    expect(output).toContain("all public or all different");
+  }, 30_000);
+
+  it("fails the deploy with Preprod on while every name is public", async () => {
+    const { code, output } = await start(
+      { NETWORK_PREPROD_ENABLED: "true" },
+      script,
+    );
+
+    expect(code).toBe(1);
+    expect(output).toContain("NETWORK_PREPROD_ENABLED");
+  }, 30_000);
+
+  it("runs in the Vercel build, before any migration", () => {
+    const { scripts } = JSON.parse(
+      readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+    ) as { scripts: Record<string, string> };
+    const build = scripts["vercel-build"] ?? "";
+
+    const check = build.indexOf("tsx scripts/check-network-layout.mts");
+    expect(check).toBeGreaterThan(-1);
+    expect(check).toBeLessThan(build.indexOf("prisma:migrate:deploy"));
+  });
+
+  it("passes today's layout without any other variable", async () => {
+    const { code } = await start({}, script);
+
+    expect(code).toBe(0);
   }, 30_000);
 });

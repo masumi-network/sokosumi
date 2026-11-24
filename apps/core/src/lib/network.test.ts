@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { NETWORKS, type Network, networkKey, requireNetwork } from "./network";
 
@@ -38,5 +38,33 @@ describe("networkKey", () => {
 describe("requireNetwork", () => {
   it.each(NETWORKS)("returns %s", (network) => {
     expect(requireNetwork(network)).toBe(network);
+  });
+});
+
+describe("isPreprodOn", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  /** A fresh module, so the environment is read again. */
+  async function preprodOn(env: Record<string, string | undefined>) {
+    for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value);
+    vi.resetModules();
+    return (await import("./network")).isPreprodOn();
+  }
+
+  it("is false by default", async () => {
+    expect(await preprodOn({ NETWORK_PREPROD_ENABLED: undefined })).toBe(false);
+  });
+
+  it("is true when the flag is on and the three schema names differ", async () => {
+    expect(
+      await preprodOn({
+        NETWORK_PREPROD_ENABLED: "true",
+        DATABASE_SCHEMA_SHARED: "shared",
+        DATABASE_SCHEMA_MAINNET: "mainnet",
+        DATABASE_SCHEMA_PREPROD: "preprod",
+      }),
+    ).toBe(true);
   });
 });

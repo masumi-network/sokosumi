@@ -5,7 +5,7 @@ import { attachDatabasePool } from "@vercel/functions";
 import { Pool } from "pg";
 
 import { getEnv } from "@/config/env";
-import { type Network, requireNetwork } from "@/lib/network";
+import { isPreprodOn, type Network, requireNetwork } from "@/lib/network";
 
 type CorePrismaClient = ReturnType<typeof createPrismaClient>;
 
@@ -31,7 +31,11 @@ function createCoreDatabase(): CoreDatabase {
   const pool = new Pool({
     connectionString: env.DATABASE_URL,
     // Shared by all three clients: while Preprod is off, Mainnet has all of
-    // them; one long transaction on any client holds one.
+    // them; one long transaction on any client holds one. Kept at 10 with
+    // Preprod on: this is per instance, Vercel adds instances under load, and
+    // a larger pool multiplies connections to Neon's pooler. Preprod is
+    // testing traffic. shortcut: no measurement; raise it, or give Preprod a
+    // smaller pool of its own, if P2024 pool timeouts show up with Preprod on.
     max: 10,
     // Detect dead TCP connections before the next cron invocation (60s).
     // The OS default (~7200s) misses server-side idle-timeout closures.
@@ -80,9 +84,15 @@ if (process.env.NODE_ENV !== "production") {
  */
 const prisma = database.shared;
 
-/** The client of one Network's schema. */
+/**
+ * The client of one Network's schema. Throws for Preprod while Preprod is off:
+ * on today's layout its schema is Mainnet's.
+ */
 export function networkPrisma(network: Network): CorePrismaClient {
   const known = requireNetwork(network);
+  if (known === "preprod" && !isPreprodOn()) {
+    throw new Error("Preprod is off: NETWORK_PREPROD_ENABLED is not true");
+  }
   database.networks[known] ??= database.createNetworkClient(known);
   return database.networks[known];
 }

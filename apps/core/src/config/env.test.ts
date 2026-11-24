@@ -777,12 +777,21 @@ describe("database schema names", () => {
     ]);
   });
 
+  /** Three different names, so only the rule under test can fail. */
+  function stubSplitLayout() {
+    vi.stubEnv("DATABASE_SCHEMA_SHARED", "shared");
+    vi.stubEnv("DATABASE_SCHEMA_MAINNET", "mainnet");
+    vi.stubEnv("DATABASE_SCHEMA_PREPROD", "preprod");
+  }
+
   it.each(names)("accepts a lowercase identifier for %s", (name) => {
-    vi.stubEnv(name, "preprod");
-    expect(validateEnv()[name]).toBe("preprod");
+    stubSplitLayout();
+    vi.stubEnv(name, "net_x");
+    expect(validateEnv()[name]).toBe("net_x");
   });
 
   it("accepts a name of PostgreSQL's 63-character identifier limit", () => {
+    stubSplitLayout();
     vi.stubEnv("DATABASE_SCHEMA_PREPROD", "p".repeat(63));
     expect(validateEnv().DATABASE_SCHEMA_PREPROD).toBe("p".repeat(63));
   });
@@ -799,5 +808,68 @@ describe("database schema names", () => {
   ])("rejects a name that is not a plain identifier: %s", (value) => {
     vi.stubEnv("DATABASE_SCHEMA_PREPROD", value);
     expectInvalidEnvironment("DATABASE_SCHEMA_PREPROD");
+  });
+});
+
+describe("Preprod switch and the schema layout", () => {
+  const names = [
+    "DATABASE_SCHEMA_SHARED",
+    "DATABASE_SCHEMA_MAINNET",
+    "DATABASE_SCHEMA_PREPROD",
+  ] as const;
+
+  function stubLayout(shared?: string, mainnet?: string, preprod?: string) {
+    vi.stubEnv("DATABASE_SCHEMA_SHARED", shared);
+    vi.stubEnv("DATABASE_SCHEMA_MAINNET", mainnet);
+    vi.stubEnv("DATABASE_SCHEMA_PREPROD", preprod);
+  }
+
+  it("is off by default, on today's all-public layout", () => {
+    stubLayout();
+    vi.stubEnv("NETWORK_PREPROD_ENABLED", undefined);
+    const env = validateEnv();
+    expect(env.NETWORK_PREPROD_ENABLED).toBe(false);
+    expect(names.map((name) => env[name])).toEqual([
+      "public",
+      "public",
+      "public",
+    ]);
+  });
+
+  it("starts with Preprod off on three different names", () => {
+    stubLayout("shared", "mainnet", "preprod");
+    expect(validateEnv().NETWORK_PREPROD_ENABLED).toBe(false);
+  });
+
+  it("starts with Preprod on when the three names differ", () => {
+    stubLayout("public", "mainnet", "preprod");
+    vi.stubEnv("NETWORK_PREPROD_ENABLED", "true");
+    expect(validateEnv().NETWORK_PREPROD_ENABLED).toBe(true);
+  });
+
+  it.each([
+    ["shared", undefined, undefined],
+    [undefined, "mainnet", undefined],
+    [undefined, undefined, "preprod"],
+    [undefined, "public", "preprod"],
+    ["shared", "net", "net"],
+    ["net", "net", "net"],
+  ])(
+    "refuses to start on a half-changed layout: %s, %s, %s",
+    (shared, mainnet, preprod) => {
+      stubLayout(shared, mainnet, preprod);
+      expectInvalidEnvironment("all public or all different");
+    },
+  );
+
+  it("refuses to start with Preprod on while every name is public", () => {
+    stubLayout();
+    vi.stubEnv("NETWORK_PREPROD_ENABLED", "true");
+    expectInvalidEnvironment("NETWORK_PREPROD_ENABLED");
+  });
+
+  it("rejects a flag that is not true or false", () => {
+    vi.stubEnv("NETWORK_PREPROD_ENABLED", "yes");
+    expectInvalidEnvironment("NETWORK_PREPROD_ENABLED");
   });
 });

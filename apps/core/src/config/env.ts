@@ -94,6 +94,12 @@ const baseEnvSchema = z.object({
   DATABASE_SCHEMA_SHARED: databaseSchemaNameSchema,
   DATABASE_SCHEMA_MAINNET: databaseSchemaNameSchema,
   DATABASE_SCHEMA_PREPROD: databaseSchemaNameSchema,
+  // Preprod, the second Network. Off by default; on only while the three
+  // schema names differ (`checkNetworkLayout`). It stays a switch after the move.
+  NETWORK_PREPROD_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
 
   // Task tags use global Jev routing with enforced retention/no-training options.
   TASK_TAG_CLASSIFICATION_ENABLED: z
@@ -612,7 +618,59 @@ export function isProductionEnvironment(
   return value.NODE_ENV === "production";
 }
 
+type NetworkLayout = Pick<
+  z.infer<typeof baseEnvSchema>,
+  | "DATABASE_SCHEMA_SHARED"
+  | "DATABASE_SCHEMA_MAINNET"
+  | "DATABASE_SCHEMA_PREPROD"
+  | "NETWORK_PREPROD_ENABLED"
+>;
+
+/**
+ * The schema names are all `public` (today's layout) or all different (the
+ * split layout); anything between mixes the Networks' tables. Preprod may be
+ * on only on the split layout: with equal names a Preprod write lands in a
+ * Mainnet table.
+ */
+function checkNetworkLayout(value: NetworkLayout, context: z.RefinementCtx) {
+  const names = [
+    value.DATABASE_SCHEMA_SHARED,
+    value.DATABASE_SCHEMA_MAINNET,
+    value.DATABASE_SCHEMA_PREPROD,
+  ];
+  const allDifferent = new Set(names).size === names.length;
+  if (!allDifferent && !names.every((name) => name === "public")) {
+    context.addIssue({
+      code: "custom",
+      // No single variable is wrong, and a path naming one would let
+      // `invalidVariables` drop the message when it quotes that value.
+      path: [],
+      message:
+        "DATABASE_SCHEMA_SHARED, DATABASE_SCHEMA_MAINNET and DATABASE_SCHEMA_PREPROD must be all public or all different",
+    });
+  }
+  if (value.NETWORK_PREPROD_ENABLED && !allDifferent) {
+    context.addIssue({
+      code: "custom",
+      path: ["NETWORK_PREPROD_ENABLED"],
+      message:
+        "Preprod can be on only while the three DATABASE_SCHEMA_* names differ",
+    });
+  }
+}
+
+/** The layout check alone, for the deploy step that runs before migrations. */
+export const networkLayoutSchema = baseEnvSchema
+  .pick({
+    DATABASE_SCHEMA_SHARED: true,
+    DATABASE_SCHEMA_MAINNET: true,
+    DATABASE_SCHEMA_PREPROD: true,
+    NETWORK_PREPROD_ENABLED: true,
+  })
+  .superRefine(checkNetworkLayout);
+
 const envSchema = baseEnvSchema.superRefine((value, context) => {
+  checkNetworkLayout(value, context);
   if (!value.SOKO_BOT_ENABLED) return;
   // A deployed environment needs a runtime that actually runs turns.
   if (!isDeployedEnvironment(value)) return;
