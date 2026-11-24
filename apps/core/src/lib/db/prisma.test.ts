@@ -151,6 +151,29 @@ describe("Core database clients", () => {
     expect(mocks.attachDatabasePool).toHaveBeenCalledTimes(1);
   });
 
+  it("rebuilds the cached clients when a reload brings other schema names", async () => {
+    const { networkPrisma } = await loadClients();
+    networkPrisma("mainnet");
+    for (const [name, value] of Object.entries(PREPROD_ON)) {
+      vi.stubEnv(name, value);
+    }
+    mocks.attachedPools.length = 0;
+
+    const reloaded = await importClients();
+    const [pool] = mocks.attachedPools;
+    if (!pool) throw new Error("Expected a new pool for the new layout");
+    const query = vi
+      .spyOn(pool, "query")
+      .mockImplementation(() => Promise.resolve(EMPTY_RESULT));
+
+    expect(await lockSql(reloaded.networkPrisma("preprod"), query)).toContain(
+      '"preprod"."Lock"',
+    );
+    expect(await lockSql(reloaded.networkPrisma("mainnet"), query)).toContain(
+      '"mainnet"."Lock"',
+    );
+  });
+
   it.each([undefined, "Mainnet", "Preprod", "", "toString", "__proto__"])(
     "throws on %s before it builds or caches a client",
     async (value) => {

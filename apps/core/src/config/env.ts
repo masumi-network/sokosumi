@@ -8,6 +8,11 @@ import { v4 as uuidv4 } from "uuid";
 import { emitCoreWarning, recordCoreWarning } from "@/lib/evlog";
 // The checks below report through Core's logger: started before they run.
 import "@/lib/evlog-init";
+import { invalidVariables } from "@/config/invalid-variables";
+import {
+  checkNetworkLayout,
+  networkLayoutShape,
+} from "@/config/network-layout";
 import { failStartup } from "@/lib/startup-failure";
 
 // Blank means unset, so a copied `KEY=` line does not fail startup.
@@ -64,17 +69,6 @@ const emailAllowlistSchema = z
       .filter(Boolean),
   );
 
-// PostgreSQL truncates identifiers past 63 bytes, so two longer names could
-// be one schema. `pg_*` and `information_schema` belong to PostgreSQL.
-const databaseSchemaNameSchema = z
-  .string()
-  .regex(/^[a-z_][a-z0-9_]*$/)
-  .max(63)
-  .refine((name) => !name.startsWith("pg_") && name !== "information_schema", {
-    message: "Names a PostgreSQL system schema",
-  })
-  .default("public");
-
 const baseEnvSchema = z.object({
   NETWORK: z.enum(["Preprod", "Mainnet"]).default("Preprod"),
 
@@ -89,18 +83,7 @@ const baseEnvSchema = z.object({
 
   // Database
   DATABASE_URL: z.url(),
-  // Schema of the `shared` tables and of each Network's tables. All three are
-  // `public` until the move splits them. They reach SQL as quoted identifiers.
-  DATABASE_SCHEMA_SHARED: databaseSchemaNameSchema,
-  DATABASE_SCHEMA_MAINNET: databaseSchemaNameSchema,
-  DATABASE_SCHEMA_PREPROD: databaseSchemaNameSchema,
-  // Preprod, the second Network in this database. Off by default; on only
-  // while the three schema names differ (`checkNetworkLayout`). It stays a
-  // switch after the move. Not the deployment's `NETWORK` above.
-  NETWORK_PREPROD_ENABLED: z
-    .enum(["true", "false"])
-    .default("false")
-    .transform((value) => value === "true"),
+  ...networkLayoutShape,
 
   // Task tags use global Jev routing with enforced retention/no-training options.
   TASK_TAG_CLASSIFICATION_ENABLED: z
@@ -619,53 +602,6 @@ export function isProductionEnvironment(
   return value.NODE_ENV === "production";
 }
 
-const networkLayoutFields = baseEnvSchema.pick({
-  DATABASE_SCHEMA_SHARED: true,
-  DATABASE_SCHEMA_MAINNET: true,
-  DATABASE_SCHEMA_PREPROD: true,
-  NETWORK_PREPROD_ENABLED: true,
-});
-
-/**
- * The schema names are all `public` (today's layout) or all different (the
- * split layout); anything between mixes the Networks' tables. Preprod may be
- * on only on the split layout: with equal names a Preprod write lands in a
- * Mainnet table.
- */
-function checkNetworkLayout(
-  value: z.infer<typeof networkLayoutFields>,
-  context: z.RefinementCtx,
-) {
-  const names = [
-    value.DATABASE_SCHEMA_SHARED,
-    value.DATABASE_SCHEMA_MAINNET,
-    value.DATABASE_SCHEMA_PREPROD,
-  ];
-  const allDifferent = new Set(names).size === names.length;
-  if (!allDifferent && !names.every((name) => name === "public")) {
-    context.addIssue({
-      code: "custom",
-      // No single variable is wrong, and a path naming one would let
-      // `invalidVariables` drop the message when it quotes that value.
-      path: [],
-      message:
-        "DATABASE_SCHEMA_SHARED, DATABASE_SCHEMA_MAINNET and DATABASE_SCHEMA_PREPROD must be all public or all different",
-    });
-  }
-  if (value.NETWORK_PREPROD_ENABLED && !allDifferent) {
-    context.addIssue({
-      code: "custom",
-      path: ["NETWORK_PREPROD_ENABLED"],
-      message:
-        "Preprod can be on only while the three DATABASE_SCHEMA_* names differ",
-    });
-  }
-}
-
-/** The layout check alone, for the deploy step that runs before migrations. */
-export const networkLayoutSchema =
-  networkLayoutFields.superRefine(checkNetworkLayout);
-
 const envSchema = baseEnvSchema.superRefine((value, context) => {
   checkNetworkLayout(value, context);
   if (!value.SOKO_BOT_ENABLED) return;
@@ -746,29 +682,6 @@ export function resolveWebRelatedProjectFallbackHost(
   }
 
   return params.configuredWebAppBaseUrl;
-}
-
-/**
- * What a log may keep of each failed check: the variable, the issue's path
- * and code, and Zod's message unless it quotes the variable's value. Zod 4
- * messages describe the expected value, but a refinement's own message can
- * say anything.
- */
-export function invalidVariables(
-  issues: readonly z.core.$ZodIssue[],
-  env: NodeJS.ProcessEnv,
-) {
-  return issues.map((issue) => {
-    const variable = String(issue.path[0] ?? "");
-    const value = env[variable];
-    const quotesValue = Boolean(value) && issue.message.includes(value ?? "");
-    return {
-      variable,
-      path: issue.path.join("."),
-      code: issue.code,
-      ...(quotesValue ? {} : { message: issue.message }),
-    };
-  });
 }
 
 export function validateEnv(): EnvConfig {

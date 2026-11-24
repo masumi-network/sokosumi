@@ -14,6 +14,17 @@ interface CoreDatabase {
   /** Built on first use: each client costs about 30 ms to construct. */
   networks: Partial<Record<Network, CorePrismaClient>>;
   createNetworkClient: (network: Network) => CorePrismaClient;
+  /** The schema names the clients were built for (`schemaNames`). */
+  schemas: string;
+}
+
+function schemaNames(): string {
+  const env = getEnv();
+  return [
+    env.DATABASE_SCHEMA_SHARED,
+    env.DATABASE_SCHEMA_MAINNET,
+    env.DATABASE_SCHEMA_PREPROD,
+  ].join(",");
 }
 
 const globalForPrisma = globalThis as typeof globalThis & {
@@ -68,10 +79,15 @@ function createCoreDatabase(): CoreDatabase {
     shared: createClient(env.DATABASE_SCHEMA_SHARED),
     networks: {},
     createNetworkClient: (network) => createClient(networkSchemas[network]),
+    schemas: schemaNames(),
   };
 }
 
-const database = globalForPrisma.coreDatabase ?? createCoreDatabase();
+// The development cache outlives a module reload, which may bring other schema
+// names; clients built for the old names would query the wrong schemas.
+const cached = globalForPrisma.coreDatabase;
+const database =
+  cached?.schemas === schemaNames() ? cached : createCoreDatabase();
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.coreDatabase = database;

@@ -2,11 +2,11 @@ import { TURNSTILE_ALWAYS_PASS_SECRET } from "@sokosumi/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectCoreLog, expectCoreLogWhys } from "@/test/core-log";
 import {
-  invalidVariables,
   isExplicitPreprod,
   resolveWebRelatedProjectFallbackHost,
   validateEnv,
 } from "./env.js";
+import { invalidVariables } from "./invalid-variables.js";
 
 const SOKO_BOT_ENV_KEYS = [
   "NODE_ENV",
@@ -817,6 +817,10 @@ describe("Preprod switch and the schema layout", () => {
     "DATABASE_SCHEMA_MAINNET",
     "DATABASE_SCHEMA_PREPROD",
   ] as const;
+  const HALF_CHANGED =
+    "DATABASE_SCHEMA_SHARED, DATABASE_SCHEMA_MAINNET and DATABASE_SCHEMA_PREPROD must be all public, or all different and none public";
+  const PREPROD_NEEDS_SPLIT =
+    "Preprod can be on only while the three DATABASE_SCHEMA_* names are all different and none is public";
 
   function stubLayout(shared?: string, mainnet?: string, preprod?: string) {
     vi.stubEnv("DATABASE_SCHEMA_SHARED", shared);
@@ -836,40 +840,55 @@ describe("Preprod switch and the schema layout", () => {
     ]);
   });
 
-  it("starts with Preprod off on three different names", () => {
+  it("starts with Preprod off on the split layout", () => {
     stubLayout("shared", "mainnet", "preprod");
     expect(validateEnv().NETWORK_PREPROD_ENABLED).toBe(false);
   });
 
-  it("starts with Preprod on when the three names differ", () => {
-    stubLayout("public", "mainnet", "preprod");
+  it("starts with Preprod on on the split layout", () => {
+    stubLayout("shared", "mainnet", "preprod");
     vi.stubEnv("NETWORK_PREPROD_ENABLED", "true");
     expect(validateEnv().NETWORK_PREPROD_ENABLED).toBe(true);
   });
 
   it.each([
+    // One name changed.
     ["shared", undefined, undefined],
     [undefined, "mainnet", undefined],
     [undefined, undefined, "preprod"],
-    [undefined, "public", "preprod"],
+    // Two changed, the third left unset and so `public`.
+    ["shared", "mainnet", undefined],
+    ["shared", undefined, "preprod"],
+    [undefined, "mainnet", "preprod"],
+    // Changed, but two names equal.
     ["shared", "net", "net"],
+    ["net", "mainnet", "net"],
     ["net", "net", "net"],
   ])(
     "refuses to start on a half-changed layout: %s, %s, %s",
     (shared, mainnet, preprod) => {
       stubLayout(shared, mainnet, preprod);
-      expectInvalidEnvironment("all public or all different");
+      expectInvalidEnvironment(HALF_CHANGED);
     },
   );
+
+  it("refuses Preprod on with shared and Mainnet set and Preprod left unset", () => {
+    stubLayout("shared", "mainnet", undefined);
+    vi.stubEnv("NETWORK_PREPROD_ENABLED", "true");
+    expectInvalidEnvironment(PREPROD_NEEDS_SPLIT);
+  });
 
   it("refuses to start with Preprod on while every name is public", () => {
     stubLayout();
     vi.stubEnv("NETWORK_PREPROD_ENABLED", "true");
-    expectInvalidEnvironment("NETWORK_PREPROD_ENABLED");
+    expectInvalidEnvironment(PREPROD_NEEDS_SPLIT);
   });
 
-  it("rejects a flag that is not true or false", () => {
-    vi.stubEnv("NETWORK_PREPROD_ENABLED", "yes");
-    expectInvalidEnvironment("NETWORK_PREPROD_ENABLED");
-  });
+  it.each(["yes", "TRUE", "", " true"])(
+    "rejects a flag that is not exactly true or false: %j",
+    (value) => {
+      vi.stubEnv("NETWORK_PREPROD_ENABLED", value);
+      expectInvalidEnvironment("NETWORK_PREPROD_ENABLED");
+    },
+  );
 });
