@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 
 import { CompetitorDialog } from "./competitor-dialog";
 import { CompetitorsExample } from "./competitors-finding";
+import { takeStartAddFocus } from "./competitors-view";
 import { FindCompetitors } from "./find-competitors";
 
 /**
@@ -52,7 +53,13 @@ export function CompetitorsStart({
             room={limit}
             variant="primary"
           />
-          <Button onClick={() => setAdding(true)} size="sm">
+          <Button
+            onClick={() => setAdding(true)}
+            ref={(button) => {
+              if (button && takeStartAddFocus()) button.focus();
+            }}
+            size="sm"
+          >
             {t("start.add")}
           </Button>
         </div>

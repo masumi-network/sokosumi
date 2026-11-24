@@ -3,11 +3,15 @@
 import type { ProjectCompetitor } from "@sokosumi/core-client";
 import { PencilIcon, XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useOptimistic, useRef, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { usePageListSearch } from "@/components/page-list-search";
 
 import { Button } from "@/components/ui/button";
-import { removeCompetitor } from "@/lib/actions/competitors/action";
+import {
+  addCompetitor,
+  removeCompetitor,
+} from "@/lib/actions/competitors/action";
 
 import { CompetitorDialog } from "./competitor-dialog";
 import {
@@ -15,20 +19,29 @@ import {
   CompetitorsItem,
   CompetitorsPanel,
 } from "./competitors-panel";
+import { setStartAddFocus } from "./competitors-view";
 import { FindCompetitors } from "./find-competitors";
 
 function host(url: string): string {
   return URL.parse(url)?.hostname.replace(/^www\./, "") ?? url;
 }
 
-/** The competitors the Project watches: add, change and remove them. */
+/**
+ * The competitors the Project watches: add, change and remove them. A remove
+ * shows at once and moves focus to the next Remove (the one before it for the
+ * last row, Add when none is left). Once Core took it, a toast offers Undo,
+ * which adds it again with the details it had: Core brings back the same
+ * competitor, with what the checks found about it.
+ */
 export function CompetitorsWatchList({
+  className,
   competitors,
   limit,
   projectId,
   projectName,
   readOnly,
 }: {
+  className?: string;
   competitors: ProjectCompetitor[];
   limit: number;
   projectId: string;
@@ -36,7 +49,10 @@ export function CompetitorsWatchList({
   readOnly: boolean;
 }) {
   const t = useTranslations("App.Competitors.list");
-  const visibleCompetitors = usePageListSearch(competitors, (competitor) => ({
+  const [shown, hide] = useOptimistic(competitors, (list, id: string) =>
+    list.filter((competitor) => competitor.id !== id),
+  );
+  const visibleCompetitors = usePageListSearch(shown, (competitor) => ({
     primary: [competitor.name, competitor.id],
     secondary: [
       competitor.websiteUrl,
@@ -48,30 +64,64 @@ export function CompetitorsWatchList({
   const [editing, setEditing] = useState<ProjectCompetitor | "new" | null>(
     null,
   );
-  const [removing, setRemoving] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const removeButtons = useRef(new Map<string, HTMLButtonElement>());
+  const addButton = useRef<HTMLButtonElement>(null);
+
+  function moveFocusFrom(competitor: ProjectCompetitor) {
+    const at = visibleCompetitors.indexOf(competitor);
+    const next = visibleCompetitors[at + 1] ?? visibleCompetitors[at - 1];
+    if (next) return removeButtons.current.get(next.id)?.focus();
+    addButton.current?.focus();
+    // The last one gone, the page turns into the start.
+    if (shown.length === 1) setStartAddFocus(true);
+  }
+
+  function restore(competitor: ProjectCompetitor) {
+    const { name, websiteUrl, pricingUrl, instagramHandle, facebookHandle } =
+      competitor;
+    void addCompetitor({
+      projectId,
+      name,
+      websiteUrl,
+      pricingUrl,
+      instagramHandle,
+      facebookHandle,
+    }).then((result) => {
+      if (!result.ok)
+        toast.error(result.error.message ?? t("restoreFailed", { name }));
+    });
+  }
 
   function remove(competitor: ProjectCompetitor) {
-    setRemoving(competitor.id);
     setError(null);
+    moveFocusFrom(competitor);
     startTransition(async () => {
+      hide(competitor.id);
       const result = await removeCompetitor({
         projectId,
         competitorId: competitor.id,
       });
-      if (!result.ok) setError(result.error.message ?? t("failed"));
-      setRemoving(null);
+      if (!result.ok) {
+        setStartAddFocus(false);
+        setError(result.error.message ?? t("failed"));
+        return;
+      }
+      toast.success(t("removed", { name: competitor.name }), {
+        action: { label: t("undo"), onClick: () => restore(competitor) },
+      });
     });
   }
 
   return (
     <CompetitorsPanel
-      aside={t("count", { count: competitors.length, limit })}
+      aside={t("count", { count: shown.length, limit })}
+      className={className}
       id="competitors-list"
       title={t("title")}
     >
-      {competitors.length === 0 ? (
+      {shown.length === 0 ? (
         <CompetitorsEmpty>{t("emptyReadOnly")}</CompetitorsEmpty>
       ) : (
         visibleCompetitors.map((competitor) => {
@@ -105,7 +155,6 @@ export function CompetitorsWatchList({
                   <Button
                     aria-label={t("editNamed", { name: competitor.name })}
                     className="size-8 px-0"
-                    disabled={removing !== null}
                     onClick={() => setEditing(competitor)}
                     size="sm"
                     variant="ghost"
@@ -115,9 +164,12 @@ export function CompetitorsWatchList({
                   <Button
                     aria-label={t("removeNamed", { name: competitor.name })}
                     className="size-8 px-0"
-                    disabled={removing !== null}
-                    loading={removing === competitor.id}
                     onClick={() => remove(competitor)}
+                    ref={(button) => {
+                      if (button)
+                        removeButtons.current.set(competitor.id, button);
+                      else removeButtons.current.delete(competitor.id);
+                    }}
                     size="sm"
                     variant="ghost"
                   >
@@ -134,7 +186,7 @@ export function CompetitorsWatchList({
           {error}
         </p>
       ) : null}
-      {readOnly ? null : competitors.length >= limit ? (
+      {readOnly ? null : shown.length >= limit ? (
         <p className="text-muted-foreground px-2 pb-1 text-xs">
           {t("full", { limit })}
         </p>
@@ -143,9 +195,9 @@ export function CompetitorsWatchList({
           <FindCompetitors
             projectId={projectId}
             projectName={projectName}
-            room={limit - competitors.length}
+            room={limit - shown.length}
           />
-          <Button onClick={() => setEditing("new")} size="sm">
+          <Button onClick={() => setEditing("new")} ref={addButton} size="sm">
             {t("add")}
           </Button>
         </div>

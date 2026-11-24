@@ -5852,7 +5852,10 @@
         "removeNamed": "Quitar {name}",
         "add": "Añadir competidor",
         "full": "Son los {limit}. Quita uno para observar otro.",
-        "failed": "No funcionó. Inténtalo de nuevo."
+        "failed": "No funcionó. Inténtalo de nuevo.",
+        "removed": "Se quitó {name}",
+        "undo": "Deshacer",
+        "restoreFailed": "No se pudo recuperar {name}. Añádelo de nuevo."
       },
       "form": {
         "addTitle": "Añadir un competidor",

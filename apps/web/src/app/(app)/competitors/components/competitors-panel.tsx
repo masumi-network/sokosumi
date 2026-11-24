@@ -8,11 +8,13 @@ import { cn } from "@/lib/utils";
 
 /** One titled panel of the page: the light-gray holder with its label. */
 export function CompetitorsPanel({
+  className,
   id,
   title,
   aside,
   children,
 }: {
+  className?: string;
   id: string;
   title: string;
   /** A short fact that belongs to the panel, beside its title. */
@@ -22,7 +24,7 @@ export function CompetitorsPanel({
   return (
     <section
       aria-labelledby={id}
-      className={cn(HOLDER_CLASS, "flex flex-col gap-2")}
+      className={cn(HOLDER_CLASS, "flex flex-col gap-2", className)}
     >
       <div className="flex items-baseline justify-between gap-3 px-2 pt-1">
         <h2 className="text-muted-foreground text-xs font-medium" id={id}>

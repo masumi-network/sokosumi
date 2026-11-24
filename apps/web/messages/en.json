@@ -5852,7 +5852,10 @@
         "removeNamed": "Remove {name}",
         "add": "Add competitor",
         "full": "That is all {limit}. Remove one to watch another.",
-        "failed": "That did not work. Try again."
+        "failed": "That did not work. Try again.",
+        "removed": "{name} removed",
+        "undo": "Undo",
+        "restoreFailed": "{name} could not come back. Add it again."
       },
       "form": {
         "addTitle": "Add a competitor",

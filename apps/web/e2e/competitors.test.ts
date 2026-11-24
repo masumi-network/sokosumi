@@ -10,8 +10,10 @@ import { signUpWithOrganization } from "./sign-up.ts";
  * A brand-new organization's Competitors, reached from the sidebar or, on a
  * phone, from the You page: the page asks for a project and
  * creates one in place, then a competitor added by hand shows under
- * Watching with the weekly check off and its price, an edit shows its
- * Instagram, and removing it brings back the start. Nothing is paid.
+ * Watching with the weekly check off and its price, ahead of the example on
+ * phones and tablets, an edit shows its Instagram, a remove offers Undo,
+ * which brings it back, and removing it for good brings back the start with
+ * keyboard focus on Add by hand. Nothing is paid.
  */
 const BASE_URL = resolveBaseUrl(process.env);
 
@@ -104,8 +106,33 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       await page.getByRole("button", { name: "Save" }).click();
       await watching.getByText("@acme").waitFor();
 
-      await page.getByRole("button", { name: "Remove Acme Roasters" }).click();
+      // With the check off and nothing found, Watching leads the example.
+      if (name !== "desktop") {
+        const example = page.getByRole("region", {
+          name: "What the weekly check shows",
+        });
+        const watchingTop = (await watching.boundingBox())?.y ?? Infinity;
+        const exampleTop = (await example.boundingBox())?.y ?? -Infinity;
+        assert.ok(
+          watchingTop < exampleTop,
+          "Watching shows before the example",
+        );
+      }
+
+      const remove = page.getByRole("button", { name: "Remove Acme Roasters" });
+      await remove.click();
+      await page.getByText("Acme Roasters removed").waitFor();
+      await page.getByRole("button", { name: "Undo" }).click();
+      await watching.getByText("@acme").waitFor();
+
+      // From the keyboard, focus lands on the start's Add when none is left.
+      await remove.focus();
+      await page.keyboard.press("Enter");
       await start.waitFor();
+      await page
+        .getByRole("button", { name: "Add by hand" })
+        .and(page.locator(":focus"))
+        .waitFor();
 
       assert.deepEqual(errors, []);
       await context.close();

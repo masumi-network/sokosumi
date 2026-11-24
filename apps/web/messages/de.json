@@ -5852,7 +5852,10 @@
         "removeNamed": "{name} entfernen",
         "add": "Wettbewerber hinzufügen",
         "full": "Das sind alle {limit}. Entferne einen, um einen anderen zu beobachten.",
-        "failed": "Das hat nicht geklappt. Versuche es erneut."
+        "failed": "Das hat nicht geklappt. Versuche es erneut.",
+        "removed": "{name} entfernt",
+        "undo": "Rückgängig",
+        "restoreFailed": "{name} ließ sich nicht zurückholen. Füge ihn erneut hinzu."
       },
       "form": {
         "addTitle": "Wettbewerber hinzufügen",
