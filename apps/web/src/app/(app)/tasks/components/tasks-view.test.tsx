@@ -1511,3 +1511,128 @@ it("keeps the toolbar mounted while remounting the board when the server filter 
     searchParamsRef.current = new URLSearchParams();
   }
 });
+
+it("keeps column Load more tasks that settle while hidden under Activity on the same filter", async () => {
+  const loaded: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-loaded-while-hidden",
+  };
+  const page =
+    Promise.withResolvers<Awaited<ReturnType<typeof loadMoreTasksColumn>>>();
+  vi.mocked(loadMoreTasksColumn).mockReturnValueOnce(page.promise);
+
+  const view = boardView([TASK], undefined, "cursor-1", 1);
+  const { rerender } = render(<Activity mode="visible">{view}</Activity>);
+
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(loadMoreTasksColumn).toHaveBeenCalledTimes(1);
+
+  rerender(<Activity mode="hidden">{view}</Activity>);
+
+  await act(async () => {
+    page.resolve({ tasks: [loaded], nextCursor: null });
+    await page.promise;
+  });
+
+  rerender(<Activity mode="visible">{view}</Activity>);
+
+  expect(boardCard(loaded.id)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+});
+
+it("does not toast or clear the new list cursor when a list page rejects after a visible filter change", async () => {
+  vi.mocked(toast.error).mockClear();
+  const stalePage =
+    Promise.withResolvers<Awaited<ReturnType<typeof loadMoreTasksList>>>();
+  const nextPage =
+    Promise.withResolvers<Awaited<ReturnType<typeof loadMoreTasksList>>>();
+  vi.mocked(loadMoreTasksList)
+    .mockReturnValueOnce(stalePage.promise)
+    .mockReturnValueOnce(nextPage.promise);
+
+  const taggedList = (tag: string, listNextCursor: string | null) => {
+    searchParamsRef.current = new URLSearchParams({ tag });
+    return cloneElement(boardView([TASK]), {
+      defaultViewMode: "list" as const,
+      listNextCursor,
+      initialFilters: { ...EMPTY_FILTERS, tag },
+    });
+  };
+
+  try {
+    const { rerender } = render(taggedList("research", "research-cursor-1"));
+    act(() => screen.getByRole("button", { name: "Load more" }).click());
+    expect(loadMoreTasksList).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cursor: "research-cursor-1",
+        tag: "research",
+      }),
+    );
+
+    rerender(taggedList("writing", "writing-cursor-1"));
+
+    await act(async () => {
+      stalePage.reject(new Error("network"));
+      await stalePage.promise.catch(() => undefined);
+    });
+
+    expect(toast.error).not.toHaveBeenCalled();
+    const loadMore = screen.getByRole("button", { name: "Load more" });
+    expect(loadMore).toBeEnabled();
+    act(() => loadMore.click());
+    expect(loadMoreTasksList).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        cursor: "writing-cursor-1",
+        tag: "writing",
+      }),
+    );
+
+    await act(async () => {
+      nextPage.resolve({ tasks: [], nextCursor: null });
+      await nextPage.promise;
+    });
+  } finally {
+    searchParamsRef.current = new URLSearchParams();
+  }
+});
+
+it("does not remount the board or lose loaded pages when createTaskModalResetKey changes", async () => {
+  const loaded: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-loaded-before-modal-reset",
+  };
+  vi.mocked(loadMoreTasksColumn)
+    .mockResolvedValueOnce({ tasks: [loaded], nextCursor: "cursor-2" })
+    .mockResolvedValueOnce({ tasks: [], nextCursor: null });
+
+  const { rerender } = render(
+    cloneElement(boardView([TASK], undefined, "cursor-1", 2), {
+      initialCreateTaskOpen: true,
+      createTaskModalResetKey: "true---",
+    }),
+  );
+  const boardNode = screen.getByTestId("board-density");
+
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(
+    await screen.findByTestId(`board-card-${loaded.id}`),
+  ).toBeInTheDocument();
+
+  // Dismissing /tasks?create=true changes createTaskModalResetKey while filters stay identical.
+  rerender(
+    cloneElement(boardView([TASK], undefined, "cursor-1", 2), {
+      initialCreateTaskOpen: false,
+      createTaskModalResetKey: "false---",
+    }),
+  );
+
+  expect(screen.getByTestId("board-density")).toBe(boardNode);
+  expect(boardCard(loaded.id)).toBeInTheDocument();
+
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  await waitFor(() =>
+    expect(loadMoreTasksColumn).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cursor: "cursor-2" }),
+    ),
+  );
+});

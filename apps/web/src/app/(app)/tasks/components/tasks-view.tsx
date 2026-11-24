@@ -514,6 +514,28 @@ export function TasksView(props: TasksViewProps) {
 
   return (
     <TaskTagCatalogProvider organizationId={activeOrganizationId}>
+      {userId ? (
+        <LazyAblyProvider>
+          <ChannelProvider
+            channelName={makeUserTasksChannelName(
+              userId,
+              getRealtimeChannelEnvironment(),
+            )}
+          >
+            <TasksRealtimeListener
+              userId={userId}
+              onEvent={handleEventUpdate}
+            />
+          </ChannelProvider>
+        </LazyAblyProvider>
+      ) : null}
+      {/* The page's seat check is fresher than the layout's after a soft navigation. */}
+      <OrganizationSeatContext value={canCreateTask}>
+        <TasksKeyboard />
+        <ShowOpenSubtasksContext value={routeFilters.subtasks === true}>
+          {content}
+        </ShowOpenSubtasksContext>
+      </OrganizationSeatContext>
       <CreateTaskModalProvider
         key={createTaskModalResetKey}
         initialOpen={initialCreateTaskOpen}
@@ -521,28 +543,6 @@ export function TasksView(props: TasksViewProps) {
         initialPrompt={initialCreateTaskPrompt}
         initialProjectId={defaultProjectId}
       >
-        {userId ? (
-          <LazyAblyProvider>
-            <ChannelProvider
-              channelName={makeUserTasksChannelName(
-                userId,
-                getRealtimeChannelEnvironment(),
-              )}
-            >
-              <TasksRealtimeListener
-                userId={userId}
-                onEvent={handleEventUpdate}
-              />
-            </ChannelProvider>
-          </LazyAblyProvider>
-        ) : null}
-        {/* The page's seat check is fresher than the layout's after a soft navigation. */}
-        <OrganizationSeatContext value={canCreateTask}>
-          <TasksKeyboard />
-          <ShowOpenSubtasksContext value={routeFilters.subtasks === true}>
-            {content}
-          </ShowOpenSubtasksContext>
-        </OrganizationSeatContext>
         {canCreateTask ? <TasksMobileCreateFabSlot /> : null}
         <CreateTaskModal
           coworkerOptions={coworkerOptions}

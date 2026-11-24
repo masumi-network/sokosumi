@@ -400,6 +400,7 @@ export function useTasksBoardModel({
   );
 
   const handleDragStart = (event: DragStartEvent) => {
+    if (!aliveRef.current) return;
     const activeId = event.active.id;
     if (typeof activeId !== "string") return;
 
@@ -426,6 +427,7 @@ export function useTasksBoardModel({
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveDragTaskId(null);
     setActiveDragRect(null);
+    if (!aliveRef.current) return;
 
     const activeId = event.active.id;
     const overId = event.over?.id;
@@ -574,7 +576,7 @@ export function useTasksBoardModel({
   };
 
   const handleBoardReopenConfirm = () => {
-    if (!pendingBoardReopen) return;
+    if (!aliveRef.current || !pendingBoardReopen) return;
 
     const trimmedComment = reopenComment.trim();
     if (!trimmedComment) {
@@ -641,8 +643,7 @@ export function useTasksBoardModel({
           // Same order as the first page, or the cursor skips Tasks.
           sort: effectiveTasksSort(routeFilters.sort, "board"),
         });
-        if (!aliveRef.current || pagingContextRef.current !== pagingContext)
-          return;
+        if (pagingContextRef.current !== pagingContext) return;
         setItems((prev) => appendUniqueTasks(prev, result.tasks));
         const nextCursor = result.nextCursor;
         setColumnHiddenById((prev) => ({
@@ -660,8 +661,7 @@ export function useTasksBoardModel({
           [columnId]: nextCursor,
         };
       } catch {
-        if (!aliveRef.current || pagingContextRef.current !== pagingContext)
-          return;
+        if (pagingContextRef.current !== pagingContext) return;
         setColumnCursorById((prev) => ({
           ...prev,
           [columnId]: null,
@@ -670,7 +670,7 @@ export function useTasksBoardModel({
           ...columnCursorByIdRef.current,
           [columnId]: null,
         };
-        toast.error(labels.loadMoreError);
+        if (aliveRef.current) toast.error(labels.loadMoreError);
       } finally {
         if (pagingContextRef.current === pagingContext) {
           const afterLoading = new Set(loadingColumnIdsRef.current);
@@ -703,18 +703,16 @@ export function useTasksBoardModel({
         cursor,
         ...routeFilters,
       });
-      if (!aliveRef.current || pagingContextRef.current !== pagingContext)
-        return;
+      if (pagingContextRef.current !== pagingContext) return;
       setItems((prev) => appendUniqueTasks(prev, result.tasks));
       const nextCursor = result.nextCursor;
       setListCursor(nextCursor);
       listCursorRef.current = nextCursor;
     } catch {
-      if (!aliveRef.current || pagingContextRef.current !== pagingContext)
-        return;
+      if (pagingContextRef.current !== pagingContext) return;
       setListCursor(null);
       listCursorRef.current = null;
-      toast.error(labels.loadMoreError);
+      if (aliveRef.current) toast.error(labels.loadMoreError);
     } finally {
       if (pagingContextRef.current === pagingContext) {
         isLoadingListMoreRef.current = false;
