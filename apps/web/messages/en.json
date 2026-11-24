@@ -5855,7 +5855,10 @@
         "failed": "That did not work. Try again.",
         "removed": "{name} removed",
         "undo": "Undo",
-        "restoreFailed": "{name} could not come back. Add it again."
+        "restoreFailed": "{name} could not come back. Try again.",
+        "restoreStale": "{name} changed after you removed it, so it stays removed.",
+        "restoreFull": "{name} could not come back: you already watch {limit}. Remove one first.",
+        "restoreNameTaken": "{name} could not come back: another competitor has its name now."
       },
       "form": {
         "addTitle": "Add a competitor",

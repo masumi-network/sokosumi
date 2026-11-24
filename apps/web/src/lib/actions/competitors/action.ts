@@ -81,10 +81,20 @@ export const updateCompetitor = competitorsAction(
   },
 );
 
+/** Answers with when, which an Undo sends to `restoreCompetitor`. */
 export const removeCompetitor = competitorsAction(
   z.object({ projectId: id, competitorId: id }),
-  async ({ projectId, competitorId }) => {
-    await competitorsService.remove(projectId, competitorId);
+  async ({ projectId, competitorId }) => ({
+    removedAt: (await competitorsService.remove(projectId, competitorId))
+      .removedAt,
+  }),
+);
+
+/** Undoes one removal; Core refuses it once that removal is not the latest. */
+export const restoreCompetitor = competitorsAction(
+  z.object({ projectId: id, competitorId: id, removedAt: z.date() }),
+  async ({ projectId, competitorId, removedAt }) => {
+    await competitorsService.restore(projectId, competitorId, removedAt);
   },
 );
 

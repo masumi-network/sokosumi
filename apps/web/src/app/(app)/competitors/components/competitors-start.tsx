@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 import { CompetitorDialog } from "./competitor-dialog";
 import { CompetitorsExample } from "./competitors-finding";
-import { takeStartAddFocus } from "./competitors-view";
+import { takeStartFocus } from "./competitors-view";
 import { FindCompetitors } from "./find-competitors";
 
 /**
@@ -56,7 +56,7 @@ export function CompetitorsStart({
           <Button
             onClick={() => setAdding(true)}
             ref={(button) => {
-              if (button && takeStartAddFocus()) button.focus();
+              if (button && takeStartFocus()) button.focus();
             }}
             size="sm"
           >

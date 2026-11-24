@@ -1,17 +1,26 @@
 "use client";
 
 import type { ProjectCompetitor } from "@sokosumi/core-client";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { PencilIcon, XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useOptimistic, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useOptimistic,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 import { usePageListSearch } from "@/components/page-list-search";
-
 import { Button } from "@/components/ui/button";
 import {
-  addCompetitor,
   removeCompetitor,
+  restoreCompetitor,
 } from "@/lib/actions/competitors/action";
+import { toActionRejectionError } from "@/lib/actions/errors/action-error";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
+import { signInAgain } from "@/lib/auth/sign-in-again";
 
 import { CompetitorDialog } from "./competitor-dialog";
 import {
@@ -19,7 +28,12 @@ import {
   CompetitorsItem,
   CompetitorsPanel,
 } from "./competitors-panel";
-import { setStartAddFocus } from "./competitors-view";
+import {
+  dropStartFocus,
+  endStartFocus,
+  focusIsLost,
+  handFocusToStart,
+} from "./competitors-view";
 import { FindCompetitors } from "./find-competitors";
 
 function host(url: string): string {
@@ -29,9 +43,10 @@ function host(url: string): string {
 /**
  * The competitors the Project watches: add, change and remove them. A remove
  * shows at once and moves focus to the next Remove (the one before it for the
- * last row, Add when none is left). Once Core took it, a toast offers Undo,
- * which adds it again with the details it had: Core brings back the same
- * competitor, with what the checks found about it.
+ * last row, Add when none is left, the start's Add by hand once the page
+ * turns into the start). Once Core took it, a toast offers Undo, which asks
+ * Core to undo exactly that removal: the competitor comes back as stored,
+ * with what the checks found, unless it changed since.
  */
 export function CompetitorsWatchList({
   className,
@@ -67,31 +82,49 @@ export function CompetitorsWatchList({
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const removeButtons = useRef(new Map<string, HTMLButtonElement>());
-  const addButton = useRef<HTMLButtonElement>(null);
+  const addButton = useRef<HTMLButtonElement | null>(null);
+  // A full list shows Add only once the removed row has left it.
+  const focusAddWhenShown = useRef(false);
+  // Stable, so it runs once: when the list leaves the page.
+  const panelRef = useCallback(() => endStartFocus, []);
 
   function moveFocusFrom(competitor: ProjectCompetitor) {
     const at = visibleCompetitors.indexOf(competitor);
     const next = visibleCompetitors[at + 1] ?? visibleCompetitors[at - 1];
     if (next) return removeButtons.current.get(next.id)?.focus();
-    addButton.current?.focus();
+    if (addButton.current) addButton.current.focus();
+    else focusAddWhenShown.current = true;
     // The last one gone, the page turns into the start.
-    if (shown.length === 1) setStartAddFocus(true);
+    if (shown.length === 1) handFocusToStart(competitor.id);
   }
 
-  function restore(competitor: ProjectCompetitor) {
-    const { name, websiteUrl, pricingUrl, instagramHandle, facebookHandle } =
-      competitor;
-    void addCompetitor({
-      projectId,
-      name,
-      websiteUrl,
-      pricingUrl,
-      instagramHandle,
-      facebookHandle,
-    }).then((result) => {
-      if (!result.ok)
-        toast.error(result.error.message ?? t("restoreFailed", { name }));
-    });
+  async function restore(competitor: ProjectCompetitor, removedAt: Date) {
+    const { name } = competitor;
+    try {
+      const result = await restoreCompetitor({
+        projectId,
+        competitorId: competitor.id,
+        removedAt,
+      });
+      if (result.ok) return;
+      // Why Core refused, in the page's own words.
+      const { kind } = result.error;
+      toast.error(
+        kind === CORE_API_ERROR_KINDS.COMPETITOR_REMOVAL_STALE
+          ? t("restoreStale", { name })
+          : kind === CORE_API_ERROR_KINDS.COMPETITOR_LIMIT_REACHED
+            ? t("restoreFull", { name, limit })
+            : kind === CORE_API_ERROR_KINDS.COMPETITOR_NAME_TAKEN
+              ? t("restoreNameTaken", { name })
+              : t("restoreFailed", { name }),
+      );
+    } catch (error) {
+      if (
+        toActionRejectionError(error).code === CommonErrorCode.UNAUTHENTICATED
+      )
+        return signInAgain();
+      toast.error(t("restoreFailed", { name }));
+    }
   }
 
   function remove(competitor: ProjectCompetitor) {
@@ -104,12 +137,17 @@ export function CompetitorsWatchList({
         competitorId: competitor.id,
       });
       if (!result.ok) {
-        setStartAddFocus(false);
+        focusAddWhenShown.current = false;
+        dropStartFocus(competitor.id);
         setError(result.error.message ?? t("failed"));
         return;
       }
+      const { removedAt } = result.value;
       toast.success(t("removed", { name: competitor.name }), {
-        action: { label: t("undo"), onClick: () => restore(competitor) },
+        action: {
+          label: t("undo"),
+          onClick: () => void restore(competitor, removedAt),
+        },
       });
     });
   }
@@ -119,6 +157,7 @@ export function CompetitorsWatchList({
       aside={t("count", { count: shown.length, limit })}
       className={className}
       id="competitors-list"
+      ref={panelRef}
       title={t("title")}
     >
       {shown.length === 0 ? (
@@ -197,7 +236,16 @@ export function CompetitorsWatchList({
             projectName={projectName}
             room={limit - shown.length}
           />
-          <Button onClick={() => setEditing("new")} ref={addButton} size="sm">
+          <Button
+            onClick={() => setEditing("new")}
+            ref={(button) => {
+              addButton.current = button;
+              if (!button || !focusAddWhenShown.current) return;
+              focusAddWhenShown.current = false;
+              if (focusIsLost()) button.focus();
+            }}
+            size="sm"
+          >
             {t("add")}
           </Button>
         </div>

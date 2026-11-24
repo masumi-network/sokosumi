@@ -5855,7 +5855,10 @@
         "failed": "Das hat nicht geklappt. Versuche es erneut.",
         "removed": "{name} entfernt",
         "undo": "Rückgängig",
-        "restoreFailed": "{name} ließ sich nicht zurückholen. Füge ihn erneut hinzu."
+        "restoreFailed": "{name} ließ sich nicht zurückholen. Versuche es erneut.",
+        "restoreStale": "{name} wurde nach dem Entfernen geändert und bleibt entfernt.",
+        "restoreFull": "{name} ließ sich nicht zurückholen: Du beobachtest schon {limit}. Entferne zuerst einen.",
+        "restoreNameTaken": "{name} ließ sich nicht zurückholen: Ein anderer Wettbewerber trägt jetzt diesen Namen."
       },
       "form": {
         "addTitle": "Wettbewerber hinzufügen",

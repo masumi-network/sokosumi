@@ -605,6 +605,7 @@ import {
   removeProjectCompetitor as coreRemoveProjectCompetitor,
   resolveAdminTaskX402Payment as coreResolveAdminTaskX402Payment,
   restoreAdminMatchedChannel as coreRestoreAdminMatchedChannel,
+  restoreProjectCompetitor as coreRestoreProjectCompetitor,
   revokeCoworkerWorkspaceAccessAsPlatformAdmin as coreRevokeCoworkerWorkspaceAccessAsPlatformAdmin,
   runProjectCompetitorCheck as coreRunProjectCompetitorCheck,
   searchAdminOrganizations as coreSearchAdminOrganizations,
@@ -5076,6 +5077,23 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function restoreProjectCompetitor(
+    id: string,
+    competitorId: string,
+    removedAt: Date,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreRestoreProjectCompetitor({
+          client,
+          path: { id, competitorId },
+          body: { removedAt },
+        }),
+      "Failed to restore competitor",
+    );
+  }
+
   async function setProjectCompetitorChecks(id: string, on: boolean) {
     return executeCoreOperation(
       getClient,
@@ -7534,6 +7552,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     addProjectCompetitor,
     updateProjectCompetitor,
     removeProjectCompetitor,
+    restoreProjectCompetitor,
     setProjectCompetitorChecks,
     runProjectCompetitorCheck,
     suggestProjectCompetitors,

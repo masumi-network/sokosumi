@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 
 import { UNAUTHENTICATED_ERROR_DIGEST } from "@/lib/auth/errors";
+import { signInAgain } from "@/lib/auth/sign-in-again";
 
 interface UnAuthenticatedError extends Error {
   name: "UnAuthenticatedError";
@@ -26,11 +27,7 @@ export function useUnAuthenticatedErrorHandler(
 
   useEffect(() => {
     if (isUnAuthenticatedError) {
-      const redirectUrl =
-        (error as UnAuthenticatedError).redirectUrl ??
-        window.location.pathname + window.location.search;
-      const returnUrl = encodeURIComponent(redirectUrl);
-      window.location.assign(`/signin?returnUrl=${returnUrl}`);
+      signInAgain((error as UnAuthenticatedError).redirectUrl);
     }
   }, [isUnAuthenticatedError, error]);
 

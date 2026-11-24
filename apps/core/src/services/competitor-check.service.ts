@@ -348,7 +348,8 @@ async function fillFromHomepage(
   );
   if (Object.keys(filled).length === 0) return competitor;
   const updated = await prisma.trackedCompetitor.updateMany({
-    where: { id: competitor.id, memberEditedAt: null },
+    // A removed row no longer carries a member's mark: leave it as removed.
+    where: { id: competitor.id, memberEditedAt: null, removedAt: null },
     data: filled,
   });
   return updated.count > 0 ? { ...competitor, ...filled } : competitor;

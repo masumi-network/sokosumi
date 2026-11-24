@@ -8987,6 +8987,70 @@ export type ProjectCompetitorUpdate = {
     facebookHandle?: string | null;
 };
 
+export type ProjectCompetitorRemoval = {
+    competitors: Array<ProjectCompetitor>;
+    /**
+     * This week: null until a bot wrote one.
+     */
+    feed: {
+        /**
+         * The day of the check it was written from.
+         */
+        checkDay: string;
+        savedAt: Date;
+        items: Array<ProjectCompetitorFeedItem>;
+        /**
+         * What the sources could not settle this week.
+         */
+        openQuestions: Array<string>;
+    } | null;
+    /**
+     * How many competitors can be tracked.
+     */
+    limit: number;
+    /**
+     * What the checks of the last 35 days found, newest first: every signal a feed fact can cite, Instagram readings included.
+     */
+    signals: Array<ProjectCompetitorSignal>;
+    /**
+     * Instagram numbers: the business first, then each competitor. A null cell has no data.
+     */
+    scoreboard: Array<ProjectCompetitorScoreRow>;
+    /**
+     * Each competitor's three strongest Instagram posts.
+     */
+    topPosts: Array<ProjectCompetitorTopPost>;
+    check: {
+        /**
+         * Whether the weekly check runs: a member turned it on, or the Project is a CMO Project, whose check runs while its Cuso is paid for.
+         */
+        on: boolean;
+        lastCheckedAt: Date | null;
+        nextCheckAt: Date | null;
+        /**
+         * What one competitor costs in one weekly check, in credits.
+         */
+        creditsPerCompetitor: number;
+        sources: {
+            pages: ProjectCompetitorSource;
+            news: ProjectCompetitorSource;
+            ads: ProjectCompetitorSource;
+            social: ProjectCompetitorSource;
+        };
+    };
+    /**
+     * When the competitor was removed. It names this removal: an Undo sends it back.
+     */
+    removedAt: Date;
+};
+
+export type ProjectCompetitorRestore = {
+    /**
+     * When the competitor was removed. It names this removal: an Undo sends it back.
+     */
+    removedAt: Date;
+};
+
 export type ProjectCompetitorChecks = {
     /**
      * true turns the weekly check on: 3 credits per competitor a week, charged to the Project's organization (or the person, in a personal workspace). false turns it off and keeps what the checks found.
@@ -62906,7 +62970,7 @@ export type RemoveProjectCompetitorResponses = {
      * Competitor removed
      */
     200: {
-        data: ProjectCompetitors;
+        data: ProjectCompetitorRemoval;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -63051,6 +63115,141 @@ export type UpdateProjectCompetitorResponses = {
 };
 
 export type UpdateProjectCompetitorResponse = UpdateProjectCompetitorResponses[keyof UpdateProjectCompetitorResponses];
+
+export type RestoreProjectCompetitorData = {
+    body: ProjectCompetitorRestore;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        competitorId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/competitors/{competitorId}/restore';
+};
+
+export type RestoreProjectCompetitorErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The removal is no longer the latest, the name is taken, the limit is reached, or a CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No removal given
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RestoreProjectCompetitorError = RestoreProjectCompetitorErrors[keyof RestoreProjectCompetitorErrors];
+
+export type RestoreProjectCompetitorResponses = {
+    /**
+     * Competitor restored
+     */
+    200: {
+        data: ProjectCompetitors;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RestoreProjectCompetitorResponse = RestoreProjectCompetitorResponses[keyof RestoreProjectCompetitorResponses];
 
 export type SetProjectCompetitorChecksData = {
     body: ProjectCompetitorChecks;

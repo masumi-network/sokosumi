@@ -3,6 +3,7 @@ import "server-only";
 import type {
   ProjectCompetitorCheckRun,
   ProjectCompetitorCreate,
+  ProjectCompetitorRemoval,
   ProjectCompetitorSuggestions,
   ProjectCompetitors,
   ProjectCompetitorUpdate,
@@ -30,12 +31,27 @@ export const competitorsService = {
       await coreClient.updateProjectCompetitor(projectId, competitorId, body)
     ).data;
   },
+  /** `removedAt` names the removal for `restore`. */
   async remove(
     projectId: string,
     competitorId: string,
-  ): Promise<ProjectCompetitors> {
+  ): Promise<ProjectCompetitorRemoval> {
     return (await coreClient.removeProjectCompetitor(projectId, competitorId))
       .data;
+  },
+  /** Undoes that one removal, if it is still the competitor's latest change. */
+  async restore(
+    projectId: string,
+    competitorId: string,
+    removedAt: Date,
+  ): Promise<ProjectCompetitors> {
+    return (
+      await coreClient.restoreProjectCompetitor(
+        projectId,
+        competitorId,
+        removedAt,
+      )
+    ).data;
   },
   async setChecks(projectId: string, on: boolean): Promise<ProjectCompetitors> {
     return (await coreClient.setProjectCompetitorChecks(projectId, on)).data;

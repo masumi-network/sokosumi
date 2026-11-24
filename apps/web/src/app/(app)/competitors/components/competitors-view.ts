@@ -12,19 +12,41 @@ export function showsExample({ signals, check }: ProjectCompetitors) {
   );
 }
 
-let focusStartAdd = false;
-
-/**
- * Whether the start's Add by hand takes focus when it shows: the member
- * removed the last competitor, so the Remove they were on is gone.
- */
-export function setStartAddFocus(on: boolean) {
-  focusStartAdd = on;
+/** Whether focus went nowhere: its element left the page. */
+export function focusIsLost() {
+  const active = document.activeElement;
+  return active === null || active === document.body;
 }
 
-/** True once after `setStartAddFocus(true)`. */
-export function takeStartAddFocus() {
-  const take = focusStartAdd;
-  focusStartAdd = false;
-  return take;
+/**
+ * The focus a final remove hands to the start's Add by hand: for that
+ * removal, on that page. The list's unmount ends it once the render that
+ * shows the start is done, so a later start never takes it.
+ */
+let startFocus: { removal: string; href: string } | null = null;
+
+export function handFocusToStart(removal: string) {
+  startFocus = { removal, href: window.location.href };
+}
+
+/** That removal failed: its handoff, if still there, is void. */
+export function dropStartFocus(removal: string) {
+  if (startFocus?.removal === removal) startFocus = null;
+}
+
+/** The list left the page: a handoff ends with the render that removed it. */
+export function endStartFocus() {
+  queueMicrotask(() => {
+    startFocus = null;
+  });
+}
+
+/**
+ * True once, when a handoff waits for this page and the member has not moved
+ * focus on since.
+ */
+export function takeStartFocus() {
+  const handoff = startFocus;
+  startFocus = null;
+  return handoff?.href === window.location.href && focusIsLost();
 }

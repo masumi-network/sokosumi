@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
@@ -70,10 +71,27 @@ export async function inLockedCompetitorList(
       await write(tx);
     });
   } catch (error) {
-    if (isPrismaUniqueViolation(error))
-      throw conflict("You already track this competitor");
+    if (isPrismaUniqueViolation(error)) throw nameTaken();
     throw error;
   }
+}
+
+function nameTaken() {
+  return conflict("You already track this competitor", {
+    kind: CORE_API_ERROR_KINDS.COMPETITOR_NAME_TAKEN,
+  });
+}
+
+/** Refuses a write that would take the list past the cap. */
+async function requireRoom(tx: Prisma.TransactionClient, projectId: string) {
+  const live = await tx.trackedCompetitor.count({
+    where: { projectId, removedAt: null },
+  });
+  if (live >= MAX_TRACKED_COMPETITORS)
+    throw conflict(
+      `You can track ${MAX_TRACKED_COMPETITORS} competitors. Remove one first.`,
+      { kind: CORE_API_ERROR_KINDS.COMPETITOR_LIMIT_REACHED },
+    );
 }
 
 /** What a member may set on a competitor; null clears a field. */
@@ -145,8 +163,7 @@ async function requireFreeName(
     where: { projectId_nameKey: { projectId, nameKey } },
     select: { id: true, removedAt: true },
   });
-  if (taken && !taken.removedAt)
-    throw conflict("You already track this competitor");
+  if (taken && !taken.removedAt) throw nameTaken();
   return taken;
 }
 
@@ -165,13 +182,7 @@ export async function addTrackedCompetitor(
   if (!nameKey) throw unprocessableEntity("Give the competitor a name");
   const fields = memberFields(input);
   await inLockedCompetitorList(projectId, async (tx) => {
-    const live = await tx.trackedCompetitor.count({
-      where: { projectId, removedAt: null },
-    });
-    if (live >= MAX_TRACKED_COMPETITORS)
-      throw conflict(
-        `You can track ${MAX_TRACKED_COMPETITORS} competitors. Remove one first.`,
-      );
+    await requireRoom(tx, projectId);
     const removed = await requireFreeName(tx, projectId, nameKey);
     const data = {
       name,
@@ -234,17 +245,49 @@ export async function updateTrackedCompetitor(
   });
 }
 
-/** A member stops tracking a competitor; research does not add it back. */
+/**
+ * A member stops tracking a competitor; research does not add it back. The
+ * answer is when, which names this removal for `restoreTrackedCompetitor`.
+ * Whether a member touched it stays as it was, for an Undo to keep.
+ */
 export async function removeTrackedCompetitor(
   projectId: string,
   id: string,
-): Promise<void> {
+): Promise<Date> {
+  const removedAt = new Date();
   await inLockedCompetitorList(projectId, async (tx) => {
     await requireTracked(tx, projectId, id);
-    const now = new Date();
+    await tx.trackedCompetitor.update({ where: { id }, data: { removedAt } });
+  });
+  return removedAt;
+}
+
+/**
+ * Undoes one removal: the competitor comes back as it was stored, with its
+ * signals and whether a member touched it. Refused once that removal is no
+ * longer its latest change (brought back, added again or removed again
+ * since), once another competitor holds its name, and at the cap.
+ */
+export async function restoreTrackedCompetitor(
+  projectId: string,
+  id: string,
+  removedAt: Date,
+): Promise<void> {
+  await inLockedCompetitorList(projectId, async (tx) => {
+    const removed = await tx.trackedCompetitor.findFirst({
+      where: { id, projectId, removedAt },
+      select: { name: true, nameKey: true },
+    });
+    if (!removed)
+      throw conflict("That competitor changed since you removed it", {
+        kind: CORE_API_ERROR_KINDS.COMPETITOR_REMOVAL_STALE,
+      });
+    // A rename that took the name moved this row's key aside.
+    if (removed.nameKey !== competitorNameKey(removed.name)) throw nameTaken();
+    await requireRoom(tx, projectId);
     await tx.trackedCompetitor.update({
       where: { id },
-      data: { removedAt: now, memberEditedAt: now },
+      data: { removedAt: null },
     });
   });
 }

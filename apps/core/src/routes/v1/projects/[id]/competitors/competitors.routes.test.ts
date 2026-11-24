@@ -15,6 +15,7 @@ const m = vi.hoisted(() => ({
   addTrackedCompetitor: vi.fn(),
   updateTrackedCompetitor: vi.fn(),
   removeTrackedCompetitor: vi.fn(),
+  restoreTrackedCompetitor: vi.fn(),
   setCompetitorChecks: vi.fn(),
   runProjectCompetitorCheck: vi.fn(),
   suggestCompetitors: vi.fn(),
@@ -33,6 +34,7 @@ vi.mock("@/services/competitors.service", () => ({
   addTrackedCompetitor: m.addTrackedCompetitor,
   updateTrackedCompetitor: m.updateTrackedCompetitor,
   removeTrackedCompetitor: m.removeTrackedCompetitor,
+  restoreTrackedCompetitor: m.restoreTrackedCompetitor,
   setCompetitorChecks: m.setCompetitorChecks,
 }));
 vi.mock("@/services/competitor-suggestions.service", () => ({
@@ -46,6 +48,7 @@ vi.mock("@/services/competitor-check.service", async (original) => ({
 import { cmoProjectLock } from "../../cmo-project-lock";
 import mountRemove from "./[competitorId]/delete";
 import mountUpdate from "./[competitorId]/patch";
+import mountRestore from "./[competitorId]/restore/post";
 import mountRunCheck from "./check/post";
 import mountSetChecks from "./checks/put";
 import mountGet from "./get";
@@ -117,6 +120,7 @@ function createApp() {
   mountAdd(projects);
   mountUpdate(projects);
   mountRemove(projects);
+  mountRestore(projects);
   mountSetChecks(projects);
   mountRunCheck(projects);
   mountSuggest(projects);
@@ -136,6 +140,7 @@ function send(method: string, path: string, body?: unknown) {
 beforeEach(() => {
   vi.resetAllMocks();
   m.requireProjectAccess.mockResolvedValue({ projectId: PROJECT_ID });
+  m.removeTrackedCompetitor.mockResolvedValue(AT);
   m.getProjectCompetitors.mockResolvedValue(PAGE);
   m.runProjectCompetitorCheck.mockResolvedValue("checked");
 });
@@ -172,6 +177,7 @@ describe("a Project's competitors", () => {
     );
     expect((await send("POST", `${BASE}/check`)).status).toBe(404);
     expect(m.addTrackedCompetitor).not.toHaveBeenCalled();
+    expect(m.restoreTrackedCompetitor).not.toHaveBeenCalled();
     expect(m.setCompetitorChecks).not.toHaveBeenCalled();
     expect(m.runProjectCompetitorCheck).not.toHaveBeenCalled();
   });
@@ -199,6 +205,45 @@ describe("a Project's competitors", () => {
       PROJECT_ID,
       COMPETITOR_ID,
     );
+  });
+
+  it("answers a remove with when it happened, and undoes exactly that removal", async () => {
+    const removedAt = new Date("2026-11-24T10:00:00.123Z");
+    m.removeTrackedCompetitor.mockResolvedValue(removedAt);
+    const removed = await send("DELETE", `${BASE}/${COMPETITOR_ID}`);
+    expect((await removed.json()).data).toMatchObject({
+      removedAt: removedAt.toISOString(),
+      competitors: [expect.objectContaining({ id: COMPETITOR_ID })],
+    });
+
+    const restored = await send("POST", `${BASE}/${COMPETITOR_ID}/restore`, {
+      removedAt: removedAt.toISOString(),
+    });
+    expect(restored.status).toBe(200);
+    expect(m.restoreTrackedCompetitor).toHaveBeenCalledWith(
+      PROJECT_ID,
+      COMPETITOR_ID,
+      removedAt,
+    );
+  });
+
+  it("answers 409 with its kind when the removal is no longer the latest", async () => {
+    m.restoreTrackedCompetitor.mockRejectedValue(
+      conflict("That competitor changed since you removed it", {
+        kind: "competitor_removal_stale",
+      }),
+    );
+    const response = await send("POST", `${BASE}/${COMPETITOR_ID}/restore`, {
+      removedAt: "2026-11-24T10:00:00.123Z",
+    });
+    expect(response.status).toBe(409);
+    expect((await response.json()).kind).toBe("competitor_removal_stale");
+  });
+
+  it("answers 422 for an Undo without its removal", async () => {
+    const response = await send("POST", `${BASE}/${COMPETITOR_ID}/restore`, {});
+    expect(response.status).toBe(422);
+    expect(m.restoreTrackedCompetitor).not.toHaveBeenCalled();
   });
 
   it("answers 409 with the service's words when the limit is reached", async () => {
@@ -311,6 +356,9 @@ describe("a Project's competitors", () => {
       send("POST", BASE, { name: "Zcal" }),
       send("PATCH", `${BASE}/${COMPETITOR_ID}`, { name: "Z" }),
       send("DELETE", `${BASE}/${COMPETITOR_ID}`),
+      send("POST", `${BASE}/${COMPETITOR_ID}/restore`, {
+        removedAt: "2026-11-24T10:00:00.123Z",
+      }),
       send("PUT", `${BASE}/checks`, { on: true }),
       send("POST", `${BASE}/check`),
     ]);
@@ -319,6 +367,7 @@ describe("a Project's competitors", () => {
       expect((await response.json()).kind).toBe("cmo_project_read_only");
     }
     expect(m.addTrackedCompetitor).not.toHaveBeenCalled();
+    expect(m.restoreTrackedCompetitor).not.toHaveBeenCalled();
     expect(m.setCompetitorChecks).not.toHaveBeenCalled();
     expect(m.runProjectCompetitorCheck).not.toHaveBeenCalled();
   });

@@ -8,9 +8,11 @@ import { NextIntlClientProvider } from "next-intl";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { PageListSearchContext } from "@/components/page-list-search";
 import {
   addCompetitor,
   removeCompetitor,
+  restoreCompetitor,
   runCompetitorCheck,
   setCompetitorChecks,
   updateCompetitor,
@@ -30,12 +32,14 @@ vi.mock("@/lib/actions/competitors/action", () => ({
   addSuggestedCompetitors: vi.fn(),
   findCompetitors: vi.fn(),
   removeCompetitor: vi.fn(),
+  restoreCompetitor: vi.fn(),
   runCompetitorCheck: vi.fn(),
   setCompetitorChecks: vi.fn(),
   updateCompetitor: vi.fn(),
 }));
 
 const PROJECT_ID = "project-1";
+const REMOVED_AT = new Date("2026-11-24T10:00:00.123Z");
 const source = { status: "ok" as const, needs: null };
 const CHECK: ProjectCompetitors["check"] = {
   on: false,
@@ -86,11 +90,15 @@ beforeEach(() => {
   vi.resetAllMocks();
   for (const action of [
     addCompetitor,
-    removeCompetitor,
+    restoreCompetitor,
     setCompetitorChecks,
     updateCompetitor,
   ])
     vi.mocked(action).mockResolvedValue({ ok: true, value: undefined });
+  vi.mocked(removeCompetitor).mockResolvedValue({
+    ok: true,
+    value: { removedAt: REMOVED_AT },
+  });
   vi.mocked(runCompetitorCheck).mockResolvedValue({
     ok: true,
     value: "checked",
@@ -346,13 +354,33 @@ describe("CompetitorsWatchList", () => {
 
   /** A remove Core has not answered yet, and the way to answer it. */
   function pendingRemove() {
-    let answer: (result: { ok: true; value: undefined }) => void = () => {};
+    let answer: (result: { ok: true; value: { removedAt: Date } }) => void =
+      () => {};
     vi.mocked(removeCompetitor).mockReturnValueOnce(
       new Promise((resolve) => {
         answer = resolve;
       }),
     );
-    return () => act(async () => answer({ ok: true, value: undefined }));
+    return () =>
+      act(async () => answer({ ok: true, value: { removedAt: REMOVED_AT } }));
+  }
+
+  const START = (
+    <CompetitorsStart
+      creditsPerCompetitor={3}
+      limit={5}
+      projectId={PROJECT_ID}
+      projectName="Cal.com"
+    />
+  );
+
+  /** Core's answer re-renders the page: the list gives way to the start. */
+  function becomesStart(rerender: (ui: React.ReactNode) => void) {
+    rerender(
+      <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+        {START}
+      </NextIntlClientProvider>,
+    );
   }
 
   it("removes one at once, moves focus to the next Remove and offers Undo", async () => {
@@ -375,36 +403,85 @@ describe("CompetitorsWatchList", () => {
     });
   });
 
-  it("brings the competitor back with every detail on Undo", async () => {
+  it("undoes exactly that removal through Core, without sending details", async () => {
     list([CALENDLY, ZCAL]);
     await userEvent.click(
       screen.getByRole("button", { name: "Remove Calendly" }),
     );
     await waitFor(() => expect(toast.success).toHaveBeenCalled());
     await undo();
-    expect(addCompetitor).toHaveBeenCalledWith({
+    expect(restoreCompetitor).toHaveBeenCalledWith({
       projectId: PROJECT_ID,
-      name: "Calendly",
-      websiteUrl: "https://www.calendly.com/",
-      pricingUrl: "https://calendly.com/pricing",
-      instagramHandle: "calendly",
-      facebookHandle: null,
+      competitorId: "competitor-1",
+      removedAt: REMOVED_AT,
     });
+    expect(addCompetitor).not.toHaveBeenCalled();
     expect(toast.error).not.toHaveBeenCalled();
   });
 
-  it("says why when Core refuses the Undo", async () => {
-    vi.mocked(addCompetitor).mockResolvedValueOnce({
-      ok: false,
-      error: { code: "CONFLICT", message: "You can track 5 competitors." },
-    });
+  it.each([
+    [
+      "competitor_removal_stale",
+      "Calendly changed after you removed it, so it stays removed.",
+    ],
+    [
+      "competitor_limit_reached",
+      "Calendly could not come back: you already watch 5. Remove one first.",
+    ],
+    [
+      "competitor_name_taken",
+      "Calendly could not come back: another competitor has its name now.",
+    ],
+    [undefined, "Calendly could not come back. Try again."],
+  ])(
+    "says in words of its own why Core refused the Undo (%s)",
+    async (kind, words) => {
+      vi.mocked(restoreCompetitor).mockResolvedValueOnce({
+        ok: false,
+        error: { code: "CONFLICT", kind, message: "Core's own English" },
+      });
+      list([CALENDLY]);
+      await userEvent.click(
+        screen.getByRole("button", { name: "Remove Calendly" }),
+      );
+      await waitFor(() => expect(toast.success).toHaveBeenCalled());
+      await undo();
+      expect(toast.error).toHaveBeenCalledWith(words);
+    },
+  );
+
+  it("says Undo failed when the request itself fails", async () => {
+    vi.mocked(restoreCompetitor).mockRejectedValueOnce(
+      new Error("Core auth unavailable"),
+    );
     list([CALENDLY]);
     await userEvent.click(
       screen.getByRole("button", { name: "Remove Calendly" }),
     );
     await waitFor(() => expect(toast.success).toHaveBeenCalled());
     await undo();
-    expect(toast.error).toHaveBeenCalledWith("You can track 5 competitors.");
+    expect(toast.error).toHaveBeenCalledWith(
+      "Calendly could not come back. Try again.",
+    );
+  });
+
+  it("sends a signed-out member to sign in from Undo", async () => {
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign });
+    vi.mocked(restoreCompetitor).mockRejectedValueOnce(
+      Object.assign(new Error("masked"), { digest: "UNAUTHENTICATED" }),
+    );
+    list([CALENDLY]);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Remove Calendly" }),
+    );
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    await undo();
+    expect(assign).toHaveBeenCalledWith(
+      expect.stringMatching(/^\/signin\?returnUrl=/),
+    );
+    expect(toast.error).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 
   it("moves focus to the Remove before it when the last row goes", async () => {
@@ -417,9 +494,39 @@ describe("CompetitorsWatchList", () => {
     await answer();
   });
 
+  it("moves focus to Add once it shows, when a full list filtered to one loses it", async () => {
+    const answer = pendingRemove();
+    const five = ["A1", "B2", "C3", "D4", "E5"].map((name, index) => ({
+      ...CALENDLY,
+      id: `competitor-${index}`,
+      name,
+    }));
+    render(
+      <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+        <PageListSearchContext.Provider
+          value={{ query: "C3", register: () => () => {} }}
+        >
+          <CompetitorsWatchList
+            competitors={five}
+            limit={5}
+            projectId={PROJECT_ID}
+            projectName="Cal.com"
+            readOnly={false}
+          />
+        </PageListSearchContext.Provider>
+      </NextIntlClientProvider>,
+    );
+    expect(screen.queryByRole("button", { name: "Add competitor" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Remove C3" }));
+    expect(
+      screen.getByRole("button", { name: "Add competitor" }),
+    ).toHaveFocus();
+    await answer();
+  });
+
   it("moves focus to Add competitor, then to the start's Add, when the list empties", async () => {
     const answer = pendingRemove();
-    const { unmount } = list([CALENDLY]);
+    const { rerender } = list([CALENDLY]);
     await userEvent.click(
       screen.getByRole("button", { name: "Remove Calendly" }),
     );
@@ -427,17 +534,56 @@ describe("CompetitorsWatchList", () => {
       screen.getByRole("button", { name: "Add competitor" }),
     ).toHaveFocus();
     await answer();
-    // Core's answer re-renders the page as the start.
-    unmount();
-    show(
-      <CompetitorsStart
-        creditsPerCompetitor={3}
-        limit={5}
-        projectId={PROJECT_ID}
-        projectName="Cal.com"
-      />,
-    );
+    becomesStart(rerender);
     expect(screen.getByRole("button", { name: "Add by hand" })).toHaveFocus();
+  });
+
+  it("leaves focus where the member moved it before the start shows", async () => {
+    const answer = pendingRemove();
+    const { rerender } = list([CALENDLY]);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Remove Calendly" }),
+    );
+    const elsewhere = document.createElement("button");
+    document.body.append(elsewhere);
+    elsewhere.focus();
+    await answer();
+    becomesStart(rerender);
+    expect(elsewhere).toHaveFocus();
+    elsewhere.remove();
+  });
+
+  it("hands nothing to a start shown after a failed final remove", async () => {
+    vi.mocked(removeCompetitor).mockResolvedValueOnce({
+      ok: false,
+      error: { code: "INTERNAL_SERVER_ERROR", message: "Core is down" },
+    });
+    const { unmount } = list([CALENDLY]);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Remove Calendly" }),
+    );
+    await screen.findByRole("alert");
+    unmount();
+    (document.activeElement as HTMLElement | null)?.blur();
+    show(START);
+    expect(
+      screen.getByRole("button", { name: "Add by hand" }),
+    ).not.toHaveFocus();
+  });
+
+  it("hands nothing to a start shown after the list left the page", async () => {
+    const answer = pendingRemove();
+    const { unmount } = list([CALENDLY]);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Remove Calendly" }),
+    );
+    // The member opened another page before Core answered.
+    unmount();
+    await answer();
+    show(START);
+    expect(
+      screen.getByRole("button", { name: "Add by hand" }),
+    ).not.toHaveFocus();
   });
 
   it("brings the row back and says why when the remove fails, without Undo", async () => {
