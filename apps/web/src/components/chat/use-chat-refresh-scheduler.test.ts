@@ -6,11 +6,9 @@ import {
   resetChatReadThrottleForTests,
 } from "@/lib/chat/chat-read-throttle";
 
+import { CHAT_HEALTHY_REFRESH_MS } from "./chat-refresh-scheduler";
 import { fetchBackgroundJson } from "./fetch-background-json";
-import {
-  CHAT_HEALTHY_REFRESH_MS,
-  useChatRefreshScheduler,
-} from "./use-chat-refresh-scheduler";
+import { useChatRefreshScheduler } from "./use-chat-refresh-scheduler";
 
 const FALLBACK_MS = 3_000;
 
