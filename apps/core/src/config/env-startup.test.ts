@@ -154,7 +154,7 @@ describe("the deploy step that checks the schema layout", () => {
     expect(code).toBe(0);
   }, 30_000);
 
-  it("loads no Core module beyond the layout rule, and no package but zod", async () => {
+  it("loads no Core module beyond the layout rule, no package but zod and no builtin but node:process", async () => {
     const recorder = fileURLToPath(
       new URL("./__fixtures__/record-loads.mjs", import.meta.url),
     );
@@ -163,9 +163,13 @@ describe("the deploy step that checks the schema layout", () => {
       ["--import", "tsx", "--import", recorder, script],
       { NETWORK_PREPROD_ENABLED: "true" },
     );
-    const loaded = [...output.matchAll(/^LOADED (\S+)$/gm)].map(
-      ([, url = ""]) => fileURLToPath(url),
+    const urls = [...output.matchAll(/^LOADED (\S+)$/gm)].map(
+      ([, url = ""]) => url,
     );
+    const builtins = urls.filter((url) => url.startsWith("node:"));
+    const loaded = urls
+      .filter((url) => url.startsWith("file:"))
+      .map((url) => fileURLToPath(url));
     const source = path.join(core, "src") + path.sep;
     const packages = new Set(
       loaded
@@ -182,6 +186,7 @@ describe("the deploy step that checks the schema layout", () => {
         .sort(),
     ).toEqual(["config/invalid-variables.ts", "config/network-layout.ts"]);
     expect([...packages]).toEqual(["zod"]);
+    expect([...new Set(builtins)]).toEqual(["node:process"]);
   }, 30_000);
 
   /**
