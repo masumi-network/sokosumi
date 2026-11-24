@@ -13,6 +13,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -38,10 +39,6 @@ import {
   useTranscriptViewportInitialLanding,
 } from "@/hooks/effects/use-transcript-viewport-initial-landing";
 import { useTranscriptViewportOpened } from "@/hooks/effects/use-transcript-viewport-opened";
-import {
-  useTranscriptViewportScrollMargin,
-  useTranscriptViewportScrollMarginState,
-} from "@/hooks/effects/use-transcript-viewport-scroll-margin";
 
 export type { TranscriptPosition };
 
@@ -227,8 +224,7 @@ export function TranscriptViewport({
   // pushes a short list to the bottom. The virtualizer needs that offset so
   // its end is the scroller's end.
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [scrollMargin, scrollMarginSlot] =
-    useTranscriptViewportScrollMarginState();
+  const [scrollMargin, setScrollMargin] = useState(0);
 
   // Only the jump-to-latest threshold needs React state. A restore above the
   // end does not start there, or the first report would read the room.
@@ -556,7 +552,22 @@ export function TranscriptViewport({
     };
   }, [scroller, virtualizer]);
 
-  useTranscriptViewportScrollMargin(scroller, containerRef, scrollMarginSlot);
+  // Every render: the container moves whenever a short list grows toward
+  // the scroller's height, and the state guard makes a settled margin free.
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!scroller || !container) {
+      return;
+    }
+    const margin = Math.round(
+      container.getBoundingClientRect().top -
+        scroller.getBoundingClientRect().top +
+        scroller.scrollTop,
+    );
+    if (margin !== scrollMargin) {
+      setScrollMargin(margin);
+    }
+  });
 
   useTranscriptViewportInitialLanding({
     openedRef,
