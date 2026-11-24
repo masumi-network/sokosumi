@@ -15,6 +15,10 @@ import {
   cloneElement,
   type ReactNode,
   StrictMode,
+  Suspense,
+  startTransition,
+  use,
+  useState,
 } from "react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -87,6 +91,7 @@ vi.mock("./kanban-board", () => ({
       data-testid="board-density"
       data-compact={compact}
       data-done-hidden={columnHiddenCountById?.done ?? 0}
+      data-todo-hidden={columnHiddenCountById?.todo ?? 0}
     >
       {tasks.map((task) => (
         <div
@@ -190,7 +195,11 @@ vi.mock("./task-list-view", () => ({
   }) => (
     <div data-testid="list-density" data-compact={compact}>
       {tasks.map((task) => (
-        <div key={task.id} data-testid={`list-row-${task.id}`} />
+        <div
+          key={task.id}
+          data-testid={`list-row-${task.id}`}
+          data-status={task.status}
+        />
       ))}
       {footer}
     </div>
@@ -1362,4 +1371,211 @@ it("keeps archive cursor preservation idempotent on Activity reveal under Strict
   expect(
     screen.getByTestId("board-density").getAttribute("data-done-hidden"),
   ).toBe("0");
+});
+
+it("settles a rejected Load more on filter A when a transition to filter B suspends", async () => {
+  vi.mocked(toast.error).mockClear();
+  const page =
+    Promise.withResolvers<Awaited<ReturnType<typeof loadMoreTasksColumn>>>();
+  vi.mocked(loadMoreTasksColumn).mockReturnValueOnce(page.promise);
+  const suspendedGate = Promise.withResolvers<void>();
+
+  function SuspendGate({ promise }: { promise: Promise<void> | null }) {
+    if (promise) {
+      use(promise);
+    }
+    return null;
+  }
+
+  let triggerSuspendedSwitch: (() => void) | null = null;
+  function Harness() {
+    const [tag, setTag] = useState("research");
+    const [pendingGate, setPendingGate] = useState<Promise<void> | null>(null);
+    triggerSuspendedSwitch = () => {
+      searchParamsRef.current = new URLSearchParams({ tag: "writing" });
+      startTransition(() => {
+        setTag("writing");
+        setPendingGate(suspendedGate.promise);
+      });
+    };
+    const doneCursor =
+      tag === "research" ? "research-cursor-1" : "writing-cursor-1";
+    return (
+      <Suspense fallback={<div>loading</div>}>
+        {cloneElement(boardView([TASK], undefined, doneCursor), {
+          initialFilters: { ...EMPTY_FILTERS, tag },
+        })}
+        <SuspendGate promise={pendingGate} />
+      </Suspense>
+    );
+  }
+
+  try {
+    searchParamsRef.current = new URLSearchParams({ tag: "research" });
+    render(<Harness />);
+
+    const loadMore = screen.getByRole("button", { name: "Load more" });
+    act(() => loadMore.click());
+    expect(loadMore).toHaveAttribute("aria-busy", "true");
+
+    // Start switching to filter B; TasksView renders B, then SuspendGate suspends
+    // so filter A remains committed and visible on screen.
+    await act(async () => {
+      triggerSuspendedSwitch?.();
+    });
+    expect(screen.getByRole("button", { name: "Load more" })).toBeVisible();
+
+    await act(async () => {
+      page.reject(new Error("network"));
+      await page.promise.catch(() => undefined);
+    });
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Could not load more"),
+    );
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+
+    // Once filter B finishes suspending, filter B commits with its own cursor.
+    await act(async () => {
+      suspendedGate.resolve();
+      await suspendedGate.promise;
+    });
+    const writingLoadMore = screen.getByRole("button", { name: "Load more" });
+    expect(writingLoadMore).toBeEnabled();
+    expect(writingLoadMore).not.toHaveAttribute("aria-busy", "true");
+  } finally {
+    await act(async () => {
+      suspendedGate.resolve();
+      await suspendedGate.promise;
+    });
+    searchParamsRef.current = new URLSearchParams();
+  }
+});
+
+it("drops optimistic drag status when switching to List before the drag rejects", async () => {
+  vi.mocked(toast.error).mockClear();
+  const dragResult =
+    Promise.withResolvers<Awaited<ReturnType<typeof setTaskStatusFromDrag>>>();
+  vi.mocked(setTaskStatusFromDrag).mockReturnValueOnce(dragResult.promise);
+
+  const user = userEvent.setup();
+  render(boardView([TASK]));
+
+  await dropOnTodo(TASK.id, "backlog");
+  expect(boardCard(TASK.id)).toHaveAttribute("data-status", TaskStatus.READY);
+
+  // Switch to List before the server refresh returns.
+  await user.click(screen.getByRole("button", { name: "Display" }));
+  await user.click(screen.getByRole("radio", { name: "List" }));
+
+  // List starts from server rows, not the board's pending optimistic move.
+  expect(screen.getByTestId(`list-row-${TASK.id}`)).toHaveAttribute(
+    "data-status",
+    TaskStatus.DRAFT,
+  );
+
+  await act(async () => {
+    dragResult.resolve({
+      ok: false,
+      error: { kind: "status_not_selectable" },
+    });
+    await dragResult.promise;
+  });
+
+  expect(toast.error).not.toHaveBeenCalled();
+  expect(screen.getByTestId(`list-row-${TASK.id}`)).toHaveAttribute(
+    "data-status",
+    TaskStatus.DRAFT,
+  );
+});
+
+it("preserves only the archived column's cursor when another column gains an overflow cursor", async () => {
+  const archived: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-done-archived-concurrent-todo",
+  };
+  vi.mocked(loadMoreTasksColumn).mockResolvedValueOnce({
+    tasks: [archived],
+    nextCursor: null,
+  });
+
+  const withTodoAndDone = (
+    doneCursor: string | null,
+    doneHidden: number,
+    todoCursor: string | null,
+    todoHidden: number,
+  ) =>
+    cloneElement(boardView([TASK], undefined, doneCursor, doneHidden), {
+      columnNextCursorById: {
+        backlog: null,
+        todo: todoCursor,
+        "in-progress": null,
+        "input-required": null,
+        done: doneCursor,
+      },
+      columnHiddenCountById: {
+        backlog: 0,
+        todo: todoHidden,
+        "in-progress": 0,
+        "input-required": 0,
+        done: doneHidden,
+      },
+    });
+
+  const { rerender } = render(withTodoAndDone("done-cursor-1", 1, null, 0));
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(
+    await screen.findByTestId(`board-card-${archived.id}`),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+
+  // Archive the loaded Done task while a concurrent change adds overflow to To do.
+  markTaskArchived(archived.id);
+  rerender(withTodoAndDone("done-cursor-1", 1, "todo-cursor-1", 1));
+
+  expect(
+    screen.queryByTestId(`board-card-${archived.id}`),
+  ).not.toBeInTheDocument();
+  // Done stays exhausted; To do receives its new cursor and hidden count.
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("0");
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-todo-hidden"),
+  ).toBe("1");
+
+  vi.mocked(loadMoreTasksColumn).mockResolvedValueOnce({
+    tasks: [],
+    nextCursor: null,
+  });
+  await act(async () => {
+    screen.getByRole("button", { name: "Load more" }).click();
+    await Promise.resolve();
+  });
+  expect(loadMoreTasksColumn).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      columnId: "todo",
+      cursor: "todo-cursor-1",
+    }),
+  );
+});
+
+it("restores Load more after a failed page when returning via cached Activity reveal", async () => {
+  vi.mocked(toast.error).mockClear();
+  vi.mocked(loadMoreTasksColumn).mockRejectedValueOnce(new Error("network"));
+
+  const view = boardView([TASK], undefined, "cursor-1", 1);
+  const { rerender } = render(<Activity mode="visible">{view}</Activity>);
+
+  await act(async () => {
+    screen.getByRole("button", { name: "Load more" }).click();
+    await Promise.resolve();
+  });
+  expect(toast.error).toHaveBeenCalledWith("Could not load more");
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+
+  rerender(<Activity mode="hidden">{view}</Activity>);
+  rerender(<Activity mode="visible">{view}</Activity>);
+
+  expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
 });

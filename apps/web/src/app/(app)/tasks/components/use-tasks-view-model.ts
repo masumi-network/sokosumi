@@ -18,6 +18,7 @@ import {
   useCallback,
   useLayoutEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
   useSyncExternalStore,
@@ -90,8 +91,8 @@ interface TasksBoardState {
   listCursor: string | null;
   loadingColumnIds: Set<KanbanColumnId>;
   isLoadingListMore: boolean;
-  loadedBoardTaskIds: ReadonlySet<string>;
-  lastMergedRefresh: MergedRefreshSnapshot | null;
+  loadedBoardColumnByTaskId: ReadonlyMap<string, KanbanColumnId>;
+  lastArchivePreservedRefresh: MergedRefreshSnapshot | null;
 }
 
 interface PendingBoardReopen {
@@ -132,9 +133,16 @@ function createBoardState({
     listCursor: initialListNextCursor,
     loadingColumnIds: new Set(),
     isLoadingListMore: false,
-    loadedBoardTaskIds: new Set(),
-    lastMergedRefresh: null,
+    loadedBoardColumnByTaskId: new Map(),
+    lastArchivePreservedRefresh: null,
   };
+}
+
+function applyBoardStateUpdate(
+  prev: TasksBoardState,
+  update: TasksBoardState | ((prev: TasksBoardState) => TasksBoardState),
+): TasksBoardState {
+  return typeof update === "function" ? update(prev) : update;
 }
 
 function getContextPendingMoves(
@@ -273,19 +281,24 @@ export function useTasksViewModel({
   const isTaskPaginationInSync =
     routeTasksFiltersResetKey === serverTasksFiltersResetKey;
 
-  const [boardState, setBoardState] = useState<TasksBoardState>(() =>
-    createBoardState({
-      context: {
-        filtersKey: serverTasksFiltersResetKey,
-        defaultViewMode,
-        viewMode: defaultViewMode ?? "board",
-      },
-      tasks,
-      columns,
-      initialColumnNextCursorById,
-      initialColumnHiddenCountById,
-      initialListNextCursor,
-    }),
+  // useReducer skips useState's eager-bailout check against queue.lastRenderedState,
+  // which a suspended concurrent render can overwrite before commit.
+  const [boardState, setBoardState] = useReducer(
+    applyBoardStateUpdate,
+    undefined,
+    () =>
+      createBoardState({
+        context: {
+          filtersKey: serverTasksFiltersResetKey,
+          defaultViewMode,
+          viewMode: defaultViewMode ?? "board",
+        },
+        tasks,
+        columns,
+        initialColumnNextCursorById,
+        initialColumnHiddenCountById,
+        initialListNextCursor,
+      }),
   );
 
   // Reset in render so filter or view changes while hidden under React
@@ -329,17 +342,6 @@ export function useTasksViewModel({
     isLoadingListMore,
   } = boardState;
   const viewMode = requestContext.viewMode;
-
-  const currentContextRef = useRef(requestContext);
-  const itemsRef = useRef(items);
-  const columnCursorByIdRef = useRef(columnCursorById);
-  const listCursorRef = useRef(listCursor);
-  if (!filtersChanged && !defaultViewModeChanged) {
-    currentContextRef.current = requestContext;
-    itemsRef.current = items;
-    columnCursorByIdRef.current = columnCursorById;
-    listCursorRef.current = listCursor;
-  }
   // Drag, merge and paging keep reading `items`: a pending row is display only.
   const itemsWithPending = usePendingCreatedTasks(
     items,
@@ -390,15 +392,16 @@ export function useTasksViewModel({
       );
       if (
         !hasArchivedPrevItem &&
-        prev.lastMergedRefresh !== null &&
-        prev.lastMergedRefresh.tasks === tasks &&
-        prev.lastMergedRefresh.columns === columns &&
-        prev.lastMergedRefresh.defaultViewMode === defaultViewMode &&
-        prev.lastMergedRefresh.initialColumnNextCursorById ===
+        prev.lastArchivePreservedRefresh !== null &&
+        prev.lastArchivePreservedRefresh.tasks === tasks &&
+        prev.lastArchivePreservedRefresh.columns === columns &&
+        prev.lastArchivePreservedRefresh.defaultViewMode === defaultViewMode &&
+        prev.lastArchivePreservedRefresh.initialColumnNextCursorById ===
           initialColumnNextCursorById &&
-        prev.lastMergedRefresh.initialColumnHiddenCountById ===
+        prev.lastArchivePreservedRefresh.initialColumnHiddenCountById ===
           initialColumnHiddenCountById &&
-        prev.lastMergedRefresh.initialListNextCursor === initialListNextCursor
+        prev.lastArchivePreservedRefresh.initialListNextCursor ===
+          initialListNextCursor
       ) {
         return prev;
       }
@@ -416,50 +419,70 @@ export function useTasksViewModel({
         keepLocalOnlyTasks,
       });
 
-      const archivedLoadedTaskDropped = prev.items.some(
-        (task) =>
-          isTaskArchived(task.id) && prev.loadedBoardTaskIds.has(task.id),
-      );
-      const nonArchivedLocalOnlyDropped =
-        !keepLocalOnlyTasks &&
-        prev.items.some(
-          (task) => !isTaskArchived(task.id) && !serverTaskIds.has(task.id),
-        );
-      const preserveCursorsForArchive =
-        !isListView &&
-        archivedLoadedTaskDropped &&
-        !nonArchivedLocalOnlyDropped;
+      const preservedArchiveColumns = new Set<KanbanColumnId>();
+      if (!isListView) {
+        const droppedNonArchivedLocalColumns = new Set<KanbanColumnId>();
+        if (!keepLocalOnlyTasks) {
+          for (const task of prev.items) {
+            if (isTaskArchived(task.id) || serverTaskIds.has(task.id)) continue;
+            const loadedColumn = prev.loadedBoardColumnByTaskId.get(task.id);
+            if (loadedColumn) {
+              droppedNonArchivedLocalColumns.add(loadedColumn);
+            }
+          }
+        }
+        for (const task of prev.items) {
+          if (!isTaskArchived(task.id)) continue;
+          const loadedColumn = prev.loadedBoardColumnByTaskId.get(task.id);
+          if (
+            loadedColumn &&
+            !droppedNonArchivedLocalColumns.has(loadedColumn)
+          ) {
+            preservedArchiveColumns.add(loadedColumn);
+          }
+        }
+      }
 
       // List always resyncs. Board resyncs when no client-only load-more rows
-      // remain, except on the archive-driven update that dropped a loaded task.
-      if (
-        isListView ||
-        (!preserveCursorsForArchive && next.length <= serverTasks.length)
-      ) {
+      // remain, preserving pagination only for columns affected by an archive.
+      if (isListView || next.length <= serverTasks.length) {
+        const nextColumnCursorById = buildInitialColumnCursorById(
+          columns,
+          initialColumnNextCursorById,
+        );
+        const nextColumnHiddenById = { ...initialColumnHiddenCountById };
+        for (const columnId of preservedArchiveColumns) {
+          nextColumnCursorById[columnId] = prev.columnCursorById[columnId];
+          nextColumnHiddenById[columnId] = prev.columnHiddenById[columnId];
+        }
         return {
           ...prev,
           items: next,
-          columnCursorById: buildInitialColumnCursorById(
-            columns,
-            initialColumnNextCursorById,
-          ),
-          columnHiddenById: initialColumnHiddenCountById,
+          columnCursorById: nextColumnCursorById,
+          columnHiddenById: nextColumnHiddenById,
           listCursor: initialListNextCursor,
-          loadedBoardTaskIds: new Set(),
-          lastMergedRefresh: refreshSnapshot,
+          loadedBoardColumnByTaskId: new Map(),
+          lastArchivePreservedRefresh:
+            preservedArchiveColumns.size > 0 ? refreshSnapshot : null,
         };
       }
 
       const nextIds = new Set(next.map((task) => task.id));
-      const remainingLoadedBoardTaskIds = new Set(
-        [...prev.loadedBoardTaskIds].filter((id) => nextIds.has(id)),
-      );
+      const remainingLoadedBoardColumnByTaskId = new Map<
+        string,
+        KanbanColumnId
+      >();
+      for (const [taskId, columnId] of prev.loadedBoardColumnByTaskId) {
+        if (nextIds.has(taskId)) {
+          remainingLoadedBoardColumnByTaskId.set(taskId, columnId);
+        }
+      }
 
       return {
         ...prev,
         items: next,
-        loadedBoardTaskIds: remainingLoadedBoardTaskIds,
-        lastMergedRefresh: refreshSnapshot,
+        loadedBoardColumnByTaskId: remainingLoadedBoardColumnByTaskId,
+        lastArchivePreservedRefresh: null,
       };
     });
   }, [
@@ -513,7 +536,7 @@ export function useTasksViewModel({
     const overId = event.over?.id;
     if (typeof activeId !== "string" || typeof overId !== "string") return;
 
-    const draggedTask = itemsRef.current.find((task) => task.id === activeId);
+    const draggedTask = items.find((task) => task.id === activeId);
     if (!draggedTask || !isTaskDnDDraggable(draggedTask)) {
       return;
     }
@@ -587,33 +610,34 @@ export function useTasksViewModel({
       return;
     }
 
-    const rollbackMove = () => {
+    const rollbackMove = (onRolledBack: () => void) => {
       const pendingMoves = pendingMovesByContextRef.current.get(startedContext);
-      if (pendingMoves?.get(activeId) !== moveToken) return false;
+      if (pendingMoves?.get(activeId) !== moveToken) return;
 
       pendingMoves.delete(activeId);
-      if (currentContextRef.current !== startedContext) return false;
-
-      setBoardState((prev) =>
-        prev.context !== startedContext
-          ? prev
-          : {
-              ...prev,
-              items: prev.items.map((task) =>
-                task.id === activeId &&
-                task.columnId === toColumn &&
-                task.status === desiredStatus
-                  ? {
-                      ...task,
-                      status: previousStatus,
-                      columnId: fromColumn,
-                      statusSince: previousStatusSince,
-                    }
-                  : task,
-              ),
-            },
-      );
-      return true;
+      let notified = false;
+      setBoardState((prev) => {
+        if (prev.context !== startedContext) return prev;
+        if (!notified) {
+          notified = true;
+          queueMicrotask(onRolledBack);
+        }
+        return {
+          ...prev,
+          items: prev.items.map((task) =>
+            task.id === activeId &&
+            task.columnId === toColumn &&
+            task.status === desiredStatus
+              ? {
+                  ...task,
+                  status: previousStatus,
+                  columnId: fromColumn,
+                  statusSince: previousStatusSince,
+                }
+              : task,
+          ),
+        };
+      });
     };
 
     void (async () => {
@@ -623,9 +647,7 @@ export function useTasksViewModel({
           desiredStatus,
         });
         if (!result.ok) {
-          if (rollbackMove()) {
-            reportDragRejection(result.error.kind);
-          }
+          rollbackMove(() => reportDragRejection(result.error.kind));
           return;
         }
         const pendingMoves =
@@ -634,40 +656,42 @@ export function useTasksViewModel({
           pendingMoves.delete(activeId);
         }
       } catch {
-        if (rollbackMove()) {
-          toast.error(labels.dragError);
-        }
+        rollbackMove(() => toast.error(labels.dragError));
       }
     })();
   };
 
-  const rollbackBoardReopen = (pending: PendingBoardReopen) => {
+  const rollbackBoardReopen = (
+    pending: PendingBoardReopen,
+    onRolledBack?: () => void,
+  ) => {
     const pendingMoves = pendingMovesByContextRef.current.get(pending.context);
-    if (pendingMoves?.get(pending.taskId) !== pending.moveToken) return false;
+    if (pendingMoves?.get(pending.taskId) !== pending.moveToken) return;
 
     pendingMoves.delete(pending.taskId);
-    if (currentContextRef.current !== pending.context) return false;
-
-    setBoardState((prev) =>
-      prev.context !== pending.context
-        ? prev
-        : {
-            ...prev,
-            items: prev.items.map((task) =>
-              task.id === pending.taskId &&
-              task.columnId === pending.toColumn &&
-              task.status === pending.desiredStatus
-                ? {
-                    ...task,
-                    status: pending.previousStatus,
-                    columnId: pending.fromColumn,
-                    statusSince: pending.previousStatusSince,
-                  }
-                : task,
-            ),
-          },
-    );
-    return true;
+    let notified = false;
+    setBoardState((prev) => {
+      if (prev.context !== pending.context) return prev;
+      if (onRolledBack && !notified) {
+        notified = true;
+        queueMicrotask(onRolledBack);
+      }
+      return {
+        ...prev,
+        items: prev.items.map((task) =>
+          task.id === pending.taskId &&
+          task.columnId === pending.toColumn &&
+          task.status === pending.desiredStatus
+            ? {
+                ...task,
+                status: pending.previousStatus,
+                columnId: pending.fromColumn,
+                statusSince: pending.previousStatusSince,
+              }
+            : task,
+        ),
+      };
+    });
   };
 
   const handleBoardReopenOpenChange = (open: boolean) => {
@@ -691,12 +715,15 @@ export function useTasksViewModel({
 
     const pending = pendingBoardReopen;
     const clearPendingReopen = () => {
-      setPendingBoardReopen((current) =>
-        current === pending ? null : current,
-      );
-      if (currentContextRef.current === pending.context) {
-        setReopenComment("");
-      }
+      let cleared = false;
+      setPendingBoardReopen((current) => {
+        if (current !== pending) return current;
+        if (!cleared) {
+          cleared = true;
+          queueMicrotask(() => setReopenComment(""));
+        }
+        return null;
+      });
     };
 
     startReopenTransition(async () => {
@@ -707,11 +734,10 @@ export function useTasksViewModel({
           comment: trimmedComment,
         });
         if (!result.ok) {
-          const rolledBack = rollbackBoardReopen(pending);
+          rollbackBoardReopen(pending, () =>
+            reportDragRejection(result.error.kind),
+          );
           clearPendingReopen();
-          if (rolledBack) {
-            reportDragRejection(result.error.kind);
-          }
           return;
         }
         const pendingMoves = pendingMovesByContextRef.current.get(
@@ -722,11 +748,8 @@ export function useTasksViewModel({
         }
         clearPendingReopen();
       } catch {
-        const rolledBack = rollbackBoardReopen(pending);
+        rollbackBoardReopen(pending, () => toast.error(labels.dragError));
         clearPendingReopen();
-        if (rolledBack) {
-          toast.error(labels.dragError);
-        }
       }
     });
   };
@@ -736,9 +759,7 @@ export function useTasksViewModel({
       if (!isTaskPaginationInSync) return;
 
       const startedContext = requestContext;
-      if (currentContextRef.current !== startedContext) return;
-
-      const cursor = columnCursorByIdRef.current[columnId] ?? null;
+      const cursor = columnCursorById[columnId] ?? null;
       const loadingColumns = getContextLoadingColumns(
         loadingColumnIdsByContextRef.current,
         startedContext,
@@ -761,19 +782,16 @@ export function useTasksViewModel({
           // Same order as the first page, or the cursor skips Tasks.
           sort: effectiveTasksSort(routeFilters.sort, "board"),
         });
-        if (currentContextRef.current !== startedContext) return;
         const nextCursor = result.nextCursor;
-        columnCursorByIdRef.current = {
-          ...columnCursorByIdRef.current,
-          [columnId]: nextCursor,
-        };
         setBoardState((prev) => {
           if (prev.context !== startedContext) return prev;
           const existingIds = new Set(prev.items.map((task) => task.id));
-          const nextLoadedBoardTaskIds = new Set(prev.loadedBoardTaskIds);
+          const nextLoadedBoardColumnByTaskId = new Map(
+            prev.loadedBoardColumnByTaskId,
+          );
           for (const task of result.tasks) {
             if (!existingIds.has(task.id)) {
-              nextLoadedBoardTaskIds.add(task.id);
+              nextLoadedBoardColumnByTaskId.set(task.id, columnId);
             }
           }
           return {
@@ -793,40 +811,46 @@ export function useTasksViewModel({
               ...prev.columnCursorById,
               [columnId]: nextCursor,
             },
-            loadedBoardTaskIds: nextLoadedBoardTaskIds,
+            loadedBoardColumnByTaskId: nextLoadedBoardColumnByTaskId,
+            lastArchivePreservedRefresh: null,
           };
         });
       } catch {
-        if (currentContextRef.current !== startedContext) return;
-        columnCursorByIdRef.current = {
-          ...columnCursorByIdRef.current,
-          [columnId]: null,
-        };
-        setBoardState((prev) =>
-          prev.context !== startedContext
-            ? prev
-            : {
-                ...prev,
-                columnCursorById: {
-                  ...prev.columnCursorById,
-                  [columnId]: null,
-                },
-              },
-        );
-        toast.error(labels.loadMoreError);
+        let notified = false;
+        setBoardState((prev) => {
+          if (prev.context !== startedContext) return prev;
+          if (!notified) {
+            notified = true;
+            queueMicrotask(() => {
+              toast.error(labels.loadMoreError);
+            });
+          }
+          return {
+            ...prev,
+            columnCursorById: {
+              ...prev.columnCursorById,
+              [columnId]: null,
+            },
+            lastArchivePreservedRefresh: null,
+          };
+        });
       } finally {
         loadingColumns.delete(columnId);
-        if (currentContextRef.current === startedContext) {
-          setBoardState((prev) => {
-            if (prev.context !== startedContext) return prev;
-            const afterLoading = new Set(prev.loadingColumnIds);
-            afterLoading.delete(columnId);
-            return { ...prev, loadingColumnIds: afterLoading };
-          });
-        }
+        setBoardState((prev) => {
+          if (
+            prev.context !== startedContext ||
+            !prev.loadingColumnIds.has(columnId)
+          ) {
+            return prev;
+          }
+          const afterLoading = new Set(prev.loadingColumnIds);
+          afterLoading.delete(columnId);
+          return { ...prev, loadingColumnIds: afterLoading };
+        });
       }
     },
     [
+      columnCursorById,
       isTaskPaginationInSync,
       labels.loadMoreError,
       requestContext,
@@ -838,9 +862,7 @@ export function useTasksViewModel({
     if (!isTaskPaginationInSync) return;
 
     const startedContext = requestContext;
-    if (currentContextRef.current !== startedContext) return;
-
-    const cursor = listCursorRef.current;
+    const cursor = listCursor;
     if (cursor === null || loadingListContextsRef.current.has(startedContext)) {
       return;
     }
@@ -857,9 +879,7 @@ export function useTasksViewModel({
         cursor,
         ...routeFilters,
       });
-      if (currentContextRef.current !== startedContext) return;
       const nextCursor = result.nextCursor;
-      listCursorRef.current = nextCursor;
       setBoardState((prev) =>
         prev.context !== startedContext
           ? prev
@@ -867,28 +887,37 @@ export function useTasksViewModel({
               ...prev,
               items: appendUniqueTasks(prev.items, result.tasks),
               listCursor: nextCursor,
+              lastArchivePreservedRefresh: null,
             },
       );
     } catch {
-      if (currentContextRef.current !== startedContext) return;
-      listCursorRef.current = null;
-      setBoardState((prev) =>
-        prev.context !== startedContext ? prev : { ...prev, listCursor: null },
-      );
-      toast.error(labels.loadMoreError);
+      let notified = false;
+      setBoardState((prev) => {
+        if (prev.context !== startedContext) return prev;
+        if (!notified) {
+          notified = true;
+          queueMicrotask(() => {
+            toast.error(labels.loadMoreError);
+          });
+        }
+        return {
+          ...prev,
+          listCursor: null,
+          lastArchivePreservedRefresh: null,
+        };
+      });
     } finally {
       loadingListContextsRef.current.delete(startedContext);
-      if (currentContextRef.current === startedContext) {
-        setBoardState((prev) =>
-          prev.context !== startedContext
-            ? prev
-            : { ...prev, isLoadingListMore: false },
-        );
-      }
+      setBoardState((prev) =>
+        prev.context !== startedContext || !prev.isLoadingListMore
+          ? prev
+          : { ...prev, isLoadingListMore: false },
+      );
     }
   }, [
     isTaskPaginationInSync,
     labels.loadMoreError,
+    listCursor,
     requestContext,
     routeFilters,
   ]);
@@ -899,17 +928,25 @@ export function useTasksViewModel({
         ...requestContext,
         viewMode: next,
       };
-      currentContextRef.current = nextContext;
+      const serverTasks = tasks.filter((task) => !isTaskArchived(task.id));
       setBoardState((prev) =>
         prev.context !== requestContext
           ? prev
-          : {
-              ...prev,
+          : createBoardState({
               context: nextContext,
-              loadingColumnIds: new Set(),
-              isLoadingListMore: false,
-            },
+              tasks: serverTasks,
+              columns,
+              initialColumnNextCursorById,
+              initialColumnHiddenCountById,
+              initialListNextCursor,
+            }),
       );
+      if (pendingBoardReopen !== null) {
+        setPendingBoardReopen(null);
+      }
+      if (reopenComment !== "") {
+        setReopenComment("");
+      }
     }
     document.cookie = serializeTasksViewModeCookie(next);
     // A link's `?view=` held only that visit; once chosen here, the saved
