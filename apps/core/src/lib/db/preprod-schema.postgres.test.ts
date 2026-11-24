@@ -10,7 +10,7 @@ import type { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { Network } from "@/lib/network";
-import { onSplitLayout } from "@/test/split-layout";
+import { onSplitLayout, testSchemaNames } from "@/test/split-layout";
 
 const pools = vi.hoisted(() => [] as Pool[]);
 vi.mock("@vercel/functions", async (importOriginal) => {
@@ -31,8 +31,12 @@ type Clients = typeof import("./prisma");
 
 const key = `n56-${randomUUID().slice(0, 12)}`;
 
-/** Core's database module as a start with the flag set this way loads it. */
+/**
+ * Core's database module as a fresh start with the flag set this way loads it:
+ * no cached clients, a new pool (`afterAll` ends every pool).
+ */
 async function start(preprod: "true" | "false"): Promise<Clients> {
+  delete (globalThis as { coreDatabase?: unknown }).coreDatabase;
   vi.resetModules();
   vi.stubEnv("NETWORK_PREPROD_ENABLED", preprod);
   return import("./prisma");
@@ -40,8 +44,8 @@ async function start(preprod: "true" | "false"): Promise<Clients> {
 
 describe.runIf(onSplitLayout)("Preprod on the split layout", () => {
   const schemas: Record<Network, string> = {
-    mainnet: process.env.DATABASE_SCHEMA_MAINNET ?? "",
-    preprod: process.env.DATABASE_SCHEMA_PREPROD ?? "",
+    mainnet: testSchemaNames().DATABASE_SCHEMA_MAINNET,
+    preprod: testSchemaNames().DATABASE_SCHEMA_PREPROD,
   };
   let admin: ReturnType<typeof createPrismaClient>;
   let clients: Clients | undefined;

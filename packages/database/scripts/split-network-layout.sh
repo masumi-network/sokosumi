@@ -12,14 +12,18 @@
 # What it does, in this order:
 # 1. Every table of `prisma/network-tables.json`'s Network list, and every enum
 #    only those tables use, moves to a schema named `preprod` for now. Every
-#    other table, view, enum, sequence and function moves to `shared`.
-#    Extensions and `_prisma_migrations` stay in `public`. `SET SCHEMA` keeps
-#    every index, constraint and trigger, and every foreign key, the ones that
-#    cross between the schemas included.
+#    table, view and sequence of its shared list moves to `shared`, as do every
+#    other enum and every function. Extensions and `_prisma_migrations` stay in
+#    `public`. A table, view or sequence the list does not place stops it.
+#    `SET SCHEMA` keeps every index, constraint and trigger, and every foreign
+#    key, the ones that cross between the schemas included.
 # 2. `pg_dump` copies that Network schema's definition, then it is renamed
 #    `mainnet`, so the shared tables' foreign keys point at Mainnet.
 # 3. The copy is restored as `preprod`: the same tables, its own enums, and its
 #    keys into `shared`; no shared table points at it.
+#
+# After a failure, recreate the database: step 1 and steps 2 and 3 are two
+# transactions.
 #
 # Left broken on purpose: function and trigger bodies that name `public.` or an
 # unqualified table (ticket 19), and unqualified raw SQL (tickets 16 and 17).
@@ -30,17 +34,25 @@ read -r -a psql <<<"${PSQL:-psql}"
 read -r -a pg_dump <<<"${PG_DUMP:-pg_dump}"
 
 here=$(cd "$(dirname "$0")" && pwd)
-network_tables=$(node -e '
+# Comma-separated SQL names: the Network tables, then the shared objects.
+read -r network_tables shared_tables < <(node -e '
   const list = require(process.argv[1]);
-  console.log([...Object.values(list.network), ...list.networkJoinTables].join(","));
+  console.log(
+    [...Object.values(list.network), ...list.networkJoinTables].join(","),
+    [...Object.values(list.shared), ...list.sharedSqlOnly].join(","),
+  );
 ' "$here/../prisma/network-tables.json")
+[ -n "${shared_tables:-}" ] || { echo "could not read network-tables.json" >&2; exit 1; }
 
-"${psql[@]}" "$url" --quiet --output=/dev/null -v ON_ERROR_STOP=1 -v network_tables="$network_tables" <<'SQL'
+"${psql[@]}" "$url" --quiet --output=/dev/null -v ON_ERROR_STOP=1 -v network_tables="$network_tables" -v shared_tables="$shared_tables" <<'SQL'
 BEGIN;
 SELECT set_config('split.network_tables', :'network_tables', true);
+SELECT set_config('split.shared_tables', :'shared_tables', true);
 DO $$
 DECLARE
   network text[] := string_to_array(current_setting('split.network_tables'), ',');
+  shared text[] := string_to_array(current_setting('split.shared_tables'), ',');
+  unplaced text;
   object record;
 BEGIN
   IF EXISTS (SELECT FROM pg_namespace WHERE nspname IN ('shared', 'mainnet', 'preprod')) THEN
@@ -51,6 +63,19 @@ BEGIN
     WHERE to_regclass(format('public.%I', name)) IS NULL
   ) THEN
     RAISE EXCEPTION 'a Network table of network-tables.json is not in public';
+  END IF;
+  SELECT string_agg(c.relname, ', ') INTO unplaced
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
+  WHERE c.relkind IN ('r', 'p', 'v', 'm', 'S')
+    AND c.relname <> '_prisma_migrations'
+    AND c.relname <> ALL (network) AND c.relname <> ALL (shared)
+    AND NOT EXISTS (
+      SELECT FROM pg_depend d
+      WHERE d.objid = c.oid AND d.deptype IN ('a', 'e', 'i')
+    );
+  IF unplaced IS NOT NULL THEN
+    RAISE EXCEPTION 'network-tables.json places none of: %', unplaced;
   END IF;
   CREATE SCHEMA shared;
   CREATE SCHEMA preprod;
@@ -63,7 +88,7 @@ BEGIN
     FROM pg_type t
     JOIN pg_namespace n ON n.oid = t.typnamespace AND n.nspname = 'public'
     LEFT JOIN pg_attribute a ON a.atttypid IN (t.oid, t.typarray) AND a.attnum > 0
-    LEFT JOIN pg_class c ON c.oid = a.attrelid AND c.relkind IN ('r', 'v', 'm')
+    LEFT JOIN pg_class c ON c.oid = a.attrelid AND c.relkind IN ('r', 'p', 'v', 'm')
     WHERE t.typtype = 'e'
     GROUP BY t.typname
   LOOP
@@ -98,7 +123,7 @@ BEGIN
     SELECT p.oid::regprocedure AS signature
     FROM pg_proc p
     JOIN pg_namespace n ON n.oid = p.pronamespace AND n.nspname = 'public'
-    WHERE NOT EXISTS (
+    WHERE p.prokind = 'f' AND NOT EXISTS (
       SELECT FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e'
     )
   LOOP
@@ -110,5 +135,6 @@ COMMIT;
 SQL
 
 dump=$("${pg_dump[@]}" --schema-only --no-owner --no-privileges --schema=preprod "$url")
-"${psql[@]}" "$url" --quiet --output=/dev/null -v ON_ERROR_STOP=1 -c 'ALTER SCHEMA preprod RENAME TO mainnet'
-"${psql[@]}" "$url" --quiet --output=/dev/null -v ON_ERROR_STOP=1 <<<"$dump"
+"${psql[@]}" "$url" --quiet --output=/dev/null -v ON_ERROR_STOP=1 --single-transaction \
+  <<<"ALTER SCHEMA preprod RENAME TO mainnet;
+$dump"

@@ -1,12 +1,12 @@
 /**
- * The ratchet of the PostgreSQL run on the split layout. `split-layout-pending.txt`
- * lists the files that do not pass there yet, each with the ticket that fixes
- * it. Every other file must pass, and a listed file that passes must leave
- * the list, so the list only shrinks. `scripts/split-layout-ratchet.mts`
- * applies it to Vitest's JSON report.
+ * The PostgreSQL files that do not pass on the split layout yet:
+ * `split-layout-pending.txt`. CI's split job runs every other file and lets
+ * Vitest's exit code decide (`SPLIT_LAYOUT_RUN=must-pass`), then runs only the
+ * listed ones (`SPLIT_LAYOUT_RUN=pending`) and checks with
+ * `scripts/split-layout-pending.mts` that each of them still fails.
  */
 
-/** One test file of the run: its path from `apps/core`, and whether it failed. */
+/** One test file of the pending run: its path from `apps/core`, and whether it failed. */
 export interface FileResult {
   file: string;
   failed: boolean;
@@ -32,8 +32,8 @@ export function parsePending(text: string): Map<string, number> {
   return pending;
 }
 
-/** What breaks the ratchet; empty when the run keeps it. */
-export function ratchetProblems(
+/** What the pending run got wrong; empty when every listed file ran and failed. */
+export function pendingProblems(
   results: readonly FileResult[],
   pending: ReadonlyMap<string, number>,
 ): string[] {
@@ -41,12 +41,9 @@ export function ratchetProblems(
   const ran = new Set(results.map((result) => result.file));
   for (const { file, failed } of results) {
     const ticket = pending.get(file);
-    if (failed && ticket === undefined) {
-      problems.push(
-        `${file} fails on the split layout. Fix it, or list it with the ticket that will.`,
-      );
-    }
-    if (!failed && ticket !== undefined) {
+    if (ticket === undefined) {
+      problems.push(`${file} ran in the pending run but is not listed.`);
+    } else if (!failed) {
       problems.push(
         `${file} passes on the split layout: remove it from split-layout-pending.txt (ticket ${ticket}).`,
       );
@@ -60,4 +57,9 @@ export function ratchetProblems(
     }
   }
   return problems;
+}
+
+/** A list entry as a glob that matches exactly that file (`[id]` is literal). */
+export function literalGlob(file: string): string {
+  return file.replace(/[[\]{}()*?!+@]/g, "\\$&");
 }

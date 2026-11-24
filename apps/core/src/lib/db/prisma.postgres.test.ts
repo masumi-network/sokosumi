@@ -23,6 +23,8 @@ import {
   vi,
 } from "vitest";
 
+import { testSchemaNames } from "@/test/split-layout";
+
 const pools = vi.hoisted(() => [] as Pool[]);
 vi.mock("@vercel/functions", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@vercel/functions")>();
@@ -42,7 +44,7 @@ const enabled =
 
 // Where the migrated shared tables are: the copies' source, and where a client
 // that ignored its schema would write.
-const sharedSchema = process.env.DATABASE_SCHEMA_SHARED ?? "public";
+const sharedSchema = testSchemaNames().DATABASE_SCHEMA_SHARED;
 const suffix = randomUUID().replaceAll("-", "").slice(0, 12);
 const schemas = {
   shared: `n15_shared_${suffix}`,

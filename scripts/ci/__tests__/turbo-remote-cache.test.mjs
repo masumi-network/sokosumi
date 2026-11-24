@@ -112,6 +112,7 @@ describe("GitHub OIDC remote cache wiring", () => {
     for (const jobId of [
       "core",
       "core-postgres",
+      "core-postgres-split",
       "packages",
       "cli",
       "build",
@@ -331,6 +332,10 @@ describe("GitHub OIDC remote cache wiring", () => {
     for (const [jobId, stepName] of [
       ["core-postgres", "Test against PostgreSQL"],
       ["core-postgres-split", "Test against PostgreSQL on the split layout"],
+      [
+        "core-postgres-split",
+        "Check the pending files still fail on the split layout",
+      ],
     ]) {
       const step = jobBlock(test, jobId).match(
         new RegExp(

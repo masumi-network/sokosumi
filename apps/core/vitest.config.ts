@@ -1,7 +1,10 @@
-import { globSync } from "node:fs";
+import { globSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { configDefaults, defineConfig } from "vitest/config";
+
+import { onSplitLayout } from "./src/test/split-layout";
+import { literalGlob, parsePending } from "./src/test/split-layout-pending";
 
 /**
  * Opt-in Postgres / DB files skip in the unit run. Keep them out of collect
@@ -148,6 +151,38 @@ const shuffleFiles =
     }),
   );
 
+/**
+ * CI's split-layout job runs the PostgreSQL files in two parts: `must-pass`
+ * runs every file not in `src/test/split-layout-pending.txt` and Vitest's exit
+ * code decides, `pending` runs only the listed ones, which
+ * `scripts/split-layout-pending.mts` checks still fail. Both refuse to start
+ * off the split layout, so a Preprod test cannot skip there.
+ */
+const splitLayoutRun = process.env.SPLIT_LAYOUT_RUN;
+if (splitLayoutRun !== undefined) {
+  if (splitLayoutRun !== "must-pass" && splitLayoutRun !== "pending") {
+    throw new Error(
+      `SPLIT_LAYOUT_RUN must be must-pass or pending, not ${splitLayoutRun}`,
+    );
+  }
+  if (!onSplitLayout) {
+    throw new Error(
+      "SPLIT_LAYOUT_RUN is set, but this run is not on the split layout: it needs RUN_DATABASE_INTEGRATION_TESTS=true, a PostgreSQL DATABASE_URL and three different DATABASE_SCHEMA_* names, none public.",
+    );
+  }
+}
+const pendingFiles =
+  splitLayoutRun === undefined
+    ? []
+    : [
+        ...parsePending(
+          readFileSync(
+            new URL("./src/test/split-layout-pending.txt", import.meta.url),
+            "utf8",
+          ),
+        ).keys(),
+      ].map(literalGlob);
+
 export default defineConfig({
   resolve: {
     tsconfigPaths: true,
@@ -169,6 +204,7 @@ export default defineConfig({
       // it, because it throws rather than skipping. See above.
       ...unprovisionedDbFiles,
       ...(optInDbRun ? [] : optInDbExclude),
+      ...(splitLayoutRun === "must-pass" ? pendingFiles : []),
     ],
     // One database per worker for the parallel PostgreSQL run in CI. See
     // `src/test/postgres-worker-databases.ts`. At the root, so it runs once
@@ -186,7 +222,8 @@ export default defineConfig({
         extends: true,
         test: {
           name: "unit",
-          include: ["src/**/*.test.ts"],
+          include:
+            splitLayoutRun === "pending" ? pendingFiles : ["src/**/*.test.ts"],
           exclude: integrationFiles,
           // Reuses workers across files, so each file must clean up after
           // itself: `src/test/reset-per-file.ts`. Shuffled file order makes
