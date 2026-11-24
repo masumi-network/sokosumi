@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { after, before, describe, test } from "node:test";
 
-import { type Browser, chromium, type Page } from "playwright";
+import { type Browser, chromium } from "playwright";
 
 import { resolveBaseUrl } from "./base-url.ts";
-import { createMailbox } from "./mailbox.ts";
+import { openHome, signUpWithSokoBot } from "./sign-up-with-soko-bot.ts";
 
 // A new user sets up a Soko Bot, opens Home, and reloads it on a slow
 // connection: the loading shell draws Home's own shape (bot face, composer,
@@ -29,18 +29,9 @@ before(async () => {
 });
 after(() => browser.close());
 
-async function expectStep(page: Page, path: RegExp, heading: string) {
-  await page.waitForURL(path);
-  await page
-    .getByRole("main")
-    .getByRole("heading", { name: heading })
-    .waitFor();
-}
-
 for (const { name, isMobile, ...viewport } of PROJECTS) {
   describe(name, () => {
     test("Home's loading shell has Home's shape", async () => {
-      const mailbox = await createMailbox();
       const context = await browser.newContext({
         viewport,
         isMobile,
@@ -51,50 +42,8 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       const errors: string[] = [];
       page.on("pageerror", (e) => errors.push(e.message));
 
-      await page.goto(`${BASE_URL}/`);
-      await page.getByRole("link", { name: "Register" }).click();
-      await expectStep(page, /\/signup/, "Create your account");
-      const chip = page.getByRole("button", {
-        name: `${mailbox.address} Change email`,
-      });
-      for (let attempt = 0; !(await chip.isVisible()); attempt++) {
-        assert.ok(attempt < 3, "the email step never took the address");
-        await page
-          .getByRole("textbox", { name: "Email" })
-          .fill(mailbox.address);
-        await page.getByRole("button", { name: "Continue with email" }).click();
-        await chip.waitFor({ timeout: 10_000 }).catch(() => {});
-      }
-      await page.getByRole("textbox", { name: "First name" }).fill("Mira");
-      await page.getByRole("textbox", { name: "Last name" }).fill(name);
-      await page
-        .getByRole("textbox", { name: "Code from the email" })
-        .pressSequentially(await mailbox.nextCode());
-      await page.getByRole("button", { name: "Register" }).click();
-      await expectStep(page, /\/setup$/, "How do you want to work?");
-      await page.getByRole("button", { name: "Continue" }).click();
-      await expectStep(page, /\/setup\/assistant$/, "Name your Soko Bot");
-      await page.getByRole("textbox", { name: "Name" }).fill(BOT);
-      await page.getByRole("button", { name: "Continue" }).click();
-      await page.getByRole("button", { name: `Create ${BOT}` }).click();
-      await page.waitForURL(/\/setup\/assistant\/connect$/);
-      await page.getByRole("link", { name: "Skip" }).click();
-      await page.waitForURL(/\/chat\/rooms\//);
-      await page.getByRole("main").getByText(`I'm ${BOT}`).waitFor();
-
-      // Home through the app's own navigation.
-      if (name === "phone") {
-        // A phone's chat room hides the tab bar; its Back shows it again.
-        await page.getByRole("link", { name: "Back to chats" }).click();
-        await page
-          .getByRole("navigation", { name: "Main navigation" })
-          .getByRole("link", { name: "Home" })
-          .click();
-      } else {
-        const showSidebar = page.getByRole("button", { name: "Show sidebar" });
-        if (await showSidebar.isVisible()) await showSidebar.click();
-        await page.getByRole("link", { name: "Home", exact: true }).click();
-      }
+      await signUpWithSokoBot(page, BASE_URL, { bot: BOT, lastName: name });
+      await openHome(page, name === "phone");
       const composer = page.getByRole("textbox", { name: `Ask ${BOT}…` });
       await composer.waitFor();
 
