@@ -3299,6 +3299,20 @@
           "resultsTitle": "Resultado",
           "published": "Publicada"
         },
+        "bulkApprove": {
+          "selectPost": "Seleccionar la publicación {position} de {count} para aprobar: {post}",
+          "approveSelected": "Aprobar selección",
+          "title": "{count, plural, one {¿Aprobar # publicación?} other {¿Aprobar # publicaciones?}}",
+          "description": "Cada publicación se aprueba tal como la ves ahora. Una publicación cuya hora aún está lo bastante lejos se programa; las demás pasan a borrador. El resultado muestra qué pasó con cada una.",
+          "willSchedule": "Prevista para {date}. Se programa si esa hora aún está lo bastante lejos al aprobarla; si no, pasa a borrador.",
+          "willDraft": "Pasa a borrador",
+          "resultsTitle": "Resultado de la aprobación",
+          "scheduled": "Aprobada. Sale {date}",
+          "drafted": "Aprobada como borrador",
+          "conflict": "Cambió desde que la viste. Ábrela para revisarla de nuevo.",
+          "signedOut": "No aprobada: tu sesión terminó. Inicia sesión e inténtalo de nuevo.",
+          "skipped": "No intentada: tu sesión terminó. Inicia sesión e inténtalo de nuevo."
+        },
         "connectPrompt": {
           "title": "Conecta una cuenta para empezar a publicar",
           "body": "Las publicaciones salen de las cuentas de este proyecto.",
