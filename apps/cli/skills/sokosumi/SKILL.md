@@ -254,7 +254,7 @@ sokosumi developer task TASK_ID
 
 With a Coworker's own API key: `coworkers me`, `coworkers events` (its Task events), and `coworkers report-usage --input-json JSON` (bills a user for its work). Platform admins only: `coworkers unarchive COWORKER_ID --input-json '{}'` and `coworkers whitelist COWORKER_ID --input-json '{"isWhitelisted":true}'`. Change a Coworker's picture in Sokosumi Web; the CLI and MCP send JSON only.
 
-Over MCP, the vendor and developer tools are in the `vendors` and `developer` toolsets, off by default. Credential minting (`coworkers api-key`), Coworker-key routes, admin routes, and the logo upload stay CLI-only.
+Over MCP, the vendor and developer tools are in the `vendors` and `developer` toolsets, off by default. Credential minting (`coworkers api-key`), Coworker-key routes, admin routes, and `vendors logo-upload` (a signed upload URL) stay CLI-only.
 
 ## Marketplace Agents and Jobs
 

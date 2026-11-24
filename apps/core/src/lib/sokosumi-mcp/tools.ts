@@ -271,6 +271,13 @@ export const MCP_TOOLS: readonly McpTool[] = [
     destructive: true,
   },
   {
+    name: "vendors_logo_cleanup",
+    operation: "POST /vendors/{id}/files/cleanup",
+    description:
+      "Delete a vendor's old logo file after you replace it with vendors_update: `body.url` is the old logo URL. URLs the vendor does not own are ignored.",
+    destructive: true,
+  },
+  {
     name: "vendors_members",
     operation: "GET /vendors/{id}/members",
     description: "List a vendor's members with their role.",
@@ -319,7 +326,8 @@ export const MCP_TOOLS: readonly McpTool[] = [
   {
     name: "vendors_decline_invite",
     operation: "POST /vendors/invites/{inviteId}/decline",
-    description: "Decline a vendor invitation.",
+    description: "Decline a vendor invitation. It cannot be accepted after.",
+    destructive: true,
   },
   {
     name: "vendors_assignments",

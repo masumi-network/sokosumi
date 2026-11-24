@@ -23,8 +23,7 @@
     },
     "POST /vendors/{id}/files/cleanup": {
       "cli": "vendors logo-cleanup",
-      "mcp": false,
-      "reason": "Cleans up after vendors logo-upload, which stays off MCP."
+      "mcp": "vendors_logo_cleanup"
     },
     "GET /vendors/{id}/members": {
       "cli": "vendors members",

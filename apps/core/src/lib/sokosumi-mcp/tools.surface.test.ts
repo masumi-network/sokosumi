@@ -73,6 +73,10 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
   coworkers_revoke_access: { id: "cw-1", body: { organizationSlug: "acme" } },
   vendors_list: {},
   vendors_update: { id: "vendor-1", body: { name: "Acme Agents" } },
+  vendors_logo_cleanup: {
+    id: "vendor-1",
+    body: { url: "https://blob.example/vendors/vendor-1/logos/old.png" },
+  },
   vendors_members: { id: "vendor-1" },
   vendors_update_member: {
     id: "vendor-1",

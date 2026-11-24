@@ -138,6 +138,7 @@ describe("Sokosumi MCP server", () => {
       "vendors_create",
       "vendors_list",
       "vendors_update",
+      "vendors_logo_cleanup",
       "vendors_members",
       "vendors_update_member",
       "vendors_remove_member",
