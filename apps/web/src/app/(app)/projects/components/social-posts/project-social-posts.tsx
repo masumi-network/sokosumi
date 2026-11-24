@@ -1267,11 +1267,12 @@ export function ProjectSocialPosts({
         {post.threadPartCount > 1 || post.quotedPostId || showStatus ? (
           <div className="flex flex-wrap items-center gap-2">
             {post.canApprove ? (
-              // The label is the tap target; the box alone is too small.
+              // A 24px box on touch screens; the label pads the tap area.
               <label className="-m-1 flex min-h-11 cursor-pointer items-center p-1 md:min-h-6">
                 <Checkbox
                   aria-label={t("bulkApprove.selectPost")}
                   checked={selectedApprovals.has(post.id)}
+                  className="size-6 md:size-4"
                   data-testid={`social-post-select-${post.id}`}
                   onCheckedChange={(value) =>
                     toggleApproveSelection(post, value === true)
@@ -1999,7 +2000,7 @@ export function ProjectSocialPosts({
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <ul
-                className="grid gap-2 text-sm"
+                className="grid min-w-0 grid-cols-1 gap-2 text-sm"
                 data-testid={`social-bulk-${bulkKind}-results`}
               >
                 {bulkResults.map((result) => (
@@ -2044,7 +2045,7 @@ export function ProjectSocialPosts({
                 </AlertDialogDescription>
               </AlertDialogHeader>
               {approving ? (
-                <ul className="grid gap-2 text-sm">
+                <ul className="grid min-w-0 grid-cols-1 gap-2 text-sm">
                   {selectedApprovablePosts.map((post) => (
                     <li
                       key={post.id}
