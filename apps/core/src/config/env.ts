@@ -8,6 +8,11 @@ import { v4 as uuidv4 } from "uuid";
 import { emitCoreWarning, recordCoreWarning } from "@/lib/evlog";
 // The checks below report through Core's logger: started before they run.
 import "@/lib/evlog-init";
+import { invalidVariables } from "@/config/invalid-variables";
+import {
+  checkNetworkLayout,
+  networkLayoutShape,
+} from "@/config/network-layout";
 import { failStartup } from "@/lib/startup-failure";
 
 // Blank means unset, so a copied `KEY=` line does not fail startup.
@@ -64,17 +69,6 @@ const emailAllowlistSchema = z
       .filter(Boolean),
   );
 
-// PostgreSQL truncates identifiers past 63 bytes, so two longer names could
-// be one schema. `pg_*` and `information_schema` belong to PostgreSQL.
-const databaseSchemaNameSchema = z
-  .string()
-  .regex(/^[a-z_][a-z0-9_]*$/)
-  .max(63)
-  .refine((name) => !name.startsWith("pg_") && name !== "information_schema", {
-    message: "Names a PostgreSQL system schema",
-  })
-  .default("public");
-
 const baseEnvSchema = z.object({
   NETWORK: z.enum(["Preprod", "Mainnet"]).default("Preprod"),
 
@@ -89,11 +83,7 @@ const baseEnvSchema = z.object({
 
   // Database
   DATABASE_URL: z.url(),
-  // Schema of the `shared` tables and of each Network's tables. All three are
-  // `public` until the move splits them. They reach SQL as quoted identifiers.
-  DATABASE_SCHEMA_SHARED: databaseSchemaNameSchema,
-  DATABASE_SCHEMA_MAINNET: databaseSchemaNameSchema,
-  DATABASE_SCHEMA_PREPROD: databaseSchemaNameSchema,
+  ...networkLayoutShape,
 
   // Task tags use global Jev routing with enforced retention/no-training options.
   TASK_TAG_CLASSIFICATION_ENABLED: z
@@ -613,6 +603,7 @@ export function isProductionEnvironment(
 }
 
 const envSchema = baseEnvSchema.superRefine((value, context) => {
+  checkNetworkLayout(value, context);
   if (!value.SOKO_BOT_ENABLED) return;
   // A deployed environment needs a runtime that actually runs turns.
   if (!isDeployedEnvironment(value)) return;
@@ -691,29 +682,6 @@ export function resolveWebRelatedProjectFallbackHost(
   }
 
   return params.configuredWebAppBaseUrl;
-}
-
-/**
- * What a log may keep of each failed check: the variable, the issue's path
- * and code, and Zod's message unless it quotes the variable's value. Zod 4
- * messages describe the expected value, but a refinement's own message can
- * say anything.
- */
-export function invalidVariables(
-  issues: readonly z.core.$ZodIssue[],
-  env: NodeJS.ProcessEnv,
-) {
-  return issues.map((issue) => {
-    const variable = String(issue.path[0] ?? "");
-    const value = env[variable];
-    const quotesValue = Boolean(value) && issue.message.includes(value ?? "");
-    return {
-      variable,
-      path: issue.path.join("."),
-      code: issue.code,
-      ...(quotesValue ? {} : { message: issue.message }),
-    };
-  });
 }
 
 export function validateEnv(): EnvConfig {

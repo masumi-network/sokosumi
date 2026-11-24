@@ -87,12 +87,14 @@ if (process.env.POSTGRES_TEST_DATABASE_PER_WORKER === "true" && poolId) {
 // shell would switch Better Auth to versioned keys.
 delete process.env.BETTER_AUTH_SECRETS;
 
-// Unit tests run on today's layout, every schema `public`, whatever the shell
-// says. A PostgreSQL run keeps the names, so it can run against the split layout.
+// Unit tests run on today's layout, every schema `public` and Preprod off,
+// whatever the shell says. A PostgreSQL run keeps the names and the flag, so it
+// can run against the split layout.
 if (process.env.RUN_DATABASE_INTEGRATION_TESTS !== "true") {
   delete process.env.DATABASE_SCHEMA_SHARED;
   delete process.env.DATABASE_SCHEMA_MAINNET;
   delete process.env.DATABASE_SCHEMA_PREPROD;
+  delete process.env.NETWORK_PREPROD_ENABLED;
 }
 
 // `@sentry/node` costs ~350ms to load in every test file that reaches it, and
