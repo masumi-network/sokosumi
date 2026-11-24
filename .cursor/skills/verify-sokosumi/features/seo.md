@@ -1,6 +1,6 @@
 # SEO
 
-SEO is a Marketing destination at `/seo`. With no audits, the page is the first-audit form (**Start your first SEO audit**, then **Add a page**). A workspace that already has audits shows the list headed **SEO audits** instead.
+SEO is a Marketing destination at `/seo`. The page heading is **Saved audits**. With no audits, the body under that heading is the first-audit form (**Start your first SEO audit**, then **Add a page**). With audits, the same heading sits over the saved rows.
 
 ## Sub-features
 
@@ -21,7 +21,7 @@ Preconditions:
 - `verify-sokosumi doctor` ok.
 
 - **Open SEO.** Run `agent-browser open $WEB_URL/seo` then `agent-browser wait --load load` and `agent-browser snapshot -i`. URL stays `/seo` (not `/signin`).
-- **Confirm shell.** An empty fixture workspace shows heading **Start your first SEO audit**, **Add a page**, **First page URL**, and **Continue**. A workspace with audits shows heading **SEO audits** and the saved rows. Either is success. Do not create an audit or run a check.
+- **Confirm shell.** Snapshot shows heading **Saved audits**. An empty fixture workspace also shows **Start your first SEO audit**, **Add a page**, **First page URL**, and **Continue**. A workspace with audits shows saved rows under **Saved audits**. Either is success. Do not create an audit or run a check.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/seo` then screenshot + snapshot.
 
 ## Gotchas
