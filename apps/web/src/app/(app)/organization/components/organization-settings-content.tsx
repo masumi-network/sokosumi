@@ -163,7 +163,7 @@ export async function OrganizationSettingsContent({
       />
       <div className={cn(HOLDER_CLASS, "space-y-6 p-3")}>
         <div className="flex items-center gap-2">
-          <p className="text-muted-foreground">{t("roleIndicator")}</p>
+          <p className="text-muted-foreground text-sm">{t("roleIndicator")}</p>
           <OrganizationRoleBadge role={member.role} />
         </div>
         <OrganizationInformation
