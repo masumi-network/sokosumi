@@ -715,4 +715,80 @@ describe("useLiveChatRooms shared reader", () => {
 
     view.unmount();
   });
+
+  it("fresh mount in scope A after true unmount while unhealthy makes 1 mount read, not an inherited recovery read", async () => {
+    // Connect in A, drop Ably, truly unmount the last reader.
+    sessionState.organizationId = "org-a";
+    const first = renderHook(() => useLiveChatRooms());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    act(() => {
+      setAblyConnectionHealthy(false);
+    });
+    first.unmount();
+
+    // Reconnect, visit B, then fresh-mount A.
+    act(() => {
+      setAblyConnectionHealthy(true);
+    });
+    sessionState.organizationId = "org-b";
+    const visitB = renderHook(() => useLiveChatRooms());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    visitB.unmount();
+
+    fetchMock.mockClear();
+    const aMount = Promise.withResolvers<{
+      rooms: ChatRoom[];
+      nextCursor: null;
+    }>();
+    fetchMock.mockReturnValueOnce(aMount.promise).mockResolvedValue({
+      rooms: [makeRoom({ id: "extra" })],
+      nextCursor: null,
+    });
+
+    sessionState.organizationId = "org-a";
+    const freshA = renderHook(() => useLiveChatRooms());
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      aMount.resolve({ rooms: [makeRoom({ id: "a-1" })], nextCursor: null });
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    freshA.unmount();
+  });
+
+  it("one reader that connects in C, drops, switches to D while unhealthy, and reconnects after D's mount read settles makes 1 recovery read", async () => {
+    sessionState.organizationId = "org-c";
+    const { rerender, unmount } = renderHook(() => useLiveChatRooms());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Drop Ably in C, then switch to D while still unhealthy.
+    act(() => {
+      setAblyConnectionHealthy(false);
+    });
+    sessionState.organizationId = "org-d";
+    fetchMock.mockClear();
+    await act(async () => {
+      rerender();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Reconnect after D's mount read has settled -> 1 recovery read in D.
+    fetchMock.mockClear();
+    await act(async () => {
+      setAblyConnectionHealthy(true);
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    unmount();
+  });
 });

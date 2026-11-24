@@ -27,8 +27,15 @@ export interface LiveChatRoomsCachedAnswer {
   rows: readonly ChatRoom[];
 }
 
+export interface LiveChatRoomsHealthHistory {
+  hadHealthy: boolean;
+  wasHealthy: boolean;
+}
+
 export interface AcquireLiveChatRoomsReaderOptions {
   healthy: boolean;
+  /** Surface health history from before this attach, used to prime a new scheduler. */
+  healthHistory?: LiveChatRoomsHealthHistory;
   onAnswer: (answer: LiveChatRoomsAnswer) => void;
 }
 
@@ -52,32 +59,17 @@ interface LiveChatRoomsScopeEntry {
   setHealth: (healthy: boolean) => void;
 }
 
-interface LiveChatRoomsHealthHistory {
-  hadHealthy: boolean;
-  wasHealthy: boolean;
-}
-
 const entriesByScope = new Map<string, LiveChatRoomsScopeEntry>();
-const healthHistoryByScope = new Map<string, LiveChatRoomsHealthHistory>();
-
-function recordHealthHistory(scope: string, healthy: boolean): void {
-  const previous = healthHistoryByScope.get(scope);
-  healthHistoryByScope.set(scope, {
-    hadHealthy: (previous?.hadHealthy ?? false) || healthy,
-    wasHealthy: healthy,
-  });
-}
 
 function createScopeEntry(
   scope: string,
   initialHealthy: boolean,
+  healthHistory?: LiveChatRoomsHealthHistory,
 ): LiveChatRoomsScopeEntry {
   const surfaces = new Set<LiveChatRoomsSurface>();
-  const history = healthHistoryByScope.get(scope);
-  let currentHealthy = history ? history.wasHealthy : initialHealthy;
-  if (!history) {
-    recordHealthHistory(scope, initialHealthy);
-  }
+  let currentHealthy = healthHistory
+    ? healthHistory.wasHealthy
+    : initialHealthy;
   let lastAnswer: LiveChatRoomsCachedAnswer | null = null;
   // Every attached surface listens to the same window invalidation event and
   // forwards it in the same synchronous turn; coalesce distinct surfaces per
@@ -107,10 +99,10 @@ function createScopeEntry(
     refreshOnRecovery: true,
   });
 
-  if (history && history.hadHealthy && !history.wasHealthy) {
+  if (healthHistory?.hadHealthy && !healthHistory.wasHealthy) {
     // Scheduler is still stopped: restore hadHealthy=true, wasHealthy=false
     // without starting a read so applying health after start() reproduces
-    // main's recovery read after a stop/start restart (e.g. Activity reveal).
+    // main's recovery read across stop/start (Activity reveal, scope switch).
     scheduler.setHealth(true, false);
     scheduler.setHealth(false, false);
   }
@@ -137,7 +129,6 @@ function createScopeEntry(
     setHealth: (healthy) => {
       if (healthy === currentHealthy) return;
       currentHealthy = healthy;
-      recordHealthHistory(scope, healthy);
       scheduler.setHealth(healthy, true);
     },
   };
@@ -158,7 +149,7 @@ export function acquireLiveChatRoomsReader(
   let entry = entriesByScope.get(scope);
   const isFirst = !entry;
   if (!entry) {
-    entry = createScopeEntry(scope, options.healthy);
+    entry = createScopeEntry(scope, options.healthy, options.healthHistory);
     entriesByScope.set(scope, entry);
   }
 
@@ -194,10 +185,8 @@ export function acquireLiveChatRoomsReader(
 
   if (isFirst) {
     activeEntry.scheduler.start();
-    if (!released) {
-      activeEntry.setHealth(options.healthy);
-    }
-  } else {
+  }
+  if (!released) {
     activeEntry.setHealth(options.healthy);
   }
 
@@ -209,5 +198,4 @@ export function resetLiveChatRoomsReaderForTests(): void {
     entry.scheduler.stop();
   }
   entriesByScope.clear();
-  healthHistoryByScope.clear();
 }

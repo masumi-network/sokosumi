@@ -340,19 +340,36 @@ describe("live-chat-rooms-reader", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps hadHealthy/wasHealthy across release and reacquire so reconnect while detached triggers mount then queued recovery", async () => {
+  it("primes a new scheduler from caller-supplied healthHistory without keeping module-level history after release", async () => {
     const s1 = acquireLiveChatRoomsReader("org-1:user-1", {
       healthy: true,
       onAnswer: () => {},
     });
     await Promise.resolve();
     await Promise.resolve();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-
-    // Ably drops while attached, then the last surface releases.
     s1.setHealth(false);
     s1.release();
 
+    // A fresh acquirer with no prior healthHistory starts clean: 1 mount read only.
+    fetchMock.mockClear();
+    const freshMount = Promise.withResolvers<{
+      rooms: ChatRoom[];
+      nextCursor: null;
+    }>();
+    fetchMock.mockReturnValueOnce(freshMount.promise);
+    const fresh = acquireLiveChatRoomsReader("org-1:user-1", {
+      healthy: true,
+      onAnswer: () => {},
+    });
+    freshMount.resolve({ rooms: [room("fresh")], nextCursor: null });
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    fresh.release();
+
+    // Reacquiring with hadHealthy=true, wasHealthy=false and now healthy=true
+    // runs the mount read then queues the recovery read after start().
     fetchMock.mockClear();
     const mountRead = Promise.withResolvers<{
       rooms: ChatRoom[];
@@ -362,10 +379,9 @@ describe("live-chat-rooms-reader", () => {
       .mockReturnValueOnce(mountRead.promise)
       .mockResolvedValueOnce({ rooms: [room("recovered")], nextCursor: null });
 
-    // Reacquires after Ably recovered while detached: starts mount read and
-    // queues the recovery read after start().
     const s2 = acquireLiveChatRoomsReader("org-1:user-1", {
       healthy: true,
+      healthHistory: { hadHealthy: true, wasHealthy: false },
       onAnswer: () => {},
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);

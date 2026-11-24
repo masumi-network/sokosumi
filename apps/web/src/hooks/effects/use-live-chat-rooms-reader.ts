@@ -5,6 +5,7 @@ import {
   acquireLiveChatRoomsReader,
   type LiveChatRoomsAnswer,
   type LiveChatRoomsCachedAnswer,
+  type LiveChatRoomsHealthHistory,
   type LiveChatRoomsReaderSubscription,
 } from "@/components/chat/live-chat-rooms-reader";
 import { useLatestRef } from "@/hooks/effects/use-latest-ref";
@@ -30,6 +31,12 @@ export function useLiveChatRoomsReader({
 }: UseLiveChatRoomsReaderOptions): () => void {
   const latestHealthyRef = useLatestRef(healthy);
   const subscriptionRef = useRef<LiveChatRoomsReaderSubscription | null>(null);
+  // Kept for the mounted hook's lifetime (survives Activity hide/reveal and
+  // scope switches, resets on true unmount), matching main's scheduler ref.
+  const healthHistoryRef = useRef<LiveChatRoomsHealthHistory>({
+    hadHealthy: healthy,
+    wasHealthy: healthy,
+  });
   const handleAnswer = useEffectEvent((answer: LiveChatRoomsAnswer) => {
     onAnswer(answer);
   });
@@ -41,10 +48,16 @@ export function useLiveChatRoomsReader({
     if (!scope) {
       return;
     }
+    const nextHealthy = latestHealthyRef.current;
     const subscription = acquireLiveChatRoomsReader(scope, {
-      healthy: latestHealthyRef.current,
+      healthy: nextHealthy,
+      healthHistory: healthHistoryRef.current,
       onAnswer: (answer) => handleAnswer(answer),
     });
+    healthHistoryRef.current = {
+      hadHealthy: healthHistoryRef.current.hadHealthy || nextHealthy,
+      wasHealthy: nextHealthy,
+    };
     subscriptionRef.current = subscription;
     if (subscription.lastAnswer) {
       handleSeed(subscription.lastAnswer);
@@ -59,6 +72,10 @@ export function useLiveChatRoomsReader({
 
   useEffect(() => {
     subscriptionRef.current?.setHealth(healthy);
+    healthHistoryRef.current = {
+      hadHealthy: healthHistoryRef.current.hadHealthy || healthy,
+      wasHealthy: healthy,
+    };
   }, [healthy]);
 
   return useCallback(() => {
