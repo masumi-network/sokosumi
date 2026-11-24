@@ -11,6 +11,7 @@ import { useMembershipVisibleRoomsPublisher } from "@/hooks/effects/use-membersh
 import { useOrganizationChatRoomsHealthStale } from "@/hooks/effects/use-organization-chat-rooms-health-stale";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import { chatReadThrottleResumeInMs } from "@/lib/chat/chat-read-throttle";
+import { CHAT_HEALTHY_REFRESH_MS } from "./chat-refresh-scheduler";
 import { withPinnedOrder } from "./chat-room-activity-sort";
 import {
   fetchSidebarRoom,
@@ -28,10 +29,7 @@ import {
   reconcileRoomAttention,
   rememberRoomRead,
 } from "./room-read-overlay";
-import {
-  CHAT_HEALTHY_REFRESH_MS,
-  useChatRefreshScheduler,
-} from "./use-chat-refresh-scheduler";
+import { useChatRefreshScheduler } from "./use-chat-refresh-scheduler";
 
 /**
  * Most rooms one active read fetches singly. Past this the whole list is one
