@@ -46,6 +46,8 @@ export function TaskListItem({
     // status and the people, and leaves tags, dates and the comment count
     // to the wide one, so the title keeps its room.
     "flex items-center gap-3 text-xs",
+    // A search hit's excerpt wraps to a line of its own.
+    task.resultMatch && "flex-wrap gap-y-0.5",
     // The list draws the surface and the hairlines. A row lifted out of it
     // by a drag brings its own box.
     "px-3 transition-colors",
@@ -66,18 +68,15 @@ export function TaskListItem({
       <span className="text-muted-foreground w-20 shrink-0 truncate tabular-nums">
         {task.identifier}
       </span>
-      {/* The title takes the room the columns leave, so every column
-          after it starts at the same place in every row. */}
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span
-          className={cn(
-            "line-clamp-1 text-sm font-medium",
-            hasName ? "text-foreground" : "text-muted-foreground",
-          )}
-        >
-          {hasName ? task.name : t("noTitle")}
-        </span>
-        <TaskResultMatch excerpt={task.resultMatch} className="line-clamp-1" />
+      <span
+        className={cn(
+          // The title takes the room the columns leave, so every column
+          // after it starts at the same place in every row.
+          "line-clamp-1 min-w-0 flex-1 text-sm font-medium",
+          hasName ? "text-foreground" : "text-muted-foreground",
+        )}
+      >
+        {hasName ? task.name : t("noTitle")}
       </span>
       {/* A column of its own, kept on a row with no tags, so the tags line
           up. It shows only where the title still has room beside it. */}
@@ -146,6 +145,13 @@ export function TaskListItem({
           ) : null}
         </span>
       </span>
+      {/* A line of its own across the row, under the title: the title
+          column alone is too narrow beside an open sidebar to show the
+          match. Starts under the title: mark, gap, ID, gap. */}
+      <TaskResultMatch
+        excerpt={task.resultMatch}
+        className="line-clamp-1 basis-full ps-[7.5rem]"
+      />
     </>
   );
 

@@ -1873,7 +1873,7 @@
       "Page": {
         "title": "Task manager",
         "description": "Create tasks for agents to execute and manage your work efficiently in a collaborative view.",
-        "searchPlaceholder": "Search tasks and results"
+        "searchPlaceholder": "Search tasks"
       },
       "Export": {
         "button": "Export as CSV…",

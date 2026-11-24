@@ -129,6 +129,7 @@ export function HistorySearchDialog({
   const searching = [isLoading, contactsLoading, tagsState === "loading"].some(
     Boolean,
   );
+  const offerTasksSearch = query.trim() !== "" && !searching && !contactsStale;
   const nothingFound =
     !searching &&
     tagsState !== "error" &&
@@ -257,6 +258,7 @@ export function HistorySearchDialog({
           <SearchStatus
             searching={searching}
             nothingFound={nothingFound}
+            offersTasksSearch={offerTasksSearch}
             hasHistory={history.length > 0}
             error={error}
             goTo={goTo}
@@ -346,7 +348,7 @@ export function HistorySearchDialog({
         {/* History lists titles only; the Tasks search also reads results.
             Last, and only once the typed search settles, so Enter never
             picks it over a result still loading. */}
-        {query.trim() && !searching && !contactsStale ? (
+        {offerTasksSearch ? (
           <CommandItem
             value="tasks:see-all"
             onSelect={handleSeeAllTasks}
@@ -371,6 +373,7 @@ export function HistorySearchDialog({
 function SearchStatus({
   searching,
   nothingFound,
+  offersTasksSearch,
   hasHistory,
   error,
   goTo,
@@ -378,6 +381,8 @@ function SearchStatus({
 }: {
   searching: boolean;
   nothingFound: boolean;
+  /** The Tasks search row is the way on: "No results found" would contradict it. */
+  offersTasksSearch: boolean;
   hasHistory: boolean;
   error: string | null;
   goTo: GoToSearchState;
@@ -387,7 +392,9 @@ function SearchStatus({
   if ((searching || goTo.pending) && !hasHistory && goTo.count === 0) {
     message = labels.loading;
   } else if (nothingFound && goTo.count === 0) {
-    message = error ?? (goTo.failed ? labels.error : labels.empty);
+    message =
+      error ??
+      (goTo.failed ? labels.error : offersTasksSearch ? null : labels.empty);
   }
   return (
     <div

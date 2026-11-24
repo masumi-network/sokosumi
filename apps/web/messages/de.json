@@ -1873,7 +1873,7 @@
       "Page": {
         "title": "Task Manager",
         "description": "Erstelle Tasks für Agents und verwalte deine Arbeit effizient in einer kollaborativen Ansicht.",
-        "searchPlaceholder": "Aufgaben und Ergebnisse durchsuchen"
+        "searchPlaceholder": "Aufgaben durchsuchen"
       },
       "Export": {
         "button": "Als CSV exportieren…",

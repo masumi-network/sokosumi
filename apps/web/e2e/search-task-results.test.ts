@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { after, before, describe, test } from "node:test";
 
-import { type Browser, chromium, type Page } from "playwright";
+import { type Browser, chromium, type Locator, type Page } from "playwright";
 
 import { resolveBaseUrl, resolvePreviewCoreUrl } from "./base-url.ts";
 import { createMailbox } from "./mailbox.ts";
@@ -42,6 +42,33 @@ async function noSidewaysScroll(page: Page) {
     () => document.documentElement.scrollWidth - window.innerWidth,
   );
   assert.ok(overflow <= 1, `page scrolls sideways by ${overflow}px`);
+}
+
+// The words sit inside the excerpt's box: not cut by its line clamp.
+async function matchInView(excerpt: Locator) {
+  const inView = await excerpt.evaluate((element, words) => {
+    const text = [...element.childNodes].find((node) =>
+      node.textContent?.includes(words),
+    );
+    if (!text || text.nodeType !== Node.TEXT_NODE) return false;
+    const range = document.createRange();
+    const at = (text.textContent ?? "").indexOf(words);
+    range.setStart(text, at);
+    range.setEnd(text, at + words.length);
+    const match = range.getBoundingClientRect();
+    const box = element.getBoundingClientRect();
+    return (
+      match.width > 0 &&
+      match.right <= box.right + 1 &&
+      match.bottom <= box.bottom + 1
+    );
+  }, NEEDLE);
+  assert.ok(inView, `"${NEEDLE}" is cut from the excerpt`);
+}
+
+// The page keeps the other layout's copy, hidden.
+function visibleExcerpt(page: Page) {
+  return page.getByText(/annual discount is 20%/).filter({ visible: true });
 }
 
 // Phone: the floating Create task button. Tablet: open the sidebar first.
@@ -163,32 +190,42 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await search.fill(NEEDLE);
       const card = page.getByRole("article").filter({ hasText: task.name });
       await card.getByText("In result").waitFor({ timeout: 60_000 });
-      await card.getByText(/annual discount is 20%/).waitFor();
+      await matchInView(card.getByText(/annual discount is 20%/));
       await noSidewaysScroll(page);
       await shot("1-tasks-search");
 
+      // List view, beside an open sidebar where there is one: the row's
+      // excerpt still shows the words.
+      const showSidebar = page.getByRole("button", { name: "Show sidebar" });
+      if (await showSidebar.isVisible()) await showSidebar.click();
+      await page.getByRole("button", { name: "View options" }).click();
+      await page.getByRole("radio", { name: "List" }).click();
+      await page.keyboard.press("Escape");
+      await matchInView(visibleExcerpt(page));
+      await noSidewaysScroll(page);
+      await shot("2-tasks-list");
+
       // Search (Cmd+K) offers the Tasks search for what was typed.
       await page.goto(`${BASE_URL}/`);
-      const showSidebar = page.getByRole("button", { name: "Show sidebar" });
       if (await showSidebar.isVisible()) await showSidebar.click();
       await page
         .getByRole("button", { name: /^Search/ })
         .first()
         .click();
       await page.getByRole("dialog").getByRole("combobox").fill(NEEDLE);
-      await page
-        .getByRole("option", {
-          name: `Search tasks and results for “${NEEDLE}”`,
-        })
-        .click({ timeout: 60_000 });
+      const tasksSearch = page.getByRole("option", {
+        name: `Search tasks and results for “${NEEDLE}”`,
+      });
+      await tasksSearch.waitFor({ timeout: 60_000 });
+      await page.waitForLoadState("networkidle");
+      // Nothing above it says nothing was found.
+      assert.equal(await page.getByText("No results found").count(), 0);
+      await shot("3-search");
+      await tasksSearch.click();
       await page.waitForURL(/\/tasks\?q=annual/);
-      await page
-        .getByRole("article")
-        .filter({ hasText: task.name })
-        .getByText("In result")
-        .waitFor({ timeout: 60_000 });
+      await matchInView(visibleExcerpt(page));
       await noSidewaysScroll(page);
-      await shot("2-from-search");
+      await shot("4-from-search");
 
       assert.deepEqual(errors, []);
       await context.close();
