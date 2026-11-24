@@ -1804,6 +1804,17 @@
             "undoError": "Couldn't undo the move. Try again."
           }
         },
+        "GoingOut": {
+          "title": "Going out today",
+          "seeAll": "See all on Calendar",
+          "seeAllCount": "{count, plural, one {See all # on Calendar} other {See all # on Calendar}}",
+          "planned": "Scheduled",
+          "kinds": {
+            "social": "Social post",
+            "newsletter": "Newsletter issue",
+            "task": "Scheduled task"
+          }
+        },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
           "heading": "What's next?",

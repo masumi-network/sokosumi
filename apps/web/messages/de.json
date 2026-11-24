@@ -1804,6 +1804,17 @@
             "undoError": "Das Verschieben konnte nicht rückgängig gemacht werden. Versuch es noch einmal."
           }
         },
+        "GoingOut": {
+          "title": "Geht heute raus",
+          "seeAll": "Alles im Kalender",
+          "seeAllCount": "{count, plural, one {Alle # im Kalender} other {Alle # im Kalender}}",
+          "planned": "Geplant",
+          "kinds": {
+            "social": "Social-Beitrag",
+            "newsletter": "Newsletter-Ausgabe",
+            "task": "Geplante Aufgabe"
+          }
+        },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
           "heading": "Was steht als Nächstes an?",

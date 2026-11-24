@@ -50,6 +50,8 @@ interface SokoBotHomeProps {
   schedules?: SokoBotHomeSchedule[];
   /** The reader's Tasks due today or overdue, first; nothing when none are. */
   myDay?: ReactNode;
+  /** Social posts, newsletter issues and scheduled runs set for today. */
+  goingOut?: ReactNode;
   /**
    * The time the page read inside its prefetch cache. A clock read here,
    * outside that cache, would cut a link prefetch of Home short.
@@ -80,6 +82,7 @@ export async function SokoBotHome({
   chats = [],
   schedules = [],
   myDay,
+  goingOut,
   needsYou,
   now,
 }: SokoBotHomeProps) {
@@ -199,6 +202,7 @@ export async function SokoBotHome({
     >
       <div className="flex flex-col gap-10">
         {myDay}
+        {goingOut}
         <div id="soko-bot-home-needs-you" className="scroll-mt-4">
           {needsYou}
         </div>

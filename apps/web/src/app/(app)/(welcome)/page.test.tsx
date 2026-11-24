@@ -21,6 +21,7 @@ const readNeedsYou = vi.fn(async () => ({
 }));
 const loadMyDay = vi.fn(async (_today: string) => null);
 const myDay = vi.fn();
+const loadGoingOutToday = vi.fn(async (_input: unknown) => null);
 const listProjects = vi.fn(async (_query: { limit: number }) => ({
   projects: [{ id: "project-1", name: "Launch", logo: null }],
 }));
@@ -50,6 +51,10 @@ vi.mock("./components/my-day", () => ({
     myDay(props);
     return <div>my day</div>;
   },
+}));
+vi.mock("./components/going-out-today", () => ({
+  loadGoingOutToday: (input: unknown) => loadGoingOutToday(input),
+  GoingOutToday: () => <div>going out</div>,
 }));
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
@@ -226,6 +231,9 @@ describe("WelcomePage", () => {
     const page = renderPage();
     await vi.waitFor(() => expect(getMine).toHaveBeenCalled());
     expect(loadMyDay).toHaveBeenCalled();
+    expect(loadGoingOutToday).toHaveBeenCalledWith(
+      expect.objectContaining({ timeZone: "Europe/Zurich", scope: "owned" }),
+    );
     expect(readNeedsYou).toHaveBeenCalled();
     expect(getActivitySummary).toHaveBeenCalledWith({ scope: "owned" });
 
@@ -309,6 +317,7 @@ describe("WelcomePage", () => {
         summary: { awaitingInput: 2 },
         teamTasks: [expect.objectContaining({ name: "Plan my week" })],
         myDay: expect.anything(),
+        goingOut: expect.anything(),
         needsYou: expect.anything(),
       }),
     );

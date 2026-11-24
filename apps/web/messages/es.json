@@ -1804,6 +1804,17 @@
             "undoError": "No se pudo deshacer el cambio. Inténtalo de nuevo."
           }
         },
+        "GoingOut": {
+          "title": "Sale hoy",
+          "seeAll": "Ver todo en el Calendario",
+          "seeAllCount": "{count, plural, one {Ver # en el Calendario} other {Ver los # en el Calendario}}",
+          "planned": "Programado",
+          "kinds": {
+            "social": "Publicación social",
+            "newsletter": "Número del boletín",
+            "task": "Tarea programada"
+          }
+        },
         "SokoBotHome": {
           "defaultName": "Soko Bot",
           "heading": "¿Qué sigue?",

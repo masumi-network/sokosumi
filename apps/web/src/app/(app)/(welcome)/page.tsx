@@ -13,6 +13,7 @@ import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.clie
 import { projectService } from "@/lib/services/project.service";
 import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
 
+import { GoingOutToday, loadGoingOutToday } from "./components/going-out-today";
 import { countOverdue, loadMyDay, MyDay } from "./components/my-day";
 import { SokoBotHome } from "./components/soko-bot-home";
 import {
@@ -84,6 +85,15 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
       {MyDay({
         feed: request.then(() => loadMyDay(today)),
         overdue: request.then(() => countOverdue(today)),
+        today,
+      })}
+    </Suspense>
+  );
+  // Posts, issues and runs set for the same day, read from the Calendar.
+  const goingOut = (
+    <Suspense fallback={null}>
+      {GoingOutToday({
+        feed: request.then(() => loadGoingOutToday({ today, timeZone, scope })),
         today,
       })}
     </Suspense>
@@ -184,6 +194,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           )}
           schedules={toNewSchedules(sokoBot.schedules ?? [], now)}
           myDay={myDay}
+          goingOut={goingOut}
           needsYou={needsYouPanel(failedLead)}
         />
       </>
