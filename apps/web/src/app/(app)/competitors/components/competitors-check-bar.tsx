@@ -25,6 +25,10 @@ const FIRST_CHECK_POLLS = 45;
  * The weekly check in one line: how it stands, what it costs, and the
  * switch. Off, turning it on is the page's main action. A CMO Project's
  * check is run by CMO, so here it only says how it stands.
+ *
+ * Core keeps no trace of a first check that never ran (no credits, or an
+ * unpaid Cuso), so the page says the first check is running only right
+ * after the member turned it on here; on a later visit it says none has run.
  */
 export function CompetitorsCheckBar({
   check,
@@ -42,8 +46,10 @@ export function CompetitorsCheckBar({
   const [pending, setPending] = useState<Pending>(null);
   const [, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const [turnedOn, setTurnedOn] = useState(false);
 
-  const running = check.on && !check.lastCheckedAt && competitorCount > 0;
+  const waiting = check.on && !check.lastCheckedAt && competitorCount > 0;
+  const running = waiting && turnedOn;
   const day = (date: Date) =>
     format.dateTime(date, { day: "numeric", month: "short" });
   const weekly = check.creditsPerCompetitor * competitorCount;
@@ -66,7 +72,9 @@ export function CompetitorsCheckBar({
   const turn = (on: boolean) =>
     act("switch", async () => {
       const result = await setCompetitorChecks({ projectId, on });
-      return result.ok ? null : (result.error.message ?? t("failed"));
+      if (!result.ok) return result.error.message ?? t("failed");
+      setTurnedOn(on);
+      return null;
     });
 
   const runNow = () =>
@@ -78,7 +86,13 @@ export function CompetitorsCheckBar({
         : t(`outcome.${result.value}`, { credits: weekly });
     });
 
-  const status = !check.on ? "off" : running ? "running" : "on";
+  const status = !check.on
+    ? "off"
+    : running
+      ? "running"
+      : waiting
+        ? "waiting"
+        : "on";
 
   return (
     <section
@@ -100,6 +114,9 @@ export function CompetitorsCheckBar({
               })} `
             : null}
           {status === "running" ? `${t("running")} ` : null}
+          {status === "waiting"
+            ? `${readOnly ? t("waitingCmo") : t("waiting")} `
+            : null}
           {t("price", {
             count: competitorCount,
             credits: weekly,
@@ -110,6 +127,7 @@ export function CompetitorsCheckBar({
           <p className="text-muted-foreground text-sm">
             {t("sourceFailed", {
               sources: failed.map((source) => t(`source.${source}`)).join(", "),
+              on: String(check.on),
             })}
           </p>
         ) : null}
@@ -126,7 +144,7 @@ export function CompetitorsCheckBar({
       ) : null}
       {readOnly ? null : (
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {status === "running" ? (
+          {status === "running" || status === "waiting" ? (
             <Button
               disabled={pending !== null}
               loading={pending === "run"}

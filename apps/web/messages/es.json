@@ -5814,7 +5814,7 @@
       "check": {
         "price": "{count, plural, =0 {Cuesta {each} créditos por competidor a la semana.} one {Cuesta {credits} créditos a la semana por # competidor.} other {Cuesta {credits} créditos a la semana por # competidores, {each} cada uno.}}",
         "last": "Última revisión {last}, próxima {next}.",
-        "sourceFailed": "La última revisión no pudo leer: {sources}. La próxima lo intenta de nuevo.",
+        "sourceFailed": "La última revisión no pudo leer: {sources}.{on, select, true { La próxima lo intenta de nuevo.} other {}}",
         "source": {
           "pages": "sitios web",
           "news": "noticias",
@@ -5834,9 +5834,12 @@
         "status": {
           "off": "La revisión semanal está apagada",
           "running": "La primera revisión está en marcha",
-          "on": "La revisión semanal está activa"
+          "on": "La revisión semanal está activa",
+          "waiting": "Aún no se ha hecho ninguna revisión"
         },
-        "running": "Lo que encuentre aparecerá aquí en un minuto."
+        "running": "Lo que encuentre aparecerá aquí en un minuto.",
+        "waiting": "«Revisar ahora» hace la primera.",
+        "waitingCmo": "CMO la hace mientras Cuso esté pagado."
       },
       "list": {
         "title": "En seguimiento",

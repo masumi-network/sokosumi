@@ -114,16 +114,41 @@ describe("CompetitorsCheckBar", () => {
     });
   });
 
-  it("watches for the first check once on, and says why it did not run", async () => {
+  it("watches for the first check the member just turned on", async () => {
+    const { rerender } = bar();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Turn on weekly check" }),
+    );
+    // The action revalidates the page, which now reads the check as on.
+    rerender(
+      <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+        <CompetitorsCheckBar
+          check={{ ...CHECK, on: true }}
+          competitorCount={2}
+          projectId={PROJECT_ID}
+          readOnly={false}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(
+      await screen.findByRole("heading", {
+        name: "The first check is running",
+      }),
+    ).toBeVisible();
+    expect(screen.getByTestId("poller")).toBeVisible();
+  });
+
+  it("does not claim a check is running when none has finished since an earlier visit", async () => {
     vi.mocked(runCompetitorCheck).mockResolvedValue({
       ok: true,
       value: "unfunded",
     });
     bar({ on: true });
     expect(
-      screen.getByRole("heading", { name: "The first check is running" }),
+      screen.getByRole("heading", { name: "No check has run yet" }),
     ).toBeVisible();
-    expect(screen.getByTestId("poller")).toBeVisible();
+    expect(screen.queryByText(/about a minute/)).toBeNull();
+    expect(screen.queryByTestId("poller")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Check now" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "This check costs 6 credits and the workspace has fewer.",
@@ -165,9 +190,30 @@ describe("CompetitorsCheckBar", () => {
     ).toBeVisible();
   });
 
-  it("has no controls on a CMO Project", () => {
+  it("says only that the next check tries again while the check is on", () => {
+    bar({
+      lastCheckedAt: new Date("2026-11-16T09:00:00Z"),
+      sources: {
+        ...CHECK.sources,
+        pages: { status: "failed", needs: null },
+      },
+    });
+    expect(
+      screen.getByText("The last check could not read: websites."),
+    ).toBeVisible();
+    expect(screen.queryByText(/next one tries again/)).toBeNull();
+  });
+
+  it("has no controls on a CMO Project, and says CMO runs its first check", () => {
     bar({ on: true }, { readOnly: true });
     expect(screen.queryByRole("button")).toBeNull();
+    expect(
+      screen.getByRole("heading", { name: "No check has run yet" }),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/CMO runs it while Cuso is paid for\./),
+    ).toBeVisible();
+    expect(screen.queryByTestId("poller")).toBeNull();
   });
 });
 

@@ -5814,7 +5814,7 @@
       "check": {
         "price": "{count, plural, =0 {It costs {each} credits per competitor a week.} one {It costs {credits} credits a week for # competitor.} other {It costs {credits} credits a week for # competitors, {each} each.}}",
         "last": "Last check {last}, next {next}.",
-        "sourceFailed": "The last check could not read: {sources}. The next one tries again.",
+        "sourceFailed": "The last check could not read: {sources}.{on, select, true { The next one tries again.} other {}}",
         "source": {
           "pages": "websites",
           "news": "news",
@@ -5834,9 +5834,12 @@
         "status": {
           "off": "The weekly check is off",
           "running": "The first check is running",
-          "on": "The weekly check is on"
+          "on": "The weekly check is on",
+          "waiting": "No check has run yet"
         },
-        "running": "What it finds shows here in about a minute."
+        "running": "What it finds shows here in about a minute.",
+        "waiting": "Check now runs the first one.",
+        "waitingCmo": "CMO runs it while Cuso is paid for."
       },
       "list": {
         "title": "Watching",
