@@ -3,7 +3,6 @@ import {
   removeTaskContextAttachmentLinks,
 } from "@sokosumi/utils";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
@@ -15,6 +14,7 @@ import { cn } from "@/lib/utils";
 
 import { ArchivedTaskLoading } from "../archived-tasks-loading";
 import { ArchivedTaskBackLink } from "./archived-task-back-link";
+import { archivedTaskMiss } from "./archived-task-miss";
 import { ArchivedTaskRestoreButton } from "./archived-task-restore-button";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -37,7 +37,7 @@ async function ArchivedTaskContent({ params }: ArchivedTaskPageProps) {
     getFormatter(),
   ]);
   if (!task) {
-    return notFound();
+    return archivedTaskMiss(taskId);
   }
   const archivedOn = task.archivedAt
     ? format.dateTime(task.archivedAt, { dateStyle: "medium" })

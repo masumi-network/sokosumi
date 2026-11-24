@@ -252,6 +252,15 @@ export function TasksView(props: TasksViewProps) {
     shownItems.length === 0 &&
     isTaskPaginationInSync &&
     hasClearableTasksFilters(routeFilters, activeOrganizationId);
+  // A search alone names what was typed, not "these filters".
+  const emptySearch =
+    routeFilters.search &&
+    !hasClearableTasksFilters(
+      { ...routeFilters, search: undefined },
+      activeOrganizationId,
+    )
+      ? routeFilters.search
+      : null;
 
   const shownSort = effectiveTasksSort(routeFilters.sort, viewMode);
   const replaceRouteFilters = (
@@ -330,15 +339,30 @@ export function TasksView(props: TasksViewProps) {
           >
             {showFilteredEmpty ? (
               <div className="bg-card-background flex flex-1 items-center justify-center rounded-xl">
-                <EmptyState
-                  title={tTasks("Filters.noMatchesTitle")}
-                  description={tTasks("Filters.noMatchesDescription")}
-                  action={
-                    <Button variant="outline" onClick={handleClearFilters}>
-                      {tTasks("Filters.clear")}
-                    </Button>
-                  }
-                />
+                {emptySearch ? (
+                  <EmptyState
+                    title={tTasks("Filters.noSearchMatchesTitle")}
+                    description={tTasks("Filters.noSearchMatchesDescription", {
+                      query: emptySearch,
+                    })}
+                    descriptionClassName="wrap-anywhere"
+                    action={
+                      <Button variant="outline" onClick={handleClearFilters}>
+                        {tTasks("Filters.clearSearch")}
+                      </Button>
+                    }
+                  />
+                ) : (
+                  <EmptyState
+                    title={tTasks("Filters.noMatchesTitle")}
+                    description={tTasks("Filters.noMatchesDescription")}
+                    action={
+                      <Button variant="outline" onClick={handleClearFilters}>
+                        {tTasks("Filters.clear")}
+                      </Button>
+                    }
+                  />
+                )}
               </div>
             ) : isMounted ? (
               <DndContext

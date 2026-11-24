@@ -951,6 +951,23 @@ describe("TasksView filtered empty state", () => {
     );
   });
 
+  it("names the search when only a search hides every task", async () => {
+    searchParamsRef.current = new URLSearchParams("q=zebra");
+    render(emptyView({ ...EMPTY_FILTERS, search: "zebra" }));
+
+    expect(
+      screen.getByText("Filters.noSearchMatchesTitle"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Filters.noSearchMatchesDescription"),
+    ).toBeInTheDocument();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Filters.clearSearch" }),
+    );
+    expect(replaceMock).toHaveBeenCalledWith("/tasks?scope=owned");
+  });
+
   it("keeps the plain board when nothing is filtered", () => {
     render(emptyView(EMPTY_FILTERS));
 
