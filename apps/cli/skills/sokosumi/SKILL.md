@@ -289,11 +289,37 @@ sokosumi jobs input JOB_ID --event-id EVENT_ID --input-file ./answer.json --json
 sokosumi jobs events JOB_ID
 sokosumi jobs files JOB_ID
 sokosumi jobs links JOB_ID
+sokosumi agents get AGENT_ID
+sokosumi agents reviews AGENT_ID
+sokosumi agents jobs AGENT_ID --query scope=workspace
+sokosumi jobs update JOB_ID --input-json '{"name":"Launch brief"}'
+sokosumi jobs move JOB_ID --input-json '{"organizationId":null}'
+sokosumi jobs unshare JOB_ID
 ```
 
 `agents hire` reads the input schema. Do not guess required fields. For a Job `inputRequest`, show its `eventId`, `message`, and `inputSchema`. Ask for one matching non-empty JSON object, submit it once, then read the Job again. Keep the selected target. Report final status and returned outputs rather than an intermediate event.
 
 [VERIFIED: `apps/cli/src/cli/commands/catalog.ts`] `jobs events`, `jobs files`, and `jobs links` each call one Core operation and print Core's JSON body as is. Commands like these take path values as positionals, `--query KEY=VALUE` (repeatable), `--input-json` or `--input-file` for a write body (required unless the command takes none), and `--organization-slug WORKSPACE_SLUG`; any other option is an error. Every `jobs` command takes `--organization-slug WORKSPACE_SLUG` for a Job in an organization Workspace.
+
+[VERIFIED: `apps/core/agent-surface/`] `jobs move` takes the Job away from everyone in its old Workspace; confirm first. Creating a public share link, requesting a refund, and rating an agent stay in the app (ADR 0077); `jobs unshare` may turn a link off.
+
+## Credits, history and notifications
+
+[VERIFIED: `apps/cli/src/cli/commands/catalog.ts`] These read the selected Workspace (`--organization-slug`) and print Core's JSON body:
+
+```bash
+sokosumi transactions list --query taskId=TASK_ID
+sokosumi transactions total --query taskId=TASK_ID
+sokosumi transactions daily --query from=2026-11-01 --query to=2026-11-24
+sokosumi history list --query types=job
+sokosumi categories list
+sokosumi notifications list --query isRead=false
+sokosumi notifications counts
+sokosumi notifications read NOTIFICATION_ID --input-json '{}'
+sokosumi notifications read-many --input-json '{"ids":["NOTIFICATION_ID"]}'
+```
+
+Notifications are the signed-in person's own. Marking one read clears it everywhere; mark only what the person asked for.
 
 ## Use Sokosumi over MCP
 

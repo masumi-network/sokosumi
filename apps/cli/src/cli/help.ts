@@ -252,6 +252,8 @@ Commands that call one Core operation, such as jobs events, tasks files and task
   A write needs --input-json JSON or --input-file FILE as its body, unless it takes none (pause-, resume-, end-schedule, join,
   follow, restore). --organization-slug WORKSPACE_SLUG selects the Workspace.
   Other options are an error. They print Core's JSON body as is. Every jobs command takes --organization-slug.
+  transactions and history read the selected Workspace; notifications are the signed-in person's own.
+  Sharing a Job, refunds and agent ratings stay in the app.
 
 Organization Tasks:
   Add --organization-slug WORKSPACE_SLUG to any tasks command to select that organization.

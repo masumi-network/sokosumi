@@ -335,6 +335,25 @@ export const MCP_TOOLS: readonly McpTool[] = [
     description: "List the links a Job produced.",
   },
   {
+    name: "jobs_update",
+    operation: "PATCH /jobs/{id}",
+    description: "Rename a Job: `body.name`, or null to clear the custom name.",
+    destructive: true,
+  },
+  {
+    name: "jobs_move",
+    operation: "PUT /jobs/{id}/workspace",
+    description:
+      "Move a Job to another workspace: `body.organizationId`, or null for your personal workspace. People in the old workspace lose access. Only the Job's owner may move it.",
+    destructive: true,
+  },
+  {
+    name: "jobs_unshare",
+    operation: "DELETE /jobs/{id}/share",
+    description:
+      "Turn off a Job's public share link. Anyone holding the link loses access.",
+  },
+  {
     name: "agents_list",
     operation: "GET /agents",
     description:
@@ -352,6 +371,35 @@ export const MCP_TOOLS: readonly McpTool[] = [
     description:
       "Spends workspace credits. Hire an agent: start a paid Job. `body.inputSchema` from agents_input_schema, `body.inputData` with the answers, and `body.maxCredits` to cap the cost. Confirm the agent and the price with the person first.",
     spendsCredits: true,
+  },
+  {
+    name: "agents_get",
+    operation: "GET /agents/{id}",
+    description:
+      "Get an agent with its description, price in credits, categories and ratings.",
+  },
+  {
+    name: "agents_jobs",
+    operation: "GET /agents/{id}/jobs",
+    description:
+      "List your Jobs with one agent, newest first. Pass `scope` `workspace` for everyone's in the workspace, and `cursor` for the next page.",
+  },
+  {
+    name: "agents_reviews",
+    operation: "GET /agents/{id}/reviews",
+    description:
+      "Get an agent's rating summary and its latest commented reviews. `limit` caps the reviews.",
+  },
+  {
+    name: "agents_my_review",
+    operation: "GET /agents/{id}/reviews/me",
+    description: "Get your own rating and review of an agent, if any.",
+  },
+  {
+    name: "agents_rating_eligibility",
+    operation: "GET /agents/{id}/ratings/eligibility",
+    description:
+      "Check whether you may rate an agent: you need a finished Job with it.",
   },
   {
     name: "coworkers_list",
@@ -743,6 +791,70 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "GET /workspaces/{id}/social-connections/statistics",
     description:
       "Read cached metrics and published posts for every connected social account in the workspace. `id` must be the id of the workspace this call acts in (from workspaces_list).",
+  },
+  // SOKD-370: categories, history, transactions and notifications.
+  {
+    name: "categories_list",
+    operation: "GET /categories",
+    description:
+      "List agent categories that have at least one agent. A category's slug filters agents_list by `category`.",
+  },
+  {
+    name: "history_list",
+    operation: "GET /history",
+    description:
+      "List the workspace's history feed, newest first: Jobs, Tasks and images. Filter by `types`, `status`, `projectId` or `q`; pass `cursor` for the next page.",
+  },
+  {
+    name: "transactions_list",
+    operation: "GET /transactions",
+    description:
+      "List the workspace's credit ledger, newest first: spends and top ups. Filter by `types`, `projectId`, `taskId` or `q`; pass `cursor` for the next page.",
+  },
+  {
+    name: "transactions_daily",
+    operation: "GET /transactions/daily",
+    description:
+      "Credits spent per UTC day between `from` and `to` (YYYY-MM-DD), zero on days without spend. Takes the transactions_list filters.",
+  },
+  {
+    name: "transactions_total",
+    operation: "GET /transactions/total",
+    description:
+      "Net credits and row count under the transactions_list filters, such as everything one Task cost (`taskId`).",
+  },
+  {
+    name: "notifications_list",
+    operation: "GET /notifications",
+    description:
+      "List your notifications, newest first. Filter by `isRead`, `kind`, `needsAction` or `mentions`; pass `cursor` for the next page.",
+  },
+  {
+    name: "notifications_counts",
+    operation: "GET /notifications/counts",
+    description:
+      "Count your unread notifications, the ones waiting on you, and unread mentions.",
+  },
+  {
+    name: "notifications_read",
+    operation: "PATCH /notifications/{id}/read",
+    description: "Mark one notification as read.",
+  },
+  {
+    name: "notifications_unread",
+    operation: "PATCH /notifications/{id}/unread",
+    description: "Mark one notification as unread again.",
+  },
+  {
+    name: "notifications_read_many",
+    operation: "PATCH /notifications/read",
+    description:
+      'Mark several notifications as read: `body.ids`, or every one about a Task or Job with `{ "kind": "TASK" | "JOB", "referenceId" }`.',
+  },
+  {
+    name: "notifications_read_all",
+    operation: "PATCH /notifications/read-all",
+    description: "Mark all your notifications as read.",
   },
 ];
 

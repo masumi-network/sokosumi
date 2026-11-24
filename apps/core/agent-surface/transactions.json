@@ -1,3 +1,21 @@
 {
-  "backlog": "SOKD-370"
+  "operations": {
+    "GET /transactions": {
+      "cli": "transactions list",
+      "mcp": "transactions_list"
+    },
+    "GET /transactions/daily": {
+      "cli": "transactions daily",
+      "mcp": "transactions_daily"
+    },
+    "GET /transactions/total": {
+      "cli": "transactions total",
+      "mcp": "transactions_total"
+    },
+    "GET /transactions/export": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Returns CSV, not JSON; `transactions list` returns the same rows."
+    }
+  }
 }

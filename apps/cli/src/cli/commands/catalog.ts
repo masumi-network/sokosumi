@@ -32,6 +32,27 @@ export const CLI_COMMAND_CATALOG = [
   { command: "evals cases", usage: "" },
   { command: "agents list", usage: "" },
   { command: "agents hire", usage: "AGENT_ID" },
+  { command: "agents get", usage: "AGENT_ID", operation: "GET /agents/{id}" },
+  {
+    command: "agents jobs",
+    usage: "AGENT_ID [--query scope=workspace]",
+    operation: "GET /agents/{id}/jobs",
+  },
+  {
+    command: "agents reviews",
+    usage: "AGENT_ID [--query limit=N]",
+    operation: "GET /agents/{id}/reviews",
+  },
+  {
+    command: "agents my-review",
+    usage: "AGENT_ID",
+    operation: "GET /agents/{id}/reviews/me",
+  },
+  {
+    command: "agents rating-eligibility",
+    usage: "AGENT_ID",
+    operation: "GET /agents/{id}/ratings/eligibility",
+  },
   { command: "coworkers list", usage: "" },
   { command: "coworkers register", usage: "[--personal] [options]" },
   { command: "coworkers provision", usage: "[options]" },
@@ -582,6 +603,73 @@ export const CLI_COMMAND_CATALOG = [
     command: "workspaces social-statistics",
     usage: "WORKSPACE_ID [--organization-slug WORKSPACE_SLUG]",
     operation: "GET /workspaces/{id}/social-connections/statistics",
+  },
+  {
+    command: "jobs update",
+    usage: "JOB_ID --input-json JSON",
+    operation: "PATCH /jobs/{id}",
+  },
+  {
+    command: "jobs move",
+    usage: "JOB_ID --input-json JSON",
+    operation: "PUT /jobs/{id}/workspace",
+  },
+  {
+    command: "jobs unshare",
+    usage: "JOB_ID",
+    operation: "DELETE /jobs/{id}/share",
+  },
+  // SOKD-370: categories, history, transactions and notifications.
+  { command: "categories list", usage: "", operation: "GET /categories" },
+  {
+    command: "history list",
+    usage: "[--query KEY=VALUE]",
+    operation: "GET /history",
+  },
+  {
+    command: "transactions list",
+    usage: "[--query KEY=VALUE]",
+    operation: "GET /transactions",
+  },
+  {
+    command: "transactions daily",
+    usage: "[--query from=YYYY-MM-DD --query to=YYYY-MM-DD]",
+    operation: "GET /transactions/daily",
+  },
+  {
+    command: "transactions total",
+    usage: "[--query KEY=VALUE]",
+    operation: "GET /transactions/total",
+  },
+  {
+    command: "notifications list",
+    usage: "[--query KEY=VALUE]",
+    operation: "GET /notifications",
+  },
+  {
+    command: "notifications counts",
+    usage: "",
+    operation: "GET /notifications/counts",
+  },
+  {
+    command: "notifications read",
+    usage: "NOTIFICATION_ID --input-json '{}'",
+    operation: "PATCH /notifications/{id}/read",
+  },
+  {
+    command: "notifications unread",
+    usage: "NOTIFICATION_ID --input-json '{}'",
+    operation: "PATCH /notifications/{id}/unread",
+  },
+  {
+    command: "notifications read-many",
+    usage: "--input-json JSON",
+    operation: "PATCH /notifications/read",
+  },
+  {
+    command: "notifications read-all",
+    usage: "--input-json '{}'",
+    operation: "PATCH /notifications/read-all",
   },
 ] as const satisfies readonly CliCommandCatalogEntry[];
 

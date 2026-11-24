@@ -1,3 +1,8 @@
 {
-  "backlog": "SOKD-370"
+  "operations": {
+    "GET /categories": {
+      "cli": "categories list",
+      "mcp": "categories_list"
+    }
+  }
 }

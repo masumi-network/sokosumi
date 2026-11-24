@@ -8,6 +8,7 @@ import type { McpTokenVerification } from "@/lib/sokosumi-mcp/auth";
 import {
   DEFAULT_TOOLSETS,
   MCP_TOOLS,
+  MCP_TOOLSETS,
   toolsetOf,
 } from "@/lib/sokosumi-mcp/tools";
 
@@ -207,8 +208,7 @@ describe("Sokosumi MCP server", () => {
     });
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({
-      message:
-        'Unknown toolset "nope". Toolsets: users, workspaces, tasks, jobs, agents, coworkers, vendors, developer, organizations, image-studio, projects.',
+      message: `Unknown toolset "nope". Toolsets: ${MCP_TOOLSETS.join(", ")}.`,
     });
   });
 
