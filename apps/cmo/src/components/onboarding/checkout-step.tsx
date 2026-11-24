@@ -6,6 +6,7 @@ import { ArrowRight, Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { channelLabel } from "../../lib/calendar";
 import { channelInfo, channelKey } from "../../lib/channels";
+import { postsGoingOut } from "../../lib/strategy";
 import { ChannelIcon } from "../channel-icon";
 import { ShortLegalNotice } from "../legal-notice";
 import { money } from "../strategy-core";
@@ -37,21 +38,23 @@ const PLAN_LINES = [
 const TEAM_CHECK = "Our team checks every post before it goes out.";
 
 /**
- * How many posts a plan makes of this strategy a month: the month is written
- * at the top volume, and each plan makes its share of it (Core makes the same).
+ * How many posts a plan makes of this strategy a month, as they go out (a
+ * short video is a post on each network): the month is written at the top
+ * volume, and each plan makes its share of it (Core makes the same).
  */
 function planPosts(strategy: Strategy, tier: string): number {
-  return cmoMonthAtLevel(strategy.calendar, cmoVolumeLevelForTier(tier)).posts;
+  const { made } = cmoMonthAtLevel(
+    strategy.calendar,
+    cmoVolumeLevelForTier(tier),
+  );
+  return postsGoingOut(strategy.calendar, made);
 }
 
-/** A plan's share of the month, in plain words. */
-function shareLine(posts: number, most: number): string {
-  if (posts >= most) return "Makes your whole month.";
-  const share = Math.min(
-    90,
-    Math.max(10, Math.round((posts / most) * 10) * 10),
-  );
-  return `Makes about ${share}% of your month.`;
+/** What a plan makes of the month, in one plain line. */
+function postsLine(posts: number, most: number): string {
+  if (posts >= most) return `All ${posts} posts a month`;
+  const about = posts >= 20 ? Math.round(posts / 10) * 10 : posts;
+  return `About ${about} posts a month`;
 }
 
 /** A plan's price in its currency's main unit. */
@@ -122,7 +125,10 @@ export function CheckoutStep({
   onShowPlans,
   skip = null,
 }: CheckoutStepProps) {
-  const [interval, setInterval] = useState<Interval>("month");
+  // Yearly first, as it costs less a month; monthly is one tap away.
+  const [interval, setInterval] = useState<Interval>(() =>
+    plans.some((plan) => plan.interval === "year") ? "year" : "month",
+  );
   const [picked, setPicked] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [opening, startOpening] = useTransition();
@@ -266,7 +272,7 @@ export function CheckoutStep({
                     </span>
                   ) : null}
                   {posts !== undefined ? (
-                    <span className="ob-small">{shareLine(posts, most)}</span>
+                    <span className="ob-small">{postsLine(posts, most)}</span>
                   ) : PLAN_LINES[place] ? (
                     <span className="ob-small">{PLAN_LINES[place]}</span>
                   ) : null}

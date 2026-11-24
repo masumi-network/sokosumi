@@ -107,11 +107,11 @@ it("shows Subscribe as the fourth step, before Launch, and starts Polar's checko
   );
   expect(currentStep()).toContain("4");
   expect(currentStep()).toContain("Subscribe");
-  expect(text()).toContain("$500 a month");
+  expect(text()).toContain("$417 a month");
   expect(text()).not.toContain("Launch Cuso");
   await press("Scale");
   await press("Start Scale");
-  expect(startPlanCheckout).toHaveBeenCalledWith("month", "scale");
+  expect(startPlanCheckout).toHaveBeenCalledWith("year", "scale");
   expect(assign).toHaveBeenCalledWith("https://polar.sh/checkout/c_1");
 });
 
