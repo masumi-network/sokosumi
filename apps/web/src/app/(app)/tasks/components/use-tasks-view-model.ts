@@ -801,24 +801,25 @@ export function useTasksBoardModel({
         const nextCursor = result.nextCursor;
         setBoardData((prev) => {
           const existingIds = new Set(prev.items.map((task) => task.id));
+          const appended: TaskWithCoworker[] = [];
           const nextLoadedBoardColumnByTaskId = new Map(
             prev.loadedBoardColumnByTaskId,
           );
           for (const task of result.tasks) {
-            if (!existingIds.has(task.id)) {
-              nextLoadedBoardColumnByTaskId.set(task.id, columnId);
-            }
+            if (existingIds.has(task.id)) continue;
+            existingIds.add(task.id);
+            appended.push(task);
+            nextLoadedBoardColumnByTaskId.set(task.id, columnId);
           }
           return {
             ...prev,
-            items: appendUniqueTasks(prev.items, result.tasks),
+            items: appendUniqueTasks(prev.items, appended),
             columnHiddenById: {
               ...prev.columnHiddenById,
               [columnId]: nextCursor
                 ? Math.max(
                     0,
-                    (prev.columnHiddenById[columnId] ?? 0) -
-                      result.tasks.length,
+                    (prev.columnHiddenById[columnId] ?? 0) - appended.length,
                   )
                 : 0,
             },

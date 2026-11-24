@@ -2284,7 +2284,7 @@ it("refreshes Tasks when a pending archive settles while visible, and skips refr
   }
 });
 
-it("subtracts retained rows from the server hidden count when restoring Load more after a failed page", async () => {
+it("subtracts retained rows from the server hidden count when restoring Load more after a failed page, and counts only newly appended rows on Load more", async () => {
   vi.mocked(toast.error).mockClear();
   const pageOneDone: TaskWithCoworker[] = Array.from(
     { length: 20 },
@@ -2300,9 +2300,15 @@ it("subtracts retained rows from the server hidden count when restoring Load mor
       id: `done-p2-${index + 1}`,
     }),
   );
+  const pageThreeDone: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "done-p3-1",
+  };
   vi.mocked(loadMoreTasksColumn)
     .mockResolvedValueOnce({ tasks: pageTwoDone, nextCursor: "cursor-2" })
-    .mockRejectedValueOnce(new Error("network"));
+    .mockRejectedValueOnce(new Error("network"))
+    .mockResolvedValueOnce({ tasks: pageTwoDone, nextCursor: "cursor-2" })
+    .mockResolvedValueOnce({ tasks: [pageThreeDone], nextCursor: null });
 
   // 41 Done tasks: 20 on page 1 + 21 hidden.
   const { rerender } = render(
@@ -2339,4 +2345,25 @@ it("subtracts retained rows from the server hidden count when restoring Load mor
   expect(
     screen.getByTestId("board-density").getAttribute("data-done-hidden"),
   ).toBe("1");
+
+  // Next Load more uses the restored first-page cursor and returns the 20
+  // already-visible page-2 rows: 0 rows joined the board, so 1 row is still hidden.
+  await act(async () => {
+    screen.getByRole("button", { name: "Load more" }).click();
+    await Promise.resolve();
+  });
+  expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("1");
+
+  // The following Load more fetches the remaining page-3 row and exhausts the column.
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(
+    await screen.findByTestId(`board-card-${pageThreeDone.id}`),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("0");
 });
