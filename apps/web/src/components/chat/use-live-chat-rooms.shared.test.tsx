@@ -6,6 +6,7 @@ import { Activity, useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CHAT_HEALTHY_REFRESH_MS } from "@/components/chat/chat-refresh-scheduler";
+import { resetLiveChatRoomsReaderForTests } from "@/components/chat/live-chat-rooms-reader";
 import {
   clearMembershipVisibleRoomsSnapshot,
   publishMembershipVisibleRooms,
@@ -100,11 +101,13 @@ describe("useLiveChatRooms shared reader", () => {
     clearMembershipVisibleRoomsSnapshot();
     clearRoomReadOverlays();
     resetChatReadThrottleForTests();
+    resetLiveChatRoomsReaderForTests();
     vi.stubGlobal("innerWidth", 390);
   });
 
   afterEach(() => {
     cleanup();
+    resetLiveChatRoomsReaderForTests();
     clearMembershipVisibleRoomsSnapshot();
     clearRoomReadOverlays();
     resetChatReadThrottleForTests();
@@ -641,5 +644,75 @@ describe("useLiveChatRooms shared reader", () => {
 
     unmount();
     keepAlive.release();
+  });
+
+  it("reproduces main's 2 reads (mount then queued recovery) when a healthy phone reader drops Ably, hides in Activity, reconnects while hidden, and reveals", async () => {
+    const initial = [makeRoom({ id: "initial" })];
+    const revealMount = Promise.withResolvers<{
+      rooms: ChatRoom[];
+      nextCursor: null;
+    }>();
+    fetchMock
+      .mockResolvedValueOnce({ rooms: initial, nextCursor: null })
+      .mockReturnValueOnce(revealMount.promise)
+      .mockResolvedValueOnce({
+        rooms: [makeRoom({ id: "recovered" })],
+        nextCursor: null,
+      });
+
+    const latest: { current: ChatRoom[] | null } = { current: null };
+    function Reader() {
+      latest.current = useLiveChatRooms();
+      return null;
+    }
+
+    const view = render(
+      <Activity mode="visible">
+        <Reader />
+      </Activity>,
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Ably drops while visible.
+    act(() => {
+      setAblyConnectionHealthy(false);
+    });
+
+    // Hide in Activity.
+    view.rerender(
+      <Activity mode="hidden">
+        <Reader />
+      </Activity>,
+    );
+
+    // Ably reconnects while hidden.
+    act(() => {
+      setAblyConnectionHealthy(true);
+    });
+
+    fetchMock.mockClear();
+
+    // Reveal: mount read starts immediately, recovery read is queued behind it.
+    view.rerender(
+      <Activity mode="visible">
+        <Reader />
+      </Activity>,
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      revealMount.resolve({
+        rooms: [makeRoom({ id: "reveal-mount" })],
+        nextCursor: null,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(latest.current?.map((r) => r.id)).toEqual(["recovered"]);
+
+    view.unmount();
   });
 });

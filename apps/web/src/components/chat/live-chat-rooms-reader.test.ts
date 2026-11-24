@@ -18,6 +18,7 @@ import {
   acquireLiveChatRoomsReader,
   LIVE_CHAT_ROOMS_FALLBACK_MS,
   type LiveChatRoomsAnswer,
+  resetLiveChatRoomsReaderForTests,
 } from "./live-chat-rooms-reader";
 import { clearRoomReadOverlays } from "./room-read-overlay";
 
@@ -42,9 +43,11 @@ describe("live-chat-rooms-reader", () => {
     fetchMock.mockResolvedValue({ rooms: [], nextCursor: null });
     clearRoomReadOverlays();
     resetChatReadThrottleForTests();
+    resetLiveChatRoomsReaderForTests();
   });
 
   afterEach(() => {
+    resetLiveChatRoomsReaderForTests();
     clearRoomReadOverlays();
     resetChatReadThrottleForTests();
     vi.restoreAllMocks();
@@ -335,5 +338,44 @@ describe("live-chat-rooms-reader", () => {
     // Both released -> scheduler stopped.
     await vi.advanceTimersByTimeAsync(CHAT_HEALTHY_REFRESH_MS * 2);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps hadHealthy/wasHealthy across release and reacquire so reconnect while detached triggers mount then queued recovery", async () => {
+    const s1 = acquireLiveChatRoomsReader("org-1:user-1", {
+      healthy: true,
+      onAnswer: () => {},
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Ably drops while attached, then the last surface releases.
+    s1.setHealth(false);
+    s1.release();
+
+    fetchMock.mockClear();
+    const mountRead = Promise.withResolvers<{
+      rooms: ChatRoom[];
+      nextCursor: null;
+    }>();
+    fetchMock
+      .mockReturnValueOnce(mountRead.promise)
+      .mockResolvedValueOnce({ rooms: [room("recovered")], nextCursor: null });
+
+    // Reacquires after Ably recovered while detached: starts mount read and
+    // queues the recovery read after start().
+    const s2 = acquireLiveChatRoomsReader("org-1:user-1", {
+      healthy: true,
+      onAnswer: () => {},
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    mountRead.resolve({ rooms: [room("mount")], nextCursor: null });
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    s2.release();
   });
 });

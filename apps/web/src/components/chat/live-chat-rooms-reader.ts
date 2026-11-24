@@ -52,14 +52,32 @@ interface LiveChatRoomsScopeEntry {
   setHealth: (healthy: boolean) => void;
 }
 
+interface LiveChatRoomsHealthHistory {
+  hadHealthy: boolean;
+  wasHealthy: boolean;
+}
+
 const entriesByScope = new Map<string, LiveChatRoomsScopeEntry>();
+const healthHistoryByScope = new Map<string, LiveChatRoomsHealthHistory>();
+
+function recordHealthHistory(scope: string, healthy: boolean): void {
+  const previous = healthHistoryByScope.get(scope);
+  healthHistoryByScope.set(scope, {
+    hadHealthy: (previous?.hadHealthy ?? false) || healthy,
+    wasHealthy: healthy,
+  });
+}
 
 function createScopeEntry(
   scope: string,
   initialHealthy: boolean,
 ): LiveChatRoomsScopeEntry {
   const surfaces = new Set<LiveChatRoomsSurface>();
-  let currentHealthy = initialHealthy;
+  const history = healthHistoryByScope.get(scope);
+  let currentHealthy = history ? history.wasHealthy : initialHealthy;
+  if (!history) {
+    recordHealthHistory(scope, initialHealthy);
+  }
   let lastAnswer: LiveChatRoomsCachedAnswer | null = null;
   // Every attached surface listens to the same window invalidation event and
   // forwards it in the same synchronous turn; coalesce distinct surfaces per
@@ -82,12 +100,20 @@ function createScopeEntry(
         }
       }
     },
-    healthy: initialHealthy,
+    healthy: currentHealthy,
     getHealthy: () => currentHealthy,
     fallbackIntervalMs: LIVE_CHAT_ROOMS_FALLBACK_MS,
     refreshOnMount: true,
     refreshOnRecovery: true,
   });
+
+  if (history && history.hadHealthy && !history.wasHealthy) {
+    // Scheduler is still stopped: restore hadHealthy=true, wasHealthy=false
+    // without starting a read so applying health after start() reproduces
+    // main's recovery read after a stop/start restart (e.g. Activity reveal).
+    scheduler.setHealth(true, false);
+    scheduler.setHealth(false, false);
+  }
 
   return {
     surfaces,
@@ -111,6 +137,7 @@ function createScopeEntry(
     setHealth: (healthy) => {
       if (healthy === currentHealthy) return;
       currentHealthy = healthy;
+      recordHealthHistory(scope, healthy);
       scheduler.setHealth(healthy, true);
     },
   };
@@ -167,9 +194,20 @@ export function acquireLiveChatRoomsReader(
 
   if (isFirst) {
     activeEntry.scheduler.start();
+    if (!released) {
+      activeEntry.setHealth(options.healthy);
+    }
   } else {
     activeEntry.setHealth(options.healthy);
   }
 
   return subscription;
+}
+
+export function resetLiveChatRoomsReaderForTests(): void {
+  for (const entry of entriesByScope.values()) {
+    entry.scheduler.stop();
+  }
+  entriesByScope.clear();
+  healthHistoryByScope.clear();
 }

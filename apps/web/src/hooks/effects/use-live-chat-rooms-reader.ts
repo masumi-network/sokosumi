@@ -43,7 +43,7 @@ export function useLiveChatRoomsReader({
     }
     const subscription = acquireLiveChatRoomsReader(scope, {
       healthy: latestHealthyRef.current,
-      onAnswer: handleAnswer,
+      onAnswer: (answer) => handleAnswer(answer),
     });
     subscriptionRef.current = subscription;
     if (subscription.lastAnswer) {

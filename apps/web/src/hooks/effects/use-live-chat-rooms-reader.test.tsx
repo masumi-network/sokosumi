@@ -10,6 +10,7 @@ import {
   LIVE_CHAT_ROOMS_FALLBACK_MS,
   type LiveChatRoomsAnswer,
   type LiveChatRoomsCachedAnswer,
+  resetLiveChatRoomsReaderForTests,
 } from "@/components/chat/live-chat-rooms-reader";
 import { clearRoomReadOverlays } from "@/components/chat/room-read-overlay";
 import { resetChatReadThrottleForTests } from "@/lib/chat/chat-read-throttle";
@@ -45,9 +46,11 @@ describe("useLiveChatRoomsReader", () => {
     fetchMock.mockResolvedValue({ rooms: [], nextCursor: null });
     clearRoomReadOverlays();
     resetChatReadThrottleForTests();
+    resetLiveChatRoomsReaderForTests();
   });
 
   afterEach(() => {
+    resetLiveChatRoomsReaderForTests();
     clearRoomReadOverlays();
     resetChatReadThrottleForTests();
     vi.restoreAllMocks();
