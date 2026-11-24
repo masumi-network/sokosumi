@@ -41,41 +41,6 @@ if (animationPrototype && !(PATCHED in animationPrototype)) {
   };
 }
 
-// happy-dom 21.0.4 batches internal 0ms timers (`if (!delay)`) onto a single
-// backing timer stored on the live GlobalWindow (`window.frames`), and only
-// clears `#zeroDelayTimeout.timeouts = null` when that timer fires
-// (capricorn86/happy-dom#2532). When `window.happyDOM.abort()` cancels a
-// pending 0ms timer between files under `isolate: false`, the batch stays
-// non-null forever and every later internal 0ms timer (`FileReader` /
-// `navigator.clipboard.readText()`, smooth `scrollTo`, `postMessage`) hangs
-// for the rest of the worker. Coercing falsy delays to 1ms (Node's timer floor
-// anyway) routes internal timers through happy-dom's normal per-timer path,
-// which `abort()` and `clearTimeout()` clean up cleanly.
-const ZERO_DELAY_TIMEOUT_PATCHED = Symbol.for(
-  "sokosumi.test.zeroDelayTimeoutPatched",
-);
-const happyDomWindow = window.frames;
-if (
-  happyDomWindow &&
-  happyDomWindow !== window &&
-  !(ZERO_DELAY_TIMEOUT_PATCHED in happyDomWindow)
-) {
-  const originalSetTimeout = happyDomWindow.setTimeout;
-  Object.defineProperty(happyDomWindow, ZERO_DELAY_TIMEOUT_PATCHED, {
-    value: true,
-  });
-  happyDomWindow.setTimeout = ((
-    callback: TimerHandler,
-    delay?: number,
-    ...args: unknown[]
-  ) =>
-    originalSetTimeout(
-      callback,
-      !delay ? 1 : delay,
-      ...args,
-    )) as typeof window.setTimeout;
-}
-
 // The window outlives the file (`isolate: false`). Give each file its own
 // storage: a `vi.spyOn(localStorage, …)` never comes off happy-dom's Storage,
 // even after `mockRestore`, so a shared one would carry the mock into later
