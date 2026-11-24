@@ -37,6 +37,10 @@ export function parseSokosumiProviderOptions(
   const imageGenerationModel = pickString(raw.imageGenerationModel) ?? null;
   const webSearchEnabled = raw.webSearchEnabled === true;
 
+  const getAuthorization =
+    typeof raw.getAuthorization === "function"
+      ? (raw.getAuthorization as () => string | Promise<string>)
+      : undefined;
   const onResponseStarted =
     typeof raw.onResponseStarted === "function"
       ? (raw.onResponseStarted as (id: string) => void | Promise<void>)
@@ -83,6 +87,13 @@ export function parseSokosumiProviderOptions(
           'providerOptions.sokosumi.providerConversationId or providerOptions.sokosumi.previousResponseId is required when mode is "coworker".',
       });
     }
+    if (!getAuthorization) {
+      throw new InvalidPromptError({
+        prompt: raw,
+        message:
+          'providerOptions.sokosumi.getAuthorization is required when mode is "coworker".',
+      });
+    }
   }
 
   return {
@@ -101,6 +112,7 @@ export function parseSokosumiProviderOptions(
       ? imageGenerationModel.trim()
       : null,
     webSearchEnabled,
+    getAuthorization,
     onResponseStarted,
     onResponseCompleted,
     onInvalidPreviousResponseId,

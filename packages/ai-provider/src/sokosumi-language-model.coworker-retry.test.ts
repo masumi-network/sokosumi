@@ -81,10 +81,75 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
             coworkerBaseUrl: "https://cow.example/api",
             coworkerSlug: "agent",
             sokosumiUserId: "user-1",
+            getAuthorization: () => "Bearer token-1",
           },
         },
       }),
     ).rejects.toBeInstanceOf(InvalidPromptError);
+  });
+
+  it("rejects coworker mode without getAuthorization and sends nothing", async () => {
+    const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
+      openRouterApiKey: "sk-or-test",
+    });
+
+    await expect(
+      model.doStream({
+        prompt: [{ role: "user", content: [{ type: "text", text: "Hello" }] }],
+        providerOptions: {
+          sokosumi: {
+            mode: "coworker",
+            coworkerBaseUrl: "https://cow.example/api",
+            coworkerSlug: "agent",
+            sokosumiUserId: "user-1",
+            providerConversationId: "conv_abc",
+          },
+        },
+      }),
+    ).rejects.toBeInstanceOf(InvalidPromptError);
+    expect(ssrfSafeStreamFetchMock).not.toHaveBeenCalled();
+  });
+
+  it("fails the coworker request without sending when getAuthorization fails or returns empty", async () => {
+    const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
+      openRouterApiKey: "sk-or-test",
+    });
+
+    await expect(
+      model.doStream({
+        prompt: [{ role: "user", content: [{ type: "text", text: "Hello" }] }],
+        providerOptions: {
+          sokosumi: {
+            mode: "coworker",
+            coworkerBaseUrl: "https://cow.example/api",
+            coworkerSlug: "agent",
+            sokosumiUserId: "user-1",
+            providerConversationId: "conv_abc",
+            getAuthorization: async () => {
+              throw new Error("signing failed");
+            },
+          },
+        },
+      }),
+    ).rejects.toThrow("signing failed");
+    expect(ssrfSafeStreamFetchMock).not.toHaveBeenCalled();
+
+    await expect(
+      model.doStream({
+        prompt: [{ role: "user", content: [{ type: "text", text: "Hello" }] }],
+        providerOptions: {
+          sokosumi: {
+            mode: "coworker",
+            coworkerBaseUrl: "https://cow.example/api",
+            coworkerSlug: "agent",
+            sokosumiUserId: "user-1",
+            providerConversationId: "conv_abc",
+            getAuthorization: async () => "   ",
+          },
+        },
+      }),
+    ).rejects.toThrow(/getAuthorization/);
+    expect(ssrfSafeStreamFetchMock).not.toHaveBeenCalled();
   });
 
   it("sends conversation only and omits previous_response_id when both are set", async () => {
@@ -102,6 +167,8 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
           content: [{ type: "input_text", text: "Only last" }],
         },
       ]);
+      expect(headers.Authorization).toBe("Bearer signed-1");
+      expect(headers.authorization).toBeUndefined();
       expect(headers["X-Coworker-Slug"]).toBe("agent");
       expect(headers["X-Sokosumi-User-Id"]).toBe("user-1");
       expect(headers["X-Sokosumi-Organization-Id"]).toBe("org-1");
@@ -127,6 +194,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
 
     await model.doStream({
       headers: {
+        authorization: "Bearer caller-should-not-win",
         "accept-encoding": "gzip",
         "Accept-Encoding": "br",
         "X-Client-Test": "retained",
@@ -154,6 +222,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
           sokosumiOrganizationId: "org-1",
           previousResponseId: "resp_old",
           providerConversationId: "conv_abc",
+          getAuthorization: async () => "Bearer signed-1",
         },
       },
     });
@@ -176,6 +245,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
           content: [{ type: "input_text", text: "Only last" }],
         },
       ]);
+      expect(headers.Authorization).toBe("Bearer signed-only");
       expect(headers["X-Coworker-Slug"]).toBe("agent");
       expect(headers["X-Sokosumi-User-Id"]).toBe("user-1");
       return new Response(
@@ -217,6 +287,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
           coworkerSlug: "agent",
           sokosumiUserId: "user-1",
           previousResponseId: "resp_only",
+          getAuthorization: async () => "Bearer signed-only",
         },
       },
     });
@@ -248,19 +319,24 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
             coworkerSlug: "agent",
             sokosumiUserId: "user-1",
             previousResponseId: "resp_stale",
+            getAuthorization: async () => "Bearer signed-stale",
           },
         },
       }),
     ).rejects.toThrowError(/previous_response_not_found/);
   });
 
-  it("retries without conversation when the API rejects the conversation", async () => {
+  it("retries without conversation when the API rejects the conversation and mints a fresh Authorization header", async () => {
     const onInvalidProviderConversationId = vi.fn();
+    let tokenSeq = 0;
+    const getAuthorization = vi.fn(async () => `Bearer attempt-${++tokenSeq}`);
+    const sentAuthorizations: string[] = [];
     let call = 0;
     ssrfSafeStreamFetchMock.mockImplementation(async (_url, init) => {
       call++;
       const body = init?.body ? JSON.parse(String(init.body)) : {};
       const headers = (init?.headers ?? {}) as Record<string, string>;
+      sentAuthorizations.push(headers.Authorization);
       expect(headers["X-Coworker-Slug"]).toBe("agent");
       expect(headers["X-Sokosumi-User-Id"]).toBe("user-1");
       expect(headers["X-Sokosumi-Organization-Id"]).toBeUndefined();
@@ -317,20 +393,31 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
           sokosumiUserId: "user-1",
           previousResponseId: "resp_old",
           providerConversationId: "conv_bad",
+          getAuthorization,
           onInvalidProviderConversationId,
         },
       },
     });
 
     expect(onInvalidProviderConversationId).toHaveBeenCalledOnce();
+    expect(getAuthorization).toHaveBeenCalledTimes(2);
+    expect(sentAuthorizations).toEqual([
+      "Bearer attempt-1",
+      "Bearer attempt-2",
+    ]);
     const reader = stream.getReader();
     await reader.cancel();
   });
 
-  it("retries conversation-mode streams that return Elena agent error text", async () => {
+  it("retries conversation-mode streams that return Elena agent error text with a fresh Authorization header", async () => {
+    let tokenSeq = 0;
+    const getAuthorization = vi.fn(async () => `Bearer retry-${++tokenSeq}`);
+    const sentAuthorizations: string[] = [];
     let call = 0;
-    ssrfSafeStreamFetchMock.mockImplementation(async () => {
+    ssrfSafeStreamFetchMock.mockImplementation(async (_url, init) => {
       call++;
+      const headers = (init?.headers ?? {}) as Record<string, string>;
+      sentAuthorizations.push(headers.Authorization);
       const delta =
         call === 1
           ? `${COWORKER_AGENT_ERROR_SNIPPET}. Please try again.`
@@ -356,12 +443,15 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
           coworkerSlug: "agent",
           sokosumiUserId: "user-1",
           providerConversationId: "conv_new",
+          getAuthorization,
         },
       },
     });
 
     const text = await collectStreamText(stream);
     expect(call).toBe(2);
+    expect(getAuthorization).toHaveBeenCalledTimes(2);
+    expect(sentAuthorizations).toEqual(["Bearer retry-1", "Bearer retry-2"]);
     expect(text).toBe("This is a complete coworker reply with enough text.");
   });
 
@@ -394,6 +484,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
           coworkerSlug: "agent",
           sokosumiUserId: "user-1",
           providerConversationId: "conv_new",
+          getAuthorization: async () => `Bearer short-${call + 1}`,
         },
       },
     });
@@ -430,6 +521,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
           coworkerSlug: "agent",
           sokosumiUserId: "user-1",
           previousResponseId: "resp_only",
+          getAuthorization: async () => "Bearer prev-only",
         },
       },
     });
@@ -466,6 +558,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
           coworkerSlug: "agent",
           sokosumiUserId: "user-1",
           providerConversationId: "conv_new",
+          getAuthorization: async () => "Bearer good-1",
         },
       },
     });

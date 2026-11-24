@@ -8,6 +8,7 @@ export interface SokosumiProviderCallOptions {
   providerConversationId?: string | null;
   imageGenerationModel?: string | null;
   webSearchEnabled?: boolean;
+  getAuthorization?: () => string | Promise<string>;
   onResponseStarted?: (responseId: string) => void | Promise<void>;
   onResponseCompleted?: (responseId: string) => void | Promise<void>;
   onInvalidPreviousResponseId?: () => void | Promise<void>;

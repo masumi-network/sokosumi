@@ -88,6 +88,7 @@ describe("SokosumiLanguageModel coworker streaming", () => {
           coworkerSlug: "agent",
           sokosumiUserId: "user-1",
           providerConversationId: "conv_new",
+          getAuthorization: () => "Bearer token-1",
         },
       },
     });

@@ -481,6 +481,9 @@ importers:
       '@typescript/typescript6':
         specifier: 6.0.2
         version: 6.0.2
+      jose:
+        specifier: 6.2.18
+        version: 6.2.18
       tsup:
         specifier: 9.0.0
         version: 9.0.0(@swc/core@1.16.22(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.33)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.1)

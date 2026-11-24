@@ -6,6 +6,7 @@ import {
   serviceUnavailable,
   tooManyRequests,
 } from "@/helpers/error";
+import { getCoworkerAuthorizationHeader } from "@/lib/coworker-request-auth";
 
 const CREATE_CONVERSATION_TIMEOUT_MS = 25_000;
 const MAX_COWORKER_CONVERSATION_RESPONSE_BYTES = 1024 * 1024;
@@ -155,7 +156,14 @@ export async function createCoworkerConversation(
 
   const base = baseUrl.replace(/\/$/, "");
   const url = `${base}/conversations`;
+  const authorization = await getCoworkerAuthorizationHeader({
+    coworkerBaseUrl: base,
+    userId: options.sokosumiUserId,
+    organizationId: options.sokosumiOrganizationId,
+    coworkerSlug: options.coworkerSlug,
+  });
   const requestHeaders: Record<string, string> = {
+    Authorization: authorization,
     "Content-Type": "application/json",
     "Accept-Encoding": "identity",
     "X-Sokosumi-User-Id": options.sokosumiUserId,

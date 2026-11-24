@@ -1,4 +1,5 @@
 import { ssrfSafeFetch } from "@sokosumi/net";
+import { getCoworkerAuthorizationHeader } from "@/lib/coworker-request-auth";
 
 const MAX_COWORKER_RETRIEVE_RESPONSE_BYTES = 16 * 1024 * 1024;
 
@@ -37,11 +38,13 @@ function sleep(ms: number): Promise<void> {
 }
 
 function buildCoworkerRetrieveHeaders(params: {
+  authorization: string;
   userId: string;
   organizationId: string | null;
   coworkerSlug: string;
 }): Record<string, string> {
   const headers: Record<string, string> = {
+    Authorization: params.authorization,
     "Accept-Encoding": "identity",
     "X-Sokosumi-User-Id": params.userId,
     "X-Coworker-Slug": params.coworkerSlug,
@@ -123,9 +126,16 @@ export async function retrieveCoworkerResponse(
 
   let response: Response;
   try {
+    const authorization = await getCoworkerAuthorizationHeader({
+      coworkerBaseUrl: base,
+      userId: params.userId,
+      organizationId: params.organizationId,
+      coworkerSlug: params.coworkerSlug,
+    });
     const init = {
       method: "GET",
       headers: buildCoworkerRetrieveHeaders({
+        authorization,
         userId: params.userId,
         organizationId: params.organizationId,
         coworkerSlug: params.coworkerSlug,

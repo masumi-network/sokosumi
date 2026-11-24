@@ -1,4 +1,31 @@
+import { memoryAdapter } from "better-auth/adapters/memory";
+import { betterAuth } from "better-auth/minimal";
+import { jwt } from "better-auth/plugins";
+import { createLocalJWKSet, jwtVerify } from "jose";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { jwtKeyStoreOptions } from "@/lib/auth-oauth-provider";
+
+const { fetchMock, safeFetchMock, authState } = vi.hoisted(() => ({
+  fetchMock: vi.fn(),
+  safeFetchMock: vi.fn(),
+  authState: {
+    current: null as ReturnType<typeof createTestAuth> | null,
+    shouldFail: false,
+  },
+}));
+vi.mock("@sokosumi/net", () => ({ ssrfSafeFetch: safeFetchMock }));
+vi.mock("@/lib/auth", () => ({
+  get auth() {
+    if (authState.shouldFail) {
+      return {
+        get $context() {
+          return Promise.reject(new Error("JWKS unavailable"));
+        },
+      };
+    }
+    return authState.current!;
+  },
+}));
 
 import {
   coworkerResponseText,
@@ -6,11 +33,40 @@ import {
   retrieveCoworkerResponse,
 } from "./coworker-response-poll";
 
-const { fetchMock, safeFetchMock } = vi.hoisted(() => ({
-  fetchMock: vi.fn(),
-  safeFetchMock: vi.fn(),
-}));
-vi.mock("@sokosumi/net", () => ({ ssrfSafeFetch: safeFetchMock }));
+function createTestAuth() {
+  return betterAuth({
+    baseURL: "https://api.sokosumi.com",
+    basePath: "/auth",
+    secret: "coworker-response-poll-test-secret-long-enough-32",
+    database: memoryAdapter({ jwks: [] }),
+    plugins: [
+      jwt({
+        disableSettingJwtHeader: true,
+        ...jwtKeyStoreOptions(false),
+      }),
+    ],
+  });
+}
+
+async function verifyBearerFromInit(
+  init: RequestInit | undefined,
+  expectedAudience: string,
+) {
+  const headers = (init?.headers ?? {}) as Record<string, string>;
+  expect(headers.Authorization).toMatch(/^Bearer /);
+  const token = headers.Authorization.slice("Bearer ".length);
+  const jwks = await authState.current!.api.getJwks();
+  const { payload, protectedHeader } = await jwtVerify(
+    token,
+    createLocalJWKSet(jwks),
+    {
+      issuer: "https://api.sokosumi.com/auth",
+      audience: expectedAudience,
+      typ: "coworker+jwt",
+    },
+  );
+  return { payload, protectedHeader };
+}
 
 const DEFAULT_PARAMS = {
   responsesApiBaseUrl: "https://api.coworker.example.com/v1",
@@ -34,6 +90,9 @@ function jsonResponse(status: string, httpStatus = 200): Response {
 describe("pollCoworkerResponseStatus", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    fetchMock.mockReset();
+    authState.shouldFail = false;
+    authState.current = createTestAuth();
     vi.stubGlobal("fetch", fetchMock);
   });
 
@@ -42,7 +101,7 @@ describe("pollCoworkerResponseStatus", () => {
     vi.useRealTimers();
   });
 
-  it("retrieves with coworker headers", async () => {
+  it("retrieves with coworker headers and a verified Bearer token", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse("completed"));
 
     const result = await pollCoworkerResponseStatus(DEFAULT_PARAMS);
@@ -57,6 +116,7 @@ describe("pollCoworkerResponseStatus", () => {
         method: "GET",
         maxResponseBytes: 16 * 1024 * 1024,
         headers: {
+          Authorization: expect.stringMatching(/^Bearer /),
           "Accept-Encoding": "identity",
           "X-Sokosumi-User-Id": "user_1",
           "X-Coworker-Slug": "elena",
@@ -64,20 +124,75 @@ describe("pollCoworkerResponseStatus", () => {
         },
       }),
     );
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const { payload } = await verifyBearerFromInit(
+      init,
+      "https://api.coworker.example.com/v1",
+    );
+    expect(payload.sub).toBe("user_1");
+    expect(payload.org).toBe("org_1");
+    expect(payload.coworker).toBe("elena");
   });
 
-  it("polls in_progress until a terminal status", async () => {
-    vi.useFakeTimers();
+  it("polls in_progress until a terminal status with a fresh jti on each poll", async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse("in_progress"))
       .mockResolvedValueOnce(jsonResponse("completed"));
 
-    const resultPromise = pollCoworkerResponseStatus(DEFAULT_PARAMS);
-    await vi.runAllTimersAsync();
-    const result = await resultPromise;
+    const result = await pollCoworkerResponseStatus({
+      ...DEFAULT_PARAMS,
+      baseDelayMs: 0,
+      maxDelayMs: 0,
+    });
 
     expect(result.status).toBe("completed");
     expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    const first = await verifyBearerFromInit(
+      fetchMock.mock.calls[0]![1] as RequestInit,
+      "https://api.coworker.example.com/v1",
+    );
+    const second = await verifyBearerFromInit(
+      fetchMock.mock.calls[1]![1] as RequestInit,
+      "https://api.coworker.example.com/v1",
+    );
+    expect(first.payload.jti).toBeTruthy();
+    expect(second.payload.jti).toBeTruthy();
+    expect(first.payload.jti).not.toBe(second.payload.jti);
+  });
+
+  it("omits org in the token and X-Sokosumi-Organization-Id in a personal chat", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse("completed"));
+
+    const result = await pollCoworkerResponseStatus({
+      ...DEFAULT_PARAMS,
+      organizationId: null,
+    });
+
+    expect(result.status).toBe("completed");
+    const [, init] = fetchMock.mock.calls[0] as [
+      string,
+      { headers: Record<string, string> },
+    ];
+    expect(init.headers["X-Sokosumi-Organization-Id"]).toBeUndefined();
+    const { payload } = await verifyBearerFromInit(
+      init,
+      "https://api.coworker.example.com/v1",
+    );
+    expect("org" in payload).toBe(false);
+  });
+
+  it("fails the poll without calling fetch when signing fails", async () => {
+    authState.shouldFail = true;
+
+    const result = await pollCoworkerResponseStatus(DEFAULT_PARAMS);
+
+    expect(result.status).toBe("error");
+    if (result.status === "error") {
+      expect(result.cause).toBeInstanceOf(Error);
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("returns failed when coworker reports failure", async () => {
@@ -104,12 +219,13 @@ describe("pollCoworkerResponseStatus", () => {
   });
 
   it("returns in_progress when max attempts are exhausted", async () => {
-    vi.useFakeTimers();
     fetchMock.mockImplementation(() => jsonResponse("in_progress"));
 
-    const resultPromise = pollCoworkerResponseStatus(DEFAULT_PARAMS);
-    await vi.runAllTimersAsync();
-    const result = await resultPromise;
+    const result = await pollCoworkerResponseStatus({
+      ...DEFAULT_PARAMS,
+      baseDelayMs: 0,
+      maxDelayMs: 0,
+    });
 
     expect(result).toEqual({
       status: "in_progress",
@@ -145,6 +261,11 @@ describe("coworkerResponseText", () => {
 });
 
 describe("retrieveCoworkerResponse", () => {
+  beforeEach(() => {
+    authState.shouldFail = false;
+    authState.current = createTestAuth();
+  });
+
   it("returns the status and final text of a finished response", async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       new Response(
@@ -171,6 +292,11 @@ describe("retrieveCoworkerResponse", () => {
 });
 
 describe("retrieveCoworkerResponse errors", () => {
+  beforeEach(() => {
+    authState.shouldFail = false;
+    authState.current = createTestAuth();
+  });
+
   it("reports the HTTP status of a failed retrieve", async () => {
     const fetchFn = vi
       .fn()
@@ -192,6 +318,8 @@ describe("retrieveCoworkerResponse errors", () => {
 describe("retrieveCoworkerResponse default transport", () => {
   beforeEach(() => {
     safeFetchMock.mockReset();
+    authState.shouldFail = false;
+    authState.current = createTestAuth();
     vi.stubGlobal(
       "fetch",
       vi.fn(() => {
@@ -215,6 +343,7 @@ describe("retrieveCoworkerResponse default transport", () => {
         method: "GET",
         maxResponseBytes: 16 * 1024 * 1024,
         headers: expect.objectContaining({
+          Authorization: expect.stringMatching(/^Bearer /),
           "Accept-Encoding": "identity",
           "X-Sokosumi-User-Id": "user_1",
           "X-Coworker-Slug": "elena",
