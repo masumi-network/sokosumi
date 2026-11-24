@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { LiveChatRoomsProvider } from "@/components/chat/use-live-chat-rooms";
 import { OtherWorkspaceRoomsLive } from "@/components/chat/use-other-workspace-rooms";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import QueryProvider from "@/contexts/query-provider";
@@ -35,29 +34,25 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <QueryProvider>
         <AuthSessionGuard>
           <OtherWorkspaceRoomsLive />
-          <LiveChatRoomsProvider>
-            {/* Applies the hidden-sidebar preference to the streamed shell before
-              paint; SidebarProvider takes over at hydration. */}
-            <SidebarBootScript />
-            <SidebarProvider
-              // Cookie preference restored client-side (boot script before paint,
-              // SidebarProvider at hydration) so this layout stays sync for
-              // Instant Nav.
-              defaultOpen
-              data-app-shell
-              className="flex max-w-svw overflow-clip"
+          {/* Applies the hidden-sidebar preference to the streamed shell before
+            paint; SidebarProvider takes over at hydration. */}
+          <SidebarBootScript />
+          <SidebarProvider
+            // Cookie preference restored client-side (boot script before paint,
+            // SidebarProvider at hydration) so this layout stays sync for
+            // Instant Nav.
+            defaultOpen
+            data-app-shell
+            className="flex max-w-svw overflow-clip"
+          >
+            {/* AuthenticatedAppFrame owns the session + workspace gate; the
+              shell skeleton is the only fallback, so no blank frame. */}
+            <Suspense
+              fallback={<AppShellLoadingFrame>{children}</AppShellLoadingFrame>}
             >
-              {/* AuthenticatedAppFrame owns the session + workspace gate; the
-                shell skeleton is the only fallback, so no blank frame. */}
-              <Suspense
-                fallback={
-                  <AppShellLoadingFrame>{children}</AppShellLoadingFrame>
-                }
-              >
-                <AuthenticatedAppFrame>{children}</AuthenticatedAppFrame>
-              </Suspense>
-            </SidebarProvider>
-          </LiveChatRoomsProvider>
+              <AuthenticatedAppFrame>{children}</AuthenticatedAppFrame>
+            </Suspense>
+          </SidebarProvider>
         </AuthSessionGuard>
       </QueryProvider>
     </ClientMessageBoundary>

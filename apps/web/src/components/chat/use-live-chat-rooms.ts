@@ -67,7 +67,15 @@ interface LiveChatRoomsRead {
   failed: boolean;
 }
 
-const LiveChatRoomsContext = createContext<LiveChatRoomsRead | null>(null);
+const EMPTY_LIVE_CHAT_ROOMS: LiveChatRoomsRead = {
+  rooms: null,
+  failed: false,
+};
+
+/** @internal Read by `useLiveChatRoomsRead` and the DOM test setup fallback. */
+export const LiveChatRoomsContext = createContext<LiveChatRoomsRead | null>(
+  null,
+);
 
 /**
  * Runs the live membership-visible rooms reader once for the app shell and
@@ -101,14 +109,11 @@ export function useLiveChatRooms(): ChatRoom[] | null {
  * failed with no rows held, so a caller can say so while the reader retries.
  */
 export function useLiveChatRoomsRead(): LiveChatRoomsRead {
-  const provided = useContext(LiveChatRoomsContext);
-  if (provided !== null) {
-    return provided;
-  }
-  return useLiveChatRoomsOwner();
+  return useContext(LiveChatRoomsContext) ?? EMPTY_LIVE_CHAT_ROOMS;
 }
 
-function useLiveChatRoomsOwner(): LiveChatRoomsRead {
+/** @internal Owned by `LiveChatRoomsProvider` (and the DOM test setup fallback). */
+export function useLiveChatRoomsOwner(): LiveChatRoomsRead {
   const { data: session } = useSession();
   const currentUserId = session?.user.id ?? "";
   const organizationId = session?.session.activeOrganizationId ?? null;

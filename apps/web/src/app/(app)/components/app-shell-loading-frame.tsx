@@ -1,4 +1,5 @@
 import { SidebarEdgeHandle } from "@/app/components/sidebar/components/sidebar-edge-handle.client";
+import { LiveChatRoomsProvider } from "@/components/chat/use-live-chat-rooms";
 import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
 import { NotificationFallbackProvider } from "@/contexts/notification-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
@@ -22,7 +23,7 @@ interface AppShellLoadingFrameProps {
 
 export function AppShellLoadingFrame({ children }: AppShellLoadingFrameProps) {
   return (
-    <>
+    <LiveChatRoomsProvider>
       <AppSidebarFallback />
       <SidebarEdgeHandle />
       <div className="flex min-w-0 flex-1 overflow-clip" data-app-content>
@@ -58,6 +59,6 @@ export function AppShellLoadingFrame({ children }: AppShellLoadingFrameProps) {
           </main>
         </div>
       </div>
-    </>
+    </LiveChatRoomsProvider>
   );
 }
