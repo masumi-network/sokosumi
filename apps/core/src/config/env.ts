@@ -64,6 +64,17 @@ const emailAllowlistSchema = z
       .filter(Boolean),
   );
 
+// PostgreSQL truncates identifiers past 63 bytes, so two longer names could
+// be one schema. `pg_*` and `information_schema` belong to PostgreSQL.
+const databaseSchemaNameSchema = z
+  .string()
+  .regex(/^[a-z_][a-z0-9_]*$/)
+  .max(63)
+  .refine((name) => !name.startsWith("pg_") && name !== "information_schema", {
+    message: "Names a PostgreSQL system schema",
+  })
+  .default("public");
+
 const baseEnvSchema = z.object({
   NETWORK: z.enum(["Preprod", "Mainnet"]).default("Preprod"),
 
@@ -78,6 +89,11 @@ const baseEnvSchema = z.object({
 
   // Database
   DATABASE_URL: z.url(),
+  // Schema of the `shared` tables and of each Network's tables. All three are
+  // `public` until the move splits them. They reach SQL as quoted identifiers.
+  DATABASE_SCHEMA_SHARED: databaseSchemaNameSchema,
+  DATABASE_SCHEMA_MAINNET: databaseSchemaNameSchema,
+  DATABASE_SCHEMA_PREPROD: databaseSchemaNameSchema,
 
   // Task tags use global Jev routing with enforced retention/no-training options.
   TASK_TAG_CLASSIFICATION_ENABLED: z
