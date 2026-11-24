@@ -1,50 +1,51 @@
-import { render, screen } from "@testing-library/react";
-import {
-  Activity,
-  StrictMode,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-} from "react";
+import { act, render, screen } from "@testing-library/react";
+import { Activity, StrictMode, useLayoutEffect } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
 import { describe, expect, it } from "vitest";
 
 import { useRoomsClientHeaderParticipantsShown } from "./use-rooms-client-header-participants-shown";
 
 describe("useRoomsClientHeaderParticipantsShown", () => {
-  it("commits false first and flips to true in passive effect phase", () => {
-    const phases: string[] = [];
-
+  it("commits false for the first painted frame and flips to true only in passive effect phase", () => {
     function Probe({ tick }: { tick: number }) {
-      const domRef = useRef<HTMLSpanElement | null>(null);
-      useEffect(() => {
-        phases.push(`passive-before-hook:${domRef.current?.textContent}`);
-      });
       const shown = useRoomsClientHeaderParticipantsShown();
-      useLayoutEffect(() => {
-        phases.push(`layout:${String(shown)}`);
-      });
       return (
-        <span ref={domRef} data-testid="shown" data-tick={tick}>
+        <span data-testid="shown" data-tick={tick}>
           {String(shown)}
         </span>
       );
     }
 
-    const { rerender } = render(<Probe tick={1} />);
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    try {
+      // flushSync inside act runs render + all useLayoutEffects (including any
+      // layout-phase state updates) synchronously while passive useEffects wait
+      // until act() exits. A useLayoutEffect or render-time swap would already
+      // paint "true" before act() finishes.
+      let paintedBeforePassive = "";
+      act(() => {
+        flushSync(() => {
+          root.render(<Probe tick={1} />);
+        });
+        paintedBeforePassive = host.textContent ?? "";
+      });
+      expect(paintedBeforePassive).toBe("false");
+      expect(host.textContent).toBe("true");
 
-    // First committed frame must stay false through layout and into passive
-    // phase before the hook's mount passive effect reveals participant avatars.
-    expect(phases).toEqual([
-      "layout:false",
-      "passive-before-hook:false",
-      "layout:true",
-      "passive-before-hook:true",
-    ]);
-    expect(screen.getByTestId("shown")).toHaveTextContent("true");
-
-    // Later renders stay true without resetting to false.
-    rerender(<Probe tick={2} />);
-    expect(screen.getByTestId("shown")).toHaveTextContent("true");
+      // Later renders stay true without resetting to false.
+      act(() => {
+        root.render(<Probe tick={2} />);
+      });
+      expect(host.textContent).toBe("true");
+    } finally {
+      act(() => {
+        root.unmount();
+      });
+      host.remove();
+    }
   });
 
   it("stays true across StrictMode mount and Activity hide/reveal", () => {

@@ -1,19 +1,13 @@
-import { render, screen } from "@testing-library/react";
-import {
-  Activity,
-  StrictMode,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-} from "react";
+import { act, render, screen } from "@testing-library/react";
+import { Activity, StrictMode } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
 import { describe, expect, it } from "vitest";
 
 import { useRoomsClientMobileHeaderPortaled } from "./use-rooms-client-mobile-header-portaled";
 
 describe("useRoomsClientMobileHeaderPortaled", () => {
-  it("commits false first and portals only in passive effect phase when mobile and host are present", () => {
-    const phases: string[] = [];
-
+  it("commits false for the first painted frame and portals only in passive effect phase when mobile and host are present", () => {
     function Probe({
       isMobile,
       host,
@@ -21,48 +15,56 @@ describe("useRoomsClientMobileHeaderPortaled", () => {
       isMobile: boolean | undefined;
       host: HTMLElement | null;
     }) {
-      const domRef = useRef<HTMLSpanElement | null>(null);
-      useEffect(() => {
-        phases.push(`passive-before-hook:${domRef.current?.textContent}`);
-      });
       const portaled = useRoomsClientMobileHeaderPortaled(isMobile, host);
-      useLayoutEffect(() => {
-        phases.push(`layout:${String(portaled)}`);
-      });
-      return (
-        <span ref={domRef} data-testid="portaled">
-          {String(portaled)}
-        </span>
-      );
+      return <span data-testid="portaled">{String(portaled)}</span>;
     }
 
-    const host = document.createElement("div");
-    const { rerender } = render(<Probe isMobile host={host} />);
+    const slotHost = document.createElement("div");
+    const mountHost = document.createElement("div");
+    document.body.append(mountHost);
+    const root = createRoot(mountHost);
+    try {
+      // flushSync inside act commits render + all useLayoutEffects (including
+      // layout-phase state updates) while passive useEffects wait until act()
+      // exits. A layout-phase or render-time swap would already paint "true".
+      let paintedBeforePassive = "";
+      act(() => {
+        flushSync(() => {
+          root.render(<Probe isMobile host={slotHost} />);
+        });
+        paintedBeforePassive = mountHost.textContent ?? "";
+      });
+      expect(paintedBeforePassive).toBe("false");
+      expect(mountHost.textContent).toBe("true");
 
-    // First committed frame must stay false through layout and into passive
-    // phase before the hook's passive effect switches it to true.
-    expect(phases).toEqual([
-      "layout:false",
-      "passive-before-hook:false",
-      "layout:true",
-      "passive-before-hook:true",
-    ]);
-    expect(screen.getByTestId("portaled")).toHaveTextContent("true");
+      // Leaving mobile viewport turns the portal off.
+      act(() => {
+        root.render(<Probe isMobile={false} host={slotHost} />);
+      });
+      expect(mountHost.textContent).toBe("false");
 
-    // Leaving mobile viewport turns the portal off.
-    rerender(<Probe isMobile={false} host={host} />);
-    expect(screen.getByTestId("portaled")).toHaveTextContent("false");
+      // Returning to mobile with no host keeps it off; attaching host turns it on.
+      act(() => {
+        root.render(<Probe isMobile host={null} />);
+      });
+      expect(mountHost.textContent).toBe("false");
 
-    // Returning to mobile with no host keeps it off; attaching host turns it on.
-    rerender(<Probe isMobile host={null} />);
-    expect(screen.getByTestId("portaled")).toHaveTextContent("false");
+      act(() => {
+        root.render(<Probe isMobile host={slotHost} />);
+      });
+      expect(mountHost.textContent).toBe("true");
 
-    rerender(<Probe isMobile host={host} />);
-    expect(screen.getByTestId("portaled")).toHaveTextContent("true");
-
-    // Unresolved media query (undefined) turns the portal off.
-    rerender(<Probe isMobile={undefined} host={host} />);
-    expect(screen.getByTestId("portaled")).toHaveTextContent("false");
+      // Unresolved media query (undefined) turns the portal off.
+      act(() => {
+        root.render(<Probe isMobile={undefined} host={slotHost} />);
+      });
+      expect(mountHost.textContent).toBe("false");
+    } finally {
+      act(() => {
+        root.unmount();
+      });
+      mountHost.remove();
+    }
   });
 
   it("re-syncs cleanly across StrictMode and Activity hide/reveal", () => {

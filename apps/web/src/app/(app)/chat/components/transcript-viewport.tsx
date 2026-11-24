@@ -38,7 +38,10 @@ import {
   useTranscriptViewportInitialLanding,
 } from "@/hooks/effects/use-transcript-viewport-initial-landing";
 import { useTranscriptViewportOpened } from "@/hooks/effects/use-transcript-viewport-opened";
-import { useTranscriptViewportScrollMargin } from "@/hooks/effects/use-transcript-viewport-scroll-margin";
+import {
+  useTranscriptViewportScrollMargin,
+  useTranscriptViewportScrollMarginState,
+} from "@/hooks/effects/use-transcript-viewport-scroll-margin";
 
 export type { TranscriptPosition };
 
@@ -224,10 +227,8 @@ export function TranscriptViewport({
   // pushes a short list to the bottom. The virtualizer needs that offset so
   // its end is the scroller's end.
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const scrollMargin = useTranscriptViewportScrollMargin(
-    scroller,
-    containerRef,
-  );
+  const [scrollMargin, scrollMarginSlot] =
+    useTranscriptViewportScrollMarginState();
 
   // Only the jump-to-latest threshold needs React state. A restore above the
   // end does not start there, or the first report would read the room.
@@ -554,6 +555,8 @@ export function TranscriptViewport({
       scroller.removeEventListener("touchmove", onTouchMove);
     };
   }, [scroller, virtualizer]);
+
+  useTranscriptViewportScrollMargin(scroller, containerRef, scrollMarginSlot);
 
   useTranscriptViewportInitialLanding({
     openedRef,

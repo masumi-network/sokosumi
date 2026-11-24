@@ -6,7 +6,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { RoomsClientProps } from "@/app/chat/components/rooms-client";
 import { RoomTranscriptCache } from "@/app/chat/utils/room-transcript-cache";
-import { useRoomRouteBootstrap } from "./use-room-route-bootstrap";
+import {
+  RoomBootstrapContext,
+  useRoomRouteBootstrap,
+} from "./use-room-route-bootstrap";
 
 function makeMessage(id: string, content: string): ChatRoomMessage {
   return {
@@ -52,9 +55,10 @@ function makeProps(
 }
 
 describe("useRoomRouteBootstrap", () => {
-  it("registers props and seeds the cache in layout phase before paint, then updates bootstrap on an existing entry", () => {
+  it("registers props from context and seeds the cache in layout phase before paint, then updates bootstrap on an existing entry", () => {
     const cache = new RoomTranscriptCache(new QueryClient(), "user-1", "org-1");
     const register = vi.fn();
+    let hasProvider = false;
     const layoutSnapshot: Array<{
       registerCalls: number;
       cachedMessages: string[];
@@ -62,7 +66,7 @@ describe("useRoomRouteBootstrap", () => {
     }> = [];
 
     function Probe({ props }: { props: RoomsClientProps }) {
-      useRoomRouteBootstrap(cache, props, register);
+      hasProvider = useRoomRouteBootstrap(cache, props);
       useLayoutEffect(() => {
         const entry = props.selectedRoomId
           ? cache.get(props.selectedRoomId)
@@ -77,8 +81,13 @@ describe("useRoomRouteBootstrap", () => {
     }
 
     const firstProps = makeProps({ isOrgOwnerOrAdmin: false });
-    const { rerender } = render(<Probe props={firstProps} />);
+    const { rerender } = render(
+      <RoomBootstrapContext value={register}>
+        <Probe props={firstProps} />
+      </RoomBootstrapContext>,
+    );
 
+    expect(hasProvider).toBe(true);
     // Observed synchronously in sibling useLayoutEffect (before paint).
     expect(layoutSnapshot).toEqual([
       {
@@ -101,7 +110,11 @@ describe("useRoomRouteBootstrap", () => {
       messages: [makeMessage("msg-2", "replacement")],
       loadHistoryOnClient: false,
     });
-    rerender(<Probe props={nextProps} />);
+    rerender(
+      <RoomBootstrapContext value={register}>
+        <Probe props={nextProps} />
+      </RoomBootstrapContext>,
+    );
 
     const updatedEntry = cache.get("room-1");
     expect(register).toHaveBeenCalledTimes(2);
@@ -128,26 +141,36 @@ describe("useRoomRouteBootstrap", () => {
       cache: RoomTranscriptCache | null;
       props: RoomsClientProps;
     }) {
-      useRoomRouteBootstrap(cache, props, register);
+      useRoomRouteBootstrap(cache, props);
       return null;
     }
 
     const props = makeProps();
-    const { rerender } = render(<Probe cache={null} props={props} />);
+    const { rerender } = render(
+      <RoomBootstrapContext value={register}>
+        <Probe cache={null} props={props} />
+      </RoomBootstrapContext>,
+    );
     expect(register).not.toHaveBeenCalled();
 
     const cache = new RoomTranscriptCache(new QueryClient(), "user-1", "org-1");
 
     // Missing selectedRoomId
     rerender(
-      <Probe cache={cache} props={makeProps({ selectedRoomId: null })} />,
+      <RoomBootstrapContext value={register}>
+        <Probe cache={cache} props={makeProps({ selectedRoomId: null })} />
+      </RoomBootstrapContext>,
     );
     expect(register).not.toHaveBeenCalled();
     expect(cache.get("room-1")).toBeUndefined();
 
     // Evicted (unavailable) room
     cache.evict("room-1");
-    rerender(<Probe cache={cache} props={props} />);
+    rerender(
+      <RoomBootstrapContext value={register}>
+        <Probe cache={cache} props={props} />
+      </RoomBootstrapContext>,
+    );
     expect(register).not.toHaveBeenCalled();
     expect(cache.get("room-1")).toBeUndefined();
 
@@ -157,18 +180,23 @@ describe("useRoomRouteBootstrap", () => {
       "user-1",
       "org-other",
     );
-    rerender(<Probe cache={otherWorkspaceCache} props={props} />);
+    rerender(
+      <RoomBootstrapContext value={register}>
+        <Probe cache={otherWorkspaceCache} props={props} />
+      </RoomBootstrapContext>,
+    );
     expect(register).not.toHaveBeenCalled();
     expect(otherWorkspaceCache.get("room-1")).toBeUndefined();
   });
 
-  it("seeds the cache even without a register callback and re-seeds on Activity reveal", () => {
+  it("reports no provider for fallback rendering while still seeding the cache and re-seeding on Activity reveal", () => {
     const cache = new RoomTranscriptCache(new QueryClient(), "user-1", "org-1");
     const props = makeProps();
+    let hasProvider = true;
     const layoutSeeded: boolean[] = [];
 
     function Probe() {
-      useRoomRouteBootstrap(cache, props, null);
+      hasProvider = useRoomRouteBootstrap(cache, props);
       useLayoutEffect(() => {
         layoutSeeded.push(cache.get("room-1") != null);
       });
@@ -180,6 +208,7 @@ describe("useRoomRouteBootstrap", () => {
         <Probe />
       </Activity>,
     );
+    expect(hasProvider).toBe(false);
     expect(layoutSeeded).toEqual([true]);
 
     rerender(
@@ -197,6 +226,7 @@ describe("useRoomRouteBootstrap", () => {
         <Probe />
       </Activity>,
     );
+    expect(hasProvider).toBe(false);
     expect(layoutSeeded).toEqual([true]);
     expect(cache.get("room-1")?.transcript.messages[0]?.id).toBe("msg-1");
   });

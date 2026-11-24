@@ -1,19 +1,18 @@
 "use client";
 
 import { skipToken, useQuery } from "@tanstack/react-query";
-import { createContext, type ReactNode, useContext } from "react";
+import type { ReactNode } from "react";
 import type { RoomTranscriptEntry } from "@/app/chat/utils/room-transcript-cache";
-import { useRoomRouteBootstrap } from "@/hooks/effects/use-room-route-bootstrap";
+import {
+  RoomBootstrapContext,
+  useRoomRouteBootstrap,
+} from "@/hooks/effects/use-room-route-bootstrap";
 import { chatQueryKeys } from "@/queries/chat";
 import { usePaintedRoom, useRoomCache } from "./room-cache-provider";
 import { RoomOpenLoadingView } from "./room-open-loading-view";
 import { RoomsClient, type RoomsClientProps } from "./rooms-client";
 
 const NO_ROOM_KEY = chatQueryKeys.noRoomTranscript();
-
-const RoomBootstrapContext = createContext<
-  ((props: RoomsClientProps) => void) | null
->(null);
 
 /**
  * Lives above the route's loading boundary. Next owns URLs and access
@@ -87,7 +86,6 @@ function SelectedRoom({
 /** All room views live above page replacement; all rooms retain history. */
 export function RoomRouteBootstrap(props: RoomsClientProps) {
   const cache = useRoomCache();
-  const register = useContext(RoomBootstrapContext);
-  useRoomRouteBootstrap(cache, props, register);
-  return register ? null : <RoomsClient {...props} />;
+  const hasProvider = useRoomRouteBootstrap(cache, props);
+  return hasProvider ? null : <RoomsClient {...props} />;
 }
