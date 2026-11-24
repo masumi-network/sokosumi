@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { loadMoreTasksColumn, loadMoreTasksList } from "@/app/tasks/actions";
 import {
   KANBAN_COLUMNS,
+  type KanbanColumnDefinition,
   type KanbanColumnId,
   type TaskWithCoworker,
 } from "@/app/tasks/types/task-board";
@@ -43,7 +44,6 @@ import {
   getTasksFiltersResetKey,
 } from "@/app/tasks/utils/tasks-filters";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
-import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { usePendingCreatedTasks } from "@/hooks/effects/use-pending-created-tasks";
 import { useRefreshWhenShown } from "@/hooks/effects/use-refresh-when-shown";
 import type { TaskEventData } from "@/lib/ably/schema";
@@ -67,6 +67,33 @@ import {
 import { useTasksSearchParams } from "./tasks-search-params";
 import type { TasksViewProps } from "./tasks-view";
 
+interface BoardRequestContext {
+  readonly filtersKey: string;
+  readonly defaultViewMode: TasksViewMode | undefined;
+  readonly viewMode: TasksViewMode;
+}
+
+interface MergedRefreshSnapshot {
+  readonly tasks: TaskWithCoworker[];
+  readonly columns: KanbanColumnDefinition[];
+  readonly defaultViewMode: TasksViewMode | undefined;
+  readonly initialColumnNextCursorById: Record<KanbanColumnId, string | null>;
+  readonly initialColumnHiddenCountById: Record<KanbanColumnId, number>;
+  readonly initialListNextCursor: string | null;
+}
+
+interface TasksBoardState {
+  context: BoardRequestContext;
+  items: TaskWithCoworker[];
+  columnCursorById: Record<KanbanColumnId, string | null>;
+  columnHiddenById: Record<KanbanColumnId, number>;
+  listCursor: string | null;
+  loadingColumnIds: Set<KanbanColumnId>;
+  isLoadingListMore: boolean;
+  loadedBoardTaskIds: ReadonlySet<string>;
+  lastMergedRefresh: MergedRefreshSnapshot | null;
+}
+
 interface PendingBoardReopen {
   taskId: string;
   assigneeName: string;
@@ -75,7 +102,63 @@ interface PendingBoardReopen {
   previousStatus: TaskStatus;
   previousStatusSince: string | undefined;
   desiredStatus: TaskStatus;
-  moveVersion: number;
+  context: BoardRequestContext;
+  moveToken: object;
+}
+
+function createBoardState({
+  context,
+  tasks,
+  columns,
+  initialColumnNextCursorById,
+  initialColumnHiddenCountById,
+  initialListNextCursor,
+}: {
+  context: BoardRequestContext;
+  tasks: TaskWithCoworker[];
+  columns: KanbanColumnDefinition[];
+  initialColumnNextCursorById: Record<KanbanColumnId, string | null>;
+  initialColumnHiddenCountById: Record<KanbanColumnId, number>;
+  initialListNextCursor: string | null;
+}): TasksBoardState {
+  return {
+    context,
+    items: tasks,
+    columnCursorById: buildInitialColumnCursorById(
+      columns,
+      initialColumnNextCursorById,
+    ),
+    columnHiddenById: initialColumnHiddenCountById,
+    listCursor: initialListNextCursor,
+    loadingColumnIds: new Set(),
+    isLoadingListMore: false,
+    loadedBoardTaskIds: new Set(),
+    lastMergedRefresh: null,
+  };
+}
+
+function getContextPendingMoves(
+  map: WeakMap<BoardRequestContext, Map<string, object>>,
+  context: BoardRequestContext,
+): Map<string, object> {
+  let pendingMoves = map.get(context);
+  if (!pendingMoves) {
+    pendingMoves = new Map<string, object>();
+    map.set(context, pendingMoves);
+  }
+  return pendingMoves;
+}
+
+function getContextLoadingColumns(
+  map: WeakMap<BoardRequestContext, Set<KanbanColumnId>>,
+  context: BoardRequestContext,
+): Set<KanbanColumnId> {
+  let loadingColumns = map.get(context);
+  if (!loadingColumns) {
+    loadingColumns = new Set<KanbanColumnId>();
+    map.set(context, loadingColumns);
+  }
+  return loadingColumns;
 }
 
 const hydrationStore = (() => {
@@ -151,25 +234,8 @@ export function useTasksViewModel({
       ),
     [activeOrganizationId, coworkerOptions, projectOptions, searchParams],
   );
-  const [viewMode, setViewMode] = useState<TasksViewMode>(
-    defaultViewMode ?? "board",
-  );
   const [density, setDensity] = useState<TasksDensity>(
     defaultDensity ?? "normal",
-  );
-  const [items, setItems] = useState<TaskWithCoworker[]>(tasks);
-  const [columnCursorById, setColumnCursorById] = useState<
-    Record<KanbanColumnId, string | null>
-  >(() => buildInitialColumnCursorById(columns, initialColumnNextCursorById));
-  const [columnHiddenById, setColumnHiddenById] = useState(
-    initialColumnHiddenCountById,
-  );
-  const [listCursor, setListCursor] = useState<string | null>(
-    initialListNextCursor,
-  );
-  const [isLoadingListMore, setIsLoadingListMore] = useState(false);
-  const [loadingColumnIds, setLoadingColumnIds] = useState<Set<KanbanColumnId>>(
-    () => new Set(),
   );
   const [activeDragTaskId, setActiveDragTaskId] = useState<string | null>(null);
   const [activeDragRect, setActiveDragRect] = useState<{
@@ -185,11 +251,95 @@ export function useTasksViewModel({
     hydrationStore.getSnapshot,
     hydrationStore.getServerSnapshot,
   );
-  const [_isPending, startTransition] = useTransition();
-  const moveVersionRef = useRef(0);
-  const pendingMoveVersionByTaskIdRef = useRef(new Map<string, number>());
+  const pendingMovesByContextRef = useRef(
+    new WeakMap<BoardRequestContext, Map<string, object>>(),
+  );
+  const loadingColumnIdsByContextRef = useRef(
+    new WeakMap<BoardRequestContext, Set<KanbanColumnId>>(),
+  );
+  const loadingListContextsRef = useRef(new WeakSet<BoardRequestContext>());
+  const refreshRoute = useRefreshWhenShown(() => router.refresh());
+
+  const serverTasksFiltersResetKey = useMemo(
+    () => getTasksFiltersResetKey(initialFilters, activeOrganizationId),
+    [activeOrganizationId, initialFilters],
+  );
+  const routeTasksFiltersResetKey = useMemo(
+    () => getTasksFiltersResetKey(routeFilters, activeOrganizationId),
+    [activeOrganizationId, routeFilters],
+  );
+  const defaultProjectId = routeFilters.projectId;
+
+  const isTaskPaginationInSync =
+    routeTasksFiltersResetKey === serverTasksFiltersResetKey;
+
+  const [boardState, setBoardState] = useState<TasksBoardState>(() =>
+    createBoardState({
+      context: {
+        filtersKey: serverTasksFiltersResetKey,
+        defaultViewMode,
+        viewMode: defaultViewMode ?? "board",
+      },
+      tasks,
+      columns,
+      initialColumnNextCursorById,
+      initialColumnHiddenCountById,
+      initialListNextCursor,
+    }),
+  );
+
+  // Reset in render so filter or view changes while hidden under React
+  // <Activity> still replace the request-identity object and board state.
+  const filtersChanged =
+    boardState.context.filtersKey !== serverTasksFiltersResetKey;
+  const defaultViewModeChanged =
+    boardState.context.defaultViewMode !== defaultViewMode;
+  if (filtersChanged || defaultViewModeChanged) {
+    setBoardState(
+      createBoardState({
+        context: {
+          filtersKey: serverTasksFiltersResetKey,
+          defaultViewMode,
+          viewMode: defaultViewModeChanged
+            ? (defaultViewMode ?? "board")
+            : boardState.context.viewMode,
+        },
+        tasks,
+        columns,
+        initialColumnNextCursorById,
+        initialColumnHiddenCountById,
+        initialListNextCursor,
+      }),
+    );
+    if (pendingBoardReopen !== null) {
+      setPendingBoardReopen(null);
+    }
+    if (reopenComment !== "") {
+      setReopenComment("");
+    }
+  }
+
+  const {
+    context: requestContext,
+    items,
+    columnCursorById,
+    columnHiddenById,
+    listCursor,
+    loadingColumnIds,
+    isLoadingListMore,
+  } = boardState;
+  const viewMode = requestContext.viewMode;
+
+  const currentContextRef = useRef(requestContext);
   const itemsRef = useRef(items);
-  itemsRef.current = items;
+  const columnCursorByIdRef = useRef(columnCursorById);
+  const listCursorRef = useRef(listCursor);
+  if (!filtersChanged && !defaultViewModeChanged) {
+    currentContextRef.current = requestContext;
+    itemsRef.current = items;
+    columnCursorByIdRef.current = columnCursorById;
+    listCursorRef.current = listCursor;
+  }
   // Drag, merge and paging keep reading `items`: a pending row is display only.
   const itemsWithPending = usePendingCreatedTasks(
     items,
@@ -208,134 +358,119 @@ export function useTasksViewModel({
     routeFilters.mentions
       ? items
       : itemsWithPending;
-  const columnCursorByIdRef = useRef(columnCursorById);
-  columnCursorByIdRef.current = columnCursorById;
-  // Every setListCursor / setIsLoadingListMore call writes these refs directly.
-  const listCursorRef = useRef(listCursor);
-  const isLoadingListMoreRef = useRef(isLoadingListMore);
-  const loadingColumnIdsRef = useRef(loadingColumnIds);
-  loadingColumnIdsRef.current = loadingColumnIds;
-  const refreshRoute = useRefreshWhenShown(() => router.refresh());
 
-  const serverTasksFiltersResetKey = useMemo(
-    () => getTasksFiltersResetKey(initialFilters, activeOrganizationId),
-    [activeOrganizationId, initialFilters],
-  );
-  const routeTasksFiltersResetKey = useMemo(
-    () => getTasksFiltersResetKey(routeFilters, activeOrganizationId),
-    [activeOrganizationId, routeFilters],
-  );
-  const defaultProjectId = routeFilters.projectId;
-
-  const isTaskPaginationInSync =
-    routeTasksFiltersResetKey === serverTasksFiltersResetKey;
-  const previousTasksFiltersResetKeyRef = useRef(serverTasksFiltersResetKey);
-  const previousDefaultViewModeRef = useRef(defaultViewMode);
   const handleEventUpdate = (_data: TaskEventData) => {
     refreshRoute();
   };
-
-  useLayoutEffect(() => {
-    if (
-      previousTasksFiltersResetKeyRef.current === serverTasksFiltersResetKey
-    ) {
-      return;
-    }
-
-    previousTasksFiltersResetKeyRef.current = serverTasksFiltersResetKey;
-    moveVersionRef.current = 0;
-    pendingMoveVersionByTaskIdRef.current.clear();
-
-    itemsRef.current = tasks;
-    setItems(tasks);
-    setColumnCursorById(
-      buildInitialColumnCursorById(columns, initialColumnNextCursorById),
-    );
-    setColumnHiddenById(initialColumnHiddenCountById);
-    setListCursor(initialListNextCursor);
-    listCursorRef.current = initialListNextCursor;
-    setLoadingColumnIds(new Set());
-    setIsLoadingListMore(false);
-    isLoadingListMoreRef.current = false;
-  }, [
-    columns,
-    initialColumnNextCursorById,
-    initialListNextCursor,
-    serverTasksFiltersResetKey,
-    tasks,
-  ]);
-
-  useLayoutEffect(() => {
-    if (previousDefaultViewModeRef.current === defaultViewMode) {
-      return;
-    }
-
-    previousDefaultViewModeRef.current = defaultViewMode;
-    moveVersionRef.current = 0;
-    pendingMoveVersionByTaskIdRef.current.clear();
-    setViewMode(defaultViewMode ?? "board");
-
-    itemsRef.current = tasks;
-    setItems(tasks);
-    setColumnCursorById(
-      buildInitialColumnCursorById(columns, initialColumnNextCursorById),
-    );
-    setColumnHiddenById(initialColumnHiddenCountById);
-    setListCursor(initialListNextCursor);
-    listCursorRef.current = initialListNextCursor;
-    setLoadingColumnIds(new Set());
-    setIsLoadingListMore(false);
-    isLoadingListMoreRef.current = false;
-  }, [
-    columns,
-    defaultViewMode,
-    initialColumnNextCursorById,
-    initialListNextCursor,
-    tasks,
-  ]);
 
   // Before paint: the commit that brings new rows also drops a pending row,
   // and the board must not show a frame without either.
   useLayoutEffect(() => {
     const isListView = defaultViewMode === "list";
+    const keepLocalOnlyTasks =
+      !isListView &&
+      !initialFilters.search &&
+      !initialFilters.tag &&
+      !initialFilters.needsMe &&
+      !initialFilters.mentions;
     const serverTasks = tasks.filter((task) => !isTaskArchived(task.id));
-    const next = mergeTasksOnServerRefresh({
-      prev: itemsRef.current.filter((task) => !isTaskArchived(task.id)),
-      serverTasks,
-      pendingMoveTaskIds: new Set(pendingMoveVersionByTaskIdRef.current.keys()),
-      // List is a single updatedAt stream: keep load-more rows across
-      // router.refresh() and listCursor goes stale vs the new first page.
-      // A missing Task on a tagged board may have lost its tag, and under
-      // Needs me it may no longer wait for a person. Under Mentions the
-      // reader may have answered.
-      keepLocalOnlyTasks:
-        !isListView &&
-        !initialFilters.search &&
-        !initialFilters.tag &&
-        !initialFilters.needsMe &&
-        !initialFilters.mentions,
-    });
+    const serverTaskIds = new Set(serverTasks.map((task) => task.id));
+    const refreshSnapshot: MergedRefreshSnapshot = {
+      tasks,
+      columns,
+      defaultViewMode,
+      initialColumnNextCursorById,
+      initialColumnHiddenCountById,
+      initialListNextCursor,
+    };
 
-    setItems(next);
-
-    // List always resyncs. Board only when no client-only load-more rows remain.
-    if (isListView || next.length <= serverTasks.length) {
-      setColumnCursorById(
-        buildInitialColumnCursorById(columns, initialColumnNextCursorById),
+    setBoardState((prev) => {
+      const hasArchivedPrevItem = prev.items.some((task) =>
+        isTaskArchived(task.id),
       );
-      setColumnHiddenById(initialColumnHiddenCountById);
-      setListCursor(initialListNextCursor);
-      listCursorRef.current = initialListNextCursor;
-      setLoadingColumnIds(new Set());
-      setIsLoadingListMore(false);
-      isLoadingListMoreRef.current = false;
-    }
+      if (
+        !hasArchivedPrevItem &&
+        prev.lastMergedRefresh !== null &&
+        prev.lastMergedRefresh.tasks === tasks &&
+        prev.lastMergedRefresh.columns === columns &&
+        prev.lastMergedRefresh.defaultViewMode === defaultViewMode &&
+        prev.lastMergedRefresh.initialColumnNextCursorById ===
+          initialColumnNextCursorById &&
+        prev.lastMergedRefresh.initialColumnHiddenCountById ===
+          initialColumnHiddenCountById &&
+        prev.lastMergedRefresh.initialListNextCursor === initialListNextCursor
+      ) {
+        return prev;
+      }
+
+      const pendingMoves = pendingMovesByContextRef.current.get(prev.context);
+      const next = mergeTasksOnServerRefresh({
+        prev: prev.items.filter((task) => !isTaskArchived(task.id)),
+        serverTasks,
+        pendingMoveTaskIds: new Set(pendingMoves?.keys() ?? []),
+        // List is a single updatedAt stream: keep load-more rows across
+        // router.refresh() and listCursor goes stale vs the new first page.
+        // A missing Task on a tagged board may have lost its tag, and under
+        // Needs me it may no longer wait for a person. Under Mentions the
+        // reader may have answered.
+        keepLocalOnlyTasks,
+      });
+
+      const archivedLoadedTaskDropped = prev.items.some(
+        (task) =>
+          isTaskArchived(task.id) && prev.loadedBoardTaskIds.has(task.id),
+      );
+      const nonArchivedLocalOnlyDropped =
+        !keepLocalOnlyTasks &&
+        prev.items.some(
+          (task) => !isTaskArchived(task.id) && !serverTaskIds.has(task.id),
+        );
+      const preserveCursorsForArchive =
+        !isListView &&
+        archivedLoadedTaskDropped &&
+        !nonArchivedLocalOnlyDropped;
+
+      // List always resyncs. Board resyncs when no client-only load-more rows
+      // remain, except on the archive-driven update that dropped a loaded task.
+      if (
+        isListView ||
+        (!preserveCursorsForArchive && next.length <= serverTasks.length)
+      ) {
+        return {
+          ...prev,
+          items: next,
+          columnCursorById: buildInitialColumnCursorById(
+            columns,
+            initialColumnNextCursorById,
+          ),
+          columnHiddenById: initialColumnHiddenCountById,
+          listCursor: initialListNextCursor,
+          loadedBoardTaskIds: new Set(),
+          lastMergedRefresh: refreshSnapshot,
+        };
+      }
+
+      const nextIds = new Set(next.map((task) => task.id));
+      const remainingLoadedBoardTaskIds = new Set(
+        [...prev.loadedBoardTaskIds].filter((id) => nextIds.has(id)),
+      );
+
+      return {
+        ...prev,
+        items: next,
+        loadedBoardTaskIds: remainingLoadedBoardTaskIds,
+        lastMergedRefresh: refreshSnapshot,
+      };
+    });
   }, [
     columns,
     defaultViewMode,
+    initialColumnHiddenCountById,
+    initialColumnNextCursorById,
+    initialFilters.mentions,
+    initialFilters.needsMe,
     initialFilters.search,
     initialFilters.tag,
-    initialColumnNextCursorById,
     initialListNextCursor,
     tasks,
   ]);
@@ -404,21 +539,30 @@ export function useTasksViewModel({
     const previousStatus = draggedTask.status;
     const previousStatusSince = draggedTask.statusSince;
 
-    const moveVersion = (moveVersionRef.current += 1);
-    pendingMoveVersionByTaskIdRef.current.set(activeId, moveVersion);
+    const startedContext = requestContext;
+    const moveToken = {};
+    getContextPendingMoves(
+      pendingMovesByContextRef.current,
+      startedContext,
+    ).set(activeId, moveToken);
 
-    setItems((prev) =>
-      prev.map((task) =>
-        task.id === activeId
-          ? {
-              ...task,
-              status: desiredStatus,
-              columnId: toColumn,
-              // The new status starts its clock now.
-              statusSince: new Date().toISOString(),
-            }
-          : task,
-      ),
+    setBoardState((prev) =>
+      prev.context !== startedContext
+        ? prev
+        : {
+            ...prev,
+            items: prev.items.map((task) =>
+              task.id === activeId
+                ? {
+                    ...task,
+                    status: desiredStatus,
+                    columnId: toColumn,
+                    // The new status starts its clock now.
+                    statusSince: new Date().toISOString(),
+                  }
+                : task,
+            ),
+          },
     );
 
     if (
@@ -437,77 +581,93 @@ export function useTasksViewModel({
         previousStatus,
         previousStatusSince,
         desiredStatus,
-        moveVersion,
+        context: startedContext,
+        moveToken,
       });
       return;
     }
 
     const rollbackMove = () => {
-      const pendingVersion =
-        pendingMoveVersionByTaskIdRef.current.get(activeId);
-      if (pendingVersion !== moveVersion) return;
+      const pendingMoves = pendingMovesByContextRef.current.get(startedContext);
+      if (pendingMoves?.get(activeId) !== moveToken) return false;
 
-      pendingMoveVersionByTaskIdRef.current.delete(activeId);
-      setItems((prev) =>
-        prev.map((task) =>
-          task.id === activeId &&
-          task.columnId === toColumn &&
-          task.status === desiredStatus
-            ? {
-                ...task,
-                status: previousStatus,
-                columnId: fromColumn,
-                statusSince: previousStatusSince,
-              }
-            : task,
-        ),
+      pendingMoves.delete(activeId);
+      if (currentContextRef.current !== startedContext) return false;
+
+      setBoardState((prev) =>
+        prev.context !== startedContext
+          ? prev
+          : {
+              ...prev,
+              items: prev.items.map((task) =>
+                task.id === activeId &&
+                task.columnId === toColumn &&
+                task.status === desiredStatus
+                  ? {
+                      ...task,
+                      status: previousStatus,
+                      columnId: fromColumn,
+                      statusSince: previousStatusSince,
+                    }
+                  : task,
+              ),
+            },
       );
+      return true;
     };
 
-    startTransition(async () => {
+    void (async () => {
       try {
         const result = await setTaskStatusFromDrag({
           taskId: activeId,
           desiredStatus,
         });
         if (!result.ok) {
-          rollbackMove();
-          reportDragRejection(result.error.kind);
+          if (rollbackMove()) {
+            reportDragRejection(result.error.kind);
+          }
           return;
         }
-        if (
-          pendingMoveVersionByTaskIdRef.current.get(activeId) === moveVersion
-        ) {
-          pendingMoveVersionByTaskIdRef.current.delete(activeId);
+        const pendingMoves =
+          pendingMovesByContextRef.current.get(startedContext);
+        if (pendingMoves?.get(activeId) === moveToken) {
+          pendingMoves.delete(activeId);
         }
       } catch {
-        rollbackMove();
-        toast.error(labels.dragError);
+        if (rollbackMove()) {
+          toast.error(labels.dragError);
+        }
       }
-    });
+    })();
   };
 
   const rollbackBoardReopen = (pending: PendingBoardReopen) => {
-    const pendingVersion = pendingMoveVersionByTaskIdRef.current.get(
-      pending.taskId,
-    );
-    if (pendingVersion !== pending.moveVersion) return;
+    const pendingMoves = pendingMovesByContextRef.current.get(pending.context);
+    if (pendingMoves?.get(pending.taskId) !== pending.moveToken) return false;
 
-    pendingMoveVersionByTaskIdRef.current.delete(pending.taskId);
-    setItems((prev) =>
-      prev.map((task) =>
-        task.id === pending.taskId &&
-        task.columnId === pending.toColumn &&
-        task.status === pending.desiredStatus
-          ? {
-              ...task,
-              status: pending.previousStatus,
-              columnId: pending.fromColumn,
-              statusSince: pending.previousStatusSince,
-            }
-          : task,
-      ),
+    pendingMoves.delete(pending.taskId);
+    if (currentContextRef.current !== pending.context) return false;
+
+    setBoardState((prev) =>
+      prev.context !== pending.context
+        ? prev
+        : {
+            ...prev,
+            items: prev.items.map((task) =>
+              task.id === pending.taskId &&
+              task.columnId === pending.toColumn &&
+              task.status === pending.desiredStatus
+                ? {
+                    ...task,
+                    status: pending.previousStatus,
+                    columnId: pending.fromColumn,
+                    statusSince: pending.previousStatusSince,
+                  }
+                : task,
+            ),
+          },
     );
+    return true;
   };
 
   const handleBoardReopenOpenChange = (open: boolean) => {
@@ -530,6 +690,15 @@ export function useTasksViewModel({
     }
 
     const pending = pendingBoardReopen;
+    const clearPendingReopen = () => {
+      setPendingBoardReopen((current) =>
+        current === pending ? null : current,
+      );
+      if (currentContextRef.current === pending.context) {
+        setReopenComment("");
+      }
+    };
+
     startReopenTransition(async () => {
       try {
         const result = await setTaskStatusFromDrag({
@@ -538,47 +707,51 @@ export function useTasksViewModel({
           comment: trimmedComment,
         });
         if (!result.ok) {
-          rollbackBoardReopen(pending);
-          setPendingBoardReopen(null);
-          setReopenComment("");
-          reportDragRejection(result.error.kind);
+          const rolledBack = rollbackBoardReopen(pending);
+          clearPendingReopen();
+          if (rolledBack) {
+            reportDragRejection(result.error.kind);
+          }
           return;
         }
-        if (
-          pendingMoveVersionByTaskIdRef.current.get(pending.taskId) ===
-          pending.moveVersion
-        ) {
-          pendingMoveVersionByTaskIdRef.current.delete(pending.taskId);
+        const pendingMoves = pendingMovesByContextRef.current.get(
+          pending.context,
+        );
+        if (pendingMoves?.get(pending.taskId) === pending.moveToken) {
+          pendingMoves.delete(pending.taskId);
         }
-        setPendingBoardReopen(null);
-        setReopenComment("");
+        clearPendingReopen();
       } catch {
-        rollbackBoardReopen(pending);
-        setPendingBoardReopen(null);
-        setReopenComment("");
-        toast.error(labels.dragError);
+        const rolledBack = rollbackBoardReopen(pending);
+        clearPendingReopen();
+        if (rolledBack) {
+          toast.error(labels.dragError);
+        }
       }
     });
   };
-
-  // A departure and return to the same filter starts a new stream of pages.
-  const pagingContext = useMemo(
-    () => ({ filters: serverTasksFiltersResetKey, viewMode }),
-    [serverTasksFiltersResetKey, viewMode],
-  );
-  const pagingContextRef = useLatestRef(pagingContext);
 
   const handleLoadMoreColumn = useCallback(
     async (columnId: KanbanColumnId) => {
       if (!isTaskPaginationInSync) return;
 
-      const cursor = columnCursorByIdRef.current[columnId] ?? null;
-      if (cursor === null || loadingColumnIdsRef.current.has(columnId)) return;
+      const startedContext = requestContext;
+      if (currentContextRef.current !== startedContext) return;
 
-      const nextLoading = new Set(loadingColumnIdsRef.current);
-      nextLoading.add(columnId);
-      loadingColumnIdsRef.current = nextLoading;
-      setLoadingColumnIds(nextLoading);
+      const cursor = columnCursorByIdRef.current[columnId] ?? null;
+      const loadingColumns = getContextLoadingColumns(
+        loadingColumnIdsByContextRef.current,
+        startedContext,
+      );
+      if (cursor === null || loadingColumns.has(columnId)) return;
+
+      loadingColumns.add(columnId);
+      setBoardState((prev) => {
+        if (prev.context !== startedContext) return prev;
+        const nextLoading = new Set(prev.loadingColumnIds);
+        nextLoading.add(columnId);
+        return { ...prev, loadingColumnIds: nextLoading };
+      });
 
       try {
         const result = await loadMoreTasksColumn({
@@ -588,85 +761,156 @@ export function useTasksViewModel({
           // Same order as the first page, or the cursor skips Tasks.
           sort: effectiveTasksSort(routeFilters.sort, "board"),
         });
-        if (pagingContextRef.current !== pagingContext) return;
-        setItems((prev) => appendUniqueTasks(prev, result.tasks));
+        if (currentContextRef.current !== startedContext) return;
         const nextCursor = result.nextCursor;
-        setColumnHiddenById((prev) => ({
-          ...prev,
-          [columnId]: nextCursor
-            ? Math.max(0, (prev[columnId] ?? 0) - result.tasks.length)
-            : 0,
-        }));
-        setColumnCursorById((prev) => ({
-          ...prev,
-          [columnId]: nextCursor,
-        }));
         columnCursorByIdRef.current = {
           ...columnCursorByIdRef.current,
           [columnId]: nextCursor,
         };
+        setBoardState((prev) => {
+          if (prev.context !== startedContext) return prev;
+          const existingIds = new Set(prev.items.map((task) => task.id));
+          const nextLoadedBoardTaskIds = new Set(prev.loadedBoardTaskIds);
+          for (const task of result.tasks) {
+            if (!existingIds.has(task.id)) {
+              nextLoadedBoardTaskIds.add(task.id);
+            }
+          }
+          return {
+            ...prev,
+            items: appendUniqueTasks(prev.items, result.tasks),
+            columnHiddenById: {
+              ...prev.columnHiddenById,
+              [columnId]: nextCursor
+                ? Math.max(
+                    0,
+                    (prev.columnHiddenById[columnId] ?? 0) -
+                      result.tasks.length,
+                  )
+                : 0,
+            },
+            columnCursorById: {
+              ...prev.columnCursorById,
+              [columnId]: nextCursor,
+            },
+            loadedBoardTaskIds: nextLoadedBoardTaskIds,
+          };
+        });
       } catch {
-        if (pagingContextRef.current !== pagingContext) return;
-        setColumnCursorById((prev) => ({
-          ...prev,
-          [columnId]: null,
-        }));
+        if (currentContextRef.current !== startedContext) return;
         columnCursorByIdRef.current = {
           ...columnCursorByIdRef.current,
           [columnId]: null,
         };
+        setBoardState((prev) =>
+          prev.context !== startedContext
+            ? prev
+            : {
+                ...prev,
+                columnCursorById: {
+                  ...prev.columnCursorById,
+                  [columnId]: null,
+                },
+              },
+        );
         toast.error(labels.loadMoreError);
       } finally {
-        if (pagingContextRef.current === pagingContext) {
-          const afterLoading = new Set(loadingColumnIdsRef.current);
-          afterLoading.delete(columnId);
-          loadingColumnIdsRef.current = afterLoading;
-          setLoadingColumnIds(afterLoading);
+        loadingColumns.delete(columnId);
+        if (currentContextRef.current === startedContext) {
+          setBoardState((prev) => {
+            if (prev.context !== startedContext) return prev;
+            const afterLoading = new Set(prev.loadingColumnIds);
+            afterLoading.delete(columnId);
+            return { ...prev, loadingColumnIds: afterLoading };
+          });
         }
       }
     },
-    [isTaskPaginationInSync, labels.loadMoreError, routeFilters, pagingContext],
+    [
+      isTaskPaginationInSync,
+      labels.loadMoreError,
+      requestContext,
+      routeFilters,
+    ],
   );
 
   const handleLoadMoreList = useCallback(async () => {
     if (!isTaskPaginationInSync) return;
 
-    const cursor = listCursorRef.current;
-    if (cursor === null || isLoadingListMoreRef.current) return;
+    const startedContext = requestContext;
+    if (currentContextRef.current !== startedContext) return;
 
-    isLoadingListMoreRef.current = true;
-    setIsLoadingListMore(true);
+    const cursor = listCursorRef.current;
+    if (cursor === null || loadingListContextsRef.current.has(startedContext)) {
+      return;
+    }
+
+    loadingListContextsRef.current.add(startedContext);
+    setBoardState((prev) =>
+      prev.context !== startedContext
+        ? prev
+        : { ...prev, isLoadingListMore: true },
+    );
 
     try {
       const result = await loadMoreTasksList({
         cursor,
         ...routeFilters,
       });
-      if (pagingContextRef.current !== pagingContext) return;
-      setItems((prev) => appendUniqueTasks(prev, result.tasks));
+      if (currentContextRef.current !== startedContext) return;
       const nextCursor = result.nextCursor;
-      setListCursor(nextCursor);
       listCursorRef.current = nextCursor;
+      setBoardState((prev) =>
+        prev.context !== startedContext
+          ? prev
+          : {
+              ...prev,
+              items: appendUniqueTasks(prev.items, result.tasks),
+              listCursor: nextCursor,
+            },
+      );
     } catch {
-      if (pagingContextRef.current !== pagingContext) return;
-      setListCursor(null);
+      if (currentContextRef.current !== startedContext) return;
       listCursorRef.current = null;
+      setBoardState((prev) =>
+        prev.context !== startedContext ? prev : { ...prev, listCursor: null },
+      );
       toast.error(labels.loadMoreError);
     } finally {
-      if (pagingContextRef.current === pagingContext) {
-        isLoadingListMoreRef.current = false;
-        setIsLoadingListMore(false);
+      loadingListContextsRef.current.delete(startedContext);
+      if (currentContextRef.current === startedContext) {
+        setBoardState((prev) =>
+          prev.context !== startedContext
+            ? prev
+            : { ...prev, isLoadingListMore: false },
+        );
       }
     }
   }, [
     isTaskPaginationInSync,
     labels.loadMoreError,
+    requestContext,
     routeFilters,
-    pagingContext,
   ]);
 
   const handleViewModeChange = (next: TasksViewMode) => {
-    setViewMode(next);
+    if (next !== requestContext.viewMode) {
+      const nextContext: BoardRequestContext = {
+        ...requestContext,
+        viewMode: next,
+      };
+      currentContextRef.current = nextContext;
+      setBoardState((prev) =>
+        prev.context !== requestContext
+          ? prev
+          : {
+              ...prev,
+              context: nextContext,
+              loadingColumnIds: new Set(),
+              isLoadingListMore: false,
+            },
+      );
+    }
     document.cookie = serializeTasksViewModeCookie(next);
     // A link's `?view=` held only that visit; once chosen here, the saved
     // view decides, so drop it or the refresh would read the old view.
