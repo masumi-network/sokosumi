@@ -77,6 +77,10 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       await start.or(open).first().waitFor();
       if (await open.isVisible()) await open.click();
       await start.waitFor();
+      // Opened from You, the page goes back to You, project picked or not.
+      if (name === "phone") {
+        await page.getByRole("link", { name: "Back to You" }).waitFor();
+      }
       await page.getByRole("button", { name: "Add by hand" }).click();
       await page.getByRole("textbox", { name: "Name" }).fill("Acme Roasters");
       await page

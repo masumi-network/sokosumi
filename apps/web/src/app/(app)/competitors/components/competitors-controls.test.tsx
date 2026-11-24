@@ -2,7 +2,7 @@ import type {
   ProjectCompetitor,
   ProjectCompetitors,
 } from "@sokosumi/core-client";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -136,6 +136,44 @@ describe("CompetitorsCheckBar", () => {
       }),
     ).toBeVisible();
     expect(screen.getByTestId("poller")).toBeVisible();
+  });
+
+  it("stops saying the first check is running once the page stops asking", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({
+        advanceTimers: vi.advanceTimersByTime,
+      });
+      const { rerender } = bar();
+      await user.click(
+        screen.getByRole("button", { name: "Turn on weekly check" }),
+      );
+      // Core took the switch; the first check found too few credits and left
+      // nothing behind, so the page keeps reading the check as on, unchecked.
+      rerender(
+        <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+          <CompetitorsCheckBar
+            check={{ ...CHECK, on: true }}
+            competitorCount={2}
+            projectId={PROJECT_ID}
+            readOnly={false}
+          />
+        </NextIntlClientProvider>,
+      );
+      expect(
+        await screen.findByRole("heading", {
+          name: "The first check is running",
+        }),
+      ).toBeVisible();
+      await act(() => vi.advanceTimersByTimeAsync(45 * 4_000));
+      expect(
+        screen.getByRole("heading", { name: "No check has run yet" }),
+      ).toBeVisible();
+      expect(screen.queryByText(/about a minute/)).toBeNull();
+      expect(screen.queryByTestId("poller")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("does not claim a check is running when none has finished since an earlier visit", async () => {

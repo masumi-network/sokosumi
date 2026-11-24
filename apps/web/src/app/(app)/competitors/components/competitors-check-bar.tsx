@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { RoutePoller } from "@/components/route-poller";
 import { Button } from "@/components/ui/button";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
+import { useTimeout } from "@/hooks/effects/use-timeout";
 import {
   runCompetitorCheck,
   setCompetitorChecks,
@@ -28,7 +29,8 @@ const FIRST_CHECK_POLLS = 45;
  *
  * Core keeps no trace of a first check that never ran (no credits, or an
  * unpaid Cuso), so the page says the first check is running only right
- * after the member turned it on here; on a later visit it says none has run.
+ * after the member turned it on here, and only while it still asks for the
+ * result; after that, or on a later visit, it says none has run.
  */
 export function CompetitorsCheckBar({
   check,
@@ -50,6 +52,11 @@ export function CompetitorsCheckBar({
 
   const waiting = check.on && !check.lastCheckedAt && competitorCount > 0;
   const running = waiting && turnedOn;
+  // The poller gives up after its last ask; so does "running".
+  useTimeout(
+    () => setTurnedOn(false),
+    running ? FIRST_CHECK_POLL_MS * FIRST_CHECK_POLLS : null,
+  );
   const day = (date: Date) =>
     format.dateTime(date, { day: "numeric", month: "short" });
   const weekly = check.creditsPerCompetitor * competitorCount;
