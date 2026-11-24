@@ -792,6 +792,244 @@ export const MCP_TOOLS: readonly McpTool[] = [
     description:
       "Read cached metrics and published posts for every connected social account in the workspace. `id` must be the id of the workspace this call acts in (from workspaces_list).",
   },
+  // SOKD-371: users, organizations and workspaces. `/users/{id}` tools take
+  // id `me`: an MCP caller is never an admin, so another id answers 403.
+  {
+    name: "users_update",
+    operation: "PATCH /users/{id}",
+    description:
+      "Change the signed-in user's first and last name. Pass id `me` and `body.firstName`, `body.lastName`.",
+    destructive: true,
+  },
+  {
+    name: "users_credits",
+    operation: "GET /users/{id}/credits",
+    description:
+      "Get the credit balance of a workspace: the personal one, or the organization named by `workspace`. Pass id `me`. Check it before agents_hire.",
+  },
+  {
+    name: "users_set_design_md",
+    operation: "PUT /users/{id}/design-md",
+    description:
+      "Replace the signed-in user's DESIGN.md, the brand guide agents follow in the personal workspace. Pass id `me`, `body.content` (Markdown, or null to clear) and `body.extractionId` (null when unknown).",
+    destructive: true,
+  },
+  {
+    name: "users_preferences",
+    operation: "GET /users/{id}/preferences",
+    description:
+      "Get the signed-in user's preferences: marketing and push opt-in, unread counts and notification settings. Pass id `me`.",
+  },
+  {
+    name: "users_update_preferences",
+    operation: "PATCH /users/{id}/preferences",
+    description:
+      "Change the signed-in user's preferences. Pass id `me`; only the fields in `body` change.",
+    destructive: true,
+  },
+  {
+    name: "users_files",
+    operation: "GET /users/{id}/files",
+    description: "List the files the signed-in user uploaded. Pass id `me`.",
+  },
+  {
+    name: "users_coworker_access",
+    operation: "GET /users/{id}/coworker-access",
+    description:
+      "List the Coworkers that have or ask for access to the personal workspace, with their status. Pass id `me`. A person approves requests in Sokosumi.",
+  },
+  {
+    name: "users_deny_coworker_access",
+    operation: "POST /users/{id}/coworker-access/{accessId}/deny",
+    description:
+      "Deny a Coworker's pending request for the personal workspace. Pass id `me` and `accessId` from users_coworker_access.",
+  },
+  {
+    name: "users_revoke_coworker_access",
+    operation: "POST /users/{id}/coworker-access/{accessId}/revoke",
+    description:
+      "Revoke a Coworker's access to the personal workspace. Pass id `me` and `accessId` from users_coworker_access.",
+    destructive: true,
+  },
+  {
+    name: "users_vendor_grants",
+    operation: "GET /users/{id}/vendor-grants",
+    description:
+      "List the vendors granted or asking for access to the personal workspace. Pass id `me`; filter by `status` or `vendorId`. A person approves grants in Sokosumi.",
+  },
+  {
+    name: "users_deny_vendor_grant",
+    operation: "POST /users/{id}/vendor-grants/{grantId}/deny",
+    description:
+      "Deny a vendor's pending grant for the personal workspace. Its Tasks waiting on the grant are cancelled. Pass id `me` and `grantId` from users_vendor_grants.",
+    destructive: true,
+  },
+  {
+    name: "users_revoke_vendor_grant",
+    operation: "POST /users/{id}/vendor-grants/{grantId}/revoke",
+    description:
+      "Revoke a vendor's grant for the personal workspace. Its Tasks waiting on the grant are cancelled. Pass id `me` and `grantId` from users_vendor_grants.",
+    destructive: true,
+  },
+  {
+    name: "workspaces_preferred",
+    operation: "GET /users/{id}/workspaces/preferred",
+    description:
+      "Get the workspace a new session opens for the signed-in user. Pass id `me`.",
+  },
+  {
+    name: "workspaces_set_preferred",
+    operation: "PUT /users/{id}/workspaces/preferred",
+    description:
+      "Set the workspace a new session opens. Pass id `me` and `body.workspaceId` from workspaces_list.",
+  },
+  {
+    name: "workspaces_delete",
+    operation: "DELETE /users/{id}/workspaces/{workspaceId}",
+    description:
+      "Delete the signed-in user's personal workspace. Pass id `me` and `workspaceId`. Refused for an organization workspace, the last workspace, or one with Jobs or Tasks.",
+  },
+  {
+    name: "workspaces_get",
+    operation: "GET /workspaces/{id}",
+    description:
+      "Resolve a workspace id to its organization id; null for a personal workspace.",
+  },
+  {
+    name: "workspaces_ad_data_consent",
+    operation: "GET /workspaces/{id}/ad-data-consent",
+    description:
+      "Get a workspace's choices on internal use of its ad data. A person changes them in Sokosumi.",
+  },
+  {
+    name: "workspaces_design_md",
+    operation: "GET /workspaces/design-md",
+    description:
+      "Get the DESIGN.md in effect for a workspace: the organization's for `workspace`, otherwise the personal one. Follow it for branded work.",
+  },
+  {
+    name: "workspaces_adhoc_design_md",
+    operation: "POST /workspaces/design-md/adhoc",
+    description:
+      "Store a one-off DESIGN.md, such as another company's brand for one Task, and get its URL. It changes no workspace's DESIGN.md. Pass `body.content` and `body.extractionId` (null when unknown).",
+  },
+  {
+    name: "organizations_memberships",
+    operation: "GET /users/{id}/members",
+    description:
+      "List the signed-in user's organization memberships, each with its organization and role. Pass id `me`.",
+  },
+  {
+    name: "organizations_credits",
+    operation: "GET /users/{id}/organizations/{organizationId}/credits",
+    description:
+      "Get an organization's credit balance for the signed-in member. Pass id `me` and `organizationId`.",
+  },
+  {
+    name: "organizations_membership",
+    operation: "GET /users/{id}/organizations/{organizationId}/member",
+    description:
+      "Get the signed-in user's membership in one organization, with role and seat. Pass id `me` and `organizationId`.",
+  },
+  {
+    name: "organizations_pending_invitations",
+    operation: "GET /users/{id}/pending-organization-invitations",
+    description:
+      "List the organization invitations waiting for the signed-in user. Pass id `me`. The person accepts them in Sokosumi.",
+  },
+  {
+    name: "organizations_get_by_slug",
+    operation: "GET /organizations/slug/{slug}",
+    description: "Get an organization you belong to by its slug.",
+  },
+  {
+    name: "organizations_get",
+    operation: "GET /organizations/{id}",
+    description: "Get an organization you belong to by its id.",
+  },
+  {
+    name: "organizations_members",
+    operation: "GET /organizations/{id}/members",
+    description:
+      "List an organization's members with their role, seat and last-seen time.",
+  },
+  {
+    name: "organizations_assign_seat",
+    operation: "PUT /organizations/{id}/members/{memberId}/seat",
+    description:
+      "Give a member a seat, so they can use the organization's credits. Owners and admins only. `memberId` from organizations_members. It buys nothing.",
+  },
+  {
+    name: "organizations_unassign_seat",
+    operation: "DELETE /organizations/{id}/members/{memberId}/seat",
+    description:
+      "Take a member's seat away. Owners and admins only. `memberId` from organizations_members.",
+  },
+  {
+    name: "organizations_invitations",
+    operation: "GET /organizations/{id}/invitations",
+    description:
+      "List an organization's pending email invitations. Owners and admins only.",
+  },
+  {
+    name: "organizations_coworker_access",
+    operation: "GET /organizations/{id}/coworker-access",
+    description:
+      "List the Coworkers that have or ask for access to an organization workspace. Owners and admins only. A person approves requests in Sokosumi.",
+  },
+  {
+    name: "organizations_deny_coworker_access",
+    operation: "POST /organizations/{id}/coworker-access/{accessId}/deny",
+    description:
+      "Deny a Coworker's pending request for an organization workspace. `accessId` from organizations_coworker_access.",
+  },
+  {
+    name: "organizations_revoke_coworker_access",
+    operation: "POST /organizations/{id}/coworker-access/{accessId}/revoke",
+    description:
+      "Revoke a Coworker's access to an organization workspace. `accessId` from organizations_coworker_access.",
+    destructive: true,
+  },
+  {
+    name: "organizations_vendor_grants",
+    operation: "GET /organizations/{id}/vendor-grants",
+    description:
+      "List the vendors granted or asking for access to an organization workspace. Filter by `status` or `vendorId`. A person approves grants in Sokosumi.",
+  },
+  {
+    name: "organizations_deny_vendor_grant",
+    operation: "POST /organizations/{id}/vendor-grants/{grantId}/deny",
+    description:
+      "Deny a vendor's pending grant for an organization workspace. Its Tasks waiting on the grant are cancelled. `grantId` from organizations_vendor_grants.",
+    destructive: true,
+  },
+  {
+    name: "organizations_revoke_vendor_grant",
+    operation: "POST /organizations/{id}/vendor-grants/{grantId}/revoke",
+    description:
+      "Revoke a vendor's grant for an organization workspace. Its Tasks waiting on the grant are cancelled. `grantId` from organizations_vendor_grants.",
+    destructive: true,
+  },
+  {
+    name: "organizations_set_design_md",
+    operation: "PUT /organizations/{id}/design-md",
+    description:
+      "Replace an organization's DESIGN.md, the brand guide agents follow in its workspace. Owners and admins only. `body.content` (Markdown, or null to clear) and `body.extractionId` (null when unknown).",
+    destructive: true,
+  },
+  {
+    name: "organizations_standup",
+    operation: "GET /organizations/{id}/standup",
+    description:
+      "Get an organization's daily agent stand-up: on or off, channel, time, weekdays and time zone.",
+  },
+  {
+    name: "organizations_set_standup",
+    operation: "PUT /organizations/{id}/standup",
+    description:
+      "Turn an organization's daily agent stand-up on or off and set its time (HH:MM), weekdays and time zone. Owners and admins only.",
+    destructive: true,
+  },
   // SOKD-370: categories, history, transactions and notifications.
   {
     name: "categories_list",

@@ -1,9 +1,168 @@
 {
-  "backlog": "SOKD-371",
   "operations": {
+    "GET /organizations/slug/{slug}": {
+      "cli": "organizations get-by-slug",
+      "mcp": "organizations_get_by_slug"
+    },
+    "GET /organizations/{id}": {
+      "cli": "organizations get",
+      "mcp": "organizations_get"
+    },
+    "GET /organizations/{id}/deletion": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Account lifecycle: an owner deletes an organization in the web app."
+    },
+    "GET /organizations/{id}/members": {
+      "cli": "organizations members",
+      "mcp": "organizations_members"
+    },
     "GET /organizations/{id}/members/me/seat": {
       "cli": "workspaces check",
       "mcp": "organizations_seat"
+    },
+    "PUT /organizations/{id}/members/{memberId}/seat": {
+      "cli": "organizations assign-seat",
+      "mcp": "organizations_assign_seat"
+    },
+    "DELETE /organizations/{id}/members/{memberId}/seat": {
+      "cli": "organizations unassign-seat",
+      "mcp": "organizations_unassign_seat"
+    },
+    "GET /organizations/{id}/invitations": {
+      "cli": "organizations invitations",
+      "mcp": "organizations_invitations"
+    },
+    "GET /organizations/{id}/invite-links": {
+      "cli": "organizations invite-links",
+      "mcp": false,
+      "reason": "Invite-link tokens are join credentials: anyone with one can join the organization."
+    },
+    "POST /organizations/{id}/invite-links": {
+      "cli": "organizations create-invite-link",
+      "mcp": false,
+      "reason": "Invite-link tokens are join credentials: anyone with one can join the organization."
+    },
+    "DELETE /organizations/{id}/invite-links/{token}": {
+      "cli": "organizations revoke-invite-link",
+      "mcp": false,
+      "reason": "Invite-link tokens are join credentials: anyone with one can join the organization."
+    },
+    "GET /organizations/{id}/coworker-access": {
+      "cli": "organizations coworker-access",
+      "mcp": "organizations_coworker_access"
+    },
+    "POST /organizations/{id}/coworker-access/{accessId}/approve": {
+      "cli": "organizations approve-coworker-access",
+      "mcp": false,
+      "reason": "Granting a Coworker access to a workspace is the person's decision; an agent could approve its own request."
+    },
+    "POST /organizations/{id}/coworker-access/{accessId}/deny": {
+      "cli": "organizations deny-coworker-access",
+      "mcp": "organizations_deny_coworker_access"
+    },
+    "POST /organizations/{id}/coworker-access/{accessId}/revoke": {
+      "cli": "organizations revoke-coworker-access",
+      "mcp": "organizations_revoke_coworker_access"
+    },
+    "GET /organizations/{id}/vendor-grants": {
+      "cli": "organizations vendor-grants",
+      "mcp": "organizations_vendor_grants"
+    },
+    "POST /organizations/{id}/vendor-grants": {
+      "cli": "organizations grant-vendor",
+      "mcp": false,
+      "reason": "Granting a vendor access to a workspace is the person's decision; an agent could approve its own vendor."
+    },
+    "POST /organizations/{id}/vendor-grants/{grantId}/approve": {
+      "cli": "organizations approve-vendor-grant",
+      "mcp": false,
+      "reason": "Granting a vendor access to a workspace is the person's decision; an agent could approve its own vendor."
+    },
+    "POST /organizations/{id}/vendor-grants/{grantId}/deny": {
+      "cli": "organizations deny-vendor-grant",
+      "mcp": "organizations_deny_vendor_grant"
+    },
+    "POST /organizations/{id}/vendor-grants/{grantId}/revoke": {
+      "cli": "organizations revoke-vendor-grant",
+      "mcp": "organizations_revoke_vendor_grant"
+    },
+    "GET /organizations/{id}/seat-summary": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Billing: a person manages payment details and plans in the web app."
+    },
+    "GET /organizations/{id}/credit-spend": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Billing: a person manages payment details and plans in the web app."
+    },
+    "GET /organizations/{id}/billing-plan": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Billing: a person manages payment details and plans in the web app."
+    },
+    "GET /organizations/{id}/enterprise-contract-summary": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Billing: a person manages payment details and plans in the web app."
+    },
+    "GET /organizations/{id}/stripe-customer": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Billing: a person manages payment details and plans in the web app."
+    },
+    "POST /organizations/{id}/stripe-customer": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Billing: a person manages payment details and plans in the web app."
+    },
+    "GET /organizations/{id}/billing-details": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Billing: a person manages payment details and plans in the web app."
+    },
+    "GET /organizations/{id}/subscription": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Billing: a person manages payment details and plans in the web app."
+    },
+    "GET /organizations/{id}/subscription/seats": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Billing: a person manages payment details and plans in the web app."
+    },
+    "PUT /organizations/{id}/subscription/seats": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Billing: a person manages payment details and plans in the web app."
+    },
+    "GET /organizations/{id}/subscription/seats/preview": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Billing: a person manages payment details and plans in the web app."
+    },
+    "PUT /organizations/{id}/design-md": {
+      "cli": "organizations set-design-md",
+      "mcp": "organizations_set_design_md"
+    },
+    "GET /organizations/{id}/standup": {
+      "cli": "organizations standup",
+      "mcp": "organizations_standup"
+    },
+    "PUT /organizations/{id}/standup": {
+      "cli": "organizations set-standup",
+      "mcp": "organizations_set_standup"
+    },
+    "POST /organizations/{id}/files/cleanup": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A logo upload ends with Better Auth's organization update, which is not a /v1 operation; the web app runs the whole flow."
+    },
+    "POST /organizations/{id}/files": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A logo upload ends with Better Auth's organization update, which is not a /v1 operation; the web app runs the whole flow."
     }
   }
 }

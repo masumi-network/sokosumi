@@ -321,6 +321,29 @@ sokosumi notifications read-many --input-json '{"ids":["NOTIFICATION_ID"]}'
 
 Notifications are the signed-in person's own. Marking one read clears it everywhere; mark only what the person asked for.
 
+## Account, organizations and workspaces
+
+[VERIFIED: `apps/cli/src/cli/commands/catalog.ts`, `apps/core/agent-surface/users.json`, `organizations.json`, `workspaces.json`] These commands each call one Core operation, like `jobs events`. Commands on your own account take the literal `me` first. An action without a body still needs `--input-json '{}'`.
+
+```sh
+sokosumi users credits me --organization-slug WORKSPACE_SLUG
+sokosumi users preferences me
+sokosumi users update me --input-json '{"firstName":"Ada","lastName":"Lovelace"}'
+sokosumi workspaces create me --input-json '{"kind":"personal"}'
+sokosumi workspaces preferred me
+sokosumi workspaces design-md --organization-slug WORKSPACE_SLUG
+sokosumi organizations memberships me
+sokosumi organizations members ORGANIZATION_ID
+sokosumi organizations assign-seat ORGANIZATION_ID MEMBER_ID --input-json '{}'
+sokosumi organizations vendor-grants ORGANIZATION_ID --query status=PENDING
+sokosumi organizations deny-coworker-access ORGANIZATION_ID ACCESS_ID --input-json '{}'
+sokosumi organizations set-standup ORGANIZATION_ID --input-json '{"enabled":true,"timeOfDay":"09:00"}'
+```
+
+`sokosumi --help` lists the rest: users files, coworker access and vendor grants for the personal Workspace, the same for an organization, invitations, invite links, DESIGN.md and stand-up. Owner and admin commands answer 403 for other members. Commands that take `--input-json`, plus `workspaces delete`, `organizations unassign-seat` and `organizations revoke-invite-link`, are writes: on mainnet they need the operator `yes` above.
+
+Over MCP, approving a Coworker's access request or a vendor grant, managing invite links, changing ad-data consent and uploading files are not tools. The person does them in Sokosumi or on the CLI. Billing, account deletion, legal notices, sessions and OAuth consents stay in Sokosumi Web on both.
+
 ## Use Sokosumi over MCP
 
 [VERIFIED: `apps/core/src/routes/mcp/index.ts`, `docs/mcp.md`] Sokosumi also serves its tools over MCP at `https://api.sokosumi.com/mcp`. Use it when the host speaks MCP and the CLI is not installed. The host connects by URL and signs in through the browser; no API key is needed:
