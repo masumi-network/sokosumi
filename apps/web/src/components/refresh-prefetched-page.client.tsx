@@ -5,8 +5,9 @@ import { useRefreshPrefetchedPage } from "@/hooks/effects/use-refresh-prefetched
 /**
  * Renders the page again when it may show an old copy: after back or
  * forward, on a return to a page first visited, since its last refresh,
- * longer than the prefetch stale time ago, or when the shared layouts are
- * older than `LAYOUT_REFRESH_MS`. A click opens page data that is fresh or at
+ * longer than the prefetch stale time ago, when the shared layouts are
+ * older than `LAYOUT_REFRESH_MS`, or when a browser-side mutation marked the
+ * page stale with `markPageStale`. A click opens page data that is fresh or at
  * most `PREFETCHED_CONTENT_STALE_SECONDS` old, so it does not refresh on every
  * arrival. The refresh runs as a Server Action, which keeps the pages loaded
  * for the next click. A document load is already fresh, so the first effect

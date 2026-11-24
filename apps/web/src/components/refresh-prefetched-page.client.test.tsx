@@ -420,4 +420,250 @@ describe("RefreshPrefetchedPage", () => {
     render(<RefreshPrefetchedPage />);
     expect(refresh).toHaveBeenCalledTimes(2);
   });
+
+  describe("stale page marks", () => {
+    it("refreshes a quick Activity reveal when the page was marked stale while hidden", async () => {
+      const { RefreshPrefetchedPage, markPageStale } = await loadAt(LOADED_AT);
+      const { rerender } = render(
+        <Activity mode="visible">
+          <RefreshPrefetchedPage />
+        </Activity>,
+      );
+      expect(refresh).not.toHaveBeenCalled();
+
+      act(() => {
+        rerender(
+          <Activity mode="hidden">
+            <RefreshPrefetchedPage />
+          </Activity>,
+        );
+      });
+      markPageStale("/tasks");
+      vi.setSystemTime(LOADED_AT + 20_000);
+
+      act(() => {
+        rerender(
+          <Activity mode="visible">
+            <RefreshPrefetchedPage />
+          </Activity>,
+        );
+      });
+
+      expect(refresh).toHaveBeenCalledOnce();
+    });
+
+    it("refreshes once on a return after 30 s when the page was also marked stale while hidden", async () => {
+      const { RefreshPrefetchedPage, markPageStale } = await loadAt(LOADED_AT);
+      const { rerender } = render(
+        <Activity mode="visible">
+          <RefreshPrefetchedPage />
+        </Activity>,
+      );
+
+      act(() => {
+        rerender(
+          <Activity mode="hidden">
+            <RefreshPrefetchedPage />
+          </Activity>,
+        );
+      });
+      markPageStale("/tasks");
+      vi.setSystemTime(LOADED_AT + 40_000);
+
+      act(() => {
+        rerender(
+          <Activity mode="visible">
+            <RefreshPrefetchedPage />
+          </Activity>,
+        );
+      });
+
+      expect(refresh).toHaveBeenCalledOnce();
+    });
+
+    it("refreshes a shown page when marked stale and leaves other pages alone", async () => {
+      const { RefreshPrefetchedPage, markPageStale } = await loadAt(LOADED_AT);
+      visit("/projects");
+      const projects = render(<RefreshPrefetchedPage />);
+      markPageStale("/tasks");
+      expect(refresh).not.toHaveBeenCalled();
+      projects.unmount();
+
+      visit("/tasks");
+      // Consume the mark left for /tasks on arrival, then settle it.
+      const tasks = render(<RefreshPrefetchedPage />);
+      expect(refresh).toHaveBeenCalledOnce();
+      await act(async () => {});
+      refresh.mockClear();
+
+      // A new mark while /tasks stays shown refreshes with no reveal.
+      markPageStale("/tasks");
+      expect(refresh).toHaveBeenCalledOnce();
+      tasks.unmount();
+    });
+
+    it("queues a second refresh when marked stale while an earlier refresh runs", async () => {
+      const { RefreshPrefetchedPage, markPageStale } = await loadAt(LOADED_AT);
+      const firstFinish = Promise.withResolvers<boolean>();
+      const secondFinish = Promise.withResolvers<boolean>();
+      let call = 0;
+      actionAnswer = () => {
+        call += 1;
+        return call === 1 ? firstFinish.promise : secondFinish.promise;
+      };
+
+      goBack();
+      render(<RefreshPrefetchedPage />);
+      expect(refresh).toHaveBeenCalledOnce();
+
+      markPageStale("/tasks");
+      expect(refresh).toHaveBeenCalledTimes(2);
+
+      // While the second (marked) refresh still runs after the first settles,
+      // an unmarked visit still skips starting a third refresh.
+      await act(async () => {
+        firstFinish.resolve(true);
+        await Promise.resolve();
+      });
+      visit("/projects");
+      goBack();
+      render(<RefreshPrefetchedPage />).unmount();
+      expect(refresh).toHaveBeenCalledTimes(2);
+
+      await act(async () => {
+        secondFinish.resolve(true);
+        await Promise.resolve();
+      });
+    });
+
+    it("gives one refresh in total when marked stale while waiting on a focused link", async () => {
+      const { RefreshPrefetchedPage, CONTROL_IN_USE_CHECK_MS, markPageStale } =
+        await loadAt(LOADED_AT);
+      const link = focusLink("/projects");
+
+      goBack();
+      render(<RefreshPrefetchedPage />);
+      expect(refresh).not.toHaveBeenCalled();
+
+      markPageStale("/tasks");
+      expect(refresh).not.toHaveBeenCalled();
+
+      act(() => link.blur());
+      vi.advanceTimersByTime(CONTROL_IN_USE_CHECK_MS);
+      expect(refresh).toHaveBeenCalledOnce();
+    });
+
+    it("keeps the stale mark if hidden before the marked refresh settles, and clears it once settled while shown", async () => {
+      const { RefreshPrefetchedPage, markPageStale } = await loadAt(LOADED_AT);
+      let finish = (_refreshed: boolean) => {};
+      actionAnswer = () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        });
+
+      const { rerender } = render(
+        <Activity mode="visible">
+          <RefreshPrefetchedPage />
+        </Activity>,
+      );
+
+      markPageStale("/tasks");
+      expect(refresh).toHaveBeenCalledOnce();
+
+      // Hide before the marked refresh settles, then let it settle.
+      act(() => {
+        rerender(
+          <Activity mode="hidden">
+            <RefreshPrefetchedPage />
+          </Activity>,
+        );
+      });
+      await act(async () => {
+        finish(true);
+        await Promise.resolve();
+      });
+
+      // Reveal inside 30 s: refreshes again because the first did not settle while shown.
+      vi.setSystemTime(LOADED_AT + 10_000);
+      act(() => {
+        rerender(
+          <Activity mode="visible">
+            <RefreshPrefetchedPage />
+          </Activity>,
+        );
+      });
+      expect(refresh).toHaveBeenCalledTimes(2);
+
+      // Let the second refresh settle while shown, then hide and reveal inside 30 s.
+      await act(async () => {
+        finish(true);
+        await Promise.resolve();
+      });
+      act(() => {
+        rerender(
+          <Activity mode="hidden">
+            <RefreshPrefetchedPage />
+          </Activity>,
+        );
+      });
+      vi.setSystemTime(LOADED_AT + 20_000);
+      act(() => {
+        rerender(
+          <Activity mode="visible">
+            <RefreshPrefetchedPage />
+          </Activity>,
+        );
+      });
+      expect(refresh).toHaveBeenCalledTimes(2);
+    });
+
+    it("queues a second marked refresh when marked again while the first marked refresh runs", async () => {
+      const { RefreshPrefetchedPage, markPageStale } = await loadAt(LOADED_AT);
+      const firstFinish = Promise.withResolvers<boolean>();
+      const secondFinish = Promise.withResolvers<boolean>();
+      let call = 0;
+      actionAnswer = () => {
+        call += 1;
+        return call === 1 ? firstFinish.promise : secondFinish.promise;
+      };
+
+      const { rerender } = render(
+        <Activity mode="visible">
+          <RefreshPrefetchedPage />
+        </Activity>,
+      );
+
+      markPageStale("/tasks");
+      markPageStale("/tasks");
+      expect(refresh).toHaveBeenCalledTimes(2);
+
+      // First marked refresh settles, then the page hides before the second settles.
+      await act(async () => {
+        firstFinish.resolve(true);
+        await Promise.resolve();
+      });
+      act(() => {
+        rerender(
+          <Activity mode="hidden">
+            <RefreshPrefetchedPage />
+          </Activity>,
+        );
+      });
+      await act(async () => {
+        secondFinish.resolve(true);
+        await Promise.resolve();
+      });
+
+      // Returning inside 30 s refreshes again because the second did not settle while shown.
+      vi.setSystemTime(LOADED_AT + 10_000);
+      act(() => {
+        rerender(
+          <Activity mode="visible">
+            <RefreshPrefetchedPage />
+          </Activity>,
+        );
+      });
+      expect(refresh).toHaveBeenCalledTimes(3);
+    });
+  });
 });

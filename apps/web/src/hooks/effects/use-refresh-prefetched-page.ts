@@ -34,16 +34,22 @@ const PREFETCHED_CONTENT_STALE_MS = PREFETCHED_CONTENT_STALE_SECONDS * 1000;
 
 let traversedAt = Number.NEGATIVE_INFINITY;
 /**
- * A refresh still runs. A new page that wants one meanwhile came by a
+ * Refreshes still running. An unmarked page that wants one meanwhile came by a
  * navigation, which made Next discard the running one and queue a
  * `router.refresh()` of the page that now shows, so a second is not needed.
+ * A stale-marked refresh still queues behind a running one because the running
+ * refresh may have started before the mutation finished.
  */
-let refreshRunning = false;
-let pendingArrivalRefreshPage: string | null = null;
+let runningRefreshes = 0;
+const stalePages = new Set<string>();
+const staleListeners = new Set<(page: string) => void>();
 
-/** An arrival refresh is queued to start after control-in-use clears, so it will fetch fresh post-mutation data. */
-export function hasPendingArrivalRefresh(page: string): boolean {
-  return pendingArrivalRefreshPage === page;
+/** Marks a page stale after a browser-side mutation so it refreshes when shown. */
+export function markPageStale(page: string): void {
+  stalePages.add(page);
+  for (const listener of staleListeners) {
+    listener(page);
+  }
 }
 // The document load rendered everything fresh.
 let refreshedAt = Number.NEGATIVE_INFINITY;
@@ -99,12 +105,17 @@ function controlInUse(): boolean {
   );
 }
 
-function refreshNow(page: string, router: ReturnType<typeof useRouter>) {
+function refreshNow(
+  page: string,
+  router: ReturnType<typeof useRouter>,
+  options?: { marked?: boolean; onSettled?: () => void },
+) {
+  const marked = options?.marked ?? false;
   refreshedAt = Date.now();
   traversedAt = Number.NEGATIVE_INFINITY;
   visitedAt.set(page, refreshedAt);
-  if (refreshRunning) return;
-  refreshRunning = true;
+  if (runningRefreshes > 0 && !marked) return;
+  runningRefreshes += 1;
   // Full route refresh, by the action's `refresh()` or the client fallback:
   // the kept page holds several private-cached reads, and no single tag or
   // path invalidates only them.
@@ -118,7 +129,8 @@ function refreshNow(page: string, router: ReturnType<typeof useRouter>) {
     })
     .catch(() => router.refresh())
     .finally(() => {
-      refreshRunning = false;
+      runningRefreshes -= 1;
+      options?.onSettled?.();
     });
 }
 
@@ -142,28 +154,67 @@ export function useRefreshPrefetchedPage(everyVisit: boolean): void {
 
   useEffect(() => {
     const page = window.location.pathname;
-    const refresh = shouldRefresh(page, everyVisit);
+    const refresh = shouldRefresh(page, everyVisit) || stalePages.has(page);
     if (!visitedAt.has(page)) visitedAt.set(page, Date.now());
+
+    let check: ReturnType<typeof setInterval> | null = null;
+    let pendingMarkedRefreshes = 0;
+
+    const startRefresh = () => {
+      const marked = stalePages.delete(page);
+      if (marked) {
+        pendingMarkedRefreshes += 1;
+      }
+      refreshNow(page, router, {
+        marked,
+        onSettled: marked
+          ? () => {
+              pendingMarkedRefreshes -= 1;
+            }
+          : undefined,
+      });
+    };
+
+    const scheduleRefresh = () => {
+      if (check !== null) return;
+      if (!controlInUse()) {
+        startRefresh();
+        return;
+      }
+      const startBy = Date.now() + MAX_REFRESH_WAIT_MS;
+      check = setInterval(() => {
+        if (controlInUse() && Date.now() < startBy) return;
+        if (check !== null) {
+          clearInterval(check);
+          check = null;
+        }
+        startRefresh();
+      }, CONTROL_IN_USE_CHECK_MS);
+    };
+
+    const handlePageStale = (stalePage: string) => {
+      if (stalePage !== page) return;
+      scheduleRefresh();
+    };
+    staleListeners.add(handlePageStale);
+
     if (skipNextRefresh.current) {
       skipNextRefresh.current = false;
-      return;
+    } else if (refresh) {
+      scheduleRefresh();
     }
-    if (!refresh) return;
-    if (!controlInUse()) {
-      refreshNow(page, router);
-      return;
-    }
-    const startBy = Date.now() + MAX_REFRESH_WAIT_MS;
-    pendingArrivalRefreshPage = page;
-    const check = setInterval(() => {
-      if (controlInUse() && Date.now() < startBy) return;
-      clearInterval(check);
-      if (pendingArrivalRefreshPage === page) pendingArrivalRefreshPage = null;
-      refreshNow(page, router);
-    }, CONTROL_IN_USE_CHECK_MS);
+
     return () => {
-      clearInterval(check);
-      if (pendingArrivalRefreshPage === page) pendingArrivalRefreshPage = null;
+      staleListeners.delete(handlePageStale);
+      if (check !== null) {
+        clearInterval(check);
+        check = null;
+      }
+      // Re-mark when this page hides before its marked refresh settles so the
+      // next reveal still fetches fresh data.
+      if (pendingMarkedRefreshes > 0) {
+        stalePages.add(page);
+      }
     };
   }, [router, everyVisit]);
 }

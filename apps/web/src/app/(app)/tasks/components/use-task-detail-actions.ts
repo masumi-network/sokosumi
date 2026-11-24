@@ -33,6 +33,7 @@ import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { listOrganizationChatRoomsAction } from "@/components/chat/organization-chat-list.actions";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { useIsMobile } from "@/hooks/effects/use-mobile";
+import { markPageStale } from "@/hooks/effects/use-refresh-prefetched-page";
 import {
   createTaskLink,
   deleteTaskLink,
@@ -397,12 +398,13 @@ export function useTaskDetailActions({
       .archive(taskId)
       .then(() => {
         settleTaskArchive(taskId);
+        markPageStale("/tasks");
       })
       .catch((error: unknown) => {
         console.error("Failed to archive task", error);
         unmarkTaskArchived(taskId);
         toast.error(labels.archiveError);
-        router.refresh();
+        markPageStale("/tasks");
       });
   };
 

@@ -5,7 +5,6 @@
  */
 const archivedTaskIds = new Set<string>();
 const pendingArchiveTaskIds = new Set<string>();
-const archiveSettledListeners = new Set<() => void>();
 
 export function markTaskArchived(taskId: string) {
   archivedTaskIds.add(taskId);
@@ -14,17 +13,7 @@ export function markTaskArchived(taskId: string) {
 
 /** The background archive succeeded: keep hiding stale rows, stop pinning cursors. */
 export function settleTaskArchive(taskId: string) {
-  if (!pendingArchiveTaskIds.delete(taskId)) return;
-  for (const listener of archiveSettledListeners) {
-    listener();
-  }
-}
-
-export function subscribeTaskArchiveSettled(listener: () => void) {
-  archiveSettledListeners.add(listener);
-  return () => {
-    archiveSettledListeners.delete(listener);
-  };
+  pendingArchiveTaskIds.delete(taskId);
 }
 
 /** The archive failed: the board shows the task again. */

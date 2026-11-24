@@ -47,6 +47,7 @@ import { taskSubtasksQueryKey } from "./use-task-subtasks";
 const {
   pushMock,
   refreshMock,
+  markPageStaleMock,
   browserCoreClientMock,
   isMobileMock,
   showCalendarClientUpgradeModalMock,
@@ -54,6 +55,7 @@ const {
 } = vi.hoisted(() => ({
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
+  markPageStaleMock: vi.fn(),
   browserCoreClientMock: {
     getTasks: vi.fn(),
   },
@@ -107,6 +109,10 @@ vi.mock("@/components/modals/global-modals-context", () => ({
   useGlobalModalsContext: () => ({
     showCalendarClientUpgradeModal: showCalendarClientUpgradeModalMock,
   }),
+}));
+
+vi.mock("@/hooks/effects/use-refresh-prefetched-page", () => ({
+  markPageStale: markPageStaleMock,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -1042,8 +1048,9 @@ describe("TaskDetailActions", () => {
     expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
   });
 
-  it("marks the task archived for the board before leaving and settles pending state without calling router.refresh", async () => {
+  it("marks the task archived for the board before leaving and marks /tasks stale after DELETE settles without calling router.refresh", async () => {
     const user = userEvent.setup();
+    markPageStaleMock.mockClear();
     const pendingArchive = Promise.withResolvers<void>();
     archiveMock.mockReturnValueOnce(pendingArchive.promise);
     renderActions({
@@ -1058,17 +1065,21 @@ describe("TaskDetailActions", () => {
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/tasks"));
     expect(isTaskArchived("task-1")).toBe(true);
     expect(isTaskArchivePending("task-1")).toBe(true);
+    expect(markPageStaleMock).not.toHaveBeenCalled();
     expect(refreshMock).not.toHaveBeenCalled();
 
     pendingArchive.resolve();
     await waitFor(() => expect(isTaskArchivePending("task-1")).toBe(false));
     expect(isTaskArchived("task-1")).toBe(true);
+    expect(markPageStaleMock).toHaveBeenCalledWith("/tasks");
     expect(refreshMock).not.toHaveBeenCalled();
   });
 
-  it("shows the task again on the board when the archive fails", async () => {
+  it("shows the task again on the board and marks /tasks stale without calling router.refresh when the archive fails", async () => {
     expectConsole("error", "Failed to archive task");
     const user = userEvent.setup();
+    markPageStaleMock.mockClear();
+    refreshMock.mockClear();
     archiveMock.mockRejectedValueOnce(new Error("nope"));
     renderActions({ organizations: undefined });
 
@@ -1077,6 +1088,8 @@ describe("TaskDetailActions", () => {
     expect(pushMock).toHaveBeenCalledWith("/tasks");
     await waitFor(() => expect(isTaskArchived("task-1")).toBe(false));
     expect(toast.error).toHaveBeenCalledWith(labels.archiveError);
+    expect(markPageStaleMock).toHaveBeenCalledWith("/tasks");
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("reports a stale status list instead of opening the upgrade modal", async () => {

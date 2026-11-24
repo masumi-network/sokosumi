@@ -377,8 +377,9 @@ one of them (nav row, list row, back link).
    - Render `<RefreshPrefetchedPage />` in the page. It refreshes only when
      the page may show an old copy: after back or forward, on a return to a
      page first visited, since its last refresh, more than 30 s ago (Next
-     reuses that visit's copy), and when the shared layouts are older than
-     `LAYOUT_REFRESH_MS` (2 min). Otherwise
+     reuses that visit's copy), when the shared layouts are older than
+     `LAYOUT_REFRESH_MS` (2 min), or when a browser-side mutation marked the
+     page stale with `markPageStale`. Otherwise
      a click opens page data at most about a minute old and does not refresh.
      It refreshes through a Server Action that calls `refresh()`
      (`refreshPage`), which keeps every page prefetched for the next click;
