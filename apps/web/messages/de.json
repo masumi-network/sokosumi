@@ -1960,6 +1960,7 @@
         "loadMore": "Mehr laden"
       },
       "noTitle": "(Kein Titel)",
+      "inResult": "Im Ergebnis",
       "unansweredMention": "Du hast eine unbeantwortete Erwähnung",
       "createTaskFab": "Aufgabe erstellen",
       "personalAssistant": "Persönlicher Assistent",
@@ -6107,6 +6108,7 @@
       "created": "Erstellt",
       "filesGroup": "Dateien",
       "filesSeeAll": "Alle Dateien ansehen",
+      "tasksSeeAll": "Aufgaben und Ergebnisse nach „{query}“ durchsuchen",
       "filesFilenameMatch": "Treffer im Dateinamen",
       "peopleGroup": "Personen",
       "copyEmail": "{email} kopieren",

@@ -1960,6 +1960,7 @@
         "loadMore": "Load more"
       },
       "noTitle": "(No title)",
+      "inResult": "In result",
       "unansweredMention": "You have an unanswered mention",
       "createTaskFab": "Create task",
       "personalAssistant": "Personal assistant",
@@ -6107,6 +6108,7 @@
       "created": "Created",
       "filesGroup": "Files",
       "filesSeeAll": "See all files",
+      "tasksSeeAll": "Search tasks and results for “{query}”",
       "filesFilenameMatch": "Filename match",
       "peopleGroup": "People",
       "copyEmail": "Copy {email}",
