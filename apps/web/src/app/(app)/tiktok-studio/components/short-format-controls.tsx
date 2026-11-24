@@ -80,7 +80,7 @@ export function VideoKindPicker({
                 presenterImage ? (
                   <img
                     alt=""
-                    className="size-full object-cover"
+                    className="size-full object-cover max-sm:object-top"
                     loading="lazy"
                     src={presenterImage}
                   />
@@ -89,7 +89,7 @@ export function VideoKindPicker({
                 <video
                   aria-hidden
                   autoPlay={selected && !reducedMotion}
-                  className="size-full object-cover"
+                  className="size-full object-cover max-sm:object-top"
                   // Only the chosen kind plays; the rest show their poster.
                   key={selected && !reducedMotion ? "playing" : "still"}
                   loop
