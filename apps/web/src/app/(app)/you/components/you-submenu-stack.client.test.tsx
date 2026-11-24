@@ -28,6 +28,9 @@ describe("You submenu stacked screens", () => {
 
     const screenRoot = screen.getByTestId("mobile-stacked-menu-screen");
     expect(screenRoot).toBeInTheDocument();
+    // Fills the width and starts where /you does: main's p-4 is the only top gap.
+    expect(screenRoot.className).not.toMatch(/\bmax-w-|\bmx-auto\b|\bp[txy]?-/);
+    expect(screenRoot.className).toContain("pb-6");
     expect(
       screen.getByRole("heading", { name: "developer" }),
     ).toBeInTheDocument();

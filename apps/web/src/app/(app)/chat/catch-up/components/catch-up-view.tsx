@@ -14,10 +14,10 @@ import {
 } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { chatQueryKeys } from "@/queries/chat";
 import {
   BriefingHeader,
   BriefingTopics,
-  CATCH_UP_SUMMARY_QUERY_KEY,
   OpenLoopsList,
   QuietRooms,
 } from "./catch-up-briefing";
@@ -49,7 +49,7 @@ export function CatchUpView({
       enabled: true,
     });
   const { data, isError, refetch, isFetching } = useQuery({
-    queryKey: CATCH_UP_SUMMARY_QUERY_KEY,
+    queryKey: chatQueryKeys.catchUpSummary(),
     queryFn: (): Promise<ChatCatchUpSummary> => fetchCatchUpSummary(),
     refetchOnWindowFocus: false,
     retry: false,

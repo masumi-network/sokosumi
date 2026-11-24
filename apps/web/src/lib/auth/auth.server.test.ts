@@ -821,6 +821,26 @@ describe("auth.server", () => {
     );
   });
 
+  // The consent page shows the unverified-app note unless this is `false`, so
+  // anything that is not a boolean must not reach it as one.
+  it.each([
+    [false, false],
+    [true, true],
+    ["false", undefined],
+    [0, undefined],
+  ])("reads selfRegistered %j from Core as %j", async (sent, expected) => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ client_id: "client_123", selfRegistered: sent }),
+    });
+
+    const { getOAuthClientPublic } = await import("./auth.server");
+
+    const result = await getOAuthClientPublic("client_123");
+
+    expect(result._unsafeUnwrap()?.selfRegistered).toBe(expected);
+  });
+
   it("returns ok with null when the OAuth client is absent", async () => {
     fetchMock.mockResolvedValue({
       ok: true,

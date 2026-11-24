@@ -8783,6 +8783,9 @@
           "denyError": "No se pudo rechazar la aplicación"
         },
         "apiAccessNotice": "Autorizar otorga acceso completo a la API de tu cuenta (openid y sokosumi:api). Aprueba solo apps en las que confíes.",
+        "mcpAccessNotice": "Autorizar permite que esta app use Sokosumi en tu nombre a través de un cliente MCP (sokosumi:mcp).",
+        "unverifiedNotice": "App no verificada. Se registró por sí misma, así que Sokosumi no puede confirmar quién la gestiona.",
+        "redirectHost": "Después de responder, Sokosumi te enviará a {host}.",
         "descriptionWithApi": "Una aplicación quiere acceder a tu cuenta y llamar a la API de Sokosumi en tu nombre",
         "offlineAccessNotice": "Esta aplicación puede permanecer conectada y obtener nuevos tokens de acceso más tarde sin pedírtelo de nuevo (tokens de actualización, hasta 90 días)."
       },
@@ -9593,6 +9596,39 @@
           "statusRevoked": "Revocado",
           "workspaceKindOrganization": "Organización",
           "workspaceKindUser": "Usuario"
+        },
+        "ApiKeys": {
+          "title": "Claves de API",
+          "description": "Claves de ejecución con las que este coworker llama a Sokosumi. Para reemplazar una clave, crea una nueva, cambia el agente a ella y luego revoca la anterior.",
+          "createButton": "Crear clave",
+          "empty": "Aún no hay claves de API.",
+          "loadError": "No se pudieron cargar las claves de API. Recarga la página para intentarlo de nuevo.",
+          "unnamed": "Sin nombre",
+          "revokeButton": "Revocar",
+          "createSuccess": "Clave de API creada",
+          "createError": "No se pudo crear la clave de API",
+          "revokeSuccess": "Clave de API revocada",
+          "revokeError": "No se pudo revocar la clave de API",
+          "Table": {
+            "name": "Nombre",
+            "key": "Clave",
+            "created": "Creada",
+            "status": "Estado",
+            "actions": "Acciones",
+            "lastUsed": "Último uso"
+          },
+          "Status": {
+            "active": "Activa",
+            "revoked": "Revocada",
+            "expired": "Caducada"
+          },
+          "RevokeDialog": {
+            "title": "¿Revocar la clave de API?",
+            "description": "{name} ({keyStart}…) deja de funcionar de inmediato. Cualquier agente que aún la use recibirá errores 401.",
+            "cancel": "Cancelar",
+            "confirm": "Revocar clave"
+          },
+          "noRecordedUse": "Sin uso registrado"
         }
       },
       "Tasks": {

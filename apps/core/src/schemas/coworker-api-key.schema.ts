@@ -16,6 +16,11 @@ export const coworkerApiKeySchema = z
       example: "2026-12-31T23:59:59.000Z",
     }),
     revokedAt: dateTimeSchema.nullable().openapi({ example: null }),
+    lastUsedAt: dateTimeSchema.nullable().openapi({
+      description:
+        "Last successful authentication, updated at most once a minute.",
+      example: "2026-01-02T08:00:00.000Z",
+    }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
   })

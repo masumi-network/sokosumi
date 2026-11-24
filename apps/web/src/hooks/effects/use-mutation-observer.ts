@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent, useLayoutEffect } from "react";
+import { useEffectEvent, useLayoutEffect } from "react";
 
 export type MutationObserverTarget =
   | "documentElement"
@@ -91,55 +91,7 @@ function attachMutationObserver(
 /**
  * Observes a live DOM node (or `"body"` / `"documentElement"`) with
  * `MutationObserver` and disconnects on unmount or target change.
- */
-export function useMutationObserver(
-  target: MutationObserverTarget,
-  onMutate: (records: MutationRecord[]) => void,
-  options: UseMutationObserverOptions,
-): void {
-  const handleMutate = useEffectEvent(onMutate);
-  const {
-    attributes,
-    attributeOldValue,
-    attributeFilter,
-    characterData,
-    characterDataOldValue,
-    childList,
-    subtree,
-  } = options.init;
-  const attributeFilterKey = attributeFilter?.join("\0");
-  const immediate = options.immediate ?? false;
-  const resetKey = options.resetKey;
-
-  useEffect(() => {
-    void resetKey;
-    return attachMutationObserver(target, handleMutate, {
-      attributes,
-      attributeOldValue,
-      attributeFilterKey,
-      characterData,
-      characterDataOldValue,
-      childList,
-      subtree,
-      immediate,
-    });
-  }, [
-    target,
-    attributes,
-    attributeOldValue,
-    attributeFilterKey,
-    characterData,
-    characterDataOldValue,
-    childList,
-    subtree,
-    immediate,
-    resetKey,
-  ]);
-}
-
-/**
- * Layout-effect variant of `useMutationObserver` for pre-paint DOM slot
- * discovery.
+ * Runs in a layout effect so slot discovery happens before paint.
  */
 export function useLayoutMutationObserver(
   target: MutationObserverTarget,

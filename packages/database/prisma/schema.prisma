@@ -3489,6 +3489,8 @@ model CoworkerApiKey {
 
   expiresAt DateTime?
   revokedAt DateTime?
+  /// Last successful authentication, written at most once a minute.
+  lastUsedAt DateTime?
 
   coworkerId String?
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: Cascade)

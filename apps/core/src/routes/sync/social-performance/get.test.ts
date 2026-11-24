@@ -12,7 +12,7 @@ vi.mock("@/services/project-social-connections.service", () => ({
 const collect = vi.hoisted(() => vi.fn());
 
 vi.mock("@/services/social-account-sync", () => ({
-  collectSocialPerformance: collect,
+  runDueSocialAccountSync: collect,
 }));
 
 vi.mock("../handler.js", () => ({
