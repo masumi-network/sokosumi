@@ -173,7 +173,12 @@ describe("Sokosumi MCP server", () => {
       (tool) => tool.name,
     );
 
-    expect(spending).toEqual(["tasks_run_schedule", "agents_hire"]);
+    expect(spending).toEqual([
+      "tasks_create_schedule",
+      "tasks_resume_schedule",
+      "tasks_run_schedule",
+      "agents_hire",
+    ]);
     const warned = tools.filter((tool) => tool.annotations?.openWorldHint);
     expect(warned.map((tool) => tool.name)).toEqual(spending);
     for (const tool of warned) {

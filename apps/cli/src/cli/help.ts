@@ -281,8 +281,9 @@ Organization Tasks:
   Finish: tasks comment TASK_ID --status COMPLETED|CANCELED. Remove: tasks archive TASK_ID (later tasks get/events/jobs/links return 404).
     tasks restore TASK_ID brings an archived Task back.
   Task Schedules repeat work: tasks create-schedule --input-json '{"name":"...","rule":{"expr":"0 9 * * 1","timezone":"UTC"}}'.
-    Writes to a schedule or its Runs take "expectedRevision" from tasks get-schedule. tasks run-schedule creates a Task now
-    and may spend credits. tasks update-schedule-run SCHEDULE_ID RUN_ID skips, moves or restores one Run.
+    Writes to a schedule or its Runs take "expectedRevision" from tasks get-schedule. create-schedule, resume-schedule and
+    run-schedule may spend credits: each Run creates a Task that can start paid work. run-schedule creates one now.
+    tasks update-schedule-run SCHEDULE_ID RUN_ID skips, moves or restores one Run.
   Files: tasks upload-url TASK_ID returns uploadUrl and headers; PUT the bytes there and the file shows in tasks files.
 
 Agent runtime tools on Preprod:

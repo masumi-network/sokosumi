@@ -161,7 +161,8 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "tasks_create_schedule",
     operation: "POST /tasks/schedules",
     description:
-      "Create a Task Schedule: `body.name`, `body.rule.expr` (five-field cron, read in `body.rule.timezone`) and the blueprint of each Task, such as `body.description` and `body.assigneeId` from tasks_schedule_assignees. A Task assigned to a Coworker may spend workspace credits when it runs.",
+      "Spends workspace credits. Each Run creates a Task that may start a paid Coworker or audit, with no approval at the Run. Create a Task Schedule: `body.name`, `body.rule.expr` (five-field cron, read in `body.rule.timezone`) and the blueprint of each Task, such as `body.description` and `body.assigneeId` from tasks_schedule_assignees. Confirm the rule and assignee with the person first.",
+    spendsCredits: true,
   },
   {
     name: "tasks_schedule_assignees",
@@ -198,7 +199,8 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "tasks_resume_schedule",
     operation: "POST /tasks/schedules/{id}/resume",
     description:
-      "Resume a paused Task Schedule from its next Run after now. It ends instead when its end rule passed.",
+      "Spends workspace credits. Each Run creates a Task that may start a paid Coworker or audit, with no approval at the Run. Resume a paused Task Schedule from its next Run after now; it ends instead when its end rule passed. Confirm with the person first.",
+    spendsCredits: true,
   },
   {
     name: "tasks_end_schedule",
