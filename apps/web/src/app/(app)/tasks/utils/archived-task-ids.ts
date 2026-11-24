@@ -4,16 +4,39 @@
  * by updatedAt, so a newer row pushes the last row off. Drop only ids here.
  */
 const archivedTaskIds = new Set<string>();
+const pendingArchiveTaskIds = new Set<string>();
+const archiveSettledListeners = new Set<() => void>();
 
 export function markTaskArchived(taskId: string) {
   archivedTaskIds.add(taskId);
+  pendingArchiveTaskIds.add(taskId);
+}
+
+/** The background archive succeeded: keep hiding stale rows, stop pinning cursors. */
+export function settleTaskArchive(taskId: string) {
+  if (!pendingArchiveTaskIds.delete(taskId)) return;
+  for (const listener of archiveSettledListeners) {
+    listener();
+  }
+}
+
+export function subscribeTaskArchiveSettled(listener: () => void) {
+  archiveSettledListeners.add(listener);
+  return () => {
+    archiveSettledListeners.delete(listener);
+  };
 }
 
 /** The archive failed: the board shows the task again. */
 export function unmarkTaskArchived(taskId: string) {
   archivedTaskIds.delete(taskId);
+  pendingArchiveTaskIds.delete(taskId);
 }
 
 export function isTaskArchived(taskId: string) {
   return archivedTaskIds.has(taskId);
+}
+
+export function isTaskArchivePending(taskId: string) {
+  return pendingArchiveTaskIds.has(taskId);
 }

@@ -21,6 +21,7 @@ import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provi
 import { loadTaskScheduleDialogOptions } from "@/app/tasks/actions";
 import {
   markTaskArchived,
+  settleTaskArchive,
   unmarkTaskArchived,
 } from "@/app/tasks/utils/archived-task-ids";
 import { chatRoomsForTask } from "@/app/tasks/utils/task-chat-share";
@@ -392,12 +393,17 @@ export function useTaskDetailActions({
   const handleArchive = () => {
     markTaskArchived(taskId);
     router.push("/tasks");
-    taskClientService.archive(taskId).catch((error: unknown) => {
-      console.error("Failed to archive task", error);
-      unmarkTaskArchived(taskId);
-      toast.error(labels.archiveError);
-      router.refresh();
-    });
+    taskClientService
+      .archive(taskId)
+      .then(() => {
+        settleTaskArchive(taskId);
+      })
+      .catch((error: unknown) => {
+        console.error("Failed to archive task", error);
+        unmarkTaskArchived(taskId);
+        toast.error(labels.archiveError);
+        router.refresh();
+      });
   };
 
   const resetMobileSections = () => {

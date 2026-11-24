@@ -24,7 +24,10 @@ import {
 } from "@/app/tasks/components/task-detail-optimistic";
 import { TaskDetailLinksProvider } from "@/app/tasks/components/task-detail-optimistic-links";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
-import { isTaskArchived } from "@/app/tasks/utils/archived-task-ids";
+import {
+  isTaskArchived,
+  isTaskArchivePending,
+} from "@/app/tasks/utils/archived-task-ids";
 import {
   MAX_SUBTASK_DEPTH,
   SUBTASK_LIST_LIMIT,
@@ -1039,8 +1042,10 @@ describe("TaskDetailActions", () => {
     expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
   });
 
-  it("marks the task archived for the board before leaving", async () => {
+  it("marks the task archived for the board before leaving and settles pending state without calling router.refresh", async () => {
     const user = userEvent.setup();
+    const pendingArchive = Promise.withResolvers<void>();
+    archiveMock.mockReturnValueOnce(pendingArchive.promise);
     renderActions({
       status: "GRANT_PENDING" as TaskStatus,
       organizations: undefined,
@@ -1052,6 +1057,13 @@ describe("TaskDetailActions", () => {
 
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/tasks"));
     expect(isTaskArchived("task-1")).toBe(true);
+    expect(isTaskArchivePending("task-1")).toBe(true);
+    expect(refreshMock).not.toHaveBeenCalled();
+
+    pendingArchive.resolve();
+    await waitFor(() => expect(isTaskArchivePending("task-1")).toBe(false));
+    expect(isTaskArchived("task-1")).toBe(true);
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("shows the task again on the board when the archive fails", async () => {
