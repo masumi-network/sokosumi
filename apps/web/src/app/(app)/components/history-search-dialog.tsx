@@ -7,7 +7,7 @@ import type {
   TaskListItem,
   WorkspaceLabel,
 } from "@sokosumi/core-client";
-import { Copy, FileText, ListTodo, SquarePen } from "lucide-react";
+import { Copy, FileText, ListTodo, SquarePen, TextSearch } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   type ReactNode,
@@ -61,6 +61,7 @@ interface HistorySearchDialogLabels {
   created: string;
   filesGroup: string;
   filesSeeAll: string;
+  tasksSeeAll: (query: string) => string;
   filesFilenameMatch: string;
   peopleGroup: string;
   copyEmail: (email: string) => string;
@@ -172,6 +173,10 @@ export function HistorySearchDialog({
     closeAndGo(
       `/drive?view=workspace${query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ""}`,
     );
+  }
+
+  function handleSeeAllTasks() {
+    closeAndGo(`/tasks?q=${encodeURIComponent(query.trim())}`);
   }
 
   function handleSelectContact(contact: Contact) {
@@ -337,6 +342,21 @@ export function HistorySearchDialog({
               {labels.filesSeeAll}
             </CommandItem>
           </CommandGroup>
+        ) : null}
+        {/* History lists titles only; the Tasks search also reads results.
+            Last, and only once the typed search settles, so Enter never
+            picks it over a result still loading. */}
+        {query.trim() && !searching && !contactsStale ? (
+          <CommandItem
+            value="tasks:see-all"
+            onSelect={handleSeeAllTasks}
+            className="flex items-center gap-2"
+          >
+            <TextSearch aria-hidden className="size-4" />
+            <span className="min-w-0 truncate">
+              {labels.tasksSeeAll(query.trim())}
+            </span>
+          </CommandItem>
         ) : null}
       </GoToSearchList>
     </CommandDialog>

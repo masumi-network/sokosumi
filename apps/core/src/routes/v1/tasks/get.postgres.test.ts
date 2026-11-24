@@ -114,6 +114,7 @@ function createApp() {
 interface Page {
   data: Array<{
     name: string;
+    resultMatch?: string;
     openSubtasks?: Array<{ name: string; status: string }>;
     subtaskProgress: { completed: number; total: number };
   }>;
@@ -217,7 +218,7 @@ describe.skipIf(!enabled)("GET /tasks for Home's My day", () => {
     await prisma.$disconnect();
   });
 
-  it("ranks name and identifier matches ahead of tags and descriptions across pages", async () => {
+  it("ranks name and identifier matches ahead of tags and descriptions, then results, across pages", async () => {
     const project = await prisma.project.create({
       data: { workspaceId, name: "Search fixture", identifier: "FIND" },
     });
@@ -266,6 +267,44 @@ describe.skipIf(!enabled)("GET /tasks for Home's My day", () => {
       ].map((task) => ({ ...taskDefaults, ...task })),
     });
 
+    await prisma.task.create({
+      data: {
+        ...taskDefaults,
+        name: "Quarterly report",
+        status: TaskStatus.COMPLETED,
+        events: {
+          create: [
+            { comment: "Draft mentions 50%_launch in passing" },
+            {
+              status: TaskStatus.COMPLETED,
+              comment:
+                "Intro.\n\n## Pricing\nThe **50%_launch** plan costs 20.",
+            },
+          ],
+        },
+      },
+    });
+    // Only a plain comment mentions it, which is not a result.
+    await prisma.task.create({
+      data: {
+        ...taskDefaults,
+        name: "Discussion",
+        events: { create: { comment: "What about 50%_launch?" } },
+      },
+    });
+    await prisma.task.create({
+      data: {
+        ...taskDefaults,
+        name: "Bob's private report",
+        visibility: TaskVisibility.PRIVATE,
+        ownerId: bobId,
+        status: TaskStatus.COMPLETED,
+        events: {
+          create: { status: TaskStatus.COMPLETED, comment: "50%_launch" },
+        },
+      },
+    });
+
     async function searchPages(search: string, limit: number) {
       const params = new URLSearchParams({
         scope: "workspace",
@@ -274,6 +313,7 @@ describe.skipIf(!enabled)("GET /tasks for Home's My day", () => {
         limit: String(limit),
       });
       const names: string[] = [];
+      const matches: Record<string, string> = {};
       let total = 0;
       do {
         const response = await createApp().request(
@@ -282,19 +322,29 @@ describe.skipIf(!enabled)("GET /tasks for Home's My day", () => {
         const body = (await response.json()) as Page;
         expect(response.status, JSON.stringify(body)).toBe(200);
         names.push(...body.data.map(({ name }) => name));
+        for (const { name, resultMatch } of body.data)
+          if (resultMatch) matches[name] = resultMatch;
         total = body.meta.pagination.total;
         if (!body.meta.pagination.nextCursor) break;
         params.set("cursor", body.meta.pagination.nextCursor);
       } while (names.length <= total);
-      return { names, total };
+      return { names, total, matches };
     }
 
-    const expected = { names: [named.name, "Tagged", "Brief only"], total: 3 };
+    const expected = {
+      names: [named.name, "Tagged", "Brief only", "Quarterly report"],
+      total: 4,
+      matches: {
+        "Quarterly report": "Intro. Pricing The 50%_launch plan costs 20.",
+      },
+    };
     expect(await searchPages("50%_launch", 1)).toEqual(expected);
     expect(await searchPages("50%_launch", 2)).toEqual(expected);
+    expect(await searchPages("50%_launch", 3)).toEqual(expected);
     expect(await searchPages(`find-${named.number}`, 2)).toEqual({
       names: [named.name],
       total: 1,
+      matches: {},
     });
   });
 

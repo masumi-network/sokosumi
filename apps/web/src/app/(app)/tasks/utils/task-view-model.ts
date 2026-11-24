@@ -211,6 +211,7 @@ export function mapTaskToTaskWithCoworker(
     openSubtasks: "openSubtasks" in task ? task.openSubtasks : undefined,
     hasUnansweredMention:
       "hasUnansweredMention" in task && task.hasUnansweredMention === true,
+    resultMatch: "resultMatch" in task ? task.resultMatch : undefined,
     jobsCount: "jobsCount" in task ? task.jobsCount : task.jobs.length,
     assignee,
     participants: task.participants.map(({ user }) => ({

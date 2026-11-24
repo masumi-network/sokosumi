@@ -118,6 +118,7 @@ export function HistorySearchDialogProvider({
           created: tSearch("created"),
           filesGroup: tSearch("filesGroup"),
           filesSeeAll: tSearch("filesSeeAll"),
+          tasksSeeAll: (query) => tSearch("tasksSeeAll", { query }),
           filesFilenameMatch: tSearch("filesFilenameMatch"),
           peopleGroup: tSearch("peopleGroup"),
           copyEmail: (email) => tSearch("copyEmail", { email }),

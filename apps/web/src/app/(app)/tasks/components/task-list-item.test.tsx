@@ -290,3 +290,19 @@ describe("TaskListItem open sub-tasks", () => {
     expect(subtaskLink?.parentElement?.closest("a")).toBeNull();
   });
 });
+
+describe("TaskListItem search", () => {
+  it("shows the result text a search found under the title", () => {
+    render(
+      <TaskListItem
+        task={{
+          ...buildTask(TaskVisibility.PUBLIC),
+          resultMatch: "…the launch plan costs 20…",
+        }}
+      />,
+    );
+
+    expect(screen.getByText("inResult")).toBeInTheDocument();
+    expect(screen.getByText("…the launch plan costs 20…")).toBeInTheDocument();
+  });
+});

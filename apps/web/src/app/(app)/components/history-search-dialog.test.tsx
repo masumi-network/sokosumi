@@ -70,6 +70,7 @@ const labels = {
   created: "Created",
   filesGroup: "Files",
   filesSeeAll: "See all files",
+  tasksSeeAll: (query: string) => `Search tasks and results for ${query}`,
   filesFilenameMatch: "Filename match",
   peopleGroup: "People",
   copyEmail: (email: string) => `Copy ${email}`,
@@ -369,6 +370,34 @@ describe("HistorySearchDialog", () => {
     await waitFor(() => {
       expect(screen.getByText("New query result")).toBeInTheDocument();
     });
+  });
+
+  it("opens the Tasks search, results included, for what was typed", async () => {
+    getHistoryMock.mockResolvedValue({ data: [] });
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime.bind(vi),
+    });
+    renderWithQuery(
+      <HistorySearchDialog
+        open
+        onOpenChange={vi.fn()}
+        activeOrganizationId={null}
+        labels={labels}
+      />,
+    );
+
+    expect(
+      screen.queryByText(/Search tasks and results/),
+    ).not.toBeInTheDocument();
+    await user.type(
+      screen.getByPlaceholderText("Search history..."),
+      "50% plan",
+    );
+    await user.click(
+      await screen.findByText("Search tasks and results for 50% plan"),
+    );
+
+    expect(pushMock).toHaveBeenCalledWith("/tasks?q=50%25%20plan");
   });
 
   it("passes every history kind when searching", async () => {

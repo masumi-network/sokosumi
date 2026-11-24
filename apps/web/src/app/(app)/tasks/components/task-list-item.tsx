@@ -14,6 +14,7 @@ import { TaskActorCluster } from "./task-meta";
 import { TaskOpenSubtasks } from "./task-open-subtasks";
 import { TaskPriorityMark } from "./task-priority-mark";
 import { TaskPrivateIndicator } from "./task-private-indicator";
+import { TaskResultMatch } from "./task-result-match";
 import { TaskRunAtBadge } from "./task-run-at-badge";
 import { TaskStatusAge } from "./task-status-age";
 import { TaskStatusBadge } from "./task-status-badge";
@@ -65,15 +66,18 @@ export function TaskListItem({
       <span className="text-muted-foreground w-20 shrink-0 truncate tabular-nums">
         {task.identifier}
       </span>
-      <span
-        className={cn(
-          // The title takes the room the columns leave, so every column
-          // after it starts at the same place in every row.
-          "line-clamp-1 min-w-0 flex-1 text-sm font-medium",
-          hasName ? "text-foreground" : "text-muted-foreground",
-        )}
-      >
-        {hasName ? task.name : t("noTitle")}
+      {/* The title takes the room the columns leave, so every column
+          after it starts at the same place in every row. */}
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span
+          className={cn(
+            "line-clamp-1 text-sm font-medium",
+            hasName ? "text-foreground" : "text-muted-foreground",
+          )}
+        >
+          {hasName ? task.name : t("noTitle")}
+        </span>
+        <TaskResultMatch excerpt={task.resultMatch} className="line-clamp-1" />
       </span>
       {/* A column of its own, kept on a row with no tags, so the tags line
           up. It shows only where the title still has room beside it. */}

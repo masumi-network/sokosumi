@@ -1,5 +1,6 @@
-import type { Prisma } from "@sokosumi/database";
+import { type Prisma, TaskStatus } from "@sokosumi/database";
 import { parseTaskRef } from "@sokosumi/utils";
+import { plainExcerpt } from "@/helpers/job-digest";
 import { escapeLikeText } from "@/helpers/query-params";
 import prisma from "@/lib/db/prisma";
 import { resolveTaskRefToId } from "./task-ref";
@@ -10,8 +11,27 @@ type ReadPage<Row> = (
   cursor?: string,
 ) => Promise<Row[]>;
 
-/** Read the chosen sort within each rank, including when a page spans ranks. */
-export async function searchTaskList<Row>({
+const RESULT_MATCH_LENGTH = 160;
+const RESULT_MATCH_LEAD = 60;
+
+/** Plain text around the first match, so a hit found only in a result shows why. */
+export function resultMatchExcerpt(comment: string, search: string): string {
+  const plain = plainExcerpt(comment, Number.POSITIVE_INFINITY).replace(
+    /\s+/g,
+    " ",
+  );
+  const at = plain.toLowerCase().indexOf(search.toLowerCase());
+  const start = Math.max(0, at - RESULT_MATCH_LEAD);
+  const end = start + RESULT_MATCH_LENGTH;
+  return `${start > 0 ? "…" : ""}${plain.slice(start, end).trim()}${end < plain.length ? "…" : ""}`;
+}
+
+/**
+ * Read the chosen sort within each rank, including when a page spans ranks:
+ * name or identifier, then tag or description, then a done comment (the
+ * result). Rows found only by their result come with an excerpt.
+ */
+export async function searchTaskList<Row extends { id: string }>({
   search,
   workspaceId,
   where,
@@ -25,7 +45,7 @@ export async function searchTaskList<Row>({
   take: number;
   cursor?: string;
   readPage: ReadPage<Row>;
-}): Promise<[Row[], number]> {
+}): Promise<[Row[], number, Map<string, string>]> {
   const text = {
     contains: escapeLikeText(search),
     mode: "insensitive",
@@ -51,30 +71,74 @@ export async function searchTaskList<Row>({
   const primary = { OR: primaryMatches };
   const secondary: Prisma.TaskWhereInput = {
     OR: [
-      { description: text },
+      // `not: null` keeps a later rank's NOT true for a Task without a
+      // brief: in SQL, NOT of a match on NULL is NULL and drops the row.
+      { description: { ...text, not: null } },
       { workspaceTags: { some: { label: { displayName: text } } } },
       { visibleTopics: { some: { topicId: text } } },
     ],
   };
-  const first = { AND: [where, primary] };
-  const second = { AND: [where, secondary, { NOT: primary }] };
+  const result: Prisma.TaskWhereInput = {
+    events: { some: { status: TaskStatus.COMPLETED, comment: text } },
+  };
+  const ranks = [primary, secondary, result].map(
+    (match, rank, matches): Prisma.TaskWhereInput => ({
+      AND: [
+        where,
+        match,
+        ...matches.slice(0, rank).map((earlier) => ({ NOT: earlier })),
+      ],
+    }),
+  );
+  const resultRank = ranks.length - 1;
+  const resultIds = new Set<string>();
   async function readMatches() {
+    let rank = 0;
     if (cursor) {
-      const firstRankCursor = await prisma.task.findFirst({
-        where: { AND: [first, { id: cursor }] },
-        select: { id: true },
-      });
-      if (!firstRankCursor) return readPage(second, take, cursor);
+      while (
+        rank < resultRank &&
+        !(await prisma.task.findFirst({
+          where: { AND: [ranks[rank], { id: cursor }] },
+          select: { id: true },
+        }))
+      )
+        rank++;
     }
-    const rows = await readPage(first, take, cursor);
-    if (rows.length === take) return rows;
-    return rows.concat(await readPage(second, take - rows.length));
+    const rows: Row[] = [];
+    for (let at = rank; at < ranks.length && rows.length < take; at++) {
+      const page = await readPage(
+        ranks[at],
+        take - rows.length,
+        at === rank ? cursor : undefined,
+      );
+      if (at === resultRank) for (const row of page) resultIds.add(row.id);
+      rows.push(...page);
+    }
+    return rows;
+  }
+  async function readResultMatches() {
+    const matches = new Map<string, string>();
+    if (resultIds.size === 0) return matches;
+    const events = await prisma.taskEvent.findMany({
+      where: {
+        taskId: { in: [...resultIds] },
+        status: TaskStatus.COMPLETED,
+        comment: text,
+      },
+      orderBy: { createdAt: "desc" },
+      select: { taskId: true, comment: true },
+    });
+    for (const { taskId, comment } of events)
+      if (comment && !matches.has(taskId))
+        matches.set(taskId, resultMatchExcerpt(comment, search));
+    return matches;
   }
 
-  return Promise.all([
+  const [rows, count] = await Promise.all([
     readMatches(),
     prisma.task.count({
-      where: { AND: [where, { OR: [primary, secondary] }] },
+      where: { AND: [where, { OR: [primary, secondary, result] }] },
     }),
   ]);
+  return [rows, count, await readResultMatches()];
 }

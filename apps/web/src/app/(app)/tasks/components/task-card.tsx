@@ -15,6 +15,7 @@ import { TaskMetaDetails } from "./task-meta";
 import { TaskOpenSubtasks } from "./task-open-subtasks";
 import { TaskPriorityMark } from "./task-priority-mark";
 import { TaskPrivateIndicator } from "./task-private-indicator";
+import { TaskResultMatch } from "./task-result-match";
 import { TaskRunAtBadge } from "./task-run-at-badge";
 import { TaskStatusAge } from "./task-status-age";
 import { TaskStatusBadge } from "./task-status-badge";
@@ -45,6 +46,7 @@ export interface TaskCardData
     | "subtaskProgress"
     | "openSubtasks"
     | "hasUnansweredMention"
+    | "resultMatch"
   > {}
 interface TaskCardProps {
   task: TaskCardData;
@@ -155,6 +157,7 @@ export function TaskCard({
             </TaskDetailLink>
           )}
         </h3>
+        <TaskResultMatch excerpt={task.resultMatch} className="line-clamp-2" />
         {/* One line. A container, so the tag can leave a narrow card and the
             date can truncate there, and so the line's unwrapped width cannot
             widen a column that sizes to its content. */}

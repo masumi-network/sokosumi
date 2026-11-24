@@ -68121,6 +68121,11 @@ export const TaskListItemSchema = {
             example: false,
             description: 'True when a comment on the Task mentions the caller and the caller has not commented on the Task since. Sent only to people.'
         },
+        resultMatch: {
+            type: 'string',
+            example: '…The 50% launch plan costs 20 credits a month…',
+            description: 'With `search`, plain text around the first match in the Task\'s latest result (a done comment) that matches. Sent only when nothing but the result matched.'
+        },
         openSubtasks: {
             type: 'array',
             items: {
