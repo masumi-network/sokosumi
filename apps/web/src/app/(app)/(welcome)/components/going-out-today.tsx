@@ -75,31 +75,36 @@ export async function GoingOutToday({
             <li key={row.id} data-testid="home-going-out-row">
               <Link
                 href={row.href}
-                className="hover:bg-accent focus-visible:ring-ring grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-0.5 rounded-md px-3 py-2 outline-hidden transition-colors focus-visible:ring-2 sm:flex"
+                className="hover:bg-accent focus-visible:ring-ring flex min-w-0 items-center gap-3 rounded-md px-3 py-2 outline-hidden transition-colors focus-visible:ring-2"
               >
+                {/* Laid out like the rows of "In the last 24 hours": the
+                    icon centres on the whole row, and on a phone the time
+                    and status take a line under the title. */}
                 <Icon
                   aria-hidden
                   className="text-muted-foreground size-4 shrink-0"
                 />
-                <span className="text-foreground line-clamp-2 min-w-0 flex-1 text-sm break-words sm:line-clamp-1">
-                  <span className="sr-only">{t(`kinds.${row.kind}`)}: </span>
-                  {row.title.trim() || tCalendar("mediaOnly")}
-                </span>
-                <span className="col-start-2 flex shrink-0 items-center gap-2 text-sm">
-                  <time
-                    dateTime={row.at.toISOString()}
-                    className="text-muted-foreground tabular-nums"
-                  >
-                    {format.dateTime(row.at, "time")}
-                  </time>
-                  <span
-                    className={
-                      NEEDS_A_LOOK.has(row.status)
-                        ? "text-foreground font-medium"
-                        : "text-muted-foreground"
-                    }
-                  >
-                    {statusLabel(row)}
+                <span className="min-w-0 flex-1 text-sm sm:flex sm:items-center sm:gap-3">
+                  <span className="text-foreground line-clamp-2 break-words sm:line-clamp-1 sm:flex-1">
+                    <span className="sr-only">{t(`kinds.${row.kind}`)}: </span>
+                    {row.title.trim() || tCalendar("mediaOnly")}
+                  </span>
+                  <span className="flex items-center gap-2 sm:shrink-0">
+                    <time
+                      dateTime={row.at.toISOString()}
+                      className="text-muted-foreground tabular-nums"
+                    >
+                      {format.dateTime(row.at, "time")}
+                    </time>
+                    <span
+                      className={
+                        NEEDS_A_LOOK.has(row.status)
+                          ? "text-foreground font-medium"
+                          : "text-muted-foreground"
+                      }
+                    >
+                      {statusLabel(row)}
+                    </span>
                   </span>
                 </span>
               </Link>
