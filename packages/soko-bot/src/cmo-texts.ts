@@ -28,10 +28,6 @@ export function composeCusoPersona(name: string): string {
   ].join("\n");
 }
 
-/** The words a description may not carry to Cuso. */
-export const CUSO_FORBIDDEN_WORDS =
-  /Sokosumi|Soko Bot|Project Social|Newsletter UI|Ads page|Content Studio|\bDrive\b|preview_result/;
-
 /**
  * Whole descriptions written for Cuso, where the general one explains a
  * thing he may not do or a place his owner never sees.

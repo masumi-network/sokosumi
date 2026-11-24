@@ -90,7 +90,6 @@ export const cmoBrandSectionSchema = z.object({
     })
     .optional(),
 });
-export type CmoBrandSection = z.infer<typeof cmoBrandSectionSchema>;
 
 const section = cmoBrandSectionSchema.optional();
 export const cmoBrandProfileSchema = z.object({
@@ -161,7 +160,6 @@ export const cmoBrandRevealSchema = z.object({
     )
     .max(3),
 });
-export type CmoBrandReveal = z.infer<typeof cmoBrandRevealSchema>;
 
 /** How a number was found: read from a source, Cuso's estimate, or not known. */
 export const CMO_MEASURE_BASES = ["measured", "estimated", "unknown"] as const;
@@ -364,7 +362,6 @@ export const CMO_CONTENT_APPROACHES = [
   "research-led",
   "promotional",
 ] as const;
-export type CmoContentApproach = (typeof CMO_CONTENT_APPROACHES)[number];
 
 /** Why people do not buy yet, which decides the mix. */
 export const CMO_BUYING_BARRIERS = [
