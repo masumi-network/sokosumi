@@ -161,37 +161,13 @@ export function socialPostsPerWeek(calendar: Entry[]): number {
   return social.length / Math.ceil(days / 7);
 }
 
-/** "Mon 5 Oct", or "Today" / "Tomorrow" relative to `today` (YYYY-MM-DD). */
-const CHANNEL_LABELS: Record<string, string> = {
-  linkedin: "LinkedIn",
-  x: "X",
-  twitter: "X",
-  instagram: "Instagram",
-  facebook: "Facebook",
-  tiktok: "TikTok",
-  youtube: "YouTube",
-  threads: "Threads",
-  bluesky: "Bluesky",
-  pinterest: "Pinterest",
-  website: "Website",
-  seo: "Website",
-  email: "Newsletter",
-  newsletter: "Newsletter",
-  ads: "Ads",
-  meta: "Meta ads",
-  google: "Google ads",
-};
-
 /** A channel id as people write it: "linkedin" reads "LinkedIn". */
 export function channelLabel(channel: string): string {
   const key = channel.trim().toLowerCase();
-  return (
-    channelInfo(key)?.name ??
-    CHANNEL_LABELS[key] ??
-    key.charAt(0).toUpperCase() + key.slice(1)
-  );
+  return channelInfo(key)?.name ?? key.charAt(0).toUpperCase() + key.slice(1);
 }
 
+/** "Mon 5 Oct", or "Today" / "Tomorrow" relative to `today` (YYYY-MM-DD). */
 export function relativeDay(date: string, today: string): string {
   const days = Math.round(
     (Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) /
