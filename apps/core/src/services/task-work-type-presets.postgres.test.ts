@@ -1,12 +1,17 @@
 import { randomUUID } from "node:crypto";
+import { PrismaRaw } from "@sokosumi/database/client";
 import { backfillTaskWorkTypePresets } from "@sokosumi/database/helpers";
-import {
-  configureSqlTables,
-  PUBLIC_LAYOUT,
-} from "@sokosumi/database/sql-tables";
+import { sharedType } from "@sokosumi/database/sql-tables";
 import { CURATED_VOCABULARY_VERSION, TASK_TAG_PRESETS } from "@sokosumi/utils";
-import { expect, it, onTestFinished } from "vitest";
+import { expect, it } from "vitest";
 import prisma from "@/lib/db/prisma";
+
+// The statement names its tables with their schema, so the temporary tables
+// below do not shadow the real ones: the backfill is told where they are.
+const tables = {
+  sharedTable: (table: string) => PrismaRaw.raw(`pg_temp."${table}"`),
+  sharedType,
+};
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -15,11 +20,6 @@ const enabled =
 it.skipIf(!enabled)(
   "backfills old workspaces in batches, preserving collisions and later edits",
   async () => {
-    // The statement names its tables with their schema, so the temporary
-    // tables below no longer shadow the real ones: name their schema instead.
-    onTestFinished(
-      configureSqlTables({ ...PUBLIC_LAYOUT, sharedTablesAreTemporary: true }),
-    );
     await prisma.$transaction(async (tx) => {
       // The production statement scans all workspaces. Isolate it from other suites
       // with transaction-local tables and copy the real label schema and unique index.
@@ -36,11 +36,15 @@ it.skipIf(!enabled)(
     `;
       const expected = 2 * TASK_TAG_PRESETS.length - 1;
       expect(
-        await backfillTaskWorkTypePresets(tx, { batchSize: 1, dryRun: true }),
+        await backfillTaskWorkTypePresets(tx, {
+          batchSize: 1,
+          dryRun: true,
+          tables,
+        }),
       ).toBe(expected);
-      expect(await backfillTaskWorkTypePresets(tx, { batchSize: 1 })).toBe(
-        expected,
-      );
+      expect(
+        await backfillTaskWorkTypePresets(tx, { batchSize: 1, tables }),
+      ).toBe(expected);
       const rows = await tx.$queryRaw<
         {
           displayName: string;
@@ -76,7 +80,9 @@ it.skipIf(!enabled)(
       ]);
       await tx.$executeRaw`UPDATE workspace_label SET "normalizedName"='team-bug', "displayName"='Team bug'
       WHERE "workspaceId" = ${second}::uuid AND "normalizedName"='bug'`;
-      expect(await backfillTaskWorkTypePresets(tx, { batchSize: 1 })).toBe(0);
+      expect(
+        await backfillTaskWorkTypePresets(tx, { batchSize: 1, tables }),
+      ).toBe(0);
     });
   },
 );

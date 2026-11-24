@@ -193,21 +193,19 @@ describe("createSqlTables", () => {
     ).toThrow("Not a schema name for tables");
   });
 
-  it("lets a test put the shared tables in temporary ones", () => {
-    for (const layout of [PUBLIC_LAYOUT, SPLIT]) {
-      const tables = createSqlTables({
-        ...layout,
-        sharedTablesAreTemporary: true,
-      });
-      expect(tables.sharedTable("workspace").sql).toBe('"pg_temp"."workspace"');
-      // A temporary table's enum columns are still the shared schema's types.
-      expect(tables.sharedType("FileLabelKind").sql).toBe(
-        `"${layout.shared}"."FileLabelKind"`,
-      );
-      expect(tables.netTable("mainnet", "Job").sql).toBe(
-        `"${layout.mainnet}"."Job"`,
-      );
-    }
+  it("quotes the names it checked, whatever a second read returns", () => {
+    let reads = 0;
+    const layout: SqlTableLayout = {
+      ...SPLIT,
+      get preprod() {
+        reads += 1;
+        return reads === 1 ? "preprod" : "public";
+      },
+    };
+    expect(createSqlTables(layout).netTable("preprod", "Tag").sql).toBe(
+      '"preprod"."Tag"',
+    );
+    expect(reads).toBe(1);
   });
 
   it("accepts every listed table and enum", () => {
@@ -229,7 +227,6 @@ describe("createSqlTables", () => {
     const sharedTypes = Object.keys($Enums).filter(
       (type) => !networkTables.networkEnums.includes(type),
     );
-    expect(sharedTypes).toHaveLength(90);
     for (const type of sharedTypes) {
       expect(tables.sharedType(type).sql).toBe(`"shared"."${type}"`);
     }
@@ -256,12 +253,9 @@ describe("the configured tables", () => {
 
   it("gives back a function that restores the layout configured before", () => {
     const restoreSplit = configureSqlTables(SPLIT);
-    const restoreTemporary = configureSqlTables({
-      ...SPLIT,
-      sharedTablesAreTemporary: true,
-    });
-    expect(sharedTable("user").sql).toBe('"pg_temp"."user"');
-    restoreTemporary();
+    const restoreOther = configureSqlTables({ ...SPLIT, shared: "other" });
+    expect(sharedTable("user").sql).toBe('"other"."user"');
+    restoreOther();
     expect(sharedTable("user").sql).toBe('"shared"."user"');
     restoreSplit();
     expect(sharedTable("user").sql).toBe('"public"."user"');

@@ -1,6 +1,6 @@
+import { raw, type Sql } from "@prisma/client/runtime/client";
 import networkTables from "../prisma/network-tables.json" with { type: "json" };
 import * as enums from "./generated/prisma/enums.js";
-import { raw, type Sql } from "./generated/prisma/internal/prismaNamespace.js";
 
 /**
  * Table and enum type names for raw SQL, always with their schema:
@@ -20,12 +20,6 @@ export interface SqlTableLayout {
   mainnet: string;
   preprod: string;
   preprodOn: boolean;
-  /**
-   * For a test that hides shared tables behind temporary ones: `sharedTable`
-   * names `pg_temp`. Enum types stay in the shared schema, where a temporary
-   * table made with `LIKE` finds them.
-   */
-  sharedTablesAreTemporary?: boolean;
 }
 
 export interface SqlTables {
@@ -92,8 +86,12 @@ function quoted(identifier: string): string {
  * two together): lowercase names, no PostgreSQL system schema; all three
  * `public`, or all different and none `public`; Preprod on only on the split.
  */
-function checkLayout(layout: SqlTableLayout): void {
-  const { shared, mainnet, preprod, preprodOn } = layout;
+function checkLayout({
+  shared,
+  mainnet,
+  preprod,
+  preprodOn,
+}: SqlTableLayout): void {
   if (typeof preprodOn !== "boolean") {
     throw new Error("preprodOn must be true or false");
   }
@@ -132,17 +130,15 @@ function checkLayout(layout: SqlTableLayout): void {
  * type must be on the checked-in list, and all must be plain identifiers.
  */
 export function createSqlTables(layout: SqlTableLayout): SqlTables {
-  checkLayout(layout);
-  const { preprodOn } = layout;
+  // Read once: what is checked is what is quoted, whatever the object does
+  // on a second read.
+  const { shared: sharedSchema, mainnet, preprod, preprodOn } = layout;
+  checkLayout({ shared: sharedSchema, mainnet, preprod, preprodOn });
   const schemas = {
-    shared: quoted(layout.shared),
-    mainnet: quoted(layout.mainnet),
-    preprod: quoted(layout.preprod),
+    shared: quoted(sharedSchema),
+    mainnet: quoted(mainnet),
+    preprod: quoted(preprod),
   };
-
-  const sharedTableSchema = layout.sharedTablesAreTemporary
-    ? '"pg_temp"'
-    : schemas.shared;
 
   function shared({ kind, shared, network }: Names, name: string): Sql {
     if (network.has(name)) {
@@ -151,9 +147,7 @@ export function createSqlTables(layout: SqlTableLayout): SqlTables {
       );
     }
     if (!shared.has(name)) throw new Error(`Unknown ${kind}: ${name}`);
-    return raw(
-      `${kind === "table" ? sharedTableSchema : schemas.shared}.${quoted(name)}`,
-    );
+    return raw(`${schemas.shared}.${quoted(name)}`);
   }
 
   function net(
@@ -165,11 +159,11 @@ export function createSqlTables(layout: SqlTableLayout): SqlTables {
       throw new Error(`Unknown Network: ${String(network)}`);
     }
     if (network === "preprod" && !preprodOn) {
-      throw new Error("Preprod is off: no SQL may name its tables");
+      throw new Error("Preprod is off: no SQL may name its schema");
     }
     if (network === "preprod" && schemas.preprod === schemas.mainnet) {
       throw new Error(
-        "Preprod's schema is Mainnet's: its tables would be Mainnet's rows",
+        "Preprod's schema is Mainnet's: the name would reach Mainnet's rows",
       );
     }
     if (shared.has(name)) {

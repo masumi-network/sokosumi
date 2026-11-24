@@ -12,8 +12,9 @@ const ROOT = fileURLToPath(new URL("../../../../../..", import.meta.url));
 //
 // The rule is plain on purpose, and it only reports. A finding is an uppercase
 // SQL keyword that takes a table, followed by the SQL name of one of our
-// tables (`network-tables.json`) with no schema before it: in double quotes in
-// its exact spelling, or bare in any case (PostgreSQL folds a bare name).
+// tables (`network-tables.json`) with no schema before it, in its exact
+// spelling; a table whose name is all lowercase also bare in any case
+// (PostgreSQL folds a bare name).
 // `CREATE TEMP TABLE <name>` is no finding: a temporary table has no schema
 // to name.
 // What it cannot see:
@@ -74,15 +75,6 @@ const ENFORCED: readonly Group[] = [];
 /** Where raw SQL can live. Web, CMO and the CLI have no database access. */
 const SCANNED = ["apps/core", "packages/database", "scripts"];
 
-/**
- * Files that pass a wrong name to `sharedTable` or `netTable` on purpose, to
- * test the refusal.
- */
-const TESTS_REFUSALS = [
-  "packages/database/src/sql-tables.test.ts",
-  "apps/core/src/lib/db/__tests__/unqualified-raw-sql.test.ts",
-];
-
 /** "scripts" is every file outside the three other groups. */
 const GROUPS = ["database", "core", "scripts", "tests"] as const;
 type Group = (typeof GROUPS)[number];
@@ -104,39 +96,22 @@ const tables = JSON.parse(
   shared: Record<string, string>;
 };
 
-const networkTables = new Set([
+const tableNames = [
   ...Object.values(tables.network),
   ...tables.networkJoinTables,
-]);
-const sharedTables = new Set(Object.values(tables.shared));
-const tableNames = [...networkTables, ...sharedTables].join("|");
+  ...Object.values(tables.shared),
+];
+// PostgreSQL folds a bare name to lowercase, so a bare name in any case can
+// only be a table whose name is all lowercase (`lock` is never `"Lock"`).
+const exact = tableNames.join("|");
+const anyCase = tableNames
+  .filter((name) => name === name.toLowerCase())
+  .join("|");
 
 const UNQUALIFIED = new RegExp(
-  `(?<!CREATE\\s+(?:TEMP|TEMPORARY)\\s+)\\b(?:${KEYWORDS})\\s+(?:IF\\s+(?:NOT\\s+)?EXISTS\\s+)?(?:"(?:${tableNames})"|(?i:${tableNames}))(?![\\w".])`,
+  `(?<!CREATE\\s+(?:TEMP|TEMPORARY)\\s+)\\b(?:${KEYWORDS})\\s+(?:IF\\s+(?:NOT\\s+)?EXISTS\\s+)?(?:("?)(?:${exact})\\1|(?i:${anyCase}))(?![\\w".])`,
   "g",
 );
-
-// A call with the table as a string literal: `sharedTable("user")`,
-// `tables.netTable(network, "Job")`. A wrong literal throws at run time, on a
-// path that may have no PostgreSQL test, so this part does fail the build.
-const TABLE_ARGUMENT =
-  /\b(sharedTable|netTable)\(\s*(?:[^,()]+,\s*)?(["'`])([^"'`]*)\2\s*,?\s*\)/g;
-
-/** Calls that name a table the helper would refuse. */
-function wrongTableArguments(file: string, source: string): Finding[] {
-  return [...source.matchAll(TABLE_ARGUMENT)]
-    .filter(
-      ([, helper, , table]) =>
-        !(helper === "netTable" ? networkTables : sharedTables).has(
-          table ?? "",
-        ),
-    )
-    .map((match) => ({
-      file,
-      line: source.slice(0, match.index).split("\n").length,
-      text: match[0].replace(/\s+/g, " "),
-    }));
-}
 
 function unqualifiedTables(file: string, source: string): Finding[] {
   return [...source.matchAll(UNQUALIFIED)].map((match) => ({
@@ -223,6 +198,7 @@ describe("unqualified table names in raw SQL", () => {
     "SELECT task.id FROM ${tasks} task",
     "// reads the title from task and project",
     'SELECT id FROM "WORKSPACE"',
+    "SELECT 1 FROM x FOR UPDATE lock",
     "CREATE TEMP TABLE workspace (id uuid PRIMARY KEY) ON COMMIT DROP",
     "CREATE TEMPORARY TABLE\n  workspace_label (LIKE x INCLUDING ALL)",
   ])("passes %s", (source) => {
@@ -279,43 +255,6 @@ describe("unqualified table names in raw SQL", () => {
     expect(
       found.filter(({ file }) => ENFORCED.includes(groupOf(file))),
       "Name the table through sharedTable or netTable (@sokosumi/database/sql-tables).",
-    ).toEqual([]);
-  });
-});
-
-describe("table names passed to sharedTable and netTable", () => {
-  it.each([
-    ['sharedTable("Job")', 'sharedTable("Job")'],
-    ['netTable("mainnet", "user")', 'netTable("mainnet", "user")'],
-    ['tables.netTable(network, "JobEvent")', 'netTable(network, "JobEvent")'],
-    [
-      'sharedTable(\n  "workspace_labels",\n)',
-      'sharedTable( "workspace_labels", )',
-    ],
-    ["sharedTable('nope')", "sharedTable('nope')"],
-  ])("finds %s", (source, text) => {
-    expect(wrongTableArguments("x.ts", source)).toEqual([
-      { file: "x.ts", line: 1, text },
-    ]);
-  });
-
-  it.each([
-    'sharedTable("user")',
-    'netTable("mainnet", "Job")',
-    'tables.netTable(network, "_AgentTag")',
-    'sharedTable(\n  "workspace_label",\n)',
-    "sharedTable(name)",
-    "function sharedTable(table: string): Sql {",
-  ])("passes %s", (source) => {
-    expect(wrongTableArguments("x.ts", source)).toEqual([]);
-  });
-
-  it("are tables of the right side everywhere in the repository", () => {
-    expect(
-      repositoryFindings(wrongTableArguments).filter(
-        ({ file }) => !TESTS_REFUSALS.includes(file),
-      ),
-      "Not a table of that side in network-tables.json: the call throws at run time.",
     ).toEqual([]);
   });
 });

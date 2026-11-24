@@ -5,6 +5,7 @@
  * without the helper. Runs only on the split layout (`onSplitLayout`).
  */
 import { randomUUID } from "node:crypto";
+import { $Enums } from "@sokosumi/database";
 import { createPrismaClient } from "@sokosumi/database/client";
 import { backfillTaskWorkTypePresets } from "@sokosumi/database/helpers";
 import { creditBucketRepository } from "@sokosumi/database/repositories";
@@ -130,25 +131,33 @@ describe.runIf(onSplitLayout)("raw SQL tables on the split layout", () => {
         await models.shared.$queryRaw<{ name: string }[]>`
           SELECT t.typname AS name FROM pg_type t
           JOIN pg_namespace n ON n.oid = t.typnamespace
-          WHERE t.typtype = 'e' AND n.nspname = ${schema}
-          ORDER BY t.typname`
-      ).map((row) => row.name);
+          WHERE t.typtype = 'e' AND n.nspname = ${schema}`
+      )
+        .map((row) => row.name)
+        .sort();
     const networkEnums = [...networkTables.networkEnums].sort();
-    const sharedEnums = await inSchema(layout.shared);
+    const sharedEnums = Object.keys($Enums)
+      .filter((name) => !networkEnums.includes(name))
+      .sort();
 
-    expect((await inSchema(layout.mainnet)).sort()).toEqual(networkEnums);
-    expect((await inSchema(layout.preprod)).sort()).toEqual(networkEnums);
-    expect(sharedEnums.length).toBeGreaterThan(0);
-    expect(sharedEnums.filter((name) => networkEnums.includes(name))).toEqual(
-      [],
-    );
-    // Every shared enum is one `sharedType` accepts.
-    for (const name of sharedEnums) tables.sharedType(name);
+    expect(await inSchema(layout.mainnet)).toEqual(networkEnums);
+    expect(await inSchema(layout.preprod)).toEqual(networkEnums);
+    expect(await inSchema(layout.shared)).toEqual(sharedEnums);
+  });
 
-    const [row] = await models.shared.$queryRaw<{ a: string; b: string }[]>`
-      SELECT ${"ONLINE"}::${tables.netType("preprod", "AgentStatus")}::text AS a,
-             ${"TAG"}::${tables.sharedType("FileLabelKind")}::text AS b`;
-    expect(row).toEqual({ a: "ONLINE", b: "TAG" });
+  it("casts to the enum type of the schema it names", async () => {
+    // Both Networks have an `AgentStatus`; only the type's schema tells them apart.
+    // PostgreSQL prints a type outside the search path with its schema.
+    const [row] = await models.shared.$queryRaw<Record<string, string>[]>`
+      SELECT
+        pg_typeof(${"ONLINE"}::${tables.netType("preprod", "AgentStatus")})::text AS preprod,
+        pg_typeof(${"ONLINE"}::${tables.netType("mainnet", "AgentStatus")})::text AS mainnet,
+        pg_typeof(${"TAG"}::${tables.sharedType("FileLabelKind")})::text AS shared`;
+    expect(row).toEqual({
+      preprod: `${layout.preprod}."AgentStatus"`,
+      mainnet: `${layout.mainnet}."AgentStatus"`,
+      shared: `${layout.shared}."FileLabelKind"`,
+    });
   });
 
   // Empty results: the statements resolve on the split layout. Which Network a
