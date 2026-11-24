@@ -142,6 +142,7 @@ describe("Sokosumi MCP server", () => {
 
     const client = await connect(auth, "?toolsets=tasks");
     expect(client.instructions).toContain("Toolsets on: tasks.");
+    expect(client.instructions).not.toContain("workspaces_list");
     await expect(
       client.callTool({ name: "users_get", arguments: { id: "me" } }),
     ).rejects.toThrow("Unknown tool: users_get");

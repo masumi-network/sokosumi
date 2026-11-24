@@ -14,7 +14,9 @@ export function instructions(toolsets: readonly string[]): string {
   const others = MCP_TOOLSETS.filter((name) => !toolsets.includes(name));
   return [
     "Sokosumi tools act on the signed-in person's Sokosumi account.",
-    "Call workspaces_list first: a tool acts in the personal workspace unless you pass an organization workspace's slug as `workspace`.",
+    toolsets.includes("workspaces")
+      ? "Call workspaces_list first: a tool acts in the personal workspace unless you pass an organization workspace's slug as `workspace`."
+      : "A tool acts in the personal workspace unless you pass an organization workspace's slug as `workspace`; ask the person for it, or for the workspaces toolset.",
     `Toolsets on: ${toolsets.join(", ")}.`,
     ...(others.length > 0
       ? [
