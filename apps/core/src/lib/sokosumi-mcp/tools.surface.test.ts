@@ -10,6 +10,11 @@ import type { McpTokenVerification } from "./auth";
 import { coreV1 } from "./dispatch";
 import { MCP_TOOLS, MCP_TOOLSETS } from "./tools";
 
+const CONTACT = "01a20919-0000-7000-8000-000000000001";
+const OTHER = "01a20919-0000-7000-8000-000000000002";
+const COMPANY = "01a20919-0000-7000-8000-000000000003";
+const LIST = "01a20919-0000-7000-8000-000000000004";
+
 /**
  * One fixture per tool in `MCP_TOOLS`: the arguments an agent would send.
  * Each runs through a real MCP client, and the `/v1` request it makes must be
@@ -922,6 +927,69 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
     id: "room-1",
     body: { scope: "org", organizationId: "org-1", userIds: ["user-2"] },
   },
+  // SOKD-376: contacts and contact lists.
+  contacts_list: { workspace: "acme", stage: "PROSPECT", limit: 20 },
+  contacts_create: {
+    body: {
+      name: "Nina Keller",
+      channels: [{ type: "EMAIL", value: "nina@example.com" }],
+    },
+  },
+  contacts_map: { search: "berlin" },
+  contacts_merge: { body: { winnerId: CONTACT, loserIds: [OTHER] } },
+  contacts_list_duplicates: { limit: 10 },
+  contacts_dismiss_duplicates: { body: { contactIds: [CONTACT, OTHER] } },
+  contacts_set_stage: { body: { contactIds: [CONTACT], stage: "PROSPECT" } },
+  contacts_undo_stage: {
+    body: { contacts: [{ id: CONTACT, stage: "LEAD", version: 2 }] },
+  },
+  contacts_list_organizations: {},
+  contacts_list_companies: { industry: "Software" },
+  contacts_get_company: { companyId: COMPANY },
+  contacts_update_company: { companyId: COMPANY, body: { version: 1 } },
+  contacts_list_company_lists: {},
+  contacts_create_company_list: { body: { name: "Targets" } },
+  contacts_update_company_list: { listId: LIST, body: { name: "Q1 targets" } },
+  contacts_delete_company_list: { listId: LIST },
+  contacts_update_company_list_members: {
+    listId: LIST,
+    body: { add: [COMPANY] },
+  },
+  contacts_breakdown: { by: "stage" },
+  contacts_get: { id: CONTACT },
+  contacts_update: { id: CONTACT, body: { version: 1, role: "Founder" } },
+  contacts_archive: { id: CONTACT },
+  contacts_unarchive: { id: CONTACT },
+  contacts_add_channel: {
+    id: CONTACT,
+    body: { type: "EMAIL", value: "nina@example.com" },
+  },
+  contacts_remove_channel: { id: CONTACT, channelId: OTHER },
+  contacts_list_interactions: { id: CONTACT, limit: 20 },
+  contacts_add_interaction: {
+    id: CONTACT,
+    body: {
+      occurredAt: "2026-11-24T10:00:00Z",
+      channel: "EMAIL",
+      summary: "Intro call booked",
+    },
+  },
+  contacts_delete_interaction: { id: CONTACT, interactionId: OTHER },
+  contacts_set_importance: { id: CONTACT, body: { importance: 80 } },
+  contacts_enrich: { id: CONTACT },
+  contacts_activity: { id: CONTACT },
+  contacts_list_lists: {},
+  contacts_create_list: { body: { name: "Investors" } },
+  contacts_update_list: { id: LIST, body: { color: "blue" } },
+  contacts_delete_list: { id: LIST },
+  contacts_update_list_members: { id: LIST, body: { remove: [CONTACT] } },
+  contacts_list_suggestions: { id: LIST },
+  contacts_find_people: {
+    id: LIST,
+    body: { brief: "Seed investors in Berlin" },
+  },
+  contacts_add_suggestions: { id: LIST, body: { ids: [OTHER] } },
+  contacts_dismiss_suggestions: { id: LIST, body: { ids: [OTHER] } },
 };
 
 const CORE = "https://core.example.test";

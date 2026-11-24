@@ -303,6 +303,13 @@ Organization Tasks:
     tasks update-schedule-run SCHEDULE_ID RUN_ID skips, moves or restores one Run.
   Files: tasks upload-url TASK_ID returns uploadUrl and headers; PUT the bytes there and the file shows in tasks files.
 
+Contacts (personal data; each contacts command calls one Core operation):
+  contacts list|map|breakdown|export take the same --query filters, e.g. --query stage=PROSPECT --query listId=LIST_ID.
+  contacts export prints CSV (up to 10,000 contacts): sokosumi contacts export > contacts.csv
+  Contact lists use LIST_ID (contacts list-lists); company lists use COMPANY_LIST_ID (contacts list-company-lists).
+  contacts update needs the contact's current version: --input-json '{"version":3,"role":"Founder"}'.
+  contacts enrich and contacts find-people spend workspace credits. contacts merge cannot be undone.
+
 Agent runtime tools on Preprod:
   runtime key-import requires --coworker-id ID --api-key-stdin and stores a verified key in the OS vault.
   runtime start, complete, and run require --coworker-id ID and either --organization-id ID or --personal. They use that Coworker's stored key or --api-key-stdin.

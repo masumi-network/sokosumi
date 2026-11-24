@@ -1827,6 +1827,220 @@ export const CLI_COMMAND_CATALOG = [
     usage: "ROOM_ID --input-json JSON",
     operation: "PUT /drive/data-rooms/{id}/colleagues",
   },
+  // SOKD-376: contacts and contact lists.
+  {
+    command: "contacts list",
+    usage: "[--query KEY=VALUE]",
+    operation: "GET /contacts",
+  },
+  {
+    command: "contacts create",
+    usage: "--input-json JSON",
+    operation: "POST /contacts",
+  },
+  {
+    command: "contacts export",
+    usage: "[--query KEY=VALUE]",
+    operation: "GET /contacts/export.csv",
+  },
+  {
+    command: "contacts map",
+    usage: "[--query KEY=VALUE]",
+    operation: "GET /contacts/map",
+  },
+  {
+    command: "contacts merge",
+    usage: "--input-json JSON",
+    operation: "POST /contacts/merge",
+  },
+  {
+    command: "contacts list-duplicates",
+    usage: "[--query KEY=VALUE]",
+    operation: "GET /contacts/duplicates",
+  },
+  {
+    command: "contacts dismiss-duplicates",
+    usage: "--input-json JSON",
+    operation: "POST /contacts/duplicates/dismiss",
+  },
+  {
+    command: "contacts set-stage",
+    usage: "--input-json JSON",
+    operation: "POST /contacts/stage",
+  },
+  {
+    command: "contacts undo-stage",
+    usage: "--input-json JSON",
+    operation: "POST /contacts/stage/undo",
+  },
+  {
+    command: "contacts import",
+    usage: "--input-json JSON",
+    operation: "POST /contacts/import",
+  },
+  {
+    command: "contacts list-organizations",
+    usage: "[--query KEY=VALUE]",
+    operation: "GET /contacts/organizations",
+  },
+  {
+    command: "contacts list-companies",
+    usage: "[--query KEY=VALUE]",
+    operation: "GET /contacts/companies",
+  },
+  {
+    command: "contacts get-company",
+    usage: "COMPANY_ID",
+    operation: "GET /contacts/companies/{companyId}",
+  },
+  {
+    command: "contacts update-company",
+    usage: "COMPANY_ID --input-json JSON",
+    operation: "PATCH /contacts/companies/{companyId}",
+  },
+  {
+    command: "contacts list-company-lists",
+    usage: "",
+    operation: "GET /contacts/company-lists",
+  },
+  {
+    command: "contacts create-company-list",
+    usage: "--input-json JSON",
+    operation: "POST /contacts/company-lists",
+  },
+  {
+    command: "contacts update-company-list",
+    usage: "COMPANY_LIST_ID --input-json JSON",
+    operation: "PATCH /contacts/company-lists/{listId}",
+  },
+  {
+    command: "contacts delete-company-list",
+    usage: "COMPANY_LIST_ID",
+    operation: "DELETE /contacts/company-lists/{listId}",
+  },
+  {
+    command: "contacts update-company-list-members",
+    usage: "COMPANY_LIST_ID --input-json JSON",
+    operation: "POST /contacts/company-lists/{listId}/members",
+  },
+  {
+    command: "contacts breakdown",
+    usage: "[--query KEY=VALUE]",
+    operation: "GET /contacts/breakdown",
+  },
+  {
+    command: "contacts get",
+    usage: "CONTACT_ID",
+    operation: "GET /contacts/{id}",
+  },
+  {
+    command: "contacts update",
+    usage: "CONTACT_ID --input-json JSON",
+    operation: "PATCH /contacts/{id}",
+  },
+  {
+    command: "contacts archive",
+    usage: "CONTACT_ID",
+    operation: "POST /contacts/{id}/archive",
+    noBody: true,
+  },
+  {
+    command: "contacts unarchive",
+    usage: "CONTACT_ID",
+    operation: "POST /contacts/{id}/unarchive",
+    noBody: true,
+  },
+  {
+    command: "contacts add-channel",
+    usage: "CONTACT_ID --input-json JSON",
+    operation: "POST /contacts/{id}/channels",
+  },
+  {
+    command: "contacts remove-channel",
+    usage: "CONTACT_ID CHANNEL_ID",
+    operation: "DELETE /contacts/{id}/channels/{channelId}",
+  },
+  {
+    command: "contacts list-interactions",
+    usage: "CONTACT_ID [--query KEY=VALUE]",
+    operation: "GET /contacts/{id}/interactions",
+  },
+  {
+    command: "contacts add-interaction",
+    usage: "CONTACT_ID --input-json JSON",
+    operation: "POST /contacts/{id}/interactions",
+  },
+  {
+    command: "contacts delete-interaction",
+    usage: "CONTACT_ID INTERACTION_ID",
+    operation: "DELETE /contacts/{id}/interactions/{interactionId}",
+  },
+  {
+    command: "contacts set-importance",
+    usage: "CONTACT_ID --input-json JSON",
+    operation: "PUT /contacts/{id}/importance",
+  },
+  {
+    command: "contacts enrich",
+    usage: "CONTACT_ID",
+    operation: "POST /contacts/{id}/enrich",
+    noBody: true,
+  },
+  {
+    command: "contacts activity",
+    usage: "CONTACT_ID [--query KEY=VALUE]",
+    operation: "GET /contacts/{id}/activity",
+  },
+  {
+    command: "contacts list-lists",
+    usage: "",
+    operation: "GET /contact-lists",
+  },
+  {
+    command: "contacts create-list",
+    usage: "--input-json JSON",
+    operation: "POST /contact-lists",
+  },
+  {
+    command: "contacts update-list",
+    usage: "LIST_ID --input-json JSON",
+    operation: "PATCH /contact-lists/{id}",
+  },
+  {
+    command: "contacts delete-list",
+    usage: "LIST_ID",
+    operation: "DELETE /contact-lists/{id}",
+  },
+  {
+    command: "contacts update-list-members",
+    usage: "LIST_ID --input-json JSON",
+    operation: "POST /contact-lists/{id}/members",
+  },
+  {
+    command: "contacts import-list",
+    usage: "LIST_ID --input-json JSON",
+    operation: "POST /contact-lists/{id}/import",
+  },
+  {
+    command: "contacts list-suggestions",
+    usage: "LIST_ID",
+    operation: "GET /contact-lists/{id}/suggestions",
+  },
+  {
+    command: "contacts find-people",
+    usage: "LIST_ID --input-json JSON",
+    operation: "POST /contact-lists/{id}/find",
+  },
+  {
+    command: "contacts add-suggestions",
+    usage: "LIST_ID --input-json JSON",
+    operation: "POST /contact-lists/{id}/suggestions/add",
+  },
+  {
+    command: "contacts dismiss-suggestions",
+    usage: "LIST_ID --input-json JSON",
+    operation: "POST /contact-lists/{id}/suggestions/dismiss",
+  },
 ] as const satisfies readonly CliCommandCatalogEntry[];
 
 type CliCommand = (typeof CLI_COMMAND_CATALOG)[number]["command"];

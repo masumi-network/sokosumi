@@ -2212,6 +2212,249 @@ export const MCP_TOOLS: readonly McpTool[] = [
       "Choose which organization members (`body.userIds`) may see and run an organization data room, besides its maker, owners and admins. Replaces the list.",
     destructive: true,
   },
+  // SOKD-376: contacts and contact lists, in the `contacts` toolset (off by
+  // default: contacts are personal data).
+  {
+    name: "contacts_list",
+    operation: "GET /contacts",
+    description:
+      "List the workspace's contacts, filtered and sorted. `search`, `stage`, `kind`, `organization`, `listId` and the other filters narrow it; `pagination.total` is the match count. Pass `cursor` for the next page.",
+  },
+  {
+    name: "contacts_create",
+    operation: "POST /contacts",
+    description:
+      "Create a contact: `body.name` and/or `body.channels` (`type`, `value`). A channel another contact owns answers 409 with `existingContactId`, unless `body.upsert` is true: then it fills that contact instead.",
+  },
+  {
+    name: "contacts_map",
+    operation: "GET /contacts/map",
+    description:
+      "The contacts the same filters as contacts_list match, grouped by place. A first call can take a few seconds.",
+  },
+  {
+    name: "contacts_merge",
+    operation: "POST /contacts/merge",
+    description:
+      "Merge contacts into one: `body.winnerId` keeps everything; each of `body.loserIds` becomes a tombstone. It cannot be undone. Confirm with the person first.",
+    destructive: true,
+  },
+  {
+    name: "contacts_list_duplicates",
+    operation: "GET /contacts/duplicates",
+    description:
+      "Groups of contacts that share a name: likely the same person. Pass `contactId` for one contact's group.",
+  },
+  {
+    name: "contacts_dismiss_duplicates",
+    operation: "POST /contacts/duplicates/dismiss",
+    description:
+      "Mark `body.contactIds` as different people, so contacts_list_duplicates stops grouping them.",
+  },
+  {
+    name: "contacts_set_stage",
+    operation: "POST /contacts/stage",
+    description:
+      "Set `body.stage` on up to 500 `body.contactIds` at once; all or none change. Keep the returned `undo` for contacts_undo_stage.",
+    destructive: true,
+  },
+  {
+    name: "contacts_undo_stage",
+    operation: "POST /contacts/stage/undo",
+    description:
+      "Put contacts back on their earlier stage: `body.contacts` is the `undo` contacts_set_stage returned. A contact edited since is skipped.",
+    destructive: true,
+  },
+  {
+    name: "contacts_list_organizations",
+    operation: "GET /contacts/organizations",
+    description:
+      "The companies the workspace's contacts work at, with how many each, biggest first.",
+  },
+  {
+    name: "contacts_list_companies",
+    operation: "GET /contacts/companies",
+    description:
+      "The companies the workspace's contacts work at, with their facts and the team's relationship there. Filter by `company`, `industry` or `listId` (a company list).",
+  },
+  {
+    name: "contacts_get_company",
+    operation: "GET /contacts/companies/{companyId}",
+    description:
+      "One company with its people, the teammates who know them, open next steps and latest touchpoints.",
+  },
+  {
+    name: "contacts_update_company",
+    operation: "PATCH /contacts/companies/{companyId}",
+    description:
+      "Change a company's facts. `body.version` must be the one last read. Omitted fields stay; null clears.",
+    destructive: true,
+  },
+  {
+    name: "contacts_list_company_lists",
+    operation: "GET /contacts/company-lists",
+    description: "List the workspace's company lists, with their counts.",
+  },
+  {
+    name: "contacts_create_company_list",
+    operation: "POST /contacts/company-lists",
+    description:
+      "Create a company list: `body.name`, and optionally `color` and `description`.",
+  },
+  {
+    name: "contacts_update_company_list",
+    operation: "PATCH /contacts/company-lists/{listId}",
+    description:
+      "Rename a company list or change its color or description. Only the fields in `body` change.",
+    destructive: true,
+  },
+  {
+    name: "contacts_delete_company_list",
+    operation: "DELETE /contacts/company-lists/{listId}",
+    description: "Delete a company list. The companies stay.",
+  },
+  {
+    name: "contacts_update_company_list_members",
+    operation: "POST /contacts/company-lists/{listId}/members",
+    description:
+      "Add `body.add` and remove `body.remove` (company ids, up to 500 each) on a company list.",
+    destructive: true,
+  },
+  {
+    name: "contacts_breakdown",
+    operation: "GET /contacts/breakdown",
+    description:
+      "Count the contacts the contacts_list filters match, split by each of `by` (comma-separated), such as `stage,organization`.",
+  },
+  {
+    name: "contacts_get",
+    operation: "GET /contacts/{id}",
+    description:
+      "Get a contact with its channels, lists, who on the team knows them, latest interactions and `version` (for contacts_update).",
+  },
+  {
+    name: "contacts_update",
+    operation: "PATCH /contacts/{id}",
+    description:
+      "Change a contact's fields. `body.version` must be the one last read (409 otherwise). Omitted fields stay; null clears.",
+    destructive: true,
+  },
+  {
+    name: "contacts_archive",
+    operation: "POST /contacts/{id}/archive",
+    description:
+      "Archive a contact: it leaves lists and searches. contacts_unarchive brings it back.",
+  },
+  {
+    name: "contacts_unarchive",
+    operation: "POST /contacts/{id}/unarchive",
+    description: "Bring an archived contact back.",
+  },
+  {
+    name: "contacts_add_channel",
+    operation: "POST /contacts/{id}/channels",
+    description:
+      "Add a way to reach a contact: `body.type` and `body.value`. One another contact owns answers 409 with `existingContactId`; merge them instead.",
+  },
+  {
+    name: "contacts_remove_channel",
+    operation: "DELETE /contacts/{id}/channels/{channelId}",
+    description:
+      "Remove a channel from a contact. `channelId` from contacts_get.",
+  },
+  {
+    name: "contacts_list_interactions",
+    operation: "GET /contacts/{id}/interactions",
+    description:
+      "A contact's timeline of interactions, newest first. Pass `cursor` for the next page.",
+  },
+  {
+    name: "contacts_add_interaction",
+    operation: "POST /contacts/{id}/interactions",
+    description:
+      "Record an interaction you had with a contact: `body.occurredAt`, `body.channel` and a one-line `body.summary`. The same `body.sourceRef` twice is recorded once.",
+  },
+  {
+    name: "contacts_delete_interaction",
+    operation: "DELETE /contacts/{id}/interactions/{interactionId}",
+    description: "Delete one interaction from a contact's timeline.",
+  },
+  {
+    name: "contacts_set_importance",
+    operation: "PUT /contacts/{id}/importance",
+    description:
+      "Set how much a contact matters to you, 0–100, in `body.importance`; null lets Sokosumi judge it. Teammates keep their own.",
+    destructive: true,
+  },
+  {
+    name: "contacts_enrich",
+    operation: "POST /contacts/{id}/enrich",
+    description:
+      "Spends workspace credits. Look a person up on the web and fill their empty role, organization, location, summary and LinkedIn. Costs 1 credit, nothing when it fills nothing. Confirm with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "contacts_activity",
+    operation: "GET /contacts/{id}/activity",
+    description: "Who changed what on a contact, newest first.",
+  },
+  {
+    name: "contacts_list_lists",
+    operation: "GET /contact-lists",
+    description:
+      "List the workspace's contact lists, with their counts. Read a list's contacts with contacts_list and `listId`.",
+  },
+  {
+    name: "contacts_create_list",
+    operation: "POST /contact-lists",
+    description:
+      "Create a contact list: `body.name`, and optionally `color` and `description`. `body.smartFilter` makes it a smart list (a saved filter).",
+  },
+  {
+    name: "contacts_update_list",
+    operation: "PATCH /contact-lists/{id}",
+    description:
+      "Rename, recolor or describe a contact list, or change a smart list's filter. Giving a manual list a `smartFilter` drops its members.",
+    destructive: true,
+  },
+  {
+    name: "contacts_delete_list",
+    operation: "DELETE /contact-lists/{id}",
+    description: "Delete a contact list. Its contacts stay.",
+  },
+  {
+    name: "contacts_update_list_members",
+    operation: "POST /contact-lists/{id}/members",
+    description:
+      "Add `body.add` and remove `body.remove` (contact ids, up to 500 each) on a manual contact list.",
+    destructive: true,
+  },
+  {
+    name: "contacts_list_suggestions",
+    operation: "GET /contact-lists/{id}/suggestions",
+    description:
+      "The people contacts_find_people suggested for a list that nobody has added or dismissed yet.",
+  },
+  {
+    name: "contacts_find_people",
+    operation: "POST /contact-lists/{id}/find",
+    description:
+      "Spends workspace credits. Search the web for people who fit a manual list and suggest them on it: `body.brief` says who, `body.size` how many (1, 10 or 25). Charges only when it finds someone. Confirm with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "contacts_add_suggestions",
+    operation: "POST /contact-lists/{id}/suggestions/add",
+    description:
+      "Add suggestions (`body.ids` from contacts_list_suggestions) to the list as Prospect contacts.",
+  },
+  {
+    name: "contacts_dismiss_suggestions",
+    operation: "POST /contact-lists/{id}/suggestions/dismiss",
+    description:
+      "Dismiss suggestions (`body.ids`): they are never suggested to this list again.",
+    destructive: true,
+  },
 ];
 
 /** Route groups with a hyphen, which their tool names spell with `_`. */

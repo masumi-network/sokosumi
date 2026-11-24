@@ -2398,4 +2398,260 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       '{"scope":"org","organizationId":"org-1","userIds":[]}',
     ],
   },
+  // SOKD-376: contacts and contact lists.
+  "GET /contacts": { argv: [...API, "contacts", "list"] },
+  "POST /contacts": {
+    argv: [
+      ...API,
+      "contacts",
+      "create",
+      "--input-json",
+      '{"name":"Nina Keller"}',
+    ],
+  },
+  "GET /contacts/export.csv": { argv: [...API, "contacts", "export"] },
+  "GET /contacts/map": { argv: [...API, "contacts", "map"] },
+  "POST /contacts/merge": {
+    argv: [
+      ...API,
+      "contacts",
+      "merge",
+      "--input-json",
+      '{"winnerId":"contact-1","loserIds":["contact-2"]}',
+    ],
+  },
+  "GET /contacts/duplicates": { argv: [...API, "contacts", "list-duplicates"] },
+  "POST /contacts/duplicates/dismiss": {
+    argv: [
+      ...API,
+      "contacts",
+      "dismiss-duplicates",
+      "--input-json",
+      '{"contactIds":["contact-1","contact-2"]}',
+    ],
+  },
+  "POST /contacts/stage": {
+    argv: [
+      ...API,
+      "contacts",
+      "set-stage",
+      "--input-json",
+      '{"contactIds":["contact-1"],"stage":"LEAD"}',
+    ],
+  },
+  "POST /contacts/stage/undo": {
+    argv: [
+      ...API,
+      "contacts",
+      "undo-stage",
+      "--input-json",
+      '{"contacts":[{"id":"contact-1","stage":"PROSPECT","version":2}]}',
+    ],
+  },
+  "POST /contacts/import": {
+    argv: [
+      ...API,
+      "contacts",
+      "import",
+      "--input-json",
+      '{"tableId":"table-1","mapping":{"name":"Name"}}',
+    ],
+  },
+  "GET /contacts/organizations": {
+    argv: [...API, "contacts", "list-organizations"],
+  },
+  "GET /contacts/companies": { argv: [...API, "contacts", "list-companies"] },
+  "GET /contacts/companies/{companyId}": {
+    argv: [...API, "contacts", "get-company", "company-1"],
+  },
+  "PATCH /contacts/companies/{companyId}": {
+    argv: [
+      ...API,
+      "contacts",
+      "update-company",
+      "company-1",
+      "--input-json",
+      '{"version":1}',
+    ],
+  },
+  "GET /contacts/company-lists": {
+    argv: [...API, "contacts", "list-company-lists"],
+  },
+  "POST /contacts/company-lists": {
+    argv: [
+      ...API,
+      "contacts",
+      "create-company-list",
+      "--input-json",
+      '{"name":"Targets"}',
+    ],
+  },
+  "PATCH /contacts/company-lists/{listId}": {
+    argv: [
+      ...API,
+      "contacts",
+      "update-company-list",
+      "company-list-1",
+      "--input-json",
+      '{"name":"Q1 targets"}',
+    ],
+  },
+  "DELETE /contacts/company-lists/{listId}": {
+    argv: [...API, "contacts", "delete-company-list", "company-list-1"],
+  },
+  "POST /contacts/company-lists/{listId}/members": {
+    argv: [
+      ...API,
+      "contacts",
+      "update-company-list-members",
+      "company-list-1",
+      "--input-json",
+      '{"add":["company-1"]}',
+    ],
+  },
+  "GET /contacts/breakdown": { argv: [...API, "contacts", "breakdown"] },
+  "GET /contacts/{id}": { argv: [...API, "contacts", "get", "contact-1"] },
+  "PATCH /contacts/{id}": {
+    argv: [
+      ...API,
+      "contacts",
+      "update",
+      "contact-1",
+      "--input-json",
+      '{"version":1,"role":"Founder"}',
+    ],
+  },
+  "POST /contacts/{id}/archive": {
+    argv: [...API, "contacts", "archive", "contact-1"],
+  },
+  "POST /contacts/{id}/unarchive": {
+    argv: [...API, "contacts", "unarchive", "contact-1"],
+  },
+  "POST /contacts/{id}/channels": {
+    argv: [
+      ...API,
+      "contacts",
+      "add-channel",
+      "contact-1",
+      "--input-json",
+      '{"type":"EMAIL","value":"nina@example.com"}',
+    ],
+  },
+  "DELETE /contacts/{id}/channels/{channelId}": {
+    argv: [...API, "contacts", "remove-channel", "contact-1", "channel-1"],
+  },
+  "GET /contacts/{id}/interactions": {
+    argv: [...API, "contacts", "list-interactions", "contact-1"],
+  },
+  "POST /contacts/{id}/interactions": {
+    argv: [
+      ...API,
+      "contacts",
+      "add-interaction",
+      "contact-1",
+      "--input-json",
+      '{"occurredAt":"2026-11-24T10:00:00Z","channel":"EMAIL","summary":"Intro call"}',
+    ],
+  },
+  "DELETE /contacts/{id}/interactions/{interactionId}": {
+    argv: [
+      ...API,
+      "contacts",
+      "delete-interaction",
+      "contact-1",
+      "interaction-1",
+    ],
+  },
+  "PUT /contacts/{id}/importance": {
+    argv: [
+      ...API,
+      "contacts",
+      "set-importance",
+      "contact-1",
+      "--input-json",
+      '{"importance":80}',
+    ],
+  },
+  "POST /contacts/{id}/enrich": {
+    argv: [...API, "contacts", "enrich", "contact-1"],
+  },
+  "GET /contacts/{id}/activity": {
+    argv: [...API, "contacts", "activity", "contact-1"],
+  },
+  "GET /contact-lists": { argv: [...API, "contacts", "list-lists"] },
+  "POST /contact-lists": {
+    argv: [
+      ...API,
+      "contacts",
+      "create-list",
+      "--input-json",
+      '{"name":"Investors"}',
+    ],
+  },
+  "PATCH /contact-lists/{id}": {
+    argv: [
+      ...API,
+      "contacts",
+      "update-list",
+      "list-1",
+      "--input-json",
+      '{"color":"blue"}',
+    ],
+  },
+  "DELETE /contact-lists/{id}": {
+    argv: [...API, "contacts", "delete-list", "list-1"],
+  },
+  "POST /contact-lists/{id}/members": {
+    argv: [
+      ...API,
+      "contacts",
+      "update-list-members",
+      "list-1",
+      "--input-json",
+      '{"remove":["contact-1"]}',
+    ],
+  },
+  "POST /contact-lists/{id}/import": {
+    argv: [
+      ...API,
+      "contacts",
+      "import-list",
+      "list-1",
+      "--input-json",
+      '{"text":"nina@example.com"}',
+    ],
+  },
+  "GET /contact-lists/{id}/suggestions": {
+    argv: [...API, "contacts", "list-suggestions", "list-1"],
+  },
+  "POST /contact-lists/{id}/find": {
+    argv: [
+      ...API,
+      "contacts",
+      "find-people",
+      "list-1",
+      "--input-json",
+      '{"brief":"Seed investors in Berlin"}',
+    ],
+  },
+  "POST /contact-lists/{id}/suggestions/add": {
+    argv: [
+      ...API,
+      "contacts",
+      "add-suggestions",
+      "list-1",
+      "--input-json",
+      '{"ids":["suggestion-1"]}',
+    ],
+  },
+  "POST /contact-lists/{id}/suggestions/dismiss": {
+    argv: [
+      ...API,
+      "contacts",
+      "dismiss-suggestions",
+      "list-1",
+      "--input-json",
+      '{"ids":["suggestion-1"]}',
+    ],
+  },
 };

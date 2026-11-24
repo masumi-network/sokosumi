@@ -433,6 +433,27 @@ sokosumi drive data-rooms --query scope=org --query organizationId=ORG_ID
 
 `sokosumi --help` lists the rest: labels, collections, Task outputs, Google Sheet copies, table edits and data rooms. `drive delete`, `drive delete-folder` and `drive close-data-room` cannot be undone; confirm first. Metadata writes need the file's current `metadataRevision`; table writes take a retry `key`. Uploading or downloading file bytes, creating a public link, inviting people to a data room, changing its settings or a member's access, and answering a viewer's question stay in the app (ADR 0077). `drive remove-data-room-member` may take someone out.
 
+## Contacts and contact lists
+
+[VERIFIED: `apps/cli/src/cli/commands/catalog.ts`, `apps/core/agent-surface/contacts.json`, `apps/core/agent-surface/contact-lists.json`] Contacts are personal data. Read only what the task needs, and do not copy contact details into Tasks, comments or chat unless the person asks. Every `contacts` command calls one Core operation and prints Core's JSON body as is:
+
+```bash
+sokosumi contacts list --query search=keller --query stage=PROSPECT --organization-slug WORKSPACE_SLUG
+sokosumi contacts get CONTACT_ID
+sokosumi contacts create --input-json '{"name":"Nina Keller","channels":[{"type":"EMAIL","value":"nina@example.com"}]}'
+sokosumi contacts update CONTACT_ID --input-json '{"version":3,"role":"Founder"}'
+sokosumi contacts add-interaction CONTACT_ID --input-json '{"occurredAt":"2026-11-24T10:00:00Z","channel":"EMAIL","summary":"Intro call"}'
+sokosumi contacts list-lists
+sokosumi contacts update-list-members LIST_ID --input-json '{"add":["CONTACT_ID"]}'
+sokosumi contacts export --query listId=LIST_ID > contacts.csv
+```
+
+- Reads: `list`, `get`, `map`, `breakdown`, `list-duplicates`, `list-organizations`, `list-companies`, `get-company`, `list-company-lists`, `list-interactions`, `activity`, `list-lists`, `list-suggestions`. `list`, `map`, `breakdown` and `export` share the same `--query` filters.
+- Writes: `create`, `update`, `archive`, `unarchive`, `add-channel`, `remove-channel`, `add-interaction`, `delete-interaction`, `set-importance`, `set-stage`, `undo-stage`, `merge`, `dismiss-duplicates`, `update-company`, `create-company-list`, `update-company-list`, `delete-company-list`, `update-company-list-members`, `create-list`, `update-list`, `delete-list`, `update-list-members`, `add-suggestions`, `dismiss-suggestions`.
+- `update` and `update-company` need the `version` last read; a stale one is a 409. `set-stage` returns an `undo` body for `undo-stage`. `merge` cannot be undone.
+- `enrich` (1 credit) and `find-people` spend workspace credits: confirm with the person first.
+- CLI only: `export` (CSV), `import` (a Files table) and `import-list` (pasted addresses). Over MCP they are not tools.
+
 ## Use Sokosumi over MCP
 
 [VERIFIED: `apps/core/src/routes/mcp/index.ts`, `docs/mcp.md`] Sokosumi also serves its tools over MCP at `https://api.sokosumi.com/mcp`. Use it when the host speaks MCP and the CLI is not installed. The host connects by URL and signs in through the browser; no API key is needed:
@@ -441,7 +462,7 @@ sokosumi drive data-rooms --query scope=org --query organizationId=ORG_ID
 claude mcp add --transport http sokosumi https://api.sokosumi.com/mcp
 ```
 
-[VERIFIED: `apps/core/src/lib/sokosumi-mcp/server.ts`, `docs/agents/agent-surface.md`] A tool's name is its CLI command with `_`: `tasks list` → `tasks_list`. Call `workspaces_list` first. A tool acts in the personal Workspace unless you pass an organization Workspace's slug as `workspace`, the MCP form of `--organization-slug`. The server URL without `?toolsets=` lists `workspaces`, `tasks` and `coworkers`. The marketplace is opt-in: add `agents` and `jobs` to browse and hire agents (`agents_hire` spends credits) and follow their Jobs, as in `?toolsets=workspaces,tasks,coworkers,agents,jobs`; `tasks_jobs` lists a Task's Jobs without them. Drive tools sit in the `drive` toolset, off by default (`?toolsets=drive`), and take `scope` like the CLI.
+[VERIFIED: `apps/core/src/lib/sokosumi-mcp/server.ts`, `docs/agents/agent-surface.md`] A tool's name is its CLI command with `_`: `tasks list` → `tasks_list`. Call `workspaces_list` first. A tool acts in the personal Workspace unless you pass an organization Workspace's slug as `workspace`, the MCP form of `--organization-slug`. The server URL without `?toolsets=` lists `workspaces`, `tasks` and `coworkers`. The marketplace is opt-in: add `agents` and `jobs` to browse and hire agents (`agents_hire` spends credits) and follow their Jobs, as in `?toolsets=workspaces,tasks,coworkers,agents,jobs`; `tasks_jobs` lists a Task's Jobs without them. Drive tools sit in the `drive` toolset, off by default (`?toolsets=drive`), and take `scope` like the CLI. Contact tools (`contacts_*`, contact lists included) are off by default too: add `contacts` to `?toolsets=`.
 
 [VERIFIED: ADR 0076, `apps/core/src/routes/mcp/mcp-oauth.integration.test.ts`] MCP tokens and CLI credentials do not mix. An MCP token works only at `/mcp`, and a CLI OAuth token or API key gets 401 there. Never ask for or paste either in chat. MCP writes to mainnet need the same explicit operator yes as CLI writes.
 
