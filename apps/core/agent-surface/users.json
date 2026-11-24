@@ -2,13 +2,15 @@
   "backlog": "SOKD-371",
   "operations": {
     "GET /users/{id}": {
-      "cli": "auth whoami"
+      "cli": "auth whoami",
+      "mcp": "users_get"
     },
     "GET /users/{id}/organizations": {
       "cli": "workspaces list"
     },
     "GET /users/{id}/workspaces": {
-      "cli": "workspaces list"
+      "cli": "workspaces list",
+      "mcp": "workspaces_list"
     },
     "POST /users/{id}/workspaces": {
       "cli": "coworkers register"
