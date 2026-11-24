@@ -129,8 +129,10 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       await page
         .getByRole("heading", { name: "In the last 24 hours" })
         .waitFor();
+      // The kept-alive chat room has a composer card too.
       const loaded = await page
         .locator("[data-room-composer-mention-anchor]")
+        .filter({ has: composer })
         .boundingBox();
       const firstChip = await page
         .getByRole("button", { name: "Catch me up" })
