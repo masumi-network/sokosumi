@@ -285,6 +285,25 @@ async function call(
   return coreV1.fetch(request);
 }
 
+// The control: an agent actor is refused before any query, so the 500 a
+// person gets above comes from past the guard.
+describe("as a Soko Bot", () => {
+  const sokoBot: AuthenticationContext = {
+    actor: "sokoBot",
+    scope: "personal",
+    sokoBotId: "bot_agent",
+    userId: USER_ID,
+    workspaceId: WORKSPACE_ID,
+    organizationId: null,
+  };
+
+  it.each(OPENED_READS)("is refused GET %s", async (path) => {
+    const response = await call("GET", path, sokoBot);
+
+    expect(response.status).toBe(403);
+  });
+});
+
 describe.each(CALLERS)("as %s", (_, authContext) => {
   it.each(OPENED_READS)("reads GET %s", async (path) => {
     const response = await call("GET", path, authContext);

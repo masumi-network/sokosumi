@@ -301,7 +301,8 @@ export const CLI_COMMAND_CATALOG = [
   },
   {
     command: "projects ads-locations",
-    usage: "PROJECT_ID ACCOUNT_ID [--organization-slug WORKSPACE_SLUG]",
+    usage:
+      "PROJECT_ID ACCOUNT_ID --query q=NAME [--organization-slug WORKSPACE_SLUG]",
     operation:
       "GET /projects/{id}/ads/accounts/{accountId}/targeting/locations",
   },
@@ -380,7 +381,8 @@ export const CLI_COMMAND_CATALOG = [
   },
   {
     command: "projects social-connection-suggested-times",
-    usage: "PROJECT_ID CONNECTION_ID [--organization-slug WORKSPACE_SLUG]",
+    usage:
+      "PROJECT_ID CONNECTION_ID --query timezone=IANA_ZONE [--organization-slug WORKSPACE_SLUG]",
     operation:
       "GET /projects/{id}/social-connections/{connectionId}/suggested-times",
   },
@@ -411,12 +413,14 @@ export const CLI_COMMAND_CATALOG = [
   },
   {
     command: "projects calendar",
-    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    usage:
+      "PROJECT_ID --query from=ISO --query to=ISO [--organization-slug WORKSPACE_SLUG]",
     operation: "GET /projects/{id}/calendar",
   },
   {
     command: "workspaces calendar",
-    usage: "[--organization-slug WORKSPACE_SLUG]",
+    usage:
+      "--query from=ISO --query to=ISO [--organization-slug WORKSPACE_SLUG]",
     operation: "GET /workspaces/calendar",
   },
   {

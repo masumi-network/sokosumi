@@ -563,7 +563,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "workspaces_social_statistics",
     operation: "GET /workspaces/{id}/social-connections/statistics",
     description:
-      "Read cached metrics and published posts for every connected social account in the workspace. Pass the workspace id as `id`.",
+      "Read cached metrics and published posts for every connected social account in the workspace. `id` must be the id of the workspace this call acts in (from workspaces_list).",
   },
 ];
 
