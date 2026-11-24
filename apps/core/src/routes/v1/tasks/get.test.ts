@@ -1073,7 +1073,29 @@ describe("GET /tasks", () => {
       );
     });
 
-    it("matches Tasks the caller owns and someone else works on with scope=handedOff", async () => {
+    const HANDED_OFF_WHERE = {
+      ownerId: "user_123",
+      OR: [
+        { assigneeId: { not: null } },
+        { assigneeSokoBotId: { not: null } },
+        {
+          assigneeUserId: { not: null },
+          NOT: { assigneeUserId: "user_123" },
+        },
+      ],
+      NOT: {
+        status: {
+          in: [
+            TaskStatus.DRAFT,
+            TaskStatus.COMPLETED,
+            TaskStatus.FAILED,
+            TaskStatus.CANCELED,
+          ],
+        },
+      },
+    };
+
+    it("lists open Tasks the caller owns and someone else works on, oldest first, with scope=handedOff", async () => {
       const response = await createApp().request(
         "http://localhost/?scope=handedOff",
       );
@@ -1086,18 +1108,65 @@ describe("GET /tasks", () => {
             parentTaskId: null,
             workspaceId: "11111111-1111-7111-8111-111111111111",
             AND: [...HUMAN_TASK_VISIBILITY_AND],
-            ownerId: "user_123",
-            OR: [
-              { assigneeId: { not: null } },
-              { assigneeSokoBotId: { not: null } },
-              {
-                assigneeUserId: { not: null },
-                NOT: { assigneeUserId: "user_123" },
-              },
-            ],
+            ...HANDED_OFF_WHERE,
           },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         }),
       );
+    });
+
+    it("keeps a picked sort with scope=handedOff", async () => {
+      const response = await createApp().request(
+        "http://localhost/?scope=handedOff&sort=updatedAt",
+      );
+
+      expect(response.status).toBe(200);
+      expect(taskFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        }),
+      );
+    });
+
+    it("orders oldest created first with sort=oldest", async () => {
+      const response = await createApp().request(
+        "http://localhost/?scope=workspace&sort=oldest",
+      );
+
+      expect(response.status).toBe(200);
+      expect(taskFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        }),
+      );
+    });
+
+    it("applies scope=handedOff for a delegated coworker", async () => {
+      const response = await createApp(
+        DELEGATED_COWORKER_AUTH_CONTEXT,
+        DELEGATED_WORKSPACE_CONTEXT,
+      ).request("http://localhost/?scope=handedOff");
+
+      expect(response.status).toBe(200);
+      const { where } = taskFindManyMock.mock.calls[0][0];
+      expect(where).toMatchObject({
+        ownerId: "user_delegate",
+        NOT: HANDED_OFF_WHERE.NOT,
+      });
+    });
+
+    it.each([
+      ["a sub-task checklist", USER_AUTH_CONTEXT, "&parentTaskId=tsk_parent"],
+      ["a coworker without a person", COWORKER_AUTH_CONTEXT, ""],
+      ["a Soko Bot", ORCHESTRATOR_AUTH_CONTEXT, ""],
+    ])("rejects scope=handedOff for %s", async (_name, auth, extra) => {
+      const response = await createApp(
+        auth,
+        auth === COWORKER_AUTH_CONTEXT ? null : USER_WORKSPACE_CONTEXT,
+      ).request(`http://localhost/?scope=handedOff${extra}`);
+
+      expect(response.status).toBe(400);
+      expect(taskFindManyMock).not.toHaveBeenCalled();
     });
 
     it("keeps the delegated coworker access filter with scope=mine", async () => {

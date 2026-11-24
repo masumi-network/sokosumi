@@ -18,6 +18,7 @@ const labels = {
     createdAt: "Newest",
     priority: "Priority",
     dueOn: "Due date",
+    oldest: "Oldest",
   },
   showSubtasks: "Show open sub-tasks",
 };
@@ -43,7 +44,7 @@ describe("ViewModeSwitch sort", () => {
     const group = screen.getByRole("radiogroup", { name: "Sort by" });
 
     expect(screen.getByRole("radio", { name: "Last updated" })).toBeChecked();
-    expect(group.querySelectorAll('[role="radio"]')).toHaveLength(4);
+    expect(group.querySelectorAll('[role="radio"]')).toHaveLength(5);
 
     await userEvent.click(screen.getByRole("radio", { name: "Priority" }));
 

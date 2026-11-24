@@ -70,7 +70,7 @@ function TasksToolbarShell({
 }) {
   const searchParams = useTasksSearchParams();
   const filters = getTasksFiltersFromSearchParams(searchParams, null, []);
-  const sort = effectiveTasksSort(filters.sort, viewMode);
+  const sort = effectiveTasksSort(filters.sort, viewMode, filters.scope);
 
   return (
     <div inert className="flex min-w-0 flex-1">

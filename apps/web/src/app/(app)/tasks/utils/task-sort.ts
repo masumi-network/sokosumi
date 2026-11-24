@@ -7,6 +7,7 @@ export const TASKS_SORT_VALUES = [
   "createdAt",
   "priority",
   "dueOn",
+  "oldest",
 ] as const;
 
 export type TasksSort = (typeof TASKS_SORT_VALUES)[number];
@@ -18,12 +19,16 @@ export function parseTasksSort(raw: unknown): TasksSort | undefined {
 /**
  * The order shown when the reader picked none: the board sorts its loaded
  * cards by last update, the list keeps Core's default, newest created first.
+ * Handed off shows what has waited longest first, on both.
  */
 export function effectiveTasksSort(
   sort: TasksSort | undefined,
   viewMode: "board" | "list",
+  scope?: string,
 ): TasksSort {
-  return sort ?? (viewMode === "board" ? "updatedAt" : "createdAt");
+  if (sort) return sort;
+  if (scope === "handedOff") return "oldest";
+  return viewMode === "board" ? "updatedAt" : "createdAt";
 }
 
 // Core orders the priority enum as declared: urgent first, none last.
@@ -69,6 +74,9 @@ export function compareTasks(
       return (a, b) =>
         PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] ||
         compareTasksDesc(a, b);
+    case "oldest":
+      return (a, b) =>
+        byTimeDesc(b.createdAt, a.createdAt) || a.id.localeCompare(b.id);
     case "dueOn":
       // Earliest due first, Tasks without a due day last.
       return (a, b) => {

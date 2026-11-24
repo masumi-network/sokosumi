@@ -53,6 +53,7 @@ export function buildTasksViewLabels(t: TasksTranslator) {
         createdAt: t("Display.sortOptions.createdAt"),
         priority: t("Display.sortOptions.priority"),
         dueOn: t("Display.sortOptions.dueOn"),
+        oldest: t("Display.sortOptions.oldest"),
       },
       showSubtasks: t("Display.showSubtasks"),
     },

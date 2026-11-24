@@ -1988,7 +1988,8 @@
           "updatedAt": "Última actualización",
           "createdAt": "Más recientes",
           "priority": "Prioridad",
-          "dueOn": "Fecha de vencimiento"
+          "dueOn": "Fecha de vencimiento",
+          "oldest": "Más antiguas"
         },
         "showSubtasks": "Mostrar subtareas abiertas"
       },
@@ -2042,7 +2043,7 @@
         "mentions": "Menciones",
         "mentionsHint": "Tareas en las que un comentario te menciona y no has comentado desde entonces",
         "handedOff": "Delegadas",
-        "handedOffHint": "Tareas de las que eres propietario y en las que trabaja un compañero, un Coworker o un Soko Bot",
+        "handedOffHint": "Tareas abiertas de las que eres propietario y en las que trabaja un compañero, un Coworker o un Soko Bot, las más antiguas primero",
         "projectLabel": "Proyecto"
       },
       "Detail": {

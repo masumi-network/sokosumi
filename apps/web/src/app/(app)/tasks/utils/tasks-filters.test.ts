@@ -17,6 +17,7 @@ import {
   sanitizeTasksScopeInput,
   sanitizeTasksStatusInput,
   sanitizeTasksVisibilityInput,
+  showsOnlyServerTasks,
 } from "@/app/tasks/utils/tasks-filters";
 
 const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
@@ -710,5 +711,17 @@ describe("hasTasksViewParams and pickTasksViewQuery", () => {
         ),
       ),
     ).toBe("scope=owned&status=READY");
+  });
+});
+
+describe("showsOnlyServerTasks", () => {
+  it("keeps local rows only on an unfiltered workspace or owned view", () => {
+    expect(showsOnlyServerTasks({ scope: "workspace" })).toBe(false);
+    expect(showsOnlyServerTasks({ scope: "owned" })).toBe(false);
+    expect(showsOnlyServerTasks({ scope: "handedOff" })).toBe(true);
+    expect(showsOnlyServerTasks({ scope: "workspace", needsMe: true })).toBe(
+      true,
+    );
+    expect(showsOnlyServerTasks({ scope: "owned", tag: "tag-1" })).toBe(true);
   });
 });

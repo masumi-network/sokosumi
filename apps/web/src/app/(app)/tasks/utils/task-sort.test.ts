@@ -104,6 +104,19 @@ describe("compareTasks", () => {
       ]),
     ).toEqual(["new", "old-but-touched"]);
   });
+
+  it("orders oldest created first with oldest", () => {
+    expect(
+      ids("oldest", [
+        buildTask({ id: "new", createdAt: "2026-06-01T00:00:00.000Z" }),
+        buildTask({
+          id: "old-but-touched",
+          createdAt: "2026-05-01T00:00:00.000Z",
+          updatedAt: "2026-06-09T00:00:00.000Z",
+        }),
+      ]),
+    ).toEqual(["old-but-touched", "new"]);
+  });
 });
 
 describe("Sort by values", () => {
@@ -116,5 +129,13 @@ describe("Sort by values", () => {
     expect(effectiveTasksSort(undefined, "board")).toBe("updatedAt");
     expect(effectiveTasksSort(undefined, "list")).toBe("createdAt");
     expect(effectiveTasksSort("dueOn", "list")).toBe("dueOn");
+  });
+
+  it("shows Handed off oldest first on both layouts unless the reader picked an order", () => {
+    expect(effectiveTasksSort(undefined, "board", "handedOff")).toBe("oldest");
+    expect(effectiveTasksSort(undefined, "list", "handedOff")).toBe("oldest");
+    expect(effectiveTasksSort("priority", "board", "handedOff")).toBe(
+      "priority",
+    );
   });
 });

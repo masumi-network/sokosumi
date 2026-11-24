@@ -26,6 +26,26 @@ export function tasksQueryScope(
   return needsMe ? NEEDS_ME_SCOPE : mentions ? "workspace" : scope;
 }
 
+/**
+ * True when the view keeps only rows Core returned: a Task created or kept
+ * locally may not match it. A new Task has no search hit, tags, waiting
+ * status or mention, and may be the reader's own under Handed off.
+ */
+export function showsOnlyServerTasks(
+  filters: Pick<
+    TasksFilters,
+    "search" | "tag" | "needsMe" | "mentions" | "scope"
+  >,
+): boolean {
+  return Boolean(
+    filters.search ||
+      filters.tag ||
+      filters.needsMe ||
+      filters.mentions ||
+      filters.scope === "handedOff",
+  );
+}
+
 export type TasksVisibilityFilter = typeof TaskVisibility.PRIVATE | null;
 
 // Core bounds the search before it builds the paginated result.

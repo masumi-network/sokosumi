@@ -253,7 +253,11 @@ export function TasksView(props: TasksViewProps) {
     isTaskPaginationInSync &&
     hasClearableTasksFilters(routeFilters, activeOrganizationId);
 
-  const shownSort = effectiveTasksSort(routeFilters.sort, viewMode);
+  const shownSort = effectiveTasksSort(
+    routeFilters.sort,
+    viewMode,
+    routeFilters.scope,
+  );
   const replaceRouteFilters = (
     patch: Partial<TasksFilters>,
     navigator: { replace: (href: string) => void } = router,

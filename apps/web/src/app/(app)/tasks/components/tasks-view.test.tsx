@@ -279,6 +279,7 @@ const labels = {
       createdAt: "Newest",
       priority: "Priority",
       dueOn: "Due date",
+      oldest: "Oldest",
     },
     showSubtasks: "Show subtasks",
   },

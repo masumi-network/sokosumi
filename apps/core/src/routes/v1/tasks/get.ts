@@ -79,13 +79,21 @@ const taskNameQuerySchema = z
     example: "review",
   });
 
+/** Statuses a Handed off Task has left, or not reached yet (a draft). */
+const HANDED_OFF_CLOSED_STATUSES = [
+  TaskStatus.DRAFT,
+  TaskStatus.COMPLETED,
+  TaskStatus.FAILED,
+  TaskStatus.CANCELED,
+];
+
 const taskScopeQuerySchema = z
   .enum(["workspace", "owned", "mine", "handedOff"])
   .default("owned")
   .openapi({
     param: { name: "scope", in: "query" },
     description:
-      "workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace, 'mine' for tasks the caller owns or is assigned to as a workspace member, or 'handedOff' for tasks the caller owns that a coworker, a Soko Bot or another member is assigned to.",
+      "workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace, 'mine' for tasks the caller owns or is assigned to as a workspace member, or 'handedOff' for open tasks (not draft, completed, failed or canceled) the caller owns that a coworker, a Soko Bot or another member is assigned to, oldest first unless sort is given. People and delegated coworkers only, and not with parentTaskId.",
     example: "workspace",
   });
 
@@ -100,12 +108,12 @@ const projectIdQuerySchema = z
   });
 
 const taskSortQuerySchema = z
-  .enum(["createdAt", "updatedAt", "priority", "dueOn"])
+  .enum(["createdAt", "updatedAt", "priority", "dueOn", "oldest"])
   .optional()
   .openapi({
     param: { name: "sort", in: "query" },
     description:
-      "createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable. priority: urgent first, none last, then most recently updated. dueOn: earliest due day first, Tasks without one last.",
+      "createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable. priority: urgent first, none last, then most recently updated. dueOn: earliest due day first, Tasks without one last. oldest: oldest created first, the default for scope=handedOff.",
     example: "createdAt",
   });
 
@@ -349,8 +357,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       : {};
     // The caller's own Tasks: those they own, for "mine" also those
-    // assigned to them as a workspace member, and for "handedOff" only those
-    // they own that someone else is assigned to.
+    // assigned to them as a workspace member, and for "handedOff" only the
+    // open ones they own that someone else is assigned to.
     const scopeFilter = (userId: string): Prisma.TaskWhereInput =>
       scope === "owned"
         ? { ownerId: userId }
@@ -367,9 +375,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                     NOT: { assigneeUserId: userId },
                   },
                 ],
+                NOT: { status: { in: HANDED_OFF_CLOSED_STATUSES } },
               }
             : {};
 
+    // Handed off is about the caller's own top-level Tasks, so it needs a
+    // person, and a checklist lists every sub-task whoever owns it.
+    if (
+      scope === "handedOff" &&
+      (parentTaskId ||
+        isPersonalSokoBotAuthContext(authContext) ||
+        (isCoworkerAuthContext(authContext) && !authContext.context))
+    ) {
+      throw badRequest(
+        "scope=handedOff needs a person or a delegated coworker, and no parentTaskId.",
+      );
+    }
     if (
       archived &&
       (isCoworkerAuthContext(authContext) ||
@@ -534,18 +555,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 { updatedAt: "desc" as const },
                 { id: "desc" as const },
               ] as const)
-            : sort === "dueOn"
-              ? ([{ dueOn: "asc" as const }, { id: "asc" as const }] as const)
-              : sort === "priority"
-                ? ([
-                    { priority: "asc" as const },
-                    { updatedAt: "desc" as const },
-                    { id: "desc" as const },
-                  ] as const)
-                : ([
-                    { createdAt: "desc" as const },
-                    { id: "desc" as const },
-                  ] as const);
+            : sort === "oldest" || (sort === undefined && scope === "handedOff")
+              ? ([
+                  { createdAt: "asc" as const },
+                  { id: "asc" as const },
+                ] as const)
+              : sort === "dueOn"
+                ? ([{ dueOn: "asc" as const }, { id: "asc" as const }] as const)
+                : sort === "priority"
+                  ? ([
+                      { priority: "asc" as const },
+                      { updatedAt: "desc" as const },
+                      { id: "desc" as const },
+                    ] as const)
+                  : ([
+                      { createdAt: "desc" as const },
+                      { id: "desc" as const },
+                    ] as const);
     // A list view does not need list/count snapshot consistency, so run these
     // as independent queries. The list include uses relation counts instead of
     // loading each task's full event and job graphs.

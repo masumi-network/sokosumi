@@ -1988,7 +1988,8 @@
           "updatedAt": "Last updated",
           "createdAt": "Newest",
           "priority": "Priority",
-          "dueOn": "Due date"
+          "dueOn": "Due date",
+          "oldest": "Oldest"
         },
         "showSubtasks": "Show open sub-tasks"
       },
@@ -2042,7 +2043,7 @@
         "mentions": "Mentions",
         "mentionsHint": "Tasks where a comment mentions you and you have not commented since",
         "handedOff": "Handed off",
-        "handedOffHint": "Tasks you own that a teammate, Coworker or Soko Bot is working on",
+        "handedOffHint": "Open Tasks you own that a teammate, Coworker or Soko Bot is working on, oldest first",
         "projectLabel": "Project"
       },
       "Detail": {

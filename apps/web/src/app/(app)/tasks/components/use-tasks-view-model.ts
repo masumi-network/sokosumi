@@ -41,6 +41,7 @@ import { effectiveTasksSort } from "@/app/tasks/utils/task-sort";
 import {
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
+  showsOnlyServerTasks,
 } from "@/app/tasks/utils/tasks-filters";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { useLatestRef } from "@/hooks/effects/use-latest-ref";
@@ -201,13 +202,10 @@ export function useTasksViewModel({
   // A pending row has no confirmed tags. Core supplies the matching row on save.
   // Needs me shows only Tasks that wait for a person, and a new Task does not.
   // Mentions shows only Tasks with a mention, and a new Task has none.
-  const shownItems =
-    routeFilters.search ||
-    routeFilters.tag ||
-    routeFilters.needsMe ||
-    routeFilters.mentions
-      ? items
-      : itemsWithPending;
+  // Handed off shows only Tasks someone else works on.
+  const shownItems = showsOnlyServerTasks(routeFilters)
+    ? items
+    : itemsWithPending;
   const columnCursorByIdRef = useRef(columnCursorById);
   columnCursorByIdRef.current = columnCursorById;
   // Every setListCursor / setIsLoadingListMore call writes these refs directly.
@@ -307,13 +305,9 @@ export function useTasksViewModel({
       // router.refresh() and listCursor goes stale vs the new first page.
       // A missing Task on a tagged board may have lost its tag, and under
       // Needs me it may no longer wait for a person. Under Mentions the
-      // reader may have answered.
-      keepLocalOnlyTasks:
-        !isListView &&
-        !initialFilters.search &&
-        !initialFilters.tag &&
-        !initialFilters.needsMe &&
-        !initialFilters.mentions,
+      // reader may have answered. Under Handed off it may be done, or back
+      // with the reader.
+      keepLocalOnlyTasks: !isListView && !showsOnlyServerTasks(initialFilters),
     });
 
     setItems(next);
@@ -586,7 +580,11 @@ export function useTasksViewModel({
           cursor,
           ...routeFilters,
           // Same order as the first page, or the cursor skips Tasks.
-          sort: effectiveTasksSort(routeFilters.sort, "board"),
+          sort: effectiveTasksSort(
+            routeFilters.sort,
+            "board",
+            routeFilters.scope,
+          ),
         });
         if (pagingContextRef.current !== pagingContext) return;
         setItems((prev) => appendUniqueTasks(prev, result.tasks));
@@ -641,6 +639,8 @@ export function useTasksViewModel({
       const result = await loadMoreTasksList({
         cursor,
         ...routeFilters,
+        // Same order as the first page, or the cursor skips Tasks.
+        sort: effectiveTasksSort(routeFilters.sort, "list", routeFilters.scope),
       });
       if (pagingContextRef.current !== pagingContext) return;
       setItems((prev) => appendUniqueTasks(prev, result.tasks));
