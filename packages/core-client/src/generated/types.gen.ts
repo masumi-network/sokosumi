@@ -16843,6 +16843,10 @@ export type TaskListItem = {
      */
     hasUnansweredMention?: boolean;
     /**
+     * With `search`, text around the first match in the Task's latest matching result (a done comment): plain text, or the raw Markdown when the match sits in a link target or code. Sent only when nothing but the result matched.
+     */
+    resultMatch?: string;
+    /**
      * The first three direct, non-archived sub-tasks that are not COMPLETED, in sub-task order. `subtaskProgress` counts all of them. Sent only to people.
      */
     openSubtasks?: Array<TaskOpenSubtask>;
@@ -94287,7 +94291,7 @@ export type SetCmoAdBudgetForProjectError = SetCmoAdBudgetForProjectErrors[keyof
 
 export type SetCmoAdBudgetForProjectResponses = {
     /**
-     * Cuso is re-planning, or will once his current turn ends
+     * Cuso is re-planning, or will once his current turn ends; no turn for a no the plan already follows
      */
     201: {
         data: CmoAdBudgetStarted;
@@ -104547,7 +104551,7 @@ export type GetTasksData = {
          */
         q?: string;
         /**
-         * Find Tasks by name or identifier first, then by visible tag or description. The selected sort breaks ties within each group.
+         * Find Tasks by name or identifier first, then by visible tag or description, then by result (a done comment). The selected sort breaks ties within each group.
          */
         search?: string;
         /**

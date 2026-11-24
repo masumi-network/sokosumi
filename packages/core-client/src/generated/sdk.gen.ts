@@ -5047,7 +5047,7 @@ export const getProjectsByIdSocialPostsByPostId = <ThrowOnError extends boolean 
 });
 
 /**
- * Edit a draft or scheduled Social post, or repair a FAILED quote dependency before publishing has started. The body must carry the revision the client last observed. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.
+ * Edit a draft or scheduled Social post, or repair a FAILED quote dependency before publishing has started. The body must carry the revision the client last observed. A Coworker's edit sends the post back to Needs approval, whatever its status was. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.
  */
 export const patchProjectsByIdSocialPostsByPostId = <ThrowOnError extends boolean = false>(options: Options<PatchProjectsByIdSocialPostsByPostIdData, ThrowOnError>): RequestResult<PatchProjectsByIdSocialPostsByPostIdResponses, PatchProjectsByIdSocialPostsByPostIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchProjectsByIdSocialPostsByPostIdResponses, PatchProjectsByIdSocialPostsByPostIdErrors, ThrowOnError>({
     responseTransformer: patchProjectsByIdSocialPostsByPostIdResponseTransformer,
@@ -5060,7 +5060,7 @@ export const patchProjectsByIdSocialPostsByPostId = <ThrowOnError extends boolea
 });
 
 /**
- * Schedule a Social post through an active Project social connection. Allowed from DRAFT, NEEDS_APPROVAL, SCHEDULED, FAILED and MISSED. A post that still needs approval keeps that status. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.
+ * Schedule a Social post through an active Project social connection. Allowed from DRAFT, NEEDS_APPROVAL, SCHEDULED, FAILED and MISSED. A post that still needs approval keeps that status, and a Coworker's schedule always lands as Needs approval. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.
  */
 export const postProjectsByIdSocialPostsByPostIdSchedule = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialPostsByPostIdScheduleData, ThrowOnError>): RequestResult<PostProjectsByIdSocialPostsByPostIdScheduleResponses, PostProjectsByIdSocialPostsByPostIdScheduleErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialPostsByPostIdScheduleResponses, PostProjectsByIdSocialPostsByPostIdScheduleErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
@@ -5073,7 +5073,7 @@ export const postProjectsByIdSocialPostsByPostIdSchedule = <ThrowOnError extends
 });
 
 /**
- * Schedule a Social post in the Project connection's next free queue slot. Allowed from DRAFT, NEEDS_APPROVAL, SCHEDULED, FAILED and MISSED. A post that needs approval keeps that status. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access.
+ * Schedule a Social post in the Project connection's next free queue slot. Allowed from DRAFT, NEEDS_APPROVAL, SCHEDULED, FAILED and MISSED. A post that needs approval keeps that status, and a Coworker's queue always lands as Needs approval. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access.
  */
 export const postProjectsByIdSocialPostsByPostIdQueue = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialPostsByPostIdQueueData, ThrowOnError>): RequestResult<PostProjectsByIdSocialPostsByPostIdQueueResponses, PostProjectsByIdSocialPostsByPostIdQueueErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialPostsByPostIdQueueResponses, PostProjectsByIdSocialPostsByPostIdQueueErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialPostsByPostIdQueueResponseTransformer,
@@ -5169,7 +5169,7 @@ export const postProjectsByIdSocialPostsByPostIdDuplicate = <ThrowOnError extend
 });
 
 /**
- * Copy a Performance post into a new Social draft. Uses the original Sokosumi post when one matches, otherwise the imported text. Optional delayDays schedules that draft. Nothing is posted unless a delay is chosen. Requires an interactive session or an authorized task-capable Coworker with user context.
+ * Copy a Performance post into a new Social draft. Uses the original Sokosumi post when one matches, otherwise the imported text. Optional delayDays schedules that draft. Nothing is posted unless a delay is chosen, and a Coworker's copy waits as Needs approval. Requires an interactive session or an authorized task-capable Coworker with user context.
  */
 export const postProjectsByIdSocialAccountPostsByAccountPostIdRecycle = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleData, ThrowOnError>): RequestResult<PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponses, PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponses, PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponseTransformer,
@@ -6853,7 +6853,7 @@ export const setCmoPresenterForProject = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * The owner's monthly ad budget. Stored as theirs (Cuso keeps it), then Cuso re-plans the ads around it; while he is busy with the strategy it waits and he plans it when that turn ends. Zero leaves paid ads out.
+ * The owner's monthly ad budget. Stored as theirs (Cuso keeps it), then Cuso re-plans the ads around it; while he is busy with the strategy it waits and he plans it when that turn ends. Zero leaves paid ads out; when the plan already has none, only the answer is kept, with no re-plan.
  */
 export const setCmoAdBudgetForProject = <ThrowOnError extends boolean = false>(options: Options<SetCmoAdBudgetForProjectData, ThrowOnError>): RequestResult<SetCmoAdBudgetForProjectResponses, SetCmoAdBudgetForProjectErrors, ThrowOnError> => (options.client ?? client).post<SetCmoAdBudgetForProjectResponses, SetCmoAdBudgetForProjectErrors, ThrowOnError>({
     responseTransformer: setCmoAdBudgetForProjectResponseTransformer,

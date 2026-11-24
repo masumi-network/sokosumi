@@ -124,7 +124,7 @@ export interface CmoAppActions
   addMailingList: AddMailingList;
   connectMeasurement: (
     provider: CmoOverview["measurement"][number]["provider"],
-    from: "onboarding" | "app" | "seo" | "channels",
+    from: "app" | "seo" | "channels",
   ) => Promise<{ url: string | null; error: string | null }>;
   /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
   startOver: () => Promise<string | null>;
@@ -615,9 +615,11 @@ export function CmoApp({
                 <StrategyPage
                   overview={overview}
                   onOpenCalendar={() => go("calendar")}
-                  connectMeasurement={(provider) =>
-                    actions.connectMeasurement(provider, "app")
-                  }
+                  onSetAds={async (monthly, currency) => {
+                    const result = await actions.setAdBudget(monthly, currency);
+                    if (result.overview) setOverview(result.overview);
+                    return result.error;
+                  }}
                   onApprove={async (versionId) =>
                     setOverview(await actions.approveStrategy(versionId))
                   }

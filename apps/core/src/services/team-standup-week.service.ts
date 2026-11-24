@@ -10,10 +10,11 @@ import {
   formatWeekInReview,
   type PersonWeek,
   personWeekParts,
+  recordDone,
   STANDUP_METADATA_KEY,
 } from "@/lib/team-standup/standup-text";
 import {
-  collectStandupLines,
+  collectAgentRecords,
   ensureStandupRoom,
   nextStandupAt,
   standupsPaused,
@@ -236,10 +237,10 @@ async function collectAgentWeek(input: {
   since: Date;
   until: Date;
 }): Promise<AgentWeek[]> {
-  const lines = await collectStandupLines(input);
-  return lines
-    .filter((line) => line.done.length > 0)
-    .map((line) => ({ agent: line.agent, done: line.done }));
+  const records = await collectAgentRecords(input);
+  return records
+    .map((record) => ({ agent: record.agent, done: recordDone(record) }))
+    .filter((line) => line.done.length > 0);
 }
 
 const WEEK_SYSTEM = `You write the one summary line under a team's weekly review. You get one line per person and per agent, counted from records, so they are true. Write one line under 30 words: what the team got done this week, in plain words. Facts from the lines only; no praise, no advice, no ranking of people.`;

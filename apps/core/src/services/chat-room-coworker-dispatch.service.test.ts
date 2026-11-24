@@ -24,8 +24,10 @@ const {
   workspaceFindUniqueMock,
   coworkerFindFirstMock,
   turnFindFirstMock,
+  getCoworkerAuthorizationHeaderMock,
 } = vi.hoisted(() => ({
   turnFindFirstMock: vi.fn(),
+  getCoworkerAuthorizationHeaderMock: vi.fn(),
   findUniqueMock: vi.fn(),
   findManyMentionMock: vi.fn(),
   updateManyMock: vi.fn(),
@@ -106,6 +108,11 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/lib/sokosumi-ai-provider", () => ({
   getSokosumiProvider: getSokosumiProviderMock,
+}));
+
+vi.mock("@/lib/coworker-request-auth", () => ({
+  getCoworkerAuthorizationHeader: (...args: unknown[]) =>
+    getCoworkerAuthorizationHeaderMock(...args),
 }));
 
 vi.mock("@/routes/v1/chats/stream/coworker-conversation", () => ({
@@ -327,6 +334,26 @@ describe("dispatchChatRoomMention claim", () => {
       }),
     );
     expect(streamTextMock.mock.calls[0]?.[0]).not.toHaveProperty("abortSignal");
+    const sokosumiOpts = (
+      streamTextMock.mock.calls[0]?.[0] as {
+        providerOptions?: {
+          sokosumi?: { getAuthorization?: () => Promise<string> };
+        };
+      }
+    )?.providerOptions?.sokosumi;
+    expect(sokosumiOpts?.getAuthorization).toEqual(expect.any(Function));
+    getCoworkerAuthorizationHeaderMock.mockResolvedValueOnce(
+      "Bearer signed-mention-token",
+    );
+    await expect(sokosumiOpts!.getAuthorization!()).resolves.toBe(
+      "Bearer signed-mention-token",
+    );
+    expect(getCoworkerAuthorizationHeaderMock).toHaveBeenCalledWith({
+      coworkerBaseUrl: "https://coworker.example",
+      userId: "user_1",
+      organizationId: "org_1",
+      coworkerSlug: "hannah",
+    });
     expect(createCoworkerConversationMock).toHaveBeenCalled();
     expect(createMock).toHaveBeenCalled();
     expect(createMock.mock.invocationCallOrder[0]).toBeLessThan(

@@ -211,7 +211,7 @@ function requestedTypes(query: WorkspaceCalendarReadQuery): CalendarType[] {
   );
 }
 
-/** Whether the request needs more than Tasks, and so an interactive session. */
+/** Whether the request needs more than Tasks, which only a person may read. */
 export function requestsFeatures(
   query: Pick<
     z.infer<typeof workspaceCalendarQuerySchema>,

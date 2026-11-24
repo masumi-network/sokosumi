@@ -15,7 +15,7 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   SeoWorkspaceLoadError,
@@ -25,6 +25,7 @@ import {
 } from "@/app/seo/seo-load-error-model";
 import { type SeoTab, seoTab } from "@/app/seo/seo-query";
 import { useLatestRef } from "@/hooks/effects/use-latest-ref";
+import { useSeoWorkspaceSessionGuard } from "@/hooks/effects/use-seo-workspace-session-guard";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { mutateSeo } from "@/lib/actions/seo/action";
 import { type SeoCommand, seoReviewIdentity } from "@/lib/actions/seo/types";
@@ -336,14 +337,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     command: SeoCommand;
     success: string;
   } | null>(null);
-  useEffect(() => {
-    activeSessionKey.current = sessionKey;
-    return () => {
-      activeSessionKey.current = null;
-      if (unconfirmed.current) toast.dismiss?.(unconfirmed.current.toastId);
-      unconfirmed.current = null;
-    };
-  }, [sessionKey]);
+  useSeoWorkspaceSessionGuard(sessionKey, activeSessionKey, unconfirmed);
   async function execute(
     command: SeoCommand,
     success = t("saved"),

@@ -2,7 +2,10 @@ import type { GenericEndpointContext } from "better-auth";
 import { APIError } from "better-auth/api";
 import { expireCookie, setSessionCookie } from "better-auth/cookies";
 
-import { answerCreatePromptWithNewSession } from "./auth-oauth-provider";
+import {
+  answerCreatePromptWithNewSession,
+  markSelfRegisteredClient,
+} from "./auth-oauth-provider";
 
 type AfterHookContext = GenericEndpointContext & {
   context: { returned?: unknown };
@@ -18,6 +21,18 @@ type AfterHookContext = GenericEndpointContext & {
 export async function afterNewSession(ctx: AfterHookContext): Promise<void> {
   await keepNewSessionPersistent(ctx);
   await answerCreatePromptWithNewSession(ctx);
+}
+
+/**
+ * The end of Core's after hook, in order: the new-session steps, then
+ * `selfRegistered` on the public client info. Returns the replaced answer, if
+ * any. OAuth provider tests wire this to run Core's chain.
+ */
+export async function afterAuthRequest(
+  ctx: AfterHookContext,
+): Promise<Response | Record<string, unknown> | undefined> {
+  await afterNewSession(ctx);
+  return await markSelfRegisteredClient(ctx);
 }
 
 /**

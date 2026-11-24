@@ -8,8 +8,6 @@ import {
   type ChannelGroup,
   channelInfo,
   channelKey,
-  formatHasImage,
-  formatHasVideo,
   formatName,
   formatOn,
   OWNER_PART,
@@ -18,6 +16,7 @@ import { joinNames } from "../lib/names";
 import { ChannelIcon } from "./channel-icon";
 import { planPieces } from "./phone-feeds";
 import { withoutLabel } from "./showcases";
+import { money } from "./strategy-core";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
@@ -186,6 +185,14 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
         GROUP_ORDER.indexOf(channelInfo(b.key)?.group ?? "social"),
     );
   const used = new Set(channels.map((channel) => channel.key));
+  // Ads are a place too, but only Cuso's suggestion until the owner says yes.
+  const ads = strategy.ads;
+  const adKey =
+    ads && (ads.monthly > 0 || ads.suggest)
+      ? channelKey(ads.suggest?.channel ?? "google_ads")
+      : null;
+  const adInfo = adKey && !used.has(adKey) ? channelInfo(adKey) : null;
+  if (adKey && adInfo) used.add(adKey);
   // Networks Cuso left out because they do not fit the buyer, with his reason.
   const leftOut = (strategy.leftOut ?? []).flatMap((item) => {
     const key = channelKey(item.channel);
@@ -224,12 +231,6 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
               formatName(channel.key, formatOn(entry, channel.key)),
             ),
           );
-          const images = entries.some((entry) =>
-            formatHasImage(channel.key, formatOn(entry, channel.key)),
-          );
-          const videos = entries.some((entry) =>
-            formatHasVideo(channel.key, formatOn(entry, channel.key)),
-          );
           return (
             <li key={channel.key} className="cw-card">
               <div className="cw-head">
@@ -243,12 +244,6 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
               {formats.size > 0 ? (
                 <p className="cw-makes">
                   {upperFirst([...formats].map(pluralName).join(", "))}
-                  {images ? (
-                    <span className="cw-images">Images by {AGENT_NAME}</span>
-                  ) : null}
-                  {videos ? (
-                    <span className="cw-images">Videos by {AGENT_NAME}</span>
-                  ) : null}
                 </p>
               ) : null}
               {channel.why ? <p className="note">{channel.why}</p> : null}
@@ -256,6 +251,23 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
             </li>
           );
         })}
+        {ads && adKey && adInfo ? (
+          <li className="cw-card">
+            <div className="cw-head">
+              <span className="cw-icon">
+                <ChannelIcon channel={adKey} size={22} />
+              </span>
+              <p className="cw-name">{adInfo.name}</p>
+            </div>
+            <p className="cw-makes">
+              {ads.monthly > 0
+                ? `Ads for ${money(ads.monthly, ads.currency)} a month`
+                : "Ads, only if you say yes"}
+            </p>
+            {ads.expect ? <p className="note">{ads.expect}</p> : null}
+            <p className="cw-you">{OWNER_PART[adInfo.owner]}</p>
+          </li>
+        ) : null}
         {/* SEO runs beside the strategy, never on its calendar, so it is said here. */}
         <li className="cw-card">
           <div className="cw-head">

@@ -41,11 +41,13 @@ import { effectiveTasksSort } from "@/app/tasks/utils/task-sort";
 import {
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
+  type TasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { usePendingCreatedTasks } from "@/hooks/effects/use-pending-created-tasks";
 import { useRefreshWhenShown } from "@/hooks/effects/use-refresh-when-shown";
+import { useTasksBoardAlive } from "@/hooks/effects/use-tasks-board-alive";
 import type { TaskEventData } from "@/lib/ably/schema";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import {
@@ -111,36 +113,25 @@ const hydrationStore = (() => {
   return { subscribe, getSnapshot, getServerSnapshot };
 })();
 
-export function useTasksViewModel({
-  tasks,
-  listNextCursor: initialListNextCursor,
-  columnNextCursorById: initialColumnNextCursorById,
-  columnHiddenCountById: initialColumnHiddenCountById,
-  columns = KANBAN_COLUMNS,
+export function useTasksViewShell({
   coworkerOptions,
   projectOptions,
   activeOrganizationId,
   initialFilters,
   defaultViewMode,
   defaultDensity,
-  labels,
-}: TasksViewProps) {
+}: Pick<
+  TasksViewProps,
+  | "coworkerOptions"
+  | "projectOptions"
+  | "activeOrganizationId"
+  | "initialFilters"
+  | "defaultViewMode"
+  | "defaultDensity"
+>) {
   const router = useRouter();
   const pathname = usePathname();
-  const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const searchParams = useTasksSearchParams();
-  const tTasks = useTranslations("App.Tasks");
-  /**
-   * The board already restored the card by the time this runs. A refused move
-   * gets the status error; only a stale client gets the reload modal.
-   */
-  const reportDragRejection = (kind: TaskMutationErrorKind) => {
-    if (kind === CORE_API_ERROR_KINDS.STATUS_NOT_SELECTABLE) {
-      toast.error(tTasks("Errors.updateStatus"));
-      return;
-    }
-    showCalendarClientUpgradeModal();
-  };
   const routeFilters = useMemo(
     () =>
       getTasksFiltersFromSearchParams(
@@ -154,9 +145,120 @@ export function useTasksViewModel({
   const [viewMode, setViewMode] = useState<TasksViewMode>(
     defaultViewMode ?? "board",
   );
+  const [previousDefaultViewMode, setPreviousDefaultViewMode] =
+    useState(defaultViewMode);
+  if (previousDefaultViewMode !== defaultViewMode) {
+    setPreviousDefaultViewMode(defaultViewMode);
+    setViewMode(defaultViewMode ?? "board");
+  }
   const [density, setDensity] = useState<TasksDensity>(
     defaultDensity ?? "normal",
   );
+  const refreshRoute = useRefreshWhenShown(() => router.refresh());
+
+  const serverTasksFiltersResetKey = useMemo(
+    () => getTasksFiltersResetKey(initialFilters, activeOrganizationId),
+    [activeOrganizationId, initialFilters],
+  );
+  const routeTasksFiltersResetKey = useMemo(
+    () => getTasksFiltersResetKey(routeFilters, activeOrganizationId),
+    [activeOrganizationId, routeFilters],
+  );
+  const defaultProjectId = routeFilters.projectId;
+  const isTaskPaginationInSync =
+    routeTasksFiltersResetKey === serverTasksFiltersResetKey;
+
+  const handleEventUpdate = (_data: TaskEventData) => {
+    refreshRoute();
+  };
+
+  const handleViewModeChange = (next: TasksViewMode) => {
+    setViewMode(next);
+    document.cookie = serializeTasksViewModeCookie(next);
+    // A link's `?view=` held only that visit; once chosen here, the saved
+    // view decides, so drop it or the refresh would read the old view.
+    if (searchParams.has("view")) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("view");
+      const nextQuery = params.toString();
+      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+      return;
+    }
+    router.refresh();
+  };
+
+  const handleDensityChange = (next: TasksDensity) => {
+    setDensity(next);
+    document.cookie = serializeTasksDensityCookie(next);
+  };
+
+  return {
+    router,
+    pathname,
+    searchParams,
+    routeFilters,
+    viewMode,
+    density,
+    defaultProjectId,
+    serverTasksFiltersResetKey,
+    isTaskPaginationInSync,
+    handleEventUpdate,
+    handleViewModeChange,
+    handleDensityChange,
+  };
+}
+
+export interface TasksBoardModelProps
+  extends Pick<
+    TasksViewProps,
+    | "tasks"
+    | "listNextCursor"
+    | "columnNextCursorById"
+    | "columnHiddenCountById"
+    | "columns"
+    | "coworkerOptions"
+    | "projectOptions"
+    | "initialFilters"
+    | "defaultViewMode"
+    | "labels"
+  > {
+  routeFilters: TasksFilters;
+  viewMode: TasksViewMode;
+  serverTasksFiltersResetKey: string;
+  isTaskPaginationInSync: boolean;
+}
+
+export function useTasksBoardModel({
+  tasks,
+  listNextCursor: initialListNextCursor,
+  columnNextCursorById: initialColumnNextCursorById,
+  columnHiddenCountById: initialColumnHiddenCountById,
+  columns = KANBAN_COLUMNS,
+  coworkerOptions,
+  projectOptions,
+  initialFilters,
+  defaultViewMode,
+  labels,
+  routeFilters,
+  viewMode,
+  serverTasksFiltersResetKey,
+  isTaskPaginationInSync,
+}: TasksBoardModelProps) {
+  const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
+  const tTasks = useTranslations("App.Tasks");
+  const aliveRef = useTasksBoardAlive();
+  /**
+   * The board already restored the card by the time this runs. A refused move
+   * gets the status error; only a stale client gets the reload modal.
+   */
+  const reportDragRejection = (kind: TaskMutationErrorKind) => {
+    if (!aliveRef.current) return;
+    if (kind === CORE_API_ERROR_KINDS.STATUS_NOT_SELECTABLE) {
+      toast.error(tTasks("Errors.updateStatus"));
+      return;
+    }
+    showCalendarClientUpgradeModal();
+  };
   const [items, setItems] = useState<TaskWithCoworker[]>(tasks);
   const [columnCursorById, setColumnCursorById] = useState<
     Record<KanbanColumnId, string | null>
@@ -215,55 +317,8 @@ export function useTasksViewModel({
   const isLoadingListMoreRef = useRef(isLoadingListMore);
   const loadingColumnIdsRef = useRef(loadingColumnIds);
   loadingColumnIdsRef.current = loadingColumnIds;
-  const refreshRoute = useRefreshWhenShown(() => router.refresh());
 
-  const serverTasksFiltersResetKey = useMemo(
-    () => getTasksFiltersResetKey(initialFilters, activeOrganizationId),
-    [activeOrganizationId, initialFilters],
-  );
-  const routeTasksFiltersResetKey = useMemo(
-    () => getTasksFiltersResetKey(routeFilters, activeOrganizationId),
-    [activeOrganizationId, routeFilters],
-  );
-  const defaultProjectId = routeFilters.projectId;
-
-  const isTaskPaginationInSync =
-    routeTasksFiltersResetKey === serverTasksFiltersResetKey;
-  const previousTasksFiltersResetKeyRef = useRef(serverTasksFiltersResetKey);
   const previousDefaultViewModeRef = useRef(defaultViewMode);
-  const handleEventUpdate = (_data: TaskEventData) => {
-    refreshRoute();
-  };
-
-  useLayoutEffect(() => {
-    if (
-      previousTasksFiltersResetKeyRef.current === serverTasksFiltersResetKey
-    ) {
-      return;
-    }
-
-    previousTasksFiltersResetKeyRef.current = serverTasksFiltersResetKey;
-    moveVersionRef.current = 0;
-    pendingMoveVersionByTaskIdRef.current.clear();
-
-    itemsRef.current = tasks;
-    setItems(tasks);
-    setColumnCursorById(
-      buildInitialColumnCursorById(columns, initialColumnNextCursorById),
-    );
-    setColumnHiddenById(initialColumnHiddenCountById);
-    setListCursor(initialListNextCursor);
-    listCursorRef.current = initialListNextCursor;
-    setLoadingColumnIds(new Set());
-    setIsLoadingListMore(false);
-    isLoadingListMoreRef.current = false;
-  }, [
-    columns,
-    initialColumnNextCursorById,
-    initialListNextCursor,
-    serverTasksFiltersResetKey,
-    tasks,
-  ]);
 
   useLayoutEffect(() => {
     if (previousDefaultViewModeRef.current === defaultViewMode) {
@@ -271,9 +326,7 @@ export function useTasksViewModel({
     }
 
     previousDefaultViewModeRef.current = defaultViewMode;
-    moveVersionRef.current = 0;
     pendingMoveVersionByTaskIdRef.current.clear();
-    setViewMode(defaultViewMode ?? "board");
 
     itemsRef.current = tasks;
     setItems(tasks);
@@ -347,6 +400,7 @@ export function useTasksViewModel({
   );
 
   const handleDragStart = (event: DragStartEvent) => {
+    if (!aliveRef.current) return;
     const activeId = event.active.id;
     if (typeof activeId !== "string") return;
 
@@ -373,6 +427,7 @@ export function useTasksViewModel({
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveDragTaskId(null);
     setActiveDragRect(null);
+    if (!aliveRef.current) return;
 
     const activeId = event.active.id;
     const overId = event.over?.id;
@@ -482,7 +537,7 @@ export function useTasksViewModel({
         }
       } catch {
         rollbackMove();
-        toast.error(labels.dragError);
+        if (aliveRef.current) toast.error(labels.dragError);
       }
     });
   };
@@ -521,7 +576,7 @@ export function useTasksViewModel({
   };
 
   const handleBoardReopenConfirm = () => {
-    if (!pendingBoardReopen) return;
+    if (!aliveRef.current || !pendingBoardReopen) return;
 
     const trimmedComment = reopenComment.trim();
     if (!trimmedComment) {
@@ -556,7 +611,7 @@ export function useTasksViewModel({
         rollbackBoardReopen(pending);
         setPendingBoardReopen(null);
         setReopenComment("");
-        toast.error(labels.dragError);
+        if (aliveRef.current) toast.error(labels.dragError);
       }
     });
   };
@@ -615,7 +670,7 @@ export function useTasksViewModel({
           ...columnCursorByIdRef.current,
           [columnId]: null,
         };
-        toast.error(labels.loadMoreError);
+        if (aliveRef.current) toast.error(labels.loadMoreError);
       } finally {
         if (pagingContextRef.current === pagingContext) {
           const afterLoading = new Set(loadingColumnIdsRef.current);
@@ -625,7 +680,13 @@ export function useTasksViewModel({
         }
       }
     },
-    [isTaskPaginationInSync, labels.loadMoreError, routeFilters, pagingContext],
+    [
+      aliveRef,
+      isTaskPaginationInSync,
+      labels.loadMoreError,
+      routeFilters,
+      pagingContext,
+    ],
   );
 
   const handleLoadMoreList = useCallback(async () => {
@@ -651,7 +712,7 @@ export function useTasksViewModel({
       if (pagingContextRef.current !== pagingContext) return;
       setListCursor(null);
       listCursorRef.current = null;
-      toast.error(labels.loadMoreError);
+      if (aliveRef.current) toast.error(labels.loadMoreError);
     } finally {
       if (pagingContextRef.current === pagingContext) {
         isLoadingListMoreRef.current = false;
@@ -659,31 +720,12 @@ export function useTasksViewModel({
       }
     }
   }, [
+    aliveRef,
     isTaskPaginationInSync,
     labels.loadMoreError,
     routeFilters,
     pagingContext,
   ]);
-
-  const handleViewModeChange = (next: TasksViewMode) => {
-    setViewMode(next);
-    document.cookie = serializeTasksViewModeCookie(next);
-    // A link's `?view=` held only that visit; once chosen here, the saved
-    // view decides, so drop it or the refresh would read the old view.
-    if (searchParams.has("view")) {
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete("view");
-      const nextQuery = params.toString();
-      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
-      return;
-    }
-    router.refresh();
-  };
-
-  const handleDensityChange = (next: TasksDensity) => {
-    setDensity(next);
-    document.cookie = serializeTasksDensityCookie(next);
-  };
 
   const activeDragTask = useMemo(
     () =>
@@ -693,13 +735,7 @@ export function useTasksViewModel({
     [activeDragTaskId, items],
   );
   return {
-    router,
-    pathname,
-    searchParams,
     tTasks,
-    routeFilters,
-    viewMode,
-    density,
     shownItems,
     columnCursorById,
     columnHiddenById,
@@ -712,9 +748,6 @@ export function useTasksViewModel({
     setReopenComment,
     isReopenPending,
     isMounted,
-    defaultProjectId,
-    isTaskPaginationInSync,
-    handleEventUpdate,
     sensors,
     handleDragStart,
     handleDragCancel,
@@ -723,8 +756,6 @@ export function useTasksViewModel({
     handleBoardReopenConfirm,
     handleLoadMoreColumn,
     handleLoadMoreList,
-    handleViewModeChange,
-    handleDensityChange,
     activeDragTask,
   };
 }

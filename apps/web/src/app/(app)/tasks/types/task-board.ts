@@ -68,6 +68,8 @@ export interface TaskWithCoworker {
   openSubtasks?: TaskOpenSubtask[];
   /** A comment mentions the reader and the reader has not commented since. */
   hasUnansweredMention?: boolean;
+  /** Text around a search match found only in the Task's result. */
+  resultMatch?: string;
 }
 
 export type KanbanColumnId =

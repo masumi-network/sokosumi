@@ -12,26 +12,38 @@ import { jsonInput } from "@/helpers/prisma-json";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
-import { runAsBackgroundWork } from "@/lib/evlog";
+import { recordCoreWarning, runAsBackgroundWork } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { standupClaimsUnrecordedWork } from "@/lib/soko-bot/answer-claims";
 import { askSmallModel } from "@/lib/soko-bot/small-model";
 import {
-  formatStandup,
+  type AgentRecord,
+  botFallbackMessage,
+  coworkerStandupMessage,
+  emptyRecord,
   handoffMessage,
-  lineIsEmpty,
+  mentionToken,
+  peopleWaitedOn,
+  recordIsEmpty,
   STANDUP_METADATA_KEY,
   STANDUP_ROOM_NAME,
-  type StandupAgent,
-  type StandupLine,
   type StandupMatch,
+  shortTitleByRules,
+  standupOpener,
+  withMentions,
 } from "@/lib/team-standup/standup-text";
+import { proactiveGate } from "@/services/soko-bot-proactive.service";
 
 /**
- * The organization's daily agent stand-up (one per organization, one host).
- * Core writes each agent's line from records (receipts and Task states),
- * never from what an agent claims, and wakes nobody to do it. One small model
- * call writes the summary line and proposes up to three matches; each match
- * opens a hand-off in the thread from the agent that needs something to the
- * one working on it, which only asks. Nothing new means nothing is posted.
+ * The organization's daily agent stand-up (one per organization). Core reads
+ * each agent's record (receipts and public Task states), never what an agent
+ * claims. After a short opener every agent posts its own message: a Soko Bot
+ * writes it in its own words with one small model call and no tools, checked
+ * against its record (its record is posted instead when the check fails); a
+ * Coworker, which only reads Task text, gets one plain line Core writes under
+ * its name. One more small call proposes up to three matches; each opens a
+ * hand-off under the needing bot's message to the agent working on it, which
+ * only asks. Nothing new means nothing is posted.
  */
 
 const MAX_MATCHES = 3;
@@ -95,12 +107,21 @@ function countLabels(capabilities: string[]): string[] {
   });
 }
 
-/** Every participating agent's line, from records only. */
-export async function collectStandupLines(input: {
+const TASK_WORK: Record<string, string> = {
+  create_task: "created",
+  assign_task: "handed out",
+  reply_to_task: "answered",
+};
+
+/** At most this many agents post per stand-up: a room takes 20 agent messages an hour. */
+const MAX_AGENT_MESSAGES = 12;
+
+/** Every participating agent's record, from receipts and public Task states only. */
+export async function collectAgentRecords(input: {
   workspaceId: string;
   since: Date;
   until: Date;
-}): Promise<StandupLine[]> {
+}): Promise<AgentRecord[]> {
   const { workspaceId, since, until } = input;
   const bots = await prisma.sokoBot.findMany({
     where: {
@@ -112,18 +133,19 @@ export async function collectStandupLines(input: {
     select: {
       id: true,
       name: true,
-      userId: true,
       user: { select: { id: true, name: true } },
     },
   });
-  const lines: StandupLine[] = [];
+  const records: AgentRecord[] = [];
+  /** Tasks a participating bot handed out: the bot reports the wait, so the Coworker does not ping the same person again. */
+  const spokenFor = new Set<string>();
   for (const bot of bots) {
-    const agent: StandupAgent = {
+    const record = emptyRecord({
       kind: "sokoBot",
       id: bot.id,
       name: sokoBotDisplayName({ name: bot.name }),
       ownerName: bot.user?.name ?? null,
-    };
+    });
     const receipts = await prisma.sokoBotToolCall.findMany({
       where: {
         status: "COMPLETED",
@@ -131,22 +153,67 @@ export async function collectStandupLines(input: {
         committedAt: { gte: since, lt: until },
         turn: { sokoBotId: bot.id },
       },
-      select: { capability: true },
+      select: { capability: true, targetId: true },
     });
-    const delegated = await prisma.task.findMany({
+    record.counts = countLabels(receipts.map((receipt) => receipt.capability));
+    const touchedIds = receipts.flatMap((receipt) =>
+      TASK_WORK[receipt.capability] && receipt.targetId
+        ? [receipt.targetId]
+        : [],
+    );
+    const touched = touchedIds.length
+      ? await prisma.task.findMany({
+          where: {
+            id: { in: touchedIds },
+            workspaceId,
+            visibility: "PUBLIC",
+            archivedAt: null,
+          },
+          select: { id: true, name: true },
+        })
+      : [];
+    const names = new Map(touched.map((task) => [task.id, task.name]));
+    record.touched = [
+      ...new Set(
+        receipts.flatMap((receipt) => {
+          const name = receipt.targetId ? names.get(receipt.targetId) : null;
+          const verb = TASK_WORK[receipt.capability];
+          return name && verb ? [`${verb} "${name}"`] : [];
+        }),
+      ),
+    ];
+    const handedOut = await prisma.task.findMany({
       where: {
         workspaceId,
         visibility: "PUBLIC",
         archivedAt: null,
-        status: { in: [...WAITING_ON_PERSON, "FAILED"] },
+        status: { in: [...ACTIVE, ...WAITING_ON_PERSON, "FAILED"] },
         sokoBotDelegations: { some: { turn: { sokoBotId: bot.id } } },
       },
-      take: 5,
-      select: { name: true, status: true },
+      orderBy: { updatedAt: "desc" },
+      take: 8,
+      select: { id: true, name: true, status: true },
     });
     const owner = bot.user;
-    const open = owner
-      ? await prisma.task.findMany({
+    for (const task of handedOut) {
+      spokenFor.add(task.id);
+      if ((ACTIVE as readonly string[]).includes(task.status))
+        record.working.push(task.name);
+      else
+        record.waiting.push({
+          task: task.name,
+          failed: task.status === "FAILED",
+          waitsOn:
+            task.status !== "FAILED" && owner
+              ? { userId: owner.id, name: owner.name }
+              : null,
+        });
+    }
+    record.working = record.working.slice(0, 3);
+    record.waiting = record.waiting.slice(0, 5);
+    if (owner)
+      record.open = (
+        await prisma.task.findMany({
           where: {
             workspaceId,
             visibility: "PUBLIC",
@@ -161,19 +228,8 @@ export async function collectStandupLines(input: {
           take: 3,
           select: { name: true },
         })
-      : [];
-    lines.push({
-      agent,
-      done: countLabels(receipts.map((receipt) => receipt.capability)),
-      today: open.map((task) => `"${task.name}" (nobody has it yet)`),
-      blocked: delegated.map((task) => ({
-        what: `"${task.name}" ${task.status === "FAILED" ? "failed" : "waits for an answer"}`,
-        waitsOn:
-          task.status !== "FAILED" && owner
-            ? { userId: owner.id, name: owner.name }
-            : null,
-      })),
-    });
+      ).map((task) => task.name);
+    records.push(record);
   }
 
   const tasks = await prisma.task.findMany({
@@ -190,41 +246,40 @@ export async function collectStandupLines(input: {
     orderBy: { updatedAt: "desc" },
     take: 60,
     select: {
+      id: true,
       name: true,
       status: true,
       assignee: { select: { id: true, name: true } },
       owner: { select: { id: true, name: true } },
     },
   });
-  const coworkers = new Map<string, StandupLine>();
+  const coworkers = new Map<string, AgentRecord>();
   for (const task of tasks) {
     if (!task.assignee) continue;
-    const line =
+    const record =
       coworkers.get(task.assignee.id) ??
-      ({
-        agent: {
-          kind: "coworker",
-          id: task.assignee.id,
-          name: task.assignee.name,
-          ownerName: null,
-        },
-        done: [],
-        today: [],
-        blocked: [],
-      } satisfies StandupLine);
-    coworkers.set(task.assignee.id, line);
-    if (task.status === "COMPLETED") line.done.push(`"${task.name}"`);
+      emptyRecord({
+        kind: "coworker",
+        id: task.assignee.id,
+        name: task.assignee.name,
+        ownerName: null,
+      });
+    coworkers.set(task.assignee.id, record);
+    if (task.status === "COMPLETED") record.finished.push(task.name);
     else if ((ACTIVE as readonly string[]).includes(task.status))
-      line.today.push(`"${task.name}"`);
-    else
-      line.blocked.push({
-        what: `"${task.name}" waits for an answer`,
+      record.working.push(task.name);
+    else if (!spokenFor.has(task.id))
+      record.waiting.push({
+        task: task.name,
+        failed: false,
         waitsOn: task.owner
           ? { userId: task.owner.id, name: task.owner.name }
           : null,
       });
   }
-  return [...lines, ...coworkers.values()].filter((line) => !lineIsEmpty(line));
+  return [...records, ...coworkers.values()].filter(
+    (record) => !recordIsEmpty(record),
+  );
 }
 
 /** Open needs the host may match: unassigned Tasks of the participating bots' owners. */
@@ -262,7 +317,7 @@ async function openNeeds(
   }));
 }
 
-/** What the agents with a line are working on, with each Task's description. */
+/** What the agents with a record are working on, with each Task's description. */
 async function workInProgress(workspaceId: string, coworkerIds: string[]) {
   if (coworkerIds.length === 0) return [];
   const tasks = await prisma.task.findMany({
@@ -286,7 +341,6 @@ async function workInProgress(workspaceId: string, coworkerIds: string[]) {
 }
 
 const hostSchema = z.object({
-  summary: z.string(),
   matches: z
     .array(
       z.object({
@@ -300,29 +354,40 @@ const hostSchema = z.object({
     .max(MAX_MATCHES),
 });
 
-const HOST_SYSTEM = `You host a team's daily stand-up of AI agents. You get each agent's line (written from records, so it is true) and the open needs some agents have.
-1. Write one summary line under 25 words: what was done, what waits on a person, what slipped. Facts from the lines only; no praise, no advice.
-2. Propose at most three matches: an open need of one agent where another agent's work in progress or done would help, because it is about the same market, product, customer or deliverable (research on the DACH market helps a DACH market study). Sharing what they have is the whole ask, so a strong overlap is enough; it need not be the same task. needingAgentId is the agent with the need (it must be a Soko Bot), offeringAgentId the agent working on it. need is a short phrase ("a DACH market study"), offer says what the other does ("is researching that market"), askedFor is one plain question asking them to share what they have. No match when the overlap is not clear; an empty list is the usual answer.`;
+const HOST_SYSTEM = `You host a team's daily stand-up of AI agents. You get each agent's record (from receipts and Task states, so it is true) and the open needs some agents have.
+Propose at most three matches: an open need of one agent where another agent's work in progress or done would help, because it is about the same market, product, customer or deliverable (research on the DACH market helps a DACH market study). Sharing what they have is the whole ask, so a strong overlap is enough; it need not be the same task. needingAgentId is the agent with the need (it must be a Soko Bot), offeringAgentId the agent working on it. need is a short phrase ("a DACH market study"), offer says what the other does ("is researching that market"), askedFor is one plain question asking them to share what they have. No match when the overlap is not clear; an empty list is the usual answer.`;
+
+function recordFacts(record: AgentRecord) {
+  return {
+    did: [...record.counts, ...record.touched],
+    finished: record.finished,
+    working: record.working,
+    open: record.open,
+    waiting: record.waiting.map(
+      (wait) =>
+        `${wait.task}: ${wait.failed ? "failed" : wait.waitsOn ? `waits on ${wait.waitsOn.name}` : "waits for an answer"}`,
+    ),
+  };
+}
 
 export async function hostStandup(input: {
-  lines: StandupLine[];
+  records: AgentRecord[];
   needs: Awaited<ReturnType<typeof openNeeds>>;
   work: Awaited<ReturnType<typeof workInProgress>>;
 }) {
   const agents = new Map(
-    input.lines.map((line) => [line.agent.id, line.agent]),
+    input.records.map((record) => [record.agent.id, record.agent]),
   );
+  if (input.needs.length === 0) return { matches: [], costUsd: 0 };
   const { output, costUsd } = await askSmallModel({
     purpose: "soko-bot",
     system: HOST_SYSTEM,
     prompt: JSON.stringify({
-      lines: input.lines.map((line) => ({
-        agentId: line.agent.id,
-        kind: line.agent.kind,
-        name: line.agent.name,
-        done: line.done,
-        today: line.today,
-        blocked: line.blocked.map((blocker) => blocker.what),
+      agents: input.records.map((record) => ({
+        agentId: record.agent.id,
+        kind: record.agent.kind,
+        name: record.agent.name,
+        ...recordFacts(record),
       })),
       openNeeds: input.needs,
       workInProgress: input.work,
@@ -335,7 +400,139 @@ export async function hostStandup(input: {
       agents.get(match.needingAgentId)?.kind === "sokoBot" &&
       agents.has(match.offeringAgentId),
   );
-  return { summary: output.summary, matches, costUsd };
+  return { matches, costUsd };
+}
+
+const BOT_SYSTEM = `You are an AI assistant posting your own update in your team's daily stand-up channel, like a teammate would. You get your record since the last stand-up; it is all you know.
+Record: did = what your receipts show you did; finished = Tasks finished; working = Tasks you handed out that are still running; open = Tasks on your owner's list nobody has taken yet (call them open or unassigned, never yours or next for you); waiting = Tasks waiting on a person or failed.
+Write 2 to 4 short lines in the first person, in plain everyday words: what you did, what is still running, what is blocking you, and who you need something from. Facts from the record only: never add work, numbers, names or Tasks it does not have, and never promise to start something new. Shorten long Task names. When you need something from a person, write their mention token exactly as given (like @abc123) instead of their name. No greeting, heading, bullet list, emoji, praise or sign-off. If the record has nothing done, say so in a few words.`;
+
+const BOT_MESSAGE_MAX_CHARS = 700;
+
+/** Numbers and mention tokens the text may use: only those in the record. */
+function onlyRecordedTokens(text: string, record: AgentRecord): boolean {
+  const facts = JSON.stringify(recordFacts(record));
+  const people = new Set(
+    record.waiting.flatMap((wait) =>
+      wait.waitsOn ? [mentionToken(wait.waitsOn)] : [],
+    ),
+  );
+  const mentions = /@[^\s:,.!?;()[\]{}]+/g;
+  return (
+    (text.match(mentions) ?? []).every((token) => people.has(token)) &&
+    (text.replace(mentions, "").match(/\d+/g) ?? []).every((digits) =>
+      facts.includes(digits),
+    )
+  );
+}
+
+export interface BotUpdate {
+  text: string;
+  /** "own": the bot's words, checked; "record": its record, because its words could not be shown. */
+  source: "own" | "record";
+  costUsd: number;
+}
+
+export function botUpdatePrompt(record: AgentRecord) {
+  return {
+    system: BOT_SYSTEM,
+    prompt: JSON.stringify({
+      you: record.agent.name,
+      owner: record.agent.ownerName,
+      ...recordFacts(record),
+      mentionTokens: Object.fromEntries(
+        peopleWaitedOn(record).map((person) => [
+          person.name,
+          mentionToken(person),
+        ]),
+      ),
+    }),
+  };
+}
+
+/** One bot's stand-up message: one small model call with no tools, then the claim check. */
+export async function writeBotUpdate(record: AgentRecord): Promise<BotUpdate> {
+  const facts = recordFacts(record);
+  const fallback = (costUsd: number): BotUpdate => ({
+    text: botFallbackMessage(record),
+    source: "record",
+    costUsd,
+  });
+  let costUsd = 0;
+  try {
+    const answer = await askSmallModel({
+      purpose: "soko-bot",
+      ...botUpdatePrompt(record),
+      schema: z.object({ message: z.string() }),
+    });
+    costUsd = answer.costUsd;
+    const text = answer.output.message.trim();
+    if (
+      !text ||
+      text.length > BOT_MESSAGE_MAX_CHARS ||
+      text.split("\n").filter(Boolean).length > 5 ||
+      !onlyRecordedTokens(text, record)
+    )
+      return fallback(costUsd);
+    const recorded = [
+      ...facts.did.map((item) => `did: ${item}`),
+      ...facts.finished.map((item) => `finished: ${item}`),
+      ...facts.working.map((item) => `running: ${item}`),
+      ...facts.open.map((item) => `open, nobody has it: ${item}`),
+      ...facts.waiting.map((item) => `waiting: ${item}`),
+    ];
+    if ((await standupClaimsUnrecordedWork(text, recorded)) !== false)
+      return fallback(costUsd);
+    return {
+      text: withMentions(text, peopleWaitedOn(record)),
+      source: "own",
+      costUsd,
+    };
+  } catch (error) {
+    recordCoreWarning(
+      { operation: "team_standup_bot_update" },
+      {
+        message: "A Soko Bot's stand-up update fell back to its record",
+        why: "The small model failed",
+        fix: "Nothing: the record is posted under the bot's name instead.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
+    return fallback(costUsd);
+  }
+}
+
+const SHORT_SYSTEM = `You shorten Task titles for a team's stand-up channel. For each title write a short plain phrase of at most 6 words a busy reader gets at once ("Weekly Competitor Intelligence — Top 3 Launches, Pricing & Market Gaps" → "competitor report"; "Daily X engagement opportunities: Tech Startup AI — 2026-11-23" → "X engagement ideas"). Keep the title's language and its subject; drop dates, run numbers, prefixes and brackets. Lower-case unless a word is a name. Never add anything the title does not say.`;
+
+export async function shortenTitles(
+  titles: string[],
+): Promise<{ short: Map<string, string>; costUsd: number }> {
+  const unique = [...new Set(titles)];
+  const short = new Map(
+    unique.map((title) => [title, shortTitleByRules(title)]),
+  );
+  if (unique.length === 0) return { short, costUsd: 0 };
+  try {
+    const { output, costUsd } = await askSmallModel({
+      purpose: "soko-bot",
+      system: SHORT_SYSTEM,
+      prompt: JSON.stringify({ titles: unique }),
+      schema: z.object({
+        short: z.array(z.object({ title: z.string(), short: z.string() })),
+      }),
+    });
+    for (const { title, short: phrase } of output.short) {
+      const clean = phrase.trim();
+      const digitsKept = (clean.match(/\d+/g) ?? []).every((digits) =>
+        title.includes(digits),
+      );
+      if (short.has(title) && clean && clean.length <= 60 && digitsKept)
+        short.set(title, clean);
+    }
+    return { short, costUsd };
+  } catch {
+    return { short, costUsd: 0 };
+  }
 }
 
 export async function ensureStandupRoom(standup: {
@@ -374,42 +571,85 @@ export async function ensureStandupRoom(standup: {
   return room.id;
 }
 
-/** Everyone the thread names is in the room: agents to answer there, people to be mentioned. */
+/** Everyone the stand-up names is in the room: agents to post and answer there, people to be mentioned. */
 async function seatParticipants(
   roomId: string,
-  lines: StandupLine[],
+  records: AgentRecord[],
 ): Promise<void> {
-  for (const line of lines) {
-    if (line.agent.kind === "sokoBot")
+  for (const record of records) {
+    if (record.agent.kind === "sokoBot")
       await prisma.chatRoomSokoBotMember.upsert({
-        where: { roomId_sokoBotId: { roomId, sokoBotId: line.agent.id } },
-        create: { roomId, sokoBotId: line.agent.id },
+        where: { roomId_sokoBotId: { roomId, sokoBotId: record.agent.id } },
+        create: { roomId, sokoBotId: record.agent.id },
         update: {},
       });
     else
       await prisma.chatRoomCoworkerMember.upsert({
-        where: { roomId_coworkerId: { roomId, coworkerId: line.agent.id } },
-        create: { roomId, coworkerId: line.agent.id },
+        where: { roomId_coworkerId: { roomId, coworkerId: record.agent.id } },
+        create: { roomId, coworkerId: record.agent.id },
         update: {},
       });
-    for (const blocker of line.blocked)
-      if (blocker.waitsOn)
-        await prisma.chatRoomUserMember.upsert({
-          where: { roomId_userId: { roomId, userId: blocker.waitsOn.userId } },
-          create: { roomId, userId: blocker.waitsOn.userId, access: "member" },
-          update: {},
-        });
+    for (const person of peopleWaitedOn(record))
+      await prisma.chatRoomUserMember.upsert({
+        where: { roomId_userId: { roomId, userId: person.userId } },
+        create: { roomId, userId: person.userId, access: "member" },
+        update: {},
+      });
   }
+}
+
+/** Posts one stand-up message, mentions included, and tells the room. */
+async function postStandupMessage(input: {
+  roomId: string;
+  runId: string;
+  content: string;
+  sender?: { kind: AgentRecord["agent"]["kind"]; id: string };
+}): Promise<string> {
+  const { roomId, content, sender } = input;
+  const posted = await prisma.$transaction(async (tx) => {
+    const message = await tx.chatRoomMessage.create({
+      data: {
+        roomId,
+        content,
+        senderSokoBotId: sender?.kind === "sokoBot" ? sender.id : null,
+        senderCoworkerId: sender?.kind === "coworker" ? sender.id : null,
+        metadata: jsonInput({
+          [STANDUP_METADATA_KEY]: {
+            runId: input.runId,
+            ...(sender ? { agentId: sender.id } : {}),
+          },
+        }),
+      },
+      select: { id: true },
+    });
+    const mentioned = await persistChatHumanMentions(tx, {
+      messageId: message.id,
+      roomId,
+      content,
+      expandAll: false,
+    });
+    await tx.chatRoom.update({
+      where: { id: roomId },
+      data: { updatedAt: new Date() },
+    });
+    return { id: message.id, mentioned };
+  });
+  await publishChatRoomMessageRealtimeById(posted.id, "create");
+  await emitChatMessageNotifications({
+    messageId: posted.id,
+    mentionedUserIds: posted.mentioned,
+  });
+  return posted.id;
 }
 
 async function openHandoff(input: {
   roomId: string;
-  rootId: string;
+  parentId: string;
   match: StandupMatch & { askedFor: string };
-  lines: StandupLine[];
+  records: AgentRecord[];
 }): Promise<string | null> {
-  const offering = input.lines.find(
-    (line) => line.agent.id === input.match.offeringAgentId,
+  const offering = input.records.find(
+    (record) => record.agent.id === input.match.offeringAgentId,
   )?.agent;
   if (!offering) return null;
   const handle =
@@ -424,7 +664,7 @@ async function openHandoff(input: {
   const message = await prisma.chatRoomMessage.create({
     data: {
       roomId: input.roomId,
-      parentMessageId: input.rootId,
+      parentMessageId: input.parentId,
       senderSokoBotId: input.match.needingAgentId,
       content: handoffMessage({
         offeringHandle: handle,
@@ -454,8 +694,17 @@ async function openHandoff(input: {
 export interface StandupRunOutcome {
   status: "POSTED" | "QUIET" | "FAILED";
   runId: string;
+  /** The opener. */
   messageId: string | null;
+  /** Each posting agent's message, by agent id. */
+  agentMessageIds: Record<string, string>;
   mentionIds: string[];
+}
+
+/** Bots their owner or the platform paused, or past their daily allowance, post nothing. */
+async function mayPost(record: AgentRecord): Promise<boolean> {
+  if (record.agent.kind !== "sokoBot") return true;
+  return (await proactiveGate(record.agent.id)).ok;
 }
 
 /** One stand-up for one slot; the run row makes it happen once. */
@@ -463,8 +712,10 @@ export async function runTeamStandup(input: {
   standupId: string;
   scheduledFor: Date;
   dispatch?: (mentionId: string) => Promise<void>;
-  /** Tests stand in for the model; every real run asks it. */
+  /** Tests stand in for the models; every real run asks them. */
   host?: typeof hostStandup;
+  writeBot?: typeof writeBotUpdate;
+  shorten?: typeof shortenTitles;
 }): Promise<StandupRunOutcome | null> {
   const standup = await prisma.teamStandup.findUniqueOrThrow({
     where: { id: input.standupId },
@@ -481,6 +732,19 @@ export async function runTeamStandup(input: {
     .catch(() => null);
   if (!created) return null;
   const runId = created.id;
+  const quiet = async (): Promise<StandupRunOutcome> => {
+    await prisma.teamStandupRun.update({
+      where: { id: runId },
+      data: { status: "QUIET" },
+    });
+    return {
+      status: "QUIET",
+      runId,
+      messageId: null,
+      agentMessageIds: {},
+      mentionIds: [],
+    };
+  };
   try {
     const workspace = await workspaceOf(standup.organizationId);
     if (!workspace) throw new Error("The organization has no workspace");
@@ -497,41 +761,66 @@ export async function runTeamStandup(input: {
     });
     const since =
       previous?.createdAt ?? new Date(until.getTime() - LOOKBACK_MS);
-    const lines = await collectStandupLines({
+    const collected = await collectAgentRecords({
       workspaceId: workspace.id,
       since,
       until,
     });
-    if (lines.length === 0) {
-      await prisma.teamStandupRun.update({
-        where: { id: runId },
-        data: { status: "QUIET" },
-      });
-      return { status: "QUIET", runId, messageId: null, mentionIds: [] };
-    }
-    const participants = await prisma.sokoBot.findMany({
-      where: {
-        id: {
-          in: lines
-            .filter((line) => line.agent.kind === "sokoBot")
-            .map((line) => line.agent.id),
-        },
-      },
+    const records: AgentRecord[] = [];
+    for (const record of collected)
+      if (records.length < MAX_AGENT_MESSAGES && (await mayPost(record)))
+        records.push(record);
+    if (records.length === 0) return await quiet();
+
+    const bots = records.filter((record) => record.agent.kind === "sokoBot");
+    const coworkers = records.filter(
+      (record) => record.agent.kind === "coworker",
+    );
+    const owners = await prisma.sokoBot.findMany({
+      where: { id: { in: bots.map((record) => record.agent.id) } },
       select: { id: true, userId: true },
     });
     const needs = await openNeeds(
       workspace.id,
-      participants.map((bot) => ({ id: bot.id, ownerId: bot.userId })),
+      owners.map((bot) => ({ id: bot.id, ownerId: bot.userId })),
       since,
     );
     const work = await workInProgress(
       workspace.id,
-      lines
-        .filter((line) => line.agent.kind === "coworker")
-        .map((line) => line.agent.id),
+      coworkers.map((record) => record.agent.id),
     );
-    const host = await (input.host ?? hostStandup)({ lines, needs, work });
-    const spentMicros = BigInt(Math.round(host.costUsd * 1e6));
+    const host = await (input.host ?? hostStandup)({
+      records,
+      needs,
+      work,
+    }).catch((error: unknown) => {
+      recordCoreWarning(
+        { operation: "team_standup_host" },
+        {
+          message: "The stand-up opened no hand-offs today",
+          why: "The small model that proposes matches failed",
+          fix: "Nothing: every agent still posts; matches return with the model.",
+        },
+        { failure: messageSafeErrorFields(error) },
+      );
+      return { matches: [], costUsd: 0 };
+    });
+    let costUsd = host.costUsd;
+    const updates = new Map<string, BotUpdate>();
+    for (const record of bots) {
+      const update = await (input.writeBot ?? writeBotUpdate)(record);
+      costUsd += update.costUsd;
+      updates.set(record.agent.id, update);
+    }
+    const titles = await (input.shorten ?? shortenTitles)(
+      coworkers.flatMap((record) => [
+        ...record.finished,
+        ...record.working,
+        ...record.waiting.map((wait) => wait.task),
+      ]),
+    );
+    costUsd += titles.costUsd;
+    const spentMicros = BigInt(Math.round(costUsd * 1e6));
     const affordable = Math.max(
       0,
       Math.floor(
@@ -540,61 +829,58 @@ export async function runTeamStandup(input: {
       ),
     );
     const matches = host.matches.slice(0, Math.min(MAX_MATCHES, affordable));
+
     const roomId = await ensureStandupRoom(standup);
-    await seatParticipants(roomId, lines);
+    await seatParticipants(roomId, records);
     const date = new Intl.DateTimeFormat("en-GB", {
       weekday: "short",
       day: "numeric",
       month: "short",
       timeZone: standup.timezone,
     }).format(input.scheduledFor);
-    const content = formatStandup({
-      date,
-      lines,
-      matches,
-      summary: host.summary,
+    const openerId = await postStandupMessage({
+      roomId,
+      runId,
+      content: standupOpener(date),
     });
-    const root = await prisma.$transaction(async (tx) => {
-      const message = await tx.chatRoomMessage.create({
-        data: {
-          roomId,
-          content,
-          metadata: jsonInput({ [STANDUP_METADATA_KEY]: { runId } }),
-        },
-        select: { id: true },
-      });
-      const mentioned = await persistChatHumanMentions(tx, {
-        messageId: message.id,
+    const agentMessageIds: Record<string, string> = {};
+    for (const record of records) {
+      const content =
+        record.agent.kind === "sokoBot"
+          ? updates.get(record.agent.id)!.text
+          : coworkerStandupMessage(
+              record,
+              (task) => titles.short.get(task) ?? task,
+            );
+      agentMessageIds[record.agent.id] = await postStandupMessage({
         roomId,
+        runId,
         content,
+        sender: record.agent,
       });
-      await tx.chatRoom.update({
-        where: { id: roomId },
-        data: { updatedAt: new Date() },
-      });
-      return { id: message.id, mentioned };
-    });
-    await publishChatRoomMessageRealtimeById(root.id, "create");
-    await emitChatMessageNotifications({
-      messageId: root.id,
-      mentionedUserIds: root.mentioned,
-    });
+    }
     const mentionIds: string[] = [];
     for (const match of matches) {
-      const mentionId = await openHandoff({
-        roomId,
-        rootId: root.id,
-        match,
-        lines,
-      });
+      const parentId = agentMessageIds[match.needingAgentId];
+      if (!parentId) continue;
+      const mentionId = await openHandoff({ roomId, parentId, match, records });
       if (mentionId) mentionIds.push(mentionId);
     }
     await prisma.teamStandupRun.update({
       where: { id: runId },
       data: {
         status: "POSTED",
-        messageId: root.id,
-        lines: jsonInput(lines),
+        messageId: openerId,
+        lines: jsonInput(
+          records.map((record) => ({
+            ...record,
+            messageId: agentMessageIds[record.agent.id],
+            source:
+              record.agent.kind === "sokoBot"
+                ? updates.get(record.agent.id)?.source
+                : "core",
+          })),
+        ),
         matches: jsonInput(matches),
         costUsdMicros: spentMicros,
       },
@@ -609,7 +895,13 @@ export async function runTeamStandup(input: {
       });
     for (const mentionId of mentionIds)
       waitUntil(runAsBackgroundWork(() => dispatch(mentionId)));
-    return { status: "POSTED", runId, messageId: root.id, mentionIds };
+    return {
+      status: "POSTED",
+      runId,
+      messageId: openerId,
+      agentMessageIds,
+      mentionIds,
+    };
   } catch (error) {
     await prisma.teamStandupRun.update({
       where: { id: runId },
@@ -618,7 +910,13 @@ export async function runTeamStandup(input: {
         error: error instanceof Error ? error.message.slice(0, 500) : "failed",
       },
     });
-    return { status: "FAILED", runId, messageId: null, mentionIds: [] };
+    return {
+      status: "FAILED",
+      runId,
+      messageId: null,
+      agentMessageIds: {},
+      mentionIds: [],
+    };
   }
 }
 

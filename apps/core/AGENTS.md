@@ -49,6 +49,7 @@ The live tree is `apps/core/src/`.
 | `routes/v1/`                                         | Versioned HTTP handlers (one file per method)                                               |
 | `routes/auth/`, `routes/sync/`, `routes/well-known/` | Auth, cron/sync, discovery                                                                  |
 | `routes/health/`                                     | Unauthenticated liveness probe (`GET /health`), no database call                            |
+| `routes/mcp/`, `lib/sokosumi-mcp/`                   | MCP server at `/mcp`: token check, tool registry, tool calls run through `/v1` in process   |
 | `routes/image-studio-agent/`                         | Grant-authenticated surface the image-studio agent calls; no browser session                |
 | `routes/webhooks/fal/`                               | fal completion callback for image jobs; ED25519 signature, not a session                    |
 | `schemas/`                                           | Zod / OpenAPI                                                                               |
@@ -278,7 +279,7 @@ For internal async-ack sync routes (immediate `200` response + background execut
 | `pnpm portless:dev`                                     | Web + Core via portless (repo root; named `https://core.sokosumi.localhost`)                                                                                                 |
 | `pnpm portless:core`                                    | Core only via portless (still injects Web's named URL)                                                                                                                       |
 | `pnpm core:build`                                       | Build for production                                                                                                                                                         |
-| `pnpm --filter @sokosumi/core vercel-build`             | Vercel: `prisma:generate`, build, then `prisma migrate deploy`                                                                                                               |
+| `pnpm --filter @sokosumi/core vercel-build`             | Vercel: `prisma:generate`, build, the bundle check, the schema layout check (`scripts/check-network-layout.mts`), then `prisma migrate deploy`                               |
 | `pnpm core:start`                                       | Run production build                                                                                                                                                         |
 | `pnpm --filter core lint`                               | Lint core app                                                                                                                                                                |
 | `pnpm --filter core write-openapi-snapshot`             | Builds Core's workspace dependencies through turbo, then writes `packages/core-client/openapi-core.snapshot.json` (gitignored) from the in-memory v1 router for `openapi-ts` |

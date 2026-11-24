@@ -435,6 +435,11 @@ const taskListItemSchema = taskBaseSchema
       description:
         "True when a comment on the Task mentions the caller and the caller has not commented on the Task since. Sent only to people.",
     }),
+    resultMatch: z.string().optional().openapi({
+      example: "…The 50% launch plan costs 20 credits a month…",
+      description:
+        "With `search`, text around the first match in the Task's latest matching result (a done comment): plain text, or the raw Markdown when the match sits in a link target or code. Sent only when nothing but the result matched.",
+    }),
     // Optional on the wire for the same deploy-order reason, and because
     // only people get it.
     openSubtasks: z

@@ -28,6 +28,6 @@ Preconditions:
 ## Gotchas
 
 - Empty projects is valid for a new fixture user — do not require existing projects.
-- True empty uses heading **No projects yet**. A search/filter miss uses **No projects match "…"**, not the empty title.
+- The default Open view, with nothing in any view, uses heading **No projects yet**. **Hidden** with nothing hidden uses **No hidden projects**. **Closed** with nothing closed uses **No closed projects**. Open with projects only in another view uses **No open projects** or **All projects are closed**. A search miss uses **No projects match "…"**, not those titles.
 - Creating a project (`?create=true` / modal) is out of scope for this entry; list/empty landing only.
-- To open the selected project, use **Overview** in the sidebar.
+- There is no **Projects** or **Overview** sidebar row. **Overview** is the first item in the header project picker once a project is selected. **Open projects page** in that same menu opens `/projects`.

@@ -191,11 +191,27 @@ describe("studio comparison routes", () => {
     expect(response.status).toBe(404);
   });
 
+  it.each(["api_key", "oauth"] as const)(
+    "lets a person's %s token read, but not save, comparisons",
+    async (authenticationMethod) => {
+      const app = createApp({ ...SESSION, authenticationMethod });
+      const [compare, save, scoreboard] = await Promise.all([
+        app.request(COMPARE_PATH),
+        app.request(COMPARE_PATH, saveRequest()),
+        app.request(SCOREBOARD_PATH),
+      ]);
+      expect([compare.status, scoreboard.status]).not.toContain(403);
+      expect(mocks.next).toHaveBeenCalled();
+      expect(mocks.scoreboard).toHaveBeenCalled();
+      expect(save.status).toBe(403);
+      expect(mocks.save).not.toHaveBeenCalled();
+    },
+  );
+
   it.each([
-    { ...SESSION, authenticationMethod: "api_key" },
     { actor: "coworker", coworkerId: "coworker-a", vendorId: "vendor-a" },
   ] satisfies AuthenticationContext[])(
-    "refuses non-interactive actors on all three routes (%j)",
+    "refuses agent actors on all three routes (%j)",
     async (authContext) => {
       const app = createApp(authContext);
       const responses = await Promise.all([

@@ -2,7 +2,7 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
 
-import { draft, richPlan, strategy } from "../../test-fixtures/onboarding";
+import { richPlan, strategy } from "../../test-fixtures/onboarding";
 import { FunnelPlan } from "../strategy-core";
 import { MonthPanel, ResultsPanel } from "./plan-tabs";
 
@@ -168,11 +168,7 @@ it("leaves the share out when no piece names its step", () => {
 
 it("names each tracked step by its classic stage, never a name of Cuso's own", () => {
   const html = renderToStaticMarkup(
-    <ResultsPanel
-      overview={draft({ strategy: richPlan })}
-      strategy={richPlan}
-      onConnectMeasurement={async () => ({ url: null, error: null })}
-    />,
+    <ResultsPanel strategy={richPlan} approved={false} />,
   );
   expect(html).toMatch(/Awareness<\/span><b>Profile visits/);
   expect(html).not.toContain("Hear about us");

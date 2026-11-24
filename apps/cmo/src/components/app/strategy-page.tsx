@@ -6,7 +6,6 @@ import { useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { formatDay } from "../../lib/calendar";
 import { PlanReview } from "../onboarding/plan-step";
-import type { ConnectMeasurement } from "../onboarding/plan-tabs";
 import { StatusText } from "../status";
 import { WriteNewStrategy } from "./write-new-strategy";
 
@@ -72,7 +71,8 @@ export function StrategyVersions({
 interface StrategyPageProps {
   overview: CmoOverview;
   onOpenCalendar: () => void;
-  connectMeasurement: ConnectMeasurement;
+  /** The owner's Yes or No to ads; returns why it did not go through. */
+  onSetAds: (monthly: number, currency: string) => Promise<string | null>;
   /** Approves an earlier version again: Cuso goes back to that plan. */
   onApprove?: (versionId: string) => Promise<void>;
   /** Asks for a whole new strategy; returns why it could not start. */
@@ -86,7 +86,7 @@ interface StrategyPageProps {
 export function StrategyPage({
   overview,
   onOpenCalendar,
-  connectMeasurement,
+  onSetAds,
   onApprove,
   onWriteNew,
 }: StrategyPageProps) {
@@ -105,11 +105,10 @@ export function StrategyPage({
         overview={overview}
         readOnly
         onRequest={async () => null}
-        onSetAds={async () => null}
+        onSetAds={onSetAds}
         onAnswer={async () => {}}
         onUpdate={async () => null}
         onApprove={async () => {}}
-        onConnectMeasurement={connectMeasurement}
       />
       <div className="panel">
         <button

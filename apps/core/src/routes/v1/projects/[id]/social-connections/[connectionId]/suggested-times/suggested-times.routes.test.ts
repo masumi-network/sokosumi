@@ -118,7 +118,7 @@ describe("social connection suggested times route", () => {
     );
   });
 
-  it("rejects bot REST actors and human API keys", async () => {
+  it("rejects a Soko Bot over REST", async () => {
     const bot: AuthenticationContext = {
       actor: "sokoBot",
       sokoBotId: "bot",
@@ -127,13 +127,21 @@ describe("social connection suggested times route", () => {
       workspaceId,
       organizationId: null,
     };
-    for (const actor of [
-      bot,
-      { ...auth, authenticationMethod: "api_key" } as const,
-    ]) {
-      expect((await createApp(actor).request(suggestedTimesUrl())).status).toBe(
-        403,
-      );
-    }
+    expect((await createApp(bot).request(suggestedTimesUrl())).status).toBe(
+      403,
+    );
+    expect(mocks.list).not.toHaveBeenCalled();
   });
+
+  it.each(["api_key", "oauth"] as const)(
+    "lets a person's %s token read suggested times",
+    async (authenticationMethod) => {
+      const response = await createApp({
+        ...auth,
+        authenticationMethod,
+      }).request(suggestedTimesUrl());
+      expect(response.status).not.toBe(403);
+      expect(mocks.list).toHaveBeenCalled();
+    },
+  );
 });

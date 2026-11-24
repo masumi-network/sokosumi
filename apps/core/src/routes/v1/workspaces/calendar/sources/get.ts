@@ -13,7 +13,7 @@ import {
 import { isNewsletterWorkspaceEnabled } from "@/lib/newsletter/feature";
 import {
   type AuthenticationContext,
-  requireInteractiveUserAuthContext,
+  requireUserAuthContext,
 } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
@@ -55,10 +55,7 @@ async function featuresForViewer(
   authContext: AuthenticationContext,
   workspaceId: string,
 ): Promise<CalendarType[]> {
-  if (
-    authContext.actor !== "user" ||
-    authContext.authenticationMethod !== "session"
-  ) {
+  if (authContext.actor !== "user") {
     return ["tasks"];
   }
   const available = new Set<CalendarType>([
@@ -81,7 +78,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const query = c.req.valid("query");
     const includeSocialPosts = query.includeSocialPosts === "true";
     if (includeSocialPosts) {
-      requireInteractiveUserAuthContext(c.var.authContext);
+      requireUserAuthContext(c.var.authContext);
     }
     const workspaceId = workspaceContext.workspaceId;
     const [isSchedulable, features] = await Promise.all([

@@ -7,7 +7,7 @@ import {
   socialAccountStatisticsExportSheets,
   socialAccountStatisticsXlsx,
 } from "@/helpers/social-account-statistics-export";
-import { requireSocialPostActor } from "@/helpers/social-post-access";
+import { requireSocialPostReader } from "@/helpers/social-post-access";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -50,7 +50,7 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
   app.openapi(route, async (c) => {
-    await requireSocialPostActor(c.var.authContext);
+    await requireSocialPostReader(c.var.authContext);
 
     const { workspaceId } = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");

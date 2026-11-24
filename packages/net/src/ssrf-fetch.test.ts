@@ -256,6 +256,36 @@ describe("ssrfSafeFetch", () => {
     expect(httpsRequestMock).toHaveBeenCalledTimes(1);
   });
 
+  it('does NOT follow GET redirects when redirect is "manual"', async () => {
+    const captured: CapturedRequest[] = [];
+    httpsRequestMock.mockImplementation(
+      mockRequestImplementation(
+        {
+          status: 302,
+          headers: { location: "https://evil.example.com/steal" },
+        },
+        captured,
+      ),
+    );
+
+    const response = await ssrfSafeFetch(
+      "https://coworker.example.com/v1/responses/r1",
+      {
+        method: "GET",
+        headers: { Authorization: "Bearer single-use-jti" },
+        redirect: "manual",
+        maxResponseBytes: 1024,
+      },
+    );
+
+    expect(response.status).toBe(302);
+    expect(httpsRequestMock).toHaveBeenCalledTimes(1);
+    expect(captured).toHaveLength(1);
+    expect(captured[0].url.href).toBe(
+      "https://coworker.example.com/v1/responses/r1",
+    );
+  });
+
   it("throws once the GET redirect limit is exceeded", async () => {
     httpsRequestMock.mockImplementation(
       mockRequestImplementation({

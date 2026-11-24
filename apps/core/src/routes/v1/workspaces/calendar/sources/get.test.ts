@@ -497,11 +497,31 @@ describe("GET /workspaces/calendar/sources", () => {
     expect(socialPostGroupByMock).not.toHaveBeenCalled();
   });
 
-  it("rejects API-key access to Social post dates", async () => {
-    const response = await createApp({
-      ...USER_AUTH_CONTEXT,
-      authenticationMethod: "api_key",
-    }).request("http://localhost/calendar/sources?includeSocialPosts=true");
+  it.each(["api_key", "oauth"] as const)(
+    "gives a person's %s token Social post dates and every feature",
+    async (authenticationMethod) => {
+      const response = await createApp({
+        ...USER_AUTH_CONTEXT,
+        authenticationMethod,
+      }).request("http://localhost/calendar/sources?includeSocialPosts=true");
+
+      expect(response.status).toBe(200);
+      expect(socialPostGroupByMock).toHaveBeenCalled();
+      const body = await response.json();
+      expect(body.data.features).toEqual([
+        "tasks",
+        "social",
+        "contacts",
+        "marketing",
+        "sokoBot",
+      ]);
+    },
+  );
+
+  it("rejects a Coworker's request for Social post dates", async () => {
+    const response = await createApp(COWORKER_AUTH_CONTEXT).request(
+      "http://localhost/calendar/sources?includeSocialPosts=true",
+    );
     expect(response.status).toBe(403);
     expect(socialPostGroupByMock).not.toHaveBeenCalled();
   });

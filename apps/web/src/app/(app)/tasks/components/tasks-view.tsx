@@ -4,6 +4,7 @@ import { DndContext, DragOverlay } from "@dnd-kit/core";
 import type { TaskStatus } from "@sokosumi/core-client";
 import { makeUserTasksChannelName } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
+import { useQueryState } from "nuqs";
 import { useMemo, useRef } from "react";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { TASKS_TOOLBAR_ROW_CLASS } from "@/app/tasks/constants";
@@ -49,7 +50,11 @@ import { replaceTasksQuery } from "./tasks-search-params";
 import { focusToolbarControl } from "./tasks-view-filters";
 import { TasksViewToolbarActions } from "./tasks-view-toolbar-actions";
 import { TasksKeyboard } from "./use-board-keyboard";
-import { useTasksViewModel } from "./use-tasks-view-model";
+import {
+  type TasksBoardModelProps,
+  useTasksBoardModel,
+  useTasksViewShell,
+} from "./use-tasks-view-model";
 
 interface TasksRealtimeListenerProps {
   userId: string;
@@ -140,28 +145,31 @@ export interface TasksViewProps {
   };
 }
 
-export function TasksView(props: TasksViewProps) {
+interface TasksBoardProps extends TasksBoardModelProps {
+  activeOrganizationId: string | null;
+  canCreateTask: boolean;
+  density: TasksDensity;
+  shownSort: TasksSort;
+  onClearFilters: () => void;
+  onClearSearch: () => void;
+}
+
+function TasksBoard(props: TasksBoardProps) {
   const {
     columns = KANBAN_COLUMNS,
-    coworkerOptions,
-    projectOptions,
-    userId,
     activeOrganizationId,
-    initialCreateTaskOpen = false,
-    initialAssigneeId = null,
-    initialCreateTaskPrompt = null,
-    createTaskModalResetKey = "default",
-    canCreateTask = false,
+    canCreateTask,
     labels,
-  } = props;
-  const {
-    router,
-    pathname,
-    searchParams,
-    tTasks,
     routeFilters,
     viewMode,
     density,
+    shownSort,
+    isTaskPaginationInSync,
+    onClearFilters,
+    onClearSearch,
+  } = props;
+  const {
+    tTasks,
     shownItems,
     columnCursorById,
     columnHiddenById,
@@ -174,9 +182,6 @@ export function TasksView(props: TasksViewProps) {
     setReopenComment,
     isReopenPending,
     isMounted,
-    defaultProjectId,
-    isTaskPaginationInSync,
-    handleEventUpdate,
     sensors,
     handleDragStart,
     handleDragCancel,
@@ -185,10 +190,9 @@ export function TasksView(props: TasksViewProps) {
     handleBoardReopenConfirm,
     handleLoadMoreColumn,
     handleLoadMoreList,
-    handleViewModeChange,
-    handleDensityChange,
     activeDragTask,
-  } = useTasksViewModel(props);
+  } = useTasksBoardModel(props);
+
   const columnFooterById = useMemo<
     Partial<Record<KanbanColumnId, React.ReactNode>>
   >(() => {
@@ -252,69 +256,18 @@ export function TasksView(props: TasksViewProps) {
     shownItems.length === 0 &&
     isTaskPaginationInSync &&
     hasClearableTasksFilters(routeFilters, activeOrganizationId);
-
-  const shownSort = effectiveTasksSort(routeFilters.sort, viewMode);
-  const replaceRouteFilters = (
-    patch: Partial<TasksFilters>,
-    navigator: { replace: (href: string) => void } = router,
-  ) => {
-    replaceTasksQuery(
-      navigator,
-      pathname,
-      buildTasksFiltersSearchParams(searchParams, {
-        ...routeFilters,
-        ...patch,
-      }),
+  // A search alone names what was typed, not "these filters".
+  const emptySearch =
+    routeFilters.search &&
+    !hasClearableTasksFilters(
+      { ...routeFilters, search: undefined },
       activeOrganizationId,
-    );
-  };
+    )
+      ? routeFilters.search
+      : null;
 
-  const toolbarRef = useRef<HTMLDivElement>(null);
-  const handleClearFilters = () => {
-    replaceTasksQuery(
-      router,
-      pathname,
-      buildTasksFiltersSearchParams(
-        searchParams,
-        clearTasksFilters(routeFilters, activeOrganizationId),
-      ),
-      activeOrganizationId,
-    );
-    focusToolbarControl(toolbarRef.current);
-  };
-
-  const content = (
-    <div
-      className={cn(
-        "flex h-full min-h-0 flex-1 flex-col gap-5",
-        LIST_MOBILE_CREATE_FAB_CLEARANCE,
-      )}
-    >
-      <div ref={toolbarRef} className={TASKS_TOOLBAR_ROW_CLASS}>
-        <TasksViewToolbarActions
-          filters={{
-            activeOrganizationId,
-            userId,
-            coworkerOptions,
-            projectOptions,
-            labels: { ...labels.filters, columns: labels.columns },
-          }}
-          display={{
-            value: viewMode,
-            onChange: handleViewModeChange,
-            density,
-            onDensityChange: handleDensityChange,
-            sort: shownSort,
-            onSortChange: (sort) => replaceRouteFilters({ sort }),
-            showSubtasks: routeFilters.subtasks === true,
-            onShowSubtasksChange: (subtasks) =>
-              replaceRouteFilters({ subtasks }, URL_ONLY_NAVIGATOR),
-            labels: labels.display,
-          }}
-          exportFilters={{ ...routeFilters, sort: shownSort }}
-        />
-      </div>
-
+  return (
+    <>
       {/* Only the board fades in: the loading shell already drew the toolbar. */}
       <div
         className={cn(
@@ -330,15 +283,30 @@ export function TasksView(props: TasksViewProps) {
           >
             {showFilteredEmpty ? (
               <div className="bg-card-background flex flex-1 items-center justify-center rounded-xl">
-                <EmptyState
-                  title={tTasks("Filters.noMatchesTitle")}
-                  description={tTasks("Filters.noMatchesDescription")}
-                  action={
-                    <Button variant="outline" onClick={handleClearFilters}>
-                      {tTasks("Filters.clear")}
-                    </Button>
-                  }
-                />
+                {emptySearch ? (
+                  <EmptyState
+                    title={tTasks("Filters.noSearchMatchesTitle")}
+                    description={tTasks("Filters.noSearchMatchesDescription", {
+                      query: emptySearch,
+                    })}
+                    descriptionClassName="wrap-anywhere"
+                    action={
+                      <Button variant="outline" onClick={onClearSearch}>
+                        {tTasks("Filters.clearSearch")}
+                      </Button>
+                    }
+                  />
+                ) : (
+                  <EmptyState
+                    title={tTasks("Filters.noMatchesTitle")}
+                    description={tTasks("Filters.noMatchesDescription")}
+                    action={
+                      <Button variant="outline" onClick={onClearFilters}>
+                        {tTasks("Filters.clear")}
+                      </Button>
+                    }
+                  />
+                )}
               </div>
             ) : isMounted ? (
               <DndContext
@@ -436,11 +404,176 @@ export function TasksView(props: TasksViewProps) {
           </div>
         </div>
       </div>
+      <TaskReopenToReadyDialog
+        open={pendingBoardReopen != null}
+        onOpenChange={handleBoardReopenOpenChange}
+        assigneeName={pendingBoardReopen?.assigneeName ?? ""}
+        comment={reopenComment}
+        onCommentChange={setReopenComment}
+        onConfirm={handleBoardReopenConfirm}
+        isPending={isReopenPending}
+      />
+    </>
+  );
+}
+
+export function TasksView(props: TasksViewProps) {
+  const {
+    tasks,
+    listNextCursor,
+    columnNextCursorById,
+    columnHiddenCountById,
+    columns = KANBAN_COLUMNS,
+    coworkerOptions,
+    projectOptions,
+    userId,
+    activeOrganizationId,
+    initialFilters,
+    defaultViewMode,
+    initialCreateTaskOpen = false,
+    initialAssigneeId = null,
+    initialCreateTaskPrompt = null,
+    createTaskModalResetKey = "default",
+    canCreateTask = false,
+    labels,
+  } = props;
+  const {
+    router,
+    pathname,
+    searchParams,
+    routeFilters,
+    viewMode,
+    density,
+    defaultProjectId,
+    serverTasksFiltersResetKey,
+    isTaskPaginationInSync,
+    handleEventUpdate,
+    handleViewModeChange,
+    handleDensityChange,
+  } = useTasksViewShell(props);
+
+  const shownSort = effectiveTasksSort(routeFilters.sort, viewMode);
+  const replaceRouteFilters = (
+    patch: Partial<TasksFilters>,
+    navigator: { replace: (href: string) => void } = router,
+  ) => {
+    replaceTasksQuery(
+      navigator,
+      pathname,
+      buildTasksFiltersSearchParams(searchParams, {
+        ...routeFilters,
+        ...patch,
+      }),
+      activeOrganizationId,
+    );
+  };
+
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [, setSearchQuery] = useQueryState("q", { shallow: false });
+  const handleClearFilters = () => {
+    replaceTasksQuery(
+      router,
+      pathname,
+      buildTasksFiltersSearchParams(
+        searchParams,
+        clearTasksFilters(routeFilters, activeOrganizationId),
+      ),
+      activeOrganizationId,
+    );
+    focusToolbarControl(toolbarRef.current);
+  };
+  // The search field keeps its text in nuqs `q`, which a router.replace does
+  // not reach, so Clear search empties it there. It unmounts itself: the
+  // keyboard goes straight back to the field.
+  const handleClearSearch = () => {
+    void setSearchQuery(null);
+    toolbarRef.current
+      ?.querySelector<HTMLInputElement>('input[type="search"]')
+      ?.focus();
+  };
+
+  const content = (
+    <div
+      className={cn(
+        "flex h-full min-h-0 flex-1 flex-col gap-5",
+        LIST_MOBILE_CREATE_FAB_CLEARANCE,
+      )}
+    >
+      <div ref={toolbarRef} className={TASKS_TOOLBAR_ROW_CLASS}>
+        <TasksViewToolbarActions
+          filters={{
+            activeOrganizationId,
+            userId,
+            coworkerOptions,
+            projectOptions,
+            labels: { ...labels.filters, columns: labels.columns },
+          }}
+          display={{
+            value: viewMode,
+            onChange: handleViewModeChange,
+            density,
+            onDensityChange: handleDensityChange,
+            sort: shownSort,
+            onSortChange: (sort) => replaceRouteFilters({ sort }),
+            showSubtasks: routeFilters.subtasks === true,
+            onShowSubtasksChange: (subtasks) =>
+              replaceRouteFilters({ subtasks }, URL_ONLY_NAVIGATOR),
+            labels: labels.display,
+          }}
+          exportFilters={{ ...routeFilters, sort: shownSort }}
+        />
+      </div>
+
+      <TasksBoard
+        key={serverTasksFiltersResetKey}
+        tasks={tasks}
+        listNextCursor={listNextCursor}
+        columnNextCursorById={columnNextCursorById}
+        columnHiddenCountById={columnHiddenCountById}
+        columns={columns}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        activeOrganizationId={activeOrganizationId}
+        initialFilters={initialFilters}
+        defaultViewMode={defaultViewMode}
+        canCreateTask={canCreateTask}
+        labels={labels}
+        routeFilters={routeFilters}
+        viewMode={viewMode}
+        density={density}
+        shownSort={shownSort}
+        serverTasksFiltersResetKey={serverTasksFiltersResetKey}
+        isTaskPaginationInSync={isTaskPaginationInSync}
+        onClearFilters={handleClearFilters}
+        onClearSearch={handleClearSearch}
+      />
     </div>
   );
 
   return (
     <TaskTagCatalogProvider organizationId={activeOrganizationId}>
+      {userId ? (
+        <LazyAblyProvider>
+          <ChannelProvider
+            channelName={makeUserTasksChannelName(
+              userId,
+              getRealtimeChannelEnvironment(),
+            )}
+          >
+            <TasksRealtimeListener
+              userId={userId}
+              onEvent={handleEventUpdate}
+            />
+          </ChannelProvider>
+        </LazyAblyProvider>
+      ) : null}
+      {/* The page's seat check is fresher than the layout's after a soft navigation. */}
+      <OrganizationSeatContext value={canCreateTask}>
+        <TasksKeyboard />
+        <ShowOpenSubtasksContext value={routeFilters.subtasks === true}>
+          {content}
+        </ShowOpenSubtasksContext>
+      </OrganizationSeatContext>
       <CreateTaskModalProvider
         key={createTaskModalResetKey}
         initialOpen={initialCreateTaskOpen}
@@ -448,43 +581,12 @@ export function TasksView(props: TasksViewProps) {
         initialPrompt={initialCreateTaskPrompt}
         initialProjectId={defaultProjectId}
       >
-        {userId ? (
-          <LazyAblyProvider>
-            <ChannelProvider
-              channelName={makeUserTasksChannelName(
-                userId,
-                getRealtimeChannelEnvironment(),
-              )}
-            >
-              <TasksRealtimeListener
-                userId={userId}
-                onEvent={handleEventUpdate}
-              />
-            </ChannelProvider>
-          </LazyAblyProvider>
-        ) : null}
-        {/* The page's seat check is fresher than the layout's after a soft navigation. */}
-        <OrganizationSeatContext value={canCreateTask}>
-          <TasksKeyboard />
-          <ShowOpenSubtasksContext value={routeFilters.subtasks === true}>
-            {content}
-          </ShowOpenSubtasksContext>
-        </OrganizationSeatContext>
         {canCreateTask ? <TasksMobileCreateFabSlot /> : null}
         <CreateTaskModal
           coworkerOptions={coworkerOptions}
           projectOptions={projectOptions}
           defaultProjectId={defaultProjectId}
           initialCreateTaskOpen={initialCreateTaskOpen}
-        />
-        <TaskReopenToReadyDialog
-          open={pendingBoardReopen != null}
-          onOpenChange={handleBoardReopenOpenChange}
-          assigneeName={pendingBoardReopen?.assigneeName ?? ""}
-          comment={reopenComment}
-          onCommentChange={setReopenComment}
-          onConfirm={handleBoardReopenConfirm}
-          isPending={isReopenPending}
         />
       </CreateTaskModalProvider>
     </TaskTagCatalogProvider>

@@ -11,12 +11,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   listContactsMock,
+  getHistoryMock,
   pushMock,
   openNewTaskWizardMock,
   toastSuccessMock,
   toastErrorMock,
 } = vi.hoisted(() => ({
   listContactsMock: vi.fn(),
+  getHistoryMock: vi.fn(),
   pushMock: vi.fn(),
   openNewTaskWizardMock: vi.fn(),
   toastSuccessMock: vi.fn(),
@@ -48,7 +50,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: {
-    getHistory: async () => ({ data: [], meta: { nextCursor: null } }),
+    getHistory: getHistoryMock,
     listTaskSchedules: async () => ({ data: [] }),
     getTaskScheduleAssignees: async () => ({
       data: { coworkers: [], sokoBot: null },
@@ -83,6 +85,7 @@ const labels = {
   created: "Created",
   filesGroup: "Files",
   filesSeeAll: "See all files",
+  tasksSeeAll: (query: string) => `Search tasks and results for ${query}`,
   filesFilenameMatch: "Filename match",
   peopleGroup: "People",
   copyEmail: (email: string) => `Copy ${email}`,
@@ -138,6 +141,7 @@ function renderDialog(onOpenChange = vi.fn()) {
 describe("HistorySearchDialog People group", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getHistoryMock.mockResolvedValue({ data: [], meta: { nextCursor: null } });
   });
 
   it("lists matching contacts and opens the picked one's panel", async () => {
@@ -224,8 +228,34 @@ describe("HistorySearchDialog People group", () => {
     await user.type(screen.getByPlaceholderText("Search..."), "nina");
 
     await waitFor(() => expect(listContactsMock).toHaveBeenCalled());
-    expect(await screen.findByText("No results found")).toBeInTheDocument();
+    // Nothing else matched, so the Tasks search is the one way on.
+    expect(
+      await screen.findByRole("option", {
+        name: "Search tasks and results for nina",
+      }),
+    ).toBeInTheDocument();
     expect(screen.queryByText("People")).not.toBeInTheDocument();
+  });
+
+  it("offers the Tasks search instead of No results found, and still reports a failed search", async () => {
+    listContactsMock.mockResolvedValue({ contacts: [] });
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.type(screen.getByPlaceholderText("Search..."), "plan");
+    await screen.findByRole("option", {
+      name: "Search tasks and results for plan",
+    });
+    expect(screen.queryByText("No results found")).not.toBeInTheDocument();
+
+    getHistoryMock.mockRejectedValue(new Error("503"));
+    await user.type(screen.getByPlaceholderText("Search..."), "s");
+    expect(await screen.findByText("Failed")).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", {
+        name: "Search tasks and results for plans",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("copies the contact's email and keeps search open", async () => {
