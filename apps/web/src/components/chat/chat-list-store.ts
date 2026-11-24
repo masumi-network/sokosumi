@@ -46,7 +46,7 @@ export interface ActiveChatRoomsStoreOptions {
 
 export interface ActiveChatRoomsStore {
   getRows: () => ChatRoom[];
-  replaceFromProps: (rooms: ChatRoom[]) => void;
+  replaceFromProps: (rooms: ChatRoom[], overlaidRooms?: ChatRoom[]) => void;
   updateRows: (apply: (current: ChatRoom[]) => ChatRoom[]) => void;
   upsertRoomToTop: (room: ChatRoom) => number;
   removeRoom: (removedRoomId: string) => number;
@@ -100,8 +100,11 @@ export function createActiveChatRoomsStore({
     onChange?.();
   }
 
-  function replaceFromProps(rooms: ChatRoom[]): void {
-    setRows(applyRoomReadOverlays(rooms));
+  function replaceFromProps(
+    rooms: ChatRoom[],
+    overlaidRooms?: ChatRoom[],
+  ): void {
+    setRows(overlaidRooms ?? applyRoomReadOverlays(rooms));
   }
 
   function updateRows(apply: (current: ChatRoom[]) => ChatRoom[]): void {
@@ -343,6 +346,8 @@ export interface ChatListStoreScope {
 
 export interface ChatListStorePropsSync {
   rooms: ChatRoom[];
+  /** Pre-overlaid rows derived during render so the store keeps the same array identity. */
+  overlaidRooms?: ChatRoom[];
   archivedRooms: ChatRoom[];
   pendingInvitations: ChatRoomInvitation[];
 }
@@ -351,12 +356,15 @@ export interface ChatListStoreSnapshot {
   roomRows: ChatRoom[];
   archivedRows: ChatRoom[];
   pendingRows: ChatRoomInvitation[];
+  sourceRooms: ChatRoom[];
+  sourceArchivedRooms: ChatRoom[];
+  sourcePendingInvitations: ChatRoomInvitation[];
 }
 
 export interface ChatListStore {
   subscribe: (listener: () => void) => () => void;
   getSnapshot: () => ChatListStoreSnapshot;
-  attach: (scope: ChatListStoreScope) => void;
+  attach: (scope: ChatListStoreScope, healthy?: boolean) => void;
   detach: () => void;
   setHealth: (healthy: boolean) => void;
   syncProps: (props: ChatListStorePropsSync) => void;
@@ -432,6 +440,9 @@ export function createChatListStore({
     roomRows: active.getRows(),
     archivedRows,
     pendingRows,
+    sourceRooms: prevRooms,
+    sourceArchivedRooms: prevArchivedRooms,
+    sourcePendingInvitations: prevPendingInvitations,
   };
 
   function emit(): void {
@@ -443,6 +454,9 @@ export function createChatListStore({
       roomRows: active.getRows(),
       archivedRows,
       pendingRows,
+      sourceRooms: prevRooms,
+      sourceArchivedRooms: prevArchivedRooms,
+      sourcePendingInvitations: prevPendingInvitations,
     };
     for (const listener of listeners) {
       listener();
@@ -567,7 +581,7 @@ export function createChatListStore({
     cleanup?.();
   }
 
-  function attach(scope: ChatListStoreScope): void {
+  function attach(scope: ChatListStoreScope, nextHealthy?: boolean): void {
     detach();
 
     let attached = true;
@@ -594,16 +608,37 @@ export function createChatListStore({
       unsubRoomsChanged = null;
     };
 
+    const syncHealth =
+      nextHealthy !== undefined && nextHealthy !== currentHealthy;
+
+    // Match main's per-collection start-then-health order so a simultaneous
+    // scope change and health recovery batches active, archived, invitations.
     active.start();
+    if (!attached) return;
+    if (syncHealth) {
+      active.setHealth(nextHealthy);
+    }
     if (!attached) return;
 
     if (Boolean(scope.organizationId)) {
       archivedScheduler.start();
     }
     if (!attached) return;
+    if (syncHealth) {
+      archivedScheduler.setHealth(nextHealthy);
+    }
+    if (!attached) return;
 
     invitationsScheduler.start();
     if (!attached) return;
+    if (syncHealth) {
+      invitationsScheduler.setHealth(nextHealthy);
+    }
+    if (!attached) return;
+
+    if (syncHealth) {
+      currentHealthy = nextHealthy;
+    }
 
     unsubRoomRead = subscribeOrganizationChatRoomRead((apply) => {
       active.updateRows(apply);
@@ -627,22 +662,30 @@ export function createChatListStore({
 
   function syncProps({
     rooms: nextRooms,
+    overlaidRooms,
     archivedRooms: nextArchivedRooms,
     pendingInvitations: nextPendingInvitations,
   }: ChatListStorePropsSync): void {
     batch(() => {
+      let sourceChanged = false;
       // Replace local list when RSC props change (full membership-visible set).
       if (nextRooms !== prevRooms) {
         prevRooms = nextRooms;
-        active.replaceFromProps(nextRooms);
+        sourceChanged = true;
+        active.replaceFromProps(nextRooms, overlaidRooms);
       }
       if (nextArchivedRooms !== prevArchivedRooms) {
         prevArchivedRooms = nextArchivedRooms;
+        sourceChanged = true;
         setArchivedRows(nextArchivedRooms);
       }
       if (nextPendingInvitations !== prevPendingInvitations) {
         prevPendingInvitations = nextPendingInvitations;
+        sourceChanged = true;
         setPendingRows(nextPendingInvitations);
+      }
+      if (sourceChanged) {
+        emit();
       }
     });
   }

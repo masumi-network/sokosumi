@@ -18,21 +18,37 @@ import {
   clearRoomReadOverlays,
 } from "./room-read-overlay";
 
-const { fetchBackgroundJsonMock } = vi.hoisted(() => ({
-  fetchBackgroundJsonMock:
-    vi.fn<
-      (
-        url: string,
-        timeoutMs: number,
-        onStatus?: (status: number) => void,
-      ) => Promise<unknown>
-    >(),
-}));
+const { fetchBackgroundJsonMock, fetchSidebarRoomCollectionSpy } = vi.hoisted(
+  () => ({
+    fetchBackgroundJsonMock:
+      vi.fn<
+        (
+          url: string,
+          timeoutMs: number,
+          onStatus?: (status: number) => void,
+        ) => Promise<unknown>
+      >(),
+    fetchSidebarRoomCollectionSpy: vi.fn(),
+  }),
+);
 
 vi.mock("./fetch-background-json", () => ({
   fetchBackgroundJson: (...args: Parameters<typeof fetchBackgroundJsonMock>) =>
     fetchBackgroundJsonMock(...args),
 }));
+
+vi.mock("./fetch-sidebar-room-collection", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./fetch-sidebar-room-collection")>();
+  return {
+    ...actual,
+    fetchSidebarRoomCollection: (
+      ...args: Parameters<typeof actual.fetchSidebarRoomCollection>
+    ) =>
+      fetchSidebarRoomCollectionSpy(...args) ??
+      actual.fetchSidebarRoomCollection(...args),
+  };
+});
 
 const TIMESTAMP = "2026-09-08T10:00:00.000Z";
 const NO_ROOMS: ChatRoom[] = [];
@@ -120,17 +136,23 @@ async function flushMicrotasks(turns = 30) {
 }
 
 describe("createChatListStore", () => {
+  const attachedStores: Array<{ detach: () => void }> = [];
+
   beforeEach(() => {
     vi.useFakeTimers();
     vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
     vi.spyOn(document, "hasFocus").mockReturnValue(true);
     fetchBackgroundJsonMock.mockReset();
+    fetchSidebarRoomCollectionSpy.mockReset();
     clearRoomReadOverlays();
     clearMembershipVisibleRoomsSnapshot();
     resetChatReadThrottleForTests();
   });
 
   afterEach(() => {
+    for (const store of attachedStores.splice(0)) {
+      store.detach();
+    }
     vi.restoreAllMocks();
     vi.useRealTimers();
     clearRoomReadOverlays();
@@ -162,6 +184,7 @@ describe("createChatListStore", () => {
       paintOnly: false,
       healthy,
     });
+    attachedStores.push(store);
     store.attach({ organizationId, currentUserId });
     return store;
   }
@@ -201,26 +224,135 @@ describe("createChatListStore", () => {
       healthy: false,
     });
 
-    fetchBackgroundJsonMock.mockImplementationOnce(async () => {
+    const calledCollections: string[] = [];
+    fetchSidebarRoomCollectionSpy.mockImplementation((collection: string) => {
+      calledCollections.push(collection);
       store.detach();
-      return batchedEnvelope({
-        active: pageEnvelope([rawRoom("stale-after-detach")]),
-        invitations: pageEnvelope([rawInvitation("inv-stale")]),
+      return Promise.resolve({
+        rooms: [makeRoom("stale-after-detach")],
+        nextCursor: null,
       });
     });
 
     store.attach({ organizationId: "org-1", currentUserId: "user-1" });
     await flushMicrotasks();
 
+    expect(calledCollections).toEqual(["active"]);
     expect(store.getSnapshot().roomRows).toEqual([]);
     expect(store.getSnapshot().pendingRows).toEqual([]);
 
+    fetchSidebarRoomCollectionSpy.mockReset();
     fetchBackgroundJsonMock.mockClear();
     // Listeners and timers must stay quiet after detach.
     notifyOrganizationChatRoomsChanged({ collections: ["active"] });
     window.dispatchEvent(new Event("online"));
     await vi.advanceTimersByTimeAsync(CHAT_HEALTHY_REFRESH_MS * 2);
     expect(fetchBackgroundJsonMock).not.toHaveBeenCalled();
+  });
+
+  it("batches active,archived,invitations when scope changes simultaneously with health recovery", async () => {
+    fetchBackgroundJsonMock.mockResolvedValueOnce(
+      batchedEnvelope({
+        active: pageEnvelope([rawRoom("room-a")]),
+        invitations: pageEnvelope([]),
+      }),
+    );
+    const store = createAttachedStore({
+      rooms: [makeRoom("room-a")],
+      healthy: true,
+      organizationId: "org-1",
+    });
+    await flushMicrotasks();
+    fetchBackgroundJsonMock.mockClear();
+
+    // Drop health while in org-1, then switch to org-2 and recover in one attach.
+    store.setHealth(false);
+    fetchBackgroundJsonMock.mockReturnValueOnce(new Promise(() => {}));
+    store.attach({ organizationId: "org-2", currentUserId: "user-1" }, true);
+    await flushMicrotasks();
+
+    expect(fetchBackgroundJsonMock).toHaveBeenCalledTimes(1);
+    expect(fetchBackgroundJsonMock.mock.calls[0]?.[0]).toBe(
+      "/api/chat/rooms?collections=active,archived,invitations",
+    );
+    store.detach();
+  });
+
+  it("reads current rows immediately: upsert + invalidate in same stack takes the one-room path", async () => {
+    fetchBackgroundJsonMock.mockResolvedValueOnce(
+      batchedEnvelope({
+        active: pageEnvelope([rawRoom("room-a")]),
+        invitations: pageEnvelope([]),
+      }),
+    );
+    const store = createAttachedStore({
+      rooms: [makeRoom("room-a")],
+      healthy: true,
+    });
+    await flushMicrotasks();
+    fetchBackgroundJsonMock.mockClear();
+
+    fetchBackgroundJsonMock.mockResolvedValueOnce(
+      roomEnvelope(rawRoom("room-b", { unreadCount: 2 })),
+    );
+    store.upsertRoomToTop(makeRoom("room-b"));
+    messageIn("room-b");
+    await flushMicrotasks();
+
+    expect(fetchBackgroundJsonMock).toHaveBeenCalledTimes(1);
+    expect(fetchBackgroundJsonMock.mock.calls[0]?.[0]).toBe(
+      "/api/chat/rooms?roomId=room-b",
+    );
+    expect(store.getSnapshot().roomRows[0]?.unreadCount).toBe(2);
+    store.detach();
+  });
+
+  it("reads current rows immediately: one-room answer for a room that left marks whole list stale", async () => {
+    fetchBackgroundJsonMock.mockResolvedValueOnce(
+      batchedEnvelope({
+        active: pageEnvelope([rawRoom("room-a"), rawRoom("room-b")]),
+        invitations: pageEnvelope([]),
+      }),
+    );
+    const store = createAttachedStore({
+      rooms: [makeRoom("room-a"), makeRoom("room-b")],
+      healthy: true,
+    });
+    await flushMicrotasks();
+    fetchBackgroundJsonMock.mockClear();
+
+    const inFlightRoomA = Promise.withResolvers<unknown>();
+    fetchBackgroundJsonMock.mockReturnValueOnce(inFlightRoomA.promise);
+    messageIn("room-a");
+    expect(fetchBackgroundJsonMock).toHaveBeenCalledTimes(1);
+    expect(fetchBackgroundJsonMock.mock.calls[0]?.[0]).toBe(
+      "/api/chat/rooms?roomId=room-a",
+    );
+
+    // room-a disappears from current rows before the one-room answer lands
+    // (without advancing latestAppliedRefresh).
+    store.syncProps({
+      rooms: [makeRoom("room-b")],
+      archivedRooms: NO_ROOMS,
+      pendingInvitations: NO_INVITATIONS,
+    });
+
+    inFlightRoomA.resolve(roomEnvelope(rawRoom("room-a", { unreadCount: 5 })));
+    await flushMicrotasks();
+
+    // Because room-a is no longer in current rows, wholeList is marked stale,
+    // so the next event for room-b fetches the whole list instead of one room.
+    fetchBackgroundJsonMock.mockResolvedValueOnce(
+      pageEnvelope([rawRoom("room-b", { unreadCount: 1 })]),
+    );
+    messageIn("room-b");
+    await flushMicrotasks();
+
+    expect(fetchBackgroundJsonMock).toHaveBeenCalledTimes(2);
+    expect(fetchBackgroundJsonMock.mock.calls[1]?.[0]).toBe(
+      "/api/chat/rooms?collection=active",
+    );
+    store.detach();
   });
 
   it("marks whole list stale on health flip before recovery read, and ignores repeated same health", async () => {
@@ -495,7 +627,9 @@ describe("createChatListStore", () => {
     await vi.advanceTimersByTimeAsync(45_000);
     await flushMicrotasks();
 
-    expect(fetchBackgroundJsonMock).toHaveBeenCalled();
+    const resumedUrls = fetchBackgroundJsonMock.mock.calls.map(([url]) => url);
+    expect(resumedUrls).toContain("/api/chat/rooms?roomId=room-a");
+    expect(resumedUrls).toContain("/api/chat/rooms?collection=archived");
     store.detach();
   });
 

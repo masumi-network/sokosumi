@@ -4,10 +4,12 @@ import type { ChatRoom, ChatRoomInvitation } from "@sokosumi/core-client";
 import { useEffect, useLayoutEffect } from "react";
 
 import type { ChatListStore } from "@/components/chat/chat-list-store";
+import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 
 export interface UseChatListStoreBindingOptions {
   store: ChatListStore;
   rooms: ChatRoom[];
+  overlaidRooms?: ChatRoom[];
   archivedRooms: ChatRoom[];
   pendingInvitations: ChatRoomInvitation[];
   currentUserId: string;
@@ -25,6 +27,7 @@ export interface UseChatListStoreBindingOptions {
 export function useChatListStoreBinding({
   store,
   rooms,
+  overlaidRooms,
   archivedRooms,
   pendingInvitations,
   currentUserId,
@@ -32,23 +35,26 @@ export function useChatListStoreBinding({
   paintOnly,
   healthy,
 }: UseChatListStoreBindingOptions): void {
+  const latestHealthyRef = useLatestRef(healthy);
+
   useLayoutEffect(() => {
     store.syncProps({
       rooms,
+      overlaidRooms,
       archivedRooms,
       pendingInvitations,
     });
-  }, [store, rooms, archivedRooms, pendingInvitations]);
+  }, [store, rooms, overlaidRooms, archivedRooms, pendingInvitations]);
 
   useEffect(() => {
     if (paintOnly) {
       return;
     }
-    store.attach({ organizationId, currentUserId });
+    store.attach({ organizationId, currentUserId }, latestHealthyRef.current);
     return () => {
       store.detach();
     };
-  }, [store, paintOnly, organizationId, currentUserId]);
+  }, [store, paintOnly, organizationId, currentUserId, latestHealthyRef]);
 
   useEffect(() => {
     store.setHealth(healthy);

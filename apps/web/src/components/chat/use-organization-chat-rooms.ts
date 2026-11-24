@@ -7,6 +7,7 @@ import { useMembershipVisibleRoomsPublisher } from "@/hooks/effects/use-membersh
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 
 import { createChatListStore } from "./chat-list-store";
+import { applyRoomReadOverlays } from "./room-read-overlay";
 
 interface UseOrganizationChatRoomsOptions {
   rooms: ChatRoom[];
@@ -65,9 +66,31 @@ export function useOrganizationChatRooms({
     }),
   );
 
+  const snapshot = useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    store.getSnapshot,
+  );
+
+  // Derive rows from changed RSC props until the layout effect hands them to
+  // the store, so render and passive publishers never pair old rows with a
+  // new RSC seed or publish twice when the store adopts the same array.
+  const overlaidRooms =
+    rooms !== snapshot.sourceRooms ? applyRoomReadOverlays(rooms) : undefined;
+  const roomRows = overlaidRooms ?? snapshot.roomRows;
+  const archivedRows =
+    archivedRooms !== snapshot.sourceArchivedRooms
+      ? archivedRooms
+      : snapshot.archivedRows;
+  const pendingRows =
+    pendingInvitations !== snapshot.sourcePendingInvitations
+      ? pendingInvitations
+      : snapshot.pendingRows;
+
   useChatListStoreBinding({
     store,
     rooms,
+    overlaidRooms,
     archivedRooms,
     pendingInvitations,
     currentUserId,
@@ -75,12 +98,6 @@ export function useOrganizationChatRooms({
     paintOnly,
     healthy,
   });
-
-  const { roomRows, archivedRows, pendingRows } = useSyncExternalStore(
-    store.subscribe,
-    store.getSnapshot,
-    store.getSnapshot,
-  );
 
   useMembershipVisibleRoomsPublisher({
     rooms: roomRows,
