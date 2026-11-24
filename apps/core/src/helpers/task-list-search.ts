@@ -12,7 +12,9 @@ type ReadPage<Row> = (
 ) => Promise<Row[]>;
 
 const RESULT_MATCH_LENGTH = 160;
-const RESULT_MATCH_LEAD = 60;
+// Short, so the match shows within a card's two lines and a list row's one.
+const RESULT_MATCH_LEAD = 20;
+const RESULT_MATCH_WORD_SNAP = 12;
 
 /**
  * Text around the first match, so a hit found only in a result shows why.
@@ -26,7 +28,10 @@ export function resultMatchExcerpt(comment: string, search: string): string {
     stripped.toLowerCase().includes(needle) ? stripped : comment
   ).replace(/\s+/g, " ");
   const at = plain.toLowerCase().indexOf(needle);
-  const start = Math.max(0, at - RESULT_MATCH_LEAD);
+  let start = Math.max(0, at - RESULT_MATCH_LEAD);
+  // Begin at the start of a word, unless that word is long (a link).
+  const wordStart = plain.lastIndexOf(" ", start) + 1;
+  if (start - wordStart <= RESULT_MATCH_WORD_SNAP) start = wordStart;
   const end = start + RESULT_MATCH_LENGTH;
   return `${start > 0 ? "…" : ""}${plain.slice(start, end).trim()}${end < plain.length ? "…" : ""}`;
 }
