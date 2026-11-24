@@ -148,6 +148,23 @@ describe("Sokosumi MCP server", () => {
     ).rejects.toThrow("Unknown tool: users_get");
   }, 15_000);
 
+  it("warns before a tool that spends credits", async () => {
+    const client = await connect({ Authorization: "Bearer mcp-token" });
+    const { tools } = await client.listTools();
+    const hire = tools.find((tool) => tool.name === "agents_hire");
+
+    expect(hire?.description).toMatch(/^Spends workspace credits\./);
+    expect(hire?.annotations).toEqual({
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: true,
+    });
+    expect(tools.filter((tool) => tool.annotations?.openWorldHint)).toEqual([
+      hire,
+    ]);
+  });
+
   it("refuses an unknown toolset by name", async () => {
     await expect(
       connect({ Authorization: "Bearer mcp-token" }, "?toolsets=tasks,nope"),

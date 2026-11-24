@@ -66,14 +66,20 @@ export function createSokosumiMcpServer(
   return server;
 }
 
-function annotations({ input, destructive }: DerivedTool): ToolAnnotations {
+function annotations({
+  input,
+  destructive,
+  spendsCredits = false,
+}: DerivedTool): ToolAnnotations {
   if (input.method === "GET") {
     return { readOnlyHint: true, openWorldHint: false };
   }
   return {
     readOnlyHint: false,
-    destructiveHint: destructive ?? input.method === "DELETE",
+    destructiveHint:
+      spendsCredits || (destructive ?? input.method === "DELETE"),
     idempotentHint: input.method === "PUT" || input.method === "DELETE",
-    openWorldHint: false,
+    // Credits pay an outside agent.
+    openWorldHint: spendsCredits,
   };
 }

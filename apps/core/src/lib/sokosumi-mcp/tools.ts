@@ -16,6 +16,11 @@ export interface McpTool {
   description: string;
   /** Deletes or overwrites data. Only meaningful for writes. */
   destructive?: boolean;
+  /**
+   * Spends workspace credits. Annotated destructive and open-world so
+   * clients ask the person first; the description starts with the warning.
+   */
+  spendsCredits?: boolean;
 }
 
 export const MCP_TOOLS: readonly McpTool[] = [
@@ -166,7 +171,8 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "agents_hire",
     operation: "POST /agents/{id}/jobs",
     description:
-      "Hire an agent: start a Job that spends the workspace's credits. `body.inputSchema` from agents_input_schema, `body.inputData` with the answers, and `body.maxCredits` to cap the cost.",
+      "Spends workspace credits. Hire an agent: start a paid Job. `body.inputSchema` from agents_input_schema, `body.inputData` with the answers, and `body.maxCredits` to cap the cost. Confirm the agent and the price with the person first.",
+    spendsCredits: true,
   },
   {
     name: "coworkers_list",
