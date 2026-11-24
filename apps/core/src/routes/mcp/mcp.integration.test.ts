@@ -157,6 +157,9 @@ describe("Sokosumi MCP server", () => {
 
     const client = await connect(auth, "?toolsets=tasks");
     expect(client.instructions).toContain("Toolsets on: tasks.");
+    expect(client.instructions).toContain(
+      "Other tasks tools take a Task's `id`",
+    );
     expect(client.instructions).not.toContain("workspaces_list");
     await expect(
       client.callTool({ name: "users_get", arguments: { id: "me" } }),
@@ -166,18 +169,27 @@ describe("Sokosumi MCP server", () => {
   it("warns before a tool that spends credits", async () => {
     const client = await connect({ Authorization: "Bearer mcp-token" });
     const { tools } = await client.listTools();
-    const hire = tools.find((tool) => tool.name === "agents_hire");
+    const spending = MCP_TOOLS.filter((tool) => tool.spendsCredits).map(
+      (tool) => tool.name,
+    );
 
-    expect(hire?.description).toMatch(/^Spends workspace credits\./);
-    expect(hire?.annotations).toEqual({
-      readOnlyHint: false,
-      destructiveHint: true,
-      idempotentHint: false,
-      openWorldHint: true,
-    });
-    expect(tools.filter((tool) => tool.annotations?.openWorldHint)).toEqual([
-      hire,
+    expect(spending).toEqual([
+      "tasks_create_schedule",
+      "tasks_resume_schedule",
+      "tasks_run_schedule",
+      "agents_hire",
     ]);
+    const warned = tools.filter((tool) => tool.annotations?.openWorldHint);
+    expect(warned.map((tool) => tool.name)).toEqual(spending);
+    for (const tool of warned) {
+      expect(tool.description).toMatch(/^Spends workspace credits\./);
+      expect(tool.annotations).toEqual({
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      });
+    }
   });
 
   it("refuses an unknown toolset by name", async () => {
