@@ -84,6 +84,7 @@ interface PendingBoardReopen {
 }
 
 interface TasksBoardDataState {
+  snapshot: TaskWithCoworker[];
   items: TaskWithCoworker[];
   columnCursorById: Record<KanbanColumnId, string | null>;
   columnHiddenById: Record<KanbanColumnId, number>;
@@ -283,6 +284,7 @@ export function useTasksBoardModel({
     showCalendarClientUpgradeModal();
   };
   const [boardData, setBoardData] = useState<TasksBoardDataState>(() => ({
+    snapshot: tasks,
     items: tasks,
     columnCursorById: buildInitialColumnCursorById(
       columns,
@@ -357,6 +359,7 @@ export function useTasksBoardModel({
 
     itemsRef.current = tasks;
     setBoardData({
+      snapshot: tasks,
       items: tasks,
       columnCursorById: buildInitialColumnCursorById(
         columns,
@@ -397,6 +400,7 @@ export function useTasksBoardModel({
     );
 
     setBoardData((prev) => {
+      const isNewSnapshot = prev.snapshot !== tasks;
       const next = mergeTasksOnServerRefresh({
         prev: prev.items.filter((task) => !isTaskArchived(task.id)),
         serverTasks,
@@ -416,6 +420,7 @@ export function useTasksBoardModel({
 
       if (isListView) {
         return {
+          snapshot: tasks,
           items: next,
           columnCursorById: nextColumnCursorById,
           columnHiddenById: initialColumnHiddenCountById,
@@ -449,23 +454,27 @@ export function useTasksBoardModel({
         }
       }
 
-      // Pin a column's cursor only while a loaded row's background DELETE is
-      // still pending; once DELETE settles (or fails), stop pinning so the
-      // fresh server read can supply the current cursor.
+      // Pin a column's cursor while a loaded row's background DELETE is still
+      // pending, or when re-merging the same kept snapshot after settle (e.g.
+      // Activity reveal); once a new server snapshot arrives after settle (or
+      // the archive fails and unmarks), stop pinning so the fresh server read
+      // supplies the current cursor.
+      const shouldPinArchivedTask = (id: string) =>
+        isTaskArchived(id) && (isTaskArchivePending(id) || !isNewSnapshot);
       const nextPendingArchiveIdsByColumn = new Map<
         KanbanColumnId,
         readonly string[]
       >();
       for (const [columnId, ids] of prev.pendingArchiveIdsByColumn) {
         if (droppedNonArchivedColumns.has(columnId)) continue;
-        const stillPendingIds = ids.filter((id) => isTaskArchivePending(id));
+        const stillPendingIds = ids.filter(shouldPinArchivedTask);
         if (stillPendingIds.length > 0) {
           nextPendingArchiveIdsByColumn.set(columnId, stillPendingIds);
         }
       }
 
       for (const task of prev.items) {
-        if (!isTaskArchivePending(task.id)) continue;
+        if (!shouldPinArchivedTask(task.id)) continue;
         const loadedColumn = prev.loadedBoardColumnByTaskId.get(task.id);
         if (!loadedColumn || droppedNonArchivedColumns.has(loadedColumn)) {
           continue;
@@ -516,6 +525,7 @@ export function useTasksBoardModel({
       }
 
       return {
+        snapshot: tasks,
         items: next,
         columnCursorById: nextColumnCursorById,
         columnHiddenById: nextColumnHiddenById,
@@ -801,24 +811,25 @@ export function useTasksBoardModel({
         const nextCursor = result.nextCursor;
         setBoardData((prev) => {
           const existingIds = new Set(prev.items.map((task) => task.id));
+          const appended: TaskWithCoworker[] = [];
           const nextLoadedBoardColumnByTaskId = new Map(
             prev.loadedBoardColumnByTaskId,
           );
           for (const task of result.tasks) {
-            if (!existingIds.has(task.id)) {
-              nextLoadedBoardColumnByTaskId.set(task.id, columnId);
-            }
+            if (existingIds.has(task.id)) continue;
+            existingIds.add(task.id);
+            appended.push(task);
+            nextLoadedBoardColumnByTaskId.set(task.id, columnId);
           }
           return {
             ...prev,
-            items: appendUniqueTasks(prev.items, result.tasks),
+            items: appendUniqueTasks(prev.items, appended),
             columnHiddenById: {
               ...prev.columnHiddenById,
               [columnId]: nextCursor
                 ? Math.max(
                     0,
-                    (prev.columnHiddenById[columnId] ?? 0) -
-                      result.tasks.length,
+                    (prev.columnHiddenById[columnId] ?? 0) - appended.length,
                   )
                 : 0,
             },
