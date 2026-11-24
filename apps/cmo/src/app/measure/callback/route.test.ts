@@ -14,7 +14,7 @@ const callback = (query: string) =>
 describe("measure callback", () => {
   beforeEach(() => finalizeMeasurement.mockReset());
 
-  it("finishes the connection and resumes onboarding on Results", async () => {
+  it("sends a connection from an older strategy page back to hiring", async () => {
     finalizeMeasurement.mockResolvedValue(true);
     const response = await callback(
       "provider=shopify&from=onboarding&project=project-2&status=success",
@@ -25,7 +25,7 @@ describe("measure callback", () => {
       null,
     );
     expect(response.headers.get("location")).toBe(
-      "http://localhost:3110/?step=results&from=onboarding&project=project-2",
+      "http://localhost:3110/?project=project-2",
     );
   });
 

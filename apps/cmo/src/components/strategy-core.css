@@ -200,6 +200,12 @@
   padding-top: 0;
 }
 
+/* The section's own divider follows; a second line would frame nothing. */
+.sc-ba li:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
 .sc-ba-channel {
   display: inline-flex;
   align-items: center;
@@ -320,6 +326,52 @@
 .sc-improve li {
   display: grid;
   gap: 4px;
+}
+
+.sc-improve {
+  gap: 0;
+}
+
+.sc-improve li {
+  padding: 16px 0;
+}
+
+.sc-improve li:first-child {
+  padding-top: 4px;
+}
+
+.sc-improve li + li {
+  border-top: 1px solid var(--border);
+}
+
+.sc-improve p {
+  margin: 0;
+}
+
+.sc-improve-area {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.sc-improve-area a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+.sc-improve-facts {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 2px 12px;
+  margin: 4px 0 0;
+  font-size: 0.875rem;
+}
+
+.sc-improve-facts dt {
+  color: var(--muted);
+}
+
+.sc-improve-facts dd {
+  margin: 0;
 }
 
 .sc-alts p {

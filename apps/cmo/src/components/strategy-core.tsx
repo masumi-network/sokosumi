@@ -268,19 +268,24 @@ export function money(amount: number, currency: string): string {
 
 /**
  * Ads cost the owner money on top of their plan, so they are a Yes or No of
- * their own: No until the owner says otherwise, and the budget only after a
- * Yes. Cuso's suggestion fills the amount in; saving it asks him to plan the
- * ads, and No takes them out again.
+ * their own. Until the owner answers, neither is picked and Cuso's
+ * suggestion is said in words; the budget only shows after a Yes. Saving a
+ * budget asks him to plan the ads, and No takes them out again.
  */
 export function AdsChoice({
   ads,
   onSetAds,
+  approved = false,
 }: {
   ads: NonNullable<Strategy["ads"]>;
   onSetAds?: (monthly: number, currency: string) => Promise<void>;
+  /** The plan is approved: a new budget writes a version to approve. */
+  approved?: boolean;
 }) {
   const on = ads.monthly > 0;
-  const [wants, setWants] = useState(on);
+  const [wants, setWants] = useState<boolean | null>(
+    on ? true : ads.setByOwner ? false : null,
+  );
   const [amount, setAmount] = useState(
     String(on ? ads.monthly : (ads.suggest?.monthly ?? "")),
   );
@@ -303,6 +308,16 @@ export function AdsChoice({
   return (
     <div className="sc-ads">
       <p className="sc-ads-question">Do you want ads?</p>
+      {suggested && !on && wants !== false ? (
+        <p>
+          {AGENT_NAME} suggests {money(suggested.monthly, ads.currency)} a month
+          on {channelLabel(suggested.channel)}. {ads.expect}
+        </p>
+      ) : on ? (
+        <p>
+          {money(ads.monthly, ads.currency)} a month. {ads.expect}
+        </p>
+      ) : null}
       <p className="note">
         Ads are extra to your plan: you pay the ad network directly, and{" "}
         {AGENT_NAME} never spends more than the budget you set.
@@ -310,7 +325,7 @@ export function AdsChoice({
       <div className="ob-tabs" role="group" aria-label="Ads">
         <button
           type="button"
-          aria-pressed={wants}
+          aria-pressed={wants === true}
           disabled={!onSetAds || saving}
           onClick={() => setWants(true)}
         >
@@ -318,58 +333,53 @@ export function AdsChoice({
         </button>
         <button
           type="button"
-          aria-pressed={!wants}
+          aria-pressed={wants === false}
           disabled={!onSetAds || saving}
           onClick={() => {
             setWants(false);
-            if (on) void save(0);
+            if (on || !ads.setByOwner) void save(0);
           }}
         >
           No
         </button>
       </div>
+      {wants && approved ? (
+        <p className="note">
+          {AGENT_NAME} plans the ads into a new version of your strategy. They
+          start once you approve it.
+        </p>
+      ) : null}
       {wants ? (
-        <>
-          {suggested && !ads.setByOwner ? (
-            <p className="note">
-              {AGENT_NAME} would start with{" "}
-              {money(suggested.monthly, ads.currency)} a month on{" "}
-              {channelLabel(suggested.channel)}. {ads.expect}
-            </p>
-          ) : on ? (
-            <p className="note">{ads.expect}</p>
-          ) : null}
-          <form
-            className="sc-ads-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!Number.isFinite(value) || value <= 0) return;
-              void save(value);
-            }}
+        <form
+          className="sc-ads-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!Number.isFinite(value) || value <= 0) return;
+            void save(value);
+          }}
+        >
+          <label className="sc-ads-input">
+            <span>{ads.currency}</span>
+            <input
+              inputMode="decimal"
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              aria-label={`Monthly ad budget in ${ads.currency}`}
+              disabled={!onSetAds}
+            />
+            <span className="note">a month</span>
+          </label>
+          <button
+            type="submit"
+            className="button button-secondary button-small"
+            disabled={!onSetAds || saving || (on && value === ads.monthly)}
           >
-            <label className="sc-ads-input">
-              <span>{ads.currency}</span>
-              <input
-                inputMode="decimal"
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-                aria-label={`Monthly ad budget in ${ads.currency}`}
-                disabled={!onSetAds}
-              />
-              <span className="note">a month</span>
-            </label>
-            <button
-              type="submit"
-              className="button button-secondary button-small"
-              disabled={!onSetAds || saving || (on && value === ads.monthly)}
-            >
-              {saving ? "Saving…" : on ? "Change budget" : "Set budget"}
-            </button>
-          </form>
-        </>
-      ) : (
+            {saving ? "Saving…" : on ? "Change budget" : "Start ads"}
+          </button>
+        </form>
+      ) : wants === false ? (
         <p className="note">No ads. {ads.without}</p>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -396,20 +406,30 @@ export function Improvements({
     <ul className="sc-improve">
       {items.map((item) => (
         <li key={item.idea}>
-          <span className="label">{AREAS[item.area]}</span>
-          {item.now ? <span className="note">Now: {item.now}</span> : null}
+          <p className="sc-improve-area">
+            {AREAS[item.area]}
+            {item.url ? (
+              <>
+                {" · "}
+                <a href={item.url} target="_blank" rel="noreferrer">
+                  {item.url
+                    .replace(/^https?:\/\/(www\.)?/, "")
+                    .replace(/\/$/, "")}
+                </a>
+              </>
+            ) : null}
+          </p>
           <b>{item.idea}</b>
-          <span className="note">{item.why}</span>
-          {item.url ? (
-            <a
-              href={item.url}
-              target="_blank"
-              rel="noreferrer"
-              className="note"
-            >
-              {item.url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
-            </a>
-          ) : null}
+          <dl className="sc-improve-facts">
+            {item.now ? (
+              <>
+                <dt>Today</dt>
+                <dd>{item.now}</dd>
+              </>
+            ) : null}
+            <dt>Why</dt>
+            <dd>{item.why}</dd>
+          </dl>
         </li>
       ))}
     </ul>
