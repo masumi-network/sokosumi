@@ -6,8 +6,6 @@ import {
   TASKS_BOARD_REFRESH_DEBOUNCE_MS,
   TASKS_BOARD_REFRESH_MAX_WAIT_MS,
 } from "@/app/tasks/constants";
-import { subscribeTaskArchiveSettled } from "@/app/tasks/utils/archived-task-ids";
-import { hasPendingArrivalRefresh } from "./use-refresh-prefetched-page";
 
 /**
  * A debounced refresh for realtime events. A tab in the background does not
@@ -40,17 +38,12 @@ export function useRefreshWhenShown(refresh: () => void): () => void {
       changedWhileHiddenRef.current = false;
       debounced();
     };
-    const unsubscribeArchiveSettled = subscribeTaskArchiveSettled(() => {
-      if (hasPendingArrivalRefresh(window.location.pathname)) return;
-      scheduleRefresh();
-    });
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
-      unsubscribeArchiveSettled();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       debounced.cancel();
     };
-  }, [debounced, scheduleRefresh]);
+  }, [debounced]);
 
   return scheduleRefresh;
 }
