@@ -136,6 +136,21 @@ describe("Sokosumi MCP server", () => {
     expect(await listed("?toolsets=vendors,organizations")).toEqual([
       "vendors_me",
       "vendors_create",
+      "vendors_list",
+      "vendors_update",
+      "vendors_logo_cleanup",
+      "vendors_members",
+      "vendors_update_member",
+      "vendors_remove_member",
+      "vendors_invites",
+      "vendors_invite",
+      "vendors_revoke_invite",
+      "vendors_my_invites",
+      "vendors_accept_invite",
+      "vendors_decline_invite",
+      "vendors_assignments",
+      "vendors_assign",
+      "vendors_unassign",
       "organizations_list",
       "organizations_seat",
     ]);
@@ -181,7 +196,7 @@ describe("Sokosumi MCP server", () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({
       message:
-        'Unknown toolset "nope". Toolsets: users, workspaces, tasks, jobs, agents, coworkers, vendors, organizations.',
+        'Unknown toolset "nope". Toolsets: users, workspaces, tasks, jobs, agents, coworkers, vendors, developer, organizations.',
     });
   });
 

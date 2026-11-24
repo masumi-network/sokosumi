@@ -226,6 +226,138 @@ export const MCP_TOOLS: readonly McpTool[] = [
     description:
       "Create a vendor you own, to register private Coworkers under: `body.name` and `body.slug`.",
   },
+  // SOKD-372: coworkers, vendors and developer.
+  {
+    name: "coworkers_archive",
+    operation: "DELETE /coworkers/{id}",
+    description:
+      "Archive a Coworker you manage. Its API keys are revoked and it stops taking work.",
+  },
+  {
+    name: "coworkers_remove_image",
+    operation: "DELETE /coworkers/{id}/image",
+    description: "Remove a Coworker's picture.",
+  },
+  {
+    name: "coworkers_update_api_key",
+    operation: "PATCH /coworkers/{id}/api-keys/{keyId}",
+    description:
+      "Rename a Coworker API key or change its expiry: `body.name`, `body.expiresAt` (null for none). `keyId` from coworkers_list_api_keys.",
+    destructive: true,
+  },
+  {
+    name: "coworkers_list_access",
+    operation: "GET /coworkers/{id}/workspace-access",
+    description:
+      "List the workspaces a Coworker can work in, or has asked to, with each grant's status.",
+  },
+  {
+    name: "coworkers_revoke_access",
+    operation: "POST /coworkers/{id}/workspace-access/revoke",
+    description:
+      "Take a Coworker's access to a workspace away. `body.organizationSlug` names an organization workspace; `body.userId` a personal one.",
+    destructive: true,
+  },
+  {
+    name: "vendors_list",
+    operation: "GET /vendors",
+    description: "List the vendors you can pick from.",
+  },
+  {
+    name: "vendors_update",
+    operation: "PATCH /vendors/{id}",
+    description:
+      "Change a vendor you admin: `body.name` or `body.logos`. Only the fields in `body` change.",
+    destructive: true,
+  },
+  {
+    name: "vendors_logo_cleanup",
+    operation: "POST /vendors/{id}/files/cleanup",
+    description:
+      "Delete a vendor's old logo file after you replace it with vendors_update: `body.url` is the old logo URL. URLs the vendor does not own are ignored.",
+    destructive: true,
+  },
+  {
+    name: "vendors_members",
+    operation: "GET /vendors/{id}/members",
+    description: "List a vendor's members with their role.",
+  },
+  {
+    name: "vendors_update_member",
+    operation: "PATCH /vendors/{id}/members/{userId}",
+    description:
+      "Change a vendor member's role: `body.role` is `admin` or `developer`.",
+    destructive: true,
+  },
+  {
+    name: "vendors_remove_member",
+    operation: "DELETE /vendors/{id}/members/{userId}",
+    description: "Remove a member from a vendor you admin.",
+  },
+  {
+    name: "vendors_invites",
+    operation: "GET /vendors/{id}/invites",
+    description: "List a vendor's pending member invitations.",
+  },
+  {
+    name: "vendors_invite",
+    operation: "POST /vendors/{id}/invites",
+    description:
+      "Invite someone to a vendor you admin: `body.email` and optional `body.role` (`developer` by default). They join when they accept.",
+  },
+  {
+    name: "vendors_revoke_invite",
+    operation: "DELETE /vendors/{id}/invites/{inviteId}",
+    description:
+      "Withdraw a pending vendor invitation. `inviteId` from vendors_invites.",
+  },
+  {
+    name: "vendors_my_invites",
+    operation: "GET /vendors/invites",
+    description:
+      "List the vendor invitations waiting for you. Answer with vendors_accept_invite or vendors_decline_invite.",
+  },
+  {
+    name: "vendors_accept_invite",
+    operation: "POST /vendors/invites/{inviteId}/accept",
+    description:
+      "Accept a vendor invitation and join that vendor. Confirm with the person first.",
+  },
+  {
+    name: "vendors_decline_invite",
+    operation: "POST /vendors/invites/{inviteId}/decline",
+    description: "Decline a vendor invitation. It cannot be accepted after.",
+    destructive: true,
+  },
+  {
+    name: "vendors_assignments",
+    operation: "GET /vendors/{id}/coworkers/{coworkerId}/assignments",
+    description: "List the vendor members assigned to a Coworker.",
+  },
+  {
+    name: "vendors_assign",
+    operation: "PUT /vendors/{id}/coworkers/{coworkerId}/assignments",
+    description:
+      "Assign a vendor member to a Coworker so they can work on it: `body.userId` from vendors_members.",
+  },
+  {
+    name: "vendors_unassign",
+    operation:
+      "DELETE /vendors/{id}/coworkers/{coworkerId}/assignments/{userId}",
+    description: "Remove a vendor member from a Coworker.",
+  },
+  {
+    name: "developer_tasks",
+    operation: "GET /developer/tasks",
+    description:
+      "List Tasks your Coworkers created or were assigned, across every workspace they work in. Filter by `coworkerId`; pass `cursor` for the next page.",
+  },
+  {
+    name: "developer_task",
+    operation: "GET /developer/tasks/{id}",
+    description:
+      "Get a Task one of your Coworkers created or was assigned, with its owner and workspace. `id` from developer_tasks.",
+  },
   {
     name: "organizations_list",
     operation: "GET /users/{id}/organizations",
