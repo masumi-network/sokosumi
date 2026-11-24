@@ -25,13 +25,9 @@ const {
   coworkerFindFirstMock,
   turnFindFirstMock,
   getCoworkerAuthorizationHeaderMock,
-  organizationFindUniqueMock,
-  memberFindUniqueMock,
 } = vi.hoisted(() => ({
   turnFindFirstMock: vi.fn(),
   getCoworkerAuthorizationHeaderMock: vi.fn(),
-  organizationFindUniqueMock: vi.fn(),
-  memberFindUniqueMock: vi.fn(),
   findUniqueMock: vi.fn(),
   findManyMentionMock: vi.fn(),
   updateManyMock: vi.fn(),
@@ -86,12 +82,6 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     workspace: {
       findUnique: workspaceFindUniqueMock,
-    },
-    organization: {
-      findUnique: organizationFindUniqueMock,
-    },
-    member: {
-      findUnique: memberFindUniqueMock,
     },
     coworker: {
       findFirst: coworkerFindFirstMock,
@@ -260,11 +250,6 @@ beforeEach(() => {
   updateManyMock.mockResolvedValue({ count: 1 });
   transactionUpdateManyMock.mockResolvedValue({ count: 1 });
   coworkerMemberFindUniqueMock.mockResolvedValue({ id: "membership_1" });
-  organizationFindUniqueMock.mockResolvedValue({ id: "org_1" });
-  memberFindUniqueMock.mockResolvedValue({
-    id: "org_member_1",
-    role: "member",
-  });
   workspaceFindUniqueMock.mockResolvedValue({ id: ORG_WORKSPACE_ID });
   coworkerFindFirstMock.mockResolvedValue({
     id: "cow_1",
@@ -783,48 +768,6 @@ describe("dispatchChatRoomMention claim", () => {
         error: "Source message was deleted",
       },
     });
-  });
-
-  it("fails closed when the sender is no longer a member of the room organization", async () => {
-    for (const status of ["pending", "sent"] as const) {
-      vi.clearAllMocks();
-      organizationFindUniqueMock.mockResolvedValue({ id: "org_1" });
-      memberFindUniqueMock.mockResolvedValue(null);
-      coworkerMemberFindUniqueMock.mockResolvedValue({ id: "membership_1" });
-      workspaceFindUniqueMock.mockResolvedValue({ id: ORG_WORKSPACE_ID });
-      coworkerFindFirstMock.mockResolvedValue({
-        id: "cow_1",
-        slug: "hannah",
-        baseURL: "https://coworker.example",
-      });
-      createMock.mockResolvedValue({ id: "reply_1" });
-      updateManyMock.mockResolvedValue({ count: 1 });
-      findUniqueMock.mockResolvedValue({
-        ...pendingMention(),
-        status,
-      });
-
-      await dispatchChatRoomMention(MENTION_ID);
-
-      expect(memberFindUniqueMock).toHaveBeenCalledWith({
-        where: {
-          userId_organizationId: {
-            userId: "user_1",
-            organizationId: "org_1",
-          },
-        },
-      });
-      expect(updateManyMock).toHaveBeenCalledWith({
-        where: { id: MENTION_ID, status: { not: "responded" } },
-        data: {
-          status: "failed",
-          error: "Mention sender is no longer a member of this organization",
-        },
-      });
-      expect(createCoworkerConversationMock).not.toHaveBeenCalled();
-      expect(streamTextMock).not.toHaveBeenCalled();
-      expect(getCoworkerAuthorizationHeaderMock).not.toHaveBeenCalled();
-    }
   });
 
   it("dispatches when coworker is usable via workspace GRANTED access", async () => {

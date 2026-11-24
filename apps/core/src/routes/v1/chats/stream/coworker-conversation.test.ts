@@ -207,6 +207,19 @@ describe("coworker-conversation", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("refuses plaintext http to a public host without calling fetch", async () => {
+    await expect(
+      createCoworkerConversation({
+        responsesApiBaseUrl: "http://api.coworker.example.com/v1",
+        sokosumiUserId: "user_1",
+        sokosumiOrganizationId: null,
+        coworkerSlug: "ops-agent",
+        sokosumiConversationId: "conv-local-1",
+      }),
+    ).rejects.toThrow(/https/i);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("treats a 3xx redirect as a failed conversation create without following", async () => {
     fetchMock.mockResolvedValueOnce({
       ok: false,

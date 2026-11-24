@@ -6,6 +6,7 @@ import { jwtKeyStoreOptions } from "@/lib/auth-oauth-provider";
 
 const COWORKER_TOKEN_TYPE = "coworker+jwt";
 const COWORKER_TOKEN_TTL_SECONDS = 300;
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
 
 export interface SignCoworkerRequestTokenParams {
   coworkerBaseUrl: string;
@@ -35,19 +36,13 @@ export async function signCoworkerRequestToken(
   } catch {
     throw new Error("Coworker token signing requires a valid coworkerBaseUrl");
   }
-  const isProduction = isProductionEnvironment(getEnv());
-  if (isProduction) {
-    if (parsedBaseUrl.protocol !== "https:") {
-      throw new Error(
-        "Coworker token signing requires an https coworkerBaseUrl in production",
-      );
-    }
-  } else if (
-    parsedBaseUrl.protocol !== "https:" &&
-    parsedBaseUrl.protocol !== "http:"
-  ) {
+  const isHttps = parsedBaseUrl.protocol === "https:";
+  const isLoopbackHttp =
+    parsedBaseUrl.protocol === "http:" &&
+    LOOPBACK_HOSTS.has(parsedBaseUrl.hostname);
+  if (!isHttps && !isLoopbackHttp) {
     throw new Error(
-      "Coworker token signing requires an http or https coworkerBaseUrl",
+      "Coworker token signing requires an https coworkerBaseUrl (http is allowed only for loopback hosts)",
     );
   }
   if (!userId) {
@@ -62,7 +57,7 @@ export async function signCoworkerRequestToken(
   const iat = Math.floor(Date.now() / 1000);
 
   return signJWT({ context } as Parameters<typeof signJWT>[0], {
-    options: jwtKeyStoreOptions(isProduction),
+    options: jwtKeyStoreOptions(isProductionEnvironment(getEnv())),
     header: { typ: COWORKER_TOKEN_TYPE },
     payload: {
       iss: issuer,

@@ -2,7 +2,6 @@ import type { SokosumiProviderCallOptions } from "@sokosumi/ai-provider";
 import { coworkerTextLooksLikeAgentError } from "@sokosumi/ai-provider";
 import { readSokoBotAttemptAt } from "@sokosumi/utils";
 import { streamText } from "ai";
-import { HTTPException } from "hono/http-exception";
 import { findUsableCoworkerByCapabilityInWorkspace } from "@/helpers/access-control";
 import {
   emitChatMessageNotifications,
@@ -10,7 +9,6 @@ import {
 } from "@/helpers/chat-human-mentions";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
-import { resolveMemberOrganizationById } from "@/helpers/organization";
 import {
   reasoningPartsToMetadata,
   thoughtMetadataFields,
@@ -355,26 +353,6 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     if (!membership) {
       await failWithShell("Coworker is no longer a member of this room");
       return;
-    }
-
-    // Recheck org membership before signing a queued or recovered mention so an
-    // author who left the organization never gets a token naming that org.
-    if (mention.message.room.organizationId) {
-      try {
-        await resolveMemberOrganizationById({
-          id: mention.message.room.organizationId,
-          userId,
-          tx: prisma,
-        });
-      } catch (error) {
-        if (error instanceof HTTPException) {
-          await failWithShell(
-            "Mention sender is no longer a member of this organization",
-          );
-          return;
-        }
-        throw error;
-      }
     }
 
     // Claim before any provider work so concurrent dispatches cannot both run

@@ -270,42 +270,46 @@ describe("coworker-request-auth", () => {
     expect(verified.payload.iss).toBe("https://api.example.test/auth");
   });
 
-  it("refuses non-https coworker base URLs in production", async () => {
+  it("requires https for non-loopback coworker base URLs in every environment", async () => {
     const env = getEnv();
-    env.NODE_ENV = "production";
-    env.VERCEL_ENV = "production";
-    authState.current = createTestAuth(db, SECRET, true);
-
-    await expect(
-      signCoworkerRequestToken({
-        coworkerBaseUrl: "http://coworker.example.com/v1",
-        userId: "user_123",
-        organizationId: null,
-        coworkerSlug: "elena",
-      }),
-    ).rejects.toThrow(/https/i);
-
-    await expect(
-      signCoworkerRequestToken({
-        coworkerBaseUrl: "https://coworker.example.com/v1",
-        userId: "user_123",
-        organizationId: null,
-        coworkerSlug: "elena",
-      }),
-    ).resolves.toEqual(expect.any(String));
-  });
-
-  it("allows http coworker base URLs outside production for local coworkers", async () => {
-    const env = getEnv();
-    for (const [nodeEnv, vercelEnv] of [
-      ["development", undefined],
-      ["production", "preview"],
+    for (const [nodeEnv, vercelEnv, isProd] of [
+      ["development", undefined, false],
+      ["production", "preview", false],
+      ["production", "production", true],
     ] as const) {
       env.NODE_ENV = nodeEnv;
       env.VERCEL_ENV = vercelEnv;
+      authState.current = createTestAuth(db, SECRET, isProd);
 
+      await expect(
+        signCoworkerRequestToken({
+          coworkerBaseUrl: "http://coworker.example.com/v1",
+          userId: "user_123",
+          organizationId: null,
+          coworkerSlug: "elena",
+        }),
+      ).rejects.toThrow(/https/i);
+
+      await expect(
+        signCoworkerRequestToken({
+          coworkerBaseUrl: "https://coworker.example.com/v1",
+          userId: "user_123",
+          organizationId: null,
+          coworkerSlug: "elena",
+        }),
+      ).resolves.toEqual(expect.any(String));
+    }
+  });
+
+  it("allows http coworker base URLs for loopback hosts (localhost, 127.0.0.1, ::1)", async () => {
+    for (const baseUrl of [
+      "http://localhost:8080/v1/",
+      "http://127.0.0.1:8080/v1",
+      "http://[::1]:8080/v1",
+    ]) {
+      const expectedAud = baseUrl.replace(/\/+$/, "");
       const token = await signCoworkerRequestToken({
-        coworkerBaseUrl: "http://localhost:8080/v1/",
+        coworkerBaseUrl: baseUrl,
         userId: "user_123",
         organizationId: null,
         coworkerSlug: "local-agent",
@@ -313,10 +317,10 @@ describe("coworker-request-auth", () => {
       const jwks = await authState.current!.api.getJwks();
       const verified = await jwtVerify(token, createLocalJWKSet(jwks), {
         issuer: EXPECTED_ISSUER,
-        audience: "http://localhost:8080/v1",
+        audience: expectedAud,
         typ: "coworker+jwt",
       });
-      expect(verified.payload.aud).toBe("http://localhost:8080/v1");
+      expect(verified.payload.aud).toBe(expectedAud);
     }
   });
 
@@ -328,7 +332,7 @@ describe("coworker-request-auth", () => {
         organizationId: null,
         coworkerSlug: "elena",
       }),
-    ).rejects.toThrow(/http|https/i);
+    ).rejects.toThrow(/https/i);
 
     await expect(
       signCoworkerRequestToken({
