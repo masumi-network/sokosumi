@@ -10,6 +10,8 @@ describe("ChatHomePageSkeleton", () => {
     render(<ChatHomePageSkeleton />);
 
     const shell = screen.getByTestId("home-loading");
+    // Decorative: assistive tech skips the bones.
+    expect(shell.getAttribute("aria-hidden")).toBe("true");
     expect(shell.querySelector(".size-14.rounded-full")).not.toBeNull();
     expect(screen.getByTestId("home-loading-composer")).toBeTruthy();
     expect(

@@ -97,8 +97,6 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       }
       const composer = page.getByRole("textbox", { name: `Ask ${BOT}…` });
       await composer.waitFor();
-      const loaded = await composer.boundingBox();
-      assert.ok(loaded);
 
       // Reload on a slow line and catch the loading shell.
       const cdp = await context.newCDPSession(page);
@@ -127,10 +125,16 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
         downloadThroughput: -1,
         uploadThroughput: -1,
       });
+      // Measured in the same reload as its bone, once the page settles.
       await composer.waitFor();
+      await page
+        .getByRole("heading", { name: "In the last 24 hours" })
+        .waitFor();
+      const loaded = await composer.boundingBox();
       await context.close();
 
       assert.ok(bones);
+      assert.ok(loaded);
       assert.equal(chips, 3, "three suggestion chip bones");
       assert.equal(pickerFaces, 0, "the coworker picker's faces are gone");
       // The composer lands where its bone stood (24px slack for the

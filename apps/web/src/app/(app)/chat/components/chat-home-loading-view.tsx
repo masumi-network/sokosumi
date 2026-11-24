@@ -14,6 +14,8 @@ export function ChatHomePageSkeleton(): React.ReactElement {
     <div
       className="flex min-h-full w-full min-w-0 flex-1 flex-col items-center px-4"
       data-testid="home-loading"
+      // Bones only: a screen reader would read an empty list of three items.
+      aria-hidden
     >
       <div className="flex w-full max-w-3xl flex-col gap-8 pt-4 md:pt-[22dvh]">
         <div className="flex flex-col items-center gap-5">
