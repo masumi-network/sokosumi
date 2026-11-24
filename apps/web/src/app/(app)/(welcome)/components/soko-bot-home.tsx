@@ -20,6 +20,7 @@ import type {
   SokoBotHomeSchedule,
   SokoBotHomeTask,
 } from "./soko-bot-home-data";
+import { SokoBotHomeStatsError } from "./soko-bot-home-stats-error.client";
 
 export interface SokoBotHomeBot {
   id: string;
@@ -36,6 +37,7 @@ interface SokoBotHomeProps {
   roomId: string | null;
   /** First name for the greeting; none when the account has no name. */
   userName: string | null;
+  /** The day's numbers; null when they could not be read. */
   summary: TaskActivitySummary | null;
   /** The summary counts the whole workspace's Tasks, not the reader's. */
   inOrganization?: boolean;
@@ -215,6 +217,7 @@ export async function SokoBotHome({
               </span>
             ) : null}
           </h2>
+          {summary ? null : <SokoBotHomeStatsError />}
           {rows.length > 0 ? (
             <ul className="flex flex-col">
               {rows.map((row) =>

@@ -1780,7 +1780,12 @@
           "needsYou": "{count, plural, one {# request needs you} other {# requests need you}}",
           "byTeammates": "{count, plural, one {# task from your team} other {# tasks from your team}}",
           "recent": "In the last 24 hours",
-          "workedHours": "{hours, plural, one {# hour worked} other {# hours worked}}"
+          "workedHours": "{hours, plural, one {# hour worked} other {# hours worked}}",
+          "loadError": {
+            "title": "Couldn't load today's numbers.",
+            "help": "Try again in a moment.",
+            "retry": "Try again"
+          }
         },
         "MyDay": {
           "title": "My day",
@@ -1822,7 +1827,8 @@
           "failedReply": "{name} couldn't finish its last reply",
           "openChat": "Open the chat",
           "failedWork": "{name} couldn't finish what it was working on",
-          "openBot": "Open {name}'s page"
+          "openBot": "Open {name}'s page",
+          "welcome": "{name} sent you a welcome"
         },
         "SokoBotSetup": {
           "title": "Get your Soko Bot",

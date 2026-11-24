@@ -42,6 +42,24 @@ export function composeSokoBotPersona(persona: SokoBotPersona): string {
   ].join("\n");
 }
 
+/**
+ * Metadata Core stores on a bot's introduction, so a reader can tell it from
+ * any later bot message without matching its text, which names the bot and
+ * its owner as they were then.
+ */
+export const SOKO_BOT_INTRODUCTION_METADATA = {
+  sokoBotIntroduction: true,
+} as const;
+
+/** Whether a message's metadata marks it as the bot's introduction. */
+export function isSokoBotIntroduction(metadata: unknown): boolean {
+  return (
+    typeof metadata === "object" &&
+    metadata !== null &&
+    (metadata as Record<string, unknown>).sokoBotIntroduction === true
+  );
+}
+
 export function composeSokoBotIntroduction(persona: SokoBotPersona): string {
   const name = persona.name?.trim() || "Soko Bot";
   const owner = firstName(persona.ownerName);
