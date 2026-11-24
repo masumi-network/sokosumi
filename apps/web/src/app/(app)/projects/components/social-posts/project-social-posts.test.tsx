@@ -395,6 +395,14 @@ vi.mock("next-intl", async () => {
               values,
             );
           }
+          if (key.startsWith("bulkApprove.")) {
+            const messages: Record<string, string> =
+              enMessages.App.Projects.SocialPosts.bulkApprove;
+            return createTranslator({ locale: "en", messages })(
+              key.slice("bulkApprove.".length),
+              values,
+            );
+          }
           if (namespace === "App.Projects.SocialPosts.toasts") {
             const messages: Record<string, string> =
               enMessages.App.Projects.SocialPosts.toasts;
@@ -7273,6 +7281,114 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.queryByTestId("social-post-select-post-failed"),
     ).not.toBeInTheDocument();
+  });
+
+  it("approves only the picked posts, at the revision shown, and lists each result", async () => {
+    const user = userEvent.setup();
+    const waiting = (id: string, text: string, revision: number) =>
+      buildPost({
+        id,
+        text,
+        status: "NEEDS_APPROVAL",
+        scheduledAt: null,
+        canApprove: true,
+        canPublishNow: false,
+        revision,
+      });
+    const toDraft = waiting("post-wait-1", "First waiting", 2);
+    const toSchedule = {
+      ...waiting("post-wait-2", "Second waiting", 4),
+      scheduledAt: new Date("2099-01-05T09:00:00.000Z"),
+    };
+    const changed = waiting("post-wait-3", "Third waiting", 7);
+    const untouched = waiting("post-wait-4", "Not picked", 1);
+    vi.mocked(approveProjectSocialPost).mockImplementation(
+      async ({ postId }) => {
+        if (postId === toDraft.id) {
+          return {
+            ok: true,
+            value: { ...toDraft, status: "DRAFT", canApprove: false },
+          };
+        }
+        if (postId === toSchedule.id) {
+          return {
+            ok: true,
+            value: { ...toSchedule, status: "SCHEDULED", canApprove: false },
+          };
+        }
+        return {
+          ok: false,
+          error: {
+            code: "BAD_INPUT",
+            kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
+            message: "Conflict copy can change freely",
+          },
+        };
+      },
+    );
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[toDraft, toSchedule, changed, untouched]}
+        projectId={PROJECT_ID}
+      />,
+      "?tab=drafts",
+    );
+
+    const approveSelected = screen.getByRole("button", {
+      name: "Approve selected",
+    });
+    expect(approveSelected).toBeDisabled();
+    expect(
+      screen.queryByRole("checkbox", { name: /all/i }),
+    ).not.toBeInTheDocument();
+
+    for (const post of [toDraft, toSchedule, changed]) {
+      await user.click(screen.getByTestId(`social-post-select-${post.id}`));
+    }
+    expect(screen.getByText("3 selected")).toBeVisible();
+    await user.click(approveSelected);
+
+    const alert = screen.getByRole("alertdialog");
+    expect(
+      within(alert).getByRole("heading", { name: "Approve 3 posts?" }),
+    ).toBeVisible();
+    expect(within(alert).getByText("First waiting")).toBeVisible();
+    expect(within(alert).queryByText("Not picked")).not.toBeInTheDocument();
+    expect(
+      within(alert).getByTestId(`social-bulk-approve-plan-${toDraft.id}`),
+    ).toHaveTextContent("Becomes a draft");
+    expect(
+      within(alert).getByTestId(`social-bulk-approve-plan-${toSchedule.id}`),
+    ).toHaveTextContent(/Goes out/);
+    expect(approveProjectSocialPost).not.toHaveBeenCalled();
+    await user.click(
+      within(alert).getByRole("button", { name: "Approve selected" }),
+    );
+
+    await waitFor(() => {
+      expect(approveProjectSocialPost).toHaveBeenCalledTimes(3);
+    });
+    for (const post of [toDraft, toSchedule, changed]) {
+      expect(approveProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        postId: post.id,
+        revision: post.revision,
+      });
+    }
+
+    const results = await screen.findByTestId("social-bulk-approve-results");
+    expect(
+      within(results).getByTestId(`social-bulk-approve-result-${toDraft.id}`),
+    ).toHaveTextContent("Approved as a draft");
+    expect(
+      within(results).getByTestId(
+        `social-bulk-approve-result-${toSchedule.id}`,
+      ),
+    ).toHaveTextContent(/Approved\. Goes out/);
+    expect(
+      within(results).getByTestId(`social-bulk-approve-result-${changed.id}`),
+    ).toHaveTextContent("Changed since you looked. Open it to check again.");
   });
 
   it("publishes a draft now and toasts the failure reason when Core reports FAILED", async () => {

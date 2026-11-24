@@ -3299,6 +3299,18 @@
           "resultsTitle": "Retry results",
           "published": "Published"
         },
+        "bulkApprove": {
+          "selectPost": "Select this post to approve",
+          "approveSelected": "Approve selected",
+          "title": "{count, plural, one {Approve # post?} other {Approve # posts?}}",
+          "description": "Each post is approved as you see it now. A post with a time ahead goes out then. The others become drafts.",
+          "willSchedule": "Goes out {date}",
+          "willDraft": "Becomes a draft",
+          "resultsTitle": "Approval results",
+          "scheduled": "Approved. Goes out {date}",
+          "drafted": "Approved as a draft",
+          "conflict": "Changed since you looked. Open it to check again."
+        },
         "connectPrompt": {
           "title": "Connect an account to start posting",
           "body": "Posts go out from this project's accounts.",
