@@ -1,7 +1,4 @@
-import {
-  CLI_COMMAND_CATALOG,
-  formatCliCommandHelpLines,
-} from "./commands/catalog.js";
+import { formatCliCommandHelpLines } from "./commands/catalog.js";
 import { CLI_VERSION } from "./metadata.js";
 
 export type ValueOptionName =
@@ -250,11 +247,7 @@ Evals (platform admin; Core runs them on the deployment you select):
   --wait follows the run until it ends; --tick also moves it on, for a Core without the minute cron (preview, local).
   --markdown prints the table for a PR's Evidence. The weekly run on mainnet is the baseline every run is compared with.
 
-Commands that call one Core operation (${CLI_COMMAND_CATALOG.filter(
-    (entry) => "operation" in entry,
-  )
-    .map((entry) => entry.command)
-    .join(", ")}):
+Commands that call one Core operation, such as jobs events, tasks files and tasks list-schedules:
   Positionals fill the path. --query KEY=VALUE (repeatable) adds a query parameter.
   A write needs --input-json JSON or --input-file FILE as its body, unless it takes none (pause-, resume-, end-schedule, join,
   follow, restore). --organization-slug WORKSPACE_SLUG selects the Workspace.

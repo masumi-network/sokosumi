@@ -16,6 +16,8 @@ import { MCP_TOOLS, MCP_TOOLSETS } from "./tools";
  * the tool's operation (docs/agents/agent-surface.md). Add a fixture with
  * every new tool.
  */
+const TASK_ID = "01a20919-70ff-7529-9bd5-78b72b6a3ea2";
+
 const FIXTURES: Record<string, Record<string, unknown>> = {
   users_get: { id: "me" },
   workspaces_list: { id: "me" },
@@ -76,27 +78,27 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
     body: { expectedRevision: 3, action: "skip" },
   },
   tasks_update_link: {
-    id: "SOK-123",
+    id: TASK_ID,
     linkId: "link-1",
     body: { note: "Waits on the copy." },
   },
-  tasks_join: { id: "SOK-123" },
-  tasks_leave: { id: "SOK-123", userId: "user_mcp" },
-  tasks_follow: { id: "SOK-123" },
-  tasks_unfollow: { id: "SOK-123" },
+  tasks_join: { id: TASK_ID },
+  tasks_leave: { id: TASK_ID, userId: "user_mcp" },
+  tasks_follow: { id: TASK_ID },
+  tasks_unfollow: { id: TASK_ID },
   tasks_send_to_chat: {
-    id: "SOK-123",
+    id: TASK_ID,
     body: {
       roomId: "01960001-0001-7001-8001-000000000001",
       clientMessageId: "msg-1",
     },
   },
-  tasks_workspace: { id: "SOK-123" },
-  tasks_set_workspace: { id: "SOK-123", body: { organizationId: "org-1" } },
-  tasks_restore: { id: "SOK-123" },
-  tasks_files: { id: "SOK-123" },
+  tasks_workspace: { id: TASK_ID },
+  tasks_set_workspace: { id: TASK_ID, body: { organizationId: "org-1" } },
+  tasks_restore: { id: TASK_ID },
+  tasks_files: { id: TASK_ID },
   tasks_upload_url: {
-    id: "SOK-123",
+    id: TASK_ID,
     body: { filename: "brief.pdf", contentType: "application/pdf", size: 2048 },
   },
   jobs_list: { workspace: "acme", status: "COMPLETED" },

@@ -149,6 +149,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "POST /tasks/due-dates/undo",
     description:
       "Undo tasks_move_overdue: `body.to` and `body.tasks` (`id`, `from`, `version`) from its result. A Task changed since keeps its day.",
+    destructive: true,
   },
   {
     name: "tasks_list_schedules",

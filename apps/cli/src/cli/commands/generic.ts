@@ -1,4 +1,5 @@
 import type { CoreHttpClient } from "../../api/http-client.js";
+import { resolveTaskId } from "../../api/services/task-service.js";
 import { type CliOptions, GLOBAL_VALUE_OPTIONS } from "../help.js";
 import type { CliCommandCatalogEntry, CoreMethod } from "./catalog.js";
 import {
@@ -58,9 +59,6 @@ export async function runGenericCommand({
     if (equals <= 0) throw new Error(`--query expects KEY=VALUE, got ${pair}`);
     query.append(pair.slice(0, equals), pair.slice(equals + 1));
   }
-  let index = 0;
-  const path = `/v1${template.replace(PATH_PARAM, () => encodeURIComponent(args[index++]))}${query.size ? `?${query}` : ""}`;
-
   const inputJson = option(options, "input-json");
   const inputFile = option(options, "input-file");
   const read = method === "GET" || method === "DELETE" || row.noBody === true;
@@ -72,6 +70,12 @@ export async function runGenericCommand({
   const body = read
     ? undefined
     : await readJsonObject(inputJson, inputFile, "--input");
+  // Only GET /tasks/{id} resolves a short identifier such as SOK-12.
+  const values = template.startsWith("/tasks/{id}/")
+    ? [await resolveTaskId(client, args[0]!, signal), ...args.slice(1)]
+    : args;
+  let index = 0;
+  const path = `/v1${template.replace(PATH_PARAM, () => encodeURIComponent(values[index++]!))}${query.size ? `?${query}` : ""}`;
   let response: unknown;
   switch (method) {
     case "GET":

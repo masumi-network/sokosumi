@@ -213,7 +213,6 @@ sokosumi --api-url https://api.sokosumi.com tasks move SOK-16 --organization-slu
 | Participation                   | `join TASK_ID` / `follow TASK_ID` (_no body_), `leave TASK_ID USER_ID`, `unfollow TASK_ID`                                                                                                           |
 | Place and recovery              | `workspace TASK_ID`, `set-workspace TASK_ID` (`{"organizationId": ...}`), `restore TASK_ID` (_no body_), `update-link TASK_ID LINK_ID`                                                               |
 | Overview                        | `summary` (`--query scope=workspace` for every Task, not just yours), `view`, `set-view`, `move-overdue`, `undo-move-overdue`, `send-to-chat TASK_ID`                                                |
-| Coworker key only               | `add-job TASK_ID` (hires an agent for the Task; spends credits)                                                                                                                                      |
 
 ```bash
 sokosumi tasks create-schedule --organization-slug WORKSPACE_SLUG --input-json '{"name":"Weekly report","rule":{"expr":"0 9 * * 1","timezone":"Europe/Berlin"},"assigneeId":"COWORKER_ID"}'
@@ -221,7 +220,7 @@ sokosumi tasks pause-schedule SCHEDULE_ID --organization-slug WORKSPACE_SLUG
 sokosumi tasks update-schedule-run SCHEDULE_ID RUN_ID --organization-slug WORKSPACE_SLUG --input-json '{"expectedRevision":3,"action":"skip"}'
 ```
 
-Schedule writes take `expectedRevision` from `get-schedule`; a stale one is a `409`. The rule is a five-field cron read in its `timezone`. Public share links, tag suggestions, x402 payments, and the SEO worker's runtime routes stay off the CLI and MCP; `apps/core/agent-surface/tasks.json` says why for each.
+Schedule writes take `expectedRevision` from `get-schedule`; a stale one is a `409`. The rule is a five-field cron read in its `timezone`. Public share links, tag suggestions, adding a Job (assigned Coworker only), x402 payments, and the SEO worker's runtime routes stay off the CLI and MCP; `apps/core/agent-surface/tasks.json` says why for each.
 
 ## Developer onboarding when requested
 

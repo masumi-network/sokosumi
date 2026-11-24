@@ -747,14 +747,4 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       '{"filename":"brief.pdf","contentType":"application/pdf","size":2048}',
     ],
   },
-  "POST /tasks/{id}/jobs": {
-    argv: [
-      ...API,
-      "tasks",
-      "add-job",
-      "task-1",
-      "--input-json",
-      '{"agentId":"agent-1","inputSchema":[],"inputData":{}}',
-    ],
-  },
 };

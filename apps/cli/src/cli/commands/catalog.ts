@@ -395,11 +395,6 @@ export const CLI_COMMAND_CATALOG = [
     usage: "TASK_ID --input-json JSON",
     operation: "POST /tasks/{id}/files",
   },
-  {
-    command: "tasks add-job",
-    usage: "TASK_ID --input-json JSON",
-    operation: "POST /tasks/{id}/jobs",
-  },
   { command: "jobs list", usage: "[--organization-slug WORKSPACE_SLUG]" },
   {
     command: "jobs get",

@@ -180,9 +180,9 @@
       "mcp": "tasks_upload_url"
     },
     "POST /tasks/{id}/jobs": {
-      "cli": "tasks add-job",
+      "cli": false,
       "mcp": false,
-      "reason": "Answers only the Task's assigned Coworker or Soko Bot; an MCP caller is a person."
+      "reason": "Answers only the Task's assigned Coworker or Soko Bot; the CLI and MCP act as a person."
     },
     "POST /tasks/{id}/x402-payments": {
       "cli": false,

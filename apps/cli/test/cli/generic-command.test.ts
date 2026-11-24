@@ -130,6 +130,21 @@ test("a generic write sends --input-json or --input-file as the body", async () 
   assert.deepEqual(JSON.parse(output[0]!), { data: { id: "x-1" } });
 });
 
+test("a generic Task command resolves a short identifier to the Task id", async (t) => {
+  const id = "01a20919-70ff-7529-9bd5-78b72b6a3ea2";
+  const f = fixture(t, { data: { id, identifier: "SOK-12" } });
+  await runCli([...API, "tasks", "files", "SOK-12"], f.deps);
+  await runCli([...API, "tasks", "files", id], f.deps);
+  assert.deepEqual(
+    f.calls.map((call) => `${call.method} ${call.url}`),
+    [
+      "GET https://fixture.invalid/v1/tasks/SOK-12",
+      `GET https://fixture.invalid/v1/tasks/${id}/files`,
+      `GET https://fixture.invalid/v1/tasks/${id}/files`,
+    ],
+  );
+});
+
 test("a generic write whose row has noBody sends no body and refuses one", async () => {
   const calls: { path: string; body: unknown }[] = [];
   const client = {
