@@ -266,6 +266,178 @@ export const CLI_COMMAND_CATALOG = [
   },
   { command: "jobs files", usage: "JOB_ID", operation: "GET /jobs/{id}/files" },
   { command: "jobs links", usage: "JOB_ID", operation: "GET /jobs/{id}/links" },
+  // SOKD-378: ads, image-studio, social and calendar reads.
+  {
+    command: "image-studio catalog",
+    usage: "[--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /image-studio/catalog",
+  },
+  {
+    command: "image-studio state",
+    usage: "[--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /image-studio/state",
+  },
+  {
+    command: "image-studio recent-projects",
+    usage: "[--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /image-studio/recent-projects",
+  },
+  {
+    command: "projects ads-accounts",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/ads/accounts",
+  },
+  {
+    command: "projects ads-campaigns",
+    usage: "PROJECT_ID ACCOUNT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/ads/accounts/{accountId}/campaigns",
+  },
+  {
+    command: "projects ads-campaign",
+    usage:
+      "PROJECT_ID ACCOUNT_ID CAMPAIGN_ID [--organization-slug WORKSPACE_SLUG]",
+    operation:
+      "GET /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}",
+  },
+  {
+    command: "projects ads-locations",
+    usage:
+      "PROJECT_ID ACCOUNT_ID --query q=NAME [--organization-slug WORKSPACE_SLUG]",
+    operation:
+      "GET /projects/{id}/ads/accounts/{accountId}/targeting/locations",
+  },
+  {
+    command: "projects ads-languages",
+    usage: "PROJECT_ID ACCOUNT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation:
+      "GET /projects/{id}/ads/accounts/{accountId}/targeting/languages",
+  },
+  {
+    command: "projects ads-market",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/ads/market",
+  },
+  {
+    command: "projects image-studio",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/image-studio",
+  },
+  {
+    command: "projects image-studio-batch",
+    usage: "PROJECT_ID BATCH_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/image-studio/batches/{batchId}/assets",
+  },
+  {
+    command: "projects image-studio-compare",
+    usage: "PROJECT_ID BATCH_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/image-studio/batches/{batchId}/compare",
+  },
+  {
+    command: "projects image-studio-scoreboard",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/image-studio/model-scoreboard",
+  },
+  {
+    command: "projects image-studio-brand-kit",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/image-studio/brand-kit",
+  },
+  {
+    command: "projects image-studio-website-copy",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/image-studio/brand-kit/website-copy",
+  },
+  {
+    command: "projects image-studio-website-draft",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/image-studio/website-draft",
+  },
+  {
+    command: "projects image-studio-products",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/image-studio/products",
+  },
+  {
+    command: "projects image-studio-talking-videos",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/image-studio/talking-videos",
+  },
+  {
+    command: "projects social-connections",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/social-connections",
+  },
+  {
+    command: "projects social-connection-subscription",
+    usage: "PROJECT_ID CONNECTION_ID [--organization-slug WORKSPACE_SLUG]",
+    operation:
+      "GET /projects/{id}/social-connections/{connectionId}/subscription",
+  },
+  {
+    command: "projects social-connection-tiktok-creator",
+    usage: "PROJECT_ID CONNECTION_ID [--organization-slug WORKSPACE_SLUG]",
+    operation:
+      "GET /projects/{id}/social-connections/{connectionId}/tiktok-creator",
+  },
+  {
+    command: "projects social-connection-suggested-times",
+    usage:
+      "PROJECT_ID CONNECTION_ID --query timezone=IANA_ZONE [--organization-slug WORKSPACE_SLUG]",
+    operation:
+      "GET /projects/{id}/social-connections/{connectionId}/suggested-times",
+  },
+  {
+    command: "projects social-statistics",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/social-connections/statistics",
+  },
+  {
+    command: "projects social-posts",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/social-posts",
+  },
+  {
+    command: "projects social-post",
+    usage: "PROJECT_ID POST_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/social-posts/{postId}",
+  },
+  {
+    command: "projects social-posts-statistics",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/social-posts/statistics",
+  },
+  {
+    command: "projects social-queue-slots",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/social-queue-slots",
+  },
+  {
+    command: "projects calendar",
+    usage:
+      "PROJECT_ID --query from=ISO --query to=ISO [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/calendar",
+  },
+  {
+    command: "workspaces calendar",
+    usage:
+      "--query from=ISO --query to=ISO [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /workspaces/calendar",
+  },
+  {
+    command: "workspaces calendar-sources",
+    usage: "[--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /workspaces/calendar/sources",
+  },
+  {
+    command: "workspaces social-posts",
+    usage: "[--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /workspaces/social-posts",
+  },
+  {
+    command: "workspaces social-statistics",
+    usage: "WORKSPACE_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /workspaces/{id}/social-connections/statistics",
+  },
 ] as const satisfies readonly CliCommandCatalogEntry[];
 
 type CliCommand = (typeof CLI_COMMAND_CATALOG)[number]["command"];

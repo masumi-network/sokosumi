@@ -370,11 +370,215 @@ export const MCP_TOOLS: readonly McpTool[] = [
     description:
       "Check whether you hold a seat in an organization. Paid organizations need one to run work.",
   },
+  // SOKD-378: ads, image-studio, social and calendar reads.
+  {
+    name: "image_studio_catalog",
+    operation: "GET /image-studio/catalog",
+    description:
+      "List the Image Studio's image, video and talking-video models: what each can do and its credit price. The same for every Project.",
+  },
+  {
+    name: "image_studio_state",
+    operation: "GET /image-studio/state",
+    description:
+      "Get Image Studio results across every Project in the workspace: versions and recent generation jobs, newest first, each with its Project.",
+  },
+  {
+    name: "image_studio_recent_projects",
+    operation: "GET /image-studio/recent-projects",
+    description:
+      "List the three Projects with the newest Image Studio images, each with its image count and newest image.",
+  },
+  {
+    name: "projects_ads_accounts",
+    operation: "GET /projects/{id}/ads/accounts",
+    description:
+      "List the Google Ads and Meta ad accounts attached to a Project.",
+  },
+  {
+    name: "projects_ads_campaigns",
+    operation: "GET /projects/{id}/ads/accounts/{accountId}/campaigns",
+    description:
+      "List an ad account's campaigns with spend, impressions, clicks, CTR, CPC and conversions over `range`. Money is in the account currency.",
+  },
+  {
+    name: "projects_ads_campaign",
+    operation:
+      "GET /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}",
+    description:
+      "Get one Google campaign: settings, targeting, keywords, ad, sitelinks, and daily performance over `range`. Google Ads accounts only.",
+  },
+  {
+    name: "projects_ads_locations",
+    operation:
+      "GET /projects/{id}/ads/accounts/{accountId}/targeting/locations",
+    description:
+      "Search the Google Ads locations a campaign can target, by name (`q`) or by geo target ids (`ids`); send exactly one.",
+  },
+  {
+    name: "projects_ads_languages",
+    operation:
+      "GET /projects/{id}/ads/accounts/{accountId}/targeting/languages",
+    description:
+      "List the languages a Google campaign of this ad account can target.",
+  },
+  {
+    name: "projects_ads_market",
+    operation: "GET /projects/{id}/ads/market",
+    description:
+      "Get a Project's ads market profile: keywords, country and language. `profile` is null until a person saves one.",
+  },
+  {
+    name: "projects_image_studio",
+    operation: "GET /projects/{id}/image-studio",
+    description:
+      "Get a Project's Image Studio: versions, recent generation jobs and their assets, and the Studio conversations of this Project.",
+  },
+  {
+    name: "projects_image_studio_batch",
+    operation: "GET /projects/{id}/image-studio/batches/{batchId}/assets",
+    description: "List the images one Image Studio generation batch produced.",
+  },
+  {
+    name: "projects_image_studio_compare",
+    operation: "GET /projects/{id}/image-studio/batches/{batchId}/compare",
+    description:
+      "Get the next pair of images from a batch that the signed-in person has not compared yet; `pair` is null when none is left.",
+  },
+  {
+    name: "projects_image_studio_scoreboard",
+    operation: "GET /projects/{id}/image-studio/model-scoreboard",
+    description:
+      "Rank image models for a Project by the workspace members' side-by-side picks. Under ten comparisons is provisional.",
+  },
+  {
+    name: "projects_image_studio_brand_kit",
+    operation: "GET /projects/{id}/image-studio/brand-kit",
+    description:
+      "Get a Project's brand kit: logo, colors, fonts, summary, tone, audience and approved lines.",
+  },
+  {
+    name: "projects_image_studio_website_copy",
+    operation: "GET /projects/{id}/image-studio/brand-kit/website-copy",
+    description:
+      "Read a summary and candidate lines from the Project's website, for its brand kit. Fetches the website.",
+  },
+  {
+    name: "projects_image_studio_website_draft",
+    operation: "GET /projects/{id}/image-studio/website-draft",
+    description:
+      "Draft a brand kit and product list from the Project's website. Fetches the website; saves nothing.",
+  },
+  {
+    name: "projects_image_studio_products",
+    operation: "GET /projects/{id}/image-studio/products",
+    description: "List a Project's product catalog in the Image Studio.",
+  },
+  {
+    name: "projects_image_studio_talking_videos",
+    operation: "GET /projects/{id}/image-studio/talking-videos",
+    description:
+      "List a Project's talking videos, newest first. Pass the oldest job's createdAt as `before` and its id as `beforeId` for the next 30.",
+  },
+  {
+    name: "projects_social_connections",
+    operation: "GET /projects/{id}/social-connections",
+    description:
+      "List a Project's connected social accounts (provider, name, avatar, status). Connecting and disconnecting stay with a person.",
+  },
+  {
+    name: "projects_social_connection_subscription",
+    operation:
+      "GET /projects/{id}/social-connections/{connectionId}/subscription",
+    description:
+      "Get an X account's subscription tier and post length limit, refreshed from X when it answers.",
+  },
+  {
+    name: "projects_social_connection_tiktok_creator",
+    operation:
+      "GET /projects/{id}/social-connections/{connectionId}/tiktok-creator",
+    description:
+      "Get a connected TikTok creator's current posting options: privacy levels and whether comments, duets and stitches are allowed.",
+  },
+  {
+    name: "projects_social_connection_suggested_times",
+    operation:
+      "GET /projects/{id}/social-connections/{connectionId}/suggested-times",
+    description:
+      "Suggest two or three posting hours for an account from its measured history, in the IANA `timezone` given. Empty without enough history.",
+  },
+  {
+    name: "projects_social_statistics",
+    operation: "GET /projects/{id}/social-connections/statistics",
+    description:
+      "Read a Project's cached social account metrics and published posts, including posts made outside Sokosumi. Does not refresh from the providers.",
+  },
+  {
+    name: "projects_social_posts",
+    operation: "GET /projects/{id}/social-posts",
+    description:
+      "List a Project's Social posts with their status, text, media and schedule. Filter with `status`, `provider` or `search`.",
+  },
+  {
+    name: "projects_social_post",
+    operation: "GET /projects/{id}/social-posts/{postId}",
+    description: "Get one Social post of a Project.",
+  },
+  {
+    name: "projects_social_posts_statistics",
+    operation: "GET /projects/{id}/social-posts/statistics",
+    description:
+      "Read cached lifetime statistics of a Project's published Social posts, filtered by publication date.",
+  },
+  {
+    name: "projects_social_queue_slots",
+    operation: "GET /projects/{id}/social-queue-slots",
+    description: "List a Project's weekly posting-queue times.",
+  },
+  {
+    name: "projects_calendar",
+    operation: "GET /projects/{id}/calendar",
+    description:
+      "List a Project's Calendar between `from` and `to`: scheduled and queued Tasks, plus the `types` asked for (social, newsletter, contacts, marketing, sokoBot).",
+  },
+  {
+    name: "workspaces_calendar",
+    operation: "GET /workspaces/calendar",
+    description:
+      "List the workspace Calendar between `from` and `to`: scheduled and queued Tasks, plus the `types` asked for (social, newsletter, contacts, marketing, sokoBot).",
+  },
+  {
+    name: "workspaces_calendar_sources",
+    operation: "GET /workspaces/calendar/sources",
+    description:
+      "List the workspace's Calendar sources (the workspace and each Project) and the `types` this caller may ask the Calendar for.",
+  },
+  {
+    name: "workspaces_social_posts",
+    operation: "GET /workspaces/social-posts",
+    description:
+      "List the Social posts of every Project in the workspace, each with its Project's name. Filter with `status`.",
+  },
+  {
+    name: "workspaces_social_statistics",
+    operation: "GET /workspaces/{id}/social-connections/statistics",
+    description:
+      "Read cached metrics and published posts for every connected social account in the workspace. `id` must be the id of the workspace this call acts in (from workspaces_list).",
+  },
 ];
+
+/** Route groups with a hyphen, which their tool names spell with `_`. */
+const HYPHENATED_TOOLSETS = ["image-studio"];
 
 /** A tool's toolset: the route group its name starts with. */
 export function toolsetOf(name: string): string {
-  return name.split("_", 1)[0] ?? name;
+  return (
+    HYPHENATED_TOOLSETS.find((group) =>
+      name.startsWith(`${group.replaceAll("-", "_")}_`),
+    ) ??
+    name.split("_", 1)[0] ??
+    name
+  );
 }
 
 /** Every toolset, in registry order. */

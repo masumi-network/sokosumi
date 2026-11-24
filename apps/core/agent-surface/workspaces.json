@@ -1,3 +1,26 @@
 {
-  "backlog": "SOKD-371"
+  "backlog": "SOKD-371",
+  "operations": {
+    "GET /workspaces/calendar": {
+      "cli": "workspaces calendar",
+      "mcp": "workspaces_calendar"
+    },
+    "GET /workspaces/calendar/sources": {
+      "cli": "workspaces calendar-sources",
+      "mcp": "workspaces_calendar_sources"
+    },
+    "GET /workspaces/social-posts": {
+      "cli": "workspaces social-posts",
+      "mcp": "workspaces_social_posts"
+    },
+    "GET /workspaces/{id}/social-connections/statistics": {
+      "cli": "workspaces social-statistics",
+      "mcp": "workspaces_social_statistics"
+    },
+    "GET /workspaces/{id}/social-connections/statistics/export": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Returns file bytes; the CLI and MCP carry JSON. An API key can GET it directly."
+    }
+  }
 }

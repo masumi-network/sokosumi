@@ -196,7 +196,7 @@ describe("Sokosumi MCP server", () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({
       message:
-        'Unknown toolset "nope". Toolsets: users, workspaces, tasks, jobs, agents, coworkers, vendors, developer, organizations.',
+        'Unknown toolset "nope". Toolsets: users, workspaces, tasks, jobs, agents, coworkers, vendors, developer, organizations, image-studio, projects.',
     });
   });
 

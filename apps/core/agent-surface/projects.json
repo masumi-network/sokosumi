@@ -1,3 +1,360 @@
 {
-  "backlog": "SOKD-373"
+  "backlog": "SOKD-373",
+  "operations": {
+    "GET /projects/{id}/ads/accounts": {
+      "cli": "projects ads-accounts",
+      "mcp": "projects_ads_accounts"
+    },
+    "GET /projects/{id}/ads/accounts/{accountId}/campaigns": {
+      "cli": "projects ads-campaigns",
+      "mcp": "projects_ads_campaigns"
+    },
+    "GET /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}": {
+      "cli": "projects ads-campaign",
+      "mcp": "projects_ads_campaign"
+    },
+    "GET /projects/{id}/ads/accounts/{accountId}/targeting/locations": {
+      "cli": "projects ads-locations",
+      "mcp": "projects_ads_locations"
+    },
+    "GET /projects/{id}/ads/accounts/{accountId}/targeting/languages": {
+      "cli": "projects ads-languages",
+      "mcp": "projects_ads_languages"
+    },
+    "GET /projects/{id}/ads/market": {
+      "cli": "projects ads-market",
+      "mcp": "projects_ads_market"
+    },
+    "GET /projects/{id}/image-studio": {
+      "cli": "projects image-studio",
+      "mcp": "projects_image_studio"
+    },
+    "GET /projects/{id}/image-studio/batches/{batchId}/assets": {
+      "cli": "projects image-studio-batch",
+      "mcp": "projects_image_studio_batch"
+    },
+    "GET /projects/{id}/image-studio/batches/{batchId}/compare": {
+      "cli": "projects image-studio-compare",
+      "mcp": "projects_image_studio_compare"
+    },
+    "GET /projects/{id}/image-studio/model-scoreboard": {
+      "cli": "projects image-studio-scoreboard",
+      "mcp": "projects_image_studio_scoreboard"
+    },
+    "GET /projects/{id}/image-studio/brand-kit": {
+      "cli": "projects image-studio-brand-kit",
+      "mcp": "projects_image_studio_brand_kit"
+    },
+    "GET /projects/{id}/image-studio/brand-kit/website-copy": {
+      "cli": "projects image-studio-website-copy",
+      "mcp": "projects_image_studio_website_copy"
+    },
+    "GET /projects/{id}/image-studio/website-draft": {
+      "cli": "projects image-studio-website-draft",
+      "mcp": "projects_image_studio_website_draft"
+    },
+    "GET /projects/{id}/image-studio/products": {
+      "cli": "projects image-studio-products",
+      "mcp": "projects_image_studio_products"
+    },
+    "GET /projects/{id}/image-studio/talking-videos": {
+      "cli": "projects image-studio-talking-videos",
+      "mcp": "projects_image_studio_talking_videos"
+    },
+    "GET /projects/{id}/social-connections": {
+      "cli": "projects social-connections",
+      "mcp": "projects_social_connections"
+    },
+    "GET /projects/{id}/social-connections/{connectionId}/subscription": {
+      "cli": "projects social-connection-subscription",
+      "mcp": "projects_social_connection_subscription"
+    },
+    "GET /projects/{id}/social-connections/{connectionId}/tiktok-creator": {
+      "cli": "projects social-connection-tiktok-creator",
+      "mcp": "projects_social_connection_tiktok_creator"
+    },
+    "GET /projects/{id}/social-connections/{connectionId}/suggested-times": {
+      "cli": "projects social-connection-suggested-times",
+      "mcp": "projects_social_connection_suggested_times"
+    },
+    "GET /projects/{id}/social-connections/statistics": {
+      "cli": "projects social-statistics",
+      "mcp": "projects_social_statistics"
+    },
+    "GET /projects/{id}/social-posts": {
+      "cli": "projects social-posts",
+      "mcp": "projects_social_posts"
+    },
+    "GET /projects/{id}/social-posts/{postId}": {
+      "cli": "projects social-post",
+      "mcp": "projects_social_post"
+    },
+    "GET /projects/{id}/social-posts/statistics": {
+      "cli": "projects social-posts-statistics",
+      "mcp": "projects_social_posts_statistics"
+    },
+    "GET /projects/{id}/social-queue-slots": {
+      "cli": "projects social-queue-slots",
+      "mcp": "projects_social_queue_slots"
+    },
+    "GET /projects/{id}/calendar": {
+      "cli": "projects calendar",
+      "mcp": "projects_calendar"
+    },
+    "GET /projects/{id}/ads/market/keywords": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Buys DataForSEO data on a cache miss; human-only pending ADR 0077's follow-up tickets."
+    },
+    "GET /projects/{id}/ads/market/ads": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Buys DataForSEO data on a cache miss; human-only pending ADR 0077's follow-up tickets."
+    },
+    "GET /projects/{id}/image-studio/assets/{assetId}/social-media": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Copies a private image to a permanent public URL; human-only pending ADR 0077's follow-up tickets."
+    },
+    "GET /projects/{id}/image-studio/assets/{assetId}/content": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Returns file bytes; the CLI and MCP carry JSON. An API key can GET it directly."
+    },
+    "GET /projects/{id}/social-connections/statistics/export": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Returns file bytes; the CLI and MCP carry JSON. An API key can GET it directly."
+    },
+    "POST /projects/{id}/ads/accounts": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A person approves, publishes and connects accounts (ADR 0077)."
+    },
+    "DELETE /projects/{id}/ads/accounts/{accountId}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A person approves, publishes and connects accounts (ADR 0077)."
+    },
+    "POST /projects/{id}/ads/connections/initiate": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A person approves, publishes and connects accounts (ADR 0077)."
+    },
+    "POST /projects/{id}/ads/connections/finalize": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A person approves, publishes and connects accounts (ADR 0077)."
+    },
+    "DELETE /projects/{id}/ads/connections/{adConnectionId}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A person approves, publishes and connects accounts (ADR 0077)."
+    },
+    "POST /projects/{id}/ads/accounts/{accountId}/campaigns": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only pending ADR 0077's follow-up tickets."
+    },
+    "PUT /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only pending ADR 0077's follow-up tickets."
+    },
+    "PATCH /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A person resumes ad spend (ADR 0077); pausing and budgets wait for its follow-up tickets."
+    },
+    "PUT /projects/{id}/ads/market": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+    },
+    "PUT /projects/{id}/image-studio/batches/{batchId}/compare": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+    },
+    "PUT /projects/{id}/image-studio/brand-kit": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+    },
+    "POST /projects/{id}/image-studio/website-draft": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+    },
+    "PUT /projects/{id}/image-studio/brand-kit/look": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+    },
+    "POST /projects/{id}/image-studio/brand-kit/logo": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+    },
+    "POST /projects/{id}/image-studio/brand-kit/logo/website": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+    },
+    "POST /projects/{id}/image-studio/jobs": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only pending ADR 0077's follow-up tickets."
+    },
+    "PUT /projects/{id}/image-studio/products": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+    },
+    "POST /projects/{id}/image-studio/products/import": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+    },
+    "POST /projects/{id}/image-studio/products/photo": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+    },
+    "POST /projects/{id}/image-studio/video-jobs": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only pending ADR 0077's follow-up tickets."
+    },
+    "POST /projects/{id}/image-studio/talking-video-jobs": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only pending ADR 0077's follow-up tickets."
+    },
+    "POST /projects/{id}/image-studio/short-video-jobs": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only pending ADR 0077's follow-up tickets."
+    },
+    "POST /projects/{id}/image-studio/talking-video-scripts": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only pending ADR 0077's follow-up tickets."
+    },
+    "POST /projects/{id}/image-studio/jobs/{jobId}/cancel": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only pending ADR 0077's follow-up tickets."
+    },
+    "POST /projects/{id}/image-studio/assets/{assetId}/events": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only pending ADR 0077's follow-up tickets."
+    },
+    "PUT /projects/{id}/image-studio/assets/{assetId}/feedback": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+    },
+    "POST /projects/{id}/image-studio/assets/{assetId}/hide": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+    },
+    "PUT /projects/{id}/image-studio/assets/{assetId}/headline": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+    },
+    "POST /projects/{id}/image-studio/assets/{assetId}/caption": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only pending ADR 0077's follow-up tickets."
+    },
+    "POST /projects/{id}/social-connections/initiate": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A person approves, publishes and connects accounts (ADR 0077)."
+    },
+    "POST /projects/{id}/social-connections/finalize": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A person approves, publishes and connects accounts (ADR 0077)."
+    },
+    "DELETE /projects/{id}/social-connections/{connectionId}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A person approves, publishes and connects accounts (ADR 0077)."
+    },
+    "POST /projects/{id}/social-connections/{connectionId}/statistics/refresh": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only pending ADR 0077's follow-up tickets."
+    },
+    "POST /projects/{id}/social-posts": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only pending ADR 0077's follow-up tickets."
+    },
+    "PATCH /projects/{id}/social-posts/{postId}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only pending ADR 0077's follow-up tickets."
+    },
+    "POST /projects/{id}/social-posts/{postId}/publish": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A person approves, publishes and connects accounts (ADR 0077)."
+    },
+    "POST /projects/{id}/social-posts/{postId}/schedule": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only pending ADR 0077's follow-up tickets."
+    },
+    "POST /projects/{id}/social-posts/{postId}/queue": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only pending ADR 0077's follow-up tickets."
+    },
+    "POST /projects/{id}/social-posts/{postId}/approve": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A person approves, publishes and connects accounts (ADR 0077)."
+    },
+    "POST /projects/{id}/social-posts/{postId}/reject": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A person approves, publishes and connects accounts (ADR 0077)."
+    },
+    "POST /projects/{id}/social-posts/{postId}/cancel": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only pending ADR 0077's follow-up tickets."
+    },
+    "POST /projects/{id}/social-posts/{postId}/duplicate": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only pending ADR 0077's follow-up tickets."
+    },
+    "POST /projects/{id}/social-posts/{postId}/thread/resume": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A person approves, publishes and connects accounts (ADR 0077)."
+    },
+    "POST /projects/{id}/social-posts/{postId}/statistics/refresh": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only pending ADR 0077's follow-up tickets."
+    },
+    "PUT /projects/{id}/social-queue-slots": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only pending ADR 0077's follow-up tickets."
+    },
+    "POST /projects/{id}/social-account-posts/{accountPostId}/recycle": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Human-only pending ADR 0077's follow-up tickets."
+    }
+  }
 }
