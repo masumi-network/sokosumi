@@ -305,7 +305,7 @@ sokosumi jobs unshare JOB_ID
 
 ## Credits, history and notifications
 
-[VERIFIED: `apps/cli/src/cli/commands/catalog.ts`] These read the selected Workspace (`--organization-slug`) and print Core's JSON body:
+[VERIFIED: `apps/cli/src/cli/commands/catalog.ts`] These print Core's JSON body. `transactions` and `history` read the selected Workspace (`--organization-slug`); notifications are the signed-in person's own, and categories are the public catalog:
 
 ```bash
 sokosumi transactions list --query taskId=TASK_ID

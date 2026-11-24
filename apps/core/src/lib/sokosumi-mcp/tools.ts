@@ -344,7 +344,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "jobs_move",
     operation: "PUT /jobs/{id}/workspace",
     description:
-      "Move a Job to another workspace: `body.organizationId`, or null for your personal workspace. People in the old workspace lose access. Only the Job's owner may move it.",
+      "Move a Job to another workspace: `body.organizationId`, or null for your personal workspace. People in the old workspace lose access. Only the Job's owner may move it; an organization owner or admin moves one without an owner.",
     destructive: true,
   },
   {
@@ -815,7 +815,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "transactions_daily",
     operation: "GET /transactions/daily",
     description:
-      "Credits spent per UTC day between `from` and `to` (YYYY-MM-DD), zero on days without spend. Takes the transactions_list filters.",
+      "Credits spent per UTC day, zero on days without spend. `from` and `to` (YYYY-MM-DD) are optional; the default is the last 30 days. Takes the transactions_list filters.",
   },
   {
     name: "transactions_total",
