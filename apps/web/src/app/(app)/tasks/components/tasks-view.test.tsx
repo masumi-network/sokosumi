@@ -29,6 +29,7 @@ import type {
 } from "@/app/tasks/types/task-board";
 import {
   markTaskArchived,
+  settleTaskArchive,
   unmarkTaskArchived,
 } from "@/app/tasks/utils/archived-task-ids";
 import type { TasksFilters } from "@/app/tasks/utils/tasks-filters";
@@ -2087,10 +2088,114 @@ it("keeps the archived column's cursor across a racing pre-delete server refresh
     screen.getByTestId("board-density").getAttribute("data-done-hidden"),
   ).toBe("0");
 
-  // Once a later refresh reports genuinely new Done pagination, Done resyncs.
+  // Once DELETE settles and a later refresh reports new Done pagination, Done resyncs.
+  settleTaskArchive(archived.id);
   rerender(boardView([TASK], undefined, "cursor-2", 2));
   expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
   expect(
     screen.getByTestId("board-density").getAttribute("data-done-hidden"),
   ).toBe("2");
+});
+
+it("restores Load more after DELETE settles when a new task fills the same page-2 spot", async () => {
+  const pageOneDone: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-done-page-one-a",
+  };
+  const archived: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-done-archived-a",
+  };
+  vi.mocked(loadMoreTasksColumn).mockResolvedValueOnce({
+    tasks: [archived],
+    nextCursor: null,
+  });
+
+  const { rerender } = render(
+    boardView([TASK, pageOneDone], undefined, "cursor-1", 1),
+  );
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(
+    await screen.findByTestId(`board-card-${archived.id}`),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+
+  // Pre-DELETE refresh keeps Done exhausted while DELETE is still in flight.
+  markTaskArchived(archived.id);
+  rerender(boardView([TASK, pageOneDone], undefined, "cursor-1", 1));
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("0");
+
+  // After DELETE settles, a new low-priority task fills the same page-2 spot
+  // so first-page ids, cursor, and hidden count match the earlier values.
+  settleTaskArchive(archived.id);
+  rerender(boardView([TASK, pageOneDone], undefined, "cursor-1", 1));
+
+  expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("1");
+});
+
+it("resyncs Load more on a tagged board when the first post-DELETE refresh pushes a page-1 task to page 2", async () => {
+  const pageOneDone: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-tagged-page-one-pushed-off",
+  };
+  const newerTaggedDone: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-tagged-newer-page-one",
+  };
+  const archived: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-tagged-loaded-archived-b",
+  };
+  vi.mocked(loadMoreTasksColumn).mockResolvedValueOnce({
+    tasks: [archived],
+    nextCursor: null,
+  });
+
+  const taggedBoard = (
+    tasks: TaskWithCoworker[],
+    doneCursor: string | null,
+    doneHidden: number,
+  ) => {
+    searchParamsRef.current = new URLSearchParams({ tag: "research" });
+    return cloneElement(boardView(tasks, undefined, doneCursor, doneHidden), {
+      initialFilters: { ...EMPTY_FILTERS, tag: "research" },
+    });
+  };
+
+  try {
+    const { rerender } = render(
+      taggedBoard([TASK, pageOneDone], "cursor-1", 1),
+    );
+    act(() => screen.getByRole("button", { name: "Load more" }).click());
+    expect(
+      await screen.findByTestId(`board-card-${archived.id}`),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+
+    // Archive starts and settles before the first refresh arrives; meanwhile
+    // a newer tagged task lands on page 1 and pushes old #20 to page 2.
+    markTaskArchived(archived.id);
+    settleTaskArchive(archived.id);
+    rerender(taggedBoard([TASK, newerTaggedDone], "cursor-2", 1));
+
+    expect(
+      screen.queryByTestId(`board-card-${archived.id}`),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId(`board-card-${pageOneDone.id}`),
+    ).not.toBeInTheDocument();
+    expect(boardCard(newerTaggedDone.id)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+    expect(
+      screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+    ).toBe("1");
+  } finally {
+    searchParamsRef.current = new URLSearchParams();
+  }
 });

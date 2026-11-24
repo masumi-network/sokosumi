@@ -30,7 +30,10 @@ import {
   type KanbanColumnId,
   type TaskWithCoworker,
 } from "@/app/tasks/types/task-board";
-import { isTaskArchived } from "@/app/tasks/utils/archived-task-ids";
+import {
+  isTaskArchived,
+  isTaskArchivePending,
+} from "@/app/tasks/utils/archived-task-ids";
 import { mergeTasksOnServerRefresh } from "@/app/tasks/utils/merge-tasks-on-server-refresh";
 import { buildPendingTask } from "@/app/tasks/utils/pending-created-task";
 import {
@@ -80,29 +83,18 @@ interface PendingBoardReopen {
   moveVersion: number;
 }
 
-interface PreservedArchiveColumn {
-  readonly archivedTaskIds: readonly string[];
-  readonly serverCursor: string | null;
-  readonly serverHidden: number;
-  readonly serverTaskIds: readonly string[];
-}
-
 interface TasksBoardDataState {
   items: TaskWithCoworker[];
   columnCursorById: Record<KanbanColumnId, string | null>;
   columnHiddenById: Record<KanbanColumnId, number>;
   loadedBoardColumnByTaskId: ReadonlyMap<string, KanbanColumnId>;
-  preservedArchiveByColumn: ReadonlyMap<KanbanColumnId, PreservedArchiveColumn>;
+  pendingArchiveIdsByColumn: ReadonlyMap<KanbanColumnId, readonly string[]>;
 }
 
-function sameStringList(a: readonly string[], b: readonly string[]): boolean {
-  return a.length === b.length && a.every((value, index) => value === b[index]);
-}
-
-function withoutPreservedColumn(
-  prev: ReadonlyMap<KanbanColumnId, PreservedArchiveColumn>,
+function withoutPendingArchiveColumn(
+  prev: ReadonlyMap<KanbanColumnId, readonly string[]>,
   columnId: KanbanColumnId,
-): ReadonlyMap<KanbanColumnId, PreservedArchiveColumn> {
+): ReadonlyMap<KanbanColumnId, readonly string[]> {
   if (!prev.has(columnId)) {
     return prev;
   }
@@ -298,7 +290,7 @@ export function useTasksBoardModel({
     ),
     columnHiddenById: initialColumnHiddenCountById,
     loadedBoardColumnByTaskId: new Map(),
-    preservedArchiveByColumn: new Map(),
+    pendingArchiveIdsByColumn: new Map(),
   }));
   const { items, columnCursorById, columnHiddenById } = boardData;
   const [listCursor, setListCursor] = useState<string | null>(
@@ -372,7 +364,7 @@ export function useTasksBoardModel({
       ),
       columnHiddenById: initialColumnHiddenCountById,
       loadedBoardColumnByTaskId: new Map(),
-      preservedArchiveByColumn: new Map(),
+      pendingArchiveIdsByColumn: new Map(),
     });
     setListCursor(initialListNextCursor);
     listCursorRef.current = initialListNextCursor;
@@ -428,109 +420,82 @@ export function useTasksBoardModel({
           columnCursorById: nextColumnCursorById,
           columnHiddenById: initialColumnHiddenCountById,
           loadedBoardColumnByTaskId: new Map(),
-          preservedArchiveByColumn: new Map(),
+          pendingArchiveIdsByColumn: new Map(),
         };
       }
 
-      const localOnlyColumns = new Set<KanbanColumnId>();
+      const localOnlyCountByColumn = new Map<KanbanColumnId, number>();
       for (const task of next) {
         if (serverTaskIds.has(task.id)) continue;
-        localOnlyColumns.add(
-          prev.loadedBoardColumnByTaskId.get(task.id) ?? task.columnId,
+        const columnId =
+          prev.loadedBoardColumnByTaskId.get(task.id) ?? task.columnId;
+        localOnlyCountByColumn.set(
+          columnId,
+          (localOnlyCountByColumn.get(columnId) ?? 0) + 1,
         );
       }
 
       // On filtered boards where keepLocalOnlyTasks is false, archive membership
-      // cannot tell whether a missing non-archived loaded row still matches the
-      // filter or lost its tag, so dropping it requires resyncing that column's
-      // cursor instead of stranding the row.
-      const droppedNonArchivedLoadedColumns = new Set<KanbanColumnId>();
+      // cannot tell whether a missing non-archived row still matches the filter
+      // or lost its tag, so dropping it requires resyncing that column's cursor
+      // instead of stranding the row behind a hidden Load more button.
+      const droppedNonArchivedColumns = new Set<KanbanColumnId>();
       if (!keepLocalOnlyTasks) {
         for (const task of prev.items) {
           if (isTaskArchived(task.id) || serverTaskIds.has(task.id)) continue;
-          const loadedColumn = prev.loadedBoardColumnByTaskId.get(task.id);
-          if (loadedColumn) {
-            droppedNonArchivedLoadedColumns.add(loadedColumn);
-          }
+          droppedNonArchivedColumns.add(
+            prev.loadedBoardColumnByTaskId.get(task.id) ?? task.columnId,
+          );
         }
       }
 
-      const serverTaskIdsByColumn = new Map<KanbanColumnId, string[]>();
-      for (const task of serverTasks) {
-        const list = serverTaskIdsByColumn.get(task.columnId);
-        if (list) {
-          list.push(task.id);
-        } else {
-          serverTaskIdsByColumn.set(task.columnId, [task.id]);
-        }
-      }
-
-      // Carry over a column's archive preservation while follow-up refreshes
-      // (StrictMode Activity reveal, or racing RSC fetches before background
-      // archive finishes on Core) still report the exact same stale server
-      // state for that column and the archive is still active.
-      const nextPreservedArchiveByColumn = new Map<
+      // Pin a column's cursor only while a loaded row's background DELETE is
+      // still pending; once DELETE settles (or fails), stop pinning so the
+      // fresh server read can supply the current cursor.
+      const nextPendingArchiveIdsByColumn = new Map<
         KanbanColumnId,
-        PreservedArchiveColumn
+        readonly string[]
       >();
-      for (const [columnId, entry] of prev.preservedArchiveByColumn) {
-        if (droppedNonArchivedLoadedColumns.has(columnId)) continue;
-        const stillArchivedIds = entry.archivedTaskIds.filter((id) =>
-          isTaskArchived(id),
-        );
-        if (stillArchivedIds.length === 0) continue;
-        const columnServerCursor = nextColumnCursorById[columnId] ?? null;
-        const columnServerHidden = initialColumnHiddenCountById[columnId] ?? 0;
-        const columnServerTaskIds = serverTaskIdsByColumn.get(columnId) ?? [];
-        if (
-          entry.serverCursor === columnServerCursor &&
-          entry.serverHidden === columnServerHidden &&
-          sameStringList(entry.serverTaskIds, columnServerTaskIds)
-        ) {
-          nextPreservedArchiveByColumn.set(columnId, {
-            ...entry,
-            archivedTaskIds: stillArchivedIds,
-          });
+      for (const [columnId, ids] of prev.pendingArchiveIdsByColumn) {
+        if (droppedNonArchivedColumns.has(columnId)) continue;
+        const stillPendingIds = ids.filter((id) => isTaskArchivePending(id));
+        if (stillPendingIds.length > 0) {
+          nextPendingArchiveIdsByColumn.set(columnId, stillPendingIds);
         }
       }
 
       for (const task of prev.items) {
-        if (!isTaskArchived(task.id)) continue;
+        if (!isTaskArchivePending(task.id)) continue;
         const loadedColumn = prev.loadedBoardColumnByTaskId.get(task.id);
-        if (
-          !loadedColumn ||
-          droppedNonArchivedLoadedColumns.has(loadedColumn)
-        ) {
+        if (!loadedColumn || droppedNonArchivedColumns.has(loadedColumn)) {
           continue;
         }
-        const existing = nextPreservedArchiveByColumn.get(loadedColumn);
-        if (existing) {
-          if (!existing.archivedTaskIds.includes(task.id)) {
-            nextPreservedArchiveByColumn.set(loadedColumn, {
-              ...existing,
-              archivedTaskIds: [...existing.archivedTaskIds, task.id],
-            });
-          }
-        } else {
-          nextPreservedArchiveByColumn.set(loadedColumn, {
-            archivedTaskIds: [task.id],
-            serverCursor: nextColumnCursorById[loadedColumn] ?? null,
-            serverHidden: initialColumnHiddenCountById[loadedColumn] ?? 0,
-            serverTaskIds: serverTaskIdsByColumn.get(loadedColumn) ?? [],
-          });
+        const existing = nextPendingArchiveIdsByColumn.get(loadedColumn);
+        if (!existing) {
+          nextPendingArchiveIdsByColumn.set(loadedColumn, [task.id]);
+        } else if (!existing.includes(task.id)) {
+          nextPendingArchiveIdsByColumn.set(loadedColumn, [
+            ...existing,
+            task.id,
+          ]);
         }
       }
 
-      const preservedColumns = new Set<KanbanColumnId>([
-        ...localOnlyColumns,
-        ...nextPreservedArchiveByColumn.keys(),
-      ]);
       const nextColumnHiddenById = { ...initialColumnHiddenCountById };
-      for (const columnId of preservedColumns) {
-        if (columnId in nextColumnCursorById) {
+      for (const column of columns) {
+        const columnId = column.id;
+        const retainedCount = localOnlyCountByColumn.get(columnId) ?? 0;
+        const reportedOverflow = initialColumnHiddenCountById[columnId] ?? 0;
+        const preserveForPendingArchive =
+          nextPendingArchiveIdsByColumn.has(columnId);
+        const preserveForRetainedRows =
+          retainedCount > 0 &&
+          (prev.columnCursorById[columnId] !== null ||
+            retainedCount >= reportedOverflow);
+        if (preserveForPendingArchive || preserveForRetainedRows) {
           nextColumnCursorById[columnId] = prev.columnCursorById[columnId];
+          nextColumnHiddenById[columnId] = prev.columnHiddenById[columnId];
         }
-        nextColumnHiddenById[columnId] = prev.columnHiddenById[columnId];
       }
 
       const remainingLoadedBoardColumnByTaskId = new Map<
@@ -550,7 +515,7 @@ export function useTasksBoardModel({
         columnCursorById: nextColumnCursorById,
         columnHiddenById: nextColumnHiddenById,
         loadedBoardColumnByTaskId: remainingLoadedBoardColumnByTaskId,
-        preservedArchiveByColumn: nextPreservedArchiveByColumn,
+        pendingArchiveIdsByColumn: nextPendingArchiveIdsByColumn,
       };
     });
 
@@ -857,8 +822,8 @@ export function useTasksBoardModel({
               [columnId]: nextCursor,
             },
             loadedBoardColumnByTaskId: nextLoadedBoardColumnByTaskId,
-            preservedArchiveByColumn: withoutPreservedColumn(
-              prev.preservedArchiveByColumn,
+            pendingArchiveIdsByColumn: withoutPendingArchiveColumn(
+              prev.pendingArchiveIdsByColumn,
               columnId,
             ),
           };
@@ -875,8 +840,8 @@ export function useTasksBoardModel({
             ...prev.columnCursorById,
             [columnId]: null,
           },
-          preservedArchiveByColumn: withoutPreservedColumn(
-            prev.preservedArchiveByColumn,
+          pendingArchiveIdsByColumn: withoutPendingArchiveColumn(
+            prev.pendingArchiveIdsByColumn,
             columnId,
           ),
         }));
