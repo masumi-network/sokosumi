@@ -477,4 +477,136 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   "GET /organizations/{id}/members/me/seat": {
     argv: [...API, "workspaces", "check", "org-1", "--json"],
   },
+  // SOKD-378: ads, image-studio, social and calendar reads.
+  "GET /image-studio/catalog": { argv: [...API, "image-studio", "catalog"] },
+  "GET /image-studio/state": { argv: [...API, "image-studio", "state"] },
+  "GET /image-studio/recent-projects": {
+    argv: [...API, "image-studio", "recent-projects"],
+  },
+  "GET /projects/{id}/ads/accounts": {
+    argv: [...API, "projects", "ads-accounts", "p-1"],
+  },
+  "GET /projects/{id}/ads/accounts/{accountId}/campaigns": {
+    argv: [...API, "projects", "ads-campaigns", "p-1", "acc-1"],
+  },
+  "GET /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}": {
+    argv: [...API, "projects", "ads-campaign", "p-1", "acc-1", "42"],
+  },
+  "GET /projects/{id}/ads/accounts/{accountId}/targeting/locations": {
+    argv: [
+      ...API,
+      "projects",
+      "ads-locations",
+      "p-1",
+      "acc-1",
+      "--query",
+      "q=Berlin",
+    ],
+  },
+  "GET /projects/{id}/ads/accounts/{accountId}/targeting/languages": {
+    argv: [...API, "projects", "ads-languages", "p-1", "acc-1"],
+  },
+  "GET /projects/{id}/ads/market": {
+    argv: [...API, "projects", "ads-market", "p-1"],
+  },
+  "GET /projects/{id}/image-studio": {
+    argv: [...API, "projects", "image-studio", "p-1"],
+  },
+  "GET /projects/{id}/image-studio/batches/{batchId}/assets": {
+    argv: [...API, "projects", "image-studio-batch", "p-1", "b-1"],
+  },
+  "GET /projects/{id}/image-studio/batches/{batchId}/compare": {
+    argv: [...API, "projects", "image-studio-compare", "p-1", "b-1"],
+  },
+  "GET /projects/{id}/image-studio/model-scoreboard": {
+    argv: [...API, "projects", "image-studio-scoreboard", "p-1"],
+  },
+  "GET /projects/{id}/image-studio/brand-kit": {
+    argv: [...API, "projects", "image-studio-brand-kit", "p-1"],
+  },
+  "GET /projects/{id}/image-studio/brand-kit/website-copy": {
+    argv: [...API, "projects", "image-studio-website-copy", "p-1"],
+  },
+  "GET /projects/{id}/image-studio/website-draft": {
+    argv: [...API, "projects", "image-studio-website-draft", "p-1"],
+  },
+  "GET /projects/{id}/image-studio/products": {
+    argv: [...API, "projects", "image-studio-products", "p-1"],
+  },
+  "GET /projects/{id}/image-studio/talking-videos": {
+    argv: [...API, "projects", "image-studio-talking-videos", "p-1"],
+  },
+  "GET /projects/{id}/social-connections": {
+    argv: [...API, "projects", "social-connections", "p-1"],
+  },
+  "GET /projects/{id}/social-connections/{connectionId}/subscription": {
+    argv: [...API, "projects", "social-connection-subscription", "p-1", "c-1"],
+  },
+  "GET /projects/{id}/social-connections/{connectionId}/tiktok-creator": {
+    argv: [
+      ...API,
+      "projects",
+      "social-connection-tiktok-creator",
+      "p-1",
+      "c-1",
+    ],
+  },
+  "GET /projects/{id}/social-connections/{connectionId}/suggested-times": {
+    argv: [
+      ...API,
+      "projects",
+      "social-connection-suggested-times",
+      "p-1",
+      "c-1",
+      "--query",
+      "timezone=Europe/Berlin",
+    ],
+  },
+  "GET /projects/{id}/social-connections/statistics": {
+    argv: [...API, "projects", "social-statistics", "p-1"],
+  },
+  "GET /projects/{id}/social-posts": {
+    argv: [...API, "projects", "social-posts", "p-1"],
+  },
+  "GET /projects/{id}/social-posts/{postId}": {
+    argv: [...API, "projects", "social-post", "p-1", "sp-1"],
+  },
+  "GET /projects/{id}/social-posts/statistics": {
+    argv: [...API, "projects", "social-posts-statistics", "p-1"],
+  },
+  "GET /projects/{id}/social-queue-slots": {
+    argv: [...API, "projects", "social-queue-slots", "p-1"],
+  },
+  "GET /projects/{id}/calendar": {
+    argv: [
+      ...API,
+      "projects",
+      "calendar",
+      "p-1",
+      "--query",
+      "from=2026-11-01T00:00:00.000Z",
+      "--query",
+      "to=2026-12-01T00:00:00.000Z",
+    ],
+  },
+  "GET /workspaces/calendar": {
+    argv: [
+      ...API,
+      "workspaces",
+      "calendar",
+      "--query",
+      "from=2026-11-01T00:00:00.000Z",
+      "--query",
+      "to=2026-12-01T00:00:00.000Z",
+    ],
+  },
+  "GET /workspaces/calendar/sources": {
+    argv: [...API, "workspaces", "calendar-sources"],
+  },
+  "GET /workspaces/social-posts": {
+    argv: [...API, "workspaces", "social-posts"],
+  },
+  "GET /workspaces/{id}/social-connections/statistics": {
+    argv: [...API, "workspaces", "social-statistics", "ws-1"],
+  },
 };

@@ -5,7 +5,7 @@ import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   adRangeQuerySchema,
@@ -21,7 +21,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/{id}/ads/accounts/{accountId}/campaigns",
     description:
-      "List the campaigns of an ad account attached to a Project, with spend, impressions, clicks, CTR, CPC and conversions over the range. Money is a decimal in the account currency. Lists at most 1000 Google campaigns and 1000 Meta campaigns. Requires an interactive user session in the Project's Workspace.",
+      "List the campaigns of an ad account attached to a Project, with spend, impressions, clicks, CTR, CPC and conversions over the range. Money is a decimal in the account currency. Lists at most 1000 Google campaigns and 1000 Meta campaigns. Open to a person by any sign-in (browser, API key or OAuth token) in the Project's Workspace.",
     tags: ["Projects"],
     request: {
       params: projectAdAccountParamsSchema,
@@ -46,7 +46,7 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    requireInteractiveUserAuthContext(c.var.authContext);
+    requireUserAuthContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, accountId } = c.req.valid("param");
     const { range } = c.req.valid("query");

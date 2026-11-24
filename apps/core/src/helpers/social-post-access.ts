@@ -7,6 +7,7 @@ import {
   type AuthenticationContext,
   type CoworkerAuthenticationContext,
   requireInteractiveUserAuthContext,
+  requireUserAuthContext,
 } from "@/middleware/auth";
 
 import {
@@ -28,6 +29,24 @@ export async function requireSocialPostActor(
   const userContext = await requireAuthorizedUserContext(authContext, tx);
   await requireCoworkerCapability(authContext.coworkerId, "tasks", tx);
   return { userId: userContext.userId, coworkerId: authContext.coworkerId };
+}
+
+/**
+ * Reading Social posts, connections and statistics: a person by any sign-in
+ * (browser, API key, OAuth or MCP token), or a delegated Coworker as for
+ * {@link requireSocialPostActor}. Writes keep that guard (ADR 0077).
+ */
+export async function requireSocialPostReader(
+  authContext: AuthenticationContext,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<{
+  userId: string;
+  coworkerId?: string;
+}> {
+  if (authContext.actor !== "coworker") {
+    return requireUserAuthContext(authContext);
+  }
+  return requireSocialPostActor(authContext, tx);
 }
 
 /** A delayed publish must not outlive its delegation, capability, or contextual user's membership. */

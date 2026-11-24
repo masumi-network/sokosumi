@@ -13,7 +13,7 @@ import {
   getVideoCatalog,
   studioVideoModelId,
 } from "@/lib/image-studio/video-catalog";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { imageStudioCatalogSchema } from "@/schemas/project-image-studio.schema";
 
 /**
@@ -45,11 +45,11 @@ const route = createRoute({
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    // Any interactive session may read it. There is nothing here about a project
+    // Any person may read it. There is nothing here about a project
     // or an account — it is the provider's own published capability and price
     // list — but it is not public either, and an unauthenticated crawler should
     // not be able to make this instance talk to fal.
-    requireInteractiveUserAuthContext(c.var.authContext);
+    requireUserAuthContext(c.var.authContext);
 
     // Cheap and non-blocking: adopts a catalog a sibling instance already
     // refreshed, and otherwise starts a refresh without waiting for it. The

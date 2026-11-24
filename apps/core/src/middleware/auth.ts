@@ -212,7 +212,7 @@ export function isAgentAuthContext(
  * | {@link requireUserContext} | Session or **coworker+context (unbound)** | Task/job grant-gated flows only (e.g. first-contact delegated create → `GRANT_PENDING`). Does **not** check vendor grants. |
  * | `requireAuthorizedUserContext` (`@/helpers/coworker-user-context-binding`) | Session or coworker+context **after** grant/baseline binding | Default for **user-scoped** reads/writes (profile, credits, projects, org metadata, …). DENIED/REVOKED grants win over assignment. |
  * | {@link requireOwnerUserContext} | Session only | Human/owner surfaces: notifications, history, billing, member lists, … **No coworker.** |
- * | {@link requireUserAuthContext} | Interactive session only | Must be the real session user (admin role check, consent, …). Rejects coworker. |
+ * | {@link requireUserAuthContext} | A person by any sign-in: session, API key, OAuth or MCP token | Must be the person, not an agent acting for them (admin role check, a person's own data). Rejects coworker and Soko Bot. For a browser session only, use {@link requireInteractiveUserAuthContext}. |
  * | {@link resolveUserContext} | Session, personal Soko Bot, or coworker+context → effective user; standalone coworker → `null` | Routes where Task collaboration already decides access, but user-scoped gates (organization seat) must follow the effective user. |
  *
  * Middleware (`coworkerContextMiddleware`) only **attaches** validated
@@ -297,10 +297,11 @@ export function resolveUserContext(
 }
 
 /**
- * Requires an interactive user session (Better Auth). Rejects coworker keys,
- * including contextual ones — use for PII, session-bound
- * operations, and any handler that must read the real session user (e.g.
- * before an admin-role check).
+ * Requires a person: a Better Auth session, a personal API key, or an OAuth
+ * or MCP token. Rejects coworker keys (contextual ones too) and Soko Bots —
+ * use for PII and any handler that must read the real user (e.g. before an
+ * admin-role check). It does not require a browser: for that, use
+ * {@link requireInteractiveUserAuthContext}.
  *
  * For the effective user (session or contextual coworker), use
  * {@link requireUserContext}, `requireAuthorizedUserContext`, or
