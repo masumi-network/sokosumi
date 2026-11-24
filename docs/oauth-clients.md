@@ -40,7 +40,7 @@ A new client is **identity-only**. Core API access needs `sokosumi:api` in all t
 
 ## MCP server
 
-Sokosumi's MCP server is a protected resource of the same issuer, at `{Core origin}/mcp`, for example `https://api.sokosumi.com/mcp` ([ADR 0076](./adr/0076-mcp-tokens-are-audience-bound-jwts-for-a-core-hosted-resource.md)). Not open yet: the `/mcp` endpoint itself is still being built. Client registration is open.
+Sokosumi's MCP server is a protected resource of the same issuer, at `{Core origin}/mcp`, for example `https://api.sokosumi.com/mcp` ([ADR 0076](./adr/0076-mcp-tokens-are-audience-bound-jwts-for-a-core-hosted-resource.md)). To connect Claude Code or Claude.ai, see [MCP server](./mcp.md).
 
 - Discover it from `GET https://api.sokosumi.com/.well-known/oauth-protected-resource/mcp` (RFC 9728): `resource`, `authorization_servers` and `scopes_supported`.
 - Register without signing in: `POST {issuer}/oauth2/register` (RFC 7591), the `registration_endpoint` in the issuer's metadata. Core makes a public client with no secret, whatever `token_endpoint_auth_method` you send, and links it to the MCP resource. It may ask for `openid`, `sokosumi:mcp` and `offline_access` only; a registration that asks for `sokosumi:api` gets `400 invalid_scope`, and one with `jwks`, `jwks_uri`, a back-channel logout URI or a `client_uri`, `logo_uri`, `tos_uri` or `policy_uri` that is not https gets `400 invalid_client_metadata`. A loopback or custom-scheme redirect URI registers a native client. Each IP may register 60 clients a minute.
