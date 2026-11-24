@@ -94,8 +94,9 @@ const baseEnvSchema = z.object({
   DATABASE_SCHEMA_SHARED: databaseSchemaNameSchema,
   DATABASE_SCHEMA_MAINNET: databaseSchemaNameSchema,
   DATABASE_SCHEMA_PREPROD: databaseSchemaNameSchema,
-  // Preprod, the second Network. Off by default; on only while the three
-  // schema names differ (`checkNetworkLayout`). It stays a switch after the move.
+  // Preprod, the second Network in this database. Off by default; on only
+  // while the three schema names differ (`checkNetworkLayout`). It stays a
+  // switch after the move. Not the deployment's `NETWORK` above.
   NETWORK_PREPROD_ENABLED: z
     .enum(["true", "false"])
     .default("false")
@@ -618,13 +619,12 @@ export function isProductionEnvironment(
   return value.NODE_ENV === "production";
 }
 
-type NetworkLayout = Pick<
-  z.infer<typeof baseEnvSchema>,
-  | "DATABASE_SCHEMA_SHARED"
-  | "DATABASE_SCHEMA_MAINNET"
-  | "DATABASE_SCHEMA_PREPROD"
-  | "NETWORK_PREPROD_ENABLED"
->;
+const networkLayoutFields = baseEnvSchema.pick({
+  DATABASE_SCHEMA_SHARED: true,
+  DATABASE_SCHEMA_MAINNET: true,
+  DATABASE_SCHEMA_PREPROD: true,
+  NETWORK_PREPROD_ENABLED: true,
+});
 
 /**
  * The schema names are all `public` (today's layout) or all different (the
@@ -632,7 +632,10 @@ type NetworkLayout = Pick<
  * on only on the split layout: with equal names a Preprod write lands in a
  * Mainnet table.
  */
-function checkNetworkLayout(value: NetworkLayout, context: z.RefinementCtx) {
+function checkNetworkLayout(
+  value: z.infer<typeof networkLayoutFields>,
+  context: z.RefinementCtx,
+) {
   const names = [
     value.DATABASE_SCHEMA_SHARED,
     value.DATABASE_SCHEMA_MAINNET,
@@ -660,14 +663,8 @@ function checkNetworkLayout(value: NetworkLayout, context: z.RefinementCtx) {
 }
 
 /** The layout check alone, for the deploy step that runs before migrations. */
-export const networkLayoutSchema = baseEnvSchema
-  .pick({
-    DATABASE_SCHEMA_SHARED: true,
-    DATABASE_SCHEMA_MAINNET: true,
-    DATABASE_SCHEMA_PREPROD: true,
-    NETWORK_PREPROD_ENABLED: true,
-  })
-  .superRefine(checkNetworkLayout);
+export const networkLayoutSchema =
+  networkLayoutFields.superRefine(checkNetworkLayout);
 
 const envSchema = baseEnvSchema.superRefine((value, context) => {
   checkNetworkLayout(value, context);
