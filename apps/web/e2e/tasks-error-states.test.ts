@@ -84,7 +84,10 @@ for (const { name: size, ...viewport } of PROJECTS) {
 
       await page.getByRole("button", { name: "Archive" }).click();
       await page.waitForURL(/\/tasks(\?|$)/);
-      await page.goto(`${BASE_URL}/tasks/archived/${taskId}`);
+      // Archive leaves at once and archives in the background: wait for the
+      // row, or the archived link still finds a live Task and opens it.
+      await page.goto(`${BASE_URL}/tasks/archived`);
+      await page.getByRole("link", { name: title }).click();
       await page.getByRole("button", { name: "Restore" }).click();
       await page.waitForURL(taskUrl);
 
