@@ -9,7 +9,20 @@ import {
 import type * as Ably from "ably";
 import { useAbly } from "ably/react";
 import { useEffect, useMemo, useRef } from "react";
+import { authorizeAbly } from "@/lib/ably/authorize.client";
+import {
+  CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
+  type ChatMembershipRevokedEvent,
+  chatMembershipRevokedEventSchema,
+} from "@/lib/ably/chat-membership-revoked-event";
+import { registerAblyChatRoomScope } from "@/lib/ably/chat-room-auth-scope.client";
+import { chatRoomIdsFromAblyCapability } from "@/lib/ably/chat-room-ids-from-ably-capability";
+import { personalizeChatRoomMessageEvent } from "@/lib/ably/personalize-chat-room-message-event";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
+import {
+  safeDetachChannel,
+  safeSubscribeChannel,
+} from "@/lib/ably/safe-detach-channel";
 import {
   type ChatRoomMessageEventData,
   type ChatRoomPinnedMessageEventData,
@@ -18,17 +31,6 @@ import {
   chatRoomPinnedMessageEventDataSchema,
   chatRoomReadEventDataSchema,
 } from "@/lib/ably/schema";
-import { authorizeAbly } from "./authorize.client";
-
-import {
-  CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
-  type ChatMembershipRevokedEvent,
-  chatMembershipRevokedEventSchema,
-} from "./chat-membership-revoked-event";
-import { registerAblyChatRoomScope } from "./chat-room-auth-scope.client";
-import { chatRoomIdsFromAblyCapability } from "./chat-room-ids-from-ably-capability";
-import { personalizeChatRoomMessageEvent } from "./personalize-chat-room-message-event";
-import { safeDetachChannel, safeSubscribeChannel } from "./safe-detach-channel";
 
 const CHAT_ROOM_MESSAGE_EVENT_NAME = "chat_room_message";
 const CHAT_ROOM_AUTH_RETRY_MS = 15_000;
