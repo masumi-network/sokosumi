@@ -2083,7 +2083,7 @@
         "commentPlaceholder": "Write a comment...",
         "fileLabel": "File",
         "uploadFileErrorRetry": "Failed to upload file, please try again!",
-        "commentSendError": "Your comment was not posted. Check your connection and try again.",
+        "commentSendError": "Failed to post comment. Try again.",
         "uploadingFile": "Uploading {fileName}",
         "uploadingFiles": "Uploading {count} files",
         "submit": "Submit",

@@ -2082,7 +2082,7 @@
         "commentPlaceholder": "Escribe un comentario...",
         "fileLabel": "Archivo",
         "uploadFileErrorRetry": "No se pudo subir el archivo. ¡Por favor, inténtalo de nuevo!",
-        "commentSendError": "Tu comentario no se publicó. Revisa tu conexión e inténtalo de nuevo.",
+        "commentSendError": "No se pudo publicar el comentario. Inténtalo de nuevo.",
         "uploadingFile": "Uploading {fileName}",
         "uploadingFiles": "Uploading {count} files",
         "submit": "Enviar",

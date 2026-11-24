@@ -79,7 +79,7 @@ for (const { name: size, ...viewport } of PROJECTS) {
       await page.getByRole("textbox", { name: "Write a comment..." }).click();
       await page.keyboard.type("Use the bakery case.");
       await page.getByRole("button", { name: "Submit" }).click();
-      await page.getByText("Your comment was not posted").waitFor();
+      await page.getByText("Failed to post comment").waitFor();
       await context.setOffline(false);
 
       await page.getByRole("button", { name: "Archive" }).click();

@@ -2082,7 +2082,7 @@
         "commentPlaceholder": "Kommentar schreiben...",
         "fileLabel": "Datei",
         "uploadFileErrorRetry": "Datei konnte nicht hochgeladen werden. Bitte versuche es erneut!",
-        "commentSendError": "Dein Kommentar wurde nicht gesendet. Prüfe deine Verbindung und versuche es erneut.",
+        "commentSendError": "Kommentar senden fehlgeschlagen. Bitte erneut versuchen.",
         "uploadingFile": "Uploading {fileName}",
         "uploadingFiles": "Uploading {count} files",
         "submit": "Absenden",

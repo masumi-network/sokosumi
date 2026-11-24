@@ -71,7 +71,7 @@ vi.mock("next-intl", () => ({
       actionChargedCredits: "charged {credits} credits",
       actionTriedChargedCredits: "tried to charge {credits} credits",
       uploadFileErrorRetry: "Failed to upload file, please try again!",
-      commentSendError: "Your comment was not posted. Try again.",
+      commentSendError: "Failed to post comment. Try again.",
       fileLabel: "File",
       "channelApp.sokosumi": "Sokosumi",
       "channelApp.slack": "Slack",
@@ -1909,7 +1909,7 @@ describe("TaskActivitySection", () => {
       container.querySelector('[data-message-id^="optimistic:"]'),
     ).toBeNull();
     expect(toastErrorMock).toHaveBeenCalledWith(
-      "Your comment was not posted. Try again.",
+      "Failed to post comment. Try again.",
     );
   });
 
