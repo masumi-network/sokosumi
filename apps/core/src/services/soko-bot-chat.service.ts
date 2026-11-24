@@ -3,6 +3,7 @@ import {
   CMO_SOKO_BOT_VERSION_IDS,
   composeSokoBotIntroduction,
   isSokoBotSilentAnswer,
+  SOKO_BOT_INTRODUCTION_METADATA,
 } from "@sokosumi/soko-bot";
 import { readSokoBotAttemptAt } from "@sokosumi/utils";
 import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
@@ -344,6 +345,8 @@ export async function introduceSokoBot(input: {
         roomId: room.id,
         senderSokoBotId: bot.id,
         content: composeSokoBotIntroduction(sokoBotPersonaOf(bot)),
+        // Readers such as Home find the introduction by this, not its text.
+        metadata: SOKO_BOT_INTRODUCTION_METADATA,
       },
       select: { id: true },
     });
