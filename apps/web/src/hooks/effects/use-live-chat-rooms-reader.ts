@@ -51,7 +51,7 @@ export function useLiveChatRoomsReader({
     const nextHealthy = latestHealthyRef.current;
     const subscription = acquireLiveChatRoomsReader(scope, {
       healthy: nextHealthy,
-      healthHistory: healthHistoryRef.current,
+      getHealthHistory: () => healthHistoryRef.current,
       onAnswer: (answer) => handleAnswer(answer),
     });
     healthHistoryRef.current = {

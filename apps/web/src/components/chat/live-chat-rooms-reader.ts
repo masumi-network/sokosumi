@@ -34,8 +34,8 @@ export interface LiveChatRoomsHealthHistory {
 
 export interface AcquireLiveChatRoomsReaderOptions {
   healthy: boolean;
-  /** Surface health history from before this attach, used to prime a new scheduler. */
-  healthHistory?: LiveChatRoomsHealthHistory;
+  /** Live getter for this surface's hook-lifetime health history (D5). */
+  getHealthHistory?: () => LiveChatRoomsHealthHistory;
   onAnswer: (answer: LiveChatRoomsAnswer) => void;
 }
 
@@ -49,11 +49,13 @@ export interface LiveChatRoomsReaderSubscription {
 
 interface LiveChatRoomsSurface {
   onAnswer: (answer: LiveChatRoomsAnswer) => void;
+  getHealthHistory: () => LiveChatRoomsHealthHistory;
 }
 
 interface LiveChatRoomsScopeEntry {
   surfaces: Set<LiveChatRoomsSurface>;
   scheduler: ChatRefreshScheduler;
+  isHealthy: () => boolean;
   getLastAnswer: () => LiveChatRoomsCachedAnswer | null;
   request: (surface: LiveChatRoomsSurface) => void;
   setHealth: (healthy: boolean) => void;
@@ -61,15 +63,28 @@ interface LiveChatRoomsScopeEntry {
 
 const entriesByScope = new Map<string, LiveChatRoomsScopeEntry>();
 
+function surfaceNeedsRecovery(surface: LiveChatRoomsSurface): boolean {
+  const history = surface.getHealthHistory();
+  return history.hadHealthy && !history.wasHealthy;
+}
+
+function anySurfaceNeedsRecovery(
+  surfaces: ReadonlySet<LiveChatRoomsSurface>,
+): boolean {
+  for (const surface of surfaces) {
+    if (surfaceNeedsRecovery(surface)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function createScopeEntry(
   scope: string,
   initialHealthy: boolean,
-  healthHistory?: LiveChatRoomsHealthHistory,
 ): LiveChatRoomsScopeEntry {
   const surfaces = new Set<LiveChatRoomsSurface>();
-  let currentHealthy = healthHistory
-    ? healthHistory.wasHealthy
-    : initialHealthy;
+  let currentHealthy = initialHealthy;
   let lastAnswer: LiveChatRoomsCachedAnswer | null = null;
   // Every attached surface listens to the same window invalidation event and
   // forwards it in the same synchronous turn; coalesce distinct surfaces per
@@ -92,24 +107,19 @@ function createScopeEntry(
         }
       }
     },
-    healthy: currentHealthy,
+    healthy: initialHealthy,
     getHealthy: () => currentHealthy,
     fallbackIntervalMs: LIVE_CHAT_ROOMS_FALLBACK_MS,
     refreshOnMount: true,
-    refreshOnRecovery: true,
+    // D5: recovery eligibility is decided from the attached surfaces'
+    // hook-lifetime histories, not the scheduler's own retained history.
+    refreshOnRecovery: false,
   });
-
-  if (healthHistory?.hadHealthy && !healthHistory.wasHealthy) {
-    // Scheduler is still stopped: restore hadHealthy=true, wasHealthy=false
-    // without starting a read so applying health after start() reproduces
-    // main's recovery read across stop/start (Activity reveal, scope switch).
-    scheduler.setHealth(true, false);
-    scheduler.setHealth(false, false);
-  }
 
   return {
     surfaces,
     scheduler,
+    isHealthy: () => currentHealthy,
     getLastAnswer: () => lastAnswer,
     request: (surface) => {
       if (!surfaces.has(surface)) return;
@@ -128,8 +138,12 @@ function createScopeEntry(
     },
     setHealth: (healthy) => {
       if (healthy === currentHealthy) return;
+      const wasHealthy = currentHealthy;
       currentHealthy = healthy;
-      scheduler.setHealth(healthy, true);
+      scheduler.setHealth(healthy, false);
+      if (healthy && !wasHealthy && anySurfaceNeedsRecovery(surfaces)) {
+        scheduler.request();
+      }
     },
   };
 }
@@ -149,13 +163,18 @@ export function acquireLiveChatRoomsReader(
   let entry = entriesByScope.get(scope);
   const isFirst = !entry;
   if (!entry) {
-    entry = createScopeEntry(scope, options.healthy, options.healthHistory);
+    entry = createScopeEntry(scope, options.healthy);
     entriesByScope.set(scope, entry);
   }
 
   const activeEntry = entry;
+  const localHistory: LiveChatRoomsHealthHistory = {
+    hadHealthy: options.healthy,
+    wasHealthy: options.healthy,
+  };
   const surface: LiveChatRoomsSurface = {
     onAnswer: options.onAnswer,
+    getHealthHistory: options.getHealthHistory ?? (() => localHistory),
   };
   activeEntry.surfaces.add(surface);
 
@@ -169,6 +188,8 @@ export function acquireLiveChatRoomsReader(
     setHealth: (healthy: boolean) => {
       if (released) return;
       activeEntry.setHealth(healthy);
+      localHistory.hadHealthy ||= healthy;
+      localHistory.wasHealthy = healthy;
     },
     release: () => {
       if (released) return;
@@ -187,7 +208,13 @@ export function acquireLiveChatRoomsReader(
     activeEntry.scheduler.start();
   }
   if (!released) {
-    activeEntry.setHealth(options.healthy);
+    if (options.healthy !== activeEntry.isHealthy()) {
+      activeEntry.setHealth(options.healthy);
+    } else if (options.healthy && surfaceNeedsRecovery(surface)) {
+      // Surface reattached after Ably recovered while it was detached/hidden:
+      // apply its pending recovery read after start().
+      activeEntry.request(surface);
+    }
   }
 
   return subscription;

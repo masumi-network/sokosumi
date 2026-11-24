@@ -340,7 +340,7 @@ describe("live-chat-rooms-reader", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("primes a new scheduler from caller-supplied healthHistory without keeping module-level history after release", async () => {
+  it("decides recovery from attached surfaces' histories, not the scheduler's retained history (D5)", async () => {
     const s1 = acquireLiveChatRoomsReader("org-1:user-1", {
       healthy: true,
       onAnswer: () => {},
@@ -350,7 +350,7 @@ describe("live-chat-rooms-reader", () => {
     s1.setHealth(false);
     s1.release();
 
-    // A fresh acquirer with no prior healthHistory starts clean: 1 mount read only.
+    // A fresh acquirer with no prior healthy history starts clean: 1 mount read only.
     fetchMock.mockClear();
     const freshMount = Promise.withResolvers<{
       rooms: ChatRoom[];
@@ -379,11 +379,13 @@ describe("live-chat-rooms-reader", () => {
       .mockReturnValueOnce(mountRead.promise)
       .mockResolvedValueOnce({ rooms: [room("recovered")], nextCursor: null });
 
+    const history = { hadHealthy: true, wasHealthy: false };
     const s2 = acquireLiveChatRoomsReader("org-1:user-1", {
       healthy: true,
-      healthHistory: { hadHealthy: true, wasHealthy: false },
+      getHealthHistory: () => history,
       onAnswer: () => {},
     });
+    history.wasHealthy = true;
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     mountRead.resolve({ rooms: [room("mount")], nextCursor: null });
@@ -393,5 +395,34 @@ describe("live-chat-rooms-reader", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
 
     s2.release();
+
+    // Case 2 at module seam: A connects & drops, fresh B joins unhealthy,
+    // A releases, reconnect with only B -> 0 recovery reads.
+    fetchMock.mockClear();
+    const aHistory = { hadHealthy: true, wasHealthy: true };
+    const a = acquireLiveChatRoomsReader("org-2:user-1", {
+      healthy: true,
+      getHealthHistory: () => aHistory,
+      onAnswer: () => {},
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    a.setHealth(false);
+    aHistory.wasHealthy = false;
+
+    const bHistory = { hadHealthy: false, wasHealthy: false };
+    const b = acquireLiveChatRoomsReader("org-2:user-1", {
+      healthy: false,
+      getHealthHistory: () => bHistory,
+      onAnswer: () => {},
+    });
+    a.release();
+
+    fetchMock.mockClear();
+    b.setHealth(true);
+    bHistory.hadHealthy = true;
+    bHistory.wasHealthy = true;
+    expect(fetchMock).not.toHaveBeenCalled();
+    b.release();
   });
 });

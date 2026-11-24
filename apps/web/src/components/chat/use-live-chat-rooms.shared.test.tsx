@@ -472,9 +472,12 @@ describe("useLiveChatRooms shared reader", () => {
     }
 
     const view = render(
-      <Activity mode="visible">
-        <ReaderA />
-      </Activity>,
+      <>
+        <Activity mode="visible">
+          <ReaderA />
+        </Activity>
+        {null}
+      </>,
     );
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
@@ -790,5 +793,106 @@ describe("useLiveChatRooms shared reader", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     unmount();
+  });
+
+  it("D5 (1): B connects, drops, hides; fresh A starts scheduler unhealthy; B reveals unhealthy; reconnect with both visible -> 1 recovery read", async () => {
+    function ReaderA() {
+      useLiveChatRooms();
+      return null;
+    }
+    function ReaderB() {
+      useLiveChatRooms();
+      return null;
+    }
+
+    // B connects while healthy, drops Ably, then hides in Activity.
+    // Keep the Fragment root stable so React hides/reveals B rather than
+    // remounting it when A mounts.
+    const view = render(
+      <>
+        {null}
+        <Activity mode="visible">
+          <ReaderB />
+        </Activity>
+      </>,
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    act(() => {
+      setAblyConnectionHealthy(false);
+    });
+    view.rerender(
+      <>
+        {null}
+        <Activity mode="hidden">
+          <ReaderB />
+        </Activity>
+      </>,
+    );
+
+    // Fresh A starts the shared scheduler while unhealthy.
+    view.rerender(
+      <>
+        <ReaderA />
+        <Activity mode="hidden">
+          <ReaderB />
+        </Activity>
+      </>,
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    // B reveals while still unhealthy (joins A's scheduler).
+    view.rerender(
+      <>
+        <ReaderA />
+        <Activity mode="visible">
+          <ReaderB />
+        </Activity>
+      </>,
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    // Reconnect with both A and B visible -> 1 recovery read (eligible via B).
+    fetchMock.mockClear();
+    await act(async () => {
+      setAblyConnectionHealthy(true);
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    view.unmount();
+  });
+
+  it("D5 (2): A connects and drops; fresh B joins unhealthy; A unmounts; reconnect with only B -> 0 recovery reads", async () => {
+    // A connects while healthy, then Ably drops.
+    const readerA = renderHook(() => useLiveChatRooms());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    act(() => {
+      setAblyConnectionHealthy(false);
+    });
+
+    // Fresh B joins while unhealthy, then A unmounts leaving only B.
+    const readerB = renderHook(() => useLiveChatRooms());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    readerA.unmount();
+
+    // Reconnect with only B attached -> 0 recovery reads (B never saw healthy).
+    fetchMock.mockClear();
+    await act(async () => {
+      setAblyConnectionHealthy(true);
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    readerB.unmount();
   });
 });
