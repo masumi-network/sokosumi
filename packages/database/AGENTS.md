@@ -73,13 +73,14 @@ import { computeJobStatus, mapJobWithStatus } from "@sokosumi/database/helpers";
 
 ### SQL Tables Export (`@sokosumi/database/sql-tables`)
 
-- **Purpose**: Table names for raw SQL, always with their schema: `sharedTable(table)` and `netTable(network, table)` return `"<schema>"."<table>"` as a `Prisma.Sql` fragment. Raw SQL never relies on the search path.
-- **Argument**: the SQL table name, as the statement would write it (`jobEvent`, not the model `JobEvent`). `prisma/network-tables.json` decides the side: a `shared` table is refused by `netTable` and a Network table by `sharedTable`, as is an unknown name.
-- **Preprod**: `netTable("preprod", …)` throws while Preprod is off or its schema is Mainnet's, so on today's layout no statement can reach Mainnet's rows under Preprod's name.
-- **Layout**: `public` for all three and Preprod off until `configureSqlTables(layout)` is called once at startup. `createSqlTables(layout)` builds the two helpers for names a test passes. Core does not call `configureSqlTables` yet.
-- **Temporary tables no longer shadow.** A test that isolated a statement behind `CREATE TEMP TABLE workspace …` now reads the real table, because the statement names its schema. Give the temporary schema instead: `configureSqlTables({ ...PUBLIC_LAYOUT, shared: "pg_temp" })`, and restore `PUBLIC_LAYOUT` after (`apps/core/src/services/task-work-type-presets.postgres.test.ts`).
+- **Purpose**: Table and enum type names for raw SQL, always with their schema: `sharedTable(table)`, `netTable(network, table)`, `sharedType(type)` and `netType(network, type)` return `"<schema>"."<name>"` as a `Prisma.Sql` fragment. Raw SQL never relies on the search path for a table or for an enum cast.
+- **Argument**: the SQL table name, as the statement would write it (`jobEvent`, not the model `JobEvent`), or the enum's name. `prisma/network-tables.json` decides the side (`networkEnums` for types; every other enum is shared): a name of the other side is refused, as is an unknown name.
+- **Preprod**: `netTable("preprod", …)` and `netType("preprod", …)` throw while Preprod is off, so on today's layout no statement can reach Mainnet's rows under Preprod's name.
+- **Layout**: `public` for all three and Preprod off until `configureSqlTables(layout)` is called once at startup. `createSqlTables(layout)` builds the helpers for names a test passes. Both refuse a layout Core's `config/network-layout.ts` refuses (`apps/core/src/lib/db/__tests__/sql-table-layout.test.ts` keeps the two rules together). Core does not call `configureSqlTables` yet.
+- **Tests restore what was there.** `configureSqlTables` returns a function that puts back the layout configured before: `onTestFinished(configureSqlTables(layout))`. Never restore a layout you wrote down yourself.
+- **Temporary tables no longer shadow.** A test that isolated a statement behind `CREATE TEMP TABLE workspace …` now reads the real table, because the statement names its schema. Pass `sharedTablesAreTemporary: true` in the layout: `sharedTable` then names `pg_temp`, and enum types stay in the shared schema (`apps/core/src/services/task-work-type-presets.postgres.test.ts`).
 - **This package's statements** name Mainnet (`netTable("mainnet", …)`) until their callers pass a Network.
-- **Check**: `apps/core/src/lib/db/__tests__/unqualified-raw-sql.test.ts` fails on an unqualified table name in this package and reports the ones in Core, the scripts and the tests. Its header lists what it cannot see and the files it leaves out.
+- **Check**: `apps/core/src/lib/db/__tests__/unqualified-raw-sql.test.ts` reports unqualified table names in this package, Core and the scripts, and fails on a `sharedTable` or `netTable` call whose literal is not a table of that side. Its header lists what it cannot see and the files it leaves out.
 
 ```typescript
 import { netTable, sharedTable } from "@sokosumi/database/sql-tables";

@@ -1,6 +1,6 @@
 import { CURATED_VOCABULARY_VERSION, TASK_TAG_PRESETS } from "@sokosumi/utils";
 import { Prisma } from "../generated/prisma/client.js";
-import { sharedTable } from "../sql-tables.js";
+import { sharedTable, sharedType } from "../sql-tables.js";
 
 /** Each statement seeds at most 500 workspaces so a retry can resume after a committed batch. */
 const WORKSPACES_PER_BATCH = 500;
@@ -15,7 +15,7 @@ export async function backfillTaskWorkTypePresets(
   const presets = Prisma.join(
     TASK_TAG_PRESETS.map(
       (row) => Prisma.sql`(
-    ${row.kind}::"FileLabelKind", ${row.displayName}::text,
+    ${row.kind}::${sharedType("FileLabelKind")}, ${row.displayName}::text,
     ${row.normalizedName}::text, ${row.description}::text
   )`,
     ),

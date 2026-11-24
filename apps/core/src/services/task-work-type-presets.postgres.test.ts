@@ -17,8 +17,9 @@ it.skipIf(!enabled)(
   async () => {
     // The statement names its tables with their schema, so the temporary
     // tables below no longer shadow the real ones: name their schema instead.
-    configureSqlTables({ ...PUBLIC_LAYOUT, shared: "pg_temp" });
-    onTestFinished(() => configureSqlTables(PUBLIC_LAYOUT));
+    onTestFinished(
+      configureSqlTables({ ...PUBLIC_LAYOUT, sharedTablesAreTemporary: true }),
+    );
     await prisma.$transaction(async (tx) => {
       // The production statement scans all workspaces. Isolate it from other suites
       // with transaction-local tables and copy the real label schema and unique index.

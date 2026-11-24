@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 
-import { describe, it, vi } from "vitest";
+import { describe, it, onTestFinished, vi } from "vitest";
 
 import {
   CreditBucketReferenceType,
   Prisma,
 } from "../generated/prisma/client.js";
-import { configureSqlTables, PUBLIC_LAYOUT } from "../sql-tables.js";
+import { configureSqlTables } from "../sql-tables.js";
 import {
   creditBucketRepository,
   InsufficientBalanceError,
@@ -455,21 +455,19 @@ describe("creditBucketRepository.listProjectBucketsWithBalances", () => {
         return [];
       },
     } as unknown as Prisma.TransactionClient;
-    configureSqlTables({
-      shared: "shared",
-      mainnet: "mainnet",
-      preprod: "preprod",
-      preprodOn: true,
-    });
-    try {
-      await creditBucketRepository.listProjectBucketsWithBalances(
-        "user-1",
-        "org-1",
-        tx,
-      );
-    } finally {
-      configureSqlTables(PUBLIC_LAYOUT);
-    }
+    onTestFinished(
+      configureSqlTables({
+        shared: "shared",
+        mainnet: "mainnet",
+        preprod: "preprod",
+        preprodOn: true,
+      }),
+    );
+    await creditBucketRepository.listProjectBucketsWithBalances(
+      "user-1",
+      "org-1",
+      tx,
+    );
 
     const [strings, ...parts] = queryArgs as [
       TemplateStringsArray,
