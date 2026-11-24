@@ -18,6 +18,7 @@ import {
   requireInteractiveAdminAuthContext,
   requireInteractiveUserAuthContext,
   requireOwnerUserContext,
+  requirePersonApproval,
   requirePersonalSokoBotAuthContext,
   requireUserContext,
   resolveUserContext,
@@ -1592,6 +1593,53 @@ describe("requireFirstPartyUserAuthContext", () => {
     expect(() =>
       requireFirstPartyUserAuthContext({ ...user, ...credential }),
     ).toThrowError("Interactive session required");
+  });
+});
+
+describe("requirePersonApproval", () => {
+  const user = {
+    actor: "user" as const,
+    userId: "user_123",
+    organizationId: null,
+    role: "user",
+  };
+
+  it("allows a browser session", () => {
+    expect(
+      requirePersonApproval(
+        { ...user, authenticationMethod: "session" },
+        "/social?projectId=p",
+      ),
+    ).toMatchObject({ userId: "user_123" });
+  });
+
+  // ADR 0077: an agent drafts; a person approves, publishes and sends.
+  it.each([
+    { ...user, authenticationMethod: "api_key" as const },
+    { ...user, authenticationMethod: "oauth" as const },
+    { ...user, authenticationMethod: "oauth" as const, firstPartyClient: true },
+    user,
+    {
+      actor: "coworker" as const,
+      coworkerId: "cow_1",
+      vendorId: "vendor_1",
+      context: { userId: "user_123", organizationId: null },
+    },
+  ])("sends %o to the item's Web page", (authContext) => {
+    expect(() =>
+      requirePersonApproval(authContext, "/social?projectId=p&postId=x"),
+    ).toThrow(
+      expect.objectContaining({
+        status: 403,
+        message: "A person approves this in Sokosumi",
+        cause: {
+          kind: "person_approval_required",
+          extensions: {
+            webUrl: "https://example.com/social?projectId=p&postId=x",
+          },
+        },
+      }),
+    );
   });
 });
 

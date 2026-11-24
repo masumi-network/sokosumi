@@ -5,7 +5,7 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { requirePersonApproval } from "@/middleware/auth";
 import {
   newsletterIssueParamsSchema,
   newsletterIssueRevisionRequestSchema,
@@ -13,7 +13,7 @@ import {
 } from "@/schemas/newsletter.schema";
 import { approveNewsletterIssue } from "@/services/newsletter-issues.service";
 
-import { newsletterIssueScope } from "../../../context";
+import { newsletterIssueScope, newsletterIssueWebPath } from "../../../context";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
@@ -21,7 +21,7 @@ const route = withCoworkerContextHeaderParameters(
     path: "/{id}/newsletter/issues/{issueId}/approve",
     tags: ["Projects"],
     description:
-      "Approve a newsletter issue using its current revision. Requires a human interactive session.",
+      "Approve a newsletter issue using its current revision. A person does this on a browser session; any other credential gets 403 `person_approval_required` with the issue's Web link (ADR 0077).",
     request: {
       params: newsletterIssueParamsSchema,
       body: {
@@ -49,7 +49,10 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
     const { id, issueId } = c.req.valid("param");
     const scope = await newsletterIssueScope(c, id);
-    const user = requireInteractiveUserAuthContext(c.var.authContext);
+    const user = requirePersonApproval(
+      c.var.authContext,
+      newsletterIssueWebPath(id, issueId),
+    );
     const input = c.req.valid("json");
     const issue = await approveNewsletterIssue(
       scope,

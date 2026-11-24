@@ -4,7 +4,7 @@ import {
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { requireSocialPostReader } from "@/helpers/social-post-access";
+import { requireSocialPostActor } from "@/helpers/social-post-access";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -49,7 +49,7 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    const userContext = await requireSocialPostReader(c.var.authContext);
+    const userContext = await requireSocialPostActor(c.var.authContext);
 
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
@@ -79,11 +79,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         c,
         z
           .array(socialPostSchema)
-          .parse(
-            posts.map((post) =>
-              presentSocialPost(post, userContext.coworkerId),
-            ),
-          ),
+          .parse(posts.map((post) => presentSocialPost(post, userContext))),
         pagination,
       );
     } catch (error) {

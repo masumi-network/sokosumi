@@ -303,6 +303,48 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
   },
   organizations_standup: { id: "org-1" },
   organizations_set_standup: { id: "org-1", body: { enabled: false } },
+  // SOKD-383
+  projects_social_post_create: { id: "p-1", body: { text: "Hello" } },
+  projects_social_post_update: {
+    id: "p-1",
+    postId: "post-1",
+    body: { revision: 0, text: "Hi" },
+  },
+  projects_social_post_schedule: {
+    id: "p-1",
+    postId: "post-1",
+    body: { revision: 0, scheduledAt: "2030-01-01T10:00:00Z" },
+  },
+  projects_social_post_queue: {
+    id: "p-1",
+    postId: "post-1",
+    body: { revision: 0 },
+  },
+  projects_social_post_cancel: {
+    id: "p-1",
+    postId: "post-1",
+    body: { revision: 0 },
+  },
+  projects_social_post_duplicate: { id: "p-1", postId: "post-1" },
+  projects_social_post_statistics_refresh: { id: "p-1", postId: "post-1" },
+  projects_social_account_post_recycle: {
+    id: "p-1",
+    accountPostId: "ap-1",
+    body: {},
+  },
+  projects_social_queue_slots_update: {
+    id: "p-1",
+    body: { timezone: "UTC", slots: [] },
+  },
+  projects_social_connection_statistics_refresh: {
+    id: "p-1",
+    connectionId: "c-1",
+  },
+  projects_newsletter_issue_cancel: {
+    id: "p-1",
+    issueId: "issue-1",
+    body: { revision: 0 },
+  },
 };
 
 const CORE = "https://core.example.test";

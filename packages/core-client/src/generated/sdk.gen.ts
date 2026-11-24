@@ -4544,7 +4544,7 @@ export const postProjectsByIdNewsletterIssuesByIssueIdSubmit = <ThrowOnError ext
 });
 
 /**
- * Approve a newsletter issue using its current revision. Requires a human interactive session.
+ * Approve a newsletter issue using its current revision. A person does this on a browser session; any other credential gets 403 `person_approval_required` with the issue's Web link (ADR 0077).
  */
 export const postProjectsByIdNewsletterIssuesByIssueIdApprove = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdNewsletterIssuesByIssueIdApproveData, ThrowOnError>): RequestResult<PostProjectsByIdNewsletterIssuesByIssueIdApproveResponses, PostProjectsByIdNewsletterIssuesByIssueIdApproveErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdNewsletterIssuesByIssueIdApproveResponses, PostProjectsByIdNewsletterIssuesByIssueIdApproveErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdNewsletterIssuesByIssueIdApproveResponseTransformer,
@@ -4557,7 +4557,7 @@ export const postProjectsByIdNewsletterIssuesByIssueIdApprove = <ThrowOnError ex
 });
 
 /**
- * Schedule a newsletter issue using its current revision. Requires a human interactive session.
+ * Schedule a newsletter issue using its current revision. A person does this on a browser session; any other credential gets 403 `person_approval_required` with the issue's Web link (ADR 0077).
  */
 export const postProjectsByIdNewsletterIssuesByIssueIdSchedule = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdNewsletterIssuesByIssueIdScheduleData, ThrowOnError>): RequestResult<PostProjectsByIdNewsletterIssuesByIssueIdScheduleResponses, PostProjectsByIdNewsletterIssuesByIssueIdScheduleErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdNewsletterIssuesByIssueIdScheduleResponses, PostProjectsByIdNewsletterIssuesByIssueIdScheduleErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdNewsletterIssuesByIssueIdScheduleResponseTransformer,
@@ -4570,7 +4570,7 @@ export const postProjectsByIdNewsletterIssuesByIssueIdSchedule = <ThrowOnError e
 });
 
 /**
- * Send a newsletter issue now using its current revision. Requires a human interactive session.
+ * Send a newsletter issue now using its current revision. A person does this on a browser session; any other credential gets 403 `person_approval_required` with the issue's Web link (ADR 0077).
  */
 export const postProjectsByIdNewsletterIssuesByIssueIdSendNow = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdNewsletterIssuesByIssueIdSendNowData, ThrowOnError>): RequestResult<PostProjectsByIdNewsletterIssuesByIssueIdSendNowResponses, PostProjectsByIdNewsletterIssuesByIssueIdSendNowErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdNewsletterIssuesByIssueIdSendNowResponses, PostProjectsByIdNewsletterIssuesByIssueIdSendNowErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdNewsletterIssuesByIssueIdSendNowResponseTransformer,
@@ -4583,7 +4583,7 @@ export const postProjectsByIdNewsletterIssuesByIssueIdSendNow = <ThrowOnError ex
 });
 
 /**
- * Cancel a newsletter issue using its current revision. Requires a human interactive session.
+ * Cancel a scheduled newsletter issue using its current revision: it goes back to a draft that needs approval again. Allowed to a person and to agents (API key, OAuth or MCP token, Coworker); not to Soko Bots.
  */
 export const postProjectsByIdNewsletterIssuesByIssueIdCancel = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdNewsletterIssuesByIssueIdCancelData, ThrowOnError>): RequestResult<PostProjectsByIdNewsletterIssuesByIssueIdCancelResponses, PostProjectsByIdNewsletterIssuesByIssueIdCancelErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdNewsletterIssuesByIssueIdCancelResponses, PostProjectsByIdNewsletterIssuesByIssueIdCancelErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdNewsletterIssuesByIssueIdCancelResponseTransformer,
@@ -5091,7 +5091,7 @@ export const getProjectsByIdSocialPosts = <ThrowOnError extends boolean = false>
 });
 
 /**
- * Draft a Social post for a Project, or schedule it directly when scheduledAt is given. A Coworker or Soko Bot creator lands as Needs approval and does not publish until a person approves it. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.
+ * Draft a Social post for a Project, or schedule it directly when scheduledAt is given. An agent (API key, OAuth or MCP token, Coworker) or Soko Bot creator lands as Needs approval and does not publish until a person approves it. Requires a person (any sign-in: session, API key, OAuth or MCP token) or an authorized task-capable Coworker with user context in the Project's Workspace. Approve, reject and publish now stay with a person (ADR 0077).
  */
 export const postProjectsByIdSocialPosts = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialPostsData, ThrowOnError>): RequestResult<PostProjectsByIdSocialPostsResponses, PostProjectsByIdSocialPostsErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialPostsResponses, PostProjectsByIdSocialPostsErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialPostsResponseTransformer,
@@ -5104,7 +5104,7 @@ export const postProjectsByIdSocialPosts = <ThrowOnError extends boolean = false
 });
 
 /**
- * Publish a Social post now through its Project social connection. Allowed from DRAFT, SCHEDULED, FAILED and MISSED; the attempt runs inline and the returned post carries its outcome. Requires an interactive user session in the Project's Workspace.
+ * Publish a Social post now through its Project social connection. Allowed from DRAFT, SCHEDULED, FAILED and MISSED; the attempt runs inline and the returned post carries its outcome. A person does this on a browser session in the Project's Workspace; any other credential gets 403 `person_approval_required` with the post's Web link (ADR 0077).
  */
 export const postProjectsByIdSocialPostsByPostIdPublish = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialPostsByPostIdPublishData, ThrowOnError>): RequestResult<PostProjectsByIdSocialPostsByPostIdPublishResponses, PostProjectsByIdSocialPostsByPostIdPublishErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialPostsByPostIdPublishResponses, PostProjectsByIdSocialPostsByPostIdPublishErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialPostsByPostIdPublishResponseTransformer,
@@ -5144,7 +5144,7 @@ export const getProjectsByIdSocialPostsByPostId = <ThrowOnError extends boolean 
 });
 
 /**
- * Edit a draft or scheduled Social post, or repair a FAILED quote dependency before publishing has started. The body must carry the revision the client last observed. A Coworker's edit sends the post back to Needs approval, whatever its status was. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.
+ * Edit a draft or scheduled Social post, or repair a FAILED quote dependency before publishing has started. The body must carry the revision the client last observed. An agent's edit (API key, OAuth or MCP token, Coworker) sends the post back to Needs approval, whatever its status was. Requires a person (any sign-in: session, API key, OAuth or MCP token) or an authorized task-capable Coworker with user context in the Project's Workspace. Approve, reject and publish now stay with a person (ADR 0077).
  */
 export const patchProjectsByIdSocialPostsByPostId = <ThrowOnError extends boolean = false>(options: Options<PatchProjectsByIdSocialPostsByPostIdData, ThrowOnError>): RequestResult<PatchProjectsByIdSocialPostsByPostIdResponses, PatchProjectsByIdSocialPostsByPostIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchProjectsByIdSocialPostsByPostIdResponses, PatchProjectsByIdSocialPostsByPostIdErrors, ThrowOnError>({
     responseTransformer: patchProjectsByIdSocialPostsByPostIdResponseTransformer,
@@ -5157,7 +5157,7 @@ export const patchProjectsByIdSocialPostsByPostId = <ThrowOnError extends boolea
 });
 
 /**
- * Schedule a Social post through an active Project social connection. Allowed from DRAFT, NEEDS_APPROVAL, SCHEDULED, FAILED and MISSED. A post that still needs approval keeps that status, and a Coworker's schedule always lands as Needs approval. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.
+ * Schedule a Social post through an active Project social connection. Allowed from DRAFT, NEEDS_APPROVAL, SCHEDULED, FAILED and MISSED. A post that still needs approval keeps that status, and an agent's schedule (API key, OAuth or MCP token, Coworker) always lands as Needs approval. Requires a person (any sign-in: session, API key, OAuth or MCP token) or an authorized task-capable Coworker with user context in the Project's Workspace. Approve, reject and publish now stay with a person (ADR 0077).
  */
 export const postProjectsByIdSocialPostsByPostIdSchedule = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialPostsByPostIdScheduleData, ThrowOnError>): RequestResult<PostProjectsByIdSocialPostsByPostIdScheduleResponses, PostProjectsByIdSocialPostsByPostIdScheduleErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialPostsByPostIdScheduleResponses, PostProjectsByIdSocialPostsByPostIdScheduleErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
@@ -5170,7 +5170,7 @@ export const postProjectsByIdSocialPostsByPostIdSchedule = <ThrowOnError extends
 });
 
 /**
- * Schedule a Social post in the Project connection's next free queue slot. Allowed from DRAFT, NEEDS_APPROVAL, SCHEDULED, FAILED and MISSED. A post that needs approval keeps that status, and a Coworker's queue always lands as Needs approval. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access.
+ * Schedule a Social post in the Project connection's next free queue slot. Allowed from DRAFT, NEEDS_APPROVAL, SCHEDULED, FAILED and MISSED. A post that needs approval keeps that status, and an agent's queue (API key, OAuth or MCP token, Coworker) always lands as Needs approval. Requires a person (any sign-in: session, API key, OAuth or MCP token) or an authorized task-capable Coworker with user context and Calendar beta access.
  */
 export const postProjectsByIdSocialPostsByPostIdQueue = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialPostsByPostIdQueueData, ThrowOnError>): RequestResult<PostProjectsByIdSocialPostsByPostIdQueueResponses, PostProjectsByIdSocialPostsByPostIdQueueErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialPostsByPostIdQueueResponses, PostProjectsByIdSocialPostsByPostIdQueueErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialPostsByPostIdQueueResponseTransformer,
@@ -5192,7 +5192,7 @@ export const getProjectsByIdSocialQueueSlots = <ThrowOnError extends boolean = f
 });
 
 /**
- * Replace a Project's weekly posting-queue times. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access.
+ * Replace a Project's weekly posting-queue times. Requires a person (any sign-in: session, API key, OAuth or MCP token) or an authorized task-capable Coworker with user context and Calendar beta access.
  */
 export const putProjectsByIdSocialQueueSlots = <ThrowOnError extends boolean = false>(options: Options<PutProjectsByIdSocialQueueSlotsData, ThrowOnError>): RequestResult<PutProjectsByIdSocialQueueSlotsResponses, PutProjectsByIdSocialQueueSlotsErrors, ThrowOnError> => (options.client ?? client).put<PutProjectsByIdSocialQueueSlotsResponses, PutProjectsByIdSocialQueueSlotsErrors, ThrowOnError>({
     responseTransformer: putProjectsByIdSocialQueueSlotsResponseTransformer,
@@ -5205,7 +5205,7 @@ export const putProjectsByIdSocialQueueSlots = <ThrowOnError extends boolean = f
 });
 
 /**
- * Approve a Social post that needs approval. A future scheduled time stays; the post then publishes on that time. Otherwise it becomes a draft. Requires an interactive user session in the Project's Workspace.
+ * Approve a Social post that needs approval. A future scheduled time stays; the post then publishes on that time. Otherwise it becomes a draft. A person does this on a browser session in the Project's Workspace; any other credential gets 403 `person_approval_required` with the post's Web link (ADR 0077).
  */
 export const postProjectsByIdSocialPostsByPostIdApprove = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialPostsByPostIdApproveData, ThrowOnError>): RequestResult<PostProjectsByIdSocialPostsByPostIdApproveResponses, PostProjectsByIdSocialPostsByPostIdApproveErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialPostsByPostIdApproveResponses, PostProjectsByIdSocialPostsByPostIdApproveErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialPostsByPostIdApproveResponseTransformer,
@@ -5218,7 +5218,7 @@ export const postProjectsByIdSocialPostsByPostIdApprove = <ThrowOnError extends 
 });
 
 /**
- * Confirm an unconfirmed X thread part was not posted. Clears its in-flight marker so retry can continue; does not publish. Requires the observed revision. Requires an interactive user session in the Project's Workspace.
+ * Confirm an unconfirmed X thread part was not posted. Clears its in-flight marker so retry can continue; does not publish. Requires the observed revision. A person does this on a browser session in the Project's Workspace; any other credential gets 403 `person_approval_required` with the post's Web link (ADR 0077).
  */
 export const postProjectsByIdSocialPostsByPostIdThreadResume = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialPostsByPostIdThreadResumeData, ThrowOnError>): RequestResult<PostProjectsByIdSocialPostsByPostIdThreadResumeResponses, PostProjectsByIdSocialPostsByPostIdThreadResumeErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialPostsByPostIdThreadResumeResponses, PostProjectsByIdSocialPostsByPostIdThreadResumeErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialPostsByPostIdThreadResumeResponseTransformer,
@@ -5231,7 +5231,7 @@ export const postProjectsByIdSocialPostsByPostIdThreadResume = <ThrowOnError ext
 });
 
 /**
- * Reject a Social post that needs approval. The post is canceled and never publishes. Requires an interactive user session in the Project's Workspace.
+ * Reject a Social post that needs approval. The post is canceled and never publishes. A person does this on a browser session in the Project's Workspace; any other credential gets 403 `person_approval_required` with the post's Web link (ADR 0077).
  */
 export const postProjectsByIdSocialPostsByPostIdReject = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialPostsByPostIdRejectData, ThrowOnError>): RequestResult<PostProjectsByIdSocialPostsByPostIdRejectResponses, PostProjectsByIdSocialPostsByPostIdRejectErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialPostsByPostIdRejectResponses, PostProjectsByIdSocialPostsByPostIdRejectErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialPostsByPostIdRejectResponseTransformer,
@@ -5244,7 +5244,7 @@ export const postProjectsByIdSocialPostsByPostIdReject = <ThrowOnError extends b
 });
 
 /**
- * Cancel a draft, scheduled, or needs-approval Social post, or dismiss a failed or missed one. Canceling an already canceled post is a no-op. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.
+ * Cancel a draft, scheduled, or needs-approval Social post, or dismiss a failed or missed one. Canceling an already canceled post is a no-op. Requires a person (any sign-in: session, API key, OAuth or MCP token) or an authorized task-capable Coworker with user context in the Project's Workspace. Approve, reject and publish now stay with a person (ADR 0077).
  */
 export const postProjectsByIdSocialPostsByPostIdCancel = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialPostsByPostIdCancelData, ThrowOnError>): RequestResult<PostProjectsByIdSocialPostsByPostIdCancelResponses, PostProjectsByIdSocialPostsByPostIdCancelErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialPostsByPostIdCancelResponses, PostProjectsByIdSocialPostsByPostIdCancelErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialPostsByPostIdCancelResponseTransformer,
@@ -5257,7 +5257,7 @@ export const postProjectsByIdSocialPostsByPostIdCancel = <ThrowOnError extends b
 });
 
 /**
- * Copy a published, failed, or missed Social post into a new draft (Needs approval for a Coworker). Copies text, media, first comment, thread parts, the quote reference and its attention reason, provider, and the linked account when it is still connected. Does not copy publish results, schedule, or statistics. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace.
+ * Copy a published, failed, or missed Social post into a new draft (Needs approval for an agent: API key, OAuth or MCP token, Coworker). Copies text, media, first comment, thread parts, the quote reference and its attention reason, provider, and the linked account when it is still connected. Does not copy publish results, schedule, or statistics. Requires a person (any sign-in: session, API key, OAuth or MCP token) or an authorized task-capable Coworker with user context in the Project's Workspace.
  */
 export const postProjectsByIdSocialPostsByPostIdDuplicate = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialPostsByPostIdDuplicateData, ThrowOnError>): RequestResult<PostProjectsByIdSocialPostsByPostIdDuplicateResponses, PostProjectsByIdSocialPostsByPostIdDuplicateErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialPostsByPostIdDuplicateResponses, PostProjectsByIdSocialPostsByPostIdDuplicateErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialPostsByPostIdDuplicateResponseTransformer,
@@ -5266,7 +5266,7 @@ export const postProjectsByIdSocialPostsByPostIdDuplicate = <ThrowOnError extend
 });
 
 /**
- * Copy a Performance post into a new Social draft. Uses the original Sokosumi post when one matches, otherwise the imported text. Optional delayDays schedules that draft. Nothing is posted unless a delay is chosen, and a Coworker's copy waits as Needs approval. Requires an interactive session or an authorized task-capable Coworker with user context.
+ * Copy a Performance post into a new Social draft. Uses the original Sokosumi post when one matches, otherwise the imported text. Optional delayDays schedules that draft. Nothing is posted unless a delay is chosen, and an agent's copy (API key, OAuth or MCP token, Coworker) waits as Needs approval. Requires a person (any sign-in: session, API key, OAuth or MCP token) or an authorized task-capable Coworker with user context.
  */
 export const postProjectsByIdSocialAccountPostsByAccountPostIdRecycle = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleData, ThrowOnError>): RequestResult<PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponses, PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponses, PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialAccountPostsByAccountPostIdRecycleResponseTransformer,

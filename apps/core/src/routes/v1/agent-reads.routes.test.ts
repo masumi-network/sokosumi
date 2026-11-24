@@ -22,17 +22,24 @@ import {
 vi.mock("@/lib/db/prisma", () => {
   const fail = () => Promise.reject(new Error("database reached"));
   const model = new Proxy({}, { get: () => fail });
+  const handler = (transaction: () => object): ProxyHandler<object> => ({
+    get: (_, key) =>
+      key === "$transaction"
+        ? (run: unknown) =>
+            typeof run === "function" ? run(transaction()) : Promise.all([])
+        : key === "then" || key === "oauthResource"
+          ? undefined
+          : model,
+  });
+  // As in Prisma, a transaction gets its own client: a service that opens a
+  // transaction when `tx === prisma` must not recurse into another one.
+  const tx: object = new Proxy(
+    {},
+    handler(() => tx),
+  );
   const client: object = new Proxy(
     {},
-    {
-      get: (_, key) =>
-        key === "$transaction"
-          ? (run: unknown) =>
-              typeof run === "function" ? run(client) : Promise.all([])
-          : key === "then" || key === "oauthResource"
-            ? undefined
-            : model,
-    },
+    handler(() => tx),
   );
   return { default: client };
 });
@@ -219,25 +226,30 @@ const HUMAN_ONLY_WRITES: readonly [
   ],
   ["POST", `${P}/social-connections/finalize`, { connectionId: "ca_1" }],
   ["DELETE", `${P}/social-connections/${ID}`],
+  ["POST", `${P}/social-posts/${ID}/publish`, { revision: 1 }],
+  ["POST", `${P}/social-posts/${ID}/approve`, { revision: 1 }],
+  ["POST", `${P}/social-posts/${ID}/reject`, { revision: 1 }],
+  [
+    "POST",
+    `${P}/social-posts/${ID}/thread/resume`,
+    { revision: 1, confirmedNotPosted: true },
+  ],
+];
+
+// SOKD-383: an agent drafts, plans and cancels Social posts (ADR 0077); the
+// post waits for a person's approval.
+const OPENED_WRITES: [string, string, object][] = [
   ["POST", `${P}/social-connections/${ID}/statistics/refresh`, {}],
   ["POST", `${P}/social-posts`, { text: "Hello" }],
   ["PATCH", `${P}/social-posts/${ID}`, { revision: 1 }],
-  ["POST", `${P}/social-posts/${ID}/publish`, { revision: 1 }],
   [
     "POST",
     `${P}/social-posts/${ID}/schedule`,
     { revision: 1, scheduledAt: "2030-01-01T00:00:00.000Z" },
   ],
   ["POST", `${P}/social-posts/${ID}/queue`, { revision: 1 }],
-  ["POST", `${P}/social-posts/${ID}/approve`, { revision: 1 }],
-  ["POST", `${P}/social-posts/${ID}/reject`, { revision: 1 }],
   ["POST", `${P}/social-posts/${ID}/cancel`, { revision: 1 }],
   ["POST", `${P}/social-posts/${ID}/duplicate`, {}],
-  [
-    "POST",
-    `${P}/social-posts/${ID}/thread/resume`,
-    { revision: 1, confirmedNotPosted: true },
-  ],
   ["POST", `${P}/social-posts/${ID}/statistics/refresh`, {}],
   ["PUT", `${P}/social-queue-slots`, { timezone: "UTC", slots: [] }],
   ["POST", `${P}/social-account-posts/${ID}/recycle`, {}],
@@ -334,6 +346,15 @@ describe.each(CALLERS)("as %s", (_, authContext) => {
     const response = await call("GET", path, authContext);
 
     expect(response.status).toBe(403);
+  });
+
+  it.each(OPENED_WRITES)("writes %s %s", async (method, path, body) => {
+    const response = await call(method, path, authContext, body);
+
+    expect(
+      response.status,
+      `the guard should let the caller in: ${await response.text()}`,
+    ).not.toBe(403);
   });
 
   it.each(HUMAN_ONLY_WRITES)("is refused %s %s", async (method, path, body) => {
