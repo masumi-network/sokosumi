@@ -88,6 +88,5 @@ export const seoChatHistorySchema = z
   .openapi("SeoAuditChatHistory");
 
 export type SeoChatAction = z.infer<typeof seoChatActionSchema>;
-export type SeoChatReply = z.infer<typeof seoChatReplySchema>;
 export type SendSeoChat = z.infer<typeof sendSeoChatSchema>;
 export type SeoChatTurn = z.infer<typeof seoChatTurnSchema>;

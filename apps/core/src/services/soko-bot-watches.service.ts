@@ -22,7 +22,6 @@ import {
 } from "@/services/soko-bot-runtime.service";
 
 type WaitForInput = z.infer<(typeof SOKO_BOT_TOOL_INPUT_SCHEMAS)["wait_for"]>;
-export type SokoBotWatchKind = WaitForInput["kind"];
 
 const DEFAULT_TIMEOUT_MINUTES = 60;
 /** A position check takes minutes; one still running after this is reported as slow. */

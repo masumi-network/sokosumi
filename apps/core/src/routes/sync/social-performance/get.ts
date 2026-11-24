@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import { cleanExpiredZernioIntents } from "@/services/project-social-connections.service";
-import { collectSocialPerformance } from "@/services/social-account-sync";
+import { runDueSocialAccountSync } from "@/services/social-account-sync";
 import { handleSyncRequest } from "../handler.js";
 
 export default function mount(app: Hono) {
@@ -15,7 +15,7 @@ export default function mount(app: Hono) {
           signal: context.abortSignal,
           shouldContinue,
         });
-        const result = await collectSocialPerformance({
+        const result = await runDueSocialAccountSync({
           abortSignal: context.abortSignal,
           shouldContinue,
         });
