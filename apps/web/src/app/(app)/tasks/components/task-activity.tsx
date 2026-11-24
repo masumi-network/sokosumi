@@ -7,6 +7,7 @@ import { ArrowDown } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useMemo, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { CHAT_MESSAGE_LIST_ATTRIBUTE } from "@/app/chat/chat-message-list";
 import { highlightListMessage } from "@/app/chat/utils/room-message-highlight";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
@@ -384,6 +385,7 @@ function TaskActivityContent({
           setLocalEvents((prev) =>
             prev.filter((entry) => entry.id !== optimisticEvent.id),
           );
+          toast.error(t("commentSendError"));
           resolve(false);
         }
       });

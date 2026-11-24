@@ -4,11 +4,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
   fireEvent,
-  render,
+  type RenderOptions,
+  render as renderWithoutUrl,
   screen,
   waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import {
   Activity,
   type ComponentProps,
@@ -161,6 +163,12 @@ vi.mock("./create-task-modal", () => ({
   }),
 }));
 
+// TasksView reads the search query through nuqs.
+function render(ui: React.ReactElement, options?: RenderOptions) {
+  return renderWithoutUrl(ui, { wrapper: NuqsTestingAdapter, ...options });
+}
+
+let focusedFilters = false;
 vi.mock("./tasks-view-filters", async (importOriginal) => ({
   // The real focus helper: clearing a filter moves focus with it.
   focusToolbarControl: (
@@ -174,8 +182,16 @@ vi.mock("./tasks-view-filters", async (importOriginal) => ({
     display?: React.ReactNode | ((activeFilters: string[]) => React.ReactNode);
   }) => (
     <>
+      <input type="search" aria-label="Search tasks" />
       <span data-filters-menu>
-        <button type="button">Filters</button>
+        <button
+          type="button"
+          onFocus={() => {
+            focusedFilters = true;
+          }}
+        >
+          Filters
+        </button>
       </span>
       {typeof display === "function" ? display([]) : display}
     </>
@@ -962,6 +978,41 @@ describe("TasksView filtered empty state", () => {
     expect(replaceMock).toHaveBeenCalledWith(
       `/tasks?projectId=${PROJECT_ID}&scope=owned`,
     );
+  });
+
+  it("names the search when only a search hides every task", async () => {
+    searchParamsRef.current = new URLSearchParams("q=zebra");
+    const onUrlUpdate = vi.fn();
+    render(emptyView({ ...EMPTY_FILTERS, search: "zebra" }), {
+      // The search field's text lives in nuqs `q`: Clear search writes it there.
+      wrapper: ({ children }) => (
+        <NuqsTestingAdapter searchParams="?q=zebra" onUrlUpdate={onUrlUpdate}>
+          {children}
+        </NuqsTestingAdapter>
+      ),
+    });
+
+    expect(
+      screen.getByText("Filters.noSearchMatchesTitle"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Filters.noSearchMatchesDescription"),
+    ).toBeInTheDocument();
+
+    focusedFilters = false;
+    await userEvent.click(
+      screen.getByRole("button", { name: "Filters.clearSearch" }),
+    );
+    await waitFor(() =>
+      expect(onUrlUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ queryString: "" }),
+      ),
+    );
+    expect(
+      screen.getByRole("searchbox", { name: "Search tasks" }),
+    ).toHaveFocus();
+    // Only the search field takes focus: no stop on Filters on the way.
+    expect(focusedFilters).toBe(false);
   });
 
   it("keeps the plain board when nothing is filtered", () => {

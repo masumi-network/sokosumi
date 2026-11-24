@@ -4,6 +4,7 @@ import { DndContext, DragOverlay } from "@dnd-kit/core";
 import type { TaskStatus } from "@sokosumi/core-client";
 import { makeUserTasksChannelName } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
+import { useQueryState } from "nuqs";
 import { useMemo, useRef } from "react";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { TASKS_TOOLBAR_ROW_CLASS } from "@/app/tasks/constants";
@@ -150,6 +151,7 @@ interface TasksBoardProps extends TasksBoardModelProps {
   density: TasksDensity;
   shownSort: TasksSort;
   onClearFilters: () => void;
+  onClearSearch: () => void;
 }
 
 function TasksBoard(props: TasksBoardProps) {
@@ -164,6 +166,7 @@ function TasksBoard(props: TasksBoardProps) {
     shownSort,
     isTaskPaginationInSync,
     onClearFilters,
+    onClearSearch,
   } = props;
   const {
     tTasks,
@@ -253,6 +256,15 @@ function TasksBoard(props: TasksBoardProps) {
     shownItems.length === 0 &&
     isTaskPaginationInSync &&
     hasClearableTasksFilters(routeFilters, activeOrganizationId);
+  // A search alone names what was typed, not "these filters".
+  const emptySearch =
+    routeFilters.search &&
+    !hasClearableTasksFilters(
+      { ...routeFilters, search: undefined },
+      activeOrganizationId,
+    )
+      ? routeFilters.search
+      : null;
 
   return (
     <>
@@ -271,15 +283,30 @@ function TasksBoard(props: TasksBoardProps) {
           >
             {showFilteredEmpty ? (
               <div className="bg-card-background flex flex-1 items-center justify-center rounded-xl">
-                <EmptyState
-                  title={tTasks("Filters.noMatchesTitle")}
-                  description={tTasks("Filters.noMatchesDescription")}
-                  action={
-                    <Button variant="outline" onClick={onClearFilters}>
-                      {tTasks("Filters.clear")}
-                    </Button>
-                  }
-                />
+                {emptySearch ? (
+                  <EmptyState
+                    title={tTasks("Filters.noSearchMatchesTitle")}
+                    description={tTasks("Filters.noSearchMatchesDescription", {
+                      query: emptySearch,
+                    })}
+                    descriptionClassName="wrap-anywhere"
+                    action={
+                      <Button variant="outline" onClick={onClearSearch}>
+                        {tTasks("Filters.clearSearch")}
+                      </Button>
+                    }
+                  />
+                ) : (
+                  <EmptyState
+                    title={tTasks("Filters.noMatchesTitle")}
+                    description={tTasks("Filters.noMatchesDescription")}
+                    action={
+                      <Button variant="outline" onClick={onClearFilters}>
+                        {tTasks("Filters.clear")}
+                      </Button>
+                    }
+                  />
+                )}
               </div>
             ) : isMounted ? (
               <DndContext
@@ -442,6 +469,7 @@ export function TasksView(props: TasksViewProps) {
   };
 
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const [, setSearchQuery] = useQueryState("q", { shallow: false });
   const handleClearFilters = () => {
     replaceTasksQuery(
       router,
@@ -453,6 +481,15 @@ export function TasksView(props: TasksViewProps) {
       activeOrganizationId,
     );
     focusToolbarControl(toolbarRef.current);
+  };
+  // The search field keeps its text in nuqs `q`, which a router.replace does
+  // not reach, so Clear search empties it there. It unmounts itself: the
+  // keyboard goes straight back to the field.
+  const handleClearSearch = () => {
+    void setSearchQuery(null);
+    toolbarRef.current
+      ?.querySelector<HTMLInputElement>('input[type="search"]')
+      ?.focus();
   };
 
   const content = (
@@ -508,6 +545,7 @@ export function TasksView(props: TasksViewProps) {
         serverTasksFiltersResetKey={serverTasksFiltersResetKey}
         isTaskPaginationInSync={isTaskPaginationInSync}
         onClearFilters={handleClearFilters}
+        onClearSearch={handleClearSearch}
       />
     </div>
   );

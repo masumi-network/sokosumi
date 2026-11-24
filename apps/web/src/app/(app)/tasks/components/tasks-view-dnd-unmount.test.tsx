@@ -1,6 +1,7 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { TaskStatus } from "@sokosumi/core-client";
 import { act, fireEvent, render, waitFor } from "@testing-library/react";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import type { ComponentProps, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
@@ -301,7 +302,11 @@ describe("TasksView real PointerSensor unmount guard", () => {
       },
     );
 
-    const { getByTestId, rerender } = render(taggedBoard("research", [TASK]));
+    const { getByTestId, rerender } = render(
+      taggedBoard("research", [TASK]),
+      // TasksView reads the search query through nuqs.
+      { wrapper: NuqsTestingAdapter },
+    );
 
     // Wait for hydrationStore's requestAnimationFrame so the real DndContext mounts.
     await waitFor(() =>
