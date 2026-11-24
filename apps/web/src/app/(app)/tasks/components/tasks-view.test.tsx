@@ -165,6 +165,7 @@ vi.mock("./tasks-view-filters", async (importOriginal) => ({
     display?: React.ReactNode | ((activeFilters: string[]) => React.ReactNode);
   }) => (
     <>
+      <input type="search" aria-label="Search tasks" />
       <span data-filters-menu>
         <button type="button">Filters</button>
       </span>
@@ -966,6 +967,9 @@ describe("TasksView filtered empty state", () => {
       screen.getByRole("button", { name: "Filters.clearSearch" }),
     );
     expect(replaceMock).toHaveBeenCalledWith("/tasks?scope=owned");
+    expect(
+      screen.getByRole("searchbox", { name: "Search tasks" }),
+    ).toHaveFocus();
   });
 
   it("keeps the plain board when nothing is filtered", () => {

@@ -291,6 +291,13 @@ export function TasksView(props: TasksViewProps) {
     );
     focusToolbarControl(toolbarRef.current);
   };
+  // Clear search unmounts itself: keep the keyboard on the search field.
+  const handleClearSearch = () => {
+    handleClearFilters();
+    toolbarRef.current
+      ?.querySelector<HTMLInputElement>('input[type="search"]')
+      ?.focus();
+  };
 
   const content = (
     <div
@@ -347,7 +354,7 @@ export function TasksView(props: TasksViewProps) {
                     })}
                     descriptionClassName="wrap-anywhere"
                     action={
-                      <Button variant="outline" onClick={handleClearFilters}>
+                      <Button variant="outline" onClick={handleClearSearch}>
                         {tTasks("Filters.clearSearch")}
                       </Button>
                     }

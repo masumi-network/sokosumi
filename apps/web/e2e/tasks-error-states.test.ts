@@ -43,11 +43,19 @@ for (const { name: size, ...viewport } of PROJECTS) {
       await page
         .getByRole("heading", { name: "No tasks match your search" })
         .waitFor();
-      await page.getByText("Nothing matches “zebra podcast”").waitFor();
-      await page.getByRole("button", { name: "Clear search" }).click();
-      await page
+      const emptySearch = page
         .getByRole("heading", { name: "No tasks match your search" })
-        .waitFor({ state: "hidden" });
+        .locator("..");
+      await emptySearch.getByText("Nothing matches “zebra podcast”").waitFor();
+      // The search field has its own "Clear search" icon; use the empty state's.
+      await emptySearch.getByRole("button", { name: "Clear search" }).click();
+      const search = page.getByRole("searchbox", { name: "Search tasks" });
+      await page.waitForFunction(() => !location.search.includes("q="));
+      assert.equal(await search.inputValue(), "");
+      assert.ok(
+        await search.evaluate((input) => input === document.activeElement),
+        "focus did not return to the search field",
+      );
 
       await page.goto(`${BASE_URL}/tasks?create=true`);
       const newTask = page.getByRole("dialog", { name: "New task" });
