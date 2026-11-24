@@ -28,7 +28,7 @@ import {
   beginRoomAttentionRefresh,
   reconcileRoomAttention,
 } from "@/components/chat/room-read-overlay";
-import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
+import { useChatRefreshScheduler } from "@/hooks/effects/use-chat-refresh-scheduler";
 import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { useLiveChatRoomsOwnershipSettled } from "@/hooks/effects/use-live-chat-rooms-ownership-settled";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";

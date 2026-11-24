@@ -162,9 +162,9 @@ import {
 } from "@/components/chat/membership-visible-rooms-store";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { RoomCatchUpLine } from "@/components/chat/signals/room-catch-up-line";
-import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import { useChatRefreshScheduler } from "@/hooks/effects/use-chat-refresh-scheduler";
 import { useIsMobileMedia } from "@/hooks/effects/use-mobile";
 import { useQuietHoverWhileScrolling } from "@/hooks/effects/use-quiet-hover-while-scrolling";
 import { useMarkRoomCacheDirtyOnExit } from "@/hooks/effects/use-room-cache-dirty";

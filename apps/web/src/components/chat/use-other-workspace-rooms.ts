@@ -7,6 +7,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useState } from "react";
+import { useChatRefreshScheduler } from "@/hooks/effects/use-chat-refresh-scheduler";
 import {
   useOtherWorkspaceRoomsLiveSync,
   wasOtherWorkspaceRoomRevokedSince,
@@ -27,7 +28,6 @@ import {
   reconcileRoomAttention,
   rememberRoomRead,
 } from "./room-read-overlay";
-import { useChatRefreshScheduler } from "./use-chat-refresh-scheduler";
 
 const NOTHING_UNREAD = {
   unreadCount: 0,
