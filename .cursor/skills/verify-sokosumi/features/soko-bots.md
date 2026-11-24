@@ -22,11 +22,11 @@ Preconditions:
 - `verify-sokosumi doctor` ok.
 
 - **Open Soko Bots.** Run `agent-browser open $WEB_URL/soko-bots` then `agent-browser wait --load networkidle` and `agent-browser snapshot -i`. URL stays `/soko-bots` (not `/signin`).
-- **Confirm shell.** Snapshot shows **Your team's personal assistants** and **Create your assistant**. Fixture Alice with no assistant also shows **You don't have an assistant yet**. Do not require a roster of teammates.
+- **Confirm shell.** On a successful team load, snapshot shows **Your team's personal assistants** and **Create your assistant**. Fixture Alice with no assistant also shows **You don't have an assistant yet**. Do not require a roster of teammates. If the team read failed, see Gotchas — **Create your assistant** is absent then, and that is still this page.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/soko-bots` then screenshot + snapshot.
 
 ## Gotchas
 
-- Bootstrap leaves `SOKO_BOT_ENABLED` false. The team read then 404s with **Soko Bot is not enabled**, and the page also shows **The team overview is not available right now.** The route and the create-assistant hero are still there. That line is an environment gap, not a missing page. Do not claim a populated roster.
+- Bootstrap leaves `SOKO_BOT_ENABLED` false. The team read then fails. The page shows **Couldn't load your team's assistants** and **Nothing was lost. Try again in a moment.**, with **Try again**. The hero **Your team's personal assistants** stays. **Create your assistant** does not. That is an environment gap, not a missing page. Do not claim a populated roster.
 - A personal Soko Bot also replaces the coworker greeting on [Chat landing](./chat-landing.md). This file is the `/soko-bots` roster, not that home.
 - Creating an assistant is out of scope.
