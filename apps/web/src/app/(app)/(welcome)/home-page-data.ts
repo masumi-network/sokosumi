@@ -18,6 +18,7 @@ import { userService } from "@/lib/services/user.service";
 import {
   findSokoBotDirectRoom,
   SOKO_BOT_HOME_TASK_LIMIT,
+  type SokoBotHomeRoom,
 } from "./components/soko-bot-home-data";
 
 /**
@@ -149,13 +150,18 @@ async function readHomeData(scope: HomeScope) {
   // ponytail: one page only, so a question followed by 20 or more top-level
   // bot posts drops off; follow `nextCursor` if bots start posting that much.
   const botDirect = sokoBot ? findSokoBotDirectRoom(rooms, sokoBot.id) : null;
-  const botRoom = botDirect
+  // Its unread count tells Home whether the bot's welcome is still unread.
+  const botRoom: SokoBotHomeRoom | null = botDirect
     ? {
         roomId: botDirect.id,
-        messages: await chatRoomService
+        unread: botDirect.channelUnreadCount ?? botDirect.unreadCount,
+        ...(await chatRoomService
           .listMessages(botDirect.id, { limit: SOKO_BOT_ROOM_MESSAGE_LIMIT })
-          .then(({ messages }) => messages)
-          .catch(() => []),
+          .then(({ messages, nextCursor }) => ({
+            messages,
+            complete: nextCursor === null,
+          }))
+          .catch(() => ({ messages: [], complete: false }))),
       }
     : null;
   return {

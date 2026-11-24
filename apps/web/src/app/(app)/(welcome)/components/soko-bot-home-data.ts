@@ -66,6 +66,52 @@ export function sokoBotFailureLead(
       };
 }
 
+/** The bot's Direct as Home reads it: its newest top-level messages. */
+export interface SokoBotHomeRoom {
+  roomId: string;
+  /** Oldest first, deleted ones included. */
+  messages: readonly ChatRoomMessage[];
+  /** Top-level messages from others the reader has not read. */
+  unread: number;
+  /** `messages` holds the whole room, so its first one is the room's first. */
+  complete: boolean;
+}
+
+/**
+ * Home's Needs you row for the bot's welcome, while the reader has not read
+ * it: the bot's first message in its Direct, before the reader ever wrote
+ * there. The unread count covers the newest messages, so the welcome is
+ * unread only while it counts every bot message from it on.
+ */
+export function sokoBotWelcomeLead(
+  bot: { id: string; name: string },
+  botRoom: SokoBotHomeRoom | null,
+  t: (key: "welcome" | "openChat", values?: { name: string }) => string,
+): NeedsYouLead | undefined {
+  if (!botRoom?.complete || botRoom.unread === 0) return undefined;
+  const [welcome] = botRoom.messages;
+  if (
+    !welcome ||
+    welcome.deletedAt ||
+    welcome.sender.type !== "sokoBot" ||
+    welcome.sender.sokoBot.id !== bot.id ||
+    botRoom.messages.some((message) => message.sender.type === "user")
+  ) {
+    return undefined;
+  }
+  const fromOthers = botRoom.messages.filter(
+    (message) => !message.deletedAt,
+  ).length;
+  if (botRoom.unread < fromOthers) return undefined;
+  return {
+    title: t("welcome", { name: bot.name }),
+    detail: t("openChat"),
+    href: chatRoomMessageHref(botRoom.roomId, welcome.id),
+    at: welcome.createdAt,
+    kind: "message",
+  };
+}
+
 /** A Task the team moved in the last day, as one row of the home. */
 export interface SokoBotHomeTask {
   id: string;

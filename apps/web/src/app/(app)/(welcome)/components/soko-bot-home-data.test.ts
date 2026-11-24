@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   findSokoBotDirectRoom,
+  sokoBotWelcomeLead,
   toImportantChats,
   toNewSchedules,
   toTeamDay,
@@ -252,5 +253,83 @@ describe("withSokoBotChat", () => {
         [unread],
       ),
     ).toEqual([unread]);
+  });
+});
+
+describe("sokoBotWelcomeLead", () => {
+  const bot = { id: "bot", name: "Pip" };
+  const t = (key: string, values?: { name: string }) =>
+    values ? `${key}:${values.name}` : key;
+  const message = (
+    id: string,
+    sender: "me" | "bot",
+    extra: Partial<ChatRoomMessage> = {},
+  ) =>
+    ({
+      id,
+      roomId: "bot-room",
+      parentMessageId: null,
+      content: "Hi",
+      createdAt: new Date("2026-11-24T09:00:00Z"),
+      deletedAt: null,
+      sender:
+        sender === "me"
+          ? { type: "user", user: { id: "me" } }
+          : { type: "sokoBot", sokoBot: { id: "bot" } },
+      ...extra,
+    }) as ChatRoomMessage;
+  const welcomeRoom = {
+    roomId: "bot-room",
+    messages: [message("welcome", "bot")],
+    unread: 1,
+    complete: true,
+  };
+
+  it("lists the bot's unread welcome and opens it in the bot's chat", () => {
+    expect(sokoBotWelcomeLead(bot, welcomeRoom, t)).toEqual({
+      title: "welcome:Pip",
+      detail: "openChat",
+      href: "/chat/rooms/bot-room?message=welcome",
+      at: new Date("2026-11-24T09:00:00Z"),
+      kind: "message",
+    });
+  });
+
+  it("is gone once the welcome is read", () => {
+    expect(sokoBotWelcomeLead(bot, { ...welcomeRoom, unread: 0 }, t)).toBe(
+      undefined,
+    );
+  });
+
+  it("is gone when only a later bot message is unread", () => {
+    const room = {
+      ...welcomeRoom,
+      messages: [message("welcome", "bot"), message("later", "bot")],
+      unread: 1,
+    };
+    expect(sokoBotWelcomeLead(bot, room, t)).toBe(undefined);
+  });
+
+  it("is gone once the reader wrote back", () => {
+    const room = {
+      ...welcomeRoom,
+      messages: [message("welcome", "bot"), message("question", "me")],
+    };
+    expect(sokoBotWelcomeLead(bot, room, t)).toBe(undefined);
+  });
+
+  it("needs the bot's first message, not just any unread one", () => {
+    for (const room of [
+      // Older messages exist past this page.
+      { ...welcomeRoom, complete: false },
+      // The welcome was deleted.
+      {
+        ...welcomeRoom,
+        messages: [message("welcome", "bot", { deletedAt: new Date() })],
+      },
+      null,
+    ]) {
+      expect(sokoBotWelcomeLead(bot, room, t)).toBe(undefined);
+    }
   });
 });

@@ -17,6 +17,7 @@ import { countOverdue, loadMyDay, MyDay } from "./components/my-day";
 import { SokoBotHome } from "./components/soko-bot-home";
 import {
   sokoBotFailureLead,
+  sokoBotWelcomeLead,
   toImportantChats,
   toNewSchedules,
   toTeamDay,
@@ -108,13 +109,13 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
       ),
     )
     .catch(() => ({}));
-  const needsYouPanel = (lead?: NeedsYouLead) => (
+  const needsYouPanel = (leads: NeedsYouLead[]) => (
     <Suspense fallback={null}>
       {NeedsYouPanel({
         feed: needsYouFeed,
         projects: needsYouProjects,
         quiet: true,
-        lead,
+        leads,
       })}
     </Suspense>
   );
@@ -129,9 +130,9 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
   } = await homeData;
   const notice =
     (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
-  const landingNotice = (
+  const landingNotice = (everyVisit = false) => (
     <>
-      <RefreshPrefetchedPage />
+      <RefreshPrefetchedPage everyVisit={everyVisit} />
       <ChatLandingNotice notice={notice} />
     </>
   );
@@ -151,9 +152,17 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
       lastFailure,
       tHome,
     );
+    // Right after setup the bot's welcome waits unread, and Needs you said
+    // nothing did.
+    const welcomeLead = sokoBotWelcomeLead(
+      { id: sokoBot.id, name: botName },
+      botRoom,
+      tHome,
+    );
     return (
       <>
-        {landingNotice}
+        {/* A copy kept from before the welcome was read would still list it. */}
+        {landingNotice(welcomeLead !== undefined)}
         <SokoBotHome
           bot={{
             id: sokoBot.id,
@@ -184,14 +193,16 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           )}
           schedules={toNewSchedules(sokoBot.schedules ?? [], now)}
           myDay={myDay}
-          needsYou={needsYouPanel(failedLead)}
+          needsYou={needsYouPanel(
+            [welcomeLead, failedLead].filter((lead) => lead !== undefined),
+          )}
         />
       </>
     );
   }
   return (
     <>
-      {landingNotice}
+      {landingNotice()}
       <SokoBotSetup />
     </>
   );
