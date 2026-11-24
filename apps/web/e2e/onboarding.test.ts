@@ -104,11 +104,21 @@ for (const { name, ...viewport } of PROJECTS) {
         registerBox && registerBox.height >= 24,
         "Register is 24px tall",
       );
-      await register.click();
-      await expectStep(page, /\/signup/, "Create your account");
-      const signupLogo = await logoBox(page);
+      // Like the visitor in the demo, they try Log in first. The notice
+      // that asks for a typo check shows the whole address, which a phone's
+      // field cuts short.
       await page.getByRole("textbox", { name: "Email" }).fill(mailbox.address);
       await page.getByRole("button", { name: "Continue with email" }).click();
+      await page
+        .getByTestId("email-step-detour")
+        .getByText(mailbox.address, { exact: true })
+        .waitFor();
+      await shot("0-no-account");
+      // The link ignores a click in its first 400ms (a double-click guard).
+      await page.waitForTimeout(500);
+      await page.getByRole("link", { name: "Create account" }).click();
+      await expectStep(page, /\/signup/, "Create your account");
+      const signupLogo = await logoBox(page);
 
       // The chip is named by the address it shows, then what it does.
       await page
