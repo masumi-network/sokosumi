@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { MCP_TOOLS, type McpTool } from "@/lib/sokosumi-mcp/tools";
+import { MCP_TOOLS, type McpTool, toolsetOf } from "@/lib/sokosumi-mcp/tools";
 
 import apiV1 from "./index.js";
 
@@ -70,7 +70,11 @@ function agentSurfaceProblems(
       if (values.includes(false) !== Boolean(row.reason)) {
         problems.push(`${at}: "reason" goes with, and only with, false.`);
       }
-      if (values.includes(undefined) && !manifest.backlog) {
+      if (typeof row.cli === "string" && row.mcp === undefined) {
+        problems.push(
+          `${at}: map "mcp" beside "cli": the tool, or false with a reason.`,
+        );
+      } else if (values.includes(undefined) && !manifest.backlog) {
         problems.push(`${at}: map both "cli" and "mcp".`);
       }
       if (values.every((value) => value === undefined)) {
@@ -126,6 +130,11 @@ function mcpBindingProblems(
   }
 
   for (const tool of tools) {
+    if (!manifests.has(toolsetOf(tool.name))) {
+      problems.push(
+        `${registry} "${tool.name}": start the name with a route group; it is the toolset.`,
+      );
+    }
     const row = manifests.get(groupOf(tool.operation))?.operations[
       tool.operation
     ];
@@ -208,6 +217,27 @@ describe("agent surface", () => {
       ]);
     });
 
+    it("fails a tool whose name does not start with a route group", () => {
+      expect(
+        mcpBindingProblems(
+          new Map([
+            [
+              "tasks",
+              manifestSchema.parse({
+                backlog: "SOKD-369",
+                operations: {
+                  "GET /tasks": { cli: "tasks list", mcp: "todo_list" },
+                },
+              }),
+            ],
+          ]),
+          [{ ...tool, name: "todo_list" }],
+        ),
+      ).toEqual([
+        'src/lib/sokosumi-mcp/tools.ts "todo_list": start the name with a route group; it is the toolset.',
+      ]);
+    });
+
     it("fails a tool bound to another operation, and a tool no row names", () => {
       expect(
         mcpBindingProblems(manifests("tasks_list"), [
@@ -276,7 +306,9 @@ describe("agent surface", () => {
           "tasks",
           parse({
             backlog: "SOKD-369",
-            operations: { "GET /tasks/gone": { cli: "tasks gone" } },
+            operations: {
+              "GET /tasks/gone": { cli: "tasks gone", mcp: "tasks_gone" },
+            },
           }),
         ],
         ["gone", parse({ excluded: "Removed" })],
@@ -308,8 +340,8 @@ describe("agent surface", () => {
       );
     });
 
-    it("leaves MCP pending only while the group has a backlog", () => {
-      const row = { operations: { "GET /tasks": { cli: "tasks list" } } };
+    it("leaves the CLI pending only while the group has a backlog", () => {
+      const row = { operations: { "GET /tasks": { mcp: "tasks_list" } } };
 
       expect(
         agentSurfaceProblems(
@@ -321,6 +353,19 @@ describe("agent surface", () => {
         agentSurfaceProblems(["GET /tasks"], new Map([["tasks", parse(row)]])),
       ).toEqual([
         'apps/core/agent-surface/tasks.json "GET /tasks": map both "cli" and "mcp".',
+      ]);
+    });
+
+    it("never leaves MCP pending beside a CLI command", () => {
+      const tasks = parse({
+        backlog: "SOKD-369",
+        operations: { "GET /tasks": { cli: "tasks list" } },
+      });
+
+      expect(
+        agentSurfaceProblems(["GET /tasks"], new Map([["tasks", tasks]])),
+      ).toEqual([
+        'apps/core/agent-surface/tasks.json "GET /tasks": map "mcp" beside "cli": the tool, or false with a reason.',
       ]);
     });
 

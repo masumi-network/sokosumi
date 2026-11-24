@@ -310,6 +310,164 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       "--json",
     ],
   },
+  // SOKD-372: coworkers, vendors and developer.
+  "GET /coworkers/me/events": { argv: [...API, "coworkers", "events"] },
+  "POST /coworkers/me/usage": {
+    argv: [
+      ...API,
+      "coworkers",
+      "report-usage",
+      "--input-json",
+      '{"userId":"user-1","organizationId":null,"idempotencyKey":"u-1"}',
+    ],
+  },
+  "DELETE /coworkers/{id}": { argv: [...API, "coworkers", "archive", "cw-1"] },
+  "POST /coworkers/{id}/unarchive": {
+    argv: [...API, "coworkers", "unarchive", "cw-1", "--input-json", "{}"],
+  },
+  "PATCH /coworkers/{id}/whitelist": {
+    argv: [
+      ...API,
+      "coworkers",
+      "whitelist",
+      "cw-1",
+      "--input-json",
+      '{"isWhitelisted":true}',
+    ],
+  },
+  "DELETE /coworkers/{id}/image": {
+    argv: [...API, "coworkers", "remove-image", "cw-1"],
+  },
+  "PATCH /coworkers/{id}/api-keys/{keyId}": {
+    argv: [
+      ...API,
+      "coworkers",
+      "update-api-key",
+      "cw-1",
+      "key-1",
+      "--input-json",
+      '{"name":"Runtime"}',
+    ],
+  },
+  "GET /coworkers/{id}/workspace-access": {
+    argv: [...API, "coworkers", "list-access", "cw-1"],
+  },
+  "POST /coworkers/{id}/workspace-access/revoke": {
+    argv: [
+      ...API,
+      "coworkers",
+      "revoke-access",
+      "cw-1",
+      "--input-json",
+      '{"organizationSlug":"acme"}',
+    ],
+  },
+  "GET /vendors": { argv: [...API, "vendors", "list"] },
+  "PATCH /vendors/{id}": {
+    argv: [
+      ...API,
+      "vendors",
+      "update",
+      "vendor-1",
+      "--input-json",
+      '{"name":"Acme"}',
+    ],
+  },
+  "POST /vendors/{id}/files": {
+    argv: [
+      ...API,
+      "vendors",
+      "logo-upload",
+      "vendor-1",
+      "--input-json",
+      '{"filename":"logo.png","contentType":"image/png","size":1024}',
+    ],
+  },
+  "POST /vendors/{id}/files/cleanup": {
+    argv: [
+      ...API,
+      "vendors",
+      "logo-cleanup",
+      "vendor-1",
+      "--input-json",
+      '{"url":"https://blob.example/vendors/vendor-1/logos/old.png"}',
+    ],
+  },
+  "GET /vendors/{id}/members": {
+    argv: [...API, "vendors", "members", "vendor-1"],
+  },
+  "PATCH /vendors/{id}/members/{userId}": {
+    argv: [
+      ...API,
+      "vendors",
+      "update-member",
+      "vendor-1",
+      "user-2",
+      "--input-json",
+      '{"role":"admin"}',
+    ],
+  },
+  "DELETE /vendors/{id}/members/{userId}": {
+    argv: [...API, "vendors", "remove-member", "vendor-1", "user-2"],
+  },
+  "GET /vendors/{id}/invites": {
+    argv: [...API, "vendors", "invites", "vendor-1"],
+  },
+  "POST /vendors/{id}/invites": {
+    argv: [
+      ...API,
+      "vendors",
+      "invite",
+      "vendor-1",
+      "--input-json",
+      '{"email":"dev@example.com"}',
+    ],
+  },
+  "DELETE /vendors/{id}/invites/{inviteId}": {
+    argv: [...API, "vendors", "revoke-invite", "vendor-1", "invite-1"],
+  },
+  "GET /vendors/invites": { argv: [...API, "vendors", "my-invites"] },
+  "POST /vendors/invites/{inviteId}/accept": {
+    argv: [
+      ...API,
+      "vendors",
+      "accept-invite",
+      "invite-1",
+      "--input-json",
+      "{}",
+    ],
+  },
+  "POST /vendors/invites/{inviteId}/decline": {
+    argv: [
+      ...API,
+      "vendors",
+      "decline-invite",
+      "invite-1",
+      "--input-json",
+      "{}",
+    ],
+  },
+  "GET /vendors/{id}/coworkers/{coworkerId}/assignments": {
+    argv: [...API, "vendors", "assignments", "vendor-1", "cw-1"],
+  },
+  "PUT /vendors/{id}/coworkers/{coworkerId}/assignments": {
+    argv: [
+      ...API,
+      "vendors",
+      "assign",
+      "vendor-1",
+      "cw-1",
+      "--input-json",
+      '{"userId":"user-2"}',
+    ],
+  },
+  "DELETE /vendors/{id}/coworkers/{coworkerId}/assignments/{userId}": {
+    argv: [...API, "vendors", "unassign", "vendor-1", "cw-1", "user-2"],
+  },
+  "GET /developer/tasks": { argv: [...API, "developer", "tasks"] },
+  "GET /developer/tasks/{id}": {
+    argv: [...API, "developer", "task", "task-1"],
+  },
   "GET /users/{id}/organizations": {
     argv: [...API, "workspaces", "list", "--json"],
   },

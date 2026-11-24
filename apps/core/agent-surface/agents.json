@@ -2,13 +2,16 @@
   "backlog": "SOKD-370",
   "operations": {
     "GET /agents": {
-      "cli": "agents list"
+      "cli": "agents list",
+      "mcp": "agents_list"
     },
     "GET /agents/{id}/input-schema": {
-      "cli": "agents hire"
+      "cli": "agents hire",
+      "mcp": "agents_input_schema"
     },
     "POST /agents/{id}/jobs": {
-      "cli": "agents hire"
+      "cli": "agents hire",
+      "mcp": "agents_hire"
     }
   }
 }

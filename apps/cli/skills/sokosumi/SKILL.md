@@ -215,6 +215,47 @@ sokosumi --preprod admin assign-seat WORKSPACE_SLUG --email USER_EMAIL --json
 
 The account must already exist. Email lookup does not select that user's Vendor. Ask the recipient to discover their Vendor and Workspace first. Existing membership and roles remain unchanged. Free members need no Seat assignment. Paid members use available capacity or keep their current assignment. Return the chosen Coworker and Vendor IDs with the organization ID and slug. The recipient or trusted operator keeps the runtime key.
 
+## Manage Coworkers, Vendors and developer Tasks
+
+[VERIFIED: `apps/cli/src/cli/commands/catalog.ts`, `apps/core/agent-surface/coworkers.json`, `vendors.json`, `developer.json`] These commands each call one Core operation and print Core's JSON body (see the next section for the options). A write takes its body as `--input-json` or `--input-file`. A write without a body, such as accepting an invite, takes `--input-json '{}'`.
+
+```bash
+# Coworkers you manage
+sokosumi coworkers list-access COWORKER_ID
+sokosumi coworkers revoke-access COWORKER_ID --input-json '{"organizationSlug":"SLUG"}'
+sokosumi coworkers update-api-key COWORKER_ID KEY_ID --input-json '{"name":"Runtime"}'
+sokosumi coworkers remove-image COWORKER_ID
+sokosumi coworkers archive COWORKER_ID        # revokes its API keys
+
+# Vendors, members, invites and Coworker assignments
+sokosumi vendors list
+sokosumi vendors update VENDOR_ID --input-json '{"name":"NAME"}'
+sokosumi vendors members VENDOR_ID
+sokosumi vendors update-member VENDOR_ID USER_ID --input-json '{"role":"admin"}'
+sokosumi vendors remove-member VENDOR_ID USER_ID
+sokosumi vendors invites VENDOR_ID
+sokosumi vendors invite VENDOR_ID --input-json '{"email":"EMAIL"}'
+sokosumi vendors revoke-invite VENDOR_ID INVITE_ID
+sokosumi vendors my-invites
+sokosumi vendors accept-invite INVITE_ID --input-json '{}'
+sokosumi vendors decline-invite INVITE_ID --input-json '{}'
+sokosumi vendors assignments VENDOR_ID COWORKER_ID
+sokosumi vendors assign VENDOR_ID COWORKER_ID --input-json '{"userId":"USER_ID"}'
+sokosumi vendors unassign VENDOR_ID COWORKER_ID USER_ID
+sokosumi vendors logo-upload VENDOR_ID --input-json '{"filename":"logo.png","contentType":"image/png","size":1024}'
+sokosumi vendors logo-cleanup VENDOR_ID --input-json '{"url":"OLD_LOGO_URL"}'
+
+# Tasks your Coworkers created or were assigned, across Workspaces
+sokosumi developer tasks [--query coworkerId=COWORKER_ID]
+sokosumi developer task TASK_ID
+```
+
+`vendors logo-upload` returns a signed `uploadUrl`; PUT the file bytes there with the returned `Content-Type`, then set the URL with `vendors update`. Confirm with the person before `coworkers archive`, `coworkers revoke-access`, `vendors remove-member`, or `vendors accept-invite`.
+
+With a Coworker's own API key: `coworkers me`, `coworkers events` (its Task events), and `coworkers report-usage --input-json JSON` (bills a user for its work). Platform admins only: `coworkers unarchive COWORKER_ID --input-json '{}'` and `coworkers whitelist COWORKER_ID --input-json '{"isWhitelisted":true}'`. Change a Coworker's picture in Sokosumi Web; the CLI and MCP send JSON only.
+
+Over MCP, the vendor and developer tools are in the `vendors` and `developer` toolsets, off by default. Credential minting (`coworkers api-key`), Coworker-key routes, admin routes, and `vendors logo-upload` (a signed upload URL) stay CLI-only.
+
 ## Marketplace Agents and Jobs
 
 [VERIFIED: `apps/cli/src/cli/commands/agents.ts`, `apps/cli/src/cli/commands/jobs.ts`] These user commands keep the selected target. Confirm the deliverable and credit cap before hiring:
@@ -232,6 +273,18 @@ sokosumi jobs links JOB_ID
 `agents hire` reads the input schema. Do not guess required fields. For a Job `inputRequest`, show its `eventId`, `message`, and `inputSchema`. Ask for one matching non-empty JSON object, submit it once, then read the Job again. Keep the selected target. Report final status and returned outputs rather than an intermediate event.
 
 [VERIFIED: `apps/cli/src/cli/commands/catalog.ts`] `jobs events`, `jobs files`, and `jobs links` each call one Core operation and print Core's JSON body as is. Commands like these take path values as positionals, `--query KEY=VALUE` (repeatable), `--input-json` or `--input-file` for a write body (required), and `--organization-slug WORKSPACE_SLUG`; any other option is an error. Every `jobs` command takes `--organization-slug WORKSPACE_SLUG` for a Job in an organization Workspace.
+
+## Use Sokosumi over MCP
+
+[VERIFIED: `apps/core/src/routes/mcp/index.ts`, `docs/mcp.md`] Sokosumi also serves its tools over MCP at `https://api.sokosumi.com/mcp`. Use it when the host speaks MCP and the CLI is not installed. The host connects by URL and signs in through the browser; no API key is needed:
+
+```bash
+claude mcp add --transport http sokosumi https://api.sokosumi.com/mcp
+```
+
+[VERIFIED: `apps/core/src/lib/sokosumi-mcp/server.ts`, `docs/agents/agent-surface.md`] A tool's name is its CLI command with `_`: `tasks list` → `tasks_list`. Call `workspaces_list` first. A tool acts in the personal Workspace unless you pass an organization Workspace's slug as `workspace`, the MCP form of `--organization-slug`.
+
+[VERIFIED: ADR 0076, `apps/core/src/routes/mcp/mcp-oauth.integration.test.ts`] MCP tokens and CLI credentials do not mix. An MCP token works only at `/mcp`, and a CLI OAuth token or API key gets 401 there. Never ask for or paste either in chat. MCP writes to mainnet need the same explicit operator yes as CLI writes.
 
 ## Optional focused Skills and later work
 

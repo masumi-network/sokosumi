@@ -8,7 +8,7 @@ import mcpRouter from "@/routes/mcp/index";
 
 import type { McpTokenVerification } from "./auth";
 import { coreV1 } from "./dispatch";
-import { MCP_TOOLS } from "./tools";
+import { MCP_TOOLS, MCP_TOOLSETS } from "./tools";
 
 /**
  * One fixture per tool in `MCP_TOOLS`: the arguments an agent would send.
@@ -19,8 +19,88 @@ import { MCP_TOOLS } from "./tools";
 const FIXTURES: Record<string, Record<string, unknown>> = {
   users_get: { id: "me" },
   workspaces_list: { id: "me" },
+  workspaces_create: { id: "me", body: { kind: "personal" } },
   tasks_list: { workspace: "acme", status: ["READY", "RUNNING"], limit: 5 },
   tasks_get: { id: "SOK-123", workspace: "acme" },
+  tasks_create: { workspace: "acme", body: { name: "Write the launch post" } },
+  tasks_update: { id: "SOK-123", body: { priority: "HIGH" } },
+  tasks_archive: { id: "SOK-123" },
+  tasks_events: { id: "SOK-123", limit: 20 },
+  tasks_comment: { id: "SOK-123", body: { comment: "Draft is ready." } },
+  tasks_jobs: { id: "SOK-123" },
+  tasks_links: { id: "SOK-123" },
+  tasks_link: {
+    id: "SOK-123",
+    body: { toTaskId: "SOK-124", relation: "BLOCKS" },
+  },
+  tasks_unlink: { id: "SOK-123", linkId: "link-1" },
+  tasks_move: { id: "SOK-124", body: { parentTaskId: "SOK-123" } },
+  tasks_receipt: { id: "SOK-123" },
+  jobs_list: { workspace: "acme", status: "COMPLETED" },
+  jobs_get: { id: "job-1" },
+  jobs_input_request: { id: "job-1" },
+  jobs_input: {
+    id: "job-1",
+    body: { eventId: "event-1", inputData: { topic: "Launch" } },
+  },
+  jobs_events: { id: "job-1" },
+  jobs_files: { id: "job-1" },
+  jobs_links: { id: "job-1" },
+  agents_list: { limit: 10 },
+  agents_input_schema: { id: "agent-1" },
+  agents_hire: {
+    id: "agent-1",
+    body: { inputSchema: [], inputData: { topic: "Launch" }, maxCredits: 5 },
+  },
+  coworkers_list: { capability: "tasks" },
+  coworkers_get: { id: "cw-1" },
+  coworkers_register: { body: { name: "Ada", vendorId: "vendor-1" } },
+  coworkers_update: { id: "cw-1", body: { caption: "Writes posts" } },
+  coworkers_connect: { id: "cw-1", body: { organizationSlug: "acme" } },
+  coworkers_list_api_keys: { id: "cw-1" },
+  coworkers_revoke_api_key: { id: "cw-1", keyId: "key-1" },
+  vendors_me: {},
+  vendors_create: { body: { name: "Acme Agents", slug: "acme-agents" } },
+  // SOKD-372: coworkers, vendors and developer.
+  coworkers_archive: { id: "cw-1" },
+  coworkers_remove_image: { id: "cw-1" },
+  coworkers_update_api_key: {
+    id: "cw-1",
+    keyId: "key-1",
+    body: { name: "Runtime" },
+  },
+  coworkers_list_access: { id: "cw-1" },
+  coworkers_revoke_access: { id: "cw-1", body: { organizationSlug: "acme" } },
+  vendors_list: {},
+  vendors_update: { id: "vendor-1", body: { name: "Acme Agents" } },
+  vendors_logo_cleanup: {
+    id: "vendor-1",
+    body: { url: "https://blob.example/vendors/vendor-1/logos/old.png" },
+  },
+  vendors_members: { id: "vendor-1" },
+  vendors_update_member: {
+    id: "vendor-1",
+    userId: "user-2",
+    body: { role: "admin" },
+  },
+  vendors_remove_member: { id: "vendor-1", userId: "user-2" },
+  vendors_invites: { id: "vendor-1" },
+  vendors_invite: { id: "vendor-1", body: { email: "dev@example.com" } },
+  vendors_revoke_invite: { id: "vendor-1", inviteId: "invite-1" },
+  vendors_my_invites: {},
+  vendors_accept_invite: { inviteId: "invite-1" },
+  vendors_decline_invite: { inviteId: "invite-1" },
+  vendors_assignments: { id: "vendor-1", coworkerId: "cw-1" },
+  vendors_assign: {
+    id: "vendor-1",
+    coworkerId: "cw-1",
+    body: { userId: "user-2" },
+  },
+  vendors_unassign: { id: "vendor-1", coworkerId: "cw-1", userId: "user-2" },
+  developer_tasks: { limit: 10 },
+  developer_task: { id: "task-1" },
+  organizations_list: { id: "me" },
+  organizations_seat: { id: "org-1" },
 };
 
 const CORE = "https://core.example.test";
@@ -58,7 +138,7 @@ beforeAll(async () => {
   client = await createMCPClient({
     transport: {
       type: "http",
-      url: `${CORE}/mcp`,
+      url: `${CORE}/mcp?toolsets=${MCP_TOOLSETS.join(",")}`,
       headers: { Authorization: "Bearer mcp-token" },
       fetch: async (input, init) => app.request(input, init),
     },

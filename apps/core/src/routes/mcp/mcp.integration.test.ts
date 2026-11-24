@@ -5,7 +5,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
 import type { McpTokenVerification } from "@/lib/sokosumi-mcp/auth";
-import { MCP_TOOLS } from "@/lib/sokosumi-mcp/tools";
+import {
+  DEFAULT_TOOLSETS,
+  MCP_TOOLS,
+  toolsetOf,
+} from "@/lib/sokosumi-mcp/tools";
 
 import mcpRouter from "./index";
 
@@ -60,11 +64,11 @@ app.route("/mcp", mcpRouter);
 
 const clients: { close(): Promise<void> }[] = [];
 
-async function connect(headers: Record<string, string>) {
+async function connect(headers: Record<string, string>, query = "") {
   const client = await createMCPClient({
     transport: {
       type: "http",
-      url: `${CORE}/mcp`,
+      url: `${CORE}/mcp${query}`,
       headers,
       fetch: async (input, init) => app.request(input, init),
     },
@@ -85,9 +89,6 @@ describe("Sokosumi MCP server", () => {
     expect(client.instructions).toContain("workspaces_list");
 
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name)).toEqual(
-      MCP_TOOLS.map((tool) => tool.name),
-    );
     expect(tools.find((tool) => tool.name === "tasks_get")).toMatchObject({
       inputSchema: {
         type: "object",
@@ -115,6 +116,89 @@ describe("Sokosumi MCP server", () => {
       structuredContent: { status: 422, message: 'Missing argument "id".' },
     });
   }, 15_000);
+
+  it("lists the default toolsets, under 80 tools, unless the URL picks others", async () => {
+    const auth = { Authorization: "Bearer mcp-token" };
+    const listed = async (query?: string) =>
+      (await (await connect(auth, query)).listTools()).tools.map(
+        (tool) => tool.name,
+      );
+
+    const defaults = await listed();
+    expect(defaults).toEqual(
+      MCP_TOOLS.map((tool) => tool.name).filter((name) =>
+        (DEFAULT_TOOLSETS as readonly string[]).includes(toolsetOf(name)),
+      ),
+    );
+    expect(defaults.length).toBeLessThan(80);
+    expect(new Set(defaults.map(toolsetOf))).toEqual(new Set(DEFAULT_TOOLSETS));
+
+    expect(await listed("?toolsets=vendors,organizations")).toEqual([
+      "vendors_me",
+      "vendors_create",
+      "vendors_list",
+      "vendors_update",
+      "vendors_logo_cleanup",
+      "vendors_members",
+      "vendors_update_member",
+      "vendors_remove_member",
+      "vendors_invites",
+      "vendors_invite",
+      "vendors_revoke_invite",
+      "vendors_my_invites",
+      "vendors_accept_invite",
+      "vendors_decline_invite",
+      "vendors_assignments",
+      "vendors_assign",
+      "vendors_unassign",
+      "organizations_list",
+      "organizations_seat",
+    ]);
+
+    const client = await connect(auth, "?toolsets=tasks");
+    expect(client.instructions).toContain("Toolsets on: tasks.");
+    expect(client.instructions).not.toContain("workspaces_list");
+    await expect(
+      client.callTool({ name: "users_get", arguments: { id: "me" } }),
+    ).rejects.toThrow("Unknown tool: users_get");
+  }, 15_000);
+
+  it("warns before a tool that spends credits", async () => {
+    const client = await connect({ Authorization: "Bearer mcp-token" });
+    const { tools } = await client.listTools();
+    const hire = tools.find((tool) => tool.name === "agents_hire");
+
+    expect(hire?.description).toMatch(/^Spends workspace credits\./);
+    expect(hire?.annotations).toEqual({
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: true,
+    });
+    expect(tools.filter((tool) => tool.annotations?.openWorldHint)).toEqual([
+      hire,
+    ]);
+  });
+
+  it("refuses an unknown toolset by name", async () => {
+    await expect(
+      connect({ Authorization: "Bearer mcp-token" }, "?toolsets=tasks,nope"),
+    ).rejects.toThrow();
+
+    const response = await app.request(`${CORE}/mcp?toolsets=tasks,nope`, {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer mcp-token",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+    });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      message:
+        'Unknown toolset "nope". Toolsets: users, workspaces, tasks, jobs, agents, coworkers, vendors, developer, organizations.',
+    });
+  });
 
   it("answers a 2026-07-28 request with JSON, and opens no subscription stream", async () => {
     const post = (method: string, params: Record<string, unknown>) =>
