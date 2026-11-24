@@ -13,6 +13,7 @@ import { keepRoomUnreadState } from "./room-attention";
 import {
   applyRoomReadOverlays,
   beginRoomAttentionRefresh,
+  getRoomReadOverlayVersion,
   reconcileRoomAttention,
 } from "./room-read-overlay";
 
@@ -55,14 +56,22 @@ export interface AttachLiveChatRoomsReaderOptions {
   organizationId: string | null;
   currentUserId: string;
   healthy?: boolean;
+  /** True when re-attaching a hidden React Activity subtree; preserves held rows and failure state. */
+  isReveal?: boolean;
 }
 
 export interface LiveChatRoomsReaderHandle {
   /**
-   * Advances the committed scope in the layout phase so an in-flight read
-   * landing before passive cleanup is dropped (matching main's `scopeRef`).
+   * Advances committed scope and live health in the layout phase so an
+   * in-flight read landing before passive cleanup is dropped (matching main's
+   * `scopeRef`) and `scheduler.start()` reads current health (matching main's
+   * `healthyRef`).
    */
-  commitScope: (organizationId: string | null, currentUserId: string) => void;
+  commitRenderState: (
+    organizationId: string | null,
+    currentUserId: string,
+    healthy: boolean,
+  ) => void;
   setScope: (organizationId: string | null, currentUserId: string) => void;
   setHealth: (healthy: boolean) => void;
   detach: () => void;
@@ -79,8 +88,12 @@ interface AttachedReaderEntry {
   currentUserId: string;
   scope: string | null;
   committedScope: string | null;
-  healthy: boolean;
   detached: boolean;
+}
+
+interface SchedulerDemandEntry {
+  key: string;
+  released: boolean;
 }
 
 const EMPTY_LIVE_READ: LiveChatRoomsReadSnapshot = {
@@ -107,27 +120,62 @@ let activeOrganizationId: string | null = null;
 let activeCurrentUserId = "";
 let activeScope: string | null = null;
 let committedScope: string | null = null;
-let readerHealthy = false;
+let liveHealthy = false;
+let syncedHealthy = false;
 let ownershipSettled = false;
 let ownershipWaitTimer: number | undefined;
 let scheduler: ChatRefreshScheduler | null = null;
 let activeSchedulerKey: string | null = null;
 let unsubscribeRoomRead: (() => void) | null = null;
 let unsubscribeRoomsChanged: (() => void) | null = null;
+let windowListenersCount = 0;
 const attachedReaders = new Set<AttachedReaderEntry>();
+const schedulerDemands = new Set<SchedulerDemandEntry>();
 const liveRoomsListeners = new Set<() => void>();
+const ownershipSettledListeners = new Set<() => void>();
 const cachedReadByScope = new Map<string, LiveChatRoomsReadSnapshot>();
+
+// Identity-keyed preview cache for `applyRoomReadOverlays([...latestSnapshot.rooms])`
+// during pre-attach or pre-commit renders; invalidated by any new snapshot object
+// or any room-read-overlay write/delete/clear/expiry.
+let cachedPreviewSnapshot: MembershipVisibleRoomsSnapshot | null = null;
+let cachedPreviewOverlayVersion = -1;
+let cachedPreviewRooms: ChatRoom[] | null = null;
 
 function organizationKey(organizationId: string | null): string {
   return organizationId ?? "";
 }
 
 /** The user and workspace a list of rooms belongs to. */
-function roomsScope(
+export function liveChatRoomsScope(
   organizationId: string | null,
   userId: string,
 ): string | null {
   return userId ? `${organizationId ?? ""}:${userId}` : null;
+}
+
+function getOverlaidSnapshotRooms(
+  source: MembershipVisibleRoomsSnapshot,
+): ChatRoom[] {
+  const overlayVersion = getRoomReadOverlayVersion();
+  if (
+    cachedPreviewSnapshot === source &&
+    cachedPreviewOverlayVersion === overlayVersion &&
+    cachedPreviewRooms !== null
+  ) {
+    return cachedPreviewRooms;
+  }
+  const rooms = applyRoomReadOverlays([...source.rooms]);
+  cachedPreviewSnapshot = source;
+  cachedPreviewOverlayVersion = getRoomReadOverlayVersion();
+  cachedPreviewRooms = rooms;
+  return rooms;
+}
+
+function clearPreviewCache(): void {
+  cachedPreviewSnapshot = null;
+  cachedPreviewOverlayVersion = -1;
+  cachedPreviewRooms = null;
 }
 
 function getInitialRoomsFromSessionSnapshot(): HeldRooms {
@@ -136,11 +184,11 @@ function getInitialRoomsFromSessionSnapshot(): HeldRooms {
     return { scope: null, rooms: null };
   }
   return {
-    scope: roomsScope(
+    scope: liveChatRoomsScope(
       sessionSnapshot.organizationId,
       sessionSnapshot.currentUserId,
     ),
-    rooms: applyRoomReadOverlays([...sessionSnapshot.rooms]),
+    rooms: getOverlaidSnapshotRooms(sessionSnapshot),
   };
 }
 
@@ -152,6 +200,12 @@ function notifyListeners(): void {
 
 function notifyLiveRoomsListeners(): void {
   for (const listener of liveRoomsListeners) {
+    listener();
+  }
+}
+
+function notifyOwnershipSettledListeners(): void {
+  for (const listener of ownershipSettledListeners) {
     listener();
   }
 }
@@ -171,6 +225,18 @@ function rebuildLatestSnapshot(): void {
       ? {}
       : { sourceRooms: snapshotSourceRooms }),
   };
+}
+
+function ensureScheduler(initialHealthy: boolean): ChatRefreshScheduler {
+  scheduler ??= createChatRefreshScheduler({
+    refresh: refreshRooms,
+    healthy: initialHealthy,
+    getHealthy: () => liveHealthy,
+    fallbackIntervalMs: LIVE_CHAT_ROOMS_FALLBACK_MS,
+    refreshOnMount: true,
+    refreshOnRecovery: true,
+  });
+  return scheduler;
 }
 
 // Updates a held list in place; a list not read yet stays unread.
@@ -202,7 +268,7 @@ function syncMirroredSnapshot(): boolean {
     syncedSnapshot = mirroredSnapshot;
     held = {
       scope: activeScope,
-      rooms: applyRoomReadOverlays([...mirroredSnapshot.rooms]),
+      rooms: getOverlaidSnapshotRooms(mirroredSnapshot),
     };
     return true;
   }
@@ -230,7 +296,7 @@ function syncScopeChangeReset(): boolean {
         currentSnapshot &&
         currentSnapshot.currentUserId === activeCurrentUserId &&
         currentSnapshot.organizationId === activeOrganizationId
-          ? applyRoomReadOverlays([...currentSnapshot.rooms])
+          ? getOverlaidSnapshotRooms(currentSnapshot)
           : null,
     };
     return true;
@@ -264,14 +330,13 @@ async function refreshRooms(isCurrent: () => boolean): Promise<void> {
   notifyLiveRoomsListeners();
 }
 
-function syncLiveRoomsScheduler(): void {
-  const nextKey =
-    attachedReaders.size > 0 &&
-    activeScope &&
-    ownershipSettled &&
-    livePublisherCount === 0
-      ? `${activeScope}:unread`
-      : null;
+function reconcileSchedulerFromDemands(): void {
+  let nextKey: string | null = null;
+  if (attachedReaders.size > 0) {
+    for (const demand of schedulerDemands) {
+      nextKey = demand.key;
+    }
+  }
   if (nextKey === activeSchedulerKey) {
     return;
   }
@@ -280,31 +345,10 @@ function syncLiveRoomsScheduler(): void {
     scheduler?.stop();
     return;
   }
-  scheduler?.start({
+  ensureScheduler(liveHealthy).start({
     fallbackIntervalMs: LIVE_CHAT_ROOMS_FALLBACK_MS,
     refreshOnMount: true,
   });
-}
-
-function syncLiveRoomsFromSnapshotChange(): void {
-  if (attachedReaders.size === 0) {
-    cachedReadByScope.clear();
-    return;
-  }
-  if (syncMirroredSnapshot()) {
-    notifyLiveRoomsListeners();
-  }
-}
-
-function syncLiveRoomsFromPublisherChange(): void {
-  if (attachedReaders.size === 0) {
-    return;
-  }
-  const didMirror = syncMirroredSnapshot();
-  syncLiveRoomsScheduler();
-  if (didMirror) {
-    notifyLiveRoomsListeners();
-  }
 }
 
 function reconcileCommittedScopeFromReaders(): void {
@@ -317,7 +361,7 @@ function reconcileCommittedScopeFromReaders(): void {
   committedScope = nextCommittedScope;
 }
 
-function reconcileActiveScopeFromReaders(): void {
+function reconcileActiveScopeFromReaders(): boolean {
   let nextOrg: string | null = null;
   let nextUser = "";
   let nextScope: string | null = null;
@@ -334,39 +378,55 @@ function reconcileActiveScopeFromReaders(): void {
     nextOrg === activeOrganizationId &&
     nextUser === activeCurrentUserId
   ) {
-    return;
+    return false;
   }
   activeOrganizationId = nextOrg;
   activeCurrentUserId = nextUser;
   activeScope = nextScope;
   const didMirror = syncMirroredSnapshot();
   const didReset = syncScopeChangeReset();
-  syncLiveRoomsScheduler();
   if (didMirror || didReset) {
     notifyLiveRoomsListeners();
   }
+  return true;
 }
 
-function stopAndResetLiveRoomsReader(): void {
+function clearOwnershipWaitTimer(): void {
   if (ownershipWaitTimer !== undefined && typeof window !== "undefined") {
     window.clearTimeout(ownershipWaitTimer);
   }
   ownershipWaitTimer = undefined;
-  ownershipSettled = false;
+}
 
+function startOwnershipSettle(): void {
+  if (ownershipSettled || typeof window === "undefined") {
+    return;
+  }
+  clearOwnershipWaitTimer();
+  // The desktop sidebar registers as the reader from an effect, often in a
+  // later streamed commit than this hook's. Reading at once would read the
+  // same collection twice, so on desktop this waits a moment for it; on a
+  // phone there is no sidebar to wait for.
+  if (window.innerWidth < MOBILE_BREAKPOINT_PX) {
+    ownershipSettled = true;
+    notifyOwnershipSettledListeners();
+    return;
+  }
+  ownershipWaitTimer = window.setTimeout(() => {
+    ownershipWaitTimer = undefined;
+    ownershipSettled = true;
+    notifyOwnershipSettledListeners();
+  }, SIDEBAR_REGISTRATION_WAIT_MS);
+}
+
+function resetDetachedReaderState(): void {
+  clearOwnershipWaitTimer();
+  ownershipSettled = false;
+  schedulerDemands.clear();
   activeSchedulerKey = null;
   const activeScheduler = scheduler;
   scheduler = null;
   activeScheduler?.stop();
-
-  const stopRoomRead = unsubscribeRoomRead;
-  unsubscribeRoomRead = null;
-  stopRoomRead?.();
-
-  const stopRoomsChanged = unsubscribeRoomsChanged;
-  unsubscribeRoomsChanged = null;
-  stopRoomsChanged?.();
-
   held = { scope: null, rooms: null };
   latestAppliedRefresh = 0;
   failedScope = null;
@@ -376,70 +436,49 @@ function stopAndResetLiveRoomsReader(): void {
   activeCurrentUserId = "";
   activeScope = null;
   committedScope = null;
-  readerHealthy = false;
+  liveHealthy = false;
+  syncedHealthy = false;
   cachedReadByScope.clear();
-}
-
-function sameRoomAttentionList(
-  previous: ChatRoom[] | null,
-  next: ChatRoom[] | null,
-): boolean {
-  if (previous === next) return true;
-  if (previous === null || next === null) return false;
-  if (previous.length !== next.length) return false;
-  for (let index = 0; index < previous.length; index += 1) {
-    const a = previous[index];
-    const b = next[index];
-    if (a === b) continue;
-    if (
-      a.id !== b.id ||
-      a.updatedAt !== b.updatedAt ||
-      a.unreadCount !== b.unreadCount ||
-      a.channelUnreadCount !== b.channelUnreadCount ||
-      a.threadUnreadCount !== b.threadUnreadCount ||
-      a.unreadThreadCount !== b.unreadThreadCount ||
-      a.unreadThreadMentionCount !== b.unreadThreadMentionCount ||
-      a.unreadThreads !== b.unreadThreads ||
-      a.unreadMentionCount !== b.unreadMentionCount ||
-      a.unreadNeedsYouCount !== b.unreadNeedsYouCount ||
-      a.markedUnread !== b.markedUnread
-    ) {
-      return false;
-    }
-  }
-  return true;
+  clearPreviewCache();
 }
 
 /**
  * Attaches a live-rooms reader to the shared module-level owner.
  *
- * The first reader starts the desktop wait timer (or settles immediately on
- * mobile), subscribes the window listeners, and runs the single shared
- * refresh scheduler. Subsequent readers share the running reader without
- * restarting the wait or triggering a mount read. The last detach stops and
- * resets the reader cleanly.
+ * Manages the shared desktop wait timer and scope/health state. Does not start
+ * the scheduler synchronously; callers start the scheduler from observed
+ * ownership after commit via `acquireLiveChatRoomsScheduler`, and subscribe
+ * room event listeners after it via `acquireLiveChatRoomsWindowListeners`.
+ *
+ * When the last reader detaches (Activity hide or unmount), only the wait
+ * timer stops so `held` rows and `failedScope` survive React Activity hide
+ * and reveal; a fresh non-reveal first attach resets them cleanly.
  */
 export function attachLiveChatRoomsReader({
   organizationId,
   currentUserId,
   healthy = false,
+  isReveal = false,
 }: AttachLiveChatRoomsReaderOptions): LiveChatRoomsReaderHandle {
-  const scope = roomsScope(organizationId, currentUserId);
+  const scope = liveChatRoomsScope(organizationId, currentUserId);
   const entry: AttachedReaderEntry = {
     organizationId,
     currentUserId,
     scope,
     committedScope: scope,
-    healthy,
     detached: false,
   };
   const isFirstReader = attachedReaders.size === 0;
   attachedReaders.add(entry);
 
   const handle: LiveChatRoomsReaderHandle = {
-    commitScope(nextOrganizationId, nextCurrentUserId) {
+    commitRenderState(nextOrganizationId, nextCurrentUserId, nextHealthy) {
       if (entry.detached) return;
-      const nextScope = roomsScope(nextOrganizationId, nextCurrentUserId);
+      liveHealthy = nextHealthy;
+      const nextScope = liveChatRoomsScope(
+        nextOrganizationId,
+        nextCurrentUserId,
+      );
       if (entry.committedScope === nextScope) {
         return;
       }
@@ -450,7 +489,10 @@ export function attachLiveChatRoomsReader({
     },
     setScope(nextOrganizationId, nextCurrentUserId) {
       if (entry.detached) return;
-      const nextScope = roomsScope(nextOrganizationId, nextCurrentUserId);
+      const nextScope = liveChatRoomsScope(
+        nextOrganizationId,
+        nextCurrentUserId,
+      );
       entry.committedScope = nextScope;
       if (
         entry.organizationId === nextOrganizationId &&
@@ -469,18 +511,18 @@ export function attachLiveChatRoomsReader({
     },
     setHealth(nextHealthy) {
       if (entry.detached) return;
-      if (entry.healthy === nextHealthy) return;
-      entry.healthy = nextHealthy;
-      if (nextHealthy === readerHealthy) return;
-      readerHealthy = nextHealthy;
-      scheduler?.setHealth(readerHealthy, true);
+      liveHealthy = nextHealthy;
+      if (nextHealthy === syncedHealthy) return;
+      syncedHealthy = nextHealthy;
+      scheduler?.setHealth(nextHealthy, true);
     },
     detach() {
       if (entry.detached) return;
       entry.detached = true;
       attachedReaders.delete(entry);
       if (attachedReaders.size === 0) {
-        stopAndResetLiveRoomsReader();
+        clearOwnershipWaitTimer();
+        reconcileSchedulerFromDemands();
         return;
       }
       reconcileActiveScopeFromReaders();
@@ -488,94 +530,133 @@ export function attachLiveChatRoomsReader({
   };
 
   if (isFirstReader) {
-    held = getInitialRoomsFromSessionSnapshot();
-    if (held.scope !== null && held.rooms !== null) {
-      const preview = cachedReadByScope.get(held.scope);
-      if (preview && sameRoomAttentionList(preview.rooms, held.rooms)) {
-        held = { scope: held.scope, rooms: preview.rooms };
+    if (!isReveal) {
+      resetDetachedReaderState();
+      held = getInitialRoomsFromSessionSnapshot();
+      trackedScope = scope;
+      activeOrganizationId = organizationId;
+      activeCurrentUserId = currentUserId;
+      activeScope = scope;
+      committedScope = scope;
+      liveHealthy = healthy;
+      syncedHealthy = healthy;
+      ensureScheduler(healthy);
+      const didMirror = syncMirroredSnapshot();
+      startOwnershipSettle();
+      if (didMirror) {
+        notifyLiveRoomsListeners();
       }
-    }
-    latestAppliedRefresh = 0;
-    failedScope = null;
-    trackedScope = scope;
-    syncedSnapshot = null;
-    activeOrganizationId = organizationId;
-    activeCurrentUserId = currentUserId;
-    activeScope = scope;
-    committedScope = scope;
-    readerHealthy = healthy;
-    scheduler = createChatRefreshScheduler({
-      refresh: refreshRooms,
-      healthy: readerHealthy,
-      fallbackIntervalMs: LIVE_CHAT_ROOMS_FALLBACK_MS,
-      refreshOnMount: true,
-      refreshOnRecovery: true,
-    });
-
-    const didMirror = syncMirroredSnapshot();
-
-    if (typeof window !== "undefined") {
-      unsubscribeRoomRead = subscribeOrganizationChatRoomRead((apply) =>
-        updateHeldRooms(apply),
-      );
-      unsubscribeRoomsChanged = subscribeOrganizationChatRoomsChanged({
-        onRemoved: (removedRoomId) =>
-          updateHeldRooms((current) =>
-            applyRoomReadOverlays(
-              current.filter((row) => row.id !== removedRoomId),
-            ),
-          ),
-        onRoom: (room) =>
-          // The answers that land here do not count what is unread, so the
-          // room keeps what the title already counted for it.
-          // One room is not the list; the first read still decides it.
-          updateHeldRooms((current) => {
-            const existing = current.find((row) => row.id === room.id);
-            const without = current.filter((row) => row.id !== room.id);
-            return applyRoomReadOverlays([
-              keepRoomUnreadState(existing, room),
-              ...without,
-            ]);
-          }),
-        onInvalidated: (collections) => {
-          // Only the active collection holds what is unread.
-          if (!collections || collections.includes("active")) {
-            scheduler?.request();
-          }
-        },
-      });
-
-      // The desktop sidebar registers as the reader from an effect, often in a
-      // later streamed commit than this hook's. Reading at once would read the
-      // same collection twice, so on desktop this waits a moment for it; on a
-      // phone there is no sidebar to wait for.
-      if (window.innerWidth < MOBILE_BREAKPOINT_PX) {
-        ownershipSettled = true;
-      } else {
-        ownershipSettled = false;
-        ownershipWaitTimer = window.setTimeout(() => {
-          ownershipWaitTimer = undefined;
-          ownershipSettled = true;
-          syncLiveRoomsScheduler();
-        }, SIDEBAR_REGISTRATION_WAIT_MS);
+    } else {
+      liveHealthy = healthy;
+      ensureScheduler(healthy);
+      const didScopeChange = reconcileActiveScopeFromReaders();
+      const didMirror = !didScopeChange && syncMirroredSnapshot();
+      startOwnershipSettle();
+      if (didMirror) {
+        notifyLiveRoomsListeners();
       }
-    }
-
-    syncLiveRoomsScheduler();
-    if (didMirror) {
-      notifyLiveRoomsListeners();
     }
   } else {
-    if (healthy !== readerHealthy) {
-      readerHealthy = healthy;
-      scheduler?.setHealth(readerHealthy, true);
-    }
+    // Keep main's order: update live health and reconcile scope BEFORE any
+    // passive health recovery transition runs.
+    liveHealthy = healthy;
     if (scope !== null && scope !== activeScope) {
       reconcileActiveScopeFromReaders();
     }
   }
 
   return handle;
+}
+
+/**
+ * Acquires shared demand for the live-rooms refresh scheduler under `key`.
+ * Starts the scheduler on first demand or key change, and stops it when the
+ * last demand releases.
+ */
+export function acquireLiveChatRoomsScheduler(key: string): () => void {
+  const demand: SchedulerDemandEntry = { key, released: false };
+  schedulerDemands.add(demand);
+  reconcileSchedulerFromDemands();
+  return () => {
+    if (demand.released) return;
+    demand.released = true;
+    schedulerDemands.delete(demand);
+    reconcileSchedulerFromDemands();
+  };
+}
+
+/**
+ * Acquires shared demand for the `organization-chat-room-read` and
+ * `organization-chat-rooms-changed` window listeners. Subscribes on first
+ * demand and removes both listeners when the last demand releases.
+ */
+export function acquireLiveChatRoomsWindowListeners(): () => void {
+  windowListenersCount += 1;
+  if (windowListenersCount === 1 && typeof window !== "undefined") {
+    unsubscribeRoomRead = subscribeOrganizationChatRoomRead((apply) =>
+      updateHeldRooms(apply),
+    );
+    unsubscribeRoomsChanged = subscribeOrganizationChatRoomsChanged({
+      onRemoved: (removedRoomId) =>
+        updateHeldRooms((current) =>
+          applyRoomReadOverlays(
+            current.filter((row) => row.id !== removedRoomId),
+          ),
+        ),
+      onRoom: (room) =>
+        // The answers that land here do not count what is unread, so the
+        // room keeps what the title already counted for it.
+        // One room is not the list; the first read still decides it.
+        updateHeldRooms((current) => {
+          const existing = current.find((row) => row.id === room.id);
+          const without = current.filter((row) => row.id !== room.id);
+          return applyRoomReadOverlays([
+            keepRoomUnreadState(existing, room),
+            ...without,
+          ]);
+        }),
+      onInvalidated: (collections) => {
+        // Only the active collection holds what is unread.
+        if (!collections || collections.includes("active")) {
+          scheduler?.request();
+        }
+      },
+    });
+  }
+
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    windowListenersCount -= 1;
+    if (windowListenersCount === 0) {
+      const stopRoomRead = unsubscribeRoomRead;
+      unsubscribeRoomRead = null;
+      stopRoomRead?.();
+
+      const stopRoomsChanged = unsubscribeRoomsChanged;
+      unsubscribeRoomsChanged = null;
+      stopRoomsChanged?.();
+    }
+  };
+}
+
+export function subscribeLiveChatRoomsOwnershipSettled(
+  onStoreChange: () => void,
+): () => void {
+  ownershipSettledListeners.add(onStoreChange);
+  return () => {
+    ownershipSettledListeners.delete(onStoreChange);
+  };
+}
+
+export function getLiveChatRoomsOwnershipSettledSnapshot(
+  preserveSettled = false,
+): boolean {
+  if (attachedReaders.size === 0 && !preserveSettled) {
+    return false;
+  }
+  return ownershipSettled;
 }
 
 export function subscribeLiveChatRoomsReader(
@@ -590,26 +671,36 @@ export function subscribeLiveChatRoomsReader(
 export function getLiveChatRoomsReadSnapshot(
   organizationId: string | null,
   currentUserId: string,
+  preserveHeld = false,
 ): LiveChatRoomsReadSnapshot {
-  const scope = roomsScope(organizationId, currentUserId);
+  const scope = liveChatRoomsScope(organizationId, currentUserId);
   if (scope === null) {
     return EMPTY_LIVE_READ;
   }
 
   let rooms: ChatRoom[] | null;
-  let computedPreview = false;
-  if (attachedReaders.size === 0) {
+  if (attachedReaders.size === 0 && !preserveHeld) {
     rooms =
       latestSnapshot &&
       latestSnapshot.currentUserId === currentUserId &&
       latestSnapshot.organizationId === organizationId
-        ? applyRoomReadOverlays([...latestSnapshot.rooms])
+        ? getOverlaidSnapshotRooms(latestSnapshot)
         : null;
-    computedPreview = rooms !== null;
   } else if (trackedScope === scope) {
-    // Rows read for another user or workspace never show, even before this
-    // scope's own read lands.
-    rooms = held.scope === scope ? held.rooms : null;
+    if (
+      attachedReaders.size === 0 &&
+      livePublisherCount > 0 &&
+      latestSnapshot &&
+      latestSnapshot !== syncedSnapshot &&
+      latestSnapshot.currentUserId === currentUserId &&
+      latestSnapshot.organizationId === organizationId
+    ) {
+      rooms = getOverlaidSnapshotRooms(latestSnapshot);
+    } else {
+      // Rows read for another user or workspace never show, even before this
+      // scope's own read lands.
+      rooms = held.scope === scope ? held.rooms : null;
+    }
   } else {
     const matchingSnapshot =
       latestSnapshot &&
@@ -618,21 +709,18 @@ export function getLiveChatRoomsReadSnapshot(
         ? latestSnapshot
         : null;
     if (matchingSnapshot && (livePublisherCount > 0 || trackedScope !== null)) {
-      rooms = applyRoomReadOverlays([...matchingSnapshot.rooms]);
-      computedPreview = true;
+      rooms = getOverlaidSnapshotRooms(matchingSnapshot);
     } else {
       rooms = held.scope === scope ? held.rooms : null;
     }
   }
 
-  const failed = rooms === null && failedScope === scope;
+  const failed =
+    rooms === null &&
+    (attachedReaders.size > 0 || preserveHeld) &&
+    failedScope === scope;
   const cached = cachedReadByScope.get(scope);
-  if (
-    cached &&
-    cached.failed === failed &&
-    (cached.rooms === rooms ||
-      (computedPreview && sameRoomAttentionList(cached.rooms, rooms)))
-  ) {
+  if (cached && cached.failed === failed && cached.rooms === rooms) {
     return cached;
   }
 
@@ -656,8 +744,14 @@ export function publishMembershipVisibleRooms(
   snapshotCurrentUserId = currentUserId;
   snapshotSourceRooms = sourceRooms;
   rebuildLatestSnapshot();
-  syncLiveRoomsFromSnapshotChange();
+  const didMirror = attachedReaders.size > 0 ? syncMirroredSnapshot() : false;
+  if (attachedReaders.size === 0) {
+    cachedReadByScope.clear();
+  }
   notifyListeners();
+  if (didMirror) {
+    notifyLiveRoomsListeners();
+  }
 }
 
 /**
@@ -667,12 +761,19 @@ export function publishMembershipVisibleRooms(
  */
 export function registerMembershipVisibleRoomsPublisher(): () => void {
   livePublisherCount += 1;
-  syncLiveRoomsFromPublisherChange();
+  const didMirror = attachedReaders.size > 0 ? syncMirroredSnapshot() : false;
   notifyListeners();
+  if (didMirror) {
+    notifyLiveRoomsListeners();
+  }
   return () => {
     livePublisherCount -= 1;
-    syncLiveRoomsFromPublisherChange();
+    const didMirrorOnUnregister =
+      attachedReaders.size > 0 ? syncMirroredSnapshot() : false;
     notifyListeners();
+    if (didMirrorOnUnregister) {
+      notifyLiveRoomsListeners();
+    }
   };
 }
 
@@ -686,7 +787,11 @@ export function clearMembershipVisibleRoomsSnapshot(): void {
   snapshotCurrentUserId = "";
   snapshotSourceRooms = undefined;
   latestSnapshot = null;
-  syncLiveRoomsFromSnapshotChange();
+  if (attachedReaders.size === 0) {
+    resetDetachedReaderState();
+  } else {
+    syncMirroredSnapshot();
+  }
   notifyListeners();
 }
 

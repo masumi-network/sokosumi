@@ -1,11 +1,15 @@
 "use client";
 
 import type { ChatRoom } from "@sokosumi/core-client";
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useRef, useSyncExternalStore } from "react";
 import {
+  getLiveChatRoomsOwnershipSettledSnapshot,
   getLiveChatRoomsReadSnapshot,
   getServerLiveChatRoomsReadSnapshot,
+  hasLiveMembershipVisibleRoomsPublisher,
+  subscribeLiveChatRoomsOwnershipSettled,
   subscribeLiveChatRoomsReader,
+  subscribeMembershipVisibleRooms,
 } from "@/components/chat/membership-visible-rooms-store";
 import { useLiveChatRoomsReader } from "@/hooks/effects/use-live-chat-rooms-reader";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
@@ -40,9 +44,29 @@ export function useLiveChatRoomsRead(): {
   const currentUserId = session?.user.id ?? "";
   const organizationId = session?.session.activeOrganizationId ?? null;
   const healthy = useAblyConnectionHealthy();
+  const hasMountedRef = useRef(false);
 
+  const sidebarOwnsReads = useSyncExternalStore(
+    subscribeMembershipVisibleRooms,
+    hasLiveMembershipVisibleRoomsPublisher,
+    () => false,
+  );
+  const getOwnershipSettled = useCallback(
+    () => getLiveChatRoomsOwnershipSettledSnapshot(hasMountedRef.current),
+    [],
+  );
+  const ownershipSettled = useSyncExternalStore(
+    subscribeLiveChatRoomsOwnershipSettled,
+    getOwnershipSettled,
+    () => false,
+  );
   const getSnapshot = useCallback(
-    () => getLiveChatRoomsReadSnapshot(organizationId, currentUserId),
+    () =>
+      getLiveChatRoomsReadSnapshot(
+        organizationId,
+        currentUserId,
+        hasMountedRef.current,
+      ),
     [organizationId, currentUserId],
   );
   const snapshot = useSyncExternalStore(
@@ -50,7 +74,15 @@ export function useLiveChatRoomsRead(): {
     getSnapshot,
     getServerLiveChatRoomsReadSnapshot,
   );
-  useLiveChatRoomsReader(organizationId, currentUserId, healthy);
+
+  useLiveChatRoomsReader({
+    organizationId,
+    currentUserId,
+    healthy,
+    sidebarOwnsReads,
+    ownershipSettled,
+    hasMountedRef,
+  });
 
   return snapshot;
 }

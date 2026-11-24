@@ -38,6 +38,12 @@ const overlaysByRoomId = new Map<string, RoomReadOverlay>();
 // A stalled mutation must not suppress authoritative sidebar polls indefinitely.
 const PENDING_ATTENTION_TIMEOUT_MS = 30_000;
 let revision = 0;
+let overlayVersion = 0;
+
+/** Monotonic version incremented on every overlay write, delete, clear, or expiry. */
+export function getRoomReadOverlayVersion(): number {
+  return overlayVersion;
+}
 
 function toUpdatedAtMs(updatedAt: string | Date): number {
   const ms = new Date(updatedAt).getTime();
@@ -49,6 +55,7 @@ function storeAttention(
   nextRevision: number,
   pending: RoomReadOverlay["pending"] = null,
 ): void {
+  overlayVersion += 1;
   overlaysByRoomId.set(room.id, {
     updatedAtMs: toUpdatedAtMs(room.updatedAt),
     unreadCount: room.unreadCount,
@@ -160,11 +167,16 @@ export function settleRoomAttentionChange(
 }
 
 export function forgetRoomRead(roomId: string): void {
-  overlaysByRoomId.delete(roomId);
+  if (overlaysByRoomId.delete(roomId)) {
+    overlayVersion += 1;
+  }
 }
 
 export function clearRoomReadOverlays(): void {
-  overlaysByRoomId.clear();
+  if (overlaysByRoomId.size > 0) {
+    overlaysByRoomId.clear();
+    overlayVersion += 1;
+  }
 }
 
 /** Capture before fetching, so a read started during that fetch still wins. */

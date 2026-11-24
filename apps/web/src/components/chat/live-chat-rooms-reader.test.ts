@@ -16,14 +16,21 @@ vi.mock("@/components/chat/fetch-sidebar-room-collection", () => ({
 import { makeRoom } from "@/components/chat/__tests__/chat-room-fixtures";
 import { CHAT_HEALTHY_REFRESH_MS } from "./chat-refresh-scheduler";
 import {
+  acquireLiveChatRoomsScheduler,
+  acquireLiveChatRoomsWindowListeners,
   attachLiveChatRoomsReader,
   clearMembershipVisibleRoomsSnapshot,
+  getLiveChatRoomsOwnershipSettledSnapshot,
   getLiveChatRoomsReadSnapshot,
+  hasLiveMembershipVisibleRoomsPublisher,
   type LiveChatRoomsReaderHandle,
+  liveChatRoomsScope,
   publishMembershipVisibleRooms,
   registerMembershipVisibleRoomsPublisher,
   SIDEBAR_REGISTRATION_WAIT_MS,
+  subscribeLiveChatRoomsOwnershipSettled,
   subscribeLiveChatRoomsReader,
+  subscribeMembershipVisibleRooms,
 } from "./membership-visible-rooms-store";
 import {
   ORGANIZATION_CHAT_ROOM_READ_EVENT,
@@ -31,28 +38,107 @@ import {
 } from "./organization-chat-events";
 import { clearRoomReadOverlays } from "./room-read-overlay";
 
+interface DrivenReader {
+  handle: LiveChatRoomsReaderHandle;
+  setScope: (organizationId: string | null, currentUserId: string) => void;
+  setHealth: (healthy: boolean) => void;
+  detach: () => void;
+}
+
+/**
+ * Pure module driver (no React) matching `useLiveChatRoomsReader`'s ownership
+ * subscription and passive scheduler/listener ordering.
+ */
+function mountModuleReader(
+  options: {
+    organizationId?: string | null;
+    currentUserId?: string;
+    healthy?: boolean;
+    isReveal?: boolean;
+  } = {},
+): DrivenReader {
+  let orgId =
+    "organizationId" in options ? (options.organizationId ?? null) : "org-1";
+  let userId = options.currentUserId ?? "user-1";
+  const healthy = options.healthy ?? true;
+  const isReveal = options.isReveal ?? false;
+  let detached = false;
+  let releaseScheduler: (() => void) | null = null;
+  let currentKey: string | null = null;
+
+  function syncScheduler() {
+    if (detached) return;
+    const scope = liveChatRoomsScope(orgId, userId);
+    const settled = getLiveChatRoomsOwnershipSettledSnapshot(isReveal);
+    const nextKey =
+      scope && settled && !hasLiveMembershipVisibleRoomsPublisher()
+        ? `${scope}:unread`
+        : null;
+    if (nextKey === currentKey) return;
+    const prev = releaseScheduler;
+    releaseScheduler = null;
+    currentKey = nextKey;
+    prev?.();
+    if (nextKey !== null) {
+      const release = acquireLiveChatRoomsScheduler(nextKey);
+      if (detached) {
+        release();
+      } else {
+        releaseScheduler = release;
+      }
+    }
+  }
+
+  const handle = attachLiveChatRoomsReader({
+    organizationId: orgId,
+    currentUserId: userId,
+    healthy,
+    isReveal,
+  });
+  const unsubOwnership = subscribeLiveChatRoomsOwnershipSettled(syncScheduler);
+  const unsubPublisher = subscribeMembershipVisibleRooms(syncScheduler);
+  syncScheduler();
+  const releaseListeners = acquireLiveChatRoomsWindowListeners();
+
+  return {
+    handle,
+    setScope(nextOrgId, nextUserId) {
+      orgId = nextOrgId;
+      userId = nextUserId;
+      handle.commitRenderState(nextOrgId, nextUserId, healthy);
+      handle.setScope(nextOrgId, nextUserId);
+      syncScheduler();
+    },
+    setHealth(nextHealthy) {
+      handle.commitRenderState(orgId, userId, nextHealthy);
+      handle.setHealth(nextHealthy);
+    },
+    detach() {
+      if (detached) return;
+      detached = true;
+      unsubOwnership();
+      unsubPublisher();
+      const prev = releaseScheduler;
+      releaseScheduler = null;
+      currentKey = null;
+      prev?.();
+      releaseListeners();
+      handle.detach();
+    },
+  };
+}
+
 describe("membership-visible-rooms-store live rooms reader", () => {
   let hasFocus: ReturnType<typeof vi.spyOn>;
   let visibility: ReturnType<typeof vi.spyOn>;
-  const handles: LiveChatRoomsReaderHandle[] = [];
+  const readers: DrivenReader[] = [];
 
   function attach(
-    options: {
-      organizationId?: string | null;
-      currentUserId?: string;
-      healthy?: boolean;
-    } = {},
-  ): LiveChatRoomsReaderHandle {
-    const handle = attachLiveChatRoomsReader({
-      organizationId:
-        "organizationId" in options
-          ? (options.organizationId ?? null)
-          : "org-1",
-      currentUserId: options.currentUserId ?? "user-1",
-      healthy: options.healthy ?? true,
-    });
-    handles.push(handle);
-    return handle;
+    options: Parameters<typeof mountModuleReader>[0] = {},
+  ): DrivenReader {
+    const reader = mountModuleReader(options);
+    readers.push(reader);
+    return reader;
   }
 
   beforeEach(() => {
@@ -70,8 +156,8 @@ describe("membership-visible-rooms-store live rooms reader", () => {
   });
 
   afterEach(() => {
-    while (handles.length > 0) {
-      handles.pop()?.detach();
+    while (readers.length > 0) {
+      readers.pop()?.detach();
     }
     clearMembershipVisibleRoomsSnapshot();
     clearRoomReadOverlays();
@@ -352,56 +438,33 @@ describe("membership-visible-rooms-store live rooms reader", () => {
     r4.detach();
   });
 
-  it("cleans up cleanly if a publisher registers or the reader stops synchronously inside the first fetch callback", async () => {
-    let unregisterPublisher = () => {};
+  it("cleans up cleanly if the reader detaches synchronously inside the first fetch callback", async () => {
+    const handle = attachLiveChatRoomsReader({
+      organizationId: "org-1",
+      currentUserId: "user-1",
+      healthy: false,
+    });
     fetchMock.mockImplementationOnce(async () => {
-      // Simulate a synchronous takeover during the first mount read.
-      unregisterPublisher = registerMembershipVisibleRoomsPublisher();
+      handle.detach();
       return {
         rooms: [makeRoom({ id: "should-be-dropped" })],
         nextCursor: null,
       };
     });
 
-    const r1 = attach({ healthy: false });
+    const releaseScheduler = acquireLiveChatRoomsScheduler(
+      "org-1:user-1:unread",
+    );
     await vi.advanceTimersByTimeAsync(0);
 
-    // Because the publisher registered synchronously inside the first callback,
-    // the scheduler stopped and marked the read stale, dropping its answer.
     expect(getLiveChatRoomsReadSnapshot("org-1", "user-1")).toEqual({
       rooms: null,
       failed: false,
     });
 
-    // No timer ticks fire while publisher owns reads.
     await vi.advanceTimersByTimeAsync(60_000);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-
-    unregisterPublisher();
-    r1.detach();
-
-    // Also test synchronous detach inside a scope-change fetch callback.
-    fetchMock.mockClear();
-    const r2 = attach({ organizationId: "org-1", healthy: false });
-    await vi.advanceTimersByTimeAsync(0);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-
-    fetchMock.mockImplementationOnce(async () => {
-      r2.detach();
-      return {
-        rooms: [makeRoom({ id: "dropped-on-detach" })],
-        nextCursor: null,
-      };
-    });
-    r2.setScope("org-2", "user-1");
-    await vi.advanceTimersByTimeAsync(0);
-
-    expect(getLiveChatRoomsReadSnapshot("org-2", "user-1")).toEqual({
-      rooms: null,
-      failed: false,
-    });
-    await vi.advanceTimersByTimeAsync(60_000);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    releaseScheduler();
   });
 
   it("shares Ably health transitions across readers without spurious reads on drop and runs one recovery read on reconnect", async () => {
@@ -443,7 +506,7 @@ describe("membership-visible-rooms-store live rooms reader", () => {
     r1.detach();
   });
 
-  it("drops an in-flight answer (rows or failure) when commitScope moves before setScope stops the scheduler", async () => {
+  it("drops an in-flight answer (rows or failure) when commitRenderState moves scope before setScope stops the scheduler", async () => {
     const pendingRows = Promise.withResolvers<{
       rooms: ChatRoom[];
       nextCursor: null;
@@ -454,7 +517,7 @@ describe("membership-visible-rooms-store live rooms reader", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     // Layout phase commits org-2 before passive setScope runs.
-    r1.commitScope("org-2", "user-1");
+    r1.handle.commitRenderState("org-2", "user-1", true);
     pendingRows.resolve(null);
     await vi.advanceTimersByTimeAsync(0);
 
@@ -471,10 +534,18 @@ describe("membership-visible-rooms-store live rooms reader", () => {
     r1.detach();
   });
 
-  it("caches getLiveChatRoomsReadSnapshot across repeated render reads when a desktop publisher publishes before session resolves", () => {
+  it("caches getLiveChatRoomsReadSnapshot on snapshot+overlay identity and reflects metadata updates (name, starredAt) before passive setScope", () => {
     const unregisterPublisher = registerMembershipVisibleRoomsPublisher();
+    const updatedAt = new Date("2026-01-01T00:00:00.000Z");
     publishMembershipVisibleRooms(
-      [makeRoom({ id: "room-a" })],
+      [
+        makeRoom({
+          id: "room-a",
+          name: "old-name",
+          starredAt: null,
+          updatedAt,
+        }),
+      ],
       "org-1",
       "user-1",
     );
@@ -482,14 +553,48 @@ describe("membership-visible-rooms-store live rooms reader", () => {
     // Reader attaches while session is still pending (`currentUserId: ""`).
     const r1 = attach({ organizationId: null, currentUserId: "" });
 
-    // Session resolves during render before passive `setScope` runs:
-    // repeated `getSnapshot` calls must return the exact same object reference.
+    // Repeated reads on the same snapshot return the exact same object reference.
     const first = getLiveChatRoomsReadSnapshot("org-1", "user-1");
     const second = getLiveChatRoomsReadSnapshot("org-1", "user-1");
     expect(first).toBe(second);
-    expect(first.rooms?.map((room) => room.id)).toEqual(["room-a"]);
+    expect(first.rooms?.[0]?.name).toBe("old-name");
+    expect(first.rooms?.[0]?.starredAt).toBeNull();
+
+    // New row object with identical id/updatedAt/attention but updated name & starredAt
+    // published before passive setScope must not be masked by a partial comparison cache.
+    const starredAt = new Date("2026-02-01T00:00:00.000Z");
+    publishMembershipVisibleRooms(
+      [makeRoom({ id: "room-a", name: "new-name", starredAt, updatedAt })],
+      "org-1",
+      "user-1",
+    );
+    const updated = getLiveChatRoomsReadSnapshot("org-1", "user-1");
+    const updatedAgain = getLiveChatRoomsReadSnapshot("org-1", "user-1");
+    expect(updated).not.toBe(first);
+    expect(updated).toBe(updatedAgain);
+    expect(updated.rooms?.[0]?.name).toBe("new-name");
+    expect(updated.rooms?.[0]?.starredAt).toEqual(starredAt);
 
     r1.detach();
     unregisterPublisher();
+  });
+
+  it("reconciles second-reader scope before applying health recovery so no recovery read fires on the old scope", async () => {
+    const r1 = attach({ organizationId: "org-1", healthy: true });
+    await vi.advanceTimersByTimeAsync(0);
+    r1.setHealth(false);
+    fetchMock.mockClear();
+
+    // Second reader attaches on org-2 with healthy: true (without calling setHealth yet).
+    const h2 = attachLiveChatRoomsReader({
+      organizationId: "org-2",
+      currentUserId: "user-1",
+      healthy: true,
+    });
+    // Attaching alone reconciles scope to org-2 without firing a recovery read on org-1.
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    h2.detach();
+    r1.detach();
   });
 });
