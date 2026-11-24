@@ -2,6 +2,7 @@
 
 import { resolveAccountDisplayName, type SessionUser } from "@sokosumi/utils";
 import {
+  Binoculars,
   Bot,
   CalendarDays,
   Clapperboard,
@@ -236,6 +237,13 @@ export function YouPageClient({
               icon={<Megaphone className="size-4 shrink-0" aria-hidden />}
               label={tMenu("ads")}
               testId="you-ads"
+            />
+            {/* The sidebar's Competitors row, scoped to the project like it. */}
+            <YouRowLink
+              href={hrefFor("/competitors")}
+              icon={<Binoculars className="size-4 shrink-0" aria-hidden />}
+              label={tMenu("competitors")}
+              testId="you-competitors"
             />
             {newsletterEnabled ? (
               <YouRowLink

@@ -57,6 +57,9 @@ model TrackedCompetitor {
   /// When a member removed it. The row stays, so research does not add the
   /// same competitor back, and its signals stay readable.
   removedAt      DateTime?
+  /// How many times a member removed it. Each remove counts up under the
+  /// list lock, so the count names one removal for an Undo.
+  removals       Int       @default(0)
 
   pages   CompetitorPageSnapshot[]
   signals CompetitorSignal[]

@@ -26,6 +26,12 @@ export const CORE_API_ERROR_KINDS = {
   CMO_TEST_COPY_OF_TEST_COPY: "cmo_test_copy_of_test_copy",
   /** Only an owner or admin of the source's organization, or a tester, copies. */
   CMO_TEST_COPY_NOT_ALLOWED: "cmo_test_copy_not_allowed",
+  /** The Project already watches as many competitors as it may. */
+  COMPETITOR_LIMIT_REACHED: "competitor_limit_reached",
+  /** Another competitor of the Project holds the name. */
+  COMPETITOR_NAME_TAKEN: "competitor_name_taken",
+  /** An Undo for a removal that is no longer the competitor's latest change. */
+  COMPETITOR_REMOVAL_STALE: "competitor_removal_stale",
   CONCURRENCY_CONFLICT: "concurrency_conflict",
   /** A channel being added already belongs to another contact; `existingContactId` names it. */
   CONTACT_CHANNEL_TAKEN: "contact_channel_taken",

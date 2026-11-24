@@ -197,6 +197,22 @@ describe("YouPageClient", () => {
     ).toBeTruthy();
   });
 
+  it("links Competitors after Ads, as the sidebar does", () => {
+    renderYouPage();
+
+    const competitors = screen.getByTestId("you-competitors");
+    expect(competitors).toHaveAttribute("href", "/competitors");
+    expect(competitors).toHaveTextContent("competitors");
+    expect(
+      screen.getByTestId("you-ads").compareDocumentPosition(competitors) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      competitors.compareDocumentPosition(screen.getByTestId("you-files")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("shows Ads by default", () => {
     renderYouPage();
 

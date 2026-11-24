@@ -5839,7 +5839,7 @@
       "check": {
         "price": "{count, plural, =0 {Er kostet {each} Credits pro Wettbewerber und Woche.} one {Er kostet {credits} Credits pro Woche für # Wettbewerber.} other {Er kostet {credits} Credits pro Woche für # Wettbewerber, je {each}.}}",
         "last": "Letzter Check {last}, nächster {next}.",
-        "sourceFailed": "Die letzte Prüfung konnte nicht lesen: {sources}. Die nächste versucht es erneut.",
+        "sourceFailed": "Die letzte Prüfung konnte nicht lesen: {sources}.{on, select, true { Die nächste versucht es erneut.} other {}}",
         "source": {
           "pages": "Websites",
           "news": "Nachrichten",
@@ -5859,9 +5859,12 @@
         "status": {
           "off": "Der wöchentliche Check ist aus",
           "running": "Der erste Check läuft",
-          "on": "Der wöchentliche Check ist an"
+          "on": "Der wöchentliche Check ist an",
+          "waiting": "Noch kein Check gelaufen"
         },
-        "running": "Was er findet, steht in etwa einer Minute hier."
+        "running": "Was er findet, steht in etwa einer Minute hier.",
+        "waiting": "„Jetzt prüfen“ startet den ersten.",
+        "waitingCmo": "CMO führt ihn aus, solange Cuso bezahlt ist."
       },
       "list": {
         "title": "Beobachtet",
@@ -5874,7 +5877,14 @@
         "removeNamed": "{name} entfernen",
         "add": "Wettbewerber hinzufügen",
         "full": "Das sind alle {limit}. Entferne einen, um einen anderen zu beobachten.",
-        "failed": "Das hat nicht geklappt. Versuche es erneut."
+        "failed": "Das hat nicht geklappt. Versuche es erneut.",
+        "removed": "{name} entfernt",
+        "undo": "Rückgängig",
+        "restoreFailed": "{name} ließ sich nicht zurückholen.",
+        "restoreStale": "Das Entfernen von {name} lässt sich nicht mehr rückgängig machen.",
+        "restoreFull": "{name} ließ sich nicht zurückholen: Du beobachtest schon {limit}. Entferne zuerst einen.",
+        "restoreNameTaken": "{name} ließ sich nicht zurückholen: Ein anderer Wettbewerber trägt jetzt diesen Namen.",
+        "retry": "Erneut versuchen"
       },
       "form": {
         "addTitle": "Wettbewerber hinzufügen",
