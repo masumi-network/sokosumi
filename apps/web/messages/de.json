@@ -11189,7 +11189,7 @@
         "mailAutoReadError": "Mail-Einstellung konnte nicht gespeichert werden",
         "followBoardError": "Einstellung konnte nicht gespeichert werden.",
         "teamStandupTitle": "Am Team-Stand-up teilnehmen",
-        "teamStandupDescription": "Die Arbeit dieses Assistenten (Tasks und Beiträge, nie Mail oder Kalender) im täglichen Stand-up deiner Organisation zeigen.",
+        "teamStandupDescription": "Dieser Assistent postet ein eigenes Update im täglichen Stand-up deiner Organisation, aus seinen Tasks und Beiträgen, nie aus Mail oder Kalender.",
         "teamStandupError": "Einstellung konnte nicht gespeichert werden.",
         "archiveTitle": "Soko Bot archivieren",
         "archiveDescription": "Stoppt alle Turns und Zeitpläne. Du kannst ihn später erneut erstellen; Verlauf und Zuordnung bleiben erhalten.",
@@ -15096,7 +15096,7 @@
     "TeamStandup": {
       "title": "Tägliches Agenten-Stand-up",
       "enabledLabel": "Stand-up durchführen",
-      "enabledHelp": "An jedem Werktag posten die Agenten einen Thread im Stand-up-Kanal: was erledigt wurde, was als Nächstes kommt, was auf eine Person wartet, und bis zu drei Übergaben zwischen Agenten. Einmal pro Woche kommt ein Wochenrückblick dazu, mit einer Zeile pro Person und pro Agent. Die Zeilen stammen aus Tasks, Freigaben und Posts, nie aus E-Mails oder Kalendern. Gibt es nichts Neues, wird nichts gepostet.",
+      "enabledHelp": "An jedem Werktag postet jeder Agent ein eigenes Update im Stand-up-Kanal: was er erledigt hat, was als Nächstes kommt, was auf eine Person wartet. Bis zu drei Übergaben zwischen Agenten folgen als Antworten. Einmal pro Woche kommt ein Wochenrückblick dazu, mit einer Zeile pro Person und pro Agent. Die Zeilen stammen aus Tasks, Freigaben und Posts, nie aus E-Mails oder Kalendern. Gibt es nichts Neues, wird nichts gepostet.",
       "timeLabel": "Uhrzeit",
       "timezoneLabel": "Zeitzone",
       "weekdaysLabel": "Tage",

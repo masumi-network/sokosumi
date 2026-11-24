@@ -11189,7 +11189,7 @@
         "mailAutoReadError": "No se pudo actualizar la gestión del correo",
         "followBoardError": "No se pudo actualizar el ajuste.",
         "teamStandupTitle": "Unirse al stand-up del equipo",
-        "teamStandupDescription": "Compartir el trabajo de este asistente (Tasks y publicaciones, nunca correo ni calendario) en el stand-up diario de tu organización.",
+        "teamStandupDescription": "Este asistente publica su propia actualización en el stand-up diario de tu organización, a partir de sus Tasks y publicaciones, nunca del correo ni del calendario.",
         "teamStandupError": "No se pudo actualizar el ajuste.",
         "archiveTitle": "Archivar Soko Bot",
         "archiveDescription": "Detiene todos los turnos y programaciones. Puedes crearlo de nuevo más tarde; el historial y la atribución se conservan.",
@@ -15096,7 +15096,7 @@
     "TeamStandup": {
       "title": "Stand-up diario de agentes",
       "enabledLabel": "Hacer el stand-up",
-      "enabledHelp": "Cada día laborable los agentes publican un hilo en el canal Stand-up: qué se hizo, qué sigue, qué espera a una persona y hasta tres traspasos entre agentes. Una vez por semana, un Resumen semanal añade una línea por persona y por agente. Las líneas salen de Tasks, aprobaciones y publicaciones, nunca del correo ni de calendarios. Si no hay nada nuevo, no se publica nada.",
+      "enabledHelp": "Cada día laborable cada agente publica su propia actualización en el canal Stand-up: qué hizo, qué sigue y qué espera a una persona. Hasta tres traspasos entre agentes siguen como respuestas. Una vez por semana, un Resumen semanal añade una línea por persona y por agente. Las líneas salen de Tasks, aprobaciones y publicaciones, nunca del correo ni de calendarios. Si no hay nada nuevo, no se publica nada.",
       "timeLabel": "Hora",
       "timezoneLabel": "Zona horaria",
       "weekdaysLabel": "Días",
