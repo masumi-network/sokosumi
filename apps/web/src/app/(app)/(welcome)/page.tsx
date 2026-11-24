@@ -126,8 +126,12 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
     recentTasks,
     sokoBot,
     lastFailure,
-    summary,
+    summary: readSummary,
   } = await homeData;
+  // TEMP (SOKD-391 evidence, reverted before merge): controlled failures.
+  const fail = query.notice === "sokd391-fail-page";
+  if (fail) throw new Error("SOKD-391 controlled Home failure");
+  const summary = query.notice === "sokd391-fail-stats" ? null : readSummary;
   const notice =
     (Array.isArray(query.notice) ? query.notice[0] : query.notice) ?? null;
   const landingNotice = (everyVisit = false) => (
