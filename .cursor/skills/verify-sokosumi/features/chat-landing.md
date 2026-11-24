@@ -22,9 +22,9 @@ Preconditions:
 - Signed in (see [Sign in](./sign-in.md)).
 - `verify-sokosumi doctor` ok.
 
-- **Open landing.** Run `agent-browser open $WEB_URL/` then wait for the URL to stay on `/`. Do not `wait --load networkidle` on Welcome/chat — Ably can hang that wait.
-- **Confirm URL.** Run `agent-browser get url`. URL is `/` (or ends with `/`) and is not `/signin`.
-- **Confirm shell.** Run `agent-browser snapshot -i`. Without a personal Soko Bot, expect heading **Get your Soko Bot** and **Set it up**, plus sidebar nav — not **Welcome, …!**, not **Chat with …**, and not `[data-testid="multimodal-input"]`. A sidebar **Catch up** link is normal. With a personal Soko Bot, expect that bot's home on `/` (greeting **What's next, …?** and a composer). Either shell counts for its user.
+- **Open landing.** Run `agent-browser open $WEB_URL/` then wait for the URL to stay on `/`. Do not `wait --load networkidle` on Home `/` or `/chat` — Ably can hang that wait.
+- **Confirm URL.** Run `agent-browser get url`. URL is `/` (or ends with `/`) and is not `/signin`. The tab title is **Home**.
+- **Confirm shell.** Run `agent-browser snapshot -i`. Without a personal Soko Bot, expect heading **Get your Soko Bot** and **Set it up**, plus sidebar nav, and no home composer. Not **Chat with …**. A sidebar **Catch up** link is normal. With a personal Soko Bot, expect that bot's home on `/` (greeting **What's next, …?** and a composer). Either shell counts for its user. There is no `[data-testid="multimodal-input"]` in the app.
 - **Optional `/chat`.** Open `$WEB_URL/chat`; mobile may keep `/chat`, desktop (`md+`) replaces to `/`. Either is fine; do not require `/chat` as the post-login default.
 - **Ably note.** If a **Chat error** boundary or **Something went wrong** app error card/overlay appears from Ably auth failure, screenshot it and continue — landing still counts if URL and chrome prove `/`. Do not claim message send/receive unless Ably keys are real.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/chat-landing`, save snapshot, `agent-browser screenshot`, copy newest shot into that directory.

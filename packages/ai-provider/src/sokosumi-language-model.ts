@@ -366,7 +366,12 @@ async function streamCoworker(
   }
   if (options.headers) {
     for (const [k, v] of Object.entries(options.headers)) {
-      if (v !== undefined && k.toLowerCase() !== "accept-encoding") {
+      const lower = k.toLowerCase();
+      if (
+        v !== undefined &&
+        lower !== "accept-encoding" &&
+        lower !== "authorization"
+      ) {
         headers[k] = v;
       }
     }
@@ -374,20 +379,39 @@ async function streamCoworker(
 
   headers["Accept-Encoding"] = "identity";
 
-  async function fetchCoworkerResponses(
+  async function sendCoworkerResponsesRequest(
     requestBody: CoworkerResponsesBody,
   ): Promise<Response> {
-    let response = await ssrfSafeStreamFetch(url, {
+    // Sign per attempt so retries never reuse a jti.
+    const authorization = (await sokosumiOpts.getAuthorization?.())?.trim();
+    if (!authorization) {
+      throw new Error(
+        "Sokosumi provider: getAuthorization returned an empty Authorization header.",
+      );
+    }
+
+    return ssrfSafeStreamFetch(url, {
       method: "POST",
+      redirect: "manual",
       maxResponseBytes: MAX_COWORKER_STREAM_RESPONSE_BYTES,
-      headers,
+      headers: {
+        ...headers,
+        Authorization: authorization,
+      },
       body: JSON.stringify(requestBody),
       signal: options.abortSignal,
     });
+  }
+
+  async function fetchCoworkerResponses(
+    requestBody: CoworkerResponsesBody,
+  ): Promise<Response> {
+    let response = await sendCoworkerResponsesRequest(requestBody);
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "Unknown error");
       const isInvalidConversationId =
+        response.status >= 400 &&
         Boolean(requestBody.conversation) &&
         (errorText.includes("invalid_conversation") ||
           errorText.includes("conversation not found") ||
@@ -407,13 +431,7 @@ async function streamCoworker(
         };
         body = retryBody;
         requestBodyForError = retryBody;
-        response = await ssrfSafeStreamFetch(url, {
-          method: "POST",
-          maxResponseBytes: MAX_COWORKER_STREAM_RESPONSE_BYTES,
-          headers,
-          body: JSON.stringify(retryBody),
-          signal: options.abortSignal,
-        });
+        response = await sendCoworkerResponsesRequest(retryBody);
       } else {
         throwCoworkerResponsesApiError(
           response,

@@ -2296,8 +2296,9 @@ model OauthClientResource {
 
   clientId   String
   client     OauthClient   @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  /// The resource's `identifier` (its URL), which is what Better Auth stores.
   resourceId String
-  resource   OauthResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  resource   OauthResource @relation(fields: [resourceId], references: [identifier], onDelete: Cascade)
   metadata   Json?
 
   @@unique([clientId, resourceId])

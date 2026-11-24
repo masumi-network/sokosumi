@@ -1,34 +1,87 @@
 {
-  "backlog": "SOKD-372",
   "operations": {
     "GET /coworkers": {
-      "cli": "coworkers list"
+      "cli": "coworkers list",
+      "mcp": "coworkers_list"
     },
     "POST /coworkers": {
-      "cli": "coworkers register"
+      "cli": "coworkers register",
+      "mcp": "coworkers_register"
     },
     "GET /coworkers/me": {
-      "cli": "coworkers me"
+      "cli": "coworkers me",
+      "mcp": false,
+      "reason": "Answers only a Coworker's own API key; an MCP caller is a person."
+    },
+    "GET /coworkers/me/events": {
+      "cli": "coworkers events",
+      "mcp": false,
+      "reason": "Answers only a Coworker's own API key; an MCP caller is a person."
+    },
+    "POST /coworkers/me/usage": {
+      "cli": "coworkers report-usage",
+      "mcp": false,
+      "reason": "Answers only a Coworker's own API key; an MCP caller is a person."
     },
     "GET /coworkers/{id}": {
-      "cli": "coworkers connect"
+      "cli": "coworkers connect",
+      "mcp": "coworkers_get"
     },
     "PATCH /coworkers/{id}": {
-      "cli": "coworkers update"
+      "cli": "coworkers update",
+      "mcp": "coworkers_update"
+    },
+    "DELETE /coworkers/{id}": {
+      "cli": "coworkers archive",
+      "mcp": "coworkers_archive"
+    },
+    "POST /coworkers/{id}/unarchive": {
+      "cli": "coworkers unarchive",
+      "mcp": false,
+      "reason": "Admin back office stays off MCP."
+    },
+    "PATCH /coworkers/{id}/whitelist": {
+      "cli": "coworkers whitelist",
+      "mcp": false,
+      "reason": "Admin back office stays off MCP."
+    },
+    "POST /coworkers/{id}/image": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Multipart file upload; the generic CLI runner and MCP tools send JSON only. Set the picture in the Web app."
+    },
+    "DELETE /coworkers/{id}/image": {
+      "cli": "coworkers remove-image",
+      "mcp": "coworkers_remove_image"
     },
     "GET /coworkers/{id}/api-keys": {
-      "cli": "coworkers list-api-keys"
+      "cli": "coworkers list-api-keys",
+      "mcp": "coworkers_list_api_keys"
     },
     "POST /coworkers/{id}/api-keys": {
       "cli": "coworkers api-key",
       "mcp": false,
       "reason": "Mints a long-lived credential."
     },
+    "PATCH /coworkers/{id}/api-keys/{keyId}": {
+      "cli": "coworkers update-api-key",
+      "mcp": "coworkers_update_api_key"
+    },
     "DELETE /coworkers/{id}/api-keys/{keyId}": {
-      "cli": "coworkers revoke-api-key"
+      "cli": "coworkers revoke-api-key",
+      "mcp": "coworkers_revoke_api_key"
+    },
+    "GET /coworkers/{id}/workspace-access": {
+      "cli": "coworkers list-access",
+      "mcp": "coworkers_list_access"
     },
     "POST /coworkers/{id}/workspace-access": {
-      "cli": "coworkers connect"
+      "cli": "coworkers connect",
+      "mcp": "coworkers_connect"
+    },
+    "POST /coworkers/{id}/workspace-access/revoke": {
+      "cli": "coworkers revoke-access",
+      "mcp": "coworkers_revoke_access"
     }
   }
 }

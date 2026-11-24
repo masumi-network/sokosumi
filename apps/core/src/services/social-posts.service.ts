@@ -1575,6 +1575,8 @@ export async function updateSocialPost(
       : post.status === "FAILED" || post.status === "MISSED"
         ? { lastError: null, attemptCount: 0, nextAttemptAt: null }
         : {};
+  // ADR 0077: a Coworker's edit never publishes on its own; a person approves it.
+  if (input.coworkerId) data.status = "NEEDS_APPROVAL";
   if (input.scheduledAt) data.scheduledAt = input.scheduledAt;
   if (input.timezone !== undefined) data.timezone = input.timezone;
   const currentProvider = requireProvider(post.provider);
@@ -1886,8 +1888,11 @@ export async function scheduleSocialPost(
         input,
         input.revision,
         {
+          // ADR 0077: a Coworker's schedule waits for a person's approval.
           status:
-            post.status === "NEEDS_APPROVAL" ? "NEEDS_APPROVAL" : "SCHEDULED",
+            input.coworkerId || post.status === "NEEDS_APPROVAL"
+              ? "NEEDS_APPROVAL"
+              : "SCHEDULED",
           scheduledAt: input.scheduledAt,
           timezone: input.timezone ?? post.timezone,
           socialConnectionId: connection.id,

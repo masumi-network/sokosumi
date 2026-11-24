@@ -476,6 +476,23 @@ describe("social posts service", () => {
       },
     );
 
+    it.each(["DRAFT", "SCHEDULED", "FAILED", "MISSED"])(
+      "queues a Coworker's %s post as Needs approval",
+      async (status) => {
+        socialPostFindFirstMock.mockResolvedValue({ ...draftPost, status });
+        const { queueSocialPost } = await import("./social-queue.service");
+        await queueSocialPost({ ...queueInput, coworkerId: "cow_123" });
+        expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              status: "NEEDS_APPROVAL",
+              scheduledByCoworkerId: "cow_123",
+            }),
+          }),
+        );
+      },
+    );
+
     it.each(["disconnected", "needs_reconnect"])(
       "rejects an unhealthy %s connection",
       async (status) => {
@@ -4346,6 +4363,111 @@ describe("social posts service", () => {
         }),
       }),
     );
+  });
+
+  // ADR 0077: a Coworker's write never publishes on its own.
+  describe("a Coworker change waits for a person's approval", () => {
+    const scope = {
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      postId: POST_ID,
+    };
+    const writtenStatus = () =>
+      socialPostUpdateManyMock.mock.calls.at(-1)?.[0].data.status;
+
+    it.each(["DRAFT", "NEEDS_APPROVAL", "SCHEDULED", "FAILED", "MISSED"])(
+      "schedules a %s post as Needs approval",
+      async (status) => {
+        socialPostFindFirstMock.mockResolvedValue({ ...draftPost, status });
+        const { scheduleSocialPost } = await loadService();
+        await scheduleSocialPost({
+          ...scope,
+          coworkerId: "cow_123",
+          revision: draftPost.revision,
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+          scheduledAt: FUTURE,
+        });
+        expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              status: "NEEDS_APPROVAL",
+              scheduledAt: FUTURE,
+              scheduledByUserId: USER_ID,
+              scheduledByCoworkerId: "cow_123",
+            }),
+          }),
+        );
+      },
+    );
+
+    it.each(["DRAFT", "SCHEDULED", "FAILED", "MISSED"])(
+      "edits a %s post into Needs approval",
+      async (status) => {
+        socialPostFindFirstMock.mockResolvedValue({ ...scheduledPost, status });
+        const { updateSocialPost } = await loadService();
+        await updateSocialPost({
+          ...scope,
+          coworkerId: "cow_123",
+          revision: scheduledPost.revision,
+          text: "Edited",
+        });
+        expect(writtenStatus()).toBe("NEEDS_APPROVAL");
+      },
+    );
+
+    it("sends a rescheduled post back to Needs approval", async () => {
+      socialPostFindFirstMock.mockResolvedValue(scheduledPost);
+      const { updateSocialPost } = await loadService();
+      const later = new Date(FUTURE.getTime() + 3_600_000);
+      await updateSocialPost({
+        ...scope,
+        coworkerId: "cow_123",
+        revision: scheduledPost.revision,
+        scheduledAt: later,
+      });
+      expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: "NEEDS_APPROVAL",
+            scheduledAt: later,
+          }),
+        }),
+      );
+    });
+
+    it("keeps a person's schedule of a draft Scheduled", async () => {
+      const { scheduleSocialPost } = await loadService();
+      await scheduleSocialPost({
+        ...scope,
+        revision: draftPost.revision,
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        scheduledAt: FUTURE,
+      });
+      expect(writtenStatus()).toBe("SCHEDULED");
+    });
+
+    it("keeps a person's edit of a Scheduled post Scheduled", async () => {
+      socialPostFindFirstMock.mockResolvedValue(scheduledPost);
+      const { updateSocialPost } = await loadService();
+      await updateSocialPost({
+        ...scope,
+        revision: scheduledPost.revision,
+        text: "Edited",
+      });
+      expect(writtenStatus()).toBeUndefined();
+    });
+
+    it("keeps a person's edit of a draft a draft", async () => {
+      const { updateSocialPost } = await loadService();
+      await updateSocialPost({
+        ...scope,
+        revision: draftPost.revision,
+        text: "Edited",
+      });
+      expect(writtenStatus()).toBeUndefined();
+    });
   });
 
   it("copies a published post into a new draft without the provider id", async () => {

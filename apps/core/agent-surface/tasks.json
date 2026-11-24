@@ -2,43 +2,56 @@
   "backlog": "SOKD-369",
   "operations": {
     "GET /tasks": {
-      "cli": "tasks list"
+      "cli": "tasks list",
+      "mcp": "tasks_list"
     },
     "POST /tasks": {
-      "cli": "tasks create"
+      "cli": "tasks create",
+      "mcp": "tasks_create"
     },
     "GET /tasks/{id}": {
-      "cli": "tasks get"
+      "cli": "tasks get",
+      "mcp": "tasks_get"
     },
     "PATCH /tasks/{id}": {
-      "cli": "tasks update"
+      "cli": "tasks update",
+      "mcp": "tasks_update"
     },
     "DELETE /tasks/{id}": {
-      "cli": "tasks archive"
+      "cli": "tasks archive",
+      "mcp": "tasks_archive"
     },
     "GET /tasks/{id}/events": {
-      "cli": "tasks events"
+      "cli": "tasks events",
+      "mcp": "tasks_events"
     },
     "POST /tasks/{id}/events": {
-      "cli": "tasks comment"
+      "cli": "tasks comment",
+      "mcp": "tasks_comment"
     },
     "GET /tasks/{id}/jobs": {
-      "cli": "tasks jobs"
+      "cli": "tasks jobs",
+      "mcp": "tasks_jobs"
     },
     "GET /tasks/{id}/links": {
-      "cli": "tasks links"
+      "cli": "tasks links",
+      "mcp": "tasks_links"
     },
     "POST /tasks/{id}/links": {
-      "cli": "tasks link"
+      "cli": "tasks link",
+      "mcp": "tasks_link"
     },
     "DELETE /tasks/{id}/links/{linkId}": {
-      "cli": "tasks unlink"
+      "cli": "tasks unlink",
+      "mcp": "tasks_unlink"
     },
     "POST /tasks/{id}/move": {
-      "cli": "tasks move"
+      "cli": "tasks move",
+      "mcp": "tasks_move"
     },
     "GET /tasks/{id}/receipt": {
-      "cli": "runtime receipt"
+      "cli": "runtime receipt",
+      "mcp": "tasks_receipt"
     }
   }
 }

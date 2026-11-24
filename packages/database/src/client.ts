@@ -31,6 +31,8 @@ export function createPrismaClient(
 }
 
 export interface PrismaClientPoolOptions {
+  /** Schema named in every model query; Prisma's default is `public`. */
+  schema?: string;
   onPoolError?: (error: Error) => void;
   onConnectionError?: (error: Error) => void;
 }

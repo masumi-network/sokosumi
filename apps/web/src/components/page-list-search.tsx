@@ -1,13 +1,9 @@
 "use client";
 
-import {
-  createContext,
-  type ReactNode,
-  useContext,
-  useEffect,
-  useEffectEvent,
-  useRef,
-} from "react";
+import { createContext, type ReactNode, useContext } from "react";
+import { usePageListSearchHits } from "@/hooks/effects/use-page-list-search-hits";
+import { usePageSearchAutoLoadMore } from "@/hooks/effects/use-page-search-auto-load-more";
+import { usePageSearchPartialMarker } from "@/hooks/effects/use-page-search-partial-marker";
 import { rankPageItems } from "@/lib/utils/page-search";
 
 export const PageListSearchContext = createContext<{
@@ -30,10 +26,7 @@ export function usePageListSearch<T>(
   const query = context?.query.trim();
   const register = context?.register;
   const visible = query ? rankPageItems(items, query, fieldsFor) : items;
-  useEffect(
-    () => register?.(visible.length, false),
-    [register, visible.length],
-  );
+  usePageListSearchHits(register, visible.length);
   return visible;
 }
 
@@ -60,19 +53,6 @@ export function usePageSearchPagination(
   const searching = Boolean(context?.query.trim());
   const register = context?.register;
   const partial = Boolean(cursor);
-  useEffect(
-    () => (partial ? register?.(0, true) : undefined),
-    [partial, register],
-  );
-  const requested = useRef<string | null>(null);
-  const load = useEffectEvent(loadMore);
-  useEffect(() => {
-    if (!searching) {
-      requested.current = null;
-      return;
-    }
-    if (!cursor || busy || requested.current === cursor) return;
-    requested.current = cursor;
-    void load();
-  }, [searching, cursor, busy]);
+  usePageSearchPartialMarker(register, partial);
+  usePageSearchAutoLoadMore(searching, cursor, busy, loadMore);
 }

@@ -1,7 +1,17 @@
 "use client";
 
 import type { ChatRoom } from "@sokosumi/core-client";
-import { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import {
+  createContext,
+  createElement,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { fetchSidebarRoomCollection } from "@/components/chat/fetch-sidebar-room-collection";
 import {
   getLatestMembershipVisibleRoomsSnapshot,
@@ -18,7 +28,7 @@ import {
   beginRoomAttentionRefresh,
   reconcileRoomAttention,
 } from "@/components/chat/room-read-overlay";
-import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
+import { useChatRefreshScheduler } from "@/hooks/effects/use-chat-refresh-scheduler";
 import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { useLiveChatRoomsOwnershipSettled } from "@/hooks/effects/use-live-chat-rooms-ownership-settled";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
@@ -52,6 +62,31 @@ function getInitialRoomsFromSessionSnapshot(): HeldRooms {
   };
 }
 
+interface LiveChatRoomsRead {
+  rooms: ChatRoom[] | null;
+  failed: boolean;
+}
+
+const EMPTY_LIVE_CHAT_ROOMS: LiveChatRoomsRead = {
+  rooms: null,
+  failed: false,
+};
+
+/** @internal Read by `useLiveChatRoomsRead` and the DOM test setup fallback. */
+export const LiveChatRoomsContext = createContext<LiveChatRoomsRead | null>(
+  null,
+);
+
+/**
+ * Runs the live membership-visible rooms reader once for the app shell and
+ * shares its `{ rooms, failed }` result with every descendant caller.
+ */
+export function LiveChatRoomsProvider({ children }: { children: ReactNode }) {
+  const { rooms, failed } = useLiveChatRoomsOwner();
+  const value = useMemo(() => ({ rooms, failed }), [rooms, failed]);
+  return createElement(LiveChatRoomsContext, { value }, children);
+}
+
 /**
  * The reader's live membership-visible rooms, for chat surfaces that need
  * what is unread without mounting the sidebar list: the Chats tab's unread
@@ -73,10 +108,12 @@ export function useLiveChatRooms(): ChatRoom[] | null {
  * `useLiveChatRooms`, plus whether this user and workspace's first read
  * failed with no rows held, so a caller can say so while the reader retries.
  */
-export function useLiveChatRoomsRead(): {
-  rooms: ChatRoom[] | null;
-  failed: boolean;
-} {
+export function useLiveChatRoomsRead(): LiveChatRoomsRead {
+  return useContext(LiveChatRoomsContext) ?? EMPTY_LIVE_CHAT_ROOMS;
+}
+
+/** @internal Owned by `LiveChatRoomsProvider` (and the DOM test setup fallback). */
+export function useLiveChatRoomsOwner(): LiveChatRoomsRead {
   const { data: session } = useSession();
   const currentUserId = session?.user.id ?? "";
   const organizationId = session?.session.activeOrganizationId ?? null;
