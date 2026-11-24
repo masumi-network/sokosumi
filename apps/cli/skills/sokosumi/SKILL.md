@@ -233,6 +233,18 @@ sokosumi jobs links JOB_ID
 
 [VERIFIED: `apps/cli/src/cli/commands/catalog.ts`] `jobs events`, `jobs files`, and `jobs links` each call one Core operation and print Core's JSON body as is. Commands like these take path values as positionals, `--query KEY=VALUE` (repeatable), `--input-json` or `--input-file` for a write body (required), and `--organization-slug WORKSPACE_SLUG`; any other option is an error. Every `jobs` command takes `--organization-slug WORKSPACE_SLUG` for a Job in an organization Workspace.
 
+## Use Sokosumi over MCP
+
+[VERIFIED: `apps/core/src/routes/mcp/index.ts`, `docs/mcp.md`] Sokosumi also serves its tools over MCP at `https://api.sokosumi.com/mcp`. Use it when the host speaks MCP and the CLI is not installed. The host connects by URL and signs in through the browser; no API key is needed:
+
+```bash
+claude mcp add --transport http sokosumi https://api.sokosumi.com/mcp
+```
+
+[VERIFIED: `apps/core/src/lib/sokosumi-mcp/server.ts`, `docs/agents/agent-surface.md`] A tool's name is its CLI command with `_`: `tasks list` → `tasks_list`. Call `workspaces_list` first. A tool acts in the personal Workspace unless you pass an organization Workspace's slug as `workspace`, the MCP form of `--organization-slug`.
+
+[VERIFIED: ADR 0076, `apps/core/src/routes/mcp/mcp-oauth.integration.test.ts`] MCP tokens and CLI credentials do not mix. An MCP token works only at `/mcp`, and a CLI OAuth token or API key gets 401 there. Never ask for or paste either in chat. MCP writes to mainnet need the same explicit operator yes as CLI writes.
+
 ## Optional focused Skills and later work
 
 The main workflow is self-contained. Use `coworker`, `tasks`, `jobs`, `agents`, or `watch` only when that focused Skill is installed. Installing this Skill does not establish their presence. `watch` is a Skill, not a CLI command.
