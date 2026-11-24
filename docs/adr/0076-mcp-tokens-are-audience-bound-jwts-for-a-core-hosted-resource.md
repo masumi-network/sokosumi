@@ -31,7 +31,7 @@ Agents will manage Sokosumi through an MCP server that signs people in with Soko
 - The MCP server costs two database reads per request (user and client, in parallel) plus the consent read for a client that has one. `/v1` costs the same.
 - Every cold start writes the fields `lib/sokosumi-mcp/resource.ts` sets (name, access-token TTL, allowed scopes) onto the `oauthResource` row (`resourceSeedMode: "merge"`), so changing them in code is enough. Columns it leaves out, such as `disabled` or `refreshTokenTtl`, keep any edit made in the database. Unit tests have no database, so Core's test setup answers that table in memory.
 - On a preview the identifier is the preview's origin; its row is seeded beside the copied mainnet row.
-- `oauthClientResource.resourceId` holds the resource's `identifier`, which is what Better Auth stores and checks; its foreign key references that unique column (migration `20261123173547_oauth_client_resource_by_identifier`).
+- `oauthClientResource.resourceId` holds the resource's `identifier`, which is what Better Auth stores and checks; its foreign key references that unique column (migration `20261124091521_oauth_client_resource_by_identifier`).
 - A first-party client such as the CLI cannot get MCP tokens through Web's forms; a Sokosumi admin's `/admin/oauth2/*` endpoints can still allow the scope and link the resource.
 - Disabling the MCP resource row stops new registrations; Web's developer page is unaffected.
 - Self-registered clients have no owner and are never cleaned up. Claude.ai registers from Anthropic's servers, so its users share one per-IP limit.
