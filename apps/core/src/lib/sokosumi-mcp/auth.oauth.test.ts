@@ -243,7 +243,6 @@ describe("verifyMcpAccessToken", () => {
         organizationId: null,
         role: "user",
         authenticationMethod: "oauth",
-        oauthClientId: CLIENT_ID,
       },
     });
   });
@@ -341,6 +340,23 @@ describe("verifyMcpAccessToken", () => {
     ).resolves.toEqual({
       status: "invalid_token",
     });
+  });
+
+  it("makes an admin on a first-party client a plain MCP caller", async () => {
+    store.oauthClient[0].skipConsent = true;
+    store.user[0].role = "admin";
+    const token = await issueAccessToken({ scope: MCP_SCOPE, resource: MCP });
+
+    const verification = await verifyMcpAccessToken(token.access_token, auth);
+
+    // Admin reaches other users' data, the CMO write check trusts the
+    // client id, and first-party routes trust the flag.
+    expect(verification).toMatchObject({
+      status: "active",
+      authContext: { role: "user" },
+    });
+    expect(verification).not.toHaveProperty("authContext.oauthClientId");
+    expect(verification).not.toHaveProperty("authContext.firstPartyClient");
   });
 
   it("rejects the token of a client disabled after it was issued", async () => {
