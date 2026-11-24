@@ -5,10 +5,11 @@ import { cors } from "hono/cors";
 import type { RequestIdVariables } from "hono/request-id";
 
 import { TIME } from "@/config/constants.js";
-import { forbidden, unauthorized } from "@/helpers/error.js";
+import { badRequest, forbidden, unauthorized } from "@/helpers/error.js";
 import { auth } from "@/lib/auth.js";
 import { verifyMcpAccessToken } from "@/lib/sokosumi-mcp/auth.js";
 import { createSokosumiMcpServer } from "@/lib/sokosumi-mcp/server.js";
+import { selectToolsets } from "@/lib/sokosumi-mcp/tools.js";
 
 /**
  * Core's MCP server (`{origin}/mcp`, ADR 0076): Streamable HTTP, stateless,
@@ -37,6 +38,12 @@ app.use(
 );
 
 app.post("/", async (c) => {
+  // Before the token, so a wrong URL fails before the person signs in.
+  const selection = selectToolsets(c.req.queries("toolsets"));
+  if ("error" in selection) {
+    throw badRequest(selection.error);
+  }
+
   const issuer = (await auth.$context).baseURL;
   const token = /^Bearer\s+(\S+)\s*$/i.exec(
     c.req.header("authorization") ?? "",
@@ -66,7 +73,9 @@ app.post("/", async (c) => {
   // notification before its result, which ours never do.
   return (
     (await refuseListen(c.req.raw)) ??
-    createMcpHandler(() => createSokosumiMcpServer(caller)).fetch(c.req.raw)
+    createMcpHandler(() =>
+      createSokosumiMcpServer(caller, selection.toolsets),
+    ).fetch(c.req.raw)
   );
 });
 

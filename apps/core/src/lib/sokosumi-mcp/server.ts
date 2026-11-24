@@ -7,20 +7,39 @@ import {
 
 import { callTool, type ToolCaller } from "./dispatch";
 import { type DerivedTool, getTools } from "./tool-schema";
+import { MCP_TOOLSETS, toolsetOf } from "./tools";
 
-const INSTRUCTIONS =
-  "Sokosumi tools act on the signed-in person's Sokosumi account. Call workspaces_list first: a tool acts in the personal workspace unless you pass an organization workspace's slug as `workspace`.";
+/** What the agent reads first: the workspace rule and the toolsets. */
+export function instructions(toolsets: readonly string[]): string {
+  const others = MCP_TOOLSETS.filter((name) => !toolsets.includes(name));
+  return [
+    "Sokosumi tools act on the signed-in person's Sokosumi account.",
+    "Call workspaces_list first: a tool acts in the personal workspace unless you pass an organization workspace's slug as `workspace`.",
+    `Toolsets on: ${toolsets.join(", ")}.`,
+    ...(others.length > 0
+      ? [
+          `Off: ${others.join(", ")}. The person turns toolsets on with ?toolsets= on the server URL, comma-separated.`,
+        ]
+      : []),
+  ].join(" ");
+}
 
 /**
- * A fresh, stateless MCP server for one HTTP request, acting for `caller`.
- * Every tool call runs as a `/v1` request (`dispatch.ts`).
+ * A fresh, stateless MCP server for one HTTP request, acting for `caller`,
+ * with the tools in `toolsets` (`tools.ts`). Every tool call runs as a `/v1`
+ * request (`dispatch.ts`).
  */
-export function createSokosumiMcpServer(caller: ToolCaller): Server {
+export function createSokosumiMcpServer(
+  caller: ToolCaller,
+  toolsets: readonly string[],
+): Server {
   const server = new Server(
     { name: "sokosumi", version: "1.0.0" },
-    { capabilities: { tools: {} }, instructions: INSTRUCTIONS },
+    { capabilities: { tools: {} }, instructions: instructions(toolsets) },
   );
-  const tools = getTools();
+  const tools = new Map(
+    [...getTools()].filter(([name]) => toolsets.includes(toolsetOf(name))),
+  );
 
   server.setRequestHandler("tools/list", () => ({
     tools: [...tools.values()].map((tool) => ({
