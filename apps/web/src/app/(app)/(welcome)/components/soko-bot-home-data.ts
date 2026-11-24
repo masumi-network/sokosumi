@@ -71,38 +71,36 @@ export interface SokoBotHomeRoom {
   roomId: string;
   /** Oldest first, deleted ones included. */
   messages: readonly ChatRoomMessage[];
-  /** Top-level messages from others the reader has not read. */
-  unread: number;
-  /** `messages` holds the whole room, so its first one is the room's first. */
-  complete: boolean;
+  /** Where the reader's Unread divider sits, from the same read; null when
+   * nothing is unread. */
+  firstUnreadMessageId: string | null;
 }
 
 /**
- * Home's Needs you row for the bot's welcome, while the reader has not read
- * it: the bot's first message in its Direct, before the reader ever wrote
- * there. The unread count covers the newest messages, so the welcome is
- * unread only while it counts every bot message from it on.
+ * Home's Needs you row for the bot's welcome while the reader has not read
+ * it. The welcome is the bot's message whose text is Core's introduction
+ * (`introduction`, from `composeSokoBotIntroduction`), so an owner notice
+ * posted first is not one. It is unread while the room's Unread divider
+ * sits right above it.
  */
 export function sokoBotWelcomeLead(
   bot: { id: string; name: string },
+  introduction: string,
   botRoom: SokoBotHomeRoom | null,
   t: (key: "welcome" | "openChat", values?: { name: string }) => string,
 ): NeedsYouLead | undefined {
-  if (!botRoom?.complete || botRoom.unread === 0) return undefined;
-  const [welcome] = botRoom.messages;
-  if (
-    !welcome ||
-    welcome.deletedAt ||
-    welcome.sender.type !== "sokoBot" ||
-    welcome.sender.sokoBot.id !== bot.id ||
-    botRoom.messages.some((message) => message.sender.type === "user")
-  ) {
-    return undefined;
-  }
-  const fromOthers = botRoom.messages.filter(
-    (message) => !message.deletedAt,
-  ).length;
-  if (botRoom.unread < fromOthers) return undefined;
+  // ponytail: Core exposes no introduction id or marker, so the text identifies
+  // it; a bot or owner renamed before the welcome is read hides the row (never
+  // mislabels a notice). Match on a Core marker if one is ever exposed.
+  const welcome = botRoom?.messages.find(
+    (message) =>
+      message.id === botRoom.firstUnreadMessageId &&
+      !message.deletedAt &&
+      message.sender.type === "sokoBot" &&
+      message.sender.sokoBot.id === bot.id &&
+      message.content === introduction,
+  );
+  if (!botRoom || !welcome) return undefined;
   return {
     title: t("welcome", { name: bot.name }),
     detail: t("openChat"),

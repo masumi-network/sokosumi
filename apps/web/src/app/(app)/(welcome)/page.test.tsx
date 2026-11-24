@@ -129,6 +129,7 @@ vi.mock("./components/soko-bot-home", () => ({
   },
 }));
 
+import { composeSokoBotIntroduction } from "@sokosumi/soko-bot";
 import { expectConsole } from "@sokosumi/utils/test-console";
 import WelcomePage, { generateMetadata } from "./page";
 
@@ -344,26 +345,36 @@ describe("WelcomePage", () => {
     );
   });
 
+  // The summary read returns null when Core fails it; Home still renders
+  // and only the day's section says so.
+  it("renders Home without the day's numbers when their read fails", async () => {
+    getActivitySummary.mockResolvedValueOnce(
+      null as unknown as { awaitingInput: number },
+    );
+    getMine.mockResolvedValue({
+      id: "bot-1",
+      name: "Joseph",
+      avatarSeed: null,
+      avatarImageUrl: null,
+    });
+    await renderPage();
+    expect(screen.getByText("bot home")).toBeTruthy();
+    expect(sokoBotHome).toHaveBeenCalledWith(
+      expect.objectContaining({ summary: null }),
+    );
+  });
+
   it("puts the bot's unread welcome first in Needs you", async () => {
     const at = new Date("2026-11-24T09:00:00Z");
-    listRooms.mockResolvedValueOnce({
-      rooms: [
-        {
-          id: "room-1",
-          kind: "direct",
-          userMembers: [{ id: "user-1" }],
-          coworkerMembers: [],
-          sokoBotMembers: [{ id: "bot-1" }],
-          unreadCount: 1,
-          channelUnreadCount: 1,
-        },
-      ],
-    });
     listMessages.mockResolvedValueOnce({
       messages: [
         {
           id: "welcome-1",
-          content: "Hi, I'm Pip",
+          // Core's own introduction for this bot and owner.
+          content: composeSokoBotIntroduction({
+            name: "Pip",
+            ownerName: "Alice Doe",
+          }),
           createdAt: at,
           deletedAt: null,
           parentMessageId: null,
@@ -371,6 +382,7 @@ describe("WelcomePage", () => {
         },
       ],
       nextCursor: null,
+      firstUnreadMessageId: "welcome-1",
     });
     getMine.mockResolvedValue({
       id: "bot-1",

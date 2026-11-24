@@ -1,3 +1,4 @@
+import { composeSokoBotIntroduction } from "@sokosumi/soko-bot";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
@@ -156,6 +157,8 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
     // nothing did.
     const welcomeLead = sokoBotWelcomeLead(
       { id: sokoBot.id, name: botName },
+      // What Core posted as this bot's introduction to its owner.
+      composeSokoBotIntroduction({ name: sokoBot.name, ownerName: userName }),
       botRoom,
       tHome,
     );

@@ -258,78 +258,84 @@ describe("withSokoBotChat", () => {
 
 describe("sokoBotWelcomeLead", () => {
   const bot = { id: "bot", name: "Pip" };
+  const INTRO = "Hi Mira! I'm **Pip**, your personal assistant.";
   const t = (key: string, values?: { name: string }) =>
     values ? `${key}:${values.name}` : key;
   const message = (
     id: string,
-    sender: "me" | "bot",
+    content: string,
     extra: Partial<ChatRoomMessage> = {},
   ) =>
     ({
       id,
       roomId: "bot-room",
       parentMessageId: null,
-      content: "Hi",
+      content,
       createdAt: new Date("2026-11-24T09:00:00Z"),
       deletedAt: null,
-      sender:
-        sender === "me"
-          ? { type: "user", user: { id: "me" } }
-          : { type: "sokoBot", sokoBot: { id: "bot" } },
+      sender: { type: "sokoBot", sokoBot: { id: "bot" } },
       ...extra,
     }) as ChatRoomMessage;
-  const welcomeRoom = {
-    roomId: "bot-room",
-    messages: [message("welcome", "bot")],
-    unread: 1,
-    complete: true,
-  };
+  const room = (
+    messages: ChatRoomMessage[],
+    firstUnreadMessageId: string | null,
+  ) => ({ roomId: "bot-room", messages, firstUnreadMessageId });
 
-  it("lists the bot's unread welcome and opens it in the bot's chat", () => {
-    expect(sokoBotWelcomeLead(bot, welcomeRoom, t)).toEqual({
+  it("lists the bot's unread introduction and opens it in the bot's chat", () => {
+    expect(
+      sokoBotWelcomeLead(
+        bot,
+        INTRO,
+        room([message("intro", INTRO)], "intro"),
+        t,
+      ),
+    ).toEqual({
       title: "welcome:Pip",
       detail: "openChat",
-      href: "/chat/rooms/bot-room?message=welcome",
+      href: "/chat/rooms/bot-room?message=intro",
       at: new Date("2026-11-24T09:00:00Z"),
       kind: "message",
     });
   });
 
-  it("is gone once the welcome is read", () => {
-    expect(sokoBotWelcomeLead(bot, { ...welcomeRoom, unread: 0 }, t)).toBe(
+  // Core can post an owner notice into a Direct the bot never introduced
+  // itself in: that first unread message is not a welcome.
+  it("does not call a first-message owner notice a welcome", () => {
+    expect(
+      sokoBotWelcomeLead(
+        bot,
+        INTRO,
+        room([message("notice", "Your daily brief is ready.")], "notice"),
+        t,
+      ),
+    ).toBe(undefined);
+  });
+
+  it("is gone once the read marker moves past the introduction", () => {
+    const messages = [
+      message("intro", INTRO),
+      message("notice", "Your daily brief is ready."),
+    ];
+    // Read up to the notice, then nothing.
+    expect(sokoBotWelcomeLead(bot, INTRO, room(messages, "notice"), t)).toBe(
+      undefined,
+    );
+    expect(sokoBotWelcomeLead(bot, INTRO, room(messages, null), t)).toBe(
       undefined,
     );
   });
 
-  it("is gone when only a later bot message is unread", () => {
-    const room = {
-      ...welcomeRoom,
-      messages: [message("welcome", "bot"), message("later", "bot")],
-      unread: 1,
-    };
-    expect(sokoBotWelcomeLead(bot, room, t)).toBe(undefined);
-  });
-
-  it("is gone once the reader wrote back", () => {
-    const room = {
-      ...welcomeRoom,
-      messages: [message("welcome", "bot"), message("question", "me")],
-    };
-    expect(sokoBotWelcomeLead(bot, room, t)).toBe(undefined);
-  });
-
-  it("needs the bot's first message, not just any unread one", () => {
-    for (const room of [
-      // Older messages exist past this page.
-      { ...welcomeRoom, complete: false },
-      // The welcome was deleted.
-      {
-        ...welcomeRoom,
-        messages: [message("welcome", "bot", { deletedAt: new Date() })],
-      },
-      null,
+  it("needs the live introduction from this bot", () => {
+    for (const intro of [
+      message("intro", INTRO, { deletedAt: new Date() }),
+      message("intro", INTRO, {
+        sender: { type: "sokoBot", sokoBot: { id: "other-bot" } },
+      } as Partial<ChatRoomMessage>),
     ]) {
-      expect(sokoBotWelcomeLead(bot, room, t)).toBe(undefined);
+      expect(sokoBotWelcomeLead(bot, INTRO, room([intro], "intro"), t)).toBe(
+        undefined,
+      );
     }
+    expect(sokoBotWelcomeLead(bot, INTRO, null, t)).toBe(undefined);
   });
 });

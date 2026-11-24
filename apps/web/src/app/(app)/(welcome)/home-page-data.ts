@@ -150,18 +150,18 @@ async function readHomeData(scope: HomeScope) {
   // ponytail: one page only, so a question followed by 20 or more top-level
   // bot posts drops off; follow `nextCursor` if bots start posting that much.
   const botDirect = sokoBot ? findSokoBotDirectRoom(rooms, sokoBot.id) : null;
-  // Its unread count tells Home whether the bot's welcome is still unread.
+  // The Unread divider comes with the same read, so whether the bot's
+  // welcome is still unread matches the messages Home shows.
   const botRoom: SokoBotHomeRoom | null = botDirect
     ? {
         roomId: botDirect.id,
-        unread: botDirect.channelUnreadCount ?? botDirect.unreadCount,
         ...(await chatRoomService
           .listMessages(botDirect.id, { limit: SOKO_BOT_ROOM_MESSAGE_LIMIT })
-          .then(({ messages, nextCursor }) => ({
+          .then(({ messages, firstUnreadMessageId }) => ({
             messages,
-            complete: nextCursor === null,
+            firstUnreadMessageId: firstUnreadMessageId ?? null,
           }))
-          .catch(() => ({ messages: [], complete: false }))),
+          .catch(() => ({ messages: [], firstUnreadMessageId: null }))),
       }
     : null;
   return {
