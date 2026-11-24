@@ -283,7 +283,15 @@ describe("useGenerationQueue", () => {
     expect(latestQueue.queued).toHaveLength(1);
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(5_000);
+      await vi.advanceTimersByTimeAsync(3_999);
+    });
+
+    expect(startImageGeneration).toHaveBeenCalledTimes(2);
+    expect(latestQueue.waitingForSlot).toBe(true);
+    expect(latestQueue.queued).toHaveLength(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
     });
 
     expect(startImageGeneration).toHaveBeenCalledTimes(3);
