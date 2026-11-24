@@ -41,14 +41,51 @@ let traversedAt = Number.NEGATIVE_INFINITY;
  * refresh may have started before the mutation finished.
  */
 let runningRefreshes = 0;
-const stalePages = new Set<string>();
+interface PageStaleState {
+  version: number;
+  resolvedVersion: number;
+  ackedVersion: number;
+}
+const staleStateByPage = new Map<string, PageStaleState>();
 const staleListeners = new Set<(page: string) => void>();
 
-/** Marks a page stale after a browser-side mutation so it refreshes when shown. */
+function isPageStale(page: string): boolean {
+  const state = staleStateByPage.get(page);
+  return state !== undefined && state.version > state.ackedVersion;
+}
+
+/**
+ * Marks a page stale after a browser-side mutation so it refreshes when shown.
+ * The mark stays active until a post-mark refresh resolves on the page and the
+ * page commits a new server snapshot via `acknowledgePageSnapshot(page)`.
+ */
 export function markPageStale(page: string): void {
-  stalePages.add(page);
+  const current = staleStateByPage.get(page);
+  if (current) {
+    current.version += 1;
+  } else {
+    staleStateByPage.set(page, {
+      version: 1,
+      resolvedVersion: 0,
+      ackedVersion: 0,
+    });
+  }
   for (const listener of staleListeners) {
     listener(page);
+  }
+}
+
+/**
+ * Acknowledges that a new server snapshot committed on `page`. Clears the stale
+ * mark only when a post-mark refresh has already resolved on `page`, so neither
+ * a pre-mutation refresh nor a discarded action tree drops the mark.
+ */
+export function acknowledgePageSnapshot(page: string): void {
+  const state = staleStateByPage.get(page);
+  if (!state || state.resolvedVersion <= state.ackedVersion) return;
+  state.ackedVersion = state.resolvedVersion;
+  if (state.ackedVersion >= state.version) {
+    staleStateByPage.delete(page);
   }
 }
 // The document load rendered everything fresh.
@@ -108,7 +145,7 @@ function controlInUse(): boolean {
 function refreshNow(
   page: string,
   router: ReturnType<typeof useRouter>,
-  options?: { marked?: boolean; onSettled?: () => void },
+  options?: { marked?: boolean; onResolved?: () => void },
 ) {
   const marked = options?.marked ?? false;
   refreshedAt = Date.now();
@@ -125,12 +162,23 @@ function refreshNow(
   // the pages loaded for the next click.
   refreshPage()
     .then((refreshed) => {
-      if (!refreshed) router.refresh();
+      if (!refreshed) {
+        if (window.location.pathname === page) {
+          router.refresh();
+          options?.onResolved?.();
+        }
+        return;
+      }
+      options?.onResolved?.();
     })
-    .catch(() => router.refresh())
+    .catch(() => {
+      if (window.location.pathname === page) {
+        router.refresh();
+        options?.onResolved?.();
+      }
+    })
     .finally(() => {
       runningRefreshes -= 1;
-      options?.onSettled?.();
     });
 }
 
@@ -154,24 +202,30 @@ export function useRefreshPrefetchedPage(everyVisit: boolean): void {
 
   useEffect(() => {
     const page = window.location.pathname;
-    const refresh = shouldRefresh(page, everyVisit) || stalePages.has(page);
+    const refresh = shouldRefresh(page, everyVisit) || isPageStale(page);
     if (!visitedAt.has(page)) visitedAt.set(page, Date.now());
 
+    let active = true;
     let check: ReturnType<typeof setInterval> | null = null;
-    let pendingMarkedRefreshes = 0;
 
     const startRefresh = () => {
-      const marked = stalePages.delete(page);
-      if (marked) {
-        pendingMarkedRefreshes += 1;
-      }
+      const staleState = staleStateByPage.get(page);
+      const markedVersion =
+        staleState && staleState.version > staleState.ackedVersion
+          ? staleState.version
+          : 0;
       refreshNow(page, router, {
-        marked,
-        onSettled: marked
-          ? () => {
-              pendingMarkedRefreshes -= 1;
-            }
-          : undefined,
+        marked: markedVersion > 0,
+        onResolved:
+          markedVersion > 0
+            ? () => {
+                if (!active || window.location.pathname !== page) return;
+                const state = staleStateByPage.get(page);
+                if (state && markedVersion > state.resolvedVersion) {
+                  state.resolvedVersion = markedVersion;
+                }
+              }
+            : undefined,
       });
     };
 
@@ -205,15 +259,18 @@ export function useRefreshPrefetchedPage(everyVisit: boolean): void {
     }
 
     return () => {
+      active = false;
       staleListeners.delete(handlePageStale);
       if (check !== null) {
         clearInterval(check);
         check = null;
       }
-      // Re-mark when this page hides before its marked refresh settles so the
-      // next reveal still fetches fresh data.
-      if (pendingMarkedRefreshes > 0) {
-        stalePages.add(page);
+      // If a refresh resolved while shown without its snapshot committing
+      // (e.g. Next discarded its tree), drop the unacknowledged resolution so
+      // only a post-return refresh can clear the mark.
+      const state = staleStateByPage.get(page);
+      if (state && state.resolvedVersion > state.ackedVersion) {
+        state.resolvedVersion = state.ackedVersion;
       }
     };
   }, [router, everyVisit]);

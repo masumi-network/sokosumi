@@ -35,7 +35,9 @@ import {
   unmarkTaskArchived,
 } from "@/app/tasks/utils/archived-task-ids";
 import type { TasksFilters } from "@/app/tasks/utils/tasks-filters";
+import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
+import { markPageStale } from "@/hooks/effects/use-refresh-prefetched-page";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import { parseTasksDensity } from "@/lib/ui-preferences/tasks-density";
 import { TasksView } from "./tasks-view";
@@ -46,6 +48,7 @@ const {
   openNewTaskWizardMock,
   pushMock,
   refreshMock,
+  refreshPageMock,
   replaceMock,
   searchParamsRef,
   showCalendarClientUpgradeModalMock,
@@ -56,6 +59,7 @@ const {
   openNewTaskWizardMock: vi.fn(),
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
+  refreshPageMock: vi.fn(async () => true),
   replaceMock: vi.fn(),
   showCalendarClientUpgradeModalMock: vi.fn(),
 }));
@@ -144,6 +148,10 @@ vi.mock("@/components/modals/global-modals-context", () => ({
   useGlobalModalsContext: () => ({
     showCalendarClientUpgradeModal: showCalendarClientUpgradeModalMock,
   }),
+}));
+
+vi.mock("@/lib/actions/refresh-page-action", () => ({
+  refreshPage: () => refreshPageMock(),
 }));
 
 vi.mock("@/lib/actions/task/action", () => ({
@@ -2377,4 +2385,210 @@ it("subtracts retained rows from the server hidden count when restoring Load mor
   expect(
     screen.getByTestId("board-density").getAttribute("data-done-hidden"),
   ).toBe("0");
+});
+
+it("refreshes the Tasks board on quick soft return when DELETE settles during a slow navigation away, and clears the stale mark only when a fresh Tasks snapshot commits", async () => {
+  const archived: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-slow-nav-archive-settle",
+  };
+  vi.mocked(loadMoreTasksColumn).mockResolvedValueOnce({
+    tasks: [archived],
+    nextCursor: null,
+  });
+  let finishRefresh = (_refreshed: boolean) => {};
+  refreshPageMock.mockReset();
+  refreshPageMock.mockImplementation(
+    () =>
+      new Promise<boolean>((resolve) => {
+        finishRefresh = resolve;
+      }),
+  );
+
+  const originalPath = window.location.pathname;
+  window.history.replaceState(null, "", "/tasks");
+  try {
+    const view = boardView([TASK], undefined, "cursor-1", 1);
+    const { rerender } = render(
+      <Activity mode="visible">
+        <RefreshPrefetchedPage />
+        {view}
+      </Activity>,
+    );
+
+    act(() => screen.getByRole("button", { name: "Load more" }).click());
+    expect(
+      await screen.findByTestId(`board-card-${archived.id}`),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+
+    // Archive starts and settles while a slow /projects navigation is in flight
+    // before Tasks' Activity cleanup runs.
+    markTaskArchived(archived.id);
+    settleTaskArchive(archived.id);
+    markPageStale("/tasks");
+    expect(refreshPageMock).toHaveBeenCalledTimes(1);
+
+    // Navigation finishes on /projects and the queued POST resolves on /projects
+    // before Activity hides /tasks.
+    window.history.replaceState(null, "", "/projects");
+    await act(async () => {
+      finishRefresh(true);
+      await Promise.resolve();
+    });
+    rerender(
+      <Activity mode="hidden">
+        <RefreshPrefetchedPage />
+        {view}
+      </Activity>,
+    );
+
+    // Quick soft return to prefetched /tasks: board stays pinned and triggers a fresh refresh.
+    window.history.replaceState(null, "", "/tasks");
+    rerender(
+      <Activity mode="visible">
+        <RefreshPrefetchedPage />
+        {view}
+      </Activity>,
+    );
+    expect(
+      screen.queryByTestId(`board-card-${archived.id}`),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+    expect(
+      screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+    ).toBe("0");
+    expect(refreshPageMock).toHaveBeenCalledTimes(2);
+
+    // The return refresh resolves and commits a fresh Tasks snapshot, acknowledging the mark.
+    await act(async () => {
+      finishRefresh(true);
+      await Promise.resolve();
+    });
+    const freshView = boardView([TASK], undefined, "cursor-2", 2);
+    rerender(
+      <Activity mode="visible">
+        <RefreshPrefetchedPage />
+        {freshView}
+      </Activity>,
+    );
+    expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+    expect(
+      screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+    ).toBe("2");
+
+    // Next quick hide/reveal inside 30 s does not refresh again.
+    rerender(
+      <Activity mode="hidden">
+        <RefreshPrefetchedPage />
+        {freshView}
+      </Activity>,
+    );
+    rerender(
+      <Activity mode="visible">
+        <RefreshPrefetchedPage />
+        {freshView}
+      </Activity>,
+    );
+    expect(refreshPageMock).toHaveBeenCalledTimes(2);
+  } finally {
+    window.history.replaceState(null, "", originalPath);
+    refreshPageMock.mockReset();
+    refreshPageMock.mockResolvedValue(true);
+  }
+});
+
+it("refreshes the Tasks board on quick soft return when a running Tasks refresh resolves true after Next discarded its tree", async () => {
+  const archived: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-discarded-tree-refresh",
+  };
+  vi.mocked(loadMoreTasksColumn).mockResolvedValueOnce({
+    tasks: [archived],
+    nextCursor: null,
+  });
+  let finishRefresh = (_refreshed: boolean) => {};
+  refreshPageMock.mockReset();
+  refreshPageMock.mockImplementation(
+    () =>
+      new Promise<boolean>((resolve) => {
+        finishRefresh = resolve;
+      }),
+  );
+
+  const originalPath = window.location.pathname;
+  window.history.replaceState(null, "", "/tasks");
+  try {
+    const view = boardView([TASK], undefined, "cursor-1", 1);
+    const { rerender } = render(
+      <Activity mode="visible">
+        <RefreshPrefetchedPage />
+        {view}
+      </Activity>,
+    );
+
+    act(() => screen.getByRole("button", { name: "Load more" }).click());
+    expect(
+      await screen.findByTestId(`board-card-${archived.id}`),
+    ).toBeInTheDocument();
+
+    markTaskArchived(archived.id);
+    settleTaskArchive(archived.id);
+    markPageStale("/tasks");
+    expect(refreshPageMock).toHaveBeenCalledTimes(1);
+
+    // The running POST resolves true while /tasks is still visible,
+    // but Next discarded its tree so no new Tasks snapshot commits before hiding.
+    await act(async () => {
+      finishRefresh(true);
+      await Promise.resolve();
+    });
+    rerender(
+      <Activity mode="hidden">
+        <RefreshPrefetchedPage />
+        {view}
+      </Activity>,
+    );
+
+    // Quick soft return must still refresh /tasks.
+    rerender(
+      <Activity mode="visible">
+        <RefreshPrefetchedPage />
+        {view}
+      </Activity>,
+    );
+    expect(refreshPageMock).toHaveBeenCalledTimes(2);
+
+    // Fresh snapshot commits after the second refresh resolves -> clears mark.
+    await act(async () => {
+      finishRefresh(true);
+      await Promise.resolve();
+    });
+    const freshView = boardView([TASK], undefined, "cursor-2", 2);
+    rerender(
+      <Activity mode="visible">
+        <RefreshPrefetchedPage />
+        {freshView}
+      </Activity>,
+    );
+    expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+
+    rerender(
+      <Activity mode="hidden">
+        <RefreshPrefetchedPage />
+        {freshView}
+      </Activity>,
+    );
+    rerender(
+      <Activity mode="visible">
+        <RefreshPrefetchedPage />
+        {freshView}
+      </Activity>,
+    );
+    expect(refreshPageMock).toHaveBeenCalledTimes(2);
+  } finally {
+    window.history.replaceState(null, "", originalPath);
+    refreshPageMock.mockReset();
+    refreshPageMock.mockResolvedValue(true);
+  }
 });

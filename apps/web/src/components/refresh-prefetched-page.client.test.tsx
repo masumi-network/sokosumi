@@ -397,6 +397,37 @@ describe("RefreshPrefetchedPage", () => {
     expect(routerRefresh).toHaveBeenCalledOnce();
   });
 
+  it("does not run the router.refresh fallback after leaving the originating page", async () => {
+    const { RefreshPrefetchedPage } = await loadAt(LOADED_AT);
+    const first = Promise.withResolvers<boolean>();
+    actionAnswer = () => first.promise;
+
+    goBack();
+    const view = render(<RefreshPrefetchedPage />);
+    visit("/projects");
+    view.unmount();
+
+    await act(async () => {
+      first.resolve(false);
+      await Promise.resolve();
+    });
+    expect(routerRefresh).not.toHaveBeenCalled();
+
+    const second = Promise.withResolvers<boolean>();
+    actionAnswer = () => second.promise;
+    visit("/tasks");
+    goBack();
+    const secondView = render(<RefreshPrefetchedPage />);
+    visit("/projects");
+    secondView.unmount();
+
+    await act(async () => {
+      second.reject(new Error("version skew"));
+      await Promise.resolve();
+    });
+    expect(routerRefresh).not.toHaveBeenCalled();
+  });
+
   // The second back discarded the running refresh, and Next refreshes the
   // page that shows after it.
   it("does not start a second refresh while one runs", async () => {
@@ -439,6 +470,7 @@ describe("RefreshPrefetchedPage", () => {
         );
       });
       markPageStale("/tasks");
+      expect(refresh).not.toHaveBeenCalled();
       vi.setSystemTime(LOADED_AT + 20_000);
 
       act(() => {
@@ -553,8 +585,9 @@ describe("RefreshPrefetchedPage", () => {
       expect(refresh).toHaveBeenCalledOnce();
     });
 
-    it("keeps the stale mark if hidden before the marked refresh settles, and clears it once settled while shown", async () => {
-      const { RefreshPrefetchedPage, markPageStale } = await loadAt(LOADED_AT);
+    it("keeps the stale mark until a post-mark snapshot commits on the page, even if the action resolves true after its tree was discarded", async () => {
+      const { RefreshPrefetchedPage, acknowledgePageSnapshot, markPageStale } =
+        await loadAt(LOADED_AT);
       let finish = (_refreshed: boolean) => {};
       actionAnswer = () =>
         new Promise((resolve) => {
@@ -570,7 +603,12 @@ describe("RefreshPrefetchedPage", () => {
       markPageStale("/tasks");
       expect(refresh).toHaveBeenCalledOnce();
 
-      // Hide before the marked refresh settles, then let it settle.
+      // The running refresh resolves true while /tasks is still visible,
+      // but Next discarded its tree (no snapshot commits before hiding).
+      await act(async () => {
+        finish(true);
+        await Promise.resolve();
+      });
       act(() => {
         rerender(
           <Activity mode="hidden">
@@ -578,12 +616,8 @@ describe("RefreshPrefetchedPage", () => {
           </Activity>,
         );
       });
-      await act(async () => {
-        finish(true);
-        await Promise.resolve();
-      });
 
-      // Reveal inside 30 s: refreshes again because the first did not settle while shown.
+      // Quick return inside 30 s: refreshes again because no post-mark snapshot committed.
       vi.setSystemTime(LOADED_AT + 10_000);
       act(() => {
         rerender(
@@ -594,11 +628,13 @@ describe("RefreshPrefetchedPage", () => {
       });
       expect(refresh).toHaveBeenCalledTimes(2);
 
-      // Let the second refresh settle while shown, then hide and reveal inside 30 s.
+      // Second refresh resolves AND its snapshot commits while shown.
       await act(async () => {
         finish(true);
         await Promise.resolve();
       });
+      acknowledgePageSnapshot("/tasks");
+
       act(() => {
         rerender(
           <Activity mode="hidden">
@@ -617,8 +653,133 @@ describe("RefreshPrefetchedPage", () => {
       expect(refresh).toHaveBeenCalledTimes(2);
     });
 
+    it("keeps the stale mark when a slow navigation runs the queued refresh on another route before Activity cleanup", async () => {
+      const { RefreshPrefetchedPage, acknowledgePageSnapshot, markPageStale } =
+        await loadAt(LOADED_AT);
+      let finish = (_refreshed: boolean) => {};
+      actionAnswer = () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        });
+
+      const { rerender } = render(
+        <Activity mode="visible">
+          <RefreshPrefetchedPage />
+        </Activity>,
+      );
+
+      // DELETE settles while a slow /projects navigation is already in flight.
+      markPageStale("/tasks");
+      expect(refresh).toHaveBeenCalledOnce();
+
+      // Navigation lands on /projects and the queued POST resolves on /projects
+      // before Tasks' Activity cleanup runs.
+      visit("/projects");
+      await act(async () => {
+        finish(true);
+        await Promise.resolve();
+      });
+      act(() => {
+        rerender(
+          <Activity mode="hidden">
+            <RefreshPrefetchedPage />
+          </Activity>,
+        );
+      });
+
+      // Quick soft return to prefetched /tasks inside 30 s must still refresh.
+      vi.setSystemTime(LOADED_AT + 10_000);
+      visit("/tasks");
+      act(() => {
+        rerender(
+          <Activity mode="visible">
+            <RefreshPrefetchedPage />
+          </Activity>,
+        );
+      });
+      expect(refresh).toHaveBeenCalledTimes(2);
+
+      // Once the /tasks refresh settles and commits, a further quick return does not refresh.
+      await act(async () => {
+        finish(true);
+        await Promise.resolve();
+      });
+      acknowledgePageSnapshot("/tasks");
+      act(() => {
+        rerender(
+          <Activity mode="hidden">
+            <RefreshPrefetchedPage />
+          </Activity>,
+        );
+      });
+      vi.setSystemTime(LOADED_AT + 20_000);
+      act(() => {
+        rerender(
+          <Activity mode="visible">
+            <RefreshPrefetchedPage />
+          </Activity>,
+        );
+      });
+      expect(refresh).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not let a pre-mark snapshot commit clear a newer stale mark", async () => {
+      const { RefreshPrefetchedPage, acknowledgePageSnapshot, markPageStale } =
+        await loadAt(LOADED_AT);
+      const firstFinish = Promise.withResolvers<boolean>();
+      const secondFinish = Promise.withResolvers<boolean>();
+      let call = 0;
+      actionAnswer = () => {
+        call += 1;
+        return call === 1 ? firstFinish.promise : secondFinish.promise;
+      };
+
+      goBack();
+      const { rerender } = render(
+        <Activity mode="visible">
+          <RefreshPrefetchedPage />
+        </Activity>,
+      );
+      expect(refresh).toHaveBeenCalledOnce();
+
+      // Mark arrives while the unmarked arrival refresh is still in flight.
+      markPageStale("/tasks");
+      expect(refresh).toHaveBeenCalledTimes(2);
+
+      // The pre-mark arrival refresh settles and commits a snapshot.
+      await act(async () => {
+        firstFinish.resolve(true);
+        await Promise.resolve();
+      });
+      acknowledgePageSnapshot("/tasks");
+
+      // Reader leaves before the post-mark refresh settles; returning inside 30 s must refresh again.
+      act(() => {
+        rerender(
+          <Activity mode="hidden">
+            <RefreshPrefetchedPage />
+          </Activity>,
+        );
+      });
+      await act(async () => {
+        secondFinish.resolve(true);
+        await Promise.resolve();
+      });
+
+      vi.setSystemTime(LOADED_AT + 10_000);
+      act(() => {
+        rerender(
+          <Activity mode="visible">
+            <RefreshPrefetchedPage />
+          </Activity>,
+        );
+      });
+      expect(refresh).toHaveBeenCalledTimes(3);
+    });
+
     it("queues a second marked refresh when marked again while the first marked refresh runs", async () => {
-      const { RefreshPrefetchedPage, markPageStale } = await loadAt(LOADED_AT);
+      const { RefreshPrefetchedPage, acknowledgePageSnapshot, markPageStale } =
+        await loadAt(LOADED_AT);
       const firstFinish = Promise.withResolvers<boolean>();
       const secondFinish = Promise.withResolvers<boolean>();
       let call = 0;
@@ -637,11 +798,12 @@ describe("RefreshPrefetchedPage", () => {
       markPageStale("/tasks");
       expect(refresh).toHaveBeenCalledTimes(2);
 
-      // First marked refresh settles, then the page hides before the second settles.
+      // First marked refresh settles and commits, then the page hides before the second commits.
       await act(async () => {
         firstFinish.resolve(true);
         await Promise.resolve();
       });
+      acknowledgePageSnapshot("/tasks");
       act(() => {
         rerender(
           <Activity mode="hidden">
@@ -654,7 +816,7 @@ describe("RefreshPrefetchedPage", () => {
         await Promise.resolve();
       });
 
-      // Returning inside 30 s refreshes again because the second did not settle while shown.
+      // Returning inside 30 s refreshes again because the second did not commit while shown.
       vi.setSystemTime(LOADED_AT + 10_000);
       act(() => {
         rerender(

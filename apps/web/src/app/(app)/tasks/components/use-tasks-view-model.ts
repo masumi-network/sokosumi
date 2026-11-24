@@ -49,6 +49,7 @@ import {
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { usePendingCreatedTasks } from "@/hooks/effects/use-pending-created-tasks";
+import { acknowledgePageSnapshot } from "@/hooks/effects/use-refresh-prefetched-page";
 import { useRefreshWhenShown } from "@/hooks/effects/use-refresh-when-shown";
 import { useTasksBoardAlive } from "@/hooks/effects/use-tasks-board-alive";
 import type { TaskEventData } from "@/lib/ably/schema";
@@ -383,9 +384,15 @@ export function useTasksBoardModel({
     tasks,
   ]);
 
+  const previousSnapshotRef = useRef(tasks);
+
   // Before paint: the commit that brings new rows also drops a pending row,
   // and the board must not show a frame without either.
   useLayoutEffect(() => {
+    if (previousSnapshotRef.current !== tasks) {
+      previousSnapshotRef.current = tasks;
+      acknowledgePageSnapshot("/tasks");
+    }
     const isListView = defaultViewMode === "list";
     const keepLocalOnlyTasks =
       !isListView &&
