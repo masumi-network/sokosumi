@@ -653,13 +653,15 @@ export const CLI_COMMAND_CATALOG = [
   },
   {
     command: "notifications read",
-    usage: "NOTIFICATION_ID --input-json '{}'",
+    usage: "NOTIFICATION_ID",
     operation: "PATCH /notifications/{id}/read",
+    noBody: true,
   },
   {
     command: "notifications unread",
-    usage: "NOTIFICATION_ID --input-json '{}'",
+    usage: "NOTIFICATION_ID",
     operation: "PATCH /notifications/{id}/unread",
+    noBody: true,
   },
   {
     command: "notifications read-many",
@@ -668,8 +670,9 @@ export const CLI_COMMAND_CATALOG = [
   },
   {
     command: "notifications read-all",
-    usage: "--input-json '{}'",
+    usage: "",
     operation: "PATCH /notifications/read-all",
+    noBody: true,
   },
 ] as const satisfies readonly CliCommandCatalogEntry[];
 

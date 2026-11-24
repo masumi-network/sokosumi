@@ -808,10 +808,10 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   },
   "GET /notifications/counts": { argv: [...API, "notifications", "counts"] },
   "PATCH /notifications/{id}/read": {
-    argv: [...API, "notifications", "read", "n-1", "--input-json", "{}"],
+    argv: [...API, "notifications", "read", "n-1"],
   },
   "PATCH /notifications/{id}/unread": {
-    argv: [...API, "notifications", "unread", "n-1", "--input-json", "{}"],
+    argv: [...API, "notifications", "unread", "n-1"],
   },
   "PATCH /notifications/read": {
     argv: [
@@ -823,6 +823,6 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
     ],
   },
   "PATCH /notifications/read-all": {
-    argv: [...API, "notifications", "read-all", "--input-json", "{}"],
+    argv: [...API, "notifications", "read-all"],
   },
 };

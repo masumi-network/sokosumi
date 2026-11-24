@@ -315,7 +315,7 @@ sokosumi history list --query types=job
 sokosumi categories list
 sokosumi notifications list --query isRead=false
 sokosumi notifications counts
-sokosumi notifications read NOTIFICATION_ID --input-json '{}'
+sokosumi notifications read NOTIFICATION_ID
 sokosumi notifications read-many --input-json '{"ids":["NOTIFICATION_ID"]}'
 ```
 
