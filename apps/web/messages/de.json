@@ -3300,16 +3300,18 @@
           "published": "Veröffentlicht"
         },
         "bulkApprove": {
-          "selectPost": "Diesen Beitrag zum Freigeben auswählen",
+          "selectPost": "Zum Freigeben auswählen: {post}",
           "approveSelected": "Auswahl freigeben",
           "title": "{count, plural, one {# Beitrag freigeben?} other {# Beiträge freigeben?}}",
-          "description": "Jeder Beitrag wird so freigegeben, wie du ihn jetzt siehst. Ein Beitrag mit einer späteren Zeit erscheint dann. Die anderen werden Entwürfe.",
-          "willSchedule": "Erscheint {date}",
+          "description": "Jeder Beitrag wird so freigegeben, wie du ihn jetzt siehst. Ein Beitrag, dessen Zeit noch weit genug entfernt ist, wird eingeplant; die anderen werden Entwürfe. Das Ergebnis zeigt, was mit jedem passiert ist.",
+          "willSchedule": "Geplant für {date}. Er wird eingeplant, wenn diese Zeit bei der Freigabe noch weit genug entfernt ist, sonst wird er ein Entwurf.",
           "willDraft": "Wird ein Entwurf",
           "resultsTitle": "Ergebnis der Freigabe",
           "scheduled": "Freigegeben. Erscheint {date}",
           "drafted": "Als Entwurf freigegeben",
-          "conflict": "Seit du ihn angesehen hast geändert. Öffne ihn und prüfe ihn erneut."
+          "conflict": "Seit du ihn angesehen hast geändert. Öffne ihn und prüfe ihn erneut.",
+          "signedOut": "Nicht freigegeben: deine Sitzung ist abgelaufen. Melde dich an und versuche es erneut.",
+          "skipped": "Nicht versucht: deine Sitzung ist abgelaufen. Melde dich an und versuche es erneut."
         },
         "connectPrompt": {
           "title": "Verbinde ein Konto, um zu posten",

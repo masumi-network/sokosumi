@@ -277,6 +277,10 @@ export function ProjectSocialPosts({
 }: ProjectSocialPostsProps) {
   const { enabledProviders, isProviderEnabled } =
     useSocialProviderAvailability();
+  /** The one check for the approve checkbox, toolbar and submit; CMO Projects stay read-only. */
+  function canBulkApprove(post: SocialPost): boolean {
+    return !readOnly && post.canApprove && post.status === "NEEDS_APPROVAL";
+  }
   function canRetryPost(post: SocialPost): boolean {
     return (
       !readOnly &&
@@ -377,7 +381,22 @@ export function ProjectSocialPosts({
     t,
   });
 
+  // Focus lands on the approve bar after its dialog, or on the list once
+  // the last waiting post is approved: the button may be disabled or gone.
+  const bulkApproveBarRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+
   function handleCloseAutoFocus(event: Event) {
+    if (bulkKind === "approve") {
+      const target = bulkApproveBarRef.current?.isConnected
+        ? bulkApproveBarRef.current
+        : sectionRef.current;
+      if (target) {
+        event.preventDefault();
+        target.focus();
+        return;
+      }
+    }
     if (!returnFocus) return;
     event.preventDefault();
     if (!composerMode && !cancelTarget && !publishTarget && !bulkOpen)
@@ -503,7 +522,7 @@ export function ProjectSocialPosts({
     searchQuery,
   ).filter(
     (post) =>
-      post.canApprove && (provider === null || post.provider === provider),
+      canBulkApprove(post) && (provider === null || post.provider === provider),
   );
   const selectedApprovablePosts = approvablePosts.filter((post) =>
     selectedApprovals.has(post.id),
@@ -872,14 +891,30 @@ export function ProjectSocialPosts({
     setBulkPending(true);
     const results: BulkResult[] = [];
     const updated: SocialPost[] = [];
+    // Picked again after sign-in: posts the session ended on or before.
+    const keep = new Map<string, number>();
+    let signedOut: ActionError | null = null;
     let sawConflict = false;
+    // One at a time, like bulk Retry: a session that ends stops the rest.
     for (const post of targets) {
       const label = retryLabel(post);
+      const revision = selectedApprovals.get(post.id) ?? post.revision;
+      if (signedOut) {
+        keep.set(post.id, revision);
+        results.push({
+          postId: post.id,
+          label,
+          ok: false,
+          error: t("bulkApprove.skipped"),
+        });
+        continue;
+      }
+      let error: ActionError;
       try {
         const result = await approveProjectSocialPost({
           projectId,
           postId: post.id,
-          revision: selectedApprovals.get(post.id) ?? post.revision,
+          revision,
         });
         if (result.ok) {
           const next = result.value;
@@ -897,40 +932,40 @@ export function ProjectSocialPosts({
           });
           continue;
         }
-        if (result.error.code === CommonErrorCode.UNAUTHENTICATED) {
-          handleActionError(result.error);
-          break;
-        }
-        const conflict = isRevisionConflict(result.error);
-        sawConflict ||= conflict;
-        results.push({
-          postId: post.id,
-          label,
-          ok: false,
-          error: conflict
-            ? t("bulkApprove.conflict")
-            : result.error.message || t("toasts.failed"),
-        });
-      } catch (error) {
-        const actionError = toActionRejectionError(error);
-        if (actionError.code === CommonErrorCode.UNAUTHENTICATED) {
-          handleActionError(actionError);
-          break;
-        }
-        results.push({
-          postId: post.id,
-          label,
-          ok: false,
-          error: actionError.message || t("toasts.failed"),
-        });
+        error = result.error;
+      } catch (rejection) {
+        error = toActionRejectionError(rejection);
       }
+      if (error.code === CommonErrorCode.UNAUTHENTICATED) {
+        signedOut = error;
+        keep.set(post.id, revision);
+        results.push({
+          postId: post.id,
+          label,
+          ok: false,
+          error: t("bulkApprove.signedOut"),
+        });
+        continue;
+      }
+      const conflict = isRevisionConflict(error);
+      sawConflict ||= conflict;
+      results.push({
+        postId: post.id,
+        label,
+        ok: false,
+        error: conflict
+          ? t("bulkApprove.conflict")
+          : error.message || t("toasts.failed"),
+      });
     }
     if (updated.length > 0) {
       setPosts((current) => updated.reduce(upsertPost, current));
     }
-    setSelectedApprovals(new Map());
+    setSelectedApprovals(keep);
     setBulkResults(results);
     setBulkPending(false);
+    // Offers sign-in, after the results that show what did go through.
+    if (signedOut) handleActionError(signedOut);
     if (sawConflict) router.refresh();
   }
 
@@ -1266,11 +1301,13 @@ export function ProjectSocialPosts({
         ) : null}
         {post.threadPartCount > 1 || post.quotedPostId || showStatus ? (
           <div className="flex flex-wrap items-center gap-2">
-            {post.canApprove ? (
+            {canBulkApprove(post) ? (
               // A 24px box on touch screens; the label pads the tap area.
               <label className="-m-1 flex min-h-11 cursor-pointer items-center p-1 md:min-h-6">
                 <Checkbox
-                  aria-label={t("bulkApprove.selectPost")}
+                  aria-label={t("bulkApprove.selectPost", {
+                    post: retryLabel(post),
+                  })}
                   checked={selectedApprovals.has(post.id)}
                   className="size-6 md:size-4"
                   data-testid={`social-post-select-${post.id}`}
@@ -1464,7 +1501,12 @@ export function ProjectSocialPosts({
   }
 
   return (
-    <section className="space-y-4" data-testid="project-social-posts">
+    <section
+      ref={sectionRef}
+      className="space-y-4 outline-none"
+      data-testid="project-social-posts"
+      tabIndex={-1}
+    >
       <AlertDialog
         open={retryPosts.length > 0}
         onOpenChange={(open) => {
@@ -1705,8 +1747,10 @@ export function ProjectSocialPosts({
                   ) : null}
                   {section === "drafts" && approvablePosts.length > 0 ? (
                     <div
-                      className="flex flex-wrap items-center gap-3"
+                      ref={bulkApproveBarRef}
+                      className="flex flex-wrap items-center gap-3 outline-none"
                       data-testid="social-bulk-approve"
+                      tabIndex={-1}
                     >
                       <span className="text-muted-foreground text-sm tabular-nums">
                         {t("bulkRetry.selected", {

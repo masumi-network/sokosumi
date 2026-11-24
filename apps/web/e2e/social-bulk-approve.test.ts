@@ -11,6 +11,12 @@ import { createMailbox } from "./mailbox.ts";
 // approves both from Social's Drafts in one step. With no time and no account
 // each approved post becomes a draft, so nothing can be published.
 // Each size signs up a new throwaway user; nothing is paid for or connected.
+//
+// Setup asks the Soko Bot, so it depends on the model and spends a few of the
+// new user's free credits. There is no deterministic fixture: a person's own
+// post saves as a Draft, and only a Soko Bot or a Coworker (which needs a
+// vendor workspace grant) creates a post that waits for approval. Preview
+// Core has no test-only route that seeds one.
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 
@@ -109,8 +115,9 @@ for (const { name, ...viewport } of PROJECTS) {
       assert.equal(await approveSelected.isDisabled(), true);
       await shot("1-waiting");
 
+      // Each checkbox names its post, so a screen reader can tell them apart.
       const boxes = main.getByRole("checkbox", {
-        name: "Select this post to approve",
+        name: /^Select to approve: /,
       });
       assert.equal(await boxes.count(), 2);
       for (const box of await boxes.all()) {

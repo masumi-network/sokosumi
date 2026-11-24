@@ -1439,13 +1439,27 @@ describe("ProjectSocialPosts", () => {
     "offers post actions and the composer only off a CMO Project (readOnly %s)",
     async (readOnly) => {
       const user = userEvent.setup();
+      const waiting = buildPost({
+        id: "post-waiting",
+        status: "NEEDS_APPROVAL",
+        canApprove: true,
+        canPublishNow: false,
+      });
       render(
         <ProjectSocialPosts
           connections={[buildConnection()]}
-          posts={[buildPost({ canApprove: true, canDuplicate: true })]}
+          posts={[buildPost({ canApprove: true, canDuplicate: true }), waiting]}
           projectId={PROJECT_ID}
           readOnly={readOnly}
         />,
+      );
+
+      // Bulk approval follows the same rule as the row's Approve.
+      expect(
+        screen.queryByTestId(`social-post-select-${waiting.id}`) !== null,
+      ).toBe(!readOnly);
+      expect(screen.queryByTestId("social-bulk-approve") !== null).toBe(
+        !readOnly,
       );
 
       const row = within(screen.getByTestId("social-post-post-draft"));
@@ -7344,7 +7358,11 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
 
     for (const post of [toDraft, toSchedule, changed]) {
-      await user.click(screen.getByTestId(`social-post-select-${post.id}`));
+      await user.click(
+        screen.getByRole("checkbox", {
+          name: `Select to approve: ${post.text}`,
+        }),
+      );
     }
     expect(screen.getByText("3 selected")).toBeVisible();
     await user.click(approveSelected);
@@ -7360,7 +7378,7 @@ describe("ProjectSocialPosts", () => {
     ).toHaveTextContent("Becomes a draft");
     expect(
       within(alert).getByTestId(`social-bulk-approve-plan-${toSchedule.id}`),
-    ).toHaveTextContent(/Goes out/);
+    ).toHaveTextContent(/^.*Set for .*still far enough ahead/);
     expect(approveProjectSocialPost).not.toHaveBeenCalled();
     await user.click(
       within(alert).getByRole("button", { name: "Approve selected" }),
@@ -7389,6 +7407,134 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(results).getByTestId(`social-bulk-approve-result-${changed.id}`),
     ).toHaveTextContent("Changed since you looked. Open it to check again.");
+
+    // The bar's button is disabled now, so focus returns to the bar itself.
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => {
+      expect(screen.getByTestId("social-bulk-approve")).toHaveFocus();
+    });
+  });
+
+  it("approves at the revision the person picked, even after the post changes", async () => {
+    const user = userEvent.setup();
+    const picked = buildPost({
+      id: "post-wait-stale",
+      text: "Picked at revision 2",
+      status: "NEEDS_APPROVAL",
+      scheduledAt: null,
+      canApprove: true,
+      canPublishNow: false,
+      revision: 2,
+    });
+    vi.mocked(approveProjectSocialPost).mockResolvedValue({
+      ok: false,
+      error: {
+        code: "BAD_INPUT",
+        kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
+        message: "Conflict copy can change freely",
+      },
+    });
+    const { rerender } = render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[picked]}
+        projectId={PROJECT_ID}
+      />,
+      "?tab=drafts",
+    );
+    await user.click(screen.getByTestId(`social-post-select-${picked.id}`));
+
+    // Someone edits it after it was ticked; the page refreshes to revision 3.
+    rerender(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[{ ...picked, text: "Edited elsewhere", revision: 3 }]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Approve selected" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Approve selected",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(approveProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        postId: picked.id,
+        revision: 2,
+      });
+    });
+    expect(
+      await screen.findByTestId(`social-bulk-approve-result-${picked.id}`),
+    ).toHaveTextContent("Changed since you looked. Open it to check again.");
+  });
+
+  it("keeps what was approved when the session ends mid-batch, and offers sign-in", async () => {
+    const user = userEvent.setup();
+    const waiting = (id: string, text: string) =>
+      buildPost({
+        id,
+        text,
+        status: "NEEDS_APPROVAL",
+        scheduledAt: null,
+        canApprove: true,
+        canPublishNow: false,
+      });
+    const first = waiting("post-wait-a", "First goes through");
+    const second = waiting("post-wait-b", "Session ends here");
+    const third = waiting("post-wait-c", "Never tried");
+    const authError = new Error("User is not authenticated") as Error & {
+      digest: string;
+    };
+    authError.name = "UnAuthenticatedError";
+    authError.digest = "UNAUTHENTICATED";
+    vi.mocked(approveProjectSocialPost)
+      .mockResolvedValueOnce({
+        ok: true,
+        value: { ...first, status: "DRAFT", canApprove: false },
+      })
+      .mockRejectedValueOnce(authError);
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[first, second, third]}
+        projectId={PROJECT_ID}
+      />,
+      "?tab=drafts",
+    );
+    for (const post of [first, second, third]) {
+      await user.click(screen.getByTestId(`social-post-select-${post.id}`));
+    }
+    await user.click(screen.getByRole("button", { name: "Approve selected" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Approve selected",
+      }),
+    );
+
+    const results = await screen.findByTestId("social-bulk-approve-results");
+    expect(approveProjectSocialPost).toHaveBeenCalledTimes(2);
+    expect(
+      within(results).getByTestId(`social-bulk-approve-result-${first.id}`),
+    ).toHaveTextContent("Approved as a draft");
+    expect(
+      within(results).getByTestId(`social-bulk-approve-result-${second.id}`),
+    ).toHaveTextContent("Not approved: your session ended.");
+    expect(
+      within(results).getByTestId(`social-bulk-approve-result-${third.id}`),
+    ).toHaveTextContent("Not tried: your session ended.");
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      "Please log in to continue.",
+      expect.objectContaining({
+        action: expect.objectContaining({ label: "Log in" }),
+      }),
+    );
+
+    // The two that did not go through stay picked for after sign-in.
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.getByText("2 selected")).toBeVisible();
   });
 
   it("publishes a draft now and toasts the failure reason when Core reports FAILED", async () => {
