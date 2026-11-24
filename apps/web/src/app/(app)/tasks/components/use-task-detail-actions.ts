@@ -401,6 +401,7 @@ export function useTaskDetailActions({
     taskClientService
       .archive(taskId)
       .then(() =>
+        // shortcut: holds an uncommitted navigation for one revalidation round trip (Next action queue); revisit if Next adds a client cache-invalidation API
         revalidateTasksAfterArchive()
           .then((revalidated) => {
             settleTaskArchive(taskId);
