@@ -370,11 +370,13 @@ describe("WelcomePage", () => {
       messages: [
         {
           id: "welcome-1",
-          // Core's own introduction for this bot and owner.
+          // Posted before the owner renamed themselves: the marker, not the
+          // text, makes it the welcome.
           content: composeSokoBotIntroduction({
             name: "Pip",
-            ownerName: "Alice Doe",
+            ownerName: "Alicia Old",
           }),
+          metadata: { sokoBotIntroduction: true },
           createdAt: at,
           deletedAt: null,
           parentMessageId: null,

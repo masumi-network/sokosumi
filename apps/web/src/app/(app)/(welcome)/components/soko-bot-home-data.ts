@@ -7,6 +7,7 @@ import {
   SokoBotStatus,
   type TaskListItem,
 } from "@sokosumi/core-client";
+import { isSokoBotIntroduction } from "@sokosumi/soko-bot";
 import { buildChatMessagePreview } from "@sokosumi/utils";
 import type { NeedsYouLead } from "@/app/projects/components/needs-you-panel-list";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
@@ -78,27 +79,28 @@ export interface SokoBotHomeRoom {
 
 /**
  * Home's Needs you row for the bot's welcome while the reader has not read
- * it. The welcome is the bot's message whose text is Core's introduction
- * (`introduction`, from `composeSokoBotIntroduction`), so an owner notice
- * posted first is not one. It is unread while the room's Unread divider
- * sits right above it.
+ * it. The welcome is the bot's message Core marked as its introduction, so a
+ * rename does not hide it and an owner notice is never one. It is unread
+ * while the room's Unread divider sits right above it.
  */
 export function sokoBotWelcomeLead(
   bot: { id: string; name: string },
+  /** Core's introduction text for today's names, for unmarked older ones. */
   introduction: string,
   botRoom: SokoBotHomeRoom | null,
   t: (key: "welcome" | "openChat", values?: { name: string }) => string,
 ): NeedsYouLead | undefined {
-  // ponytail: Core exposes no introduction id or marker, so the text identifies
-  // it; a bot or owner renamed before the welcome is read hides the row (never
-  // mislabels a notice). Match on a Core marker if one is ever exposed.
   const welcome = botRoom?.messages.find(
     (message) =>
       message.id === botRoom.firstUnreadMessageId &&
       !message.deletedAt &&
       message.sender.type === "sokoBot" &&
       message.sender.sokoBot.id === bot.id &&
-      message.content === introduction,
+      // ponytail: introductions posted before the marker match on Core's
+      // text, so a rename before reading hides those rows (never labels a
+      // notice). Drop the fallback once no unmarked one can still be unread.
+      (isSokoBotIntroduction(message.metadata) ||
+        message.content === introduction),
   );
   if (!botRoom || !welcome) return undefined;
   return {

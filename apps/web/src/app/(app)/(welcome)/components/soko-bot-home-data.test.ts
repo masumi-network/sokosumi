@@ -281,6 +281,52 @@ describe("sokoBotWelcomeLead", () => {
     firstUnreadMessageId: string | null,
   ) => ({ roomId: "bot-room", messages, firstUnreadMessageId });
 
+  // Core marks its introduction; the text no longer has to match, so a
+  // rename before the welcome is read keeps the row.
+  it("finds the marked introduction after a rename", () => {
+    const greeted = message("intro", "Hi Mira! I'm **Pip**, before a rename.", {
+      metadata: { sokoBotIntroduction: true },
+    });
+    expect(
+      sokoBotWelcomeLead(
+        { id: "bot", name: "Juno" },
+        "Hi Mara! I'm **Juno**, your personal assistant.",
+        room([greeted], "intro"),
+        t,
+      )?.href,
+    ).toBe("/chat/rooms/bot-room?message=intro");
+  });
+
+  it("does not call a marked introduction a welcome once read", () => {
+    const greeted = message("intro", "Hi", {
+      metadata: { sokoBotIntroduction: true },
+    });
+    expect(sokoBotWelcomeLead(bot, INTRO, room([greeted], null), t)).toBe(
+      undefined,
+    );
+  });
+
+  // Introductions posted before the marker match on Core's text only, so a
+  // rename before reading hides those rows; never a notice's.
+  it("finds an unmarked older introduction by Core's text", () => {
+    expect(
+      sokoBotWelcomeLead(
+        bot,
+        INTRO,
+        room([message("intro", INTRO)], "intro"),
+        t,
+      )?.href,
+    ).toBe("/chat/rooms/bot-room?message=intro");
+    expect(
+      sokoBotWelcomeLead(
+        bot,
+        "Hi Mara! I'm **Pip**, your personal assistant.",
+        room([message("intro", INTRO)], "intro"),
+        t,
+      ),
+    ).toBe(undefined);
+  });
+
   it("lists the bot's unread introduction and opens it in the bot's chat", () => {
     expect(
       sokoBotWelcomeLead(

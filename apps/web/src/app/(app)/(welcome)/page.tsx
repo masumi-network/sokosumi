@@ -157,7 +157,8 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
     // nothing did.
     const welcomeLead = sokoBotWelcomeLead(
       { id: sokoBot.id, name: botName },
-      // What Core posted as this bot's introduction to its owner.
+      // Core's introduction text with today's names, for introductions
+      // posted before Core marked them.
       composeSokoBotIntroduction({ name: sokoBot.name, ownerName: userName }),
       botRoom,
       tHome,
