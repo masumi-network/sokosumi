@@ -12,6 +12,7 @@ import {
   configureSqlTables,
   createSqlTables,
   type SqlTableLayout,
+  type SqlTables,
   type TableNetwork,
 } from "@sokosumi/database/sql-tables";
 import { Pool } from "pg";
@@ -39,7 +40,9 @@ describe.runIf(onSplitLayout)("raw SQL tables on the split layout", () => {
     preprod: names.DATABASE_SCHEMA_PREPROD,
     preprodOn: true,
   };
-  const tables = createSqlTables(layout);
+  // Built in `beforeAll`: off the split layout this layout is refused, and the
+  // body of a skipped `describe` still runs.
+  let tables: SqlTables;
   let pool: Pool;
   let models: Record<
     "shared" | TableNetwork,
@@ -62,6 +65,7 @@ describe.runIf(onSplitLayout)("raw SQL tables on the split layout", () => {
   }
 
   beforeAll(() => {
+    tables = createSqlTables(layout);
     pool = new Pool({ connectionString: process.env.DATABASE_URL });
     models = {
       shared: createPrismaClient(pool, { schema: layout.shared }),
