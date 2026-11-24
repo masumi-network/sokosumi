@@ -567,6 +567,7 @@ describe("Project ads routes", () => {
         accountId: ACCOUNT_UUID,
         campaignId: "42",
         ...body,
+        onlyWhilePaused: false,
       });
     });
 
@@ -667,6 +668,7 @@ describe("Project ads routes", () => {
         userId: USER_ID,
         organizationId: null,
         ...body(),
+        onlyWhilePaused: false,
       });
     });
 
@@ -787,19 +789,6 @@ describe("Project ads routes", () => {
       const response = await put(body());
       expect(response.status).toBe(status);
       expect(await response.text()).not.toContain("secret detail");
-    });
-
-    it("rejects a user API key", async () => {
-      const response = await createApp({
-        ...SESSION_AUTH,
-        authenticationMethod: "api_key",
-      }).request(campaignUrl(), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body()),
-      });
-      expect(response.status).toBe(403);
-      expect(m.editCampaign).not.toHaveBeenCalled();
     });
   });
 
@@ -1527,6 +1516,174 @@ describe("Project ads routes", () => {
     it("maps an unexpected error to 500", async () => {
       m.initiate.mockRejectedValue(new Error("boom"));
       expect((await initiate()).status).toBe(500);
+    });
+  });
+
+  describe("agents (ADR 0077)", () => {
+    const API_KEY_AUTH: AuthenticationContext = {
+      ...SESSION_AUTH,
+      authenticationMethod: "api_key",
+    };
+    const OAUTH_AUTH: AuthenticationContext = {
+      ...SESSION_AUTH,
+      authenticationMethod: "oauth",
+      oauthClientId: "third-party-client",
+    };
+    const COWORKER_AUTH = {
+      actor: "coworker",
+      coworkerId: "cw_1",
+    } as unknown as AuthenticationContext;
+    const campaignsUrl = `http://localhost/${PROJECT_ID}/ads/accounts/${ACCOUNT_UUID}/campaigns`;
+    const send = (
+      authContext: AuthenticationContext,
+      method: "POST" | "PATCH" | "PUT",
+      body: unknown,
+    ) =>
+      createApp(authContext).request(
+        method === "POST" ? campaignsUrl : `${campaignsUrl}/42`,
+        {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
+    const editBody = {
+      name: "Spring",
+      dailyBudget: 5,
+      google: {
+        type: "SEARCH",
+        locationIds: ["2276"],
+        languageIds: ["1001"],
+        finalUrl: "https://example.com/spring",
+        keywords: [{ text: "running shoes", matchType: "BROAD" }],
+        headlines: ["One", "Two", "Three"],
+        descriptions: ["First description", "Second description"],
+      },
+    };
+
+    describe.each([
+      ["a user API key", API_KEY_AUTH],
+      ["a third-party OAuth or MCP token", OAUTH_AUTH],
+    ])("with %s", (_name, agent) => {
+      it("creates a (paused) campaign", async () => {
+        m.createCampaign.mockResolvedValue({ id: "42" });
+        const response = await send(agent, "POST", {
+          name: "Spring",
+          dailyBudget: 5,
+          objective: "OUTCOME_TRAFFIC",
+        });
+        expect(response.status).toBe(201);
+        expect(m.createCampaign).toHaveBeenCalledOnce();
+      });
+
+      it("pauses a campaign at any time", async () => {
+        const response = await send(agent, "PATCH", { status: "PAUSED" });
+        expect(response.status).toBe(204);
+        expect(m.updateCampaign).toHaveBeenCalledWith(
+          expect.objectContaining({
+            status: "PAUSED",
+            onlyWhilePaused: false,
+          }),
+        );
+      });
+
+      it("changes the budget only while the campaign is paused", async () => {
+        const response = await send(agent, "PATCH", { dailyBudget: 9 });
+        expect(response.status).toBe(204);
+        expect(m.updateCampaign).toHaveBeenCalledWith(
+          expect.objectContaining({ dailyBudget: 9, onlyWhilePaused: true }),
+        );
+      });
+
+      it("edits a campaign only while it is paused", async () => {
+        const response = await send(agent, "PUT", editBody);
+        expect(response.status).toBe(204);
+        expect(m.editCampaign).toHaveBeenCalledWith(
+          expect.objectContaining({ onlyWhilePaused: true }),
+        );
+      });
+
+      it.each([
+        ["budget", "PATCH", { dailyBudget: 9 }, () => m.updateCampaign],
+        ["edit", "PUT", editBody, () => m.editCampaign],
+      ] as const)(
+        "answers 409 to a %s of a campaign that is not paused",
+        async (_change, method, body, service) => {
+          service().mockRejectedValue(
+            conflict("An agent changes a campaign only while it is paused"),
+          );
+          const response = await send(agent, method, body);
+          expect(response.status).toBe(409);
+          expect((await response.json()).message).toBe(
+            "An agent changes a campaign only while it is paused",
+          );
+        },
+      );
+
+      it.each([
+        { status: "PAUSED", dailyBudget: 9 },
+        { status: "ACTIVE", dailyBudget: 9 },
+      ])("answers 400 to status and budget in one PATCH (%o)", async (body) => {
+        const response = await send(agent, "PATCH", body);
+        expect(response.status).toBe(400);
+        expect((await response.json()).message).toBe(
+          "An agent changes a campaign's status or its budget, one per call",
+        );
+        expect(m.updateCampaign).not.toHaveBeenCalled();
+      });
+
+      it("answers 403 to a resume, naming the person-only kind and the Web page", async () => {
+        const response = await send(agent, "PATCH", { status: "ACTIVE" });
+        expect(response.status).toBe(403);
+        const json = await response.json();
+        expect(json).toMatchObject({
+          kind: CORE_API_ERROR_KINDS.PERSON_APPROVAL_REQUIRED,
+          message: "A person approves this in Sokosumi",
+        });
+        const webUrl = new URL(json.webUrl);
+        expect(webUrl.pathname).toBe("/ads");
+        expect(Object.fromEntries(webUrl.searchParams)).toEqual({
+          projectId: PROJECT_ID,
+          tab: "campaigns",
+          account: ACCOUNT_UUID,
+        });
+        expect(m.updateCampaign).not.toHaveBeenCalled();
+      });
+    });
+
+    it("lets a person resume a campaign", async () => {
+      const response = await send(SESSION_AUTH, "PATCH", { status: "ACTIVE" });
+      expect(response.status).toBe(204);
+      expect(m.updateCampaign).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "ACTIVE", onlyWhilePaused: false }),
+      );
+    });
+
+    it.each([
+      [
+        "POST",
+        { name: "Spring", dailyBudget: 5, objective: "OUTCOME_TRAFFIC" },
+      ],
+      ["PATCH", { status: "PAUSED" }],
+      ["PUT", editBody],
+    ] as const)("keeps a Coworker key out of %s", async (method, body) => {
+      const response = await send(COWORKER_AUTH, method, body);
+      expect(response.status).toBe(403);
+      expect(m.createCampaign).not.toHaveBeenCalled();
+      expect(m.updateCampaign).not.toHaveBeenCalled();
+      expect(m.editCampaign).not.toHaveBeenCalled();
+    });
+
+    it("keeps connecting an ad account person-only", async () => {
+      const response = await post(
+        createApp(API_KEY_AUTH),
+        "connections/initiate",
+        {
+          provider: "google_ads",
+        },
+      );
+      expect(response.status).toBe(403);
+      expect(m.initiate).not.toHaveBeenCalled();
     });
   });
 

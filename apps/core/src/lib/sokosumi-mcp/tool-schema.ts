@@ -155,15 +155,28 @@ function collectDefs(
   return defs;
 }
 
-function rewriteRefs(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(rewriteRefs);
+/** Points `$ref`s, and a discriminator's mapping (plain strings), at `$defs`. */
+function rewriteRefs(value: unknown, inDiscriminator = false): unknown {
+  if (Array.isArray(value)) return value.map((item) => rewriteRefs(item));
   if (!value || typeof value !== "object") return value;
   return Object.fromEntries(
     Object.entries(value).map(([key, child]) => [
       key,
       key === "$ref" && typeof child === "string"
         ? child.replace(COMPONENT_REF, "#/$defs/$1")
-        : rewriteRefs(child),
+        : inDiscriminator && key === "mapping"
+          ? rewriteMapping(child)
+          : rewriteRefs(child, key === "discriminator"),
+    ]),
+  );
+}
+
+function rewriteMapping(mapping: unknown): unknown {
+  if (!mapping || typeof mapping !== "object") return mapping;
+  return Object.fromEntries(
+    Object.entries(mapping).map(([type, ref]) => [
+      type,
+      typeof ref === "string" ? ref.replace(COMPONENT_REF, "#/$defs/$1") : ref,
     ]),
   );
 }
