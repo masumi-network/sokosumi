@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  CUSO_DESCRIPTION_REWRITES,
-  CUSO_FORBIDDEN_WORDS,
-  CUSO_IDENTITY,
-} from "../cmo-texts.js";
+import { CUSO_DESCRIPTION_REWRITES, CUSO_IDENTITY } from "../cmo-texts.js";
 import {
   isSokoBotNewsletterCapability,
   type SokoBotCapability,
@@ -15,6 +11,10 @@ import {
   sokoBotIdentity,
   sokoBotToolDescription,
 } from "../versions/index.js";
+
+/** The words a description may not carry to Cuso. */
+const CUSO_FORBIDDEN_WORDS =
+  /Sokosumi|Soko Bot|Project Social|Newsletter UI|Ads page|Content Studio|\bDrive\b|preview_result/;
 
 const v2 = getSokoBotVersion("cmo-v2");
 const v4 = getSokoBotVersion("cmo-v4");

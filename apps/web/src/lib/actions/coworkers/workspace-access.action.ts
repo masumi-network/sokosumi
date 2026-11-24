@@ -18,7 +18,7 @@ import {
 } from "@/middleware/auth-middleware";
 
 const grantCoworkerEarlyAccessSchema = z.object({
-  coworkerId: z.string().uuid(),
+  coworkerId: z.string().trim().min(1),
   targetType: z.enum(["user", "organization"]),
   targetValue: z.string().trim().min(1),
 });
@@ -90,7 +90,7 @@ export const grantDeveloperCoworkerEarlyAccessAction = withSession<
 });
 
 const revokeCoworkerEarlyAccessByWorkspaceSchema = z.object({
-  coworkerId: z.string().uuid(),
+  coworkerId: z.string().trim().min(1),
   workspaceId: z.string().uuid(),
 });
 

@@ -51,8 +51,10 @@ export const chatQueryKeys = {
   anyTranscript: () => anyChatScopeKey("transcript"),
   elsewhere: (scope: ChatQueryScopeInput) => chatKey(scope, "elsewhere"),
   anyElsewhere: () => anyChatScopeKey("elsewhere"),
-  threads: (scope: ChatQueryScopeInput, roomId: string) =>
-    chatKey(scope, "threads", roomId),
+  threads: (scope: ChatQueryScopeInput, roomId: string, visitId?: number) =>
+    visitId === undefined
+      ? chatKey(scope, "threads", roomId)
+      : chatKey(scope, "threads", roomId, visitId),
   unreadThreads: (fingerprint: string) =>
     chatKey({}, "unread-threads", fingerprint),
   earlierThreads: (fingerprint: string) =>

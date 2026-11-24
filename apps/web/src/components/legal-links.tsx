@@ -17,9 +17,10 @@ interface LegalLinksProps {
 }
 
 /**
- * The policy links under sign-up, log in and setup, the same on each. Each
- * link is at least 24px tall, so a thumb can hit it on a phone. CMO.XYZ has
- * its own legal pages; other products keep the platform policies.
+ * The policy links under sign-up, log in and setup, the same on each, at
+ * caption size like the consent line above them. Each link is at least 24px
+ * tall, so a thumb can hit it on a phone. CMO.XYZ has its own legal pages;
+ * other products keep the platform policies.
  */
 export function LegalLinks({ brand }: LegalLinksProps) {
   const t = useTranslations("Auth.Footer");
@@ -42,7 +43,7 @@ export function LegalLinks({ brand }: LegalLinksProps) {
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-muted-foreground hover:text-foreground inline-flex min-h-6 items-center text-sm"
+          className="text-muted-foreground hover:text-foreground inline-flex min-h-6 items-center text-xs"
         >
           {t(key)}
         </Link>

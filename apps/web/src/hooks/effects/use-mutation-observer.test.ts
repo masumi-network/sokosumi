@@ -3,10 +3,7 @@ import { createElement, useState } from "react";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  useLayoutMutationObserver,
-  useMutationObserver,
-} from "./use-mutation-observer";
+import { useLayoutMutationObserver } from "./use-mutation-observer";
 
 interface MockMutationObserverInstance {
   callback: MutationCallback;
@@ -15,7 +12,7 @@ interface MockMutationObserverInstance {
   disconnected: boolean;
 }
 
-describe("useMutationObserver", () => {
+describe("useLayoutMutationObserver", () => {
   let instances: MockMutationObserverInstance[];
 
   beforeEach(() => {
@@ -69,7 +66,7 @@ describe("useMutationObserver", () => {
     const onMutate = vi.fn();
 
     const { unmount } = renderHook(() =>
-      useMutationObserver(node, onMutate, {
+      useLayoutMutationObserver(node, onMutate, {
         init: { childList: true, subtree: true },
       }),
     );
@@ -92,7 +89,7 @@ describe("useMutationObserver", () => {
 
     const { rerender, unmount } = renderHook(
       ({ cb }: { cb: (records: MutationRecord[]) => void }) =>
-        useMutationObserver("body", cb, {
+        useLayoutMutationObserver("body", cb, {
           init: {
             attributes: true,
             attributeFilter: ["class", "style"],
@@ -119,7 +116,7 @@ describe("useMutationObserver", () => {
     expect(instances[0]?.disconnected).toBe(true);
 
     const docHook = renderHook(() =>
-      useMutationObserver("documentElement", vi.fn(), {
+      useLayoutMutationObserver("documentElement", vi.fn(), {
         init: { attributes: true },
       }),
     );
@@ -133,7 +130,7 @@ describe("useMutationObserver", () => {
 
     const { rerender } = renderHook(
       ({ resetKey }: { resetKey: string }) =>
-        useMutationObserver(node, onMutate, {
+        useLayoutMutationObserver(node, onMutate, {
           init: { childList: true },
           immediate: true,
           resetKey,
@@ -176,7 +173,9 @@ describe("useMutationObserver", () => {
 
   it("renders safely on the server without throwing", () => {
     function ServerProbe() {
-      useMutationObserver("body", () => {}, { init: { childList: true } });
+      useLayoutMutationObserver("body", () => {}, {
+        init: { childList: true },
+      });
       return createElement("div", null, "ok");
     }
 

@@ -54,7 +54,7 @@ test("TUI display values derive from package, config, and OAuth sources", () => 
     apiKeyCreationHint({
       SOKOSUMI_WEB_URL: "https://user:secret@example.test///",
     }),
-    "Create one at https://example.test/connections.",
+    "Create one at https://example.test/developer/api-keys.",
   );
   assert.equal(
     oauthCallbackDisplayUri(),

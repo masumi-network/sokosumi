@@ -9596,6 +9596,39 @@
           "statusRevoked": "Widerrufen",
           "workspaceKindOrganization": "Organisation",
           "workspaceKindUser": "Benutzer"
+        },
+        "ApiKeys": {
+          "title": "API-Schlüssel",
+          "description": "Laufzeit-Schlüssel, mit denen dieser Coworker Sokosumi aufruft. Zum Ersetzen einen neuen Schlüssel erstellen, den Agenten umstellen und dann den alten widerrufen.",
+          "createButton": "Schlüssel erstellen",
+          "empty": "Noch keine API-Schlüssel.",
+          "loadError": "Die API-Schlüssel konnten nicht geladen werden. Lade die Seite neu, um es erneut zu versuchen.",
+          "unnamed": "Ohne Namen",
+          "revokeButton": "Widerrufen",
+          "createSuccess": "API-Schlüssel erstellt",
+          "createError": "Der API-Schlüssel konnte nicht erstellt werden",
+          "revokeSuccess": "API-Schlüssel widerrufen",
+          "revokeError": "Der API-Schlüssel konnte nicht widerrufen werden",
+          "Table": {
+            "name": "Name",
+            "key": "Schlüssel",
+            "created": "Erstellt",
+            "status": "Status",
+            "actions": "Aktionen",
+            "lastUsed": "Zuletzt verwendet"
+          },
+          "Status": {
+            "active": "Aktiv",
+            "revoked": "Widerrufen",
+            "expired": "Abgelaufen"
+          },
+          "RevokeDialog": {
+            "title": "API-Schlüssel widerrufen?",
+            "description": "{name} ({keyStart}…) funktioniert sofort nicht mehr. Agenten, die ihn noch nutzen, erhalten 401-Fehler.",
+            "cancel": "Abbrechen",
+            "confirm": "Schlüssel widerrufen"
+          },
+          "noRecordedUse": "Keine Nutzung erfasst"
         }
       },
       "Tasks": {

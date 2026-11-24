@@ -34,7 +34,7 @@ export function SokoBotSetupSteps({ current }: { current: 1 | 2 | 3 }) {
             <span
               className={cn(
                 "h-1 rounded-full transition-colors duration-200",
-                step <= current ? "bg-primary" : "bg-muted",
+                step <= current ? "bg-foreground" : "bg-muted",
               )}
             />
             <span

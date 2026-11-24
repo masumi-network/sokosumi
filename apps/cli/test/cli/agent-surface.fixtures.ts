@@ -246,8 +246,14 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   "PATCH /coworkers/{id}": {
     argv: [...API, "coworkers", "update", "cw-1", "--name", "Ada", "--json"],
   },
+  "GET /coworkers/{id}/api-keys": {
+    argv: [...API, "coworkers", "list-api-keys", "cw-1"],
+  },
   "POST /coworkers/{id}/api-keys": {
     argv: ["--preprod", "coworkers", "api-key", "cw-1", "--json"],
+  },
+  "DELETE /coworkers/{id}/api-keys/{keyId}": {
+    argv: [...API, "coworkers", "revoke-api-key", "cw-1", "key-1"],
   },
   "GET /jobs": { argv: [...API, "jobs", "list", "--json"] },
   "GET /jobs/{id}": { argv: [...API, "jobs", "get", "job-1", "--json"] },
