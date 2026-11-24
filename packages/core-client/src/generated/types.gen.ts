@@ -94092,7 +94092,7 @@ export type SetCmoAdBudgetForProjectError = SetCmoAdBudgetForProjectErrors[keyof
 
 export type SetCmoAdBudgetForProjectResponses = {
     /**
-     * Cuso is re-planning, or will once his current turn ends
+     * Cuso is re-planning, or will once his current turn ends; no turn for a no the plan already follows
      */
     201: {
         data: CmoAdBudgetStarted;

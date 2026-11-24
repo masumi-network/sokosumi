@@ -187,7 +187,7 @@ async function openedScreen(input: {
 
 export interface HomeSearchParams {
   error?: string | string[];
-  /** "subscribed" is Polar's return after a payment; "connect" and "results" a connection's. */
+  /** "subscribed" is Polar's return after a payment; "connect" an account connection's. */
   step?: string | string[];
   project?: string | string[];
   /** The account menu's "Your Cusos": the Cuso picker. */
@@ -298,11 +298,10 @@ export async function Home({ searchParams, view }: HomeProps) {
     );
   }
   const { overview } = opened;
-  // Core ends hiring on the first connection; back from a connection made
-  // during hiring (Accounts, or Results' measurement), the founder stays in
-  // it until Continue.
+  // Core ends hiring on the first connection; back from an account
+  // connected during hiring, the founder stays in it until Continue.
   const backInHiring =
-    (step === "connect" || step === "results") &&
+    step === "connect" &&
     first(params.from) === "onboarding" &&
     overview.strategyVersion?.approvedAt != null;
   // Every Cuso action names the Project of the overview this page rendered,
@@ -323,8 +322,6 @@ export async function Home({ searchParams, view }: HomeProps) {
         key={skipped.includes("accounts") ? "launched" : "hiring"}
         overview={overview}
         messages={await loadMessages(projectId).catch(() => [])}
-        initialStep={step === "results" ? "results" : undefined}
-        measureError={measureError}
         skipped={skipped}
         // The steps up to Subscribe open in place, without this page
         // rendering again, so the plans load from the first of them.

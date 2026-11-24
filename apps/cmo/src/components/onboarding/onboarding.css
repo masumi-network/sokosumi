@@ -1705,6 +1705,8 @@ body:has(.ob) .site-header {
 
 /* Inside a tab panel the plan's sections are not cards: hairline dividers. */
 .ob-tabpanel .bb-section {
+  /* Title above its body, as on the app's page: one left edge for all. */
+  grid-template-columns: minmax(0, 1fr);
   padding: 24px 0;
   border: 0;
   border-top: 1px solid var(--border);
@@ -1923,6 +1925,12 @@ body:has(.ob) .site-header {
 .ob-metrics b {
   font-size: 1rem;
   font-weight: 600;
+}
+
+/* In a tab panel the cells sit on the panel itself: one left edge. */
+.ob-tabpanel .ob-metrics li {
+  padding: 0;
+  background: none;
 }
 
 /* How it works: four steps on one line, joined by a hairline. */

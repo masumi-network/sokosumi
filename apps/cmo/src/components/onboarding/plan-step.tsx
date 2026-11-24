@@ -19,7 +19,7 @@ import { WriteNewStrategy } from "../app/write-new-strategy";
 import { ChannelIcon } from "../channel-icon";
 import { CusoAvatar } from "../cuso";
 import { EntrySheet } from "../entry-sheet";
-import { AdsChoice, money } from "../strategy-core";
+import { AdsChoice } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
 import { SubmitButton } from "../submit-button";
 import type { SkipSubscription, StartTopUp } from "../top-up";
@@ -33,7 +33,6 @@ import {
 } from "./checklist";
 import { CusoScene } from "./cuso-scene";
 import {
-  type ConnectMeasurement,
   MonthPanel,
   PlanPanel,
   type PlanTab,
@@ -157,12 +156,6 @@ const ANSWER_WORDS: Record<string, string> = {
 interface PlanStepProps {
   overview: CmoOverview;
   phase: PlanPhase;
-  /** The tab to open, such as Results after a measurement connection. */
-  initialTab?: PlanTab;
-  /** Why a measurement connection that sent the founder back did not finish. */
-  measureError?: string | null;
-  /** Called once the one-shot measurement return notice has been left behind. */
-  onConsumeMeasureError?: () => void;
   /** Cuso writes or changes the plan; a refusal comes back as text. */
   onRequest: (note?: string) => Promise<string | null>;
   /** The owner's own monthly ad budget; a refusal comes back as text. */
@@ -175,7 +168,6 @@ interface PlanStepProps {
   /** A no changed something: Cuso fits the plan to the answers. */
   onUpdate: () => Promise<string | null>;
   onApprove: () => Promise<void>;
-  onConnectMeasurement: ConnectMeasurement;
   /** The plan was just requested: wait for Cuso's work to show up. */
   starting?: boolean;
   /** Set when the founder opened the plan again: leads on to where they were. */
@@ -407,47 +399,21 @@ interface PlanReviewProps extends Omit<PlanStepProps, "phase" | "starting"> {
 export function PlanReview({
   overview,
   readOnly = false,
-  initialTab = "plan",
-  measureError = null,
-  onConsumeMeasureError,
   onRequest,
   onSetAds,
   onAnswer,
   onUpdate,
   onApprove,
-  onConnectMeasurement,
   ahead,
   topUp = null,
   subscribe = null,
   skip = null,
 }: PlanReviewProps) {
   const strategy = overview.strategy as Strategy;
-  const [tabState, setTabState] = useState({
-    tab: initialTab,
-    measureError,
-  });
-  const { tab } = tabState;
-  // Leaving Results consumes its one-shot measurement return notice so
-  // switching back later does not show it again.
-  function selectTab(next: PlanTab) {
-    if (tabState.tab === next) return;
-    const leavingResults = tabState.tab === "results";
-    setTabState((current) =>
-      current.tab === next
-        ? current
-        : {
-            tab: next,
-            measureError:
-              current.tab === "results" ? null : current.measureError,
-          },
-    );
-    if (leavingResults) {
-      onConsumeMeasureError?.();
-    }
-  }
-  // The plan's detail, folded until asked for; a measurement return opens it.
-  // On the app's Strategy page the plan is the page, so it starts open.
-  const [full, setFull] = useState(readOnly || initialTab === "results");
+  const [tab, selectTab] = useState<PlanTab>("plan");
+  // The plan's detail, folded until asked for. On the app's Strategy page
+  // the plan is the page, so it starts open.
+  const [full, setFull] = useState(readOnly);
   const fullHead = useRef<HTMLHeadingElement>(null);
   const [open, setOpen] = useState<Entry | null>(null);
   const [asking, setAsking] = useState(false);
@@ -566,6 +532,19 @@ export function PlanReview({
   );
 
   const ads = strategy.ads;
+  // A no the plan already follows is only kept; anything else re-plans.
+  async function setAds(monthly: number, currency: string) {
+    if (monthly === 0 && ads?.monthly === 0) {
+      const refused = await onSetAds(0, currency);
+      setRefusal(refused);
+      if (refused) throw new Error(refused);
+      return;
+    }
+    await send(
+      monthly > 0 ? `Ad budget: ${currency} ${monthly} a month` : "No ads",
+      () => onSetAds(monthly, currency),
+    );
+  }
   const hasChecks = questions.length > 0 || strategy.pace || ads;
   // An approval covers what the owner said yes or no to, not what stayed open.
   const answers = approved
@@ -746,31 +725,38 @@ export function PlanReview({
           />
         ) : null}
         {locked ? (
-          // "No ads" alone is no answer worth a card.
-          answers.length > 0 || (ads && ads.monthly > 0) ? (
-            <div className="card ob-checks">
-              <h2>{approved ? "What you approved" : "Your answers"}</h2>
-              <ul className="ob-approved">
-                {answers.map((question) => (
-                  <li key={question.id}>
-                    {question.question}{" "}
-                    <b>{ANSWER_WORDS[question.answer ?? ""]}</b>
-                    {question.answer === "no" && question.note
-                      ? `: ${question.note}`
-                      : ""}
-                  </li>
-                ))}
-
-                {ads ? (
-                  <li>
-                    {ads.monthly > 0
-                      ? `${money(ads.monthly, ads.currency)} a month for ads`
-                      : "No ads"}
-                  </li>
-                ) : null}
-              </ul>
-            </div>
-          ) : null
+          <>
+            {answers.length > 0 ? (
+              <div className="card ob-checks">
+                <h2>{approved ? "What you approved" : "Your answers"}</h2>
+                <ul className="ob-approved">
+                  {answers.map((question) => (
+                    <li key={question.id}>
+                      {question.question}{" "}
+                      <b>{ANSWER_WORDS[question.answer ?? ""]}</b>
+                      {question.answer === "no" && question.note
+                        ? `: ${question.note}`
+                        : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {/* Ads stay the owner's Yes or No after approval too (NMKR, 2026-11-24). */}
+            {ads ? (
+              <div className="card ob-checks">
+                <div className="ob-budget">
+                  <AdsChoice
+                    // A new version resets the choice to what it holds.
+                    key={overview.strategyVersion?.id}
+                    ads={ads}
+                    approved={approved}
+                    onSetAds={overview.viewerCanApprove ? setAds : undefined}
+                  />
+                </div>
+              </div>
+            ) : null}
+          </>
         ) : hasChecks ? (
           <div className="card ob-checks">
             <h2>Did I get these right?</h2>
@@ -797,15 +783,9 @@ export function PlanReview({
             {ads ? (
               <div className="ob-budget">
                 <AdsChoice
+                  key={overview.strategyVersion?.id}
                   ads={ads}
-                  onSetAds={(monthly, currency) =>
-                    send(
-                      monthly > 0
-                        ? `Ad budget: ${currency} ${monthly} a month`
-                        : "No ads",
-                      () => onSetAds(monthly, currency),
-                    )
-                  }
+                  onSetAds={setAds}
                 />
               </div>
             ) : null}
@@ -885,12 +865,7 @@ export function PlanReview({
                     pending={!approved}
                   />
                 ) : (
-                  <ResultsPanel
-                    overview={overview}
-                    strategy={strategy}
-                    onConnectMeasurement={onConnectMeasurement}
-                    measureError={tabState.measureError}
-                  />
+                  <ResultsPanel strategy={strategy} approved={approved} />
                 )}
               </div>
               <button

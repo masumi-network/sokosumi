@@ -401,6 +401,40 @@ describe("requestCmoStrategy", () => {
     );
   });
 
+  it("keeps a no to ads on the same version when the plan has none", async () => {
+    cusoFind.mockResolvedValue(cuso);
+    const approvedAt = new Date("2026-10-01T09:00:00Z");
+    const row = seedStrategy(
+      {
+        ...strategy,
+        ads: {
+          monthly: 0,
+          currency: "CHF",
+          expect: "More searches.",
+          without: "Posts alone.",
+          suggest: { channel: "google_ads", monthly: 600 },
+        },
+      },
+      { approvedAt },
+    );
+
+    await expect(
+      setCmoAdBudget({
+        projectId: "project-1",
+        userId: "user-1",
+        monthly: 0,
+        currency: "chf",
+      }),
+    ).resolves.toEqual({ turnId: null, queued: false });
+
+    expect(startTurn).not.toHaveBeenCalled();
+    expect(strategyRows).toHaveLength(1);
+    expect(row.approvedAt).toEqual(approvedAt);
+    expect(row.plan).toMatchObject({
+      ads: { monthly: 0, setByOwner: true, suggest: { monthly: 600 } },
+    });
+  });
+
   it("writes one version for an ad budget, which Cuso's re-plan completes", async () => {
     cusoFind.mockResolvedValue(cuso);
     const running = seedStrategy(strategy, {

@@ -156,13 +156,26 @@ export async function setCmoAdBudget(
   known?: Cuso,
 ): Promise<{ turnId: string | null; queued: boolean }> {
   const cuso = known ?? (await requireCuso(input));
-  const strategy = parseMarketingPlan(
-    (await newestMarketingStrategy(cuso.projectId))?.plan,
-  );
-  if (!strategy) {
+  const newest = await newestMarketingStrategy(cuso.projectId);
+  const strategy = parseMarketingPlan(newest?.plan);
+  if (!newest || !strategy) {
     throw new CmoConflictError("Cuso has not written the strategy yet");
   }
   const currency = input.currency.toUpperCase();
+  // A no to ads the plan already leaves out changes nothing to re-plan:
+  // only the answer is kept, on the same version (approved or not).
+  if (input.monthly === 0 && strategy.ads && strategy.ads.monthly === 0) {
+    await prisma.marketingStrategy.update({
+      where: { id: newest.id },
+      data: {
+        plan: jsonInput({
+          ...strategy,
+          ads: { ...strategy.ads, setByOwner: true },
+        }),
+      },
+    });
+    return { turnId: null, queued: false };
+  }
   // Busy writing or changing the strategy: the budget waits on the Project,
   // and Cuso plans it as soon as that turn ends (afterCmoTurn).
   const budget = { monthly: input.monthly, currency, userId: input.userId };
