@@ -172,4 +172,26 @@ describe("createChatRefreshScheduler", () => {
     await Promise.resolve();
     scheduler.stop();
   });
+
+  it("stops cleanly when stop() is called synchronously inside the mount refresh", async () => {
+    let seenCurrent: boolean | null = null;
+    const refresh = vi.fn(async (isCurrent: () => boolean) => {
+      scheduler.stop();
+      seenCurrent = isCurrent();
+    });
+    const scheduler = createChatRefreshScheduler({
+      refresh,
+      healthy: false,
+      fallbackIntervalMs: FALLBACK_MS,
+      refreshOnMount: true,
+    });
+
+    scheduler.start();
+    await Promise.resolve();
+    expect(seenCurrent).toBe(false);
+
+    window.dispatchEvent(new Event("online"));
+    await vi.advanceTimersByTimeAsync(FALLBACK_MS * 2);
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
 });

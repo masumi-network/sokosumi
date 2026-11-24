@@ -228,15 +228,6 @@ export function createChatRefreshScheduler({
     document.addEventListener("visibilitychange", onForegroundChange);
     window.addEventListener("online", onOnline);
 
-    // The first read is what the page shows, not background upkeep: it must
-    // not wait for focus. Typing the URL leaves focus in the address bar, and
-    // a room opened in a background tab would otherwise sit on skeletons.
-    if (refreshOnMount) {
-      void run(true);
-    } else {
-      schedule();
-    }
-
     stopCurrent = () => {
       cancelled = true;
       queued = false;
@@ -250,6 +241,15 @@ export function createChatRefreshScheduler({
       requestCurrent = noop;
       rescheduleCurrent = noop;
     };
+
+    // The first read is what the page shows, not background upkeep: it must
+    // not wait for focus. Typing the URL leaves focus in the address bar, and
+    // a room opened in a background tab would otherwise sit on skeletons.
+    if (refreshOnMount) {
+      void run(true);
+    } else {
+      schedule();
+    }
   }
 
   function setHealth(
