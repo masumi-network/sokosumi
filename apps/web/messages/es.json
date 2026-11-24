@@ -1783,7 +1783,7 @@
           "workedHours": "{hours, plural, one {# hora trabajada} other {# horas trabajadas}}",
           "loadError": {
             "title": "No se pudieron cargar las cifras de hoy.",
-            "help": "La lista de abajo está al día.",
+            "help": "Inténtalo de nuevo en un momento.",
             "retry": "Reintentar"
           }
         },

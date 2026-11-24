@@ -12,6 +12,7 @@ const ensureRoom = vi.fn();
 const sendMessage = vi.fn();
 const push = vi.fn();
 const refresh = vi.fn();
+const refreshPage = vi.fn(async () => true);
 /** The composer's text at the moment the caret was put at its end. */
 const focusedAtEnd = vi.fn();
 
@@ -40,6 +41,9 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push, refresh }),
 }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+vi.mock("@/lib/actions/refresh-page-action", () => ({
+  refreshPage: () => refreshPage(),
+}));
 vi.mock("@/app/chat/actions", () => ({
   ensureSokoBotDirectRoomAction: (...args: unknown[]) => ensureRoom(...args),
   sendRoomMessageAction: (...args: unknown[]) => sendMessage(...args),
@@ -390,6 +394,15 @@ describe("SokoBotHome", () => {
     const day = screen.getByRole("region", { name: "recent" });
     expect(day).toHaveTextContent("loadError.title");
     expect(screen.getByText("Research EU marketplaces")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "loadError.retry" }));
+    // The refresh action keeps the pages prefetched for the next click.
+    await waitFor(() => expect(refreshPage).toHaveBeenCalledOnce());
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("reads the numbers with a plain refresh when the action cannot", async () => {
+    refreshPage.mockResolvedValueOnce(false);
+    await renderHome({ summary: null });
     fireEvent.click(screen.getByRole("button", { name: "loadError.retry" }));
     await waitFor(() => expect(refresh).toHaveBeenCalledOnce());
   });

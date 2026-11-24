@@ -1783,7 +1783,7 @@
           "workedHours": "{hours, plural, one {# hour worked} other {# hours worked}}",
           "loadError": {
             "title": "Couldn't load today's numbers.",
-            "help": "The list below is still current.",
+            "help": "Try again in a moment.",
             "retry": "Try again"
           }
         },
