@@ -2,10 +2,12 @@
   "backlog": "SOKD-372",
   "operations": {
     "GET /vendors/me": {
-      "cli": "vendors me"
+      "cli": "vendors me",
+      "mcp": "vendors_me"
     },
     "POST /vendors": {
-      "cli": "vendors create"
+      "cli": "vendors create",
+      "mcp": "vendors_create"
     }
   }
 }

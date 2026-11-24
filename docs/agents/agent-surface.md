@@ -22,17 +22,17 @@ One file per route group: `apps/core/agent-surface/<group>.json`. The group is t
 }
 ```
 
-| Key                   | Meaning                                                                                                                                                           |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `operations.*.cli`    | A `command` from `CLI_COMMAND_CATALOG` (`apps/cli/src/cli/commands/catalog.ts`), or `false`. A generic JSON command counts; bespoke commands are for human flows. |
-| `operations.*.mcp`    | The MCP tool name, or `false`.                                                                                                                                    |
-| `operations.*.reason` | One line saying why a surface is `false`. Required with `false`, and only then.                                                                                   |
-| `backlog`             | The wave Task that covers the group. Until it lands, unlisted operations pass and a row may leave `cli` or `mcp` out (pending). The wave deletes the key.         |
-| `excluded`            | One line saying why the whole group stays off the agent surface. Unlisted operations pass; listed rows still map both surfaces.                                   |
+| Key                   | Meaning                                                                                                                                                                                        |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `operations.*.cli`    | A `command` from `CLI_COMMAND_CATALOG` (`apps/cli/src/cli/commands/catalog.ts`), or `false`. A generic JSON command counts; bespoke commands are for human flows.                              |
+| `operations.*.mcp`    | The MCP tool name, or `false`.                                                                                                                                                                 |
+| `operations.*.reason` | One line saying why a surface is `false`. Required with `false`, and only then.                                                                                                                |
+| `backlog`             | The wave Task that covers the group. Until it lands, unlisted operations pass and a row may leave `cli` out (pending). A row with a `cli` command always maps `mcp`. The wave deletes the key. |
+| `excluded`            | One line saying why the whole group stays off the agent surface. Unlisted operations pass; listed rows still map both surfaces.                                                                |
 
 A group sets `backlog` or `excluded`, not both. Several operations may map to one command when the command calls them all (`agents hire` reads the input schema, then creates the job).
 
-**Naming.** The MCP tool name is the CLI command with spaces and hyphens replaced by `_`: `tasks list` → `tasks_list`, `coworkers api-key` → `coworkers_api_key`. When the command is named for something other than its operation's group, or calls several operations, the tool is `<group>_<verb>` for its one operation: `auth whoami` → `users_get` for `GET /users/{id}`.
+**Naming.** The MCP tool name is the CLI command with spaces and hyphens replaced by `_`: `tasks list` → `tasks_list`, `coworkers api-key` → `coworkers_api_key`. When the command is named for something other than its operation's group, or calls several operations, the tool is `<group>_<verb>` for its one operation, where `<group>` is the route group of what it acts on: `auth whoami` → `users_get` for `GET /users/{id}`, `workspaces list` → `workspaces_list` for `GET /users/{id}/workspaces`. The name's first segment is the tool's toolset.
 
 ## What may be `false`
 
@@ -47,13 +47,13 @@ A group sets `backlog` or `excluded`, not both. Several operations may map to on
 
 ## Checks
 
-| Check        | Where                                                   | Fails when                                                                                                                                               |
-| ------------ | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Completeness | `apps/core/src/routes/v1/agent-surface.openapi.test.ts` | An operation is unmapped outside a `backlog` or `excluded` group, a row or file names no served operation, `false` lacks a `reason`, or a key is unknown |
-| CLI binding  | `apps/cli/test/cli/agent-surface.test.ts`               | A `cli` value is not in `CLI_COMMAND_CATALOG`, or a catalog `operation` is mapped to another command                                                     |
-| MCP binding  | `apps/core/src/routes/v1/agent-surface.openapi.test.ts` | A manifest `mcp` value is not in `MCP_TOOLS` or calls another operation, or a tool in `MCP_TOOLS` has no row                                             |
-| CLI fixtures | `apps/cli/test/cli/agent-surface.test.ts`               | A `cli` row has no fixture, a fixture names no `cli` row, or the fixture's run fails, runs another command, or does not send the row's operation         |
-| MCP fixtures | `apps/core/src/lib/sokosumi-mcp/tools.surface.test.ts`  | A tool has no fixture, or its fixture's `/v1` request is not the tool's operation                                                                        |
+| Check        | Where                                                   | Fails when                                                                                                                                                                             |
+| ------------ | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Completeness | `apps/core/src/routes/v1/agent-surface.openapi.test.ts` | An operation is unmapped outside a `backlog` or `excluded` group, a row or file names no served operation, a `cli` row leaves `mcp` out, `false` lacks a `reason`, or a key is unknown |
+| CLI binding  | `apps/cli/test/cli/agent-surface.test.ts`               | A `cli` value is not in `CLI_COMMAND_CATALOG`, or a catalog `operation` is mapped to another command                                                                                   |
+| MCP binding  | `apps/core/src/routes/v1/agent-surface.openapi.test.ts` | A manifest `mcp` value is not in `MCP_TOOLS` or calls another operation, a tool in `MCP_TOOLS` has no row, or its name starts with no route group                                      |
+| CLI fixtures | `apps/cli/test/cli/agent-surface.test.ts`               | A `cli` row has no fixture, a fixture names no `cli` row, or the fixture's run fails, runs another command, or does not send the row's operation                                       |
+| MCP fixtures | `apps/core/src/lib/sokosumi-mcp/tools.surface.test.ts`  | A tool has no fixture, or its fixture's `/v1` request is not the tool's operation                                                                                                      |
 
 `apps/core/agent-surface/**` is part of the `cli` filter in `.github/js-paths-filter.yml` and an input of the CLI's `test` tasks in `turbo.json`, so a manifest change reruns the CLI check.
 
@@ -82,7 +82,8 @@ The check runs `argv` through `runCli` with `fetch` mocked. Core answers from th
 Core serves MCP at `{Core origin}/mcp` (`apps/core/src/routes/mcp/index.ts`; tokens in [ADR 0076](../adr/0076-mcp-tokens-are-audience-bound-jwts-for-a-core-hosted-resource.md)). A tool is one row in `MCP_TOOLS` (`apps/core/src/lib/sokosumi-mcp/tools.ts`): `name`, `operation`, a `description` written for an agent, and `destructive: true` for a write that deletes or overwrites.
 
 - **Input** comes from the operation's OpenAPI definition (`tool-schema.ts`): path and query parameters by name, the JSON body as `body`, and `workspace` (an organization slug, sent as `X-Organization-Slug`) on every tool. Name clashes fail the derivation.
-- **Annotations** come from the method: `GET` is read-only; `DELETE` is destructive unless the row says otherwise.
+- **Toolsets.** A tool's toolset is its name's first segment. A client picks toolsets with `?toolsets=` on the server URL, comma-separated (`/mcp?toolsets=tasks,jobs`); without it, the server lists `DEFAULT_TOOLSETS` in `tools.ts` (workspaces, users, tasks, jobs, agents, coworkers). An unknown toolset answers 400 naming it. Keep the default `tools/list` under 80 tools (`mcp.integration.test.ts` checks it); a new route group's tools go in a new toolset outside the default. The server `instructions` list the toolsets on and off and tell the agent to call `workspaces_list` first.
+- **Annotations** come from the method: `GET` is read-only; `DELETE` is destructive unless the row says otherwise. A row with `spendsCredits: true` (`agents_hire`) is destructive and open-world, so clients ask the person first, and its description starts with "Spends workspace credits."
 - **A call** runs the operation through `/v1` in process as the token's user (`dispatch.ts`), so every guard applies: a route that needs an interactive session answers 403. The caller is always a plain user: never the admin role, never first-party, no OAuth client id. Admin work stays on the CLI.
 - **Results**: Core's `data` and `pagination` as `structuredContent`. A Core error is `isError` with `{status, kind, message, details}`; a 5xx gives a generic message and the request id.
 

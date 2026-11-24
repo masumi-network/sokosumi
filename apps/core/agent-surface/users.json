@@ -6,14 +6,16 @@
       "mcp": "users_get"
     },
     "GET /users/{id}/organizations": {
-      "cli": "workspaces list"
+      "cli": "workspaces list",
+      "mcp": "organizations_list"
     },
     "GET /users/{id}/workspaces": {
       "cli": "workspaces list",
       "mcp": "workspaces_list"
     },
     "POST /users/{id}/workspaces": {
-      "cli": "coworkers register"
+      "cli": "coworkers register",
+      "mcp": "workspaces_create"
     }
   }
 }

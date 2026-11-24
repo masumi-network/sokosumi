@@ -2,22 +2,29 @@
   "backlog": "SOKD-372",
   "operations": {
     "GET /coworkers": {
-      "cli": "coworkers list"
+      "cli": "coworkers list",
+      "mcp": "coworkers_list"
     },
     "POST /coworkers": {
-      "cli": "coworkers register"
+      "cli": "coworkers register",
+      "mcp": "coworkers_register"
     },
     "GET /coworkers/me": {
-      "cli": "coworkers me"
+      "cli": "coworkers me",
+      "mcp": false,
+      "reason": "Answers only a Coworker's own API key; an MCP caller is a person."
     },
     "GET /coworkers/{id}": {
-      "cli": "coworkers connect"
+      "cli": "coworkers connect",
+      "mcp": "coworkers_get"
     },
     "PATCH /coworkers/{id}": {
-      "cli": "coworkers update"
+      "cli": "coworkers update",
+      "mcp": "coworkers_update"
     },
     "GET /coworkers/{id}/api-keys": {
-      "cli": "coworkers list-api-keys"
+      "cli": "coworkers list-api-keys",
+      "mcp": "coworkers_list_api_keys"
     },
     "POST /coworkers/{id}/api-keys": {
       "cli": "coworkers api-key",
@@ -25,10 +32,12 @@
       "reason": "Mints a long-lived credential."
     },
     "DELETE /coworkers/{id}/api-keys/{keyId}": {
-      "cli": "coworkers revoke-api-key"
+      "cli": "coworkers revoke-api-key",
+      "mcp": "coworkers_revoke_api_key"
     },
     "POST /coworkers/{id}/workspace-access": {
-      "cli": "coworkers connect"
+      "cli": "coworkers connect",
+      "mcp": "coworkers_connect"
     }
   }
 }
