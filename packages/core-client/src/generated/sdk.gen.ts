@@ -4130,7 +4130,7 @@ export const addProjectCompetitor = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * A member stops tracking a competitor. What the checks found about it is kept. `removedAt` names this removal for the restore operation.
+ * A member stops tracking a competitor. What the checks found about it is kept. `removal` names this removal for the restore operation.
  */
 export const removeProjectCompetitor = <ThrowOnError extends boolean = false>(options: Options<RemoveProjectCompetitorData, ThrowOnError>): RequestResult<RemoveProjectCompetitorResponses, RemoveProjectCompetitorErrors, ThrowOnError> => (options.client ?? client).delete<RemoveProjectCompetitorResponses, RemoveProjectCompetitorErrors, ThrowOnError>({
     responseTransformer: removeProjectCompetitorResponseTransformer,
@@ -4152,7 +4152,7 @@ export const updateProjectCompetitor = <ThrowOnError extends boolean = false>(op
 });
 
 /**
- * Undoes one removal: the competitor comes back as it was stored, with what the checks found. `removedAt` is the one the remove answered with.
+ * Undoes one removal: the competitor comes back as it was stored, with what the checks found. `removal` is the one the remove answered with.
  */
 export const restoreProjectCompetitor = <ThrowOnError extends boolean = false>(options: Options<RestoreProjectCompetitorData, ThrowOnError>): RequestResult<RestoreProjectCompetitorResponses, RestoreProjectCompetitorErrors, ThrowOnError> => (options.client ?? client).post<RestoreProjectCompetitorResponses, RestoreProjectCompetitorErrors, ThrowOnError>({
     responseTransformer: restoreProjectCompetitorResponseTransformer,

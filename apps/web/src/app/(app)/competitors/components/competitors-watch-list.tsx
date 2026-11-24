@@ -3,6 +3,7 @@
 import type { ProjectCompetitor } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { PencilIcon, XIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   useCallback,
@@ -64,6 +65,7 @@ export function CompetitorsWatchList({
   readOnly: boolean;
 }) {
   const t = useTranslations("App.Competitors.list");
+  const router = useRouter();
   const [shown, hide] = useOptimistic(competitors, (list, id: string) =>
     list.filter((competitor) => competitor.id !== id),
   );
@@ -98,33 +100,53 @@ export function CompetitorsWatchList({
     if (shown.length === 1) handFocusToStart(competitor.id);
   }
 
-  async function restore(competitor: ProjectCompetitor, removedAt: Date) {
+  /**
+   * Undo for one removal. One request at a time; a failure that may pass
+   * (the list is full, Core or the network failed) offers the same Undo
+   * again, so the member is never asked to retry without a way to.
+   */
+  function undoRemoval(competitor: ProjectCompetitor, removal: number) {
     const { name } = competitor;
-    try {
-      const result = await restoreCompetitor({
-        projectId,
-        competitorId: competitor.id,
-        removedAt,
-      });
-      if (result.ok) return;
-      // Why Core refused, in the page's own words.
-      const { kind } = result.error;
-      toast.error(
-        kind === CORE_API_ERROR_KINDS.COMPETITOR_REMOVAL_STALE
-          ? t("restoreStale", { name })
-          : kind === CORE_API_ERROR_KINDS.COMPETITOR_LIMIT_REACHED
-            ? t("restoreFull", { name, limit })
-            : kind === CORE_API_ERROR_KINDS.COMPETITOR_NAME_TAKEN
-              ? t("restoreNameTaken", { name })
-              : t("restoreFailed", { name }),
-      );
-    } catch (error) {
-      if (
-        toActionRejectionError(error).code === CommonErrorCode.UNAUTHENTICATED
-      )
-        return signInAgain();
-      toast.error(t("restoreFailed", { name }));
+    let sending = false;
+    const again = (label: string) => ({ label, onClick: () => void undo() });
+    async function undo() {
+      if (sending) return;
+      sending = true;
+      try {
+        const result = await restoreCompetitor({
+          projectId,
+          competitorId: competitor.id,
+          removal,
+        });
+        if (result.ok) return;
+        const { kind } = result.error;
+        if (kind === CORE_API_ERROR_KINDS.COMPETITOR_REMOVAL_STALE) {
+          // Maybe an earlier try went through: show what is there now.
+          router.refresh();
+          toast.error(t("restoreStale", { name }));
+        } else if (kind === CORE_API_ERROR_KINDS.COMPETITOR_NAME_TAKEN)
+          toast.error(t("restoreNameTaken", { name }));
+        else if (kind === CORE_API_ERROR_KINDS.COMPETITOR_LIMIT_REACHED)
+          toast.error(t("restoreFull", { name, limit }), {
+            action: again(t("undo")),
+          });
+        else
+          toast.error(t("restoreFailed", { name }), {
+            action: again(t("retry")),
+          });
+      } catch (error) {
+        if (
+          toActionRejectionError(error).code === CommonErrorCode.UNAUTHENTICATED
+        )
+          return signInAgain();
+        toast.error(t("restoreFailed", { name }), {
+          action: again(t("retry")),
+        });
+      } finally {
+        sending = false;
+      }
     }
+    return undo;
   }
 
   function remove(competitor: ProjectCompetitor) {
@@ -142,12 +164,9 @@ export function CompetitorsWatchList({
         setError(result.error.message ?? t("failed"));
         return;
       }
-      const { removedAt } = result.value;
+      const undo = undoRemoval(competitor, result.value.removal);
       toast.success(t("removed", { name: competitor.name }), {
-        action: {
-          label: t("undo"),
-          onClick: () => void restore(competitor, removedAt),
-        },
+        action: { label: t("undo"), onClick: () => void undo() },
       });
     });
   }

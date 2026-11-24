@@ -5080,7 +5080,7 @@ export function createCoreClient(getClient: GetCoreClient) {
   async function restoreProjectCompetitor(
     id: string,
     competitorId: string,
-    removedAt: Date,
+    removal: number,
   ) {
     return executeCoreOperation(
       getClient,
@@ -5088,7 +5088,7 @@ export function createCoreClient(getClient: GetCoreClient) {
         coreRestoreProjectCompetitor({
           client,
           path: { id, competitorId },
-          body: { removedAt },
+          body: { removal },
         }),
       "Failed to restore competitor",
     );

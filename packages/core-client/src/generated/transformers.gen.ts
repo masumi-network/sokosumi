@@ -3535,7 +3535,6 @@ const projectCompetitorRemovalSchemaResponseTransformer = (data: any) => {
     if (data.check.nextCheckAt) {
         data.check.nextCheckAt = new Date(data.check.nextCheckAt);
     }
-    data.removedAt = new Date(data.removedAt);
     return data;
 };
 

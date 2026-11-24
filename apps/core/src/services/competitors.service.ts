@@ -247,19 +247,24 @@ export async function updateTrackedCompetitor(
 
 /**
  * A member stops tracking a competitor; research does not add it back. The
- * answer is when, which names this removal for `restoreTrackedCompetitor`.
- * Whether a member touched it stays as it was, for an Undo to keep.
+ * answer is this removal's number, counted under the list lock, which names
+ * it for `restoreTrackedCompetitor`. Whether a member touched it stays as it
+ * was, for an Undo to keep.
  */
 export async function removeTrackedCompetitor(
   projectId: string,
   id: string,
-): Promise<Date> {
-  const removedAt = new Date();
+): Promise<number> {
+  let removal = 0;
   await inLockedCompetitorList(projectId, async (tx) => {
     await requireTracked(tx, projectId, id);
-    await tx.trackedCompetitor.update({ where: { id }, data: { removedAt } });
+    ({ removals: removal } = await tx.trackedCompetitor.update({
+      where: { id },
+      data: { removedAt: new Date(), removals: { increment: 1 } },
+      select: { removals: true },
+    }));
   });
-  return removedAt;
+  return removal;
 }
 
 /**
@@ -271,15 +276,15 @@ export async function removeTrackedCompetitor(
 export async function restoreTrackedCompetitor(
   projectId: string,
   id: string,
-  removedAt: Date,
+  removal: number,
 ): Promise<void> {
   await inLockedCompetitorList(projectId, async (tx) => {
     const removed = await tx.trackedCompetitor.findFirst({
-      where: { id, projectId, removedAt },
+      where: { id, projectId, removedAt: { not: null }, removals: removal },
       select: { name: true, nameKey: true },
     });
     if (!removed)
-      throw conflict("That competitor changed since you removed it", {
+      throw conflict("That removal can no longer be undone", {
         kind: CORE_API_ERROR_KINDS.COMPETITOR_REMOVAL_STALE,
       });
     // A rename that took the name moved this row's key aside.

@@ -23,7 +23,7 @@ const route = withCoworkerContextHeaderParameters(
     operationId: "restoreProjectCompetitor",
     tags: ["Projects"],
     description:
-      "Undoes one removal: the competitor comes back as it was stored, with what the checks found. `removedAt` is the one the remove answered with.",
+      "Undoes one removal: the competitor comes back as it was stored, with what the checks found. `removal` is the one the remove answered with.",
     request: {
       params: projectCompetitorParamsSchema,
       body: {
@@ -54,7 +54,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
     await restoreTrackedCompetitor(
       projectId,
       competitorId,
-      new Date(c.req.valid("json").removedAt),
+      c.req.valid("json").removal,
     );
     return ok(c, await competitorsResponse(projectId));
   });

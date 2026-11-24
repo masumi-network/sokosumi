@@ -32894,10 +32894,10 @@ export const ProjectCompetitorRemovalSchema = {
                 'sources'
             ]
         },
-        removedAt: {
-            type: 'string',
-            format: 'date-time',
-            description: 'When the competitor was removed. It names this removal: an Undo sends it back.'
+        removal: {
+            type: 'integer',
+            minimum: 1,
+            description: 'Which removal of the competitor this was. It names the removal: an Undo sends it back.'
         }
     },
     required: [
@@ -32908,21 +32908,21 @@ export const ProjectCompetitorRemovalSchema = {
         'scoreboard',
         'topPosts',
         'check',
-        'removedAt'
+        'removal'
     ]
 } as const;
 
 export const ProjectCompetitorRestoreSchema = {
     type: 'object',
     properties: {
-        removedAt: {
-            type: 'string',
-            format: 'date-time',
-            description: 'When the competitor was removed. It names this removal: an Undo sends it back.'
+        removal: {
+            type: 'integer',
+            minimum: 1,
+            description: 'Which removal of the competitor this was. It names the removal: an Undo sends it back.'
         }
     },
     required: [
-        'removedAt'
+        'removal'
     ]
 } as const;
 

@@ -31,7 +31,7 @@ export const competitorsService = {
       await coreClient.updateProjectCompetitor(projectId, competitorId, body)
     ).data;
   },
-  /** `removedAt` names the removal for `restore`. */
+  /** `removal` names the removal for `restore`. */
   async remove(
     projectId: string,
     competitorId: string,
@@ -43,13 +43,13 @@ export const competitorsService = {
   async restore(
     projectId: string,
     competitorId: string,
-    removedAt: Date,
+    removal: number,
   ): Promise<ProjectCompetitors> {
     return (
       await coreClient.restoreProjectCompetitor(
         projectId,
         competitorId,
-        removedAt,
+        removal,
       )
     ).data;
   },

@@ -26,6 +26,7 @@ import { CompetitorsWatchList } from "./competitors-watch-list";
 vi.mock("@/components/route-poller", () => ({
   RoutePoller: () => <div data-testid="poller" />,
 }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/actions/competitors/action", () => ({
   addCompetitor: vi.fn(),
@@ -39,7 +40,8 @@ vi.mock("@/lib/actions/competitors/action", () => ({
 }));
 
 const PROJECT_ID = "project-1";
-const REMOVED_AT = new Date("2026-11-24T10:00:00.123Z");
+const REMOVAL = 2;
+const refresh = vi.hoisted(() => vi.fn());
 const source = { status: "ok" as const, needs: null };
 const CHECK: ProjectCompetitors["check"] = {
   on: false,
@@ -97,7 +99,7 @@ beforeEach(() => {
     vi.mocked(action).mockResolvedValue({ ok: true, value: undefined });
   vi.mocked(removeCompetitor).mockResolvedValue({
     ok: true,
-    value: { removedAt: REMOVED_AT },
+    value: { removal: REMOVAL },
   });
   vi.mocked(runCompetitorCheck).mockResolvedValue({
     ok: true,
@@ -354,7 +356,7 @@ describe("CompetitorsWatchList", () => {
 
   /** A remove Core has not answered yet, and the way to answer it. */
   function pendingRemove() {
-    let answer: (result: { ok: true; value: { removedAt: Date } }) => void =
+    let answer: (result: { ok: true; value: { removal: number } }) => void =
       () => {};
     vi.mocked(removeCompetitor).mockReturnValueOnce(
       new Promise((resolve) => {
@@ -362,7 +364,7 @@ describe("CompetitorsWatchList", () => {
       }),
     );
     return () =>
-      act(async () => answer({ ok: true, value: { removedAt: REMOVED_AT } }));
+      act(async () => answer({ ok: true, value: { removal: REMOVAL } }));
   }
 
   const START = (
@@ -413,56 +415,115 @@ describe("CompetitorsWatchList", () => {
     expect(restoreCompetitor).toHaveBeenCalledWith({
       projectId: PROJECT_ID,
       competitorId: "competitor-1",
-      removedAt: REMOVED_AT,
+      removal: REMOVAL,
     });
     expect(addCompetitor).not.toHaveBeenCalled();
     expect(toast.error).not.toHaveBeenCalled();
   });
 
+  /** Clicks the action on the last error toast. */
+  async function tryAgain() {
+    const action = vi.mocked(toast.error).mock.lastCall?.[1]?.action as
+      | { onClick: () => void }
+      | undefined;
+    await act(async () => action?.onClick());
+  }
+
+  async function removeThenUndo() {
+    await userEvent.click(
+      screen.getByRole("button", { name: "Remove Calendly" }),
+    );
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    await undo();
+  }
+
   it.each([
-    [
-      "competitor_removal_stale",
-      "Calendly changed after you removed it, so it stays removed.",
-    ],
-    [
-      "competitor_limit_reached",
-      "Calendly could not come back: you already watch 5. Remove one first.",
-    ],
+    ["competitor_removal_stale", "Removing Calendly can no longer be undone."],
     [
       "competitor_name_taken",
       "Calendly could not come back: another competitor has its name now.",
     ],
-    [undefined, "Calendly could not come back. Try again."],
-  ])(
-    "says in words of its own why Core refused the Undo (%s)",
-    async (kind, words) => {
+  ])("says why Core refused the Undo for good (%s)", async (kind, words) => {
+    vi.mocked(restoreCompetitor).mockResolvedValueOnce({
+      ok: false,
+      error: { code: "CONFLICT", kind, message: "Core's own English" },
+    });
+    list([CALENDLY]);
+    await removeThenUndo();
+    expect(toast.error).toHaveBeenCalledWith(words);
+  });
+
+  it("shows what is there now when the removal can no longer be undone", async () => {
+    vi.mocked(restoreCompetitor).mockResolvedValueOnce({
+      ok: false,
+      error: { code: "CONFLICT", kind: "competitor_removal_stale" },
+    });
+    list([CALENDLY]);
+    await removeThenUndo();
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("keeps Undo on the toast when the list is full, and it still undoes that removal", async () => {
+    vi.mocked(restoreCompetitor).mockResolvedValueOnce({
+      ok: false,
+      error: { code: "CONFLICT", kind: "competitor_limit_reached" },
+    });
+    list([CALENDLY]);
+    await removeThenUndo();
+    expect(toast.error).toHaveBeenCalledWith(
+      "Calendly could not come back: you already watch 5. Remove one first.",
+      { action: { label: "Undo", onClick: expect.any(Function) } },
+    );
+    await tryAgain();
+    expect(restoreCompetitor).toHaveBeenCalledTimes(2);
+    expect(restoreCompetitor).toHaveBeenLastCalledWith({
+      projectId: PROJECT_ID,
+      competitorId: "competitor-1",
+      removal: REMOVAL,
+    });
+  });
+
+  it.each([
+    ["a refusal without a reason", "ok"],
+    ["a failed request", "throws"],
+  ])("offers to try the same Undo again after %s", async (_case, how) => {
+    if (how === "throws")
+      vi.mocked(restoreCompetitor).mockRejectedValueOnce(
+        new Error("Core auth unavailable"),
+      );
+    else
       vi.mocked(restoreCompetitor).mockResolvedValueOnce({
         ok: false,
-        error: { code: "CONFLICT", kind, message: "Core's own English" },
+        error: { code: "INTERNAL_SERVER_ERROR", message: "Core's own English" },
       });
-      list([CALENDLY]);
-      await userEvent.click(
-        screen.getByRole("button", { name: "Remove Calendly" }),
-      );
-      await waitFor(() => expect(toast.success).toHaveBeenCalled());
-      await undo();
-      expect(toast.error).toHaveBeenCalledWith(words);
-    },
-  );
+    list([CALENDLY]);
+    await removeThenUndo();
+    expect(toast.error).toHaveBeenCalledWith("Calendly could not come back.", {
+      action: { label: "Try again", onClick: expect.any(Function) },
+    });
+    await tryAgain();
+    expect(restoreCompetitor).toHaveBeenCalledTimes(2);
+    expect(toast.error).toHaveBeenCalledTimes(1);
+  });
 
-  it("says Undo failed when the request itself fails", async () => {
-    vi.mocked(restoreCompetitor).mockRejectedValueOnce(
-      new Error("Core auth unavailable"),
+  it("sends one Undo however often it is clicked while it runs", async () => {
+    let answer: (result: { ok: true; value: undefined }) => void = () => {};
+    vi.mocked(restoreCompetitor).mockReturnValueOnce(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
     );
     list([CALENDLY]);
     await userEvent.click(
       screen.getByRole("button", { name: "Remove Calendly" }),
     );
     await waitFor(() => expect(toast.success).toHaveBeenCalled());
-    await undo();
-    expect(toast.error).toHaveBeenCalledWith(
-      "Calendly could not come back. Try again.",
-    );
+    const action = vi.mocked(toast.success).mock.calls[0]?.[1]
+      ?.action as unknown as { onClick: () => void };
+    action.onClick();
+    action.onClick();
+    await act(async () => answer({ ok: true, value: undefined }));
+    expect(restoreCompetitor).toHaveBeenCalledTimes(1);
   });
 
   it("sends a signed-out member to sign in from Undo", async () => {

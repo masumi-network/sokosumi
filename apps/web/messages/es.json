@@ -5855,10 +5855,11 @@
         "failed": "No funcionó. Inténtalo de nuevo.",
         "removed": "Se quitó {name}",
         "undo": "Deshacer",
-        "restoreFailed": "No se pudo recuperar {name}. Inténtalo de nuevo.",
-        "restoreStale": "{name} cambió después de quitarlo, así que sigue quitado.",
+        "restoreFailed": "No se pudo recuperar {name}.",
+        "restoreStale": "Ya no se puede deshacer la acción de quitar {name}.",
         "restoreFull": "No se pudo recuperar {name}: ya observas {limit}. Quita uno primero.",
-        "restoreNameTaken": "No se pudo recuperar {name}: otro competidor tiene ahora ese nombre."
+        "restoreNameTaken": "No se pudo recuperar {name}: otro competidor tiene ahora ese nombre.",
+        "retry": "Reintentar"
       },
       "form": {
         "addTitle": "Añadir un competidor",

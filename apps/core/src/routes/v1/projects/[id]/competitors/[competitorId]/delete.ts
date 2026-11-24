@@ -22,7 +22,7 @@ const route = withCoworkerContextHeaderParameters(
     operationId: "removeProjectCompetitor",
     tags: ["Projects"],
     description:
-      "A member stops tracking a competitor. What the checks found about it is kept. `removedAt` names this removal for the restore operation.",
+      "A member stops tracking a competitor. What the checks found about it is kept. `removal` names this removal for the restore operation.",
     request: { params: projectCompetitorParamsSchema },
     responses: {
       200: jsonSuccessResponse(
@@ -42,10 +42,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
     const { userId } = await requireAuthorizedUserContext(c.var.authContext);
     const { id, competitorId } = c.req.valid("param");
     const { projectId } = await requireWorkspaceProject(c, id, userId);
-    const removedAt = await removeTrackedCompetitor(projectId, competitorId);
-    return ok(c, {
-      ...(await competitorsResponse(projectId)),
-      removedAt: removedAt.toISOString(),
-    });
+    const removal = await removeTrackedCompetitor(projectId, competitorId);
+    return ok(c, { ...(await competitorsResponse(projectId)), removal });
   });
 }

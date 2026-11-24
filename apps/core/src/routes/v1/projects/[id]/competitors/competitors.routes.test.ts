@@ -140,7 +140,7 @@ function send(method: string, path: string, body?: unknown) {
 beforeEach(() => {
   vi.resetAllMocks();
   m.requireProjectAccess.mockResolvedValue({ projectId: PROJECT_ID });
-  m.removeTrackedCompetitor.mockResolvedValue(AT);
+  m.removeTrackedCompetitor.mockResolvedValue(1);
   m.getProjectCompetitors.mockResolvedValue(PAGE);
   m.runProjectCompetitorCheck.mockResolvedValue("checked");
 });
@@ -207,23 +207,22 @@ describe("a Project's competitors", () => {
     );
   });
 
-  it("answers a remove with when it happened, and undoes exactly that removal", async () => {
-    const removedAt = new Date("2026-11-24T10:00:00.123Z");
-    m.removeTrackedCompetitor.mockResolvedValue(removedAt);
+  it("answers a remove with its version, and undoes exactly that removal", async () => {
+    m.removeTrackedCompetitor.mockResolvedValue(3);
     const removed = await send("DELETE", `${BASE}/${COMPETITOR_ID}`);
     expect((await removed.json()).data).toMatchObject({
-      removedAt: removedAt.toISOString(),
+      removal: 3,
       competitors: [expect.objectContaining({ id: COMPETITOR_ID })],
     });
 
     const restored = await send("POST", `${BASE}/${COMPETITOR_ID}/restore`, {
-      removedAt: removedAt.toISOString(),
+      removal: 3,
     });
     expect(restored.status).toBe(200);
     expect(m.restoreTrackedCompetitor).toHaveBeenCalledWith(
       PROJECT_ID,
       COMPETITOR_ID,
-      removedAt,
+      3,
     );
   });
 
@@ -234,7 +233,7 @@ describe("a Project's competitors", () => {
       }),
     );
     const response = await send("POST", `${BASE}/${COMPETITOR_ID}/restore`, {
-      removedAt: "2026-11-24T10:00:00.123Z",
+      removal: 3,
     });
     expect(response.status).toBe(409);
     expect((await response.json()).kind).toBe("competitor_removal_stale");
@@ -357,7 +356,7 @@ describe("a Project's competitors", () => {
       send("PATCH", `${BASE}/${COMPETITOR_ID}`, { name: "Z" }),
       send("DELETE", `${BASE}/${COMPETITOR_ID}`),
       send("POST", `${BASE}/${COMPETITOR_ID}/restore`, {
-        removedAt: "2026-11-24T10:00:00.123Z",
+        removal: 3,
       }),
       send("PUT", `${BASE}/checks`, { on: true }),
       send("POST", `${BASE}/check`),

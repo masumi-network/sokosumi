@@ -245,18 +245,20 @@ export const projectCompetitorsSchema = z
   .object(projectCompetitorsShape)
   .openapi("ProjectCompetitors");
 
-const removedAtField = z.iso
-  .datetime()
+const removalField = z
+  .number()
+  .int()
+  .min(1)
   .describe(
-    "When the competitor was removed. It names this removal: an Undo sends it back.",
+    "Which removal of the competitor this was. It names the removal: an Undo sends it back.",
   );
 
 export const projectCompetitorRemovalSchema = z
-  .object({ ...projectCompetitorsShape, removedAt: removedAtField })
+  .object({ ...projectCompetitorsShape, removal: removalField })
   .openapi("ProjectCompetitorRemoval");
 
 export const projectCompetitorRestoreSchema = z
-  .object({ removedAt: removedAtField })
+  .object({ removal: removalField })
   .openapi("ProjectCompetitorRestore");
 
 export const projectCompetitorChecksSchema = z

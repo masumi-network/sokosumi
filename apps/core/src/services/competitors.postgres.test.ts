@@ -345,8 +345,8 @@ describe.skipIf(!enabled)("tracked competitors (PostgreSQL)", () => {
     await updateTrackedCompetitor(cuso.projectId, zcal.id, {
       pricingUrl: "zcal.co/pricing",
     });
-    const removedAt = await removeTrackedCompetitor(cuso.projectId, zcal.id);
-    await restoreTrackedCompetitor(cuso.projectId, zcal.id, removedAt);
+    const removal = await removeTrackedCompetitor(cuso.projectId, zcal.id);
+    await restoreTrackedCompetitor(cuso.projectId, zcal.id, removal);
     expect(await listTrackedCompetitors(cuso.projectId)).toEqual([
       expect.objectContaining({
         id: zcal.id,
@@ -369,8 +369,8 @@ describe.skipIf(!enabled)("tracked competitors (PostgreSQL)", () => {
     });
     const before = await listTrackedCompetitors(cuso.projectId);
     for (const row of before) {
-      const removedAt = await removeTrackedCompetitor(cuso.projectId, row.id);
-      await restoreTrackedCompetitor(cuso.projectId, row.id, removedAt);
+      const removal = await removeTrackedCompetitor(cuso.projectId, row.id);
+      await restoreTrackedCompetitor(cuso.projectId, row.id, removal);
     }
     const after = await listTrackedCompetitors(cuso.projectId);
     expect(after.map((row) => row.memberEditedAt)).toEqual(
@@ -427,15 +427,42 @@ describe.skipIf(!enabled)("tracked competitors (PostgreSQL)", () => {
     });
   });
 
+  it("tells removals apart when the clock does not move", async () => {
+    vi.useFakeTimers({
+      toFake: ["Date"],
+      now: new Date("2026-11-24T10:00:00Z"),
+    });
+    try {
+      const cuso = await seedCuso();
+      await addTrackedCompetitor(cuso.projectId, { name: "Zcal" });
+      const [zcal] = await listTrackedCompetitors(cuso.projectId);
+      if (!zcal) throw new Error("not seeded");
+      const first = await removeTrackedCompetitor(cuso.projectId, zcal.id);
+      await restoreTrackedCompetitor(cuso.projectId, zcal.id, first);
+      const second = await removeTrackedCompetitor(cuso.projectId, zcal.id);
+      expect(second).not.toBe(first);
+      await expect(
+        restoreTrackedCompetitor(cuso.projectId, zcal.id, first),
+      ).rejects.toMatchObject({
+        status: 409,
+        cause: { kind: "competitor_removal_stale" },
+      });
+      await restoreTrackedCompetitor(cuso.projectId, zcal.id, second);
+      expect(await names(cuso.projectId)).toEqual(["Zcal"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("refuses an Undo for a competitor of another Project", async () => {
     const cuso = await seedCuso();
     const other = await seedCuso();
     await addTrackedCompetitor(cuso.projectId, { name: "Zcal" });
     const [zcal] = await listTrackedCompetitors(cuso.projectId);
     if (!zcal) throw new Error("not seeded");
-    const removedAt = await removeTrackedCompetitor(cuso.projectId, zcal.id);
+    const removal = await removeTrackedCompetitor(cuso.projectId, zcal.id);
     await expect(
-      restoreTrackedCompetitor(other.projectId, zcal.id, removedAt),
+      restoreTrackedCompetitor(other.projectId, zcal.id, removal),
     ).rejects.toMatchObject({
       status: 409,
       cause: { kind: "competitor_removal_stale" },
@@ -449,12 +476,12 @@ describe.skipIf(!enabled)("tracked competitors (PostgreSQL)", () => {
     await addTrackedCompetitor(cuso.projectId, { name: "Calendly" });
     const [doodle, calendly] = await listTrackedCompetitors(cuso.projectId);
     if (!doodle || !calendly) throw new Error("not seeded");
-    const removedAt = await removeTrackedCompetitor(cuso.projectId, doodle.id);
+    const removal = await removeTrackedCompetitor(cuso.projectId, doodle.id);
     await updateTrackedCompetitor(cuso.projectId, calendly.id, {
       name: "Doodle",
     });
     await expect(
-      restoreTrackedCompetitor(cuso.projectId, doodle.id, removedAt),
+      restoreTrackedCompetitor(cuso.projectId, doodle.id, removal),
     ).rejects.toMatchObject({
       status: 409,
       cause: { kind: "competitor_name_taken" },
@@ -468,10 +495,10 @@ describe.skipIf(!enabled)("tracked competitors (PostgreSQL)", () => {
       await addTrackedCompetitor(cuso.projectId, { name });
     const [first] = await listTrackedCompetitors(cuso.projectId);
     if (!first) throw new Error("not seeded");
-    const removedAt = await removeTrackedCompetitor(cuso.projectId, first.id);
+    const removal = await removeTrackedCompetitor(cuso.projectId, first.id);
     await addTrackedCompetitor(cuso.projectId, { name: "F6" });
     await expect(
-      restoreTrackedCompetitor(cuso.projectId, first.id, removedAt),
+      restoreTrackedCompetitor(cuso.projectId, first.id, removal),
     ).rejects.toMatchObject({
       status: 409,
       cause: { kind: "competitor_limit_reached" },
@@ -483,10 +510,10 @@ describe.skipIf(!enabled)("tracked competitors (PostgreSQL)", () => {
     await addTrackedCompetitor(cuso.projectId, { name: "Zcal" });
     const [zcal] = await listTrackedCompetitors(cuso.projectId);
     if (!zcal) throw new Error("not seeded");
-    const removedAt = await removeTrackedCompetitor(cuso.projectId, zcal.id);
+    const removal = await removeTrackedCompetitor(cuso.projectId, zcal.id);
     const results = await Promise.allSettled([
-      restoreTrackedCompetitor(cuso.projectId, zcal.id, removedAt),
-      restoreTrackedCompetitor(cuso.projectId, zcal.id, removedAt),
+      restoreTrackedCompetitor(cuso.projectId, zcal.id, removal),
+      restoreTrackedCompetitor(cuso.projectId, zcal.id, removal),
     ]);
     expect(results.map((result) => result.status).sort()).toEqual([
       "fulfilled",

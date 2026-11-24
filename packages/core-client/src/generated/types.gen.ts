@@ -9039,16 +9039,16 @@ export type ProjectCompetitorRemoval = {
         };
     };
     /**
-     * When the competitor was removed. It names this removal: an Undo sends it back.
+     * Which removal of the competitor this was. It names the removal: an Undo sends it back.
      */
-    removedAt: Date;
+    removal: number;
 };
 
 export type ProjectCompetitorRestore = {
     /**
-     * When the competitor was removed. It names this removal: an Undo sends it back.
+     * Which removal of the competitor this was. It names the removal: an Undo sends it back.
      */
-    removedAt: Date;
+    removal: number;
 };
 
 export type ProjectCompetitorChecks = {
