@@ -19,6 +19,11 @@
       "import": "./src/client.ts",
       "default": "./src/client.ts"
     },
+    "./sql-tables": {
+      "types": "./src/sql-tables.ts",
+      "import": "./src/sql-tables.ts",
+      "default": "./src/sql-tables.ts"
+    },
     "./repositories": {
       "types": "./src/repositories/index.ts",
       "import": "./src/repositories/index.ts",
@@ -37,7 +42,8 @@
   },
   "files": [
     "src",
-    "prisma/*.prisma"
+    "prisma/*.prisma",
+    "prisma/network-tables.json"
   ],
   "scripts": {
     "prisma:generate": "pnpm exec prisma generate --no-hints",

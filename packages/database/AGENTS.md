@@ -71,6 +71,23 @@ const user = await userRepository.getUserById("user-id", prisma);
 import { computeJobStatus, mapJobWithStatus } from "@sokosumi/database/helpers";
 ```
 
+### SQL Tables Export (`@sokosumi/database/sql-tables`)
+
+- **Purpose**: Table names for raw SQL, always with their schema: `sharedTable(table)` and `netTable(network, table)` return `"<schema>"."<table>"` as a `Prisma.Sql` fragment. Raw SQL never relies on the search path.
+- **Argument**: the SQL table name, as the statement would write it (`jobEvent`, not the model `JobEvent`). `prisma/network-tables.json` decides the side: a `shared` table is refused by `netTable` and a Network table by `sharedTable`, as is an unknown name.
+- **Preprod**: `netTable("preprod", …)` throws while Preprod is off or its schema is Mainnet's, so on today's layout no statement can reach Mainnet's rows under Preprod's name.
+- **Layout**: `public` for all three and Preprod off until `configureSqlTables(layout)` is called once at startup. `createSqlTables(layout)` builds the two helpers for names a test passes. Core does not call `configureSqlTables` yet.
+- **This package's statements** name Mainnet (`netTable("mainnet", …)`) until their callers pass a Network.
+- **Check**: `apps/core/src/lib/db/__tests__/unqualified-raw-sql.test.ts` fails on an unqualified table name in this package and reports the ones in Core, the scripts and the tests. Its header lists what it cannot see and the files it leaves out.
+
+```typescript
+import { netTable, sharedTable } from "@sokosumi/database/sql-tables";
+
+await tx.$queryRaw`
+  SELECT j.id FROM ${netTable("mainnet", "Job")} j
+  JOIN ${sharedTable("workspace")} w ON w.id = j."workspaceId"`;
+```
+
 ### Job Types Export (`@sokosumi/database/types/job`)
 
 - **Purpose**: Job include/payload types without pulling the full package surface when needed as a subpath
