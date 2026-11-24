@@ -326,11 +326,11 @@ Notifications are the signed-in person's own. Marking one read clears it everywh
 [VERIFIED: `apps/cli/src/cli/commands/catalog.ts`, `apps/core/agent-surface/users.json`, `organizations.json`, `workspaces.json`] These commands each call one Core operation, like `jobs events`. Commands on your own account take the literal `me` first. An action without a body still needs `--input-json '{}'`.
 
 ```sh
-sokosumi users credits me --organization-slug WORKSPACE_SLUG
+sokosumi workspaces credits me --organization-slug WORKSPACE_SLUG
 sokosumi users preferences me
 sokosumi users update me --input-json '{"firstName":"Ada","lastName":"Lovelace"}'
 sokosumi workspaces create me --input-json '{"kind":"personal"}'
-sokosumi workspaces preferred me
+sokosumi users preferred-workspace me
 sokosumi workspaces design-md --organization-slug WORKSPACE_SLUG
 sokosumi organizations memberships me
 sokosumi organizations members ORGANIZATION_ID

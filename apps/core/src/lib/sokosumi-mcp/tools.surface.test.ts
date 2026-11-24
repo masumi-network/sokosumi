@@ -232,7 +232,7 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
   notifications_read_all: {},
   // SOKD-371: users, organizations and workspaces.
   users_update: { id: "me", body: { firstName: "Ada", lastName: "Lovelace" } },
-  users_credits: { id: "me" },
+  workspaces_credits: { id: "me" },
   users_set_design_md: {
     id: "me",
     body: { content: "# Brand", extractionId: null },
@@ -246,9 +246,9 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
   users_vendor_grants: { id: "me", status: "PENDING" },
   users_deny_vendor_grant: { id: "me", grantId: "grant-1" },
   users_revoke_vendor_grant: { id: "me", grantId: "grant-1" },
-  workspaces_preferred: { id: "me" },
-  workspaces_set_preferred: { id: "me", body: { workspaceId: "ws-1" } },
-  workspaces_delete: { id: "me", workspaceId: "ws-1" },
+  users_preferred_workspace: { id: "me" },
+  users_set_preferred_workspace: { id: "me", body: { workspaceId: "ws-1" } },
+  users_delete_workspace: { id: "me", workspaceId: "ws-1" },
   workspaces_get: { id: "ws-1" },
   workspaces_ad_data_consent: { id: "ws-1" },
   workspaces_calendar_labels: { id: "ws-1", body: { refs: ["ref-1"] } },

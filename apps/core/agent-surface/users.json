@@ -14,8 +14,8 @@
       "mcp": "users_update"
     },
     "GET /users/{id}/credits": {
-      "cli": "users credits",
-      "mcp": "users_credits"
+      "cli": "workspaces credits",
+      "mcp": "workspaces_credits"
     },
     "GET /users/{id}/deletion": {
       "cli": false,
@@ -74,16 +74,16 @@
       "mcp": "workspaces_create"
     },
     "GET /users/{id}/workspaces/preferred": {
-      "cli": "workspaces preferred",
-      "mcp": "workspaces_preferred"
+      "cli": "users preferred-workspace",
+      "mcp": "users_preferred_workspace"
     },
     "PUT /users/{id}/workspaces/preferred": {
-      "cli": "workspaces set-preferred",
-      "mcp": "workspaces_set_preferred"
+      "cli": "users set-preferred-workspace",
+      "mcp": "users_set_preferred_workspace"
     },
     "DELETE /users/{id}/workspaces/{workspaceId}": {
-      "cli": "workspaces delete",
-      "mcp": "workspaces_delete"
+      "cli": "users delete-workspace",
+      "mcp": "users_delete_workspace"
     },
     "GET /users/{id}/pending-organization-invitations": {
       "cli": "organizations pending-invitations",

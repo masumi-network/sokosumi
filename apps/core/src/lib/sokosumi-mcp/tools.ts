@@ -802,7 +802,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     destructive: true,
   },
   {
-    name: "users_credits",
+    name: "workspaces_credits",
     operation: "GET /users/{id}/credits",
     description:
       "Get the credit balance of a workspace: the personal one, or the organization named by `workspace`. Pass id `me`. Check it before agents_hire.",
@@ -872,20 +872,20 @@ export const MCP_TOOLS: readonly McpTool[] = [
     destructive: true,
   },
   {
-    name: "workspaces_preferred",
+    name: "users_preferred_workspace",
     operation: "GET /users/{id}/workspaces/preferred",
     description:
       "Get the workspace a new session opens for the signed-in user. Pass id `me`.",
   },
   {
-    name: "workspaces_set_preferred",
+    name: "users_set_preferred_workspace",
     operation: "PUT /users/{id}/workspaces/preferred",
     description:
       "Set the workspace a new session opens. Pass id `me` and `body.workspaceId` from workspaces_list.",
     destructive: true,
   },
   {
-    name: "workspaces_delete",
+    name: "users_delete_workspace",
     operation: "DELETE /users/{id}/workspaces/{workspaceId}",
     description:
       "Delete the signed-in user's personal workspace. Pass id `me` and `workspaceId`. Refused for an organization workspace, the last workspace, or one with Jobs or Tasks.",
@@ -1125,7 +1125,6 @@ export const MCP_TOOLSETS: readonly string[] = [
 /** The toolsets a server URL without `?toolsets=` gets. */
 export const DEFAULT_TOOLSETS = [
   "workspaces",
-  "users",
   "tasks",
   "jobs",
   "agents",

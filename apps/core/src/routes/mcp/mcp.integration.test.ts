@@ -84,7 +84,10 @@ afterEach(async () => {
 
 describe("Sokosumi MCP server", () => {
   it("serves its tools to a signed-in MCP client", async () => {
-    const client = await connect({ Authorization: "Bearer mcp-token" });
+    const client = await connect(
+      { Authorization: "Bearer mcp-token" },
+      "?toolsets=workspaces,users,tasks",
+    );
 
     expect(client.serverInfo).toMatchObject({ name: "sokosumi" });
     expect(client.instructions).toContain("workspaces_list");
@@ -198,7 +201,7 @@ describe("Sokosumi MCP server", () => {
 
   it("answers a 2026-07-28 request with JSON, and opens no subscription stream", async () => {
     const post = (method: string, params: Record<string, unknown>) =>
-      app.request(`${CORE}/mcp`, {
+      app.request(`${CORE}/mcp?toolsets=users`, {
         method: "POST",
         headers: {
           Authorization: "Bearer mcp-token",

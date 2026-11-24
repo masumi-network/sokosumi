@@ -616,7 +616,7 @@ export const CLI_COMMAND_CATALOG = [
     operation: "PATCH /users/{id}",
   },
   {
-    command: "users credits",
+    command: "workspaces credits",
     usage: "me [--organization-slug WORKSPACE_SLUG]",
     operation: "GET /users/{id}/credits",
   },
@@ -696,17 +696,17 @@ export const CLI_COMMAND_CATALOG = [
     operation: "POST /users/{id}/workspaces",
   },
   {
-    command: "workspaces preferred",
+    command: "users preferred-workspace",
     usage: "me",
     operation: "GET /users/{id}/workspaces/preferred",
   },
   {
-    command: "workspaces set-preferred",
+    command: "users set-preferred-workspace",
     usage: "me --input-json JSON",
     operation: "PUT /users/{id}/workspaces/preferred",
   },
   {
-    command: "workspaces delete",
+    command: "users delete-workspace",
     usage: "me WORKSPACE_ID",
     operation: "DELETE /users/{id}/workspaces/{workspaceId}",
   },

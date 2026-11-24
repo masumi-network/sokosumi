@@ -314,7 +314,8 @@ class TestOAuthProvider implements OAuthClientProvider {
 async function connectWithOAuth(provider = new TestOAuthProvider()) {
   const transport = {
     type: "http" as const,
-    url: MCP,
+    // `users` is off by default; users_get proves the token acts as the person.
+    url: `${MCP}?toolsets=workspaces,users`,
     authProvider: provider,
     fetch: fetchCore,
   };

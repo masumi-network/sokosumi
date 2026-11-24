@@ -256,7 +256,7 @@ Commands that call one Core operation, such as jobs events, tasks files and task
   Sharing a Job, refunds and agent ratings stay in the app.
 
 Account, organizations and workspaces:
-  Commands on your own account take the literal me: sokosumi users credits me, sokosumi workspaces create me --input-json '{"kind":"personal"}'.
+  Commands on your own account take the literal me: sokosumi workspaces credits me, sokosumi workspaces create me --input-json '{"kind":"personal"}'.
   An action with no body still needs one: sokosumi organizations deny-vendor-grant ORGANIZATION_ID GRANT_ID --input-json '{}'.
   Organization commands take the organization id from workspaces list. Owner and admin commands answer 403 for other members.
   Billing, account deletion, sessions and OAuth consents stay in Sokosumi Web.

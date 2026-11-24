@@ -632,7 +632,7 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       '{"firstName":"Ada","lastName":"Lovelace"}',
     ],
   },
-  "GET /users/{id}/credits": { argv: [...API, "users", "credits", "me"] },
+  "GET /users/{id}/credits": { argv: [...API, "workspaces", "credits", "me"] },
   "PUT /users/{id}/design-md": {
     argv: [
       ...API,
@@ -760,20 +760,20 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
     ],
   },
   "GET /users/{id}/workspaces/preferred": {
-    argv: [...API, "workspaces", "preferred", "me"],
+    argv: [...API, "users", "preferred-workspace", "me"],
   },
   "PUT /users/{id}/workspaces/preferred": {
     argv: [
       ...API,
-      "workspaces",
-      "set-preferred",
+      "users",
+      "set-preferred-workspace",
       "me",
       "--input-json",
       '{"workspaceId":"ws-1"}',
     ],
   },
   "DELETE /users/{id}/workspaces/{workspaceId}": {
-    argv: [...API, "workspaces", "delete", "me", "ws-1"],
+    argv: [...API, "users", "delete-workspace", "me", "ws-1"],
   },
   "GET /users/{id}/members": {
     argv: [...API, "organizations", "memberships", "me"],
