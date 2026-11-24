@@ -864,6 +864,8 @@ describe("Plan", () => {
       '<button type="button" aria-pressed="false">Yes</button><button type="button" aria-pressed="false">No</button>',
     );
     expect(html).not.toContain("Monthly ad budget");
+    // Ad blockers hide elements labelled "Ads" or classed "*-ads" (Brave, 2026-11-24).
+    expect(html).not.toMatch(/aria-label="Ads"|class="[^"]*-ads\b/);
   });
 
   it("shows the owner's No to ads as picked", () => {

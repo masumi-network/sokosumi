@@ -11,7 +11,7 @@ import {
   Search,
   ShoppingBag,
 } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 
 import { channelLabel } from "../lib/calendar";
 import { channelKey } from "../lib/channels";
@@ -292,6 +292,7 @@ export function AdsChoice({
   const [saving, setSaving] = useState(false);
   const value = Number(amount.replace(/[^\d.]/g, ""));
   const suggested = ads.suggest;
+  const questionId = useId();
 
   async function save(monthly: number) {
     if (!onSetAds) return;
@@ -306,8 +307,10 @@ export function AdsChoice({
   }
 
   return (
-    <div className="sc-ads">
-      <p className="sc-ads-question">Do you want ads?</p>
+    <div className="sc-budget">
+      <p id={questionId} className="sc-budget-question">
+        Do you want ads?
+      </p>
       {suggested && !on && wants !== false ? (
         <p>
           {AGENT_NAME} suggests {money(suggested.monthly, ads.currency)} a month
@@ -322,7 +325,8 @@ export function AdsChoice({
         Ads are extra to your plan: you pay the ad network directly, and{" "}
         {AGENT_NAME} never spends more than the budget you set.
       </p>
-      <div className="ob-tabs" role="group" aria-label="Ads">
+      {/* Ad blockers hide anything labelled "Ads" (Brave hid these buttons, 2026-11-24). */}
+      <div className="ob-tabs" role="group" aria-labelledby={questionId}>
         <button
           type="button"
           aria-pressed={wants === true}
@@ -351,14 +355,14 @@ export function AdsChoice({
       ) : null}
       {wants ? (
         <form
-          className="sc-ads-form"
+          className="sc-budget-form"
           onSubmit={(event) => {
             event.preventDefault();
             if (!Number.isFinite(value) || value <= 0) return;
             void save(value);
           }}
         >
-          <label className="sc-ads-input">
+          <label className="sc-budget-input">
             <span>{ads.currency}</span>
             <input
               inputMode="decimal"
