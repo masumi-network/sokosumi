@@ -67,7 +67,7 @@ export function pendingProblems(
 
 /** A list entry as a glob that matches exactly that file (`[id]` is literal). */
 export function literalGlob(file: string): string {
-  return file.replace(/[[\]{}()*?!+@]/g, "\\$&");
+  return file.replace(/[\\[\]{}()*?!+@]/g, "\\$&");
 }
 
 /**

@@ -91,6 +91,10 @@ describe("the split-layout pending list", () => {
     );
   });
 
+  it("escapes a backslash too", () => {
+    expect(literalGlob("src/a\\[b].ts")).toBe("src/a\\\\\\[b\\].ts");
+  });
+
   it("lists only files under src/ that exist", () => {
     const core = fileURLToPath(new URL("../..", import.meta.url));
     const files = [
