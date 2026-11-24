@@ -117,6 +117,182 @@ export const MCP_TOOLS: readonly McpTool[] = [
     description:
       "Check whether a Coworker Task's payment settled, with the seller receipt.",
   },
+  // SOKD-369: schedules, files, follow, participants, workspace, summary, due dates.
+  {
+    name: "tasks_summary",
+    operation: "GET /tasks/summary",
+    description:
+      "Count a workspace's Tasks over the last 24 hours, with the 24 hours before for a trend. `scope`: `owned` (default) or `workspace`.",
+  },
+  {
+    name: "tasks_view",
+    operation: "GET /tasks/view",
+    description:
+      "Get the Tasks page view the signed-in user last chose in a workspace, as a query string.",
+  },
+  {
+    name: "tasks_set_view",
+    operation: "PUT /tasks/view",
+    description:
+      "Save the Tasks page view the signed-in user sees next in a workspace: `body.query`, a URL query string without `?`.",
+    destructive: true,
+  },
+  {
+    name: "tasks_move_overdue",
+    operation: "POST /tasks/due-dates/move-overdue",
+    description:
+      "Move the signed-in user's overdue open Tasks to a new due day: `body.today` and `body.to` (YYYY-MM-DD). At most 100. Keep the returned moves to undo with tasks_undo_move_overdue.",
+    destructive: true,
+  },
+  {
+    name: "tasks_undo_move_overdue",
+    operation: "POST /tasks/due-dates/undo",
+    description:
+      "Undo tasks_move_overdue: `body.to` and `body.tasks` (`id`, `from`, `version`) from its result. A Task changed since keeps its day.",
+  },
+  {
+    name: "tasks_list_schedules",
+    operation: "GET /tasks/schedules",
+    description:
+      "List a workspace's Task Schedules, the repeating rules that create Tasks. Filter by `state`, `projectId` or `q`; pass `cursor` for the next page.",
+  },
+  {
+    name: "tasks_create_schedule",
+    operation: "POST /tasks/schedules",
+    description:
+      "Create a Task Schedule: `body.name`, `body.rule.expr` (five-field cron, read in `body.rule.timezone`) and the blueprint of each Task, such as `body.description` and `body.assigneeId` from tasks_schedule_assignees. A Task assigned to a Coworker may spend workspace credits when it runs.",
+  },
+  {
+    name: "tasks_schedule_assignees",
+    operation: "GET /tasks/schedules/assignees",
+    description:
+      "List the Coworkers and Soko Bot a Task Schedule in a workspace can assign its Tasks to.",
+  },
+  {
+    name: "tasks_get_schedule",
+    operation: "GET /tasks/schedules/{id}",
+    description:
+      "Get a Task Schedule with its rule, blueprint, state, next Run and `revision`.",
+  },
+  {
+    name: "tasks_update_schedule",
+    operation: "PATCH /tasks/schedules/{id}",
+    description:
+      "Change a Task Schedule's name, blueprint or rule. `body.expectedRevision` from tasks_get_schedule; `body.rule` replaces the whole rule. Future Runs only.",
+    destructive: true,
+  },
+  {
+    name: "tasks_delete_schedule",
+    operation: "DELETE /tasks/schedules/{id}",
+    description:
+      "Delete a Task Schedule. The Tasks it created stay. Use tasks_end_schedule to stop it and keep it readable.",
+  },
+  {
+    name: "tasks_pause_schedule",
+    operation: "POST /tasks/schedules/{id}/pause",
+    description:
+      "Pause an active Task Schedule. No Run creates a Task while it is paused.",
+  },
+  {
+    name: "tasks_resume_schedule",
+    operation: "POST /tasks/schedules/{id}/resume",
+    description:
+      "Resume a paused Task Schedule from its next Run after now. It ends instead when its end rule passed.",
+  },
+  {
+    name: "tasks_end_schedule",
+    operation: "POST /tasks/schedules/{id}/end",
+    description:
+      "End a Task Schedule for good. It stays readable with the Tasks it created.",
+  },
+  {
+    name: "tasks_schedule_runs",
+    operation: "GET /tasks/schedules/{id}/runs",
+    description:
+      "List a Task Schedule's Runs in time order: past ones with their Tasks, skipped and moved ones, and planned ones. Filter by `from` and `to`; pass `cursor` for the next page.",
+  },
+  {
+    name: "tasks_run_schedule",
+    operation: "POST /tasks/schedules/{id}/runs",
+    description:
+      "Spends workspace credits. Run a Task Schedule now: create one extra Task at once, which may start a paid Coworker or audit. `body.expectedRevision` from tasks_get_schedule. Confirm with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "tasks_update_schedule_run",
+    operation: "PATCH /tasks/schedules/{id}/runs/{runId}",
+    description:
+      "Skip, move or restore one planned Run: `body.action` (`skip`, `move` with `body.scheduledAt`, `restore`) and `body.expectedRevision`. The rule stays.",
+    destructive: true,
+  },
+  {
+    name: "tasks_update_link",
+    operation: "PATCH /tasks/{id}/links/{linkId}",
+    description:
+      "Change a link's `body.relation` or `body.note`. `linkId` from tasks_links. Use tasks_move for parent and sub-task.",
+    destructive: true,
+  },
+  {
+    name: "tasks_join",
+    operation: "POST /tasks/{id}/participants",
+    description:
+      "Join a Task as a participant: the signed-in user gets its notifications.",
+  },
+  {
+    name: "tasks_leave",
+    operation: "DELETE /tasks/{id}/participants/{userId}",
+    description:
+      "Leave a Task as a participant. `userId` is the signed-in user's id from users_get.",
+    destructive: false,
+  },
+  {
+    name: "tasks_follow",
+    operation: "POST /tasks/{id}/follow",
+    description:
+      "Follow a Task with the signed-in user's personal Soko Bot, which reports its moments to them. Needs a Soko Bot in the Task's workspace.",
+  },
+  {
+    name: "tasks_unfollow",
+    operation: "DELETE /tasks/{id}/follow",
+    description: "Stop following a Task with the signed-in user's Soko Bot.",
+    destructive: false,
+  },
+  {
+    name: "tasks_send_to_chat",
+    operation: "POST /tasks/{id}/chat-messages",
+    description:
+      "Post a link to a Task, with an optional `body.note`, into a chat room the signed-in user belongs to: `body.roomId` and a unique `body.clientMessageId`. It mentions no one and starts no agent.",
+  },
+  {
+    name: "tasks_workspace",
+    operation: "GET /tasks/{id}/workspace",
+    description:
+      "Find which workspace a Task is in, across the workspaces the signed-in user can open.",
+  },
+  {
+    name: "tasks_set_workspace",
+    operation: "PUT /tasks/{id}/workspace",
+    description:
+      "Move a Task to another workspace: `body.organizationId`, or null for the personal workspace. Only its owner may move it.",
+    destructive: true,
+  },
+  {
+    name: "tasks_restore",
+    operation: "POST /tasks/{id}/restore",
+    description:
+      "Restore an archived Task. A Task that was waiting to run comes back as a Draft, so nothing runs until someone starts it.",
+  },
+  {
+    name: "tasks_files",
+    operation: "GET /tasks/{id}/files",
+    description: "List the files uploaded to a Task, newest first.",
+  },
+  {
+    name: "tasks_upload_url",
+    operation: "POST /tasks/{id}/files",
+    description:
+      "Get an upload URL for a Task file: `body.filename`, `body.contentType` and `body.size` in bytes (at most 100 MB). PUT the bytes to `uploadUrl` with the returned headers; the file then shows in tasks_files.",
+  },
   {
     name: "jobs_list",
     operation: "GET /jobs",

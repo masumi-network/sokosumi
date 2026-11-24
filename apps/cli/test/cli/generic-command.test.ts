@@ -130,6 +130,35 @@ test("a generic write sends --input-json or --input-file as the body", async () 
   assert.deepEqual(JSON.parse(output[0]!), { data: { id: "x-1" } });
 });
 
+test("a generic write whose row has noBody sends no body and refuses one", async () => {
+  const calls: { path: string; body: unknown }[] = [];
+  const client = {
+    post: async <T>(path: string, body: unknown) => {
+      calls.push({ path, body });
+      return { data: { id: "x-1" } } as T;
+    },
+  } as unknown as CoreHttpClient;
+  const run = (options: Record<string, string>) =>
+    runGenericCommand({
+      client,
+      stdout: { write() {} },
+      row: {
+        command: "things pause",
+        usage: "ID",
+        operation: "POST /things/{id}/pause",
+        noBody: true,
+      },
+      args: ["x-1"],
+      options,
+    });
+  await run({});
+  await assert.rejects(
+    run({ "input-json": "{}" }),
+    /`things pause` takes no --input-json or --input-file/,
+  );
+  assert.deepEqual(calls, [{ path: "/v1/things/x-1/pause", body: undefined }]);
+});
+
 for (const [name, argv, message] of [
   [
     "a missing path parameter",
@@ -204,15 +233,15 @@ test("jobs commands send the selected Workspace", async (t) => {
 for (const [argv, message] of [
   [
     ["tasks", "list", "--query", "status=READY"],
-    /--query is only supported by coworkers list-api-keys, .*jobs links/,
+    /--query is only supported by the commands that call one Core operation \(see sokosumi --help\)/,
   ],
   [
     ["skills", "--query", "a=b"],
-    /--query is only supported by coworkers list-api-keys/,
+    /--query is only supported by the commands that call one Core operation/,
   ],
   [
     ["runtime", "receipt", "task-1", "--query", "a=b"],
-    /--query is only supported by coworkers list-api-keys/,
+    /--query is only supported by the commands that call one Core operation/,
   ],
   [
     ["agents", "list", "--organization-slug", "utxo"],

@@ -201,6 +201,28 @@ sokosumi --api-url https://api.sokosumi.com tasks move SOK-16 --organization-slu
 - The spec lives in the description, written while the Task is `DRAFT` or `READY`. Long specs go through `--description-file`.
 - Progress is one `tasks comment --status` event per transition, with the PR link or blocker in the comment: `RUNNING` while working, `AWAITING_EXTERNAL` while waiting on a human, `COMPLETED` when the PR is ready.
 
+### Schedules, files, sharing and more
+
+[VERIFIED: `apps/cli/src/cli/commands/catalog.ts`, `apps/core/agent-surface/tasks.json`] These `tasks` commands each call one Core operation (see [Marketplace Agents and Jobs](#marketplace-agents-and-jobs) for the options). Path values are positionals; a write takes its body from `--input-json` or `--input-file`, except the ones marked _no body_.
+
+| Need                            | Commands                                                                                                                                                                                             |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repeating work (Task Schedules) | `list-schedules`, `get-schedule ID`, `create-schedule`, `update-schedule ID`, `pause-schedule ID` / `resume-schedule ID` / `end-schedule ID` (_no body_), `delete-schedule ID`, `schedule-assignees` |
+| A schedule's Runs               | `schedule-runs ID`, `run-schedule ID` (creates a Task now; may spend credits), `update-schedule-run ID RUN_ID` (`skip`, `move`, `restore`)                                                           |
+| Files                           | `files TASK_ID`, `upload-url TASK_ID` (then PUT the bytes to `uploadUrl` with the returned headers)                                                                                                  |
+| Participation                   | `join TASK_ID` / `follow TASK_ID` (_no body_), `leave TASK_ID USER_ID`, `unfollow TASK_ID`                                                                                                           |
+| Place and recovery              | `workspace TASK_ID`, `set-workspace TASK_ID` (`{"organizationId": ...}`), `restore TASK_ID` (_no body_), `update-link TASK_ID LINK_ID`                                                               |
+| Overview                        | `summary` (`--query scope=workspace` for every Task, not just yours), `view`, `set-view`, `move-overdue`, `undo-move-overdue`, `send-to-chat TASK_ID`                                                |
+| Coworker key only               | `add-job TASK_ID` (hires an agent for the Task; spends credits)                                                                                                                                      |
+
+```bash
+sokosumi tasks create-schedule --organization-slug WORKSPACE_SLUG --input-json '{"name":"Weekly report","rule":{"expr":"0 9 * * 1","timezone":"Europe/Berlin"},"assigneeId":"COWORKER_ID"}'
+sokosumi tasks pause-schedule SCHEDULE_ID --organization-slug WORKSPACE_SLUG
+sokosumi tasks update-schedule-run SCHEDULE_ID RUN_ID --organization-slug WORKSPACE_SLUG --input-json '{"expectedRevision":3,"action":"skip"}'
+```
+
+Schedule writes take `expectedRevision` from `get-schedule`; a stale one is a `409`. The rule is a five-field cron read in its `timezone`. Public share links, tag suggestions, x402 payments, and the SEO worker's runtime routes stay off the CLI and MCP; `apps/core/agent-surface/tasks.json` says why for each.
+
 ## Developer onboarding when requested
 
 [REPORTED: user product direction, 2026-09-27] Adding developers follows the private Workspace path. Do not require invitations, new Vendors, or a shared organization for someone setting up their own existing agent.
@@ -272,7 +294,7 @@ sokosumi jobs links JOB_ID
 
 `agents hire` reads the input schema. Do not guess required fields. For a Job `inputRequest`, show its `eventId`, `message`, and `inputSchema`. Ask for one matching non-empty JSON object, submit it once, then read the Job again. Keep the selected target. Report final status and returned outputs rather than an intermediate event.
 
-[VERIFIED: `apps/cli/src/cli/commands/catalog.ts`] `jobs events`, `jobs files`, and `jobs links` each call one Core operation and print Core's JSON body as is. Commands like these take path values as positionals, `--query KEY=VALUE` (repeatable), `--input-json` or `--input-file` for a write body (required), and `--organization-slug WORKSPACE_SLUG`; any other option is an error. Every `jobs` command takes `--organization-slug WORKSPACE_SLUG` for a Job in an organization Workspace.
+[VERIFIED: `apps/cli/src/cli/commands/catalog.ts`] `jobs events`, `jobs files`, and `jobs links` each call one Core operation and print Core's JSON body as is. Commands like these take path values as positionals, `--query KEY=VALUE` (repeatable), `--input-json` or `--input-file` for a write body (required unless the command takes none), and `--organization-slug WORKSPACE_SLUG`; any other option is an error. Every `jobs` command takes `--organization-slug WORKSPACE_SLUG` for a Job in an organization Workspace.
 
 ## Use Sokosumi over MCP
 

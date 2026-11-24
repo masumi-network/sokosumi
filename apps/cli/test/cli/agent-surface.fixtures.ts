@@ -609,4 +609,152 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   "GET /workspaces/{id}/social-connections/statistics": {
     argv: [...API, "workspaces", "social-statistics", "ws-1"],
   },
+  // SOKD-369: schedules, files, follow, participants, workspace, summary, due dates.
+  "GET /tasks/summary": {
+    argv: [...API, "tasks", "summary", "--query", "scope=workspace"],
+  },
+  "GET /tasks/view": { argv: [...API, "tasks", "view"] },
+  "PUT /tasks/view": {
+    argv: [...API, "tasks", "set-view", "--input-json", '{"query":""}'],
+  },
+  "POST /tasks/due-dates/move-overdue": {
+    argv: [
+      ...API,
+      "tasks",
+      "move-overdue",
+      "--input-json",
+      '{"today":"2026-11-24","to":"2026-11-25"}',
+    ],
+  },
+  "POST /tasks/due-dates/undo": {
+    argv: [...API, "tasks", "undo-move-overdue", "--input-json", "{}"],
+  },
+  "GET /tasks/schedules": { argv: [...API, "tasks", "list-schedules"] },
+  "POST /tasks/schedules": {
+    argv: [
+      ...API,
+      "tasks",
+      "create-schedule",
+      "--input-json",
+      '{"name":"Weekly report","rule":{"expr":"0 9 * * 1"}}',
+    ],
+  },
+  "GET /tasks/schedules/assignees": {
+    argv: [...API, "tasks", "schedule-assignees"],
+  },
+  "GET /tasks/schedules/{id}": {
+    argv: [...API, "tasks", "get-schedule", "sched-1"],
+  },
+  "PATCH /tasks/schedules/{id}": {
+    argv: [
+      ...API,
+      "tasks",
+      "update-schedule",
+      "sched-1",
+      "--input-json",
+      '{"expectedRevision":3}',
+    ],
+  },
+  "DELETE /tasks/schedules/{id}": {
+    argv: [...API, "tasks", "delete-schedule", "sched-1"],
+  },
+  "POST /tasks/schedules/{id}/pause": {
+    argv: [...API, "tasks", "pause-schedule", "sched-1"],
+  },
+  "POST /tasks/schedules/{id}/resume": {
+    argv: [...API, "tasks", "resume-schedule", "sched-1"],
+  },
+  "POST /tasks/schedules/{id}/end": {
+    argv: [...API, "tasks", "end-schedule", "sched-1"],
+  },
+  "GET /tasks/schedules/{id}/runs": {
+    argv: [...API, "tasks", "schedule-runs", "sched-1"],
+  },
+  "POST /tasks/schedules/{id}/runs": {
+    argv: [
+      ...API,
+      "tasks",
+      "run-schedule",
+      "sched-1",
+      "--input-json",
+      '{"expectedRevision":3}',
+    ],
+  },
+  "PATCH /tasks/schedules/{id}/runs/{runId}": {
+    argv: [
+      ...API,
+      "tasks",
+      "update-schedule-run",
+      "sched-1",
+      "run-1",
+      "--input-json",
+      '{"expectedRevision":3,"action":"skip"}',
+    ],
+  },
+  "PATCH /tasks/{id}/links/{linkId}": {
+    argv: [
+      ...API,
+      "tasks",
+      "update-link",
+      "task-1",
+      "link-1",
+      "--input-json",
+      '{"note":"Waits on the copy."}',
+    ],
+  },
+  "POST /tasks/{id}/participants": {
+    argv: [...API, "tasks", "join", "task-1"],
+  },
+  "DELETE /tasks/{id}/participants/{userId}": {
+    argv: [...API, "tasks", "leave", "task-1", "user-1"],
+  },
+  "POST /tasks/{id}/follow": { argv: [...API, "tasks", "follow", "task-1"] },
+  "DELETE /tasks/{id}/follow": {
+    argv: [...API, "tasks", "unfollow", "task-1"],
+  },
+  "POST /tasks/{id}/chat-messages": {
+    argv: [
+      ...API,
+      "tasks",
+      "send-to-chat",
+      "task-1",
+      "--input-json",
+      '{"roomId":"room-1","clientMessageId":"msg-1"}',
+    ],
+  },
+  "GET /tasks/{id}/workspace": {
+    argv: [...API, "tasks", "workspace", "task-1"],
+  },
+  "PUT /tasks/{id}/workspace": {
+    argv: [
+      ...API,
+      "tasks",
+      "set-workspace",
+      "task-1",
+      "--input-json",
+      '{"organizationId":"org-1"}',
+    ],
+  },
+  "POST /tasks/{id}/restore": { argv: [...API, "tasks", "restore", "task-1"] },
+  "GET /tasks/{id}/files": { argv: [...API, "tasks", "files", "task-1"] },
+  "POST /tasks/{id}/files": {
+    argv: [
+      ...API,
+      "tasks",
+      "upload-url",
+      "task-1",
+      "--input-json",
+      '{"filename":"brief.pdf","contentType":"application/pdf","size":2048}',
+    ],
+  },
+  "POST /tasks/{id}/jobs": {
+    argv: [
+      ...API,
+      "tasks",
+      "add-job",
+      "task-1",
+      "--input-json",
+      '{"agentId":"agent-1","inputSchema":[],"inputData":{}}',
+    ],
+  },
 };

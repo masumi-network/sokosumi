@@ -23,7 +23,8 @@ const OPTIONS = new Set<string>([
 export interface GenericCommandContext {
   client: CoreHttpClient;
   stdout: CommandOutput;
-  row: Required<CliCommandCatalogEntry>;
+  row: CliCommandCatalogEntry &
+    Required<Pick<CliCommandCatalogEntry, "operation">>;
   /** The positionals after the command words, in path-parameter order. */
   args: readonly string[];
   options?: CliOptions;
@@ -62,7 +63,7 @@ export async function runGenericCommand({
 
   const inputJson = option(options, "input-json");
   const inputFile = option(options, "input-file");
-  const read = method === "GET" || method === "DELETE";
+  const read = method === "GET" || method === "DELETE" || row.noBody === true;
   const input = inputJson !== undefined || inputFile !== undefined;
   if (read && input)
     throw new Error(`\`${row.command}\` takes no --input-json or --input-file`);

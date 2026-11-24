@@ -8,6 +8,8 @@ export interface CliCommandCatalogEntry {
    * without a bespoke handler runs: positionals fill the path parameters.
    */
   readonly operation?: `${CoreMethod} /${string}`;
+  /** The operation takes no JSON body: the command refuses --input-json like a read. */
+  readonly noBody?: true;
 }
 
 export const CLI_COMMAND_CATALOG = [
@@ -249,6 +251,154 @@ export const CLI_COMMAND_CATALOG = [
     command: "tasks move",
     usage:
       "TASK_ID [--parent TASK_ID | --detach] [--after TASK_ID | --first] [--organization-slug WORKSPACE_SLUG]",
+  },
+  // SOKD-369: schedules, files, follow, participants, workspace, summary, due dates.
+  {
+    command: "tasks summary",
+    usage: "[--query scope=owned|workspace]",
+    operation: "GET /tasks/summary",
+  },
+  { command: "tasks view", usage: "", operation: "GET /tasks/view" },
+  {
+    command: "tasks set-view",
+    usage: "--input-json JSON",
+    operation: "PUT /tasks/view",
+  },
+  {
+    command: "tasks move-overdue",
+    usage: "--input-json JSON",
+    operation: "POST /tasks/due-dates/move-overdue",
+  },
+  {
+    command: "tasks undo-move-overdue",
+    usage: "--input-json JSON",
+    operation: "POST /tasks/due-dates/undo",
+  },
+  {
+    command: "tasks list-schedules",
+    usage: "[--query KEY=VALUE]",
+    operation: "GET /tasks/schedules",
+  },
+  {
+    command: "tasks create-schedule",
+    usage: "--input-json JSON",
+    operation: "POST /tasks/schedules",
+  },
+  {
+    command: "tasks schedule-assignees",
+    usage: "",
+    operation: "GET /tasks/schedules/assignees",
+  },
+  {
+    command: "tasks get-schedule",
+    usage: "SCHEDULE_ID",
+    operation: "GET /tasks/schedules/{id}",
+  },
+  {
+    command: "tasks update-schedule",
+    usage: "SCHEDULE_ID --input-json JSON",
+    operation: "PATCH /tasks/schedules/{id}",
+  },
+  {
+    command: "tasks delete-schedule",
+    usage: "SCHEDULE_ID",
+    operation: "DELETE /tasks/schedules/{id}",
+  },
+  {
+    command: "tasks pause-schedule",
+    usage: "SCHEDULE_ID",
+    operation: "POST /tasks/schedules/{id}/pause",
+    noBody: true,
+  },
+  {
+    command: "tasks resume-schedule",
+    usage: "SCHEDULE_ID",
+    operation: "POST /tasks/schedules/{id}/resume",
+    noBody: true,
+  },
+  {
+    command: "tasks end-schedule",
+    usage: "SCHEDULE_ID",
+    operation: "POST /tasks/schedules/{id}/end",
+    noBody: true,
+  },
+  {
+    command: "tasks schedule-runs",
+    usage: "SCHEDULE_ID [--query KEY=VALUE]",
+    operation: "GET /tasks/schedules/{id}/runs",
+  },
+  {
+    command: "tasks run-schedule",
+    usage: "SCHEDULE_ID --input-json JSON",
+    operation: "POST /tasks/schedules/{id}/runs",
+  },
+  {
+    command: "tasks update-schedule-run",
+    usage: "SCHEDULE_ID RUN_ID --input-json JSON",
+    operation: "PATCH /tasks/schedules/{id}/runs/{runId}",
+  },
+  {
+    command: "tasks update-link",
+    usage: "TASK_ID LINK_ID --input-json JSON",
+    operation: "PATCH /tasks/{id}/links/{linkId}",
+  },
+  {
+    command: "tasks join",
+    usage: "TASK_ID",
+    operation: "POST /tasks/{id}/participants",
+    noBody: true,
+  },
+  {
+    command: "tasks leave",
+    usage: "TASK_ID USER_ID",
+    operation: "DELETE /tasks/{id}/participants/{userId}",
+  },
+  {
+    command: "tasks follow",
+    usage: "TASK_ID",
+    operation: "POST /tasks/{id}/follow",
+    noBody: true,
+  },
+  {
+    command: "tasks unfollow",
+    usage: "TASK_ID",
+    operation: "DELETE /tasks/{id}/follow",
+  },
+  {
+    command: "tasks send-to-chat",
+    usage: "TASK_ID --input-json JSON",
+    operation: "POST /tasks/{id}/chat-messages",
+  },
+  {
+    command: "tasks workspace",
+    usage: "TASK_ID",
+    operation: "GET /tasks/{id}/workspace",
+  },
+  {
+    command: "tasks set-workspace",
+    usage: "TASK_ID --input-json JSON",
+    operation: "PUT /tasks/{id}/workspace",
+  },
+  {
+    command: "tasks restore",
+    usage: "TASK_ID",
+    operation: "POST /tasks/{id}/restore",
+    noBody: true,
+  },
+  {
+    command: "tasks files",
+    usage: "TASK_ID",
+    operation: "GET /tasks/{id}/files",
+  },
+  {
+    command: "tasks upload-url",
+    usage: "TASK_ID --input-json JSON",
+    operation: "POST /tasks/{id}/files",
+  },
+  {
+    command: "tasks add-job",
+    usage: "TASK_ID --input-json JSON",
+    operation: "POST /tasks/{id}/jobs",
   },
   { command: "jobs list", usage: "[--organization-slug WORKSPACE_SLUG]" },
   {
