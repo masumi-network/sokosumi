@@ -882,6 +882,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PUT /users/{id}/workspaces/preferred",
     description:
       "Set the workspace a new session opens. Pass id `me` and `body.workspaceId` from workspaces_list.",
+    destructive: true,
   },
   {
     name: "workspaces_delete",
