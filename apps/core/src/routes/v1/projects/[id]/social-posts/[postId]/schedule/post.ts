@@ -24,7 +24,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "post",
     path: "/{id}/social-posts/{postId}/schedule",
     description:
-      "Schedule a Social post through an active Project social connection. Allowed from DRAFT, NEEDS_APPROVAL, SCHEDULED, FAILED and MISSED. A post that still needs approval keeps that status. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.",
+      "Schedule a Social post through an active Project social connection. Allowed from DRAFT, NEEDS_APPROVAL, SCHEDULED, FAILED and MISSED. A post that still needs approval keeps that status, and a Coworker's schedule always lands as Needs approval. Requires an interactive session or an authorized task-capable Coworker with user context in the Project's Workspace. Publish now remains human-only.",
     tags: ["Projects"],
     request: {
       params: socialPostParamsSchema,

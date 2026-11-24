@@ -27,6 +27,6 @@ Preconditions:
 
 ## Gotchas
 
-- Empty schedules is valid for a new fixture user — do not require existing schedules.
+- Empty schedules is valid for a new fixture user — do not require existing schedules. The **All** tab with nothing at all says **No schedules here yet**. A state tab with zero rows while another state still has schedules says **No active schedules**, **No paused schedules**, or **No ended schedules** instead.
 - This is not the [Calendar](./calendar.md) grid. Route constant is `TASK_SCHEDULES_PATH` (`/schedules`).
 - Creating or editing a schedule is out of scope; landing + list/empty shell only.

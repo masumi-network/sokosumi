@@ -684,7 +684,21 @@ const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
   });
   return await next();
 };
+/**
+ * Requests Core builds itself and runs in process, with the caller they act
+ * for: the MCP server dispatches a tool call to `/v1` this way
+ * (`lib/sokosumi-mcp/dispatch.ts`) after it verified the caller's own token.
+ * Only a `Request` object Core holds can be a key, so no header can forge one.
+ */
+export const preAuthenticatedRequests = new WeakMap<Request, AuthVariables>();
+
 export const authMiddleware = createMiddleware<AuthEnv>(async (c, next) => {
+  const preAuthenticated = preAuthenticatedRequests.get(c.req.raw);
+  if (preAuthenticated) {
+    setAuthContext(c, preAuthenticated);
+    return await next();
+  }
+
   const authHeader = c.req.header("authorization");
 
   if (authHeader) {

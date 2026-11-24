@@ -21,7 +21,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "post",
     path: "/{id}/social-account-posts/{accountPostId}/recycle",
     description:
-      "Copy a Performance post into a new Social draft. Uses the original Sokosumi post when one matches, otherwise the imported text. Optional delayDays schedules that draft. Nothing is posted unless a delay is chosen. Requires an interactive session or an authorized task-capable Coworker with user context.",
+      "Copy a Performance post into a new Social draft. Uses the original Sokosumi post when one matches, otherwise the imported text. Optional delayDays schedules that draft. Nothing is posted unless a delay is chosen, and a Coworker's copy waits as Needs approval. Requires an interactive session or an authorized task-capable Coworker with user context.",
     tags: ["Projects"],
     request: {
       params: socialAccountPostParamsSchema,

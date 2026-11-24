@@ -182,9 +182,9 @@ export const EVAL_CASES: readonly EvalCase[] = [
     id: "standup-match",
     suite: "soko-bot",
     area: "Stand-up",
-    title: "Lines from records, a blocker for Robin, one hand-off",
+    title: "Each agent posts its own message, one hand-off",
     intent:
-      "Lines come from Task states, a waiting Task mentions its owner, a private Task stays out, and the DACH need opens a hand-off to Mira, who answers in the thread.",
+      "After a short opener Robin's bot posts its own update and Mira gets a plain line under her name from her Task states; her waiting Task mentions Robin, a private Task stays out, and the DACH need opens a hand-off to Mira under Robin's bot's message, which she answers.",
     kind: "standup",
     setup: "match",
   },
@@ -194,7 +194,7 @@ export const EVAL_CASES: readonly EvalCase[] = [
     area: "Stand-up",
     title: "No hand-off when nobody's work fits",
     intent:
-      "A need no agent's work touches (booking the offsite venue) is listed, but the host opens no hand-off.",
+      "Robin's bot names the need no agent's work touches (booking the offsite venue) in its own message, but no hand-off opens.",
     kind: "standup",
     setup: "no-match",
   },

@@ -6,7 +6,8 @@ import type {
 } from "@sokosumi/core-client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { useSeoChatLifecycle } from "@/hooks/effects/use-seo-chat-lifecycle";
 import { useSession } from "@/lib/auth/auth.client";
 import { seoViewerHeaders } from "@/lib/seo/owner";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -62,14 +63,7 @@ export function useSeoChat(model: SeoWorkspaceModel) {
   const pendingAttempt = useRef<{ fingerprint: string; key: string } | null>(
     null,
   );
-  useLayoutEffect(() => {
-    alive.current = true;
-    return () => {
-      alive.current = false;
-      controller.current?.abort();
-      pendingAttempt.current = null;
-    };
-  }, []);
+  useSeoChatLifecycle(alive, controller, pendingAttempt);
   const auditId = model.data.auditId;
   const key = seoChatKey(
     session?.session.activeOrganizationId,

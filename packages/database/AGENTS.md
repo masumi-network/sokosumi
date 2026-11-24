@@ -42,7 +42,7 @@ import { Prisma, Agent, User, Job } from "@sokosumi/database";
 
 Connection-string callers receive TCP keepalive with a 10-second initial delay.
 Supplied pools retain caller-owned configuration and lifetime: Prisma disconnect
-does not close them. Options expose `onPoolError` and `onConnectionError` callbacks.
+does not close them. Options expose `schema` (the schema model queries name, `public` by default) and the `onPoolError` and `onConnectionError` callbacks. Each client on a shared pool adds its own pool `error` listener when given `onPoolError`, so attach that handler to the pool once instead.
 
 ```typescript
 import { createPrismaClient } from "@sokosumi/database/client";
@@ -140,9 +140,11 @@ export const userRepository = {
 
 **Only Core** creates a Prisma client (`apps/core/src/lib/db/prisma.ts`). Web must not import `@sokosumi/database` or create a client — it reaches data through the Core API.
 
-Core's singleton owns a `pg.Pool`, preserves TCP keepalive, attaches Vercel's idle
-connection cleanup, and reports adapter errors to Sentry. Import that singleton
-in routes and services; do not construct additional pools there.
+Core's singleton owns one `pg.Pool`, preserves TCP keepalive, attaches Vercel's idle
+connection cleanup, and reports adapter errors to Sentry. On that pool it builds
+the `shared` client (the default export) and one client per Network
+(`networkPrisma(network)`), each naming its schema from `DATABASE_SCHEMA_*`. Import
+those in routes and services; do not construct additional pools there.
 
 ```typescript
 import prisma from "@/lib/db/prisma";

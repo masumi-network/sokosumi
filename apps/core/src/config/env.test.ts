@@ -2,11 +2,11 @@ import { TURNSTILE_ALWAYS_PASS_SECRET } from "@sokosumi/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectCoreLog, expectCoreLogWhys } from "@/test/core-log";
 import {
-  invalidVariables,
   isExplicitPreprod,
   resolveWebRelatedProjectFallbackHost,
   validateEnv,
 } from "./env.js";
+import { invalidVariables } from "./invalid-variables.js";
 
 const SOKO_BOT_ENV_KEYS = [
   "NODE_ENV",
@@ -756,6 +756,159 @@ describe("native SEO chat allowance", () => {
     (value) => {
       vi.stubEnv("SEO_CHAT_DAILY_TURN_LIMIT", value);
       expectInvalidEnvironment("SEO_CHAT_DAILY_TURN_LIMIT");
+    },
+  );
+});
+
+describe("database schema names", () => {
+  const names = [
+    "DATABASE_SCHEMA_SHARED",
+    "DATABASE_SCHEMA_MAINNET",
+    "DATABASE_SCHEMA_PREPROD",
+  ] as const;
+
+  it("defaults every schema to today's layout, public", () => {
+    for (const name of names) vi.stubEnv(name, undefined);
+    const env = validateEnv();
+    expect(names.map((name) => env[name])).toEqual([
+      "public",
+      "public",
+      "public",
+    ]);
+  });
+
+  /** Three different names, so only the rule under test can fail. */
+  function stubSplitLayout() {
+    vi.stubEnv("DATABASE_SCHEMA_SHARED", "shared");
+    vi.stubEnv("DATABASE_SCHEMA_MAINNET", "mainnet");
+    vi.stubEnv("DATABASE_SCHEMA_PREPROD", "preprod");
+  }
+
+  it.each(names)("accepts a lowercase identifier for %s", (name) => {
+    stubSplitLayout();
+    vi.stubEnv(name, "net_x");
+    expect(validateEnv()[name]).toBe("net_x");
+  });
+
+  it("accepts a name of PostgreSQL's 63-character identifier limit", () => {
+    stubSplitLayout();
+    vi.stubEnv("DATABASE_SCHEMA_PREPROD", "p".repeat(63));
+    expect(validateEnv().DATABASE_SCHEMA_PREPROD).toBe("p".repeat(63));
+  });
+
+  it.each([
+    'pre"prod',
+    "Preprod",
+    "1preprod",
+    "p".repeat(64),
+    "pg_catalog",
+    "pg_preprod",
+    "information_schema",
+  ])("rejects a name that is not a plain identifier: %s", (value) => {
+    vi.stubEnv("DATABASE_SCHEMA_PREPROD", value);
+    expectInvalidEnvironment("DATABASE_SCHEMA_PREPROD");
+  });
+});
+
+describe("Preprod switch and the schema layout", () => {
+  const names = [
+    "DATABASE_SCHEMA_SHARED",
+    "DATABASE_SCHEMA_MAINNET",
+    "DATABASE_SCHEMA_PREPROD",
+  ] as const;
+  const HALF_CHANGED =
+    "DATABASE_SCHEMA_SHARED, DATABASE_SCHEMA_MAINNET and DATABASE_SCHEMA_PREPROD must be all public, or all different and none public";
+  const PREPROD_NEEDS_SPLIT =
+    "Preprod can be on only while the three DATABASE_SCHEMA_* names are all different and none is public";
+
+  function stubLayout(shared?: string, mainnet?: string, preprod?: string) {
+    vi.stubEnv("DATABASE_SCHEMA_SHARED", shared);
+    vi.stubEnv("DATABASE_SCHEMA_MAINNET", mainnet);
+    vi.stubEnv("DATABASE_SCHEMA_PREPROD", preprod);
+  }
+
+  it("is off by default, on today's all-public layout", () => {
+    stubLayout();
+    vi.stubEnv("NETWORK_PREPROD_ENABLED", undefined);
+    const env = validateEnv();
+    expect(env.NETWORK_PREPROD_ENABLED).toBe(false);
+    expect(names.map((name) => env[name])).toEqual([
+      "public",
+      "public",
+      "public",
+    ]);
+  });
+
+  it("starts with Preprod off on the split layout", () => {
+    stubLayout("shared", "mainnet", "preprod");
+    expect(validateEnv().NETWORK_PREPROD_ENABLED).toBe(false);
+  });
+
+  it("starts with Preprod on on the split layout", () => {
+    stubLayout("shared", "mainnet", "preprod");
+    vi.stubEnv("NETWORK_PREPROD_ENABLED", "true");
+    expect(validateEnv().NETWORK_PREPROD_ENABLED).toBe(true);
+  });
+
+  it.each([
+    // One name changed.
+    ["shared", undefined, undefined],
+    [undefined, "mainnet", undefined],
+    [undefined, undefined, "preprod"],
+    // Two changed, the third left unset and so `public`.
+    ["shared", "mainnet", undefined],
+    ["shared", undefined, "preprod"],
+    [undefined, "mainnet", "preprod"],
+    // Changed, but two names equal.
+    ["shared", "net", "net"],
+    ["net", "mainnet", "net"],
+    ["net", "net", "net"],
+  ])(
+    "refuses to start on a half-changed layout: %s, %s, %s",
+    (shared, mainnet, preprod) => {
+      stubLayout(shared, mainnet, preprod);
+      expectInvalidEnvironment(HALF_CHANGED);
+    },
+  );
+
+  it("refuses Preprod on with shared and Mainnet set and Preprod left unset", () => {
+    stubLayout("shared", "mainnet", undefined);
+    vi.stubEnv("NETWORK_PREPROD_ENABLED", "true");
+    expectInvalidEnvironment(PREPROD_NEEDS_SPLIT);
+  });
+
+  it("reads a blank flag and blank names as unset", () => {
+    stubLayout("", "", "");
+    vi.stubEnv("NETWORK_PREPROD_ENABLED", "");
+    const env = validateEnv();
+    expect(env.NETWORK_PREPROD_ENABLED).toBe(false);
+    expect(names.map((name) => env[name])).toEqual([
+      "public",
+      "public",
+      "public",
+    ]);
+  });
+
+  it("refuses Preprod on with shared and Mainnet set and a blank Preprod name", () => {
+    stubLayout("shared", "mainnet", "");
+    vi.stubEnv("NETWORK_PREPROD_ENABLED", "true");
+    const errors = expectInvalidEnvironment(HALF_CHANGED);
+    expect(JSON.stringify(errors.map((entry) => entry.event))).toContain(
+      PREPROD_NEEDS_SPLIT,
+    );
+  });
+
+  it("refuses to start with Preprod on while every name is public", () => {
+    stubLayout();
+    vi.stubEnv("NETWORK_PREPROD_ENABLED", "true");
+    expectInvalidEnvironment(PREPROD_NEEDS_SPLIT);
+  });
+
+  it.each(["yes", "TRUE", " true"])(
+    "rejects a flag that is not exactly true or false: %j",
+    (value) => {
+      vi.stubEnv("NETWORK_PREPROD_ENABLED", value);
+      expectInvalidEnvironment("NETWORK_PREPROD_ENABLED");
     },
   );
 });

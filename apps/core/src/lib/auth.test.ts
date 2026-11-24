@@ -993,7 +993,8 @@ describe("core auth config", () => {
     >;
 
     expect(config.basePath).toBe("/auth");
-    expect(prismaAdapterMock).toHaveBeenCalledWith(expect.anything(), {
+    // The default export of `@/lib/db/prisma` is the `shared` client.
+    expect(prismaAdapterMock).toHaveBeenCalledWith(prismaMock, {
       provider: "postgresql",
       transaction: true,
     });

@@ -18,7 +18,7 @@ import { PageListSearchContext } from "@/components/page-list-search";
 import { PageSearchActions } from "@/components/page-search-actions";
 import { PageSearchField } from "@/components/page-search-field";
 import { Button } from "@/components/ui/button";
-import { usePageTextFind } from "@/components/use-page-text-find";
+import { usePageTextFind } from "@/hooks/effects/use-page-text-find";
 import { cn } from "@/lib/utils";
 
 /** Dashboards find visible text. Data-backed collections register to filter their records instead. */

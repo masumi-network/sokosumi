@@ -12,6 +12,7 @@ This directory contains documentation for the Sokosumi monorepo.
 
 ## OAuth clients
 
+- [`mcp.md`](./mcp.md) — Sokosumi's MCP server: connecting Claude Code and Claude.ai, scopes, workspaces, toolsets
 - [`oauth-clients.md`](./oauth-clients.md) — Sign in with Sokosumi for third-party apps: endpoints, the `sokosumi:api` scope in three places, token lifetimes, 401 vs 403 `insufficient_scope`, finding the user's workspace
 
 ## Agent tooling

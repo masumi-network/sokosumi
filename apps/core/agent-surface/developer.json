@@ -1,3 +1,12 @@
 {
-  "backlog": "SOKD-372"
+  "operations": {
+    "GET /developer/tasks": {
+      "cli": "developer tasks",
+      "mcp": "developer_tasks"
+    },
+    "GET /developer/tasks/{id}": {
+      "cli": "developer task",
+      "mcp": "developer_task"
+    }
+  }
 }
