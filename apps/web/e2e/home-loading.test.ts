@@ -84,6 +84,8 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
 
       // Home through the app's own navigation.
       if (name === "phone") {
+        // A phone's chat room hides the tab bar; its Back shows it again.
+        await page.getByRole("link", { name: "Back to chats" }).click();
         await page
           .getByRole("navigation", { name: "Main navigation" })
           .getByRole("link", { name: "Home" })
