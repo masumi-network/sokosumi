@@ -1780,7 +1780,12 @@
           "needsYou": "{count, plural, one {# Anfrage braucht dich} other {# Anfragen brauchen dich}}",
           "byTeammates": "{count, plural, one {# Aufgabe von deinem Team} other {# Aufgaben von deinem Team}}",
           "recent": "In den letzten 24 Stunden",
-          "workedHours": "{hours, plural, one {# Stunde gearbeitet} other {# Stunden gearbeitet}}"
+          "workedHours": "{hours, plural, one {# Stunde gearbeitet} other {# Stunden gearbeitet}}",
+          "loadError": {
+            "title": "Die heutigen Zahlen konnten nicht geladen werden.",
+            "help": "Die Liste unten ist aktuell.",
+            "retry": "Erneut versuchen"
+          }
         },
         "MyDay": {
           "title": "Mein Tag",
@@ -1822,7 +1827,8 @@
           "failedReply": "{name} konnte die letzte Antwort nicht abschließen",
           "openChat": "Chat öffnen",
           "failedWork": "{name} konnte die letzte Arbeit nicht abschließen",
-          "openBot": "Seite von {name} öffnen"
+          "openBot": "Seite von {name} öffnen",
+          "welcome": "{name} hat dir eine Begrüßung geschickt"
         },
         "SokoBotSetup": {
           "title": "Hol dir deinen Soko Bot",

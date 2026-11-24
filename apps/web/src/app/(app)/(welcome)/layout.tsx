@@ -1,6 +1,5 @@
 import type { Viewport } from "next";
 
-import { ChatRouteErrorBoundary } from "@/app/chat/components/chat-route-error-boundary.client";
 import { APP_VIEWPORT_BASE } from "@/lib/app-viewport";
 
 /**
@@ -18,7 +17,8 @@ export default function WelcomeLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Bottom nav lives in AppMobileChrome (app frame). Page boundary only here
-  // so Instant Navigations can still validate if page chrome throws.
-  return <ChatRouteErrorBoundary>{children}</ChatRouteErrorBoundary>;
+  // Bottom nav lives in AppMobileChrome (app frame). A failed Home falls to
+  // the app's own error screen (`(app)/error.tsx`), as every other page
+  // does, not the chat's.
+  return children;
 }
