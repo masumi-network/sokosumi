@@ -52,8 +52,10 @@ vi.mock("./components/my-day", () => ({
     return <div>my day</div>;
   },
 }));
-vi.mock("./components/going-out-today", () => ({
+vi.mock("./components/going-out-today-data", () => ({
   loadGoingOutToday: (input: unknown) => loadGoingOutToday(input),
+}));
+vi.mock("./components/going-out-today", () => ({
   GoingOutToday: () => <div>going out</div>,
 }));
 vi.mock("next/navigation", async (importOriginal) => ({

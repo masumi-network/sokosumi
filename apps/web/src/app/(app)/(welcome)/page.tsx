@@ -13,7 +13,8 @@ import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.clie
 import { projectService } from "@/lib/services/project.service";
 import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
 
-import { GoingOutToday, loadGoingOutToday } from "./components/going-out-today";
+import { GoingOutToday } from "./components/going-out-today";
+import { loadGoingOutToday } from "./components/going-out-today-data";
 import { countOverdue, loadMyDay, MyDay } from "./components/my-day";
 import { SokoBotHome } from "./components/soko-bot-home";
 import {
@@ -94,7 +95,6 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
     <Suspense fallback={null}>
       {GoingOutToday({
         feed: request.then(() => loadGoingOutToday({ today, timeZone, scope })),
-        today,
       })}
     </Suspense>
   );
