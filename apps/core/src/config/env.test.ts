@@ -800,7 +800,6 @@ describe("database schema names", () => {
     'pre"prod',
     "Preprod",
     "1preprod",
-    "",
     "p".repeat(64),
     "pg_catalog",
     "pg_preprod",
@@ -878,13 +877,34 @@ describe("Preprod switch and the schema layout", () => {
     expectInvalidEnvironment(PREPROD_NEEDS_SPLIT);
   });
 
+  it("reads a blank flag and blank names as unset", () => {
+    stubLayout("", "", "");
+    vi.stubEnv("NETWORK_PREPROD_ENABLED", "");
+    const env = validateEnv();
+    expect(env.NETWORK_PREPROD_ENABLED).toBe(false);
+    expect(names.map((name) => env[name])).toEqual([
+      "public",
+      "public",
+      "public",
+    ]);
+  });
+
+  it("refuses Preprod on with shared and Mainnet set and a blank Preprod name", () => {
+    stubLayout("shared", "mainnet", "");
+    vi.stubEnv("NETWORK_PREPROD_ENABLED", "true");
+    const errors = expectInvalidEnvironment(HALF_CHANGED);
+    expect(JSON.stringify(errors.map((entry) => entry.event))).toContain(
+      PREPROD_NEEDS_SPLIT,
+    );
+  });
+
   it("refuses to start with Preprod on while every name is public", () => {
     stubLayout();
     vi.stubEnv("NETWORK_PREPROD_ENABLED", "true");
     expectInvalidEnvironment(PREPROD_NEEDS_SPLIT);
   });
 
-  it.each(["yes", "TRUE", "", " true"])(
+  it.each(["yes", "TRUE", " true"])(
     "rejects a flag that is not exactly true or false: %j",
     (value) => {
       vi.stubEnv("NETWORK_PREPROD_ENABLED", value);

@@ -57,7 +57,7 @@ describe("isPreprodOn", () => {
     expect(await preprodOn({ NETWORK_PREPROD_ENABLED: undefined })).toBe(false);
   });
 
-  it("is true when the flag is on and the three schema names differ", async () => {
+  it("is true when the flag is on and the three schema names are all different and none `public`", async () => {
     expect(
       await preprodOn({
         NETWORK_PREPROD_ENABLED: "true",

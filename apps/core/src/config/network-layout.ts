@@ -5,16 +5,24 @@
  */
 import { z } from "zod";
 
+/** Blank means unset, as in `env.ts`: a copied `KEY=` line takes the default. */
+function blankAsUnset<T extends z.ZodType>(schema: T) {
+  return z.preprocess((value) => (value === "" ? undefined : value), schema);
+}
+
 // PostgreSQL truncates identifiers past 63 bytes, so two longer names could
 // be one schema. `pg_*` and `information_schema` belong to PostgreSQL.
-const databaseSchemaNameSchema = z
-  .string()
-  .regex(/^[a-z_][a-z0-9_]*$/)
-  .max(63)
-  .refine((name) => !name.startsWith("pg_") && name !== "information_schema", {
-    message: "Names a PostgreSQL system schema",
-  })
-  .default("public");
+const databaseSchemaNameSchema = blankAsUnset(
+  z
+    .string()
+    .regex(/^[a-z_][a-z0-9_]*$/)
+    .max(63)
+    .refine(
+      (name) => !name.startsWith("pg_") && name !== "information_schema",
+      { message: "Names a PostgreSQL system schema" },
+    )
+    .default("public"),
+);
 
 export const networkLayoutShape = {
   // Schema of the `shared` tables and of each Network's tables. All three are
@@ -25,10 +33,12 @@ export const networkLayoutShape = {
   // Preprod, the second Network in this database. Off by default; on only on
   // the split layout. It stays a switch after the move. Not the deployment's
   // `NETWORK`.
-  NETWORK_PREPROD_ENABLED: z
-    .enum(["true", "false"])
-    .default("false")
-    .transform((value) => value === "true"),
+  NETWORK_PREPROD_ENABLED: blankAsUnset(
+    z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+  ),
 };
 
 const networkLayoutFields = z.object(networkLayoutShape);

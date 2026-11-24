@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/node";
 import type { Prisma } from "@sokosumi/database";
 import { createPrismaClient } from "@sokosumi/database/client";
 import { attachDatabasePool } from "@vercel/functions";
+import { createError } from "evlog";
 import { Pool } from "pg";
 
 import { getEnv } from "@/config/env";
@@ -14,11 +15,11 @@ interface CoreDatabase {
   /** Built on first use: each client costs about 30 ms to construct. */
   networks: Partial<Record<Network, CorePrismaClient>>;
   createNetworkClient: (network: Network) => CorePrismaClient;
-  /** The schema names the clients were built for (`schemaNames`). */
-  schemas: string;
+  /** The schema names the clients were built for (`schemaLayoutKey`). */
+  schemaLayoutKey: string;
 }
 
-function schemaNames(): string {
+function schemaLayoutKey(): string {
   const env = getEnv();
   return [
     env.DATABASE_SCHEMA_SHARED,
@@ -79,7 +80,7 @@ function createCoreDatabase(): CoreDatabase {
     shared: createClient(env.DATABASE_SCHEMA_SHARED),
     networks: {},
     createNetworkClient: (network) => createClient(networkSchemas[network]),
-    schemas: schemaNames(),
+    schemaLayoutKey: schemaLayoutKey(),
   };
 }
 
@@ -87,7 +88,7 @@ function createCoreDatabase(): CoreDatabase {
 // names; clients built for the old names would query the wrong schemas.
 const cached = globalForPrisma.coreDatabase;
 const database =
-  cached?.schemas === schemaNames() ? cached : createCoreDatabase();
+  cached?.schemaLayoutKey === schemaLayoutKey() ? cached : createCoreDatabase();
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.coreDatabase = database;
@@ -107,7 +108,11 @@ const prisma = database.shared;
 export function networkPrisma(network: Network): CorePrismaClient {
   const known = requireNetwork(network);
   if (known === "preprod" && !isPreprodOn()) {
-    throw new Error("Preprod is off: NETWORK_PREPROD_ENABLED is not true");
+    throw createError({
+      message: "Preprod is off: NETWORK_PREPROD_ENABLED is not true",
+      why: "A caller asked for the Preprod client while Preprod is off",
+      fix: "Check isPreprodOn() before asking for the Preprod client",
+    });
   }
   database.networks[known] ??= database.createNetworkClient(known);
   return database.networks[known];

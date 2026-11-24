@@ -132,6 +132,14 @@ describe("the deploy step that checks the schema layout", () => {
       "Preprod's name left unset",
       { DATABASE_SCHEMA_SHARED: "shared", DATABASE_SCHEMA_MAINNET: "mainnet" },
     ],
+    [
+      "Preprod's name blank",
+      {
+        DATABASE_SCHEMA_SHARED: "shared",
+        DATABASE_SCHEMA_MAINNET: "mainnet",
+        DATABASE_SCHEMA_PREPROD: "",
+      },
+    ],
   ])(
     "fails the deploy with Preprod on and %s",
     async (_, layout) => {
@@ -150,6 +158,20 @@ describe("the deploy step that checks the schema layout", () => {
 
   it("passes today's layout without any other variable", async () => {
     const { code } = await start({}, script);
+
+    expect(code).toBe(0);
+  }, 30_000);
+
+  it("reads a blank flag and blank names as today's layout", async () => {
+    const { code } = await start(
+      {
+        DATABASE_SCHEMA_SHARED: "",
+        DATABASE_SCHEMA_MAINNET: "",
+        DATABASE_SCHEMA_PREPROD: "",
+        NETWORK_PREPROD_ENABLED: "",
+      },
+      script,
+    );
 
     expect(code).toBe(0);
   }, 30_000);
