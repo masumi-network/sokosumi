@@ -59,7 +59,7 @@ When you genuinely need to synchronize with an external system, host the effect 
 
 Parameters for hooks in `src/hooks/effects/`:
 
-- **Job callbacks, never React state setters**: accept a callback named for its job (`onVisible`, `onScrollIdle`, `probe`, `publish`, `refresh`), never a React state setter (`Dispatch<SetStateAction<…>>` or `setX`). When only the hook writes a piece of state, move that `useState` into the hook.
+- **Job callbacks, never React state setters**: hooks may accept job callbacks, never a React state setter (`Dispatch<SetStateAction<…>>` or `setX`). A one-job hook names the callback for its job (`onVisible`, `onScrollIdle`, `probe`, `publish`, `refresh`); shared timer primitives (`useInterval`, `useTimeout`) keep `callback`. When only the hook writes a piece of state, move that `useState` into the hook.
 - **Own `nuqs` inside the hook**: call `useQueryState` inside the hook rather than accepting a `nuqs` writer parameter (`apps/web/src/hooks/effects/use-normalized-query-tab.ts` is the precedent). `nuqs` is the external store, so a hook that calls `useQueryState` forwards nothing.
 
 Shared hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/src/hooks/effects/`; single-site owner-named hooks live beside them and are not listed here):
