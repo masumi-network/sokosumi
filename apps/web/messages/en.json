@@ -3300,7 +3300,7 @@
           "published": "Published"
         },
         "bulkApprove": {
-          "selectPost": "Select to approve: {post}",
+          "selectPost": "Select post {position} of {count} to approve: {post}",
           "approveSelected": "Approve selected",
           "title": "{count, plural, one {Approve # post?} other {Approve # posts?}}",
           "description": "Each post is approved as you see it now. A post whose time is still far enough ahead is scheduled; the others become drafts. The results show what happened to each.",

@@ -381,22 +381,10 @@ export function ProjectSocialPosts({
     t,
   });
 
-  // Focus lands on the approve bar after its dialog, or on the list once
-  // the last waiting post is approved: the button may be disabled or gone.
   const bulkApproveBarRef = useRef<HTMLDivElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
 
   function handleCloseAutoFocus(event: Event) {
-    if (bulkKind === "approve") {
-      const target = bulkApproveBarRef.current?.isConnected
-        ? bulkApproveBarRef.current
-        : sectionRef.current;
-      if (target) {
-        event.preventDefault();
-        target.focus();
-        return;
-      }
-    }
     if (!returnFocus) return;
     event.preventDefault();
     if (!composerMode && !cancelTarget && !publishTarget && !bulkOpen)
@@ -876,8 +864,29 @@ export function ProjectSocialPosts({
     });
   }
 
+  /**
+   * Only the bulk approve dialog lands here. Its button may be disabled or
+   * gone once posts are approved, so focus goes to the approve bar, or to the
+   * open tab when no post is left waiting.
+   */
+  function handleBulkCloseAutoFocus(event: Event) {
+    if (bulkKind !== "approve") {
+      handleCloseAutoFocus(event);
+      return;
+    }
+    const target = bulkApproveBarRef.current?.isConnected
+      ? bulkApproveBarRef.current
+      : sectionRef.current?.querySelector<HTMLElement>(
+          '[role="tab"][aria-selected="true"]',
+        );
+    if (!target) return;
+    event.preventDefault();
+    target.focus();
+  }
+
+  /** Core decides with its own clock, so any dated post reads as a condition. */
   function approvalPlan(post: SocialPost): string {
-    return approvalSchedules(post) && post.scheduledAt
+    return post.scheduledAt
       ? t("bulkApprove.willSchedule", {
           date: formatter.dateTime(post.scheduledAt, "dateTime"),
         })
@@ -1302,14 +1311,18 @@ export function ProjectSocialPosts({
         {post.threadPartCount > 1 || post.quotedPostId || showStatus ? (
           <div className="flex flex-wrap items-center gap-2">
             {canBulkApprove(post) ? (
-              // A 24px box on touch screens; the label pads the tap area.
-              <label className="-m-1 flex min-h-11 cursor-pointer items-center p-1 md:min-h-6">
+              // A 24px box on phones and tablets; the label pads the tap area.
+              <label className="-m-1 flex min-h-11 cursor-pointer items-center p-1 lg:min-h-6">
                 <Checkbox
+                  // The position tells apart posts with the same text or account.
                   aria-label={t("bulkApprove.selectPost", {
                     post: retryLabel(post),
+                    position:
+                      approvablePosts.findIndex(({ id }) => id === post.id) + 1,
+                    count: approvablePosts.length,
                   })}
                   checked={selectedApprovals.has(post.id)}
-                  className="size-6 md:size-4"
+                  className="size-6 lg:size-4"
                   data-testid={`social-post-select-${post.id}`}
                   onCheckedChange={(value) =>
                     toggleApproveSelection(post, value === true)
@@ -1503,9 +1516,8 @@ export function ProjectSocialPosts({
   return (
     <section
       ref={sectionRef}
-      className="space-y-4 outline-none"
+      className="space-y-4"
       data-testid="project-social-posts"
-      tabIndex={-1}
     >
       <AlertDialog
         open={retryPosts.length > 0}
@@ -1748,7 +1760,7 @@ export function ProjectSocialPosts({
                   {section === "drafts" && approvablePosts.length > 0 ? (
                     <div
                       ref={bulkApproveBarRef}
-                      className="flex flex-wrap items-center gap-3 outline-none"
+                      className="flex flex-wrap items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                       data-testid="social-bulk-approve"
                       tabIndex={-1}
                     >
@@ -2025,7 +2037,7 @@ export function ProjectSocialPosts({
       >
         <AlertDialogContent
           className="max-h-[min(40rem,calc(100dvh-2rem))] overflow-y-auto overscroll-contain"
-          onCloseAutoFocus={handleCloseAutoFocus}
+          onCloseAutoFocus={handleBulkCloseAutoFocus}
         >
           {bulkResults ? (
             <>

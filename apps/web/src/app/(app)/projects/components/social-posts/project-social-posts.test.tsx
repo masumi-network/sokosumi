@@ -7360,7 +7360,7 @@ describe("ProjectSocialPosts", () => {
     for (const post of [toDraft, toSchedule, changed]) {
       await user.click(
         screen.getByRole("checkbox", {
-          name: `Select to approve: ${post.text}`,
+          name: `Select post ${[toDraft, toSchedule, changed, untouched].indexOf(post) + 1} of 4 to approve: ${post.text}`,
         }),
       );
     }
@@ -7412,6 +7412,80 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("button", { name: "Close" }));
     await waitFor(() => {
       expect(screen.getByTestId("social-bulk-approve")).toHaveFocus();
+    });
+
+    // Other dialogs keep their own return target.
+    const newPost = screen.getByRole("button", { name: "New post" });
+    await user.click(newPost);
+    await user.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId("social-bulk-approve")).not.toHaveFocus();
+  });
+
+  it("names each checkbox apart, words dated plans as a condition, and returns focus to the tab", async () => {
+    const user = userEvent.setup();
+    // Two textless posts on one account fall back to the same handle.
+    const textless = (id: string, scheduledAt: Date | null) =>
+      buildPost({
+        id,
+        text: "",
+        status: "NEEDS_APPROVAL",
+        scheduledAt,
+        canApprove: true,
+        canPublishNow: false,
+        socialConnection: FAILED_POST.socialConnection,
+      });
+    // Already past by the browser's clock; Core still decides.
+    const past = textless(
+      "post-wait-past",
+      new Date("2020-01-01T09:00:00.000Z"),
+    );
+    const undated = textless("post-wait-undated", null);
+    vi.mocked(approveProjectSocialPost).mockImplementation(
+      async ({ postId }) => ({
+        ok: true,
+        value: {
+          ...(postId === past.id ? past : undated),
+          status: "DRAFT",
+          canApprove: false,
+        },
+      }),
+    );
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[past, undated]}
+        projectId={PROJECT_ID}
+      />,
+      "?tab=drafts",
+    );
+
+    const boxes = screen.getAllByRole("checkbox", { name: /to approve/ });
+    expect(boxes.map((box) => box.getAttribute("aria-label"))).toEqual([
+      "Select post 1 of 2 to approve: sokosumi",
+      "Select post 2 of 2 to approve: sokosumi",
+    ]);
+
+    for (const box of boxes) await user.click(box);
+    await user.click(screen.getByRole("button", { name: "Approve selected" }));
+    const alert = screen.getByRole("alertdialog");
+    expect(
+      within(alert).getByTestId(`social-bulk-approve-plan-${past.id}`),
+    ).toHaveTextContent(/Set for .*still far enough ahead/);
+    expect(
+      within(alert).getByTestId(`social-bulk-approve-plan-${undated.id}`),
+    ).toHaveTextContent("Becomes a draft");
+    await user.click(
+      within(alert).getByRole("button", { name: "Approve selected" }),
+    );
+    await screen.findByTestId("social-bulk-approve-results");
+    await user.click(screen.getByRole("button", { name: "Close" }));
+
+    // No post is left waiting, so the bar is gone and the open tab takes focus.
+    await waitFor(() => {
+      expect(getTab("Drafts")).toHaveFocus();
     });
   });
 

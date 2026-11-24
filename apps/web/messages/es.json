@@ -3300,7 +3300,7 @@
           "published": "Publicada"
         },
         "bulkApprove": {
-          "selectPost": "Seleccionar para aprobar: {post}",
+          "selectPost": "Seleccionar la publicación {position} de {count} para aprobar: {post}",
           "approveSelected": "Aprobar selección",
           "title": "{count, plural, one {¿Aprobar # publicación?} other {¿Aprobar # publicaciones?}}",
           "description": "Cada publicación se aprueba tal como la ves ahora. Una publicación cuya hora aún está lo bastante lejos se programa; las demás pasan a borrador. El resultado muestra qué pasó con cada una.",

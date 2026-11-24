@@ -2,22 +2,31 @@ import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { after, before, describe, test } from "node:test";
 
-import { type Browser, chromium, type Page } from "playwright";
+import { type Browser, chromium } from "playwright";
 
 import { resolveBaseUrl } from "./base-url.ts";
-import { createMailbox } from "./mailbox.ts";
 
-// A new user asks their Soko Bot for two X posts without an account, then
-// approves both from Social's Drafts in one step. With no time and no account
-// each approved post becomes a draft, so nothing can be published.
-// Each size signs up a new throwaway user; nothing is paid for or connected.
+// A user approves two posts waiting in Social's Drafts in one step. With no
+// time and no account each approved post becomes a draft, so nothing can be
+// published.
 //
-// Setup asks the Soko Bot, so it depends on the model and spends a few of the
-// new user's free credits. There is no deterministic fixture: a person's own
-// post saves as a Draft, and only a Soko Bot or a Coworker (which needs a
-// vendor workspace grant) creates a post that waits for approval. Preview
-// Core has no test-only route that seeds one.
-const BASE_URL = resolveBaseUrl(process.env);
+// The spec signs up nobody and never messages a Soko Bot: a bot turn calls a
+// paid model. Only a Soko Bot or a Coworker (which needs a vendor workspace
+// grant) creates a post that waits for approval, and Core has no test-only
+// route that seeds one. So the spec runs only against a prepared fixture and
+// is skipped otherwise:
+//   E2E_SOCIAL_APPROVAL_STORAGE_STATE  Playwright storage state of a
+//                                      disposable test user on that preview.
+//   E2E_SOCIAL_APPROVAL_PROJECT        A Project of that user with at least
+//                                      two waiting posts per size (six), each
+//                                      with no time and no account.
+// The target must be an isolated PR preview (*.preview.sokosumi.com).
+const STORAGE_STATE = process.env.E2E_SOCIAL_APPROVAL_STORAGE_STATE;
+const PROJECT = process.env.E2E_SOCIAL_APPROVAL_PROJECT;
+const SKIP =
+  STORAGE_STATE && PROJECT
+    ? false
+    : "needs E2E_SOCIAL_APPROVAL_STORAGE_STATE and E2E_SOCIAL_APPROVAL_PROJECT";
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 
 const PROJECTS = [
@@ -25,30 +34,30 @@ const PROJECTS = [
   { name: "tablet", width: 768, height: 1024 },
   { name: "desktop", width: 1440, height: 900 },
 ];
-const BOT = "Pip";
-const PROJECT = "E2E Bakery";
 
-let browser: Browser;
+let browser: Browser | undefined;
+let baseUrl = "";
 before(async () => {
+  if (SKIP) return;
+  baseUrl = resolveBaseUrl(process.env);
+  assert.match(
+    new URL(baseUrl).hostname,
+    /\.preview\.sokosumi\.com$/,
+    "run this spec only against an isolated PR preview",
+  );
   mkdirSync(RESULTS_DIR, { recursive: true });
   browser = await chromium.launch();
 });
-after(() => browser.close());
-
-/** The step's heading shows once the page has hydrated. */
-async function expectStep(page: Page, path: RegExp, heading: string) {
-  await page.waitForURL(path);
-  await page
-    .getByRole("main")
-    .getByRole("heading", { name: heading })
-    .waitFor();
-}
+after(() => browser?.close());
 
 for (const { name, ...viewport } of PROJECTS) {
   describe(name, () => {
-    test("a new user approves two waiting posts at once", async () => {
-      const mailbox = await createMailbox();
-      const context = await browser.newContext({ viewport });
+    test("approves two waiting posts at once", { skip: SKIP }, async () => {
+      assert.ok(browser && STORAGE_STATE && PROJECT);
+      const context = await browser.newContext({
+        viewport,
+        storageState: STORAGE_STATE,
+      });
       const page = await context.newPage();
       page.setDefaultTimeout(60_000);
       const errors: string[] = [];
@@ -57,56 +66,13 @@ for (const { name, ...viewport } of PROJECTS) {
         page.screenshot({
           path: `${RESULTS_DIR}social-bulk-approve-${name}-${step}.png`,
         });
-
-      await page.goto(`${BASE_URL}/`);
-      await page.getByRole("link", { name: "Register" }).click();
-      await expectStep(page, /\/signup/, "Create your account");
-      const chip = page.getByRole("button", {
-        name: `${mailbox.address} Change email`,
-      });
-      for (let attempt = 0; !(await chip.isVisible()); attempt++) {
-        assert.ok(attempt < 3, "the email step never took the address");
-        await page
-          .getByRole("textbox", { name: "Email" })
-          .fill(mailbox.address);
-        await page.getByRole("button", { name: "Continue with email" }).click();
-        await chip.waitFor({ timeout: 10_000 }).catch(() => {});
-      }
-      await page.getByRole("textbox", { name: "First name" }).fill("Ada");
-      await page.getByRole("textbox", { name: "Last name" }).fill(name);
-      await page
-        .getByRole("textbox", { name: "Code from the email" })
-        .pressSequentially(await mailbox.nextCode());
-      await page.getByRole("button", { name: "Register" }).click();
-      await expectStep(page, /\/setup$/, "How do you want to work?");
-      await page.getByRole("button", { name: "Continue" }).click();
-      await expectStep(page, /\/setup\/assistant$/, "Name your Soko Bot");
-      await page.getByRole("textbox", { name: "Name" }).fill(BOT);
-      await page.getByRole("button", { name: "Continue" }).click();
-      await page.getByRole("button", { name: `Create ${BOT}` }).click();
-      await page.waitForURL(/\/setup\/assistant\/connect$/);
-      await page.getByRole("link", { name: "Skip" }).click();
-      await page.waitForURL(/\/chat\/rooms\//);
       const main = page.getByRole("main");
-      await main.getByText(`I'm ${BOT}`).waitFor();
 
-      // The bot drafts; every post it saves waits for a person's approval.
-      await main
-        .getByRole("textbox", { name: `Message ${BOT}` })
-        .fill(
-          `Create a project called "${PROJECT}" and save these two posts in it as standard X posts without an account, with no date or time, waiting for my approval: "Fresh sourdough today." and "Warm rolls at noon."`,
-        );
-      await page.keyboard.press("Enter");
-      await main
-        .getByText("Needs approval")
-        .nth(1)
-        .waitFor({ timeout: 240_000 });
-
-      await page.goto(`${BASE_URL}/social?tab=drafts`);
+      await page.goto(`${baseUrl}/social?tab=drafts`);
       await main.getByRole("button", { name: "Select project" }).click();
       await page
         .getByRole("combobox", { name: "Find a project..." })
-        .fill("E2E");
+        .fill(PROJECT);
       await page.keyboard.press("Enter");
       const approveSelected = main.getByRole("button", {
         name: "Approve selected",
@@ -115,17 +81,19 @@ for (const { name, ...viewport } of PROJECTS) {
       assert.equal(await approveSelected.isDisabled(), true);
       await shot("1-waiting");
 
-      // Each checkbox names its post, so a screen reader can tell them apart.
+      // Each checkbox names its post and position.
       const boxes = main.getByRole("checkbox", {
-        name: /^Select to approve: /,
+        name: /^Select post \d+ of \d+ to approve: /,
       });
-      assert.equal(await boxes.count(), 2);
-      for (const box of await boxes.all()) {
+      assert.ok((await boxes.count()) >= 2, "the fixture has too few posts");
+      for (const box of (await boxes.all()).slice(0, 2)) {
         const size = await box.boundingBox();
-        assert.ok(size && size.width >= 16 && size.height >= 16);
-        if (name !== "desktop") {
-          assert.ok(size.width >= 24, "the checkbox is under 24px on touch");
-        }
+        assert.ok(size);
+        // Phone and tablet get a 24px box; desktop keeps 16px.
+        assert.ok(
+          size.width >= (name === "desktop" ? 16 : 24),
+          `the checkbox is ${size.width}px wide`,
+        );
         await box.click();
       }
       await main.getByText("2 selected").waitFor();
@@ -145,12 +113,6 @@ for (const { name, ...viewport } of PROJECTS) {
       assert.equal(await dialog.getByText("Approved as a draft").count(), 2);
       await shot("3-results");
       await dialog.getByRole("button", { name: "Close" }).click();
-
-      // Both are drafts now, so nothing is left to approve.
-      await main
-        .getByText("Needs approval")
-        .first()
-        .waitFor({ state: "detached" });
       await shot("4-after");
 
       await context.close();

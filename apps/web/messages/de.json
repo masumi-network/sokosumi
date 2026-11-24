@@ -3300,7 +3300,7 @@
           "published": "Veröffentlicht"
         },
         "bulkApprove": {
-          "selectPost": "Zum Freigeben auswählen: {post}",
+          "selectPost": "Beitrag {position} von {count} zum Freigeben auswählen: {post}",
           "approveSelected": "Auswahl freigeben",
           "title": "{count, plural, one {# Beitrag freigeben?} other {# Beiträge freigeben?}}",
           "description": "Jeder Beitrag wird so freigegeben, wie du ihn jetzt siehst. Ein Beitrag, dessen Zeit noch weit genug entfernt ist, wird eingeplant; die anderen werden Entwürfe. Das Ergebnis zeigt, was mit jedem passiert ist.",
