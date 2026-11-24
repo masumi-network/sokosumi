@@ -19,12 +19,8 @@ class FakeHighlight {
 describe("usePageTextFind", () => {
   let root: HTMLDivElement;
   let contentRef: RefObject<HTMLElement | null>;
-  let originalCss: typeof globalThis.CSS;
-  let originalHighlight: typeof globalThis.Highlight;
 
   beforeEach(() => {
-    originalCss = globalThis.CSS;
-    originalHighlight = globalThis.Highlight;
     root = document.createElement("div");
     document.body.appendChild(root);
     contentRef = { current: root };
@@ -32,46 +28,21 @@ describe("usePageTextFind", () => {
 
   afterEach(() => {
     root.remove();
-    Object.defineProperty(globalThis, "CSS", {
-      configurable: true,
-      writable: true,
-      value: originalCss,
-    });
-    Object.defineProperty(globalThis, "Highlight", {
-      configurable: true,
-      writable: true,
-      value: originalHighlight,
-    });
+    vi.unstubAllGlobals();
     window.getSelection()?.removeAllRanges();
     vi.restoreAllMocks();
   });
 
   function installCustomHighlights() {
     const highlights = new Map<string, FakeHighlight>();
-    Object.defineProperty(globalThis, "CSS", {
-      configurable: true,
-      writable: true,
-      value: { ...(originalCss ?? {}), highlights },
-    });
-    Object.defineProperty(globalThis, "Highlight", {
-      configurable: true,
-      writable: true,
-      value: FakeHighlight,
-    });
+    vi.stubGlobal("CSS", { ...(globalThis.CSS ?? {}), highlights });
+    vi.stubGlobal("Highlight", FakeHighlight);
     return highlights;
   }
 
   function disableCustomHighlights() {
-    Object.defineProperty(globalThis, "CSS", {
-      configurable: true,
-      writable: true,
-      value: {},
-    });
-    Object.defineProperty(globalThis, "Highlight", {
-      configurable: true,
-      writable: true,
-      value: undefined,
-    });
+    vi.stubGlobal("CSS", {});
+    vi.stubGlobal("Highlight", undefined);
   }
 
   it("finds visible text matches, wraps when stepping, resets position on query change, and registers/clears CSS highlights", () => {
