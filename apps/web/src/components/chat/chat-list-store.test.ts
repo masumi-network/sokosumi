@@ -6,6 +6,7 @@ import {
   noteChatReadThrottled,
   resetChatReadThrottleForTests,
 } from "@/lib/chat/chat-read-throttle";
+import { makeRoom as makeFixtureRoom } from "./__tests__/chat-room-fixtures";
 import { createChatListStore } from "./chat-list-store";
 import { CHAT_HEALTHY_REFRESH_MS } from "./chat-refresh-scheduler";
 import { clearMembershipVisibleRoomsSnapshot } from "./membership-visible-rooms-store";
@@ -54,37 +55,25 @@ const TIMESTAMP = "2026-09-08T10:00:00.000Z";
 const NO_ROOMS: ChatRoom[] = [];
 const NO_INVITATIONS: ChatRoomInvitation[] = [];
 
-function rawRoom(id: string, overrides: Record<string, unknown> = {}) {
-  return {
+function makeRoom(id: string, overrides: Partial<ChatRoom> = {}): ChatRoom {
+  return makeFixtureRoom({
     id,
     name: id,
     slug: id,
-    kind: "channel",
-    myAccess: "member",
-    discoverability: "public",
-    createdAt: TIMESTAMP,
-    updatedAt: TIMESTAMP,
-    starredAt: null,
-    mutedAt: null,
-    unreadCount: 0,
-    channelUnreadCount: 0,
-    threadUnreadCount: 0,
-    unreadMentionCount: 0,
-    unreadNeedsYouCount: 0,
-    markedUnread: false,
-    userMembers: [],
-    agentMembers: [],
-    ...overrides,
-  };
-}
-
-function makeRoom(id: string, overrides: Partial<ChatRoom> = {}): ChatRoom {
-  return {
-    ...rawRoom(id),
     createdAt: new Date(TIMESTAMP),
     updatedAt: new Date(TIMESTAMP),
+    userMembers: [],
     ...overrides,
-  } as unknown as ChatRoom;
+  });
+}
+
+function rawRoom(id: string, overrides: Record<string, unknown> = {}) {
+  return {
+    ...makeRoom(id),
+    createdAt: TIMESTAMP,
+    updatedAt: TIMESTAMP,
+    ...overrides,
+  };
 }
 
 function rawInvitation(id: string) {
@@ -248,34 +237,6 @@ describe("createChatListStore", () => {
     window.dispatchEvent(new Event("online"));
     await vi.advanceTimersByTimeAsync(CHAT_HEALTHY_REFRESH_MS * 2);
     expect(fetchBackgroundJsonMock).not.toHaveBeenCalled();
-  });
-
-  it("batches active,archived,invitations when scope changes simultaneously with health recovery", async () => {
-    fetchBackgroundJsonMock.mockResolvedValueOnce(
-      batchedEnvelope({
-        active: pageEnvelope([rawRoom("room-a")]),
-        invitations: pageEnvelope([]),
-      }),
-    );
-    const store = createAttachedStore({
-      rooms: [makeRoom("room-a")],
-      healthy: true,
-      organizationId: "org-1",
-    });
-    await flushMicrotasks();
-    fetchBackgroundJsonMock.mockClear();
-
-    // Drop health while in org-1, then switch to org-2 and recover in one attach.
-    store.setHealth(false);
-    fetchBackgroundJsonMock.mockReturnValueOnce(new Promise(() => {}));
-    store.attach({ organizationId: "org-2", currentUserId: "user-1" }, true);
-    await flushMicrotasks();
-
-    expect(fetchBackgroundJsonMock).toHaveBeenCalledTimes(1);
-    expect(fetchBackgroundJsonMock.mock.calls[0]?.[0]).toBe(
-      "/api/chat/rooms?collections=active,archived,invitations",
-    );
-    store.detach();
   });
 
   it("reads current rows immediately: upsert + invalidate in same stack takes the one-room path", async () => {

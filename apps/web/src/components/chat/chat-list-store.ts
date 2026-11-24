@@ -303,9 +303,6 @@ export function createActiveChatRoomsStore({
       return;
     }
     currentHealthy = healthy;
-    // Mark wholeList before the scheduler hears about health so a recovery
-    // read fetches the whole list in case an event was missed.
-    staleActive.wholeList = true;
     scheduler.setHealth(healthy);
   }
 
@@ -655,6 +652,9 @@ export function createChatListStore({
       return;
     }
     currentHealthy = healthy;
+    // Mark wholeList before the schedulers hear about health so a recovery
+    // read fetches the whole list in case an event was missed.
+    active.markWholeListStale();
     active.setHealth(healthy);
     archivedScheduler.setHealth(healthy);
     invitationsScheduler.setHealth(healthy);

@@ -5,12 +5,14 @@ import { act, render, renderHook } from "@testing-library/react";
 import { Activity, StrictMode, useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { makeRoom } from "@/components/chat/__tests__/chat-room-fixtures";
 import type { ChatListStore } from "@/components/chat/chat-list-store";
 import {
   clearMembershipVisibleRoomsSnapshot,
   getLatestMembershipVisibleRoomsSnapshot,
   subscribeMembershipVisibleRooms,
 } from "@/components/chat/membership-visible-rooms-store";
+import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { clearRoomReadOverlays } from "@/components/chat/room-read-overlay";
 import { useOrganizationChatRooms } from "@/components/chat/use-organization-chat-rooms";
 import { setAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
@@ -36,29 +38,6 @@ vi.mock("@/components/chat/fetch-background-json", () => ({
 const TIMESTAMP = "2026-09-08T10:00:00.000Z";
 const NO_ROOMS: ChatRoom[] = [];
 const NO_INVITATIONS: ChatRoomInvitation[] = [];
-
-function makeRoom(id: string): ChatRoom {
-  return {
-    id,
-    name: id,
-    slug: id,
-    kind: "channel",
-    myAccess: "member",
-    discoverability: "public",
-    createdAt: new Date(TIMESTAMP),
-    updatedAt: new Date(TIMESTAMP),
-    starredAt: null,
-    mutedAt: null,
-    unreadCount: 0,
-    channelUnreadCount: 0,
-    threadUnreadCount: 0,
-    unreadMentionCount: 0,
-    unreadNeedsYouCount: 0,
-    markedUnread: false,
-    userMembers: [],
-    agentMembers: [],
-  } as unknown as ChatRoom;
-}
 
 function pageEnvelope(data: unknown[]) {
   return {
@@ -266,7 +245,7 @@ describe("useChatListStoreBinding", () => {
     );
     events.length = 0;
 
-    const nextRooms = [makeRoom("room-1")];
+    const nextRooms = [makeRoom({ id: "room-1" })];
     rerender(
       <BindingProbe
         store={store}
@@ -285,8 +264,8 @@ describe("useChatListStoreBinding", () => {
 
   it("publishes (new rows, new seed) once when RSC rooms change on the same mount, never (old rows, new seed)", () => {
     fetchBackgroundJsonMock.mockReturnValue(new Promise(() => {}));
-    const oldSeed = [makeRoom("old")];
-    const newSeed = [makeRoom("new")];
+    const oldSeed = [makeRoom({ id: "old" })];
+    const newSeed = [makeRoom({ id: "new" })];
     const publications: Array<{
       roomIds: string[];
       sourceRooms: readonly ChatRoom[] | undefined;
@@ -324,8 +303,15 @@ describe("useChatListStoreBinding", () => {
     unmount();
   });
 
-  it("batches active,archived,invitations when organizationId changes in the same commit as health recovery", async () => {
+  it("batches active,archived,invitations when organizationId changes in the same commit as health recovery and keeps one-room follow-ups", async () => {
     setAblyConnectionHealthy(true);
+    const roomB = makeRoom({ id: "room-b", organizationId: "org-2" });
+    const rawRoomB = {
+      ...roomB,
+      createdAt: TIMESTAMP,
+      updatedAt: TIMESTAMP,
+      userMembers: [],
+    };
     fetchBackgroundJsonMock.mockResolvedValue({
       data: {
         active: pageEnvelope([]),
@@ -335,16 +321,22 @@ describe("useChatListStoreBinding", () => {
     });
 
     const { rerender, unmount } = renderHook(
-      ({ organizationId }: { organizationId: string }) =>
+      ({
+        organizationId,
+        rooms,
+      }: {
+        organizationId: string;
+        rooms: ChatRoom[];
+      }) =>
         useOrganizationChatRooms({
-          rooms: NO_ROOMS,
+          rooms,
           archivedRooms: NO_ROOMS,
           pendingInvitations: NO_INVITATIONS,
           currentUserId: "user-1",
           organizationId,
           paintOnly: false,
         }),
-      { initialProps: { organizationId: "org-1" } },
+      { initialProps: { organizationId: "org-1", rooms: NO_ROOMS } },
     );
 
     await act(async () => {
@@ -356,10 +348,14 @@ describe("useChatListStoreBinding", () => {
       setAblyConnectionHealthy(false);
     });
 
-    fetchBackgroundJsonMock.mockReturnValueOnce(new Promise(() => {}));
+    const heldBatch = Promise.withResolvers<unknown>();
+    fetchBackgroundJsonMock
+      .mockReturnValueOnce(heldBatch.promise)
+      .mockReturnValue(new Promise(() => {}));
+
     await act(async () => {
       setAblyConnectionHealthy(true);
-      rerender({ organizationId: "org-2" });
+      rerender({ organizationId: "org-2", rooms: [roomB] });
       await Promise.resolve();
     });
 
@@ -367,6 +363,40 @@ describe("useChatListStoreBinding", () => {
     expect(fetchBackgroundJsonMock.mock.calls[0]?.[0]).toBe(
       "/api/chat/rooms?collections=active,archived,invitations",
     );
+
+    // An invalidation for listed room-b while the first batch is pending must
+    // follow with a one-room read and a separate invitations read, not a
+    // second whole-list active read.
+    act(() => {
+      notifyOrganizationChatRoomsChanged({
+        collections: ["active"],
+        roomId: "room-b",
+      });
+    });
+
+    await act(async () => {
+      heldBatch.resolve({
+        data: {
+          active: pageEnvelope([rawRoomB]),
+          archived: pageEnvelope([]),
+          invitations: pageEnvelope([]),
+        },
+      });
+      for (let i = 0; i < 20; i += 1) {
+        await Promise.resolve();
+      }
+    });
+
+    const followUpUrls = fetchBackgroundJsonMock.mock.calls
+      .slice(1)
+      .map(([url]) => url);
+    expect(followUpUrls).toEqual(
+      expect.arrayContaining([
+        "/api/chat/rooms?roomId=room-b",
+        "/api/chat/rooms?collection=invitations",
+      ]),
+    );
+    expect(followUpUrls).toHaveLength(2);
 
     unmount();
   });
