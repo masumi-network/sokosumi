@@ -152,10 +152,12 @@ export function NeedsYouPanelList({
             {labels.title}
           </h2>
           {notificationRows.length > 0 ? (
+            // The padding gives a phone a 36px tap target; the negative
+            // margin keeps the heading row at its text height.
             <Link
               href={showAll.href}
               onClick={showAll.onClick}
-              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-sm text-sm outline-none transition-colors focus-visible:ring-2"
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring -my-2 rounded-sm py-2 text-sm outline-none transition-colors focus-visible:ring-2"
             >
               {showAll.label}
             </Link>
