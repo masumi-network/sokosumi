@@ -68124,7 +68124,7 @@ export const TaskListItemSchema = {
         resultMatch: {
             type: 'string',
             example: '…The 50% launch plan costs 20 credits a month…',
-            description: 'With `search`, plain text around the first match in the Task\'s latest result (a done comment) that matches. Sent only when nothing but the result matched.'
+            description: 'With `search`, text around the first match in the Task\'s latest matching result (a done comment): plain text, or the raw Markdown when the match sits in a link target or code. Sent only when nothing but the result matched.'
         },
         openSubtasks: {
             type: 'array',

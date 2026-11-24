@@ -303,6 +303,9 @@ describe("TaskListItem search", () => {
     );
 
     expect(screen.getByText("inResult")).toBeInTheDocument();
-    expect(screen.getByText("…the launch plan costs 20…")).toBeInTheDocument();
+    const excerpt = screen.getByText("…the launch plan costs 20…");
+    // Inside the row's spans and link: phrasing content only.
+    expect(excerpt.tagName).toBe("SPAN");
+    expect(excerpt.closest("p")).toBeNull();
   });
 });

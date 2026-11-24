@@ -16779,7 +16779,7 @@ export type TaskListItem = {
      */
     hasUnansweredMention?: boolean;
     /**
-     * With `search`, plain text around the first match in the Task's latest result (a done comment) that matches. Sent only when nothing but the result matched.
+     * With `search`, text around the first match in the Task's latest matching result (a done comment): plain text, or the raw Markdown when the match sits in a link target or code. Sent only when nothing but the result matched.
      */
     resultMatch?: string;
     /**

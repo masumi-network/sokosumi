@@ -14,13 +14,18 @@ type ReadPage<Row> = (
 const RESULT_MATCH_LENGTH = 160;
 const RESULT_MATCH_LEAD = 60;
 
-/** Plain text around the first match, so a hit found only in a result shows why. */
+/**
+ * Text around the first match, so a hit found only in a result shows why.
+ * Plain text when the match survives removing Markdown; the raw text when
+ * it sat in markup (a link target, a code block), so it stays in view.
+ */
 export function resultMatchExcerpt(comment: string, search: string): string {
-  const plain = plainExcerpt(comment, Number.POSITIVE_INFINITY).replace(
-    /\s+/g,
-    " ",
-  );
-  const at = plain.toLowerCase().indexOf(search.toLowerCase());
+  const needle = search.toLowerCase();
+  const stripped = plainExcerpt(comment, Number.POSITIVE_INFINITY);
+  const plain = (
+    stripped.toLowerCase().includes(needle) ? stripped : comment
+  ).replace(/\s+/g, " ");
+  const at = plain.toLowerCase().indexOf(needle);
   const start = Math.max(0, at - RESULT_MATCH_LEAD);
   const end = start + RESULT_MATCH_LENGTH;
   return `${start > 0 ? "…" : ""}${plain.slice(start, end).trim()}${end < plain.length ? "…" : ""}`;
@@ -125,7 +130,7 @@ export async function searchTaskList<Row extends { id: string }>({
         status: TaskStatus.COMPLETED,
         comment: text,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       select: { taskId: true, comment: true },
     });
     for (const { taskId, comment } of events)

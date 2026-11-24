@@ -271,6 +271,7 @@ describe.skipIf(!enabled)("GET /tasks for Home's My day", () => {
       data: {
         ...taskDefaults,
         name: "Quarterly report",
+        createdAt: day("2026-01-03"),
         status: TaskStatus.COMPLETED,
         events: {
           create: [
@@ -279,6 +280,33 @@ describe.skipIf(!enabled)("GET /tasks for Home's My day", () => {
               status: TaskStatus.COMPLETED,
               comment:
                 "Intro.\n\n## Pricing\nThe **50%_launch** plan costs 20.",
+            },
+          ],
+        },
+      },
+    });
+    // Two results at the same moment: the later id is the latest.
+    const [olderId, newerId] = [randomUUID(), randomUUID()].sort();
+    const at = new Date("2026-01-05T00:00:00.000Z");
+    await prisma.task.create({
+      data: {
+        ...taskDefaults,
+        name: "Supplier notes",
+        createdAt: day("2026-01-04"),
+        status: TaskStatus.COMPLETED,
+        events: {
+          create: [
+            {
+              id: newerId,
+              createdAt: at,
+              status: TaskStatus.COMPLETED,
+              comment: "Newer: 50%_launch",
+            },
+            {
+              id: olderId,
+              createdAt: at,
+              status: TaskStatus.COMPLETED,
+              comment: "Older: 50%_launch",
             },
           ],
         },
@@ -332,15 +360,21 @@ describe.skipIf(!enabled)("GET /tasks for Home's My day", () => {
     }
 
     const expected = {
-      names: [named.name, "Tagged", "Brief only", "Quarterly report"],
-      total: 4,
+      names: [
+        named.name,
+        "Tagged",
+        "Brief only",
+        "Supplier notes",
+        "Quarterly report",
+      ],
+      total: 5,
       matches: {
+        "Supplier notes": "Newer: 50%_launch",
         "Quarterly report": "Intro. Pricing The 50%_launch plan costs 20.",
       },
     };
-    expect(await searchPages("50%_launch", 1)).toEqual(expected);
-    expect(await searchPages("50%_launch", 2)).toEqual(expected);
-    expect(await searchPages("50%_launch", 3)).toEqual(expected);
+    for (const limit of [1, 2, 3, 4])
+      expect(await searchPages("50%_launch", limit)).toEqual(expected);
     expect(await searchPages(`find-${named.number}`, 2)).toEqual({
       names: [named.name],
       total: 1,

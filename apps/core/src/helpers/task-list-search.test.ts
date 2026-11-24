@@ -19,12 +19,18 @@ describe("resultMatchExcerpt", () => {
     expect(excerpt).toBe(`…${"a".repeat(59)} pricing ${"b".repeat(92)}…`);
   });
 
-  it("starts at the beginning when the match is in markup it removed", () => {
+  it("keeps a match that sits in a link target in view", () => {
     expect(
       resultMatchExcerpt(
         "See [the deck](https://slides.test/pricing).",
         "pricing",
       ),
-    ).toBe("See the deck.");
+    ).toBe("See [the deck](https://slides.test/pricing).");
+  });
+
+  it("keeps a match inside a fenced code block in view", () => {
+    expect(
+      resultMatchExcerpt("```\nSKU-4471 ships Friday\n```", "sku-4471"),
+    ).toBe("``` SKU-4471 ships Friday ```");
   });
 });

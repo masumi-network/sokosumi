@@ -438,7 +438,7 @@ const taskListItemSchema = taskBaseSchema
     resultMatch: z.string().optional().openapi({
       example: "…The 50% launch plan costs 20 credits a month…",
       description:
-        "With `search`, plain text around the first match in the Task's latest result (a done comment) that matches. Sent only when nothing but the result matched.",
+        "With `search`, text around the first match in the Task's latest matching result (a done comment): plain text, or the raw Markdown when the match sits in a link target or code. Sent only when nothing but the result matched.",
     }),
     // Optional on the wire for the same deploy-order reason, and because
     // only people get it.
