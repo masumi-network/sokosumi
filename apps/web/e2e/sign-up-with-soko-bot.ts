@@ -15,12 +15,18 @@ async function expectStep(page: Page, path: RegExp, heading: string) {
 /**
  * Registers a new throwaway user from the root, takes the quickest setup
  * (Personal workspace, a Soko Bot named `bot`, no mail connected) and waits
- * in the bot's chat for its welcome. Nothing is paid for or connected.
+ * in the bot's chat for its welcome. With `leaveAtConnect` the user stops at
+ * the Connect step and opens the app again, so the welcome is never seen.
+ * Nothing is paid for or connected.
  */
 export async function signUpWithSokoBot(
   page: Page,
   baseUrl: string,
-  { bot, lastName }: { bot: string; lastName: string },
+  {
+    bot,
+    lastName,
+    leaveAtConnect = false,
+  }: { bot: string; lastName: string; leaveAtConnect?: boolean },
 ) {
   const mailbox = await createMailbox();
   await page.goto(`${baseUrl}/`);
@@ -48,6 +54,10 @@ export async function signUpWithSokoBot(
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: `Create ${bot}` }).click();
   await page.waitForURL(/\/setup\/assistant\/connect$/);
+  if (leaveAtConnect) {
+    await page.goto(`${baseUrl}/`);
+    return;
+  }
   await page.getByRole("link", { name: "Skip" }).click();
   await page.waitForURL(/\/chat\/rooms\//);
   await page.getByRole("main").getByText(`I'm ${bot}`).waitFor();

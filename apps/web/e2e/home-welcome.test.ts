@@ -7,9 +7,10 @@ import { type Browser, chromium } from "playwright";
 import { resolveBaseUrl } from "./base-url.ts";
 import { openHome, signUpWithSokoBot } from "./sign-up-with-soko-bot.ts";
 
-// A new user sets up a Soko Bot and opens Home: the bot's unread welcome is
-// the first Needs you row, it opens the bot's chat, and once read it is gone
-// and "Nothing waits on you." is back.
+// A new user creates a Soko Bot, leaves setup at the Connect step and opens
+// the app again: the bot's unread welcome is the first Needs you row, it
+// opens the bot's chat, and once read it is gone and "Nothing waits on you."
+// is back. (Skip opens the chat, which reads the welcome on the way.)
 // Each size signs up a new throwaway user; nothing is paid for or connected.
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
@@ -44,8 +45,8 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       await signUpWithSokoBot(page, BASE_URL, {
         bot: BOT,
         lastName: `welcome ${name}`,
+        leaveAtConnect: true,
       });
-      await openHome(page, name === "phone");
       // Next keeps visited pages hidden in the DOM; read the one on screen.
       const needsYou = page
         .getByTestId("home-needs-you")
@@ -62,6 +63,9 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       await link.click();
       await page.waitForURL(/\/chat\/rooms\/[^/?]+\?message=/);
       await page.getByRole("main").getByText(`I'm ${BOT}`).waitFor();
+      // The chat reads a room once the reader reaches its end, after the
+      // jump; leaving sooner keeps it unread. The tab drops "(1)" then.
+      await page.waitForFunction(() => !document.title.startsWith("("));
 
       await openHome(page, name === "phone");
       await needsYou.getByText("Nothing waits on you.").waitFor();
