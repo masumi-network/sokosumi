@@ -1,69 +1,131 @@
 import { describe, expect, it } from "vitest";
 import {
-  formatStandup,
+  type AgentRecord,
+  botFallbackMessage,
+  coworkerStandupMessage,
+  emptyRecord,
   formatWeekInReview,
   handoffMessage,
   isStandupHostMessage,
-  lineIsEmpty,
-  type StandupLine,
+  recordDone,
+  recordIsEmpty,
+  shortTitleByRules,
+  standupOpener,
+  withMentions,
 } from "./standup-text";
 
-const soko: StandupLine = {
-  agent: {
+const robin = { userId: "robin", name: "Robin Keller" };
+const soko: AgentRecord = {
+  ...emptyRecord({
     kind: "sokoBot",
     id: "soko",
     name: "Soko",
     ownerName: "Robin Keller",
-  },
-  done: ["2 posts scheduled"],
-  today: ['"DACH market study" (nobody has it yet)'],
-  blocked: [],
+  }),
+  counts: ["2 posts scheduled", "1 Task created"],
+  touched: ['created "DACH market study"'],
+  open: ["Offsite venue"],
 };
-const mira: StandupLine = {
-  agent: { kind: "coworker", id: "mira", name: "Mira", ownerName: null },
-  done: [],
-  today: ['"Pricing research"', '"Pricing research"'],
-  blocked: [
-    {
-      what: '"Langdock note" waits for an answer',
-      waitsOn: { userId: "robin", name: "Robin Keller" },
-    },
+const mira: AgentRecord = {
+  ...emptyRecord({
+    kind: "coworker",
+    id: "mira",
+    name: "Mira",
+    ownerName: null,
+  }),
+  finished: ["Weekly Competitor Intelligence — Top 3 Launches"],
+  working: ["Pricing research", "Pricing research"],
+  waiting: [
+    { task: "Langdock note", failed: false, waitsOn: robin },
+    { task: "Tender scan", failed: false, waitsOn: robin },
+    { task: "Old export", failed: true, waitsOn: null },
   ],
 };
 
 describe("stand-up text", () => {
-  it("puts what needs a person first, then matches, agents and the summary", () => {
-    const text = formatStandup({
-      date: "Mon 23 Nov",
-      lines: [soko, mira],
-      matches: [
-        {
-          needingAgentId: "soko",
-          offeringAgentId: "mira",
-          need: "a DACH study",
-          offer: "is researching DACH pricing",
-        },
-      ],
-      summary: "Two posts went out; one Task waits on Robin.",
-    });
-    expect(text.split("\n")[0]).toBe(
-      "**Stand-up · Mon 23 Nov** · 2 agents · 1 needs a person · 1 match",
-    );
-    const order = [
-      "**Needs a person**",
-      "@robin:",
-      "**Matches**",
-      "**Agents**",
-      "**Soko (Robin Keller's assistant)**",
-      "Two posts went out",
-    ].map((part) => text.indexOf(part));
-    expect(order).toEqual([...order].sort((a, b) => a - b));
-    expect(text).toContain('today: "Pricing research" ·');
+  it("opens with the date only", () => {
+    expect(standupOpener("Tue 24 Nov")).toBe("**Stand-up · Tue 24 Nov**");
   });
 
-  it("leaves out an agent with nothing done, due or blocked", () => {
-    expect(lineIsEmpty({ ...soko, done: [], today: [] })).toBe(true);
-    expect(lineIsEmpty(soko)).toBe(false);
+  it("writes a Coworker's message in plain lines, each waited-on person mentioned once", () => {
+    const text = coworkerStandupMessage(mira, (task) =>
+      task.startsWith("Weekly") ? "competitor report" : task,
+    );
+    expect(text).toBe(
+      [
+        "Finished: competitor report.",
+        "Working on: Pricing research.",
+        "Waiting on @robin: Langdock note and Tender scan.",
+        "Failed: Old export.",
+      ].join("\n"),
+    );
+    expect(text).not.toContain('"');
+  });
+
+  it("falls back to the bot's record in the first person", () => {
+    expect(botFallbackMessage(soko)).toBe(
+      [
+        "Since the last stand-up: 2 posts scheduled and 1 Task created.",
+        "Open on Robin Keller's list, nobody has it yet: Offsite venue.",
+      ].join("\n"),
+    );
+    expect(
+      botFallbackMessage({
+        ...soko,
+        counts: [],
+        open: [],
+        waiting: [{ task: "Q1 plan", failed: false, waitsOn: robin }],
+      }),
+    ).toBe(
+      "Nothing finished since the last stand-up.\nWaiting on @robin: Q1 plan.",
+    );
+  });
+
+  it("adds a mention for a waited-on person the bot's words left out", () => {
+    expect(withMentions("I need Robin's OK.", [robin])).toBe(
+      "I need Robin's OK.\ncc @robin",
+    );
+    expect(withMentions("I need @robin's OK.", [robin])).toBe(
+      "I need @robin's OK.",
+    );
+  });
+
+  it.each([
+    [
+      "Daily X engagement opportunities: Tech Startup AI — 2026-11-23",
+      "Daily X engagement opportunities",
+    ],
+    [
+      "Recherchebrief: Top 5 EU-Marktplätze für KI-Agenten",
+      "Top 5 EU-Marktplätze für KI-Agenten",
+    ],
+    [
+      "Weekly Competitor Intelligence — Top 3 Launches, Pricing & Market Gaps",
+      "Weekly Competitor Intelligence",
+    ],
+    ["App UX: home, 2026-11-24", "App UX: home"],
+    [
+      "Wöchentliche Ausschreibungs-Recherche: DACH/EU (utxo AG)",
+      "Wöchentliche Ausschreibungs-Recherche: DACH/EU",
+    ],
+    [
+      "Weekly performance report comparing @MasumiNetwork and @Sokosumi",
+      "Weekly performance report comparing…",
+    ],
+  ])("shortens %s by rules", (title, short) => {
+    expect(shortTitleByRules(title)).toBe(short);
+  });
+
+  it("posts nothing for an agent with nothing done, due or blocked", () => {
+    expect(recordIsEmpty(emptyRecord(soko.agent))).toBe(true);
+    expect(recordIsEmpty(soko)).toBe(false);
+  });
+
+  it("keeps the week's words: counts for bots, quoted names for Coworkers", () => {
+    expect(recordDone(soko)).toEqual(["2 posts scheduled", "1 Task created"]);
+    expect(recordDone(mira)).toEqual([
+      '"Weekly Competitor Intelligence — Top 3 Launches"',
+    ]);
   });
 
   it("writes a hand-off as plain text a Coworker can read", () => {

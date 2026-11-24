@@ -21,13 +21,32 @@ export async function claimsAction(
   text: string,
   confirmedChanges: readonly string[] = [],
 ): Promise<boolean | null> {
+  return askClaims(text, confirmedChanges, CLAIMS_ACTION);
+}
+
+const STANDUP_CLAIMS =
+  "The text is an assistant's update in its team's daily stand-up. confirmedChanges is its record since the last stand-up: what it did, what is running, what is open and what waits on whom. Does the update say the assistant did, made, sent, posted, finished, is working on or is waiting on something that is not in confirmedChanges, or give a number, name or Task the record does not have? Shortened or reworded Task names and counts that match the record are fine. Saying it finished nothing, or what it plans next from the open items, is fine.";
+
+/** Whether a stand-up update claims work its record does not show; null when the check failed. */
+export async function standupClaimsUnrecordedWork(
+  text: string,
+  record: readonly string[],
+): Promise<boolean | null> {
+  return askClaims(text, record, STANDUP_CLAIMS);
+}
+
+async function askClaims(
+  text: string,
+  confirmedChanges: readonly string[],
+  question: string,
+): Promise<boolean | null> {
   try {
     const answers = await askJev({
       state: {
         reply: text.slice(0, MAX_TEXT_LENGTH),
         confirmedChanges: [...confirmedChanges],
       },
-      questions: { claimsAction: CLAIMS_ACTION },
+      questions: { claimsAction: question },
       timeoutMs: TIMEOUT_MS,
     });
     const probability = answers.get("claimsAction");

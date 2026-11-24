@@ -159,6 +159,10 @@ export async function startStandupCase(
         messageId: outcome?.messageId ?? null,
         mentionIds:
           outcome && "mentionIds" in outcome ? outcome.mentionIds : [],
+        agentMessageIds:
+          outcome && "agentMessageIds" in outcome
+            ? outcome.agentMessageIds
+            : {},
         startedAt: scheduledFor.toISOString(),
       },
     },
@@ -170,6 +174,7 @@ interface StandupState {
   runId: string | null;
   messageId: string | null;
   mentionIds: string[];
+  agentMessageIds?: Record<string, string>;
   startedAt: string;
 }
 
@@ -257,10 +262,26 @@ export async function pollStandupCase(
     Date.now() - new Date(run.startedAt).getTime() < ANSWER_TIMEOUT_MS
   )
     return { kind: "waiting" };
-  const content = posted?.content ?? "";
-  const thread = run.messageId
+  const opener = posted?.content ?? "";
+  const messages = await prisma.chatRoomMessage.findMany({
+    where: { id: { in: Object.values(run.agentMessageIds ?? {}) } },
+    select: {
+      id: true,
+      content: true,
+      senderCoworkerId: true,
+      senderSokoBotId: true,
+    },
+  });
+  const botMessage = messages.find(
+    (message) => message.senderSokoBotId === lane.sokoBotId,
+  );
+  const miraMessage = messages.find((message) => message.senderCoworkerId);
+  const content = [opener, ...messages.map((message) => message.content)].join(
+    "\n\n",
+  );
+  const thread = botMessage
     ? await prisma.chatRoomMessage.findMany({
-        where: { parentMessageId: run.messageId, deletedAt: null },
+        where: { parentMessageId: botMessage.id, deletedAt: null },
         orderBy: { createdAt: "asc" },
         select: {
           content: true,
@@ -274,18 +295,36 @@ export async function pollStandupCase(
   );
   const answer = thread.find((message) => message.senderCoworkerId);
   const costUsd = Number(row?.costUsdMicros ?? 0) / 1e6;
+  const own = [
+    check("Posted", run.status === "POSTED", row?.error ?? run.status),
+    check(
+      "A short opener, no digest",
+      /^\*\*Stand-up · [^\n]+\*\*$/.test(opener),
+      opener.slice(0, 160),
+    ),
+    check(
+      "Robin's bot posted its own message",
+      !!botMessage,
+      botMessage ? botMessage.content.slice(0, 240) : "no message",
+    ),
+    check(
+      "No private Task in the channel",
+      !content.includes(PRIVATE_TASK) && !content.includes("Salary"),
+      content.includes("Salary") ? "private Task shown" : "clean",
+    ),
+  ];
   if (setup === "no-match") {
     const checks = [
-      check("Posted", run.status === "POSTED", row?.error ?? run.status),
+      ...own,
       check(
         "No hand-off for a need nobody's work touches",
         !handoff,
         handoff ? handoff.content.slice(0, 160) : "none",
       ),
       check(
-        "The unassigned venue Task is in Robin's bot's line",
-        content.includes(UNRELATED_NEED),
-        content.includes(UNRELATED_NEED) ? "listed" : "missing",
+        "Robin's bot names the open venue Task",
+        /venue|offsite/i.test(botMessage?.content ?? ""),
+        botMessage?.content.slice(0, 240) ?? "no message",
       ),
     ];
     await closeA2aWorld(lane);
@@ -296,24 +335,26 @@ export async function pollStandupCase(
     });
   }
   const checks = [
-    check("Posted", run.status === "POSTED", row?.error ?? run.status),
+    ...own,
     check(
-      "Mira's line comes from her Task states",
-      /mira[^\n]*today: "eu marketplace pricing research"/i.test(content),
-      content.split("\n").find((line) => /mira/i.test(line)) ?? "no Mira line",
+      "Mira's message under her name says what she is working on",
+      !!miraMessage && /working on:[^\n]*pricing/i.test(miraMessage.content),
+      miraMessage?.content.slice(0, 240) ?? "no Mira message",
     ),
     check(
-      "The Task waiting for Robin mentions him",
-      content.includes(`@${lane.userId}`),
-      content.includes(`@${lane.userId}`) ? "mentioned" : "not mentioned",
+      "Mira's Task waiting for Robin mentions him",
+      !!miraMessage?.content.includes(`@${lane.userId}`),
+      miraMessage?.content.includes(`@${lane.userId}`)
+        ? "mentioned"
+        : "not mentioned",
     ),
     check(
-      "No private Task in the thread",
-      !content.includes(PRIVATE_TASK) && !content.includes("Salary"),
-      content.includes("Salary") ? "private Task shown" : "clean",
+      "No raw quoted Task titles",
+      !messages.some((message) => /"[^"]{8,}"/.test(message.content)),
+      "checked",
     ),
     check(
-      "The DACH need opened a hand-off to Mira",
+      "The DACH need opened a hand-off to Mira under Robin's bot's message",
       !!handoff && /@mira-evals-/.test(handoff.content),
       handoff ? handoff.content.slice(0, 160) : "no hand-off",
     ),

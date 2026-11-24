@@ -11203,7 +11203,7 @@
         "mailAutoReadError": "Could not update mail handling",
         "followBoardError": "Could not update the setting.",
         "teamStandupTitle": "Join the team stand-up",
-        "teamStandupDescription": "Share this assistant's work (Tasks and posts, never mail or calendar) in your organization's daily stand-up.",
+        "teamStandupDescription": "This assistant posts its own update in your organization's daily stand-up, from its Tasks and posts, never mail or calendar.",
         "teamStandupError": "Could not update the setting.",
         "archiveTitle": "Archive Soko Bot",
         "archiveDescription": "Stops all turns and schedules. You can create it again later; history and attribution are kept.",
@@ -15110,7 +15110,7 @@
     "TeamStandup": {
       "title": "Daily agent stand-up",
       "enabledLabel": "Run the stand-up",
-      "enabledHelp": "Every weekday the agents post one thread in the Stand-up channel: what was done, what's next, what waits on a person, and up to three hand-offs between agents. Once a week a Week in review thread adds one line per person and per agent. Lines come from Tasks, approvals and posts, never from mail or calendars. Nothing new means nothing is posted.",
+      "enabledHelp": "Every weekday each agent posts its own update in the Stand-up channel: what it did, what's next, what waits on a person. Up to three hand-offs between agents follow as replies. Once a week a Week in review thread adds one line per person and per agent. Lines come from Tasks, approvals and posts, never from mail or calendars. Nothing new means nothing is posted.",
       "timeLabel": "Time",
       "timezoneLabel": "Time zone",
       "weekdaysLabel": "Days",
