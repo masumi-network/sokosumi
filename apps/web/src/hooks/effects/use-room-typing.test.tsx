@@ -1,5 +1,6 @@
 import { makeChatTypingChannelName } from "@sokosumi/utils";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { useState, useSyncExternalStore } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { PRODUCTION } = vi.hoisted(() => ({
@@ -40,7 +41,35 @@ vi.mock("ably/react", () => ({
   useAbly: () => ablyClient,
 }));
 
-import { useRoomTyping } from "./use-room-typing";
+import {
+  createRoomTypingStore,
+  EMPTY_TYPIST_IDS,
+  useRoomTypingSync,
+} from "./use-room-typing";
+
+/** Same snapshot filter as `RoomTypingProvider`, without the Ably island. */
+function useRoomTypingSyncProbe(
+  roomId: string | null | undefined,
+  selfUserId: string | null | undefined,
+) {
+  const [store] = useState(createRoomTypingStore);
+  useRoomTypingSync(roomId, selfUserId, store);
+  const snapshot = useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    store.getServerSnapshot,
+  );
+  const typistIds =
+    selfUserId && snapshot.roomId === roomId
+      ? snapshot.typistIds
+      : EMPTY_TYPIST_IDS;
+
+  return {
+    typistIds,
+    handleComposerChange: store.handleComposerChange,
+    handleStopTyping: store.handleStopTyping,
+  };
+}
 
 const ROOM_ID = "room-a";
 const SELF = "user_me";
@@ -94,7 +123,7 @@ function emit(data: unknown, clientId?: string | null) {
   }
 }
 
-describe("useRoomTyping", () => {
+describe("useRoomTypingSync", () => {
   beforeEach(() => {
     authorizeMock.mockReset();
     getMock.mockReset();
@@ -106,7 +135,7 @@ describe("useRoomTyping", () => {
   });
 
   it("names a teammate who is typing", async () => {
-    const { result } = renderHook(() => useRoomTyping(ROOM_ID, SELF));
+    const { result } = renderHook(() => useRoomTypingSyncProbe(ROOM_ID, SELF));
     await waitFor(() => {
       expect(channelFor(TYPING_CHANNEL).subscribe).toHaveBeenCalled();
     });
@@ -121,7 +150,7 @@ describe("useRoomTyping", () => {
   });
 
   it("ignores a payload that claims a Thread, so it cannot light up the room", async () => {
-    const { result } = renderHook(() => useRoomTyping(ROOM_ID, SELF));
+    const { result } = renderHook(() => useRoomTypingSyncProbe(ROOM_ID, SELF));
     await waitFor(() => {
       expect(channelFor(TYPING_CHANNEL).subscribe).toHaveBeenCalled();
     });
@@ -137,7 +166,7 @@ describe("useRoomTyping", () => {
     // Ably stamps clientId from the token, so a member publishing another
     // person's userId cannot match it — otherwise they could put words in a
     // teammate's line.
-    const { result } = renderHook(() => useRoomTyping(ROOM_ID, SELF));
+    const { result } = renderHook(() => useRoomTypingSyncProbe(ROOM_ID, SELF));
     await waitFor(() => {
       expect(channelFor(TYPING_CHANNEL).subscribe).toHaveBeenCalled();
     });
@@ -153,7 +182,7 @@ describe("useRoomTyping", () => {
   });
 
   it("ignores a stop forged against another typist", async () => {
-    const { result } = renderHook(() => useRoomTyping(ROOM_ID, SELF));
+    const { result } = renderHook(() => useRoomTypingSyncProbe(ROOM_ID, SELF));
     await waitFor(() => {
       expect(channelFor(TYPING_CHANNEL).subscribe).toHaveBeenCalled();
     });
@@ -175,7 +204,7 @@ describe("useRoomTyping", () => {
   });
 
   it("ignores an event with no clientId to bind it to a sender", async () => {
-    const { result } = renderHook(() => useRoomTyping(ROOM_ID, SELF));
+    const { result } = renderHook(() => useRoomTypingSyncProbe(ROOM_ID, SELF));
     await waitFor(() => {
       expect(channelFor(TYPING_CHANNEL).subscribe).toHaveBeenCalled();
     });
@@ -195,7 +224,7 @@ describe("useRoomTyping", () => {
   });
 
   it("ignores a malformed payload", async () => {
-    const { result } = renderHook(() => useRoomTyping(ROOM_ID, SELF));
+    const { result } = renderHook(() => useRoomTypingSyncProbe(ROOM_ID, SELF));
     await waitFor(() => {
       expect(channelFor(TYPING_CHANNEL).subscribe).toHaveBeenCalled();
     });
@@ -209,7 +238,7 @@ describe("useRoomTyping", () => {
   });
 
   it("announces the first keystroke as an ephemeral message", async () => {
-    const { result } = renderHook(() => useRoomTyping(ROOM_ID, SELF));
+    const { result } = renderHook(() => useRoomTypingSyncProbe(ROOM_ID, SELF));
     await waitFor(() => {
       expect(channelFor(TYPING_CHANNEL).subscribe).toHaveBeenCalled();
     });
@@ -228,7 +257,7 @@ describe("useRoomTyping", () => {
   });
 
   it("says nothing twice inside the throttle window", async () => {
-    const { result } = renderHook(() => useRoomTyping(ROOM_ID, SELF));
+    const { result } = renderHook(() => useRoomTypingSyncProbe(ROOM_ID, SELF));
     await waitFor(() => {
       expect(channelFor(TYPING_CHANNEL).subscribe).toHaveBeenCalled();
     });
@@ -243,7 +272,7 @@ describe("useRoomTyping", () => {
   });
 
   it("stops when the composer is cleared", async () => {
-    const { result } = renderHook(() => useRoomTyping(ROOM_ID, SELF));
+    const { result } = renderHook(() => useRoomTypingSyncProbe(ROOM_ID, SELF));
     await waitFor(() => {
       expect(channelFor(TYPING_CHANNEL).subscribe).toHaveBeenCalled();
     });
@@ -261,7 +290,7 @@ describe("useRoomTyping", () => {
   });
 
   it("stays silent when a Draft is restored without a keystroke", async () => {
-    renderHook(() => useRoomTyping(ROOM_ID, SELF));
+    renderHook(() => useRoomTypingSyncProbe(ROOM_ID, SELF));
     await waitFor(() => {
       expect(channelFor(TYPING_CHANNEL).subscribe).toHaveBeenCalled();
     });
@@ -270,7 +299,7 @@ describe("useRoomTyping", () => {
   });
 
   it("does not stop twice when it never started", async () => {
-    const { result } = renderHook(() => useRoomTyping(ROOM_ID, SELF));
+    const { result } = renderHook(() => useRoomTypingSyncProbe(ROOM_ID, SELF));
     await waitFor(() => {
       expect(channelFor(TYPING_CHANNEL).subscribe).toHaveBeenCalled();
     });
@@ -284,7 +313,9 @@ describe("useRoomTyping", () => {
   });
 
   it("tells the room it stopped when the reader leaves", async () => {
-    const { result, unmount } = renderHook(() => useRoomTyping(ROOM_ID, SELF));
+    const { result, unmount } = renderHook(() =>
+      useRoomTypingSyncProbe(ROOM_ID, SELF),
+    );
     await waitFor(() => {
       expect(channelFor(TYPING_CHANNEL).subscribe).toHaveBeenCalled();
     });
@@ -302,7 +333,7 @@ describe("useRoomTyping", () => {
   });
 
   it("swallows an attach/detach race instead of leaving an unhandled rejection", async () => {
-    const { unmount } = renderHook(() => useRoomTyping(ROOM_ID, SELF));
+    const { unmount } = renderHook(() => useRoomTypingSyncProbe(ROOM_ID, SELF));
     await waitFor(() => {
       expect(channelFor(TYPING_CHANNEL).subscribe).toHaveBeenCalled();
     });
@@ -320,7 +351,7 @@ describe("useRoomTyping", () => {
 
   it("shows nobody and publishes nothing when the token grants no typing", async () => {
     authorizeMock.mockResolvedValue({ capability: JSON.stringify({}) });
-    const { result } = renderHook(() => useRoomTyping(ROOM_ID, SELF));
+    const { result } = renderHook(() => useRoomTypingSyncProbe(ROOM_ID, SELF));
 
     await waitFor(() => {
       expect(authorizeMock).toHaveBeenCalled();
@@ -337,7 +368,7 @@ describe("useRoomTyping", () => {
 
   it("reads the room but stays quiet when the token grants subscribe only", async () => {
     authorizeMock.mockResolvedValue(tokenGranting(["subscribe"]));
-    const { result } = renderHook(() => useRoomTyping(ROOM_ID, SELF));
+    const { result } = renderHook(() => useRoomTypingSyncProbe(ROOM_ID, SELF));
     await waitFor(() => {
       expect(channelFor(TYPING_CHANNEL).subscribe).toHaveBeenCalled();
     });
@@ -365,7 +396,7 @@ describe("useRoomTyping", () => {
         }),
     );
 
-    renderHook(() => useRoomTyping(ROOM_ID, SELF));
+    renderHook(() => useRoomTypingSyncProbe(ROOM_ID, SELF));
     await waitFor(() => {
       expect(authorizeMock).toHaveBeenCalled();
     });
@@ -393,7 +424,7 @@ describe("useRoomTyping", () => {
   });
 
   it("shows nobody without a room or a signed-in reader", () => {
-    const { result } = renderHook(() => useRoomTyping(null, SELF));
+    const { result } = renderHook(() => useRoomTypingSyncProbe(null, SELF));
 
     expect(result.current.typistIds).toEqual([]);
     expect(getMock).not.toHaveBeenCalled();

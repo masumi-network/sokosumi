@@ -74,7 +74,7 @@ Shared hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo
 - `use-load-when-visible` (`useLoadWhenVisible`) — `IntersectionObserver` pagination boundary trigger
 - `use-intersection-observer` (`useIntersectionObserver`) — live-element `IntersectionObserver` subscription with unmount disconnect
 - `use-resize-observer` (`useResizeObserver`, `useLayoutResizeObserver`) — live-element `ResizeObserver` subscriptions with unmount disconnect
-- `use-mutation-observer` (`useMutationObserver`, `useLayoutMutationObserver`) — live-node / `"body"` / `"documentElement"` `MutationObserver` subscriptions with unmount disconnect
+- `use-mutation-observer` (`useLayoutMutationObserver`) — live-node / `"body"` / `"documentElement"` `MutationObserver` subscriptions with unmount disconnect
 - `use-drag-to-scroll` (`useDragToScroll`) — horizontal pointer drag scrolling
 - `use-focus-when` (`useFocusWhen`, `useLayoutFocusWhen`) — focus a ref or getter target when a condition turns true (reads the target at effect time; optional `preventScroll`, `deferToFrame`, and `resetKey`)
 - `use-focus-form-field-on-mount` (`useFocusFormFieldOnMount`) — focus a `react-hook-form` field once on mount (or Activity reveal)
@@ -86,7 +86,7 @@ Shared hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo
 - `use-intent-prefetch` (`useIntentPrefetch`) — ForesightJS pointer-intent route prefetching
 - `use-self-presence` (`useSelfPresence`) — local online/AFK/offline presence tracking
 - `use-org-presence-map` (`useOrgPresenceMap`, `useOrgPresenceMapSync`, `createOrgPresenceStore`) — Ably organization presence subscription backed by an external store
-- `use-room-typing` (`useRoomTyping`, `useRoomTypingSync`, `createRoomTypingStore`) — Ably room typing subscription and publisher backed by an external store
+- `use-room-typing` (`useRoomTypingSync`, `createRoomTypingStore`) — Ably room typing subscription and publisher backed by an external store
 - `use-notification-realtime` (`useNotificationRealtime`) — Ably notifications channel subscription and attachment reconciliation
 - `use-files-archive-download` (`useFilesArchiveDownload`) — zip download aborted on unmount
 - `use-location-replace` (`useLocationReplace`) — `window.location.replace` redirect when a target URL is set
