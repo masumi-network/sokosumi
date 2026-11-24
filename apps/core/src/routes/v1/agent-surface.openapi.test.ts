@@ -3,6 +3,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import { MCP_TOOLS, type McpTool } from "@/lib/sokosumi-mcp/tools";
+
 import apiV1 from "./index.js";
 
 const HTTP_METHODS = ["get", "put", "post", "patch", "delete"] as const;
@@ -96,6 +98,47 @@ function agentSurfaceProblems(
   return problems;
 }
 
+/**
+ * Each manifest `mcp` value is a tool in `MCP_TOOLS` with that operation, and
+ * each tool is a manifest row. `tools.surface.test.ts` checks the fixtures.
+ */
+function mcpBindingProblems(
+  manifests: ReadonlyMap<string, Manifest>,
+  tools: readonly McpTool[],
+): string[] {
+  const problems: string[] = [];
+  const registry = "src/lib/sokosumi-mcp/tools.ts";
+  const toolsByName = new Map(tools.map((tool) => [tool.name, tool]));
+
+  for (const [group, manifest] of manifests) {
+    for (const [op, { mcp }] of Object.entries(manifest.operations)) {
+      if (typeof mcp !== "string") continue;
+      const tool = toolsByName.get(mcp);
+      const at = `apps/core/agent-surface/${group}.json "${op}"`;
+      if (!tool) {
+        problems.push(`${at}: add "${mcp}" to MCP_TOOLS in ${registry}.`);
+      } else if (tool.operation !== op) {
+        problems.push(
+          `${at}: "${mcp}" calls ${tool.operation} in ${registry}.`,
+        );
+      }
+    }
+  }
+
+  for (const tool of tools) {
+    const row = manifests.get(groupOf(tool.operation))?.operations[
+      tool.operation
+    ];
+    if (row?.mcp !== tool.name) {
+      problems.push(
+        `${registry} "${tool.name}": map "${tool.operation}" to it in apps/core/agent-surface/${groupOf(tool.operation)}.json.`,
+      );
+    }
+  }
+
+  return problems;
+}
+
 function readManifests(): Map<string, Manifest> {
   return new Map(
     readdirSync(MANIFEST_DIR)
@@ -127,6 +170,54 @@ describe("agent surface", () => {
       problems,
       `Fix apps/core/agent-surface/ as docs/agents/agent-surface.md describes:\n${problems.join("\n")}`,
     ).toEqual([]);
+  });
+
+  it("binds every MCP tool to its manifest row", () => {
+    const problems = mcpBindingProblems(readManifests(), MCP_TOOLS);
+
+    expect(
+      problems,
+      `Fix as docs/agents/agent-surface.md describes:\n${problems.join("\n")}`,
+    ).toEqual([]);
+  });
+
+  describe("mcpBindingProblems", () => {
+    const tool = {
+      name: "tasks_list",
+      operation: "GET /tasks",
+      description: "",
+    };
+    const manifests = (mcp: string) =>
+      new Map([
+        [
+          "tasks",
+          manifestSchema.parse({
+            backlog: "SOKD-369",
+            operations: { "GET /tasks": { cli: "tasks list", mcp } },
+          }),
+        ],
+      ]);
+
+    it("passes a tool its row names", () => {
+      expect(mcpBindingProblems(manifests("tasks_list"), [tool])).toEqual([]);
+    });
+
+    it("fails a row whose tool is not registered", () => {
+      expect(mcpBindingProblems(manifests("tasks_list"), [])).toEqual([
+        'apps/core/agent-surface/tasks.json "GET /tasks": add "tasks_list" to MCP_TOOLS in src/lib/sokosumi-mcp/tools.ts.',
+      ]);
+    });
+
+    it("fails a tool bound to another operation, and a tool no row names", () => {
+      expect(
+        mcpBindingProblems(manifests("tasks_list"), [
+          { ...tool, operation: "POST /tasks" },
+        ]),
+      ).toEqual([
+        'apps/core/agent-surface/tasks.json "GET /tasks": "tasks_list" calls POST /tasks in src/lib/sokosumi-mcp/tools.ts.',
+        'src/lib/sokosumi-mcp/tools.ts "tasks_list": map "POST /tasks" to it in apps/core/agent-surface/tasks.json.',
+      ]);
+    });
   });
 
   describe("agentSurfaceProblems", () => {

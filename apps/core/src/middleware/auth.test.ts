@@ -12,6 +12,7 @@ import {
   isPersonalSokoBotAuthContext,
   isSharedSokoBotAuthContext,
   type PersonalSokoBotAuthenticationContext,
+  preAuthenticatedRequests,
   requireAdminAuthContext,
   requireFirstPartyUserAuthContext,
   requireInteractiveAdminAuthContext,
@@ -1198,6 +1199,43 @@ describe("authMiddleware", () => {
 
     expect(response.status).toBe(401);
     expect(oauthConsentFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  describe("pre-authenticated request", () => {
+    const preAuthenticated: AuthVariables = {
+      isAuthenticated: true,
+      authContext: {
+        actor: "user",
+        userId: "user_mcp",
+        organizationId: null,
+        role: "user",
+        authenticationMethod: "oauth",
+      },
+    };
+
+    it("takes the caller Core registered for that Request object", async () => {
+      const request = new Request("http://localhost/", {
+        headers: { authorization: "Bearer coworker_ignored" },
+      });
+      preAuthenticatedRequests.set(request, preAuthenticated);
+
+      const response = await createApp().fetch(request);
+
+      expect(await response.json()).toEqual(preAuthenticated.authContext);
+      expect(coworkerApiKeyFindUniqueMock).not.toHaveBeenCalled();
+      expect(getSessionMock).not.toHaveBeenCalled();
+    });
+
+    it("does not carry over to a copy of that Request", async () => {
+      const request = new Request("http://localhost/");
+      preAuthenticatedRequests.set(request, preAuthenticated);
+
+      const response = await createAppWithErrorHandler().fetch(
+        new Request(request),
+      );
+
+      expect(response.status).toBe(401);
+    });
   });
 
   describe("first-party client", () => {
