@@ -3,7 +3,11 @@ import { TaskStatus, TaskTagId, TaskVisibility } from "@sokosumi/core-client";
 import { isUuidString } from "@/lib/utils/uuid";
 import { parseTasksSort, type TasksSort } from "./task-sort";
 
-export const TASKS_SCOPE_VALUES = ["owned", "workspace"] as const;
+/**
+ * `handedOff`: Tasks the reader owns that a teammate, a Coworker or a Soko
+ * Bot is assigned to. The Handed off view sets it, not the Scope menu.
+ */
+export const TASKS_SCOPE_VALUES = ["owned", "workspace", "handedOff"] as const;
 
 export type TasksScope = (typeof TASKS_SCOPE_VALUES)[number];
 
@@ -16,9 +20,9 @@ export const NEEDS_ME_SCOPE = "mine" as const;
  * teammate's Task.
  */
 export function tasksQueryScope(
-  scope: "workspace" | "owned",
+  scope: TasksScope,
   { needsMe, mentions }: { needsMe?: boolean; mentions?: boolean },
-): "workspace" | "owned" | typeof NEEDS_ME_SCOPE {
+): TasksScope | typeof NEEDS_ME_SCOPE {
   return needsMe ? NEEDS_ME_SCOPE : mentions ? "workspace" : scope;
 }
 

@@ -33,7 +33,7 @@ interface ListTasksParams {
   topicTagId?: TaskTagId;
   q?: string;
   search?: string;
-  scope?: "workspace" | "owned" | "mine";
+  scope?: "workspace" | "owned" | "mine" | "handedOff";
   visibility?: "PUBLIC" | "PRIVATE";
   cursor?: string | null;
   limit?: number;

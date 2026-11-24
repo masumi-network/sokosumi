@@ -80,12 +80,12 @@ const taskNameQuerySchema = z
   });
 
 const taskScopeQuerySchema = z
-  .enum(["workspace", "owned", "mine"])
+  .enum(["workspace", "owned", "mine", "handedOff"])
   .default("owned")
   .openapi({
     param: { name: "scope", in: "query" },
     description:
-      "workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace, or 'mine' for tasks the caller owns or is assigned to as a workspace member.",
+      "workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace, 'mine' for tasks the caller owns or is assigned to as a workspace member, or 'handedOff' for tasks the caller owns that a coworker, a Soko Bot or another member is assigned to.",
     example: "workspace",
   });
 
@@ -348,14 +348,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         }
       : {};
-    // The caller's own Tasks: those they own, or for "mine" also those
-    // assigned to them as a workspace member.
+    // The caller's own Tasks: those they own, for "mine" also those
+    // assigned to them as a workspace member, and for "handedOff" only those
+    // they own that someone else is assigned to.
     const scopeFilter = (userId: string): Prisma.TaskWhereInput =>
       scope === "owned"
         ? { ownerId: userId }
         : scope === "mine"
           ? { OR: [{ ownerId: userId }, { assigneeUserId: userId }] }
-          : {};
+          : scope === "handedOff"
+            ? {
+                ownerId: userId,
+                OR: [
+                  { assigneeId: { not: null } },
+                  { assigneeSokoBotId: { not: null } },
+                  {
+                    assigneeUserId: { not: null },
+                    NOT: { assigneeUserId: userId },
+                  },
+                ],
+              }
+            : {};
 
     if (
       archived &&

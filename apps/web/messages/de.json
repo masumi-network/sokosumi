@@ -2041,6 +2041,8 @@
         "needsMeHint": "Tasks, die auf eine Person warten und die dir gehören oder dir zugewiesen sind",
         "mentions": "Erwähnungen",
         "mentionsHint": "Tasks, in denen dich ein Kommentar erwähnt und du seitdem nicht kommentiert hast",
+        "handedOff": "Delegiert",
+        "handedOffHint": "Tasks, die dir gehören und an denen ein Teammitglied, ein Coworker oder ein Soko Bot arbeitet",
         "projectLabel": "Projekt"
       },
       "Detail": {

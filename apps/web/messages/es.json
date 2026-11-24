@@ -2041,6 +2041,8 @@
         "needsMeHint": "Tareas que esperan a una persona, de las que eres propietario o responsable",
         "mentions": "Menciones",
         "mentionsHint": "Tareas en las que un comentario te menciona y no has comentado desde entonces",
+        "handedOff": "Delegadas",
+        "handedOffHint": "Tareas de las que eres propietario y en las que trabaja un compañero, un Coworker o un Soko Bot",
         "projectLabel": "Proyecto"
       },
       "Detail": {

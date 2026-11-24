@@ -1,8 +1,8 @@
 "use client";
 
-import { AtSign, Hand, UserRound } from "lucide-react";
+import { AtSign, Forward, Hand, UserRound } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { TasksFilters } from "@/app/tasks/utils/tasks-filters";
+import type { TasksFilters, TasksScope } from "@/app/tasks/utils/tasks-filters";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 // The shared item stretches (flex-1) so two-option controls split evenly.
@@ -10,7 +10,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 // ones until a label runs into the next view's icon.
 const ITEM_CLASS_NAME = "flex-none";
 
-export type TasksView = "all" | "mine" | "needs-me" | "mentions";
+export type TasksView = "all" | "mine" | "needs-me" | "mentions" | "handed-off";
 
 /**
  * The view a filter set shows. Needs me reads the reader's own Tasks and
@@ -23,6 +23,7 @@ export function getTasksView(
 ): TasksView {
   if (filters.needsMe) return "needs-me";
   if (filters.mentions) return "mentions";
+  if (filters.scope === "handedOff") return "handed-off";
   if (userId && filters.assigneeUserId === userId) return "mine";
   return "all";
 }
@@ -30,15 +31,22 @@ export function getTasksView(
 /**
  * The filter change that switches to a view. It clears the other views and
  * keeps every other filter, so a coworker or status the reader picked stays.
+ * Handed off is a scope, so leaving it goes back to the default scope.
  */
 export function getTasksViewPatch(
   view: TasksView,
   filters: TasksFilters,
   userId: string,
+  defaultScope: TasksScope,
 ): Partial<TasksFilters> {
   const patch: Partial<TasksFilters> = {
     needsMe: view === "needs-me" ? true : undefined,
     mentions: view === "mentions" ? true : undefined,
+    ...(view === "handed-off"
+      ? { scope: "handedOff" }
+      : filters.scope === "handedOff"
+        ? { scope: defaultScope }
+        : {}),
   };
   if (view === "mine") {
     return {
@@ -66,13 +74,15 @@ function isTasksView(value: string): value is TasksView {
     value === "all" ||
     value === "mine" ||
     value === "needs-me" ||
-    value === "mentions"
+    value === "mentions" ||
+    value === "handed-off"
   );
 }
 
 /**
- * All, My tasks, Needs me and Mentions as one single-choice control, because
- * the views do not combine. Needs me and Mentions keep their names on a wide
+ * All, My tasks, Needs me, Mentions and Handed off as one single-choice
+ * control, because the views do not combine. Needs me, Mentions and Handed
+ * off keep their names on a wide
  * toolbar and drop to an icon when the toolbar is narrower than 56rem (the
  * `page-toolbar` container, so an open sidebar counts), which leaves the
  * filter chips beside them room for a whole label. My tasks drops to its
@@ -126,6 +136,15 @@ export function TasksViewSwitcher({
       >
         <AtSign aria-hidden />
         <span className="@max-4xl/page-toolbar:sr-only">{t("mentions")}</span>
+      </ToggleGroupItem>
+      <ToggleGroupItem
+        value="handed-off"
+        className={ITEM_CLASS_NAME}
+        aria-label={t("handedOff")}
+        title={t("handedOffHint")}
+      >
+        <Forward aria-hidden />
+        <span className="@max-4xl/page-toolbar:sr-only">{t("handedOff")}</span>
       </ToggleGroupItem>
     </ToggleGroup>
   );

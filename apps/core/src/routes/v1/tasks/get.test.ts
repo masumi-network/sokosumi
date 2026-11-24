@@ -1073,6 +1073,33 @@ describe("GET /tasks", () => {
       );
     });
 
+    it("matches Tasks the caller owns and someone else works on with scope=handedOff", async () => {
+      const response = await createApp().request(
+        "http://localhost/?scope=handedOff",
+      );
+
+      expect(response.status).toBe(200);
+      expect(taskFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            archivedAt: null,
+            parentTaskId: null,
+            workspaceId: "11111111-1111-7111-8111-111111111111",
+            AND: [...HUMAN_TASK_VISIBILITY_AND],
+            ownerId: "user_123",
+            OR: [
+              { assigneeId: { not: null } },
+              { assigneeSokoBotId: { not: null } },
+              {
+                assigneeUserId: { not: null },
+                NOT: { assigneeUserId: "user_123" },
+              },
+            ],
+          },
+        }),
+      );
+    });
+
     it("keeps the delegated coworker access filter with scope=mine", async () => {
       const response = await createApp(
         DELEGATED_COWORKER_AUTH_CONTEXT,

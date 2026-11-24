@@ -196,7 +196,12 @@ export function TasksViewFilters({
     if (activeOrganizationId !== null) {
       // Needs me reads the reader's own Tasks, so a scope has no effect.
       // Mentions reads the whole workspace, so it has none there either.
-      if (!filters.needsMe && !filters.mentions) {
+      // Handed off is itself a scope, picked in the view switcher.
+      if (
+        !filters.needsMe &&
+        !filters.mentions &&
+        filters.scope !== "handedOff"
+      ) {
         nextSections.push({
           id: "scope",
           label: labels.scopeLabel,
@@ -369,6 +374,8 @@ export function TasksViewFilters({
     // reads the whole workspace, with the same result.
     !filters.needsMe &&
       !filters.mentions &&
+      // Handed off is the view, so the switcher names it.
+      filters.scope !== "handedOff" &&
       filters.scope !== getDefaultTasksScope(activeOrganizationId) && {
         id: "scope",
         label: labels.scopeLabel,
@@ -427,6 +434,7 @@ export function TasksViewFilters({
     mine: labels.assignedToMe,
     "needs-me": t("needsMe"),
     mentions: t("mentions"),
+    "handed-off": t("handedOff"),
   }[currentView];
   const activeFilters = [
     t("chip", { label: t("viewLabel"), value: viewName }),
@@ -449,7 +457,14 @@ export function TasksViewFilters({
         <TasksViewSwitcher
           value={currentView}
           onChange={(view) =>
-            handleFilterChange(getTasksViewPatch(view, filters, userId))
+            handleFilterChange(
+              getTasksViewPatch(
+                view,
+                filters,
+                userId,
+                getDefaultTasksScope(activeOrganizationId),
+              ),
+            )
           }
           showMine={pending || !!me}
           labels={{ all: labels.all, assignedToMe: labels.assignedToMe }}
@@ -519,7 +534,13 @@ export function TasksViewFilters({
                           (patch, chip) => ({ ...patch, ...chip.clear }),
                           // Needs me and Mentions hide the scope chip, but a
                           // scope set before them would come back after.
-                          { scope: getDefaultTasksScope(activeOrganizationId) },
+                          // Handed off is the view, so clearing keeps it.
+                          filters.scope === "handedOff"
+                            ? {}
+                            : {
+                                scope:
+                                  getDefaultTasksScope(activeOrganizationId),
+                              },
                         ),
                       ),
                   }

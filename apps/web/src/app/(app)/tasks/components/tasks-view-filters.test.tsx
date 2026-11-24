@@ -166,6 +166,53 @@ describe("TasksViewFilters", () => {
     window.history.replaceState(null, "", "/");
   });
 
+  it("switches to Handed off and leaves My tasks", async () => {
+    window.history.replaceState(null, "", "/tasks?assigneeUserId=user-1");
+    searchParams = new URLSearchParams(window.location.search);
+    renderTasksViewFilters("org-1", "user-1");
+
+    await userEvent.click(screen.getByRole("radio", { name: "handedOff" }));
+
+    expect(replaceMock).toHaveBeenLastCalledWith("/tasks?scope=handedOff");
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("shows Handed off as the view, not as a scope chip, and leaves it for All", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/tasks?scope=handedOff&assigneeId=coworker-1",
+    );
+    searchParams = new URLSearchParams(window.location.search);
+    renderTasksViewFilters("org-1", "user-1");
+
+    expect(screen.getByRole("radio", { name: "handedOff" })).toBeChecked();
+    expect(
+      within(screen.getByRole("list", { name: "activeFilters" }))
+        .getAllByRole("listitem")
+        .map((chip) => chip.textContent),
+    ).toEqual(["chip(Coworker, Elena)"]);
+    await userEvent.click(screen.getByRole("radio", { name: "All" }));
+
+    expect(replaceMock).toHaveBeenLastCalledWith(
+      "/tasks?scope=workspace&assigneeId=coworker-1",
+    );
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("keeps Handed off when the other filters are cleared", () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/tasks?scope=handedOff&status=FAILED",
+    );
+    searchParams = new URLSearchParams(window.location.search);
+    renderTasksViewFilters("org-1", "user-1").resetAction?.onReset();
+
+    expect(replaceMock).toHaveBeenLastCalledWith("/tasks?scope=handedOff");
+    window.history.replaceState(null, "", "/");
+  });
+
   it("goes back to All and keeps a coworker the reader picked", async () => {
     window.history.replaceState(
       null,

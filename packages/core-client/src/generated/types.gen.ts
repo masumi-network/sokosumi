@@ -104364,9 +104364,9 @@ export type GetTasksData = {
          */
         status?: Array<TaskStatus>;
         /**
-         * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace, or 'mine' for tasks the caller owns or is assigned to as a workspace member.
+         * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace, 'mine' for tasks the caller owns or is assigned to as a workspace member, or 'handedOff' for tasks the caller owns that a coworker, a Soko Bot or another member is assigned to.
          */
-        scope?: 'workspace' | 'owned' | 'mine';
+        scope?: 'workspace' | 'owned' | 'mine' | 'handedOff';
         /**
          * Filter tasks by project ID. Use the literal value 'null' to return tasks that are not assigned to a project.
          */

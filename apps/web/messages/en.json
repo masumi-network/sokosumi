@@ -2041,6 +2041,8 @@
         "needsMeHint": "Tasks that wait for a person, where you are the owner or the assignee",
         "mentions": "Mentions",
         "mentionsHint": "Tasks where a comment mentions you and you have not commented since",
+        "handedOff": "Handed off",
+        "handedOffHint": "Tasks you own that a teammate, Coworker or Soko Bot is working on",
         "projectLabel": "Project"
       },
       "Detail": {
