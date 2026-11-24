@@ -190,7 +190,7 @@ export async function GoingOutToday({
         </h2>
         <Link
           href={calendarUrl({ date: today, view: "week" })}
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-sm text-sm outline-none focus-visible:ring-2"
+          className="text-muted-foreground hover:text-foreground inline-flex min-h-6 items-center focus-visible:ring-ring rounded-sm text-sm outline-none focus-visible:ring-2"
         >
           {page.total > page.rows.length
             ? t("seeAllCount", { count: page.total })
