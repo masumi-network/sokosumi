@@ -31,7 +31,7 @@ export const USER_API_KEY_PREFIX_BY_TARGET: Readonly<
   preprod: "soko_preprod_",
 };
 export const COWORKER_API_KEY_PREFIX = "coworker_";
-export const WEB_API_KEY_ROUTE = "/connections";
+export const WEB_API_KEY_ROUTE = "/developer/api-keys";
 
 function rejectCoworkerApiKey(apiKey: string): void {
   if (apiKey.startsWith(COWORKER_API_KEY_PREFIX)) {
