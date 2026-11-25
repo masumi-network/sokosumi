@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
+import { BrandKitDownloadButton } from "@/app/projects/components/brand-kit-download-button";
 import { DesignMdDocument } from "@/app/projects/components/design-md-document";
 import {
   ProjectBrandCard,
@@ -98,9 +99,18 @@ export default async function ProjectDesignPage({
               className="space-y-2"
               data-testid="project-design-document"
             >
-              <h2 className="text-muted-foreground text-xs font-medium">
-                {t("design.document")}
-              </h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-muted-foreground text-xs font-medium">
+                  {t("design.document")}
+                </h2>
+                {"markdown" in loaded ? (
+                  <BrandKitDownloadButton
+                    projectName={project.name}
+                    markdown={loaded.markdown}
+                    logoUrl={project.logo}
+                  />
+                ) : null}
+              </div>
               {"markdown" in loaded ? (
                 <DesignMdDocument
                   markdown={loaded.markdown}

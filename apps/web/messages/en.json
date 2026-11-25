@@ -3810,7 +3810,9 @@
           "document": "DESIGN.md",
           "colors": "Colors",
           "typography": "Typography",
-          "frontMatter": "Front matter"
+          "frontMatter": "Front matter",
+          "downloadBrandKit": "Download brand kit",
+          "brandKitFileName": "{name} brand kit"
         },
         "bots": {
           "title": "Bots for this project"
