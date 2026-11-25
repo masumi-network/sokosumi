@@ -695,6 +695,27 @@ describe("the guards of speed data on each path", () => {
     expect(JSON.stringify([fresh, stored])).not.toContain(SECRET);
   });
 
+  it("applies the cap and the one row per page of a fresh import to a stored table", () => {
+    const row = (url: string) => ({ url, audited: false, devices: [] });
+    const twice = storedRows([row(EXTRA), row(EXTRA)]);
+    expect([twice?.rows.length, twice?.dropped]).toEqual([1, 1]);
+    const many = publicSeoPayloadSchema.parse({
+      ...storedAudit([]),
+      siteSpeed: {
+        rows: Array.from({ length: 41 }, (_, i) =>
+          row(`https://example.test/p${i}`),
+        ),
+        dropped: 2,
+        notChecked: { count: 3, reason: "limit" },
+      },
+    }).siteSpeed;
+    expect(many).toMatchObject({
+      dropped: 3,
+      notChecked: { count: 3, reason: "limit" },
+    });
+    expect(many?.rows).toHaveLength(40);
+  });
+
   it("drops only the stored row Core cannot read and counts it", () => {
     const table = storedRows([
       { url: EXTRA, audited: false, devices: [] },

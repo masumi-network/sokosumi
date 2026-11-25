@@ -157,17 +157,19 @@ export function readSiteSpeed(
 }
 
 /**
- * A stored table before the schema reads it. Each row is read alone with the guards of a fresh import: a row
- * Core cannot read is dropped and counted, unsafe text goes and the row stays. A measurement is read alone
- * too: one that Core cannot read goes, the row and its other device stay.
+ * A stored table before the schema reads it. Each row is read alone with the guards and the limits of a
+ * fresh import: a row Core cannot read, a repeated page and a row past the cap are dropped and counted once;
+ * unsafe text goes and the row stays. A measurement is read alone too: one that Core cannot read goes, the
+ * row and its other device stay.
  */
 export function readableStoredSiteSpeed(value: unknown) {
   const table = reportObject(value);
   if (!table || !Array.isArray(table.rows)) return value;
+  const seen = new Set<string>();
   const rows: StoredSiteSpeed["rows"] = [];
-  for (const item of table.rows) {
+  for (const item of table.rows.slice(0, SITE_SPEED_ROWS)) {
     const row = reportObject(item);
-    if (!row || !publicSpeedUrl(row.url)) continue;
+    if (!row || !publicSpeedUrl(row.url) || seen.has(row.url)) continue;
     const { check: _check, why: _why, group: _group, ...rest } = row;
     const check =
       row.tier === "reduced" ? readCheck(row.check, true) : undefined;
@@ -186,7 +188,11 @@ export function readableStoredSiteSpeed(value: unknown) {
       ...(check && { check }),
       devices,
     });
-    if (stored.success) rows.push(stored.data);
+    // An unreadable row does not take the URL from a later, readable row.
+    if (stored.success) {
+      rows.push(stored.data);
+      seen.add(row.url);
+    }
   }
   return {
     ...table,
