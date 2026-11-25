@@ -326,13 +326,12 @@ export function ComposerWysiwygEditor<TData = unknown>({
       : [];
 
   const activeIndex = suggestionUi.open ? suggestionUi.activeIndex : 0;
-  const activeSuggestion = suggestionUi.open ? suggestionUi.suggestion : null;
-  const suggestionKind = activeSuggestion?.kind ?? null;
+  const suggestionKind = suggestionUi.open
+    ? suggestionUi.suggestion.kind
+    : null;
   const isOpen = suggestionUi.open;
-  const triggerPosition = useComposerSuggestionPopupPosition(
-    editorElement,
-    activeSuggestion,
-  );
+  const { position: triggerPosition, place: placeSuggestionPopup } =
+    useComposerSuggestionPopupPosition(editorElement, isOpen, suggestionKind);
   const visibleSuggestionCount =
     suggestionKind === "emoji"
       ? emojiMatches.length
@@ -342,19 +341,22 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
   const openSuggestions = useCallback(
     ({
+      editor,
       suggestion,
       nextActiveIndex = 0,
     }: {
+      editor: HTMLElement;
       suggestion: ComposerSuggestion;
       nextActiveIndex?: number;
     }) => {
+      placeSuggestionPopup(editor, suggestion.kind);
       setSuggestionUi({
         open: true,
         suggestion,
         activeIndex: nextActiveIndex,
       });
     },
-    [],
+    [placeSuggestionPopup],
   );
 
   const closeSuggestions = useCallback(() => {
@@ -449,6 +451,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
       if (manualMentionOpenRef.current && normalizedMentions.length > 0) {
         openSuggestions({
+          editor: editorRef.current,
           suggestion: {
             kind: "mention",
             query: "",
@@ -466,6 +469,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
       if (suggestion) {
         openSuggestions({
+          editor: editorRef.current,
           suggestion,
           nextActiveIndex: 0,
         });
@@ -862,6 +866,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
     savedCaretOffsetRef.current = caret;
     manualMentionOpenRef.current = true;
     openSuggestions({
+      editor,
       suggestion: {
         kind: "mention",
         query: "",
@@ -909,6 +914,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
     }
 
     openSuggestions({
+      editor: editorRef.current,
       suggestion: live,
       nextActiveIndex: Math.min(suggestionUi.activeIndex, listLength - 1),
     });

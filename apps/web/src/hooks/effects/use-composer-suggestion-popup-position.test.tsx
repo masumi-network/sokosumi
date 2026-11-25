@@ -5,12 +5,6 @@ import type { ComposerSuggestion } from "@/components/chat/composer-suggestions"
 import { ROOM_COMPOSER_MENTION_ANCHOR_ATTR } from "@/components/chat/room-message-composer";
 import { useComposerSuggestionPopupPosition } from "./use-composer-suggestion-popup-position";
 
-const mention = (query = ""): ComposerSuggestion => ({
-  kind: "mention",
-  query,
-  triggerStart: 0,
-});
-
 const rect = (top: number, left: number, width: number, height: number) =>
   DOMRect.fromRect({ x: left, y: top, width, height });
 
@@ -51,7 +45,7 @@ describe("useComposerSuggestionPopupPosition", () => {
     vi.restoreAllMocks();
   });
 
-  it("measures on open for anchored and caret-only editors (a)", () => {
+  it("places anchored and caret-only popups synchronously for the opening commit (a)", () => {
     stubViewport(1280, 800);
     const anchored = mountAnchoredEditor(rect(674, 318, 856, 102));
     const bare = document.body.appendChild(document.createElement("div"));
@@ -60,19 +54,26 @@ describe("useComposerSuggestionPopupPosition", () => {
     );
 
     const { result, rerender } = renderHook(
-      (p: { ed: HTMLElement | null; s: ComposerSuggestion | null }) =>
-        useComposerSuggestionPopupPosition(p.ed, p.s),
+      (p: {
+        ed: HTMLElement | null;
+        open: boolean;
+        kind: ComposerSuggestion["kind"] | null;
+      }) => useComposerSuggestionPopupPosition(p.ed, p.open, p.kind),
       {
         initialProps: {
           ed: anchored.editor as HTMLElement | null,
-          s: null as ComposerSuggestion | null,
+          open: false,
+          kind: null as ComposerSuggestion["kind"] | null,
         },
       },
     );
-    expect(result.current).toBeNull();
+    expect(result.current.position).toBeNull();
 
-    rerender({ ed: anchored.editor, s: mention() });
-    expect(result.current).toEqual({
+    act(() => {
+      result.current.place(anchored.editor, "mention");
+      rerender({ ed: anchored.editor, open: true, kind: "mention" });
+    });
+    expect(result.current.position).toEqual({
       top: 670,
       left: 318,
       side: "top",
@@ -80,8 +81,11 @@ describe("useComposerSuggestionPopupPosition", () => {
       width: 856,
     });
 
-    rerender({ ed: bare, s: mention() });
-    expect(result.current).toEqual({
+    act(() => {
+      result.current.place(bare, "mention");
+      rerender({ ed: bare, open: true, kind: "mention" });
+    });
+    expect(result.current.position).toEqual({
       top: 575,
       left: 365,
       side: "top",
@@ -89,47 +93,66 @@ describe("useComposerSuggestionPopupPosition", () => {
     });
   });
 
-  it("re-measures on typing updates and skips unrelated rerenders (b)", () => {
+  it("re-places on typing updates and skips unrelated rerenders (b)", () => {
     stubViewport(1280, 800);
     const anchored = mountAnchoredEditor(rect(674, 318, 856, 102));
-    const initial = mention();
     const { result, rerender } = renderHook(
-      (s: ComposerSuggestion | null) =>
-        useComposerSuggestionPopupPosition(anchored.editor, s),
-      { initialProps: initial as ComposerSuggestion | null },
+      (open: boolean) =>
+        useComposerSuggestionPopupPosition(
+          anchored.editor,
+          open,
+          open ? "mention" : null,
+        ),
+      { initialProps: false },
     );
-    expect(result.current?.top).toBe(670);
+
+    act(() => {
+      result.current.place(anchored.editor, "mention");
+      rerender(true);
+    });
+    expect(result.current.position?.top).toBe(670);
 
     anchored.spy.mockClear();
-    rerender(initial);
+    rerender(true);
     expect(anchored.spy).not.toHaveBeenCalled();
 
     anchored.setRect(rect(614, 318, 856, 162));
-    rerender(mention("e"));
-    expect(result.current?.top).toBe(610);
+    act(() => {
+      result.current.place(anchored.editor, "mention");
+    });
+    expect(result.current.position?.top).toBe(610);
   });
 
   it("tracks window resize and visualViewport scroll, unsubscribing on close (c)", () => {
     const vp = stubViewport(1280, 800);
     const anchored = mountAnchoredEditor(rect(674, 318, 856, 102));
     const { result, rerender } = renderHook(
-      (s: ComposerSuggestion | null) =>
-        useComposerSuggestionPopupPosition(anchored.editor, s),
-      { initialProps: mention() as ComposerSuggestion | null },
+      (open: boolean) =>
+        useComposerSuggestionPopupPosition(
+          anchored.editor,
+          open,
+          open ? "mention" : null,
+        ),
+      { initialProps: false },
     );
+
+    act(() => {
+      result.current.place(anchored.editor, "mention");
+      rerender(true);
+    });
 
     act(() => {
       vp.set({ offsetTop: 520 });
       vp.vv.dispatchEvent(new Event("scroll"));
     });
-    expect(result.current?.maxHeight).toBe(142);
+    expect(result.current.position?.maxHeight).toBe(142);
 
     act(() => {
       vp.set({ width: 1024, height: 640, offsetTop: 0 });
       anchored.setRect(rect(514, 244, 748, 102));
       window.dispatchEvent(new Event("resize"));
     });
-    expect(result.current).toEqual({
+    expect(result.current.position).toEqual({
       top: 510,
       left: 244,
       side: "top",
@@ -137,8 +160,8 @@ describe("useComposerSuggestionPopupPosition", () => {
       width: 748,
     });
 
-    rerender(null);
-    expect(result.current).toBeNull();
+    rerender(false);
+    expect(result.current.position).toBeNull();
     anchored.spy.mockClear();
     act(() => {
       window.dispatchEvent(new Event("resize"));
@@ -165,11 +188,19 @@ describe("useComposerSuggestionPopupPosition", () => {
       });
 
     const { result, rerender } = renderHook(
-      (s: ComposerSuggestion | null) =>
-        useComposerSuggestionPopupPosition(anchored.editor, s),
-      { initialProps: mention() as ComposerSuggestion | null },
+      (kind: ComposerSuggestion["kind"] | null) =>
+        useComposerSuggestionPopupPosition(
+          anchored.editor,
+          kind !== null,
+          kind,
+        ),
+      { initialProps: null as ComposerSuggestion["kind"] | null },
     );
-    expect(result.current?.top).toBe(718);
+    act(() => {
+      result.current.place(anchored.editor, "mention");
+      rerender("mention");
+    });
+    expect(result.current.position?.top).toBe(718);
 
     anchored.setRect(rect(674, 12, 354, 110));
     const runNextRaf = () => {
@@ -178,18 +209,18 @@ describe("useComposerSuggestionPopupPosition", () => {
       act(() => cb(16));
     };
     runNextRaf();
-    expect(result.current?.top).toBe(718);
+    expect(result.current.position?.top).toBe(718);
     runNextRaf();
-    expect(result.current?.top).toBe(670);
+    expect(result.current.position?.top).toBe(670);
 
     act(() => {
       vp.set({ height: 360, offsetTop: 560 });
       anchored.setRect(rect(734, 12, 354, 110));
       vp.vv.dispatchEvent(new Event("resize"));
     });
-    expect(result.current?.maxHeight).toBe(162);
+    expect(result.current.position?.maxHeight).toBe(162);
 
-    rerender({ kind: "emoji", query: "sm", triggerStart: 0, matches: [] });
+    rerender("emoji");
     expect(rafs.size).toBe(1);
     rerender(null);
     expect(cancelSpy).toHaveBeenCalled();

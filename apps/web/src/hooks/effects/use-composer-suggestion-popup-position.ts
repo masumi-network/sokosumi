@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { ComposerSuggestion } from "@/components/chat/composer-suggestions";
 import { ROOM_COMPOSER_MENTION_ANCHOR_ATTR } from "@/components/chat/room-message-composer";
@@ -31,38 +31,35 @@ function measureSuggestionPopupPosition(
 }
 
 /**
- * Measures and tracks the fixed-portal position for `ComposerWysiwygEditor`'s
- * suggestion listbox. Uses a layout effect for immediate open/typing placement
- * (before paint, keeping `getCaretRect`'s DOM fallback out of render) and a
- * passive effect for viewport resize/scroll listeners and the 2-frame settle.
+ * Owns the measured fixed-portal position for `ComposerWysiwygEditor`'s
+ * suggestion listbox. Callers invoke `place` in the same event handler that
+ * opens or updates suggestions so the measured position commits with the first
+ * portal render, while the passive effect tracks viewport resize/scroll and
+ * runs the 2-frame settle.
  */
 export function useComposerSuggestionPopupPosition(
   editor: HTMLElement | null,
-  suggestion: ComposerSuggestion | null,
-): TriggerPosition | null {
+  isOpen: boolean,
+  suggestionKind: ComposerSuggestion["kind"] | null,
+): {
+  position: TriggerPosition | null;
+  place: (target: HTMLElement, kind: ComposerSuggestion["kind"]) => void;
+} {
   const [position, setPosition] = useState<TriggerPosition | null>(null);
-  const isOpenRef = useRef(false);
-  const suggestionKind = suggestion?.kind ?? null;
 
-  useLayoutEffect(() => {
-    if (!editor || !suggestion) {
-      isOpenRef.current = false;
-      setPosition(null);
-      return;
-    }
-    isOpenRef.current = true;
-    setPosition(measureSuggestionPopupPosition(editor, suggestion.kind));
-    return () => {
-      isOpenRef.current = false;
-    };
-  }, [editor, suggestion]);
+  const place = useCallback(
+    (target: HTMLElement, kind: ComposerSuggestion["kind"]) => {
+      setPosition(measureSuggestionPopupPosition(target, kind));
+    },
+    [],
+  );
 
   useEffect(() => {
-    if (!editor || !suggestionKind) return;
+    if (!isOpen || !editor || !suggestionKind) return;
 
     let active = true;
     const updatePosition = () => {
-      if (!active || !isOpenRef.current) return;
+      if (!active) return;
       setPosition(measureSuggestionPopupPosition(editor, suggestionKind));
     };
 
@@ -83,7 +80,10 @@ export function useComposerSuggestionPopupPosition(
       visualViewport?.removeEventListener("scroll", updatePosition);
       window.removeEventListener("resize", updatePosition);
     };
-  }, [editor, suggestionKind]);
+  }, [editor, isOpen, suggestionKind]);
 
-  return suggestion ? position : null;
+  return {
+    position: isOpen ? position : null,
+    place,
+  };
 }
