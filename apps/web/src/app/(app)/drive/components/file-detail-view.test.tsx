@@ -177,7 +177,10 @@ describe("FileDetailView", () => {
     api.updateFileMetadata.mockResolvedValue(withoutTag);
 
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
 
     render(
@@ -256,7 +259,10 @@ describe("FileDetailView", () => {
     api.updateFileMetadata.mockResolvedValue(afterReopen);
 
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
 
     render(

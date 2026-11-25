@@ -79,7 +79,16 @@ const PROJECT = {
 
 function renderWizard(defaultProjectId?: string | null) {
   return render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: {
+            queries: { gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        })
+      }
+    >
       <NewTaskWizard instance={1} defaultProjectId={defaultProjectId} />
     </QueryClientProvider>,
   );
@@ -164,7 +173,16 @@ describe("NewTaskWizard", () => {
     const onClose = vi.fn();
 
     render(
-      <QueryClientProvider client={new QueryClient()}>
+      <QueryClientProvider
+        client={
+          new QueryClient({
+            defaultOptions: {
+              queries: { gcTime: Number.POSITIVE_INFINITY },
+              mutations: { gcTime: Number.POSITIVE_INFINITY },
+            },
+          })
+        }
+      >
         <NewTaskWizard instance={1} onClose={onClose} />
       </QueryClientProvider>,
     );

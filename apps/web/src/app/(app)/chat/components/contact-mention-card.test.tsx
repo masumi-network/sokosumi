@@ -89,7 +89,12 @@ describe("contact mentions", () => {
           ) : (
             <TaskDescription title="Description" description={content} />
           ),
-          new QueryClient(),
+          new QueryClient({
+            defaultOptions: {
+              queries: { gcTime: Number.POSITIVE_INFINITY },
+              mutations: { gcTime: Number.POSITIVE_INFINITY },
+            },
+          }),
         ),
       );
       expect(read).not.toHaveBeenCalled();
@@ -120,7 +125,12 @@ describe("contact mentions", () => {
           <button type="button">Composer</button>
           {message(content)}
         </>,
-        new QueryClient(),
+        new QueryClient({
+          defaultOptions: {
+            queries: { gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        }),
       ),
     );
     const composer = screen.getByRole("button", { name: "Composer" });
@@ -143,7 +153,12 @@ describe("contact mentions", () => {
       channels: [],
       organization: "Private studio",
     });
-    const client = new QueryClient();
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     const user = userEvent.setup();
     const { rerender } = render(surface(message(content), client));
     await user.click(screen.getByRole("button", { name: "Avery" }));
@@ -166,7 +181,12 @@ describe("contact mentions", () => {
     render(
       surface(
         message(`[Avery](${window.location.origin}/contacts?contact=${id})`),
-        new QueryClient(),
+        new QueryClient({
+          defaultOptions: {
+            queries: { gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        }),
       ),
     );
     const trigger = screen.getByRole("button", { name: "Avery" });
@@ -187,7 +207,12 @@ describe("contact mentions", () => {
         message(
           content.replace(workspace, "01960001-0001-7001-8001-000000000004"),
         ),
-        new QueryClient(),
+        new QueryClient({
+          defaultOptions: {
+            queries: { gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        }),
       ),
     );
     await userEvent
@@ -201,7 +226,17 @@ describe("contact mentions", () => {
 
   it("keeps a failed lookup in the card without showing stale details", async () => {
     read.mockReset().mockRejectedValue(new Error("Contact no longer exists"));
-    render(surface(message(content), new QueryClient()));
+    render(
+      surface(
+        message(content),
+        new QueryClient({
+          defaultOptions: {
+            queries: { gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        }),
+      ),
+    );
     await userEvent
       .setup()
       .click(screen.getByRole("button", { name: "Avery" }));
@@ -218,7 +253,17 @@ describe("contact mentions", () => {
     const caps = href
       .replace(id, id.toUpperCase())
       .replace(workspace, workspace.toUpperCase());
-    render(surface(message(`[Avery](${caps})`), new QueryClient()));
+    render(
+      surface(
+        message(`[Avery](${caps})`),
+        new QueryClient({
+          defaultOptions: {
+            queries: { gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        }),
+      ),
+    );
     await userEvent
       .setup()
       .click(screen.getByRole("button", { name: "Avery" }));
@@ -234,7 +279,17 @@ describe("contact mentions", () => {
       channels: [],
       mergedIntoId: survivor,
     });
-    render(surface(message(content), new QueryClient()));
+    render(
+      surface(
+        message(content),
+        new QueryClient({
+          defaultOptions: {
+            queries: { gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        }),
+      ),
+    );
     await userEvent
       .setup()
       .click(screen.getByRole("button", { name: "Avery" }));
@@ -258,7 +313,12 @@ describe("contact mentions", () => {
           )}
           {message(content, false)}
         </>,
-        new QueryClient(),
+        new QueryClient({
+          defaultOptions: {
+            queries: { gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        }),
       ),
     );
     expect(screen.getByRole("link", { name: "Elsewhere" })).toHaveAttribute(

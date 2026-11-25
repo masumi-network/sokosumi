@@ -90,7 +90,10 @@ function room(id: string, name: string, kind = "channel") {
 
 function renderDialog() {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   return render(
     <QueryClientProvider client={client}>
@@ -229,7 +232,12 @@ describe("HistorySearchDialog Projects and Channels groups", () => {
   });
 
   it("reads no projects or rooms while Search is closed", () => {
-    const client = new QueryClient();
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     render(
       <QueryClientProvider client={client}>
         <HistorySearchDialog

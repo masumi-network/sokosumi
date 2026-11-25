@@ -151,7 +151,16 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
 
 function renderPanel(lists: ContactList[] = []) {
   render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: {
+            queries: { gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        })
+      }
+    >
       <ContactPanel
         contactId="c-1"
         lists={lists}
@@ -192,7 +201,15 @@ async function createListFromPanel() {
   return trigger;
 }
 
-async function openContactLink(workspace?: string, client = new QueryClient()) {
+async function openContactLink(
+  workspace?: string,
+  client = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  }),
+) {
   const url = new URL(contactDetailHref(LENA.id), window.location.origin);
   if (workspace) url.searchParams.set("workspace", workspace);
   const page = await ContactsPage({
@@ -237,7 +254,14 @@ it("asks before opening the contact in its accessible source workspace", async (
 
 it("does not reuse a contact cached under a different workspace", async () => {
   const client = new QueryClient({
-    defaultOptions: { queries: { staleTime: Infinity, retry: false } },
+    defaultOptions: {
+      queries: {
+        staleTime: Infinity,
+        retry: false,
+        gcTime: Number.POSITIVE_INFINITY,
+      },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   const { unmount } = await openContactLink("personal-workspace", client);
   expect(await screen.findByRole("dialog", { name: LENA.name })).toBeVisible();

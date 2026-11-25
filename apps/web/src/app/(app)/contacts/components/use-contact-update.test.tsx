@@ -25,7 +25,12 @@ const contact = {
 } as unknown as Contact;
 
 function setup() {
-  const cache = new QueryClient();
+  const cache = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  });
   cache.setQueryData(contactKey(contact.id), contact);
   const invalidate = vi.spyOn(cache, "invalidateQueries");
   const wrapper = ({ children }: { children: ReactNode }) => (

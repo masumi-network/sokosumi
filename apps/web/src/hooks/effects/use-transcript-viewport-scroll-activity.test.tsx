@@ -30,7 +30,8 @@ function createHarness() {
 
 describe("useTranscriptViewportScrollActivity", () => {
   let resizeCallbacks: ResizeObserverCallback[] = [];
-  const observedElements: Element[] = [];
+  const observedElements: Array<[Element, ResizeObserverOptions | undefined]> =
+    [];
   const disconnected = vi.fn();
 
   beforeEach(() => {
@@ -44,8 +45,8 @@ describe("useTranscriptViewportScrollActivity", () => {
         constructor(cb: ResizeObserverCallback) {
           resizeCallbacks.push(cb);
         }
-        observe(el: Element) {
-          observedElements.push(el);
+        observe(el: Element, options?: ResizeObserverOptions) {
+          observedElements.push([el, options]);
         }
         unobserve() {}
         disconnect() {
@@ -59,6 +60,20 @@ describe("useTranscriptViewportScrollActivity", () => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
     document.body.innerHTML = "";
+  });
+
+  it("waits the full 200ms idle delay before calling onScrollIdle", () => {
+    const h = createHarness();
+    renderHook(() => useTranscriptViewportScrollActivity(h));
+
+    h.scroller.dispatchEvent(new Event("scroll"));
+    vi.advanceTimersByTime(199);
+    expect(h.scrollingRef.current).toBe(true);
+    expect(h.onScrollIdle).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+    expect(h.scrollingRef.current).toBe(false);
+    expect(h.onScrollIdle).toHaveBeenCalledOnce();
   });
 
   it("records scroll activity and waits for momentum to settle before calling onScrollIdle", () => {
@@ -140,7 +155,10 @@ describe("useTranscriptViewportScrollActivity", () => {
       useTranscriptViewportScrollActivity(h),
     );
 
-    expect(observedElements).toEqual([h.scroller, h.inner]);
+    expect(observedElements).toEqual([
+      [h.scroller, undefined],
+      [h.inner, { box: "border-box" }],
+    ]);
 
     resizeCallbacks[0]?.([], {} as ResizeObserver);
     expect(h.followResize).toHaveBeenCalledExactlyOnceWith(h.scroller);

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 /**
  * The app shell's sidebar reads through react-query — the Projects rows are
@@ -18,6 +18,8 @@ export function TestQueryProvider({ children }: { children: ReactNode }) {
         },
       }),
   );
+
+  useEffect(() => () => client.clear(), [client]);
 
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }

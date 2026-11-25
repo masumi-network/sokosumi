@@ -109,7 +109,10 @@ function renderHarness({
   onSelect?: (projectId: string) => void;
 } = {}) {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   const view = render(
     <QueryClientProvider client={client}>

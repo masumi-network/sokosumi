@@ -440,7 +440,16 @@ it("reaches archived Tasks from the view options menu", async () => {
 it("returns focus to the view options button when the export dialog closes", async () => {
   const user = userEvent.setup();
   render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: {
+            queries: { gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        })
+      }
+    >
       {boardView([TASK])}
     </QueryClientProvider>,
   );

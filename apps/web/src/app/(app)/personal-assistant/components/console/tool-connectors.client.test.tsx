@@ -81,7 +81,12 @@ function renderConnectors(
   focusProvider: string | null = null,
   readOnly = false,
   onError?: (error: Error) => void,
-  client = new QueryClient(),
+  client = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  }),
   withPageSearch = false,
 ) {
   const connectors = (
@@ -184,7 +189,19 @@ describe("ToolConnectors", () => {
 
   it("uses one dashboard field for a linked provider and for catalog matches beyond the popular suggestions", async () => {
     const user = userEvent.setup();
-    renderConnectors([], "figma", false, undefined, new QueryClient(), true);
+    renderConnectors(
+      [],
+      "figma",
+      false,
+      undefined,
+      new QueryClient({
+        defaultOptions: {
+          queries: { gcTime: Number.POSITIVE_INFINITY },
+          mutations: { gcTime: Number.POSITIVE_INFINITY },
+        },
+      }),
+      true,
+    );
     const field = screen.getByRole("searchbox");
     expect(field).toHaveValue("figma");
     expect(
@@ -294,7 +311,12 @@ describe("ToolConnectors", () => {
 
   it("shows a failed refresh of an old search, not its old cards", async () => {
     const user = userEvent.setup();
-    const client = new QueryClient();
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     renderConnectors([], null, false, undefined, client);
     const search = screen.getByRole("searchbox");
     await user.type(search, "fig");
@@ -592,7 +614,12 @@ describe("ToolConnectors", () => {
   });
 
   it("does not scroll again on an identical catalog refetch with a newer dataUpdatedAt", async () => {
-    const client = new QueryClient();
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     const scrollSpy = vi.fn();
     window.HTMLElement.prototype.scrollIntoView = scrollSpy;
 

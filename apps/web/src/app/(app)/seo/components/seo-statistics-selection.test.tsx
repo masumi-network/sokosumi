@@ -61,7 +61,10 @@ function metric(change: Partial<ProjectSeoMetric>): ProjectSeoMetric {
 
 function renderWorkspace(workspace: ProjectSeoWorkspace) {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   clients.push(client);
   const content = () => (

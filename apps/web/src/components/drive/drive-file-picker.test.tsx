@@ -78,7 +78,14 @@ function makeFolder(name: string, dataRoom = false): DriveItem {
 
 function createQueryClient() {
   return new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: 60_000 } },
+    defaultOptions: {
+      queries: {
+        retry: false,
+        staleTime: 60_000,
+        gcTime: Number.POSITIVE_INFINITY,
+      },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
 }
 

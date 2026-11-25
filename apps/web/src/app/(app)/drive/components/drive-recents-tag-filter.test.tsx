@@ -20,7 +20,10 @@ vi.mock("@/lib/utils/file-search.client", () => ({
 
 function renderFilter(selected: string[], onChange = vi.fn()) {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   render(
     <QueryClientProvider client={client}>

@@ -94,7 +94,10 @@ function DialogHarness({
 }
 function showDialog(data: ProjectSeoWorkspace, monitor = false) {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   clients.push(client);
   vi.stubGlobal(

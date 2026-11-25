@@ -259,7 +259,7 @@ export function TranscriptViewport({
   // from before the resize. Returns whether it scrolled.
   const followResize = (element: HTMLElement) => {
     const virtualizer = virtualizerRef.current;
-    const height = element.clientHeight;
+    const height = readTranscriptViewportHeight(element);
     const previousHeight = viewportHeightRef.current;
     viewportHeightRef.current = height;
     const distance = distanceFromEndRef.current;
@@ -283,7 +283,11 @@ export function TranscriptViewport({
     // follow may already have moved it, so the change would apply twice.
     // Applied to the virtualizer's own offset: it runs ahead of the DOM by
     // a correction held during an iOS touch.
-    const change = element.scrollHeight - height - distance - element.scrollTop;
+    const change =
+      element.scrollHeight -
+      element.clientHeight -
+      distance -
+      element.scrollTop;
     if (Math.abs(change) < 1) return false;
     virtualizer.scrollToOffset(
       (virtualizer.scrollOffset ?? element.scrollTop) + change,

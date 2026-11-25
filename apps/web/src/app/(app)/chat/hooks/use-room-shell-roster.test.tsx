@@ -114,7 +114,10 @@ function createWrapper(queryClient: QueryClient) {
 describe("useRoomShellRoster", () => {
   it("resolves a Next Flight thenable whose .then returns undefined", async () => {
     const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     const flight = createFlightThenable<RoomShellRosterPage>();
     const alice = makeMember("m-1", "Alice");
@@ -155,7 +158,10 @@ describe("useRoomShellRoster", () => {
 
   it("settles a rejected roster promise to the failed state, never leaving it pending", async () => {
     const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     const flight = createFlightThenable<RoomShellRosterPage>();
 
@@ -190,7 +196,10 @@ describe("useRoomShellRoster", () => {
 
   it("replaces the roster on a new server promise and ignores an older promise resolving later", async () => {
     const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     const olderPromise = Promise.withResolvers<RoomShellRosterPage>();
     const newerPromise = Promise.withResolvers<RoomShellRosterPage>();
@@ -248,7 +257,10 @@ describe("useRoomShellRoster", () => {
 
   it("keeps the settled roster while a same-room refresh promise is pending until the new roster arrives", async () => {
     const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     const alice = makeMember("m-1", "Alice");
     const bob = makeMember("m-2", "Bob");
@@ -315,7 +327,10 @@ describe("useRoomShellRoster", () => {
 
   it("reads a new server promise when returning to a previously cached workspace and drops the prior workspace while pending", async () => {
     const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     const alice = makeMember("m-1", "Alice");
     const bob = makeMember("m-2", "Bob");
