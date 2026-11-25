@@ -41,6 +41,14 @@ function shiftDay(date: string, days: number): string {
  */
 const SEARCH_CONSOLE_OPEN_DAYS = 3;
 
+/** The pages a sync measured. Days of syncs with different pages are different measurements. */
+function pageFilter(source: SearchEvidenceSource): string {
+  const aliases = source.data.trafficPageAliases ?? {};
+  return JSON.stringify(
+    source.data.pageUrls.map((url) => aliases[url] ?? url).sort(),
+  );
+}
+
 function collectedAt(source: SearchEvidenceSource): string {
   return source.data.collectedAt ?? source.row.observedAt.toISOString();
 }
@@ -49,7 +57,7 @@ function collectedAt(source: SearchEvidenceSource): string {
  * The daily positions of one sync, with older days from earlier syncs of the
  * same property. Per keyword and country, an earlier sync adds days only when
  * the days already read cover its last 3 days again, so no day from `from` on
- * is unread. The sync itself supplies each of its days. An older day comes
+ * is unread. It must have measured the same pages and end no later than this sync. The sync itself supplies each of its days. An older day comes
  * from the sync with the latest last day. At most 366 days are kept.
  */
 export function mergedKeywordSeries(
@@ -64,7 +72,10 @@ export function mergedKeywordSeries(
       (source) =>
         source !== current &&
         source.data.keywordSeries &&
-        source.data.propertyId === current.data.propertyId,
+        source.data.propertyId === current.data.propertyId &&
+        pageFilter(source) === pageFilter(current) &&
+        // The days already read never cover the last days of a sync that ends later.
+        source.data.to <= current.data.to,
     )
     // Of two syncs with one last day, the one collected later holds the fresher values.
     .sort(

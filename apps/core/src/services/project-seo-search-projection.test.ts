@@ -20,12 +20,14 @@ function sync(
     truncated?: boolean;
     position?: number;
     collectedAt?: string;
+    pageUrls?: string[];
   } = {},
 ): SearchEvidenceSource {
   return {
     row: { observedAt: new Date("2026-03-11T00:00:00Z") },
     data: {
       collectedAt: extra.collectedAt,
+      pageUrls: extra.pageUrls ?? ["https://example.com/"],
       propertyId: extra.propertyId ?? "sc-domain:example.com",
       from,
       to,
@@ -151,6 +153,11 @@ describe("mergedKeywordSeries", () => {
         propertyId: "sc-domain:other.example",
       }),
       sync("2026-02-01", "2026-03-05", [["battery", "DE", ["2026-02-03"]]]),
+      sync("2026-02-01", "2026-03-05", [["battery", "US", ["2026-02-04"]]], {
+        pageUrls: ["https://www.example.com/"],
+      }),
+      // It ends after this sync, so this sync never read its last days again.
+      sync("2026-02-01", "2026-03-18", [["battery", "US", ["2026-02-05"]]]),
       sync("2026-03-02", "2026-03-08", [["battery", "US", ["2026-03-03"]]], {
         truncated: true,
       }),
