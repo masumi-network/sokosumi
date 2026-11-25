@@ -413,6 +413,18 @@ export function useTasksBoardModel({
 
     setBoardData((prev) => {
       const isNewSnapshot = prev.snapshot !== tasks;
+      const nextColumnCursorById = buildInitialColumnCursorById(
+        columns,
+        initialColumnNextCursorById,
+      );
+      const completeColumnIds =
+        !isListView && isNewSnapshot
+          ? new Set(
+              columns
+                .filter((column) => nextColumnCursorById[column.id] === null)
+                .map((column) => column.id),
+            )
+          : undefined;
       const next = mergeTasksOnServerRefresh({
         prev: prev.items.filter((task) => !archivedTaskIds.has(task.id)),
         serverTasks,
@@ -423,12 +435,8 @@ export function useTasksBoardModel({
         // Needs me it may no longer wait for a person. Under Mentions the
         // reader may have answered.
         keepLocalOnlyTasks,
+        completeColumnIds,
       });
-
-      const nextColumnCursorById = buildInitialColumnCursorById(
-        columns,
-        initialColumnNextCursorById,
-      );
 
       if (isListView) {
         return {
@@ -506,18 +514,25 @@ export function useTasksBoardModel({
       const nextColumnHiddenById = { ...initialColumnHiddenCountById };
       for (const column of columns) {
         const columnId = column.id;
+        if (nextColumnCursorById[columnId] === null) {
+          continue;
+        }
         const retainedCount = localOnlyCountByColumn.get(columnId) ?? 0;
         const reportedOverflow = initialColumnHiddenCountById[columnId] ?? 0;
         const preserveForPendingArchive =
           nextPendingArchiveIdsByColumn.has(columnId);
-        const preserveForRetainedRows =
-          retainedCount > 0 &&
-          (prev.columnCursorById[columnId] !== null ||
-            retainedCount >= reportedOverflow);
-        if (preserveForPendingArchive || preserveForRetainedRows) {
+        if (preserveForPendingArchive) {
           nextColumnCursorById[columnId] = prev.columnCursorById[columnId];
           nextColumnHiddenById[columnId] = prev.columnHiddenById[columnId];
-        } else if (retainedCount > 0) {
+          continue;
+        }
+        if (retainedCount > 0) {
+          if (
+            prev.columnCursorById[columnId] !== null ||
+            retainedCount >= reportedOverflow
+          ) {
+            nextColumnCursorById[columnId] = prev.columnCursorById[columnId];
+          }
           nextColumnHiddenById[columnId] = Math.max(
             0,
             reportedOverflow - retainedCount,
