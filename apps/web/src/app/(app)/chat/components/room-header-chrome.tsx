@@ -436,9 +436,11 @@ export function RoomHeaderChrome({
               </button>
             </NameGroupDialog>
           ) : isDirectRoom ? (
-            <div className={ROOM_TITLE_STATIC_CLASS}>
+            // Spans, not div/p: a heading holds phrasing content only.
+            <span className={ROOM_TITLE_STATIC_CLASS}>
               {room.isSelfDirect ? (
-                <span className={CHAT_TITLE_MARK_CLASS}>
+                // The face's initials would read as part of the room's name.
+                <span aria-hidden className={CHAT_TITLE_MARK_CLASS}>
                   <DirectRoomAvatarStack
                     room={room}
                     currentUserId={currentUserId}
@@ -447,10 +449,10 @@ export function RoomHeaderChrome({
               ) : (
                 DIRECT_ICON
               )}
-              <p className="min-w-0 truncate" data-testid="room-open-title">
+              <span className="min-w-0 truncate" data-testid="room-open-title">
                 {displayName}
-              </p>
-            </div>
+              </span>
+            </span>
           ) : canManageSettings ? (
             <EditChannelDialog
               channel={room}

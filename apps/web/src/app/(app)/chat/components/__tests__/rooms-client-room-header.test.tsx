@@ -609,7 +609,24 @@ describe("RoomsClient room header chrome", () => {
 
     cleanup();
     renderRoom(humanDirectRoom());
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Bob");
+    const direct = screen.getByRole("heading", { level: 1 });
+    expect(direct).toHaveTextContent("Bob");
+    // A heading holds phrasing content only.
+    expect(direct.querySelector("div, p")).toBeNull();
+
+    // The self Direct's face is decoration: its initials stay out of the name.
+    cleanup();
+    renderRoom({
+      ...humanDirectRoom(),
+      isSelfDirect: true,
+      isGroupDirect: false,
+      groupName: null,
+      userMembers: [participant("user-1", "Ada")],
+      organizationId: null,
+    });
+    const self = screen.getByRole("heading", { level: 1 });
+    expect(self).toHaveAccessibleName("SelfDirect.youNamed");
+    expect(self.querySelector("div, p")).toBeNull();
   });
 
   it("opens the members panel from a plain member's channel title", async () => {
