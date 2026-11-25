@@ -336,9 +336,9 @@ export function ProjectBrandCard({
           </h2>
           {/* Without a DESIGN.md the actions are buttons below, not a menu. */}
           {designMd ? (
-            // Negative margin, as on the menu button: a 32px action must not
-            // make this row taller than its heading.
-            <div className="-my-2 flex items-center gap-2">
+            // Half the menu button's negative margin: the row grows 4px, so a
+            // 32px action keeps a gap above the status badge below it.
+            <div className="-my-1 flex items-center gap-2">
               {headerAction}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
