@@ -112,7 +112,8 @@
     },
     "POST /soko-bots/me/skills": {
       "cli": "soko-bots install-my-skill",
-      "mcp": "soko_bots_install_my_skill"
+      "mcp": false,
+      "reason": "Installs outside code onto the person's bot: a person chooses it."
     },
     "DELETE /soko-bots/me/skills/{skillId}": {
       "cli": "soko-bots remove-my-skill",
@@ -254,14 +255,12 @@
       "mcp": "soko_bots_set_team_standup"
     },
     "GET /soko-bots/me/integrations": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Integrations stay in the Web app, where a person connects them (ADR 0077); this read serves that screen."
+      "cli": "soko-bots my-integrations",
+      "mcp": "soko_bots_my_integrations"
     },
     "GET /soko-bots/integrations/catalog": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Integrations stay in the Web app, where a person connects them (ADR 0077); this read serves that screen."
+      "cli": "soko-bots integration-catalog",
+      "mcp": "soko_bots_integration_catalog"
     },
     "POST /soko-bots/me/integrations/{provider}/connect": {
       "cli": false,
@@ -284,9 +283,8 @@
       "reason": "Integrations: connecting a Soko Bot to an outside account is a long-lived grant a person makes in the Web app (ADR 0077)."
     },
     "GET /soko-bots/{sokoBotId}/integrations": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Integrations stay in the Web app, where a person connects them (ADR 0077); this read serves that screen."
+      "cli": "soko-bots integrations",
+      "mcp": "soko_bots_integrations"
     },
     "POST /soko-bots/{sokoBotId}/integrations/{provider}/connect": {
       "cli": false,

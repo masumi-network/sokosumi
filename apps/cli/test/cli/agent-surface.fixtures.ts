@@ -3317,4 +3317,19 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       '{"enabled":false}',
     ],
   },
+  "GET /soko-bots/me/integrations": {
+    argv: [...API, "soko-bots", "my-integrations"],
+  },
+  "GET /soko-bots/{sokoBotId}/integrations": {
+    argv: [...API, "soko-bots", "integrations", "bot-1"],
+  },
+  "GET /soko-bots/integrations/catalog": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "integration-catalog",
+      "--query",
+      "query=gmail",
+    ],
+  },
 };

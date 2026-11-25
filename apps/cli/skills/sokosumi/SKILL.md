@@ -485,7 +485,7 @@ sokosumi soko-bots ask SOKO_BOT_ID --input-json '{"clientTurnId":"brief-2","mess
 
 A turn runs in the background: read it with `my-turn` or `turn` until it settles. Resending a `clientTurnId` with the same message returns the same turn; a new question needs a new id. Asking, schedules, the Lab rhythms and turning on proactive work, board-following or the stand-up spend workspace credits: confirm with the person first. `reset-my-memory` and `reset-memory` erase what the bot remembers, and `delete-mine` and `delete` erase the bot. Every write is a mainnet write and needs the operator `yes` above.
 
-Over MCP, the Soko Bot tools are in the `soko-bots` toolset, off by default: add `?toolsets=workspaces,tasks,coworkers,soko-bots`. Tools that spend credits are marked so the client asks first. Permanent deletion is CLI-only. A person resolves a bot's pending decisions, connects integrations and manages its API keys, secrets, sandbox and MCP servers in Sokosumi Web.
+Over MCP, the Soko Bot tools are in the `soko-bots` toolset, off by default: add `?toolsets=workspaces,tasks,coworkers,soko-bots`. Tools that spend credits are marked so the client asks first. Permanent deletion and installing a skill are CLI-only. Agents may read a bot's integrations; a person connects them, resolves the bot's pending decisions and manages its API keys, secrets, sandbox and MCP servers in Sokosumi Web.
 
 ## Use Sokosumi over MCP
 

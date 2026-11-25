@@ -2744,6 +2744,21 @@ export const CLI_COMMAND_CATALOG = [
     usage: "SOKO_BOT_ID --input-json JSON",
     operation: "PUT /soko-bots/{sokoBotId}/team-standup",
   },
+  {
+    command: "soko-bots my-integrations",
+    usage: "",
+    operation: "GET /soko-bots/me/integrations",
+  },
+  {
+    command: "soko-bots integrations",
+    usage: "SOKO_BOT_ID",
+    operation: "GET /soko-bots/{sokoBotId}/integrations",
+  },
+  {
+    command: "soko-bots integration-catalog",
+    usage: "",
+    operation: "GET /soko-bots/integrations/catalog",
+  },
 ] as const satisfies readonly CliCommandCatalogEntry[];
 
 type CliCommand = (typeof CLI_COMMAND_CATALOG)[number]["command"];

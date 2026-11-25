@@ -2996,10 +2996,22 @@ export const MCP_TOOLS: readonly McpTool[] = [
     description: "List the skills installed on your personal Soko Bot.",
   },
   {
-    name: "soko_bots_install_my_skill",
-    operation: "POST /soko-bots/me/skills",
+    name: "soko_bots_my_integrations",
+    operation: "GET /soko-bots/me/integrations",
     description:
-      "Install a skill on your personal Soko Bot: `body.source` from soko_bots_search_skills, and `body.skillName` when the source holds several.",
+      "List the outside accounts (email, calendar) your personal Soko Bot can connect, with each one's status. A person connects them in Sokosumi Web.",
+  },
+  {
+    name: "soko_bots_integrations",
+    operation: "GET /soko-bots/{sokoBotId}/integrations",
+    description:
+      "List the outside accounts (email, calendar) a Soko Bot can connect, with each one's status. A person connects them in Sokosumi Web.",
+  },
+  {
+    name: "soko_bots_integration_catalog",
+    operation: "GET /soko-bots/integrations/catalog",
+    description:
+      "Search the outside accounts a Soko Bot can connect, by `query`.",
   },
   {
     name: "soko_bots_remove_my_skill",
