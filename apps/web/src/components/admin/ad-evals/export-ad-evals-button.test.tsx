@@ -15,31 +15,42 @@ beforeEach(() => vi.resetAllMocks());
 
 describe("ExportAdEvalsButton", () => {
   it("downloads the returned JSONL as a file", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     mocks.export.mockResolvedValue({ ok: true, value: '{"type":"rating"}\n' });
     const createUrl = vi
       .spyOn(URL, "createObjectURL")
       .mockReturnValue("blob:ad-evals");
+    const revokeUrl = vi
+      .spyOn(URL, "revokeObjectURL")
+      .mockImplementation(() => {});
     let downloadName: string | undefined;
     const click = vi
       .spyOn(HTMLAnchorElement.prototype, "click")
       .mockImplementation(function (this: HTMLAnchorElement) {
         downloadName = this.download;
       });
-    render(
-      <NextIntlClientProvider locale="en" messages={en}>
-        <ExportAdEvalsButton />
-      </NextIntlClientProvider>,
-    );
-    await userEvent
-      .setup()
-      .click(screen.getByRole("button", { name: "Download JSONL" }));
-    await waitFor(() => expect(click).toHaveBeenCalledOnce());
-    const blob = createUrl.mock.calls[0][0];
-    expect(blob).toBeInstanceOf(Blob);
-    expect(blob instanceof Blob && blob.type).toBe("application/x-ndjson");
-    expect(downloadName).toBe("ad-evals.jsonl");
-    createUrl.mockRestore();
-    click.mockRestore();
+    try {
+      render(
+        <NextIntlClientProvider locale="en" messages={en}>
+          <ExportAdEvalsButton />
+        </NextIntlClientProvider>,
+      );
+      await userEvent
+        .setup({ advanceTimers: vi.advanceTimersByTime })
+        .click(screen.getByRole("button", { name: "Download JSONL" }));
+      await waitFor(() => expect(click).toHaveBeenCalledOnce());
+      const blob = createUrl.mock.calls[0][0];
+      expect(blob).toBeInstanceOf(Blob);
+      expect(blob instanceof Blob && blob.type).toBe("application/x-ndjson");
+      expect(downloadName).toBe("ad-evals.jsonl");
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(revokeUrl).toHaveBeenCalledWith("blob:ad-evals");
+    } finally {
+      vi.useRealTimers();
+      revokeUrl.mockRestore();
+      createUrl.mockRestore();
+      click.mockRestore();
+    }
   });
 
   it("announces export failures and allows retry", async () => {
