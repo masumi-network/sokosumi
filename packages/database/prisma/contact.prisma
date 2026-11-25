@@ -139,6 +139,7 @@ model Contact {
   search                ContactSearch?
   fundraising           FundraisingProspect?
   portfolioOf           FundraisingPortfolioCompany[]
+  linkedInConnections   ContactLinkedInConnection[]
 
   notDuplicateOf ContactNotDuplicate[] @relation("NotDuplicateContact")
   notDuplicateTo ContactNotDuplicate[] @relation("NotDuplicateOther")
@@ -513,4 +514,21 @@ model ContactCompanyListMember {
   @@id([listId, companyId])
   @@index([companyId])
   @@map("contact_company_list_member")
+}
+
+/// A teammate's LinkedIn connection to a contact, from their Connections.csv
+/// export. One row per teammate and contact; `connectedOn` is LinkedIn's date.
+/// Warm paths read it: the teammate can ask this person for an introduction.
+model ContactLinkedInConnection {
+  workspaceId String   @db.Uuid
+  contactId   String   @db.Uuid
+  contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation("ContactLinkedInConnectionUser", fields: [userId], references: [id], onDelete: Cascade)
+  connectedOn DateTime? @db.Date
+  createdAt   DateTime @default(now())
+
+  @@id([contactId, userId])
+  @@index([workspaceId, userId])
+  @@map("contact_linkedin_connection")
 }

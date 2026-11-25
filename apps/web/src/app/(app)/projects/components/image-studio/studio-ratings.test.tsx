@@ -21,14 +21,16 @@ const mocks = vi.hoisted(() => ({
   hide: vi.fn(),
   viewed: vi.fn(),
   toast: vi.fn(),
+  replace: vi.fn(),
+  searchParams: new URLSearchParams(),
 }));
 // happy-dom has no layout for next/image to measure a `fill` parent by.
 vi.mock("next/image", () => import("@/test/next-image"));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: vi.fn() }),
+  useRouter: () => ({ replace: mocks.replace }),
   usePathname: () => "/studio",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mocks.searchParams,
 }));
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -101,6 +103,7 @@ function mount(assets = [ASSET], searchParams = "") {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.searchParams = new URLSearchParams();
   mocks.viewed.mockResolvedValue(undefined);
   mocks.rate.mockImplementation(async ({ feedback }) => ({
     ok: true,
@@ -368,6 +371,256 @@ describe("studio ratings", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
     expect(fetchMock.mock.calls[2]?.[0]).toContain("sort=best");
     expect(screen.getByRole("combobox", { name: "sort" })).toHaveValue("best");
+  });
+
+  it("keeps the URL on project B when project A's pending sort refresh settles after switching projects", async () => {
+    const projectBAsset: StudioAsset = {
+      ...ASSET,
+      id: "ad-b",
+      projectId: "project-b",
+      rootId: "ad-b",
+      jobId: "job-b",
+      contentPath: "/ad-b",
+    };
+    const lateProjectABest: StudioAsset = {
+      ...ASSET,
+      id: "ad-a-best",
+      version: 2,
+      score: 2,
+      jobId: "job-a-best",
+      contentPath: "/ad-a-best",
+    };
+    let resolveProjectASort!: (response: Response) => void;
+    const fetchMock = vi.fn((url: string) => {
+      if (url.includes("/projects/project-a/")) {
+        return new Promise<Response>((resolve) => {
+          resolveProjectASort = resolve;
+        });
+      }
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            assets: [projectBAsset],
+            jobs: [],
+            nextCursor: null,
+          }),
+          { status: 200 },
+        ),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    mocks.searchParams = new URLSearchParams("projectId=project-a&sort=best");
+    const view = render(
+      <NuqsTestingAdapter
+        hasMemory
+        searchParams="?projectId=project-a&sort=best"
+      >
+        <ImageStudio
+          catalog={TEST_CATALOG}
+          initialSelectedAssetId={null}
+          initialState={{ assets: [ASSET], jobs: [], nextCursor: null }}
+          key="project-a"
+          labels={TEST_LABELS}
+          projectId="project-a"
+          readOnly={false}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(fetchMock.mock.calls[0]?.[0]).toContain(
+      "/api/projects/project-a/image-studio/state?sort=best",
+    );
+
+    // Switch from project A to project B (StudioPage keys ImageStudio by scopeId).
+    mocks.searchParams = new URLSearchParams("projectId=project-b");
+    view.rerender(
+      <NuqsTestingAdapter
+        hasMemory
+        key="nav-project-b"
+        searchParams="?projectId=project-b"
+      >
+        <ImageStudio
+          catalog={TEST_CATALOG}
+          initialSelectedAssetId={null}
+          initialState={{
+            assets: [projectBAsset],
+            jobs: [],
+            nextCursor: null,
+          }}
+          key="project-b"
+          labels={TEST_LABELS}
+          projectId="project-b"
+          readOnly={false}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    await act(async () => {
+      resolveProjectASort(
+        new Response(
+          JSON.stringify({
+            assets: [lateProjectABest, ASSET],
+            jobs: [],
+            nextCursor: null,
+          }),
+          { status: 200 },
+        ),
+      );
+    });
+
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it("still selects a newly arrived result and updates the URL in the active project", async () => {
+    const projectABest: StudioAsset = {
+      ...ASSET,
+      id: "ad-a-best",
+      version: 2,
+      score: 2,
+      jobId: "job-a-best",
+      contentPath: "/ad-a-best",
+    };
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            assets: [projectABest, ASSET],
+            jobs: [],
+            nextCursor: null,
+          }),
+          { status: 200 },
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    mocks.searchParams = new URLSearchParams("projectId=project-a&sort=best");
+    render(
+      <NuqsTestingAdapter
+        hasMemory
+        searchParams="?projectId=project-a&sort=best"
+      >
+        <ImageStudio
+          catalog={TEST_CATALOG}
+          initialSelectedAssetId={null}
+          initialState={{ assets: [ASSET], jobs: [], nextCursor: null }}
+          key="project-a"
+          labels={TEST_LABELS}
+          projectId="project-a"
+          readOnly={false}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith(
+        "/studio?projectId=project-a&sort=best&v=ad-a-best",
+        { scroll: false },
+      ),
+    );
+  });
+
+  it("suppresses URL replacement while hidden under Activity but still updates Best gallery rows on reveal", async () => {
+    const projectABest: StudioAsset = {
+      ...ASSET,
+      id: "ad-a-best",
+      version: 2,
+      score: 2,
+      jobId: "job-a-best",
+      contentPath: "/ad-a-best",
+    };
+    let resolveBest!: (response: Response) => void;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveBest = resolve;
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    mocks.searchParams = new URLSearchParams("projectId=project-a&sort=best");
+    const view = render(
+      <NuqsTestingAdapter
+        hasMemory
+        searchParams="?projectId=project-a&sort=best"
+      >
+        <Activity mode="visible">
+          <ImageStudio
+            catalog={TEST_CATALOG}
+            initialSelectedAssetId={null}
+            initialState={{ assets: [ASSET], jobs: [], nextCursor: null }}
+            labels={TEST_LABELS}
+            projectId="project-a"
+            readOnly={false}
+          />
+        </Activity>
+      </NuqsTestingAdapter>,
+    );
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      view.rerender(
+        <NuqsTestingAdapter
+          hasMemory
+          searchParams="?projectId=project-a&sort=best"
+        >
+          <Activity mode="hidden">
+            <ImageStudio
+              catalog={TEST_CATALOG}
+              initialSelectedAssetId={null}
+              initialState={{ assets: [ASSET], jobs: [], nextCursor: null }}
+              labels={TEST_LABELS}
+              projectId="project-a"
+              readOnly={false}
+            />
+          </Activity>
+        </NuqsTestingAdapter>,
+      );
+    });
+
+    await act(async () => {
+      resolveBest(
+        new Response(
+          JSON.stringify({
+            assets: [projectABest, ASSET],
+            jobs: [],
+            nextCursor: null,
+          }),
+          { status: 200 },
+        ),
+      );
+    });
+
+    expect(mocks.replace).not.toHaveBeenCalled();
+
+    act(() => {
+      view.rerender(
+        <NuqsTestingAdapter
+          hasMemory
+          searchParams="?projectId=project-a&sort=best"
+        >
+          <Activity mode="visible">
+            <ImageStudio
+              catalog={TEST_CATALOG}
+              initialSelectedAssetId={null}
+              initialState={{ assets: [ASSET], jobs: [], nextCursor: null }}
+              labels={TEST_LABELS}
+              projectId="project-a"
+              readOnly={false}
+            />
+          </Activity>
+        </NuqsTestingAdapter>,
+      );
+    });
+
+    expect(
+      [...document.querySelectorAll("figure[data-asset-id]")].map((tile) =>
+        tile.getAttribute("data-asset-id"),
+      ),
+    ).toEqual(["ad-a-best", "ad-a"]);
+    expect(mocks.replace).not.toHaveBeenCalled();
   });
 
   it("soft-hides an ad from the menu and keeps it out of the gallery", async () => {

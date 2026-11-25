@@ -6,6 +6,7 @@ import type {
 } from "@sokosumi/core-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { ExternalLink } from "lucide-react";
+import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -127,7 +128,10 @@ export function WarmPaths({
           <p className="text-muted-foreground text-sm">{t("loading")}</p>
         ) : data.paths.length === 0 ? (
           <p className="text-muted-foreground text-sm text-pretty">
-            {data.portfolio.length ? t("noPathsYet") : t("noPathsNoPortfolio")}
+            {data.portfolio.length ? t("noPathsYet") : t("noPathsNoPortfolio")}{" "}
+            <Link href="/contacts" className="underline underline-offset-2">
+              {t("importHint")}
+            </Link>
           </p>
         ) : (
           <ul className="grid gap-2">
@@ -152,33 +156,48 @@ export function WarmPaths({
                     <p className="text-pretty">
                       {path.kind === "direct"
                         ? t("direct", { who: path.via?.name ?? t("you") })
-                        : path.via
-                          ? t(
-                              path.kind === "fund" ? "viaFund" : "viaPortfolio",
-                              {
-                                who: path.via.name,
-                                through: path.through?.name ?? "",
-                                role: path.through?.role ?? "",
-                                company: path.company?.name ?? "",
-                              },
-                            )
-                          : t(
-                              path.kind === "fund"
-                                ? "coldFund"
-                                : "coldPortfolio",
-                              {
-                                through: path.through?.name ?? "",
-                                role: path.through?.role ?? "",
-                                company: path.company?.name ?? "",
-                              },
-                            )}
+                        : path.kind === "linkedin"
+                          ? t("linkedinDirect", {
+                              who: path.via?.name ?? t("you"),
+                            })
+                          : path.via
+                            ? t(
+                                path.touches
+                                  ? path.kind === "fund"
+                                    ? "viaFund"
+                                    : "viaPortfolio"
+                                  : path.kind === "fund"
+                                    ? "linkedinFund"
+                                    : "linkedinPortfolio",
+                                {
+                                  who: path.via.name,
+                                  through: path.through?.name ?? "",
+                                  role: path.through?.role ?? "",
+                                  company: path.company?.name ?? "",
+                                },
+                              )
+                            : t(
+                                path.kind === "fund"
+                                  ? "coldFund"
+                                  : "coldPortfolio",
+                                {
+                                  through: path.through?.name ?? "",
+                                  role: path.through?.role ?? "",
+                                  company: path.company?.name ?? "",
+                                },
+                              )}
                     </p>
                     <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
                       <StrengthBar value={path.strength} />
                       <span>
                         {path.touches
                           ? t("touches", { count: path.touches })
-                          : t("noTouches")}
+                          : path.linkedIn
+                            ? t("onLinkedIn")
+                            : t("noTouches")}
+                        {path.touches && path.linkedIn
+                          ? ` · ${t("onLinkedIn")}`
+                          : ""}
                         {path.lastTouchAt
                           ? ` · ${format.relativeTime(new Date(path.lastTouchAt), now)}`
                           : ""}
