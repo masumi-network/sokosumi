@@ -1,6 +1,6 @@
 # CMO app
 
-CMO is the product at cmo.xyz (see **CMO** and **Sign in with Sokosumi** in [GLOSSARY.md](../../GLOSSARY.md), and [ADR 0045](../../docs/adr/0045-cmo-signs-in-through-core-oauth-provider.md)). This app is its own Next.js deployment at app.cmo.xyz, not part of Web.
+CMO is the product at cmo.xyz (see **CMO** and **Sign in with Sokosumi** in [GLOSSARY.md](../../GLOSSARY.md), and [ADR 0045](../../docs/adr/0045-cmo-signs-in-through-core-oauth-provider.md)). This app is its own Next.js deployment at app.cmo.xyz, not part of Web. The public landing and legal pages at www.cmo.xyz are [`apps/cmo-website`](../cmo-website/AGENTS.md).
 
 - **Company.** CMO.XYZ belongs to Sumico, Inc., not utxo AG. Name Sumico, Inc. wherever the product names its company. "utxo AG" in eval cases, fixtures and Core is a customer and a workspace, not the owner; leave it.
 - **Own components.** Build every component inside `apps/cmo`; Web's components stay Web's.

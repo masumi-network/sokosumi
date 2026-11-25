@@ -519,7 +519,7 @@ describe("Vercel web turbo build command", () => {
   });
 
   it("gates each app's build on its own turbo package", async () => {
-    for (const app of ["web", "core", "cmo"]) {
+    for (const app of ["web", "core", "cmo", "cmo-website"]) {
       const config = JSON.parse(await readRepoFile("apps", app, "vercel.json"));
       const { name } = JSON.parse(
         await readRepoFile("apps", app, "package.json"),
