@@ -357,7 +357,7 @@ Every start needs an `idempotencyKey` (8 to 200 characters). Pick a new one for 
 
 ## Image Studio and ads edits
 
-[VERIFIED: ADR 0077, `apps/cli/src/cli/commands/catalog.ts`] These spend no credits and publish nothing, so you may run them without asking first: rate, compare, hide or headline an image; write a caption or talking-video scripts; read the Project's website for brand and product suggestions; save the Brand Kit, product catalog and ads market profile.
+[VERIFIED: ADR 0077, `apps/cli/src/cli/commands/catalog.ts`] These spend no credits and publish nothing: rate, compare, hide or headline an image; write a caption or talking-video scripts (an agent gets 60 per workspace per hour, then 429); read the Project's website for brand and product suggestions; save the Brand Kit, product catalog and ads market profile. Saving the Brand Kit, catalog or market profile replaces what is there, and hiding removes an image from the gallery: confirm those with the person first. A new market profile is researched, and paid for, when a person next opens it.
 
 ```bash
 sokosumi projects image-studio-website-research PROJECT_ID --json

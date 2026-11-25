@@ -9,6 +9,7 @@ import {
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireProjectAccess } from "@/lib/image-studio/access";
+import { limitAgentWriting } from "@/lib/image-studio/agent-writing-limit";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
@@ -40,6 +41,7 @@ const route = withOrganizationSlugHeaderParameter(
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
       409: jsonErrorResponse("CMO project is read-only"),
+      429: jsonErrorResponse("An agent reached its hourly limit"),
       422: jsonErrorResponse("Unprocessable Entity"),
       503: jsonErrorResponse("Service Unavailable"),
     },
@@ -57,6 +59,8 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       workspaceId: workspaceContext.workspaceId,
       userId: userContext.userId,
     });
+
+    await limitAgentWriting(userContext, workspaceContext.workspaceId);
 
     const scripts = await writeTalkingVideoScripts({
       projectId,

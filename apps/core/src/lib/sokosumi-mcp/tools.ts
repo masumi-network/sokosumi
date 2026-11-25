@@ -1143,7 +1143,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "projects_ads_market_update",
     operation: "PUT /projects/{id}/ads/market",
     description:
-      "Save a Project's ads market profile: 1 to 10 `keywords`, a `countryCode` and a `languageCode`. It replaces the previous profile. Spends nothing; a person still runs keyword and competitor research in Sokosumi.",
+      "Save a Project's ads market profile: 1 to 10 `keywords`, a `countryCode` and a `languageCode`. It replaces the previous profile. Saving spends nothing, but a new profile is researched, and paid for, the next time a person opens keyword or competitor research, so change it only when the person asks.",
     destructive: true,
   },
   {
