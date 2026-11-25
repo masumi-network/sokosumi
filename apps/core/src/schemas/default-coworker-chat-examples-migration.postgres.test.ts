@@ -9,8 +9,10 @@
  * Runs the migrations inside a transaction that is always rolled back, so the
  * fixtures (and any real rows with these slugs) are left as they were.
  */
+
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { describe, expect, it } from "vitest";
 
 import prisma from "@/lib/db/prisma";
@@ -78,12 +80,12 @@ describe.skipIf(!enabled)("default Coworker chat examples migration", () => {
           });
         }
         // Both empty shapes a row can hold: SQL NULL and JSON null.
-        await tx.$executeRaw`UPDATE "coworker" SET "metadata" = NULL WHERE "slug" = 'jamal'`;
-        await tx.$executeRaw`UPDATE "coworker" SET "metadata" = 'null'::jsonb WHERE "slug" = 'maya'`;
+        await tx.$executeRaw`UPDATE ${sharedTable("coworker")} SET "metadata" = NULL WHERE "slug" = 'jamal'`;
+        await tx.$executeRaw`UPDATE ${sharedTable("coworker")} SET "metadata" = 'null'::jsonb WHERE "slug" = 'maya'`;
 
         await tx.$executeRawUnsafe(migrationSql);
         // An admin edits Maya's examples between the two migrations.
-        await tx.$executeRaw`UPDATE "coworker" SET "metadata" = jsonb_set("metadata", '{profile,examples}', '["Edited by an admin?"]') WHERE "slug" = 'maya'`;
+        await tx.$executeRaw`UPDATE ${sharedTable("coworker")} SET "metadata" = jsonb_set("metadata", '{profile,examples}', '["Edited by an admin?"]') WHERE "slug" = 'maya'`;
         await tx.$executeRawUnsafe(shortenSql);
 
         const found = await tx.coworker.findMany({

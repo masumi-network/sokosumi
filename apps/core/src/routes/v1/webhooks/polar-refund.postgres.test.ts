@@ -10,16 +10,21 @@
  * each on its own connection, write the rest off once instead of twice.
  * Fixtures are committed, so both connections see them, and deleted after.
  */
+
 import { randomUUID } from "node:crypto";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { createPrismaClient } from "@sokosumi/database/client";
+import {
+  createSqlTables,
+  sqlTableLayoutFromEnv,
+} from "@sokosumi/database/sql-tables";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { ok } from "neverthrow";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-
 import { errorHandler } from "@/helpers/error-handler";
 import type { EnvVariables } from "@/lib/hono";
 import { syncPolarYearlyGrants } from "@/services/polar-yearly-grant-sync.service";
+import { testSchemaNames } from "@/test/split-layout";
 
 import router from "./index";
 
@@ -36,11 +41,21 @@ vi.mock("@/lib/auth", () => ({
   auth: { api: { getSession: vi.fn(), verifyApiKey: vi.fn() } },
 }));
 
+const { sharedTable } = createSqlTables(sqlTableLayoutFromEnv(process.env));
+
 const url = process.env.DATABASE_URL;
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   url?.startsWith("postgres");
-const db = enabled && url ? createPrismaClient(url) : null;
+const schemas = testSchemaNames();
+const db =
+  enabled && url
+    ? createPrismaClient(url, { schema: schemas.DATABASE_SCHEMA_SHARED })
+    : null;
+const mainnet =
+  enabled && url
+    ? createPrismaClient(url, { schema: schemas.DATABASE_SCHEMA_MAINNET })
+    : null;
 
 const ORGANIZATION = `org-${randomUUID()}`;
 const WORKSPACE = randomUUID();
@@ -50,6 +65,11 @@ const PROJECT = randomUUID();
 const CREDIT = 10_000_000_000n;
 const NEXT_YEAR = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
 const YESTERDAY = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+function networkDatabase() {
+  if (!mainnet) throw new Error("Missing integration database");
+  return mainnet;
+}
 
 function database() {
   if (!db) throw new Error("Missing integration database");
@@ -62,7 +82,7 @@ async function grantMonth(
   monthIndex: number,
   { expiresAt = NEXT_YEAR, spent = 0n } = {},
 ): Promise<string> {
-  const granted = await database().transaction.create({
+  const granted = await networkDatabase().transaction.create({
     data: {
       amount: 25_000n * CREDIT,
       organizationId: ORGANIZATION,
@@ -82,7 +102,7 @@ async function grantMonth(
   const bucketId = granted.sourceCreditBucket?.id;
   if (!bucketId) throw new Error("The grant created no bucket");
   if (spent > 0n) {
-    await database().transaction.create({
+    await networkDatabase().transaction.create({
       data: {
         amount: -spent * CREDIT,
         organizationId: ORGANIZATION,
@@ -95,7 +115,7 @@ async function grantMonth(
 
 /** Credits consumed from a bucket, one entry per spend or write-off. */
 async function consumed(bucketId: string): Promise<bigint[]> {
-  const rows = await database().creditConsumption.findMany({
+  const rows = await networkDatabase().creditConsumption.findMany({
     where: { bucketId },
     orderBy: { createdAt: "asc" },
     select: { amount: true },
@@ -131,9 +151,9 @@ async function deliver(event: unknown): Promise<number> {
 describe.skipIf(!db)("order.refunded against PostgreSQL", () => {
   beforeAll(async () => {
     if (!db) return;
-    await db.$executeRaw`INSERT INTO "organization" ("id", "name", "slug", "createdAt") VALUES (${ORGANIZATION}, 'Polar Org', ${ORGANIZATION}, NOW())`;
-    await db.$executeRaw`INSERT INTO "workspace" ("id", "createdAt", "updatedAt", "userId", "organizationId") VALUES (${WORKSPACE}::uuid, NOW(), NOW(), NULL, ${ORGANIZATION})`;
-    await db.$executeRaw`INSERT INTO "project" ("id", "createdAt", "updatedAt", "workspaceId", "name") VALUES (${PROJECT}::uuid, NOW(), NOW(), ${WORKSPACE}::uuid, 'Cuso project')`;
+    await db.$executeRaw`INSERT INTO ${sharedTable("organization")} ("id", "name", "slug", "createdAt") VALUES (${ORGANIZATION}, 'Polar Org', ${ORGANIZATION}, NOW())`;
+    await db.$executeRaw`INSERT INTO ${sharedTable("workspace")} ("id", "createdAt", "updatedAt", "userId", "organizationId") VALUES (${WORKSPACE}::uuid, NOW(), NOW(), NULL, ${ORGANIZATION})`;
+    await db.$executeRaw`INSERT INTO ${sharedTable("project")} ("id", "createdAt", "updatedAt", "workspaceId", "name") VALUES (${PROJECT}::uuid, NOW(), NOW(), ${WORKSPACE}::uuid, 'Cuso project')`;
     // A live Cuso: credits are granted only to his Project.
     await db.sokoBot.create({
       data: {
@@ -150,13 +170,14 @@ describe.skipIf(!db)("order.refunded against PostgreSQL", () => {
     if (!db) return;
     await db.polarSubscription.deleteMany({ where: { projectId: PROJECT } });
     // Buckets and consumptions go with their transactions.
-    await db.transaction.deleteMany({
+    await mainnet?.transaction.deleteMany({
       where: { organizationId: ORGANIZATION },
     });
-    await db.$executeRaw`DELETE FROM "project" WHERE "id" = ${PROJECT}::uuid`;
-    await db.$executeRaw`DELETE FROM "workspace" WHERE "id" = ${WORKSPACE}::uuid`;
-    await db.$executeRaw`DELETE FROM "organization" WHERE "id" = ${ORGANIZATION}`;
+    await db.$executeRaw`DELETE FROM ${sharedTable("project")} WHERE "id" = ${PROJECT}::uuid`;
+    await db.$executeRaw`DELETE FROM ${sharedTable("workspace")} WHERE "id" = ${WORKSPACE}::uuid`;
+    await db.$executeRaw`DELETE FROM ${sharedTable("organization")} WHERE "id" = ${ORGANIZATION}`;
     await db.$disconnect();
+    await mainnet?.$disconnect();
   });
 
   it("writes off the rest of a partly spent grant and keeps what was spent", async () => {
@@ -283,7 +304,7 @@ describe.skipIf(!db)("order.refunded against PostgreSQL", () => {
       expect((await row()).lastPaidOrderRefundedAt).not.toBeNull();
       await syncPolarYearlyGrants(() => true);
       expect(
-        await database().creditBucket.count({
+        await networkDatabase().creditBucket.count({
           where: { referenceId: `${ORDER}:1` },
         }),
       ).toBe(0);
@@ -354,7 +375,7 @@ describe.skipIf(!db)("order.refunded against PostgreSQL", () => {
 
       expect(status).toBe(200);
       expect(
-        await database().creditBucket.count({
+        await networkDatabase().creditBucket.count({
           where: { referenceId: { startsWith: `${refundedFirst}:` } },
         }),
       ).toBe(0);
