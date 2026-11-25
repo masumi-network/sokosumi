@@ -1,13 +1,13 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
 import {
   NuqsTestingAdapter,
   withNuqsTestingAdapter,
 } from "nuqs/adapters/testing";
-import { createElement, type ReactNode, StrictMode } from "react";
+import { Activity, createElement, type ReactNode, StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { StudioState } from "./types";
-import { useStudioState } from "./use-studio-state";
+import { type StudioStateHook, useStudioState } from "./use-studio-state";
 
 /**
  * The rule these tests exist for: a generation finishing must not take the
@@ -846,7 +846,56 @@ describe("URL-owned studio sort", () => {
     ]);
   });
 
-  it("does not report a late sort selection after unmounting for another project", async () => {
+  it("still applies a valid refresh result after a concurrent poll returns 503", async () => {
+    let resolveFirst!: (response: Response) => void;
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(
+        new Promise<Response>((resolve) => {
+          resolveFirst = resolve;
+        }),
+      )
+      .mockResolvedValueOnce(new Response("{}", { status: 503 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const onSelectionChange = vi.fn();
+
+    const { result } = renderHook(
+      () =>
+        useStudioState({
+          projectId: "project-1",
+          initialState: INITIAL,
+          initialSelectedAssetId: null,
+          onSelectionChange,
+        }),
+      { wrapper: nuqsWrapper() },
+    );
+
+    let firstRefresh!: Promise<void>;
+    act(() => {
+      firstRefresh = result.current.refresh();
+    });
+
+    // A concurrent poll starts later and fails with 503 before the first settles.
+    await act(async () => {
+      await result.current.refresh();
+    });
+    expect(result.current.error).toBe("refresh_failed");
+
+    await act(async () => {
+      resolveFirst(new Response(JSON.stringify(WITH_RESULT), { status: 200 }));
+      await firstRefresh;
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.selectedAsset?.id).toBe("a2");
+    expect(result.current.state.assets.map(({ id }) => id)).toEqual([
+      "a2",
+      "a1",
+    ]);
+    expect(onSelectionChange).toHaveBeenCalledWith("a2");
+  });
+
+  it("keeps Best sort rows and clears isRefreshing when Best settles while hidden under Activity", async () => {
     let resolveBest!: (response: Response) => void;
     const fetchMock = vi.fn(
       () =>
@@ -855,28 +904,49 @@ describe("URL-owned studio sort", () => {
         }),
     );
     vi.stubGlobal("fetch", fetchMock);
-    const onSelectionChange = vi.fn();
 
-    const { unmount } = renderHook(
-      () =>
-        useStudioState({
-          projectId: "project-1",
-          initialState: INITIAL,
-          initialSelectedAssetId: null,
-          onSelectionChange,
+    let latestStudio!: StudioStateHook;
+    function StudioHarness() {
+      latestStudio = useStudioState({
+        projectId: "project-1",
+        initialState: INITIAL,
+        initialSelectedAssetId: null,
+      });
+      return null;
+    }
+
+    const { rerender } = render(
+      createElement(NuqsTestingAdapter, {
+        searchParams: "?sort=best",
+        hasMemory: true,
+        children: createElement(Activity, {
+          mode: "visible",
+          children: createElement(StudioHarness),
         }),
-      { wrapper: nuqsWrapper("?sort=best") },
+      }),
     );
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(latestStudio.isRefreshing).toBe(true);
 
-    unmount();
+    act(() => {
+      rerender(
+        createElement(NuqsTestingAdapter, {
+          searchParams: "?sort=best",
+          hasMemory: true,
+          children: createElement(Activity, {
+            mode: "hidden",
+            children: createElement(StudioHarness),
+          }),
+        }),
+      );
+    });
 
     await act(async () => {
       resolveBest(
         new Response(
           JSON.stringify({
-            assets: [asset("late-best", 2), asset("a1", 1)],
+            assets: [asset("best-1", 2), asset("a1", 1)],
             jobs: [],
             nextCursor: null,
           }),
@@ -885,6 +955,23 @@ describe("URL-owned studio sort", () => {
       );
     });
 
-    expect(onSelectionChange).not.toHaveBeenCalled();
+    act(() => {
+      rerender(
+        createElement(NuqsTestingAdapter, {
+          searchParams: "?sort=best",
+          hasMemory: true,
+          children: createElement(Activity, {
+            mode: "visible",
+            children: createElement(StudioHarness),
+          }),
+        }),
+      );
+    });
+
+    expect(latestStudio.state.assets.map(({ id }) => id)).toEqual([
+      "best-1",
+      "a1",
+    ]);
+    expect(latestStudio.isRefreshing).toBe(false);
   });
 });

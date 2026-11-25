@@ -521,6 +521,108 @@ describe("studio ratings", () => {
     );
   });
 
+  it("suppresses URL replacement while hidden under Activity but still updates Best gallery rows on reveal", async () => {
+    const projectABest: StudioAsset = {
+      ...ASSET,
+      id: "ad-a-best",
+      version: 2,
+      score: 2,
+      jobId: "job-a-best",
+      contentPath: "/ad-a-best",
+    };
+    let resolveBest!: (response: Response) => void;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveBest = resolve;
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    mocks.searchParams = new URLSearchParams("projectId=project-a&sort=best");
+    const view = render(
+      <NuqsTestingAdapter
+        hasMemory
+        searchParams="?projectId=project-a&sort=best"
+      >
+        <Activity mode="visible">
+          <ImageStudio
+            catalog={TEST_CATALOG}
+            initialSelectedAssetId={null}
+            initialState={{ assets: [ASSET], jobs: [], nextCursor: null }}
+            labels={TEST_LABELS}
+            projectId="project-a"
+            readOnly={false}
+          />
+        </Activity>
+      </NuqsTestingAdapter>,
+    );
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      view.rerender(
+        <NuqsTestingAdapter
+          hasMemory
+          searchParams="?projectId=project-a&sort=best"
+        >
+          <Activity mode="hidden">
+            <ImageStudio
+              catalog={TEST_CATALOG}
+              initialSelectedAssetId={null}
+              initialState={{ assets: [ASSET], jobs: [], nextCursor: null }}
+              labels={TEST_LABELS}
+              projectId="project-a"
+              readOnly={false}
+            />
+          </Activity>
+        </NuqsTestingAdapter>,
+      );
+    });
+
+    await act(async () => {
+      resolveBest(
+        new Response(
+          JSON.stringify({
+            assets: [projectABest, ASSET],
+            jobs: [],
+            nextCursor: null,
+          }),
+          { status: 200 },
+        ),
+      );
+    });
+
+    expect(mocks.replace).not.toHaveBeenCalled();
+
+    act(() => {
+      view.rerender(
+        <NuqsTestingAdapter
+          hasMemory
+          searchParams="?projectId=project-a&sort=best"
+        >
+          <Activity mode="visible">
+            <ImageStudio
+              catalog={TEST_CATALOG}
+              initialSelectedAssetId={null}
+              initialState={{ assets: [ASSET], jobs: [], nextCursor: null }}
+              labels={TEST_LABELS}
+              projectId="project-a"
+              readOnly={false}
+            />
+          </Activity>
+        </NuqsTestingAdapter>,
+      );
+    });
+
+    expect(
+      [...document.querySelectorAll("figure[data-asset-id]")].map((tile) =>
+        tile.getAttribute("data-asset-id"),
+      ),
+    ).toEqual(["ad-a-best", "ad-a"]);
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
   it("soft-hides an ad from the menu and keeps it out of the gallery", async () => {
     mount();
     fireEvent.pointerDown(screen.getByRole("button", { name: "more" }), {

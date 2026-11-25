@@ -10,7 +10,6 @@ import {
   studioSortParser,
   useStudioSortRefresh,
 } from "@/hooks/effects/use-studio-sort-refresh";
-import { useStudioStateActiveProjectRef } from "@/hooks/effects/use-studio-state-active-project-ref";
 import { useStudioStatePolling } from "@/hooks/effects/use-studio-state-polling";
 
 import type { StudioAsset, StudioJob, StudioState } from "./types";
@@ -135,8 +134,9 @@ export function useStudioState(options: {
    * assets back on the new project's gallery — the same stale gallery this
    * hook resets to avoid, arriving a few hundred milliseconds late.
    */
-  const shownProjectIdRef = useStudioStateActiveProjectRef(projectId);
-  const onSelectionChangeRef = useLatestRef(options.onSelectionChange);
+  const shownProjectIdRef = useRef(projectId);
+  shownProjectIdRef.current = projectId;
+  const onSelectionChange = options.onSelectionChange;
 
   /**
    * Fold a fresh payload into what is on screen.
@@ -202,10 +202,10 @@ export function useStudioState(options: {
 
       if (selected) {
         setSelection({ assetId: selected, chosenByUserAt: null });
-        onSelectionChangeRef.current?.(selected);
+        onSelectionChange?.(selected);
       }
     },
-    [onSelectionChangeRef],
+    [onSelectionChange],
   );
 
   const refresh = useCallback(async () => {
@@ -233,7 +233,6 @@ export function useStudioState(options: {
       // out. Neither its rows nor its failure belongs to what is on screen.
       if (
         projectId !== shownProjectIdRef.current ||
-        refreshId !== activeRefreshId.current ||
         requestedSort !== latestSortRef.current ||
         requestedRevision !== mutationRevision.current
       )
@@ -249,7 +248,6 @@ export function useStudioState(options: {
       const next = (await response.json()) as StudioState;
       if (
         projectId !== shownProjectIdRef.current ||
-        refreshId !== activeRefreshId.current ||
         requestedSort !== latestSortRef.current ||
         requestedRevision !== mutationRevision.current
       )
@@ -260,7 +258,6 @@ export function useStudioState(options: {
     } catch {
       if (
         projectId !== shownProjectIdRef.current ||
-        refreshId !== activeRefreshId.current ||
         requestedSort !== latestSortRef.current
       )
         return;
@@ -272,7 +269,7 @@ export function useStudioState(options: {
       )
         setIsRefreshing(false);
     }
-  }, [projectId, applyState, latestSortRef, shownProjectIdRef]);
+  }, [projectId, applyState, latestSortRef]);
 
   const activeJobs = shownState.jobs.filter(isActive);
   const hasActive = activeJobs.length > 0;
@@ -352,7 +349,7 @@ export function useStudioState(options: {
       )
         setIsRefreshing(false);
     }
-  }, [projectId, latestSortRef, shownProjectIdRef]);
+  }, [projectId, latestSortRef]);
 
   const updateRating = useCallback(
     (assetId: string, rating: StudioAssetRating) => {
@@ -390,9 +387,9 @@ export function useStudioState(options: {
   const selectAsset = useCallback(
     (assetId: string) => {
       setSelection({ assetId, chosenByUserAt: Date.now() });
-      onSelectionChangeRef.current?.(assetId);
+      onSelectionChange?.(assetId);
     },
-    [onSelectionChangeRef],
+    [onSelectionChange],
   );
 
   const selectedAsset =

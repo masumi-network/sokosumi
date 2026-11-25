@@ -464,6 +464,96 @@ describe("useGenerationQueue", () => {
     }
   });
 
+  it("retries immediately on reveal when an in-flight send settles busy between reveal layout and passive setup", async () => {
+    let releaseFirst!: (value: unknown) => void;
+    startImageGeneration
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            releaseFirst = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(accepted);
+
+    const onAccepted = vi.fn();
+    let latestQueue!: GenerationQueue;
+    let onRevealLayout: (() => void) | null = null;
+
+    function QueueHarness() {
+      latestQueue = useGenerationQueue({ onAccepted });
+      useLayoutEffect(() => {
+        onRevealLayout?.();
+      }, []);
+      return null;
+    }
+
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    const previousActEnv = (
+      globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT;
+    try {
+      await act(async () => {
+        root.render(
+          createElement(Activity, {
+            mode: "visible",
+            children: createElement(QueueHarness),
+          }),
+        );
+      });
+
+      await act(async () => {
+        latestQueue.enqueue([request("1")]);
+      });
+      expect(startImageGeneration).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        root.render(
+          createElement(Activity, {
+            mode: "hidden",
+            children: createElement(QueueHarness),
+          }),
+        );
+      });
+
+      // Settle busy during the reveal layout phase before passive setup runs.
+      const revealCommitted = Promise.withResolvers<void>();
+      onRevealLayout = () => {
+        onRevealLayout = null;
+        releaseFirst(busy);
+        revealCommitted.resolve();
+      };
+
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", false);
+      startTransition(() => {
+        root.render(
+          createElement(Activity, {
+            mode: "visible",
+            children: createElement(QueueHarness),
+          }),
+        );
+      });
+      await revealCommitted.promise;
+      await Promise.resolve();
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", previousActEnv);
+
+      // Should retry at once on reveal rather than arming a 4 s timer.
+      expect(startImageGeneration).toHaveBeenCalledTimes(2);
+      expect(latestQueue.queued).toEqual([]);
+      expect(latestQueue.waitingForSlot).toBe(false);
+      expect(onAccepted).toHaveBeenCalledWith({ remaining: 0 });
+    } finally {
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", previousActEnv);
+      act(() => {
+        root.unmount();
+      });
+      host.remove();
+    }
+  });
+
   it("advances a busy multi-item queue on reveal after Core accepted the head while hidden", async () => {
     vi.useFakeTimers();
     let releaseRetry!: (value: unknown) => void;

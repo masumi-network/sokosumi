@@ -148,7 +148,7 @@ export function useGenerationQueue({
    */
   const onAcceptedRef = useRef(onAccepted);
   onAcceptedRef.current = onAccepted;
-  const mountedRef = useRef(false);
+  const mountedRef = useRef(true);
   const pendingAcceptedRef = useRef(false);
 
   useGenerationQueueMountLifecycle(mountedRef, retryTimerRef);

@@ -37,7 +37,7 @@ describe("useGenerationQueueMountLifecycle", () => {
     vi.useRealTimers();
   });
 
-  it("marks mounted in layout phase and clears mounted plus any pending retry timer before passive cleanup on unmount", async () => {
+  it("marks mounted in passive setup and clears mounted plus any pending retry timer in layout cleanup on unmount", async () => {
     const mountedRef: RefObject<boolean> = { current: false };
     const retryTimerRef: RefObject<ReturnType<typeof setTimeout> | null> = {
       current: null,
@@ -64,8 +64,8 @@ describe("useGenerationQueueMountLifecycle", () => {
     }
 
     const { unmount } = render(<Probe />);
-    // Layout effect runs before sibling layout effects registered after it.
-    expect(siblingLayoutSetup).toEqual([true]);
+    // Passive setup runs after layout effects.
+    expect(siblingLayoutSetup).toEqual([false]);
     expect(mountedRef.current).toBe(true);
 
     retryTimerRef.current = setTimeout(() => {
@@ -97,7 +97,7 @@ describe("useGenerationQueueMountLifecycle", () => {
     expect(onAfterResolve).not.toHaveBeenCalled();
   });
 
-  it("cancels pending retry timer before passive cleanup on Activity hide, restores in layout phase on reveal, and counts exact StrictMode writes", () => {
+  it("cancels pending retry timer in layout cleanup on Activity hide, restores in passive setup on reveal, and counts exact StrictMode writes", () => {
     const mounted = createTrackedRef(false);
     const retryTimerRef: RefObject<ReturnType<typeof setTimeout> | null> = {
       current: null,
@@ -128,7 +128,7 @@ describe("useGenerationQueueMountLifecycle", () => {
     );
     expect(mounted.writes).toEqual([true, false, true]);
     expect(mounted.ref.current).toBe(true);
-    expect(siblingLayoutOnReveal).toEqual([true, true]);
+    expect(siblingLayoutOnReveal).toEqual([false, false]);
 
     // Rerendering while visible does not re-run the mount lifecycle effect.
     rerender(
@@ -167,8 +167,8 @@ describe("useGenerationQueueMountLifecycle", () => {
       </StrictMode>,
     );
     expect(mounted.ref.current).toBe(true);
-    // Layout restore happens before sibling layout effects on Activity reveal.
-    expect(siblingLayoutOnReveal).toEqual([true, true, true, true]);
+    // Passive restore happens after sibling layout effects on Activity reveal.
+    expect(siblingLayoutOnReveal).toEqual([false, false, false, false]);
     expect(mounted.writes).toEqual([
       true,
       false,
