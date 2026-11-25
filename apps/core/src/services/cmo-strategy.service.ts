@@ -2,6 +2,7 @@ import { type MarketingStrategy, Prisma } from "@sokosumi/database";
 import {
   type BrandBrain,
   CMO_PRODUCTION_TURN_PREFIX,
+  CMO_STRATEGY_EXAMPLES,
   type CmoBrandAnswer,
   type CmoBrandQuestion,
   type CmoBrandSectionKey,
@@ -65,6 +66,7 @@ import {
   cmoPillarFacts,
   cmoPlanRulesBrokenSince,
   cmoPromiseGaps,
+  cmoShowsExamples,
   cmoStrategyRules,
   cmoWeekGaps,
   cmoWithOwnerPace,
@@ -487,6 +489,42 @@ export async function cmoOwnerRequest(turnId: string): Promise<string | null> {
   const asked = message.match(/The owner asked: (.+)/)?.[1];
   if (asked) return asked;
   return turn?.source === "CHAT" && message ? message : null;
+}
+
+/**
+ * Whether a turn writes a new month: a plan or finish turn, not a fix, a
+ * patch or the owner's change. Its strategy starts over.
+ */
+async function writesNewMonth(turnId: string): Promise<boolean> {
+  const turn = await prisma.sokoBotTurn.findUnique({
+    where: { id: turnId },
+    select: { clientTurnId: true, userMessage: true },
+  });
+  return (
+    turn?.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX) === true &&
+    cmoChangeKind(turn.clientTurnId) === null &&
+    !turn.userMessage.includes("The owner asked: ")
+  );
+}
+
+/**
+ * cmo-v22: a new month's strategy holds example posts and Core writes its
+ * calendar after payment. A change keeps the shape its version had, so a
+ * month written before (every strategy before cmo-v22) keeps its own.
+ */
+async function withMonthShape(
+  cuso: Cuso,
+  stored: MarketingStrategyPlan,
+  turnId: string,
+): Promise<MarketingStrategyPlan> {
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: cuso.sokoBotId },
+    select: { versionId: true },
+  });
+  if (!cmoStrategyRules(getSokoBotVersion(bot?.versionId).skills).examplesOnly)
+    return stored;
+  if (!(await writesNewMonth(turnId))) return stored;
+  return { ...stored, monthWriter: { state: "examples", attempts: 0 } };
 }
 
 /**
@@ -972,8 +1010,12 @@ function changeMessage(
   planned: boolean,
   /** cmo-v8: a correction reaches every field and the Brand Brain's essentials. */
   everywhere: boolean,
+  /** cmo-v22: the calendar holds examples, and Core writes the month. */
+  examples = false,
 ): string {
-  const patch = everywhere ? CORRECTION_PATCH_LINES : PATCH_LINES;
+  const patch = (everywhere ? CORRECTION_PATCH_LINES : PATCH_LINES).map(
+    (line) => line.replace(keptCalendarLine(false), keptCalendarLine(examples)),
+  );
   const lines =
     input.kind === "patch"
       ? [
@@ -1002,6 +1044,16 @@ const PLAN_SAVE_TWO_CALLS =
 const PLAN_SAVE_WEEKLY =
   "This is the strategy, not the posts. Save it in short calls of save_strategy, so the owner reads the strategy while you write the calendar: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars with their shares, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then the day-by-day calendar, one week a call: part calendar with week one in full (date, time, channel, format, approach, pillar, title, brief, why, campaignId, and story for each LinkedIn piece), then part patch with week two, then week three, then week four, each as titles (date, time, channel, format, approach, pillar, title, campaignId, and story for each LinkedIn piece; no brief or why) under new ids. Every week holds about the pace's perWeek pieces in the mix and pillar shares. Each part leaves the rest as saved. save_strategy refuses a save that breaks a hard rule and says which: a summary of at most 20 words, at least 16 pieces, and approach and pillar shares within 7 points. Write no drafts, hooks or previews: after the owner approves and pays, you make the whole month at once.";
 
+/** cmo-v22: the plan and a few example posts; Core writes the month after payment. */
+const PLAN_SAVE_EXAMPLES = `This is the strategy, not the posts. Save it in two calls of save_strategy, so the owner reads the strategy while you write the examples: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars with their shares, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then part calendar with ${CMO_STRATEGY_EXAMPLES.min} to ${CMO_STRATEGY_EXAMPLES.max} example posts in full (date, time, channel, format, approach, pillar, stage, title, brief, why, campaignId, claim, and story for each social-proof piece), dated in week one, each on another pillar and together on at least three networks, one of them a short video. Never write the month's calendar: once the owner approves and pays, Core writes the whole month at the plan's rates, in the mix and pillar shares and across every funnel step, and keeps your examples in it. save_strategy refuses a save that breaks a hard rule and says which: a summary of at most 20 words, and at most ${CMO_STRATEGY_EXAMPLES.max} example posts. Write no drafts, hooks or previews: after the owner approves and pays, Core makes every post.`;
+
+/** What a short turn's patch keeps of the calendar, by the strategy's shape. */
+function keptCalendarLine(examples: boolean): string {
+  return examples
+    ? `The calendar holds only the ${CMO_STRATEGY_EXAMPLES.min} to ${CMO_STRATEGY_EXAMPLES.max} example posts: Core writes the month after payment, so change an example only where the change is about it.`
+    : "The calendar must still hold at least 16 pieces whose approach and pillar shares are within 7 points of the mix and the pillars.";
+}
+
 async function startStrategyTurn(
   cuso: Cuso,
   input: StrategyTurn,
@@ -1020,7 +1072,9 @@ async function startStrategyTurn(
       ? cmoStrategyRules(getSokoBotVersion(bot.versionId).skills)
       : {};
   if (input.kind !== "plan") {
-    const planned = (await newestMarketingStrategy(cuso.projectId)) !== null;
+    const newest = await newestMarketingStrategy(cuso.projectId);
+    const planned = newest !== null;
+    const newestPlan = parseMarketingPlan(newest?.plan);
     if (input.kind === "patch" && !planned) {
       throw new CmoConflictError("Cuso has not written the strategy yet");
     }
@@ -1035,13 +1089,16 @@ async function startStrategyTurn(
         input,
         planned,
         rules.claims === true,
+        newestPlan !== null && cmoShowsExamples(newestPlan),
       ),
       route: CMO_STRATEGY_ROUTE,
     });
   }
   // A month at cmo-v3's pace is too long for one call: its Cuso saves it week
   // by week, and is told so here, where the two-call message once capped it.
-  const savesWeekly = rules.weekly === true;
+  // cmo-v22 saves examples only: Core writes the month after payment.
+  const examplesOnly = rules.examplesOnly === true;
+  const savesWeekly = rules.weekly === true && !examplesOnly;
   // Named up front: a goal such as "More leads" once pulled whole plans onto
   // a side product or feature with the same word in it.
   const main = brain.offers?.[0];
@@ -1081,7 +1138,7 @@ async function startStrategyTurn(
               "Follow your strategy skill exactly. Use the Brand Brain and the channels in your packet.",
               // A restaurant's LinkedIn once got two diner posts a day: who
               // is on each network decides its role before its cadence.
-              ...(savesWeekly
+              ...(savesWeekly || examplesOnly
                 ? [
                     "",
                     "Who is on each network, to set each channel's role (main or side) and the buyer a side channel serves:",
@@ -1089,7 +1146,12 @@ async function startStrategyTurn(
                     "",
                   ]
                 : []),
-              (savesWeekly ? PLAN_SAVE_WEEKLY : PLAN_SAVE_TWO_CALLS).replaceAll(
+              (examplesOnly
+                ? PLAN_SAVE_EXAMPLES
+                : savesWeekly
+                  ? PLAN_SAVE_WEEKLY
+                  : PLAN_SAVE_TWO_CALLS
+              ).replaceAll(
                 "campaignId, and story for each LinkedIn piece",
                 rules.claims
                   ? "campaignId, claim, and story for each social-proof piece"
@@ -1650,6 +1712,8 @@ export async function saveCmoStrategy(
       : parsed;
     stored = options.turnId ? withoutDashes(withLineBreaks(merged)) : merged;
   }
+  if (options.turnId && !options.executing)
+    stored = await withMonthShape(cuso, stored, options.turnId);
   // Only the owner lowers the pace or a cadence; Core marks what they asked for.
   if (options.turnId)
     stored = cmoWithOwnerPace(
