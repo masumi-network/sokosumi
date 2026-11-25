@@ -73,8 +73,8 @@ export function newestSeoClicksRow(
 
 /**
  * A fall in Search Console clicks against the equal period before, or null. Only a row that compares like with like
- * alerts: complete coverage, two periods of the same number of days, and a current period that Google had settled
- * when it was read (GSC_FINAL_LAG_DAYS), so a reporting delay or a shorter period never reads as a drop.
+ * alerts: a read that returned rows, two periods of the same number of days, and a current period that Google had
+ * settled when it was read (GSC_FINAL_LAG_DAYS), so a reporting delay or a shorter period never reads as a drop.
  */
 export function seoClicksDrop(
   metrics: NativeSeoMetrics,
@@ -83,7 +83,8 @@ export function seoClicksDrop(
   if (
     metrics.provider !== "search_console" ||
     (metrics.searchType ?? "web") !== "web" ||
-    metrics.coverage !== "complete"
+    // A dashboard sync always stores "partial" (normalizeGscStatistics), so only a read with no rows is left out.
+    metrics.coverage === "unavailable"
   )
     return null;
   const clicks = metrics.metrics.find((metric) => metric.key === "clicks");

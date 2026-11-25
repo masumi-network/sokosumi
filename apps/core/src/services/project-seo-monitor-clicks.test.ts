@@ -78,11 +78,16 @@ describe("seoClicksDrop", () => {
     });
   });
 
+  it("reports a fall on a dashboard sync row, which always has partial coverage", () => {
+    expect(
+      seoClicksDrop(metrics(60, before(100), { coverage: "partial" }), NOW),
+    ).toMatchObject({ clicksFrom: 100, clicksTo: 60 });
+  });
+
   it.each([
     ["a fall below 30 percent", metrics(71, before(100))],
     ["a rise", metrics(140, before(100))],
     ["an earlier period under 50 clicks", metrics(0, before(49))],
-    ["partial coverage", metrics(60, before(100), { coverage: "partial" })],
     [
       "7 current days against 25 earlier days",
       metrics(60, before(100), { from: "2026-11-14" }),
