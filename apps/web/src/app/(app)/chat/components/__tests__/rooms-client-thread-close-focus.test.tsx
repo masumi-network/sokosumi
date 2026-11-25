@@ -96,6 +96,14 @@ function PaneBody({ name, onClose }: { name: string; onClose: () => void }) {
         Close {name}
       </button>
       <textarea aria-label={`${name} reply`} />
+      {/* The composer: an editor that leaves an idle Escape alone. */}
+      <div
+        role="textbox"
+        aria-label={`${name} composer`}
+        contentEditable
+        suppressContentEditableWarning
+        tabIndex={0}
+      />
       <button
         type="button"
         onKeyDown={(event) => {
@@ -240,7 +248,7 @@ describe("RoomsClient Escape closes the open pane", () => {
     });
   });
 
-  it("closes the thread and returns focus to its reply bar", async () => {
+  it("closes the thread from inside and returns focus to its reply bar", async () => {
     renderWithQueryClient(<RoomsClient {...baseProps} />);
     fireEvent.click(screen.getByRole("button", { name: "2 replies" }));
     fireEvent.keyDown(
@@ -256,24 +264,96 @@ describe("RoomsClient Escape closes the open pane", () => {
     expect(screen.queryByRole("button", { name: "Close thread" })).toBeNull();
   });
 
-  it("closes Pinned and returns focus to the button that opened it", async () => {
+  it.each([
+    [
+      "the thread",
+      () => screen.getByRole("button", { name: "2 replies" }),
+      "Close thread",
+    ],
+    [
+      "Pinned",
+      () => screen.getByTestId("pinned-messages-trigger"),
+      "Close pins",
+    ],
+  ])(
+    "closes %s on Escape straight from the opener, which keeps focus",
+    async (_, getOpener, closeName) => {
+      renderWithQueryClient(<RoomsClient {...baseProps} />);
+      const opener = getOpener();
+      opener.focus();
+      fireEvent.click(opener);
+      await screen.findByRole("button", { name: closeName });
+      fireEvent.keyDown(opener, { key: "Escape" });
+
+      await waitFor(() => {
+        expect(screen.queryByRole("button", { name: closeName })).toBeNull();
+      });
+      expect(document.activeElement).toBe(opener);
+      expect(composerFocus).not.toHaveBeenCalled();
+    },
+  );
+
+  it("closes Pinned from inside and returns focus to the button that opened it", async () => {
     renderWithQueryClient(<RoomsClient {...baseProps} />);
     const opener = screen.getByTestId("pinned-messages-trigger");
     opener.focus();
     fireEvent.click(opener);
+    const close = await screen.findByRole("button", { name: "Close pins" });
+    close.focus();
+    fireEvent.keyDown(close, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(opener);
+    });
+    expect(close.isConnected).toBe(false);
+  });
+
+  it("falls back to the composer when nothing had focus at open", async () => {
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
+    (document.activeElement as HTMLElement | null)?.blur();
+    fireEvent.click(screen.getByTestId("pinned-messages-trigger"));
     fireEvent.keyDown(
       await screen.findByRole("button", { name: "Close pins" }),
       { key: "Escape" },
     );
 
     await waitFor(() => {
-      expect(document.activeElement).toBe(opener);
+      expect(composerFocus).toHaveBeenCalled();
     });
-    expect(screen.queryByRole("button", { name: "Close pins" })).toBeNull();
+  });
+
+  it("falls back to the composer when the opener can no longer take focus", async () => {
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
+    const opener = screen.getByTestId("pinned-messages-trigger");
+    opener.focus();
+    fireEvent.click(opener);
+    const close = await screen.findByRole("button", { name: "Close pins" });
+    close.focus();
+    // Below md the desktop button is hidden: still in the page, not focusable.
+    opener.setAttribute("disabled", "");
+    fireEvent.keyDown(close, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(composerFocus).toHaveBeenCalled();
+    });
+  });
+
+  it("closes the thread from an idle composer", async () => {
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
+    fireEvent.click(screen.getByRole("button", { name: "2 replies" }));
+    const composer = await screen.findByRole("textbox", {
+      name: "thread composer",
+    });
+    composer.focus();
+    fireEvent.keyDown(composer, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "Close thread" })).toBeNull();
+    });
   });
 
   it.each([
-    ["an editor", "thread reply", "textbox"],
+    ["a form field", "thread reply", "textbox"],
     ["a nested layer", "thread menu", "button"],
   ] as const)(
     "leaves the pane open when %s takes Escape",
@@ -287,4 +367,18 @@ describe("RoomsClient Escape closes the open pane", () => {
       expect(screen.getByRole("button", { name: "Close thread" })).toBeTruthy();
     },
   );
+
+  it("leaves Escape alone while no pane is open", () => {
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
+    const bar = screen.getByRole("button", { name: "2 replies" });
+    bar.focus();
+    const event = new KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    });
+    bar.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(false);
+  });
 });

@@ -75,8 +75,8 @@ interface RoomShellLayoutProps {
    * position against the room shell, not an outer fragment.
    */
   mainEnd?: ReactNode;
-  /** Keys pressed inside the docked panel, such as Escape to close it. */
-  onPanelKeyDown?: KeyboardEventHandler<HTMLDivElement>;
+  /** Keys pressed anywhere in the room, such as Escape to close its panel. */
+  onKeyDown?: KeyboardEventHandler<HTMLDivElement>;
 }
 
 /**
@@ -84,13 +84,14 @@ interface RoomShellLayoutProps {
  * a panel's `absolute inset-0` still measures against the room shell. A closing
  * panel leaves the flow at once, and the room takes its width while it slides.
  */
+/** Marks the docked panel, so a key handler can tell focus inside it. */
+export const ROOM_SIDE_PANEL_ATTRIBUTE = "data-room-side-panel";
+
 function RoomSidePanelSlot({
   panelRef,
-  onKeyDown,
   children,
 }: {
   panelRef: RefObject<HTMLDivElement | null>;
-  onKeyDown?: KeyboardEventHandler<HTMLDivElement>;
   children: ReactNode;
 }) {
   const isPresent = useRoomPanelSlideOut(panelRef);
@@ -98,7 +99,7 @@ function RoomSidePanelSlot({
     <div
       ref={panelRef}
       inert={!isPresent}
-      onKeyDown={onKeyDown}
+      data-room-side-panel=""
       className={cn(
         "contents lg:flex lg:min-h-0 lg:shrink-0",
         !isPresent && "lg:absolute lg:inset-y-0 lg:right-0",
@@ -124,7 +125,7 @@ export function RoomShellLayout({
   listContent,
   composer,
   mainEnd = null,
-  onPanelKeyDown,
+  onKeyDown,
 }: RoomShellLayoutProps): React.ReactElement {
   const { mainRef, sectionRef, panelRef, listRef, composerRef } =
     useRoomPanelSlide();
@@ -251,6 +252,7 @@ export function RoomShellLayout({
       data-testid={testId}
       data-slot={dataSlot}
       className={rootClassName ?? ROOM_SHELL_ROOT_CLASSNAME}
+      onKeyDown={onKeyDown}
     >
       {beforeMain}
       {/* The app frame's `main` holds this; a second one would give screen
@@ -263,11 +265,7 @@ export function RoomShellLayout({
             not slide. */}
         <AnimatePresence initial={false}>
           {mainEnd != null ? (
-            <RoomSidePanelSlot
-              key="panel"
-              panelRef={panelRef}
-              onKeyDown={onPanelKeyDown}
-            >
+            <RoomSidePanelSlot key="panel" panelRef={panelRef}>
               {mainEnd}
             </RoomSidePanelSlot>
           ) : null}

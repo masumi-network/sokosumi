@@ -13,10 +13,11 @@ import { signUpWithOrganization } from "./sign-up.ts";
  * closing a thread puts focus back where it was opened from (the message's
  * actions button while the thread has no replies, its "1 reply" bar after),
  * with the bar's ring whole inside the message column. Escape closes the
- * thread or the Threads pane from inside it and puts focus back on the same
- * place. A heading written in a message keeps its look but stays out of the
- * page's headings. Message yourself is headed "Ada Tester (you)", without the
- * avatar's initials.
+ * thread from inside it and puts focus back on the same place, and closes
+ * Threads straight after opening it, focus still on its button. A heading
+ * written in a message keeps its look but stays out of the page's headings.
+ * Message yourself is headed "Ada Tester (you)", without the avatar's
+ * initials.
  */
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
@@ -181,8 +182,8 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       await closeThread(page, "Escape");
       const afterReply = await focused(page);
 
-      // Threads, opened from the header (its menu below md), closed with
-      // Escape from inside the pane.
+      // Threads, opened with Enter from the header (its menu below md), then
+      // Escape at once: focus never moved into the pane.
       if (name === "phone") {
         await page.getByRole("button", { name: /^More chat options/ }).focus();
         await page.keyboard.press("Enter");
@@ -192,7 +193,8 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       }
       await page.keyboard.press("Enter");
       const closeThreads = page.getByRole("button", { name: "Close threads" });
-      await closeThreads.focus();
+      await closeThreads.waitFor();
+      await page.waitForTimeout(300);
       await page.keyboard.press("Escape");
       await closeThreads.waitFor({ state: "detached" });
       await page.waitForTimeout(300);
