@@ -56,6 +56,28 @@ const CONSENT_COUNTRIES = new Set([
 
 export type AnalyticsConsent = "granted" | "denied" | "ask";
 
+/** The `_ga_<stream>` cookie: its session id says which visit a checkout was in. */
+export const GA_SESSION_COOKIE = `_ga_${GA_MEASUREMENT_ID.slice(2)}`;
+
+/**
+ * GA4's client id from `_ga` (GA1.1.<id>.<time>) and session id from the
+ * stream cookie, in its old (GS1.1.<session>.…) or new (GS2.1.s<session>$…)
+ * form; null without a client id.
+ */
+export function gaIds(
+  gaCookie: string | undefined,
+  sessionCookie: string | undefined,
+): { clientId: string; sessionId?: string } | null {
+  const client = /^GA\d\.\d\.(\d+\.\d+)$/.exec(gaCookie ?? "")?.[1];
+  if (!client) return null;
+  const session =
+    /^GS2\.\d\.s(\d+)/.exec(sessionCookie ?? "")?.[1] ??
+    /^GS1\.\d\.(\d+)\./.exec(sessionCookie ?? "")?.[1];
+  return session
+    ? { clientId: client, sessionId: session }
+    : { clientId: client };
+}
+
 /** The saved choice wins; without one, consent countries (and unknown ones) ask. */
 export function analyticsConsent(
   saved: string | undefined,

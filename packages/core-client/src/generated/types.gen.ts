@@ -94100,6 +94100,13 @@ export type StartCmoPlanCheckoutForProjectData = {
          * Where Polar's back link leads without paying: no success marker.
          */
         backUrl: string;
+        /**
+         * GA4 client and session id, only with the person's analytics consent; the paid order is reported to GA4 with them.
+         */
+        analytics?: {
+            clientId: string;
+            sessionId?: string;
+        };
     };
     path: {
         projectId: string;
@@ -96170,6 +96177,13 @@ export type RequestCmoStrategyForProjectResponse = RequestCmoStrategyForProjectR
 export type StartCmoTopUpForProjectData = {
     body?: {
         returnUrl: string;
+        /**
+         * GA4 client and session id, only with the person's analytics consent; the paid order is reported to GA4 with them.
+         */
+        analytics?: {
+            clientId: string;
+            sessionId?: string;
+        };
     };
     path: {
         projectId: string;
