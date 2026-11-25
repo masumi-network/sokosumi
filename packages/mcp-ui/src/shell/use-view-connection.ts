@@ -35,14 +35,18 @@ export type Rerun = (
   accept: (result: ToolResult) => boolean,
 ) => Promise<boolean>;
 
-/** Core's answer to a tool outside the server's toolsets (`server.ts`). */
-const UNKNOWN_TOOL = /\bUnknown tool\b/i;
-
-function isUnknownTool(failure: unknown): boolean {
-  if (failure instanceof Error) return UNKNOWN_TOOL.test(failure.message);
-  const content = (failure as Partial<ToolResult>).content ?? [];
-  return content.some(
-    (block) => block.type === "text" && UNKNOWN_TOOL.test(block.text),
+/**
+ * Whether a failed call is Core's answer to a tool outside the server's
+ * toolsets: `Unknown tool: <name>` (`server.ts`), as a thrown protocol error
+ * or, from some hosts, as an error result's whole text.
+ */
+function isUnknownTool(failure: unknown, name: string): boolean {
+  const answer = `Unknown tool: ${name}`;
+  if (failure instanceof Error) return failure.message.endsWith(answer);
+  if (!failure || typeof failure !== "object") return false;
+  const { content } = failure as Partial<ToolResult>;
+  return (content ?? []).some(
+    (block) => block.type === "text" && block.text.trim().endsWith(answer),
   );
 }
 
@@ -110,7 +114,7 @@ export function useViewConnection(
   const rerun = useCallback<Rerun>(
     async (name, args, accept) => {
       const missing = (failure: unknown) => {
-        if (isUnknownTool(failure)) {
+        if (isUnknownTool(failure, name)) {
           update((previous) => ({ ...previous, missingTool: name }));
         }
         return false;

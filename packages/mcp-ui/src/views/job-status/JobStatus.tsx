@@ -164,11 +164,11 @@ export function JobStatus({
             {t("jobStatus.missingToolset.title")}
           </h2>
           <p className="text-muted-foreground text-sm">
-            {t("jobStatus.missingToolset.body")}{" "}
-            <code className="text-foreground break-all">
-              {t("jobStatus.missingToolset.example")}
-            </code>
+            {t("jobStatus.missingToolset.body")}
           </p>
+          <code className="text-sm break-words">
+            {t("jobStatus.missingToolset.example")}
+          </code>
         </section>
       )}
 
@@ -224,12 +224,15 @@ export function JobStatus({
 
 function ResultText({ text }: { text: string }) {
   const headingId = useId();
-  const long = text.length > FOLDED_RESULT_CHARS;
+  // Code points, so a fold never splits an emoji.
+  const chars = Array.from(text);
+  const long = chars.length > FOLDED_RESULT_CHARS;
   const [expanded, setExpanded] = useState(false);
   const shown =
     long && !expanded
-      ? `${text.slice(0, FOLDED_RESULT_CHARS).trimEnd()}…`
+      ? `${chars.slice(0, FOLDED_RESULT_CHARS).join("").trimEnd()}…`
       : text;
+
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-2">
       <h2 id={headingId} className="text-muted-foreground text-xs font-medium">

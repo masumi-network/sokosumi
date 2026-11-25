@@ -21,12 +21,13 @@ import { JobResult, JobStatus } from "./JobStatus.tsx";
 async function openJob(
   result: CallToolResult,
   answer: () => Promise<CallToolResult> = async () => result,
+  { serverTools = true } = {},
 ) {
   const [hostSide, viewSide] = InMemoryTransport.createLinkedPair();
   const bridge = new AppBridge(
     null,
     { name: "test-host", version: "1.0.0" },
-    { openLinks: {}, serverTools: {} },
+    { openLinks: {}, ...(serverTools && { serverTools: {} }) },
     { hostContext: { locale: "en-US", timeZone: "Europe/Berlin" } },
   );
   const sent = { links: vi.fn(), calls: vi.fn() };
@@ -120,6 +121,19 @@ describe("JobStatus", () => {
 
     await advance(60_000);
     expect(sent.calls).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not claim to update on a host that cannot call server tools", async () => {
+    const { sent } = await openJob(JOB.running, undefined, {
+      serverTools: false,
+    });
+
+    expect(
+      within(status()).getByText("The agent is working on it."),
+    ).toBeTruthy();
+    expect(screen.queryByText(/This view updates/)).toBeNull();
+    await advance(60_000);
+    expect(sent.calls).not.toHaveBeenCalled();
   });
 
   it("does not poll a finished Job", async () => {

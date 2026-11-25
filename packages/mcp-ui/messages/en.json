@@ -68,7 +68,7 @@
   "jobStatus.live": "This view updates while it is open.",
   "jobStatus.checkFailed": "Could not check for updates. Trying again.",
   "jobStatus.missingToolset.title": "Turn on the jobs toolset to follow this Job",
-  "jobStatus.missingToolset.body": "This view checks the Job with jobs_get, which is off. Add jobs to the toolsets in your Sokosumi connector's URL, then ask again. For example:",
+  "jobStatus.missingToolset.body": "This view checks the Job with jobs_get, which is off. Add jobs to the toolsets list in your Sokosumi connector's URL, then ask again. If the URL lists no toolsets yet, end it with:",
   "jobStatus.missingToolset.example": "?toolsets=workspaces,tasks,coworkers,jobs",
   "jobStatus.started": "Started",
   "jobStatus.finished": "Finished",

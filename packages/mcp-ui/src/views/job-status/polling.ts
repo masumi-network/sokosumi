@@ -12,8 +12,8 @@ const hidden = () => document.visibilityState === "hidden";
  * Calls `refresh` while `active` and the view is visible, backing off from
  * 3s to 10s. MCP Apps has no visibility signal of its own; a host's hidden
  * tab or collapsed view shows up as `document.visibilityState`. Hidden, it
- * waits; shown again, it checks after 3s. `failed` is whether the last check
- * failed; the next one still runs.
+ * waits; shown again, it checks after 3s, or 5s after a check that was still
+ * running. `failed` is whether the last check failed; the next one still runs.
  */
 export function usePolling(
   refresh: (() => Promise<boolean>) | undefined,
@@ -35,8 +35,14 @@ export function usePolling(
     const check = async () => {
       timer = undefined;
       checking = true;
-      const ok = (await latest.current?.()) ?? false;
-      checking = false;
+      let ok = false;
+      try {
+        ok = (await latest.current?.()) ?? false;
+      } catch {
+        // A rejected check is a failed one; the loop goes on.
+      } finally {
+        checking = false;
+      }
       if (stopped) return;
       setFailed(!ok);
       attempt += 1;

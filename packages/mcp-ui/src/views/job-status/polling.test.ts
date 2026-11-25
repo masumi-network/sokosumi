@@ -147,6 +147,20 @@ describe("usePolling", () => {
     expect(result.current.failed).toBe(false);
   });
 
+  it("keeps polling after a check rejects", async () => {
+    const refresh = vi
+      .fn<() => Promise<boolean>>()
+      .mockRejectedValueOnce(undefined)
+      .mockResolvedValue(true);
+    const { result } = renderHook(() => usePolling(refresh, true));
+
+    await advance(3000);
+    expect(result.current.failed).toBe(true);
+    await advance(5000);
+    expect(refresh).toHaveBeenCalledTimes(2);
+    expect(result.current.failed).toBe(false);
+  });
+
   it("stops when unmounted", async () => {
     const refresh = vi.fn(async () => true);
     const { unmount } = renderHook(() => usePolling(refresh, true));

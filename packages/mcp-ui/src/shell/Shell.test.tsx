@@ -257,14 +257,44 @@ describe("Shell", () => {
     },
   );
 
-  it("does not name a tool for other failures", async () => {
+  it.each([
+    ["a network error", new Error("Network down")],
+    ["another tool", new Error("MCP error -32602: Unknown tool: users_list")],
+  ])("does not name a tool for %s", async (_, failure) => {
     const bridge = await openView(
       {},
       {
         refreshTool: "users_get",
         callTool: async () => {
-          throw new Error("Network down");
+          throw failure;
         },
+      },
+    );
+    await act(() => bridge.sendToolInput({ arguments: {} }));
+    await act(() => bridge.sendToolResult(greeting("Ada")));
+    let refreshed: boolean | undefined;
+    await act(async () => {
+      refreshed = await refresh?.();
+    });
+
+    expect(refreshed).toBe(false);
+    expect(missingTool).toBeUndefined();
+  });
+
+  it("does not take record text in an error result for a missing tool", async () => {
+    const bridge = await openView(
+      {},
+      {
+        refreshTool: "users_get",
+        callTool: async () => ({
+          content: [
+            {
+              type: "text",
+              text: '{"status":400,"message":"Unknown tool: users_get is not a name"}',
+            },
+          ],
+          isError: true,
+        }),
       },
     );
     await act(() => bridge.sendToolInput({ arguments: {} }));
