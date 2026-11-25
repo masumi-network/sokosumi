@@ -1,5 +1,7 @@
 "use server";
 
+import type { RequestProjectSeoAnalysisRequest } from "@sokosumi/core-client";
+import { seoFullAuditPrice } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -21,6 +23,15 @@ import {
   type AuthenticatedRequest,
   withSession,
 } from "@/middleware/auth-middleware";
+
+/** The price terms never pass through the browser: a new full audit approves them here. */
+function withFullAuditPrice(
+  analysis: RequestProjectSeoAnalysisRequest,
+): RequestProjectSeoAnalysisRequest {
+  return analysis.kind === "audit_full"
+    ? { ...analysis, fullAuditPrice: seoFullAuditPrice() }
+    : analysis;
+}
 
 const scheduleRevision = z.number().int().nonnegative();
 /** Monitor commands go straight to the Task Schedule routes: check their shape before the id goes into a path. */
@@ -119,7 +130,10 @@ export const mutateSeo = withSession<
         await seoServiceNoRedirect.saveBrandTerms(owner, command.body);
         break;
       case "create_monitor":
-        await seoServiceNoRedirect.createMonitor(owner, command.body);
+        await seoServiceNoRedirect.createMonitor(owner, {
+          ...command.body,
+          analysis: withFullAuditPrice(command.body.analysis),
+        });
         break;
       // A monitor is a Task Schedule: Core checks the same access and revision as on the schedule page.
       case "monitor_state":
@@ -144,7 +158,10 @@ export const mutateSeo = withSession<
         });
         break;
       case "request_analysis":
-        await seoServiceNoRedirect.requestAnalysis(owner, command.body);
+        await seoServiceNoRedirect.requestAnalysis(
+          owner,
+          withFullAuditPrice(command.body),
+        );
         break;
       case "save_keyword":
         await seoServiceNoRedirect.saveKeyword(owner, command.body);

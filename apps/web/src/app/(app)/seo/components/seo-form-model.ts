@@ -6,7 +6,6 @@ import type {
 import {
   normalizeWebsiteUrl,
   SEO_FULL_AUDIT_MAX_SECONDS,
-  seoFullAuditPrice,
   seoMaxCredits,
 } from "@sokosumi/utils";
 import type { SeoCommand } from "@/lib/actions/seo/types";
@@ -326,8 +325,6 @@ export function analysisSeoBody(
       form.has("sitemapPageHints") && {
         sitemapPageHints: form.getAll("sitemapPageHints").map(String),
       }),
-    // A new full audit approves the cost-plus terms with no maximum (owner, 2026-11-19); never the old fixed price.
-    ...(kind === "audit_full" ? { fullAuditPrice: seoFullAuditPrice() } : {}),
     ...(workspace.scope.id
       ? {
           scopeId: workspace.scope.id,

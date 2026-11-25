@@ -15,6 +15,7 @@ const { revalidatePathMock, runNowMock, changeStateMock, requestAnalysisMock } =
   }));
 const setArchivedMock = vi.hoisted(() => vi.fn());
 const createAuditMock = vi.hoisted(() => vi.fn());
+const createMonitorMock = vi.hoisted(() => vi.fn());
 const authenticatedSessionId = vi.hoisted(() =>
   vi.fn<() => string | undefined>(),
 );
@@ -48,6 +49,7 @@ vi.mock("@/lib/services/task-schedule.service", () => ({
 vi.mock("@/lib/services/seo.service", () => ({
   seoServiceNoRedirect: {
     requestAnalysis: requestAnalysisMock,
+    createMonitor: createMonitorMock,
     setAuditArchived: setArchivedMock,
     createAudit: createAuditMock,
   },
@@ -263,6 +265,58 @@ it.each([
     expect(requestAnalysisMock).not.toHaveBeenCalled();
   },
 );
+
+it("adds the full-audit price terms on the server, never from the browser", async () => {
+  const price = {
+    kind: "cost_plus",
+    version: 1,
+    minimumCredits: 750,
+    markupPercent: 50,
+  };
+  const viewer = {
+    userId: "reader",
+    organizationId: "team",
+    sessionId: CURRENT_SESSION_ID,
+  };
+  // A browser that sends its own terms still gets the server's.
+  const browserPrice = { ...price, markupPercent: 0 };
+  await mutateSeo({
+    owner: OWNER,
+    command: {
+      kind: "request_analysis",
+      body: { kind: "audit_full", fullAuditPrice: browserPrice },
+    } as SeoCommand,
+    briefViewer: viewer,
+  });
+  await mutateSeo({
+    owner: OWNER,
+    command: {
+      kind: "create_monitor",
+      body: {
+        analysis: { kind: "audit_full", fullAuditPrice: browserPrice },
+      },
+    } as SeoCommand,
+    briefViewer: viewer,
+  });
+  await mutateSeo({
+    owner: OWNER,
+    command: {
+      kind: "request_analysis",
+      body: { kind: "rankings" },
+    } as SeoCommand,
+    briefViewer: viewer,
+  });
+  expect(requestAnalysisMock).toHaveBeenNthCalledWith(1, OWNER, {
+    kind: "audit_full",
+    fullAuditPrice: price,
+  });
+  expect(createMonitorMock).toHaveBeenCalledWith(OWNER, {
+    analysis: { kind: "audit_full", fullAuditPrice: price },
+  });
+  expect(requestAnalysisMock).toHaveBeenNthCalledWith(2, OWNER, {
+    kind: "rankings",
+  });
+});
 
 it.each(["request_analysis", "create_monitor"] as const)(
   "rejects a limited %s confirmation from a replaced session",

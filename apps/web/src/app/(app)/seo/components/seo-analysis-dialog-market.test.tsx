@@ -451,13 +451,7 @@ describe("SEO check credits", () => {
 });
 
 describe("full-audit price terms", () => {
-  const price = {
-    kind: "cost_plus",
-    version: 1,
-    minimumCredits: 750,
-    markupPercent: 50,
-  };
-  it("shows one price estimate and submits the full-audit price terms", async () => {
+  it("shows one price estimate and sends no price terms from the browser", async () => {
     const user = userEvent.setup(),
       dialog = showDialog(workspace());
     expect(within(dialog).getByText("Approximately 750 credits")).toBeVisible();
@@ -475,14 +469,14 @@ describe("full-audit price terms", () => {
     );
     await waitFor(() => expect(mutate).toHaveBeenCalled());
     const body = mutate.mock.calls[0][0].command.body;
-    expect(body.fullAuditPrice).toEqual(price);
+    expect(body).not.toHaveProperty("fullAuditPrice");
     expect(body).not.toHaveProperty("fullAuditCredits");
   });
 
-  it("approves the same terms per run for a schedule of full audits, with the estimate only", async () => {
+  it("shows only the per-run estimate for a schedule of full audits", async () => {
     const user = userEvent.setup(),
       dialog = showDialog(workspace(), true);
-    // The estimate by the button is the one price line: the cost terms and their markup stay internal.
+    // The estimate by the button is the one price line.
     expect(
       within(dialog).getByText("Approximately 750 credits per run"),
     ).toBeVisible();
@@ -497,7 +491,7 @@ describe("full-audit price terms", () => {
     );
     await waitFor(() => expect(mutate).toHaveBeenCalled());
     const body = mutate.mock.calls[0][0].command.body;
-    expect(body.analysis.fullAuditPrice).toEqual(price);
+    expect(body.analysis).not.toHaveProperty("fullAuditPrice");
     expect(body.analysis).not.toHaveProperty("fullAuditCredits");
   });
 });
