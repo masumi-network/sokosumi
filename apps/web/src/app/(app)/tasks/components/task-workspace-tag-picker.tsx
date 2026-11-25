@@ -137,8 +137,11 @@ function TagPicker(props: TaskWorkspaceTagPickerProps) {
                 variant="outline"
                 size="sm"
                 disabled={props.disabled}
+                // The height and type of a chip with its remove segment: 30px
+                // from `md` up, 42px below it, so the tap target stays over 40px.
+                className="h-10.5 gap-1 px-2 text-xs md:h-7.5"
               >
-                <Plus className="size-4" aria-hidden />
+                <Plus className="size-3" aria-hidden />
                 {t("add")}
               </Button>
             </PopoverTrigger>
