@@ -338,14 +338,18 @@ describe("ContactsWorkspace Archived view", () => {
     expect(
       screen.queryByRole("radio", { name: "layout.companies" }),
     ).toBeNull();
-    await waitFor(() =>
-      expect(
-        onUrlUpdate.mock.lastCall?.[0].searchParams.get("layout"),
-      ).toBeNull(),
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+
+    // Leaving a hand-written archived+layout link keeps layout in the URL.
+    await userEvent.click(
+      screen.getByRole("button", { name: "views.backToContacts" }),
     );
-    expect(onUrlUpdate.mock.lastCall?.[0].searchParams.get("list")).toBe(
-      "archived",
-    );
+    expect(
+      screen.getByRole("heading", { name: "views.companies" }),
+    ).toBeTruthy();
+    const url = onUrlUpdate.mock.lastCall?.[0].searchParams;
+    expect(url?.get("list")).toBeNull();
+    expect(url?.get("layout")).toBe("companies");
   });
 
   it("opens the archive from the Companies layout as the archive list", async () => {
@@ -361,6 +365,27 @@ describe("ContactsWorkspace Archived view", () => {
     const url = onUrlUpdate.mock.lastCall?.[0].searchParams;
     expect(url?.get("layout")).toBeNull();
     expect(url?.get("list")).toBe("archived");
+  });
+
+  it("clears the map layout when switching to the archive and returns to table", async () => {
+    const onUrlUpdate = renderAt("?layout=map");
+    await userEvent.click(screen.getByRole("button", { name: "toolbar.more" }));
+    await userEvent.click(
+      screen.getByRole("menuitem", { name: "presets.archived" }),
+    );
+    expect(screen.getByRole("list", { name: "archived rows" })).toBeTruthy();
+    const archiveUrl = onUrlUpdate.mock.lastCall?.[0].searchParams;
+    expect(archiveUrl?.get("layout")).toBeNull();
+    expect(archiveUrl?.get("list")).toBe("archived");
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "views.backToContacts" }),
+    );
+    expect(screen.getByRole("radio", { name: "presets.all" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "layout.table" })).toBeChecked();
+    const backUrl = onUrlUpdate.mock.lastCall?.[0].searchParams;
+    expect(backUrl?.get("list")).toBeNull();
+    expect(backUrl?.get("layout")).toBeNull();
   });
 
   it("moves keyboard focus to the archive heading on entry and to All contacts on the way back", async () => {

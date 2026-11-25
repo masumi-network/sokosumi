@@ -4,7 +4,6 @@ import { cors } from "hono/cors";
 
 import { TIME } from "@/config/constants.js";
 import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin.js";
-import failureReviewRouter from "./admin/failure-review/index.js";
 import impersonationRouter from "./admin/impersonation/index.js";
 import adminRouter from "./admin/index.js";
 import agentsRouter from "./agents/index.js";
@@ -158,8 +157,6 @@ app.doc31("/openapi.json", {
 // caller; start must answer 409 rather than the admin guard's 403. Both
 // handlers still guard themselves. Do not reverse these two `route` calls.
 app.route("/admin/impersonation", impersonationRouter);
-// Before `/admin` too: its own guard also lets a listed coworker in.
-app.route("/admin/failure-review", failureReviewRouter);
 app.route("/admin", adminRouter);
 app.route("/agents", agentsRouter);
 app.route("/categories", categoriesRouter);

@@ -43,9 +43,4 @@ export const DEFAULT_CREATE_FORM_VALUES = {
   name: "",
 };
 
-export const DEFAULT_DELETE_FORM_VALUES = {
-  keyId: "",
-  confirmName: "",
-} as const;
-
 export const DIALOG_CLEANUP_TIMEOUT = 300;
