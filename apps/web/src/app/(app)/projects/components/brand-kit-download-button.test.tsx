@@ -11,9 +11,12 @@ vi.mock("@/lib/files-archive", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/files-archive")>()),
   saveZip,
 }));
-vi.mock("sonner", () => ({
-  toast: { info: vi.fn(), error: vi.fn(), warning: vi.fn() },
+const toast = vi.hoisted(() => ({
+  info: vi.fn(),
+  error: vi.fn(),
+  warning: vi.fn(),
 }));
+vi.mock("sonner", () => ({ toast }));
 
 import { BrandKitDownloadButton } from "./brand-kit-download-button";
 
@@ -105,6 +108,28 @@ describe("BrandKitDownloadButton", () => {
       expect(await zip.file(entry)?.async("uint8array")).toEqual(bytes);
     },
   );
+
+  it("says when the logo could not be added, without sending the reader to open files", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.startsWith("data:")) {
+          return new Response(
+            decodeURIComponent(url.slice(url.indexOf(",") + 1)),
+          );
+        }
+        throw new TypeError("Failed to fetch");
+      }),
+    );
+
+    const { zip } = await downloadKit("# Brand\n", LOGO_URL);
+
+    expect(Object.keys(zip.files)).toEqual(["DESIGN.md"]);
+    expect(toast.warning).toHaveBeenCalledWith(
+      "Downloaded 1 of 2 files. Not included: logo. Try again to add it.",
+      expect.anything(),
+    );
+  });
 
   it("leaves out the logo and the token file when there are none", async () => {
     const fetchMock = serveLogo(null, new Uint8Array());

@@ -107,7 +107,9 @@ export function BrandKitDownloadButton({
   logoUrl: string | null;
 }) {
   const t = useTranslations("App.Projects.Detail.design");
-  const { downloading, download } = useFilesArchiveDownload();
+  const { downloading, download } = useFilesArchiveDownload(
+    "App.Projects.Detail.design.brandKitArchive",
+  );
   return (
     <Button
       type="button"

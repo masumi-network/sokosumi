@@ -20,8 +20,15 @@ const LISTED_MISSING_NAMES = 5;
  * Next keeps a left page in Activity: its effects clean up but its state
  * stays, so a running download is cancelled and the button freed.
  */
-export function useFilesArchiveDownload() {
-  const t = useTranslations("Components.FilesArchive");
+/** Where the failed, partial and empty messages come from; a caller with its own wording passes its namespace. */
+type ArchiveMessages =
+  | "Components.FilesArchive"
+  | "App.Projects.Detail.design.brandKitArchive";
+
+export function useFilesArchiveDownload(
+  messages: ArchiveMessages = "Components.FilesArchive",
+) {
+  const t = useTranslations(messages);
   const [downloading, setDownloading] = useState(false);
   const active = useRef<AbortController | null>(null);
   useEffect(
