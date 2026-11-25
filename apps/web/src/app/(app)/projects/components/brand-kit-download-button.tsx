@@ -10,16 +10,28 @@ import { Button } from "@/components/ui/button";
 import { useFilesArchiveDownload } from "@/hooks/effects/use-files-archive-download";
 import type { ArchiveFile } from "@/lib/files-archive";
 
-// The store keeps logos under a content hash with no extension, so the
-// served type names the file.
+// Subtypes whose usual extension differs from their name.
 const LOGO_EXTENSIONS: Record<string, string> = {
-  "image/png": ".png",
-  "image/jpeg": ".jpg",
-  "image/webp": ".webp",
-  "image/svg+xml": ".svg",
-  "image/gif": ".gif",
-  "image/avif": ".avif",
+  jpeg: "jpg",
+  "svg+xml": "svg",
+  "x-icon": "ico",
+  "vnd.microsoft.icon": "ico",
 };
+
+/**
+ * The store keeps logos under a content hash with no extension, so the type
+ * it serves names the file. An unknown type gets no extension, never a wrong
+ * one.
+ */
+function logoName(type: string | null): string {
+  const subtype = /^image\/([\w.+-]+)/.exec(
+    type?.split(";")[0]?.trim().toLowerCase() ?? "",
+  )?.[1];
+  if (!subtype) return "logo";
+  const extension =
+    LOGO_EXTENSIONS[subtype] ?? (/^[a-z0-9]+$/.test(subtype) ? subtype : null);
+  return extension ? `logo.${extension}` : "logo";
+}
 
 function textUrl(text: string, type: string): string {
   return `data:${type};charset=utf-8,${encodeURIComponent(text)}`;
@@ -31,7 +43,7 @@ function textUrl(text: string, type: string): string {
  * Text goes in as data URLs, so the shared archive builder fetches every
  * entry the same way and names a logo it could not load.
  */
-export function brandKitFiles({
+function brandKitFiles({
   markdown,
   logo,
   labels,
@@ -67,9 +79,7 @@ export function brandKitFiles({
   }
 
   if (logo) {
-    const type = logo.type?.split(";")[0]?.trim().toLowerCase() ?? "";
-    const extension = LOGO_EXTENSIONS[type] ?? ".png";
-    files.push({ name: `logo${extension}`, fileUrl: logo.url });
+    files.push({ name: logoName(logo.type), fileUrl: logo.url });
   }
   return files;
 }

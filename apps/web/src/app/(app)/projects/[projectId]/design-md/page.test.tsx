@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { fetchDesignMdMarkdownMock, notFoundMock, projectServiceMock } =
@@ -50,7 +50,9 @@ vi.mock("@/app/projects/components/project-brand-card", () => ({
   ProjectBrandProvider: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
-  ProjectBrandCard: () => <div data-testid="brand-card">Brand card</div>,
+  ProjectBrandCard: ({ headerAction }: { headerAction?: React.ReactNode }) => (
+    <div data-testid="brand-card">Brand card{headerAction}</div>
+  ),
 }));
 
 vi.mock("@/app/projects/components/brand-kit-download-button", () => ({
@@ -114,9 +116,12 @@ describe("ProjectDesignPage", () => {
     expect(screen.getByText(/The voice is plain/)).toBeInTheDocument();
     // Every action on the file stays in the one card that already owns them.
     expect(screen.getByTestId("brand-card")).toBeInTheDocument();
-    // The brand kit zips the loaded document and the project's logo.
+    // The brand kit zips the loaded document and the project's logo, from
+    // the Brand row that owns all three.
     expect(
-      screen.getByRole("button", { name: "Download brand kit" }),
+      within(screen.getByTestId("brand-card")).getByRole("button", {
+        name: "Download brand kit",
+      }),
     ).toHaveAttribute("data-logo", "https://blob.example/logo.svg");
   });
 
