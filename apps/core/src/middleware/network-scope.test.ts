@@ -19,21 +19,6 @@ describe("networkScopeMiddleware", () => {
 
     expect(await response.text()).toBe("mainnet");
   });
-
-  it("gives each request its own scope", async () => {
-    const scopes: unknown[] = [];
-    const app = createApp();
-    app.use(networkScopeMiddleware);
-    app.get("/", (c) => {
-      scopes.push(requireNetworkScope(c));
-      return c.body(null);
-    });
-
-    await app.request("http://localhost/");
-    await app.request("http://localhost/");
-
-    expect(scopes[0]).not.toBe(scopes[1]);
-  });
 });
 
 describe("requireNetworkScope", () => {

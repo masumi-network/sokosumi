@@ -165,7 +165,7 @@ the `shared` client (the default export) and one client per Network, each naming
 its schema from `DATABASE_SCHEMA_*`. Shared models use the default export; Network
 models are reached only through a Network scope
 ([Core](../../apps/core/AGENTS.md#network-scope)). Do not construct additional
-pools there.
+pools in routes and services.
 
 ```typescript
 import prisma from "@/lib/db/prisma";

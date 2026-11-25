@@ -11,11 +11,11 @@ Sokosumi is moving Mainnet and Preprod into one deployment: one database with a 
 - **The Network travels as an argument.** An entry point names the Network once and creates the scope; code below receives the scope, or one side of it. There is no default Network and no ambient storage (`AsyncLocalStorage`): a forgotten Network is a type error, not a query on Mainnet.
 - **Network models are reached only through a scope.** The function that returns a Network's client stays in the client module, because the scope module must be loadable where that module is mocked, but only the scope module may import it (`noRestrictedImports` in `apps/core/biome.json`).
 - **The two sides are narrowed in type.** `NetworkDb` offers the Network models and tagged raw SQL, `SharedDb` every other model; a call on the wrong side does not compile. `NetworkDb` carries a brand that exists in the types only, so the default client and a legacy transaction are refused where a Network client is expected. No client or transaction is wrapped at run time.
-- **Neither side opens a transaction.** Transactions on a Network come from the scope, so the retry rules always apply.
+- **Neither side opens a transaction.** A transaction on a Network will be opened by the scope, so the retry rules always apply. The scope has no transaction methods yet; until it does, scoped code only reads and writes outside transactions.
 - **A request gets its scope from one middleware**, on every authenticated router, as the context variable `networkScope`; a handler reads it with `requireNetworkScope(c)`.
 - **Code that touches only shared models keeps the default client**, with no scope. New Core data access is still direct Prisma.
 - **The default client keeps its full type until the last Network caller has moved.** The move goes cluster by cluster.
-- **Built for Prisma only.**
+- **Built for Prisma only.** No provision for a second ORM: an unused extension point is a seam with one adapter. The scope is where a second client would be handed out later.
 
 ## Considered Options
 
@@ -28,7 +28,7 @@ Sokosumi is moving Mainnet and Preprod into one deployment: one database with a 
 ## Consequences
 
 - The narrowed types do not see a relation `include` that crosses the two sides, and they do not see raw SQL. The split-layout CI job does.
-- Inside a transaction callback `scope.networkDb` compiles and runs outside the transaction; use the callback's `tx`.
+- Once the scope opens transactions: inside a callback `scope.networkDb` compiles and runs outside the transaction; use the callback's `tx`.
 - A unit test of code that takes a scope passes a plain object with the members it uses, cast once to the handle type. It needs no module mock.
 - The lint rule sees named imports. A namespace or dynamic import of the client module passes it and must be caught in review.
-- Until the default client is narrowed, a Network model on it still compiles. A scan with a shrinking allowlist lists those files.
+- Until the default client is narrowed, a Network model on it still compiles. Nothing lists those files yet; a scan with a shrinking allowlist is planned.

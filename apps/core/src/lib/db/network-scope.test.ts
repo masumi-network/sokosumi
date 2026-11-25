@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import type { Network } from "@/lib/network";
 
-import type { NetworkDb, SharedDb } from "./network-scope";
+import type { NetworkDb, NetworkScope, SharedDb } from "./network-scope";
+
+type DefaultClient = typeof import("./prisma").default;
 
 const clients = vi.hoisted(() => ({
   shared: { side: "shared" },
@@ -84,6 +86,8 @@ export function _wrongSidesDoNotCompile(
   networkDb: NetworkDb,
   sharedDb: SharedDb,
   legacy: Prisma.TransactionClient,
+  defaultClient: DefaultClient,
+  scope: NetworkScope,
 ) {
   const takesNetworkDb = (_db: NetworkDb) => {};
   const takesSharedDb = (_db: SharedDb) => {};
@@ -95,6 +99,15 @@ export function _wrongSidesDoNotCompile(
   legacy.job.findMany();
   legacy.user.findMany();
   takesSharedDb(legacy);
+  defaultClient.job.findMany();
+  defaultClient.user.findMany();
+  takesSharedDb(defaultClient);
+  scope.networkTable("Job");
+
+  // @ts-expect-error the default client is not a Network client: it has no brand
+  takesNetworkDb(defaultClient);
+  // @ts-expect-error a shared table is not a table of the Network
+  scope.networkTable("user");
 
   // @ts-expect-error a shared model on the Network side
   networkDb.user.findMany();
