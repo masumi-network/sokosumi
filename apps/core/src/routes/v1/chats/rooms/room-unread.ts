@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import {
   CHAT_ROOM_UNREAD_THREAD_CAP,
@@ -25,7 +26,7 @@ import { getChatRoomUnreadMentionCounts } from "./room-mention-counts";
 export function sqlMessageAttentionAt(alias: "message" | "reply"): string {
   return `GREATEST(${alias}."createdAt", (
     SELECT response_mention."updatedAt"
-    FROM "chat_room_mention" response_mention
+    FROM ${sharedTable("chat_room_mention").sql} response_mention
     WHERE response_mention."responseMessageId" = ${alias}.id
       AND response_mention.status = 'responded'
   ))`;
@@ -48,7 +49,7 @@ function sqlViewerIsThreadParticipant(userIdSql: string): string {
     parent."senderUserId" = ${userIdSql}
     OR EXISTS (
       SELECT 1
-      FROM "chat_room_message" own_reply
+      FROM ${sharedTable("chat_room_message").sql} own_reply
       WHERE own_reply."parentMessageId" = parent.id
         AND own_reply."roomId" = parent."roomId"
         AND own_reply."senderUserId" = ${userIdSql}
@@ -56,8 +57,8 @@ function sqlViewerIsThreadParticipant(userIdSql: string): string {
     )
     OR EXISTS (
       SELECT 1
-      FROM "chat_room_user_mention" um
-      INNER JOIN "chat_room_message" um_msg
+      FROM ${sharedTable("chat_room_user_mention").sql} um
+      INNER JOIN ${sharedTable("chat_room_message").sql} um_msg
         ON um_msg.id = um."messageId"
       WHERE um."userId" = ${userIdSql}
         AND um_msg."deletedAt" IS NULL
@@ -90,7 +91,7 @@ function sqlThreadReplyPagesViewer(userIdSql: string): string {
     )
     OR EXISTS (
       SELECT 1
-      FROM "chat_room_user_mention" reply_mention
+      FROM ${sharedTable("chat_room_user_mention").sql} reply_mention
       WHERE reply_mention."userId" = ${userIdSql}
         AND reply_mention."messageId" = reply.id
     )
@@ -110,14 +111,14 @@ function sqlUnreadThreadReplies(
   roomIdPlaceholders: string,
   userIdSql: string,
 ): string {
-  return `FROM "chat_room_message" reply
-      INNER JOIN "chat_room_message" parent
+  return `FROM ${sharedTable("chat_room_message").sql} reply
+      INNER JOIN ${sharedTable("chat_room_message").sql} parent
         ON parent.id = reply."parentMessageId"
         AND parent."roomId" = reply."roomId"
-      LEFT JOIN "chat_room_thread_read_state" thread_read
+      LEFT JOIN ${sharedTable("chat_room_thread_read_state").sql} thread_read
         ON thread_read."parentMessageId" = parent.id
         AND thread_read."userId" = ${userIdSql}
-      LEFT JOIN "chat_room_read_state" room_read
+      LEFT JOIN ${sharedTable("chat_room_read_state").sql} room_read
         ON room_read."roomId" = reply."roomId"
         AND room_read."userId" = ${userIdSql}
       WHERE reply."roomId" IN (${roomIdPlaceholders})
@@ -146,8 +147,8 @@ function sqlUnreadRoomMessages(
   roomIdPlaceholders: string,
   userIdSql: string,
 ): string {
-  return `FROM "chat_room_message" message
-      LEFT JOIN "chat_room_read_state" read_state
+  return `FROM ${sharedTable("chat_room_message").sql} message
+      LEFT JOIN ${sharedTable("chat_room_read_state").sql} read_state
         ON read_state."roomId" = message."roomId"
         AND read_state."userId" = ${userIdSql}
       WHERE message."roomId" IN (${roomIdPlaceholders})
@@ -349,7 +350,7 @@ function sqlUnreadThreadsByParent(
         COUNT(*) FILTER (
           WHERE EXISTS (
             SELECT 1
-            FROM "chat_room_user_mention" named
+            FROM ${sharedTable("chat_room_user_mention").sql} named
             WHERE named."userId" = ${userIdSql}
               AND named."messageId" = reply.id
           )
@@ -731,8 +732,8 @@ export async function listEarlierThreadsAcrossRooms(
         MAX(reply."createdAt") AS "lastReplyAt",
         (ARRAY_AGG(reply.id ORDER BY reply."createdAt" DESC, reply.id DESC))[1]
           AS "lastReplyId"
-      FROM "chat_room_message" reply
-      INNER JOIN "chat_room_message" parent
+      FROM ${sharedTable("chat_room_message").sql} reply
+      INNER JOIN ${sharedTable("chat_room_message").sql} parent
         ON parent.id = reply."parentMessageId"
         AND parent."roomId" = reply."roomId"
       WHERE reply."roomId" IN (${roomIdPlaceholders})
@@ -849,14 +850,14 @@ export async function getChatRoomThreadAggregates(
       ) AS "lastUnreadReplyAt",
       (MAX(thread_read."lastReadAt") IS NOT NULL) AS "hasLooked",
       MAX(thread_read."mutedAt") AS "mutedAt"
-    FROM "chat_room_message" reply
-    INNER JOIN "chat_room_message" parent
+    FROM ${sharedTable("chat_room_message").sql} reply
+    INNER JOIN ${sharedTable("chat_room_message").sql} parent
       ON parent.id = reply."parentMessageId"
       AND parent."roomId" = reply."roomId"
-    LEFT JOIN "chat_room_thread_read_state" thread_read
+    LEFT JOIN ${sharedTable("chat_room_thread_read_state").sql} thread_read
       ON thread_read."parentMessageId" = parent.id
       AND thread_read."userId" = $2
-    LEFT JOIN "chat_room_read_state" room_read
+    LEFT JOIN ${sharedTable("chat_room_read_state").sql} room_read
       ON room_read."roomId" = reply."roomId"
       AND room_read."userId" = $2
     WHERE reply."roomId" = $1::uuid
@@ -878,14 +879,14 @@ export async function getChatRoomThreadAggregates(
         SELECT COALESCE(
           (
             SELECT MAX(r."createdAt")
-            FROM "chat_room_message" r
+            FROM ${sharedTable("chat_room_message").sql} r
             WHERE r."parentMessageId" = $3::uuid
               AND r."deletedAt" IS NULL
               AND r."roomId" = $1::uuid
           ),
           (
             SELECT p."createdAt"
-            FROM "chat_room_message" p
+            FROM ${sharedTable("chat_room_message").sql} p
             WHERE p.id = $3::uuid
               AND p."roomId" = $1::uuid
           )
@@ -1038,8 +1039,8 @@ export async function listChatRoomThreadListPage(
       `
     SELECT COUNT(*)::int AS count FROM (
       SELECT parent.id
-      FROM "chat_room_message" reply
-      INNER JOIN "chat_room_message" parent
+      FROM ${sharedTable("chat_room_message").sql} reply
+      INNER JOIN ${sharedTable("chat_room_message").sql} parent
         ON parent.id = reply."parentMessageId"
         AND parent."roomId" = reply."roomId"
       WHERE reply."roomId" = $1::uuid
@@ -1257,14 +1258,14 @@ export async function markAllChatRoomThreadsRead(
   const parents = await tx.$queryRawUnsafe<Array<{ parentMessageId: string }>>(
     `
     SELECT DISTINCT parent.id AS "parentMessageId"
-    FROM "chat_room_message" reply
-    INNER JOIN "chat_room_message" parent
+    FROM ${sharedTable("chat_room_message").sql} reply
+    INNER JOIN ${sharedTable("chat_room_message").sql} parent
       ON parent.id = reply."parentMessageId"
       AND parent."roomId" = reply."roomId"
-    LEFT JOIN "chat_room_thread_read_state" thread_read
+    LEFT JOIN ${sharedTable("chat_room_thread_read_state").sql} thread_read
       ON thread_read."parentMessageId" = parent.id
       AND thread_read."userId" = $2
-    LEFT JOIN "chat_room_read_state" room_read
+    LEFT JOIN ${sharedTable("chat_room_read_state").sql} room_read
       ON room_read."roomId" = reply."roomId"
       AND room_read."userId" = $2
     WHERE reply."roomId" = $1::uuid

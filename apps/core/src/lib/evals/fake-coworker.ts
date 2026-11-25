@@ -1,3 +1,4 @@
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { simulateReadableStream, type streamText } from "ai";
 import { z } from "zod";
 import { jsonInput } from "@/helpers/prisma-json";
@@ -44,7 +45,7 @@ export async function takeEvalCoworkerReply(
   coworkerId: string,
 ): Promise<string | null> {
   return prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT id FROM coworker WHERE id = ${coworkerId} FOR UPDATE`;
+    await tx.$executeRaw`SELECT id FROM ${sharedTable("coworker")} WHERE id = ${coworkerId} FOR UPDATE`;
     const row = await tx.coworker.findUnique({
       where: { id: coworkerId },
       select: { metadata: true },

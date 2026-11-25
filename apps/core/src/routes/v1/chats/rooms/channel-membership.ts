@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import {
   failOpenChatRoomMentions,
@@ -42,8 +43,8 @@ export async function requireChannelRosterAccess(
   const userIds = [...new Set([userId, ...addedUserIds])];
   await tx.$queryRaw`
     SELECT "member"."id"
-    FROM "member"
-    JOIN "chat_room" ON "chat_room"."organizationId" = "member"."organizationId"
+    FROM ${sharedTable("member")}
+    JOIN ${sharedTable("chat_room")} ON "chat_room"."organizationId" = "member"."organizationId"
     WHERE "chat_room"."id" = ${roomId}::uuid
       AND "member"."userId" = ANY(${userIds}::text[])
     ORDER BY "member"."id"
@@ -52,7 +53,7 @@ export async function requireChannelRosterAccess(
   // Share the room lock with leave, archive, and guest invitation flows.
   // Read membership and permissions only after a concurrent writer commits.
   await tx.$queryRaw`
-    SELECT "id" FROM "chat_room"
+    SELECT "id" FROM ${sharedTable("chat_room")}
     WHERE "id" = ${roomId}::uuid
     FOR UPDATE
   `;
