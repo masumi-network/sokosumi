@@ -43,6 +43,16 @@ export const fundraisingDataRoomVisitSchema = z
   })
   .openapi("FundraisingDataRoomVisit");
 
+export const fundraisingResearchSchema = z
+  .object({
+    /** Exa spend on research in this workspace this calendar month. */
+    monthUsd: z.number(),
+    capUsd: z.number(),
+    perSearchUsd: z.number(),
+    exaConfigured: z.boolean(),
+  })
+  .openapi("FundraisingResearch");
+
 export const fundraisingProspectSchema = z
   .object({
     contact: contactSchema,
@@ -67,6 +77,7 @@ export const fundraisingPipelineSchema = z
       z.object({ id: z.uuid(), title: z.string(), token: z.string() }),
     ),
     prospects: z.array(fundraisingProspectSchema),
+    research: fundraisingResearchSchema,
   })
   .openapi("FundraisingPipeline");
 
@@ -91,3 +102,29 @@ export type FundraisingPipelineDto = z.input<typeof fundraisingPipelineSchema>;
 export type FundraisingDataRoomVisitDto = z.input<
   typeof fundraisingDataRoomVisitSchema
 >;
+
+/** How many investors one search asks Exa for. */
+export const FUNDRAISING_SEARCH_SIZES = [10, 25] as const;
+
+export const fundraisingFindInputSchema = z
+  .object({
+    /** Who to look for: stage, sector, geography, cheque size, anything that narrows it. */
+    brief: z.string().trim().min(10).max(1500),
+    size: z.union([z.literal(10), z.literal(25)]).default(10),
+  })
+  .openapi("FundraisingFindInput");
+
+export const fundraisingFindResultSchema = z
+  .object({
+    found: z.int(),
+    /** What Exa charged for this search. */
+    costUsd: z.number(),
+    research: fundraisingResearchSchema,
+  })
+  .openapi("FundraisingFindResult");
+
+export const fundraisingSuggestionIdsSchema = z
+  .object({ ids: z.array(z.uuid()).min(1).max(100) })
+  .openapi("FundraisingSuggestionIds");
+
+export type FundraisingResearchDto = z.input<typeof fundraisingResearchSchema>;

@@ -19,6 +19,7 @@ import {
   type ContactActor,
   contactDtos,
 } from "@/services/contacts.service";
+import { researchStatus } from "@/services/fundraising-research.service";
 
 /** `nameKey` of the list the pipeline runs over. */
 export const INVESTORS_LIST_NAME_KEY = "investors";
@@ -211,7 +212,8 @@ export async function listFundraisingPipeline(
     },
     select: { id: true, name: true },
   });
-  if (!list) return { list: null, rooms: [], prospects: [] };
+  const research = await researchStatus(actor);
+  if (!list) return { list: null, rooms: [], prospects: [], research };
   const rows = await prisma.contact.findMany({
     where: {
       workspaceId: actor.workspaceId,
@@ -233,6 +235,7 @@ export async function listFundraisingPipeline(
       token: room.token,
     })),
     prospects,
+    research,
   };
 }
 

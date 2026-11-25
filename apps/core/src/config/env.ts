@@ -271,6 +271,12 @@ const baseEnvSchema = z.object({
             .filter(Boolean),
     ),
   /**
+   * The most Fundraising may spend on Exa research per workspace per
+   * calendar month, in US dollars. Searches past it are refused with the
+   * amount, so a raise never runs up a bill unseen.
+   */
+  FUNDRAISING_EXA_MONTHLY_CAP_USD: z.coerce.number().min(0).default(25),
+  /**
    * A local Chrome or Chromium binary for the CMO site screenshots. Unset,
    * Core downloads the `@sparticuz/chromium-min` pack below (Vercel).
    */

@@ -829,10 +829,11 @@ describe("SEO audit first run", () => {
     expect(document.activeElement).toBe(button);
     expect(button).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByRole("button", { name: "Check running" })).toBeVisible();
-    // Core gives a start time and no progress. A first full audit of one page has the default time limit
-    // (16 minutes) and the steps after it (5 minutes): the card says the time left, as an estimate.
+    // Core gives a start time and no progress. A full audit of one page has the time of that page and of the
+    // four pages it adds (30 minutes) and the steps after them (20 minutes): the card says the time left, as an
+    // estimate.
     expect(
-      screen.getByText("Started just now. About 21 minutes left (estimate)."),
+      screen.getByText("Started just now. About 50 minutes left (estimate)."),
     ).toBeVisible();
     expect(
       screen.getByRole("progressbar", {
@@ -853,17 +854,17 @@ describe("SEO audit first run", () => {
     at(12, "audit_full");
     expect(
       screen.getByText(
-        "Started 12 minutes ago. About 9 minutes left (estimate).",
+        "Started 12 minutes ago. About 38 minutes left (estimate).",
       ),
     ).toBeVisible();
     expect(screen.getByRole("progressbar")).toHaveAttribute(
       "aria-valuenow",
-      "57",
+      "24",
     );
     // Past the usual time the bar does not fill and the words promise no time.
-    at(30, "audit_full");
+    at(55, "audit_full");
     expect(
-      screen.getByText("Started 30 minutes ago. It takes longer than usual."),
+      screen.getByText("Started 55 minutes ago. It takes longer than usual."),
     ).toBeVisible();
     expect(screen.getByRole("progressbar")).toHaveAttribute(
       "aria-valuenow",

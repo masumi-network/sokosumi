@@ -225,7 +225,7 @@ describe.runIf(enabled)("fundraising on PostgreSQL", () => {
         workspaceId: otherWorkspace,
         organizationId: otherOrganization,
       }),
-    ).toEqual({ list: null, rooms: [], prospects: [] });
+    ).toMatchObject({ list: null, rooms: [], prospects: [] });
     await prisma.organization.delete({ where: { id: otherOrganization } });
   });
 });
