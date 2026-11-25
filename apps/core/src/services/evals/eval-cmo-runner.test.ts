@@ -18,6 +18,7 @@ const prisma = vi.hoisted(() => {
     contactList: { deleteMany: ok() },
     sokoBotSchedule: { deleteMany: ok() },
     fileProjectLink: { deleteMany: ok() },
+    projectSocialConnection: { updateMany: ok() },
     socialComment: {
       deleteMany: ok(),
       create: vi.fn().mockResolvedValue({ id: "comment-1" }),

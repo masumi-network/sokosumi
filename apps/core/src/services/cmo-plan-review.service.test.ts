@@ -1583,6 +1583,16 @@ describe("a network the Brand Brain shows no profile on", () => {
       'the Brand Brain shows no profile on instagram; start its why with "New:" and say the owner opens the account.',
     ]);
   });
+
+  it("never asks for New: on a network the business connected", () => {
+    expect(
+      cmoNewNetworkProblems(
+        plan({ channels: [on("instagram", "Teams look at product shots.")] }),
+        brain,
+        ["instagram"],
+      ),
+    ).toEqual([]);
+  });
 });
 
 describe("ads and questions, for a Cuso on cmo-v5's strategy skill", () => {
