@@ -12,6 +12,7 @@ import type * as driveAccess from "./drive-access";
 import type * as driveReads from "./drive-reads";
 import type * as driveWrites from "./drive-writes";
 import type * as execution from "./execution";
+import type * as fundraising from "./fundraising";
 import type * as mail from "./mail";
 import type * as mediaChecks from "./media-checks";
 import type * as mediaGeneration from "./media-generation";
@@ -306,6 +307,11 @@ export interface RuntimeOperations {
   executeContactResearch: (
     ...args: RuntimeOperationArguments<typeof contacts.executeContactResearch>
   ) => ReturnType<typeof contacts.executeContactResearch>;
+  executeFundraisingTool: (
+    ...args: RuntimeOperationArguments<
+      typeof fundraising.executeFundraisingTool
+    >
+  ) => ReturnType<typeof fundraising.executeFundraisingTool>;
   executeProjectTool: (
     ...args: RuntimeOperationArguments<typeof contacts.executeProjectTool>
   ) => ReturnType<typeof contacts.executeProjectTool>;

@@ -4,7 +4,10 @@ import {
   CMO_SHORT_VIDEOS_PER_WEEK,
   CMO_VOLUME_LEVELS,
   type CmoVolumeLevel,
+  cmoCadencePerWeek,
   cmoMonthAtLevel,
+  cmoMonthFloor,
+  cmoMonthTargets,
   cmoNetworkMonth,
   cmoVolumeLevelForTier,
 } from "./cmo-plan-volume.js";
@@ -149,5 +152,95 @@ describe("cmoVolumeLevelForTier", () => {
         cmoVolumeLevelForTier,
       ),
     ).toEqual(["steady", "active", "all_in", "all_in", "all_in"]);
+  });
+});
+
+describe("cmoMonthFloor", () => {
+  const everyNetwork = [
+    "x",
+    "linkedin",
+    "instagram",
+    "facebook",
+    "tiktok",
+    "youtube",
+  ].map((channel) => ({ channel, cadence: "top rate" }));
+  const floor = (level: CmoVolumeLevel, channels = everyNetwork) =>
+    cmoMonthFloor(channels, level);
+
+  it("promises each plan its networks' rates before any calendar exists", () => {
+    // Starter: X 84, LinkedIn 20, Facebook 20, Instagram 28 pictures, and
+    // 68 short videos on each of TikTok, Reels and Shorts.
+    expect(floor("steady").total).toBe(84 + 20 + 20 + 28 + 68 * 3);
+    expect(floor("active").total).toBe(112 + 28 + 28 + 28 + 112 * 3);
+    expect(floor("all_in").total).toBe(168 + 28 + 56 + 56 + 196 * 3);
+  });
+
+  it("grows with every plan", () => {
+    const totals = CMO_VOLUME_LEVELS.map((level) => floor(level).total);
+    expect(totals).toEqual([...totals].sort((a, b) => a - b));
+    expect(new Set(totals).size).toBe(3);
+  });
+
+  it("matches the calendar the top plan makes in full", () => {
+    // The top month above at all_in, each short video on its three networks.
+    const top = cmoMonthAtLevel(calendar, "all_in");
+    const shared = calendar.filter((entry) => entry.alsoOn).length;
+    expect(floor("all_in").total).toBe(top.posts + shared * 2);
+  });
+
+  it("counts only the networks the strategy plans", () => {
+    const two = [
+      { channel: "x", cadence: "6 a day" },
+      { channel: "linkedin", cadence: "1 a day" },
+      { channel: "newsletter", cadence: "1 a week" },
+    ];
+    expect(floor("steady", two)).toEqual({
+      total: 104,
+      byNetwork: [
+        { network: "x", posts: 84 },
+        { network: "linkedin", posts: 20 },
+      ],
+    });
+  });
+
+  it("puts a short video on each short-video network the strategy plans", () => {
+    const reels = floor("steady", [{ channel: "instagram", cadence: "" }]);
+    expect(reels.byNetwork).toEqual([{ network: "instagram", posts: 28 + 68 }]);
+    expect(cmoMonthTargets([{ channel: "youtube" }], "active")).toEqual({
+      networks: [],
+      shortVideosPerWeek: CMO_SHORT_VIDEOS_PER_WEEK.active,
+      shortNetworks: ["youtube"],
+    });
+  });
+
+  it("keeps a cadence the owner lowered", () => {
+    const lowered = floor("all_in", [
+      { channel: "x", cadence: "2 a day", setByOwner: true },
+      { channel: "linkedin", cadence: "3 a week", setByOwner: true },
+      // Cuso's own cadence never lowers the plan.
+      { channel: "facebook", cadence: "1 a week" },
+    ]);
+    expect(lowered.byNetwork).toEqual([
+      { network: "x", posts: 56 },
+      { network: "facebook", posts: 56 },
+      { network: "linkedin", posts: 12 },
+    ]);
+  });
+
+  it("never raises a network past its plan's rate", () => {
+    expect(
+      floor("steady", [{ channel: "x", cadence: "9 a day", setByOwner: true }])
+        .total,
+    ).toBe(84);
+  });
+});
+
+describe("cmoCadencePerWeek", () => {
+  it("reads an owner's cadence as pieces a week", () => {
+    expect(cmoCadencePerWeek("1 a day")).toBe(7);
+    expect(cmoCadencePerWeek("3 a week, Tue Thu Sat")).toBe(3);
+    expect(cmoCadencePerWeek("2 images, 7 Reels daily")).toBe(63);
+    expect(cmoCadencePerWeek("often")).toBeNull();
+    expect(cmoCadencePerWeek("5")).toBeNull();
   });
 });

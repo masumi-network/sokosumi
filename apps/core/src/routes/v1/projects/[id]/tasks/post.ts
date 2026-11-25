@@ -41,7 +41,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "post",
     path: "/{id}/tasks",
     description:
-      "Add an existing task to a project. Parked tasks awaiting vendor create approval cannot be linked. Interactive session user only; coworker keys are rejected.",
+      "Add an existing task to a project. Parked tasks awaiting vendor create approval cannot be linked. A person by any sign-in (browser, API key or OAuth token); Coworker and Soko Bot keys are rejected.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,

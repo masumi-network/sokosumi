@@ -1,3 +1,139 @@
 {
-  "backlog": "SOKD-376"
+  "operations": {
+    "GET /contacts": {
+      "cli": "contacts list",
+      "mcp": "contacts_list"
+    },
+    "POST /contacts": {
+      "cli": "contacts create",
+      "mcp": "contacts_create"
+    },
+    "GET /contacts/export.csv": {
+      "cli": "contacts export",
+      "mcp": false,
+      "reason": "A CSV file of up to 10,000 contacts: a bulk file transfer, not a JSON result."
+    },
+    "GET /contacts/map": {
+      "cli": "contacts map",
+      "mcp": "contacts_map"
+    },
+    "POST /contacts/merge": {
+      "cli": "contacts merge",
+      "mcp": "contacts_merge"
+    },
+    "GET /contacts/duplicates": {
+      "cli": "contacts list-duplicates",
+      "mcp": "contacts_list_duplicates"
+    },
+    "POST /contacts/duplicates/dismiss": {
+      "cli": "contacts dismiss-duplicates",
+      "mcp": "contacts_dismiss_duplicates"
+    },
+    "POST /contacts/stage": {
+      "cli": "contacts set-stage",
+      "mcp": "contacts_set_stage"
+    },
+    "POST /contacts/stage/undo": {
+      "cli": "contacts undo-stage",
+      "mcp": "contacts_undo_stage"
+    },
+    "POST /contacts/import": {
+      "cli": "contacts import",
+      "mcp": false,
+      "reason": "Bulk import: writes up to thousands of contacts from one call. A person runs it from the CLI or the app."
+    },
+    "POST /contacts/linkedin-connections": {
+      "cli": "contacts import-linkedin",
+      "mcp": false,
+      "reason": "Bulk import: writes up to 20,000 contacts from a LinkedIn Connections.csv export in one call. A person runs it from the CLI or the app."
+    },
+    "GET /contacts/organizations": {
+      "cli": "contacts list-organizations",
+      "mcp": "contacts_list_organizations"
+    },
+    "GET /contacts/companies": {
+      "cli": "contacts list-companies",
+      "mcp": "contacts_list_companies"
+    },
+    "GET /contacts/companies/{companyId}": {
+      "cli": "contacts get-company",
+      "mcp": "contacts_get_company"
+    },
+    "PATCH /contacts/companies/{companyId}": {
+      "cli": "contacts update-company",
+      "mcp": "contacts_update_company"
+    },
+    "GET /contacts/company-lists": {
+      "cli": "contacts list-company-lists",
+      "mcp": "contacts_list_company_lists"
+    },
+    "POST /contacts/company-lists": {
+      "cli": "contacts create-company-list",
+      "mcp": "contacts_create_company_list"
+    },
+    "PATCH /contacts/company-lists/{listId}": {
+      "cli": "contacts update-company-list",
+      "mcp": "contacts_update_company_list"
+    },
+    "DELETE /contacts/company-lists/{listId}": {
+      "cli": "contacts delete-company-list",
+      "mcp": "contacts_delete_company_list"
+    },
+    "POST /contacts/company-lists/{listId}/members": {
+      "cli": "contacts update-company-list-members",
+      "mcp": "contacts_update_company_list_members"
+    },
+    "GET /contacts/breakdown": {
+      "cli": "contacts breakdown",
+      "mcp": "contacts_breakdown"
+    },
+    "GET /contacts/{id}": {
+      "cli": "contacts get",
+      "mcp": "contacts_get"
+    },
+    "PATCH /contacts/{id}": {
+      "cli": "contacts update",
+      "mcp": "contacts_update"
+    },
+    "POST /contacts/{id}/archive": {
+      "cli": "contacts archive",
+      "mcp": "contacts_archive"
+    },
+    "POST /contacts/{id}/unarchive": {
+      "cli": "contacts unarchive",
+      "mcp": "contacts_unarchive"
+    },
+    "POST /contacts/{id}/channels": {
+      "cli": "contacts add-channel",
+      "mcp": "contacts_add_channel"
+    },
+    "DELETE /contacts/{id}/channels/{channelId}": {
+      "cli": "contacts remove-channel",
+      "mcp": "contacts_remove_channel"
+    },
+    "GET /contacts/{id}/interactions": {
+      "cli": "contacts list-interactions",
+      "mcp": "contacts_list_interactions"
+    },
+    "POST /contacts/{id}/interactions": {
+      "cli": "contacts add-interaction",
+      "mcp": "contacts_add_interaction"
+    },
+    "DELETE /contacts/{id}/interactions/{interactionId}": {
+      "cli": "contacts delete-interaction",
+      "mcp": "contacts_delete_interaction"
+    },
+    "PUT /contacts/{id}/importance": {
+      "cli": "contacts set-importance",
+      "mcp": "contacts_set_importance"
+    },
+    "POST /contacts/{id}/enrich": {
+      "cli": "contacts enrich",
+      "mcp": "contacts_enrich"
+    },
+    "GET /contacts/{id}/activity": {
+      "cli": "contacts activity",
+      "mcp": "contacts_activity"
+    }
+  }
 }

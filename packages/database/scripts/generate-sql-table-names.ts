@@ -28,6 +28,11 @@ export function renderSqlTableNames(list: typeof networkTables): string {
       [...Object.values(list.network), ...list.networkJoinTables],
     ),
     union(
+      "NetworkModelName",
+      "A Prisma model whose table is in each Network's schema; every other model is shared.",
+      Object.keys(list.network),
+    ),
+    union(
       "NetworkEnumName",
       "An enum type in each Network's schema; every other enum is shared.",
       list.networkEnums,

@@ -21,6 +21,8 @@ export interface McpTool {
    * clients ask the person first; the description starts with the warning.
    */
   spendsCredits?: boolean;
+  /** Acts on a service outside Sokosumi (Google, Meta). Annotated open-world. */
+  openWorld?: boolean;
 }
 
 export const MCP_TOOLS: readonly McpTool[] = [
@@ -1207,6 +1209,1251 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "POST /projects/{id}/newsletter/issues/{issueId}/cancel",
     description:
       "Stop a scheduled newsletter issue before it sends. It goes back to a draft that a person approves again.",
+  },
+  // SOKD-373: projects and newsletter.
+  {
+    name: "projects_list",
+    operation: "GET /projects",
+    description:
+      "List the workspace's Projects by latest activity. `state` filters to open, hidden or closed; `q` searches name, identifier, briefing and website; `pinnedFirst` puts your Pins first. Pass `cursor` from `pagination.nextCursor` for the next page.",
+  },
+  {
+    name: "projects_create",
+    operation: "POST /projects",
+    description:
+      "Create a Project in the workspace. `body.name` is required; `body.identifier` (such as SOK), `body.websiteUrl` and `body.briefing` are optional.",
+  },
+  {
+    name: "projects_stats",
+    operation: "GET /projects/stats",
+    description:
+      "Count each Project's Tasks and Jobs by status. `projectIds` (comma-separated) narrows it; omit it for every Project.",
+  },
+  {
+    name: "projects_activity",
+    operation: "GET /projects/activity",
+    description:
+      "The newest Task, Job and Project events across the workspace's open Projects, newest first. Pass `projectId` for one Project.",
+  },
+  {
+    name: "projects_starred",
+    operation: "GET /projects/starred",
+    description:
+      "List the Projects you pinned in this workspace, oldest Pin first.",
+  },
+  {
+    name: "projects_get",
+    operation: "GET /projects/{id}",
+    description:
+      "Get a Project: name, identifier, briefing, website, logo, DESIGN.md and close state.",
+  },
+  {
+    name: "projects_update",
+    operation: "PATCH /projects/{id}",
+    description:
+      "Change a Project's name, identifier, briefing, website, logo or social posting instructions (`postingInstructionsMd`). Only the fields sent change; null clears one. DESIGN.md has its own tools.",
+  },
+  {
+    name: "projects_star",
+    operation: "POST /projects/{id}/star",
+    description:
+      "Pin a Project for yourself. Personal, never shared; pinning a hidden Project shows it again. Idempotent.",
+  },
+  {
+    name: "projects_unstar",
+    operation: "DELETE /projects/{id}/star",
+    description: "Unpin a Project for yourself. Idempotent.",
+    destructive: false,
+  },
+  {
+    name: "projects_hidden",
+    operation: "GET /projects/{id}/hide",
+    description: "Whether you have hidden this Project.",
+  },
+  {
+    name: "projects_hide",
+    operation: "POST /projects/{id}/hide",
+    description:
+      "Hide a Project for yourself: it leaves your Project list and recent activity, and loses your Pin. Personal, never shared. Idempotent.",
+  },
+  {
+    name: "projects_unhide",
+    operation: "DELETE /projects/{id}/hide",
+    description: "Show a hidden Project again for yourself. Idempotent.",
+    destructive: false,
+  },
+  {
+    name: "projects_add_job",
+    operation: "POST /projects/{id}/jobs",
+    description:
+      "Add an existing Job to a Project. `body.jobId` is the Job's id.",
+  },
+  {
+    name: "projects_remove_job",
+    operation: "DELETE /projects/{id}/jobs/{jobId}",
+    description: "Take a Job out of a Project. The Job itself stays.",
+    destructive: false,
+  },
+  {
+    name: "projects_add_task",
+    operation: "POST /projects/{id}/tasks",
+    description:
+      "Add an existing Task to a Project. `body.taskId` is the Task's UUID, not its identifier.",
+  },
+  {
+    name: "projects_remove_task",
+    operation: "DELETE /projects/{id}/tasks/{taskId}",
+    description:
+      "Take a Task out of a Project. The Task itself stays. `taskId` is the Task's UUID.",
+    destructive: false,
+  },
+  {
+    name: "projects_context",
+    operation: "GET /projects/{id}/context-md",
+    description:
+      "Read a Project's CONTEXT.md: the memory Sokosumi keeps about the business. Read-only.",
+  },
+  {
+    name: "projects_posting_instructions",
+    operation: "GET /projects/{id}/posting-instructions",
+    description:
+      "Read a Project's social posting instructions: Markdown to follow before drafting a Social post. Null when none are set.",
+  },
+  {
+    name: "projects_set_design",
+    operation: "PUT /projects/{id}/design-md",
+    description:
+      "Store a DESIGN.md for a Project and assign it, replacing the current one. `body.content` is the Markdown.",
+    destructive: true,
+  },
+  {
+    name: "projects_clear_design",
+    operation: "DELETE /projects/{id}/design-md",
+    description: "Clear a Project's DESIGN.md assignment.",
+  },
+  {
+    name: "projects_needs_attention",
+    operation: "GET /projects/{id}/needs-attention",
+    description:
+      "A Project's Task and Job counts and the five items that most need a person.",
+  },
+  {
+    name: "projects_close_status",
+    operation: "GET /projects/{id}/close",
+    description:
+      "Read a Project's close status: state, `projectRevision`, and any failure or owed work. 404 until a close has started.",
+  },
+  {
+    name: "projects_close",
+    operation: "POST /projects/{id}/close",
+    description:
+      "Close a Project. `body.expectedProjectRevision` is the Project's `projectRevision` from projects_get; `body.operationId` is a fresh UUID you choose, so a retry never closes twice. Confirm with the person first.",
+    destructive: true,
+  },
+  {
+    name: "projects_retry_close",
+    operation: "POST /projects/{id}/close/retry",
+    description:
+      "Retry a failed close with a new `body.operationId` (a UUID), `body.expectedProjectRevision` (`projectRevision` from projects_close_status) and a `body.reason`.",
+  },
+  {
+    name: "projects_cancel_owed",
+    operation: "POST /projects/{id}/close/cancel-owed",
+    description:
+      "Cancel the owed work of a failed close and carry on closing; the owed work never runs. Send a new `body.operationId` (a UUID), `body.expectedProjectRevision` (`projectRevision` from projects_close_status) and a `body.reason`. Confirm with the person first.",
+    destructive: true,
+  },
+  {
+    name: "projects_brand_brain",
+    operation: "GET /projects/{id}/brand-brain",
+    description:
+      "Read a Project's Brand Brain: what it knows about the business (summary, voice, audience, products, competitors, channels), its open yes/no questions, and who confirmed it.",
+  },
+  {
+    name: "projects_set_brand_brain",
+    operation: "PUT /projects/{id}/brand-brain",
+    description:
+      "Save a Project's Brand Brain. Each section in `body.brandBrain` replaces its own; answers to its questions are kept. Read it with projects_brand_brain first and send it back changed.",
+    destructive: true,
+  },
+  {
+    name: "projects_answer_brand_brain",
+    operation: "POST /projects/{id}/brand-brain/answers",
+    description:
+      "Answer one of the Brand Brain's yes/no questions with the person's answer: `body.questionId`, `body.answer` (yes, no or unsure) and an optional `body.note`. Ask the person; do not guess.",
+  },
+  {
+    name: "projects_competitors",
+    operation: "GET /projects/{id}/competitors",
+    description:
+      "The competitors a Project tracks, this week's moves, what the weekly checks found with sources, and whether the paid weekly check is on and what it costs.",
+  },
+  {
+    name: "projects_add_competitor",
+    operation: "POST /projects/{id}/competitors",
+    description:
+      "Track a competitor: `body.name`, and optionally its website, pricing page, Instagram and Facebook handles. The next weekly check reads it.",
+  },
+  {
+    name: "projects_update_competitor",
+    operation: "PATCH /projects/{id}/competitors/{competitorId}",
+    description:
+      "Change a tracked competitor's name, website, pricing page or handles. Null or an empty string clears a field.",
+  },
+  {
+    name: "projects_remove_competitor",
+    operation: "DELETE /projects/{id}/competitors/{competitorId}",
+    description:
+      "Stop tracking a competitor. What the checks found about it is kept.",
+  },
+  {
+    name: "projects_restore_competitor",
+    operation: "POST /projects/{id}/competitors/{competitorId}/restore",
+    description:
+      "Undo a projects_remove_competitor: send back the `removal` number it answered with as `body.removal`. 409 if a later removal happened, the name is taken or the limit is reached.",
+  },
+  {
+    name: "projects_competitor_checks",
+    operation: "PUT /projects/{id}/competitors/checks",
+    description:
+      "Spends workspace credits. Turn the weekly competitor check on (`body.on: true`) or off. On, the first check starts at once and each competitor costs credits every week; projects_competitors shows the price. Confirm with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "projects_check_competitors",
+    operation: "POST /projects/{id}/competitors/check",
+    description:
+      "Spends workspace credits. Run the weekly competitor check now when one is due, charged like every weekly check. Takes up to a few minutes. Confirm with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "projects_suggest_competitors",
+    operation: "POST /projects/{id}/competitors/suggestions",
+    description:
+      "Suggest competitors from the Project's website. Free; adds nothing. Add the ones the person picks with projects_add_competitor.",
+  },
+  {
+    name: "projects_strategies",
+    operation: "GET /projects/{id}/marketing-strategies",
+    description:
+      "List the versions of a Project's Marketing strategy, newest first, without their plans. At most one is approved.",
+  },
+  {
+    name: "projects_create_strategy",
+    operation: "POST /projects/{id}/marketing-strategies",
+    description:
+      "Write a new version of a Project's Marketing strategy as `body.plan` (month, summary, goals, pillars, channels, calendar, ...). Nothing runs until an owner approves it in Sokosumi.",
+  },
+  {
+    name: "projects_strategy",
+    operation: "GET /projects/{id}/marketing-strategies/{strategyId}",
+    description:
+      "Get one version of a Project's Marketing strategy with its plan and yes/no questions.",
+  },
+  {
+    name: "projects_answer_strategy",
+    operation: "POST /projects/{id}/marketing-strategies/{strategyId}/answers",
+    description:
+      "Answer one of a strategy version's yes/no questions with the person's answer: `body.questionId`, `body.answer` (yes, no or unsure) and an optional `body.note`. Ask the person; do not guess.",
+  },
+  {
+    name: "newsletter_availability",
+    operation: "GET /newsletter/availability",
+    description:
+      "Whether the newsletter is available in this workspace. Other newsletter tools answer 404 where it is not.",
+  },
+  {
+    name: "newsletter_get",
+    operation: "GET /projects/{id}/newsletter",
+    description:
+      "Get a Project's newsletter settings: name, sender, reply-to, brand and welcome email. 404 when the Project has no newsletter.",
+  },
+  {
+    name: "newsletter_set",
+    operation: "PUT /projects/{id}/newsletter",
+    description:
+      "Create or replace a Project's newsletter settings: `body.name`, `senderName`, `replyTo`, `brand` and `welcomeEmailEnabled`. Read them with newsletter_get first.",
+    destructive: true,
+  },
+  {
+    name: "newsletter_analytics",
+    operation: "GET /projects/{id}/newsletter/analytics",
+    description:
+      "A Project's newsletter activity over a UTC date range (`from`, `to`; default the last 30 days): sends, opens, clicks, unsubscribes, bounces, by day and by issue.",
+  },
+  {
+    name: "newsletter_issue_analytics",
+    operation: "GET /projects/{id}/newsletter/issues/{issueId}/analytics",
+    description:
+      "Lifetime analytics for one newsletter issue: deliveries, opens, clicks, rates and top links.",
+  },
+  {
+    name: "newsletter_issues",
+    operation: "GET /projects/{id}/newsletter/issues",
+    description:
+      "List a Project's newsletter issues, newest first. `status` and `search` filter them.",
+  },
+  {
+    name: "newsletter_create_issue",
+    operation: "POST /projects/{id}/newsletter/issues",
+    description:
+      "Create a draft newsletter issue: `body.subject`, `body.template` and `body.content`. It never sends; submit it with newsletter_submit_issue for a person to approve.",
+  },
+  {
+    name: "newsletter_draft_issue",
+    operation: "POST /projects/{id}/newsletter/issues/draft-with-ai",
+    description:
+      "Draft a newsletter issue with AI from `body.brief`, optionally using the Project's memory and recent Social posts. Always a draft; never sends. Free.",
+  },
+  {
+    name: "newsletter_submit_issue",
+    operation: "POST /projects/{id}/newsletter/issues/{issueId}/submit",
+    description:
+      "Submit a draft issue for a person to approve and send in Sokosumi. `body.revision` is the issue's current revision.",
+  },
+  {
+    name: "newsletter_preview",
+    operation: "POST /projects/{id}/newsletter/issues/preview",
+    description:
+      "Render unsaved issue content (`body.subject`, `template`, `content`, optional `brand`) as the email would look. Sends nothing and saves nothing.",
+  },
+  {
+    name: "newsletter_issue",
+    operation: "GET /projects/{id}/newsletter/issues/{issueId}",
+    description:
+      "Get one newsletter issue with its content, status and `revision`.",
+  },
+  {
+    name: "newsletter_update_issue",
+    operation: "PATCH /projects/{id}/newsletter/issues/{issueId}",
+    description:
+      "Edit a DRAFT or NEEDS_APPROVAL issue. `body.revision` is its current revision. An edit returns it to DRAFT and withdraws any approval.",
+    destructive: true,
+  },
+  {
+    name: "newsletter_delete_issue",
+    operation: "DELETE /projects/{id}/newsletter/issues/{issueId}",
+    description: "Delete a DRAFT or CANCELED newsletter issue.",
+  },
+  {
+    name: "newsletter_sending_domain",
+    operation: "GET /projects/{id}/newsletter/sending-domain",
+    description:
+      "Read a Project's newsletter sending domain, the DNS records to publish and their verification status.",
+  },
+  {
+    name: "newsletter_set_sending_domain",
+    operation: "PUT /projects/{id}/newsletter/sending-domain",
+    description:
+      "Set a Project's newsletter From address (`body.fromAddress`). A new domain returns the DNS records the person must publish.",
+    destructive: true,
+  },
+  {
+    name: "newsletter_remove_sending_domain",
+    operation: "DELETE /projects/{id}/newsletter/sending-domain",
+    description:
+      "Remove a Project's newsletter sending domain. Until a new one is verified, issues send from the shared Sokosumi sender where one is configured, and are refused otherwise. Confirm with the person first.",
+  },
+  {
+    name: "newsletter_check_sending_domain",
+    operation: "POST /projects/{id}/newsletter/sending-domain/check",
+    description:
+      "Ask the mail provider to verify the sending domain's DNS records now and return the new status.",
+  },
+  {
+    name: "newsletter_domain_connect",
+    operation: "GET /projects/{id}/newsletter/sending-domain/domain-connect",
+    description:
+      "Get a one-click link that adds the sending domain's DNS records at the person's DNS provider, or null when the provider does not support it. Give the link to the person; do not open it yourself.",
+  },
+  {
+    name: "newsletter_subscribers",
+    operation: "GET /projects/{id}/newsletter/subscribers",
+    description:
+      "List a Project's newsletter subscribers. `status` and `search` (email) filter them; counts cover every subscriber.",
+  },
+  {
+    name: "newsletter_update_subscriber",
+    operation: "PATCH /projects/{id}/newsletter/subscribers/{subscriberId}",
+    description:
+      "Change a subscriber's name, or unsubscribe an active subscriber (`body.status: UNSUBSCRIBED`).",
+  },
+  {
+    name: "newsletter_remove_subscriber",
+    operation: "DELETE /projects/{id}/newsletter/subscribers/{subscriberId}",
+    description:
+      "Delete an active or pending subscriber. Unsubscribed and bounced ones are kept so they are never emailed again (409).",
+  },
+  // Ad campaign writes (SOKD-384, ADR 0077). Ad money is billed by Google or
+  // Meta outside Sokosumi credits, so these are destructive and say so first.
+  {
+    name: "projects_ads_campaign_create",
+    operation: "POST /projects/{id}/ads/accounts/{accountId}/campaigns",
+    description:
+      "Can lead to ad spend once a person resumes the campaign. Create a campaign in a Project's attached ad account; it is always created paused. `body.name` and `body.dailyBudget` (decimal in the account currency), plus `body.objective` for Meta or `body.google` for Google. A person resumes it in Sokosumi.",
+    destructive: true,
+    openWorld: true,
+  },
+  {
+    name: "projects_ads_campaign_update",
+    operation:
+      "PATCH /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}",
+    description:
+      'Can lead to ad spend once a person resumes the campaign. Pause a campaign with `body: { "status": "PAUSED" }` at any time, or change a paused campaign\'s budget with `body.dailyBudget` (409 if it is not paused). Send one of the two per call. Only a person resumes a campaign: `ACTIVE` answers 403 with `details.webUrl`, the page to send the person to.',
+    destructive: true,
+    openWorld: true,
+  },
+  {
+    name: "projects_ads_campaign_edit",
+    operation:
+      "PUT /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}",
+    description:
+      "Can lead to ad spend once a person resumes the campaign. Edit a paused Google campaign (409 if it is not paused): `body.name`, `body.dailyBudget` and the whole `body.google` spec, as for a create. Pause it first with projects_ads_campaign_update.",
+    destructive: true,
+    openWorld: true,
+  },
+  // SOKD-374: SEO audits and Project SEO. Not a default toolset.
+  {
+    name: "seo_list_audits",
+    operation: "GET /seo/audits",
+    description:
+      "List the workspace's SEO audits, newest first. Filter by `status` (`active` or `archived`) or `projectId`; pass `cursor` from `pagination.nextCursor` for the next page.",
+  },
+  {
+    name: "seo_create_audit",
+    operation: "POST /seo/audits",
+    description:
+      "Create an SEO audit with its first page: `body.name`, `body.firstPage.url`, and optional `body.projectId` to link a Project. It runs no analysis; use seo_audit_analyze for that.",
+  },
+  {
+    name: "seo_audit_workspace",
+    operation: "GET /seo/audits/{id}/workspace",
+    description:
+      "Find which of the signed-in person's workspaces an SEO audit is in: its `name`, `workspaceId` and `organizationId` (null for the personal workspace). Match it in workspaces_list and pass that workspace's slug as `workspace` to the other seo tools.",
+  },
+  {
+    name: "seo_audit_archive",
+    operation: "PATCH /seo/audits/{id}",
+    description:
+      "Archive an SEO audit and its Tasks with `body.archived: true`, or restore them with `false`.",
+    destructive: true,
+  },
+  {
+    name: "seo_audit_chat",
+    operation: "GET /seo/audits/{id}/chat",
+    description:
+      "Read the conversation about an SEO audit: the questions asked and the answers.",
+  },
+  {
+    name: "seo_audit_ask",
+    operation: "POST /seo/audits/{id}/chat",
+    description:
+      "Spends workspace credits. Ask a question about an SEO audit's findings: `body.question` and a `body.idempotencyKey` you choose (8 or more characters). A daily allowance applies. Confirm with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "seo_audit_get",
+    operation: "GET /seo/audits/{id}",
+    description:
+      "Get an SEO audit: pages, scopes, keywords, competitors, findings, recommendations and statistics. Narrow it with `scopeId`, `pageId` or `pageIds`, and `from` and `to`. `id` is the audit id from seo_list_audits.",
+  },
+  {
+    name: "seo_audit_add_page",
+    operation: "POST /seo/audits/{id}/pages",
+    description:
+      "Add a page to an SEO audit: `body.url`, optional `body.label`, and `body.relationship` (`primary`, or `related` with `body.relatedToPageId`). `id` is the audit id from seo_list_audits.",
+  },
+  {
+    name: "seo_audit_create_scope",
+    operation: "POST /seo/audits/{id}/scopes",
+    description:
+      "Save a named set of pages in an SEO audit: `body.name` and `body.pageIds`.",
+  },
+  {
+    name: "seo_audit_update_scope",
+    operation: "PUT /seo/audits/{id}/scopes/{scopeId}",
+    description:
+      "Rename a saved scope in an SEO audit or replace its pages: `body.name`, `body.pageIds`, and `body.expectedVersion` from seo_audit_get.",
+    destructive: true,
+  },
+  {
+    name: "seo_audit_import_report",
+    operation: "POST /seo/audits/{id}/imports",
+    description:
+      "Import a finished SEO report into an SEO audit from a Task's file: `body.taskId` and `body.fileId`.",
+  },
+  {
+    name: "seo_audit_analyze",
+    operation: "POST /seo/audits/{id}/analyses",
+    description:
+      "Spends workspace credits. Request an SEO analysis of the audit's pages: `body.kind` (`page_check`, `rankings`, `links`, `audit_lite` or `audit_full`), the pages as `body.scopeId` or `body.pageIds`, `body.countryCode`, `body.languageCode`, `body.devices`, and a `body.idempotencyKey` you choose (8 or more characters). Confirm the analysis and its price with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "seo_audit_save_keyword",
+    operation: "POST /seo/audits/{id}/keywords",
+    description:
+      "Track a keyword in an SEO audit, or change one: `body.keyword`, `body.countryCode`, `body.languageCode`, optional `body.pageId` and `body.priority`. `body.saved: false` stops tracking it.",
+  },
+  {
+    name: "seo_audit_save_competitor",
+    operation: "POST /seo/audits/{id}/competitors",
+    description:
+      "Confirm or dismiss a competitor site in an SEO audit: `body.url` and `body.confirmed`.",
+  },
+  {
+    name: "seo_audit_create_task",
+    operation: "POST /seo/audits/{id}/actions",
+    description:
+      "Turn a recommendation in an SEO audit into a Task: `body.observationId` and `body.actionId` from seo_audit_get, and a `body.idempotencyKey` you choose (8 or more characters).",
+  },
+  {
+    name: "seo_audit_create_monitor",
+    operation: "POST /seo/audits/{id}/monitors",
+    description:
+      "Spends workspace credits. Each run of this monitor is paid. Schedule a recurring SEO analysis of the audit's pages: `body.operationId` (a new UUID you choose), `body.rule` (`expr`, a cron that runs at most once a day, and `timezone`), and `body.analysis` as for seo_audit_analyze, with its own `idempotencyKey`. Confirm the schedule and the price per run with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "seo_audit_review_action",
+    operation: "POST /seo/audits/{id}/actions/reviews",
+    description:
+      "Record that the person reviewed a recommendation's result in an SEO audit: `body.pageId`, `body.actionId`, `body.kind`, `body.baselineObservationId` and `body.observationId`.",
+  },
+  {
+    name: "seo_audit_properties",
+    operation: "GET /seo/audits/{id}/statistics/properties",
+    description:
+      "List the Search Console properties the signed-in person's connection can read for an SEO audit.",
+  },
+  {
+    name: "seo_audit_sync_statistics",
+    operation: "POST /seo/audits/{id}/statistics/sync",
+    description:
+      "Collect search statistics for the audit's pages through the signed-in person's connection: `body.provider`, `body.propertyId` from seo_audit_properties, `body.from` and `body.to` (YYYY-MM-DD).",
+  },
+  {
+    name: "seo_audit_record_change",
+    operation: "POST /seo/audits/{id}/page-changes",
+    description:
+      "Note a change made to pages in an SEO audit, so later statistics compare before and after: `body.pageIds`, `body.occurredAt`, `body.title`, optional `body.note`, and a `body.idempotencyKey` you choose.",
+  },
+  {
+    name: "seo_audit_set_brand_terms",
+    operation: "PUT /seo/audits/{id}/brand-terms",
+    description:
+      "Replace the brand terms of an SEO audit, which split branded from unbranded searches: `body.terms`. The list replaces the saved one.",
+    destructive: true,
+  },
+  {
+    name: "seo_audit_brief",
+    operation: "GET /seo/audits/{id}/brief",
+    description:
+      "Get the SEO brief of an SEO audit: its objective and each page's role, with `revision`.",
+  },
+  {
+    name: "seo_audit_save_brief",
+    operation: "PUT /seo/audits/{id}/brief",
+    description:
+      "Replace the SEO brief of an SEO audit. Send the whole brief from seo_audit_brief with your changes and `body.expectedRevision`.",
+    destructive: true,
+  },
+  {
+    name: "seo_audit_suggest_brief",
+    operation: "GET /seo/audits/{id}/brief/suggestion",
+    description:
+      "Suggest a role in the SEO brief of an SEO audit for one page, or null. Pass `pageId`.",
+  },
+  {
+    name: "seo_audit_console_exports",
+    operation: "GET /seo/audits/{id}/console-exports/{taskId}",
+    description:
+      "List the Search Console export samples imported for an SEO Task of an SEO audit. Only the person who imported them sees them.",
+  },
+  {
+    name: "seo_audit_import_console_export",
+    operation: "POST /seo/audits/{id}/console-exports/{taskId}",
+    description:
+      "Import a Search Console CSV export for an SEO Task of an SEO audit: `body.kind`, `body.date` (YYYY-MM-DD) and `body.csv`; an `indexing_examples` export also takes `body.reason`.",
+  },
+  {
+    name: "seo_project_get",
+    operation: "GET /projects/{id}/seo",
+    description:
+      "Get a Project's SEO workspace: pages, scopes, keywords, competitors, findings, recommendations and statistics. Narrow it with `scopeId`, `pageId` or `pageIds`, and `from` and `to`. `id` is the Project id.",
+  },
+  {
+    name: "seo_project_add_page",
+    operation: "POST /projects/{id}/seo/pages",
+    description:
+      "Add a page to a Project's SEO workspace: `body.url`, optional `body.label`, and `body.relationship` (`primary`, or `related` with `body.relatedToPageId`). `id` is the Project id.",
+  },
+  {
+    name: "seo_project_create_scope",
+    operation: "POST /projects/{id}/seo/scopes",
+    description:
+      "Save a named set of pages in a Project's SEO workspace: `body.name` and `body.pageIds`.",
+  },
+  {
+    name: "seo_project_update_scope",
+    operation: "PUT /projects/{id}/seo/scopes/{scopeId}",
+    description:
+      "Rename a saved scope in a Project's SEO workspace or replace its pages: `body.name`, `body.pageIds`, and `body.expectedVersion` from seo_project_get.",
+    destructive: true,
+  },
+  {
+    name: "seo_project_import_report",
+    operation: "POST /projects/{id}/seo/imports",
+    description:
+      "Import a finished SEO report into a Project's SEO workspace from a Task's file: `body.taskId` and `body.fileId`.",
+  },
+  {
+    name: "seo_project_analyze",
+    operation: "POST /projects/{id}/seo/analyses",
+    description:
+      "Spends workspace credits. Request an SEO analysis of the Project's pages: `body.kind` (`page_check`, `rankings`, `links`, `audit_lite` or `audit_full`), the pages as `body.scopeId` or `body.pageIds`, `body.countryCode`, `body.languageCode`, `body.devices`, and a `body.idempotencyKey` you choose (8 or more characters). Confirm the analysis and its price with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "seo_project_save_keyword",
+    operation: "POST /projects/{id}/seo/keywords",
+    description:
+      "Track a keyword in a Project's SEO workspace, or change one: `body.keyword`, `body.countryCode`, `body.languageCode`, optional `body.pageId` and `body.priority`. `body.saved: false` stops tracking it.",
+  },
+  {
+    name: "seo_project_save_competitor",
+    operation: "POST /projects/{id}/seo/competitors",
+    description:
+      "Confirm or dismiss a competitor site in a Project's SEO workspace: `body.url` and `body.confirmed`.",
+  },
+  {
+    name: "seo_project_create_task",
+    operation: "POST /projects/{id}/seo/actions",
+    description:
+      "Turn a recommendation in a Project's SEO workspace into a Task: `body.observationId` and `body.actionId` from seo_project_get, and a `body.idempotencyKey` you choose (8 or more characters).",
+  },
+  {
+    name: "seo_project_create_monitor",
+    operation: "POST /projects/{id}/seo/monitors",
+    description:
+      "Spends workspace credits. Each run of this monitor is paid. Schedule a recurring SEO analysis of the Project's pages: `body.operationId` (a new UUID you choose), `body.rule` (`expr`, a cron that runs at most once a day, and `timezone`), and `body.analysis` as for seo_project_analyze, with its own `idempotencyKey`. Confirm the schedule and the price per run with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "seo_project_review_action",
+    operation: "POST /projects/{id}/seo/actions/reviews",
+    description:
+      "Record that the person reviewed a recommendation's result in a Project's SEO workspace: `body.pageId`, `body.actionId`, `body.kind`, `body.baselineObservationId` and `body.observationId`.",
+  },
+  {
+    name: "seo_project_properties",
+    operation: "GET /projects/{id}/seo/statistics/properties",
+    description:
+      "List the Search Console properties the signed-in person's connection can read for a Project's SEO workspace.",
+  },
+  {
+    name: "seo_project_sync_statistics",
+    operation: "POST /projects/{id}/seo/statistics/sync",
+    description:
+      "Collect search statistics for the Project's pages through the signed-in person's connection: `body.provider`, `body.propertyId` from seo_project_properties, `body.from` and `body.to` (YYYY-MM-DD).",
+  },
+  {
+    name: "seo_project_record_change",
+    operation: "POST /projects/{id}/seo/page-changes",
+    description:
+      "Note a change made to pages in a Project's SEO workspace, so later statistics compare before and after: `body.pageIds`, `body.occurredAt`, `body.title`, optional `body.note`, and a `body.idempotencyKey` you choose.",
+  },
+  {
+    name: "seo_project_set_brand_terms",
+    operation: "PUT /projects/{id}/seo/brand-terms",
+    description:
+      "Replace the brand terms of a Project's SEO workspace, which split branded from unbranded searches: `body.terms`. The list replaces the saved one.",
+    destructive: true,
+  },
+  {
+    name: "seo_project_brief",
+    operation: "GET /projects/{id}/seo/brief",
+    description:
+      "Get the SEO brief of a Project's SEO workspace: its objective and each page's role, with `revision`.",
+  },
+  {
+    name: "seo_project_save_brief",
+    operation: "PUT /projects/{id}/seo/brief",
+    description:
+      "Replace the SEO brief of a Project's SEO workspace. Send the whole brief from seo_project_brief with your changes and `body.expectedRevision`.",
+    destructive: true,
+  },
+  {
+    name: "seo_project_suggest_brief",
+    operation: "GET /projects/{id}/seo/brief/suggestion",
+    description:
+      "Suggest a role in the SEO brief of a Project's SEO workspace for one page, or null. Pass `pageId`.",
+  },
+  {
+    name: "seo_project_console_exports",
+    operation: "GET /projects/{id}/seo/console-exports/{taskId}",
+    description:
+      "List the Search Console export samples imported for an SEO Task of a Project's SEO workspace. Only the person who imported them sees them.",
+  },
+  {
+    name: "seo_project_import_console_export",
+    operation: "POST /projects/{id}/seo/console-exports/{taskId}",
+    description:
+      "Import a Search Console CSV export for an SEO Task of a Project's SEO workspace: `body.kind`, `body.date` (YYYY-MM-DD) and `body.csv`; an `indexing_examples` export also takes `body.reason`.",
+  },
+  // SOKD-375: Drive, in the non-default `drive` toolset.
+  {
+    name: "drive_search",
+    operation: "GET /drive/search",
+    description:
+      "Search a Drive's files by name, extracted text and metadata. Pass `scope` `me` for the personal Drive, or `org` with `organizationId`. Filter with `q`, labels, projects, `folder`, type or dates; page with `cursor`.",
+  },
+  {
+    name: "drive_files",
+    operation: "GET /drive/files",
+    description:
+      "List the folders and files at one level of a Drive; `folder` is the path, the root when omitted. Page with `cursor`.",
+  },
+  {
+    name: "drive_recents",
+    operation: "GET /drive/recents",
+    description: "List a Drive's recent files and Task outputs, newest first.",
+  },
+  {
+    name: "drive_get",
+    operation: "GET /drive/resources/{id}",
+    description:
+      "Get one Drive file with its category, tags, projects, pending suggestions and `metadataRevision`.",
+  },
+  {
+    name: "drive_related",
+    operation: "GET /drive/resources/{id}/related",
+    description: "List up to six documents related to one Drive file.",
+  },
+  {
+    name: "drive_folders",
+    operation: "GET /drive/folders",
+    description: "List the folder paths in a Drive that hold a file.",
+  },
+  {
+    name: "drive_create_folder",
+    operation: "POST /drive/folders",
+    description: "Create an empty Drive folder at `body.folderPath`.",
+  },
+  {
+    name: "drive_rename_folder",
+    operation: "PATCH /drive/folders/rename",
+    description:
+      "Rename or move a Drive folder and everything in it, from `body.oldFolderPath` to `body.newFolderPath`.",
+  },
+  {
+    name: "drive_delete_folder",
+    operation: "DELETE /drive/folders/delete",
+    description:
+      "Delete a Drive folder and every file in it. This cannot be undone.",
+  },
+  {
+    name: "drive_move",
+    operation: "PATCH /drive/files/move",
+    description:
+      "Move a Drive file or folder (`body.itemType`) by its pathname into `body.targetFolderPath`.",
+  },
+  {
+    name: "drive_rename",
+    operation: "PATCH /drive/files/rename",
+    description:
+      "Rename a Drive file: `body.oldPathname` is its `pathname` from drive_files, `body.newFilename` the new name.",
+  },
+  {
+    name: "drive_delete",
+    operation: "DELETE /drive/files/delete",
+    description:
+      "Delete a Drive file by its `pathname` from drive_files. This cannot be undone.",
+  },
+  {
+    name: "drive_update_metadata",
+    operation: "PATCH /drive/resources/{id}/metadata",
+    description:
+      "Change one Drive file's category, tags and confirmed projects. Pass its current `metadataRevision` from drive_get as `body.expectedMetadataRevision`; a stale one answers 409.",
+    destructive: true,
+  },
+  {
+    name: "drive_decide_suggestion",
+    operation: "POST /drive/resources/{id}/suggestions/{suggestionId}/decision",
+    description:
+      "Accept, dismiss or restore one metadata suggestion on a Drive file (`body.decision`), with its current `metadataRevision`.",
+  },
+  {
+    name: "drive_select",
+    operation: "POST /drive/resources/selection-token",
+    description:
+      "Turn the result window behind a drive_search cursor (`body.windowCursor`) into a short-lived selection token for drive_update_metadata_batch. It never selects more than that window.",
+  },
+  {
+    name: "drive_update_metadata_batch",
+    operation: "POST /drive/resources/metadata-batch",
+    description:
+      "Add or remove tags, or set the category, on up to 100 Drive files: `body.resourceIds` or a `body.selectionToken` from drive_select, with an `idempotencyKey`. Each file succeeds or fails on its own; `outcomes` lists each.",
+    destructive: true,
+  },
+  {
+    name: "drive_reindex",
+    operation: "POST /drive/resources/{id}/reindex",
+    description:
+      "Queue a Drive file for text extraction again. Once a minute per file.",
+  },
+  {
+    name: "drive_add_google_sheet",
+    operation: "POST /drive/files/google-sheets",
+    description:
+      "Save a Google Sheet into Drive as a PDF copy that Sokosumi refreshes every hour. The sheet must be shared as 'Anyone with the link can view'; pass its link as `body.url`.",
+  },
+  {
+    name: "drive_google_sheet",
+    operation: "GET /drive/resources/{id}/google-sheet",
+    description:
+      "Get the Google Sheet a Drive file copies. Empty for a plain file.",
+  },
+  {
+    name: "drive_refresh_google_sheet",
+    operation: "POST /drive/resources/{id}/google-sheet/refresh",
+    description:
+      "Read a Drive file's Google Sheet now and rewrite the copy if it changed. A failure comes back in `error`; the copy stays as it was.",
+    destructive: true,
+  },
+  {
+    name: "drive_tasks",
+    operation: "GET /drive/tasks",
+    description:
+      "List the Task output files in a Drive. Filter by `projectId`, `taskId` or `assigneeId`; page with `cursor`.",
+  },
+  {
+    name: "drive_copy_task_file",
+    operation: "POST /drive/tasks/copy",
+    description:
+      "Copy a Task output file (`body.taskFileId` from drive_tasks) to the Drive root. The Task's file stays.",
+  },
+  {
+    name: "drive_labels",
+    operation: "GET /drive/labels",
+    description:
+      "List a Drive's categories and tags. `kind` filters; `includeArchived` adds archived ones.",
+  },
+  {
+    name: "drive_create_label",
+    operation: "POST /drive/labels",
+    description:
+      "Create a Drive tag or category (`body.kind`) named `body.displayName`.",
+  },
+  {
+    name: "drive_update_label",
+    operation: "PATCH /drive/labels/{id}",
+    description:
+      "Rename, describe or archive a Drive tag or category. A rename keeps its id. Merging it into another label (`body.mergeIntoLabelId`) is an admin step: only do it when the person asks.",
+    destructive: true,
+  },
+  {
+    name: "drive_collections",
+    operation: "GET /drive/collections",
+    description:
+      "List saved Drive views: your own collections and those shared in the workspace.",
+  },
+  {
+    name: "drive_create_collection",
+    operation: "POST /drive/collections",
+    description:
+      "Save Drive search filters (`body.definition`) and a sort as a collection. Private unless `body.isShared`.",
+  },
+  {
+    name: "drive_update_collection",
+    operation: "PATCH /drive/collections/{id}",
+    description: "Rename a collection, or replace its filters and sort.",
+    destructive: true,
+  },
+  {
+    name: "drive_delete_collection",
+    operation: "DELETE /drive/collections/{id}",
+    description: "Delete one of your collections. The files in it stay.",
+  },
+  {
+    name: "drive_share",
+    operation: "GET /drive/shares",
+    description:
+      "Get the public link of a Drive file (`resourceId`) or folder (`folderPath`), if it has one.",
+  },
+  {
+    name: "drive_unshare",
+    operation: "DELETE /drive/shares/{id}",
+    description:
+      "Stop sharing a Drive file or folder: its public link stops working at once.",
+  },
+  {
+    name: "drive_tables",
+    operation: "GET /drive/tables",
+    description:
+      "List a workspace's tables. Filter by `projectId`, `search` or `archived`; page with `cursor`.",
+  },
+  {
+    name: "drive_create_table",
+    operation: "POST /drive/tables",
+    description:
+      "Create a table with `body.columns` and optional `body.rows`. `body.key` is a retry key: send the same key to retry without creating a second table.",
+  },
+  {
+    name: "drive_table",
+    operation: "GET /drive/tables/{id}",
+    description: "Get a table's columns, views and `version`.",
+  },
+  {
+    name: "drive_update_table",
+    operation: "PATCH /drive/tables/{id}",
+    description:
+      "Change a table's title, description, columns or archived state. Pass its current `version` and a retry `key`.",
+    destructive: true,
+  },
+  {
+    name: "drive_query_table",
+    operation: "POST /drive/tables/{id}/query",
+    description:
+      "Read a table's rows with filters, sort and paging. Changes nothing.",
+  },
+  {
+    name: "drive_edit_rows",
+    operation: "POST /drive/tables/{id}/rows",
+    description:
+      "Insert rows (`body.insert`) and change cells (`body.patch`) in one batch with a retry `key`. drive_undo_table reverts the batch.",
+    destructive: true,
+  },
+  {
+    name: "drive_save_view",
+    operation: "POST /drive/tables/{id}/views",
+    description:
+      "Create a saved view of a table, or change one by `body.id` and its `version`.",
+  },
+  {
+    name: "drive_undo_table",
+    operation: "POST /drive/tables/{id}/undo",
+    description:
+      "Undo one batch of row edits by `body.batchId`, with a retry `key`.",
+    destructive: true,
+  },
+  {
+    name: "drive_table_history",
+    operation: "GET /drive/tables/{id}/history",
+    description:
+      "List a table's edits, newest first. Filter by `rowId` or `columnId`; page with `cursor`.",
+  },
+  {
+    name: "drive_enrich_table",
+    operation: "POST /drive/tables/{id}/enrich",
+    description:
+      "Create a Task for a Coworker (`body.assigneeId`) or a Soko Bot (`body.assigneeSokoBotId`) to fill the chosen cells following `body.prompt`.",
+  },
+  {
+    name: "drive_data_rooms",
+    operation: "GET /drive/data-rooms",
+    description:
+      "List a Drive's data rooms: folders whose files only the people let in see.",
+  },
+  {
+    name: "drive_create_data_room",
+    operation: "POST /drive/data-rooms",
+    description:
+      "Turn a Drive folder (`body.folderPath`) into a data room. Its files move to private storage, and public links to it or anything in it stop working.",
+    destructive: true,
+  },
+  {
+    name: "drive_open_questions",
+    operation: "GET /drive/data-rooms/questions",
+    description:
+      "List unanswered viewer questions across the data rooms you manage.",
+  },
+  {
+    name: "drive_data_room",
+    operation: "GET /drive/data-rooms/{id}",
+    description:
+      "Get a data room's settings, the people let in and what each may see.",
+  },
+  {
+    name: "drive_close_data_room",
+    operation: "DELETE /drive/data-rooms/{id}",
+    description:
+      "Close a data room: its files move back to ordinary Drive storage and the folder becomes an ordinary folder.",
+  },
+  {
+    name: "drive_remove_data_room_member",
+    operation: "DELETE /drive/data-rooms/{id}/members/{memberId}",
+    description:
+      "Take someone out of a data room at once; their open sessions end.",
+  },
+  {
+    name: "drive_data_room_events",
+    operation: "GET /drive/data-rooms/{id}/events",
+    description:
+      "List a data room's activity, newest first: who came in and what they opened. Filter by `memberId`; page with `before`.",
+  },
+  {
+    name: "drive_data_room_questions",
+    operation: "GET /drive/data-rooms/{id}/questions",
+    description:
+      "List the questions viewers asked about a data room's documents, newest first.",
+  },
+  {
+    name: "drive_order_data_room",
+    operation: "PUT /drive/data-rooms/{id}/order",
+    description:
+      "Set the order of a data room's folders and files (`body.entries`), which also numbers them for viewers.",
+    destructive: true,
+  },
+  {
+    name: "drive_set_data_room_colleagues",
+    operation: "PUT /drive/data-rooms/{id}/colleagues",
+    description:
+      "Choose which organization members (`body.userIds`) may see and run an organization data room, besides its maker, owners and admins. Replaces the list.",
+    destructive: true,
+  },
+  // SOKD-376: contacts and contact lists, in the `contacts` toolset (off by
+  // default: contacts are personal data).
+  {
+    name: "contacts_list",
+    operation: "GET /contacts",
+    description:
+      "List the workspace's contacts, filtered and sorted. `search`, `stage`, `kind`, `organization`, `listId` and the other filters narrow it; `pagination.total` is the match count. Pass `cursor` for the next page.",
+  },
+  {
+    name: "contacts_create",
+    operation: "POST /contacts",
+    description:
+      "Create a contact: `body.name` and/or `body.channels` (`type`, `value`). A channel another contact owns answers 409 with `existingContactId`, unless `body.upsert` is true: then it fills that contact instead.",
+  },
+  {
+    name: "contacts_map",
+    operation: "GET /contacts/map",
+    description:
+      "The contacts the same filters as contacts_list match, grouped by place. A first call can take a few seconds.",
+  },
+  {
+    name: "contacts_merge",
+    operation: "POST /contacts/merge",
+    description:
+      "Merge contacts into one: `body.winnerId` keeps everything; each of `body.loserIds` becomes a tombstone. It cannot be undone. Confirm with the person first.",
+    destructive: true,
+  },
+  {
+    name: "contacts_list_duplicates",
+    operation: "GET /contacts/duplicates",
+    description:
+      "Groups of contacts that share a name: likely the same person. Pass `contactId` for one contact's group.",
+  },
+  {
+    name: "contacts_dismiss_duplicates",
+    operation: "POST /contacts/duplicates/dismiss",
+    description:
+      "Mark `body.contactIds` as different people, so contacts_list_duplicates stops grouping them.",
+  },
+  {
+    name: "contacts_set_stage",
+    operation: "POST /contacts/stage",
+    description:
+      "Set `body.stage` on up to 500 `body.contactIds` at once; all or none change. Keep the returned `undo` for contacts_undo_stage.",
+    destructive: true,
+  },
+  {
+    name: "contacts_undo_stage",
+    operation: "POST /contacts/stage/undo",
+    description:
+      "Put contacts back on their earlier stage: `body.contacts` is the `undo` contacts_set_stage returned. A contact edited since is skipped.",
+    destructive: true,
+  },
+  {
+    name: "contacts_list_organizations",
+    operation: "GET /contacts/organizations",
+    description:
+      "The companies the workspace's contacts work at, with how many each, biggest first.",
+  },
+  {
+    name: "contacts_list_companies",
+    operation: "GET /contacts/companies",
+    description:
+      "The companies the workspace's contacts work at, with their facts and the team's relationship there. Filter by `company`, `industry` or `listId` (a company list).",
+  },
+  {
+    name: "contacts_get_company",
+    operation: "GET /contacts/companies/{companyId}",
+    description:
+      "One company with its people, the teammates who know them, open next steps and latest touchpoints.",
+  },
+  {
+    name: "contacts_update_company",
+    operation: "PATCH /contacts/companies/{companyId}",
+    description:
+      "Change a company's facts. `body.version` must be the one last read. Omitted fields stay; null clears.",
+    destructive: true,
+  },
+  {
+    name: "contacts_list_company_lists",
+    operation: "GET /contacts/company-lists",
+    description: "List the workspace's company lists, with their counts.",
+  },
+  {
+    name: "contacts_create_company_list",
+    operation: "POST /contacts/company-lists",
+    description:
+      "Create a company list: `body.name`, and optionally `color` and `description`.",
+  },
+  {
+    name: "contacts_update_company_list",
+    operation: "PATCH /contacts/company-lists/{listId}",
+    description:
+      "Rename a company list or change its color or description. Only the fields in `body` change.",
+    destructive: true,
+  },
+  {
+    name: "contacts_delete_company_list",
+    operation: "DELETE /contacts/company-lists/{listId}",
+    description: "Delete a company list. The companies stay.",
+  },
+  {
+    name: "contacts_update_company_list_members",
+    operation: "POST /contacts/company-lists/{listId}/members",
+    description:
+      "Add `body.add` and remove `body.remove` (company ids, up to 500 each) on a company list.",
+    destructive: true,
+  },
+  {
+    name: "contacts_breakdown",
+    operation: "GET /contacts/breakdown",
+    description:
+      "Count the contacts the contacts_list filters match, split by each of `by` (comma-separated), such as `stage,organization`.",
+  },
+  {
+    name: "contacts_get",
+    operation: "GET /contacts/{id}",
+    description:
+      "Get a contact with its channels, lists, who on the team knows them, latest interactions and `version` (for contacts_update).",
+  },
+  {
+    name: "contacts_update",
+    operation: "PATCH /contacts/{id}",
+    description:
+      "Change a contact's fields. `body.version` must be the one last read (409 otherwise). Omitted fields stay; null clears.",
+    destructive: true,
+  },
+  {
+    name: "contacts_archive",
+    operation: "POST /contacts/{id}/archive",
+    description:
+      "Archive a contact: it leaves lists and searches. contacts_unarchive brings it back.",
+  },
+  {
+    name: "contacts_unarchive",
+    operation: "POST /contacts/{id}/unarchive",
+    description: "Bring an archived contact back.",
+  },
+  {
+    name: "contacts_add_channel",
+    operation: "POST /contacts/{id}/channels",
+    description:
+      "Add a way to reach a contact: `body.type` and `body.value`. One another contact owns answers 409 with `existingContactId`; merge them instead.",
+  },
+  {
+    name: "contacts_remove_channel",
+    operation: "DELETE /contacts/{id}/channels/{channelId}",
+    description:
+      "Remove a channel from a contact. `channelId` from contacts_get.",
+  },
+  {
+    name: "contacts_list_interactions",
+    operation: "GET /contacts/{id}/interactions",
+    description:
+      "A contact's timeline of interactions, newest first. Pass `cursor` for the next page.",
+  },
+  {
+    name: "contacts_add_interaction",
+    operation: "POST /contacts/{id}/interactions",
+    description:
+      "Record an interaction you had with a contact: `body.occurredAt`, `body.channel` and a one-line `body.summary`. The same `body.sourceRef` twice is recorded once.",
+  },
+  {
+    name: "contacts_delete_interaction",
+    operation: "DELETE /contacts/{id}/interactions/{interactionId}",
+    description: "Delete one interaction from a contact's timeline.",
+  },
+  {
+    name: "contacts_set_importance",
+    operation: "PUT /contacts/{id}/importance",
+    description:
+      "Set how much a contact matters to you, 0–100, in `body.importance`; null lets Sokosumi judge it. Teammates keep their own.",
+    destructive: true,
+  },
+  {
+    name: "contacts_enrich",
+    operation: "POST /contacts/{id}/enrich",
+    description:
+      "Spends workspace credits. Look a person up on the web and fill their empty role, organization, location, summary and LinkedIn. Costs 1 credit, nothing when it fills nothing. Confirm with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "contacts_activity",
+    operation: "GET /contacts/{id}/activity",
+    description: "Who changed what on a contact, newest first.",
+  },
+  {
+    name: "contacts_list_lists",
+    operation: "GET /contact-lists",
+    description:
+      "List the workspace's contact lists, with their counts. Read a list's contacts with contacts_list and `listId`.",
+  },
+  {
+    name: "contacts_create_list",
+    operation: "POST /contact-lists",
+    description:
+      "Create a contact list: `body.name`, and optionally `color` and `description`. `body.smartFilter` makes it a smart list (a saved filter).",
+  },
+  {
+    name: "contacts_update_list",
+    operation: "PATCH /contact-lists/{id}",
+    description:
+      "Rename, recolor or describe a contact list, or change a smart list's filter. Giving a manual list a `smartFilter` drops its members.",
+    destructive: true,
+  },
+  {
+    name: "contacts_delete_list",
+    operation: "DELETE /contact-lists/{id}",
+    description: "Delete a contact list. Its contacts stay.",
+  },
+  {
+    name: "contacts_update_list_members",
+    operation: "POST /contact-lists/{id}/members",
+    description:
+      "Add `body.add` and remove `body.remove` (contact ids, up to 500 each) on a manual contact list.",
+    destructive: true,
+  },
+  {
+    name: "contacts_list_suggestions",
+    operation: "GET /contact-lists/{id}/suggestions",
+    description:
+      "The people contacts_find_people suggested for a list that nobody has added or dismissed yet.",
+  },
+  {
+    name: "contacts_find_people",
+    operation: "POST /contact-lists/{id}/find",
+    description:
+      "Spends workspace credits. Search the web for people who fit a manual list and suggest them on it: `body.brief` says who, `body.size` how many (1, 10 or 25). Charges only when it finds someone. Confirm with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "contacts_add_suggestions",
+    operation: "POST /contact-lists/{id}/suggestions/add",
+    description:
+      "Add suggestions (`body.ids` from contacts_list_suggestions) to the list as Prospect contacts.",
+  },
+  {
+    name: "contacts_dismiss_suggestions",
+    operation: "POST /contact-lists/{id}/suggestions/dismiss",
+    description:
+      "Dismiss suggestions (`body.ids`): they are never suggested to this list again.",
+    destructive: true,
   },
 ];
 

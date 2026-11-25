@@ -1,8 +1,13 @@
 import { createMiddleware } from "hono/factory";
 
 import { forbidden } from "@/helpers/error";
+import { ACCOUNT_WEB_PATH } from "@/helpers/workspace-approval-web-path";
 import type { EnvVariables } from "@/lib/hono";
-import { isCoworkerAuthContext, isSokoBotAuthContext } from "@/middleware/auth";
+import {
+  isCoworkerAuthContext,
+  isSokoBotAuthContext,
+  requirePersonApproval,
+} from "@/middleware/auth";
 
 import type { UserRouteVariables } from "./user-route-context";
 
@@ -32,6 +37,17 @@ const AGENT_ALLOWED_USER_SUBPATHS: ReadonlyArray<{
     pattern: /^\/workspaces\/preferred$/,
     path: "/users/{id}/workspaces/preferred",
   },
+];
+
+/**
+ * POSTs under `/users/{id}` that only a person makes, in Sokosumi (ADR 0077).
+ * An agent gets `person_approval_required` here rather than the allowlist's
+ * 403, so it can send its user to their account page.
+ */
+const PERSON_APPROVAL_USER_SUBPATH_PATTERNS: ReadonlyArray<RegExp> = [
+  /^\/coworker-access\/[^/]+\/approve$/,
+  /^\/vendor-grants$/,
+  /^\/vendor-grants\/[^/]+\/approve$/,
 ];
 
 /** Names what an agent may call, so a 403 says what to do instead. */
@@ -133,6 +149,15 @@ export const agentUserRouteAllowlistMiddleware = createMiddleware<UserRouteEnv>(
     }
 
     const subpath = userRouteSubpathAfterId(c.req.path, pathUserId);
+    const normalized = subpath.replace(/\/+$/, "") || "/";
+    if (
+      c.req.method === "POST" &&
+      PERSON_APPROVAL_USER_SUBPATH_PATTERNS.some((pattern) =>
+        pattern.test(normalized),
+      )
+    ) {
+      requirePersonApproval(authContext, ACCOUNT_WEB_PATH);
+    }
     if (c.req.method !== "GET" || !isAgentAllowedUserSubpath(subpath)) {
       throw agentUserRouteForbidden(authContext.actor);
     }

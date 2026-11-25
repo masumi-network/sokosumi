@@ -39,6 +39,7 @@ const production = (
   beyondPlan: [],
   withoutPicture: [],
   retryAt: null,
+  floor: null,
   ...patch,
 });
 

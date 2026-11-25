@@ -11787,7 +11787,8 @@
         "newsletter": "Newsletter",
         "contacts": "Seguimientos",
         "marketing": "Estrategia de marketing",
-        "sokoBot": "Soko Bot"
+        "sokoBot": "Soko Bot",
+        "canceled": "Mostrar eventos cancelados"
       },
       "source": {
         "WORKSPACE": "Espacio de trabajo",
@@ -12763,6 +12764,26 @@
           "industry": "Sector",
           "lists": "Listas"
         }
+      },
+      "linkedInImport": {
+        "menu": "Importar contactos de LinkedIn",
+        "title": "Importa tus contactos de LinkedIn",
+        "description": "Cada conexión se convierte en un contacto (o completa uno que ya tienes), y la ronda sabe que puedes pedirles una presentación.",
+        "doneDescription": "Listo. Tus conexiones están en la lista “LinkedIn connections”.",
+        "step1": "En LinkedIn abre Ajustes → Privacidad de datos → Obtener una copia de tus datos.",
+        "step2": "Marca Contactos y solicita el archivo; LinkedIn lo envía por correo en minutos.",
+        "step3": "Sube aquí el Connections.csv de ese archivo.",
+        "fileLabel": "Connections.csv",
+        "tooLarge": "Ese archivo supera los 5 MB. Divídelo primero.",
+        "failed": "La importación no terminó. No se cambió nada.",
+        "result": {
+          "connections": "Conexiones",
+          "created": "Contactos nuevos",
+          "updated": "Ya conocidos"
+        },
+        "import": "Importar",
+        "cancel": "Cancelar",
+        "done": "Hecho"
       }
     },
     "Fundraising": {
@@ -12892,7 +12913,36 @@
         "noFund": "Añade primero el fondo a este contacto; la investigación busca el fondo.",
         "capReached": "El presupuesto de investigación de este mes se ha agotado.",
         "noPortfolio": "Aún no se ha investigado el portfolio.",
-        "source": "Fuente"
+        "source": "Fuente",
+        "linkedinDirect": "{who} está conectado con ellos en LinkedIn",
+        "onLinkedIn": "conectados en LinkedIn",
+        "importHint": "Importa tus contactos de LinkedIn en Contactos para encontrar más vías."
+      },
+      "outreach": {
+        "title": "Contacto",
+        "noMailbox": "Los borradores van a tu propio Gmail a través de tu Soko Bot. Conecta Gmail allí primero.",
+        "connect": "Abrir Soko Bots",
+        "kind": "Qué escribir",
+        "kinds": {
+          "intro": "Primer correo",
+          "follow_up": "Seguimiento"
+        },
+        "via": "A través de quién",
+        "direct": "Escribirles directamente",
+        "viaName": "Pedir a {name} una presentación",
+        "inviteRoom": "Darles acceso a “{room}” y enlazarlo",
+        "linkRoom": "Enlazar “{room}” (ya tienen acceso)",
+        "noteLabel": "Algo que mencionar",
+        "notePlaceholder": "p. ej. nos vimos en la cena de Draper; menciona la alianza con Cardano",
+        "noEmail": "No hay correo registrado; añade uno en Contactos o pide una presentación a un contacto común.",
+        "draft": "Escribir borrador en {mailbox}",
+        "neverSends": "Sokosumi nunca envía. Lo lees en tu buzón y lo envías tú.",
+        "drafted": "El borrador está en tu {mailbox}",
+        "failed": "No se pudo escribir el borrador",
+        "inMailbox": "En tus borradores de {mailbox}, para {to}",
+        "openDrafts": "Abrir borradores de Gmail",
+        "another": "Escribir otro",
+        "lastDraft": "Último borrador “{subject}” · {when}"
       }
     },
     "Seo": {

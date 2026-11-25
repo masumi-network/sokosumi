@@ -1,7 +1,13 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 /** Dictation stops and turns into text on its own after two minutes. */
@@ -58,7 +64,7 @@ export function useDictationRecorder({
   const t = useTranslations("App.Channels.Toolbar");
   const recordingRef = useRef<Recording | null>(null);
   const startingRef = useRef(false);
-  const unmountedRef = useRef(false);
+  const lifetimeRef = useRef<object | null>(null);
   const [starting, setStarting] = useState(false);
   const [elapsedMs, setElapsedMs] = useState<number | null>(null);
 
@@ -75,40 +81,51 @@ export function useDictationRecorder({
   }
 
   const stopOnCleanup = useEffectEvent(() => {
+    if (startingRef.current) {
+      startingRef.current = false;
+      setStarting(false);
+    }
     finish(false);
   });
 
-  useEffect(() => {
-    unmountedRef.current = false;
+  useLayoutEffect(() => {
+    lifetimeRef.current = {};
     return () => {
-      unmountedRef.current = true;
+      lifetimeRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
       stopOnCleanup();
     };
   }, []);
 
   async function start() {
+    const lifetime = lifetimeRef.current;
     const format = pickVoiceFormat();
-    if (!format || startingRef.current || recordingRef.current) return;
+    if (!lifetime || !format || startingRef.current || recordingRef.current) {
+      return;
+    }
     startingRef.current = true;
     setStarting(true);
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
+      if (lifetimeRef.current !== lifetime) return;
       startingRef.current = false;
       setStarting(false);
-      if (!unmountedRef.current) {
-        toast.error(t("dictationBlocked"));
-      }
+      toast.error(t("dictationBlocked"));
+      return;
+    }
+    // Room switched or thread closed during the permission prompt.
+    if (lifetimeRef.current !== lifetime) {
+      stopStream(stream);
       return;
     }
     startingRef.current = false;
     setStarting(false);
-    // Room switched or thread closed during the permission prompt.
-    if (unmountedRef.current) {
-      stopStream(stream);
-      return;
-    }
 
     const recorder = new MediaRecorder(stream, { mimeType: format.mimeType });
     const chunks: Blob[] = [];
@@ -127,7 +144,13 @@ export function useDictationRecorder({
       if (event.data.size > 0) chunks.push(event.data);
     };
     recorder.onstop = () => {
-      if (!recording.keep || chunks.length === 0) return;
+      if (
+        !recording.keep ||
+        lifetimeRef.current !== lifetime ||
+        chunks.length === 0
+      ) {
+        return;
+      }
       onRecorded(
         new File(
           [new Blob(chunks, { type: format.mimeType })],
@@ -137,6 +160,7 @@ export function useDictationRecorder({
       );
     };
     recorder.onerror = () => {
+      if (lifetimeRef.current !== lifetime) return;
       finish(false);
       toast.error(t("voiceFailed"));
     };

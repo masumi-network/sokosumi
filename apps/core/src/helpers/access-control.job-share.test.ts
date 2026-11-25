@@ -1,6 +1,5 @@
 import { type Prisma, TaskStatus } from "@sokosumi/database";
 import { describe, expect, it, vi } from "vitest";
-
 import type { EnvVariables } from "@/lib/hono";
 import type {
   CoworkerAuthenticationContext,
@@ -8,6 +7,7 @@ import type {
   UserAuthenticationContext,
 } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 
 import { requireJobShareCollaboration } from "./access-control.job-share";
 
@@ -71,6 +71,7 @@ function varsFor(
 ): EnvVariables["Variables"] {
   return {
     isAuthenticated: true,
+    networkScope: testNetworkScope(),
     authContext,
     workspaceContext,
   };

@@ -1,5 +1,9 @@
 "use client";
-import type { FundraisingProspect, Member } from "@sokosumi/core-client";
+import type {
+  FundraisingPipeline,
+  FundraisingProspect,
+  Member,
+} from "@sokosumi/core-client";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
@@ -17,6 +21,7 @@ import {
 import { parseUsd } from "../fundraising-view";
 import { useProspectUpdate } from "../use-fundraising";
 import { RoomSummary } from "./fundraising-board";
+import { Outreach } from "./outreach";
 import { OwnerSelect, StageSelect } from "./prospect-controls";
 import { WarmPaths } from "./warm-paths";
 
@@ -38,12 +43,14 @@ function Field({
 /** One investor's raise record, beside the board. */
 export function ProspectSheet({
   prospect,
+  pipeline,
   listId,
   members,
   now,
   onClose,
 }: {
   prospect: FundraisingProspect | null;
+  pipeline: FundraisingPipeline;
   listId: string;
   members: Member[];
   now: Date;
@@ -219,6 +226,8 @@ export function ProspectSheet({
               </Field>
 
               <WarmPaths prospect={prospect} now={now} />
+
+              <Outreach prospect={prospect} pipeline={pipeline} now={now} />
 
               <Field label={t("columns.dataRoom")}>
                 <p className="text-sm">

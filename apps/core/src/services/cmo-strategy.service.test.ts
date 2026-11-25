@@ -3026,3 +3026,133 @@ describe("withoutUnaskedAds", () => {
     expect(withoutUnaskedAds(yes)).toBe(yes);
   });
 });
+
+describe("cmo-v22: the plan and examples before payment", () => {
+  const brandBrain = {
+    summary: "Acme sells rockets.",
+    voice: { tone: "Direct", do: [], dont: [], examples: [] },
+    audience: ["Founders"],
+    products: ["Rockets"],
+    competitors: [],
+    channels: [],
+    profile: {},
+  };
+  const examples = [0, 1, 2].map((index) => ({
+    ...strategy.calendar[0]!,
+    id: `ex-${index}`,
+    date: "2026-10-21",
+    status: "idea" as const,
+  }));
+  const shaped = {
+    ...strategy,
+    calendar: examples,
+    monthWriter: { state: "examples" as const, attempts: 0 },
+  };
+
+  it("asks Cuso for a few example posts, never the month's calendar", async () => {
+    cusoFind.mockResolvedValue({ ...HIRE, businessName: "Acme", brandBrain });
+    startTurn.mockResolvedValue({ turnId: "turn-9" });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v22" });
+    await requestCmoStrategy({ projectId: "project-1", userId: "user-1" });
+    const message = (startTurn.mock.lastCall?.[0] as { message: string })
+      .message;
+    expect(message).toContain(
+      "then part calendar with 3 to 5 example posts in full",
+    );
+    expect(message).toContain("Never write the month's calendar");
+    expect(message).toContain("Who is on each network");
+    expect(message).not.toContain("one week a call");
+  });
+
+  it("marks a new month's save as examples, and keeps an older month's shape on a change", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    seedStrategy({ ...strategy, calendar: [] });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v22" });
+    turnFindUnique.mockResolvedValue({
+      clientTurnId: "cmo:strategy:bot-1:1795400000000",
+      userMessage: "Write the strategy",
+      source: "EVENT",
+    });
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { summary: "Launch help first." },
+      { turnId: "turn-1" },
+    );
+    expect(plan(strategyRows.at(-1)!)).toMatchObject({
+      monthWriter: { state: "examples", attempts: 0 },
+    });
+
+    strategyRows.length = 0;
+    seedStrategy(strategy);
+    turnFindUnique.mockResolvedValue({
+      clientTurnId: "cmo:strategy:bot-1:patch:1795400000000",
+      userMessage: "Patch it. The owner asked: fewer posts",
+      source: "EVENT",
+    });
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { calendar: [strategy.calendar[0]!] },
+      { turnId: "turn-2", part: "patch" },
+    );
+    expect(
+      (plan(strategyRows.at(-1)!) as { monthWriter?: unknown }).monthWriter,
+    ).toBeUndefined();
+  });
+
+  it("never marks a cmo-v21 month", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    seedStrategy({ ...strategy, calendar: [] });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v21" });
+    turnFindUnique.mockResolvedValue({
+      clientTurnId: "cmo:strategy:bot-1:1795400000000",
+      userMessage: "Write the strategy",
+      source: "EVENT",
+    });
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { summary: "Launch help first." },
+      { turnId: "turn-1" },
+    );
+    expect(
+      (plan(strategyRows.at(-1)!) as { monthWriter?: unknown }).monthWriter,
+    ).toBeUndefined();
+  });
+
+  it("refuses a calendar longer than the examples, and saves nothing", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    seedStrategy(shaped, { authorTurnId: "turn-1" });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v22" });
+    turnFindUnique.mockResolvedValue({
+      clientTurnId: "cmo:strategy:bot-1:1795400000000",
+      userMessage: "Write the strategy",
+      source: "EVENT",
+    });
+    const six = [0, 1, 2, 3, 4, 5].map((index) => ({
+      ...examples[0]!,
+      id: `six-${index}`,
+    }));
+    await expect(
+      saveCmoStrategy(
+        { sokoBotId: "bot-1" },
+        { calendar: six },
+        { turnId: "turn-1", part: "calendar", rules: true },
+      ),
+    ).rejects.toThrow('Rule "5 example posts"');
+    expect(plan(strategyRows.at(-1)!).calendar).toHaveLength(3);
+  });
+
+  it("is approvable with its examples, and starts no turn to fill the month", async () => {
+    const draft = seedStrategy(shaped);
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v22" });
+    await requireCmoStrategyFitted(HIRE, draft.id);
+    startTurn.mockResolvedValue({ turnId: "finish-1" });
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: "cmo:strategy:bot-1:1",
+      }),
+    ).resolves.toBeNull();
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+});

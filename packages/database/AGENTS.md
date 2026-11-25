@@ -74,7 +74,7 @@ import { computeJobStatus, mapJobWithStatus } from "@sokosumi/database/helpers";
 ### SQL Tables Export (`@sokosumi/database/sql-tables`)
 
 - **Purpose**: Table and enum type names for raw SQL, always with their schema: `sharedTable(table)`, `netTable(network, table)`, `sharedType(type)` and `netType(network, type)` return `"<schema>"."<name>"` as a `Prisma.Sql` fragment. Raw SQL never relies on the search path for a table or for an enum cast.
-- **Argument**: the SQL table name, as the statement would write it (`jobEvent`, not the model `JobEvent`), or the enum's name. `prisma/network-tables.json` decides the side (`networkEnums` for types; every other enum is shared). The arguments are typed from it (`src/sql-table-names.ts`, generated: after editing the list run `pnpm --filter @sokosumi/database generate:sql-table-names`; `network-tables.test.ts` fails until you do), so a wrong name fails typecheck. The helpers also refuse it at run time.
+- **Argument**: the SQL table name, as the statement would write it (`jobEvent`, not the model `JobEvent`), or the enum's name. `prisma/network-tables.json` decides the side (`networkEnums` for types; every other enum is shared). The arguments are typed from it, as is `NetworkModelName`, the models Core's Network scope offers on its Network side (`src/sql-table-names.ts`, generated: after editing the list run `pnpm --filter @sokosumi/database generate:sql-table-names`; `network-tables.test.ts` fails until you do), so a wrong name fails typecheck. The helpers also refuse it at run time.
 - **Preprod**: `netTable("preprod", …)` and `netType("preprod", …)` throw while Preprod is off, so on today's layout no statement can reach Mainnet's rows under Preprod's name.
 - **Layout**: `public` for all three and Preprod off until `configureSqlTables(layout)` is called once at startup: Core's `src/lib/db/prisma.ts` calls it from its config, and the data-migration scripts that use raw SQL only (`backfill-task-work-type-presets`, `requeue-empty-company-lookups`) with `sqlTableLayoutFromEnv(process.env)`. A script that also runs model queries does not call it yet: its client names `public`, and raw SQL must name the same schema. `createSqlTables(layout)` builds the helpers for names a test passes. Both refuse a layout Core's `config/network-layout.ts` refuses, and `sqlTableLayoutFromEnv` reads the variables as Core does (`apps/core/src/lib/db/__tests__/sql-table-layout.test.ts` keeps them together).
 - **Tests restore what was there.** `configureSqlTables` returns a function that puts back the layout configured before: `onTestFinished(configureSqlTables(layout))`. Never restore a layout you wrote down yourself.
@@ -161,9 +161,11 @@ export const userRepository = {
 
 Core's singleton owns one `pg.Pool`, preserves TCP keepalive, attaches Vercel's idle
 connection cleanup, and reports adapter errors to Sentry. On that pool it builds
-the `shared` client (the default export) and one client per Network
-(`networkPrisma(network)`), each naming its schema from `DATABASE_SCHEMA_*`. Import
-those in routes and services; do not construct additional pools there.
+the `shared` client (the default export) and one client per Network, each naming
+its schema from `DATABASE_SCHEMA_*`. Shared models use the default export; Network
+models are reached only through a Network scope
+([Core](../../apps/core/AGENTS.md#network-scope)). Do not construct additional
+pools in routes and services.
 
 ```typescript
 import prisma from "@/lib/db/prisma";
@@ -173,7 +175,7 @@ import prisma from "@/lib/db/prisma";
 
 ### ✅ Do
 
-- Prefer direct Prisma in new Core route handlers (see [core AGENTS](../../apps/core/AGENTS.md); `import prisma from "@/lib/db/prisma"`)
+- New Core data access uses direct Prisma; Network models are reached only through a Network scope (see [core AGENTS](../../apps/core/AGENTS.md#network-scope); shared models: `import prisma from "@/lib/db/prisma"`)
 - Keep repositories for package consumers / legacy Core services that still use them; pass Prisma client explicitly
 - Import types from the main export (`@sokosumi/database`) in Core and server packages
 - Use database helpers for Prisma-backed domain logic (job status, credit buckets); use `@sokosumi/utils` for credit conversion

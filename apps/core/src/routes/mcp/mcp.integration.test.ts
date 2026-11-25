@@ -143,8 +143,14 @@ describe("Sokosumi MCP server", () => {
       ),
     );
 
+    const drive = await connect(auth, "?toolsets=drive");
+    expect(drive.instructions).toContain(
+      "Drive tools other than tables take `scope`",
+    );
+
     const client = await connect(auth, "?toolsets=tasks");
     expect(client.instructions).toContain("Toolsets on: tasks.");
+    expect(client.instructions).not.toContain("Drive tools");
     expect(client.instructions).toContain(
       "Other tasks tools take a Task's `id`",
     );
@@ -157,7 +163,7 @@ describe("Sokosumi MCP server", () => {
   it("warns before a tool that spends credits", async () => {
     const client = await connect(
       { Authorization: "Bearer mcp-token" },
-      "?toolsets=tasks,agents,projects",
+      "?toolsets=tasks,agents,projects,seo,contacts",
     );
     const { tools } = await client.listTools();
     const spending = MCP_TOOLS.filter((tool) => tool.spendsCredits).map(
@@ -174,19 +180,81 @@ describe("Sokosumi MCP server", () => {
       "projects_image_studio_video",
       "projects_image_studio_short_video",
       "projects_image_studio_talking_video",
+      "projects_competitor_checks",
+      "projects_check_competitors",
+      "seo_audit_ask",
+      "seo_audit_analyze",
+      "seo_audit_create_monitor",
+      "seo_project_analyze",
+      "seo_project_create_monitor",
+      "contacts_enrich",
+      "contacts_find_people",
     ]);
-    const warned = tools.filter((tool) => tool.annotations?.openWorldHint);
-    expect(warned.map((tool) => tool.name)).toEqual(spending);
-    for (const tool of warned) {
+    // Open-world: tools that spend credits, plus the ad tools (next test).
+    const openWorld = tools.filter((tool) => tool.annotations?.openWorldHint);
+    expect(openWorld.map((tool) => tool.name)).toEqual(
+      MCP_TOOLS.filter((tool) => tool.spendsCredits || tool.openWorld).map(
+        (tool) => tool.name,
+      ),
+    );
+    for (const tool of tools.filter((tool) => spending.includes(tool.name))) {
       expect(tool.description).toMatch(/^Spends workspace credits\./);
+      const operation =
+        MCP_TOOLS.find(({ name }) => name === tool.name)?.operation ?? "";
       expect(tool.annotations).toEqual({
         readOnlyHint: false,
         destructiveHint: true,
-        idempotentHint: false,
+        // A spending PUT (projects_competitor_checks) is safe to repeat.
+        idempotentHint: operation.startsWith("PUT "),
         openWorldHint: true,
       });
     }
   });
+
+  it("marks the ad campaign tools open-world and destructive", async () => {
+    const client = await connect(
+      { Authorization: "Bearer mcp-token" },
+      "?toolsets=projects",
+    );
+    const { tools } = await client.listTools();
+    const outside = MCP_TOOLS.filter((tool) => tool.openWorld).map(
+      (tool) => tool.name,
+    );
+
+    expect(outside).toEqual([
+      "projects_ads_campaign_create",
+      "projects_ads_campaign_update",
+      "projects_ads_campaign_edit",
+    ]);
+    const ads = tools.filter((tool) => outside.includes(tool.name));
+    expect(ads.map((tool) => tool.name)).toEqual(outside);
+    for (const tool of ads) {
+      expect(tool.description).toMatch(
+        /^Can lead to ad spend once a person resumes the campaign\./,
+      );
+      expect(tool.annotations).toMatchObject({
+        readOnlyHint: false,
+        destructiveHint: true,
+        openWorldHint: true,
+      });
+    }
+  }, 15_000);
+
+  it("keeps SEO off by default and lists it on request", async () => {
+    expect(DEFAULT_TOOLSETS).not.toContain("seo");
+
+    const client = await connect(
+      { Authorization: "Bearer mcp-token" },
+      "?toolsets=seo",
+    );
+    const { tools } = await client.listTools();
+    expect(client.instructions).toContain("Toolsets on: seo.");
+    expect(tools.map((tool) => tool.name)).toEqual(
+      MCP_TOOLS.map((tool) => tool.name).filter((name) =>
+        name.startsWith("seo_"),
+      ),
+    );
+  }, 15_000);
 
   it("refuses an unknown toolset by name", async () => {
     await expect(

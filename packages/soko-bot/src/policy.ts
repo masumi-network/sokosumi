@@ -91,6 +91,9 @@ export const SOKO_BOT_CAPABILITIES = [
   "export_contacts_to_table",
   "find_people",
   "enrich_contact",
+  "fundraising_pipeline",
+  "investor_warm_paths",
+  "find_investors",
   "create_project",
   "update_project",
   "list_integrations",
@@ -347,6 +350,8 @@ const DIRECT_READ_CAPABILITIES = [
   "search_companies",
   "get_company",
   "find_contact_duplicates",
+  "fundraising_pipeline",
+  "investor_warm_paths",
   "list_integrations",
   "find_integrations",
   "search_inbox",
@@ -446,6 +451,7 @@ const CONTACT_WRITE_CAPABILITIES = [
   "export_contacts_to_table",
   "find_people",
   "enrich_contact",
+  "find_investors",
 ] as const satisfies readonly SokoBotCapability[];
 
 /** Writes into chat and the owner's Drive; not available on read-only routes. */

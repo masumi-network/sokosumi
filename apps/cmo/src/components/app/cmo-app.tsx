@@ -946,6 +946,8 @@ function ProductionCard({
 }) {
   const noPicture = withoutPictureLine(production);
   const ready = production.state === "ready";
+  // cmo-v22: Core plans every post of the paid month before any is made.
+  const planning = production.state === "planning";
   const share = productionShare(production);
   // Between two runs the month is partly made: only a month with no words
   // yet is about to start.
@@ -954,23 +956,27 @@ function ProductionCard({
   return (
     <div className="production">
       <p className="production-head">
-        {production.state === "running" ? (
+        {production.state === "running" || planning ? (
           <span className="dot live" aria-hidden="true" />
         ) : null}
         <b>
           {ready
             ? "Your month is ready"
-            : production.state === "stuck"
-              ? "Making your month stopped"
-              : production.state === "blocked"
-                ? `${AGENT_NAME} couldn't start your month`
-                : notStarted
-                  ? `${AGENT_NAME} is about to make your month`
-                  : `${AGENT_NAME} is making your month`}
+            : planning
+              ? `${AGENT_NAME} is planning your month`
+              : production.state === "stuck"
+                ? "Making your month stopped"
+                : production.state === "blocked"
+                  ? `${AGENT_NAME} couldn't start your month`
+                  : notStarted
+                    ? `${AGENT_NAME} is about to make your month`
+                    : `${AGENT_NAME} is making your month`}
         </b>
-        <span className="note num">
-          {month.ready} of {month.total} ready
-        </span>
+        {planning ? null : (
+          <span className="note num">
+            {month.ready} of {month.total} ready
+          </span>
+        )}
       </p>
       <span
         className="uprogress"
@@ -986,15 +992,17 @@ function ProductionCard({
         {ready
           ? (noPicture ??
             "Every post, picture, article and email is made. Each goes out on its day.")
-          : production.state === "stuck"
-            ? `${productionSteps(production, month.total)}. His last try made nothing new, so he tries the rest again ${retryWhen(production.retryAt, timeZone)}.`
-            : production.state === "blocked"
-              ? "Something on our side keeps him from starting. He tries again every ten minutes."
-              : notStarted
-                ? "He starts shortly: first every post's words, then the pictures."
-                : production.state === "starting"
-                  ? `${productionSteps(production, month.total)}. He makes the rest shortly.`
-                  : `${productionSteps(production, month.total)}. First the words, then the pictures.`}
+          : planning
+            ? "He plans every post your plan makes, topic by topic, then makes them. This takes a few minutes."
+            : production.state === "stuck"
+              ? `${productionSteps(production, month.total)}. His last try made nothing new, so he tries the rest again ${retryWhen(production.retryAt, timeZone)}.`
+              : production.state === "blocked"
+                ? "Something on our side keeps him from starting. He tries again every ten minutes."
+                : notStarted
+                  ? "He starts shortly: first every post's words, then the pictures."
+                  : production.state === "starting"
+                    ? `${productionSteps(production, month.total)}. He makes the rest shortly.`
+                    : `${productionSteps(production, month.total)}. First the words, then the pictures.`}
       </p>
       <button
         type="button"

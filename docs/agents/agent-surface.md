@@ -31,7 +31,7 @@ One file per route group: `apps/core/agent-surface/<group>.json`. The group is t
 
 A group sets `backlog` or `excluded`, not both. Several operations may map to one command when the command calls them all (`agents hire` reads the input schema, then creates the job).
 
-**Naming.** The MCP tool name is the CLI command with spaces and hyphens replaced by `_`: `tasks list` → `tasks_list`, `coworkers api-key` → `coworkers_api_key`. When the command is named for something other than its operation's group, or calls several operations, the tool is `<group>_<verb>` for its one operation, where `<group>` is the route group of what it acts on: `auth whoami` → `users_get` for `GET /users/{id}`, `workspaces list` → `workspaces_list` for `GET /users/{id}/workspaces`. The name's first segment is the tool's toolset; a hyphenated group keeps its words (`image_studio_catalog` is in `image-studio`, listed in `HYPHENATED_TOOLSETS` in `tools.ts`).
+**Naming.** The MCP tool name is the CLI command with spaces and hyphens replaced by `_`: `tasks list` → `tasks_list`, `coworkers api-key` → `coworkers_api_key`. When the command is named for something other than its operation's group, or calls several operations, the tool is `<group>_<verb>` for its one operation, where `<group>` is the route group of what it acts on: `auth whoami` → `users_get` for `GET /users/{id}`, `workspaces list` → `workspaces_list` for `GET /users/{id}/workspaces`. The name's first segment is the tool's toolset; a hyphenated group keeps its words (`image_studio_catalog` is in `image-studio`, listed in `HYPHENATED_TOOLSETS` in `tools.ts`). Contact lists are the exception: they sit in `contacts` (`contacts list-lists` → `contacts_list_lists`), so one opt-in covers all contact data.
 
 ## What may be `false`
 
@@ -40,10 +40,11 @@ A group sets `backlog` or `excluded`, not both. Several operations may map to on
 - Public or anonymous routes, share links, and invite flows a person completes in a browser.
 - Payments, billing, and pricing.
 - Responses that are not JSON (file bytes, CSV) when a JSON operation returns the same data: `jobs files` lists the file URLs, `transactions list` the ledger rows.
-- The steps a person takes: approving a Coworker's or vendor's access to a workspace (deny and revoke stay open), approving, rejecting or publishing a Social post, approving, scheduling or sending a newsletter, resuming an ad campaign, and connecting a social or ad account ([ADR 0077](../adr/0077-agents-draft-and-stop-a-person-publishes-sends-and-starts-ad-spend.md)). A person-only route answers 403 `person_approval_required` with the item's Web link (`requirePersonApproval`). The other writes on those routes (ad campaign changes) stay `false` with the same citation until that ADR's follow-up tickets open them; drafting, scheduling and canceling Social posts and canceling a newsletter are open (SOKD-383).
+- The steps a person takes: approving a Coworker's or vendor's access to a workspace or granting a vendor access directly (deny and revoke stay open), approving a marketing strategy outside CMO, approving, rejecting or publishing a Social post, approving, scheduling or sending a newsletter, resuming an ad campaign, and connecting a social or ad account ([ADR 0077](../adr/0077-agents-draft-and-stop-a-person-publishes-sends-and-starts-ad-spend.md)). A person-only route answers 403 `person_approval_required` with the item's Web link (`requirePersonApproval`). The other writes on those routes are open: drafting, scheduling and canceling Social posts and canceling a newsletter (SOKD-383), and ad campaign create, pause, budget and edit (SOKD-384). Resuming a campaign has no row of its own: it is `PATCH …/campaigns/{campaignId}` with `ACTIVE`, which Core refuses to an agent inside the route.
 - Binary or multipart uploads: the generic CLI runner and MCP tools send JSON only (`POST /coworkers/{id}/image`; a person sets the picture in the Web app).
 - The admin back office: CLI only, `mcp: false`.
 - Downloads that return file bytes (images, CSV, spreadsheets): the CLI and MCP carry JSON. An API key still reads them over HTTP.
+- Bulk imports (contacts from a Files table or a LinkedIn Connections.csv, pasted addresses into a list): CLI only, `mcp: false`. The contacts CSV export is the one exception to the downloads rule above: the generic runner prints a `text/csv` body as is, so it is CLI only.
 
 "Nobody needs it yet" is not a reason. Leave the operation to the group's `backlog` instead.
 
@@ -69,7 +70,7 @@ A row in `CLI_COMMAND_CATALOG` with an `operation` needs no handler: the CLI run
 { command: "jobs events", usage: "JOB_ID", operation: "GET /jobs/{id}/events" }
 ```
 
-Positionals fill the path parameters in order. `--query KEY=VALUE` (repeatable) adds query parameters, `--input-json` or `--input-file` sends a JSON object body (required for writes, refused for reads and for a row with `noBody: true`, such as `tasks pause-schedule`), and `--organization-slug` selects the Workspace. Any other option is an error. The command prints Core's JSON body as is. Write a bespoke handler only for a human flow.
+Positionals fill the path parameters in order. `--query KEY=VALUE` (repeatable) adds query parameters, `--input-json` or `--input-file` sends a JSON object body (required for writes, refused for reads and for a row with `noBody: true`, such as `tasks pause-schedule`; a DELETE row with `body: true`, such as `drive delete`, needs one), and `--organization-slug` selects the Workspace. Any other option is an error. The command prints Core's JSON body as is. Write a bespoke handler only for a human flow.
 
 CLI fixtures live in `apps/cli/test/cli/agent-surface.fixtures.ts`, keyed by the manifest operation:
 
@@ -84,10 +85,14 @@ The check runs `argv` through `runCli` with `fetch` mocked. Core answers from th
 Core serves MCP at `{Core origin}/mcp` (`apps/core/src/routes/mcp/index.ts`; tokens in [ADR 0076](../adr/0076-mcp-tokens-are-audience-bound-jwts-for-a-core-hosted-resource.md)). A tool is one row in `MCP_TOOLS` (`apps/core/src/lib/sokosumi-mcp/tools.ts`): `name`, `operation`, a `description` written for an agent, and `destructive: true` for a write that deletes or overwrites.
 
 - **Input** comes from the operation's OpenAPI definition (`tool-schema.ts`): path and query parameters by name, the JSON body as `body`, and `workspace` (an organization slug, sent as `X-Organization-Slug`) on every tool. Name clashes fail the derivation.
-- **Toolsets.** A tool's toolset is its name's first segment. A client picks toolsets with `?toolsets=` on the server URL, comma-separated (`/mcp?toolsets=tasks,jobs`); without it, the server lists `DEFAULT_TOOLSETS` in `tools.ts` (workspaces, tasks, coworkers). An unknown toolset answers 400 naming it. Keep the default `tools/list` under 80 tools (`mcp.integration.test.ts` checks it); a new route group's tools go in a new toolset outside the default. The server `instructions` list the toolsets on and off and tell the agent to call `workspaces_list` first.
-- **Annotations** come from the method: `GET` is read-only; `DELETE` is destructive unless the row says otherwise. A row with `spendsCredits: true` (`agents_hire`) is destructive and open-world, so clients ask the person first, and its description starts with "Spends workspace credits."
+- **Toolsets.** A tool's toolset is its name's first segment. A client picks toolsets with `?toolsets=` on the server URL, comma-separated (`/mcp?toolsets=tasks,jobs`); without it, the server lists `DEFAULT_TOOLSETS` in `tools.ts` (workspaces, tasks, coworkers). An unknown toolset answers 400 naming it. Keep the default `tools/list` under 80 tools (`mcp.integration.test.ts` checks it); a new route group's tools go in a new toolset outside the default. Project SEO (`/projects/{id}/seo/...`) runs as `seo project-*` commands, so its tools sit in the `seo` toolset beside the audits. The server `instructions` list the toolsets on and off and tell the agent to call `workspaces_list` first.
+- **Annotations** come from the method: `GET` is read-only; `DELETE` is destructive unless the row says otherwise. A row with `spendsCredits: true` (`agents_hire`) is destructive and open-world, so clients ask the person first, and its description starts with "Spends workspace credits." A row with `openWorld: true` (the ad campaign writes) acts on Google or Meta, so it is open-world too.
 - **A call** runs the operation through `/v1` in process as the token's user (`dispatch.ts`), so every guard applies: a route that needs an interactive session answers 403. The caller is always a plain user: never the admin role, never first-party, no OAuth client id. Admin work stays on the CLI.
 - **Results**: Core's `data` and `pagination` as `structuredContent`. A Core error is `isError` with `{status, kind, message, details}`; a 5xx gives a generic message and the request id.
+
+## MCP UI tools
+
+A UI tool is an optional rendering of an operation an MCP tool already covers ([ADR 0083](../adr/0083-mcp-ui-is-an-optional-rendering-of-a-tool-result.md)). It is one row in `MCP_UI_TOOLS` (`apps/core/src/lib/sokosumi-mcp/ui-tools.ts`) that names its data twin, runs it, and returns the twin's result with a view attached. It adds no operation, so it needs no manifest row and no CLI command.
 
 ## Production safety
 

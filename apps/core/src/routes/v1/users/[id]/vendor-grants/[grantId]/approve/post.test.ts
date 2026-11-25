@@ -7,12 +7,20 @@ import {
 import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@sokosumi/utils";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext } from "@/middleware/auth";
+import type {
+  AuthenticationContext,
+  UserAuthenticationContext,
+} from "@/middleware/auth";
 import {
   applyUserRouteMiddleware,
   type UserRouteVariables,
 } from "@/routes/v1/users/user-route-context";
+import {
+  agentCredentials,
+  expectPersonApprovalRequired,
+} from "@/test-fixtures/person-approval";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -56,11 +64,12 @@ vi.mock("@/helpers/coworker-user-context-binding", () => ({
   assertCoworkerUserContextBinding: vi.fn().mockResolvedValue(undefined),
 }));
 
-const SESSION_USER: AuthenticationContext = {
+const SESSION_USER: UserAuthenticationContext = {
   actor: "user",
   userId: "user_123",
   organizationId: null,
   role: "user",
+  authenticationMethod: "session",
 };
 
 const grantId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -84,6 +93,7 @@ function createApp(authContext: AuthenticationContext = SESSION_USER) {
   applyUserRouteMiddleware(userByIdApp);
   mountApproveUserVendorGrant(userByIdApp);
   app.route("/:id", userByIdApp);
+  app.onError(errorHandler);
   return app;
 }
 
@@ -186,22 +196,22 @@ describe("POST /users/{id}/vendor-grants/{grantId}/approve", () => {
     });
   });
 
-  it("rejects coworker context with 403", async () => {
-    const coworkerAuth: AuthenticationContext = {
-      actor: "coworker",
-      coworkerId: "coworker_1",
-      vendorId,
-      context: { userId: "user_123", organizationId: null },
-    };
+  // ADR 0077: an agent may ask for a grant; a person approves it.
+  it.each(agentCredentials(SESSION_USER))(
+    "sends %s to the person's account page",
+    async (_, authContext) => {
+      const response = await createApp(authContext).request(
+        `http://localhost/user_123/vendor-grants/${grantId}/approve`,
+        { method: "POST" },
+      );
 
-    const response = await createApp(coworkerAuth).request(
-      `http://localhost/user_123/vendor-grants/${grantId}/approve`,
-      { method: "POST" },
-    );
-
-    expect(response.status).toBe(403);
-    expect(vendorGrantFindFirstMock).not.toHaveBeenCalled();
-  });
+      await expectPersonApprovalRequired(
+        response,
+        "https://example.com/account",
+      );
+      expect(vendorGrantFindFirstMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("re-approves DENIED workspace grant and unparks linked tasks", async () => {
     const existing = {

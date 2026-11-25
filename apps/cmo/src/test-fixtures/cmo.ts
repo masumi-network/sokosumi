@@ -162,6 +162,7 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
       beyondPlan: [],
       withoutPicture: [],
       retryAt: null,
+      floor: null,
     },
     measurement: [
       {

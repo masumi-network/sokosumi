@@ -95,6 +95,7 @@
     "ContactCompanyList": "contact_company_list",
     "ContactCompanyListMember": "contact_company_list_member",
     "ContactInteraction": "contact_interaction",
+    "ContactLinkedInConnection": "contact_linkedin_connection",
     "ContactList": "contact_list",
     "ContactListMember": "contact_list_member",
     "ContactNotDuplicate": "contact_not_duplicate",

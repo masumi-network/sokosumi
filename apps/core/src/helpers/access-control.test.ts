@@ -8,7 +8,6 @@ import {
 } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { requireTaskAssignableSokoBot } from "@/helpers/soko-bot-task-assign";
 import type { EnvVariables } from "@/lib/hono";
 import type {
@@ -18,6 +17,7 @@ import type {
   UserAuthenticationContext,
 } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 import {
   buildCoworkerUsableInWorkspaceWhere,
   requireCoworkerCapability,
@@ -496,6 +496,7 @@ describe("requireTaskReadForRouteVars", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: userAuthContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -518,6 +519,7 @@ describe("requireTaskReadForRouteVars", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: userAuthContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -541,6 +543,7 @@ describe("requireTaskReadForRouteVars", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: userAuthContext,
       workspaceContext: null,
     };
@@ -560,6 +563,7 @@ describe("requireTaskReadForRouteVars", () => {
     } as never);
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: sokoBotAuthContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -596,6 +600,7 @@ describe("requireTaskReadForRouteVars", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: coworkerContext,
       workspaceContext: null,
     };
@@ -633,6 +638,7 @@ describe("requireTaskReadForRouteVars", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: coworkerContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -677,6 +683,7 @@ describe("requireTaskReadForRouteVars", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: coworkerContext,
       workspaceContext: null,
     };
@@ -705,6 +712,7 @@ describe("requireTaskReadForRouteVars", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: coworkerContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -733,6 +741,7 @@ describe("requireTaskReadForRouteVars", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: coworkerContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -763,6 +772,7 @@ describe("requireTaskReadForRouteVars", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: coworkerContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -789,6 +799,7 @@ describe("requireTaskWorkspaceMapping", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: userAuthContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -832,6 +843,7 @@ describe("requireTaskWorkspaceMapping", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: {
         ...userAuthContext,
         organizationId: null,
@@ -858,6 +870,7 @@ describe("requireTaskWorkspaceMapping", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: userAuthContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -893,6 +906,7 @@ describe("requireTaskWorkspaceMapping", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: userAuthContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -918,6 +932,7 @@ describe("requireTaskWorkspaceMapping", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: coworkerContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -967,6 +982,7 @@ describe("requireTaskCommentAccess", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: coworkerContext,
       workspaceContext: null,
     };
@@ -991,6 +1007,7 @@ describe("requireTaskCommentAccess", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: memberAuthContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -1032,6 +1049,7 @@ describe("requireTaskCommentAccess", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: coworkerContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -1070,6 +1088,7 @@ describe("requireTaskCommentAccess", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: coworkerContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -1131,6 +1150,7 @@ describe("requireTaskCommentAccess", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: coworkerContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -1165,6 +1185,7 @@ describe("requireTaskCommentAccess", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: coworkerContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -1187,6 +1208,7 @@ describe("requireTaskStatusWriteAccess cancel", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: userAuthContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -1220,6 +1242,7 @@ describe("requireTaskStatusWriteAccess cancel", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: memberAuthContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -1249,6 +1272,7 @@ describe("requireTaskStatusWriteAccess cancel", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: memberAuthContext,
       workspaceContext: personalWorkspace,
     };
@@ -1276,6 +1300,7 @@ describe("requireTaskStatusWriteAccess cancel", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: coworkerContext,
       workspaceContext: null,
     };
@@ -1302,6 +1327,7 @@ describe("requireTaskStatusWriteAccess cancel", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: userAuthContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -1332,6 +1358,7 @@ describe("requireTaskStatusWriteAccess", () => {
   ): EnvVariables["Variables"] {
     return {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext,
       workspaceContext,
     };
@@ -1463,6 +1490,7 @@ describe("requireTaskReadForRouteVars vendor grants", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: coworkerContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -1521,6 +1549,7 @@ describe("requireTaskReadForRouteVars vendor grants", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: coworkerContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -1560,6 +1589,7 @@ describe("requireTaskReadForRouteVars vendor grants", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: coworkerContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -1600,6 +1630,7 @@ describe("requireTaskReadForRouteVars vendor grants", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: coworkerContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -2130,6 +2161,7 @@ describe("requireJobReadForRouteVars", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: userAuthContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -2167,6 +2199,7 @@ describe("requireJobReadForRouteVars", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: userAuthContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -2189,6 +2222,7 @@ describe("requireJobReadForRouteVars", () => {
     } as never);
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: sokoBotAuthContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -2233,6 +2267,7 @@ describe("requireJobReadForRouteVars", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: delegatedCoworkerContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -2274,6 +2309,7 @@ describe("requireJobReadForRouteVars", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: delegatedCoworkerContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -2303,6 +2339,7 @@ describe("requireJobReadForRouteVars", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: delegatedCoworkerContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -2327,6 +2364,7 @@ describe("requireJobReadForRouteVars", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: delegatedCoworkerContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -2344,6 +2382,7 @@ describe("requireJobReadForRouteVars", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: delegatedCoworkerContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -2378,6 +2417,7 @@ describe("requireJobReadForRouteVars", () => {
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: bareCoworkerContext,
       workspaceContext: jobReadWorkspaceContext,
     };
@@ -2629,6 +2669,7 @@ describe("shared Soko Bot collaboration", () => {
   };
   const vars: EnvVariables["Variables"] = {
     isAuthenticated: true,
+    networkScope: testNetworkScope(),
     authContext: sharedSokoBotAuthContext,
     workspaceContext: null,
   };

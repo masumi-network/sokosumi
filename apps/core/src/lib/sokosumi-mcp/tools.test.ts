@@ -76,3 +76,39 @@ describe("tools that spend credits", () => {
     expect(cancel?.spendsCredits).toBeFalsy();
   });
 });
+
+describe("contacts toolset", () => {
+  const contacts = MCP_TOOLS.filter(
+    (tool) => toolsetOf(tool.name) === "contacts",
+  );
+
+  it("is off by default: contacts are personal data", () => {
+    expect(contacts.length).toBeGreaterThan(0);
+    expect(DEFAULT_TOOLSETS).not.toContain("contacts");
+  });
+
+  it("warns before the web lookups that spend credits", () => {
+    const spending = contacts.filter((tool) => tool.spendsCredits);
+    expect(spending.map((tool) => tool.name)).toEqual([
+      "contacts_enrich",
+      "contacts_find_people",
+    ]);
+    for (const tool of spending)
+      expect(tool.description).toMatch(/^Spends workspace credits\./);
+  });
+
+  it("marks every write that removes, merges or overwrites many contacts destructive", () => {
+    const destructive = (name: string) =>
+      contacts.find((tool) => tool.name === name)?.destructive;
+    for (const name of [
+      "contacts_merge",
+      "contacts_set_stage",
+      "contacts_undo_stage",
+      "contacts_update_list",
+      "contacts_update_list_members",
+      "contacts_update_company_list_members",
+      "contacts_dismiss_suggestions",
+    ])
+      expect(destructive(name), name).toBe(true);
+  });
+});

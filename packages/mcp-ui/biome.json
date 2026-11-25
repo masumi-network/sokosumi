@@ -1,0 +1,13 @@
+{
+  "root": false,
+  "extends": "//",
+  "plugins": ["./biome-plugins/no-raw-html.grit"],
+  "linter": {
+    "rules": {
+      "security": {
+        "noDangerouslySetInnerHtml": "error",
+        "noDangerouslySetInnerHtmlWithChildren": "error"
+      }
+    }
+  }
+}

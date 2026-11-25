@@ -44,6 +44,7 @@ export type SharedTableName =
   | "contact_company_list"
   | "contact_company_list_member"
   | "contact_interaction"
+  | "contact_linkedin_connection"
   | "contact_list"
   | "contact_list_member"
   | "contact_not_duplicate"
@@ -270,6 +271,36 @@ export type NetworkTableName =
   | "_AgentCategory"
   | "_AgentMetadataOverrideToTag"
   | "_AgentTag";
+
+/** A Prisma model whose table is in each Network's schema; every other model is shared. */
+export type NetworkModelName =
+  | "Agent"
+  | "AgentPricing"
+  | "AgentFixedPricing"
+  | "UnitValue"
+  | "AgentPaymentSource"
+  | "AgentPaymentSourceAmount"
+  | "AgentMetadataOverride"
+  | "ExampleOutput"
+  | "Category"
+  | "Tag"
+  | "UserAgentRating"
+  | "Job"
+  | "JobEvent"
+  | "JobInput"
+  | "JobPurchase"
+  | "Blob"
+  | "Link"
+  | "Transaction"
+  | "CreditBucket"
+  | "CreditConsumption"
+  | "CreditCost"
+  | "TaskPaymentClaim"
+  | "TaskPaymentClaimAction"
+  | "TaskX402Payment"
+  | "TaskX402PaymentAction"
+  | "CoworkerUsage"
+  | "SokoBotUsage";
 
 /** An enum type in each Network's schema; every other enum is shared. */
 export type NetworkEnumName =

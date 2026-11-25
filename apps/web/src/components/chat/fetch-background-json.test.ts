@@ -332,4 +332,24 @@ describe("fetchBackgroundJson", () => {
 
     unmount();
   });
+
+  it("clears deadline and attempt timers synchronously when the caller signal aborts", async () => {
+    const stalled = Promise.withResolvers<Response>();
+    fetchMock.mockReturnValue(stalled.promise);
+    const caller = new AbortController();
+
+    const read = fetchBackgroundJson(
+      "/api/chat/rooms",
+      TIMEOUT_MS,
+      undefined,
+      caller.signal,
+    );
+    expect(vi.getTimerCount()).toBe(2);
+
+    caller.abort();
+    expect(vi.getTimerCount()).toBe(0);
+
+    stalled.reject(new DOMException("Aborted", "AbortError"));
+    await expect(read).resolves.toBeNull();
+  });
 });

@@ -84,6 +84,11 @@ interface PendingBoardReopen {
   moveVersion: number;
 }
 
+interface PendingMove {
+  version: number;
+  fromColumn: KanbanColumnId;
+}
+
 interface TasksBoardDataState {
   snapshot: TaskWithCoworker[];
   items: TaskWithCoworker[];
@@ -330,7 +335,7 @@ export function useTasksBoardModel({
   );
   const [_isPending, startTransition] = useTransition();
   const moveVersionRef = useRef(0);
-  const pendingMoveVersionByTaskIdRef = useRef(new Map<string, number>());
+  const pendingMoveByTaskIdRef = useRef(new Map<string, PendingMove>());
   const itemsRef = useRef(items);
   itemsRef.current = items;
   // Drag, merge and paging keep reading `items`: a pending row is display only.
@@ -367,7 +372,7 @@ export function useTasksBoardModel({
     }
 
     previousDefaultViewModeRef.current = defaultViewMode;
-    pendingMoveVersionByTaskIdRef.current.clear();
+    pendingMoveByTaskIdRef.current.clear();
 
     itemsRef.current = tasks;
     setBoardData({
@@ -407,12 +412,23 @@ export function useTasksBoardModel({
       !initialFilters.mentions;
     const serverTasks = tasks.filter((task) => !archivedTaskIds.has(task.id));
     const serverTaskIds = new Set(serverTasks.map((task) => task.id));
-    const pendingMoveTaskIds = new Set(
-      pendingMoveVersionByTaskIdRef.current.keys(),
-    );
+    const pendingMoves = new Map(pendingMoveByTaskIdRef.current);
+    const pendingMoveTaskIds = new Set(pendingMoves.keys());
 
     setBoardData((prev) => {
       const isNewSnapshot = prev.snapshot !== tasks;
+      const nextColumnCursorById = buildInitialColumnCursorById(
+        columns,
+        initialColumnNextCursorById,
+      );
+      const completeColumnIds =
+        !isListView && isNewSnapshot
+          ? new Set(
+              columns
+                .filter((column) => nextColumnCursorById[column.id] === null)
+                .map((column) => column.id),
+            )
+          : undefined;
       const next = mergeTasksOnServerRefresh({
         prev: prev.items.filter((task) => !archivedTaskIds.has(task.id)),
         serverTasks,
@@ -423,12 +439,8 @@ export function useTasksBoardModel({
         // Needs me it may no longer wait for a person. Under Mentions the
         // reader may have answered.
         keepLocalOnlyTasks,
+        completeColumnIds,
       });
-
-      const nextColumnCursorById = buildInitialColumnCursorById(
-        columns,
-        initialColumnNextCursorById,
-      );
 
       if (isListView) {
         return {
@@ -445,7 +457,9 @@ export function useTasksBoardModel({
       for (const task of next) {
         if (serverTaskIds.has(task.id)) continue;
         const columnId =
-          prev.loadedBoardColumnByTaskId.get(task.id) ?? task.columnId;
+          pendingMoves.get(task.id)?.fromColumn ??
+          prev.loadedBoardColumnByTaskId.get(task.id) ??
+          task.columnId;
         localOnlyCountByColumn.set(
           columnId,
           (localOnlyCountByColumn.get(columnId) ?? 0) + 1,
@@ -462,7 +476,9 @@ export function useTasksBoardModel({
           if (archivedTaskIds.has(task.id) || serverTaskIds.has(task.id))
             continue;
           droppedNonArchivedColumns.add(
-            prev.loadedBoardColumnByTaskId.get(task.id) ?? task.columnId,
+            pendingMoves.get(task.id)?.fromColumn ??
+              prev.loadedBoardColumnByTaskId.get(task.id) ??
+              task.columnId,
           );
         }
       }
@@ -506,18 +522,26 @@ export function useTasksBoardModel({
       const nextColumnHiddenById = { ...initialColumnHiddenCountById };
       for (const column of columns) {
         const columnId = column.id;
+        if (nextColumnCursorById[columnId] === null) {
+          nextPendingArchiveIdsByColumn.delete(columnId);
+          continue;
+        }
         const retainedCount = localOnlyCountByColumn.get(columnId) ?? 0;
         const reportedOverflow = initialColumnHiddenCountById[columnId] ?? 0;
         const preserveForPendingArchive =
           nextPendingArchiveIdsByColumn.has(columnId);
-        const preserveForRetainedRows =
-          retainedCount > 0 &&
-          (prev.columnCursorById[columnId] !== null ||
-            retainedCount >= reportedOverflow);
-        if (preserveForPendingArchive || preserveForRetainedRows) {
+        if (preserveForPendingArchive) {
           nextColumnCursorById[columnId] = prev.columnCursorById[columnId];
           nextColumnHiddenById[columnId] = prev.columnHiddenById[columnId];
-        } else if (retainedCount > 0) {
+          continue;
+        }
+        if (retainedCount > 0) {
+          if (
+            prev.columnCursorById[columnId] !== null ||
+            retainedCount >= reportedOverflow
+          ) {
+            nextColumnCursorById[columnId] = prev.columnCursorById[columnId];
+          }
           nextColumnHiddenById[columnId] = Math.max(
             0,
             reportedOverflow - retainedCount,
@@ -635,7 +659,12 @@ export function useTasksBoardModel({
     const previousStatusSince = draggedTask.statusSince;
 
     const moveVersion = (moveVersionRef.current += 1);
-    pendingMoveVersionByTaskIdRef.current.set(activeId, moveVersion);
+    const sourceColumn =
+      pendingMoveByTaskIdRef.current.get(activeId)?.fromColumn ?? fromColumn;
+    pendingMoveByTaskIdRef.current.set(activeId, {
+      version: moveVersion,
+      fromColumn: sourceColumn,
+    });
 
     setBoardData((prev) => ({
       ...prev,
@@ -675,10 +704,10 @@ export function useTasksBoardModel({
 
     const rollbackMove = () => {
       const pendingVersion =
-        pendingMoveVersionByTaskIdRef.current.get(activeId);
+        pendingMoveByTaskIdRef.current.get(activeId)?.version;
       if (pendingVersion !== moveVersion) return;
 
-      pendingMoveVersionByTaskIdRef.current.delete(activeId);
+      pendingMoveByTaskIdRef.current.delete(activeId);
       setBoardData((prev) => ({
         ...prev,
         items: prev.items.map((task) =>
@@ -708,9 +737,9 @@ export function useTasksBoardModel({
           return;
         }
         if (
-          pendingMoveVersionByTaskIdRef.current.get(activeId) === moveVersion
+          pendingMoveByTaskIdRef.current.get(activeId)?.version === moveVersion
         ) {
-          pendingMoveVersionByTaskIdRef.current.delete(activeId);
+          pendingMoveByTaskIdRef.current.delete(activeId);
         }
       } catch {
         rollbackMove();
@@ -720,12 +749,12 @@ export function useTasksBoardModel({
   };
 
   const rollbackBoardReopen = (pending: PendingBoardReopen) => {
-    const pendingVersion = pendingMoveVersionByTaskIdRef.current.get(
+    const pendingVersion = pendingMoveByTaskIdRef.current.get(
       pending.taskId,
-    );
+    )?.version;
     if (pendingVersion !== pending.moveVersion) return;
 
-    pendingMoveVersionByTaskIdRef.current.delete(pending.taskId);
+    pendingMoveByTaskIdRef.current.delete(pending.taskId);
     setBoardData((prev) => ({
       ...prev,
       items: prev.items.map((task) =>
@@ -778,10 +807,10 @@ export function useTasksBoardModel({
           return;
         }
         if (
-          pendingMoveVersionByTaskIdRef.current.get(pending.taskId) ===
+          pendingMoveByTaskIdRef.current.get(pending.taskId)?.version ===
           pending.moveVersion
         ) {
-          pendingMoveVersionByTaskIdRef.current.delete(pending.taskId);
+          pendingMoveByTaskIdRef.current.delete(pending.taskId);
         }
         setPendingBoardReopen(null);
         setReopenComment("");

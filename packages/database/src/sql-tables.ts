@@ -3,11 +3,17 @@ import networkTables from "../prisma/network-tables.json" with { type: "json" };
 import { $Enums } from "./index.js";
 import type {
   NetworkEnumName,
+  NetworkModelName,
   NetworkTableName,
   SharedTableName,
 } from "./sql-table-names.js";
 
-export type { NetworkEnumName, NetworkTableName, SharedTableName };
+export type {
+  NetworkEnumName,
+  NetworkModelName,
+  NetworkTableName,
+  SharedTableName,
+};
 /** An enum type in the shared schema: every enum not on the Network list. */
 export type SharedEnumName = Exclude<keyof typeof $Enums, NetworkEnumName>;
 
