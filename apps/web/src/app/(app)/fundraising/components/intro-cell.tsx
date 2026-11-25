@@ -65,7 +65,9 @@ export function IntroCell({
   const update = useProspectUpdate();
   const [ask, setAsk] = useState<AskRequest | null>(null);
   const action = introAction(prospect, me);
-  const when = (date: Date) => format.relativeTime(date, now);
+  // A stamp written a moment after the page's clock reads as "now", never "in 1 second".
+  const when = (date: Date) =>
+    format.relativeTime(date.getTime() > now.getTime() ? now : date, now);
 
   return (
     <div className="grid gap-1.5 text-sm" data-testid="intro-cell">
