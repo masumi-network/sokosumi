@@ -454,6 +454,23 @@ sokosumi contacts export --query listId=LIST_ID > contacts.csv
 - `enrich` (1 credit) and `find-people` spend workspace credits: confirm with the person first.
 - CLI only: `export` (CSV), `import` (a Files table), `import-linkedin` (`{"csv": …}` with the text of LinkedIn's Connections.csv) and `import-list` (pasted addresses). Over MCP they are not tools.
 
+## Chats
+
+[VERIFIED: `apps/cli/src/cli/commands/catalog.ts`, `apps/core/agent-surface/chats.json`] Every `chats` command calls one Core operation, like `jobs events`. List rooms first; a room's `id` is the `ROOM_ID` of the other commands. Channels belong to an organization Workspace, so pass `--organization-slug`.
+
+```sh
+sokosumi chats rooms --organization-slug WORKSPACE_SLUG --query kind=channel
+sokosumi chats messages ROOM_ID --query limit=20
+sokosumi chats summary
+sokosumi chats send ROOM_ID --input-json '{"content":"Draft is ready."}'
+sokosumi chats thread-messages ROOM_ID MESSAGE_ID
+sokosumi chats mark-read ROOM_ID
+```
+
+`chats send` posts as the signed-in person. A message that mentions a Coworker or Soko Bot, or goes to a Direct with one, starts a paid turn: it spends workspace credits, so confirm the text and the recipients with the person first. `chats retry-mention` spends credits the same way. Every write is a mainnet write and needs the operator `yes` above.
+
+Over MCP, the chat tools are in the `chats` toolset, off by default: add `?toolsets=workspaces,tasks,coworkers,chats`. `chats_send` and `chats_retry_mention` are marked as spending credits. Inviting a guest, invite links and file uploads are CLI-only. Stickers, voice transcription, the live reply stream and the Elsewhere list stay in Sokosumi Web.
+
 ## Use Sokosumi over MCP
 
 [VERIFIED: `apps/core/src/routes/mcp/index.ts`, `docs/mcp.md`] Sokosumi also serves its tools over MCP at `https://api.sokosumi.com/mcp`. Use it when the host speaks MCP and the CLI is not installed. The host connects by URL and signs in through the browser; no API key is needed:
