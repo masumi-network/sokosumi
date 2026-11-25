@@ -18,6 +18,7 @@ vi.mock("sonner", () => ({ toast: { error: toastErrorMock } }));
 const stopTrack = vi.fn();
 let supported: string[] = [];
 let lastRecorder: FakeRecorder | null = null;
+let deferStop = false;
 
 class FakeRecorder {
   static isTypeSupported(type: string) {
@@ -38,6 +39,11 @@ class FakeRecorder {
   }
   stop() {
     this.state = "inactive";
+    if (!deferStop) {
+      this.flushStop();
+    }
+  }
+  flushStop() {
     this.ondataavailable?.({ data: new Blob(["voice"]) });
     this.onstop?.();
   }
@@ -49,6 +55,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   supported = ["audio/webm"];
   lastRecorder = null;
+  deferStop = false;
   getUserMedia.mockResolvedValue({ getTracks: () => [{ stop: stopTrack }] });
   vi.stubGlobal("MediaRecorder", FakeRecorder);
   Object.defineProperty(navigator, "mediaDevices", {
@@ -341,5 +348,212 @@ describe("useDictationRecorder", () => {
     expect(api.starting).toBe(false);
     expect(api.elapsedMs).toBeNull();
     expect(onRecordingChange).not.toHaveBeenCalled();
+  });
+
+  it("drops a pending transcription when hidden after finish(true) before onstop fires, while normal stop delivers once", async () => {
+    deferStop = true;
+    const onRecorded = vi.fn();
+    const onRecordingChange = vi.fn();
+    let api!: ReturnType<typeof useDictationRecorder>;
+
+    function Probe() {
+      api = useDictationRecorder({ onRecorded, onRecordingChange });
+      return null;
+    }
+
+    const { rerender } = render(
+      <StrictMode>
+        <Activity mode="visible">
+          <Probe />
+        </Activity>
+      </StrictMode>,
+    );
+
+    // Case A: Stop, hide before onstop, onstop fires while hidden.
+    await act(async () => {
+      await api.start();
+    });
+    const firstRecorder = lastRecorder;
+    act(() => {
+      api.finish(true);
+    });
+    expect(onRecordingChange.mock.calls).toEqual([[true], [false]]);
+
+    rerender(
+      <StrictMode>
+        <Activity mode="hidden">
+          <Probe />
+        </Activity>
+      </StrictMode>,
+    );
+
+    act(() => {
+      firstRecorder?.flushStop();
+    });
+    expect(onRecorded).not.toHaveBeenCalled();
+
+    rerender(
+      <StrictMode>
+        <Activity mode="visible">
+          <Probe />
+        </Activity>
+      </StrictMode>,
+    );
+    expect(api.elapsedMs).toBeNull();
+    expect(api.starting).toBe(false);
+    expect(onRecordingChange.mock.calls).toEqual([[true], [false]]);
+
+    // Case B: Stop, hide, reveal, then stale onstop fires after reveal.
+    await act(async () => {
+      await api.start();
+    });
+    const secondRecorder = lastRecorder;
+    act(() => {
+      api.finish(true);
+    });
+    rerender(
+      <StrictMode>
+        <Activity mode="hidden">
+          <Probe />
+        </Activity>
+      </StrictMode>,
+    );
+    rerender(
+      <StrictMode>
+        <Activity mode="visible">
+          <Probe />
+        </Activity>
+      </StrictMode>,
+    );
+    act(() => {
+      secondRecorder?.flushStop();
+    });
+    expect(onRecorded).not.toHaveBeenCalled();
+
+    // Case C: Normal Stop while visible delivers exactly one transcription.
+    await act(async () => {
+      await api.start();
+    });
+    const thirdRecorder = lastRecorder;
+    act(() => {
+      api.finish(true);
+    });
+    act(() => {
+      thirdRecorder?.flushStop();
+    });
+    expect(onRecorded).toHaveBeenCalledOnce();
+  });
+
+  it("ignores a permission grant or denial after Activity hide and reveal until started again", async () => {
+    let grantFirst: (stream: unknown) => void = () => undefined;
+    getUserMedia.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          grantFirst = resolve;
+        }),
+    );
+
+    const onRecorded = vi.fn();
+    const onRecordingChange = vi.fn();
+    let api!: ReturnType<typeof useDictationRecorder>;
+
+    function Probe() {
+      api = useDictationRecorder({ onRecorded, onRecordingChange });
+      return null;
+    }
+
+    const { rerender } = render(
+      <StrictMode>
+        <Activity mode="visible">
+          <Probe />
+        </Activity>
+      </StrictMode>,
+    );
+
+    act(() => {
+      void api.start();
+    });
+    expect(api.starting).toBe(true);
+
+    rerender(
+      <StrictMode>
+        <Activity mode="hidden">
+          <Probe />
+        </Activity>
+      </StrictMode>,
+    );
+    rerender(
+      <StrictMode>
+        <Activity mode="visible">
+          <Probe />
+        </Activity>
+      </StrictMode>,
+    );
+
+    expect(api.starting).toBe(false);
+    expect(api.elapsedMs).toBeNull();
+
+    await act(async () => {
+      grantFirst({ getTracks: () => [{ stop: stopTrack }] });
+    });
+
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(lastRecorder).toBeNull();
+    expect(api.starting).toBe(false);
+    expect(api.elapsedMs).toBeNull();
+    expect(onRecordingChange).not.toHaveBeenCalled();
+
+    // A stale denial after hide+reveal neither toasts nor clobbers a new start.
+    let denySecond: (error: unknown) => void = () => undefined;
+    let grantThird: (stream: unknown) => void = () => undefined;
+    getUserMedia
+      .mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            denySecond = reject;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            grantThird = resolve;
+          }),
+      );
+
+    act(() => {
+      void api.start();
+    });
+    rerender(
+      <StrictMode>
+        <Activity mode="hidden">
+          <Probe />
+        </Activity>
+      </StrictMode>,
+    );
+    rerender(
+      <StrictMode>
+        <Activity mode="visible">
+          <Probe />
+        </Activity>
+      </StrictMode>,
+    );
+    act(() => {
+      void api.start();
+    });
+    expect(api.starting).toBe(true);
+
+    await act(async () => {
+      denySecond(new Error("NotAllowedError"));
+    });
+    expect(toastErrorMock).not.toHaveBeenCalled();
+    expect(api.starting).toBe(true);
+
+    const stopThirdTrack = vi.fn();
+    await act(async () => {
+      grantThird({ getTracks: () => [{ stop: stopThirdTrack }] });
+    });
+    expect(api.starting).toBe(false);
+    expect(api.elapsedMs).toBe(0);
+    expect(onRecordingChange).toHaveBeenCalledWith(true);
   });
 });

@@ -16,6 +16,7 @@ vi.mock("sonner", () => ({ toast: { error: toastErrorMock } }));
 const stopTrack = vi.fn();
 let supported: string[] = [];
 let lastRecorder: FakeRecorder | null = null;
+let deferStop = false;
 
 class FakeRecorder {
   static isTypeSupported(type: string) {
@@ -36,6 +37,11 @@ class FakeRecorder {
   }
   stop() {
     this.state = "inactive";
+    if (!deferStop) {
+      this.flushStop();
+    }
+  }
+  flushStop() {
     this.ondataavailable?.({ data: new Blob(["voice"]) });
     this.onstop?.();
   }
@@ -47,6 +53,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   supported = ["audio/webm"];
   lastRecorder = null;
+  deferStop = false;
   getUserMedia.mockResolvedValue({ getTracks: () => [{ stop: stopTrack }] });
   vi.stubGlobal("MediaRecorder", FakeRecorder);
   Object.defineProperty(navigator, "mediaDevices", {
@@ -242,6 +249,115 @@ describe("DictationButton", () => {
       </Activity>,
     );
 
+    expect(screen.queryByRole("timer")).toBeNull();
+    expect(screen.getByRole("button", { name: "dictate" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "send" })).toBeEnabled();
+  });
+
+  it("drops a pending transcription and keeps Send enabled when hidden after Stop before onstop", async () => {
+    deferStop = true;
+    const onRecorded = vi.fn();
+
+    function Composer() {
+      const [isRecording, setIsRecording] = useState(false);
+      return (
+        <div>
+          <DictationButton
+            onRecorded={onRecorded}
+            onRecordingChange={setIsRecording}
+          />
+          <button type="submit" disabled={isRecording}>
+            send
+          </button>
+        </div>
+      );
+    }
+
+    const { rerender } = render(
+      <Activity mode="visible">
+        <Composer />
+      </Activity>,
+    );
+
+    await startRecording();
+    expect(screen.getByRole("button", { name: "send" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "stopDictation" }));
+    rerender(
+      <Activity mode="hidden">
+        <Composer />
+      </Activity>,
+    );
+
+    act(() => {
+      lastRecorder?.flushStop();
+    });
+    expect(onRecorded).not.toHaveBeenCalled();
+
+    rerender(
+      <Activity mode="visible">
+        <Composer />
+      </Activity>,
+    );
+
+    expect(screen.queryByRole("timer")).toBeNull();
+    expect(screen.getByRole("button", { name: "dictate" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "send" })).toBeEnabled();
+  });
+
+  it("stays idle when a permission grant arrives after Activity hide and reveal", async () => {
+    let grant: (stream: unknown) => void = () => undefined;
+    getUserMedia.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          grant = resolve;
+        }),
+    );
+
+    function Composer() {
+      const [isRecording, setIsRecording] = useState(false);
+      return (
+        <div>
+          <DictationButton
+            onRecorded={vi.fn()}
+            onRecordingChange={setIsRecording}
+          />
+          <button type="submit" disabled={isRecording}>
+            send
+          </button>
+        </div>
+      );
+    }
+
+    const { rerender } = render(
+      <Activity mode="visible">
+        <Composer />
+      </Activity>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "dictate" }));
+    expect(screen.getByRole("button", { name: "dictate" })).toBeDisabled();
+
+    rerender(
+      <Activity mode="hidden">
+        <Composer />
+      </Activity>,
+    );
+    rerender(
+      <Activity mode="visible">
+        <Composer />
+      </Activity>,
+    );
+
+    expect(screen.getByRole("button", { name: "dictate" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "send" })).toBeEnabled();
+
+    await act(async () => {
+      grant({ getTracks: () => [{ stop: stopTrack }] });
+    });
+
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(lastRecorder).toBeNull();
     expect(screen.queryByRole("timer")).toBeNull();
     expect(screen.getByRole("button", { name: "dictate" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "send" })).toBeEnabled();
