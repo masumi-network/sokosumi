@@ -231,6 +231,30 @@ describe("AvatarStudio", () => {
     vi.restoreAllMocks();
   });
 
+  // Setup shows a small live preview in its pinned bar while the big one is scrolled away.
+  it("in setup tells the caller when More details opens and closes", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(() => {});
+    const onMoreDetailsChange = vi.fn();
+    render(
+      withIntl(
+        <AvatarStudio
+          compact
+          code={formatAvatarCode(fox)}
+          onChange={vi.fn()}
+          onMoreDetailsChange={onMoreDetailsChange}
+        />,
+      ),
+    );
+    const trigger = screen.getByRole("button", { name: /More details/ });
+
+    await user.click(trigger);
+    expect(onMoreDetailsChange).toHaveBeenLastCalledWith(true);
+    await user.click(trigger);
+    expect(onMoreDetailsChange).toHaveBeenLastCalledWith(false);
+    vi.restoreAllMocks();
+  });
+
   it("in setup jumps to More details when motion is reduced", async () => {
     const user = userEvent.setup();
     const scrollIntoView = vi

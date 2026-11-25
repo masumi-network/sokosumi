@@ -183,11 +183,14 @@ export function AvatarStudio({
   code: value,
   onChange,
   compact = false,
+  onMoreDetailsChange,
 }: {
   code: string | null;
   onChange: (code: string) => void;
   /** Setup: the preview, Shuffle and animals first, the rest under "More details", no preview states. */
   compact?: boolean;
+  /** Setup: More details opened or closed, which scrolls the preview away or back. */
+  onMoreDetailsChange?: (open: boolean) => void;
 }) {
   const t = useTranslations("App.SokoBot.AvatarStudio");
   const look = useMemo(
@@ -364,6 +367,7 @@ export function AvatarStudio({
           {compact ? (
             <Collapsible
               onOpenChange={(open) => {
+                onMoreDetailsChange?.(open);
                 // Without motion there is no animation to wait for.
                 if (open && matchesMediaQuery(REDUCED_MOTION_MEDIA_QUERY))
                   requestAnimationFrame(() => showMoreDetails("auto"));
