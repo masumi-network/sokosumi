@@ -1,9 +1,10 @@
 "use client";
 
-import type {
-  ChatRoom,
-  ChatRoomInvitation,
-  StarredChatRoomOrder,
+import {
+  type ChatRoom,
+  type ChatRoomInvitation,
+  SokoBotStatus,
+  type StarredChatRoomOrder,
 } from "@sokosumi/core-client";
 import { MotionConfig, useReducedMotion } from "motion/react";
 import { usePathname } from "next/navigation";
@@ -413,9 +414,12 @@ export function OrganizationChatList({
               organization: room.organizationName,
             })
           : undefined,
+      // An idle bot's "Active 24m ago" is noise in the Direct list; only
+      // working, paused or failed show.
       status:
         isDirect &&
         liveSokoBot &&
+        liveSokoBot.status !== SokoBotStatus.IDLE &&
         isDirectWithSokoBot(room, currentUserId, liveSokoBot.id) ? (
           <SokoBotStatusLine bot={liveSokoBot} />
         ) : undefined,
