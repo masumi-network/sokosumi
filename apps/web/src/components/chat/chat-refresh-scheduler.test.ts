@@ -194,4 +194,28 @@ describe("createChatRefreshScheduler", () => {
     await vi.advanceTimersByTimeAsync(FALLBACK_MS * 2);
     expect(refresh).toHaveBeenCalledTimes(1);
   });
+
+  it("aborts the refresh signal when stopped mid-flight", async () => {
+    const pending = Promise.withResolvers<void>();
+    let receivedSignal: AbortSignal | undefined;
+    const scheduler = createChatRefreshScheduler({
+      refresh: async (_isCurrent, signal) => {
+        receivedSignal = signal;
+        await pending.promise;
+      },
+      healthy: true,
+      fallbackIntervalMs: FALLBACK_MS,
+      refreshOnMount: true,
+    });
+
+    scheduler.start();
+    expect(receivedSignal).toBeInstanceOf(AbortSignal);
+    expect(receivedSignal?.aborted).toBe(false);
+
+    scheduler.stop();
+    expect(receivedSignal?.aborted).toBe(true);
+
+    pending.resolve();
+    await Promise.resolve();
+  });
 });
