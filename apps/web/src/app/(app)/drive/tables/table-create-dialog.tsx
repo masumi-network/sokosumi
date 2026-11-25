@@ -611,7 +611,9 @@ export function TableCreateDialog({
                 : null}
           </p>
         </div>
-        <DialogFooter className="-mx-6 border-t px-6 pt-4">
+        {/* An inset rule, like the column dividers: the dialog's padding is
+        not the app gutter, so a bleed here would break the full-bleed rule. */}
+        <DialogFooter className="border-t pt-4">
           {attempt?.tableId && (
             <Button
               variant="outline"
