@@ -9,8 +9,16 @@ import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext } from "@/middleware/auth";
+import type {
+  AuthenticationContext,
+  UserAuthenticationContext,
+} from "@/middleware/auth";
+import {
+  agentCredentials,
+  expectPersonApprovalRequired,
+} from "@/test-fixtures/person-approval";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -48,17 +56,21 @@ vi.mock("@/helpers/organization", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    organization: {
+      findUnique: vi.fn().mockResolvedValue({ slug: "acme-org" }),
+    },
     workspace: { findUnique: workspaceFindUniqueMock },
     vendor: { findUnique: vendorFindUniqueMock },
     $transaction: prismaTransactionMock,
   },
 }));
 
-const USER_AUTH_CONTEXT: AuthenticationContext = {
+const USER_AUTH_CONTEXT: UserAuthenticationContext = {
   actor: "user",
   userId: "user_123",
   organizationId: "org_123",
   role: "user",
+  authenticationMethod: "session",
 };
 
 const grantId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -82,6 +94,7 @@ function createApp(
     return await next();
   });
   mountPostVendorGrant(app);
+  app.onError(errorHandler);
   return app;
 }
 
@@ -223,27 +236,25 @@ describe("POST /organizations/{id}/vendor-grants", () => {
     expect(vendorGrantUpsertMock).not.toHaveBeenCalled();
   });
 
-  it("rejects coworker context even with X-Context-User-Id", async () => {
-    vendorGrantUpsertMock.mockResolvedValue(baseGrant());
+  // A direct grant approves without a request, so a person makes it too.
+  it.each(agentCredentials(USER_AUTH_CONTEXT))(
+    "sends %s to the organization's settings",
+    async (_, authContext) => {
+      const response = await createApp(authContext).request(
+        `http://localhost/${orgId}/vendor-grants`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ vendorId }),
+        },
+      );
 
-    const coworkerAuth: AuthenticationContext = {
-      actor: "coworker",
-      coworkerId: "coworker_1",
-      vendorId,
-      context: { userId: "user_123", organizationId: orgId },
-    };
-
-    const response = await createApp(coworkerAuth).request(
-      `http://localhost/${orgId}/vendor-grants`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vendorId }),
-      },
-    );
-
-    expect(response.status).toBe(403);
-    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
-    expect(vendorGrantUpsertMock).not.toHaveBeenCalled();
-  });
+      await expectPersonApprovalRequired(
+        response,
+        "https://example.com/organizations/acme-org",
+      );
+      expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
+      expect(vendorGrantUpsertMock).not.toHaveBeenCalled();
+    },
+  );
 });

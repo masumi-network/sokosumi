@@ -3,8 +3,16 @@ import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { forbidden, notFound } from "@/helpers/error";
+import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext } from "@/middleware/auth";
+import type {
+  AuthenticationContext,
+  UserAuthenticationContext,
+} from "@/middleware/auth";
+import {
+  agentCredentials,
+  expectPersonApprovalRequired,
+} from "@/test-fixtures/person-approval";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -32,6 +40,9 @@ vi.mock("@/helpers/organization", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    organization: {
+      findUnique: vi.fn().mockResolvedValue({ slug: "acme-org" }),
+    },
     workspace: { findUnique: workspaceFindUniqueMock },
     $transaction: prismaTransactionMock,
   },
@@ -51,11 +62,12 @@ vi.mock("@/helpers/coworker-workspace-access", async (importOriginal) => {
 
 import mountApproveOrganizationCoworkerAccess from "./post";
 
-const USER_AUTH_CONTEXT: AuthenticationContext = {
+const USER_AUTH_CONTEXT: UserAuthenticationContext = {
   actor: "user",
   userId: "user_123",
   organizationId: "org_123",
   role: "user",
+  authenticationMethod: "session",
 };
 
 const accessId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -78,6 +90,7 @@ function createApp(
     return await next();
   });
   mountApproveOrganizationCoworkerAccess(app);
+  app.onError(errorHandler);
   return app;
 }
 
@@ -140,21 +153,23 @@ describe("POST /organizations/{id}/coworker-access/{accessId}/approve", () => {
     );
   });
 
-  it("rejects coworker context with 403", async () => {
-    const response = await createApp({
-      actor: "coworker",
-      coworkerId: "coworker_1",
-      vendorId: "vendor_1",
-      context: { userId: "user_123", organizationId: orgId },
-    }).request(
-      `http://localhost/${orgId}/coworker-access/${accessId}/approve`,
-      { method: "POST" },
-    );
+  // ADR 0077: an agent may ask for access; a person approves it.
+  it.each(agentCredentials(USER_AUTH_CONTEXT))(
+    "sends %s to the organization's settings",
+    async (_, authContext) => {
+      const response = await createApp(authContext).request(
+        `http://localhost/${orgId}/coworker-access/${accessId}/approve`,
+        { method: "POST" },
+      );
 
-    expect(response.status).toBe(403);
-    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
-    expect(approveMock).not.toHaveBeenCalled();
-  });
+      await expectPersonApprovalRequired(
+        response,
+        "https://example.com/organizations/acme-org",
+      );
+      expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
+      expect(approveMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("rejects non-owner/admin with 403", async () => {
     resolveMemberOrganizationByIdMock.mockRejectedValue(

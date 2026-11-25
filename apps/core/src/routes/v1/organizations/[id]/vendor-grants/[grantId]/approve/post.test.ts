@@ -9,8 +9,16 @@ import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext } from "@/middleware/auth";
+import type {
+  AuthenticationContext,
+  UserAuthenticationContext,
+} from "@/middleware/auth";
+import {
+  agentCredentials,
+  expectPersonApprovalRequired,
+} from "@/test-fixtures/person-approval";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -48,16 +56,20 @@ vi.mock("@/helpers/organization", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    organization: {
+      findUnique: vi.fn().mockResolvedValue({ slug: "acme-org" }),
+    },
     workspace: { findUnique: workspaceFindUniqueMock },
     $transaction: prismaTransactionMock,
   },
 }));
 
-const USER_AUTH_CONTEXT: AuthenticationContext = {
+const USER_AUTH_CONTEXT: UserAuthenticationContext = {
   actor: "user",
   userId: "user_123",
   organizationId: "org_123",
   role: "user",
+  authenticationMethod: "session",
 };
 
 const grantId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -81,6 +93,7 @@ function createApp(
     return await next();
   });
   mountApproveVendorGrant(app);
+  app.onError(errorHandler);
   return app;
 }
 
@@ -188,35 +201,23 @@ describe("POST /organizations/{id}/vendor-grants/{grantId}/approve", () => {
     });
   });
 
-  it("rejects coworker context even with X-Context-User-Id", async () => {
-    const existing = {
-      id: grantId,
-      vendorId,
-      workspaceId,
-      permission: VendorPermission.workspace,
-      status: VendorGrantStatus.PENDING,
-      requestedByUserId: "user_ctx",
-      resolvedAt: null,
-      resolvedById: null,
-      createdAt: new Date("2026-07-01T00:00:00.000Z"),
-      updatedAt: new Date("2026-07-01T00:00:00.000Z"),
-      vendor: { name: "Acme", slug: "acme" },
-    };
-    vendorGrantFindFirstMock.mockResolvedValue(existing);
+  // ADR 0077: an agent may ask for a grant; a person approves it.
+  it.each(agentCredentials(USER_AUTH_CONTEXT))(
+    "sends %s to the organization's settings",
+    async (_, authContext) => {
+      const response = await createApp(authContext).request(
+        `http://localhost/${orgId}/vendor-grants/${grantId}/approve`,
+        { method: "POST" },
+      );
 
-    const response = await createApp({
-      actor: "coworker",
-      coworkerId: "coworker_1",
-      vendorId,
-      context: { userId: "user_123", organizationId: orgId },
-    }).request(`http://localhost/${orgId}/vendor-grants/${grantId}/approve`, {
-      method: "POST",
-    });
-
-    expect(response.status).toBe(403);
-    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
-    expect(vendorGrantFindFirstMock).not.toHaveBeenCalled();
-  });
+      await expectPersonApprovalRequired(
+        response,
+        "https://example.com/organizations/acme-org",
+      );
+      expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
+      expect(vendorGrantFindFirstMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("unparks linked tasks when grant is already GRANTED", async () => {
     const existing = {

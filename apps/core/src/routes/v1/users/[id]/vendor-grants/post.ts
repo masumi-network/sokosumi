@@ -7,9 +7,10 @@ import {
   grantWorkspaceAccess,
   toVendorGrantApiShape,
 } from "@/helpers/vendor-grants";
+import { ACCOUNT_WEB_PATH } from "@/helpers/workspace-approval-web-path";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireOwnerUserContext } from "@/middleware/auth";
+import { requirePersonApproval } from "@/middleware/auth";
 import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
 import {
   requireUserRouteContext,
@@ -51,7 +52,11 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
-    const userContext = requireOwnerUserContext(c.var.authContext);
+    // A person approves in Sokosumi; agents may only ask, deny or revoke (ADR 0077).
+    const userContext = requirePersonApproval(
+      c.var.authContext,
+      ACCOUNT_WEB_PATH,
+    );
     c.req.valid("param");
     const body = c.req.valid("json");
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);

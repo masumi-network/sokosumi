@@ -1,9 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
 
+import { getEnv } from "@/config/env";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import { requirePersonApproval } from "@/middleware/auth";
 import {
   marketingStrategyParamsSchema,
   marketingStrategySchema,
@@ -34,11 +35,20 @@ const route = createRoute({
   },
 });
 
+/** The strategy in CMO, where a person approves it. */
+function cmoStrategyUrl(projectId: string): string {
+  const base = getEnv().CMO_APP_BASE_URL.replace(/\/+$/, "");
+  return `${base}/strategy?${new URLSearchParams({ project: projectId })}`;
+}
+
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    // A person approves; bots and coworkers never do.
-    const { userId } = requireUserAuthContext(c.var.authContext);
     const { id, strategyId } = c.req.valid("param");
+    // A person approves, in CMO; agents only write versions (ADR 0077).
+    const { userId } = requirePersonApproval(
+      c.var.authContext,
+      cmoStrategyUrl(id),
+    );
     const access = await requireWorkspaceProject(c, id, userId);
     const version = await approveMarketingStrategy({ ...access, strategyId });
     await startCmoProductionForProject(access.projectId);
