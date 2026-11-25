@@ -1,5 +1,11 @@
 // @vitest-environment node
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import {
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -68,6 +74,15 @@ describe("buildViews", () => {
       expect(html).toMatch(/<style>/);
       expect(html).not.toMatch(/\s(src|href)=/);
       expect(html).not.toMatch(/<link\b/);
+    }
+  });
+
+  // Each view ships React, zod and the MCP client (about 465 KB in Nov 2026).
+  // Raise this only on purpose: every byte is in Core's bundle and every read.
+  it("keeps every view under the 600 KB size budget", () => {
+    for (const id of ids) {
+      const { size } = statSync(join(outDir, "views", `${id}.html`));
+      expect(size, `${id}.html bytes`).toBeLessThan(600_000);
     }
   });
 
