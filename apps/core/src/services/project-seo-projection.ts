@@ -270,7 +270,8 @@ export function projectSeoProjection(
           : ""),
     });
     if (!matchesSeoPeriod(row.observedAt, query)) continue;
-    if (data.siteSpeed && siteSpeed === undefined)
+    // The newest full audit decides: one without a table hides an older audit's table.
+    if (data.kind === "audit_full" && siteSpeed === undefined)
       siteSpeed = scopedSiteSpeed(data, row, selectedUrls);
     // Rows come newest first, so the first strategy is the newest site audit's.
     if (data.strategy && !strategy) {

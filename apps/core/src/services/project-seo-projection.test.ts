@@ -519,14 +519,54 @@ describe("stored SEO workspace projections", () => {
       [SEO_TEST_PAGE, true],
       ["https://example.test/new", false],
     ]);
-    const second = { ...input.pages[0]!, id: randomUUID(), url: EXTRA_PAGE };
-    expect(
-      projectSeoProjection({
-        ...input,
-        pages: [second],
-        scope: { ...input.scope, pageIds: [second.id], pages: [second] },
-      }).siteSpeed,
-    ).toBeNull();
+    // A newer full audit without a table hides the older table: its own page speed is the newest result.
+    input.observations.unshift(
+      observation(
+        input,
+        parsePublicSeoArtifact(legacyReport()),
+        "2026-11-05T12:00:00Z",
+      ),
+    );
+    expect(input.observations[0]?.kind).toBe("audit_full");
+    expect(projectSeoProjection(input).siteSpeed).toBeNull();
+  });
+
+  it("shows no speed table to a view that holds only some pages of the audit", () => {
+    const input = fixture();
+    const second = {
+      ...input.pages[0]!,
+      id: randomUUID(),
+      url: SEO_TEST_SECOND_PAGE,
+    };
+    input.pages.push(second);
+    const all = {
+      ...input.scope,
+      pageIds: input.pages.map((page) => page.id),
+      pages: input.pages,
+    };
+    const report = legacyReport();
+    const audit = observation(
+      { ...input, scope: all },
+      parsePublicSeoArtifact({
+        kind: "site",
+        rulebookVersion: "v",
+        pages: [report, { ...report, request: { url: second.url } }],
+        speed: {
+          pages: [{ url: EXTRA_PAGE, n: null, source: "links", speed: null }],
+          note: null,
+        },
+      }),
+      "2026-11-03T12:00:00Z",
+    );
+    const shown = (scope: Input["scope"]) =>
+      projectSeoProjection({ ...input, scope, observations: [audit] });
+    expect(shown(all).siteSpeed?.rows.map((row) => row.url)).toEqual([
+      EXTRA_PAGE,
+    ]);
+    // The audit is in the view of its first page: only the table is withheld.
+    const part = shown(input.scope);
+    expect(part.observations.map((item) => item.id)).toEqual([audit.id]);
+    expect(part.siteSpeed).toBeNull();
   });
 
   it("serves the weekly speed series on the newest audit only", () => {
