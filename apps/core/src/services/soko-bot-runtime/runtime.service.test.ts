@@ -12417,6 +12417,7 @@ describe("CMO record saves", () => {
       },
       chatRoom: { update: vi.fn().mockResolvedValue({}) },
       project: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      sokoBotTurn: { findMany: vi.fn().mockResolvedValue([]) },
     };
     transactionMock.mockImplementationOnce(
       async (operation: (client: typeof tx) => unknown) => operation(tx),
