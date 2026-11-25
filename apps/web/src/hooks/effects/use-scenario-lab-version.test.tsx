@@ -143,4 +143,46 @@ describe("useScenarioLabVersion", () => {
       "v12-operator",
     );
   });
+
+  it("releases switching when chooseVersion rejects", async () => {
+    const onUrlUpdate = vi.fn();
+    const onTurnFinished = vi.fn();
+    const pending = Promise.withResolvers<never>();
+    setVersionMock.mockReturnValue(pending.promise);
+
+    const { result } = renderHook(
+      () => {
+        const activeVersionRef = useRef<string | null>("v11");
+        return useScenarioLabVersion({
+          versionId: "v11",
+          versions: VERSIONS,
+          activeVersionRef,
+          onTurnFinished,
+        });
+      },
+      {
+        wrapper: withNuqsTestingAdapter({
+          hasMemory: true,
+          onUrlUpdate,
+        }),
+      },
+    );
+
+    let switchPromise: Promise<void> | undefined;
+    act(() => {
+      switchPromise = result.current.chooseVersion("v12-operator");
+    });
+
+    expect(result.current.switching).toBe(true);
+
+    await act(async () => {
+      pending.reject(new Error("RSC failure"));
+      await expect(switchPromise).rejects.toThrow("RSC failure");
+    });
+
+    expect(result.current.switching).toBe(false);
+    expect(result.current.activeVersion).toBe("v11");
+    expect(onTurnFinished).not.toHaveBeenCalled();
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+  });
 });

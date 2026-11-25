@@ -112,7 +112,12 @@ vi.mock("./use-contacts-data", () => ({
       }));
     return { data: { companies, total: companies.length } };
   },
-  useContactMap: () => undefined,
+  useContactMap: () => ({
+    data: { places: [], unplaced: 0, pending: 0, withoutLocation: 0 },
+    isPending: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
   useContactOrganizations: () => ({ data: [] }),
   useTeammates: () => ({ teammates: [] }),
   useContactRows: ({ search = "" }: { search?: string }) => ({
@@ -387,6 +392,7 @@ describe("ContactsWorkspace Archived view", () => {
 
   it("clears the map layout when switching to the archive and returns to table", async () => {
     const onUrlUpdate = renderAt("?layout=map");
+    expect(await screen.findByText("emptyTitle")).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "toolbar.more" }));
     await userEvent.click(
       screen.getByRole("menuitem", { name: "presets.archived" }),
