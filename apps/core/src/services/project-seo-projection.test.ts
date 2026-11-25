@@ -1157,6 +1157,8 @@ describe("stored SEO workspace projections", () => {
             intent: null,
             conversion: "high",
             feature: "Low battery alerts",
+            intentClass: "comparison",
+            fit: "direct",
           },
         ],
       },
@@ -1166,13 +1168,21 @@ describe("stored SEO workspace projections", () => {
       original,
     ];
     const { keywords } = projectSeoProjection(input);
+    // The reason of the estimate goes with it: the reader sees why the level is high.
     expect(
       keywords.find((row) => row.keyword === "estimated idea"),
-    ).toMatchObject({ conversion: "high", feature: "Low battery alerts" });
+    ).toMatchObject({
+      conversion: "high",
+      feature: "Low battery alerts",
+      intentClass: "comparison",
+      fit: "direct",
+    });
     // A row without an estimate says null, not "low".
     expect(keywords.find((row) => row.keyword === "gap term")).toMatchObject({
       conversion: null,
       feature: null,
+      intentClass: null,
+      fit: null,
     });
   });
   it("keeps keyword Markets and device rows distinct while preserving saved priorities", () => {

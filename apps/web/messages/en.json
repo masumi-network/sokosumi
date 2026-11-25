@@ -13361,6 +13361,17 @@
           },
           "note": "Chance to convert is the SEO check's own judgement, made from what people search for and what your page offers. It is not a measured conversion rate.",
           "checkedOn": "From the check on <date></date>",
+          "reason": "{intent}, {fit}",
+          "intent": {
+            "product": "Searches for a product",
+            "comparison": "Compares options",
+            "problem": "Has a problem to solve",
+            "learn": "Wants to learn"
+          },
+          "fit": {
+            "direct": "matches your offer",
+            "partial": "partly matches your offer"
+          },
           "high": "High",
           "medium": "Medium",
           "low": "Low"

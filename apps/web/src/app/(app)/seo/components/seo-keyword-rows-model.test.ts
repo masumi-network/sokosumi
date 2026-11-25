@@ -184,12 +184,21 @@ describe("SEO keyword rows", () => {
     });
     const [older] = keywordGroups([
       refresh,
-      row({ ...audit, conversion: "high", feature: "Alerts" }),
+      row({
+        ...audit,
+        conversion: "high",
+        feature: "Alerts",
+        intentClass: "comparison",
+        fit: "direct",
+      }),
     ]).checked;
+    // The reason comes from the check that gave the level, like the date.
     expect(older).toMatchObject({
       best: 4,
       conversion: "high",
       estimateAt: audit.observedAt,
+      intentClass: "comparison",
+      fit: "direct",
     });
     // The estimate of the check whose rank shows needs no date.
     const [same] = keywordGroups([

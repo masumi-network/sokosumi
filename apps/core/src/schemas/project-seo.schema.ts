@@ -23,6 +23,10 @@ export {
 
 import { seoActionSchema } from "./project-seo-action.schema";
 import {
+  seoConversionSchema,
+  seoKeywordEstimateFields,
+} from "./project-seo-keyword-estimate.schema";
+import {
   seoMonitorChangeSchema,
   seoMonitorLastRunSchema,
   seoMonitorRuleSchema,
@@ -365,9 +369,7 @@ export const seoFindingSchema = z
     observedAt: dateTimeSchema,
   })
   .openapi("ProjectSeoFinding");
-/** The SEO bot's estimate of how likely a searcher takes the page's action. It is not a measured rate. */
-export const seoConversionSchema = z.enum(["high", "medium", "low"]);
-export { seoEditorialKeywordSchema };
+export { seoConversionSchema, seoEditorialKeywordSchema };
 export const SEO_AUDIT_IDEA_LIMIT = 50;
 export const seoIdeaRankSchema = z
   .number()
@@ -404,9 +406,7 @@ export const seoKeywordSchema = z
       })
       .nullable(),
     intent: z.string().nullable(),
-    conversion: seoConversionSchema.nullable(),
-    /** The product feature the keyword is about, in the words of the check. */
-    feature: z.string().nullable(),
+    ...seoKeywordEstimateFields,
     device: z.union([seoDeviceSchema, z.null()]),
     position: z.number().nullable(),
     positionStatus: z.enum(["ranked", "not_in_range", "unavailable"]),

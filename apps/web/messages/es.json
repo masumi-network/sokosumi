@@ -13361,6 +13361,17 @@
           },
           "note": "La probabilidad de conversión es una valoración propia de la comprobación SEO, basada en lo que la gente busca y lo que ofrece tu página. No es una tasa de conversión medida.",
           "checkedOn": "De la comprobación del <date></date>",
+          "reason": "{intent}, {fit}",
+          "intent": {
+            "product": "Busca un producto",
+            "comparison": "Compara opciones",
+            "problem": "Quiere resolver un problema",
+            "learn": "Quiere aprender"
+          },
+          "fit": {
+            "direct": "coincide con tu oferta",
+            "partial": "coincide en parte con tu oferta"
+          },
           "high": "Alta",
           "medium": "Media",
           "low": "Baja"

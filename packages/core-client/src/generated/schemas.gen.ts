@@ -50097,6 +50097,30 @@ export const ProjectSeoKeywordSchema = {
                 'null'
             ]
         },
+        intentClass: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'product',
+                'comparison',
+                'problem',
+                'learn',
+                null
+            ]
+        },
+        fit: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'direct',
+                'partial',
+                null
+            ]
+        },
         device: {
             anyOf: [
                 {

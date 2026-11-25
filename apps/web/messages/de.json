@@ -13361,6 +13361,17 @@
           },
           "note": "Die Conversion-Chance ist die eigene Einschätzung der SEO-Prüfung, gebildet aus dem, wonach Menschen suchen, und dem, was deine Seite bietet. Sie ist keine gemessene Conversion-Rate.",
           "checkedOn": "Aus der Prüfung vom <date></date>",
+          "reason": "{intent}, {fit}",
+          "intent": {
+            "product": "Sucht ein Produkt",
+            "comparison": "Vergleicht Angebote",
+            "problem": "Will ein Problem lösen",
+            "learn": "Will etwas lernen"
+          },
+          "fit": {
+            "direct": "passt zu deinem Angebot",
+            "partial": "passt teilweise zu deinem Angebot"
+          },
           "high": "Hoch",
           "medium": "Mittel",
           "low": "Niedrig"
