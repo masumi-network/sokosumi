@@ -8,7 +8,7 @@ import {
   SPEED_HISTORY_STATUSES,
   SPEED_HISTORY_WEEKS,
   type SpeedHistory,
-  speedDay,
+  speedHistory,
   speedInsight,
   speedValue,
 } from "@/schemas/seo-page-speed.schema";
@@ -210,7 +210,8 @@ function provenAggregate(
 }
 
 const weeklyPoints = z
-  .array(z.object({ last: speedDay, p75: speedValue }))
+  // A calendar date: 2026-02-31 is none.
+  .array(z.object({ last: z.string().date(), p75: speedValue }))
   .min(1);
 
 /**
@@ -246,8 +247,10 @@ function readHistory(
     });
   const series = reportObject(history.series);
   const read: SpeedHistory = { status };
+  let given = false;
   for (const key of ["lcp", "inp", "cls"] as const) {
     const value = series?.[key];
+    given ||= Array.isArray(value) ? value.length > 0 : value != null;
     const points = weeklyPoints.safeParse(
       Array.isArray(value) ? value.slice(-SPEED_HISTORY_WEEKS) : null,
     );
@@ -265,7 +268,10 @@ function readHistory(
     if (weeks.join() === read.weeks.join())
       read[key] = points.data.map((point) => point.p75);
   }
-  return { history: read.weeks ? read : { status: "unavailable" } };
+  // The worker writes no series when the history read gave none: a bound history is then still comparable.
+  return {
+    history: read.weeks || (bound && !given) ? read : { status: "unavailable" },
+  };
 }
 
 export function readPageSpeed(
@@ -339,6 +345,22 @@ export function readPageSpeed(
     });
   }
   return rows;
+}
+
+/** Stored page speed rows before the schema reads them: a history Core cannot read goes, the measurement stays. */
+export function withReadableHistory(rows: unknown) {
+  if (!Array.isArray(rows)) return rows;
+  return rows.map((row) => {
+    const field = reportObject(reportObject(row)?.field);
+    if (
+      !field ||
+      field.history === undefined ||
+      speedHistory.safeParse(field.history).success
+    )
+      return row;
+    const { history: _history, ...measured } = field;
+    return { ...row, field: measured };
+  });
 }
 
 export function scopedPageSpeed(

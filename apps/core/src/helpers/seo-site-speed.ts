@@ -1,3 +1,4 @@
+import { containsSokoBotSensitiveMaterial } from "@sokosumi/soko-bot";
 import { publicExplorationText, publicExplorationUrl } from "@sokosumi/utils";
 import type { PageSpeedRows } from "@/schemas/seo-page-speed.schema";
 import {
@@ -8,15 +9,23 @@ import {
   SITE_SPEED_WHY_CHARS,
   type StoredSiteSpeed,
   siteSpeedCheck,
+  storedSiteSpeedRow,
 } from "@/schemas/seo-site-speed.schema";
 import { reportObject } from "./project-seo-public-report";
 import { auditedSeoPageKey } from "./project-seo-site-findings";
-import { publicLanding, readPageSpeed } from "./seo-page-speed";
+import {
+  publicLanding,
+  readPageSpeed,
+  withReadableHistory,
+} from "./seo-page-speed";
 
 function publicText(value: unknown, max: number) {
   if (typeof value !== "string") return undefined;
   const text = value.trim();
-  return text && text.length <= max && publicExplorationText(text)
+  return text &&
+    text.length <= max &&
+    publicExplorationText(text) &&
+    !containsSokoBotSensitiveMaterial(text)
     ? text
     : undefined;
 }
@@ -42,14 +51,20 @@ function readNotChecked(value: unknown): StoredSiteSpeed["notChecked"] {
   const raw = reportObject(value);
   if (!raw || !Number.isSafeInteger(raw.count) || Number(raw.count) < 0)
     return undefined;
-  const code = gapCode(raw.reason);
+  // A reason that is no string has no code: String() can throw on it.
+  const text = typeof raw.reason === "string" ? raw.reason : "";
+  const code = gapCode(text);
   return {
     count: Number(raw.count),
-    reason:
-      code === "other" && /limit|up to/i.test(String(raw.reason))
-        ? "limit"
-        : code,
+    reason: code === "other" && /limit|up to/i.test(text) ? "limit" : code,
   };
+}
+
+/** The worker can name the home page without its root slash. The page key has one. */
+function pageKey(value: unknown) {
+  if (typeof value !== "string") return undefined;
+  const href = URL.parse(value)?.href;
+  return href === value + "/" ? href : value;
 }
 
 /**
@@ -76,12 +91,13 @@ export function readSiteSpeed(
   const rows: StoredSiteSpeed["rows"] = [];
   for (const item of speed.pages.slice(0, SITE_SPEED_ROWS)) {
     const row = reportObject(item);
-    const url = row?.url;
+    const url = pageKey(row?.url);
     // A public exploration URL has no hash, so it is its own page key.
     if (
       !row ||
-      typeof url !== "string" ||
+      !url ||
       !publicExplorationUrl(url) ||
+      containsSokoBotSensitiveMaterial(url) ||
       seen.has(url) ||
       (!audited.has(url) && !publicLanding(start, url))
     )
@@ -93,7 +109,15 @@ export function readSiteSpeed(
     const why = publicText(row.why, SITE_SPEED_WHY_CHARS);
     const check = tier === "reduced" ? readCheck(row.check) : undefined;
     try {
-      rows.push({
+      // The worker fills the other device of a reduced test with a placeholder: only the tested device is a result.
+      const devices =
+        audited.has(url) || tier === "none"
+          ? []
+          : readPageSpeed(row.speed, url).filter(
+              (item) => tier !== "reduced" || item.device === check?.device,
+            );
+      // One row the stored table cannot hold must not cost the other rows.
+      const stored = storedSiteSpeedRow.safeParse({
         url,
         audited: audited.has(url),
         ...(group && /^\/[^\s?#]*$/.test(group) && { group }),
@@ -101,11 +125,9 @@ export function readSiteSpeed(
         ...(why && { why }),
         ...(tier && { tier }),
         ...(check && { check }),
-        devices:
-          audited.has(url) || tier === "none"
-            ? []
-            : readPageSpeed(row.speed, url),
+        devices,
       });
+      if (stored.success) rows.push(stored.data);
     } catch {
       // An unreadable speed section drops its row.
     }
@@ -114,6 +136,19 @@ export function readSiteSpeed(
     rows,
     dropped: speed.pages.length - rows.length,
     notChecked: readNotChecked(speed.notChecked),
+  };
+}
+
+/** A stored table before the schema reads it: see withReadableHistory. */
+export function withReadableTableHistory(value: unknown) {
+  const table = reportObject(value);
+  if (!table || !Array.isArray(table.rows)) return value;
+  return {
+    ...table,
+    rows: table.rows.map((item) => {
+      const row = reportObject(item);
+      return row ? { ...row, devices: withReadableHistory(row.devices) } : item;
+    }),
   };
 }
 
@@ -133,18 +168,24 @@ export function scopedSiteSpeed(
   )
     return null;
   const speed = data.pageSpeed ?? [];
-  const on = (key: "pageUrl" | "testedUrl", url: string) =>
-    speed.filter((item) => auditedSeoPageKey(item[key]) === url);
   return {
     ...data.siteSpeed,
     observationId: row.id,
     observedAt: row.observedAt.toISOString(),
     rows: data.siteSpeed.rows.map((item) => {
       if (!item.audited) return item;
-      const own = on("pageUrl", item.url);
+      // One measurement per device: the page's own, else the one of a page that redirects to it.
       return {
         ...item,
-        devices: (own.length ? own : on("testedUrl", item.url)).slice(0, 2),
+        devices: (["mobile", "desktop"] as const).flatMap((device) => {
+          const on = (key: "pageUrl" | "testedUrl") =>
+            speed.find(
+              (row) =>
+                row.device === device &&
+                auditedSeoPageKey(row[key]) === item.url,
+            );
+          return on("pageUrl") ?? on("testedUrl") ?? [];
+        }),
       };
     }),
   };

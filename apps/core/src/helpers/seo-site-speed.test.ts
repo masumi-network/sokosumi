@@ -6,6 +6,8 @@ import {
 } from "./project-seo-report";
 import { readSiteSpeed, scopedSiteSpeed } from "./seo-site-speed";
 
+const SECRET = ["sk", "live", "51QX9J5eXampleSecretValue123456"].join("_");
+
 const EXTRA = "https://example.test/pricing";
 const median = { lcp: 2400, fcp: 1200, cls: 0, si: 3600, tbt: 180 };
 const lab = (url: string, device: string) => ({
@@ -195,6 +197,64 @@ describe("a site Report's speed table", () => {
     ]);
     expect(reason("time limit", -1)).toBeUndefined();
     expect(reason("time limit", "4")).toBeUndefined();
+    // The worker's fixed sentence for its cap on pages.
+    expect(
+      reason("The speed check has a limit of 30 pages for each audit."),
+    ).toBe("limit");
+  });
+
+  it("reads a reason that is no string as the other code and keeps the table", () => {
+    const table = read([extra(EXTRA)], {
+      notChecked: { count: 4, reason: { toString: null }, pages: [] },
+    });
+    expect(table?.notChecked).toEqual({ count: 4, reason: "other" });
+    expect(table?.rows).toHaveLength(1);
+  });
+
+  it("keeps one device on a reduced row: the worker's placeholder for the other device is no result", () => {
+    const none = { none: "reduced check: measured on mobile only" };
+    const speed = { ...section(EXTRA), desktop: { lab: none, field: none } };
+    const devices = (tier: string) =>
+      read([extra(EXTRA, { tier, check, speed })])?.rows[0]?.devices.map(
+        (item) => item.device,
+      );
+    expect(devices("reduced")).toEqual(["mobile"]);
+    expect(devices("full")).toEqual(["mobile", "desktop"]);
+  });
+
+  it("drops only the row with a URL the stored table cannot hold", () => {
+    const table = read([
+      extra(`https://example.test/${"z".repeat(4100)}`, { speed: null }),
+      extra(EXTRA),
+    ]);
+    expect(table?.rows.map((row) => row.url)).toEqual([EXTRA]);
+    expect(table?.dropped).toBe(1);
+  });
+
+  it("reads a home page without its root slash as the home page", () => {
+    const home = "https://example.test";
+    expect(read([extra(home, { speed: null })])?.rows).toMatchObject([
+      { url: home + "/", audited: false },
+    ]);
+    expect(
+      readSiteSpeed(site([extra(home), extra(home + "/")]), [home + "/"], []),
+    ).toMatchObject({
+      rows: [{ url: home + "/", audited: true }],
+      dropped: 1,
+    });
+  });
+
+  it("drops credential material: the text of a row, or the row when its URL holds it", () => {
+    const table = read([
+      extra(EXTRA, {
+        why: `Use API credential ${SECRET}`,
+        group: `/${SECRET}`,
+      }),
+      extra(`https://example.test/${SECRET}`, { speed: null }),
+    ]);
+    expect(table?.rows.map((row) => row.url)).toEqual([EXTRA]);
+    expect(table?.dropped).toBe(1);
+    expect(JSON.stringify(table)).not.toContain(SECRET);
   });
 
   it("caps the table at 40 pages and keeps a repeated page once", () => {
@@ -248,6 +308,44 @@ describe("the speed table in a workspace view", () => {
     });
     expect(table?.rows[0]?.devices).toEqual(stored.pageSpeed);
     expect(table?.rows[1]?.devices).toHaveLength(2);
+  });
+
+  it("gives an audited page one measurement per device and prefers the page's own", () => {
+    const other = "https://example.test/other";
+    const speed = (pageUrl: string, device: "mobile" | "desktop") => ({
+      pageUrl,
+      testedUrl: EXTRA,
+      device,
+      lab: { status: "unavailable" as const },
+      field: { status: "no_data" as const },
+    });
+    const devices = (pageSpeed: ReturnType<typeof speed>[]) =>
+      scopedSiteSpeed(
+        {
+          siteSpeed: {
+            rows: [{ url: EXTRA, audited: true, devices: [] }],
+            dropped: 0,
+          },
+          pageSpeed,
+          pageUrls: [SEO_TEST_PAGE],
+        },
+        row,
+        new Set([SEO_TEST_PAGE]),
+      )?.rows[0]?.devices.map((item) => [item.pageUrl, item.device]);
+    // Two pages redirect to this page on mobile.
+    expect(
+      devices([speed(SEO_TEST_PAGE, "mobile"), speed(other, "mobile")]),
+    ).toEqual([[SEO_TEST_PAGE, "mobile"]]);
+    expect(
+      devices([
+        speed(other, "mobile"),
+        speed(other, "desktop"),
+        speed(EXTRA, "mobile"),
+      ]),
+    ).toEqual([
+      [EXTRA, "mobile"],
+      [other, "desktop"],
+    ]);
   });
 
   it("gives no table to a view that lacks an audited page", () => {

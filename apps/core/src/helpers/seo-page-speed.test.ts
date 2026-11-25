@@ -406,4 +406,68 @@ describe("CrUX History on a measured field", () => {
       ),
     ).toEqual({ status: "unavailable" });
   });
+
+  it("keeps the status of a bound, comparable history that has no series", () => {
+    expect(historyOf({ status: "comparable" }, bound)).toEqual({
+      status: "comparable",
+    });
+    expect(historyOf({ status: "comparable" }, [ref("record")])).toEqual({
+      status: "unavailable",
+    });
+  });
+
+  it("refuses a week that is no calendar date", () => {
+    expect(
+      historyOf(
+        {
+          status: "comparable",
+          series: { lcp: [{ last: "2026-02-31", p75: 1300 }] },
+        },
+        bound,
+      ),
+    ).toEqual({ status: "unavailable" });
+  });
+
+  it("drops a stored history it cannot read and keeps the measurement and the audit", () => {
+    const stored = JSON.parse(
+      JSON.stringify(
+        parsePublicSeoArtifact({
+          ...legacyReport(),
+          speed: {
+            mobile: {
+              field: {
+                level: "url",
+                url: SEO_TEST_PAGE,
+                period: null,
+                p75: { lcp: 1300, inp: 60, cls: 0, ttfb: null, fcp: null },
+                history: {
+                  status: "comparable",
+                  sourceRecord: historyRecord,
+                  series,
+                },
+                sourceRefs: bound,
+              },
+            },
+          },
+        }),
+      ),
+    );
+    expect(stored.pageSpeed[0].field.history.weeks).toEqual(three);
+    stored.pageSpeed[0].field.history.weeks = ["2026-1-4"];
+    stored.siteSpeed = {
+      rows: [
+        { url: SEO_TEST_PAGE, audited: false, devices: [stored.pageSpeed[0]] },
+      ],
+      dropped: 0,
+    };
+    const read = publicSeoPayloadSchema.safeParse(stored);
+    expect(read.success).toBe(true);
+    for (const field of [
+      read.data?.pageSpeed?.[0]?.field,
+      read.data?.siteSpeed?.rows[0]?.devices[0]?.field,
+    ]) {
+      expect(field).toMatchObject({ status: "measured", p75: { lcp: 1300 } });
+      expect(field).not.toHaveProperty("history");
+    }
+  });
 });

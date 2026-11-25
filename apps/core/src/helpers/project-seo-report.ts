@@ -60,7 +60,7 @@ import {
   seoTopicLaunch,
 } from "./seo-content-history";
 import { readPageMarketEvidence } from "./seo-page-market-evidence";
-import { readPageSpeed } from "./seo-page-speed";
+import { readPageSpeed, withReadableHistory } from "./seo-page-speed";
 import { publicSitemapList, workerSitemaps } from "./seo-public-sitemaps";
 import {
   readReviewSources,
@@ -70,7 +70,7 @@ import {
   pageResearchCoverage,
   siteResearchCoverage,
 } from "./seo-research-coverage";
-import { readSiteSpeed } from "./seo-site-speed";
+import { readSiteSpeed, withReadableTableHistory } from "./seo-site-speed";
 
 const text = z.string().max(20_000);
 const nullableNumber = z.number().finite().nullable();
@@ -134,9 +134,12 @@ const publicSeoPayload = z.object({
   researchCoverage: z.array(seoResearchCoverage).max(11).optional(),
   pageMarketEvidence: seoPageMarketEvidence.optional(),
   publicSitemaps: publicSitemapList.optional().catch(undefined),
-  pageSpeed: seoPageSpeed.optional(),
+  pageSpeed: z.preprocess(withReadableHistory, seoPageSpeed.optional()),
   /** A site audit's speed table. One unreadable stored value drops the table, not the audit. */
-  siteSpeed: storedSiteSpeed.optional().catch(undefined),
+  siteSpeed: z.preprocess(
+    withReadableTableHistory,
+    storedSiteSpeed.optional().catch(undefined),
+  ),
   checks: storedSeoChecklist,
   keywords: z.array(keyword).max(5000),
   competitors: z.array(competitor).max(1000),

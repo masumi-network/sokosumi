@@ -40,7 +40,7 @@ export const siteSpeedCheck = z.object({
   notChecked: z.enum(SITE_SPEED_GAPS).nullable(),
 });
 
-const row = z.object({
+export const storedSiteSpeedRow = z.object({
   url: seoUrlSchema,
   /** Core's own match of the URL against the audit's pages, never the worker's page number. */
   audited: z.boolean(),
@@ -56,7 +56,7 @@ const row = z.object({
   devices: z.array(seoPageSpeedRow).max(2),
 });
 export const storedSiteSpeed = z.object({
-  rows: z.array(row).max(SITE_SPEED_ROWS),
+  rows: z.array(storedSiteSpeedRow).max(SITE_SPEED_ROWS),
   /** Rows of the Report that Core left out: a foreign host, an unsafe URL, a repeated page or one past the cap. */
   dropped: z.number().int().nonnegative(),
   /** Pages the audit planned and did not test. `limit`: the audit's cap on pages. */
