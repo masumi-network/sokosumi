@@ -210,6 +210,26 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
   workspaces_calendar_sources: {},
   workspaces_social_posts: {},
   workspaces_social_statistics: { id: "ws-1" },
+  // SOKD-370: jobs, agents and account reads.
+  jobs_update: { id: "job-1", body: { name: "Launch brief" } },
+  jobs_move: { id: "job-1", body: { organizationId: null } },
+  jobs_unshare: { id: "job-1" },
+  agents_get: { id: "agent-1" },
+  agents_jobs: { id: "agent-1", scope: "workspace" },
+  agents_reviews: { id: "agent-1", limit: 5 },
+  agents_my_review: { id: "agent-1" },
+  agents_rating_eligibility: { id: "agent-1" },
+  categories_list: {},
+  history_list: { workspace: "acme", types: ["job"] },
+  transactions_list: { workspace: "acme", taskId: "task-1" },
+  transactions_daily: { from: "2026-11-01", to: "2026-11-24" },
+  transactions_total: { taskId: "task-1" },
+  notifications_list: { isRead: "false" },
+  notifications_counts: {},
+  notifications_read: { id: "notification-1" },
+  notifications_unread: { id: "notification-1" },
+  notifications_read_many: { body: { ids: ["notification-1"] } },
+  notifications_read_all: {},
 };
 
 const CORE = "https://core.example.test";

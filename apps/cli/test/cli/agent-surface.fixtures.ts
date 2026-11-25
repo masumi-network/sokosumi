@@ -199,6 +199,19 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   "GET /agents": { argv: [...API, "agents", "list", "--json"] },
   "GET /agents/{id}/input-schema": AGENTS_HIRE,
   "POST /agents/{id}/jobs": AGENTS_HIRE,
+  "GET /agents/{id}": { argv: [...API, "agents", "get", "agent-1"] },
+  "GET /agents/{id}/jobs": {
+    argv: [...API, "agents", "jobs", "agent-1", "--query", "scope=workspace"],
+  },
+  "GET /agents/{id}/reviews": {
+    argv: [...API, "agents", "reviews", "agent-1", "--query", "limit=5"],
+  },
+  "GET /agents/{id}/reviews/me": {
+    argv: [...API, "agents", "my-review", "agent-1"],
+  },
+  "GET /agents/{id}/ratings/eligibility": {
+    argv: [...API, "agents", "rating-eligibility", "agent-1"],
+  },
   "GET /users/{id}": { argv: [...API, "auth", "whoami", "--json"] },
   "GET /coworkers": { argv: [...API, "coworkers", "list", "--json"] },
   "GET /coworkers/me": { argv: [...API, "coworkers", "me", "--json"] },
@@ -264,6 +277,27 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   "GET /jobs/{id}/events": { argv: [...API, "jobs", "events", "job-1"] },
   "GET /jobs/{id}/files": { argv: [...API, "jobs", "files", "job-1"] },
   "GET /jobs/{id}/links": { argv: [...API, "jobs", "links", "job-1"] },
+  "PATCH /jobs/{id}": {
+    argv: [
+      ...API,
+      "jobs",
+      "update",
+      "job-1",
+      "--input-json",
+      '{"name":"Brief"}',
+    ],
+  },
+  "PUT /jobs/{id}/workspace": {
+    argv: [
+      ...API,
+      "jobs",
+      "move",
+      "job-1",
+      "--input-json",
+      '{"organizationId":null}',
+    ],
+  },
+  "DELETE /jobs/{id}/share": { argv: [...API, "jobs", "unshare", "job-1"] },
   "GET /tasks/{id}/receipt": {
     argv: [
       "runtime",
@@ -746,5 +780,49 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       "--input-json",
       '{"filename":"brief.pdf","contentType":"application/pdf","size":2048}',
     ],
+  },
+  // SOKD-370: categories, history, transactions and notifications.
+  "GET /categories": { argv: [...API, "categories", "list"] },
+  "GET /history": {
+    argv: [...API, "history", "list", "--query", "types=job"],
+  },
+  "GET /transactions": {
+    argv: [...API, "transactions", "list", "--organization-slug", "acme"],
+  },
+  "GET /transactions/daily": {
+    argv: [
+      ...API,
+      "transactions",
+      "daily",
+      "--query",
+      "from=2026-11-01",
+      "--query",
+      "to=2026-11-24",
+    ],
+  },
+  "GET /transactions/total": {
+    argv: [...API, "transactions", "total", "--query", "taskId=task-1"],
+  },
+  "GET /notifications": {
+    argv: [...API, "notifications", "list", "--query", "isRead=false"],
+  },
+  "GET /notifications/counts": { argv: [...API, "notifications", "counts"] },
+  "PATCH /notifications/{id}/read": {
+    argv: [...API, "notifications", "read", "n-1"],
+  },
+  "PATCH /notifications/{id}/unread": {
+    argv: [...API, "notifications", "unread", "n-1"],
+  },
+  "PATCH /notifications/read": {
+    argv: [
+      ...API,
+      "notifications",
+      "read-many",
+      "--input-json",
+      '{"ids":["n-1"]}',
+    ],
+  },
+  "PATCH /notifications/read-all": {
+    argv: [...API, "notifications", "read-all"],
   },
 };
