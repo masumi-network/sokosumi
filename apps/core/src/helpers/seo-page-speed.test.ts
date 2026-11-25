@@ -286,6 +286,45 @@ describe("imported full-audit PageSpeed evidence", () => {
     });
   });
 
+  it("reads a Lighthouse version that is not plain as null and keeps the measurement, fresh and stored", () => {
+    const leak = "13.6.0-sk-live-abcdef123456";
+    const versions = [
+      ["13.6.0", "13.6.0"],
+      ["12.0.0-beta.1", "12.0.0-beta.1"],
+      [leak, null],
+      ["1.0-AKIAIOSFODNN7EXAMPLE", null],
+      ["v13.6.0", null],
+      [`13.${"1".repeat(40)}`, null],
+    ] as const;
+    for (const [version, expected] of versions) {
+      const speed = readings(SEO_TEST_PAGE);
+      const fresh = readPageSpeed(
+        {
+          mobile: {
+            ...speed.mobile,
+            lab: { ...speed.mobile.lab, lighthouse: version },
+          },
+        },
+        SEO_TEST_PAGE,
+      );
+      expect(fresh[0]?.lab).toMatchObject({
+        status: "measured",
+        median,
+        lighthouse: expected,
+      });
+      const result = parsePublicSeoArtifact({ ...legacyReport(), speed });
+      const stored = JSON.parse(JSON.stringify(result));
+      stored.pageSpeed[0].lab.lighthouse = version;
+      expect(
+        publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.lab,
+      ).toMatchObject({
+        status: "measured",
+        median,
+        lighthouse: expected,
+      });
+    }
+  });
+
   it("stores the checked form of a field URL and reads a stored spelling with another host case", () => {
     const books = "https://example.test/books";
     const spelled = "https://EXAMPLE.test/books";

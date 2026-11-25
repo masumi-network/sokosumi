@@ -20,6 +20,7 @@ import {
   SPEED_DEVICES,
   type SpeedDevice,
   speedFieldUrl,
+  speedLighthouseVersion,
   speedPageUrl,
 } from "./seo-speed-guards";
 
@@ -51,12 +52,7 @@ const labResult = z
     median: labTimings,
     runs: z.number().int().positive(),
     ok: z.number().int().positive(),
-    lighthouse: z
-      .string()
-      .regex(/^[\d.]+(?:[-+][a-zA-Z0-9.-]+)?$/)
-      .max(32)
-      .nullable()
-      .catch(null),
+    lighthouse: z.unknown().transform(speedLighthouseVersion),
   })
   .refine((row) => row.ok <= row.runs);
 function gap(raw: unknown, isField: boolean) {
@@ -366,7 +362,7 @@ export function readPageSpeed(
 /**
  * One stored measurement before the schema reads it, with the guards of a fresh import. None: a URL is not
  * public. The field URL gets the form a fresh import stores. A history Core cannot read and a lab insight
- * with text that is not public go, the measurement stays.
+ * with text that is not public go, a Lighthouse version that is not plain is null; the measurement stays.
  */
 export function readableStoredMeasurement(value: unknown): unknown[] {
   const row = reportObject(value);
@@ -391,13 +387,19 @@ export function readableStoredMeasurement(value: unknown): unknown[] {
   }
   const lab = reportObject(row.lab);
   const details = reportObject(lab?.pageSpeed);
-  if (lab && details && Array.isArray(details.insights))
+  if (lab)
     read.lab = {
       ...lab,
-      pageSpeed: {
-        ...details,
-        insights: details.insights.filter(publicSpeedInsight),
-      },
+      ...("lighthouse" in lab && {
+        lighthouse: speedLighthouseVersion(lab.lighthouse),
+      }),
+      ...(details &&
+        Array.isArray(details.insights) && {
+          pageSpeed: {
+            ...details,
+            insights: details.insights.filter(publicSpeedInsight),
+          },
+        }),
     };
   return [read];
 }

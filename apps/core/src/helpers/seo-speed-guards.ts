@@ -66,6 +66,19 @@ export function speedFieldUrl(value: unknown) {
     : undefined;
 }
 
+/**
+ * The Lighthouse version of a lab measurement: digits and dots, with an optional short pre-release suffix,
+ * and no credential material. Null: any other value. The measurement stays.
+ */
+export function speedLighthouseVersion(value: unknown) {
+  return typeof value === "string" &&
+    value.length <= 32 &&
+    /^\d[\d.]*(?:-[a-zA-Z0-9.-]+)?$/.test(value) &&
+    !containsSokoBotCredentialMaterial(value)
+    ? value
+    : null;
+}
+
 /** Public text without private or credential material, as written and percent-decoded. */
 function publicInsightText(text: unknown) {
   if (typeof text !== "string") return false;
