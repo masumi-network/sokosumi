@@ -58,9 +58,9 @@ export interface CmoTurn {
 
 /** Bytes the picked part may add on top of the core, by kind. */
 const PICK_BUDGET_BYTES: Record<CmoTurnKind, number> = {
-  production: 16 * 1_024,
+  production: 20 * 1_024,
   strategy: 0,
-  daily: 12 * 1_024,
+  daily: 16 * 1_024,
   weekly: 12 * 1_024,
   brand: 20 * 1_024,
   competitors: 10 * 1_024,
@@ -533,11 +533,13 @@ export function cmoRulePicks(
   const ids = (() => {
     switch (kind) {
       case "production":
+        // The site's pages before the industry: articles and page fixes
+        // are written from them, and both shrink to fit.
         return [
           "brand:essentials",
           "brand:look",
-          "industryResearch",
           "sitePages",
+          "industryResearch",
         ];
       case "daily":
         // The week last: its lines are by date, so a cut keeps the next days.
@@ -579,6 +581,97 @@ export function cmoRulePicks(
     }
   })();
   return ids.filter((id): id is string => Boolean(id) && has(id as string));
+}
+
+const MONTHS = [
+  "jan",
+  "feb",
+  "mar",
+  "apr",
+  "may",
+  "jun",
+  "jul",
+  "aug",
+  "sep",
+  "oct",
+  "nov",
+  "dec",
+] as const;
+const WEEKDAYS = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+] as const;
+
+/**
+ * The days a message names, as YYYY-MM-DD: ISO dates, "14 Dec" or
+ * "December 14" (the next such day from today), "tomorrow", and a weekday
+ * (its next one, today included).
+ */
+export function cmoNamedDays(message: string, now: Date): string[] {
+  const text = message.toLowerCase();
+  const today = new Date(`${day(now, 0)}T00:00:00Z`);
+  const next = (month: number, date: number): string | null => {
+    if (date < 1 || date > 31) return null;
+    const year = today.getUTCFullYear();
+    for (const candidate of [year, year + 1]) {
+      const at = new Date(Date.UTC(candidate, month, date));
+      if (at.getUTCMonth() !== month) return null;
+      if (at.getTime() >= today.getTime() - 7 * DAY_MS)
+        return at.toISOString().slice(0, 10);
+    }
+    return null;
+  };
+  const days = new Set<string>();
+  for (const match of text.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/g))
+    days.add(`${match[1]}-${match[2]}-${match[3]}`);
+  const month = "(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\.?";
+  for (const match of text.matchAll(
+    new RegExp(`\\b${month}\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b`, "g"),
+  )) {
+    const found = next(MONTHS.indexOf(match[1] as never), Number(match[2]));
+    if (found) days.add(found);
+  }
+  for (const match of text.matchAll(
+    new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?${month}`, "g"),
+  )) {
+    const found = next(MONTHS.indexOf(match[2] as never), Number(match[1]));
+    if (found) days.add(found);
+  }
+  if (/\btomorrow\b/.test(text)) days.add(day(now, 1));
+  WEEKDAYS.forEach((name, weekday) => {
+    if (!new RegExp(`\\b${name}`).test(text)) return;
+    const ahead = (weekday - today.getUTCDay() + 7) % 7;
+    days.add(day(now, ahead));
+  });
+  return [...days].sort();
+}
+
+/** The calendar items that hold the days a message names. */
+export function cmoNamedDayPicks(
+  message: string,
+  items: readonly CmoContextItem[],
+  now: Date,
+): string[] {
+  return [
+    ...new Set(
+      cmoNamedDays(message, now).flatMap((named) =>
+        items
+          .filter((item) => {
+            const range =
+              /^calendar:(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/.exec(
+                item.id,
+              );
+            return range && named >= range[1]! && named <= range[2]!;
+          })
+          .map((item) => item.id),
+      ),
+    ),
+  ];
 }
 
 /** What a chat or event turn gets when Jev could not answer. */
@@ -720,6 +813,12 @@ export async function organizeCmoContext(input: {
     items,
     now,
   ).map((id) => ({ id, why: "rule" }));
+  // A day the message names is a lookup, not a judgement: its calendar week
+  // comes along whatever Jev says. Jev once missed "the week of December 14".
+  if (kind === "chat" || kind === "event")
+    for (const id of cmoNamedDayPicks(turn.message, items, now))
+      if (!wanted.some((pick) => pick.id === id))
+        wanted.push({ id, why: "named day" });
   let jev: CmoContextLog["jev"] = null;
   if (JEV_KINDS.has(kind) && turn.message.trim()) {
     const candidates = items.filter(

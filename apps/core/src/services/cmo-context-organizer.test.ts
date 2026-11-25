@@ -19,6 +19,7 @@ import type { CmoContextSources } from "@/services/cmo-context.service";
 import {
   type CmoContextLog,
   type CmoContextPicker,
+  cmoNamedDays,
   cmoTurnKind,
   organizeCmoContext,
 } from "./cmo-context-organizer";
@@ -411,5 +412,58 @@ describe("organizeCmoContext", () => {
       });
       expect(bytes(context)).toBeLessThan(36 * 1_024);
     }
+  });
+});
+
+describe("cmoNamedDays", () => {
+  // Tuesday 1 Dec 2026.
+  it("reads the days a message names", () => {
+    expect(cmoNamedDays("What goes out the week of December 14?", NOW)).toEqual(
+      ["2026-12-14"],
+    );
+    expect(cmoNamedDays("Move the 3rd of January post", NOW)).toEqual([
+      "2027-01-03",
+    ]);
+    expect(cmoNamedDays("Change Saturday's 09:00 X post", NOW)).toEqual([
+      "2026-12-05",
+    ]);
+    expect(cmoNamedDays("and tomorrow, 2026-12-20 too", NOW)).toEqual([
+      "2026-12-02",
+      "2026-12-20",
+    ]);
+    expect(cmoNamedDays("May I ask how the week went?", NOW)).toEqual([]);
+  });
+});
+
+describe("organizeCmoContext on a named day", () => {
+  it("brings the week of a day the message names, whatever Jev says", async () => {
+    const context = await organizeCmoContext({
+      sources: sources(),
+      turn: chat("What are we posting on LinkedIn the week of December 14?"),
+      now: NOW,
+      picker: async () => new Map(),
+    });
+    expect(logOf(context).picked.map((pick) => [pick.id, pick.why])).toEqual([
+      ["calendar:2026-12-08..2026-12-14", "named day"],
+    ]);
+  });
+
+  it("gives a production run the site's pages before the industry", async () => {
+    const context = await organizeCmoContext({
+      sources: sources(),
+      turn: {
+        source: "EVENT",
+        clientTurnId: "cmo:production:bot:1:0",
+        message: "Background run",
+      },
+      now: NOW,
+    });
+    const ids = logOf(context).picked.map((pick) => pick.id);
+    expect(ids.slice(0, 3)).toEqual([
+      "brand:essentials",
+      "brand:look",
+      "sitePages",
+    ]);
+    expect(logOf(context).pickedBytes).toBeLessThanOrEqual(20 * 1_024);
   });
 });
