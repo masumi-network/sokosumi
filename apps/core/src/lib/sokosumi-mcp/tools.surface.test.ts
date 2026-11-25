@@ -207,6 +207,46 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
     },
   },
   projects_image_studio_cancel: { id: "p-1", jobId: "job-1" },
+  // SOKD-394: edits that spend nothing.
+  projects_ads_market_update: {
+    id: "p-1",
+    body: { keywords: ["lamp"], countryCode: "DE", languageCode: "de" },
+  },
+  projects_image_studio_brand_kit_update: {
+    id: "p-1",
+    body: {
+      copy: { summary: "Lamps", tone: "Calm", audience: [], approvedLines: [] },
+      version: null,
+    },
+  },
+  projects_image_studio_brand_look_update: {
+    id: "p-1",
+    body: { look: null, lookRevision: 0 },
+  },
+  projects_image_studio_website_research: { id: "p-1" },
+  projects_image_studio_website_logo: { id: "p-1" },
+  projects_image_studio_products_update: {
+    id: "p-1",
+    body: { products: [], revision: 0 },
+  },
+  projects_image_studio_products_import: {
+    id: "p-1",
+    body: { url: "https://example.com" },
+  },
+  projects_image_studio_product_photo: {
+    id: "p-1",
+    body: { name: "Lamp", imageUrl: "https://example.com/lamp.png" },
+  },
+  projects_image_studio_talking_video_scripts: {
+    id: "p-1",
+    body: { topic: "Spring sale" },
+  },
+  projects_image_studio_asset_headline: {
+    id: "p-1",
+    assetId: "a-1",
+    body: { text: "Hello" },
+  },
+  projects_image_studio_asset_caption: { id: "p-1", assetId: "a-1" },
   projects_image_studio_batch: { id: "p-1", batchId: "b-1" },
   projects_image_studio_compare: { id: "p-1", batchId: "b-1" },
   projects_image_studio_scoreboard: { id: "p-1" },

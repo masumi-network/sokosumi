@@ -90,7 +90,8 @@ function annotations({
     destructiveHint:
       spendsCredits || (destructive ?? input.method === "DELETE"),
     idempotentHint: input.method === "PUT" || input.method === "DELETE",
-    // Credits pay an outside agent; ad tools act on Google or Meta.
+    // Credits pay an outside agent; ad tools act on Google or Meta; some
+    // Image Studio tools fetch a public website.
     openWorldHint: spendsCredits || openWorld,
   };
 }

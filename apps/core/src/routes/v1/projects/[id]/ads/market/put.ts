@@ -5,7 +5,7 @@ import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   putAdMarketProfileRequestSchema,
@@ -21,7 +21,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "put",
     path: "/{id}/ads/market",
     description:
-      "Save a Project's ads market profile, replacing the previous one. Needs an open Project (409 otherwise). Requires an interactive user session in the Project's Workspace.",
+      "Save a Project's ads market profile, replacing the previous one. Needs an open Project (409 otherwise). A person or their agent (API key, OAuth or MCP token) in the Project's Workspace; it spends nothing.",
     tags: ["Projects"],
     request: {
       params: projectSocialConnectionProjectParamsSchema,
@@ -49,7 +49,7 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    requireInteractiveUserAuthContext(c.var.authContext);
+    requireUserAuthContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
     const { keywords, countryCode, languageCode } = c.req.valid("json");

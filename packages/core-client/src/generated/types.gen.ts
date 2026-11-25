@@ -80112,6 +80112,21 @@ export type PostProjectsByIdImageStudioTalkingVideoScriptsErrors = {
         };
     };
     /**
+     * An agent reached its hourly limit
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Service Unavailable
      */
     503: {
@@ -81069,6 +81084,21 @@ export type PostProjectsByIdImageStudioAssetsByAssetIdCaptionErrors = {
      * CMO project is read-only
      */
     409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * An agent reached its hourly limit
+     */
+    429: {
         error: string;
         message: string;
         kind?: string;

@@ -103,17 +103,17 @@
     "GET /projects/{id}/ads/market/keywords": {
       "cli": false,
       "mcp": false,
-      "reason": "Buys DataForSEO data on a cache miss; human-only pending ADR 0077's follow-up tickets."
+      "reason": "Buys DataForSEO data on a cache miss, so a person runs it in Sokosumi (ADR 0077)."
     },
     "GET /projects/{id}/ads/market/ads": {
       "cli": false,
       "mcp": false,
-      "reason": "Buys DataForSEO data on a cache miss; human-only pending ADR 0077's follow-up tickets."
+      "reason": "Buys DataForSEO data on a cache miss, so a person runs it in Sokosumi (ADR 0077)."
     },
     "GET /projects/{id}/image-studio/assets/{assetId}/social-media": {
       "cli": false,
       "mcp": false,
-      "reason": "Copies a private image to a permanent public URL; human-only pending ADR 0077's follow-up tickets."
+      "reason": "Copies a private image to a permanent public URL, so a person shares it (ADR 0077)."
     },
     "GET /projects/{id}/image-studio/assets/{assetId}/content": {
       "cli": false,
@@ -163,58 +163,50 @@
       "mcp": "projects_ads_campaign_update"
     },
     "PUT /projects/{id}/ads/market": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "cli": "projects ads-market-update",
+      "mcp": "projects_ads_market_update"
     },
     "PUT /projects/{id}/image-studio/batches/{batchId}/compare": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "reason": "Feeds the model scoreboard as the person's own signal (ADR 0077)."
     },
     "PUT /projects/{id}/image-studio/brand-kit": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "cli": "projects image-studio-brand-kit-update",
+      "mcp": "projects_image_studio_brand_kit_update"
     },
     "POST /projects/{id}/image-studio/website-draft": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "cli": "projects image-studio-website-research",
+      "mcp": "projects_image_studio_website_research"
     },
     "PUT /projects/{id}/image-studio/brand-kit/look": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "cli": "projects image-studio-brand-look-update",
+      "mcp": "projects_image_studio_brand_look_update"
     },
     "POST /projects/{id}/image-studio/brand-kit/logo": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "reason": "Binary or multipart upload: the CLI and MCP send JSON. An API key can POST it directly; image-studio-website-logo stages the site's logo instead."
     },
     "POST /projects/{id}/image-studio/brand-kit/logo/website": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "cli": "projects image-studio-website-logo",
+      "mcp": "projects_image_studio_website_logo"
     },
     "POST /projects/{id}/image-studio/jobs": {
       "cli": "projects image-studio-generate",
       "mcp": "projects_image_studio_generate"
     },
     "PUT /projects/{id}/image-studio/products": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "cli": "projects image-studio-products-update",
+      "mcp": "projects_image_studio_products_update"
     },
     "POST /projects/{id}/image-studio/products/import": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "cli": "projects image-studio-products-import",
+      "mcp": "projects_image_studio_products_import"
     },
     "POST /projects/{id}/image-studio/products/photo": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "cli": "projects image-studio-product-photo",
+      "mcp": "projects_image_studio_product_photo"
     },
     "POST /projects/{id}/image-studio/video-jobs": {
       "cli": "projects image-studio-video",
@@ -229,9 +221,8 @@
       "mcp": "projects_image_studio_short_video"
     },
     "POST /projects/{id}/image-studio/talking-video-scripts": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Spends no credits; human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "cli": "projects image-studio-talking-video-scripts",
+      "mcp": "projects_image_studio_talking_video_scripts"
     },
     "POST /projects/{id}/image-studio/jobs/{jobId}/cancel": {
       "cli": "projects image-studio-cancel",
@@ -240,27 +231,25 @@
     "POST /projects/{id}/image-studio/assets/{assetId}/events": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "reason": "Feeds the model scoreboard as the person's own signal (ADR 0077)."
     },
     "PUT /projects/{id}/image-studio/assets/{assetId}/feedback": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "reason": "Feeds the model scoreboard as the person's own signal (ADR 0077)."
     },
     "POST /projects/{id}/image-studio/assets/{assetId}/hide": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "reason": "Feeds the model scoreboard as the person's own signal (ADR 0077)."
     },
     "PUT /projects/{id}/image-studio/assets/{assetId}/headline": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "cli": "projects image-studio-asset-headline",
+      "mcp": "projects_image_studio_asset_headline"
     },
     "POST /projects/{id}/image-studio/assets/{assetId}/caption": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects image-studio-asset-caption",
+      "mcp": "projects_image_studio_asset_caption"
     },
     "POST /projects/{id}/social-connections/initiate": {
       "cli": false,

@@ -204,7 +204,7 @@ describe("Sokosumi MCP server", () => {
       "soko_bots_set_board_following",
       "soko_bots_set_team_standup",
     ]);
-    // Open-world: tools that spend credits, plus the ad tools (next test).
+    // Open-world: tools that spend credits, plus those acting outside Sokosumi.
     const openWorld = tools.filter((tool) => tool.annotations?.openWorldHint);
     expect(openWorld.map((tool) => tool.name)).toEqual(
       MCP_TOOLS.filter((tool) => tool.spendsCredits || tool.openWorld).map(
@@ -231,9 +231,9 @@ describe("Sokosumi MCP server", () => {
       "?toolsets=projects",
     );
     const { tools } = await client.listTools();
-    const outside = MCP_TOOLS.filter((tool) => tool.openWorld).map(
-      (tool) => tool.name,
-    );
+    const outside = MCP_TOOLS.filter(
+      (tool) => tool.openWorld && tool.destructive,
+    ).map((tool) => tool.name);
 
     expect(outside).toEqual([
       "projects_ads_campaign_create",
@@ -249,6 +249,30 @@ describe("Sokosumi MCP server", () => {
       expect(tool.annotations).toMatchObject({
         readOnlyHint: false,
         destructiveHint: true,
+        openWorldHint: true,
+      });
+    }
+  }, 15_000);
+
+  it("marks the tools that fetch a public URL open-world, not destructive", async () => {
+    const client = await connect(
+      { Authorization: "Bearer mcp-token" },
+      "?toolsets=projects",
+    );
+    const { tools } = await client.listTools();
+    const fetching = [
+      "projects_image_studio_website_research",
+      "projects_image_studio_website_logo",
+      "projects_image_studio_products_import",
+      "projects_image_studio_product_photo",
+    ];
+
+    const listed = tools.filter((tool) => fetching.includes(tool.name));
+    expect(listed.map((tool) => tool.name)).toEqual(fetching);
+    for (const tool of listed) {
+      expect(tool.annotations).toMatchObject({
+        readOnlyHint: false,
+        destructiveHint: false,
         openWorldHint: true,
       });
     }

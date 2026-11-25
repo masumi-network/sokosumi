@@ -137,7 +137,9 @@ const HUMAN_ONLY_READS = [
 
 /**
  * Writes on the same routes, each with a body that passes validation, so the
- * answer is the guard's: they all still need a browser session.
+ * answer is the guard's: they connect accounts, publish, start ad spend or
+ * score images as the person's own taste, so they still need a browser
+ * session.
  */
 const SCRIPT = "Twenty characters or more, spoken aloud.";
 const KEY = "idempotency-key-1";
@@ -161,15 +163,44 @@ const HUMAN_ONLY_WRITES: readonly [
   ["POST", `${P}/ads/connections/initiate`, { provider: "google_ads" }],
   ["POST", `${P}/ads/connections/finalize`, { connectionId: "ca_1" }],
   ["DELETE", `${P}/ads/connections/${ID}`],
-  [
-    "PUT",
-    `${P}/ads/market`,
-    { keywords: ["lamp"], countryCode: "DE", languageCode: "de" },
-  ],
+  // Signals Studio scores as the person's own taste (SOKD-394).
   [
     "PUT",
     `${P}/image-studio/batches/${ID}/compare`,
     { assetId: ID, otherAssetId: WORKSPACE_ID, outcome: "A" },
+  ],
+  [
+    "POST",
+    `${P}/image-studio/assets/${ID}/events`,
+    { type: "viewed_lightbox" },
+  ],
+  ["PUT", `${P}/image-studio/assets/${ID}/feedback`, { thumb: 1 }],
+  ["POST", `${P}/image-studio/assets/${ID}/hide`, {}],
+  [
+    "POST",
+    `${P}/social-connections/initiate`,
+    { action: "connect", provider: "linkedin" },
+  ],
+  ["POST", `${P}/social-connections/finalize`, { connectionId: "ca_1" }],
+  ["DELETE", `${P}/social-connections/${ID}`],
+  ["POST", `${P}/social-posts/${ID}/publish`, { revision: 1 }],
+  ["POST", `${P}/social-posts/${ID}/approve`, { revision: 1 }],
+  ["POST", `${P}/social-posts/${ID}/reject`, { revision: 1 }],
+  [
+    "POST",
+    `${P}/social-posts/${ID}/thread/resume`,
+    { revision: 1, confirmedNotPosted: true },
+  ],
+];
+
+// SOKD-394: an agent edits what spends no credits and publishes nothing (ADR
+// 0077): Image Studio headlines, captions, brand kit, products and scripts,
+// and the ads market profile.
+const AGENT_EDITS: readonly [method: string, path: string, body: object][] = [
+  [
+    "PUT",
+    `${P}/ads/market`,
+    { keywords: ["lamp"], countryCode: "DE", languageCode: "de" },
   ],
   [
     "PUT",
@@ -191,30 +222,8 @@ const HUMAN_ONLY_WRITES: readonly [
     { name: "Lamp", imageUrl: "https://example.com/lamp.png" },
   ],
   ["POST", `${P}/image-studio/talking-video-scripts`, {}],
-  [
-    "POST",
-    `${P}/image-studio/assets/${ID}/events`,
-    { type: "viewed_lightbox" },
-  ],
-  ["PUT", `${P}/image-studio/assets/${ID}/feedback`, { thumb: 1 }],
-  ["POST", `${P}/image-studio/assets/${ID}/hide`, {}],
   ["PUT", `${P}/image-studio/assets/${ID}/headline`, { text: "Hello" }],
   ["POST", `${P}/image-studio/assets/${ID}/caption`, {}],
-  [
-    "POST",
-    `${P}/social-connections/initiate`,
-    { action: "connect", provider: "linkedin" },
-  ],
-  ["POST", `${P}/social-connections/finalize`, { connectionId: "ca_1" }],
-  ["DELETE", `${P}/social-connections/${ID}`],
-  ["POST", `${P}/social-posts/${ID}/publish`, { revision: 1 }],
-  ["POST", `${P}/social-posts/${ID}/approve`, { revision: 1 }],
-  ["POST", `${P}/social-posts/${ID}/reject`, { revision: 1 }],
-  [
-    "POST",
-    `${P}/social-posts/${ID}/thread/resume`,
-    { revision: 1, confirmedNotPosted: true },
-  ],
 ];
 
 // SOKD-383: an agent drafts, plans and cancels Social posts (ADR 0077); the
@@ -331,6 +340,43 @@ describe("as a Soko Bot", () => {
 
     expect(response.status).toBe(403);
   });
+  it.each(AGENT_EDITS)("is refused %s %s", async (method, path, body) => {
+    const response = await call(method, path, sokoBot, body);
+
+    expect(response.status).toBe(403);
+  });
+});
+
+describe("as a Coworker acting for the person", () => {
+  const coworker: AuthenticationContext = {
+    actor: "coworker",
+    coworkerId: "coworker_agent",
+    vendorId: "vendor_agent",
+    context: { userId: USER_ID, organizationId: null },
+  };
+
+  it.each(AGENT_EDITS)("is refused %s %s", async (method, path, body) => {
+    const response = await call(method, path, coworker, body);
+
+    expect(response.status).toBe(403);
+  });
+});
+
+describe("as a browser session", () => {
+  const session: AuthenticationContext = {
+    actor: "user",
+    userId: USER_ID,
+    organizationId: null,
+    role: "user",
+    authenticationMethod: "session",
+  };
+
+  it.each(AGENT_EDITS)("edits %s %s", async (method, path, body) => {
+    const response = await call(method, path, session, body);
+
+    // The mock's 500: the handler reached the database.
+    expect(response.status, await response.text()).toBe(500);
+  });
 });
 
 describe.each(CALLERS)("as %s", (_, authContext) => {
@@ -357,6 +403,13 @@ describe.each(CALLERS)("as %s", (_, authContext) => {
       response.status,
       `the guard should let the caller in: ${await response.text()}`,
     ).not.toBe(403);
+  });
+
+  it.each(AGENT_EDITS)("edits %s %s", async (method, path, body) => {
+    const response = await call(method, path, authContext, body);
+
+    // The mock's 500: past the guard and the body's validation.
+    expect(response.status, await response.text()).toBe(500);
   });
 
   it.each(HUMAN_ONLY_WRITES)("is refused %s %s", async (method, path, body) => {
