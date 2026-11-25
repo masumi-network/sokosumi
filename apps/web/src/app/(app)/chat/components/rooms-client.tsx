@@ -2050,11 +2050,11 @@ function RoomView({
     (pinnedOpen && selectedRoom?.kind === "channel") ||
     (showRoomRosterControl && rosterOpen);
 
-  // Escape anywhere in the room closes the open pane, so it works straight
-  // from the button that opened it. A menu, popover or dialog handles the key
-  // first (Radix prevents its default), and so does the composer when it uses
-  // it (closing a mention list, cancelling an edit). A form field keeps its
-  // own Escape.
+  // Escape anywhere in the room, its portaled mobile header included, closes
+  // the open pane, so it works straight from the button that opened it. A
+  // menu, popover or dialog handles the key first (Radix prevents its
+  // default), and so does the composer when it uses it (closing a mention
+  // list, cancelling an edit). A form field keeps its own Escape.
   function handleRoomKeyDown(event: React.KeyboardEvent) {
     if (!sidePaneOpen || event.key !== "Escape" || event.defaultPrevented) {
       return;
@@ -3269,7 +3269,15 @@ function RoomView({
     return (
       <>
         {mobileHeaderPortaled && headerRoomSlotHost && roomHeaderChrome
-          ? createPortal(roomHeaderChrome, headerRoomSlotHost)
+          ? createPortal(
+              // Portaled out of the room shell, so it carries the room's
+              // Escape itself: the header menu hands focus back to its
+              // trigger here.
+              <div className="contents" onKeyDown={handleRoomKeyDown}>
+                {roomHeaderChrome}
+              </div>,
+              headerRoomSlotHost,
+            )
           : null}
         <RoomShellLayout
           // ROOM_SHELL_ROOT already includes no-tab-bar height (matches Instant).

@@ -9,6 +9,8 @@ import { RoomsClient } from "../rooms-client";
 import {
   listThreadMessagesAction,
   markThreadReadAction,
+  mockHeaderRoomSlotHost,
+  mockIsMobileMedia,
   renderWithQueryClient,
   roomsClientBaseProps,
 } from "./rooms-client-harness";
@@ -367,6 +369,34 @@ describe("RoomsClient Escape closes the open pane", () => {
       expect(screen.getByRole("button", { name: "Close thread" })).toBeTruthy();
     },
   );
+
+  it("closes Pinned on Escape from the mobile header, portaled out of the room", async () => {
+    mockIsMobileMedia.mockReturnValue(true);
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    mockHeaderRoomSlotHost.mockReturnValue(host);
+    try {
+      renderWithQueryClient(<RoomsClient {...baseProps} />);
+      const opener = await waitFor(() => {
+        const trigger = host.querySelector<HTMLElement>(
+          "[data-testid='pinned-messages-trigger']",
+        );
+        expect(trigger).not.toBeNull();
+        return trigger as HTMLElement;
+      });
+      opener.focus();
+      fireEvent.click(opener);
+      await screen.findByRole("button", { name: "Close pins" });
+      fireEvent.keyDown(opener, { key: "Escape" });
+
+      await waitFor(() => {
+        expect(screen.queryByRole("button", { name: "Close pins" })).toBeNull();
+      });
+      expect(document.activeElement).toBe(opener);
+    } finally {
+      host.remove();
+    }
+  });
 
   it("leaves Escape alone while no pane is open", () => {
     renderWithQueryClient(<RoomsClient {...baseProps} />);
