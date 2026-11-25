@@ -18,6 +18,7 @@ import {
   requestSeoAnalysisSchema,
   type SeoActor,
 } from "@/schemas/project-seo.schema";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 import {
   addProjectSeoPage,
   getProjectSeoWorkspace,
@@ -193,6 +194,7 @@ describe.skipIf(!enabled)("one active SEO check per audit", () => {
     const id = saved.auditId!;
     const vars = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: {
         actor: "user" as const,
         userId,
@@ -346,6 +348,7 @@ describe.skipIf(!enabled)("one active SEO check per audit", () => {
   it("releases a monitor backlog one Run at a time without rolling back its first Task", async () => {
     const vars = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: {
         actor: "user" as const,
         userId,

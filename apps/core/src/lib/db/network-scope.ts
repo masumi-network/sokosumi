@@ -1,0 +1,66 @@
+import type { Prisma } from "@sokosumi/database";
+import type { PrismaRaw } from "@sokosumi/database/client";
+import {
+  type NetworkModelName,
+  type NetworkTableName,
+  netTable,
+} from "@sokosumi/database/sql-tables";
+
+import { type Network, requireNetworkOn } from "@/lib/network";
+
+import prisma, { networkPrisma } from "./prisma";
+
+type NetworkModel = Uncapitalize<NetworkModelName>;
+type Tx = Prisma.TransactionClient;
+
+type NetworkSide = Pick<Tx, NetworkModel | "$queryRaw" | "$executeRaw">;
+
+declare const networkSide: unique symbol;
+
+/**
+ * The Network side, a client or an open transaction: the Network models and
+ * tagged raw SQL. Take the whole type in a helper, not a `Pick` of it: the
+ * brand exists in the types only, and without it the default client is
+ * accepted again.
+ */
+export type NetworkDb = NetworkSide & { readonly [networkSide]: true };
+
+/**
+ * The shared side, a client or an open transaction: every other model. No
+ * `$transaction`, which Prisma 7 also leaves on a transaction client.
+ */
+export type SharedDb = Omit<Tx, NetworkModel | "$transaction">;
+
+/**
+ * What Core's database module hands out for work on one Network. An entry
+ * point creates it; code below receives it, or one side of it, as an argument.
+ */
+export interface NetworkScope {
+  readonly network: Network;
+  /** This Network's client, built on first read. */
+  readonly networkDb: NetworkDb;
+  readonly sharedDb: SharedDb;
+  /** A table of this Network with its schema, for raw SQL. */
+  networkTable(table: NetworkTableName): PrismaRaw.Sql;
+}
+
+/**
+ * The only way to a Network's client. Throws for an unknown Network and for
+ * Preprod while Preprod is off. Builds no client and reads nothing from the
+ * client module, which most unit tests mock with a default export only.
+ */
+export function createNetworkScope(network: Network): NetworkScope {
+  const known = requireNetworkOn(network);
+  return {
+    network: known,
+    get networkDb() {
+      // The client itself: the brand is in the types only.
+      const client: NetworkSide = networkPrisma(known);
+      return client as NetworkDb;
+    },
+    get sharedDb() {
+      return prisma;
+    },
+    networkTable: (table) => netTable(known, table),
+  };
+}
