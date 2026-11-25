@@ -15,24 +15,21 @@ The column and the Better Auth field ship in the same Core release. Better Auth 
 
 ## Commit 2: `feat(core): add chat feed read endpoint`
 
-1. **Preferences.**
-   - `preferences-select.ts`: add `feedMode` to the select, the row type and the response mapper.
-   - `patch.ts`: accept `feedMode: z.boolean().optional()`, and add it to the "at least one field" check.
-   - `user.schema.ts`: add `feedMode: z.boolean().default(false)`. The default keeps the field out of the OpenAPI `required` list, so shipped Apple builds still decode the response.
+1. **Preferences: dropped (correction, 2026-11-25).** This step planned to add `feedMode` to Core's preferences route. That was wrong. Web saves the chat display preferences through Better Auth `updateUser`, and `tagDirectMessages` is not in Core's preferences route at all (VERIFIED by grep). `feedMode` follows `tagDirectMessages`, so Core's preferences route does not change.
 2. **Shared SQL.** In `chat-signal-views.service.ts`, export the existing helpers `placeholders`, `sqlReadJoins`, `sqlUnreadForViewer`, `sqlNeedsViewer`, `readerRooms` and `loadListedMessages`. Change nothing else in that file. `sqlNeedsViewer` already applies reader corrections. It does not check `state`, so the caller adds `s.state = 'tagged'`.
 3. **New `apps/core/src/services/chat-feed.service.ts`.**
-   - `listChatFeed(userId, organizationId, { cursor, take })` returns `{ items, nextCursor, unreadCount }`.
+   - `listChatFeed(userId, organizationId, { after, take })` returns `{ items, hasMore, unreadCount }`. The route encodes `nextCursor`.
    - The candidate rule: a message in `readerRooms`, not deleted, not sent by the viewer, and one of these:
      - it is in a Direct room and a person sent it (`senderUserId IS NOT NULL`);
      - a `chat_room_user_mention` row names the viewer;
      - it is tagged, with the viewer in `addressedUserIds` and a needs-you tag;
-     - it is an agent's answer to a human message: a `chat_room_mention` row has this message as `responseMessageId`, and the row's source message was sent by the viewer or mentions the viewer.
+     - it is an agent's answer to a human message: a `chat_room_mention` row has this message as `responseMessageId`, the row's source message was sent by the viewer or mentions the viewer, and the room has more than one person in it.
    - A test case covers each branch, including an agent reply in a 1:1 agent Direct that stays out.
-   - Order by `createdAt DESC, id DESC`. The cursor is a message id. An unknown cursor returns 422.
+   - Order by `createdAt DESC, id DESC`. The cursor is a position, `<createdAt ISO>_<message id>`, shared with the decisions log (`encodeChatDecisionCursor`). A malformed cursor returns 400. A deleted boundary message loses nothing, which a message-id cursor could not promise.
    - No `COUNT(*) OVER ()` per page. The unread count is one separate query with `sqlReadJoins` and `sqlUnreadForViewer`.
-4. **Schema.** In `chat-signal.schema.ts`, export `chatSignalRoomSchema`. Add `chatFeedItemSchema` (`lane`, `room`, `message`) and `chatFeedSchema` (`items`, `unreadCount`). `lane` declares `["feed", "urgent"]` now, so slice 3 does not widen a response enum. Slice 1 only ever returns `feed`.
+4. **Schema.** In `chat-signal.schema.ts`, add `chatFeedItemSchema` (`lane`, `room`, `message`) and `chatFeedSchema` (`items`, `nextCursor`, `unreadCount`). No shared room schema existed, so the item declares its own `room` object. `lane` declares `["feed", "urgent"]` now, so slice 3 does not widen a response enum. Slice 1 only ever returns `feed`.
 5. **Route.** New `apps/core/src/routes/v1/chats/feed/get.ts` and `index.ts`, mounted in `chats/index.ts`.
-   - Query: `cursorPaginationQuerySchema.extend({ lane: z.enum(["feed"]).default("feed") })`.
+   - Query: `cursorPaginationQuerySchema` with the position cursor. No `lane` parameter: adding one later does not break a client.
    - Auth: `requireUserAuthContext`. Use `withOrganizationSlugHeaderParameter`, as in the signal routes.
    - Map each message with `mapChatRoomMessage`. The DTO already carries the effective tags.
 6. Run `pnpm --filter @sokosumi/core-client generate:snapshot`, then the Web typecheck.
@@ -47,8 +44,7 @@ The column and the Better Auth field ship in the same Core release. Better Auth 
    - a correction with `applies: false` hides it;
    - pages of 2 return each item once, including two messages with the same `createdAt`;
    - `unreadCount` drops after a read state is written.
-2. **New `feed/get.test.ts`.** It checks that a coworker gets 403, that `lane=urgent`, `limit=0` and an unknown cursor get 422, and that a valid call returns the response shape and pagination.
-3. Extend `preferences.test.ts` to cover reading and patching `feedMode`.
+2. **New `feed/get.test.ts`.** It checks that a coworker gets 403, that a malformed cursor gets 400, and that the cursor round-trips: the decoded position goes to the service and the last item comes back as `nextCursor`.
 
 Before I claim the candidate rule works, I revert only `chat-feed.service.ts`, keep the tests, and confirm that a non-zero number of collected tests fails.
 
@@ -90,7 +86,7 @@ Before I claim the candidate rule works, I revert only `chat-feed.service.ts`, k
 
 ## Least confident decisions
 
-1. **Agent answers are found through `chat_room_mention`.** I assume a 1:1 Direct with an agent writes no mention row, so its replies stay out (INFERRED from the schema comment on `providerConversationId`, not traced in code). If such Directs do write mention rows, every agent Direct reply to the viewer lands in the Feed. A test case checks this.
+1. **Agent answers are found through `chat_room_mention`.** Correction, 2026-11-25: the first version of this item assumed a 1:1 Direct with an agent writes no mention row. That holds for a coworker (`skipCoworkerMentions`, `messages/post.ts:308`) and is wrong for a Soko Bot: a 1:1 Soko Bot Direct writes a mention row for every message (`directSokoBotIds`, `messages/post.ts:319`). VERIFIED by reading the code. The candidate rule now also requires more than one person in the room. The Postgres suite covers the 1:1 Soko Bot Direct.
 2. **Active workspace only.** The Feed covers the active workspace plus personal Directs, like the signal routes. A person in two workspaces sees two feeds.
 3. **The Catch up row stays in feed mode.** It keeps an existing feature reachable, but the sidebar then shows two entries, not one.
 4. **The unread count is a separate query on every sidebar read.** It is cheap per call, but it runs on every page that shows the sidebar. Its cost is not measured.
