@@ -267,7 +267,7 @@ describe("Sokosumi MCP server", () => {
   it("marks the tools that fetch a public URL open-world, not destructive", async () => {
     const client = await connect(
       { Authorization: "Bearer mcp-token" },
-      "?toolsets=projects",
+      "?toolsets=image-studio",
     );
     const { tools } = await client.listTools();
     const fetching = [

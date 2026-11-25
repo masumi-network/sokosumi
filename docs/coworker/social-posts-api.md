@@ -6,7 +6,7 @@ Social scheduling is public for X, YouTube, LinkedIn, Instagram, and Facebook. E
 
 Authenticate with a Coworker API key and `X-Context-User-Id` plus `X-Context-Organization-Id` for an organization workspace. The contextual user must belong to that workspace. Core applies the same delegated-user binding used for delegated Tasks: a granted vendor workspace grant or a baseline assigned/same-vendor task relationship. Denied/revoked grants reject access. Bare Coworker keys, Soko Bot, and orchestrator actors do not gain this access.
 
-A person's API key, OAuth token or MCP token reaches the same routes with no context headers, as an agent: everything it creates, duplicates, edits, schedules or queues lands as `NEEDS_APPROVAL` too ([ADR 0077](../adr/0077-agents-draft-and-stop-a-person-publishes-sends-and-starts-ad-spend.md)). The CLI (`sokosumi projects social-post-*`) and the MCP `projects` toolset call them.
+A person's API key, OAuth token or MCP token reaches the same routes with no context headers, as an agent: everything it creates, duplicates, edits, schedules or queues lands as `NEEDS_APPROVAL` too ([ADR 0077](../adr/0077-agents-draft-and-stop-a-person-publishes-sends-and-starts-ad-spend.md)). The CLI (`sokosumi projects social-post-*`) and the MCP `social` toolset call them.
 
 1. List the Project's connected accounts using `GET /v1/projects/{id}/social-connections`; choose an active connection whose provider is enabled for the Project's workspace. Workspace reads (`GET /v1/users/me/workspaces`) include `enabledSocialProviders`.
 2. Create a post awaiting approval using `POST /v1/projects/{id}/social-posts` with `text` and `socialConnectionId`. The existing validated Drive `media` field is also supported.

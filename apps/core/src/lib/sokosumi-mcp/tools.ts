@@ -1209,6 +1209,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   // SOKD-394: edits that spend no credits and publish nothing (ADR 0077).
   {
     name: "projects_ads_market_update",
+    toolset: "ads",
     operation: "PUT /projects/{id}/ads/market",
     description:
       "Save a Project's ads market profile: 1 to 10 `keywords`, a `countryCode` and a `languageCode`. It replaces the previous profile. Saving spends nothing, but a new profile is researched, and paid for, the next time a person opens keyword or competitor research, so change it only when the person asks.",
@@ -1216,6 +1217,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_image_studio_brand_kit_update",
+    toolset: "image-studio",
     operation: "PUT /projects/{id}/image-studio/brand-kit",
     description:
       "Replace the Brand Kit's copy: summary, tone, audience and approved lines. Send the `version` you last read; a changed kit answers 409.",
@@ -1223,6 +1225,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_image_studio_brand_look_update",
+    toolset: "image-studio",
     operation: "PUT /projects/{id}/image-studio/brand-kit/look",
     description:
       "Replace the Brand Kit's colors and fonts, or pass `look: null` to go back to the website's. Send the `lookRevision` you last read; a changed look answers 409.",
@@ -1230,6 +1233,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_image_studio_website_research",
+    toolset: "image-studio",
     operation: "POST /projects/{id}/image-studio/website-draft",
     description:
       "Read the Project's website and suggest brand copy, products, colors, fonts and a logo for review. Nothing is saved: save what you keep with the brand-kit, brand-look and products tools.",
@@ -1237,6 +1241,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_image_studio_website_logo",
+    toolset: "image-studio",
     operation: "POST /projects/{id}/image-studio/brand-kit/logo/website",
     description:
       "Find a logo on the Project's website and return its URL for review. It does not change the Project's logo.",
@@ -1244,6 +1249,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_image_studio_products_update",
+    toolset: "image-studio",
     operation: "PUT /projects/{id}/image-studio/products",
     description:
       "Replace the Project's Image Studio product catalog. Send the whole list and the `revision` you last read; a changed catalog answers 409.",
@@ -1251,6 +1257,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_image_studio_products_import",
+    toolset: "image-studio",
     operation: "POST /projects/{id}/image-studio/products/import",
     description:
       "Find products on a public website `url` for review. Nothing is saved: save the ones you keep with projects_image_studio_products_update.",
@@ -1258,6 +1265,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_image_studio_product_photo",
+    toolset: "image-studio",
     operation: "POST /projects/{id}/image-studio/products/photo",
     description:
       "Copy a product photo from a public `imageUrl` into the workspace's Files. Put the returned `{ id, name }` in a product's `photo`.",
@@ -1265,12 +1273,14 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_image_studio_talking_video_scripts",
+    toolset: "image-studio",
     operation: "POST /projects/{id}/image-studio/talking-video-scripts",
     description:
       "Write talking-video scripts from the Project's brand, optionally about `topic`. Nothing is stored or charged: start a video with one using projects_image_studio_talking_video.",
   },
   {
     name: "projects_image_studio_asset_headline",
+    toolset: "image-studio",
     operation: "PUT /projects/{id}/image-studio/assets/{assetId}/headline",
     description:
       "Set the headline an image is exported with, or `text: null` to clear it.",
@@ -1278,6 +1288,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_image_studio_asset_caption",
+    toolset: "image-studio",
     operation: "POST /projects/{id}/image-studio/assets/{assetId}/caption",
     description:
       "Write a social caption for an Image Studio image from its prompt. Nothing is stored or charged.",
