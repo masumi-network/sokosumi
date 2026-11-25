@@ -6420,6 +6420,10 @@
             "title": "Alertas de auditorías SEO",
             "description": "Revisa los fallos de auditoría y el estado de las conexiones."
           },
+          "seoImpact": {
+            "title": "Impacto SEO",
+            "description": "Sigue los cambios de página hechos hasta que Google los rastree."
+          },
           "x402Payments": {
             "title": "Pagos x402",
             "description": "Revisa pagos directos y resuelve cargos x402 retenidos o disputados."
@@ -7963,6 +7967,48 @@
           "gscProperty": "La auditoría no pudo utilizar la propiedad seleccionada de Search Console.",
           "gscUnavailable": "La auditoría no pudo verificar la cobertura de Search Console.",
           "gscSkipped": "El propietario optó por continuar sin Search Console."
+        }
+      },
+      "SeoImpact": {
+        "title": "Impacto SEO",
+        "description": "Cambios de página que los clientes marcaron como hechos. Cada fila espera el primer rastreo de Google tras el cambio y luego recibe las cuatro semanas que compara su veredicto.",
+        "summary": "{shown} de {total} cambios de página seguidos.",
+        "period": "Periodo",
+        "periods": {
+          "90": "90 días",
+          "365": "365 días",
+          "all": "Todo"
+        },
+        "empty": "No se siguió ningún cambio de página en este periodo.",
+        "customer": "Cliente",
+        "page": "Página",
+        "suggestion": "Sugerencia",
+        "source": "Origen",
+        "changedAt": "Cambiado",
+        "crawledAt": "Primer rastreo después",
+        "window": "Ventana",
+        "state": "Estado",
+        "reason": "Motivo",
+        "none": "Ninguno",
+        "notYet": "Todavía no",
+        "windowRange": "Del {start} al {end}",
+        "readyOn": "Datos definitivos el {date}",
+        "sources": {
+          "cuso_done": "Marcado como hecho",
+          "audit_recheck": "Nueva revisión de auditoría"
+        },
+        "states": {
+          "waiting_crawl": "Espera el rastreo",
+          "waiting_window": "Espera la ventana",
+          "not_measurable": "No medible"
+        },
+        "reasons": {
+          "no_cuso": "El proyecto no tiene un Cuso activo.",
+          "not_connected": "Search Console no está conectado.",
+          "no_property": "Ninguna propiedad de Search Console coincide con el sitio web.",
+          "page_outside_property": "La página está fuera de la propiedad de Search Console.",
+          "inspection_failed": "La inspección de URL falló o fue rechazada.",
+          "not_crawled_yet": "Google no ha rastreado la página desde el cambio."
         }
       },
       "CmoSpend": {

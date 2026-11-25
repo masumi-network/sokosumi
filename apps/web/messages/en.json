@@ -6599,6 +6599,10 @@
             "title": "SEO audit alerts",
             "description": "Inspect audit failures and connection coverage."
           },
+          "seoImpact": {
+            "title": "SEO impact",
+            "description": "Track done page changes until Google crawls them."
+          },
           "x402Payments": {
             "title": "x402 payments",
             "description": "Inspect direct-payment health and resolve held or disputed x402 charges."
@@ -7999,6 +8003,48 @@
           "gscProperty": "The audit could not use the selected Search Console property.",
           "gscUnavailable": "The audit could not verify Search Console coverage.",
           "gscSkipped": "The owner chose to continue without Search Console."
+        }
+      },
+      "SeoImpact": {
+        "title": "SEO impact",
+        "description": "Page changes that customers marked done. Each row waits for Google's first crawl after the change, then gets the four weeks its verdict compares.",
+        "summary": "Showing {shown} of {total} tracked page changes.",
+        "period": "Period",
+        "periods": {
+          "90": "90 days",
+          "365": "365 days",
+          "all": "All"
+        },
+        "empty": "No page change was tracked in this period.",
+        "customer": "Customer",
+        "page": "Page",
+        "suggestion": "Suggestion",
+        "source": "Source",
+        "changedAt": "Changed",
+        "crawledAt": "First crawl after",
+        "window": "Window",
+        "state": "State",
+        "reason": "Reason",
+        "none": "None",
+        "notYet": "Not yet",
+        "windowRange": "{start} to {end}",
+        "readyOn": "Data final on {date}",
+        "sources": {
+          "cuso_done": "Marked done",
+          "audit_recheck": "Audit recheck"
+        },
+        "states": {
+          "waiting_crawl": "Waits for crawl",
+          "waiting_window": "Waits for window",
+          "not_measurable": "Not measurable"
+        },
+        "reasons": {
+          "no_cuso": "The project has no live Cuso.",
+          "not_connected": "Search Console is not connected.",
+          "no_property": "No Search Console property matches the website.",
+          "page_outside_property": "The page is outside the Search Console property.",
+          "inspection_failed": "URL Inspection failed or was refused.",
+          "not_crawled_yet": "Google has not crawled the page since the change."
         }
       },
       "CmoSpend": {
