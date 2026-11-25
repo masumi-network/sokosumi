@@ -12320,6 +12320,81 @@ export const AgentRatingRequestSchema = {
     ]
 } as const;
 
+export const ChatFeedSchema = {
+    type: 'object',
+    properties: {
+        items: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatFeedItem'
+            }
+        },
+        nextCursor: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Pass as `cursor` for the next page; null on the last one.'
+        },
+        unreadCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Feed messages the viewer has not read, across every page.'
+        }
+    },
+    required: [
+        'items',
+        'nextCursor',
+        'unreadCount'
+    ]
+} as const;
+
+export const ChatFeedItemSchema = {
+    type: 'object',
+    properties: {
+        lane: {
+            type: 'string',
+            enum: [
+                'feed',
+                'urgent'
+            ],
+            description: 'Where the item sits. `urgent` is reserved for a later release; today every item is `feed`.'
+        },
+        room: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                name: {
+                    type: 'string'
+                },
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'channel',
+                        'direct'
+                    ]
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'kind'
+            ]
+        },
+        message: {
+            $ref: '#/components/schemas/ChatRoomMessage'
+        }
+    },
+    required: [
+        'lane',
+        'room',
+        'message'
+    ]
+} as const;
+
 export const ChatRoomInvitationSchema = {
     type: 'object',
     properties: {

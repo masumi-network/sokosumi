@@ -1,7 +1,10 @@
 import { z } from "@hono/zod-openapi";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { CHAT_CATCH_UP_BUCKETS } from "@/lib/chat-signals/derive";
-import { chatSignalTagSchema } from "@/schemas/chat-room.schema";
+import {
+  chatRoomMessageSchema,
+  chatSignalTagSchema,
+} from "@/schemas/chat-room.schema";
 
 export const chatCatchUpBucketSchema = z
   .enum(CHAT_CATCH_UP_BUCKETS)
@@ -168,3 +171,30 @@ export const chatSignalRoutingSuggestionSchema = z
     }),
   })
   .openapi("ChatSignalRoutingSuggestion");
+
+export const chatFeedItemSchema = z
+  .object({
+    lane: z.enum(["feed", "urgent"]).openapi({
+      description:
+        "Where the item sits. `urgent` is reserved for a later release; today every item is `feed`.",
+    }),
+    room: z.object({
+      id: z.string().uuid(),
+      name: z.string(),
+      kind: z.enum(["channel", "direct"]),
+    }),
+    message: chatRoomMessageSchema,
+  })
+  .openapi("ChatFeedItem");
+
+export const chatFeedSchema = z
+  .object({
+    items: z.array(chatFeedItemSchema),
+    nextCursor: z.string().nullable().openapi({
+      description: "Pass as `cursor` for the next page; null on the last one.",
+    }),
+    unreadCount: z.number().int().min(0).openapi({
+      description: "Feed messages the viewer has not read, across every page.",
+    }),
+  })
+  .openapi("ChatFeed");

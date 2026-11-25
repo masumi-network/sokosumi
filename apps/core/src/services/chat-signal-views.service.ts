@@ -38,7 +38,7 @@ export const chatSignalSelect = {
 } as const satisfies Prisma.ChatMessageSignalSelect;
 
 /** `$1::uuid, …, $n::uuid` for a list of room ids leading the parameters. */
-function placeholders(count: number): string {
+export function placeholders(count: number): string {
   return Array.from({ length: count }, (_, i) => `$${i + 1}::uuid`).join(", ");
 }
 
@@ -48,7 +48,7 @@ function placeholders(count: number): string {
  * a reply after the Thread's Look (else the viewer's join). Needs the
  * `room_read` and `thread_read` joins.
  */
-function sqlUnreadForViewer(): string {
+export function sqlUnreadForViewer(): string {
   return `(
     (m."parentMessageId" IS NULL
       AND m."createdAt" > COALESCE(room_read."lastReadAt", '-infinity'::timestamp))
@@ -57,7 +57,7 @@ function sqlUnreadForViewer(): string {
   )`;
 }
 
-function sqlReadJoins(userSql: string): string {
+export function sqlReadJoins(userSql: string): string {
   return `LEFT JOIN "chat_room_read_state" room_read
       ON room_read."roomId" = m."roomId" AND room_read."userId" = ${userSql}
     LEFT JOIN "chat_room_thread_read_state" thread_read
@@ -65,7 +65,7 @@ function sqlReadJoins(userSql: string): string {
 }
 
 /** SQL predicate: signal `s` asks something of the viewer `userSql`. */
-function sqlNeedsViewer(userSql: string): string {
+export function sqlNeedsViewer(userSql: string): string {
   return `(${userSql} = ANY(s."addressedUserIds")
     AND (${sqlChatSignalHasTag("s", "question")} OR ${sqlChatSignalHasTag("s", "needsDecision")}))`;
 }
@@ -272,7 +272,10 @@ export async function listChatDecisions(
 }
 
 /** The rooms a reader's cross-room lists read: what their sidebar lists, unmuted. */
-async function readerRooms(userId: string, organizationId: string | null) {
+export async function readerRooms(
+  userId: string,
+  organizationId: string | null,
+) {
   return prisma.chatRoom.findMany({
     where: {
       ...membershipVisibleActiveRoomWhere(organizationId),
@@ -291,7 +294,7 @@ export interface ChatSignalListItem {
   dueAt: Date | null;
 }
 
-async function loadListedMessages(ids: readonly string[]) {
+export async function loadListedMessages(ids: readonly string[]) {
   return withChatRoomReplyCounts(
     prisma,
     await prisma.chatRoomMessage.findMany({
