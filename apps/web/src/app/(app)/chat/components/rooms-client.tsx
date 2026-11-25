@@ -2001,12 +2001,59 @@ function RoomView({
     });
   }
 
+  // Threads, Members and Pinned are opened from header buttons, or from the
+  // header menu below md. A menu item leaves with its menu, so the menu's
+  // trigger stands in for it.
+  const paneOpenerRef = useRef<HTMLElement | null>(null);
+  function rememberPaneOpener() {
+    const active = document.activeElement;
+    if (!(active instanceof HTMLElement)) return;
+    const menuTriggerId = active
+      .closest('[role="menu"]')
+      ?.getAttribute("aria-labelledby");
+    paneOpenerRef.current =
+      (menuTriggerId && document.getElementById(menuTriggerId)) || active;
+  }
+
+  function closePaneAndRestoreFocus() {
+    if (threadParentMessage) {
+      closeThreadAndRestoreFocus();
+      return;
+    }
+    setThreadListOpen(false);
+    setPinnedOpen(false);
+    setRosterOpen(false);
+    const opener = paneOpenerRef.current;
+    paneOpenerRef.current = null;
+    requestAnimationFrame(() => {
+      if (opener?.isConnected) {
+        opener.focus();
+        return;
+      }
+      roomComposerRef.current?.focus();
+    });
+  }
+
+  // Escape closes the open pane. A menu, popover or dialog inside it handles
+  // the key first (Radix prevents its default), and an editor keeps it for
+  // its own Escape: cancel an edit, close a mention list.
+  function handlePaneKeyDown(event: React.KeyboardEvent) {
+    if (event.key !== "Escape" || event.defaultPrevented) return;
+    const target = event.target as HTMLElement;
+    if (target.isContentEditable || target.closest("input, textarea, select")) {
+      return;
+    }
+    event.preventDefault();
+    closePaneAndRestoreFocus();
+  }
+
   function backToThreadList() {
     closeThreadSidePanel();
     setThreadListOpen(true);
   }
 
   function openRoster() {
+    rememberPaneOpener();
     if (threadParentMessage) {
       closeThreadSidePanel();
     }
@@ -2024,6 +2071,7 @@ function RoomView({
   }
 
   function openPinnedPanel() {
+    rememberPaneOpener();
     if (threadParentMessage) {
       closeThreadSidePanel();
     }
@@ -2107,6 +2155,7 @@ function RoomView({
    * which closes a list that is already showing.
    */
   function showThreadList(options: { toggle?: boolean } = {}) {
+    rememberPaneOpener();
     setRosterOpen(false);
     setPinnedOpen(false);
     if (threadParentMessage) {
@@ -3316,6 +3365,7 @@ function RoomView({
               )}
             </RoomTypingProvider>
           }
+          onPanelKeyDown={handlePaneKeyDown}
           mainEnd={
             threadParentMessage ? (
               <ThreadPanel
@@ -3410,9 +3460,7 @@ function RoomView({
                 userId={currentUserId}
                 mentionNames={roomMentionNames}
                 onOpenThread={handleOpenThreadFromList}
-                onClose={() => {
-                  setThreadListOpen(false);
-                }}
+                onClose={closePaneAndRestoreFocus}
                 onAllThreadsLooked={(stillUnreadParentIds) => {
                   bumpThreadUnread();
                   // Mark all skips muted threads, so a mention still unread
@@ -3460,9 +3508,7 @@ function RoomView({
                 canOpenHumanDirect={canOpenHumanDirect}
                 onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
                 openingDirectParticipantKey={openingDirectKey}
-                onClose={() => {
-                  setPinnedOpen(false);
-                }}
+                onClose={closePaneAndRestoreFocus}
                 onJump={handleJumpToMessage}
                 onUnpin={(messageId) =>
                   handleUnpinFromPanel(selectedRoom.id, messageId)
@@ -3494,9 +3540,7 @@ function RoomView({
                 canOpenHumanDirect={canOpenHumanDirect}
                 onOpenDirect={stableMessageHandlers.onOpenDirectMessage}
                 openingDirectKey={openingDirectKey}
-                onClose={() => {
-                  setRosterOpen(false);
-                }}
+                onClose={closePaneAndRestoreFocus}
               />
             ) : null
           }

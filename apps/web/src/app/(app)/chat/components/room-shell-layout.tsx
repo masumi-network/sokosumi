@@ -1,5 +1,11 @@
 import { AnimatePresence } from "motion/react";
-import { type ReactNode, type Ref, type RefObject, useCallback } from "react";
+import {
+  type KeyboardEventHandler,
+  type ReactNode,
+  type Ref,
+  type RefObject,
+  useCallback,
+} from "react";
 
 import { CHAT_MESSAGE_LIST_ROOM } from "@/app/chat/chat-message-list";
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
@@ -69,6 +75,8 @@ interface RoomShellLayoutProps {
    * position against the room shell, not an outer fragment.
    */
   mainEnd?: ReactNode;
+  /** Keys pressed inside the docked panel, such as Escape to close it. */
+  onPanelKeyDown?: KeyboardEventHandler<HTMLDivElement>;
 }
 
 /**
@@ -78,9 +86,11 @@ interface RoomShellLayoutProps {
  */
 function RoomSidePanelSlot({
   panelRef,
+  onKeyDown,
   children,
 }: {
   panelRef: RefObject<HTMLDivElement | null>;
+  onKeyDown?: KeyboardEventHandler<HTMLDivElement>;
   children: ReactNode;
 }) {
   const isPresent = useRoomPanelSlideOut(panelRef);
@@ -88,6 +98,7 @@ function RoomSidePanelSlot({
     <div
       ref={panelRef}
       inert={!isPresent}
+      onKeyDown={onKeyDown}
       className={cn(
         "contents lg:flex lg:min-h-0 lg:shrink-0",
         !isPresent && "lg:absolute lg:inset-y-0 lg:right-0",
@@ -113,6 +124,7 @@ export function RoomShellLayout({
   listContent,
   composer,
   mainEnd = null,
+  onPanelKeyDown,
 }: RoomShellLayoutProps): React.ReactElement {
   const { mainRef, sectionRef, panelRef, listRef, composerRef } =
     useRoomPanelSlide();
@@ -251,7 +263,11 @@ export function RoomShellLayout({
             not slide. */}
         <AnimatePresence initial={false}>
           {mainEnd != null ? (
-            <RoomSidePanelSlot key="panel" panelRef={panelRef}>
+            <RoomSidePanelSlot
+              key="panel"
+              panelRef={panelRef}
+              onKeyDown={onPanelKeyDown}
+            >
               {mainEnd}
             </RoomSidePanelSlot>
           ) : null}

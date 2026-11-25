@@ -87,15 +87,44 @@ vi.mock("../thread-list-panel", () => ({
   ThreadListPanel: () => <aside data-testid="thread-list-panel" />,
 }));
 
-vi.mock("../thread-panel", () => ({
-  ThreadPanel: ({ onClose }: { onClose: () => void }) => (
+// Each pane holds an editor and a nested layer that handles Escape itself,
+// so the tests can press Escape from either and see the pane stay.
+function PaneBody({ name, onClose }: { name: string; onClose: () => void }) {
+  return (
     <aside>
       <button type="button" onClick={onClose}>
-        Close thread
+        Close {name}
+      </button>
+      <textarea aria-label={`${name} reply`} />
+      <button
+        type="button"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") event.preventDefault();
+        }}
+      >
+        {name} menu
       </button>
     </aside>
+  );
+}
+
+vi.mock("../thread-panel", () => ({
+  ThreadPanel: ({ onClose }: { onClose: () => void }) => (
+    <PaneBody name="thread" onClose={onClose} />
   ),
 }));
+
+vi.mock(
+  "@/app/chat/components/pinned-messages-panel",
+  async (importActual) => ({
+    ...(await importActual<
+      typeof import("@/app/chat/components/pinned-messages-panel")
+    >()),
+    PinnedMessagesPanel: ({ onClose }: { onClose: () => void }) => (
+      <PaneBody name="pins" onClose={onClose} />
+    ),
+  }),
+);
 
 vi.mock("../edit-channel-dialog", () => ({
   EditChannelDialog: () => null,
@@ -196,4 +225,66 @@ describe("RoomsClient thread close focus", () => {
       expect(composerFocus).toHaveBeenCalled();
     });
   });
+});
+
+describe("RoomsClient Escape closes the open pane", () => {
+  beforeEach(() => {
+    composerFocus.mockReset();
+    markThreadReadAction.mockResolvedValue({
+      ok: true as const,
+      value: { lookedAt: new Date().toISOString() },
+    });
+    listThreadMessagesAction.mockResolvedValue({
+      ok: true as const,
+      value: { messages: [], nextCursor: null },
+    });
+  });
+
+  it("closes the thread and returns focus to its reply bar", async () => {
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
+    fireEvent.click(screen.getByRole("button", { name: "2 replies" }));
+    fireEvent.keyDown(
+      await screen.findByRole("button", { name: "Close thread" }),
+      { key: "Escape" },
+    );
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "2 replies" }),
+      );
+    });
+    expect(screen.queryByRole("button", { name: "Close thread" })).toBeNull();
+  });
+
+  it("closes Pinned and returns focus to the button that opened it", async () => {
+    renderWithQueryClient(<RoomsClient {...baseProps} />);
+    const opener = screen.getByTestId("pinned-messages-trigger");
+    opener.focus();
+    fireEvent.click(opener);
+    fireEvent.keyDown(
+      await screen.findByRole("button", { name: "Close pins" }),
+      { key: "Escape" },
+    );
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(opener);
+    });
+    expect(screen.queryByRole("button", { name: "Close pins" })).toBeNull();
+  });
+
+  it.each([
+    ["an editor", "thread reply", "textbox"],
+    ["a nested layer", "thread menu", "button"],
+  ] as const)(
+    "leaves the pane open when %s takes Escape",
+    async (_, name, role) => {
+      renderWithQueryClient(<RoomsClient {...baseProps} />);
+      fireEvent.click(screen.getByRole("button", { name: "2 replies" }));
+      fireEvent.keyDown(await screen.findByRole(role, { name }), {
+        key: "Escape",
+      });
+
+      expect(screen.getByRole("button", { name: "Close thread" })).toBeTruthy();
+    },
+  );
 });
