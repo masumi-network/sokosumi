@@ -6376,6 +6376,8 @@ export type FundraisingProspect = {
     lastDraftAt: Date | null;
     lastDraftSubject: string | null;
     dataRoom: FundraisingDataRoomVisit | null;
+    intro: FundraisingIntro;
+    bestPath: FundraisingPath | null;
 };
 
 export const FundraisingStage = {
@@ -6405,6 +6407,52 @@ export type FundraisingDataRoomVisit = {
     revoked: boolean;
 };
 
+export type FundraisingIntro = {
+    via: FundraisingConnector | null;
+    askedAt: Date | null;
+    madeAt: Date | null;
+    declinedAt: Date | null;
+};
+
+export type FundraisingConnector = {
+    kind: 'contact' | 'teammate';
+    id: string;
+    name: string;
+    image: string | null;
+    email: string | null;
+};
+
+export type FundraisingPath = {
+    kind: FundraisingPathKind;
+    via: ContactPerson | null;
+    linkedIn: boolean;
+    through: {
+        id: string;
+        name: string;
+        role: string | null;
+        organization: string | null;
+        avatarUrl: string | null;
+        email: string | null;
+    } | null;
+    company: {
+        name: string;
+        round: string | null;
+        date: string | null;
+    } | null;
+    strength: number;
+    touches: number;
+    lastTouchAt: Date | null;
+};
+
+export const FundraisingPathKind = {
+    DIRECT: 'direct',
+    LINKEDIN: 'linkedin',
+    FUND: 'fund',
+    PORTFOLIO: 'portfolio'
+} as const;
+
+export type FundraisingPathKind = typeof FundraisingPathKind[keyof typeof FundraisingPathKind];
+
 export type FundraisingResearch = {
     monthUsd: number;
     capUsd: number;
@@ -6420,7 +6468,21 @@ export type FundraisingProspectUpdate = {
     committedUsd?: number | null;
     notes?: string | null;
     source?: string | null;
+    intro?: {
+        state: FundraisingIntroState;
+        viaContactId?: string;
+        viaUserId?: string;
+    };
 };
+
+export const FundraisingIntroState = {
+    ASKED: 'ASKED',
+    MADE: 'MADE',
+    DECLINED: 'DECLINED',
+    NULL: null
+} as const;
+
+export type FundraisingIntroState = typeof FundraisingIntroState[keyof typeof FundraisingIntroState];
 
 export type FundraisingFindResult = {
     found: number;
@@ -6456,37 +6518,6 @@ export type FundraisingPortfolioCompany = {
     fetchedAt: Date;
 };
 
-export type FundraisingPath = {
-    kind: FundraisingPathKind;
-    via: ContactPerson | null;
-    linkedIn: boolean;
-    through: {
-        id: string;
-        name: string;
-        role: string | null;
-        organization: string | null;
-        avatarUrl: string | null;
-        email: string | null;
-    } | null;
-    company: {
-        name: string;
-        round: string | null;
-        date: string | null;
-    } | null;
-    strength: number;
-    touches: number;
-    lastTouchAt: Date | null;
-};
-
-export const FundraisingPathKind = {
-    DIRECT: 'direct',
-    LINKEDIN: 'linkedin',
-    FUND: 'fund',
-    PORTFOLIO: 'portfolio'
-} as const;
-
-export type FundraisingPathKind = typeof FundraisingPathKind[keyof typeof FundraisingPathKind];
-
 export type FundraisingDraftResult = {
     to: string;
     subject: string;
@@ -6500,6 +6531,28 @@ export type FundraisingDraftResult = {
 export type FundraisingDraftInput = {
     kind: 'intro' | 'follow_up';
     viaContactId?: string;
+    inviteToRoomId?: string;
+    note?: string;
+};
+
+export type FundraisingIntroAskResult = {
+    ask: FundraisingMailDraft;
+    forwardable: FundraisingMailDraft;
+    provider: string;
+    roomLink: string | null;
+    prospect: FundraisingProspect;
+};
+
+export type FundraisingMailDraft = {
+    to: string;
+    subject: string;
+    body: string;
+    draftId: string;
+};
+
+export type FundraisingIntroAskInput = {
+    viaContactId?: string;
+    viaUserId?: string;
     inviteToRoomId?: string;
     note?: string;
 };
@@ -53094,6 +53147,140 @@ export type PostFundraisingProspectsByContactIdDraftResponses = {
 };
 
 export type PostFundraisingProspectsByContactIdDraftResponse = PostFundraisingProspectsByContactIdDraftResponses[keyof PostFundraisingProspectsByContactIdDraftResponses];
+
+export type PostFundraisingProspectsByContactIdIntroAskData = {
+    body?: FundraisingIntroAskInput;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        contactId: string;
+    };
+    query?: never;
+    url: '/fundraising/prospects/{contactId}/intro-ask';
+};
+
+export type PostFundraisingProspectsByContactIdIntroAskErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No mailbox, no connector, or no email address
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The model or the mailbox did not answer
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostFundraisingProspectsByContactIdIntroAskError = PostFundraisingProspectsByContactIdIntroAskErrors[keyof PostFundraisingProspectsByContactIdIntroAskErrors];
+
+export type PostFundraisingProspectsByContactIdIntroAskResponses = {
+    /**
+     * Drafts
+     */
+    200: {
+        data: FundraisingIntroAskResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostFundraisingProspectsByContactIdIntroAskResponse = PostFundraisingProspectsByContactIdIntroAskResponses[keyof PostFundraisingProspectsByContactIdIntroAskResponses];
 
 export type GetHistoryData = {
     body?: never;
