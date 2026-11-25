@@ -28,6 +28,8 @@ import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import { sokoBotTurnPurpose } from "@/lib/ai-gateway-purpose";
 import prisma from "@/lib/db/prisma";
 import { EMBEDDING_MODEL } from "@/lib/embeddings";
+import { emitCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { gatewayCallUsage } from "@/lib/soko-bot/gateway-cost";
 import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
 import { modelCallTelemetryFor } from "@/lib/soko-bot/model-call-roles";
@@ -407,6 +409,26 @@ export function cmoSaidLines(calendar: readonly CmoCalendarEntry[]): string[] {
       return line ? [line.length > 90 ? `${line.slice(0, 87)}...` : line] : [];
     })
     .slice(-SAID_LINES);
+}
+
+/** A chunk that failed writes nothing; the next call retries it. */
+function chunkFailed(turnId: string) {
+  return (error: unknown): WrittenPiece[] => {
+    emitCoreWarning(
+      {
+        operation: "cmo_month_writer",
+        turn: { id: turnId },
+        failure: messageSafeErrorFields(error),
+      },
+      {
+        message: "A chunk of the month wrote nothing",
+        why: "The writer's model call or its answer failed",
+        fix: "The next write_month_pieces call retries the chunk. If every chunk fails, look up the error under failure.",
+        cause: error,
+      },
+    );
+    return [];
+  };
 }
 
 async function writeChunk(
@@ -865,7 +887,7 @@ export async function writeCmoMonthPieces(
         ),
         deadline,
       )
-        .catch(() => [] as WrittenPiece[])
+        .catch(chunkFailed(input.turnId))
         .then(saveInTurn),
     ),
   );
@@ -904,7 +926,7 @@ export async function writeCmoMonthPieces(
             offers,
           }),
           deadline,
-        ).catch(() => [] as WrittenPiece[]),
+        ).catch(chunkFailed(input.turnId)),
       ),
     );
     for (const results of repaired) {
