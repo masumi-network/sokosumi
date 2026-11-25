@@ -302,6 +302,17 @@ describe("TaskDetailView (rights follow the Owner)", () => {
     expect(activity.canComment).toBe(true);
   });
 
+  it("starts a repeat of an SEO Task without its request line and price terms", async () => {
+    const { actions } = await renderFor(
+      createTask([], {
+        description:
+          'Full audit of example.com\n\nseo_audit: {"price":{"markupPercent":50}}',
+      }),
+    );
+
+    expect(actions.taskBlueprint.description).toBe("Full audit of example.com");
+  });
+
   it("gives another member of the organization workspace no 'mine' controls but still lets them comment and cancel", async () => {
     const { actions, activity } = await renderFor(createTask([]));
 

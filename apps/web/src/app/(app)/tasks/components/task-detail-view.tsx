@@ -589,8 +589,11 @@ async function TaskDetailActionsSlot({
               name: task.name,
               tags: task.tags,
               workspaceTags: task.workspaceTags,
+              // The SEO request line holds the approved price terms: a repeat starts from the reader's text only.
               description: task.description
-                ? removeTaskContextAttachmentLinks(task.description)
+                ? removeSeoTaskRequest(
+                    removeTaskContextAttachmentLinks(task.description),
+                  )
                 : null,
               projectId: task.projectId,
               visibility: task.visibility,
