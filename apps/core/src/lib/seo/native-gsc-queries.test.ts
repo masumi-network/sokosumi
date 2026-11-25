@@ -288,6 +288,62 @@ describe("tracked keyword daily rows", () => {
     }
   });
 
+  it("puts a keyword in an earlier read of its country that has room", () => {
+    const tracked = (keyword: string, priority: "high" | "medium" | "low") => ({
+      keyword,
+      saved: true,
+      priority,
+      countryCode: "US",
+      version: 1,
+      source: "saved",
+    });
+    const { groups, leftOut } = selectTrackedKeywords([
+      tracked(`a${"a".repeat(1500)}`, "high"),
+      tracked(`b${"b".repeat(1500)}`, "high"),
+      ...Array.from({ length: 6 }, (_, i) =>
+        tracked(`${i}${"c".repeat(2000)}`, "medium"),
+      ),
+      tracked(`z${"z".repeat(800)}`, "low"),
+    ]);
+    // 4 reads are full of long keywords. The short one still fits the first read.
+    expect(groups.map((group) => group.keywords.length)).toEqual([3, 2, 2, 2]);
+    expect(leftOut).toEqual([]);
+  });
+
+  it("keeps keywords that differ by case folding only in one read", () => {
+    const tracked = (keyword: string, priority: "high" | "low") => ({
+      keyword,
+      saved: true,
+      priority,
+      countryCode: "US",
+      version: 1,
+      source: "saved",
+    });
+    // The filter ignores case, so a read of "οσ" also returns the rows of "ος".
+    const { groups, leftOut } = selectTrackedKeywords([
+      ...Array.from({ length: 24 }, (_, i) =>
+        tracked(`kw ${String(i).padStart(2, "0")}`, "high"),
+      ),
+      tracked("οσ", "high"),
+      tracked("ος", "low"),
+    ]);
+    const first = groups[0].keywords;
+    // The first read is full, so the twin has no read that would accept its rows.
+    expect([first.length, first.includes("οσ"), groups.length]).toEqual([
+      25,
+      true,
+      1,
+    ]);
+    expect(leftOut).toEqual(["ος (US)"]);
+    const roomy = selectTrackedKeywords([
+      tracked("οσ", "high"),
+      tracked("ος", "low"),
+    ]);
+    expect(roomy.groups).toEqual([
+      { countryCode: "US", keywords: ["οσ", "ος"] },
+    ]);
+  });
+
   it("stops at 4 reads per sync when long keywords fill each read", () => {
     const keywords = Array.from({ length: 12 }, (_, i) => ({
       keyword: `${String(i).padStart(2, "0")}${"a".repeat(1500)}`,

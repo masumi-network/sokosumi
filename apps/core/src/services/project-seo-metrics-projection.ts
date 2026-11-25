@@ -46,6 +46,10 @@ export function projectSeoMetricsRow(
   if (!parsed.success)
     throw internalServerError("Stored analytics evidence is not readable");
   const data = parsed.data;
+  // A sync stores the keywords past the first 25 apart. Every reader gets one series.
+  if (data.keywordSeries && data.keywordSeriesMore)
+    data.keywordSeries.keywords.push(...data.keywordSeriesMore);
+  data.keywordSeriesMore = undefined;
   // Older GA4 syncs shortened the previous window to the last traffic day while retaining the full current total.
   if (data.provider === "ga4") {
     const previous = previousSeoPeriod(data.from, data.to);

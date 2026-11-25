@@ -38,6 +38,7 @@ import {
   normalizeGscKeywordSeries,
   normalizeGscQueries,
   selectTrackedKeywords,
+  storedKeywordSeries,
 } from "@/lib/seo/native-gsc-queries";
 import {
   applyPreviousSeoPeriod,
@@ -667,7 +668,7 @@ export async function syncProjectSeoStatistics(
           metrics.notes.push(SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE);
         if (tracked.groups.length) {
           if (keywordSeries.status === "fulfilled" && keywordSeries.value) {
-            metrics.keywordSeries = keywordSeries.value;
+            Object.assign(metrics, storedKeywordSeries(keywordSeries.value));
             if (keywordSeries.value.truncated)
               metrics.notes.push(
                 seoStatisticsKeywordRowsCutNote(keywordSeries.value.rowLimit),

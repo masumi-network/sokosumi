@@ -100,7 +100,10 @@ export function normalizeGscQueries(
 
 /** Search Console refuses a filter expression longer than this. */
 export const GSC_FILTER_EXPRESSION_LIMIT = 4096;
-/** Keywords in one read: 25 keywords over 366 days stay under the 10,000 row limit. */
+/**
+ * Keywords in one read. 25 keywords over 366 days give 9,150 rows when Google returns one spelling of each.
+ * Each other spelling of a keyword adds rows, so a read can still reach the 10,000 row limit. It then says so.
+ */
 export const SEO_KEYWORD_SERIES_READ_KEYWORDS = 25;
 /** Search Console reads per sync for tracked keyword days. */
 export const SEO_KEYWORD_SERIES_MAX_READS = 4;
@@ -154,9 +157,10 @@ function keywordExpression(keywords: string[]): string {
  * start never take their place; then priority, then the keywords a check set out
  * to read, then key. Only the reader's own keywords are named as left out.
  * At most 50 fit, in at most 3 countries. One read holds at most 25 keywords
- * of one country, within the filter expression limit, so 366 days of rows stay
- * under the row limit; a country with more keywords gets another read, up to
- * 4 reads per sync. A country Search Console cannot name is left out.
+ * of one country, within the filter expression limit. A keyword goes to the
+ * first read of its country with room; a country with more keywords gets
+ * another read, up to 4 reads per sync. A country Search Console cannot name
+ * is left out.
  */
 export function selectTrackedKeywords(keywords: TrackedKeyword[]): {
   groups: TrackedKeywordGroup[];
@@ -200,25 +204,35 @@ export function selectTrackedKeywords(keywords: TrackedKeyword[]): {
   let reads = 0;
   for (const { key, countryCode, own } of ordered) {
     const chunks = groups.get(countryCode) ?? [];
-    const last = chunks.at(-1);
-    const fits =
-      last !== undefined &&
-      last.length < SEO_KEYWORD_SERIES_READ_KEYWORDS &&
-      keywordExpression([...last, key]).length <= GSC_FILTER_EXPRESSION_LIMIT;
-    if (
+    const fits = (chunk: string[]) =>
+      chunk.length < SEO_KEYWORD_SERIES_READ_KEYWORDS &&
+      keywordExpression([...chunk, key]).length <= GSC_FILTER_EXPRESSION_LIMIT;
+    // The filter ignores case, so a read also returns the rows of a keyword that differs by case folding
+    // only ("οσ" and "ος"). Such keywords stay in one read: another read would refuse the row.
+    const fold = key.toUpperCase();
+    const twin = chunks.find((chunk) =>
+      chunk.some((other) => other.toUpperCase() === fold),
+    );
+    const open =
       chosen < SEO_KEYWORD_SERIES_MAX_KEYWORDS &&
       gscCountry(countryCode) &&
       (groups.has(countryCode) ||
-        groups.size < SEO_KEYWORD_SERIES_MAX_COUNTRIES) &&
-      (fits ||
-        (reads < SEO_KEYWORD_SERIES_MAX_READS &&
-          keywordExpression([key]).length <= GSC_FILTER_EXPRESSION_LIMIT))
+        groups.size < SEO_KEYWORD_SERIES_MAX_COUNTRIES);
+    let chunk = open ? (twin ?? chunks.find(fits)) : undefined;
+    if (chunk && !fits(chunk)) chunk = undefined;
+    if (
+      open &&
+      !chunk &&
+      !twin &&
+      reads < SEO_KEYWORD_SERIES_MAX_READS &&
+      fits([])
     ) {
-      if (fits) last.push(key);
-      else {
-        chunks.push([key]);
-        reads++;
-      }
+      chunk = [];
+      chunks.push(chunk);
+      reads++;
+    }
+    if (chunk) {
+      chunk.push(key);
       groups.set(countryCode, chunks);
       chosen++;
       // A note that names keywords the reader never chose would be noise on every sync.
@@ -229,6 +243,26 @@ export function selectTrackedKeywords(keywords: TrackedKeyword[]): {
       chunks.map((chosenKeys) => ({ countryCode, keywords: chosenKeys })),
     ),
     leftOut,
+  };
+}
+
+/** A build from before 50 keywords refuses a stored series of more than 25: it fails the whole workspace. */
+const STORED_SERIES_KEYWORDS = 25;
+
+/**
+ * The series as a sync stores it. The keywords past the first 25 go under a key of their own, so an older
+ * build skips that sync as unknown keys, and shows the syncs before it.
+ */
+export function storedKeywordSeries(
+  series: NativeKeywordSeries,
+): Pick<NativeSeoMetrics, "keywordSeries" | "keywordSeriesMore"> {
+  const more = series.keywords.slice(STORED_SERIES_KEYWORDS);
+  return {
+    keywordSeries: {
+      ...series,
+      keywords: series.keywords.slice(0, STORED_SERIES_KEYWORDS),
+    },
+    ...(more.length && { keywordSeriesMore: more }),
   };
 }
 

@@ -89,6 +89,11 @@ export const nativeSeoMetricsSchema = z
       .optional(),
     /** Daily positions of tracked keywords for the same pages and period. Absent when none were requested. */
     keywordSeries: seoKeywordSeriesSchema.optional(),
+    /**
+     * The keywords of the series after the first 25. Kept apart so that a build from before
+     * 50 keywords skips the sync as unknown keys instead of failing on a longer series.
+     */
+    keywordSeriesMore: seoKeywordSeriesSchema.shape.keywords.optional(),
     /** Search Console totals by country and by device. Absent when the read failed or on Discover and Google News. */
     countries: seoPositionedSearchBreakdownSchema.optional(),
     devices: seoPositionedSearchBreakdownSchema.optional(),
