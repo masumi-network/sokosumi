@@ -149,7 +149,13 @@ export async function startStandupCase(
   const outcome =
     setup === "week"
       ? await runWeekInReview({ standupId: standup.id, scheduledFor })
-      : await runTeamStandup({ standupId: standup.id, scheduledFor });
+      : await runTeamStandup({
+          standupId: standup.id,
+          scheduledFor,
+          // Lane bots stay paused so no cron wakes them; the pause the
+          // stand-up respects is an owner's, which a lane has not set.
+          mayPost: async () => true,
+        });
   return {
     kind: "started",
     turnId: null,
