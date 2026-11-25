@@ -18,6 +18,10 @@ describe("readProjectScope", () => {
     expect(readProjectScope("/projects/p1/calendar", params())).toBe("p1");
   });
 
+  it("is the workspace on the Projects Timeline, which is not a project page", () => {
+    expect(readProjectScope("/projects/timeline", params())).toBeNull();
+  });
+
   it("reads the project the studio is scoped to", () => {
     expect(
       readProjectScope("/studio", new URLSearchParams("projectId=p1")),

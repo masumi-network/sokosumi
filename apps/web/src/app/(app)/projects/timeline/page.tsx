@@ -51,8 +51,9 @@ function TimelineCell({
               href={task.href}
               title={task.name}
               className={cn(
-                "hover:bg-accent block min-h-6 truncate rounded-md px-1.5 py-0.5",
-                overdue && "text-destructive",
+                "hover:bg-accent line-clamp-2 min-h-6 rounded-md px-1.5 py-0.5 break-words",
+                // As the due badge marks overdue work: weight, not red.
+                overdue && "font-medium",
               )}
             >
               {task.name}
@@ -137,7 +138,7 @@ export async function ProjectsTimelineContent() {
                 <tr className="text-muted-foreground text-start text-xs">
                   <th
                     scope="col"
-                    className="bg-card-background sticky start-0 z-10 w-40 px-1.5 py-1 text-start font-medium"
+                    className="bg-card-background sticky start-0 z-10 w-28 px-1.5 sm:w-40 py-1 text-start font-medium"
                   >
                     {t("project")}
                   </th>

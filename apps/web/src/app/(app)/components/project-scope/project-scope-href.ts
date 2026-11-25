@@ -45,7 +45,8 @@ const SCOPED_PAGE_ITEM: Readonly<Record<string, string>> = {
   "/seo": "auditId",
 };
 
-const PROJECT_PAGE = /^\/projects\/([^/]+)/;
+/** A project's own page. `/projects/timeline` is every project's, not one. */
+const PROJECT_PAGE = /^\/projects\/(?!timeline(?:\/|$))([^/]+)/;
 
 /**
  * Detail pages of a scoped list. They report their item's project through

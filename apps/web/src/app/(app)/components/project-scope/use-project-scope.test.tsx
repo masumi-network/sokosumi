@@ -201,6 +201,18 @@ describe("useProjectScope on a detail page", () => {
   });
 });
 
+describe("useProjectScope on the Projects Timeline", () => {
+  it("shows the workspace, as the Projects list does, not a remembered project", () => {
+    mocks.search.current = new URLSearchParams("projectId=p-board");
+    const view = renderHook(() => useProjectScope());
+    mocks.pathname.current = "/projects/timeline";
+    mocks.search.current = new URLSearchParams();
+    view.rerender();
+
+    expect(view.result.current.projectId).toBeNull();
+  });
+});
+
 describe("project scope persistence", () => {
   it("uses the loaded task's project and retains it after its marker unmounts", () => {
     let marker: ReactNode = null;

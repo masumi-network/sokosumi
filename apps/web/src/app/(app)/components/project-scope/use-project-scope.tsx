@@ -27,7 +27,8 @@ export function useProjectScope() {
     isProjectScopedPath(pathname) ||
     projectPageSection(pathname) !== null ||
     markedProjectId !== undefined ||
-    pathname === "/projects";
+    pathname === "/projects" ||
+    pathname === "/projects/timeline";
   const { data: session, isPending, error } = useSession();
   const storageKey =
     session && !isPending && !error
