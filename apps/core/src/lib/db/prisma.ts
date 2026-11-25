@@ -30,14 +30,16 @@ function schemaLayoutKey(): string {
 }
 
 // The database package's raw SQL names the schemas these clients name. Set on
-// every evaluation of this module, before any query can run.
+// every evaluation of this module, before any query can run. A missing name is
+// `public`, as for `createPrismaClient`: tests that mock `getEnv` leave them
+// out, while `getEnv` itself always fills them.
 {
   const env = getEnv();
   configureSqlTables({
-    shared: env.DATABASE_SCHEMA_SHARED,
-    mainnet: env.DATABASE_SCHEMA_MAINNET,
-    preprod: env.DATABASE_SCHEMA_PREPROD,
-    preprodOn: env.NETWORK_PREPROD_ENABLED,
+    shared: env.DATABASE_SCHEMA_SHARED ?? "public",
+    mainnet: env.DATABASE_SCHEMA_MAINNET ?? "public",
+    preprod: env.DATABASE_SCHEMA_PREPROD ?? "public",
+    preprodOn: env.NETWORK_PREPROD_ENABLED === true,
   });
 }
 

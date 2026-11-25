@@ -119,7 +119,7 @@ const anyCase = tableNames
 
 function mentions(keywords: string): RegExp {
   return new RegExp(
-    `\\b(?:${keywords})\\s+(?:IF\\s+(?:NOT\\s+)?EXISTS\\s+)?("(?:${exact})"|(?i:${anyCase}))(?![\\w".])`,
+    `\\b(?:${keywords})\\s+(?:(?i:IF\\s+(?:NOT\\s+)?EXISTS)\\s+)?("(?:${exact})"|(?i:${anyCase}))(?![\\w".])`,
     "g",
   );
 }
@@ -131,9 +131,9 @@ const MAYBE = new RegExp(
   `\\b(?i:${KEYWORDS})\\s+(?:(?i:IF\\s+(?:NOT\\s+)?EXISTS)\\s+)?"?(?:${exact}|(?i:${anyCase}))`,
 );
 const CTE =
-  /(?:\bWITH\s+(?:RECURSIVE\s+)?|,\s*)"?(\w+)"?\s+AS\s+(?:NOT\s+)?(?:MATERIALIZED\s+)?\(/gi;
+  /(?:\bWITH\s+(?:RECURSIVE\s+)?|,\s*)"?(\w+)"?\s*(?:\([^)]*\))?\s+AS\s+(?:NOT\s+)?(?:MATERIALIZED\s+)?\(/gi;
 const TEMP_TABLE =
-  /\bCREATE\s+(?:TEMP|TEMPORARY)\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?"?(\w+)"?/gi;
+  /\bCREATE\s+(?:(?:LOCAL|GLOBAL)\s+)?(?:TEMP|TEMPORARY)\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?"?(\w+)"?/gi;
 // Replaced by spaces, so positions and lines stay where they were.
 const SQL_COMMENT = /--[^\n]*|\/\*[\s\S]*?\*\//g;
 
@@ -242,13 +242,15 @@ function unqualifiedTables(file: string, source: string): Finding[] {
   const statements: Literal[] = CODE.test(file)
     ? literals(file, source)
     : [{ parts: [{ text: source, start: 0 }], sql: false }];
+  // Not in a shell script, where `--` starts a flag.
+  const stripComments = !file.endsWith(".sh");
   const cleaned = statements.map(({ parts, sql }) => ({
     sql,
     parts: parts.map(({ text, start }) => ({
       start,
-      text: text.replace(SQL_COMMENT, (comment) =>
-        comment.replace(/[^\n]/g, " "),
-      ),
+      text: stripComments
+        ? text.replace(SQL_COMMENT, (comment) => comment.replace(/[^\n]/g, " "))
+        : text,
     })),
   }));
   // A temporary table exists from its `CREATE` to the end of the file.
@@ -470,6 +472,7 @@ describe("unqualified table names in raw SQL", () => {
   it.each([
     ["tx.$queryRaw`select id from task`", "from task"],
     ["tx.$executeRaw<number>`update task set x = 1`", "update task"],
+    ["tx.$executeRaw`drop table if exists task`", "table if exists task"],
     ["Prisma.sql`join project p on p.id = t.id`", "join project"],
     ['tx.$queryRawUnsafe("delete from task_file")', "from task_file"],
     ['tx.$queryRawUnsafe("select 1 from task where id = " + id)', "from task"],
@@ -490,6 +493,8 @@ describe("unqualified table names in raw SQL", () => {
     "tx.$queryRaw`SELECT 1 -- FROM task\n`",
     "tx.$queryRaw`SELECT 1 /* JOIN task */`",
     "tx.$queryRaw`WITH task AS (SELECT 1) SELECT * FROM task`",
+    "tx.$queryRaw`WITH task (id) AS (SELECT 1) SELECT * FROM task`",
+    "tx.$executeRaw`CREATE LOCAL TEMP TABLE task (id int)`;\ntx.$executeRaw`INSERT INTO task VALUES (1)`;",
     'sql`WITH a AS (SELECT 1), "project" AS (SELECT 2) SELECT * FROM ${x} JOIN project ON true`',
     "tx.$executeRawUnsafe(`CREATE TEMP TABLE task (id int)`);\ntx.$executeRawUnsafe(`INSERT INTO task VALUES (1)`);",
   ])("passes in code: %s", (code) => {
@@ -503,6 +508,12 @@ describe("unqualified table names in raw SQL", () => {
         "tx.$queryRaw`SELECT 1 FROM task`;\ntx.$executeRaw`CREATE TEMP TABLE task (id int)`;",
       ),
     ).toEqual([{ file: "x.ts", line: 1, text: "FROM task" }]);
+  });
+
+  it("reads -- in a shell script as a flag, not a comment", () => {
+    expect(
+      unqualifiedTables("x.sh", "psql --command 'DELETE FROM task'"),
+    ).toEqual([{ file: "x.sh", line: 1, text: "FROM task" }]);
   });
 
   it("reports the line of the table's keyword", () => {
