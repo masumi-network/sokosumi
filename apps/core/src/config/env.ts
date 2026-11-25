@@ -255,6 +255,18 @@ const baseEnvSchema = z.object({
     )
     .pipe(z.array(z.uuid())),
   /**
+   * Coworker ids whose API key may read the weekly failure review
+   * (`GET /v1/admin/failure-review`) and nothing else admin. Comma-separated;
+   * empty, only platform admins can.
+   */
+  FAILURE_REVIEW_COWORKER_IDS: z
+    .string()
+    .default("")
+    .transform((value: string) =>
+      value.trim() === "" ? [] : value.split(",").map((id) => id.trim()),
+    )
+    .pipe(z.array(z.uuid())),
+  /**
    * A local Chrome or Chromium binary for the CMO site screenshots. Unset,
    * Core downloads the `@sparticuz/chromium-min` pack below (Vercel).
    */
