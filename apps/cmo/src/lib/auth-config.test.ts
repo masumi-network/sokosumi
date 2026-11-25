@@ -40,10 +40,10 @@ describe("readCmoAuthConfig", () => {
 
   it("signs a preview in against its branch's Core preview", () => {
     vi.stubEnv("VERCEL_ENV", "preview");
-    vi.stubEnv("VERCEL_BRANCH_URL", "sokosumi-cmo-git-feat.preview.cmo.xyz");
+    vi.stubEnv("VERCEL_BRANCH_URL", "cmo-app-git-feat.preview.cmo.xyz");
 
     expect(readCmoAuthConfig()).toMatchObject({
-      baseURL: "https://sokosumi-cmo-git-feat.preview.cmo.xyz",
+      baseURL: "https://cmo-app-git-feat.preview.cmo.xyz",
       coreBaseUrl: `https://${CORE_ALIAS}.preview.sokosumi.com`,
     });
   });
@@ -53,7 +53,7 @@ describe("readCmoAuthConfig", () => {
     ["no Core preview for the branch", relatedProjects(undefined)],
   ])("refuses a preview with %s instead of using mainnet", (_label, value) => {
     vi.stubEnv("VERCEL_ENV", "preview");
-    vi.stubEnv("VERCEL_BRANCH_URL", "sokosumi-cmo-git-feat.preview.cmo.xyz");
+    vi.stubEnv("VERCEL_BRANCH_URL", "cmo-app-git-feat.preview.cmo.xyz");
     vi.stubEnv("VERCEL_RELATED_PROJECTS", value);
 
     expect(() => readCmoAuthConfig()).toThrow(
