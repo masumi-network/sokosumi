@@ -296,6 +296,12 @@ jobs:
             --outputFile.json="$report" || true
           pnpm --filter core exec tsx scripts/split-layout-pending.mts "$report"
 
+      # PREPARE resolves converted SQL against the split schemas without executing it.
+      - name: Prepare raw SQL on the split layout
+        if: ${{ !cancelled() }}
+        env: *split-layout
+        run: pnpm --filter core exec tsx scripts/prepare-raw-sql.ts
+
   # One job for the same reason as `web`: the unit suite, behind the same
   # `Setup`. Its PostgreSQL suites, migrations and drift check run beside it
   # in `Test Core PostgreSQL`, so neither waits on the other.

@@ -388,6 +388,7 @@ Mainnet and Preprod get one schema each beside `shared`; a Network model is one 
 - `src/lib/db/prisma.ts` configures the helpers from `DATABASE_SCHEMA_*` and `NETWORK_PREPROD_ENABLED` when it loads, so they name the schemas the clients name.
 - The helpers' name arguments are typed from `packages/database/prisma/network-tables.json`, so a misspelled name, a name of the other side, or a table where an enum goes fails the caller's typecheck. A name held in a variable needs that type too (`SharedTableName`, `NetworkTableName`, `SharedEnumName`, `NetworkEnumName`).
 - `src/lib/db/__tests__/unqualified-raw-sql.test.ts` reports bare table names. It is advisory: it fails nothing.
+- `Test Core PostgreSQL split layout` fails on a bare table or type name in raw SQL under the paths in `SOURCE_PATHS` ([`scripts/prepare-raw-sql.ts`](scripts/prepare-raw-sql.ts)). Add a path there when its raw SQL is qualified.
 
 ### File/Blob Resources
 
