@@ -485,7 +485,7 @@ Admin-granted credits for testing on Preprod. Spent only on Preprod and never co
 _Avoid_: Test credits, sandbox credits, Tester credits (a CMO term)
 
 **Network scope**:
-What a piece of work is given so that it stays on one Network: it names the Network and is the only way to that Network's Agents, Jobs, credits and payments, beside the data that is the same across Sokosumi. Whatever starts the work, such as a request, names the Network once; everything below is handed the scope.
+The Network and the shared data available to one piece of work. A piece of work has exactly one, so everything it reads or writes on a Network belongs to that Network.
 _Avoid_: Network unit of work (a scope outlives a transaction), Network context, current Network
 
 ### Billing

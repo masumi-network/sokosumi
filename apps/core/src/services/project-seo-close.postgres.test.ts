@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-
 import { getEnv } from "@/config/env";
 import { requireTaskWorkerContext } from "@/helpers/task-worker-context";
 import prisma from "@/lib/db/prisma";
@@ -9,6 +8,7 @@ import {
   requestSeoAnalysisSchema,
   type SeoActor,
 } from "@/schemas/project-seo.schema";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 import { focusedReport, SEO_TEST_PAGE } from "@/test-fixtures/project-seo";
 import { addProjectSeoPage } from "./project-seo.service";
 import {
@@ -34,6 +34,7 @@ const env = getEnv(),
   previousDispatch = env.SEO_ANALYSIS_DISPATCH_ENABLED;
 const vars = {
   isAuthenticated: true,
+  networkScope: testNetworkScope(),
   authContext: {
     actor: "user" as const,
     userId,

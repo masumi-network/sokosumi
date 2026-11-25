@@ -85,8 +85,6 @@ vi.mock("@/middleware/workspace", () => ({
     },
 }));
 
-import { requireNetworkScope } from "@/middleware/network-scope";
-
 import { createNestedOpenAPIHono, OpenAPIHonoWithAuth } from "./hono";
 
 describe("OpenAPIHonoWithAuth", () => {
@@ -120,7 +118,7 @@ describe("OpenAPIHonoWithAuth", () => {
 
   it("gives every request a Mainnet Network scope", async () => {
     const app = new OpenAPIHonoWithAuth();
-    app.get("/", (c) => c.text(requireNetworkScope(c).network));
+    app.get("/", (c) => c.text(c.var.networkScope.network));
 
     const response = await app.request("http://localhost/");
 
@@ -160,6 +158,27 @@ describe("OpenAPIHonoWithAuth", () => {
       "organization",
       "workspace",
     ]);
+  });
+
+  it("keeps the request's one Network scope under a nested authed router", async () => {
+    const scopes: unknown[] = [];
+    const parent = new OpenAPIHonoWithAuth();
+    parent.use(async (c, next) => {
+      scopes.push(c.var.networkScope);
+      await next();
+    });
+    const child = new OpenAPIHonoWithAuth();
+    child.get("/files", (c) => {
+      scopes.push(c.var.networkScope);
+      return c.body(null);
+    });
+    parent.route("/drive", child);
+
+    await parent.request("http://localhost/drive/files");
+
+    expect(scopes).toHaveLength(2);
+    expect(scopes[0]).toBeDefined();
+    expect(scopes[1]).toBe(scopes[0]);
   });
 
   it("preserves parent workspaceContext on a nested remount without auth", async () => {

@@ -115,8 +115,12 @@ export function _wrongSidesDoNotCompile(
   sharedDb.job.findMany();
   // @ts-expect-error the legacy client is not a Network client: it has no brand
   takesNetworkDb(legacy);
+  const picked = legacy as Pick<
+    Prisma.TransactionClient,
+    Exclude<keyof NetworkDb, symbol>
+  >;
   // @ts-expect-error a `Pick` of the legacy client has no brand either
-  takesNetworkDb(legacy as Pick<Prisma.TransactionClient, keyof NetworkDb>);
+  takesNetworkDb(picked);
   // @ts-expect-error the shared side is not the Network side
   takesNetworkDb(sharedDb);
   // @ts-expect-error neither side opens a transaction itself

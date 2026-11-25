@@ -7,6 +7,7 @@ import {
   type PublicSeoPayload,
   publicSeoPayloadSchema,
 } from "@/helpers/project-seo-report";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { isEvalCusoProject } from "@/lib/evals/eval-guard";
 import { recordCoreWarning } from "@/lib/evlog";
@@ -101,6 +102,8 @@ function runnerVars(
       authenticationMethod: "session",
     },
     workspaceContext: { workspaceId, userId: null, organizationId },
+    // CMO runs on Mainnet only.
+    networkScope: createNetworkScope("mainnet"),
   } as EnvVariables["Variables"];
 }
 

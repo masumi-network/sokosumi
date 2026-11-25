@@ -28,7 +28,9 @@
                       "**/db/prisma",
                       "**/db/prisma.js",
                       "./prisma",
-                      "./prisma.js"
+                      "./prisma.js",
+                      "../prisma",
+                      "../prisma.js"
                     ],
                     "importNamePattern": "networkPrisma",
                     "message": "Reach a Network's client through a Network scope: createNetworkScope in @/lib/db/network-scope (docs/adr/0081)."

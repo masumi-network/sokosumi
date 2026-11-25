@@ -1,34 +1,36 @@
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 
-import { networkScopeMiddleware, requireNetworkScope } from "./network-scope";
+import { createNetworkScope } from "@/lib/db/network-scope";
 
-function createApp() {
-  const app = new Hono();
-  app.onError((error, c) => c.text(error.message, 500));
-  return app;
-}
+import {
+  type NetworkScopeVariables,
+  networkScopeMiddleware,
+} from "./network-scope";
 
 describe("networkScopeMiddleware", () => {
   it("gives the request a Mainnet scope", async () => {
-    const app = createApp();
+    const app = new Hono<{ Variables: NetworkScopeVariables }>();
     app.use(networkScopeMiddleware);
-    app.get("/", (c) => c.text(requireNetworkScope(c).network));
+    app.get("/", (c) => c.text(c.var.networkScope.network));
 
     const response = await app.request("http://localhost/");
 
     expect(await response.text()).toBe("mainnet");
   });
-});
 
-describe("requireNetworkScope", () => {
-  it("throws on a router that did not run the middleware", async () => {
-    const app = createApp();
-    app.get("/", (c) => c.text(requireNetworkScope(c).network));
+  it("keeps the scope the request already has", async () => {
+    const first = createNetworkScope("mainnet");
+    const app = new Hono<{ Variables: NetworkScopeVariables }>();
+    app.use(async (c, next) => {
+      c.set("networkScope", first);
+      await next();
+    });
+    app.use(networkScopeMiddleware);
+    app.get("/", (c) => c.json(c.var.networkScope === first));
 
     const response = await app.request("http://localhost/");
 
-    expect(response.status).toBe(500);
-    expect(await response.text()).toBe("This request has no Network scope");
+    expect(await response.json()).toBe(true);
   });
 });

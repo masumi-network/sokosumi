@@ -12,7 +12,7 @@ type CorePrismaClient = ReturnType<typeof createPrismaClient>;
 
 interface CoreDatabase {
   shared: CorePrismaClient;
-  /** Built on first use: each client costs about 30 ms to construct. */
+  /** Built on first use: each client costs about 80 ms to construct, once per instance. */
   networks: Partial<Record<Network, CorePrismaClient>>;
   createNetworkClient: (network: Network) => CorePrismaClient;
   /** The schema names the clients were built for (`schemaLayoutKey`). */

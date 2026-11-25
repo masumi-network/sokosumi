@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { NETWORKS, type Network, networkKey, requireNetwork } from "./network";
+import {
+  NETWORKS,
+  type Network,
+  networkKey,
+  requireNetwork,
+  requireNetworkOn,
+} from "./network";
 
 describe("networkKey", () => {
   it("keeps today's Mainnet key, so locks and cursors written before the move still match", () => {
@@ -66,5 +72,40 @@ describe("isPreprodOn", () => {
         DATABASE_SCHEMA_PREPROD: "preprod",
       }),
     ).toBe(true);
+  });
+});
+
+describe("requireNetworkOn", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  /** A fresh module with Preprod on: the environment is read again. */
+  async function withPreprodOn() {
+    vi.stubEnv("NETWORK_PREPROD_ENABLED", "true");
+    vi.stubEnv("DATABASE_SCHEMA_SHARED", "shared");
+    vi.stubEnv("DATABASE_SCHEMA_MAINNET", "mainnet");
+    vi.stubEnv("DATABASE_SCHEMA_PREPROD", "preprod");
+    vi.resetModules();
+    return (await import("./network")).requireNetworkOn;
+  }
+
+  it("returns Mainnet", () => {
+    expect(requireNetworkOn("mainnet")).toBe("mainnet");
+  });
+
+  it("throws for Preprod while Preprod is off", () => {
+    expect(() => requireNetworkOn("preprod")).toThrow("Preprod is off");
+  });
+
+  it("returns Preprod while Preprod is on", async () => {
+    expect((await withPreprodOn())("preprod")).toBe("preprod");
+  });
+
+  it("throws on a value that is not a Network, also while Preprod is on", async () => {
+    const whilePreprodIsOn = await withPreprodOn();
+
+    expect(() => requireNetworkOn("Preprod")).toThrow("Unknown Network");
+    expect(() => whilePreprodIsOn("Preprod")).toThrow("Unknown Network");
   });
 });
