@@ -84,7 +84,8 @@ function pageKey(url: string) {
  * rows where no page had a key event: most often the property has no key events set up.
  */
 export function seoKeyEvents(landing: ProjectSeoWorkspace["landingPages"]) {
-  if (!landing) return null;
+  // An older Core version can put an AI assistant read here: its numbers are not organic key events.
+  if (!landing || landing.channel === "ai_assistant") return null;
   // Rows that are one page under two spellings add up.
   const byKey = new Map<string, number>();
   for (const row of landing.rows) {

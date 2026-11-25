@@ -812,6 +812,10 @@ describe("SEO Traffic key events", () => {
     expect(left?.cell("https://www.example.com/shop")).toBe(
       "traffic.keyEventsNotRead",
     );
+    // An AI assistant read from an older Core version is no organic count.
+    expect(
+      seoKeyEvents({ ...landingPages([]), channel: "ai_assistant" as never }),
+    ).toBeNull();
     // A response of an older Core version has no pageUrls: the row keeps its number, no page gets a 0.
     const { pageUrls: _, ...older } = landingPages([
       { pageUrl: "https://example.com/shop", keyEvents: 3 },
