@@ -1,15 +1,20 @@
+import type { TableNetwork } from "@sokosumi/database/sql-tables";
 import { createError } from "evlog";
 
 import { getEnv } from "@/config/env";
-
-export const NETWORKS = ["mainnet", "preprod"] as const;
 
 /**
  * A Masumi Network. Every Network has its own database schema and its own keys.
  * Lowercase, as its schema names and key prefixes are; the deployment's
  * `NETWORK` (`"Mainnet" | "Preprod"`) is a different value and goes away.
+ * The same names raw SQL takes (`netTable`).
  */
-export type Network = (typeof NETWORKS)[number];
+export type Network = TableNetwork;
+
+export const NETWORKS = [
+  "mainnet",
+  "preprod",
+] as const satisfies readonly Network[];
 
 /**
  * Returns `value` as a Network, or throws. A missing or unknown Network is an

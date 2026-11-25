@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/node";
 import type { Prisma } from "@sokosumi/database";
 import { createPrismaClient } from "@sokosumi/database/client";
+import { configureSqlTables } from "@sokosumi/database/sql-tables";
 import { attachDatabasePool } from "@vercel/functions";
 import { createError } from "evlog";
 import { Pool } from "pg";
@@ -26,6 +27,18 @@ function schemaLayoutKey(): string {
     env.DATABASE_SCHEMA_MAINNET,
     env.DATABASE_SCHEMA_PREPROD,
   ].join(",");
+}
+
+// The database package's raw SQL names the schemas these clients name. Set on
+// every evaluation of this module, before any query can run.
+{
+  const env = getEnv();
+  configureSqlTables({
+    shared: env.DATABASE_SCHEMA_SHARED,
+    mainnet: env.DATABASE_SCHEMA_MAINNET,
+    preprod: env.DATABASE_SCHEMA_PREPROD,
+    preprodOn: env.NETWORK_PREPROD_ENABLED,
+  });
 }
 
 const globalForPrisma = globalThis as typeof globalThis & {

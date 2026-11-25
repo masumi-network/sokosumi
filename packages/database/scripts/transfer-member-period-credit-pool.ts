@@ -15,10 +15,16 @@ import {
   listOrganizationIdsWithLeftoverMemberPeriodRemaining,
   transferMemberPeriodBucketsToOrganizationPool,
 } from "../src/helpers/organization-member-period-pool-transfer.js";
+import {
+  configureSqlTables,
+  sqlTableLayoutFromEnv,
+} from "../src/sql-tables.js";
 
 loadEnv({
   path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.env"),
 });
+// Raw SQL names the schemas the environment names, as Core does.
+configureSqlTables(sqlTableLayoutFromEnv(process.env));
 
 const SERIALIZATION_RETRIES = 5;
 

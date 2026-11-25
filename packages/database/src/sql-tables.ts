@@ -186,6 +186,28 @@ export const PUBLIC_LAYOUT: SqlTableLayout = {
   preprodOn: false,
 };
 
+/**
+ * The layout from `DATABASE_SCHEMA_SHARED`, `DATABASE_SCHEMA_MAINNET`,
+ * `DATABASE_SCHEMA_PREPROD` and `NETWORK_PREPROD_ENABLED`, read as Core's
+ * `config/network-layout.ts` reads them: a blank or missing name is `public`,
+ * a blank or missing flag is off. For a process without Core's config, such as
+ * this package's data-migration scripts.
+ */
+export function sqlTableLayoutFromEnv(
+  env: Record<string, string | undefined>,
+): SqlTableLayout {
+  const flag = env.NETWORK_PREPROD_ENABLED || "false";
+  if (flag !== "true" && flag !== "false") {
+    throw new Error("NETWORK_PREPROD_ENABLED must be true or false");
+  }
+  return {
+    shared: env.DATABASE_SCHEMA_SHARED || "public",
+    mainnet: env.DATABASE_SCHEMA_MAINNET || "public",
+    preprod: env.DATABASE_SCHEMA_PREPROD || "public",
+    preprodOn: flag === "true",
+  };
+}
+
 // Until the process that owns the configuration passes its names.
 let configured = createSqlTables(PUBLIC_LAYOUT);
 
