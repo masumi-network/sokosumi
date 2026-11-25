@@ -155,7 +155,10 @@ describe("Sokosumi MCP server", () => {
   }, 15_000);
 
   it("warns before a tool that spends credits", async () => {
-    const client = await connect({ Authorization: "Bearer mcp-token" });
+    const client = await connect(
+      { Authorization: "Bearer mcp-token" },
+      "?toolsets=tasks,agents",
+    );
     const { tools } = await client.listTools();
     const spending = MCP_TOOLS.filter((tool) => tool.spendsCredits).map(
       (tool) => tool.name,

@@ -1123,13 +1123,7 @@ export const MCP_TOOLSETS: readonly string[] = [
 ];
 
 /** The toolsets a server URL without `?toolsets=` gets. */
-export const DEFAULT_TOOLSETS = [
-  "workspaces",
-  "tasks",
-  "jobs",
-  "agents",
-  "coworkers",
-] as const;
+export const DEFAULT_TOOLSETS = ["workspaces", "tasks", "coworkers"] as const;
 
 /**
  * The toolsets `?toolsets=` names (comma-separated, or repeated), or the
