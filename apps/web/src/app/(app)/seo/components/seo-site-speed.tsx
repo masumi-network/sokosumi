@@ -200,7 +200,14 @@ export function SeoSiteSpeed({
                             devices={row.devices}
                           />
                         ) : (
-                          <p>{t("pageSpeed.not_checked")}</p>
+                          // A checked tier with no device read nothing Core could show; only tier none was not checked.
+                          <p>
+                            {t(
+                              row.tier === "full" || row.tier === "reduced"
+                                ? "pageSpeed.noReadable"
+                                : "pageSpeed.not_checked",
+                            )}
+                          </p>
                         )}
                       </TableCell>
                     </TableRow>

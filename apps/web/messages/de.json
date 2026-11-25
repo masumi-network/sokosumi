@@ -15213,6 +15213,7 @@
         "labNoInp": "A lab test cannot measure the response to taps and clicks.",
         "labVersion": "Lighthouse {version}",
         "auditedPage": "Das Audit hat {url} geprüft. Diese Adresse führt zu dieser Seite.",
+        "noReadable": "Keine lesbare Messung.",
         "verdict": {
           "pass": "Within all limits",
           "over": "Over a limit: {metrics}",
