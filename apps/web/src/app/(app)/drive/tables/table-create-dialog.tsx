@@ -129,13 +129,21 @@ function OpenAsTableButton({
   );
 }
 
-/** A few filled values of one CSV column, so its mapping shows what it holds. */
-function csvSamples(rows: string[][], index: number) {
-  return rows
-    .slice(1)
-    .map((row) => row[index]?.trim())
-    .filter(Boolean)
-    .slice(0, 3);
+/**
+ * The first three filled values of each CSV column, so its mapping shows what
+ * it holds. Read once per file, stopping as soon as every column has three.
+ */
+function csvSamples(rows: string[][]) {
+  const samples = rows[0].map((): string[] => []);
+  let open = samples.length;
+  for (let r = 1; r < rows.length && open > 0; r++)
+    rows[r].forEach((cell, i) => {
+      const value = cell.trim();
+      if (!value || !samples[i] || samples[i].length === 3) return;
+      samples[i].push(value);
+      if (samples[i].length === 3) open--;
+    });
+  return samples;
 }
 
 /** One cancellable read of a Files CSV; `read` answers null once cancelled. */
@@ -184,6 +192,7 @@ export function TableCreateDialog({
   const [description, setDescription] = useState("");
   const [projectId, setProjectId] = useState("");
   const [csv, setCsv] = useState<string[][]>([]);
+  const [samples, setSamples] = useState<string[][]>([]);
   const [csvName, setCsvName] = useState("");
   const csvInput = useRef<HTMLInputElement>(null);
   const [columns, setColumns] = useState<
@@ -210,6 +219,7 @@ export function TableCreateDialog({
       if (file.size > CSV_LIMIT) throw new Error(t("csvLimit"));
       const rows = parseTableCsv(await file.text());
       setCsv(rows);
+      setSamples(csvSamples(rows));
       setCsvName(file.name);
       const next = rows[0].map((name, i) => ({
         id: crypto.randomUUID(),
@@ -340,9 +350,10 @@ export function TableCreateDialog({
           </Button>
         )}
       </DialogTrigger>
-      {/* The footer is pinned, so the one action stays in reach while the
-      columns scroll; `overscroll-contain` keeps that scroll off the chat. */}
-      <DialogContent className="app-scrollbar max-h-[85dvh] overflow-y-auto overscroll-contain sm:max-w-2xl">
+      {/* Only the form scrolls: header and actions stay outside its
+      scrollport, so the one action stays in reach and a focused field is
+      never behind it. `overscroll-contain` keeps that scroll off the chat. */}
+      <DialogContent className="flex max-h-[85dvh] flex-col sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{t("newTable")}</DialogTitle>
           <DialogDescription>
@@ -365,7 +376,8 @@ export function TableCreateDialog({
             )}
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 sm:grid-cols-2">
+        {/* The inset keeps focus rings inside the scrollport's clip. */}
+        <div className="app-scrollbar -m-1 grid min-h-0 gap-4 overflow-y-auto overscroll-contain p-1 sm:grid-cols-2">
           <div className="grid gap-2">
             <Label htmlFor="table-title">{t("title")}</Label>
             <Input
@@ -409,8 +421,9 @@ export function TableCreateDialog({
             />
           </div>
           {/* A CSV opened from Files or chat is already chosen: the header
-          names it, so the picker and its limits only show for a new table. */}
-          {!csvFile && (
+          names it, so the picker and its limits only show for a new table,
+          or to choose another file when that one could not be read. */}
+          {(!csvFile || (!!error && !csv.length && !fileRead.loading)) && (
             <div className="grid gap-2 sm:col-span-2">
               <Label htmlFor="table-csv">{t("importCsv")}</Label>
               {/* The native control stays the one real control: it keeps the
@@ -439,7 +452,8 @@ export function TableCreateDialog({
                   aria-hidden
                   className="text-muted-foreground min-w-0 truncate text-sm"
                 >
-                  {csvName || t("noFileChosen")}
+                  {/* From a file the header names it; here it would say it twice. */}
+                  {csvFile ? null : csvName || t("noFileChosen")}
                 </span>
                 <span className="sr-only">
                   <Input
@@ -454,7 +468,10 @@ export function TableCreateDialog({
                   />
                 </span>
               </div>
-              <p className="text-muted-foreground text-sm">{t("csvLimit")}</p>
+              {/* On recovery the error above already says what went wrong. */}
+              {!csvFile && (
+                <p className="text-muted-foreground text-sm">{t("csvLimit")}</p>
+              )}
             </div>
           )}
           {columns.length > 0 && (
@@ -466,7 +483,6 @@ export function TableCreateDialog({
               </h3>
               <ul className="divide-border divide-y">
                 {columns.map((column, index) => {
-                  const samples = csvSamples(csv, index);
                   return (
                     <li
                       key={column.id}
@@ -546,7 +562,7 @@ export function TableCreateDialog({
                           }
                         />
                       )}
-                      {samples.length > 0 && (
+                      {samples[index]?.length > 0 && (
                         <p
                           className={cn(
                             "text-muted-foreground col-span-2 truncate text-xs",
@@ -554,7 +570,7 @@ export function TableCreateDialog({
                           )}
                         >
                           <span className="sr-only">{t("examples")}: </span>
-                          <span>{samples.join(" · ")}</span>
+                          <span>{samples[index].join(" · ")}</span>
                         </p>
                       )}
                       {guessedIds.includes(column.id) && (
@@ -589,7 +605,7 @@ export function TableCreateDialog({
                 : null}
           </p>
         </div>
-        <DialogFooter className="bg-background sticky bottom-0 -mx-6 -mb-6 border-t px-6 py-4">
+        <DialogFooter className="-mx-6 border-t px-6 pt-4">
           {attempt?.tableId && (
             <Button
               variant="outline"

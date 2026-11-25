@@ -93,6 +93,43 @@ describe("TableCreateDialog from a Files CSV", () => {
     expect(screen.queryByLabelText("columnName")).toBeNull();
   });
 
+  it.each([
+    ["could not be read", new Response("", { status: 404 }), "fileMissing"],
+    [
+      "is not a readable CSV",
+      new Response('Name\n"open quote\n'),
+      "errors.csv",
+    ],
+  ])(
+    "offers the picker to recover when the file %s",
+    async (_case, response, message) => {
+      openFromFiles(response);
+
+      expect(await screen.findByText(message)).toBeTruthy();
+      fireEvent.change(screen.getByLabelText("importCsv"), {
+        target: { files: [new File(["Name,Zip\nAda,007\n"], "Fixed.csv")] },
+      });
+
+      expect(await screen.findByText("007")).toBeTruthy();
+      expect(screen.getByText("Fixed.csv")).toBeTruthy();
+      expect(screen.queryByLabelText("importCsv")).toBeNull();
+      expect(screen.getByRole("button", { name: "create" })).toBeEnabled();
+    },
+  );
+
+  it("shows each column's first filled values, read once from the file", async () => {
+    openFromFiles(
+      new Response("Name,Zip\nAda,\n,0101\nBo,0202\nCy,0303\nDi,0404\n"),
+    );
+
+    expect(await screen.findByText("Ada · Bo · Cy")).toBeTruthy();
+    expect(screen.getByText("0101 · 0202 · 0303")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("title"), {
+      target: { value: "Renamed" },
+    });
+    expect(screen.getByText("Ada · Bo · Cy")).toBeTruthy();
+  });
+
   it("never creates an empty Table when the file is not a readable CSV", async () => {
     openFromFiles(new Response('Name\n"open quote\n'));
 
