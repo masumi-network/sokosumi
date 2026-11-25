@@ -14826,7 +14826,7 @@
           "nonBranded": "Non-branded",
           "unlisted": "No query listed"
         },
-        "brandUnlistedNote": "Google lists no query for rare searches. That traffic is in the total, in neither part of the split.",
+        "brandUnlistedNote": "Google lists no query for rare searches. That traffic is in the total and shows as No query listed.",
         "brandLimited": "There are more query rows than the split can read. The branded and non-branded numbers are a lower limit.",
         "brandListedOnly": "These numbers count the listed queries only. The day totals could not be compared, so there are no shares.",
         "brandUnavailable": "Could not read the queries for this period, so there is no brand split.",

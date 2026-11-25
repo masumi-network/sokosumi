@@ -935,6 +935,12 @@ describe("SEO Traffic branded split", () => {
     expect(section.queryByRole("table")).toBeNull();
   });
 
+  it("shows no split for a feed, which has no queries", async () => {
+    renderTraffic(brandWorkspace(["acme"]), "&searchType=discover", true);
+    await screen.findByRole("heading", { name: "Traffic by page" });
+    expect(screen.queryByRole("heading", { name: "Brand split" })).toBeNull();
+  });
+
   it("offers the site name as the first brand terms", async () => {
     const user = userEvent.setup();
     renderTraffic(brandWorkspace(), "", true);

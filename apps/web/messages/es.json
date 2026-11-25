@@ -14826,8 +14826,8 @@
           "nonBranded": "Sin marca",
           "unlisted": "Sin consulta"
         },
-        "brandUnlistedNote": "Google no muestra la consulta de las búsquedas poco frecuentes. Ese tráfico está en el total, en ninguna de las dos partes.",
-        "brandLimited": "Hay más filas de consultas de las que la división puede leer. Las cifras con marca y sin marca son un límite inferior.",
+        "brandUnlistedNote": "Google no muestra la consulta de las búsquedas poco frecuentes. Ese tráfico está en el total y aparece como Sin consulta.",
+        "brandLimited": "Hay más filas de consultas de las que la división puede leer. Las cifras de marca y sin marca son un límite inferior.",
         "brandListedOnly": "Estas cifras solo cuentan las consultas listadas. No se pudieron comparar los totales diarios, por lo que no hay porcentajes.",
         "brandUnavailable": "No se pudieron leer las consultas de este periodo, por lo que no hay división por marca.",
         "brandEmpty": "Añade tus términos de marca para ver cuánto tráfico viene de búsquedas de tu nombre."
