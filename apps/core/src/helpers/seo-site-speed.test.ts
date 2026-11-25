@@ -445,6 +445,37 @@ describe("the guards of speed data on each path", () => {
     expect(JSON.stringify(table)).not.toContain(SECRET);
   });
 
+  it("reads credential material in a percent-encoded path as credential material, fresh and stored", () => {
+    const encoded = `https://example.test/${SECRET.replaceAll("_", "%5F")}`;
+    expect(encoded).not.toContain(SECRET);
+    expect(
+      readPageSpeed(section(SEO_TEST_PAGE), SEO_TEST_PAGE, {
+        mobile: encoded,
+      }).map((row) => row.device),
+    ).toEqual(["desktop"]);
+    expect(read([extra(encoded, { speed: null }), extra(EXTRA)])).toMatchObject(
+      { rows: [{ url: EXTRA }], dropped: 1 },
+    );
+    const stored = publicSeoPayloadSchema.parse(
+      storedAudit(
+        [
+          { url: encoded, audited: false, devices: [] },
+          {
+            url: EXTRA,
+            audited: false,
+            devices: [device(EXTRA, "mobile", encoded)],
+          },
+        ],
+        [device(SEO_TEST_PAGE, "mobile", encoded)],
+      ),
+    );
+    expect(stored.pageSpeed).toEqual([]);
+    expect(stored.siteSpeed).toMatchObject({
+      rows: [{ url: EXTRA, devices: [] }],
+      dropped: 1,
+    });
+  });
+
   it("keeps a page with an ISBN in its path: a digit run that passes the card checksum is no credential", () => {
     const book = "https://example.test/books/9781234567002";
     expect(

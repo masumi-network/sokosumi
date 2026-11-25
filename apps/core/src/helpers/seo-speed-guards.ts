@@ -21,14 +21,19 @@ export function speedPageUrl(value: unknown) {
 
 /**
  * A URL that speed data can hold. A digit run in a path is no card number (an ISBN-13 can pass that
- * checksum), so the URL gets the credential checks only.
+ * checksum), so the URL gets the credential checks only. The checks read the URL as written and its
+ * decoded path: `sk%5Flive%5F...` is a key too. A public URL has no query.
  */
 export function publicSpeedUrl(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    publicExplorationUrl(value) &&
-    !containsSokoBotCredentialMaterial(value)
-  );
+  if (typeof value !== "string" || !publicExplorationUrl(value)) return false;
+  try {
+    return ![value, decodeURIComponent(new URL(value).pathname)].some(
+      containsSokoBotCredentialMaterial,
+    );
+  } catch {
+    // A path that cannot be decoded is not public.
+    return false;
+  }
 }
 
 /** The worker's free text, trimmed. Undefined: the text is too long or holds private or credential material. */
