@@ -5,9 +5,12 @@ import type {
 import {
   CMO_CHANNELS,
   CMO_NETWORK_VOLUME,
+  CMO_PIECE_CREDITS,
   type CmoVolumeLevel,
   type CmoVolumeNetwork,
+  cmoMonthPieceBudget,
   cmoMonthTargets,
+  cmoPieceCredits,
   cmoShortVideoFormat,
   isCmoShortVideoFormat,
   isCmoTalkingFormat,
@@ -39,12 +42,12 @@ export interface CmoMonthSlot {
 
 /** A month is four weeks: what a plan's rates are counted over. */
 export const CMO_MONTH_DAYS = 28;
-/** Talking videos a month at each plan (owner, 2026-11-25: four on every plan). */
-export const CMO_MONTH_TALKING_VIDEOS: Record<CmoVolumeLevel, number> = {
-  steady: 4,
-  active: 4,
-  all_in: 4,
-};
+/**
+ * One short video in this many is a talking video; a strategy without short
+ * videos turns one post in this many of its lead network.
+ */
+export const CMO_TALKING_EVERY_SHORT = 4;
+export const CMO_TALKING_EVERY_LEAD_POST = 3;
 
 const DAY_MS = 86_400_000;
 
@@ -228,7 +231,7 @@ export function cmoMonthPositions(input: {
   start: string;
   existing: readonly Pick<
     CmoCalendarEntry,
-    "date" | "channel" | "format" | "status"
+    "date" | "channel" | "format" | "status" | "alsoOn"
   >[];
 }): Position[] {
   const { start, level } = input;
@@ -315,9 +318,39 @@ export function cmoMonthPositions(input: {
 }
 
 /**
- * Turns one post a week of the lead network into a talking video that goes
- * out on every other network of the strategy that takes one, until the
- * month holds its plan's talking videos.
+ * How many talking videos a month holds: a share of its short videos (or of
+ * its lead network's posts), and never more than the plan's credits pay for
+ * beside the month's other pieces.
+ */
+export function cmoTalkingVideoCount(input: {
+  level: CmoVolumeLevel;
+  /** The month's short videos, or its lead network's posts, talking ones included. */
+  slots: number;
+  fromShorts: boolean;
+  /** Talking videos the month holds already. */
+  held: number;
+  /** What the whole month costs as it stands, in credits. */
+  credits: number;
+}): number {
+  const share = Math.floor(
+    input.slots /
+      (input.fromShorts
+        ? CMO_TALKING_EVERY_SHORT
+        : CMO_TALKING_EVERY_LEAD_POST),
+  );
+  const affordable = Math.floor(
+    Math.max(0, cmoMonthPieceBudget(input.level) - input.credits) /
+      CMO_PIECE_CREDITS.talkingVideo,
+  );
+  return Math.max(input.held, Math.min(share, input.held + affordable));
+}
+
+/**
+ * Turns short videos (or, without them, lead-network posts) into talking
+ * videos, spread evenly over the month, each on its slot's own network so
+ * it counts where the slot did. One a week also goes out on every other
+ * network that takes one; the rest stay on the short-video networks, so
+ * LinkedIn and Facebook keep their pace.
  */
 function withTalkingVideos(
   positions: Position[],
@@ -325,7 +358,10 @@ function withTalkingVideos(
     channels: MarketingStrategyPlan["channels"];
     level: CmoVolumeLevel;
     start: string;
-    existing: readonly Pick<CmoCalendarEntry, "date" | "channel" | "format">[];
+    existing: readonly Pick<
+      CmoCalendarEntry,
+      "date" | "channel" | "format" | "alsoOn"
+    >[];
   },
 ): Position[] {
   const planned = input.channels.map((channel) =>
@@ -336,39 +372,57 @@ function withTalkingVideos(
   );
   const lead = TALKING_LEADS.find((key) => takes.includes(key));
   if (!lead) return positions;
-  const talking = input.existing.filter((entry) =>
-    isCmoTalkingFormat(entry.channel.toLowerCase(), entry.format),
+  const month = [...positions, ...input.existing];
+  const isTalking = (entry: { channel: string; format: string }) =>
+    isCmoTalkingFormat(entry.channel.toLowerCase(), entry.format);
+  const fromShorts = month.some((entry) =>
+    isCmoShortVideoFormat(entry.channel.toLowerCase(), entry.format),
   );
-  let left = CMO_MONTH_TALKING_VIDEOS[input.level] - talking.length;
-  const weeks = Array.from({ length: 4 }, (_, week) => week).filter(
-    (week) =>
-      !talking.some(
-        (entry) => Math.floor(dayIndex(input.start, entry.date) / 7) === week,
-      ),
+  const isSlot = (entry: { channel: string; format: string }) => {
+    const channel = entry.channel.toLowerCase();
+    return fromShorts
+      ? isCmoShortVideoFormat(channel, entry.format)
+      : channel === lead && !isTalking(entry);
+  };
+  const talking = input.existing.filter(isTalking);
+  const open = positions.flatMap((position, index) =>
+    isSlot(position) ? [index] : [],
   );
-  // Fewer than four: every other week, so they still spread over the month.
-  const chosen =
-    left >= weeks.length
-      ? weeks
-      : weeks.filter((_, index) => index % 2 === 0).slice(0, left);
-  const leadBucket = bucketNetwork({ channel: lead, format: "talking_video" });
-  for (const week of chosen) {
-    if (left <= 0) break;
-    const at = positions.findIndex(
-      (position) =>
-        bucketNetwork(position) === leadBucket &&
-        (leadBucket === "short" || position.channel === lead) &&
-        Math.floor(dayIndex(input.start, position.date) / 7) === week,
-    );
-    if (at < 0) continue;
+  const total = cmoTalkingVideoCount({
+    level: input.level,
+    slots: open.length + input.existing.filter(isSlot).length + talking.length,
+    fromShorts,
+    held: talking.length,
+    credits: month.reduce(
+      (sum, entry) => sum + cmoPieceCredits(entry.channel, entry.format),
+      0,
+    ),
+  });
+  const left = Math.min(open.length, total - talking.length);
+  const weekOf = (date: string) => Math.floor(dayIndex(input.start, date) / 7);
+  const widelyShared = new Set(
+    talking
+      .filter((entry) => cmoSlotNetworks(entry).length === takes.length)
+      .map((entry) => weekOf(entry.date)),
+  );
+  for (let turn = 0; turn < left; turn++) {
+    const at = open[Math.floor(((turn + 0.5) * open.length) / left)]!;
     const position = positions[at]!;
+    const week = weekOf(position.date);
+    const everywhere = !widelyShared.has(week);
+    if (everywhere) widelyShared.add(week);
+    const channel = position.channel.toLowerCase();
+    const networks = everywhere
+      ? takes
+      : cmoSlotNetworks(position).filter((key) => takes.includes(key));
+    const alsoOn = networks.filter((key) => key !== channel);
+    const { alsoOn: _, ...rest } = position;
     positions[at] = {
-      ...position,
-      channel: lead,
+      ...rest,
+      channel,
       format: "talking_video",
-      alsoOn: takes.filter((key) => key !== lead),
+      ...(alsoOn.length > 0 ? { alsoOn } : {}),
     };
-    left -= 1;
   }
   return positions;
 }
