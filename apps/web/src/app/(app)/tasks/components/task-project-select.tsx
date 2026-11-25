@@ -37,7 +37,7 @@ interface TaskProjectSelectProps extends TaskProjectSelectLabels {
   onChange: (value: string | null) => void;
   onCreateProject?: (searchQuery: string) => void;
   allowNone?: boolean;
-  variant?: "field" | "chip";
+  variant?: "field" | "chip" | "crumb";
   ref?: Ref<HTMLButtonElement>;
   invalid?: boolean;
   describedBy?: string;
@@ -81,7 +81,7 @@ export function TaskProjectSelect({
     value ??
     (value === null
       ? noneLabel
-      : variant === "chip"
+      : variant !== "field"
         ? projectLabel
         : (placeholder ?? noneLabel));
 
@@ -114,8 +114,8 @@ export function TaskProjectSelect({
         <Button
           ref={ref}
           type="button"
-          variant="outline"
-          size={variant === "chip" ? "sm" : "default"}
+          variant={variant === "crumb" ? "ghost" : "outline"}
+          size={variant === "field" ? "default" : "sm"}
           role="combobox"
           aria-expanded={open}
           aria-label={projectLabel}
@@ -124,7 +124,9 @@ export function TaskProjectSelect({
           className={cn(
             variant === "chip"
               ? "h-7 w-auto max-w-56 justify-start gap-1.5 rounded-full px-2.5 text-xs font-medium"
-              : "w-full justify-between gap-2",
+              : variant === "crumb"
+                ? "text-foreground h-7 w-auto max-w-56 justify-start gap-1.5 rounded-md px-2 text-sm font-medium"
+                : "w-full justify-between gap-2",
           )}
         >
           <span
@@ -139,10 +141,10 @@ export function TaskProjectSelect({
                 logo={selectedProject.logo}
                 className={cn(
                   "shrink-0",
-                  variant === "chip" ? "size-4" : "size-5",
+                  variant === "field" ? "size-5" : "size-4",
                 )}
               />
-            ) : variant === "chip" ? (
+            ) : variant !== "field" ? (
               <FolderKanban className="size-3.5 shrink-0" aria-hidden />
             ) : null}
             <span
@@ -157,7 +159,7 @@ export function TaskProjectSelect({
           <ChevronsUpDown
             className={cn(
               "shrink-0 opacity-50",
-              variant === "chip" ? "size-3.5" : "size-4",
+              variant === "field" ? "size-4" : "size-3.5",
             )}
             aria-hidden
           />
@@ -167,7 +169,7 @@ export function TaskProjectSelect({
         align="start"
         className={cn(
           "p-0",
-          variant === "chip" ? "w-72" : "w-(--radix-popover-trigger-width)",
+          variant === "field" ? "w-(--radix-popover-trigger-width)" : "w-72",
         )}
       >
         <Command className="**:data-[slot=command-list]:max-h-72" shouldFilter>

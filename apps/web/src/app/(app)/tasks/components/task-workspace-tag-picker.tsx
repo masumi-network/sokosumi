@@ -3,7 +3,7 @@
 import type { WorkspaceLabel } from "@sokosumi/core-client";
 import { checkFileLabelName } from "@sokosumi/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Plus } from "lucide-react";
+import { Check, Plus, Tag } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useId, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -23,6 +23,7 @@ import {
   useWorkspaceTags,
   workspaceTagsQueryKey,
 } from "@/queries/workspace-tags";
+import { COMPOSER_PILL_CLASS } from "./task-composer-pill";
 import { JevTagIndicator } from "./task-draft-tags";
 import { TaskTagCatalogProvider } from "./task-tag-catalog";
 import { TaskTagColorSelect } from "./task-tag-color-select";
@@ -51,6 +52,8 @@ interface TaskWorkspaceTagPickerProps {
   conflict?: TaskTagConflictProps;
   suggestions?: TaskWorkspaceTag[];
   onDismissSuggestion?: (tag: TaskWorkspaceTag) => void;
+  /** `pill` sits in the New Task property row: no heading, a pill to add. */
+  variant?: "section" | "pill";
 }
 
 export function TaskWorkspaceTagPicker(props: TaskWorkspaceTagPickerProps) {
@@ -94,12 +97,23 @@ function TagPicker(props: TaskWorkspaceTagPickerProps) {
     setCreating(pending);
     props.onCreatingChange?.(pending);
   }
+  const isPill = props.variant === "pill";
   return (
-    <section aria-labelledby={labelId} className="space-y-2">
-      <h2 id={labelId} className="text-muted-foreground text-xs font-medium">
+    <section
+      aria-labelledby={labelId}
+      className={isPill ? "contents" : "space-y-2"}
+    >
+      <h2
+        id={labelId}
+        className={
+          isPill ? "sr-only" : "text-muted-foreground text-xs font-medium"
+        }
+      >
         {t("label")}
       </h2>
-      <div className="flex flex-wrap items-center gap-1">
+      <div
+        className={isPill ? "contents" : "flex flex-wrap items-center gap-1"}
+      >
         {props.children}
         {props.selected.map((tag) => (
           <TaskTagBadge
@@ -131,16 +145,28 @@ function TagPicker(props: TaskWorkspaceTagPickerProps) {
             }}
           >
             <PopoverTrigger asChild>
-              <Button
-                ref={addButton}
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={props.disabled}
-              >
-                <Plus className="size-4" aria-hidden />
-                {t("add")}
-              </Button>
+              {isPill ? (
+                <button
+                  ref={addButton}
+                  type="button"
+                  disabled={props.disabled}
+                  className={COMPOSER_PILL_CLASS}
+                >
+                  <Tag aria-hidden />
+                  {props.selected.length > 0 ? t("add") : t("label")}
+                </button>
+              ) : (
+                <Button
+                  ref={addButton}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={props.disabled}
+                >
+                  <Plus className="size-4" aria-hidden />
+                  {t("add")}
+                </Button>
+              )}
             </PopoverTrigger>
             <PopoverContent
               data-task-form-portal=""

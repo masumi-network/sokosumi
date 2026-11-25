@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import { type CmoPiece } from "@/services/cmo-production.service";
 
 const m = vi.hoisted(() => ({
@@ -77,6 +78,7 @@ import {
   cmoWriterChunks,
   cmoWriterModelTimeoutMs,
   cmoWriterSystem,
+  cmoWrittenChunkSchema,
   writeCmoMonthPieces,
 } from "./cmo-month-writer";
 
@@ -122,6 +124,8 @@ function written(id: string, extra: Record<string, unknown> = {}) {
     presenter: null,
     voice: null,
     languageCode: null,
+    shortFormat: null,
+    hookLine: null,
     ...extra,
   };
 }
@@ -785,5 +789,23 @@ describe("a cmo-v20 short video", () => {
       "Leave shortFormat and hookLine null.",
     );
     expect(cmoWriterSystem(base)).not.toContain("## Short videos");
+  });
+});
+
+// 2026-11-25: an optional key made OpenAI's strict structured output refuse
+// the schema, and every chunk of every month wrote nothing for two days.
+describe("cmoWrittenChunkSchema", () => {
+  it("requires every key, as strict structured output demands", () => {
+    const schema = z.toJSONSchema(cmoWrittenChunkSchema) as unknown as {
+      properties: {
+        pieces: {
+          items: { properties: Record<string, unknown>; required?: string[] };
+        };
+      };
+    };
+    const piece = schema.properties.pieces.items;
+    expect([...(piece.required ?? [])].sort()).toEqual(
+      Object.keys(piece.properties).sort(),
+    );
   });
 });

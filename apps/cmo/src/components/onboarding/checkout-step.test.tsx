@@ -333,6 +333,9 @@ describe("CheckoutStep", () => {
     expect(
       container.querySelector(".ob-quote figcaption")?.textContent,
     ).toContain("Florian HallerCEO, Serviceplan Group");
+    const photo = container.querySelector<HTMLImageElement>(".ob-quote img");
+    expect(photo?.getAttribute("src")).toBe("/florian-haller.webp");
+    expect(photo?.getAttribute("alt")).toBe("Florian Haller");
     const assure = container.querySelector(".ob-assure")?.textContent ?? "";
     expect(assure).toContain("Cancel any time.");
     expect(assure).toContain("Not happy in the first 14 days? Full refund.");

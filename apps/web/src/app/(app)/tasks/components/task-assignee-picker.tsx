@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronDown, UserRound } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { type RefObject, useId, useMemo, useRef, useState } from "react";
 
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { AssistantOrb } from "@/components/aurora-orb";
@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/popover";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
+
+import { COMPOSER_PILL_CLASS } from "./task-composer-pill";
 
 const UNASSIGNED_VALUE = "__unassigned__";
 const DIALOG_CONTENT_SELECTOR = '[data-slot="dialog-content"]';
@@ -48,6 +50,8 @@ interface TaskAssigneePickerProps {
   isOptionDisabled?: (option: TaskAssigneePickerOption) => boolean;
   disabled?: boolean;
   align?: "start" | "end";
+  /** `pill` is the compact trigger in the New Task property row. */
+  variant?: "field" | "pill";
 }
 
 const AVATAR_CLASS = {
@@ -124,10 +128,12 @@ export function TaskAssigneePicker({
   isOptionDisabled,
   disabled = false,
   align = "start",
+  variant = "field",
 }: TaskAssigneePickerProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [portalContainer, setPortalContainer] = useState<HTMLElement>();
+  const listId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const selectedOption = useMemo(() => {
@@ -198,51 +204,33 @@ export function TaskAssigneePicker({
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
-      <div className="flex items-center gap-3">
-        <AssigneeAvatar option={selectedOption} />
-        <PopoverTrigger asChild>
-          <button
-            ref={triggerRef}
-            id={id}
-            type="button"
-            role="combobox"
-            aria-expanded={open}
-            aria-label={accessibleName}
-            disabled={disabled}
-            className="focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring inline-flex min-h-6 max-w-full min-w-0 items-center gap-1.5 rounded-sm text-left outline-none focus-visible:ring-2 disabled:cursor-not-allowed"
-          >
-            <span className="min-w-0">
-              <span
-                className={cn(
-                  "block truncate text-sm leading-tight font-semibold",
-                  isUnassigned && "text-muted-foreground",
-                )}
-              >
-                {displayName}
-              </span>
-              {selectedOption?.caption ? (
-                <span className="text-muted-foreground block truncate text-xs">
-                  {selectedOption.caption}
-                </span>
-              ) : null}
-            </span>
-            <ChevronDown
-              className="text-muted-foreground size-4 shrink-0 opacity-70"
-              aria-hidden
-            />
-          </button>
-        </PopoverTrigger>
-        {selectedOption ? (
-          <span className="ml-auto shrink-0">
-            <VendorMark
-              vendor={selectedOption.vendor}
-              className="h-5"
-              textClassName="text-muted-foreground text-xs font-medium"
-            />
-          </span>
-        ) : null}
-      </div>
+      {variant === "pill" ? (
+        <AssigneePillTrigger
+          triggerRef={triggerRef}
+          id={id}
+          open={open}
+          listId={listId}
+          accessibleName={accessibleName}
+          disabled={disabled}
+          option={selectedOption}
+          label={isUnassigned ? labels.ariaLabel : displayName}
+          filled={!isUnassigned}
+        />
+      ) : (
+        <AssigneeFieldTrigger
+          triggerRef={triggerRef}
+          id={id}
+          open={open}
+          listId={listId}
+          accessibleName={accessibleName}
+          disabled={disabled}
+          option={selectedOption}
+          displayName={displayName}
+          isUnassigned={isUnassigned}
+        />
+      )}
       <PopoverContent
+        id={listId}
         align={align}
         container={portalContainer}
         className="w-72 p-0"
@@ -284,5 +272,119 @@ export function TaskAssigneePicker({
         </Command>
       </PopoverContent>
     </Popover>
+  );
+}
+
+function AssigneePillTrigger({
+  triggerRef,
+  id,
+  open,
+  listId,
+  accessibleName,
+  disabled,
+  option,
+  label,
+  filled,
+}: {
+  triggerRef: RefObject<HTMLButtonElement | null>;
+  id?: string;
+  open: boolean;
+  listId: string;
+  accessibleName: string;
+  disabled: boolean;
+  option: CoworkerOption | null;
+  label: string;
+  filled: boolean;
+}) {
+  return (
+    <PopoverTrigger asChild>
+      <button
+        ref={triggerRef}
+        id={id}
+        type="button"
+        role="combobox"
+        aria-expanded={open}
+        aria-controls={listId}
+        aria-label={accessibleName}
+        disabled={disabled}
+        data-filled={filled}
+        className={COMPOSER_PILL_CLASS}
+      >
+        <span aria-hidden>
+          <AssigneeAvatar option={option} size="compact" />
+        </span>
+        <span className="truncate">{label}</span>
+      </button>
+    </PopoverTrigger>
+  );
+}
+
+function AssigneeFieldTrigger({
+  triggerRef,
+  id,
+  open,
+  listId,
+  accessibleName,
+  disabled,
+  option,
+  displayName,
+  isUnassigned,
+}: {
+  triggerRef: RefObject<HTMLButtonElement | null>;
+  id?: string;
+  open: boolean;
+  listId: string;
+  accessibleName: string;
+  disabled: boolean;
+  option: CoworkerOption | null;
+  displayName: string;
+  isUnassigned: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <AssigneeAvatar option={option} />
+      <PopoverTrigger asChild>
+        <button
+          ref={triggerRef}
+          id={id}
+          type="button"
+          role="combobox"
+          aria-expanded={open}
+          aria-controls={listId}
+          aria-label={accessibleName}
+          disabled={disabled}
+          className="focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring inline-flex min-h-6 max-w-full min-w-0 items-center gap-1.5 rounded-sm text-left outline-none focus-visible:ring-2 disabled:cursor-not-allowed"
+        >
+          <span className="min-w-0">
+            <span
+              className={cn(
+                "block truncate text-sm leading-tight font-semibold",
+                isUnassigned && "text-muted-foreground",
+              )}
+            >
+              {displayName}
+            </span>
+            {option?.caption ? (
+              <span className="text-muted-foreground block truncate text-xs">
+                {option.caption}
+              </span>
+            ) : null}
+          </span>
+          <ChevronDown
+            className="text-muted-foreground size-4 shrink-0 opacity-70"
+            aria-hidden
+          />
+        </button>
+      </PopoverTrigger>
+      {option ? (
+        <span className="ml-auto shrink-0">
+          <VendorMark
+            vendor={option.vendor}
+            className="h-5"
+            textClassName="text-muted-foreground text-xs font-medium"
+          />
+        </span>
+      ) : null}
+    </div>
   );
 }

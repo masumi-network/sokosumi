@@ -382,6 +382,120 @@ export const JOB = {
   ),
 };
 
+const toolResult = (structuredContent: Record<string, unknown>) => ({
+  content: [{ type: "text" as const, text: JSON.stringify(structuredContent) }],
+  structuredContent,
+});
+
+const DESCRIPTION = `Compare our plans with the three closest competitors in Germany, Austria and Switzerland.
+
+- List each plan's monthly price and what it includes.
+- Note any free tier.
+<b>Markup stays text.</b>`;
+
+const LONG_DESCRIPTION = `${DESCRIPTION}
+
+${"Every competitor page we checked links its pricing from the footer, so the first pass reads the footer of each site, follows the pricing link, and notes the plan names exactly as written. ".repeat(6)}
+https://example.com/a-very-long-link-without-any-spaces-that-must-wrap-instead-of-widening-the-card/pricing/dach/2026/plans-and-prices`;
+
+/** A Task's events, as `tasks_get` embeds them: status changes without text, and comments. */
+const TASK_EVENTS = [
+  {
+    id: "evt_1",
+    createdAt: "2026-11-20T09:00:00.000Z",
+    comment: null,
+    status: "CREATED",
+    actor: ada,
+  },
+  {
+    id: "evt_2",
+    createdAt: "2026-11-21T10:15:00.000Z",
+    comment: "Please include annual prices where a site shows them.",
+    status: null,
+    actor: ada,
+  },
+  {
+    id: "evt_3",
+    createdAt: "2026-11-22T08:00:00.000Z",
+    comment: "   ",
+    status: "READY",
+    actor: grace,
+  },
+  {
+    id: "evt_4",
+    createdAt: "2026-11-24T16:40:00.000Z",
+    comment: "First pass done. Two sites hide prices behind a contact form.",
+    status: null,
+    actor: analyst,
+  },
+];
+
+/** A Task's Jobs, oldest first, as `tasks_get` embeds them. */
+const TASK_JOBS = [
+  {
+    id: "job_1",
+    createdAt: "2026-11-22T09:30:00.000Z",
+    name: "Competitor pricing scan",
+    agentId: "agent_1",
+    status: "failed",
+  },
+  {
+    id: "job_2",
+    createdAt: "2026-11-24T14:00:00.000Z",
+    name: "Competitor pricing scan, second try",
+    agentId: "agent_1",
+    status: "completed",
+  },
+];
+
+/** A `tasks_get` item, trimmed to the fields its result always has. */
+const DETAIL_TASK = {
+  ...task(
+    39,
+    "Research competitor pricing in the DACH market",
+    "READY",
+    analyst,
+    "2026-11-28",
+  ),
+  description: DESCRIPTION,
+  events: TASK_EVENTS,
+  jobs: TASK_JOBS,
+};
+
+const detailResult = (fields: Record<string, unknown> = {}) => ({
+  ...toolResult({ data: { ...DETAIL_TASK, ...fields } }),
+  _meta: sokosumi,
+});
+
+/** `tasks_show` results: `tasks_get`'s, with Core's `_meta`. */
+export const TASK = {
+  input: { id: "ACME-39", workspace: "acme" },
+  task: DETAIL_TASK,
+  result: detailResult(),
+  longDescription: LONG_DESCRIPTION,
+  long: detailResult({ description: LONG_DESCRIPTION }),
+  approval: detailResult({ status: "APPROVAL_REQUIRED" }),
+  bare: detailResult({
+    description: null,
+    events: [],
+    jobs: [],
+    dueOn: null,
+    assignee: null,
+    workspace: { id: ACME.id, organizationId: null, organization: null },
+  }),
+  /** Core's error when only a person may take the step (ADR 0077). */
+  personApproval: {
+    ...toolResult({
+      status: 403,
+      kind: "person_approval_required",
+      message: "A person approves this in Sokosumi",
+      details: { webUrl: `https://app.sokosumi.com/tasks/${DETAIL_TASK.id}` },
+    }),
+    isError: true,
+    _meta: sokosumi,
+  },
+};
+
 /** Tool results the harness feeds each view, by view id, then by fixture name. */
 export const FIXTURES: Record<string, Record<string, Fixture>> = {
   hello: {
@@ -528,5 +642,33 @@ export const FIXTURES: Record<string, Record<string, Fixture>> = {
         isError: true,
       },
     },
+  },
+  "task-detail": {
+    default: { input: TASK.input, result: TASK.result },
+    timeline: {
+      input: TASK.input,
+      result: TASK.result,
+      play: [{ click: "Timeline" }],
+      allWidths: true,
+    },
+    long: { input: TASK.input, result: TASK.long, allWidths: true },
+    awaitingApproval: {
+      input: TASK.input,
+      result: TASK.approval,
+    },
+    bare: {
+      input: { id: "ACME-39" },
+      result: TASK.bare,
+      play: [{ click: "Timeline" }],
+    },
+    loading: { input: TASK.input },
+    error: {
+      input: TASK.input,
+      result: {
+        content: [{ type: "text", text: "Task not found" }],
+        isError: true,
+      },
+    },
+    approval: { input: TASK.input, result: TASK.personApproval },
   },
 };

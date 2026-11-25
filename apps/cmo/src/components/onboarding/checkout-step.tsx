@@ -68,7 +68,7 @@ const QUOTE = {
   text: "CMO.xyz complements and connects our established agency offerings. Agentic services enable interaction, and with it the thread that ties together all of our AI applications and services.",
   name: "Florian Haller",
   role: "CEO, Serviceplan Group",
-  initials: "FH",
+  photo: "/florian-haller.webp",
 };
 
 /** A plan's monthly credits, in plain words. */
@@ -431,9 +431,13 @@ export function CheckoutStep({
           <figure className="ob-quote">
             <blockquote>“{QUOTE.text}”</blockquote>
             <figcaption>
-              <span className="ob-quote-avatar" aria-hidden="true">
-                {QUOTE.initials}
-              </span>
+              <img
+                className="ob-quote-avatar"
+                src={QUOTE.photo}
+                alt={QUOTE.name}
+                width={40}
+                height={40}
+              />
               <span>
                 <span className="ob-quote-name">{QUOTE.name}</span>
                 <span className="muted">{QUOTE.role}</span>

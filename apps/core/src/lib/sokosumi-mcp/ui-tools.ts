@@ -37,6 +37,13 @@ export const MCP_UI_TOOLS: readonly McpUiTool[] = [
     description:
       "Show a Job to the person: its status in plain words, the agent, when it started and finished, and once done its result, files and links. The view checks for updates while it is open, until the Job finishes. Takes jobs_get's arguments and returns its result. Use it when the person wants to see or follow a Job; use jobs_get when you only need the data.",
   },
+  {
+    name: "tasks_show",
+    data: "tasks_get",
+    ui: "task-detail",
+    description:
+      "Show one Task to the person: its name, status, assignee, due date and description, with its comments and Jobs when the person opens the timeline. Takes tasks_get's arguments and returns its result. Use it when the person wants to see a Task; use tasks_get when you only need the data.",
+  },
 ];
 
 /** The MCP Apps MIME type of a view (SEP-1865). */

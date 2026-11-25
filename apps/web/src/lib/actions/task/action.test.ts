@@ -893,6 +893,27 @@ describe("createTask Run at", () => {
       expect.objectContaining({ status: TaskStatus.DRAFT }),
     );
   });
+
+  it("passes priority and due date through, and leaves them out when unset", async () => {
+    const { createTask } = await import("./action");
+    const base = {
+      description: "Draft task",
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      status: TaskStatus.DRAFT,
+    } as const;
+
+    await createTask({ ...base, priority: "HIGH", dueOn: "2026-12-04" });
+    await createTask(base);
+
+    expect(taskServiceMock.createTask.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({ priority: "HIGH", dueOn: "2026-12-04" }),
+    );
+    const unset = taskServiceMock.createTask.mock.calls[1]?.[0];
+    expect(unset).not.toHaveProperty("priority");
+    expect(unset).not.toHaveProperty("dueOn");
+  });
 });
 
 describe("task participant actions", () => {
