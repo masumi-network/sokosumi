@@ -293,13 +293,23 @@ export function TemplatePill({
   return (
     <>
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <button type="button" className={COMPOSER_PILL_CLASS}>
-            <LayoutTemplate aria-hidden />
-            {t("templates")}
-          </button>
-        </PopoverTrigger>
-        <PopoverContent align="start" className="w-80 p-1">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label={t("templates")}
+                className="focus-visible:ring-ring text-muted-foreground press hover:bg-accent hover:text-accent-foreground hit-area inline-flex size-7 items-center justify-center rounded-full outline-none transition-colors focus-visible:ring-2"
+              >
+                <LayoutTemplate className="size-4" aria-hidden />
+              </button>
+            </PopoverTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="top" sideOffset={6}>
+            {t("templatesFrom", { name: assignee.name })}
+          </TooltipContent>
+        </Tooltip>
+        <PopoverContent align="start" side="top" className="w-80 p-1">
           <p className="text-muted-foreground px-2 pt-1.5 pb-1 text-xs font-medium">
             {t("templatesFrom", { name: assignee.name })}
           </p>

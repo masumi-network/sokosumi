@@ -367,15 +367,6 @@ export function TaskComposer({
               onPressedChange={setIsPrivate}
             />
           ) : null}
-          {selectedOption && !isCopy ? (
-            <TemplatePill
-              assignee={selectedOption}
-              onPick={(offer) => {
-                if (!name.trim()) setName(offer.title);
-                setDescription(offer.prompt);
-              }}
-            />
-          ) : null}
         </div>
         {blocksOtherPeople && labels.privateOtherPeopleHint ? (
           <p className="text-muted-foreground mt-2 text-xs">
@@ -446,6 +437,15 @@ export function TaskComposer({
               onClose={() => setIsTablePickerOpen(false)}
               onPick={(file) => void handleAttachFiles([file])}
               returnFocusRef={attachButtonRef}
+            />
+          ) : null}
+          {selectedOption && !isCopy ? (
+            <TemplatePill
+              assignee={selectedOption}
+              onPick={(offer) => {
+                if (!name.trim()) setName(offer.title);
+                setDescription(offer.prompt);
+              }}
             />
           ) : null}
           <TaskContextAttachmentsField

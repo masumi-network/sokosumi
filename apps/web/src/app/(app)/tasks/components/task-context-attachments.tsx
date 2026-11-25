@@ -31,6 +31,11 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { TaskContextSelectionInput } from "@/lib/actions/task/action";
 import type { EffectiveDesignMdAttachment } from "@/lib/services/design-md.service";
 import { cn } from "@/lib/utils";
@@ -58,6 +63,25 @@ interface TogglePillProps {
   label: React.ReactNode;
   pressed: boolean;
   onPressedChange: (pressed: boolean) => void;
+}
+
+function MenuItemText({
+  label,
+  detail,
+}: {
+  label: string;
+  detail: string | null;
+}) {
+  return (
+    <span className="min-w-0 flex-1">
+      <span className="block">{label}</span>
+      {detail ? (
+        <span className="text-muted-foreground block truncate text-xs">
+          {detail}
+        </span>
+      ) : null}
+    </span>
+  );
 }
 
 function TogglePill({ label, pressed, onPressedChange }: TogglePillProps) {
@@ -291,29 +315,36 @@ export function TaskContextAttachmentsField({
             : "text-muted-foreground",
         )}
       >
-        <button
-          type="button"
-          aria-pressed={brandPressed}
-          aria-label={brandLabel}
-          className="focus-visible:ring-ring inline-flex h-full min-w-0 items-center gap-1.5 py-0 pr-1.5 pl-2 outline-none focus-visible:ring-2"
-          onClick={() => {
-            if (!brandAvailable) {
-              setIsAdHocDialogOpen(true);
-              return;
-            }
-            onSelectionChange({
-              ...selection,
-              brand: {
-                ...selection.brand,
-                enabled: !selection.brand.enabled,
-              },
-            });
-          }}
-        >
-          <PillMarker pressed={brandPressed} />
-          {brandAvatar}
-          <span className="max-w-36 truncate">{brandLabel}</span>
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-pressed={brandPressed}
+              aria-label={brandLabel}
+              className="focus-visible:ring-ring inline-flex h-full min-w-0 items-center gap-1.5 py-0 pr-1.5 pl-2 outline-none focus-visible:ring-2"
+              onClick={() => {
+                if (!brandAvailable) {
+                  setIsAdHocDialogOpen(true);
+                  return;
+                }
+                onSelectionChange({
+                  ...selection,
+                  brand: {
+                    ...selection.brand,
+                    enabled: !selection.brand.enabled,
+                  },
+                });
+              }}
+            >
+              <PillMarker pressed={brandPressed} />
+              {brandAvatar}
+              <span className="truncate">{t("brand")}</span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top" sideOffset={6} className="max-w-72">
+            {brandLabel}
+          </TooltipContent>
+        </Tooltip>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -327,7 +358,7 @@ export function TaskContextAttachmentsField({
               <ChevronDown className="size-3" aria-hidden />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="min-w-48">
+          <DropdownMenuContent align="start" className="max-w-72 min-w-48">
             {project?.designMd ? (
               <DropdownMenuItem
                 aria-label={t("projectBrand")}
@@ -338,7 +369,7 @@ export function TaskContextAttachmentsField({
                   logo={project.logo}
                   className="size-4 rounded-full"
                 />
-                <span className="flex-1">{t("projectBrand")}</span>
+                <MenuItemText label={t("projectBrand")} detail={project.name} />
                 {selection.brand.source === "project" ? (
                   <Check className="size-3.5" aria-hidden />
                 ) : null}
@@ -354,11 +385,18 @@ export function TaskContextAttachmentsField({
                 onSelect={() => selectBrandSource("default")}
               >
                 <DefaultBrandAvatar brand={defaultBrand} />
-                <span className="flex-1">
-                  {defaultBrand.owner.type === "organization"
-                    ? t("organizationBrand")
-                    : t("personalBrand")}
-                </span>
+                <MenuItemText
+                  label={
+                    defaultBrand.owner.type === "organization"
+                      ? t("organizationBrand")
+                      : t("personalBrand")
+                  }
+                  detail={
+                    defaultBrand.owner.type === "organization"
+                      ? defaultBrand.owner.name
+                      : null
+                  }
+                />
                 {selection.brand.source === "default" ? (
                   <Check className="size-3.5" aria-hidden />
                 ) : null}

@@ -4679,7 +4679,11 @@ describe("TaskForm composer", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "templates" }));
+    const templates = screen.getByRole("button", { name: "templates" });
+    expect(screen.getByTestId("task-compose-meta-row")).not.toContainElement(
+      templates,
+    );
+    await user.click(templates);
     await user.click(
       screen.getByRole("button", { name: /^Competitive analysis/ }),
     );
