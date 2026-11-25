@@ -575,7 +575,8 @@ beforeAll(() => {
   console.log(
     `Network old path scan: ${files.length} sources in ${Math.round(performance.now() - started)} ms`,
   );
-});
+  // 2 s on an idle machine; a loaded CI runner passed the 10 s default twice on 2026-11-25.
+}, 120_000);
 
 it("keeps the legacy client Network allowlist from growing or going stale", () => {
   assertAllowlist(
