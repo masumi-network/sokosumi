@@ -71,6 +71,7 @@ import {
   writeOwnerDriveFile,
 } from "@/services/image-studio-drive.service";
 import {
+  CMO_MONTH_JOB_KEY_PREFIX,
   createImageJob,
   createShortVideoJob,
   createTalkingVideoJob,
@@ -101,7 +102,7 @@ import { recordSokoBotCheckUsage } from "@/services/soko-bot-billing.service";
  * so two callers racing start the same job, and a new visual starts over.
  */
 
-const KEY_PREFIX = "cmo-media";
+const KEY_PREFIX = CMO_MONTH_JOB_KEY_PREFIX;
 /** Tries a slot gets for one visual before the piece goes back to Cuso. */
 const ATTEMPTS = 2;
 /** Default references when the visual names none: the brand's own pictures. */

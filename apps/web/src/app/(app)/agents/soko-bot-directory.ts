@@ -7,8 +7,8 @@ import { botFaceSeed } from "@/components/soko-bot/bot-face";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 
 export type DirectoryBotOwner =
-  | { kind: "you" }
-  | { kind: "person"; name: string }
+  | { kind: "you"; name: string; image: string | null }
+  | { kind: "person"; name: string; image: string | null }
   | { kind: "team" }
   | { kind: "project"; name: string | null };
 
@@ -60,9 +60,11 @@ export async function loadBotDirectory(): Promise<BotDirectory> {
             seed: botFaceSeed(member.bot, member.userId),
             status: member.bot.status,
             lastActivityAt: member.bot.lastActivityAt,
-            owner: member.isYou
-              ? { kind: "you" }
-              : { kind: "person", name: member.name },
+            owner: {
+              kind: member.isYou ? "you" : "person",
+              name: member.name,
+              image: member.image,
+            },
             sharedRoomId: null,
             canConfigure: member.isYou,
           },

@@ -1045,9 +1045,8 @@ describe("authoritative action responses", () => {
       question: null,
       observationToolCallIds: [],
     });
-    expect(cuso.answerText).toBe(
-      "Two posts are scheduled; the card has the details.",
-    );
+    // On a schedule the card says it all: a sentence beside it repeats it.
+    expect(cuso.answerText).toBe("Nothing to add.");
 
     // A personal Soko Bot keeps its receipt lines.
     db.sokoBotTurn.findUnique.mockResolvedValue({

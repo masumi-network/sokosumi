@@ -18,7 +18,13 @@ export interface AgentTileProps {
   /** Who it belongs to, its vendor, or its price. */
   meta: ReactNode;
   status?: ReactNode;
+  /** One direct action, drawn above the card link so it never opens it. */
+  action?: ReactNode;
 }
+
+// The name's link stretches over the whole card; the action sits above it.
+const STRETCHED_LINK_CLASS =
+  "text-foreground min-w-0 truncate font-medium outline-none after:absolute after:inset-0 after:rounded-[inherit] after:content-['']";
 
 /**
  * The one card of the Agents page: Soko Bots, Coworkers and marketplace
@@ -32,54 +38,53 @@ export function AgentTile({
   purpose,
   meta,
   status,
+  action,
 }: AgentTileProps) {
-  const className = cn(
-    HOLDER_ITEM_CLASS,
-    HOLDER_ITEM_HOVER_CLASS,
-    "press focus-visible:ring-ring flex h-full min-w-0 flex-col gap-3 p-4 outline-none focus-visible:ring-2",
-  );
-  const body = (
-    <>
-      <span className="flex min-w-0 items-center gap-3">
+  return (
+    <div
+      className={cn(
+        HOLDER_ITEM_CLASS,
+        HOLDER_ITEM_HOVER_CLASS,
+        "has-[a:focus-visible]:ring-ring relative flex h-full min-w-0 flex-col gap-3 p-4 has-[a:focus-visible]:ring-2",
+        !action && "press",
+      )}
+    >
+      <div className="flex min-w-0 items-center gap-3">
         <span className="flex size-10 shrink-0 items-center justify-center">
           {avatar}
         </span>
-        <span className="text-foreground min-w-0 flex-1 truncate font-medium">
-          {name}
+        <span className="flex min-w-0 flex-1 items-center gap-1.5">
+          {external ? (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={STRETCHED_LINK_CLASS}
+            >
+              {name}
+            </a>
+          ) : (
+            <Link href={href} className={STRETCHED_LINK_CLASS}>
+              {name}
+            </Link>
+          )}
+          {external ? (
+            <ArrowUpRight
+              aria-hidden
+              className="text-muted-foreground size-4 shrink-0"
+            />
+          ) : null}
         </span>
-        {external ? (
-          <ArrowUpRight
-            aria-hidden
-            className="text-muted-foreground size-4 shrink-0"
-          />
-        ) : null}
-      </span>
-      <span className="text-muted-foreground line-clamp-2 text-sm text-pretty">
+        {status ? <span className="shrink-0 text-xs">{status}</span> : null}
+      </div>
+      <p className="text-muted-foreground line-clamp-2 text-sm text-pretty">
         {purpose}
-      </span>
-      <span className="text-muted-foreground mt-auto flex min-w-0 items-center justify-between gap-3 text-xs">
-        <span className="min-w-0 truncate">{meta}</span>
-        {status}
-      </span>
-    </>
-  );
-
-  if (external) {
-    return (
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={className}
-      >
-        {body}
-      </a>
-    );
-  }
-  return (
-    <Link href={href} className={className}>
-      {body}
-    </Link>
+      </p>
+      <div className="text-muted-foreground mt-auto flex min-h-8 min-w-0 items-center justify-between gap-3 text-xs">
+        <span className="flex min-w-0 items-center gap-1.5">{meta}</span>
+        {action ? <div className="relative z-10 shrink-0">{action}</div> : null}
+      </div>
+    </div>
   );
 }
 

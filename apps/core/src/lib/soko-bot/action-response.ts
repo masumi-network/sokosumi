@@ -254,6 +254,10 @@ const FILE_NAMING_KEYS = new Set(["filename", "overwrite"]);
  */
 const REWRITTEN_KEYS: Record<string, Set<string>> = {
   generate_talking_video: new Set(["script", "maxCredits"]),
+  // "Social post was modified, reload and retry": the same change again on
+  // the post's new revision (CMO chat read "Not confirmed: updated social
+  // post (4×)" over four posts it had changed).
+  update_social_post: new Set(["revision"]),
 };
 
 function inputCovers(
@@ -640,14 +644,16 @@ export async function buildActionResponse(
       !question &&
       (narrative?.kind === "SILENT" ||
         isSokoBotSilentAnswer(message ?? (narrative ? "" : answerText))));
-  // A background run of Cuso's (a follow-up once a video is ready) that
-  // filed its card has delivered: its closing words would be a second
-  // message saying the same.
+  // A background run of Cuso's (a follow-up once a video is ready) or one
+  // of his schedules (the daily update) that filed its card has delivered:
+  // its closing words would be a second message saying the same, posted
+  // under the card ("The daily update is below.").
   const cardSaysIt =
     reportedByCard &&
     !actionText.length &&
     !question &&
-    Boolean((await turnInfo())?.parentTurnId);
+    (Boolean((await turnInfo())?.parentTurnId) ||
+      (await turnInfo())?.source === "SCHEDULE");
   // Cuso's owner reads his words and CMO's cards; "Updated social post
   // (28×)." beside them is bookkeeping. Refusals and unknowns still show.
   const receiptsShown =

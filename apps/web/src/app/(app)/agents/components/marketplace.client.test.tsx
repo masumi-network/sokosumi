@@ -73,7 +73,7 @@ describe("Marketplace", () => {
 
     const research = screen.getByRole("link", { name: /Deep Research/ });
     expect(research).toHaveAttribute("href", "/agents/research");
-    expect(research).toHaveTextContent("by Masumi");
+    expect(research.closest("li")).toHaveTextContent("by Masumi");
     const pay = screen.getByRole("link", { name: /Paywall/ });
     expect(pay).toHaveAttribute("href", "https://example.com/pay");
     expect(pay).toHaveAttribute("target", "_blank");

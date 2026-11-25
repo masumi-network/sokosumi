@@ -332,6 +332,54 @@ describe.runIf(enabled)("fundraising on PostgreSQL", () => {
     expect(viaGus?.via?.name).toBe("Bob");
   });
 
+  it("moves an intro from asked to made to declined and shows the best path on the row", async () => {
+    const asked = await updateFundraisingProspect(actor, annId, {
+      intro: { state: "ASKED", viaUserId: bob },
+    });
+    expect(asked.intro).toMatchObject({
+      via: { kind: "teammate", id: bob, name: "Bob" },
+      madeAt: null,
+      declinedAt: null,
+    });
+    expect(asked.intro.askedAt).not.toBeNull();
+    expect(asked.contact.nextStep).toContain("Wait for Bob to make the intro");
+    expect(asked.contact.followUpAt).not.toBeNull();
+
+    const made = await updateFundraisingProspect(actor, annId, {
+      intro: { state: "MADE" },
+    });
+    expect(made.intro.madeAt).not.toBeNull();
+    expect(made.intro.via?.id).toBe(bob);
+    expect(made.contact.nextStep).toContain("thank Bob");
+
+    const declined = await updateFundraisingProspect(actor, annId, {
+      intro: { state: "DECLINED" },
+    });
+    expect(declined.intro.declinedAt).not.toBeNull();
+    expect(declined.contact.followUpAt).toBeNull();
+
+    await expect(
+      updateFundraisingProspect(actor, annId, {
+        intro: { state: "ASKED", viaUserId: stranger },
+      }),
+    ).rejects.toMatchObject({ status: 422 });
+
+    const cleared = await updateFundraisingProspect(actor, annId, {
+      intro: { state: null },
+    });
+    expect(cleared.intro).toEqual({
+      via: null,
+      askedAt: null,
+      madeAt: null,
+      declinedAt: null,
+    });
+
+    const pipeline = await listFundraisingPipeline(actor);
+    const ann = pipeline.prospects.find((p) => p.contact.id === annId);
+    expect(ann?.bestPath).not.toBeNull();
+    expect(ann?.bestPath?.strength).toBeGreaterThan(0);
+  });
+
   it("returns an empty pipeline without an Investors list", async () => {
     const otherOrganization = randomUUID();
     const otherWorkspace = randomUUID();

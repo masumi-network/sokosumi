@@ -188,6 +188,8 @@ const ACTIVE_STATUSES: ProjectImageJobStatus[] = [
 ];
 
 const SPEND_WINDOW_MS = 60 * 60 * 1000;
+/** The start of every job key a Cuso's month makes (`cmo-media-maker`). */
+export const CMO_MONTH_JOB_KEY_PREFIX = "cmo-media";
 
 export interface ImageJobSettings {
   aspectRatio: string;
@@ -558,12 +560,17 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
       );
     }
 
+    // A Cuso's month makes its pictures under the owner's name: they never
+    // count against the picture the owner asks for in chat.
     const recent = input.forCmoMonth
       ? 0
       : await tx.projectImageJob.count({
           where: {
             requestedByUserId: input.userId,
             createdAt: { gte: new Date(Date.now() - SPEND_WINDOW_MS) },
+            NOT: {
+              idempotencyKey: { startsWith: `${CMO_MONTH_JOB_KEY_PREFIX}:` },
+            },
           },
         });
     if (recent >= LIMITS.IMAGE_STUDIO_GENERATIONS_PER_USER_PER_HOUR) {

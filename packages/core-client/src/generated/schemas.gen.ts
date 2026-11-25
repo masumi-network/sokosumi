@@ -22629,6 +22629,19 @@ export const FundraisingProspectSchema = {
                     type: 'null'
                 }
             ]
+        },
+        intro: {
+            $ref: '#/components/schemas/FundraisingIntro'
+        },
+        bestPath: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/FundraisingPath'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     required: [
@@ -22643,7 +22656,9 @@ export const FundraisingProspectSchema = {
         'source',
         'lastDraftAt',
         'lastDraftSubject',
-        'dataRoom'
+        'dataRoom',
+        'intro',
+        'bestPath'
     ]
 } as const;
 
@@ -22730,6 +22745,229 @@ export const FundraisingDataRoomVisitSchema = {
     ]
 } as const;
 
+export const FundraisingIntroSchema = {
+    type: 'object',
+    properties: {
+        via: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/FundraisingConnector'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        askedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        madeAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        declinedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'via',
+        'askedAt',
+        'madeAt',
+        'declinedAt'
+    ]
+} as const;
+
+export const FundraisingConnectorSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'contact',
+                'teammate'
+            ]
+        },
+        id: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        email: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'kind',
+        'id',
+        'name',
+        'image',
+        'email'
+    ]
+} as const;
+
+export const FundraisingPathSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            $ref: '#/components/schemas/FundraisingPathKind'
+        },
+        via: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactPerson'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        linkedIn: {
+            type: 'boolean'
+        },
+        through: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        name: {
+                            type: 'string'
+                        },
+                        role: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        organization: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        avatarUrl: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        email: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'role',
+                        'organization',
+                        'avatarUrl',
+                        'email'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        company: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        name: {
+                            type: 'string'
+                        },
+                        round: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        date: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'name',
+                        'round',
+                        'date'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        strength: {
+            type: 'integer'
+        },
+        touches: {
+            type: 'integer'
+        },
+        lastTouchAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'kind',
+        'via',
+        'linkedIn',
+        'through',
+        'company',
+        'strength',
+        'touches',
+        'lastTouchAt'
+    ]
+} as const;
+
+export const FundraisingPathKindSchema = {
+    type: 'string',
+    enum: [
+        'direct',
+        'linkedin',
+        'fund',
+        'portfolio'
+    ]
+} as const;
+
 export const FundraisingResearchSchema = {
     type: 'object',
     properties: {
@@ -22801,8 +23039,40 @@ export const FundraisingProspectUpdateSchema = {
                 'null'
             ],
             maxLength: 120
+        },
+        intro: {
+            type: 'object',
+            properties: {
+                state: {
+                    $ref: '#/components/schemas/FundraisingIntroState'
+                },
+                viaContactId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                viaUserId: {
+                    type: 'string',
+                    minLength: 1
+                }
+            },
+            required: [
+                'state'
+            ]
         }
     }
+} as const;
+
+export const FundraisingIntroStateSchema = {
+    type: [
+        'string',
+        'null'
+    ],
+    enum: [
+        'ASKED',
+        'MADE',
+        'DECLINED',
+        null
+    ]
 } as const;
 
 export const FundraisingFindResultSchema = {
@@ -22968,145 +23238,6 @@ export const FundraisingPortfolioCompanySchema = {
     ]
 } as const;
 
-export const FundraisingPathSchema = {
-    type: 'object',
-    properties: {
-        kind: {
-            $ref: '#/components/schemas/FundraisingPathKind'
-        },
-        via: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/ContactPerson'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
-        linkedIn: {
-            type: 'boolean'
-        },
-        through: {
-            anyOf: [
-                {
-                    type: 'object',
-                    properties: {
-                        id: {
-                            type: 'string',
-                            format: 'uuid'
-                        },
-                        name: {
-                            type: 'string'
-                        },
-                        role: {
-                            type: [
-                                'string',
-                                'null'
-                            ]
-                        },
-                        organization: {
-                            type: [
-                                'string',
-                                'null'
-                            ]
-                        },
-                        avatarUrl: {
-                            type: [
-                                'string',
-                                'null'
-                            ]
-                        },
-                        email: {
-                            type: [
-                                'string',
-                                'null'
-                            ]
-                        }
-                    },
-                    required: [
-                        'id',
-                        'name',
-                        'role',
-                        'organization',
-                        'avatarUrl',
-                        'email'
-                    ]
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
-        company: {
-            anyOf: [
-                {
-                    type: 'object',
-                    properties: {
-                        name: {
-                            type: 'string'
-                        },
-                        round: {
-                            type: [
-                                'string',
-                                'null'
-                            ]
-                        },
-                        date: {
-                            type: [
-                                'string',
-                                'null'
-                            ]
-                        }
-                    },
-                    required: [
-                        'name',
-                        'round',
-                        'date'
-                    ]
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
-        strength: {
-            type: 'integer'
-        },
-        touches: {
-            type: 'integer'
-        },
-        lastTouchAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        }
-    },
-    required: [
-        'kind',
-        'via',
-        'linkedIn',
-        'through',
-        'company',
-        'strength',
-        'touches',
-        'lastTouchAt'
-    ]
-} as const;
-
-export const FundraisingPathKindSchema = {
-    type: 'string',
-    enum: [
-        'direct',
-        'linkedin',
-        'fund',
-        'portfolio'
-    ]
-} as const;
-
 export const FundraisingDraftResultSchema = {
     type: 'object',
     properties: {
@@ -23172,6 +23303,83 @@ export const FundraisingDraftInputSchema = {
     required: [
         'kind'
     ]
+} as const;
+
+export const FundraisingIntroAskResultSchema = {
+    type: 'object',
+    properties: {
+        ask: {
+            $ref: '#/components/schemas/FundraisingMailDraft'
+        },
+        forwardable: {
+            $ref: '#/components/schemas/FundraisingMailDraft'
+        },
+        provider: {
+            type: 'string'
+        },
+        roomLink: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        prospect: {
+            $ref: '#/components/schemas/FundraisingProspect'
+        }
+    },
+    required: [
+        'ask',
+        'forwardable',
+        'provider',
+        'roomLink',
+        'prospect'
+    ]
+} as const;
+
+export const FundraisingMailDraftSchema = {
+    type: 'object',
+    properties: {
+        to: {
+            type: 'string'
+        },
+        subject: {
+            type: 'string'
+        },
+        body: {
+            type: 'string'
+        },
+        draftId: {
+            type: 'string'
+        }
+    },
+    required: [
+        'to',
+        'subject',
+        'body',
+        'draftId'
+    ]
+} as const;
+
+export const FundraisingIntroAskInputSchema = {
+    type: 'object',
+    properties: {
+        viaContactId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        viaUserId: {
+            type: 'string',
+            minLength: 1
+        },
+        inviteToRoomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        note: {
+            type: 'string',
+            maxLength: 1000
+        }
+    }
 } as const;
 
 export const HistoryListSchema = {
