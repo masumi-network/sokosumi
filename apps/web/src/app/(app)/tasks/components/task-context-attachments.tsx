@@ -350,10 +350,7 @@ export function TaskContextAttachmentsField({
             <button
               type="button"
               aria-label={t("brandMenuAria")}
-              className={cn(
-                "focus-visible:ring-ring press hover:bg-senary inline-flex h-full items-center border-l px-1.5 outline-none focus-visible:ring-2",
-                brandPressed ? "border-current" : "border-border",
-              )}
+              className="focus-visible:ring-ring press hover:bg-senary border-border inline-flex h-full items-center border-l px-1.5 outline-none focus-visible:ring-2"
             >
               <ChevronDown className="size-3" aria-hidden />
             </button>
