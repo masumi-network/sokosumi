@@ -20,6 +20,8 @@ import {
 } from "@/lib/helpers/agent";
 import { rankPageItems } from "@/lib/utils/page-search";
 
+import { MarketplaceCardAction } from "./card-actions.client";
+
 function agentHref(agent: CatalogBrowseAgent): string | null {
   return agent.kind === "cardano" ? `/agents/${agent.id}` : agent.externalUrl;
 }
@@ -103,6 +105,14 @@ export function Marketplace({ agents }: { agents: CatalogBrowseAgent[] }) {
                 name={agent.name}
                 purpose={agent.summary ?? agent.description}
                 meta={meta(agent)}
+                action={
+                  agent.kind === "cardano" ? (
+                    <MarketplaceCardAction
+                      agentId={agent.id}
+                      agentName={agent.name}
+                    />
+                  ) : undefined
+                }
               />
             </li>
           ))}

@@ -9371,7 +9371,6 @@
       },
       "Directory": {
         "title": "Agents",
-        "subtitle": "Deine Soko Bots, deine Coworker und Agents, die du beauftragen kannst.",
         "sokoBotsTitle": "Soko Bots",
         "sokoBotsNote": "Assistenten, die für eine Person, ein Projekt oder das ganze Team arbeiten.",
         "sokoBotsUnavailable": "Soko Bots können gerade nicht geladen werden. Versuch es gleich noch einmal.",
@@ -9446,7 +9445,15 @@
         "aboutRuns": "Bisherige Läufe",
         "aboutAverageTime": "Durchschnittliche Dauer",
         "aboutRisk": "Risikostufe",
-        "yourJobs": "{count, plural, one {Dein # Job mit diesem Agent} other {Deine # Jobs mit diesem Agent}}"
+        "yourJobs": "{count, plural, one {Dein # Job mit diesem Agent} other {Deine # Jobs mit diesem Agent}}",
+        "groupPersonal": "Persönlich",
+        "groupShared": "Team und Projekte",
+        "messageName": "{name} eine Nachricht schreiben",
+        "chat": "Chat",
+        "chatName": "Mit {name} chatten",
+        "giveTaskName": "{name} eine Aufgabe geben",
+        "startTask": "Aufgabe starten",
+        "startTaskName": "Aufgabe mit {name} starten"
       }
     },
     "EmailVerificationNotice": {

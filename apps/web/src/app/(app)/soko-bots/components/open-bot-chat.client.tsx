@@ -28,13 +28,18 @@ function useOpenBotChat(sokoBotId: string, errorLabel: string) {
 export function ChatWithBotButton({
   sokoBotId,
   label,
+  ariaLabel,
   errorLabel,
+  variant,
   size,
   className,
 }: {
   sokoBotId: string;
   label: string;
+  /** When the visible label alone does not say which bot. */
+  ariaLabel?: string;
   errorLabel: string;
+  variant?: "default" | "secondary";
   size?: "default" | "sm";
   className?: string;
 }) {
@@ -42,7 +47,9 @@ export function ChatWithBotButton({
   return (
     <Button
       type="button"
+      variant={variant}
       size={size}
+      aria-label={ariaLabel}
       disabled={isPending}
       onClick={open}
       className={className}

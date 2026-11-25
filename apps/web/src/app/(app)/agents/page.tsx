@@ -6,16 +6,16 @@ import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
 
+import { OpenCoworkerRoomProvider } from "@/app/chat/components/landing/use-open-coworker-room";
+import { coworkerCanChat } from "@/app/chat/utils/coworker-utils";
+import { PersonAvatar } from "@/app/contacts/components/contact-visuals";
 import { CoworkerAvatar } from "@/components/agents/coworker-avatar";
 import { AgentStatus } from "@/components/agents/directory/agent-status";
 import {
   AGENT_TILE_GRID_CLASS,
   AgentTile,
 } from "@/components/agents/directory/agent-tile";
-import {
-  AgentsPageHeader,
-  AgentsSection,
-} from "@/components/agents/directory/agents-page";
+import { AgentsSection } from "@/components/agents/directory/agents-page";
 import { AGENTS_PAGE_CLASS } from "@/components/agents/directory/agents-page-classes";
 import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import { BotFace } from "@/components/soko-bot/bot-face";
@@ -40,7 +40,12 @@ import {
   botPurpose,
   botStatusLabel,
 } from "./bot-labels";
+import {
+  BotCardAction,
+  CoworkerCardAction,
+} from "./components/card-actions.client";
 import { Marketplace } from "./components/marketplace.client";
+import type { DirectoryBot } from "./soko-bot-directory";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Agents.Metadata");
@@ -75,11 +80,89 @@ function TilesSkeleton() {
   );
 }
 
+type DirectoryT = Awaited<
+  ReturnType<typeof getTranslations<"App.Agents.Directory">>
+>;
+
+function isPersonal(bot: DirectoryBot): boolean {
+  return bot.owner.kind === "you" || bot.owner.kind === "person";
+}
+
+/** "Phil's" with Phil's picture; a shared bot's team or project as text. */
+function BotOwner({ bot, t }: { bot: DirectoryBot; t: DirectoryT }) {
+  const owner = bot.owner;
+  return (
+    <>
+      {owner.kind === "you" || owner.kind === "person" ? (
+        <PersonAvatar person={owner} className="size-5" />
+      ) : null}
+      <span className="min-w-0 truncate">{botOwnerLabel(bot, t)}</span>
+    </>
+  );
+}
+
+/** One group of bot cards under a small label: Personal, or Team and projects. */
+function BotGroup({
+  label,
+  bots,
+  t,
+  children,
+}: {
+  label: string;
+  bots: DirectoryBot[];
+  t: DirectoryT;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <h3 className="text-muted-foreground px-2 pt-1 text-xs font-medium">
+        {label}
+      </h3>
+      <ul className={AGENT_TILE_GRID_CLASS}>
+        {bots.map((bot) => (
+          <li key={bot.id}>
+            <AgentTile
+              href={`/agents/soko-bots/${encodeURIComponent(bot.id)}`}
+              avatar={
+                <BotFace
+                  imageUrl={bot.avatarImageUrl}
+                  seed={bot.seed}
+                  className="size-10"
+                />
+              }
+              name={botName(bot, t)}
+              purpose={botPurpose(bot, t)}
+              meta={<BotOwner bot={bot} t={t} />}
+              status={
+                <AgentStatus
+                  status={bot.status}
+                  label={botStatusLabel(bot, t)}
+                />
+              }
+              action={
+                <BotCardAction
+                  botId={bot.id}
+                  botName={botName(bot, t)}
+                  shared={!isPersonal(bot)}
+                  sharedRoomId={bot.sharedRoomId}
+                />
+              }
+            />
+          </li>
+        ))}
+        {children}
+      </ul>
+    </div>
+  );
+}
+
 async function SokoBotsSection() {
   const [t, directory] = await Promise.all([
     getTranslations("App.Agents.Directory"),
     loadAgentsBotDirectory(),
   ]);
+  const personal = directory?.bots.filter(isPersonal) ?? [];
+  const shared = directory?.bots.filter((bot) => !isPersonal(bot)) ?? [];
 
   return (
     <AgentsSection
@@ -95,51 +178,33 @@ async function SokoBotsSection() {
           {t("sokoBotsUnavailable")}
         </p>
       ) : (
-        <ul className={AGENT_TILE_GRID_CLASS}>
-          {directory.bots.map((bot) => (
-            <li key={bot.id}>
-              <AgentTile
-                href={`/agents/soko-bots/${encodeURIComponent(bot.id)}`}
-                avatar={
-                  <BotFace
-                    imageUrl={bot.avatarImageUrl}
-                    seed={bot.seed}
-                    className="size-10"
-                  />
-                }
-                name={botName(bot, t)}
-                purpose={botPurpose(bot, t)}
-                meta={botOwnerLabel(bot, t)}
-                status={
-                  <AgentStatus
-                    status={bot.status}
-                    label={botStatusLabel(bot, t)}
-                  />
-                }
-              />
-            </li>
-          ))}
-          {directory.hasOwnBot ? null : (
-            <li>
-              <Link
-                href={SOKO_BOT_ROUTE}
-                className={cn(
-                  HOLDER_ITEM_CLASS,
-                  HOLDER_ITEM_HOVER_CLASS,
-                  "group press focus-visible:ring-ring flex h-full min-h-32 flex-col items-start gap-3 p-4 outline-none focus-visible:ring-2",
-                )}
-              >
-                <span className="text-foreground text-sm text-pretty">
-                  {t("createOwnBotHint")}
-                </span>
-                {/* The tile is the link; this only paints its action. */}
-                <span className="bg-primary text-primary-foreground group-hover:bg-primary-hover mt-auto inline-flex h-8 items-center rounded-md px-3 text-sm font-medium transition-colors">
-                  {t("createOwnBot")}
-                </span>
-              </Link>
-            </li>
-          )}
-        </ul>
+        <>
+          <BotGroup label={t("groupPersonal")} bots={personal} t={t}>
+            {directory.hasOwnBot ? null : (
+              <li>
+                <Link
+                  href={SOKO_BOT_ROUTE}
+                  className={cn(
+                    HOLDER_ITEM_CLASS,
+                    HOLDER_ITEM_HOVER_CLASS,
+                    "group press focus-visible:ring-ring flex h-full min-h-32 flex-col items-start gap-3 p-4 outline-none focus-visible:ring-2",
+                  )}
+                >
+                  <span className="text-foreground text-sm text-pretty">
+                    {t("createOwnBotHint")}
+                  </span>
+                  {/* The tile is the link; this only paints its action. */}
+                  <span className="bg-primary text-primary-foreground group-hover:bg-primary-hover mt-auto inline-flex h-8 items-center rounded-md px-3 text-sm font-medium transition-colors">
+                    {t("createOwnBot")}
+                  </span>
+                </Link>
+              </li>
+            )}
+          </BotGroup>
+          {shared.length > 0 ? (
+            <BotGroup label={t("groupShared")} bots={shared} t={t} />
+          ) : null}
+        </>
       )}
     </AgentsSection>
   );
@@ -170,25 +235,34 @@ async function CoworkersSection() {
           {t("coworkersEmpty")}
         </p>
       ) : (
-        <ul className={AGENT_TILE_GRID_CLASS}>
-          {sorted.map((coworker) => (
-            <li key={coworker.id}>
-              <AgentTile
-                href={`/agents/coworkers/${encodeURIComponent(coworker.id)}`}
-                avatar={
-                  <CoworkerAvatar
-                    coworker={coworker}
-                    className="size-10"
-                    sizes="40px"
-                  />
-                }
-                name={coworker.name}
-                purpose={coworker.caption ?? coworker.description ?? null}
-                meta={coworkerMeta(coworker)}
-              />
-            </li>
-          ))}
-        </ul>
+        <OpenCoworkerRoomProvider>
+          <ul className={AGENT_TILE_GRID_CLASS}>
+            {sorted.map((coworker) => (
+              <li key={coworker.id}>
+                <AgentTile
+                  href={`/agents/coworkers/${encodeURIComponent(coworker.id)}`}
+                  avatar={
+                    <CoworkerAvatar
+                      coworker={coworker}
+                      className="size-10"
+                      sizes="40px"
+                    />
+                  }
+                  name={coworker.name}
+                  purpose={coworker.caption ?? coworker.description ?? null}
+                  meta={coworkerMeta(coworker)}
+                  action={
+                    <CoworkerCardAction
+                      coworkerId={coworker.id}
+                      coworkerName={coworker.name}
+                      canChat={coworkerCanChat(coworker)}
+                    />
+                  }
+                />
+              </li>
+            ))}
+          </ul>
+        </OpenCoworkerRoomProvider>
       )}
     </AgentsSection>
   );
@@ -245,7 +319,7 @@ export default async function AgentsPage() {
   return (
     <div className={AGENTS_PAGE_CLASS}>
       <RefreshPrefetchedPage />
-      <AgentsPageHeader title={t("title")} subtitle={t("subtitle")} />
+      <h1 className="sr-only">{t("title")}</h1>
       <Suspense fallback={<SectionFallback title={t("sokoBotsTitle")} />}>
         <SokoBotsSection />
       </Suspense>
