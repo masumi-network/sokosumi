@@ -26,7 +26,7 @@ Before working in an app or package, read its `AGENTS.md` and any deeper instruc
 
 Brand and UI direction for every product: the [Masumi Family brand guide](https://github.com/masumi-network/Masumi-Family-Brand-Guide), previewed with our components at `/admin/design-system`. How it applies today: [Web UI conventions](docs/agents/web-ui.md). CMO has its own system on the same palette: [`apps/cmo/design-system.md`](apps/cmo/design-system.md).
 
-Existing scope entry points: [Web](apps/web/AGENTS.md), [Core](apps/core/AGENTS.md), [CMO](apps/cmo/AGENTS.md), [Apple](apps/apple/AGENTS.md), [CLI](apps/cli/AGENTS.md), [Database](packages/database/AGENTS.md), [Masumi](packages/masumi/AGENTS.md), [Email](packages/email/AGENTS.md), [Utils](packages/utils/AGENTS.md), [AI provider](packages/ai-provider/AGENTS.md), [Net](packages/net/AGENTS.md), [Core client](packages/core-client/AGENTS.md), [Soko Bot](packages/soko-bot/AGENTS.md).
+Existing scope entry points: [Web](apps/web/AGENTS.md), [Core](apps/core/AGENTS.md), [CMO](apps/cmo/AGENTS.md), [CMO website](apps/cmo-website/AGENTS.md), [Apple](apps/apple/AGENTS.md), [CLI](apps/cli/AGENTS.md), [Database](packages/database/AGENTS.md), [Masumi](packages/masumi/AGENTS.md), [Email](packages/email/AGENTS.md), [Utils](packages/utils/AGENTS.md), [AI provider](packages/ai-provider/AGENTS.md), [Net](packages/net/AGENTS.md), [Core client](packages/core-client/AGENTS.md), [Soko Bot](packages/soko-bot/AGENTS.md).
 
 ## Always apply
 

@@ -293,6 +293,8 @@ importers:
         specifier: 5.1.1
         version: 5.1.1(patch_hash=6116227850bac83ba12f595440bc6aabb011cc87d7dcac9c59805b72b51cad4d)(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(happy-dom@21.0.4(patch_hash=0304ee00e0a71180f28fba037c600e5b536cb2519b8ad09e353d08c0f99396ba))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.1))
 
+  apps/cmo-website: {}
+
   apps/core:
     dependencies:
       '@ai-sdk/mcp':
