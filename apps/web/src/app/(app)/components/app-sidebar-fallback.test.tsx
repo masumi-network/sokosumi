@@ -5,6 +5,10 @@ vi.mock("@/lib/auth/auth.client", () => ({
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("@/app/components/sidebar/components/global-rail.client", () => ({
+  GlobalRail: () => null,
+}));
+
 vi.mock("next/navigation", () => ({
   usePathname: () => "/agents",
   useSearchParams: () => new URLSearchParams(),
@@ -62,8 +66,7 @@ describe("AppSidebarFallback", () => {
   it("renders the real nav links rather than placeholders", () => {
     renderFallback();
 
-    // `/drive` is desktop-only, and `use-mobile` is mocked to desktop above.
-    for (const href of ["/agents", "/tasks", "/drive"]) {
+    for (const href of ["/agents", "/tasks", "/calendar"]) {
       expect(
         screen.getByRole("link", {
           name: (_, element) => element.getAttribute("href") === href,
@@ -284,7 +287,9 @@ describe("AppSidebarFallback", () => {
         '[data-slot="sidebar-content"] [data-slot="sidebar-separator"]',
       ),
     ).toBeNull();
-    expect(scoped?.nextElementSibling).toBe(roomList);
+    expect(scoped?.parentElement?.nextElementSibling).toBe(
+      roomList?.parentElement,
+    );
     const heading = roomList?.firstElementChild;
     expect(heading?.getAttribute("data-slot")).not.toBe(
       "sidebar-group-content",

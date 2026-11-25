@@ -95,3 +95,7 @@ describe("AppShellLoadingFrame Instant Nav page children", () => {
     );
   });
 });
+
+vi.mock("@/app/components/sidebar/components/global-rail.client", () => ({
+  GlobalRail: () => null,
+}));

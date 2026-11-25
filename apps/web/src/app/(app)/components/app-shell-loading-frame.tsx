@@ -1,3 +1,4 @@
+import { GlobalRail } from "@/app/components/sidebar/components/global-rail.client";
 import { SidebarEdgeHandle } from "@/app/components/sidebar/components/sidebar-edge-handle.client";
 import { LiveChatRoomsProvider } from "@/components/chat/use-live-chat-rooms";
 import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
@@ -24,6 +25,7 @@ interface AppShellLoadingFrameProps {
 export function AppShellLoadingFrame({ children }: AppShellLoadingFrameProps) {
   return (
     <LiveChatRoomsProvider>
+      <GlobalRail />
       <AppSidebarFallback />
       <SidebarEdgeHandle />
       <div className="flex min-w-0 flex-1 overflow-clip" data-app-content>

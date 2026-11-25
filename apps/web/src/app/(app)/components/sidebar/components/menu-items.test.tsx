@@ -107,6 +107,8 @@ describe("MenuItems", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sidebarIsMobile = true;
+    pathnameRef.current = "/";
+    searchRef.current = "";
   });
 
   it("no longer lists Credit History in the sidebar", () => {
@@ -156,13 +158,17 @@ describe("MenuItems", () => {
     );
   });
 
-  it("hides Files from the main menu on mobile", () => {
+  it("shows Files in Records on mobile", () => {
+    pathnameRef.current = "/contacts";
     renderMenu(true, true);
 
-    expect(screen.queryByRole("link", { name: /drive/i })).toBeNull();
+    expect(screen.getByRole("link", { name: "drive" })).toHaveAttribute(
+      "href",
+      "/drive",
+    );
   });
 
-  it("orders primary destinations Agents, Tasks, Schedules, Calendar, Studio", () => {
+  it("orders the Work destinations", () => {
     const { container } = renderMenu(true);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
       (element) => element.textContent ?? "",
@@ -173,7 +179,6 @@ describe("MenuItems", () => {
       "taskManager",
       "schedules",
       "calendar",
-      "contentStudio",
     ];
     const positions = primaryOrder.map((label) =>
       menuLabels.findIndex((text) => text.includes(label)),
@@ -184,11 +189,13 @@ describe("MenuItems", () => {
   });
 
   it("shows Social by default", () => {
+    pathnameRef.current = "/studio";
     renderMenu();
     expect(screen.getByRole("link", { name: /social/i })).toBeInTheDocument();
   });
 
   it("names the Social destination Social posts", () => {
+    pathnameRef.current = "/studio";
     renderMenu();
 
     expect(screen.getByRole("link", { name: "social" })).toHaveAttribute(
@@ -260,7 +267,7 @@ describe("MenuItems groups", () => {
   });
 
   it("files each destination under its Work, Records or Marketing heading", () => {
-    renderMenu(true, false);
+    const { unmount } = renderMenu(true, false);
 
     expect(destinationsUnder("groups.work")).toEqual([
       "home",
@@ -269,7 +276,13 @@ describe("MenuItems groups", () => {
       "schedules",
       "calendar",
     ]);
+    unmount();
+    pathnameRef.current = "/drive";
+    const records = renderMenu(true, false);
     expect(destinationsUnder("groups.records")).toEqual(["contacts", "drive"]);
+    records.unmount();
+    pathnameRef.current = "/seo/audit";
+    renderMenu(true, false);
     expect(destinationsUnder("groups.marketing")).toEqual([
       "contentStudio",
       "tiktokStudio",
@@ -280,20 +293,17 @@ describe("MenuItems groups", () => {
     ]);
   });
 
-  it("puts the headings in the order Work, Records, Marketing", () => {
+  it("shows only the active section heading", () => {
     renderMenu(true, false);
 
     const headings = screen
       .getAllByRole("button", { name: /^groups\./ })
       .map((button) => button.textContent);
-    expect(headings).toEqual([
-      "groups.work",
-      "groups.records",
-      "groups.marketing",
-    ]);
+    expect(headings).toEqual(["groups.work"]);
   });
 
   it("folds a group from its heading and opens it again", () => {
+    pathnameRef.current = "/studio";
     renderMenu(true, false);
     const heading = screen.getByRole("button", { name: "groups.marketing" });
     expect(heading).toHaveAttribute("aria-expanded", "true");
@@ -303,8 +313,6 @@ describe("MenuItems groups", () => {
     expect(heading).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("link", { name: "contentStudio" })).toBeNull();
     expect(screen.queryByRole("link", { name: "social" })).toBeNull();
-    // Only its own rows go.
-    expect(screen.getByRole("link", { name: "contacts" })).toBeInTheDocument();
 
     fireEvent.click(heading);
 
@@ -337,16 +345,6 @@ describe("MenuItems groups", () => {
       "schedules",
       "calendar",
     ]);
-    // Files stays on the You page there.
-    expect(destinationsUnder("groups.records")).toEqual(["contacts"]);
-    expect(destinationsUnder("groups.marketing")).toEqual([
-      "contentStudio",
-      "tiktokStudio",
-      "social",
-      "seo",
-      "ads",
-      "competitors",
-    ]);
   });
 });
 
@@ -358,6 +356,7 @@ describe("MenuItems newsletter", () => {
   });
 
   it("leaves Newsletter out of the Instant Nav shell by default", () => {
+    pathnameRef.current = "/studio";
     render(
       <TestQueryProvider>
         <MenuItems />
@@ -368,6 +367,7 @@ describe("MenuItems newsletter", () => {
   });
 
   it("shows Newsletter when enabled, alongside Ads", () => {
+    pathnameRef.current = "/studio";
     renderMenu(true, false, true);
 
     expect(screen.getByRole("link", { name: "newsletter" })).toHaveAttribute(
@@ -389,6 +389,7 @@ describe("MenuItems newsletter", () => {
   });
 
   it("files Newsletter under Marketing, after Social and Ads", () => {
+    pathnameRef.current = "/studio";
     renderMenu(true, false, true);
 
     expect(destinationsUnder("groups.marketing")).toEqual([
@@ -425,9 +426,7 @@ describe("MenuItems newsletter", () => {
       pathnameRef.current = pathname;
       renderMenu(true, false, true);
 
-      expect(
-        screen.getByRole("link", { name: "newsletter" }),
-      ).not.toHaveAttribute("aria-current");
+      expect(screen.queryByRole("link", { name: "newsletter" })).toBeNull();
     },
   );
 });
@@ -529,37 +528,41 @@ describe("MenuItems project scope", () => {
   });
 
   it("keeps plain destination links in the workspace view", () => {
-    renderMenu(true, false);
-
-    for (const [name, href] of [
+    for (const [name, href, pathname = "/tasks"] of [
       ["taskManager", "/tasks"],
       ["schedules", "/schedules"],
-      ["ads", "/ads"],
-      ["seo", "/seo"],
+      ["ads", "/ads", "/studio"],
+      ["seo", "/seo", "/studio"],
       ["calendar", "/calendar"],
-      ["contacts", "/contacts"],
-      ["contentStudio", "/studio"],
-      ["drive", "/drive"],
+      ["contacts", "/contacts", "/contacts"],
+      ["contentStudio", "/studio", "/studio"],
+      ["drive", "/drive", "/drive"],
     ]) {
+      pathnameRef.current = pathname;
+      const { unmount } = renderMenu(true, false);
       expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
+      unmount();
     }
   });
 
   it("carries the selected project to scoped destinations", () => {
     searchRef.current = "projectId=p-1";
-    renderMenu(true, false);
-
-    for (const [name, href] of [
+    for (const [name, href, pathname = "/tasks"] of [
       ["taskManager", "/tasks?projectId=p-1"],
       ["schedules", "/schedules?projectId=p-1"],
       ["calendar", "/calendar?projectId=p-1"],
       // Contacts belong to the workspace, not a project.
-      ["contacts", "/contacts"],
-      ["contentStudio", "/studio?projectId=p-1"],
-      ["drive", "/drive?view=tasks&projectId=p-1"],
+      ["contacts", "/contacts", "/contacts"],
+      ["contentStudio", "/studio?projectId=p-1", "/studio"],
+      ["drive", "/drive?view=tasks&projectId=p-1", "/drive"],
     ]) {
+      pathnameRef.current = pathname;
+      const { unmount } = renderMenu(true, false);
       expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
+      unmount();
     }
+    pathnameRef.current = "/tasks";
+    renderMenu(true, false);
     expect(screen.getByRole("link", { name: "exploreAgents" })).toHaveAttribute(
       "href",
       "/agents",
@@ -617,6 +620,9 @@ describe("MenuItems prefetch", () => {
     ["exploreAgents", "/agents"],
     ["contentStudio", "/studio"],
   ])("loads the %s page content on a resting hover", (label, href) => {
+    if (["ads", "seo", "social"].includes(label))
+      pathnameRef.current = "/studio";
+    if (label === "contentStudio") pathnameRef.current = "/social";
     renderMenu(true, false);
 
     restOn(new RegExp(`^${label}$`));
@@ -641,6 +647,7 @@ describe("MenuItems prefetch", () => {
 
   // A page whose reads are not cached would render on the server for nothing.
   it("loads only the shell for a page without cached reads", () => {
+    pathnameRef.current = "/drive";
     renderMenu(true, false);
 
     restOn(/^contacts$/);
