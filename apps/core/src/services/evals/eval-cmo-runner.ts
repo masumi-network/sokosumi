@@ -69,6 +69,10 @@ import {
   isCompetitorSetup,
   prepareCompetitorCase,
 } from "./eval-cmo-competitors";
+import {
+  pollCmoMonthCalendarCase,
+  startCmoMonthCalendarCase,
+} from "./eval-cmo-month-calendar";
 import { clearCmoSeoReport, prepareCmoSeoReport } from "./eval-cmo-seo-report";
 import {
   evalInfrastructureFailure,
@@ -677,6 +681,14 @@ export async function startCmoCase(
     const frozen = parseMarketingPlan(evalCase.plan) as MarketingStrategyPlan;
     if (!frozen) throw new Error("The frozen plan does not parse");
     const cuso = await pointCusoAt(lane, evalCase.brand, evalCase.brandBrain);
+    if (evalCase.writes) {
+      const { strategyId } = await startCmoMonthCalendarCase({
+        lane,
+        plan: frozen,
+        level: evalCase.writes,
+      });
+      return { kind: "started", turnId: null, state: { strategyId } };
+    }
     if (evalCase.pictures) await captureCmoHomepage(cuso);
     // Core starts at most four production runs a day per Cuso; a lane makes
     // several months a day, so earlier months' runs count as yesterday's.
@@ -1020,6 +1032,27 @@ async function pollMonth(
         turnIds: [],
       },
     };
+  if (evalCase.writes) {
+    const frozen = parseMarketingPlan(evalCase.plan);
+    const read = await pollCmoMonthCalendarCase({
+      strategyId,
+      examples: frozen?.calendar ?? [],
+      level: evalCase.writes,
+      startedAt: context.startedAt,
+      now: await databaseNow(),
+    });
+    if (read.kind === "waiting") return read;
+    await cancelMonthPosts(strategyId);
+    return {
+      kind: "done",
+      outcome: {
+        status: read.checks.every((check) => check.pass) ? "PASSED" : "FAILED",
+        checks: read.checks,
+        output: read.output,
+        turnIds: [],
+      },
+    };
+  }
   const cuso = await findCusoForBot(lane.cusoBotId);
   if (!cuso) throw new Error(`Eval lane ${lane.lane} has no Cuso`);
   const approval = await prisma.marketingStrategy.findUniqueOrThrow({

@@ -9517,6 +9517,17 @@ export type MarketingStrategy = MarketingStrategyVersion & {
         }>;
         changes?: Array<string>;
         fitted?: Array<string>;
+        monthWriter?: {
+            state: 'examples' | 'writing' | 'written';
+            level?: 'steady' | 'active' | 'all_in';
+            start?: string;
+            attempts?: number;
+            startedAt?: string;
+            endedAt?: string;
+            error?: string;
+            costUsd?: number;
+            floorAlertAt?: string;
+        };
         patched?: Array<{
             id: string;
             was: {
@@ -9856,6 +9867,17 @@ export type MarketingStrategyRequest = {
         }>;
         changes?: Array<string>;
         fitted?: Array<string>;
+        monthWriter?: {
+            state: 'examples' | 'writing' | 'written';
+            level?: 'steady' | 'active' | 'all_in';
+            start?: string;
+            attempts?: number;
+            startedAt?: string;
+            endedAt?: string;
+            error?: string;
+            costUsd?: number;
+            floorAlertAt?: string;
+        };
         patched?: Array<{
             id: string;
             was: {
@@ -15381,6 +15403,17 @@ export type CmoPlan = {
     }>;
     changes?: Array<string>;
     fitted?: Array<string>;
+    monthWriter?: {
+        state: 'examples' | 'writing' | 'written';
+        level?: 'steady' | 'active' | 'all_in';
+        start?: string;
+        attempts?: number;
+        startedAt?: string;
+        endedAt?: string;
+        error?: string;
+        costUsd?: number;
+        floorAlertAt?: string;
+    };
     patched?: Array<{
         id: string;
         was: {
@@ -15518,9 +15551,9 @@ export type CmoMeasurement = {
  */
 export type CmoProduction = {
     /**
-     * starting: approved, but no run is working yet; the next sync starts one. stuck: the last run made nothing ready; the next starts at retryAt. blocked: no run could start for half an hour; Core keeps trying.
+     * planning: paid, and Core is writing the month's calendar (cmo-v22). starting: approved, but no run is working yet; the next sync starts one. stuck: the last run made nothing ready; the next starts at retryAt. blocked: no run could start for half an hour; Core keeps trying.
      */
-    state: 'waiting' | 'starting' | 'running' | 'ready' | 'stuck' | 'blocked';
+    state: 'waiting' | 'planning' | 'starting' | 'running' | 'ready' | 'stuck' | 'blocked';
     ready: number;
     total: number;
     /**
@@ -15561,6 +15594,13 @@ export type CmoProduction = {
      * When a stuck month's next production run starts. Null unless state is stuck.
      */
     retryAt: string | null;
+    /**
+     * cmo-v22: the posts the plan promises at least, and the month's posts made, gone out or paused by the owner. Null for a month Cuso wrote himself.
+     */
+    floor: {
+        promised: number;
+        made: number;
+    } | null;
 };
 
 export type CmoOnboardingConflictError = {

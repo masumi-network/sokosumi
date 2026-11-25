@@ -35320,6 +35320,60 @@ export const MarketingStrategySchema = {
                             },
                             maxItems: 12
                         },
+                        monthWriter: {
+                            type: 'object',
+                            properties: {
+                                state: {
+                                    type: 'string',
+                                    enum: [
+                                        'examples',
+                                        'writing',
+                                        'written'
+                                    ]
+                                },
+                                level: {
+                                    type: 'string',
+                                    enum: [
+                                        'steady',
+                                        'active',
+                                        'all_in'
+                                    ]
+                                },
+                                start: {
+                                    type: 'string',
+                                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                },
+                                attempts: {
+                                    type: 'integer',
+                                    minimum: 0,
+                                    maximum: 1000,
+                                    default: 0
+                                },
+                                startedAt: {
+                                    type: 'string',
+                                    maxLength: 40
+                                },
+                                endedAt: {
+                                    type: 'string',
+                                    maxLength: 40
+                                },
+                                error: {
+                                    type: 'string',
+                                    maxLength: 300
+                                },
+                                costUsd: {
+                                    type: 'number',
+                                    minimum: 0
+                                },
+                                floorAlertAt: {
+                                    type: 'string',
+                                    maxLength: 40
+                                }
+                            },
+                            required: [
+                                'state'
+                            ]
+                        },
                         patched: {
                             type: 'array',
                             items: {
@@ -37304,6 +37358,60 @@ export const MarketingStrategyRequestSchema = {
                         maxLength: 400
                     },
                     maxItems: 12
+                },
+                monthWriter: {
+                    type: 'object',
+                    properties: {
+                        state: {
+                            type: 'string',
+                            enum: [
+                                'examples',
+                                'writing',
+                                'written'
+                            ]
+                        },
+                        level: {
+                            type: 'string',
+                            enum: [
+                                'steady',
+                                'active',
+                                'all_in'
+                            ]
+                        },
+                        start: {
+                            type: 'string',
+                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                        },
+                        attempts: {
+                            type: 'integer',
+                            minimum: 0,
+                            maximum: 1000,
+                            default: 0
+                        },
+                        startedAt: {
+                            type: 'string',
+                            maxLength: 40
+                        },
+                        endedAt: {
+                            type: 'string',
+                            maxLength: 40
+                        },
+                        error: {
+                            type: 'string',
+                            maxLength: 300
+                        },
+                        costUsd: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        floorAlertAt: {
+                            type: 'string',
+                            maxLength: 40
+                        }
+                    },
+                    required: [
+                        'state'
+                    ]
                 },
                 patched: {
                     type: 'array',
@@ -62685,6 +62793,60 @@ export const CmoPlanSchema = {
             },
             maxItems: 12
         },
+        monthWriter: {
+            type: 'object',
+            properties: {
+                state: {
+                    type: 'string',
+                    enum: [
+                        'examples',
+                        'writing',
+                        'written'
+                    ]
+                },
+                level: {
+                    type: 'string',
+                    enum: [
+                        'steady',
+                        'active',
+                        'all_in'
+                    ]
+                },
+                start: {
+                    type: 'string',
+                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                },
+                attempts: {
+                    type: 'integer',
+                    minimum: 0,
+                    maximum: 1000,
+                    default: 0
+                },
+                startedAt: {
+                    type: 'string',
+                    maxLength: 40
+                },
+                endedAt: {
+                    type: 'string',
+                    maxLength: 40
+                },
+                error: {
+                    type: 'string',
+                    maxLength: 300
+                },
+                costUsd: {
+                    type: 'number',
+                    minimum: 0
+                },
+                floorAlertAt: {
+                    type: 'string',
+                    maxLength: 40
+                }
+            },
+            required: [
+                'state'
+            ]
+        },
         patched: {
             type: 'array',
             items: {
@@ -63384,13 +63546,14 @@ export const CmoProductionSchema = {
             type: 'string',
             enum: [
                 'waiting',
+                'planning',
                 'starting',
                 'running',
                 'ready',
                 'stuck',
                 'blocked'
             ],
-            description: 'starting: approved, but no run is working yet; the next sync starts one. stuck: the last run made nothing ready; the next starts at retryAt. blocked: no run could start for half an hour; Core keeps trying.'
+            description: 'planning: paid, and Core is writing the month\'s calendar (cmo-v22). starting: approved, but no run is working yet; the next sync starts one. stuck: the last run made nothing ready; the next starts at retryAt. blocked: no run could start for half an hour; Core keeps trying.'
         },
         ready: {
             type: 'integer'
@@ -63498,6 +63661,29 @@ export const CmoProductionSchema = {
                 }
             ],
             description: 'When a stuck month\'s next production run starts. Null unless state is stuck.'
+        },
+        floor: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        promised: {
+                            type: 'integer'
+                        },
+                        made: {
+                            type: 'integer'
+                        }
+                    },
+                    required: [
+                        'promised',
+                        'made'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'cmo-v22: the posts the plan promises at least, and the month\'s posts made, gone out or paused by the owner. Null for a month Cuso wrote himself.'
         }
     },
     required: [
@@ -63512,7 +63698,8 @@ export const CmoProductionSchema = {
         'level',
         'beyondPlan',
         'withoutPicture',
-        'retryAt'
+        'retryAt',
+        'floor'
     ],
     description: 'After approval Cuso makes the whole month at once: how many of its pieces are made.'
 } as const;

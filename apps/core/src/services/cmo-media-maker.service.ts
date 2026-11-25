@@ -6,6 +6,7 @@ import {
   CMO_SCENE_PRODUCTION_SKILL,
   CMO_V20_STRATEGY_SKILL,
   CMO_V21_STRATEGY_SKILL,
+  CMO_V22_STRATEGY_SKILL,
   CMO_VARIED_PRODUCTION_SKILL,
   type CmoCalendarEntry,
   getSokoBotVersion,
@@ -312,7 +313,8 @@ export function cmoWritesShorts(versionId: string | null | undefined): boolean {
   const { skills } = getSokoBotVersion(versionId);
   return (
     skills.includes(CMO_V20_STRATEGY_SKILL) ||
-    skills.includes(CMO_V21_STRATEGY_SKILL)
+    skills.includes(CMO_V21_STRATEGY_SKILL) ||
+    skills.includes(CMO_V22_STRATEGY_SKILL)
   );
 }
 

@@ -1,0 +1,1394 @@
+{
+  "nmkr.io": {
+    "ads": {
+      "expect": "Learn which searches send founders to Studio before estimating account starts.",
+      "monthly": 0,
+      "suggest": {
+        "channel": "google_ads",
+        "monthly": 500
+      },
+      "without": "Use launch checks, named projects and free-account posts.",
+      "currency": "CHF",
+      "setByOwner": false
+    },
+    "mix": [
+      {
+        "why": "Show founders how to test wallets, checkout, confirmation and launch-day support.",
+        "share": 60,
+        "approach": "educational"
+      },
+      {
+        "why": "Show how Studio helps founders prepare and sell a collection.",
+        "share": 20,
+        "approach": "product-led"
+      },
+      {
+        "why": "Show what teams such as TURF built with NMKR.",
+        "share": 10,
+        "approach": "social-proof"
+      },
+      {
+        "why": "Invite founders with a project to open a free account.",
+        "share": 10,
+        "approach": "promotional"
+      }
+    ],
+    "why": "Founders already follow NMKR project news on X. Practical launch checks show why a founder might choose NMKR Studio over a marketplace alone or building their own minting setup.",
+    "idea": {
+      "who": "NFT and token project founders preparing a launch",
+      "offer": "Free NMKR Studio account",
+      "attract": "Launch checks on X and YouTube Shorts",
+      "position": "Multichain minting without building your own infrastructure",
+      "sentence": "We’ll reach NFT and token founders with launch checks on X and YouTube Shorts, show how NMKR Studio handles multichain minting, and invite them to open a free account."
+    },
+    "pace": {
+      "why": "Launch questions suit clips, checklists and real project stories.",
+      "level": "all_in",
+      "perWeek": 127
+    },
+    "focus": {
+      "where": [
+        "X crypto and developer communities",
+        "YouTube launch walkthroughs",
+        "LinkedIn project teams"
+      ],
+      "problem": "They need to launch without building their own minting infrastructure.",
+      "segment": "NFT and token project founders",
+      "trigger": "They’ve picked an asset and need a launch setup.",
+      "objections": [
+        "Can collectors buy on that chain?",
+        "Can newcomers get through checkout?",
+        "Do we need to build everything ourselves?"
+      ]
+    },
+    "goals": ["More NFT and token founders open free Studio accounts"],
+    "month": "2026-11",
+    "offer": {
+      "why": "Start free; minting costs 3% with a 2 ADA minimum per token.",
+      "what": "Free NMKR Studio account",
+      "proof": [
+        "TURF says NMKR’s API saved it development time.",
+        "Book.io used NMKR for its digital publishing project."
+      ],
+      "action": "Open a free NMKR Studio account"
+    },
+    "start": {
+      "gaps": [
+        {
+          "text": "There is no confirmed seasonal discount.",
+          "basis": "fact"
+        },
+        {
+          "text": "Studio account starts and their source are not yet measured here.",
+          "basis": "fact"
+        }
+      ],
+      "working": [
+        {
+          "text": "Nov 26: US Thanksgiving, stay quiet. Nov 27: Black Friday. Nov 29: first Advent. Nov 30: Cyber Monday. Use deal weekend for checkout advice, without a sale.",
+          "basis": "fact"
+        },
+        {
+          "text": "Nov 27, Dec 6: Blockchain Life Week in Dubai, main conference Dec 1-2. Dec 2-3: Art Basel Miami Beach previews. Dec 4-6: Art Basel and Zero 10 digital art. Start launch checks in week one.",
+          "basis": "fact"
+        },
+        {
+          "text": "Dec 6: Swiss Samichlaus and second Advent. Dec 7-11: GITEX Global in Dubai; start prep in week one. Dec 8: Immaculate Conception, a public holiday in Zug; stay quiet.",
+          "basis": "fact"
+        },
+        {
+          "text": "Dec 13 and 20: Advent Sundays. Dec 14-23: pre-Christmas team handoff. Christmas Day, Dec 25, is outside the strategy. Skip seasonal gift pitches.",
+          "basis": "fact"
+        }
+      ],
+      "resources": []
+    },
+    "weeks": [
+      {
+        "focus": "Nov 26, Dec 2: Rehearse the purchase",
+        "tasks": [
+          {
+            "task": "Use deal weekend to teach buyers’ checkout checks.",
+            "owner": "cuso",
+            "approval": false
+          },
+          {
+            "task": "Start launch checks ahead of Art Basel and GITEX.",
+            "owner": "cuso",
+            "approval": false
+          },
+          {
+            "due": "2026-11-26",
+            "task": "Keep US Thanksgiving quiet.",
+            "owner": "cuso",
+            "approval": false
+          }
+        ]
+      },
+      {
+        "focus": "Dec 3-9: Show what collectors receive",
+        "tasks": [
+          {
+            "task": "Show handoff checks around Art Basel and GITEX.",
+            "owner": "cuso",
+            "approval": false
+          },
+          {
+            "due": "2026-12-08",
+            "task": "Keep Zug’s December 8 holiday quiet.",
+            "owner": "cuso",
+            "approval": false
+          },
+          {
+            "task": "Confirm Studio signup records new accounts.",
+            "owner": "you",
+            "approval": true
+          }
+        ]
+      },
+      {
+        "focus": "Dec 10-16: Prepare the holiday handoff",
+        "tasks": [
+          {
+            "task": "Show founders how to catch checkout and delivery failures.",
+            "owner": "cuso",
+            "approval": false
+          },
+          {
+            "due": "2026-12-14",
+            "task": "Start the holiday handoff push December 14.",
+            "owner": "cuso",
+            "approval": false
+          }
+        ]
+      },
+      {
+        "focus": "Dec 17-23: Help founders start January projects",
+        "tasks": [
+          {
+            "task": "Show buyers how to check an order over Christmas.",
+            "owner": "cuso",
+            "approval": false
+          },
+          {
+            "due": "2026-12-23",
+            "task": "Wrap up the strategy by December 23.",
+            "owner": "cuso",
+            "approval": false
+          }
+        ]
+      }
+    ],
+    "funnel": [
+      {
+        "goal": "NFT and token founders discover NMKR through practical launch checks.",
+        "owner": "shared",
+        "plays": [
+          {
+            "what": "Chain fit checks and wallet tests.",
+            "cadence": "6 a day",
+            "channel": "x"
+          },
+          {
+            "what": "Launch lessons for project teams.",
+            "cadence": "1 a day",
+            "channel": "linkedin"
+          },
+          {
+            "what": "Collector checklists in carousels and Reels.",
+            "cadence": "2 carousels + 7 Reels daily",
+            "channel": "instagram"
+          },
+          {
+            "what": "First-drop prep for creator groups.",
+            "cadence": "2 a day",
+            "channel": "facebook"
+          },
+          {
+            "what": "Wallet tests in YouTube Shorts and TikToks.",
+            "cadence": "7 Shorts a day",
+            "channel": "youtube"
+          },
+          {
+            "what": "A weekly site audit with page fixes, and articles for the searches your buyers make when you ask.",
+            "cadence": "Weekly audit",
+            "channel": "seo"
+          }
+        ],
+        "stage": "awareness",
+        "youDo": "You put the suggested page fixes and articles on NMKR’s site.",
+        "metric": "People who saw launch checks",
+        "measure": {
+          "basis": "unknown",
+          "source": "No recent figures on how many people saw posts"
+        },
+        "channels": [
+          "x",
+          "linkedin",
+          "instagram",
+          "facebook",
+          "youtube",
+          "seo"
+        ],
+        "cusoDoes": "I post chain checks on X and show buyer walkthroughs in Reels, TikToks and YouTube Shorts."
+      },
+      {
+        "goal": "Founders visit NMKR Studio pages and watch launch walkthroughs.",
+        "owner": "cuso",
+        "plays": [
+          {
+            "what": "Mint setup comparisons founders can use.",
+            "cadence": "6 a day",
+            "channel": "x"
+          },
+          {
+            "what": "Collection preparation walkthroughs.",
+            "cadence": "1 a day",
+            "channel": "linkedin"
+          },
+          {
+            "what": "Carousels showing a collector’s checkout steps.",
+            "cadence": "2 carousels + 7 Reels daily",
+            "channel": "instagram"
+          },
+          {
+            "what": "Image guides to preparing a drop.",
+            "cadence": "2 a day",
+            "channel": "facebook"
+          },
+          {
+            "what": "Collection preparation in YouTube Shorts.",
+            "cadence": "7 Shorts a day",
+            "channel": "youtube"
+          },
+          {
+            "what": "TikToks showing what a buyer sees before paying.",
+            "cadence": "7 TikToks a day",
+            "channel": "tiktok"
+          }
+        ],
+        "stage": "interest",
+        "metric": "Visits to Studio pages",
+        "measure": {
+          "basis": "unknown",
+          "source": "No Studio visit figures"
+        },
+        "channels": [
+          "x",
+          "linkedin",
+          "instagram",
+          "facebook",
+          "youtube",
+          "tiktok"
+        ],
+        "cusoDoes": "I show how founders prepare collections and verify what buyers see from checkout to delivery."
+      },
+      {
+        "goal": "Founders click through from TURF’s project story to NMKR Studio.",
+        "owner": "cuso",
+        "plays": [
+          {
+            "what": "Project stories in images and replies.",
+            "cadence": "6 a day",
+            "channel": "x"
+          },
+          {
+            "what": "TURF’s decision to use a minting API.",
+            "cadence": "1 a day",
+            "channel": "linkedin"
+          },
+          {
+            "what": "Digital art and collectible project carousels.",
+            "cadence": "2 carousels + 7 Reels daily",
+            "channel": "instagram"
+          },
+          {
+            "what": "Creator project stories with images.",
+            "cadence": "2 a day",
+            "channel": "facebook"
+          },
+          {
+            "what": "Real project examples in YouTube Shorts and TikToks.",
+            "cadence": "7 Shorts a day",
+            "channel": "youtube"
+          },
+          {
+            "what": "A project story with a check founders can reuse.",
+            "cadence": "1 every two weeks",
+            "channel": "newsletter"
+          }
+        ],
+        "stage": "desire",
+        "metric": "Clicks from project stories",
+        "measure": {
+          "basis": "unknown",
+          "source": "No link click figures"
+        },
+        "channels": [
+          "x",
+          "linkedin",
+          "instagram",
+          "facebook",
+          "youtube",
+          "newsletter"
+        ],
+        "cusoDoes": "I share named project stories on X and LinkedIn and show what each team used NMKR to do."
+      },
+      {
+        "goal": "NFT and token founders open free NMKR Studio accounts.",
+        "owner": "shared",
+        "plays": [
+          {
+            "what": "Free-account posts with the link in the first reply.",
+            "cadence": "Twice a week",
+            "channel": "x"
+          },
+          {
+            "what": "Free-account posts with the link in the first comment.",
+            "cadence": "Twice a week",
+            "channel": "linkedin"
+          },
+          {
+            "what": "Free-account posts with the link in the first comment.",
+            "cadence": "Twice a week",
+            "channel": "facebook"
+          },
+          {
+            "what": "Free-account Reels or carousels pointing to the link in bio.",
+            "cadence": "Twice a week",
+            "channel": "instagram"
+          },
+          {
+            "what": "YouTube Shorts pointing to the Studio signup link on the channel.",
+            "cadence": "Twice a week",
+            "channel": "youtube"
+          },
+          {
+            "what": "Free-account TikToks pointing to the link in bio.",
+            "cadence": "Twice a week",
+            "channel": "tiktok"
+          }
+        ],
+        "stage": "action",
+        "youDo": "You keep Studio signup working and confirm that completed accounts are counted.",
+        "metric": "Free Studio accounts opened",
+        "measure": {
+          "basis": "unknown",
+          "source": "No signup figures"
+        },
+        "channels": [
+          "x",
+          "linkedin",
+          "facebook",
+          "instagram",
+          "youtube",
+          "tiktok"
+        ],
+        "cusoDoes": "I post the free Studio offer twice a week on each network and point founders to the signup link."
+      }
+    ],
+    "ladder": {
+      "core": {
+        "why": "Create, manage and sell tokens across supported blockchains.",
+        "what": "NMKR Studio"
+      },
+      "next": {
+        "why": "Teams can get a project review before launch.",
+        "what": "Studio project audit"
+      },
+      "entry": {
+        "why": "Founders can get started without a monthly subscription.",
+        "what": "Free NMKR Studio account"
+      }
+    },
+    "barrier": {
+      "kind": "understanding",
+      "text": "Founders need to see how buyers pay and receive tokens."
+    },
+    "changes": [],
+    "journey": [],
+    "leftOut": [],
+    "patched": [],
+    "pillars": [
+      {
+        "why": "Helps founders choose where collectors can buy (i1, i2, i3, i4).",
+        "name": "Chain and Marketplace Fit",
+        "share": 25
+      },
+      {
+        "why": "Makes paying and signing clearer for newcomers (i6, i7, i8, i10).",
+        "name": "First-Time Buyers",
+        "share": 25
+      },
+      {
+        "why": "Helps teams resolve stuck orders safely (i12, i14, i15, i17).",
+        "name": "Payment and Delivery Recovery",
+        "share": 25
+      },
+      {
+        "why": "Prepares teams for opening-hour failures (i18, i21, i22, i23).",
+        "name": "Launch Day Readiness",
+        "share": 25
+      }
+    ],
+    "summary": "From November 26 to December 23, help token founders rehearse launches and open free NMKR Studio accounts.",
+    "audience": "NFT and token project founders preparing to launch",
+    "calendar": [
+      {
+        "id": "collector-marketplace-check",
+        "why": "Ahead of Blockchain Life on December 1-2, give founders a test for comparing chains.",
+        "date": "2026-11-27",
+        "time": "16:00",
+        "brief": "Show a collector opening a drop link on their phone, checking the listing’s network, then testing the purchase with the wallet they already use. Use i2 and i3. The image shows a phone beside a desktop listing.",
+        "claim": "A marketplace listing is useful only if collectors can find it and buy with a wallet they can use.",
+        "stage": "awareness",
+        "title": "Find Your Drop as a Buyer",
+        "format": "image",
+        "pillar": "Chain and Marketplace Fit",
+        "status": "idea",
+        "channel": "x",
+        "approach": "educational",
+        "campaignId": "collector-ready"
+      },
+      {
+        "id": "first-card-buyer",
+        "why": "Before Cyber Monday on November 30, show how founders can explain card payments clearly.",
+        "date": "2026-11-28",
+        "time": "17:30",
+        "brief": "Use the NMKR homepage’s payment section to show the published card option, then illustrate where a founder should tell buyers what happens after paying. Show the page scrolling on a phone and use i7 for the buyer explanation.",
+        "claim": "NMKR supports card payments, and founders should explain what happens after the buyer pays.",
+        "stage": "interest",
+        "title": "What a Card Buyer Sees",
+        "alsoOn": ["instagram", "tiktok"],
+        "format": "short",
+        "pillar": "First-Time Buyers",
+        "status": "idea",
+        "channel": "youtube",
+        "approach": "product-led",
+        "campaignId": "collector-ready",
+        "shortFormat": "site_tour"
+      },
+      {
+        "id": "turf-build-choice",
+        "why": "Before GITEX on December 7-11, show a real choice about what to build yourself.",
+        "date": "2026-11-30",
+        "time": "10:00",
+        "brief": "Tell how TURF used NMKR’s API for its map-art collection and why its CTO valued the development time saved. Draw one launch-prep lesson: decide what your team needs to build before demo week.",
+        "claim": "TURF saved development time by using NMKR’s API for its collection’s minting infrastructure.",
+        "stage": "desire",
+        "story": "TURF created one-of-a-kind map artworks. Its CTO said NMKR’s API saved development time on the project’s minting infrastructure.",
+        "title": "How TURF Built Its Minting Setup",
+        "format": "post",
+        "pillar": "Launch Day Readiness",
+        "status": "idea",
+        "channel": "linkedin",
+        "approach": "social-proof",
+        "campaignId": "demo-to-mint"
+      },
+      {
+        "id": "mint-rehearsal-order-status",
+        "why": "Ahead of GITEX on December 7-11, give teams a practical next step for demo prep.",
+        "date": "2026-12-01",
+        "time": "15:15",
+        "brief": "Give founders one rehearsal to run before their first mint: stop after payment and check how the buyer learns whether their asset arrived. Use i12. Invite founders to open a free NMKR Studio account to prepare their project, with the signup link in the reply.",
+        "claim": "A launch rehearsal should check what buyers see when they have paid but delivery is still pending.",
+        "stage": "action",
+        "title": "Rehearse a Stuck Order",
+        "format": "reply",
+        "pillar": "Payment and Delivery Recovery",
+        "status": "idea",
+        "channel": "x",
+        "approach": "promotional",
+        "campaignId": "demo-to-mint"
+      }
+    ],
+    "channels": [
+      {
+        "why": "Founders already follow NMKR project launches on X.",
+        "role": "main",
+        "cadence": "6 a day",
+        "channel": "x"
+      },
+      {
+        "why": "Project founders and developers compare tools at work.",
+        "role": "main",
+        "cadence": "1 a day",
+        "channel": "linkedin"
+      },
+      {
+        "why": "Founders can watch a launch check before trying it.",
+        "role": "main",
+        "cadence": "7 Shorts a day",
+        "channel": "youtube"
+      },
+      {
+        "why": "Creators can see what collectors see during a drop.",
+        "role": "side",
+        "buyer": "Creators launching NFTs",
+        "cadence": "2 carousels + 7 Reels daily",
+        "channel": "instagram"
+      },
+      {
+        "why": "New: Open an account for creator groups planning collection launches.",
+        "role": "side",
+        "buyer": "Creators launching NFTs",
+        "cadence": "2 a day",
+        "channel": "facebook"
+      },
+      {
+        "why": "New: Open an account for creators preparing their first drop.",
+        "role": "side",
+        "buyer": "Creators launching NFTs",
+        "cadence": "7 TikToks a day",
+        "channel": "tiktok"
+      },
+      {
+        "why": "Subscribers can use a checklist when their launch gets close.",
+        "cadence": "1 every two weeks",
+        "channel": "newsletter"
+      }
+    ],
+    "previews": [],
+    "campaigns": [
+      {
+        "id": "collector-ready",
+        "end": "2026-12-06",
+        "name": "Before Collectors Arrive",
+        "start": "2026-11-26",
+        "assets": [
+          "Chain fit checklist",
+          "Collector handoff carousel",
+          "First-time buyer Shorts"
+        ],
+        "budget": "CHF 0",
+        "metric": "Visits to Studio from launch checks",
+        "message": "Test how collectors find, pay for and receive your drop.",
+        "channels": ["x", "instagram", "youtube", "tiktok"]
+      },
+      {
+        "id": "demo-to-mint",
+        "end": "2026-12-11",
+        "name": "From Demo to Mint",
+        "start": "2026-11-27",
+        "assets": [
+          "Payment recovery walkthrough",
+          "Named project story",
+          "Free-account post"
+        ],
+        "budget": "CHF 0",
+        "metric": "Free Studio accounts opened",
+        "message": "Prove a token purchase works before you show it.",
+        "channels": ["linkedin", "x", "youtube", "newsletter"]
+      },
+      {
+        "id": "holiday-handoff",
+        "end": "2026-12-23",
+        "name": "Before the Team Signs Off",
+        "start": "2026-12-14",
+        "assets": [
+          "Order handoff checklist",
+          "Buyer support checklist",
+          "Free-account post"
+        ],
+        "budget": "CHF 0",
+        "metric": "Free Studio accounts opened",
+        "message": "Give buyers a way to check orders during the break.",
+        "channels": ["x", "linkedin", "instagram", "newsletter"]
+      }
+    ],
+    "objective": {
+      "why": "An account gives founders a concrete way to start a project.",
+      "outcome": "More founders open free NMKR Studio accounts"
+    },
+    "proposals": [],
+    "questions": [
+      {
+        "id": "first-project-step",
+        "question": "Do most new Studio founders arrive with their collection files ready?",
+        "statement": "Most new founders have their collection files ready when they open Studio."
+      },
+      {
+        "id": "wallet-friction",
+        "question": "Do founders most often ask whether collectors can pay by card?",
+        "statement": "Card payments are the most common checkout question from founders."
+      },
+      {
+        "id": "january-intent",
+        "question": "Do founders usually start planning January launches before Christmas?",
+        "statement": "Founders typically start preparing January launches before Christmas."
+      }
+    ],
+    "beforeAfter": [
+      {
+        "after": "Daily launch checks, project stories and free-account posts.",
+        "before": "Active with NFT drops and creator projects.",
+        "channel": "x"
+      },
+      {
+        "after": "Daily launch lessons for project teams.",
+        "before": "Posting frequency unknown.",
+        "channel": "linkedin"
+      },
+      {
+        "after": "Daily Shorts showing launch checks.",
+        "before": "Last visible uploads were long videos.",
+        "channel": "youtube"
+      },
+      {
+        "after": "Collector journeys in carousels and Reels.",
+        "before": "Recent posting frequency unknown.",
+        "channel": "instagram"
+      },
+      {
+        "after": "Creator checklists and launch examples.",
+        "before": "No NMKR account found.",
+        "channel": "facebook"
+      },
+      {
+        "after": "First-drop tests creators can try.",
+        "before": "No NMKR account found.",
+        "channel": "tiktok"
+      },
+      {
+        "after": "A launch checklist every two weeks.",
+        "before": "Signup on NMKR’s site.",
+        "channel": "newsletter"
+      }
+    ],
+    "measurement": {
+      "rules": [
+        {
+          "then": "Check that the free account and minting fees are easy to find before adding more posts.",
+          "when": "Founders visit the Studio signup page but few open an account."
+        }
+      ],
+      "primary": "Free NMKR Studio accounts opened",
+      "tracking": [
+        "Count completed Studio signups in Google Analytics.",
+        "Keep the source attached when visitors move from nmkr.io to Studio.",
+        "Review signup counts after three days have passed."
+      ],
+      "experiment": {
+        "judge": "By December 23, compare signup-page visits per post on X. Treat small counts as a hint.",
+        "change": "On X, compare a buyer-side wallet walkthrough with a written checklist.",
+        "expect": "The walkthrough should bring more founders to the Studio signup page."
+      },
+      "supporting": [
+        "Visits to the Studio signup page",
+        "Clicks from launch checks",
+        "Clicks from project stories"
+      ],
+      "sourceOfTruth": "Google Analytics key events for completed Studio account signups"
+    },
+    "monthWriter": {
+      "state": "examples",
+      "attempts": 0
+    },
+    "positioning": "NMKR Studio handles multichain minting so founders can focus on their launch.",
+    "alternatives": [
+      {
+        "why": "Choose this if developers drive most new Studio projects.",
+        "sentence": "Reach developers on LinkedIn with integration walkthroughs, then invite them to try the minting API through a Studio account."
+      },
+      {
+        "why": "Choose this if artist-led collections drive most new projects.",
+        "sentence": "Reach digital artists on Instagram with collector handoff examples, then invite them to open a free Studio account."
+      }
+    ],
+    "improvements": [
+      {
+        "now": "Homepage has Get Started and Launch Studio buttons.",
+        "url": "https://www.nmkr.io/",
+        "why": "Founders can see what’s free before they start.",
+        "area": "landing",
+        "idea": "Show free signup and minting fees beside Launch Studio."
+      },
+      {
+        "why": "Founders can start a project while their files are ready.",
+        "area": "product",
+        "idea": "Show founders the first step after opening an account."
+      }
+    ],
+    "openQuestions": [],
+    "contentLanguage": "English"
+  },
+  "entry.fyi": {
+    "ads": {
+      "expect": "Learn which portfolio searches bring people who claim a page.",
+      "monthly": 0,
+      "suggest": {
+        "channel": "google_ads",
+        "monthly": 300
+      },
+      "without": "X posts and YouTube Shorts bring developers to the free preview.",
+      "currency": "EUR",
+      "setByOwner": false
+    },
+    "mix": [
+      {
+        "why": "Show developers which projects to feature, explain and keep up to date.",
+        "share": 70,
+        "approach": "educational"
+      },
+      {
+        "why": "Show how Entry turns public work into a page developers can review.",
+        "share": 20,
+        "approach": "product-led"
+      },
+      {
+        "why": "Invite developers to claim a free homepage for work they’ve shipped.",
+        "share": 10,
+        "approach": "promotional"
+      }
+    ],
+    "why": "Entry turns work already on GitHub, a site or X into a homepage its owner controls. X reaches makers sharing their work; YouTube Shorts show how the page comes together.",
+    "idea": {
+      "who": "Independent developers and indie makers with recent work",
+      "offer": "Preview and claim an Entry Free homepage",
+      "attract": "Portfolio examples on X and YouTube Shorts",
+      "position": "A current work homepage you control",
+      "sentence": "We’ll help independent developers show recent work through portfolio examples on X and YouTube Shorts, then invite them to preview and claim an Entry Free homepage they control."
+    },
+    "pace": {
+      "why": "Give developers examples they can use before sharing their work.",
+      "level": "all_in",
+      "perWeek": 126
+    },
+    "focus": {
+      "where": [
+        "X developer conversations",
+        "YouTube portfolio tutorials",
+        "GitHub project communities"
+      ],
+      "problem": "Their homepage falls behind the work they actually ship.",
+      "segment": "Independent developers and indie makers",
+      "trigger": "They’re about to share a new project or send their portfolio.",
+      "objections": [
+        "I already have a portfolio.",
+        "I don’t want another profile to maintain.",
+        "I need to control what goes live."
+      ]
+    },
+    "goals": ["More independent developers claim Entry Free homepages"],
+    "month": "2026-11",
+    "offer": {
+      "why": "See your work together before signing up and decide which changes go live.",
+      "what": "Entry Free homepage, free forever",
+      "proof": [
+        "Preview a homepage without an account.",
+        "Approve suggested updates before they go live."
+      ],
+      "action": "Claim your free Entry homepage"
+    },
+    "start": {
+      "gaps": [
+        {
+          "text": "No named independent customer stories for Entry. Use product walkthroughs instead.",
+          "basis": "fact"
+        },
+        {
+          "text": "The number of free homepages claimed each week is unknown.",
+          "basis": "fact"
+        }
+      ],
+      "working": [
+        {
+          "text": "November 26 to December 23, 2026. Entry is based in Dublin and writes for English-speaking developers. U.S. dates matter for readers there; Ireland has no public holiday in these four weeks.",
+          "basis": "fact"
+        },
+        {
+          "text": "Nov 26: U.S. Thanksgiving. Leave the day quiet. Nov 27: Black Friday. Nov 29: Advent begins. Nov 30: Cyber Monday in Ireland and the U.S. Skip sales and gift posts; the offer is already free.",
+          "basis": "fact"
+        },
+        {
+          "text": "Nov 30, Dec 4: AWS re:Invent. Dec 1: GitHub Game Off submissions close. Dec 4-10: Global Hack Week Open Source Week. Start Nov 27 with ways to share open-source work; skip unrelated conference coverage.",
+          "basis": "fact"
+        },
+        {
+          "text": "Dec 11-23: the run-up to Christmas and year-end handoffs. Start Dec 11 with a portfolio refresh for January. Christmas Day and Ireland’s St Stephen’s Day fall outside these four weeks.",
+          "basis": "fact"
+        }
+      ],
+      "resources": [
+        {
+          "text": "The U.S. Office of Personnel Management and EU Official Journal list the public holidays. AWS, GitHub Game Off and Major League Hacking list their event dates.",
+          "basis": "fact"
+        }
+      ]
+    },
+    "weeks": [
+      {
+        "focus": "Make recent work easier to share",
+        "tasks": [
+          {
+            "due": "2026-11-27",
+            "task": "Leave Thanksgiving quiet; start open-source examples November 27.",
+            "owner": "cuso",
+            "approval": false
+          },
+          {
+            "task": "Make the free homepage preview the main button.",
+            "owner": "you",
+            "approval": true
+          }
+        ]
+      },
+      {
+        "focus": "Show open-source work visitors can inspect",
+        "tasks": [
+          {
+            "due": "2026-12-10",
+            "task": "Show a project and the evidence behind it.",
+            "owner": "cuso",
+            "approval": false
+          },
+          {
+            "task": "Count claimed homepages in Google Analytics.",
+            "owner": "you",
+            "approval": true
+          }
+        ]
+      },
+      {
+        "focus": "Refresh the work page before Christmas",
+        "tasks": [
+          {
+            "due": "2026-12-16",
+            "task": "Help developers replace stale examples with current work.",
+            "owner": "cuso",
+            "approval": false
+          }
+        ]
+      },
+      {
+        "focus": "Help developers keep the page they made",
+        "tasks": [
+          {
+            "due": "2026-12-23",
+            "task": "Show how to claim and share the homepage.",
+            "owner": "cuso",
+            "approval": false
+          }
+        ]
+      }
+    ],
+    "funnel": [
+      {
+        "goal": "Independent developers discover Entry while looking for portfolio ideas.",
+        "owner": "cuso",
+        "plays": [
+          {
+            "what": "Post tips for picking projects worth featuring.",
+            "cadence": "6 a day",
+            "channel": "x"
+          },
+          {
+            "what": "Show one portfolio mistake and its fix.",
+            "cadence": "7 Shorts a day",
+            "channel": "youtube"
+          },
+          {
+            "what": "Show how to describe a contribution to a team project.",
+            "cadence": "1 a day",
+            "channel": "linkedin"
+          },
+          {
+            "what": "Use carousels and Reels to show where to feature a project.",
+            "cadence": "2 picture posts and 7 Reels a day",
+            "channel": "instagram"
+          },
+          {
+            "what": "Show where to put a first portfolio’s strongest project.",
+            "cadence": "7 TikToks a day",
+            "channel": "tiktok"
+          },
+          {
+            "what": "Share illustrated project-page examples for developer groups.",
+            "cadence": "2 a day",
+            "channel": "facebook"
+          }
+        ],
+        "stage": "awareness",
+        "metric": "People who saw Entry",
+        "measure": {
+          "basis": "unknown"
+        },
+        "channels": [
+          "x",
+          "youtube",
+          "linkedin",
+          "instagram",
+          "tiktok",
+          "facebook"
+        ],
+        "cusoDoes": "I share portfolio examples on X, LinkedIn and Facebook and quick fixes in Reels, TikToks and YouTube Shorts."
+      },
+      {
+        "goal": "Independent developers visit Entry’s homepage to look at examples.",
+        "owner": "shared",
+        "plays": [
+          {
+            "what": "Show what a page pulls from public work.",
+            "cadence": "6 a day",
+            "channel": "x"
+          },
+          {
+            "what": "Walk through a homepage preview in YouTube Shorts and TikToks.",
+            "cadence": "7 Shorts a day",
+            "channel": "youtube"
+          },
+          {
+            "what": "Show how work appears on a sample page.",
+            "cadence": "1 a day",
+            "channel": "linkedin"
+          },
+          {
+            "what": "Show scattered project links gathered onto one page.",
+            "cadence": "2 picture posts and 7 Reels a day",
+            "channel": "instagram"
+          },
+          {
+            "what": "Show what a first portfolio preview looks like.",
+            "cadence": "2 a day",
+            "channel": "facebook"
+          },
+          {
+            "what": "A weekly audit of your site with page fixes, and articles for the searches your buyers make when you ask.",
+            "cadence": "Weekly audit",
+            "channel": "seo"
+          }
+        ],
+        "stage": "interest",
+        "youDo": "You put the suggested fixes and articles on Entry’s site.",
+        "metric": "Visits to Entry’s homepage",
+        "measure": {
+          "basis": "unknown"
+        },
+        "channels": [
+          "x",
+          "youtube",
+          "linkedin",
+          "instagram",
+          "tiktok",
+          "facebook"
+        ],
+        "cusoDoes": "I show how public work becomes an Entry page and suggest fixes to help developers find the site."
+      },
+      {
+        "goal": "Independent developers generate an Entry preview from their own work.",
+        "owner": "cuso",
+        "plays": [
+          {
+            "what": "Show a source change and the update Entry suggests.",
+            "cadence": "6 a day",
+            "channel": "x"
+          },
+          {
+            "what": "Show how to review a suggested change.",
+            "cadence": "7 Shorts a day",
+            "channel": "youtube"
+          },
+          {
+            "what": "Show what a developer approves before sharing work.",
+            "cadence": "1 a day",
+            "channel": "linkedin"
+          },
+          {
+            "what": "Show the draft and published page side by side.",
+            "cadence": "2 picture posts and 7 Reels a day",
+            "channel": "instagram"
+          },
+          {
+            "what": "Show what stays off the page pending approval.",
+            "cadence": "7 TikToks a day",
+            "channel": "tiktok"
+          },
+          {
+            "what": "Show how a maker checks a change before sharing.",
+            "cadence": "2 a day",
+            "channel": "facebook"
+          }
+        ],
+        "stage": "desire",
+        "metric": "Free homepage previews created",
+        "measure": {
+          "basis": "unknown"
+        },
+        "channels": [
+          "x",
+          "youtube",
+          "linkedin",
+          "instagram",
+          "tiktok",
+          "facebook"
+        ],
+        "cusoDoes": "I show Entry’s review step on each network so developers know what they can change before publishing."
+      },
+      {
+        "goal": "Independent developers claim their Entry Free homepages.",
+        "owner": "shared",
+        "plays": [
+          {
+            "what": "Put the free homepage link in the first reply.",
+            "cadence": "6 a day",
+            "channel": "x"
+          },
+          {
+            "what": "Show how to claim a preview and point viewers to Entry.",
+            "cadence": "7 Shorts a day",
+            "channel": "youtube"
+          },
+          {
+            "what": "Invite developers to claim a page with the link below.",
+            "cadence": "1 a day",
+            "channel": "linkedin"
+          },
+          {
+            "what": "Show the claim step and point makers to the bio link.",
+            "cadence": "2 picture posts and 7 Reels a day",
+            "channel": "instagram"
+          },
+          {
+            "what": "Show the claim step and point builders to the bio link.",
+            "cadence": "7 TikToks a day",
+            "channel": "tiktok"
+          },
+          {
+            "what": "Invite developers to make a page with the link below.",
+            "cadence": "2 a day",
+            "channel": "facebook"
+          }
+        ],
+        "stage": "action",
+        "youDo": "You keep the preview and claim steps working on Entry’s site.",
+        "metric": "Free Entry homepages claimed",
+        "measure": {
+          "basis": "unknown"
+        },
+        "channels": [
+          "x",
+          "youtube",
+          "linkedin",
+          "instagram",
+          "tiktok",
+          "facebook"
+        ],
+        "cusoDoes": "I share the free homepage offer twice a week on each network and point people to the preview."
+      }
+    ],
+    "ladder": {
+      "core": {
+        "why": "Share current work and approve suggested updates in one place.",
+        "what": "Entry Free source-backed homepages"
+      },
+      "next": {
+        "why": "Offer it when developers want to use their own address.",
+        "what": "Entry Pro with a custom domain"
+      },
+      "entry": {
+        "why": "Developers see how their own work looks before signing up.",
+        "what": "Free homepage preview without an account"
+      }
+    },
+    "barrier": {
+      "kind": "understanding",
+      "text": "Developers don’t see how existing work becomes a homepage."
+    },
+    "changes": [],
+    "journey": [],
+    "leftOut": [],
+    "patched": [],
+    "pillars": [
+      {
+        "why": "Refresh work without rebuilding the page (i1, i3, i4, i6).",
+        "name": "Keeping Portfolios Current",
+        "share": 35
+      },
+      {
+        "why": "Help readers find the work and its maker (i8, i9, i10, i11).",
+        "name": "Portfolio Page Layout",
+        "share": 20
+      },
+      {
+        "why": "Show what developers built and why (i12, i14, i15, i16).",
+        "name": "Proof of Work",
+        "share": 30
+      },
+      {
+        "why": "Point old links and profiles to current work (i18, i19, i22).",
+        "name": "Finding Your Work",
+        "share": 15
+      }
+    ],
+    "summary": "Help independent developers showcase recent work, then invite them to claim a free Entry homepage before the year-end break.",
+    "audience": "Independent developers and indie makers with public work to share",
+    "calendar": [
+      {
+        "id": "existing-project-links",
+        "why": "Ahead of December 4’s Open Source Week, help developers keep old project links useful when sharing new work.",
+        "date": "2026-11-27",
+        "time": "16:10",
+        "brief": "Show an old README link and a new portfolio link reaching the same project. Use i22 to explain why a developer can keep their existing portfolio and check that a new work page doesn’t strand links people already use.",
+        "claim": "Adding a new work page does not require breaking the project links people already use.",
+        "stage": "awareness",
+        "title": "Keep Old Project Links Working",
+        "format": "image",
+        "pillar": "Finding Your Work",
+        "status": "idea",
+        "channel": "x",
+        "approach": "educational",
+        "campaignId": "open-source-week"
+      },
+      {
+        "id": "review-project-update",
+        "why": "Before December 4’s Open Source Week, show developers how Entry helps with upkeep without taking over publishing.",
+        "date": "2026-11-28",
+        "time": "15:30",
+        "brief": "Start with a public project description that has changed. Show how Entry proposes a homepage update and where the owner reviews it before it goes live. Use i4 for the upkeep problem, not as a description of how Entry publishes.",
+        "claim": "An Entry update suggested from your public work goes live only after you approve it.",
+        "stage": "desire",
+        "title": "Review an Update Before It Publishes",
+        "alsoOn": ["instagram", "tiktok"],
+        "format": "short",
+        "pillar": "Keeping Portfolios Current",
+        "status": "idea",
+        "channel": "youtube",
+        "approach": "product-led",
+        "campaignId": "open-source-week"
+      },
+      {
+        "id": "show-your-part",
+        "why": "Ahead of December 4’s Open Source Week, help developers show hiring teams what they personally built.",
+        "date": "2026-12-01",
+        "time": "14:20",
+        "brief": "Use a clearly labeled sample project write-up, not a customer story. Show a vague team summary, then name the component one developer built and link to a pull request that demonstrates their contribution. Invite readers to look at Entry’s work-page examples. Use i14 and i16.",
+        "claim": "Name the component you built and link to evidence instead of taking credit for the whole project.",
+        "stage": "interest",
+        "title": "Show Your Part of a Shared Project",
+        "format": "images",
+        "pillar": "Proof of Work",
+        "status": "idea",
+        "channel": "linkedin",
+        "approach": "educational",
+        "campaignId": "open-source-week"
+      },
+      {
+        "id": "put-the-demo-first",
+        "why": "Before December 4’s Open Source Week, invite makers to claim a page where others can quickly find their demo.",
+        "date": "2026-12-02",
+        "time": "17:40",
+        "brief": "Use three slides: a project demo buried after an introduction, a work page that puts the demo near the top, and an invitation to claim an Entry Free homepage. Use i8 and i10 for the layout lesson. Point to the link in bio.",
+        "claim": "A work page should lead visitors to a project they can try before asking them to read its backstory.",
+        "stage": "action",
+        "title": "Put the Demo Where Visitors Look",
+        "format": "carousel",
+        "pillar": "Portfolio Page Layout",
+        "status": "idea",
+        "channel": "instagram",
+        "approach": "promotional",
+        "campaignId": "open-source-week"
+      }
+    ],
+    "channels": [
+      {
+        "why": "Independent developers already share projects and compare notes there.",
+        "role": "main",
+        "cadence": "6 a day",
+        "channel": "x"
+      },
+      {
+        "why": "Makers can watch an Entry walkthrough while researching portfolios.",
+        "role": "main",
+        "cadence": "7 Shorts a day",
+        "channel": "youtube"
+      },
+      {
+        "why": "New: Open an Entry account to reach developers showcasing work to employers.",
+        "role": "side",
+        "buyer": "Developers sharing work with hiring teams",
+        "cadence": "1 a day",
+        "channel": "linkedin"
+      },
+      {
+        "why": "Makers can see how to arrange projects on a homepage.",
+        "role": "side",
+        "buyer": "Indie makers showing their projects",
+        "cadence": "2 picture posts and 7 Reels a day",
+        "channel": "instagram"
+      },
+      {
+        "why": "Newer developers can learn one portfolio fix at a time.",
+        "role": "side",
+        "buyer": "Early-career developers building a first portfolio",
+        "cadence": "7 TikToks a day",
+        "channel": "tiktok"
+      },
+      {
+        "why": "New: Open an Entry account for developer community examples.",
+        "role": "side",
+        "buyer": "Independent developers in local and open-source groups",
+        "cadence": "2 a day",
+        "channel": "facebook"
+      }
+    ],
+    "previews": [],
+    "campaigns": [
+      {
+        "id": "open-source-week",
+        "end": "2026-12-10",
+        "name": "Show Your Open-Source Work",
+        "offer": "Entry Free homepage",
+        "start": "2026-11-27",
+        "assets": [
+          "Source-to-page walkthrough",
+          "Project evidence example",
+          "Free homepage post"
+        ],
+        "budget": "€0",
+        "metric": "Free Entry homepages claimed",
+        "message": "Give people a place to see what you built.",
+        "audience": "Independent developers and indie makers",
+        "channels": ["x", "youtube", "linkedin", "instagram"]
+      },
+      {
+        "id": "before-year-end",
+        "end": "2026-12-23",
+        "name": "Refresh Before the Break",
+        "offer": "Entry Free homepage",
+        "start": "2026-12-11",
+        "assets": [
+          "Year-end project checklist",
+          "Page review walkthrough",
+          "Free homepage post"
+        ],
+        "budget": "€0",
+        "metric": "Free Entry homepages claimed",
+        "message": "Update the work page you’ll send in January.",
+        "audience": "Independent developers and indie makers",
+        "channels": ["x", "youtube", "instagram", "facebook"]
+      }
+    ],
+    "objective": {
+      "why": "A claim shows a developer chose to keep their page on Entry.",
+      "outcome": "More independent developers claim Entry Free homepages"
+    },
+    "proposals": [
+      {
+        "why": "Remind developers to add recent work before they share their page.",
+        "what": "A monthly portfolio refresh email",
+        "channel": "newsletter",
+        "perMonth": 1
+      }
+    ],
+    "questions": [
+      {
+        "id": "project-share-trigger",
+        "question": "Do developers usually try Entry when they have a new project to share?",
+        "statement": "A new project is the usual reason developers first try Entry."
+      },
+      {
+        "id": "github-first",
+        "question": "Is GitHub the first source most developers add to Entry?",
+        "statement": "Most developers start by adding GitHub as their first source."
+      },
+      {
+        "id": "preview-dropoff",
+        "question": "Do most developers who preview an Entry homepage leave it unclaimed?",
+        "statement": "Most developers who preview an Entry homepage do not claim it."
+      }
+    ],
+    "beforeAfter": [
+      {
+        "after": "Project examples, walkthroughs and free homepage links.",
+        "before": "Four posts in the last month, including product updates.",
+        "channel": "x"
+      },
+      {
+        "after": "YouTube Shorts with portfolio fixes and Entry walkthroughs.",
+        "before": "Nine recent uploads, including guides and product comparisons.",
+        "channel": "youtube"
+      },
+      {
+        "after": "Examples developers can use to show work to employers.",
+        "before": "No Entry company posting history confirmed.",
+        "channel": "linkedin"
+      },
+      {
+        "after": "Project-page examples and visual portfolio tips.",
+        "before": "Five followers; posting frequency unclear.",
+        "channel": "instagram"
+      },
+      {
+        "after": "Portfolio fixes for early-career developers.",
+        "before": "Seven followers; posting frequency unclear.",
+        "channel": "tiktok"
+      },
+      {
+        "after": "Project examples for developer communities.",
+        "before": "No Entry Facebook page found.",
+        "channel": "facebook"
+      }
+    ],
+    "measurement": {
+      "rules": [
+        {
+          "then": "Make the preview button easier to spot.",
+          "when": "People visit but few start a preview."
+        },
+        {
+          "then": "Show how to keep the page next to the expiry reminder.",
+          "when": "People make previews but few claim them."
+        }
+      ],
+      "primary": "Free Entry homepages claimed",
+      "tracking": [
+        "Count a claim only when an Entry Free homepage is successfully claimed.",
+        "Count completed previews separately from claims.",
+        "Tag links by network."
+      ],
+      "experiment": {
+        "judge": "After December 23, compare claims per visit once both versions have enough visits and claims to compare.",
+        "change": "On X, compare a free-preview invitation showing a sample page with one using text alone.",
+        "expect": "Showing the page brings more developers who claim a free homepage."
+      },
+      "supporting": [
+        "Free homepage previews created",
+        "Visits to the homepage from posts",
+        "People who started a preview"
+      ],
+      "sourceOfTruth": "Google Analytics, using the event for successfully claimed Entry Free homepages."
+    },
+    "monthWriter": {
+      "state": "examples",
+      "attempts": 0
+    },
+    "positioning": "Entry turns work you already share into a homepage you control.",
+    "alternatives": [
+      {
+        "why": "Choose this if developers mostly try Entry when applying for jobs.",
+        "sentence": "Reach developers preparing for interviews with project write-ups, then invite them to claim a free homepage."
+      },
+      {
+        "why": "Choose this if small teams start claiming company pages consistently.",
+        "sentence": "Reach small software teams on LinkedIn with release-page walkthroughs and offer a free company homepage."
+      }
+    ],
+    "improvements": [
+      {
+        "now": "The homepage has several prominent next steps.",
+        "url": "https://entry.fyi/",
+        "why": "Developers can try Entry without choosing between several first steps.",
+        "area": "landing",
+        "idea": "Make Preview your free homepage the main button."
+      },
+      {
+        "url": "https://entry.fyi/",
+        "why": "Developers know how to keep a page they want to share.",
+        "area": "landing",
+        "idea": "Show the claim button beside the preview’s expiry reminder."
+      }
+    ],
+    "openQuestions": [],
+    "contentLanguage": "English"
+  }
+}
