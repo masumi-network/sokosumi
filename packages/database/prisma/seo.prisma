@@ -252,10 +252,54 @@ model ProjectSeoSuggestion {
   verifiedAt    DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  impactVerdicts ProjectSeoImpactVerdict[]
 
   @@unique([projectId, key])
   @@index([projectId, kind, status])
   @@map("project_seo_suggestion")
+}
+
+/// One measured page change: when it went live, when Google crawled it, and the window a worker compares.
+/// A suggestion marked done again after a reopen gets a new row; earlier rows stay.
+model ProjectSeoImpactVerdict {
+  id              String                @id @default(uuid(7)) @db.Uuid
+  projectId       String                @db.Uuid
+  project         Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  /// cuso_done | audit_recheck
+  changeSource    String
+  suggestionId    String?               @db.Uuid
+  suggestion      ProjectSeoSuggestion? @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+  changedAt       DateTime
+  /// An audit recheck: the earliest and latest time the change can have gone live.
+  changeEarliest  DateTime?
+  changeLatest    DateTime?
+  pageUrl         String
+  /// The Search Console property the page was inspected in.
+  property        String?
+  /// waiting_crawl | waiting_window | not_measurable
+  state           String                @default("waiting_crawl")
+  /// Why the row waits or cannot be measured, as a code.
+  reason          String?
+  /// The last URL Inspection attempt.
+  inspectedAt     DateTime?
+  /// The first Google crawl seen after changedAt.
+  crawledAt       DateTime?
+  /// The compared weeks, as Search Console (Pacific) dates.
+  windowStart     DateTime?             @db.Date
+  windowEnd       DateTime?             @db.Date
+  attempts        Int                   @default(0)
+  waits           Int                   @default(0)
+  taskId          String?               @unique
+  input           Json?
+  verdict         Json?
+  verdictAt       DateTime?
+  closingEvidence Json?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@unique([suggestionId, changedAt])
+  @@index([state])
+  @@map("project_seo_impact_verdict")
 }
 
 /// The latest read of one research source for a Project: keyword ideas for a topic, or its Search Console property.
