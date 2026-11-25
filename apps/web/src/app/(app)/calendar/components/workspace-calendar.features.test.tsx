@@ -633,6 +633,7 @@ describe("WorkspaceCalendar features", () => {
         "show.newsletter",
         "show.contacts",
         "show.sokoBot",
+        "show.canceled",
       ]);
     });
 
@@ -706,6 +707,7 @@ describe("WorkspaceCalendar features", () => {
         "show.contacts",
         "show.marketing",
         "show.sokoBot",
+        "show.canceled",
       ]);
     });
 

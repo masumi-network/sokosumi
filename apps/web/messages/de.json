@@ -11786,7 +11786,8 @@
         "newsletter": "Newsletter",
         "contacts": "Nachfassungen",
         "marketing": "Marketingstrategie",
-        "sokoBot": "Soko Bot"
+        "sokoBot": "Soko Bot",
+        "canceled": "Abgebrochene Ereignisse anzeigen"
       },
       "source": {
         "WORKSPACE": "Workspace",

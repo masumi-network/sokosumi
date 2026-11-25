@@ -479,16 +479,35 @@ describe("WorkspaceCalendar Social-only view", () => {
       expect(getProjectCalendarMock).not.toHaveBeenCalled();
     });
 
-    it("shows posts alone, with no Show filter to undo it", () => {
+    it("shows posts alone, with only the canceled toggle under Show & filter", () => {
       renderCalendar({ types: ["social"], items: [POST] });
 
       expect(renderedEventTitles()).toEqual(["Launch news"]);
       expect(filterDropdownMenuMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          quickFilters: undefined,
-          showMobileLabel: false,
+          quickFilters: expect.objectContaining({ menu: expect.anything() }),
         }),
       );
+    });
+
+    it("hides canceled posts until Show canceled events is on", () => {
+      const canceled = {
+        ...POST,
+        id: "social:canceled",
+        status: "CANCELED" as const,
+      };
+      const { unmount } = renderCalendar({
+        types: ["social"],
+        items: [POST, canceled],
+      });
+      expect(renderedEventTitles()).toHaveLength(1);
+      unmount();
+
+      renderCalendar(
+        { types: ["social"], items: [POST, canceled] },
+        "?timezone=UTC&showCanceled=true",
+      );
+      expect(renderedEventTitles()).toHaveLength(2);
     });
 
     it("opens on the month, not the workspace calendar's week", () => {
