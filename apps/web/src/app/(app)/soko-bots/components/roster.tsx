@@ -4,7 +4,6 @@ import {
   Calendar,
   ListTodo,
   MessageSquare,
-  Plus,
   Settings,
   User,
   UserPlus,
@@ -13,11 +12,9 @@ import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import {
-  GALLERY_DIVIDER_CLASS,
   GALLERY_HERO_BAND_CLASS,
   GALLERY_HERO_HEADLINE_CLASS,
   GALLERY_HERO_INNER_CLASS,
-  GALLERY_SECTION_HEADLINE_CLASS,
   GALLERY_SOCIAL_PROOF_CAPTION_CLASS,
   GALLERY_SOCIAL_PROOF_FACE_CLASS,
 } from "@/components/agents/gallery-page-classes";
@@ -170,7 +167,7 @@ export async function SokoBotsHero({ team }: { team: SokoBotTeam | null }) {
   );
 }
 
-/** A section headline with a muted note beside it, ruled off like Agents. */
+/** A plain section heading with a muted note beside it; the hero keeps the only rule. */
 export function SectionHeader({
   title,
   note,
@@ -179,16 +176,15 @@ export function SectionHeader({
   note?: string;
 }) {
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h2 className={GALLERY_SECTION_HEADLINE_CLASS}>{title}</h2>
-        {note ? (
-          <span className="text-muted-foreground text-sm tabular-nums">
-            {note}
-          </span>
-        ) : null}
-      </div>
-      <div aria-hidden className={GALLERY_DIVIDER_CLASS} />
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <h2 className="text-foreground text-lg font-semibold text-balance">
+        {title}
+      </h2>
+      {note ? (
+        <span className="text-muted-foreground text-sm tabular-nums">
+          {note}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -234,9 +230,6 @@ export async function YourAssistantSection({
           </div>
         ) : !bot || !me ? (
           <div className={shell}>
-            <span className="bg-muted text-foreground inline-flex size-14 shrink-0 items-center justify-center rounded-full sm:size-16">
-              <Plus aria-hidden className="size-6" />
-            </span>
             <div className="min-w-0 flex-1 space-y-1">
               <p className="text-foreground text-lg font-medium">
                 {t("noAssistantYou")}
