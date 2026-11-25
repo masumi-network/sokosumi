@@ -15627,6 +15627,9 @@
         "seoMonitorWorse": "{taskName}: el último resultado SEO programado empeoró. Fallos nuevos: {newFailures}. Caídas de posición: {drops}.",
         "seoMonitorClicksDrop": "{site}: los clics de Search Console bajaron de {clicksFrom} a {clicksTo} frente al periodo anterior."
       },
+      "System": {
+        "seoAdminCritical": "Una auditoría SEO tiene una alerta crítica. Abre las alertas SEO de administración para revisarla."
+      },
       "Billing": {
         "lowBalance": "Tus créditos se están agotando: quedan {credits}",
         "cusoLowCredits": "A {cusoName} para {businessName} se le acaban los créditos: quedan {credits}",

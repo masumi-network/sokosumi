@@ -316,6 +316,17 @@ describe("getNotificationHref", () => {
     ).toBe("/chat/rooms/room-1?message=msg-1");
   });
 
+  it("opens the admin alert list from a critical SEO alert", () => {
+    expect(
+      getNotificationHref({
+        kind: "SYSTEM",
+        referenceId: "task-1",
+        messageKey: "Notifications.System.seoAdminCritical",
+        metadata: null,
+      }),
+    ).toBe("/admin/seo-alerts");
+  });
+
   it("deep-links pending vendor grant SYSTEM to personal review", () => {
     expect(
       getNotificationHref({

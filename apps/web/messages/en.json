@@ -15627,6 +15627,9 @@
         "seoMonitorWorse": "{taskName}: the newest scheduled SEO result got worse. New failures: {newFailures}. Ranking drops: {drops}.",
         "seoMonitorClicksDrop": "{site}: Search Console clicks fell from {clicksFrom} to {clicksTo} against the period before."
       },
+      "System": {
+        "seoAdminCritical": "An SEO audit has a critical alert. Open the admin SEO alerts to check it."
+      },
       "Billing": {
         "lowBalance": "Your credits are running low: {credits} left",
         "cusoLowCredits": "{cusoName} for {businessName} is running low: {credits} credits left",

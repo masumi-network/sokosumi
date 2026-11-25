@@ -82,6 +82,8 @@ globalThis.MESSAGES = {
       "{taskName}: the newest scheduled SEO result got worse. New failures: {newFailures}. Ranking drops: {drops}.",
     "Notifications.Task.seoMonitorClicksDrop":
       "{site}: Search Console clicks fell from {clicksFrom} to {clicksTo} against the period before.",
+    "Notifications.System.seoAdminCritical":
+      "An SEO audit has a critical alert. Open the admin SEO alerts to check it.",
     "Notifications.Project.closed": "{projectName} is now closed",
     "Notifications.Project.closeFailed":
       "{projectName} could not finish closing",
@@ -170,6 +172,8 @@ globalThis.MESSAGES = {
       "{taskName}: Das neueste geplante SEO-Ergebnis ist schlechter. Neue Fehler: {newFailures}. Ranking-Verluste: {drops}.",
     "Notifications.Task.seoMonitorClicksDrop":
       "{site}: Die Search-Console-Klicks sind gegenüber dem Zeitraum davor von {clicksFrom} auf {clicksTo} gesunken.",
+    "Notifications.System.seoAdminCritical":
+      "Ein SEO-Audit hat eine kritische Warnung. Öffne die SEO-Warnungen im Adminbereich, um sie zu prüfen.",
     "Notifications.Project.closed": "{projectName} ist jetzt geschlossen",
     "Notifications.Project.closeFailed":
       "{projectName} konnte nicht vollständig geschlossen werden",
@@ -259,6 +263,8 @@ globalThis.MESSAGES = {
       "{taskName}: el último resultado SEO programado empeoró. Fallos nuevos: {newFailures}. Caídas de posición: {drops}.",
     "Notifications.Task.seoMonitorClicksDrop":
       "{site}: los clics de Search Console bajaron de {clicksFrom} a {clicksTo} frente al periodo anterior.",
+    "Notifications.System.seoAdminCritical":
+      "Una auditoría SEO tiene una alerta crítica. Abre las alertas SEO de administración para revisarla.",
     "Notifications.Project.closed": "{projectName} ya está cerrado",
     "Notifications.Project.closeFailed":
       "{projectName} no pudo terminar de cerrarse",

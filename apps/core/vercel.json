@@ -82,6 +82,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/sync/admin-seo-alerts",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/sync/chat-room-guest-invitations-expire",
       "schedule": "0 3 * * *"
     },
