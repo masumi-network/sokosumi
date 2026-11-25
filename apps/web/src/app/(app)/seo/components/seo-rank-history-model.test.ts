@@ -130,4 +130,17 @@ describe("seoRankHistory", () => {
       ["desktop", false],
     ]);
   });
+
+  it("keeps one day of reads when older checks exist and are not shown", () => {
+    // 90 checks of one day can push every older day out of the loaded history.
+    const series = seoRankHistory([
+      {
+        ...row("desktop", [point("2026-10-01T08:00:00Z", 9)]),
+        positionHistoryCut: true,
+      },
+    ]);
+    expect(series.map((item) => [item.cut, item.points.length])).toEqual([
+      [true, 1],
+    ]);
+  });
 });

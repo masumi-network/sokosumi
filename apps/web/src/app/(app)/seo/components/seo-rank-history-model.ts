@@ -98,5 +98,8 @@ export function seoRankHistory(
         (DEVICE_ORDER[a.device ?? ""] ?? 2) -
         (DEVICE_ORDER[b.device ?? ""] ?? 2),
     );
-  return series.some((item) => item.points.length > 1) ? series : [];
+  // One day is no history, unless older checks exist and are not shown: the reader must see that note.
+  return series.some((item) => item.points.length > 1 || item.cut)
+    ? series
+    : [];
 }
