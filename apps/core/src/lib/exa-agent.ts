@@ -66,6 +66,22 @@ interface AgentRun {
 
 const FINISHED = new Set(["completed", "failed", "cancelled"]);
 
+/** Exa accepts only `[A-Za-z0-9_-]`, at most 64 characters. */
+export function exaUserIdentifier(
+  value: string | undefined,
+): string | undefined {
+  return value?.replace(/[^A-Za-z0-9_-]/g, "-").slice(0, 64) || undefined;
+}
+
+async function errorDetail(res: Response): Promise<string> {
+  const body = (await res.json().catch(() => null)) as {
+    error?: { code?: string; message?: string } | string;
+  } | null;
+  const error = body?.error;
+  if (typeof error === "string") return error;
+  return [error?.code, error?.message].filter(Boolean).join(": ");
+}
+
 function toResult(run: AgentRun): ExaAgentRunResult {
   if (run.status !== "completed")
     throw new ExaUnavailableError(
@@ -112,14 +128,16 @@ export async function runExaAgent(
       effort: input.effort,
       outputSchema: input.outputSchema,
       input: input.input,
-      userIdentifier: input.userIdentifier?.slice(0, 64),
+      userIdentifier: exaUserIdentifier(input.userIdentifier),
     }),
     signal: AbortSignal.timeout(30_000),
   });
-  if (!started.ok)
+  if (!started.ok) {
+    const detail = await errorDetail(started);
     throw new ExaUnavailableError(
-      `Exa agent run could not start (${started.status})`,
+      `Exa agent run could not start (${started.status}${detail ? `, ${detail}` : ""})`,
     );
+  }
   let run = (await started.json()) as AgentRun;
   const runId = run.id;
   if (!runId) throw new ExaUnavailableError("Exa agent run has no id");
