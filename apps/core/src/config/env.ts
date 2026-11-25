@@ -262,7 +262,7 @@ const baseEnvSchema = z.object({
   CHROMIUM_EXECUTABLE_URL: z
     .url()
     .default(
-      "https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar",
+      "https://github.com/Sparticuz/chromium/releases/download/v158.0.0/chromium-v158.0.0-pack.x64.tar",
     ),
   /**
    * A local ffmpeg built with libass and libx264, for the talking video edit.
