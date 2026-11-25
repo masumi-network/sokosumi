@@ -114,7 +114,6 @@ src/services/fts-tiebreak-both-sites.postgres.test.ts 19  # trigger body
 src/services/fundraising.postgres.test.ts 19  # trigger body
 src/services/image-studio-recovery.postgres.test.ts 19  # trigger body
 src/services/jev-failure-loses-labels.postgres.test.ts 17  # its own client or SQL names public
-src/services/jev-spend-cap.postgres.test.ts 17  # unqualified raw SQL
 src/services/newsletter-issue-search.postgres.test.ts 19  # trigger body
 src/services/no-vocabulary-indistinguishable.postgres.test.ts 17  # unqualified raw SQL
 src/services/paging-reports-deterministic.postgres.test.ts 17  # its own client or SQL names public

@@ -196,7 +196,9 @@ function sentMails(): { to: string; html: string; tag: string }[] {
 function relinkQuery(): { sql: string; values: unknown[] } | undefined {
   return m.executeRaw.mock.calls
     .map(([query]) => query)
-    .find((query) => query.sql.includes('UPDATE "newsletter_subscriber"'));
+    .find((query) =>
+      query.sql.includes('UPDATE "public"."newsletter_subscriber"'),
+    );
 }
 
 function createApp(
