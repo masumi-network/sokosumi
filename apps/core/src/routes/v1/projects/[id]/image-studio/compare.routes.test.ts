@@ -192,7 +192,7 @@ describe("studio comparison routes", () => {
   });
 
   it.each(["api_key", "oauth"] as const)(
-    "lets a person's %s token read, but not save, comparisons",
+    "lets a person's %s token read and save comparisons (SOKD-394)",
     async (authenticationMethod) => {
       const app = createApp({ ...SESSION, authenticationMethod });
       const [compare, save, scoreboard] = await Promise.all([
@@ -200,11 +200,12 @@ describe("studio comparison routes", () => {
         app.request(COMPARE_PATH, saveRequest()),
         app.request(SCOREBOARD_PATH),
       ]);
-      expect([compare.status, scoreboard.status]).not.toContain(403);
+      expect([compare.status, save.status, scoreboard.status]).not.toContain(
+        403,
+      );
       expect(mocks.next).toHaveBeenCalled();
       expect(mocks.scoreboard).toHaveBeenCalled();
-      expect(save.status).toBe(403);
-      expect(mocks.save).not.toHaveBeenCalled();
+      expect(mocks.save).toHaveBeenCalled();
     },
   );
 

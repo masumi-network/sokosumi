@@ -1127,6 +1127,133 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   "POST /projects/{id}/image-studio/jobs/{jobId}/cancel": {
     argv: [...API, "projects", "image-studio-cancel", "project-1", "job-1"],
   },
+  // SOKD-394: edits that spend no credits and publish nothing.
+  "PUT /projects/{id}/ads/market": {
+    argv: [
+      ...API,
+      "projects",
+      "ads-market-update",
+      "p-1",
+      "--input-json",
+      '{"keywords":["lamp"],"countryCode":"DE","languageCode":"de"}',
+    ],
+  },
+  "PUT /projects/{id}/image-studio/batches/{batchId}/compare": {
+    argv: [
+      ...API,
+      "projects",
+      "image-studio-compare-save",
+      "p-1",
+      "b-1",
+      "--input-json",
+      '{"assetId":"a-1","otherAssetId":"a-2","outcome":"A"}',
+    ],
+  },
+  "PUT /projects/{id}/image-studio/brand-kit": {
+    argv: [
+      ...API,
+      "projects",
+      "image-studio-brand-kit-update",
+      "p-1",
+      "--input-json",
+      '{"copy":{"summary":"Lamps","tone":"Calm","audience":[],"approvedLines":[]},"version":null}',
+    ],
+  },
+  "PUT /projects/{id}/image-studio/brand-kit/look": {
+    argv: [
+      ...API,
+      "projects",
+      "image-studio-brand-look-update",
+      "p-1",
+      "--input-json",
+      '{"look":null,"lookRevision":0}',
+    ],
+  },
+  "POST /projects/{id}/image-studio/website-draft": {
+    argv: [...API, "projects", "image-studio-website-research", "p-1"],
+  },
+  "POST /projects/{id}/image-studio/brand-kit/logo/website": {
+    argv: [...API, "projects", "image-studio-website-logo", "p-1"],
+  },
+  "PUT /projects/{id}/image-studio/products": {
+    argv: [
+      ...API,
+      "projects",
+      "image-studio-products-update",
+      "p-1",
+      "--input-json",
+      '{"products":[],"revision":0}',
+    ],
+  },
+  "POST /projects/{id}/image-studio/products/import": {
+    argv: [
+      ...API,
+      "projects",
+      "image-studio-products-import",
+      "p-1",
+      "--input-json",
+      '{"url":"https://example.com"}',
+    ],
+  },
+  "POST /projects/{id}/image-studio/products/photo": {
+    argv: [
+      ...API,
+      "projects",
+      "image-studio-product-photo",
+      "p-1",
+      "--input-json",
+      '{"name":"Lamp","imageUrl":"https://example.com/lamp.png"}',
+    ],
+  },
+  "POST /projects/{id}/image-studio/talking-video-scripts": {
+    argv: [
+      ...API,
+      "projects",
+      "image-studio-talking-video-scripts",
+      "p-1",
+      "--input-json",
+      '{"topic":"Spring sale"}',
+    ],
+  },
+  "POST /projects/{id}/image-studio/assets/{assetId}/events": {
+    argv: [
+      ...API,
+      "projects",
+      "image-studio-asset-viewed",
+      "p-1",
+      "a-1",
+      "--input-json",
+      '{"type":"viewed_lightbox"}',
+    ],
+  },
+  "PUT /projects/{id}/image-studio/assets/{assetId}/feedback": {
+    argv: [
+      ...API,
+      "projects",
+      "image-studio-asset-feedback",
+      "p-1",
+      "a-1",
+      "--input-json",
+      '{"thumb":1}',
+    ],
+  },
+  "POST /projects/{id}/image-studio/assets/{assetId}/hide": {
+    argv: [...API, "projects", "image-studio-asset-hide", "p-1", "a-1"],
+  },
+  "PUT /projects/{id}/image-studio/assets/{assetId}/headline": {
+    argv: [
+      ...API,
+      "projects",
+      "image-studio-asset-headline",
+      "p-1",
+      "a-1",
+      "--input-json",
+      '{"text":"Hello"}',
+    ],
+  },
+  "POST /projects/{id}/image-studio/assets/{assetId}/caption": {
+    argv: [...API, "projects", "image-studio-asset-caption", "p-1", "a-1"],
+  },
   // SOKD-383: an agent drafts, plans and cancels Social posts and cancels newsletters.
   "POST /projects/{id}/social-posts": {
     argv: [

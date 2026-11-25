@@ -5077,7 +5077,7 @@ export const getProjectsByIdAdsMarket = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Save a Project's ads market profile, replacing the previous one. Needs an open Project (409 otherwise). Requires an interactive user session in the Project's Workspace.
+ * Save a Project's ads market profile, replacing the previous one. Needs an open Project (409 otherwise). A person or their agent (API key, OAuth or MCP token) in the Project's Workspace; it spends nothing.
  */
 export const putProjectsByIdAdsMarket = <ThrowOnError extends boolean = false>(options: Options<PutProjectsByIdAdsMarketData, ThrowOnError>): RequestResult<PutProjectsByIdAdsMarketResponses, PutProjectsByIdAdsMarketErrors, ThrowOnError> => (options.client ?? client).put<PutProjectsByIdAdsMarketResponses, PutProjectsByIdAdsMarketErrors, ThrowOnError>({
     responseTransformer: putProjectsByIdAdsMarketResponseTransformer,

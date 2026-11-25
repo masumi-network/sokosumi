@@ -6,7 +6,7 @@ import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { imageStudioAssetParamsSchema } from "@/schemas/project-image-studio.schema";
 import { hideStudioAsset } from "@/services/image-studio-feedback.service";
@@ -33,7 +33,7 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
+    const { userId } = requireUserAuthContext(c.var.authContext);
     const { workspaceId } = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, assetId } = c.req.valid("param");
     await hideStudioAsset({ userId, workspaceId, projectId, assetId });

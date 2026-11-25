@@ -62,13 +62,15 @@ const PRODUCT_WITH_PHOTO: StudioProduct = {
   photo: { id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", name: "vase.png" },
 };
 
-function createApp() {
+function createApp(
+  authenticationMethod: "session" | "api_key" | "oauth" = "session",
+) {
   const app = new OpenAPIHono<EnvVariables>();
   app.use("*", async (c, next) => {
     c.set("requestId", "studio-catalog");
     c.set("authContext", {
       actor: "user",
-      authenticationMethod: "session",
+      authenticationMethod,
       userId: "user-a",
       organizationId: null,
       role: "user",
@@ -85,12 +87,19 @@ function createApp() {
   return app;
 }
 
-function save(revision: number, products: StudioProduct[] = []) {
-  return createApp().request(`/${PROJECT_ID}/image-studio/products`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ products, revision }),
-  });
+function save(
+  revision: number,
+  products: StudioProduct[] = [],
+  authenticationMethod: "session" | "api_key" | "oauth" = "session",
+) {
+  return createApp(authenticationMethod).request(
+    `/${PROJECT_ID}/image-studio/products`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ products, revision }),
+    },
+  );
 }
 
 describe("Studio catalog writes", () => {
@@ -156,6 +165,39 @@ describe("Studio catalog writes", () => {
       expect.any(Object),
     );
   });
+
+  // SOKD-394: an agent reads Files as itself, not as a browser session.
+  it.each([
+    ["api_key", "api_key"],
+    ["oauth", "oauth"],
+  ] as const)(
+    "checks a photo as the %s caller it is",
+    async (authenticationMethod, kind) => {
+      loadResources.mockResolvedValueOnce([
+        {
+          id: PRODUCT_WITH_PHOTO.photo!.id,
+          sourceKind: FileSourceKind.DRIVE_UPLOAD,
+          mimeType: "image/png",
+          sizeBytes: 20,
+        },
+      ]);
+      createMany.mockResolvedValueOnce({ count: 1 });
+
+      const response = await save(
+        0,
+        [PRODUCT_WITH_PHOTO],
+        authenticationMethod,
+      );
+
+      expect(response.status).toBe(200);
+      expect(loadResources).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          actor: { kind, organizationId: null, userId: "user-a" },
+        }),
+        expect.any(Object),
+      );
+    },
+  );
 
   it("allows edits to other fields when an existing photo is no longer readable", async () => {
     findCatalog.mockResolvedValueOnce({

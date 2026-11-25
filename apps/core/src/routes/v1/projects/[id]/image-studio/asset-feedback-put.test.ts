@@ -115,10 +115,27 @@ describe("studio feedback routes", () => {
     expect(mocks.feedback).not.toHaveBeenCalled();
   });
 
-  it("requires an interactive session", async () => {
+  // SOKD-394: a person's agent rates for them; a Coworker does not.
+  it.each(["api_key", "oauth"] as const)(
+    "lets a person's %s token rate",
+    async (authenticationMethod) => {
+      const response = await createApp({
+        ...USER,
+        authenticationMethod,
+      }).request(`${BASE}/feedback`, feedbackRequest({ thumb: 1 }));
+      expect(response.status).toBe(200);
+      expect(mocks.feedback).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: "user-a", thumb: 1 }),
+      );
+    },
+  );
+
+  it("refuses a Coworker", async () => {
     const response = await createApp({
-      ...USER,
-      authenticationMethod: "api_key",
+      actor: "coworker",
+      coworkerId: "coworker-a",
+      vendorId: "vendor-a",
+      context: { userId: "user-a", organizationId: null },
     }).request(`${BASE}/feedback`, feedbackRequest({ thumb: 1 }));
     expect(response.status).toBe(403);
     expect(mocks.feedback).not.toHaveBeenCalled();

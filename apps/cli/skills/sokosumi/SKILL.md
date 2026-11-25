@@ -355,6 +355,19 @@ sokosumi projects image-studio-cancel PROJECT_ID JOB_ID --json
 
 Every start needs an `idempotencyKey` (8 to 200 characters). Pick a new one for each generation and reuse it on a retry: a repeat returns the first job and buys nothing. A talking video uses a stock presenter. One from a photo of a real person is person-only: Core answers 403 `person_approval_required` with a `webUrl`, so send the person there.
 
+## Image Studio and ads edits
+
+[VERIFIED: ADR 0077, `apps/cli/src/cli/commands/catalog.ts`] These spend no credits and publish nothing, so you may run them without asking first: rate, compare, hide or headline an image; write a caption or talking-video scripts; read the Project's website for brand and product suggestions; save the Brand Kit, product catalog and ads market profile.
+
+```bash
+sokosumi projects image-studio-website-research PROJECT_ID --json
+sokosumi projects image-studio-products-update PROJECT_ID --input-json '{"products":[...],"revision":3}'
+sokosumi projects image-studio-asset-feedback PROJECT_ID ASSET_ID --input-json '{"thumb":1}'
+sokosumi projects ads-market-update PROJECT_ID --input-json '{"keywords":["lamp"],"countryCode":"DE","languageCode":"de"}'
+```
+
+`sokosumi --help` lists the rest. Saves replace the whole record: send the `revision`, `version` or `lookRevision` you last read, and reread on 409. A person uploads a logo file, runs keyword and competitor research, and shares an image to a public URL in Sokosumi.
+
 ## Social posts and newsletters
 
 [VERIFIED: ADR 0077, `apps/cli/src/cli/commands/catalog.ts`] You draft, plan and stop; a person approves, publishes and sends in Sokosumi. Every post you create, edit, plan, queue or copy lands as Needs approval, whatever it was before:

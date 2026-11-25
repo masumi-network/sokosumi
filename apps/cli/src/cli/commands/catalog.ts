@@ -935,6 +935,86 @@ export const CLI_COMMAND_CATALOG = [
     operation: "POST /projects/{id}/image-studio/jobs/{jobId}/cancel",
     noBody: true,
   },
+  // SOKD-394: edits that spend no credits and publish nothing (ADR 0077).
+  {
+    command: "projects ads-market-update",
+    usage: `PROJECT_ID --input-json '{"keywords":["..."],"countryCode":"DE","languageCode":"de"}'`,
+    operation: "PUT /projects/{id}/ads/market",
+  },
+  {
+    command: "projects image-studio-compare-save",
+    usage: `PROJECT_ID BATCH_ID --input-json '{"assetId":"...","otherAssetId":"...","outcome":"A"}'`,
+    operation: "PUT /projects/{id}/image-studio/batches/{batchId}/compare",
+  },
+  {
+    command: "projects image-studio-brand-kit-update",
+    usage: `PROJECT_ID --input-json '{"copy":{...},"version":"..."}'`,
+    operation: "PUT /projects/{id}/image-studio/brand-kit",
+  },
+  {
+    command: "projects image-studio-brand-look-update",
+    usage: `PROJECT_ID --input-json '{"look":{...},"lookRevision":0}'`,
+    operation: "PUT /projects/{id}/image-studio/brand-kit/look",
+  },
+  {
+    command: "projects image-studio-website-research",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/image-studio/website-draft",
+    noBody: true,
+  },
+  {
+    command: "projects image-studio-website-logo",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/image-studio/brand-kit/logo/website",
+    noBody: true,
+  },
+  {
+    command: "projects image-studio-products-update",
+    usage: `PROJECT_ID --input-json '{"products":[...],"revision":0}'`,
+    operation: "PUT /projects/{id}/image-studio/products",
+  },
+  {
+    command: "projects image-studio-products-import",
+    usage: `PROJECT_ID --input-json '{"url":"https://..."}'`,
+    operation: "POST /projects/{id}/image-studio/products/import",
+  },
+  {
+    command: "projects image-studio-product-photo",
+    usage: `PROJECT_ID --input-json '{"name":"...","imageUrl":"https://..."}'`,
+    operation: "POST /projects/{id}/image-studio/products/photo",
+  },
+  {
+    command: "projects image-studio-talking-video-scripts",
+    usage: `PROJECT_ID --input-json '{"topic":"..."}'`,
+    operation: "POST /projects/{id}/image-studio/talking-video-scripts",
+  },
+  {
+    command: "projects image-studio-asset-viewed",
+    usage: `PROJECT_ID ASSET_ID --input-json '{"type":"viewed_lightbox"}'`,
+    operation: "POST /projects/{id}/image-studio/assets/{assetId}/events",
+  },
+  {
+    command: "projects image-studio-asset-feedback",
+    usage: `PROJECT_ID ASSET_ID --input-json '{"thumb":1}'`,
+    operation: "PUT /projects/{id}/image-studio/assets/{assetId}/feedback",
+  },
+  {
+    command: "projects image-studio-asset-hide",
+    usage: "PROJECT_ID ASSET_ID",
+    operation: "POST /projects/{id}/image-studio/assets/{assetId}/hide",
+    noBody: true,
+  },
+  {
+    command: "projects image-studio-asset-headline",
+    usage: `PROJECT_ID ASSET_ID --input-json '{"text":"..."}'`,
+    operation: "PUT /projects/{id}/image-studio/assets/{assetId}/headline",
+  },
+  {
+    command: "projects image-studio-asset-caption",
+    usage: "PROJECT_ID ASSET_ID",
+    operation: "POST /projects/{id}/image-studio/assets/{assetId}/caption",
+    noBody: true,
+  },
   // SOKD-383: an agent drafts, plans and cancels Social posts and cancels newsletters (ADR 0077).
   {
     command: "projects social-post-create",
