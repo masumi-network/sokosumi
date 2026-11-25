@@ -1,5 +1,5 @@
 import type { Coworker } from "@sokosumi/core-client";
-import { ArrowRight, Plus } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
@@ -163,8 +163,7 @@ async function SokoBotsSection() {
                   "press hover:bg-accent focus-visible:ring-ring flex h-full min-h-32 flex-col items-start justify-center gap-1 border-dashed p-4 transition-colors outline-none focus-visible:ring-2",
                 )}
               >
-                <span className="text-foreground flex items-center gap-2 font-medium">
-                  <Plus aria-hidden className="size-4" />
+                <span className="text-foreground font-medium">
                   {t("createOwnBot")}
                 </span>
                 <span className="text-muted-foreground text-sm">
