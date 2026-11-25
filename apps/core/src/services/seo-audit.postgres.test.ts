@@ -284,6 +284,26 @@ describe.skipIf(!enabled)("Workspace-owned SEO Audits", () => {
       kind: "page_check",
       status: "failed",
     });
+    // Another member's private Task: the reader sees the stored status, as on the audit page.
+    const hidden = await prisma.task.create({
+      data: {
+        name: "Private SEO check",
+        workspaceId,
+        status: "CANCELED",
+        ownerId: foreignUserId,
+        visibility: "PRIVATE",
+      },
+    });
+    await check(
+      "rankings",
+      "requested",
+      new Date("2026-11-03T10:00Z"),
+      hidden.id,
+    );
+    expect(await lastCheck()).toMatchObject({
+      kind: "rankings",
+      status: "requested",
+    });
   });
 
   it("lists only the scoped Project's Audits and refuses a foreign Project scope", async () => {
