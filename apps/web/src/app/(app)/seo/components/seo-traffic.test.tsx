@@ -804,6 +804,14 @@ describe("SEO Traffic key events", () => {
     // A selected page whose row has another spelling keeps the row's number.
     expect(read?.cell("https://www.example.com/shop")).toBe(3);
     expect(read?.cell("/shop")).toBe("traffic.keyEventsNotSelected");
+    // A page the read left out, under another spelling and with no row, is not read: 0 would be a claim.
+    const left = seoKeyEvents({
+      ...landingPages([], ["https://example.com/shop/"]),
+      skippedUrls: ["https://example.com/shop/"],
+    });
+    expect(left?.cell("https://www.example.com/shop")).toBe(
+      "traffic.keyEventsNotRead",
+    );
     // A response of an older Core version has no pageUrls: the row keeps its number, no page gets a 0.
     const { pageUrls: _, ...older } = landingPages([
       { pageUrl: "https://example.com/shop", keyEvents: 3 },

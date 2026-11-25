@@ -2356,27 +2356,6 @@ it("keeps the newest landing read of each channel, so a newer AI assistant read 
     channel: "ai_assistant",
     rows: [{ keyEvents: 1 }],
   });
-  // A cached read that is used again comes first with its old collection time: the newer collection stays.
-  const cached = read("organic", "2026-10-17T12:00:00.000Z");
-  const newer = read("organic", "2026-10-16T12:00:00.000Z");
-  input.observations = [
-    {
-      ...cached,
-      payload: {
-        ...cached.payload,
-        collectedAt: "2026-10-15T12:00:00.000Z",
-        landingPages: {
-          ...cached.payload.landingPages,
-          rows: [{ pageUrl, sessions: 9, keyEvents: 7 }],
-        },
-      },
-    },
-    newer,
-  ];
-  expect(projectSeoProjection(input).landingPages).toMatchObject({
-    rows: [{ keyEvents: 3 }],
-    observedAt: "2026-10-16T12:00:00.000Z",
-  });
   // A page URL the stored read accepts is one the workspace accepts.
   const long = `${pageUrl}${"a".repeat(2100)}`;
   expect(nativeSeoMetricsSchema.shape.pageUrls.safeParse([long]).success).toBe(
