@@ -11,6 +11,7 @@ import {
   type StoredSiteSpeed,
   siteSpeedCheck,
   siteSpeedMixPeriod,
+  storedSiteSpeed,
   storedSiteSpeedRow,
 } from "@/schemas/seo-site-speed.schema";
 import { reportObject } from "./project-seo-public-report";
@@ -194,8 +195,15 @@ export function readableStoredSiteSpeed(value: unknown) {
       seen.add(row.url);
     }
   }
+  // A summary Core cannot read goes, the rows stay.
+  const { notChecked: _notChecked, ...rest } = table;
+  const notChecked = storedSiteSpeed.shape.notChecked.safeParse(
+    table.notChecked,
+  );
   return {
-    ...table,
+    ...rest,
+    ...(notChecked.success &&
+      notChecked.data && { notChecked: notChecked.data }),
     rows,
     // A count the schema refuses stays as it is: the schema refuses the table.
     dropped:

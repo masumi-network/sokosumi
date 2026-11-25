@@ -768,6 +768,21 @@ describe("the guards of speed data on each path", () => {
     expect(many?.rows).toHaveLength(40);
   });
 
+  it("keeps the stored rows when the summary of pages left out is unreadable", () => {
+    const table = publicSeoPayloadSchema.parse({
+      ...storedAudit([]),
+      siteSpeed: {
+        rows: [{ url: EXTRA, audited: false, devices: [] }],
+        dropped: 0,
+        notChecked: { count: 1, reason: "unknown" },
+      },
+    }).siteSpeed;
+    expect(table).toEqual({
+      rows: [{ url: EXTRA, audited: false, devices: [] }],
+      dropped: 0,
+    });
+  });
+
   it("drops only the stored row Core cannot read and counts it", () => {
     const table = storedRows([
       { url: EXTRA, audited: false, devices: [] },
