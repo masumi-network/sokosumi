@@ -87,6 +87,8 @@ export function useSeoSiteTraffic(
       owner,
       connection.data?.connectionVersion,
       body,
+      // The split in the report follows the brand terms: a saved list reads this report again.
+      model.data.brandTerms ?? [],
     ],
     enabled: enabled && available,
     staleTime: TRAFFIC_FRESH_MS,

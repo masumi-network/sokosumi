@@ -14820,7 +14820,17 @@
         "loading": "Cargando el tráfico de Search Console.",
         "failed": "No se pudo consultar el tráfico de esta selección.",
         "unavailable": "Los datos actuales requieren una propiedad de Search Console que corresponda a este sitio.",
-        "saved": "Tráfico de las páginas seleccionadas"
+        "saved": "Tráfico de las páginas seleccionadas",
+        "brandBuckets": {
+          "branded": "De marca",
+          "nonBranded": "Sin marca",
+          "unlisted": "Sin consulta"
+        },
+        "brandUnlistedNote": "Google no muestra la consulta de las búsquedas poco frecuentes. Ese tráfico está en el total, en ninguna de las dos partes.",
+        "brandLimited": "Hay más filas de consultas de las que la división puede leer. Las cifras con marca y sin marca son un límite inferior.",
+        "brandListedOnly": "Estas cifras solo cuentan las consultas listadas. No se pudieron comparar los totales diarios, por lo que no hay porcentajes.",
+        "brandUnavailable": "No se pudieron leer las consultas de este periodo, por lo que no hay división por marca.",
+        "brandEmpty": "Añade tus términos de marca para ver cuánto tráfico viene de búsquedas de tu nombre."
       },
       "traffic": {
         "periodInsight": {
@@ -14870,7 +14880,8 @@
           "branded": "De marca",
           "non_branded": "Sin marca"
         },
-        "brandTotals": "Consultas listadas: {branded} clics de marca, {nonBranded} clics sin marca",
+        "brandTotals": "Consultas listadas: {branded} clics de marca ({brandedShare}), {nonBranded} clics sin marca ({nonBrandedShare})",
+        "brandSuggested": "Sugerencia a partir del nombre de tu sitio web. Revisa los términos antes de guardar.",
         "editBrandTerms": "Editar términos de marca",
         "addBrandTerms": "Añadir términos de marca",
         "brandTerms": "Términos de marca",

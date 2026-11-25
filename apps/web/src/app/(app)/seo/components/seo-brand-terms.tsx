@@ -33,13 +33,76 @@ export function SeoBrandSplit({
 }) {
   const t = useTranslations("App.Seo.traffic");
   const format = useFormatter();
+  const terms = model.data.brandTerms ?? [];
+  if (!terms.length && !model.data.availableActions.canEdit) return null;
+  const totals = seoBrandTotals(rows, terms);
+  const listed = totals.branded.clicks + totals.nonBranded.clicks;
+  const share = (clicks: number) =>
+    format.number(listed ? clicks / listed : 0, {
+      style: "percent",
+      maximumFractionDigits: 0,
+    });
+  return (
+    <div className="flex flex-wrap items-center gap-3 px-2 pb-3">
+      {terms.length ? (
+        <>
+          <div
+            role="group"
+            aria-label={t("brandSplit")}
+            className="flex flex-wrap gap-1"
+          >
+            {SEO_BRAND_VIEWS.map((option) => (
+              <Button
+                key={option}
+                type="button"
+                size="sm"
+                variant="outline"
+                aria-pressed={view === option}
+                className={cn(view === option && SEO_CHOSEN_CLASS)}
+                onClick={() => onView(option)}
+              >
+                {t(`brandViews.${option}`)}
+              </Button>
+            ))}
+          </div>
+          <p
+            className="text-muted-foreground text-xs"
+            data-testid="seo-brand-totals"
+          >
+            {t("brandTotals", {
+              branded: format.number(totals.branded.clicks),
+              brandedShare: share(totals.branded.clicks),
+              nonBranded: format.number(totals.nonBranded.clicks),
+              nonBrandedShare: share(totals.nonBranded.clicks),
+            })}
+          </p>
+        </>
+      ) : null}
+      {/* A save from the other term editor on the page closes this draft. */}
+      <SeoBrandTermsEditor key={terms.join("\n")} model={model} />
+    </div>
+  );
+}
+
+/**
+ * The owner's brand term list: a button that opens a field with one term per line.
+ * In a wrapping row the open field takes a line of its own.
+ */
+export function SeoBrandTermsEditor({
+  model,
+  suggestion = [],
+}: {
+  model: SeoWorkspaceModel;
+  /** Start values for an empty list. They are saved only when the owner saves. */
+  suggestion?: string[];
+}) {
+  const t = useTranslations("App.Seo.traffic");
   const fieldId = useId();
   const terms = model.data.brandTerms ?? [];
-  const canEdit = model.data.availableActions.canEdit;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
-  if (!terms.length && !canEdit) return null;
-  const totals = seoBrandTotals(rows, terms);
+  if (!model.data.availableActions.canEdit) return null;
+  const suggested = !terms.length && suggestion.length > 0;
   async function save() {
     const saved = await model.execute(
       { kind: "save_brand_terms", body: { terms: seoParseBrandTerms(draft) } },
@@ -47,85 +110,51 @@ export function SeoBrandSplit({
     );
     if (saved) setEditing(false);
   }
+  if (!editing)
+    return (
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        onClick={() => {
+          setDraft((terms.length ? terms : suggestion).join("\n"));
+          setEditing(true);
+        }}
+      >
+        {t(terms.length ? "editBrandTerms" : "addBrandTerms")}
+      </Button>
+    );
   return (
-    <div className="space-y-3 px-2 pb-3">
-      <div className="flex flex-wrap items-center gap-3">
-        {terms.length ? (
-          <>
-            <div
-              role="group"
-              aria-label={t("brandSplit")}
-              className="flex flex-wrap gap-1"
-            >
-              {SEO_BRAND_VIEWS.map((option) => (
-                <Button
-                  key={option}
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  aria-pressed={view === option}
-                  className={cn(view === option && SEO_CHOSEN_CLASS)}
-                  onClick={() => onView(option)}
-                >
-                  {t(`brandViews.${option}`)}
-                </Button>
-              ))}
-            </div>
-            <p
-              className="text-muted-foreground text-xs"
-              data-testid="seo-brand-totals"
-            >
-              {t("brandTotals", {
-                branded: format.number(totals.branded.clicks),
-                nonBranded: format.number(totals.nonBranded.clicks),
-              })}
-            </p>
-          </>
-        ) : null}
-        {canEdit && !editing ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              setDraft(terms.join("\n"));
-              setEditing(true);
-            }}
-          >
-            {t(terms.length ? "editBrandTerms" : "addBrandTerms")}
-          </Button>
-        ) : null}
+    <div className="max-w-md basis-full space-y-2">
+      <Label htmlFor={fieldId}>{t("brandTerms")}</Label>
+      <Textarea
+        id={fieldId}
+        value={draft}
+        rows={3}
+        onChange={(event) => setDraft(event.target.value)}
+      />
+      <p className="text-muted-foreground text-xs">
+        {suggested ? `${t("brandSuggested")} ` : null}
+        {t("brandTermsHelp")}
+      </p>
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          size="sm"
+          loading={model.pending}
+          onClick={() => void save()}
+        >
+          {t("saveBrandTerms")}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={() => setEditing(false)}
+        >
+          {t("cancelBrandTerms")}
+        </Button>
       </div>
-      {editing ? (
-        <div className="max-w-md space-y-2">
-          <Label htmlFor={fieldId}>{t("brandTerms")}</Label>
-          <Textarea
-            id={fieldId}
-            value={draft}
-            rows={3}
-            onChange={(event) => setDraft(event.target.value)}
-          />
-          <p className="text-muted-foreground text-xs">{t("brandTermsHelp")}</p>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              size="sm"
-              loading={model.pending}
-              onClick={() => void save()}
-            >
-              {t("saveBrandTerms")}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => setEditing(false)}
-            >
-              {t("cancelBrandTerms")}
-            </Button>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

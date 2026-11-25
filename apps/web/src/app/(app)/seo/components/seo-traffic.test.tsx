@@ -89,6 +89,18 @@ function renderTraffic(
           limited: false,
           totals,
           daily: [{ date: from, ...totals }],
+          ...(workspace.brandTerms?.length && {
+            brand: {
+              limited: false,
+              daily: [
+                {
+                  date: from,
+                  branded: { clicks: 2, impressions: 20 },
+                  nonBranded: { clicks: 1, impressions: 10 },
+                },
+              ],
+            },
+          }),
           pages: [
             ...(!aboutOnly
               ? [
@@ -883,7 +895,7 @@ describe("SEO Traffic branded split", () => {
     const user = userEvent.setup();
     renderTraffic(brandWorkspace(["acme"]));
     expect(screen.getByTestId("seo-brand-totals")).toHaveTextContent(
-      "Listed queries: 9 clicks branded, 6 clicks non-branded",
+      "Listed queries: 9 clicks branded (60%), 6 clicks non-branded (40%)",
     );
     await user.click(screen.getByRole("button", { name: "Branded" }));
     expect(queriesSection().getByText("Acmé shoes")).toBeVisible();
@@ -891,6 +903,33 @@ describe("SEO Traffic branded split", () => {
     await user.click(screen.getByRole("button", { name: "Non-branded" }));
     expect(queriesSection().queryByText("Acmé shoes")).toBeNull();
     expect(queriesSection().getByText("example shop")).toBeVisible();
+  });
+
+  it("shows the site split with the traffic that has no listed query", async () => {
+    const user = userEvent.setup();
+    renderTraffic(brandWorkspace(["acme"]), "", true);
+    const heading = await screen.findByRole("heading", { name: "Brand split" });
+    const section = within(heading.closest("section") as HTMLElement);
+    // 90 impressions in total: 20 branded, 10 non-branded, 60 under no query.
+    const part = (name: string) =>
+      section.getByRole("button", { name }).closest("div");
+    expect(part("Branded")).toHaveTextContent("20 22%");
+    expect(part("Non-branded")).toHaveTextContent("10 11%");
+    expect(part("No query listed")).toHaveTextContent("60 67%");
+    await user.click(section.getByRole("button", { name: "No query listed" }));
+    expect(section.getByRole("table")).toHaveTextContent(
+      "No query listed · Times shown",
+    );
+    expect(section.getByRole("table")).toHaveTextContent("60");
+  });
+
+  it("offers the site name as the first brand terms", async () => {
+    const user = userEvent.setup();
+    renderTraffic(brandWorkspace(), "", true);
+    const heading = await screen.findByRole("heading", { name: "Brand split" });
+    const section = within(heading.closest("section") as HTMLElement);
+    await user.click(section.getByRole("button", { name: "Add brand terms" }));
+    expect(section.getByLabelText("Brand terms")).toHaveValue("example");
   });
 
   it("counts only the queries the search filter lists", async () => {
@@ -910,7 +949,7 @@ describe("SEO Traffic branded split", () => {
     renderTraffic(workspace);
     await user.type(await screen.findByRole("searchbox"), "acm");
     expect(screen.getByTestId("seo-brand-totals")).toHaveTextContent(
-      "Listed queries: 9 clicks branded, 0 clicks non-branded",
+      "Listed queries: 9 clicks branded (100%), 0 clicks non-branded (0%)",
     );
   });
 
