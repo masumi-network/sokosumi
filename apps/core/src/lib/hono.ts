@@ -4,6 +4,7 @@ import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import { type AuthVariables, authMiddleware } from "@/middleware/auth";
 import { coworkerContextMiddleware } from "@/middleware/coworker-context";
+import { networkScopeMiddleware } from "@/middleware/network-scope";
 import { organizationContextMiddleware } from "@/middleware/organization";
 import { organizationProductSeatMiddleware } from "@/middleware/organization-product-seat";
 import {
@@ -90,6 +91,7 @@ export class OpenAPIHonoWithAuth<
     });
 
     this.use(authMiddleware);
+    this.use(networkScopeMiddleware);
     this.use(coworkerContextMiddleware);
     this.use(organizationContextMiddleware);
     this.use(workspaceMiddleware(includeWorkspaceContext));

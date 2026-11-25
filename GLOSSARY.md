@@ -474,6 +474,20 @@ _Avoid_: Archived project, muted project, unfollowed project, leaving a project 
 A project this reader opened, newest first, tracked per device rather than on the server. Follows the Pinned projects in the Project switcher's list, ahead of the rest in activity order. Distinct from the activity order the projects list uses: `lastActivityAt` is derived from task, job and project events, so opening a project does not move it and the two orders disagree on purpose.
 _Avoid_: Recent project (says nothing about whose), active project, last activity
 
+### Networks
+
+**Network**:
+Mainnet or Preprod: the side of Sokosumi a person is working on. Their account, Organizations, Workspaces, subscriptions and plans are the same across Sokosumi (fiat billing is Mainnet-only); every Agent, Job, credit and on-chain or x402 payment belongs to exactly one Network.
+_Avoid_: Environment (that is production, preview or local), deployment, testnet, test mode
+
+**Preprod credits**:
+Admin-granted credits for testing on Preprod. Spent only on Preprod and never counted with Mainnet credits; not bought through Stripe or Polar.
+_Avoid_: Test credits, sandbox credits, Tester credits (a CMO term)
+
+**Network scope**:
+What a piece of work is given so that it stays on one Network: it names the Network and is the only way to that Network's Agents, Jobs, credits and payments, beside the data that is the same across Sokosumi. Whatever starts the work, such as a request, names the Network once; everything below is handed the scope.
+_Avoid_: Network unit of work (a scope outlives a transaction), Network context, current Network
+
 ### Billing
 
 **Seat**:

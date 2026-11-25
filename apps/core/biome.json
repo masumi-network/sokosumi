@@ -13,6 +13,38 @@
       "linter": {
         "rules": { "suspicious": { "noConsole": "off" } }
       }
+    },
+    {
+      "includes": ["src/**", "scripts/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/db/prisma",
+                      "**/db/prisma.js",
+                      "./prisma",
+                      "./prisma.js"
+                    ],
+                    "importNamePattern": "networkPrisma",
+                    "message": "Reach a Network's client through a Network scope: createNetworkScope in @/lib/db/network-scope (docs/adr/0081)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/lib/db/network-scope.ts"],
+      "linter": {
+        "rules": { "style": { "noRestrictedImports": "off" } }
+      }
     }
   ]
 }

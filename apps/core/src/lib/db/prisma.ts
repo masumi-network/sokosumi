@@ -3,11 +3,10 @@ import type { Prisma } from "@sokosumi/database";
 import { createPrismaClient } from "@sokosumi/database/client";
 import { configureSqlTables } from "@sokosumi/database/sql-tables";
 import { attachDatabasePool } from "@vercel/functions";
-import { createError } from "evlog";
 import { Pool } from "pg";
 
 import { getEnv } from "@/config/env";
-import { isPreprodOn, type Network, requireNetwork } from "@/lib/network";
+import { type Network, requireNetworkOn } from "@/lib/network";
 
 type CorePrismaClient = ReturnType<typeof createPrismaClient>;
 
@@ -119,16 +118,11 @@ const prisma = database.shared;
 /**
  * The client of one Network's schema. Throws for Preprod while Preprod is off:
  * on today's layout its schema is Mainnet's.
+ * For `network-scope.ts` only: everything else reaches a Network's client
+ * through a Network scope (`noRestrictedImports` in `biome.json`).
  */
 export function networkPrisma(network: Network): CorePrismaClient {
-  const known = requireNetwork(network);
-  if (known === "preprod" && !isPreprodOn()) {
-    throw createError({
-      message: "Preprod is off: NETWORK_PREPROD_ENABLED is not true",
-      why: "A caller asked for the Preprod client while Preprod is off",
-      fix: "Check isPreprodOn() before asking for the Preprod client",
-    });
-  }
+  const known = requireNetworkOn(network);
   database.networks[known] ??= database.createNetworkClient(known);
   return database.networks[known];
 }

@@ -292,7 +292,7 @@ Before adding, changing, or removing a `/v1` route (new route files, OpenAPI def
 
 **Page reads load ahead of the click.** Web loads a list or detail page's content before the user clicks: on a hover, on a predicted approach, and from back links. For that, web wraps the page's Core reads in `"use cache: private"`. So when you design a `GET` that a Web page renders, make it a pure read: no writes or side effects, and a result that depends only on the caller's session and the request. Keep the reads for the page's first view few, so one cached Web loader covers them (the tasks page's loader is `loadTasksPageData` in `apps/web/src/app/(app)/tasks/utils/tasks-page-data.ts`). The Web half of this rule is "Navigation opens a loaded page, not its skeleton" in [`apps/web/AGENTS.md`](../web/AGENTS.md).
 
-**Note**: New Core routes use direct Prisma via the Core singleton (`import prisma from "@/lib/db/prisma"`) with type-safe includes and flatten helpers. Do not import a default `prisma` from `@sokosumi/database/client` in routes — that module exports `createPrismaClient` (used by `src/lib/db/prisma.ts`, tests, and scripts). Repositories may still appear in legacy services — do not introduce new repository usage in routes.
+**Note**: New Core data access uses direct Prisma; Network models are reached only through a [Network scope](#network-scope). Shared models use the Core singleton (`import prisma from "@/lib/db/prisma"`) with type-safe includes and flatten helpers. Do not import a default `prisma` from `@sokosumi/database/client` in routes — that module exports `createPrismaClient` (used by `src/lib/db/prisma.ts`, tests, and scripts). Repositories may still appear in legacy services — do not introduce new repository usage in routes.
 
 **Shared Packages**:
 
@@ -369,6 +369,18 @@ A failure that comes and goes with the order: the log prints `Running tests with
 - Interactive txs hold a pool connection for the whole callback; parallel page loads cause **P2028** (`maxWait`)
 - Never `Promise.all` queries inside an interactive transaction (#2559)
 - Batch form `prisma.$transaction([...])` is fine for independent reads that need one round trip
+
+### Network scope
+
+Mainnet and Preprod get one schema each beside `shared`; a Network model is one listed under `network` in `packages/database/prisma/network-tables.json` (Agent, Job, credits, payments). New code reaches a Network model only through a Network scope ([ADR 0081](../../docs/adr/0081-network-models-are-reached-through-a-network-scope.md)); code that touches only shared models keeps the default `prisma`.
+
+- **Get the scope from the entry point.** In a handler on `OpenAPIHonoWithAuth`: `requireNetworkScope(c)` from `@/middleware/network-scope`. Elsewhere the entry point creates it once with `createNetworkScope(network)` from `@/lib/db/network-scope`, naming the Network. Code below takes the scope, or one side of it, as an argument, with no default.
+- **`scope.networkDb`** has the Network models and tagged raw SQL; **`scope.sharedDb`** has every other model. A call on the wrong side fails typecheck. Neither opens a transaction.
+- **A helper takes `NetworkDb` or `SharedDb` whole**, not a `Pick` of it: the Network side is branded in its type, and a `Pick` lets the default client in again.
+- **Raw SQL in scoped code** names Network tables with `scope.networkTable("Job")` and shared ones with `sharedTable(…)`.
+- **Unit tests** pass a plain object with the members the code uses, cast once to `NetworkScope`, `NetworkDb` or `SharedDb`; no module mock. `scope.networkDb` throws under a `@/lib/db/prisma` mock that has only a default export.
+- **Prove a Network read on PostgreSQL**, where the split layout puts the Network's tables in another schema than the default client's: `src/routes/v1/credit-costs/get.postgres.test.ts` is the pattern.
+- Old code still calls Network models on the default client; it moves cluster by cluster. `networkPrisma` in `src/lib/db/prisma.ts` is for the scope module only (Biome's `noRestrictedImports` in `biome.json`).
 
 ### Raw SQL
 

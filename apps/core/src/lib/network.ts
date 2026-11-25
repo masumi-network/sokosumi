@@ -43,13 +43,29 @@ export function requireNetwork(value: unknown): Network {
 /**
  * Whether Preprod, the Network in this database, is on:
  * `NETWORK_PREPROD_ENABLED`, which Core's startup check allows only while the
- * three schema names are all different and none is `public`. `networkPrisma`
+ * three schema names are all different and none is `public`. `requireNetworkOn`
  * refuses Preprod while it is false.
  * Unrelated to the deployment's `NETWORK`: the old Preprod deployment runs with
  * this off.
  */
 export function isPreprodOn(): boolean {
   return getEnv().NETWORK_PREPROD_ENABLED;
+}
+
+/**
+ * Returns `value` as a Network that is on, or throws: Preprod is refused while
+ * it is off, because on today's layout its schema is Mainnet's.
+ */
+export function requireNetworkOn(value: unknown): Network {
+  const network = requireNetwork(value);
+  if (network === "preprod" && !isPreprodOn()) {
+    throw createError({
+      message: "Preprod is off: NETWORK_PREPROD_ENABLED is not true",
+      why: "A caller asked for Preprod while Preprod is off",
+      fix: "Check isPreprodOn() before asking for Preprod",
+    });
+  }
+  return network;
 }
 
 /**

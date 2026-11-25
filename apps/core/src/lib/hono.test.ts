@@ -85,6 +85,8 @@ vi.mock("@/middleware/workspace", () => ({
     },
 }));
 
+import { requireNetworkScope } from "@/middleware/network-scope";
+
 import { createNestedOpenAPIHono, OpenAPIHonoWithAuth } from "./hono";
 
 describe("OpenAPIHonoWithAuth", () => {
@@ -114,6 +116,15 @@ describe("OpenAPIHonoWithAuth", () => {
       workspaceContext: null,
     });
     expect(middlewareCalls.calls).toEqual(["auth", "context", "organization"]);
+  });
+
+  it("gives every request a Mainnet Network scope", async () => {
+    const app = new OpenAPIHonoWithAuth();
+    app.get("/", (c) => c.text(requireNetworkScope(c).network));
+
+    const response = await app.request("http://localhost/");
+
+    expect(await response.text()).toBe("mainnet");
   });
 
   it("resolves workspaceContext when includeWorkspaceContext is enabled", async () => {

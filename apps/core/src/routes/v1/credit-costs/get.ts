@@ -2,9 +2,9 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireAdminAuthContext } from "@/middleware/auth";
+import { requireNetworkScope } from "@/middleware/network-scope";
 import {
   creditCostSchema,
   mapCreditCostForApi,
@@ -29,7 +29,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     requireAdminAuthContext(c.var.authContext);
 
-    const items = await prisma.creditCost.findMany();
+    const items = await requireNetworkScope(c).networkDb.creditCost.findMany();
 
     const mapped = items.map(mapCreditCostForApi);
     return ok(c, z.array(creditCostSchema).parse(mapped));
