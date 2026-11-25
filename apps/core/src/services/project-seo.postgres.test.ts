@@ -3087,16 +3087,63 @@ describe.skipIf(!enabled)(
           positionStatus: "ranked",
         },
       });
+      // A member's private result of this owner gives no point either.
+      const privateResult = await prisma.projectSeoObservation.create({
+        data: {
+          projectId,
+          ownerId: actor.userId,
+          source: "seo_coworker",
+          kind: "rankings",
+          sourceKey: randomUUID(),
+          pageIds: [page.id],
+          artifactHash: "rank-period-private",
+          payload: {},
+          observedAt: new Date("2026-10-02T09:00:00.000Z"),
+        },
+      });
+      await prisma.projectSeoRankPoint.create({
+        data: {
+          observationId: privateResult.id,
+          key,
+          observedAt: privateResult.observedAt,
+          position: 1,
+          positionStatus: "ranked",
+        },
+      });
       expect(await read({})).toEqual([[older.id, newest.id], false]);
-      // The load takes the newest points and says that it left one out.
-      const cut = await loadSeoRankPoints(actor, [key], {}, 1);
-      expect([cut.rows.map((row) => row.observationId), cut.limited]).toEqual([
-        [newest.id],
-        true,
+      // Another key with many reads takes no place of this key: each key has its own limit.
+      const busy = await prisma.projectSeoObservation.createManyAndReturn({
+        data: Array.from({ length: 3 }, (_, day) => ({
+          projectId,
+          source: "seo_coworker",
+          kind: "rankings",
+          sourceKey: randomUUID(),
+          pageIds: [page.id],
+          artifactHash: "rank-period-busy",
+          payload: {},
+          observedAt: new Date(`2026-11-0${day + 2}T09:00:00.000Z`),
+        })),
+      });
+      await prisma.projectSeoRankPoint.createMany({
+        data: busy.map((row) => ({
+          observationId: row.id,
+          key: "busy",
+          observedAt: row.observedAt,
+          position: 1,
+          positionStatus: "ranked",
+        })),
+      });
+      const load = async (perKey: number) =>
+        (await loadSeoRankPoints(actor, [key, "busy"], {}, perKey))
+          .filter((row) => row.key === key)
+          .map((row) => [row.observationId, row.observedAt]);
+      // The newest point and one more, which says that older ones exist.
+      expect(await load(1)).toEqual([
+        [newest.id, newest.observedAt],
+        [older.id, older.observedAt],
       ]);
-      expect((await loadSeoRankPoints(actor, [key], {}, 2)).limited).toBe(
-        false,
-      );
+      expect(await load(2)).toHaveLength(2);
+      expect(await loadSeoRankPoints(actor, ["busy"], {}, 1)).toHaveLength(2);
     });
 
     it("backfills the rank points of a result stored before the import wrote them, once", async () => {

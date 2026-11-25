@@ -27,12 +27,6 @@ export const SEO_RANK_HISTORY_OBSERVATIONS = 200;
  * position reads reach the history through the rank point table.
  */
 export const SEO_RANK_HISTORY_KINDS = ["rankings", "audit_lite"];
-/**
- * Rank points one workspace read loads, newest first. A daily monitor of 20 keywords on 2 devices writes 40
- * a day, so this holds the 90 newest points of every keyword of more than two such monitors.
- */
-export const SEO_RANK_POINT_LOAD = 10_000;
-
 export type SeoRankSource = Pick<
   ProjectSeoObservation,
   "id" | "observedAt" | "payload"
@@ -95,11 +89,8 @@ function rankSources(workspace: ProjectSeoWorkspace, rows: SeoRankSource[]) {
 export function withSeoRankings(
   workspace: ProjectSeoWorkspace,
   rows: SeoRankSource[],
-  /** The points of `seoRankKeys(workspace)` in the workspace period. `limited`: the load left older ones out. */
-  points: { rows: SeoRankPointRow[]; limited: boolean } = {
-    rows: [],
-    limited: false,
-  },
+  /** The points of `seoRankKeys(workspace)` in the workspace period: per key the 90 newest and, where older ones exist, one more. */
+  points: SeoRankPointRow[] = [],
 ): ProjectSeoWorkspace {
   const sources = rankSources(workspace, rows);
   return {
@@ -137,24 +128,27 @@ function shareOfVoice(
 
 function withPositionHistory(
   keywords: ProjectSeoWorkspace["keywords"],
-  points: { rows: SeoRankPointRow[]; limited: boolean },
+  points: SeoRankPointRow[],
 ): ProjectSeoWorkspace["keywords"] {
   const history = new Map<string, PositionPoint[]>();
-  const oldestFirst = points.rows.toSorted(
-    (a, b) => a.observedAt.getTime() - b.observedAt.getTime(),
+  // Two reads of one time keep one order on every load.
+  const oldestFirst = points.toSorted(
+    (a, b) =>
+      a.observedAt.getTime() - b.observedAt.getTime() ||
+      a.observationId.localeCompare(b.observationId),
   );
-  for (const point of oldestFirst)
-    history.set(point.key, [
-      ...(history.get(point.key) ?? []),
-      {
-        observedAt: point.observedAt.toISOString(),
-        observationId: point.observationId,
-        position: point.position,
-        positionStatus: point.positionStatus as PositionPoint["positionStatus"],
-        checkedResults: point.checkedResults,
-        device: point.device as PositionPoint["device"],
-      },
-    ]);
+  for (const point of oldestFirst) {
+    const series = history.get(point.key) ?? [];
+    series.push({
+      observedAt: point.observedAt.toISOString(),
+      observationId: point.observationId,
+      position: point.position,
+      positionStatus: point.positionStatus as PositionPoint["positionStatus"],
+      checkedResults: point.checkedResults,
+      device: point.device as PositionPoint["device"],
+    });
+    history.set(point.key, series);
+  }
   return keywords.map((row) => {
     const key = keyOf(row);
     const series = key ? history.get(key) : undefined;
@@ -162,8 +156,7 @@ function withPositionHistory(
       ? {
           ...row,
           positionHistory: series.slice(-SEO_RANK_HISTORY_POINTS),
-          positionHistoryCut:
-            points.limited || series.length > SEO_RANK_HISTORY_POINTS,
+          positionHistoryCut: series.length > SEO_RANK_HISTORY_POINTS,
         }
       : row;
   });

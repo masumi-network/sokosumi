@@ -117,7 +117,6 @@ function workspaceOf(
   results: ReturnType<typeof result>[],
   base = input(),
   history = results,
-  limited = false,
 ) {
   const rows = results.map((payload) => observation(base, payload));
   const historyRows =
@@ -127,13 +126,8 @@ function workspaceOf(
   return withSeoRankings(
     projectSeoProjection({ ...base, observations: rows }),
     historyRows,
-    {
-      // The points the import stores for these results, newest first as the load gives them.
-      rows: historyRows.flatMap((row, index) =>
-        seoRankPoints(row.id, history[index]),
-      ),
-      limited,
-    },
+    // The points the import stores for these results.
+    historyRows.flatMap((row, index) => seoRankPoints(row.id, history[index])),
   );
 }
 
@@ -224,11 +218,6 @@ describe("keyword position history", () => {
       result(day, [{ position: 4 }]),
     ).reverse();
     expect(workspaceOf(full).keywords[0].positionHistoryCut).toBe(false);
-    // The load limit cuts whole results: every series can miss older reads.
-    const short = [result(1, [{ position: 4 }])];
-    expect(
-      workspaceOf(short, input(), short, true).keywords[0].positionHistoryCut,
-    ).toBe(true);
   });
 });
 

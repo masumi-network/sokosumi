@@ -1,9 +1,9 @@
 import prisma from "@/lib/db/prisma";
 import type { SeoActor, SeoWorkspaceQuery } from "@/schemas/project-seo.schema";
+import { SEO_RANK_HISTORY_POINTS } from "@/schemas/project-seo-rankings.schema";
 import {
   SEO_RANK_HISTORY_KINDS,
   SEO_RANK_HISTORY_OBSERVATIONS,
-  SEO_RANK_POINT_LOAD,
   type SeoRankPointRow,
   type SeoRankSource,
 } from "./project-seo-rankings";
@@ -51,48 +51,41 @@ export async function loadSeoRankSources(
   });
 }
 
-/** Keys one query names. PostgreSQL takes 32,767 bound values in a statement. */
-const KEY_CHUNK = 5_000;
-
 /**
- * The stored position reads of the given keys in the period, from this owner's public results, newest first.
- * At most `limit` per query. `limited`: a query held more, so older reads are missing.
+ * The stored position reads of the given keys in the period, from this owner's public results. Per key, the
+ * `perKey` newest and one more: the extra one says that older reads exist. A key's limit never depends on the
+ * reads of another key.
  */
 export async function loadSeoRankPoints(
   actor: SeoActor,
   keys: string[],
   period: Pick<SeoWorkspaceQuery, "from" | "to">,
-  limit = SEO_RANK_POINT_LOAD,
-): Promise<{ rows: SeoRankPointRow[]; limited: boolean }> {
-  const observedAt = seoRankPeriodWhere(period);
-  const rows: SeoRankPointRow[] = [];
-  let limited = false;
-  for (let start = 0; start < keys.length; start += KEY_CHUNK) {
-    const found = await prisma.projectSeoRankPoint.findMany({
-      where: {
-        key: { in: keys.slice(start, start + KEY_CHUNK) },
-        // The period reads the result's time, as every other part of the workspace does.
-        observation: {
-          ...seoOwnerWhere(actor),
-          ownerId: null,
-          ...(observedAt && { observedAt }),
-        },
-      },
-      select: {
-        key: true,
-        observationId: true,
-        observedAt: true,
-        position: true,
-        positionStatus: true,
-        checkedResults: true,
-        device: true,
-      },
-      orderBy: { observedAt: "desc" },
-      // One more than the history reads: it says that older points exist.
-      take: limit + 1,
-    });
-    limited ||= found.length > limit;
-    rows.push(...found.slice(0, limit));
-  }
-  return { rows, limited };
+  perKey = SEO_RANK_HISTORY_POINTS,
+): Promise<SeoRankPointRow[]> {
+  if (!keys.length) return [];
+  const range = seoRankPeriodWhere(period);
+  // Text, read as the column's own type: a zone conversion never moves the day bound.
+  const from = range?.gte?.toISOString() ?? null;
+  const before = range?.lt?.toISOString() ?? null;
+  const owner = seoOwnerWhere(actor);
+  // The period reads the result's time, as every other part of the workspace does.
+  return prisma.$queryRaw<SeoRankPointRow[]>`
+    SELECT "key", "observationId", "observedAt", "position", "positionStatus", "checkedResults", "device"
+    FROM (
+      SELECT p."key", p."observationId", p."observedAt", p."position", p."positionStatus",
+        p."checkedResults", p."device",
+        row_number() OVER (
+          PARTITION BY p."key" ORDER BY p."observedAt" DESC, p."observationId" DESC
+        ) AS "place"
+      FROM "project_seo_rank_point" p
+      JOIN "project_seo_observation" o ON o."id" = p."observationId"
+      WHERE p."key" = ANY(${keys}::text[])
+        AND o."ownerId" IS NULL
+        AND o."projectId" IS NOT DISTINCT FROM ${owner.projectId}::uuid
+        AND o."auditId" IS NOT DISTINCT FROM ${owner.auditId}::uuid
+        AND (${from}::timestamp IS NULL OR o."observedAt" >= ${from}::timestamp)
+        AND (${before}::timestamp IS NULL OR o."observedAt" < ${before}::timestamp)
+    ) ranked
+    WHERE "place" <= ${perKey + 1}
+  `;
 }
