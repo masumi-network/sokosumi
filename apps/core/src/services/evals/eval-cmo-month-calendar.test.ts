@@ -89,7 +89,13 @@ describe("the month calendar case's checks", () => {
     const short = {
       ...plan,
       calendar: plan.calendar
-        .filter((entry) => !(entry.channel === "x" && entry.date === START))
+        .filter(
+          (entry) =>
+            !(
+              entry.channel === "x" &&
+              Date.parse(entry.date) < Date.parse(START) + 7 * 86_400_000
+            ),
+        )
         .map((entry) =>
           entry.id === "ex-1"
             ? { ...entry, title: "Rewritten" }
