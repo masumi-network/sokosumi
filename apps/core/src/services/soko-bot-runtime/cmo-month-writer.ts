@@ -28,6 +28,8 @@ import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import { sokoBotTurnPurpose } from "@/lib/ai-gateway-purpose";
 import prisma from "@/lib/db/prisma";
 import { EMBEDDING_MODEL } from "@/lib/embeddings";
+import { emitCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { gatewayCallUsage } from "@/lib/soko-bot/gateway-cost";
 import { SOKO_BOT_JEV_MODEL } from "@/lib/soko-bot/jev";
 import { modelCallTelemetryFor } from "@/lib/soko-bot/model-call-roles";
@@ -164,11 +166,17 @@ const writtenPieceSchema = z.object({
   voice: z.string().nullable(),
   /** A talking video's language as a two-letter code. */
   languageCode: z.string().nullable(),
-  /** A short video's kind and its words on screen first (cmo-v20 only). */
-  shortFormat: z.enum(SHORT_VIDEO_FORMATS).nullable().optional(),
-  hookLine: z.string().nullable().optional(),
+  /**
+   * A short video's kind and its words on screen first (cmo-v20 only).
+   * Nullable, never optional: strict structured output refuses a schema with
+   * a key outside `required`, and every chunk then wrote nothing.
+   */
+  shortFormat: z.enum(SHORT_VIDEO_FORMATS).nullable(),
+  hookLine: z.string().nullable(),
 });
-const writtenChunkSchema = z.object({ pieces: z.array(writtenPieceSchema) });
+export const cmoWrittenChunkSchema = z.object({
+  pieces: z.array(writtenPieceSchema),
+});
 type WrittenPiece = z.infer<typeof writtenPieceSchema>;
 
 const SHORT_HOOK_LINE_MAX_LENGTH = 48;
@@ -403,6 +411,26 @@ export function cmoSaidLines(calendar: readonly CmoCalendarEntry[]): string[] {
     .slice(-SAID_LINES);
 }
 
+/** A chunk that failed writes nothing; the next call retries it. */
+function chunkFailed(turnId: string) {
+  return (error: unknown): WrittenPiece[] => {
+    emitCoreWarning(
+      {
+        operation: "cmo_month_writer",
+        turn: { id: turnId },
+        failure: messageSafeErrorFields(error),
+      },
+      {
+        message: "A chunk of the month wrote nothing",
+        why: "The writer's model call or its answer failed",
+        fix: "The next write_month_pieces call retries the chunk. If every chunk fails, look up the error under failure.",
+        cause: error,
+      },
+    );
+    return [];
+  };
+}
+
 async function writeChunk(
   input: ExecuteSokoBotToolInput,
   request: ReturnType<typeof sokoBotModelRequest>,
@@ -417,13 +445,13 @@ async function writeChunk(
     ...request,
     system,
     prompt,
-    output: Output.object({ schema: writtenChunkSchema }),
+    output: Output.object({ schema: cmoWrittenChunkSchema }),
     maxOutputTokens: 16_000,
     abortSignal: AbortSignal.timeout(timeoutMs),
     telemetry: modelCallTelemetryFor("cmo-month-writer"),
   }).catch(rethrowAiGatewayFailure);
   await chargeWriterCall(input, modelId, result);
-  return writtenChunkSchema.parse(result.output).pieces;
+  return cmoWrittenChunkSchema.parse(result.output).pieces;
 }
 
 /** Charged to the turn like its own steps, with its tokens. */
@@ -859,7 +887,7 @@ export async function writeCmoMonthPieces(
         ),
         deadline,
       )
-        .catch(() => [] as WrittenPiece[])
+        .catch(chunkFailed(input.turnId))
         .then(saveInTurn),
     ),
   );
@@ -898,7 +926,7 @@ export async function writeCmoMonthPieces(
             offers,
           }),
           deadline,
-        ).catch(() => [] as WrittenPiece[]),
+        ).catch(chunkFailed(input.turnId)),
       ),
     );
     for (const results of repaired) {
