@@ -35,6 +35,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import {
+  Fragment,
   memo,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
@@ -47,6 +48,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { saveRoomMessageAction } from "@/app/chat/actions";
+import { ChatCsvTable } from "@/app/chat/components/chat-csv-table";
 import {
   CoworkerLiveThought,
   CoworkerThoughtTrace,
@@ -793,18 +795,20 @@ export function ChannelMessageText({
                       className="size-40 object-contain"
                     />
                   ) : (
-                    <FileChipMiniPreviewFrame
-                      key={`${link.index}-${link.url}`}
-                      url={link.url}
-                      fileName={link.fileName}
-                      variant={useLargeImage ? "large" : "thumb"}
-                      sizeClass={useLargeImage ? undefined : "size-16"}
-                      onOpenImage={() => {
-                        setOpenImageSrc(link.url);
-                      }}
-                      transcript={link.transcript}
-                      onSaveTranscript={onSaveTranscript}
-                    />
+                    <Fragment key={`${link.index}-${link.url}`}>
+                      <FileChipMiniPreviewFrame
+                        url={link.url}
+                        fileName={link.fileName}
+                        variant={useLargeImage ? "large" : "thumb"}
+                        sizeClass={useLargeImage ? undefined : "size-16"}
+                        onOpenImage={() => {
+                          setOpenImageSrc(link.url);
+                        }}
+                        transcript={link.transcript}
+                        onSaveTranscript={onSaveTranscript}
+                      />
+                      <ChatCsvTable url={link.url} fileName={link.fileName} />
+                    </Fragment>
                   ),
                 )}
               </div>

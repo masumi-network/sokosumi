@@ -143,7 +143,7 @@ export function TableCreateDialog({
   csvFile,
 }: {
   workspaceId: string | null;
-  /** A CSV already in Files: the trigger reads it into the import, ready to map. */
+  /** A CSV already in Files or chat: the trigger reads it into the import, ready to map. */
   csvFile?: { url: string; name: string };
 }) {
   const t = useTranslations("App.Tables");

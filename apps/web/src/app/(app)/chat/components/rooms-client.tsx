@@ -201,6 +201,7 @@ import {
   chatRoomMessageHref,
 } from "@/lib/utils/notification-href";
 import { chatQueryKeys } from "@/queries/chat";
+import { ChatCsvTableWorkspace } from "./chat-csv-table";
 import { CoworkerFirstPrompts } from "./coworker-first-prompts";
 import {
   openDirectWithParticipant,
@@ -571,6 +572,11 @@ function RoomView({
   const isRoomVisit = rooms.some(
     (room) =>
       room.id === selectedRoomId && !isRoomOfWorkspace(room, organizationId),
+  );
+  // A CSV becomes a Table in the active workspace, never a visited room's.
+  const csvTableWorkspace = useMemo(
+    () => (isRoomVisit ? null : { workspaceId: organizationId }),
+    [isRoomVisit, organizationId],
   );
   // The sidebar lists the active workspace. On a Room visit its channels are
   // not the room's: a `#general` here must not resolve to that workspace's.
@@ -3160,7 +3166,7 @@ function RoomView({
     );
 
     return (
-      <>
+      <ChatCsvTableWorkspace value={csvTableWorkspace}>
         {mobileHeaderPortaled && headerRoomSlotHost && roomHeaderChrome
           ? createPortal(roomHeaderChrome, headerRoomSlotHost)
           : null}
@@ -3464,7 +3470,7 @@ function RoomView({
             ) : null
           }
         />
-      </>
+      </ChatCsvTableWorkspace>
     );
   }
 
