@@ -942,11 +942,6 @@ export const CLI_COMMAND_CATALOG = [
     operation: "PUT /projects/{id}/ads/market",
   },
   {
-    command: "projects image-studio-compare-save",
-    usage: `PROJECT_ID BATCH_ID --input-json '{"assetId":"...","otherAssetId":"...","outcome":"A"}'`,
-    operation: "PUT /projects/{id}/image-studio/batches/{batchId}/compare",
-  },
-  {
     command: "projects image-studio-brand-kit-update",
     usage: `PROJECT_ID --input-json '{"copy":{...},"version":"..."}'`,
     operation: "PUT /projects/{id}/image-studio/brand-kit",
@@ -987,22 +982,6 @@ export const CLI_COMMAND_CATALOG = [
     command: "projects image-studio-talking-video-scripts",
     usage: `PROJECT_ID --input-json '{"topic":"..."}'`,
     operation: "POST /projects/{id}/image-studio/talking-video-scripts",
-  },
-  {
-    command: "projects image-studio-asset-viewed",
-    usage: `PROJECT_ID ASSET_ID --input-json '{"type":"viewed_lightbox"}'`,
-    operation: "POST /projects/{id}/image-studio/assets/{assetId}/events",
-  },
-  {
-    command: "projects image-studio-asset-feedback",
-    usage: `PROJECT_ID ASSET_ID --input-json '{"thumb":1}'`,
-    operation: "PUT /projects/{id}/image-studio/assets/{assetId}/feedback",
-  },
-  {
-    command: "projects image-studio-asset-hide",
-    usage: "PROJECT_ID ASSET_ID",
-    operation: "POST /projects/{id}/image-studio/assets/{assetId}/hide",
-    noBody: true,
   },
   {
     command: "projects image-studio-asset-headline",

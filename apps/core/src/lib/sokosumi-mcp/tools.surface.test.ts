@@ -212,15 +212,6 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
     id: "p-1",
     body: { keywords: ["lamp"], countryCode: "DE", languageCode: "de" },
   },
-  projects_image_studio_compare_save: {
-    id: "p-1",
-    batchId: "b-1",
-    body: {
-      assetId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-      otherAssetId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-      outcome: "A",
-    },
-  },
   projects_image_studio_brand_kit_update: {
     id: "p-1",
     body: {
@@ -250,17 +241,6 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
     id: "p-1",
     body: { topic: "Spring sale" },
   },
-  projects_image_studio_asset_viewed: {
-    id: "p-1",
-    assetId: "a-1",
-    body: { type: "viewed_lightbox" },
-  },
-  projects_image_studio_asset_feedback: {
-    id: "p-1",
-    assetId: "a-1",
-    body: { thumb: 1 },
-  },
-  projects_image_studio_asset_hide: { id: "p-1", assetId: "a-1" },
   projects_image_studio_asset_headline: {
     id: "p-1",
     assetId: "a-1",

@@ -357,16 +357,16 @@ Every start needs an `idempotencyKey` (8 to 200 characters). Pick a new one for 
 
 ## Image Studio and ads edits
 
-[VERIFIED: ADR 0077, `apps/cli/src/cli/commands/catalog.ts`] These spend no credits and publish nothing: rate, compare, hide or headline an image; write a caption or talking-video scripts (an agent gets 60 per workspace per hour, then 429); read the Project's website for brand and product suggestions; save the Brand Kit, product catalog and ads market profile. Saving the Brand Kit, catalog or market profile replaces what is there, and hiding removes an image from the gallery: confirm those with the person first. A new market profile is researched, and paid for, when a person next opens it.
+[VERIFIED: ADR 0077, `apps/cli/src/cli/commands/catalog.ts`] These spend no credits and publish nothing: set an image's export headline; write a caption or talking-video scripts (an agent gets 60 per workspace per hour, then 429); read the Project's website for brand and product suggestions; save the Brand Kit, product catalog and ads market profile. Saving the Brand Kit, catalog or market profile replaces what is there: confirm with the person first. A new market profile is researched, and paid for, when a person next opens it.
 
 ```bash
 sokosumi projects image-studio-website-research PROJECT_ID --json
 sokosumi projects image-studio-products-update PROJECT_ID --input-json '{"products":[...],"revision":3}'
-sokosumi projects image-studio-asset-feedback PROJECT_ID ASSET_ID --input-json '{"thumb":1}'
+sokosumi projects image-studio-asset-caption PROJECT_ID ASSET_ID --json
 sokosumi projects ads-market-update PROJECT_ID --input-json '{"keywords":["lamp"],"countryCode":"DE","languageCode":"de"}'
 ```
 
-`sokosumi --help` lists the rest. Saves replace the whole record: send the `revision`, `version` or `lookRevision` you last read, and reread on 409. A person uploads a logo file, runs keyword and competitor research, and shares an image to a public URL in Sokosumi.
+`sokosumi --help` lists the rest. Saves replace the whole record: send the `revision`, `version` or `lookRevision` you last read, and reread on 409. A person rates, compares, hides and views images, since Studio scores those as their own taste; runs keyword and competitor research; and shares an image to a public URL in Sokosumi. A logo file upload is multipart: send it over HTTP with an API key, or use `image-studio-website-logo`.
 
 ## Social posts and newsletters
 

@@ -115,31 +115,40 @@ describe("studio feedback routes", () => {
     expect(mocks.feedback).not.toHaveBeenCalled();
   });
 
-  // SOKD-394: a person's agent rates for them; a Coworker does not.
-  it.each(["api_key", "oauth"] as const)(
-    "lets a person's %s token rate",
-    async (authenticationMethod) => {
-      const response = await createApp({
-        ...USER,
-        authenticationMethod,
-      }).request(`${BASE}/feedback`, feedbackRequest({ thumb: 1 }));
-      expect(response.status).toBe(200);
-      expect(mocks.feedback).toHaveBeenCalledWith(
-        expect.objectContaining({ userId: "user-a", thumb: 1 }),
-      );
+  // SOKD-394: a thumb feeds the ad score as the person's own signal.
+  it.each([
+    ["an API key", { ...USER, authenticationMethod: "api_key" }],
+    ["an OAuth token", { ...USER, authenticationMethod: "oauth" }],
+    [
+      "a Coworker",
+      {
+        actor: "coworker",
+        coworkerId: "coworker-a",
+        vendorId: "vendor-a",
+        context: { userId: "user-a", organizationId: null },
+      },
+    ],
+  ] satisfies [string, AuthenticationContext][])(
+    "refuses %s",
+    async (_, authContext) => {
+      const app = createApp(authContext);
+      const responses = await Promise.all([
+        app.request(`${BASE}/feedback`, feedbackRequest({ thumb: 1 })),
+        app.request(`${BASE}/events`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ type: "viewed_lightbox" }),
+        }),
+        app.request(`${BASE}/hide`, { method: "POST" }),
+      ]);
+      expect(responses.map((response) => response.status)).toEqual([
+        403, 403, 403,
+      ]);
+      expect(mocks.feedback).not.toHaveBeenCalled();
+      expect(mocks.view).not.toHaveBeenCalled();
+      expect(mocks.hide).not.toHaveBeenCalled();
     },
   );
-
-  it("refuses a Coworker", async () => {
-    const response = await createApp({
-      actor: "coworker",
-      coworkerId: "coworker-a",
-      vendorId: "vendor-a",
-      context: { userId: "user-a", organizationId: null },
-    }).request(`${BASE}/feedback`, feedbackRequest({ thumb: 1 }));
-    expect(response.status).toBe(403);
-    expect(mocks.feedback).not.toHaveBeenCalled();
-  });
 
   it("returns 404 for an asset outside the user's workspace", async () => {
     mocks.feedback.mockRejectedValue(notFound("Image not found"));

@@ -137,8 +137,9 @@ const HUMAN_ONLY_READS = [
 
 /**
  * Writes on the same routes, each with a body that passes validation, so the
- * answer is the guard's: they connect accounts, publish or start ad spend, so
- * they still need a browser session.
+ * answer is the guard's: they connect accounts, publish, start ad spend or
+ * score images as the person's own taste, so they still need a browser
+ * session.
  */
 const SCRIPT = "Twenty characters or more, spoken aloud.";
 const KEY = "idempotency-key-1";
@@ -162,6 +163,19 @@ const HUMAN_ONLY_WRITES: readonly [
   ["POST", `${P}/ads/connections/initiate`, { provider: "google_ads" }],
   ["POST", `${P}/ads/connections/finalize`, { connectionId: "ca_1" }],
   ["DELETE", `${P}/ads/connections/${ID}`],
+  // Signals Studio scores as the person's own taste (SOKD-394).
+  [
+    "PUT",
+    `${P}/image-studio/batches/${ID}/compare`,
+    { assetId: ID, otherAssetId: WORKSPACE_ID, outcome: "A" },
+  ],
+  [
+    "POST",
+    `${P}/image-studio/assets/${ID}/events`,
+    { type: "viewed_lightbox" },
+  ],
+  ["PUT", `${P}/image-studio/assets/${ID}/feedback`, { thumb: 1 }],
+  ["POST", `${P}/image-studio/assets/${ID}/hide`, {}],
   [
     "POST",
     `${P}/social-connections/initiate`,
@@ -180,18 +194,13 @@ const HUMAN_ONLY_WRITES: readonly [
 ];
 
 // SOKD-394: an agent edits what spends no credits and publishes nothing (ADR
-// 0077): Image Studio feedback, brand kit, products and scripts, and the ads
-// market profile.
+// 0077): Image Studio headlines, captions, brand kit, products and scripts,
+// and the ads market profile.
 const AGENT_EDITS: readonly [method: string, path: string, body: object][] = [
   [
     "PUT",
     `${P}/ads/market`,
     { keywords: ["lamp"], countryCode: "DE", languageCode: "de" },
-  ],
-  [
-    "PUT",
-    `${P}/image-studio/batches/${ID}/compare`,
-    { assetId: ID, otherAssetId: WORKSPACE_ID, outcome: "A" },
   ],
   [
     "PUT",
@@ -213,13 +222,6 @@ const AGENT_EDITS: readonly [method: string, path: string, body: object][] = [
     { name: "Lamp", imageUrl: "https://example.com/lamp.png" },
   ],
   ["POST", `${P}/image-studio/talking-video-scripts`, {}],
-  [
-    "POST",
-    `${P}/image-studio/assets/${ID}/events`,
-    { type: "viewed_lightbox" },
-  ],
-  ["PUT", `${P}/image-studio/assets/${ID}/feedback`, { thumb: 1 }],
-  ["POST", `${P}/image-studio/assets/${ID}/hide`, {}],
   ["PUT", `${P}/image-studio/assets/${ID}/headline`, { text: "Hello" }],
   ["POST", `${P}/image-studio/assets/${ID}/caption`, {}],
 ];

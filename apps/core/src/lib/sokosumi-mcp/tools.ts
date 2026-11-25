@@ -1147,13 +1147,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     destructive: true,
   },
   {
-    name: "projects_image_studio_compare_save",
-    operation: "PUT /projects/{id}/image-studio/batches/{batchId}/compare",
-    description:
-      "Save which of two images from the same batch is better: `outcome` is `A` (`assetId`), `B` (`otherAssetId`), `TIE` or `BOTH_BAD`. It replaces an earlier pick for the same pair.",
-    destructive: true,
-  },
-  {
     name: "projects_image_studio_brand_kit_update",
     operation: "PUT /projects/{id}/image-studio/brand-kit",
     description:
@@ -1203,26 +1196,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "POST /projects/{id}/image-studio/talking-video-scripts",
     description:
       "Write talking-video scripts from the Project's brand, optionally about `topic`. Nothing is stored or charged: start a video with one using projects_image_studio_talking_video.",
-  },
-  {
-    name: "projects_image_studio_asset_viewed",
-    operation: "POST /projects/{id}/image-studio/assets/{assetId}/events",
-    description:
-      "Record that the image was opened in full view (`type: viewed_lightbox`). Image Studio learns from views.",
-  },
-  {
-    name: "projects_image_studio_asset_feedback",
-    operation: "PUT /projects/{id}/image-studio/assets/{assetId}/feedback",
-    description:
-      "Rate an Image Studio image for the signed-in person: `thumb` 1 or -1, with optional `reasons` and `comment`. A null `thumb` clears the rating.",
-    destructive: true,
-  },
-  {
-    name: "projects_image_studio_asset_hide",
-    operation: "POST /projects/{id}/image-studio/assets/{assetId}/hide",
-    description:
-      "Hide an image from the workspace gallery. Its generation history stays.",
-    destructive: true,
   },
   {
     name: "projects_image_studio_asset_headline",

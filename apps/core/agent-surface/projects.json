@@ -167,8 +167,9 @@
       "mcp": "projects_ads_market_update"
     },
     "PUT /projects/{id}/image-studio/batches/{batchId}/compare": {
-      "cli": "projects image-studio-compare-save",
-      "mcp": "projects_image_studio_compare_save"
+      "cli": false,
+      "mcp": false,
+      "reason": "Feeds the model scoreboard as the person's own signal (ADR 0077)."
     },
     "PUT /projects/{id}/image-studio/brand-kit": {
       "cli": "projects image-studio-brand-kit-update",
@@ -228,16 +229,19 @@
       "mcp": "projects_image_studio_cancel"
     },
     "POST /projects/{id}/image-studio/assets/{assetId}/events": {
-      "cli": "projects image-studio-asset-viewed",
-      "mcp": "projects_image_studio_asset_viewed"
+      "cli": false,
+      "mcp": false,
+      "reason": "Feeds the model scoreboard as the person's own signal (ADR 0077)."
     },
     "PUT /projects/{id}/image-studio/assets/{assetId}/feedback": {
-      "cli": "projects image-studio-asset-feedback",
-      "mcp": "projects_image_studio_asset_feedback"
+      "cli": false,
+      "mcp": false,
+      "reason": "Feeds the model scoreboard as the person's own signal (ADR 0077)."
     },
     "POST /projects/{id}/image-studio/assets/{assetId}/hide": {
-      "cli": "projects image-studio-asset-hide",
-      "mcp": "projects_image_studio_asset_hide"
+      "cli": false,
+      "mcp": false,
+      "reason": "Feeds the model scoreboard as the person's own signal (ADR 0077)."
     },
     "PUT /projects/{id}/image-studio/assets/{assetId}/headline": {
       "cli": "projects image-studio-asset-headline",

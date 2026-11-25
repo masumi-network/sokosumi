@@ -1138,17 +1138,6 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       '{"keywords":["lamp"],"countryCode":"DE","languageCode":"de"}',
     ],
   },
-  "PUT /projects/{id}/image-studio/batches/{batchId}/compare": {
-    argv: [
-      ...API,
-      "projects",
-      "image-studio-compare-save",
-      "p-1",
-      "b-1",
-      "--input-json",
-      '{"assetId":"a-1","otherAssetId":"a-2","outcome":"A"}',
-    ],
-  },
   "PUT /projects/{id}/image-studio/brand-kit": {
     argv: [
       ...API,
@@ -1214,31 +1203,6 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       "--input-json",
       '{"topic":"Spring sale"}',
     ],
-  },
-  "POST /projects/{id}/image-studio/assets/{assetId}/events": {
-    argv: [
-      ...API,
-      "projects",
-      "image-studio-asset-viewed",
-      "p-1",
-      "a-1",
-      "--input-json",
-      '{"type":"viewed_lightbox"}',
-    ],
-  },
-  "PUT /projects/{id}/image-studio/assets/{assetId}/feedback": {
-    argv: [
-      ...API,
-      "projects",
-      "image-studio-asset-feedback",
-      "p-1",
-      "a-1",
-      "--input-json",
-      '{"thumb":1}',
-    ],
-  },
-  "POST /projects/{id}/image-studio/assets/{assetId}/hide": {
-    argv: [...API, "projects", "image-studio-asset-hide", "p-1", "a-1"],
   },
   "PUT /projects/{id}/image-studio/assets/{assetId}/headline": {
     argv: [
