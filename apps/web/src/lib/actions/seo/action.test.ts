@@ -316,6 +316,22 @@ it("adds the full-audit price terms on the server, never from the browser", asyn
   expect(requestAnalysisMock).toHaveBeenNthCalledWith(2, OWNER, {
     kind: "rankings",
   });
+  // A cap goes on, so Core refuses it as a stale price instead of charging uncapped.
+  await mutateSeo({
+    owner: OWNER,
+    command: {
+      kind: "request_analysis",
+      body: {
+        kind: "audit_full",
+        fullAuditPrice: { ...browserPrice, maxCredits: 750 },
+      },
+    } as SeoCommand,
+    briefViewer: viewer,
+  });
+  expect(requestAnalysisMock).toHaveBeenLastCalledWith(OWNER, {
+    kind: "audit_full",
+    fullAuditPrice: { ...price, maxCredits: 750 },
+  });
 });
 
 it.each(["request_analysis", "create_monitor"] as const)(

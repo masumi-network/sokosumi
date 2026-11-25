@@ -24,12 +24,15 @@ import {
   withSession,
 } from "@/middleware/auth-middleware";
 
-/** The price terms never pass through the browser: a new full audit approves them here. */
+/** The price terms never pass through the browser: a new full audit approves them here. A cap the browser sends goes on, so Core refuses it as a stale price. */
 function withFullAuditPrice(
   analysis: RequestProjectSeoAnalysisRequest,
 ): RequestProjectSeoAnalysisRequest {
   return analysis.kind === "audit_full"
-    ? { ...analysis, fullAuditPrice: seoFullAuditPrice() }
+    ? {
+        ...analysis,
+        fullAuditPrice: seoFullAuditPrice(analysis.fullAuditPrice?.maxCredits),
+      }
     : analysis;
 }
 
