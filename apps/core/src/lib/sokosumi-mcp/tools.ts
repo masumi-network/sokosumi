@@ -8,11 +8,16 @@
 export interface McpTool {
   /**
    * The CLI command with spaces and hyphens as `_`, or `<group>_<verb>`
-   * (docs/agents/agent-surface.md). The first segment is its toolset.
+   * (docs/agents/agent-surface.md). The first segment is its route group.
    */
   name: string;
   /** `METHOD /path` as Core's OpenAPI document writes it. */
   operation: string;
+  /**
+   * The feature toolset `?toolsets=` turns on, when it is not the route
+   * group: `task-schedules` for `tasks_create_schedule`. See `toolsetOf`.
+   */
+  toolset?: string;
   description: string;
   /** Deletes or overwrites data. Only meaningful for writes. */
   destructive?: boolean;
@@ -125,18 +130,21 @@ export const MCP_TOOLS: readonly McpTool[] = [
   // SOKD-369: schedules, files, follow, participants, workspace, summary, due dates.
   {
     name: "tasks_summary",
+    toolset: "task-views",
     operation: "GET /tasks/summary",
     description:
       "Count a workspace's Tasks over the last 24 hours, with the 24 hours before for a trend. `scope`: `owned` (default) or `workspace`.",
   },
   {
     name: "tasks_view",
+    toolset: "task-views",
     operation: "GET /tasks/view",
     description:
       "Get the Tasks page view the signed-in user last chose in a workspace, as a query string.",
   },
   {
     name: "tasks_set_view",
+    toolset: "task-views",
     operation: "PUT /tasks/view",
     description:
       "Save the Tasks page view the signed-in user sees next in a workspace: `body.query`, a URL query string without `?`.",
@@ -144,6 +152,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "tasks_move_overdue",
+    toolset: "task-views",
     operation: "POST /tasks/due-dates/move-overdue",
     description:
       "Move the signed-in user's overdue open Tasks to a new due day: `body.today` and `body.to` (YYYY-MM-DD). At most 100. Keep the returned moves to undo with tasks_undo_move_overdue.",
@@ -151,6 +160,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "tasks_undo_move_overdue",
+    toolset: "task-views",
     operation: "POST /tasks/due-dates/undo",
     description:
       "Undo tasks_move_overdue: `body.to` and `body.tasks` (`id`, `from`, `version`) from its result. A Task changed since keeps its day.",
@@ -158,12 +168,14 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "tasks_list_schedules",
+    toolset: "task-schedules",
     operation: "GET /tasks/schedules",
     description:
       "List a workspace's Task Schedules, the repeating rules that create Tasks. Filter by `state`, `projectId` or `q`; pass `cursor` for the next page.",
   },
   {
     name: "tasks_create_schedule",
+    toolset: "task-schedules",
     operation: "POST /tasks/schedules",
     description:
       "Spends workspace credits. Each Run creates a Task that may start a paid Coworker or audit, with no approval at the Run. Create a Task Schedule: `body.name`, `body.rule.expr` (five-field cron, read in `body.rule.timezone`) and the blueprint of each Task, such as `body.description` and `body.assigneeId` from tasks_schedule_assignees. Confirm the rule and assignee with the person first.",
@@ -171,18 +183,21 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "tasks_schedule_assignees",
+    toolset: "task-schedules",
     operation: "GET /tasks/schedules/assignees",
     description:
       "List the Coworkers and Soko Bot a Task Schedule in a workspace can assign its Tasks to.",
   },
   {
     name: "tasks_get_schedule",
+    toolset: "task-schedules",
     operation: "GET /tasks/schedules/{id}",
     description:
       "Get a Task Schedule with its rule, blueprint, state, next Run and `revision`.",
   },
   {
     name: "tasks_update_schedule",
+    toolset: "task-schedules",
     operation: "PATCH /tasks/schedules/{id}",
     description:
       "Change a Task Schedule's name, blueprint or rule. `body.expectedRevision` from tasks_get_schedule; `body.rule` replaces the whole rule. Future Runs only.",
@@ -190,18 +205,21 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "tasks_delete_schedule",
+    toolset: "task-schedules",
     operation: "DELETE /tasks/schedules/{id}",
     description:
       "Delete a Task Schedule. The Tasks it created stay. Use tasks_end_schedule to stop it and keep it readable.",
   },
   {
     name: "tasks_pause_schedule",
+    toolset: "task-schedules",
     operation: "POST /tasks/schedules/{id}/pause",
     description:
       "Pause an active Task Schedule. No Run creates a Task while it is paused.",
   },
   {
     name: "tasks_resume_schedule",
+    toolset: "task-schedules",
     operation: "POST /tasks/schedules/{id}/resume",
     description:
       "Spends workspace credits. Each Run creates a Task that may start a paid Coworker or audit, with no approval at the Run. Resume a paused Task Schedule from its next Run after now; it ends instead when its end rule passed. Confirm with the person first.",
@@ -209,18 +227,21 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "tasks_end_schedule",
+    toolset: "task-schedules",
     operation: "POST /tasks/schedules/{id}/end",
     description:
       "End a Task Schedule for good. It stays readable with the Tasks it created.",
   },
   {
     name: "tasks_schedule_runs",
+    toolset: "task-schedules",
     operation: "GET /tasks/schedules/{id}/runs",
     description:
       "List a Task Schedule's Runs in time order: past ones with their Tasks, skipped and moved ones, and planned ones. Filter by `from` and `to`; pass `cursor` for the next page.",
   },
   {
     name: "tasks_run_schedule",
+    toolset: "task-schedules",
     operation: "POST /tasks/schedules/{id}/runs",
     description:
       "Spends workspace credits. Run a Task Schedule now: create one extra Task at once, which may start a paid Coworker or audit. `body.expectedRevision` from tasks_get_schedule. Confirm with the person first.",
@@ -228,6 +249,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "tasks_update_schedule_run",
+    toolset: "task-schedules",
     operation: "PATCH /tasks/schedules/{id}/runs/{runId}",
     description:
       "Skip, move or restore one planned Run: `body.action` (`skip`, `move` with `body.scheduledAt`, `restore`) and `body.expectedRevision`. The rule stays.",
@@ -242,12 +264,14 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "tasks_join",
+    toolset: "task-sharing",
     operation: "POST /tasks/{id}/participants",
     description:
       "Join a Task as a participant: the signed-in user gets its notifications.",
   },
   {
     name: "tasks_leave",
+    toolset: "task-sharing",
     operation: "DELETE /tasks/{id}/participants/{userId}",
     description:
       "Leave a Task as a participant. `userId` is the signed-in user's id from users_get.",
@@ -255,30 +279,35 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "tasks_follow",
+    toolset: "task-sharing",
     operation: "POST /tasks/{id}/follow",
     description:
       "Follow a Task with the signed-in user's personal Soko Bot, which reports its moments to them. Needs a Soko Bot in the Task's workspace.",
   },
   {
     name: "tasks_unfollow",
+    toolset: "task-sharing",
     operation: "DELETE /tasks/{id}/follow",
     description: "Stop following a Task with the signed-in user's Soko Bot.",
     destructive: false,
   },
   {
     name: "tasks_send_to_chat",
+    toolset: "task-sharing",
     operation: "POST /tasks/{id}/chat-messages",
     description:
       "Post a link to a Task, with an optional `body.note`, into a chat room the signed-in user belongs to: `body.roomId` and a unique `body.clientMessageId`. It mentions no one and starts no agent.",
   },
   {
     name: "tasks_workspace",
+    toolset: "task-sharing",
     operation: "GET /tasks/{id}/workspace",
     description:
       "Find which workspace a Task is in, across the workspaces the signed-in user can open.",
   },
   {
     name: "tasks_set_workspace",
+    toolset: "task-sharing",
     operation: "PUT /tasks/{id}/workspace",
     description:
       "Move a Task to another workspace: `body.organizationId`, or null for the personal workspace. Only its owner may move it.",
@@ -292,11 +321,13 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "tasks_files",
+    toolset: "task-files",
     operation: "GET /tasks/{id}/files",
     description: "List the files uploaded to a Task, newest first.",
   },
   {
     name: "tasks_upload_url",
+    toolset: "task-files",
     operation: "POST /tasks/{id}/files",
     description:
       "Get an upload URL for a Task file: `body.filename`, `body.contentType` and `body.size` in bytes (at most 100 MB). PUT the bytes to `uploadUrl` with the returned headers; the file then shows in tasks_files.",
@@ -438,11 +469,13 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "coworkers_list_api_keys",
+    toolset: "coworker-access",
     operation: "GET /coworkers/{id}/api-keys",
     description: "List a Coworker's API keys, without their secrets.",
   },
   {
     name: "coworkers_revoke_api_key",
+    toolset: "coworker-access",
     operation: "DELETE /coworkers/{id}/api-keys/{keyId}",
     description:
       "Revoke a Coworker API key. Anything using it stops working. `keyId` from coworkers_list_api_keys.",
@@ -472,6 +505,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "coworkers_update_api_key",
+    toolset: "coworker-access",
     operation: "PATCH /coworkers/{id}/api-keys/{keyId}",
     description:
       "Rename a Coworker API key or change its expiry: `body.name`, `body.expiresAt` (null for none). `keyId` from coworkers_list_api_keys.",
@@ -479,12 +513,14 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "coworkers_list_access",
+    toolset: "coworker-access",
     operation: "GET /coworkers/{id}/workspace-access",
     description:
       "List the workspaces a Coworker can work in, or has asked to, with each grant's status.",
   },
   {
     name: "coworkers_revoke_access",
+    toolset: "coworker-access",
     operation: "POST /coworkers/{id}/workspace-access/revoke",
     description:
       "Take a Coworker's access to a workspace away. `body.organizationSlug` names an organization workspace; `body.userId` a personal one.",
@@ -623,18 +659,21 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_ads_accounts",
+    toolset: "ads",
     operation: "GET /projects/{id}/ads/accounts",
     description:
       "List the Google Ads and Meta ad accounts attached to a Project.",
   },
   {
     name: "projects_ads_campaigns",
+    toolset: "ads",
     operation: "GET /projects/{id}/ads/accounts/{accountId}/campaigns",
     description:
       "List an ad account's campaigns with spend, impressions, clicks, CTR, CPC and conversions over `range`. Money is in the account currency.",
   },
   {
     name: "projects_ads_campaign",
+    toolset: "ads",
     operation:
       "GET /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}",
     description:
@@ -642,6 +681,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_ads_locations",
+    toolset: "ads",
     operation:
       "GET /projects/{id}/ads/accounts/{accountId}/targeting/locations",
     description:
@@ -649,6 +689,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_ads_languages",
+    toolset: "ads",
     operation:
       "GET /projects/{id}/ads/accounts/{accountId}/targeting/languages",
     description:
@@ -656,70 +697,82 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_ads_market",
+    toolset: "ads",
     operation: "GET /projects/{id}/ads/market",
     description:
       "Get a Project's ads market profile: keywords, country and language. `profile` is null until a person saves one.",
   },
   {
     name: "projects_image_studio",
+    toolset: "image-studio",
     operation: "GET /projects/{id}/image-studio",
     description:
       "Get a Project's Image Studio: versions, recent generation jobs and their assets, and the Studio conversations of this Project.",
   },
   {
     name: "projects_image_studio_batch",
+    toolset: "image-studio",
     operation: "GET /projects/{id}/image-studio/batches/{batchId}/assets",
     description: "List the images one Image Studio generation batch produced.",
   },
   {
     name: "projects_image_studio_compare",
+    toolset: "image-studio",
     operation: "GET /projects/{id}/image-studio/batches/{batchId}/compare",
     description:
       "Get the next pair of images from a batch that the signed-in person has not compared yet; `pair` is null when none is left.",
   },
   {
     name: "projects_image_studio_scoreboard",
+    toolset: "image-studio",
     operation: "GET /projects/{id}/image-studio/model-scoreboard",
     description:
       "Rank image models for a Project by the workspace members' side-by-side picks. Under ten comparisons is provisional.",
   },
   {
     name: "projects_image_studio_brand_kit",
+    toolset: "image-studio",
     operation: "GET /projects/{id}/image-studio/brand-kit",
     description:
       "Get a Project's brand kit: logo, colors, fonts, summary, tone, audience and approved lines.",
   },
   {
     name: "projects_image_studio_website_copy",
+    toolset: "image-studio",
     operation: "GET /projects/{id}/image-studio/brand-kit/website-copy",
     description:
       "Read a summary and candidate lines from the Project's website, for its brand kit. Fetches the website.",
   },
   {
     name: "projects_image_studio_website_draft",
+    toolset: "image-studio",
     operation: "GET /projects/{id}/image-studio/website-draft",
     description:
       "Draft a brand kit and product list from the Project's website. Fetches the website; saves nothing.",
   },
   {
     name: "projects_image_studio_products",
+    toolset: "image-studio",
     operation: "GET /projects/{id}/image-studio/products",
     description: "List a Project's product catalog in the Image Studio.",
   },
   {
     name: "projects_image_studio_talking_videos",
+    toolset: "image-studio",
     operation: "GET /projects/{id}/image-studio/talking-videos",
     description:
       "List a Project's talking videos, newest first. Pass the oldest job's createdAt as `before` and its id as `beforeId` for the next 30.",
   },
   {
     name: "projects_social_connections",
+    toolset: "social",
     operation: "GET /projects/{id}/social-connections",
     description:
       "List a Project's connected social accounts (provider, name, avatar, status). Connecting and disconnecting stay with a person.",
   },
   {
     name: "projects_social_connection_subscription",
+    toolset: "social",
     operation:
       "GET /projects/{id}/social-connections/{connectionId}/subscription",
     description:
@@ -727,6 +780,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_social_connection_tiktok_creator",
+    toolset: "social",
     operation:
       "GET /projects/{id}/social-connections/{connectionId}/tiktok-creator",
     description:
@@ -734,6 +788,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_social_connection_suggested_times",
+    toolset: "social",
     operation:
       "GET /projects/{id}/social-connections/{connectionId}/suggested-times",
     description:
@@ -741,29 +796,34 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_social_statistics",
+    toolset: "social",
     operation: "GET /projects/{id}/social-connections/statistics",
     description:
       "Read a Project's cached social account metrics and published posts, including posts made outside Sokosumi. Does not refresh from the providers.",
   },
   {
     name: "projects_social_posts",
+    toolset: "social",
     operation: "GET /projects/{id}/social-posts",
     description:
       "List a Project's Social posts with their status, text, media and schedule. Filter with `status`, `provider` or `search`.",
   },
   {
     name: "projects_social_post",
+    toolset: "social",
     operation: "GET /projects/{id}/social-posts/{postId}",
     description: "Get one Social post of a Project.",
   },
   {
     name: "projects_social_posts_statistics",
+    toolset: "social",
     operation: "GET /projects/{id}/social-posts/statistics",
     description:
       "Read cached lifetime statistics of a Project's published Social posts, filtered by publication date.",
   },
   {
     name: "projects_social_queue_slots",
+    toolset: "social",
     operation: "GET /projects/{id}/social-queue-slots",
     description: "List a Project's weekly posting-queue times.",
   },
@@ -1109,6 +1169,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   // SOKD-385: Image Studio generations (ADR 0077: credits are the cap).
   {
     name: "projects_image_studio_generate",
+    toolset: "image-studio",
     operation: "POST /projects/{id}/image-studio/jobs",
     description:
       "Spends workspace credits. Start an Image Studio image for a Project from `body.prompt`. Send a fresh `body.idempotencyKey` (8 to 200 characters) per image and the same one on a retry: a repeat returns the first job instead of buying another. Refused when the balance cannot cover it and the jobs already running.",
@@ -1116,6 +1177,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_image_studio_video",
+    toolset: "image-studio",
     operation: "POST /projects/{id}/image-studio/video-jobs",
     description:
       "Spends workspace credits. Start an Image Studio video from `body.prompt`, or animate a Studio image with `body.sourceAssetId`. Send a fresh `body.idempotencyKey` per video and the same one on a retry: a repeat returns the first job.",
@@ -1123,6 +1185,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_image_studio_short_video",
+    toolset: "image-studio",
     operation: "POST /projects/{id}/image-studio/short-video-jobs",
     description:
       "Spends workspace credits. Start a short vertical video: a voice reads `body.script` over the Project's pictures and site, in `body.format`. Send a fresh `body.idempotencyKey` per video and the same one on a retry: a repeat returns the first job.",
@@ -1130,6 +1193,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_image_studio_talking_video",
+    toolset: "image-studio",
     operation: "POST /projects/{id}/image-studio/talking-video-jobs",
     description:
       "Spends workspace credits. Start a talking video: a presenter speaks `body.script`. Use a stock presenter (`presenter.kind` `stock`). A photo of a real person (`file`) is person-only: an agent gets 403 `person_approval_required` with a link to send the person to. Send a fresh `body.idempotencyKey` per video and the same one on a retry: a repeat returns the first job.",
@@ -1137,6 +1201,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_image_studio_cancel",
+    toolset: "image-studio",
     operation: "POST /projects/{id}/image-studio/jobs/{jobId}/cancel",
     description:
       "Ask to stop a queued or running Image Studio job. `accepted` means the provider took the request, not that the work stopped.",
@@ -1220,12 +1285,14 @@ export const MCP_TOOLS: readonly McpTool[] = [
   // SOKD-383: an agent drafts, plans and cancels Social posts and cancels newsletters (ADR 0077).
   {
     name: "projects_social_post_create",
+    toolset: "social",
     operation: "POST /projects/{id}/social-posts",
     description:
       "Draft a Social post for a Project; pass `scheduledAt` and `socialConnectionId` to plan it. It lands as Needs approval and publishes only after a person approves it in Sokosumi.",
   },
   {
     name: "projects_social_post_update",
+    toolset: "social",
     operation: "PATCH /projects/{id}/social-posts/{postId}",
     description:
       "Edit a Social post. `body.revision` is the revision you last read. The post goes back to Needs approval, whatever its status was.",
@@ -1233,18 +1300,21 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_social_post_schedule",
+    toolset: "social",
     operation: "POST /projects/{id}/social-posts/{postId}/schedule",
     description:
       "Plan a Social post for a time on a connected account. It lands as Needs approval and publishes at that time only after a person approves it.",
   },
   {
     name: "projects_social_post_queue",
+    toolset: "social",
     operation: "POST /projects/{id}/social-posts/{postId}/queue",
     description:
       "Plan a Social post in its account's next free queue slot. It lands as Needs approval.",
   },
   {
     name: "projects_social_post_cancel",
+    toolset: "social",
     operation: "POST /projects/{id}/social-posts/{postId}/cancel",
     description:
       "Cancel a draft, planned or Needs approval Social post so it never publishes, or dismiss a failed or missed one.",
@@ -1252,18 +1322,21 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_social_post_duplicate",
+    toolset: "social",
     operation: "POST /projects/{id}/social-posts/{postId}/duplicate",
     description:
       "Copy a published, failed or missed Social post into a new post that needs approval.",
   },
   {
     name: "projects_social_post_statistics_refresh",
+    toolset: "social",
     operation: "POST /projects/{id}/social-posts/{postId}/statistics/refresh",
     description:
       "Fetch a published Social post's latest performance counters from its account.",
   },
   {
     name: "projects_social_account_post_recycle",
+    toolset: "social",
     operation:
       "POST /projects/{id}/social-account-posts/{accountPostId}/recycle",
     description:
@@ -1271,6 +1344,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_social_queue_slots_update",
+    toolset: "social",
     operation: "PUT /projects/{id}/social-queue-slots",
     description:
       "Replace a Project's weekly posting-queue times. Send the whole list: a time left out is removed.",
@@ -1278,6 +1352,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_social_connection_statistics_refresh",
+    toolset: "social",
     operation:
       "POST /projects/{id}/social-connections/{connectionId}/statistics/refresh",
     description:
@@ -1285,6 +1360,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_newsletter_issue_cancel",
+    toolset: "newsletter",
     operation: "POST /projects/{id}/newsletter/issues/{issueId}/cancel",
     description:
       "Stop a scheduled newsletter issue before it sends. It goes back to a draft that a person approves again.",
@@ -1444,12 +1520,14 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_brand_brain",
+    toolset: "project-brand",
     operation: "GET /projects/{id}/brand-brain",
     description:
       "Read a Project's Brand Brain: what it knows about the business (summary, voice, audience, products, competitors, channels), its open yes/no questions, and who confirmed it.",
   },
   {
     name: "projects_set_brand_brain",
+    toolset: "project-brand",
     operation: "PUT /projects/{id}/brand-brain",
     description:
       "Save a Project's Brand Brain. Each section in `body.brandBrain` replaces its own; answers to its questions are kept. Read it with projects_brand_brain first and send it back changed.",
@@ -1457,42 +1535,49 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_answer_brand_brain",
+    toolset: "project-brand",
     operation: "POST /projects/{id}/brand-brain/answers",
     description:
       "Answer one of the Brand Brain's yes/no questions with the person's answer: `body.questionId`, `body.answer` (yes, no or unsure) and an optional `body.note`. Ask the person; do not guess.",
   },
   {
     name: "projects_competitors",
+    toolset: "project-brand",
     operation: "GET /projects/{id}/competitors",
     description:
       "The competitors a Project tracks, this week's moves, what the weekly checks found with sources, and whether the paid weekly check is on and what it costs.",
   },
   {
     name: "projects_add_competitor",
+    toolset: "project-brand",
     operation: "POST /projects/{id}/competitors",
     description:
       "Track a competitor: `body.name`, and optionally its website, pricing page, Instagram and Facebook handles. The next weekly check reads it.",
   },
   {
     name: "projects_update_competitor",
+    toolset: "project-brand",
     operation: "PATCH /projects/{id}/competitors/{competitorId}",
     description:
       "Change a tracked competitor's name, website, pricing page or handles. Null or an empty string clears a field.",
   },
   {
     name: "projects_remove_competitor",
+    toolset: "project-brand",
     operation: "DELETE /projects/{id}/competitors/{competitorId}",
     description:
       "Stop tracking a competitor. What the checks found about it is kept.",
   },
   {
     name: "projects_restore_competitor",
+    toolset: "project-brand",
     operation: "POST /projects/{id}/competitors/{competitorId}/restore",
     description:
       "Undo a projects_remove_competitor: send back the `removal` number it answered with as `body.removal`. 409 if a later removal happened, the name is taken or the limit is reached.",
   },
   {
     name: "projects_competitor_checks",
+    toolset: "project-brand",
     operation: "PUT /projects/{id}/competitors/checks",
     description:
       "Spends workspace credits. Turn the weekly competitor check on (`body.on: true`) or off. On, the first check starts at once and each competitor costs credits every week; projects_competitors shows the price. Confirm with the person first.",
@@ -1500,6 +1585,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_check_competitors",
+    toolset: "project-brand",
     operation: "POST /projects/{id}/competitors/check",
     description:
       "Spends workspace credits. Run the weekly competitor check now when one is due, charged like every weekly check. Takes up to a few minutes. Confirm with the person first.",
@@ -1507,30 +1593,35 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_suggest_competitors",
+    toolset: "project-brand",
     operation: "POST /projects/{id}/competitors/suggestions",
     description:
       "Suggest competitors from the Project's website. Free; adds nothing. Add the ones the person picks with projects_add_competitor.",
   },
   {
     name: "projects_strategies",
+    toolset: "project-brand",
     operation: "GET /projects/{id}/marketing-strategies",
     description:
       "List the versions of a Project's Marketing strategy, newest first, without their plans. At most one is approved.",
   },
   {
     name: "projects_create_strategy",
+    toolset: "project-brand",
     operation: "POST /projects/{id}/marketing-strategies",
     description:
       "Write a new version of a Project's Marketing strategy as `body.plan` (month, summary, goals, pillars, channels, calendar, ...). Nothing runs until an owner approves it in Sokosumi.",
   },
   {
     name: "projects_strategy",
+    toolset: "project-brand",
     operation: "GET /projects/{id}/marketing-strategies/{strategyId}",
     description:
       "Get one version of a Project's Marketing strategy with its plan and yes/no questions.",
   },
   {
     name: "projects_answer_strategy",
+    toolset: "project-brand",
     operation: "POST /projects/{id}/marketing-strategies/{strategyId}/answers",
     description:
       "Answer one of a strategy version's yes/no questions with the person's answer: `body.questionId`, `body.answer` (yes, no or unsure) and an optional `body.note`. Ask the person; do not guess.",
@@ -1667,6 +1758,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   // Meta outside Sokosumi credits, so these are destructive and say so first.
   {
     name: "projects_ads_campaign_create",
+    toolset: "ads",
     operation: "POST /projects/{id}/ads/accounts/{accountId}/campaigns",
     description:
       "Can lead to ad spend once a person resumes the campaign. Create a campaign in a Project's attached ad account; it is always created paused. `body.name` and `body.dailyBudget` (decimal in the account currency), plus `body.objective` for Meta or `body.google` for Google. A person resumes it in Sokosumi.",
@@ -1675,6 +1767,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_ads_campaign_update",
+    toolset: "ads",
     operation:
       "PATCH /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}",
     description:
@@ -1684,6 +1777,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: "projects_ads_campaign_edit",
+    toolset: "ads",
     operation:
       "PUT /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}",
     description:
@@ -3284,17 +3378,29 @@ export const MCP_TOOLS: readonly McpTool[] = [
 ];
 
 /** Route groups with a hyphen, which their tool names spell with `_`. */
-const HYPHENATED_TOOLSETS = ["image-studio", "soko-bots"];
+const HYPHENATED_GROUPS = ["image-studio", "soko-bots"];
 
-/** A tool's toolset: the route group its name starts with. */
-export function toolsetOf(name: string): string {
+/**
+ * The route group a tool name starts with: the `agent-surface/<group>.json`
+ * manifest that binds it.
+ */
+export function routeGroupOf(name: string): string {
   return (
-    HYPHENATED_TOOLSETS.find((group) =>
+    HYPHENATED_GROUPS.find((group) =>
       name.startsWith(`${group.replaceAll("-", "_")}_`),
     ) ??
     name.split("_", 1)[0] ??
     name
   );
+}
+
+const TOOLSET_BY_NAME = new Map(
+  MCP_TOOLS.map((tool) => [tool.name, tool.toolset ?? routeGroupOf(tool.name)]),
+);
+
+/** A tool's toolset: its `toolset`, otherwise its route group. */
+export function toolsetOf(name: string): string {
+  return TOOLSET_BY_NAME.get(name) ?? routeGroupOf(name);
 }
 
 /** Every toolset, in registry order. */
