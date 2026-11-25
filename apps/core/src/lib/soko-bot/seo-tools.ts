@@ -42,6 +42,24 @@ const PROVIDER_BACKED_SEO_TOOLS = new Set<SokoBotSeoCapability>([
   "sync_seo_statistics",
 ]);
 
+/**
+ * The workspace as Soko Bot reads it. A speed table row's `why` is the SEO worker's free text: it can carry
+ * instructions for a model, so only the SEO page gets it.
+ */
+async function botSeoWorkspace(
+  ...args: Parameters<typeof getProjectSeoWorkspace>
+) {
+  const workspace = await getProjectSeoWorkspace(...args);
+  if (!workspace.siteSpeed) return workspace;
+  return {
+    ...workspace,
+    siteSpeed: {
+      ...workspace.siteSpeed,
+      rows: workspace.siteSpeed.rows.map(({ why: _why, ...row }) => row),
+    },
+  };
+}
+
 /** Chat and the SEO page share authorization, validation and durable operations. */
 export async function runSeoTool(
   capability: SokoBotSeoCapability,
@@ -65,10 +83,7 @@ export async function runSeoTool(
   const link = `/seo?projectId=${encodeURIComponent(projectId)}&view=project`;
   if (capability === "get_seo_workspace") {
     return {
-      ...(await getProjectSeoWorkspace(
-        actor,
-        seoWorkspaceQuerySchema.parse(fields),
-      )),
+      ...(await botSeoWorkspace(actor, seoWorkspaceQuerySchema.parse(fields))),
       link,
     };
   }
@@ -83,7 +98,7 @@ export async function runSeoTool(
   // A receipt proves the write. Replays reauthorize and read current state,
   // rather than returning private evidence cached before a permission change.
   if (replay)
-    return { ...(await getProjectSeoWorkspace(actor)), link, replayed: true };
+    return { ...(await botSeoWorkspace(actor)), link, replayed: true };
   let result: unknown;
   switch (capability) {
     case "record_seo_page_change":
@@ -169,7 +184,7 @@ export async function runSeoTool(
       ? (result as { id?: string; taskId?: string })
       : {};
   return {
-    ...(await getProjectSeoWorkspace(actor)),
+    ...(await botSeoWorkspace(actor)),
     link,
     result: {
       id: identity.id,
