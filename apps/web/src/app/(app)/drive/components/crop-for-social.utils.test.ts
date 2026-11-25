@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   croppedFileName,
   cropRect,
+  dragPosition,
   isCroppableImage,
   SOCIAL_SHAPES,
 } from "@/app/drive/components/crop-for-social.utils";
@@ -46,6 +47,26 @@ describe("cropRect", () => {
   it("clamps the position into 0..1", () => {
     expect(cropRect(2000, 1000, shape("square"), -3).x).toBe(0);
     expect(cropRect(2000, 1000, shape("square"), 9).x).toBe(1000);
+  });
+});
+
+describe("dragPosition", () => {
+  // A frame half as wide as the image: its travel is the other half.
+  it("centres the frame on a tap outside it", () => {
+    expect(dragPosition({ at: 0.6, frame: 0.5, start: null })).toBeCloseTo(0.7);
+  });
+
+  it("moves a grabbed frame by the pointer's travel, without a jump", () => {
+    expect(
+      dragPosition({ at: 0.6, frame: 0.5, start: { at: 0.5, position: 0.5 } }),
+    ).toBeCloseTo(0.7);
+  });
+
+  it("stops the frame at the image's edges", () => {
+    expect(dragPosition({ at: 0, frame: 0.5, start: null })).toBe(0);
+    expect(
+      dragPosition({ at: 1, frame: 0.5, start: { at: 0.1, position: 0.5 } }),
+    ).toBe(1);
   });
 });
 

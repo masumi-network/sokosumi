@@ -128,6 +128,20 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       });
       const placed = Number(await position.inputValue());
       assert.ok(placed > 60 && placed < 95, `crop placed at ${placed}`);
+      // Dragging the frame on the photo moves it too; the slider follows.
+      const photo = await crop
+        .getByRole("img", { name: "beach.png" })
+        .boundingBox();
+      assert.ok(photo);
+      const middle = photo.y + photo.height / 2;
+      await page.mouse.move(photo.x + photo.width * 0.75, middle);
+      await page.mouse.down();
+      await page.mouse.move(photo.x + photo.width * 0.25, middle, {
+        steps: 5,
+      });
+      await page.mouse.up();
+      const dragged = Number(await position.inputValue());
+      assert.ok(dragged < 20, `crop dragged to ${dragged}`);
       await shot(page, size, "1-crop");
 
       await crop.getByRole("button", { name: "Save copy" }).click();

@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Crop, Loader2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { RadioGroup } from "radix-ui";
-import { type RefObject, useRef, useState } from "react";
+import { type PointerEvent, type RefObject, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   CROP_MAX_BYTES,
@@ -13,6 +13,7 @@ import {
   croppedFileName,
   croppedType,
   cropRect,
+  dragPosition,
   isCroppableImage,
   SOCIAL_SHAPES,
   type SocialShapeId,
@@ -29,6 +30,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toolbarButtonClassName } from "@/components/ui/image-viewer";
+import { cn } from "@/lib/utils";
 import {
   isDriveFileUploadDuplicate,
   uploadDriveFile,
@@ -166,6 +168,8 @@ function CropDialogContent({
         imageRef={imageRef}
         rect={rect}
         size={size}
+        position={position}
+        onPosition={setPosition}
         onSize={setSize}
         onError={() => setFailed(true)}
       />
@@ -294,6 +298,8 @@ function CropStage({
   imageRef,
   rect,
   size,
+  position,
+  onPosition,
   onSize,
   onError,
 }: {
@@ -303,9 +309,53 @@ function CropStage({
   imageRef: RefObject<HTMLImageElement | null>;
   rect: CropRect | null;
   size: { width: number; height: number } | null;
+  position: number;
+  onPosition: (position: number) => void;
   onSize: (size: { width: number; height: number }) => void;
   onError: () => void;
 }) {
+  const drag = useRef<{ at: number; position: number } | null>(null);
+  const axis = rect?.axis ?? null;
+
+  /** The pointer and the frame as fractions along the frame's axis. */
+  function measure(event: PointerEvent<HTMLDivElement>) {
+    if (!rect || !size || !axis) return null;
+    const box = event.currentTarget.getBoundingClientRect();
+    return axis === "x"
+      ? {
+          at: (event.clientX - box.left) / box.width,
+          from: rect.x / size.width,
+          frame: rect.width / size.width,
+        }
+      : {
+          at: (event.clientY - box.top) / box.height,
+          from: rect.y / size.height,
+          frame: rect.height / size.height,
+        };
+  }
+
+  // Direct framing for pointers; the slider below stays the keyboard and
+  // single-tap way to do the same (WCAG 2.5.7).
+  function onPointerDown(event: PointerEvent<HTMLDivElement>) {
+    const at = measure(event);
+    if (!at || event.button !== 0) return;
+    const grabbed = at.at >= at.from && at.at <= at.from + at.frame;
+    const next = grabbed ? position : dragPosition({ ...at, start: null });
+    drag.current = { at: at.at, position: next };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    onPosition(next);
+  }
+
+  function onPointerMove(event: PointerEvent<HTMLDivElement>) {
+    const at = measure(event);
+    if (!at || !drag.current) return;
+    onPosition(dragPosition({ ...at, start: drag.current }));
+  }
+
+  function endDrag() {
+    drag.current = null;
+  }
+
   return (
     <div className="bg-muted flex min-h-48 items-center justify-center rounded-md p-2">
       {problem ? (
@@ -313,7 +363,18 @@ function CropStage({
           {problem}
         </p>
       ) : (
-        <div className="relative w-fit overflow-hidden rounded-sm">
+        <div
+          className={cn(
+            "relative w-fit overflow-hidden rounded-sm",
+            // Keep the other axis free so the dialog still scrolls on touch.
+            axis === "x" && "cursor-grab touch-pan-y active:cursor-grabbing",
+            axis === "y" && "cursor-grab touch-pan-x active:cursor-grabbing",
+          )}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+        >
           {/* Not next/image: authorized same-origin bytes the canvas reads. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img

@@ -125,6 +125,29 @@ describe("CropForSocial", () => {
     );
   });
 
+  it("places the crop by tapping or dragging the photo", async () => {
+    const user = userEvent.setup();
+    renderCrop();
+    await openWithWideImage(user);
+    // Square on 2000 x 1000: the frame is half the photo, which shows 200 px wide.
+    const stage = screen.getByTestId("crop-frame").parentElement as HTMLElement;
+    vi.spyOn(stage, "getBoundingClientRect").mockReturnValue(
+      DOMRect.fromRect({ x: 0, y: 0, width: 200, height: 100 }),
+    );
+    const position = screen.getByRole("slider", { name: "positionX" });
+
+    // A tap right of the frame centres it there, as far as the edge allows.
+    fireEvent.pointerDown(stage, { pointerId: 1, clientX: 190, clientY: 50 });
+    expect(position).toHaveValue("100");
+    // Dragging moves it with the pointer; the slider follows.
+    fireEvent.pointerMove(stage, { pointerId: 1, clientX: 140, clientY: 50 });
+    expect(position).toHaveValue("50");
+    fireEvent.pointerUp(stage, { pointerId: 1, clientX: 140, clientY: 50 });
+    // Moving without a press changes nothing.
+    fireEvent.pointerMove(stage, { pointerId: 1, clientX: 0, clientY: 50 });
+    expect(position).toHaveValue("50");
+  });
+
   it("places the crop at any point of its travel without a drag", async () => {
     const user = userEvent.setup();
     renderCrop();

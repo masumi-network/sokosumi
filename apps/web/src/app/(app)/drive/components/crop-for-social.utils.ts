@@ -54,6 +54,29 @@ export function cropRect(
   return { x: 0, y: 0, width: imageWidth, height: imageHeight, axis: null };
 }
 
+/**
+ * Where a pointer on the photo puts the frame, as a `cropRect` position.
+ * Fractions run along the frame's axis: `at` is the pointer, `frame` the
+ * frame's length. With a `start` (the frame was grabbed) the frame follows the
+ * pointer's travel; without one it centres on the pointer, as after a tap.
+ */
+export function dragPosition({
+  at,
+  frame,
+  start,
+}: {
+  at: number;
+  frame: number;
+  start: { at: number; position: number } | null;
+}): number {
+  const travel = 1 - frame;
+  if (travel <= 0) return 0;
+  const position = start
+    ? start.position + (at - start.at) / travel
+    : (at - frame / 2) / travel;
+  return Math.min(1, Math.max(0, position));
+}
+
 const CROPPABLE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 /** Photos only: SVG has no fixed pixels and a GIF would lose its frames. */
