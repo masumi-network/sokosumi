@@ -288,17 +288,40 @@ function isScope(expression: ts.Expression, bindings: ts.TypeChecker): boolean {
   return !!initializer && isScope(initializer, bindings);
 }
 
+function scopeSideName(
+  name: string | undefined,
+): "networkDb" | "sharedDb" | undefined {
+  if (name === "networkDb" || name === "sharedDb") return name;
+}
+
 function scopeSide(
   expression: ts.Expression,
   bindings: ts.TypeChecker,
-): boolean {
+): "networkDb" | "sharedDb" | undefined {
   expression = unwrap(expression);
-  if (!isMemberAccess(expression)) return false;
-  const name = memberName(expression);
-  return (
-    (name === "networkDb" || name === "sharedDb") &&
-    isScope(expression.expression, bindings)
-  );
+  if (isMemberAccess(expression)) {
+    const side = scopeSideName(memberName(expression));
+    return side && isScope(expression.expression, bindings) ? side : undefined;
+  }
+  if (!ts.isIdentifier(expression)) return;
+  const declaration = declarationOf(expression, bindings);
+  if (
+    declaration &&
+    ts.isBindingElement(declaration) &&
+    !declaration.initializer &&
+    !declaration.dotDotDotToken &&
+    ts.isObjectBindingPattern(declaration.parent)
+  ) {
+    const key = declaration.propertyName ?? declaration.name;
+    const side =
+      ts.isIdentifier(key) || ts.isStringLiteralLike(key)
+        ? scopeSideName(key.text)
+        : undefined;
+    const initializer = constInitializer(declaration.parent.parent, expression);
+    if (side && initializer && isScope(initializer, bindings)) return side;
+  }
+  const initializer = constInitializer(declaration, expression);
+  return initializer ? scopeSide(initializer, bindings) : undefined;
 }
 
 function isPrismaClient(
@@ -568,6 +591,7 @@ it("keeps the Network allowlists from growing or going stale", () => {
   const defaultCalls = new Map<string, string[]>();
   const relations = new Map<string, string[]>();
   const networkDbPicks: string[] = [];
+  const clientsInTransactions: string[] = [];
 
   for (const source of program.getSourceFiles()) {
     const calls: string[] = [];
@@ -583,7 +607,17 @@ it("keeps the Network allowlists from growing or going stale", () => {
     function reportRelation(node: ts.Node, reason: string): void {
       crossings.add(`${location(node)} ${reason}`);
     }
-    function visit(node: ts.Node): void {
+    function visit(node: ts.Node, insideTransaction = false): void {
+      // A nested function can run after the transaction ends.
+      if (ts.isFunctionLike(node))
+        insideTransaction = callbackTransaction(node, bindings);
+      if (
+        insideTransaction &&
+        (ts.isIdentifier(node) || isMemberAccess(node))
+      ) {
+        const side = scopeSide(node, bindings);
+        if (side) clientsInTransactions.push(`${location(node)} ${side}`);
+      }
       if (ts.isCallExpression(node)) {
         const operation = unwrap(node.expression);
         if (isMemberAccess(operation)) {
@@ -617,7 +651,7 @@ it("keeps the Network allowlists from growing or going stale", () => {
       if (ts.isParameter(node) && isNetworkDbPick(node.type, bindings)) {
         networkDbPicks.push(location(node));
       }
-      ts.forEachChild(node, visit);
+      ts.forEachChild(node, (child) => visit(child, insideTransaction));
     }
     visit(source);
     if (calls.length) defaultCalls.set(file, calls);
@@ -641,6 +675,12 @@ it("keeps the Network allowlists from growing or going stale", () => {
     .soft(
       networkDbPicks,
       "Take NetworkDb whole so the parameter retains its brand.",
+    )
+    .toEqual([]);
+  expect
+    .soft(
+      clientsInTransactions,
+      "Use the transaction callback's client in place of the scope client.",
     )
     .toEqual([]);
 });
