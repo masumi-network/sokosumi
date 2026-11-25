@@ -22473,12 +22473,16 @@ export const FundraisingPipelineSchema = {
             items: {
                 $ref: '#/components/schemas/FundraisingProspect'
             }
+        },
+        research: {
+            $ref: '#/components/schemas/FundraisingResearch'
         }
     },
     required: [
         'list',
         'rooms',
-        'prospects'
+        'prospects',
+        'research'
     ]
 } as const;
 
@@ -22647,6 +22651,30 @@ export const FundraisingDataRoomVisitSchema = {
     ]
 } as const;
 
+export const FundraisingResearchSchema = {
+    type: 'object',
+    properties: {
+        monthUsd: {
+            type: 'number'
+        },
+        capUsd: {
+            type: 'number'
+        },
+        perSearchUsd: {
+            type: 'number'
+        },
+        exaConfigured: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'monthUsd',
+        'capUsd',
+        'perSearchUsd',
+        'exaConfigured'
+    ]
+} as const;
+
 export const FundraisingProspectUpdateSchema = {
     type: 'object',
     properties: {
@@ -22696,6 +22724,75 @@ export const FundraisingProspectUpdateSchema = {
             maxLength: 120
         }
     }
+} as const;
+
+export const FundraisingFindResultSchema = {
+    type: 'object',
+    properties: {
+        found: {
+            type: 'integer'
+        },
+        costUsd: {
+            type: 'number'
+        },
+        research: {
+            $ref: '#/components/schemas/FundraisingResearch'
+        }
+    },
+    required: [
+        'found',
+        'costUsd',
+        'research'
+    ]
+} as const;
+
+export const FundraisingFindInputSchema = {
+    type: 'object',
+    properties: {
+        brief: {
+            type: 'string',
+            minLength: 10,
+            maxLength: 1500
+        },
+        size: {
+            anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        10
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        25
+                    ]
+                }
+            ],
+            default: 10
+        }
+    },
+    required: [
+        'brief'
+    ]
+} as const;
+
+export const FundraisingSuggestionIdsSchema = {
+    type: 'object',
+    properties: {
+        ids: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            minItems: 1,
+            maxItems: 100
+        }
+    },
+    required: [
+        'ids'
+    ]
 } as const;
 
 export const HistoryListSchema = {
