@@ -695,6 +695,58 @@ describe("the guards of speed data on each path", () => {
     expect(JSON.stringify([fresh, stored])).not.toContain(SECRET);
   });
 
+  it("drops a lab insight with credential material in its id, its group or a percent-encoded text, fresh and stored", () => {
+    const insight = {
+      id: "unused-javascript",
+      title: "Reduce unused JavaScript",
+      detail: "Potential savings of 108 KiB.",
+      action: "Defer scripts until they are needed.",
+    };
+    const encoded = encodeURIComponent(SECRET).replaceAll("_", "%5F");
+    const leaks = [
+      { ...insight, id: "card-4242424242424242" },
+      { ...insight, id: "leak-group", group: `Group ${SECRET}` },
+      { ...insight, id: "leak-title", title: `Use the key ${encoded}` },
+      { ...insight, id: "leak-detail", detail: `Key ${encoded}` },
+    ];
+    const speed = section(EXTRA);
+    const fresh = read([
+      extra(EXTRA, {
+        speed: {
+          ...speed,
+          mobile: {
+            ...speed.mobile,
+            lab: {
+              ...speed.mobile.lab,
+              pageSpeed: {
+                sourceRecord: "c".repeat(64),
+                scores: { performance: 72 },
+                insights: [...leaks, insight],
+              },
+            },
+          },
+        },
+      }),
+    ])?.rows[0]?.devices[0];
+    const measured = {
+      status: "measured",
+      median,
+      pageSpeed: { scores: { performance: 72 }, insights: [insight] },
+    };
+    expect(fresh?.lab).toMatchObject(measured);
+    const old = JSON.parse(JSON.stringify(fresh));
+    old.lab.pageSpeed.insights = [...leaks, insight];
+    const stored = publicSeoPayloadSchema.parse(
+      storedAudit(
+        [{ url: EXTRA, audited: false, devices: [old] }],
+        [{ ...old, pageUrl: SEO_TEST_PAGE, testedUrl: SEO_TEST_PAGE }],
+      ),
+    );
+    expect(stored.pageSpeed?.[0]?.lab).toMatchObject(measured);
+    expect(stored.siteSpeed?.rows[0]?.devices[0]?.lab).toMatchObject(measured);
+    expect(JSON.stringify([fresh, stored])).not.toMatch(/4242|leak-|%5F/);
+  });
+
   it("applies the cap and the one row per page of a fresh import to a stored table", () => {
     const row = (url: string) => ({ url, audited: false, devices: [] });
     const twice = storedRows([row(EXTRA), row(EXTRA)]);

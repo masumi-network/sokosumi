@@ -66,17 +66,33 @@ export function speedFieldUrl(value: unknown) {
     : undefined;
 }
 
-/** A lab insight whose title, detail and action are public text without private or credential material. */
+/** Public text without private or credential material, as written and percent-decoded. */
+function publicInsightText(text: unknown) {
+  if (typeof text !== "string") return false;
+  let decoded = text;
+  try {
+    decoded = decodeURIComponent(text);
+  } catch {
+    // Text that cannot be decoded gets the checks as written.
+  }
+  return [text, decoded].every(
+    (form) =>
+      publicExplorationText(form) && !containsSokoBotSensitiveMaterial(form),
+  );
+}
+
+/** A lab insight whose id, group (when given), title, detail and action are public text. */
 export function publicSpeedInsight(value: unknown) {
   const insight = reportObject(value);
   return (
     !!insight &&
-    [insight.title, insight.detail, insight.action].every(
-      (text) =>
-        typeof text === "string" &&
-        publicExplorationText(text) &&
-        !containsSokoBotSensitiveMaterial(text),
-    )
+    [
+      insight.id,
+      ...(insight.group === undefined ? [] : [insight.group]),
+      insight.title,
+      insight.detail,
+      insight.action,
+    ].every(publicInsightText)
   );
 }
 

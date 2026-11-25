@@ -124,9 +124,8 @@ function details(raw: unknown) {
     Array.isArray(row.insights) ? row.insights.slice(0, 20) : []
   ).flatMap((value) => {
     const parsed = speedInsight.safeParse(value);
-    return parsed.success && publicSpeedInsight(parsed.data)
-      ? [parsed.data]
-      : [];
+    // The guard reads the worker's insight: the parsed one has no group.
+    return parsed.success && publicSpeedInsight(value) ? [parsed.data] : [];
   });
   return {
     scores: scores.success ? scores.data : {},
