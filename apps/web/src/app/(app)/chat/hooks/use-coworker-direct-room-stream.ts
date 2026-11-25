@@ -1,13 +1,18 @@
 "use client";
 
-import { useChat } from "@ai-sdk/react";
+import { Chat, useChat } from "@ai-sdk/react";
 import type {
   ChatRoom,
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
   ChatRoomUserParticipant,
 } from "@sokosumi/core-client";
-import { DefaultChatTransport, type FileUIPart, type UIMessage } from "ai";
+import {
+  DefaultChatTransport,
+  type FileUIPart,
+  generateId,
+  type UIMessage,
+} from "ai";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -57,7 +62,7 @@ function streamParentStorageKey(roomId: string): string {
   return `sokosumi:room-stream-parent:${roomId}`;
 }
 
-export function readStoredStreamParentMessageId(roomId: string): string | null {
+function readRawStoredStreamParent(roomId: string): string | null {
   if (typeof sessionStorage === "undefined") {
     return null;
   }
@@ -69,6 +74,15 @@ export function readStoredStreamParentMessageId(roomId: string): string | null {
   }
 }
 
+export function readStoredStreamParentMessageId(roomId: string): string | null {
+  const raw = readRawStoredStreamParent(roomId);
+  if (!raw) {
+    return null;
+  }
+  const spaceIndex = raw.indexOf(" ");
+  return spaceIndex === -1 ? raw : raw.slice(0, spaceIndex) || null;
+}
+
 export function writeStoredStreamParentMessageId(
   roomId: string,
   parentMessageId: string | null,
@@ -78,8 +92,9 @@ export function writeStoredStreamParentMessageId(
   }
   try {
     const key = streamParentStorageKey(roomId);
-    if (parentMessageId) {
-      sessionStorage.setItem(key, parentMessageId);
+    const trimmed = parentMessageId?.trim();
+    if (trimmed) {
+      sessionStorage.setItem(key, `${trimmed} ${generateId()}`);
     } else {
       sessionStorage.removeItem(key);
     }
@@ -349,6 +364,100 @@ export interface UseCoworkerDirectRoomStreamResult {
   retryFailedStreamMessage: () => void;
 }
 
+interface CoworkerRoomChatDeps {
+  getOrganizationSlug: () => string | null;
+  getFallbackErrorMessage: () => string;
+  onFailure: (roomId: string, reason: string) => void;
+  onStreamSettled: (roomId: string) => boolean | Promise<boolean>;
+  clearStreamParent: () => void;
+}
+
+function createCoworkerRoomChat(
+  roomId: string | null,
+  deps: CoworkerRoomChatDeps,
+): Chat<UIMessage> {
+  const transport = new DefaultChatTransport<UIMessage>({
+    api: CHAT_API_PATH,
+    credentials: "include",
+    headers: () => {
+      const slug = deps.getOrganizationSlug();
+      return slug
+        ? { "x-organization-slug": slug }
+        : ({} as Record<string, string>);
+    },
+    prepareSendMessagesRequest({ messages, body }) {
+      return {
+        body: {
+          ...(body ?? {}),
+          roomId,
+          id: roomId ?? undefined,
+          messages,
+        },
+      };
+    },
+    prepareReconnectToStreamRequest() {
+      const slug = deps.getOrganizationSlug();
+      const headers = slug
+        ? ({ "x-organization-slug": slug } as Record<string, string>)
+        : undefined;
+      const rid = roomId?.trim() ?? "";
+      if (!rid) {
+        return {
+          api: CHAT_NO_RESUMABLE_STREAM_PATH,
+          credentials: "include" as RequestCredentials,
+          headers,
+        };
+      }
+      return {
+        api: `/api/chat/${rid}/stream`,
+        credentials: "include" as RequestCredentials,
+        headers,
+      };
+    },
+  });
+
+  const chat = new Chat<UIMessage>({
+    id: roomId ?? "coworker-direct-idle",
+    transport,
+    onError(error) {
+      const reason =
+        coworkerStreamErrorMessage(error) ?? deps.getFallbackErrorMessage();
+      if (roomId) {
+        writeStoredStreamParentMessageId(roomId, null);
+        // Keep streamParentMessageId: the failed reply stays in its thread.
+        deps.onFailure(roomId, reason);
+      }
+      toast.error(reason);
+    },
+    async onFinish({ isError, messages: finished }) {
+      if (!roomId) {
+        return;
+      }
+      const storedAtFinish = readRawStoredStreamParent(roomId);
+      // Keep stream overlay until persisted messages merge — clearing first
+      // blanks the transcript for the await gap (or forever if refetch fails).
+      const settled = await deps.onStreamSettled(roomId);
+      if (isError || !settled) {
+        // On error, refresh only: the failed overlay row stays until Retry or
+        // the next send. If Core saved the message, the merge marks that saved
+        // row (matched by client_message_id) instead, keeping its quote.
+        return;
+      }
+      if (chat.messages !== finished || chat.status !== "ready") {
+        return;
+      }
+      chat.messages = [];
+      if (readRawStoredStreamParent(roomId) !== storedAtFinish) {
+        return;
+      }
+      writeStoredStreamParentMessageId(roomId, null);
+      deps.clearStreamParent();
+    },
+  });
+
+  return chat;
+}
+
 export function useCoworkerDirectRoomStream({
   room,
   enabled,
@@ -357,9 +466,9 @@ export function useCoworkerDirectRoomStream({
   onStreamSettled,
 }: UseCoworkerDirectRoomStreamParams): UseCoworkerDirectRoomStreamResult {
   const t = useTranslations("App.Channels");
+  const tRef = useRef(t);
+  tRef.current = t;
   const roomId = enabled && room ? room.id : null;
-  const roomIdRef = useRef(roomId);
-  roomIdRef.current = roomId;
   // Which room we have already fired a `message_start` for this mount.
   // Every room already counted this mount. A single ref held only the last
   // room, so switching A -> B -> A fired message_start for A twice.
@@ -399,49 +508,18 @@ export function useCoworkerDirectRoomStream({
     setStreamParentMessageId(readStoredStreamParentMessageId(roomId));
   }, [roomId]);
 
-  const transport = useMemo(
+  const chat = useMemo(
     () =>
-      new DefaultChatTransport({
-        api: CHAT_API_PATH,
-        credentials: "include",
-        headers: () => {
-          const slug = organizationSlugRef.current;
-          return slug
-            ? { "x-organization-slug": slug }
-            : ({} as Record<string, string>);
-        },
-        prepareSendMessagesRequest({ messages, body }) {
-          const id = roomIdRef.current;
-          return {
-            body: {
-              ...(body ?? {}),
-              roomId: id,
-              id: id ?? undefined,
-              messages,
-            },
-          };
-        },
-        prepareReconnectToStreamRequest({ id }) {
-          const slug = organizationSlugRef.current;
-          const headers = slug
-            ? ({ "x-organization-slug": slug } as Record<string, string>)
-            : undefined;
-          const rid = (roomIdRef.current ?? id)?.trim() ?? "";
-          if (!rid) {
-            return {
-              api: CHAT_NO_RESUMABLE_STREAM_PATH,
-              credentials: "include" as RequestCredentials,
-              headers,
-            };
-          }
-          return {
-            api: `/api/chat/${rid}/stream`,
-            credentials: "include" as RequestCredentials,
-            headers,
-          };
-        },
+      createCoworkerRoomChat(roomId, {
+        getOrganizationSlug: () => organizationSlugRef.current,
+        getFallbackErrorMessage: () => tRef.current("Outbound.noReply"),
+        onFailure: (failedRoomId, reason) =>
+          setFailure({ roomId: failedRoomId, reason }),
+        onStreamSettled: (settledRoomId) =>
+          onStreamSettledRef.current(settledRoomId),
+        clearStreamParent: () => setStreamParentMessageId(null),
       }),
-    [],
+    [roomId],
   );
 
   const {
@@ -451,53 +529,18 @@ export function useCoworkerDirectRoomStream({
     status,
     setMessages,
     resumeStream,
+    stop,
   } = useChat({
-    id: roomId ?? "coworker-direct-idle",
+    chat,
     // Drive resume ourselves keyed on roomId — AI SDK's `resume` effect only
     // re-fires when the boolean flips, so room A→B would skip reconnect.
     resume: false,
-    transport,
-    onError(error) {
-      const failedRoomId = roomIdRef.current;
-      const reason = coworkerStreamErrorMessage(error) ?? t("Outbound.noReply");
-      if (failedRoomId) {
-        writeStoredStreamParentMessageId(failedRoomId, null);
-        // Keep streamParentMessageId: the failed reply stays in its thread.
-        setFailure({ roomId: failedRoomId, reason });
-      }
-      toast.error(reason);
-    },
-    async onFinish({ isError }) {
-      const settledRoomId = roomIdRef.current;
-      if (!settledRoomId) {
-        return;
-      }
-      if (isError) {
-        // Refresh only: the failed overlay row stays until Retry or the next
-        // send. If Core saved the message, the merge marks that saved row
-        // (matched by client_message_id) instead, keeping its quote.
-        await onStreamSettledRef.current(settledRoomId);
-        return;
-      }
-      // Keep stream overlay until persisted messages merge — clearing first
-      // blanks the transcript for the await gap (or forever if refetch fails).
-      const settled = await onStreamSettledRef.current(settledRoomId);
-      if (settled && roomIdRef.current === settledRoomId) {
-        writeStoredStreamParentMessageId(settledRoomId, null);
-        setMessages([]);
-        setStreamParentMessageId(null);
-      }
-    },
   });
 
   const isStreaming = status === "submitted" || status === "streaming";
 
-  const clearStreamOverlay = useCallback(() => {
-    setMessages([]);
-  }, [setMessages]);
-
-  // Leave: drop overlay. Enter: reconnect to Core active stream (Thinking…).
-  useCoworkerStreamResume(roomId, resumeStream, clearStreamOverlay);
+  // Enter: reconnect to Core active stream (Thinking…). Leave/hide: abort it.
+  useCoworkerStreamResume(roomId, resumeStream, stop);
 
   const currentUser = useMemo(() => {
     if (!room) {
@@ -608,7 +651,7 @@ export function useCoworkerDirectRoomStream({
         messageStartFiredRoomsRef.current.add(roomId);
         fireGTMEvent.messageStart(roomId);
       }
-      // Shared useChat instance — clear leftover turns so a failed settle cannot
+      // Clear leftover turns on this room's Chat so a failed settle cannot
       // retag prior top-level UI messages with a new thread parentMessageId.
       setMessages([]);
       setFailure(null);

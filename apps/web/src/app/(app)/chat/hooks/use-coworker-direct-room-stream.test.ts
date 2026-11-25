@@ -256,11 +256,33 @@ describe("createResumePendingCoworkerShell", () => {
 });
 
 describe("stream parent sessionStorage helpers", () => {
-  it("round-trips parent id and clears on null", () => {
+  it("round-trips parent id with a per-turn token and clears on null", () => {
     writeStoredStreamParentMessageId("room-1", "parent-1");
+    const firstRaw = sessionStorage.getItem(
+      "sokosumi:room-stream-parent:room-1",
+    );
+    expect(firstRaw).toMatch(/^parent-1 \S+$/);
     expect(readStoredStreamParentMessageId("room-1")).toBe("parent-1");
+
+    // Rewriting the same parent id produces a distinct per-turn token.
+    writeStoredStreamParentMessageId("room-1", "parent-1");
+    const secondRaw = sessionStorage.getItem(
+      "sokosumi:room-stream-parent:room-1",
+    );
+    expect(secondRaw).toMatch(/^parent-1 \S+$/);
+    expect(secondRaw).not.toBe(firstRaw);
+    expect(readStoredStreamParentMessageId("room-1")).toBe("parent-1");
+
     writeStoredStreamParentMessageId("room-1", null);
     expect(readStoredStreamParentMessageId("room-1")).toBeNull();
+  });
+
+  it("reads legacy un-tokenized stored parent ids", () => {
+    sessionStorage.setItem(
+      "sokosumi:room-stream-parent:room-legacy",
+      "parent-9",
+    );
+    expect(readStoredStreamParentMessageId("room-legacy")).toBe("parent-9");
   });
 
   it("ignores blank stored values", () => {

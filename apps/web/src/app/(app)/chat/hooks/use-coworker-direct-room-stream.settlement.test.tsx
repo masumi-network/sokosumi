@@ -381,18 +381,20 @@ describe("useCoworkerDirectRoomStream settlement", () => {
     expect(host.current.streamOverlayMessages).toHaveLength(2);
 
     // Mid-stream re-entry to room A routes the resumed stream to parent-2.
-    let resumedStream!: ControlledStream;
-    transportState.reconnectQueue.push(async (options) => {
-      resumedStream = createControlledStream(options.abortSignal);
-      resumedStream.emitText("asst-2", "Still working");
-      return resumedStream.stream;
-    });
-
     act(() => {
       host.switchRoom(roomB);
     });
-    act(() => {
+    let resumedStream: ControlledStream | null = null;
+    transportState.reconnectQueue.push(async (options) => {
+      resumedStream = createControlledStream(options.abortSignal);
+      return resumedStream.stream;
+    });
+    await act(async () => {
       host.switchRoom(roomA);
+    });
+    await waitFor(() => expect(resumedStream).not.toBeNull());
+    act(() => {
+      resumedStream?.emitText("asst-2", "Still working");
     });
 
     await waitFor(() => {
@@ -405,8 +407,8 @@ describe("useCoworkerDirectRoomStream settlement", () => {
       ]);
     });
 
-    act(() => {
-      resumedStream.finishOpenText("asst-2");
+    await act(async () => {
+      resumedStream?.finishOpenText("asst-2");
     });
   });
 
@@ -500,7 +502,6 @@ describe("useCoworkerDirectRoomStream settlement", () => {
     });
 
     writeStoredStreamParentMessageId("room-b", "parent-b");
-    let roomBStream!: ControlledStream;
 
     const { result, rerender } = renderHook(
       ({ room }: { room: ChatRoom }) =>
@@ -528,16 +529,22 @@ describe("useCoworkerDirectRoomStream settlement", () => {
     );
 
     // Room B has a live resumable stream when switched to in place.
+    let roomBStream: ControlledStream | null = null;
     transportState.reconnectQueue.push(async (options) => {
       roomBStream = createControlledStream(options.abortSignal);
-      roomBStream.emitText("asst-b", "Room B live");
       return roomBStream.stream;
     });
 
     selectedRoomId = "room-b";
-    rerender({ room: roomB });
+    await act(async () => {
+      rerender({ room: roomB });
+    });
 
     await waitFor(() => expect(settledRooms).toEqual(["room-a"]));
+    await waitFor(() => expect(roomBStream).not.toBeNull());
+    act(() => {
+      roomBStream?.emitText("asst-b", "Room B live");
+    });
     await waitFor(() => {
       expect(result.current.activeStreamParentMessageId).toBe("parent-b");
       expect(readStoredStreamParentMessageId("room-b")).toBe("parent-b");
@@ -549,8 +556,8 @@ describe("useCoworkerDirectRoomStream settlement", () => {
       ]);
     });
 
-    act(() => {
-      roomBStream.close();
+    await act(async () => {
+      roomBStream?.close();
     });
   });
 

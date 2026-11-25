@@ -1,47 +1,85 @@
 import type { ChatRoom } from "@sokosumi/core-client";
-import { act, renderHook } from "@testing-library/react";
-import type { UIMessage } from "ai";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
+import type { ChatTransport, UIMessage, UIMessageChunk } from "ai";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useCoworkerDirectRoomStream } from "./use-coworker-direct-room-stream";
 
-type ChatOptions = {
-  onError: (error: Error) => void;
-  onFinish: (event: { isError: boolean }) => Promise<void>;
-};
+type SendOptions = Parameters<ChatTransport<UIMessage>["sendMessages"]>[0];
+type SendHandler = (
+  options: SendOptions,
+) => Promise<ReadableStream<UIMessageChunk>>;
 
-const chat = vi.hoisted(() => ({
-  options: null as ChatOptions | null,
-  setMessages: null as ((messages: UIMessage[]) => void) | null,
-  setStatus: null as ((status: string) => void) | null,
-  sendMessage: vi.fn(),
-  regenerate: vi.fn(),
-  resumeStream: vi.fn(async () => {}),
+interface OpenStream {
+  close: () => void;
+}
+
+const transportState = vi.hoisted(() => ({
+  sendQueue: [] as SendHandler[],
+  sendCalls: [] as Array<{
+    trigger: SendOptions["trigger"];
+    body: unknown;
+    messages: UIMessage[];
+  }>,
+  openStreams: [] as OpenStream[],
   toastError: vi.fn(),
 }));
 
-vi.mock("@ai-sdk/react", async () => {
-  const { useState } = await import("react");
-  return {
-    useChat: (options: ChatOptions) => {
-      const [messages, setMessages] = useState<UIMessage[]>([]);
-      const [status, setStatus] = useState("ready");
-      chat.options = options;
-      chat.setMessages = setMessages;
-      chat.setStatus = setStatus;
-      return {
-        messages,
-        setMessages,
-        status,
-        sendMessage: chat.sendMessage,
-        regenerate: chat.regenerate,
-        resumeStream: chat.resumeStream,
-      };
+function createPendingStream(): ReadableStream<UIMessageChunk> {
+  let controller!: ReadableStreamDefaultController<UIMessageChunk>;
+  let closed = false;
+  const stream = new ReadableStream<UIMessageChunk>({
+    start(nextController) {
+      controller = nextController;
     },
+    cancel() {
+      closed = true;
+    },
+  });
+  transportState.openStreams.push({
+    close() {
+      if (!closed) {
+        closed = true;
+        controller.close();
+      }
+    },
+  });
+  return stream;
+}
+
+vi.mock("ai", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("ai")>();
+
+  class FakeDefaultChatTransport implements ChatTransport<UIMessage> {
+    readonly resumeStreamIsReplay = true;
+
+    sendMessages: ChatTransport<UIMessage>["sendMessages"] = async (
+      options,
+    ) => {
+      transportState.sendCalls.push({
+        trigger: options.trigger,
+        body: options.body,
+        messages: options.messages,
+      });
+      const handler = transportState.sendQueue.shift();
+      if (handler) {
+        return handler(options);
+      }
+      return createPendingStream();
+    };
+
+    reconnectToStream: ChatTransport<UIMessage>["reconnectToStream"] =
+      async () => null;
+  }
+
+  return {
+    ...actual,
+    DefaultChatTransport: FakeDefaultChatTransport,
   };
 });
+
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
-vi.mock("sonner", () => ({ toast: { error: chat.toastError } }));
+vi.mock("sonner", () => ({ toast: { error: transportState.toastError } }));
 vi.mock("@/lib/gtm-events", () => ({
   fireGTMEvent: { messageStart: vi.fn() },
 }));
@@ -71,6 +109,24 @@ function renderStream() {
 
 /** Send with a file and a quote, then fail after a partial reply. */
 async function sendAndFail(hook: ReturnType<typeof renderStream>) {
+  transportState.sendQueue.push(
+    async () =>
+      new ReadableStream<UIMessageChunk>({
+        start(controller) {
+          controller.enqueue({ type: "start", messageId: "a1" });
+          controller.enqueue({ type: "text-start", id: "t1" });
+          controller.enqueue({
+            type: "text-delta",
+            id: "t1",
+            delta: "Sure, fir",
+          });
+          controller.error(
+            new Error(JSON.stringify({ error: "Forbidden", message: BILLING })),
+          );
+        },
+      }),
+  );
+
   act(() => {
     hook.result.current.sendStreamMessage("Plan the launch", {
       quote: { messageId: "quoted-1" },
@@ -83,29 +139,31 @@ async function sendAndFail(hook: ReturnType<typeof renderStream>) {
       ],
     });
   });
-  act(() => {
-    chat.setMessages?.([
-      {
-        id: "u1",
-        role: "user",
-        parts: [{ type: "text", text: "Plan the launch" }],
-      },
-      {
-        id: "a1",
-        role: "assistant",
-        parts: [{ type: "text", text: "Sure, fir" }],
-      },
-    ]);
-    chat.setStatus?.("error");
-    chat.options?.onError(
-      new Error(JSON.stringify({ error: "Forbidden", message: BILLING })),
+
+  await waitFor(() => {
+    expect(hook.onStreamSettled).toHaveBeenCalledWith("room-1");
+    expect(hook.result.current.streamOverlayMessages).toHaveLength(1);
+    expect(hook.result.current.streamOverlayMessages[0]?.id).toMatch(
+      /^pending:/,
     );
   });
-  await act(async () => chat.options?.onFinish({ isError: true }));
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  transportState.sendQueue.length = 0;
+  transportState.sendCalls.length = 0;
+  transportState.openStreams.length = 0;
+  transportState.toastError.mockClear();
+  sessionStorage.clear();
+});
+
+afterEach(async () => {
+  cleanup();
+  await act(async () => {
+    for (const stream of transportState.openStreams) {
+      stream.close();
+    }
+  });
 });
 
 describe("useCoworkerDirectRoomStream failed turn", () => {
@@ -113,15 +171,17 @@ describe("useCoworkerDirectRoomStream failed turn", () => {
     const hook = renderStream();
     await sendAndFail(hook);
 
-    expect(chat.toastError).toHaveBeenCalledWith(BILLING);
+    const userMessageId = transportState.sendCalls[0]?.messages[0]?.id;
+    expect(userMessageId).toBeTruthy();
+    expect(transportState.toastError).toHaveBeenCalledWith(BILLING);
     // Refreshes Core's copy but keeps the failed row (no partial reply).
     expect(hook.onStreamSettled).toHaveBeenCalledWith("room-1");
     expect(hook.result.current.streamOverlayMessages).toEqual([
       expect.objectContaining({
-        id: "pending:u1",
+        id: `pending:${userMessageId}`,
         content: "Plan the launch",
         metadata: {
-          client_message_id: "u1",
+          client_message_id: userMessageId,
           outbound_delivery_status: "failed",
           outbound_error: BILLING,
         },
@@ -133,17 +193,21 @@ describe("useCoworkerDirectRoomStream failed turn", () => {
     const hook = renderStream();
     await sendAndFail(hook);
 
+    const userMessageId = transportState.sendCalls[0]?.messages[0]?.id;
+
     act(() => {
       hook.result.current.retryFailedStreamMessage();
       hook.result.current.retryFailedStreamMessage();
     });
-    act(() => chat.setStatus?.("submitted"));
 
-    expect(chat.regenerate).toHaveBeenCalledTimes(1);
-    expect(chat.regenerate).toHaveBeenCalledWith({
-      body: { quote: { messageId: "quoted-1" } },
+    await waitFor(() => expect(transportState.sendCalls).toHaveLength(2));
+    expect(transportState.sendCalls[1]?.trigger).toBe("regenerate-message");
+    expect(transportState.sendCalls[1]?.body).toEqual({
+      quote: { messageId: "quoted-1" },
     });
-    expect(hook.result.current.streamOverlayMessages[0]?.id).toBe("stream:u1");
+    expect(hook.result.current.streamOverlayMessages[0]?.id).toBe(
+      `stream:${userMessageId}`,
+    );
   });
 
   it("drops the failure when the next message is sent", async () => {
@@ -157,27 +221,31 @@ describe("useCoworkerDirectRoomStream failed turn", () => {
       hook.result.current.retryFailedStreamMessage();
     });
 
-    expect(chat.regenerate).not.toHaveBeenCalled();
-    expect(chat.sendMessage).toHaveBeenLastCalledWith(
-      { text: "Something else" },
-      undefined,
-    );
+    await waitFor(() => expect(transportState.sendCalls).toHaveLength(2));
+    expect(transportState.sendCalls[1]?.trigger).toBe("submit-message");
+    expect(transportState.sendCalls[1]?.body).toBeUndefined();
+    expect(transportState.sendCalls[1]?.messages[0]?.parts).toEqual([
+      { type: "text", text: "Something else" },
+    ]);
   });
 
   it("falls back to a no-reply reason when the error has no text", async () => {
     const hook = renderStream();
-    act(() => {
-      hook.result.current.sendStreamMessage("Hi");
-      chat.setMessages?.([
-        { id: "u2", role: "user", parts: [{ type: "text", text: "Hi" }] },
-      ]);
-      chat.setStatus?.("error");
-      chat.options?.onError(new Error(""));
+    transportState.sendQueue.push(async () => {
+      throw new Error("");
     });
 
-    expect(chat.toastError).toHaveBeenCalledWith("Outbound.noReply");
-    expect(
-      hook.result.current.streamOverlayMessages[0]?.metadata,
-    ).toMatchObject({ outbound_error: "Outbound.noReply" });
+    act(() => {
+      hook.result.current.sendStreamMessage("Hi");
+    });
+
+    await waitFor(() => {
+      expect(transportState.toastError).toHaveBeenCalledWith(
+        "Outbound.noReply",
+      );
+      expect(
+        hook.result.current.streamOverlayMessages[0]?.metadata,
+      ).toMatchObject({ outbound_error: "Outbound.noReply" });
+    });
   });
 });

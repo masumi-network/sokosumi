@@ -4,19 +4,21 @@ import { useEffect } from "react";
 
 /**
  * Reconnects `useCoworkerDirectRoomStream` to Core's active stream when
- * entering a coworker room, and clears the overlay when leaving (`roomId` is
- * `null`).
+ * entering a coworker room, and stops the active stream on room switch,
+ * unmount, or Activity hide.
  */
 export function useCoworkerStreamResume(
   roomId: string | null,
   resumeStream: () => Promise<void>,
-  clearOverlay: () => void,
+  stop: () => Promise<void>,
 ): void {
   useEffect(() => {
     if (!roomId) {
-      clearOverlay();
       return;
     }
     void resumeStream();
-  }, [roomId, resumeStream, clearOverlay]);
+    return () => {
+      void stop();
+    };
+  }, [roomId, resumeStream, stop]);
 }
