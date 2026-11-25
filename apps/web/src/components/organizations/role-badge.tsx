@@ -7,7 +7,7 @@ export function OrganizationRoleBadge({ role }: { role: string | null }) {
   const t = useTranslations("Components.Organizations.Role");
 
   if (role === MemberRole.OWNER) {
-    return <Badge variant="default">{t("owner")}</Badge>;
+    return <Badge variant="muted">{t("owner")}</Badge>;
   }
 
   if (role === MemberRole.ADMIN) {
