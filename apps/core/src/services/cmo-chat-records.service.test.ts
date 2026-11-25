@@ -312,6 +312,17 @@ describe("background runs", () => {
     ]);
   });
 
+  it.each(["DONE: Nothing to add.", "Nothing to add.", null])(
+    "leaves out a finished run that reported %s",
+    async (finalAnswer) => {
+      db.sokoBotTurn.findMany.mockResolvedValue([
+        run("COMPLETED", { completedAt: at(40), finalAnswer }),
+      ]);
+
+      await expect(listCmoChatRecords(cuso)).resolves.toEqual([]);
+    },
+  );
+
   it.each([
     ["CANCELLED", "stopped"],
     ["FAILED", "failed"],
