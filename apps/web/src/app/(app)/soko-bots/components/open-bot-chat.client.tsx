@@ -29,20 +29,20 @@ export function ChatWithBotButton({
   sokoBotId,
   label,
   errorLabel,
-  variant,
+  size,
   className,
 }: {
   sokoBotId: string;
   label: string;
   errorLabel: string;
-  variant?: "primary" | "default";
+  size?: "default" | "sm";
   className?: string;
 }) {
   const { open, isPending } = useOpenBotChat(sokoBotId, errorLabel);
   return (
     <Button
       type="button"
-      variant={variant}
+      size={size}
       disabled={isPending}
       onClick={open}
       className={className}

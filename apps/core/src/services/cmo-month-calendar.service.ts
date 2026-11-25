@@ -10,7 +10,6 @@ import {
   type CmoVolumeLevel,
   cmoMonthFloor,
   cmoVolumeLevelForTier,
-  isCmoShortVideoFormat,
 } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import { generateText, Output } from "ai";
@@ -388,23 +387,16 @@ export function cmoMonthCalendarProblems(
 }
 
 /**
- * The posts a month's calendar holds as `cmoMonthFloor` counts them: a
- * short video on every network it goes out on, a talking video's copies on
- * other networks not, since the floor promises them on top.
+ * The posts a month's calendar holds against `cmoMonthFloor`: a short or a
+ * talking video on every network it goes out on, since a talking video
+ * takes a short video's slot, or a Facebook post's.
  */
 export function cmoMonthPostsPlanned(
   calendar: readonly CmoCalendarEntry[],
 ): number {
   return calendar
     .filter((entry) => entry.status !== "skipped" && !entry.videoOf)
-    .reduce(
-      (sum, entry) =>
-        sum +
-        (isCmoShortVideoFormat(entry.channel, entry.format)
-          ? cmoSlotNetworks(entry).length
-          : 1),
-      0,
-    );
+    .reduce((sum, entry) => sum + cmoSlotNetworks(entry).length, 0);
 }
 
 interface WriteContext {

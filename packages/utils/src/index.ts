@@ -181,6 +181,13 @@ export {
 } from "./cmo-competitor-week.js";
 export { withoutSokosumiLinks } from "./cmo-links.js";
 export {
+  CMO_PIECE_CREDITS,
+  CMO_PLAN_CREDITS,
+  CMO_PLAN_CREDITS_KEPT,
+  cmoMonthPieceBudget,
+  cmoPieceCredits,
+} from "./cmo-month-credits.js";
+export {
   CMO_PLAIN_WORDS,
   cmoJargonIn,
   cmoPlainWordsLine,

@@ -1,6 +1,6 @@
 "use client";
 
-import { TaskStatus } from "@sokosumi/core-client";
+import { TaskPriority, TaskStatus } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { useCallback } from "react";
 import { toast } from "sonner";
@@ -56,10 +56,12 @@ export function useTaskFormSubmission(
     setCreatedTask,
     runAtLabel,
     isSaveDisabled,
-    useWizard,
-    step,
     canUseSubmitShortcut,
     draftTags,
+    priority,
+    dueOn,
+    createMore,
+    onCreateMore,
   } = model;
   const {
     workspaceTagIds,
@@ -69,7 +71,7 @@ export function useTaskFormSubmission(
     reportConflict,
   } = workspaceSelection;
   const handleSave = useCallback(async () => {
-    if (isSaveDisabled || (useWizard && step === 1)) return;
+    if (isSaveDisabled) return;
     if (
       shouldShowProjectSelect &&
       projectId === undefined &&
@@ -130,7 +132,7 @@ export function useTaskFormSubmission(
           ...(tagSuggestionReceipt ? { tagSuggestionReceipt } : {}),
           ...(copyOfTaskId ? { copyOfTaskId } : {}),
           ...(trimmedName ? { name: trimmedName } : {}),
-          description: trimmedDescription,
+          description: trimmedDescription || trimmedName,
           ...assigneeFields,
           ...(sendsPrivate
             ? {
@@ -142,6 +144,8 @@ export function useTaskFormSubmission(
           ...(hasProjectSelection ? { projectId } : {}),
           status,
           ...(runAt ? { runAt } : {}),
+          ...(priority !== TaskPriority.NONE ? { priority } : {}),
+          ...(dueOn ? { dueOn } : {}),
         });
         if (!result.ok) {
           toast.error(createFailedMessage);
@@ -156,6 +160,20 @@ export function useTaskFormSubmission(
         });
         // Confirm success in place and let the user choose when to navigate;
         // the redirect target is prefetched so it lands fast.
+        onCreated?.(createdTask.taskId);
+        if (createMore) {
+          toast.success(labels.taskCreated ?? createdTask.name, {
+            description: createdTask.name.trim() || labels.untitledTask,
+            action: labels.goToTask
+              ? {
+                  label: labels.goToTask,
+                  onClick: () => router.push(createdHref),
+                }
+              : undefined,
+          });
+          onCreateMore();
+          return;
+        }
         router.prefetch(createdHref);
         setCreatedTask({
           id: createdTask.taskId,
@@ -170,7 +188,6 @@ export function useTaskFormSubmission(
                 : labels.statusReady,
           scheduleLabel: runAtLabel ?? undefined,
         });
-        onCreated?.(createdTask.taskId);
         return;
       }
 
@@ -231,9 +248,13 @@ export function useTaskFormSubmission(
     description,
     isSaveDisabled,
     mode,
-    step,
-    useWizard,
     name,
+    priority,
+    dueOn,
+    createMore,
+    onCreateMore,
+    labels.taskCreated,
+    labels.goToTask,
     assigneeId,
     coworkerOptions,
     knownSokoBotId,

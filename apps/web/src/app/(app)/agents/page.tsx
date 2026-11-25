@@ -12,6 +12,11 @@ import {
   AGENT_TILE_GRID_CLASS,
   AgentTile,
 } from "@/components/agents/directory/agent-tile";
+import {
+  AgentsPageHeader,
+  AgentsSection,
+} from "@/components/agents/directory/agents-page";
+import { AGENTS_PAGE_CLASS } from "@/components/agents/directory/agents-page-classes";
 import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import { BotFace } from "@/components/soko-bot/bot-face";
 import {
@@ -40,47 +45,6 @@ import { Marketplace } from "./components/marketplace.client";
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Agents.Metadata");
   return { title: t("title"), description: t("description") };
-}
-
-function Section({
-  id,
-  title,
-  note,
-  tag,
-  action,
-  children,
-}: {
-  id: string;
-  title: string;
-  note: string;
-  tag?: string;
-  action?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section aria-labelledby={id} className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 px-1">
-        <div className="flex min-w-0 flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <h2
-              id={id}
-              className="text-foreground text-lg font-semibold tracking-tight"
-            >
-              {title}
-            </h2>
-            {tag ? (
-              <span className="border-border text-muted-foreground rounded-full border px-2 py-0.5 text-xs font-medium">
-                {tag}
-              </span>
-            ) : null}
-          </div>
-          <p className="text-muted-foreground text-sm text-pretty">{note}</p>
-        </div>
-        {action}
-      </div>
-      <div className={HOLDER_CLASS}>{children}</div>
-    </section>
-  );
 }
 
 function SectionLink({
@@ -118,7 +82,7 @@ async function SokoBotsSection() {
   ]);
 
   return (
-    <Section
+    <AgentsSection
       id="agents-soko-bots"
       title={t("sokoBotsTitle")}
       note={t("sokoBotsNote")}
@@ -177,7 +141,7 @@ async function SokoBotsSection() {
           )}
         </ul>
       )}
-    </Section>
+    </AgentsSection>
   );
 }
 
@@ -196,7 +160,7 @@ async function CoworkersSection() {
   );
 
   return (
-    <Section
+    <AgentsSection
       id="agents-coworkers"
       title={t("coworkersTitle")}
       note={t("coworkersNote")}
@@ -226,7 +190,7 @@ async function CoworkersSection() {
           ))}
         </ul>
       )}
-    </Section>
+    </AgentsSection>
   );
 }
 
@@ -237,7 +201,7 @@ async function MarketplaceSection() {
   ]);
 
   return (
-    <Section
+    <AgentsSection
       id="agents-marketplace"
       title={t("marketplaceTitle")}
       tag={t("external")}
@@ -251,7 +215,7 @@ async function MarketplaceSection() {
       <Marketplace
         agents={listItems.map(mapAgentListItemToCatalogBrowseAgent)}
       />
-    </Section>
+    </AgentsSection>
   );
 }
 
@@ -279,16 +243,9 @@ export default async function AgentsPage() {
   const t = await getTranslations("App.Agents.Directory");
 
   return (
-    <div className="flex w-full flex-col gap-12 pb-12 md:px-2 md:pt-2">
+    <div className={AGENTS_PAGE_CLASS}>
       <RefreshPrefetchedPage />
-      <header className="flex flex-col gap-1 px-1">
-        <h1 className="text-foreground text-2xl font-semibold tracking-tight md:text-3xl">
-          {t("title")}
-        </h1>
-        <p className="text-muted-foreground text-sm md:text-base">
-          {t("subtitle")}
-        </p>
-      </header>
+      <AgentsPageHeader title={t("title")} subtitle={t("subtitle")} />
       <Suspense fallback={<SectionFallback title={t("sokoBotsTitle")} />}>
         <SokoBotsSection />
       </Suspense>

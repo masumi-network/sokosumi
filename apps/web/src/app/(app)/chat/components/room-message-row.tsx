@@ -2266,7 +2266,14 @@ function ThreadReplyBar({
       aria-label={countLabel}
       aria-describedby={message.threadLastReplyAt ? ageId : undefined}
       className={cn(
-        "text-foreground press underline-offset-4 -mx-1 mt-1 inline-flex min-h-9 items-center gap-1.5 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
+        "text-foreground press underline-offset-4 mx-0.5 mt-1 inline-flex min-h-9 items-center gap-1.5 rounded-md px-1 py-0.5 text-xs font-medium sm:mt-1 sm:min-h-0",
+        // The bar is where focus lands when its thread closes, so its ring
+        // must show whole. The content column's `overflow-x-clip` cuts
+        // anything left of its edge: `mx-0.5` keeps the box, and its 2px
+        // ring, inside the column; `px-1 py-0.5` keep the faces clear of
+        // it. Bespoke-chip ring (DESIGN.md, Focus rings); `outline-hidden`
+        // keeps a mark in forced colors.
+        "outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:inset-ring-1 focus-visible:inset-ring-ring",
         // Unread reads as a bar, not a badge: the tint plus an inset left
         // rule gives the count an edge to sit against without adding a
         // second mark to a row that already carries reactions. The rule
@@ -2274,11 +2281,11 @@ function ThreadReplyBar({
         // `-quaternary` and `-variant` are the sidebar mention pill's pair:
         // the `-quinary` tint sat 6% above the dark background and read as
         // a faint outline round cramped text, not as a bar.
-        // `mx-0`: the plain state's `-mx-1` only lines bare text up with the
-        // message; on a painted bar it pushes the rule and the rounded edge
-        // into the content column's `overflow-x-clip`, which cuts them off.
+        // The painted bar keeps the plain state's `mx-0.5` for the same
+        // reason: a negative margin would push the rule and the rounded edge
+        // into the column's clip.
         unreadReplyCount > 0 &&
-          "bg-quinary text-foreground mx-0 rounded-lg px-2.5 py-1 font-semibold shadow-[inset_2px_0_0]",
+          "bg-quinary text-foreground rounded-lg px-2.5 py-1 font-semibold shadow-[inset_2px_0_0]",
       )}
       onClick={() => onOpenThread(message)}
     >
@@ -2788,6 +2795,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         // than 16rem that every row gives up forever so that one hovered row
         // has somewhere to put eight buttons.
         "group relative isolate -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md px-2 transition-colors hover:bg-accent",
+        // The actions trigger is screen-reader-only, so a Tab onto it would
+        // show nothing. Mark the whole row instead, the way hover does.
+        "has-[[data-message-actions-trigger]:focus-visible]:bg-accent has-[[data-message-actions-trigger]:focus-visible]:ring-2 has-[[data-message-actions-trigger]:focus-visible]:ring-ring has-[[data-message-actions-trigger]:focus-visible]:ring-inset",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isSaving && "opacity-60",
         isContinuation

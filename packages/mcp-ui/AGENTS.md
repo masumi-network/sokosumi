@@ -24,7 +24,7 @@
 ## The shell (`src/shell/`)
 
 - `mountView(id, { schema, isEmpty, empty, refreshTool, displayModes, children })` connects to the host (`ui/initialize`), validates the tool result's `structuredContent` with `schema`, and shows a skeleton, the error state (error result, cancelled call, or a result the schema rejects), the empty state (`empty` names its text), or the view.
-- `context.refresh()` re-runs `refreshTool` (the data twin) with the call's arguments through the host (`tools/call`) and shows the new result; a failure keeps the last one. It is absent when the host offers no `serverTools` or never sent the arguments.
+- `context.refresh()` re-runs `refreshTool` (the data twin) with the call's arguments through the host (`tools/call`) and shows the new result; a failure keeps the last one. It is absent when the host offers no `serverTools` or never sent the arguments. When the server answers "Unknown tool" (the twin's toolset is off), `context.missingTool` names it, and the view says which toolset to add (SOKD-419). `context.refreshStatus` is the HTTP status on the last refresh's error result, until one succeeds.
 - `displayModes` declares the modes a view supports, such as `fullscreen`; `context.displayMode` and `context.availableDisplayModes` come from the host.
 - A theme-only host-context change keeps the style variables the host sent before: `light-dark()` values follow the new theme, fixed colours do not (SOKD-417). Check it with the harness's `&styles=fixed&retheme`.
 - `context.input` holds the tool call's arguments, such as the agent id the hire form calls tools with.
@@ -33,6 +33,8 @@
 - Size: the App reports its height to the host (`autoResize`).
 - Text: every string goes through `t()` from `messages/en.json`. Dates go through `formatDateTime`, which uses the host's locale and time zone.
 - Links: open only URLs that pass `isUnderBase(url, context.webBaseUrl)`, through `context.app.openLink`.
+- A step only a person takes: an error result with `kind: "person_approval_required"` shows the shell's `approval` state, with "Review in Sokosumi" for its `details.webUrl` when that is under `webBaseUrl` (ADR 0077). No view has an approve control.
+- Task views share `src/views/task.tsx`: the assignee, initials, status words (`task.status.*`) and the Task's Web URL.
 
 ## Rules
 

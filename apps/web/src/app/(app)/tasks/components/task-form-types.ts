@@ -1,4 +1,9 @@
-import { type Task, TaskStatus, type TaskTagId } from "@sokosumi/core-client";
+import {
+  type Task,
+  type TaskPriority,
+  TaskStatus,
+  type TaskTagId,
+} from "@sokosumi/core-client";
 import type { CelebrationTaskStatus } from "@/app/tasks/components/task-created-celebration";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import {
@@ -27,17 +32,6 @@ export interface TaskFormLabels {
   unavailableAssignee: string;
   changeCoworker: string;
   noCoworkerMatches: string;
-  defaultBadge?: string;
-  modelLabel?: string;
-  hostingLabel?: string;
-  taskStepTitle?: string;
-  noResults?: string;
-  tasksTitle?: string;
-  startFromScratch?: string;
-  startFromScratchHint?: string;
-  previewExample?: string;
-  previewUse?: string;
-  previewEmpty?: string;
   status: string;
   statusDescription: string;
   statusDraft: string;
@@ -46,7 +40,6 @@ export interface TaskFormLabels {
   statusLabels?: Record<TaskStatus, string>;
   changeStatus: string;
   noStatusMatches: string;
-  back: string;
   uploadFile: string;
   uploadFileError?: string;
   uploadingFile: string;
@@ -109,6 +102,9 @@ export interface TaskFormCreateInput {
   /** ISO time the Task starts at; set only with status Queued. */
   runAt?: string;
   visibility?: "PUBLIC" | "PRIVATE";
+  priority?: TaskPriority;
+  /** `YYYY-MM-DD`. */
+  dueOn?: string;
 }
 
 export type TaskFormCreateHandler = (
@@ -139,4 +135,6 @@ export interface TaskFormProps {
   showCancel?: boolean;
   onSubmittingChange?: (isSubmitting: boolean) => void;
   onCreatedChange?: (created: boolean) => void;
+  /** Whether the title or description differs from how the form opened. */
+  onDirtyChange?: (dirty: boolean) => void;
 }

@@ -1,5 +1,11 @@
 import { AnimatePresence } from "motion/react";
-import { type ReactNode, type Ref, type RefObject, useCallback } from "react";
+import {
+  type KeyboardEventHandler,
+  type ReactNode,
+  type Ref,
+  type RefObject,
+  useCallback,
+} from "react";
 
 import { CHAT_MESSAGE_LIST_ROOM } from "@/app/chat/chat-message-list";
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
@@ -69,6 +75,8 @@ interface RoomShellLayoutProps {
    * position against the room shell, not an outer fragment.
    */
   mainEnd?: ReactNode;
+  /** Keys pressed anywhere in the room, such as Escape to close its panel. */
+  onKeyDown?: KeyboardEventHandler<HTMLDivElement>;
 }
 
 /**
@@ -76,6 +84,9 @@ interface RoomShellLayoutProps {
  * a panel's `absolute inset-0` still measures against the room shell. A closing
  * panel leaves the flow at once, and the room takes its width while it slides.
  */
+/** Marks the docked panel, so a key handler can tell focus inside it. */
+export const ROOM_SIDE_PANEL_ATTRIBUTE = "data-room-side-panel";
+
 function RoomSidePanelSlot({
   panelRef,
   children,
@@ -88,6 +99,7 @@ function RoomSidePanelSlot({
     <div
       ref={panelRef}
       inert={!isPresent}
+      data-room-side-panel=""
       className={cn(
         "contents lg:flex lg:min-h-0 lg:shrink-0",
         !isPresent && "lg:absolute lg:inset-y-0 lg:right-0",
@@ -113,6 +125,7 @@ export function RoomShellLayout({
   listContent,
   composer,
   mainEnd = null,
+  onKeyDown,
 }: RoomShellLayoutProps): React.ReactElement {
   const { mainRef, sectionRef, panelRef, listRef, composerRef } =
     useRoomPanelSlide();
@@ -239,6 +252,7 @@ export function RoomShellLayout({
       data-testid={testId}
       data-slot={dataSlot}
       className={rootClassName ?? ROOM_SHELL_ROOT_CLASSNAME}
+      onKeyDown={onKeyDown}
     >
       {beforeMain}
       {/* The app frame's `main` holds this; a second one would give screen

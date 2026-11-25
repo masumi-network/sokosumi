@@ -3,6 +3,10 @@ import { Activity, StrictMode } from "react";
 import { createPortal } from "react-dom";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
 import {
   isTaskFormPortalEventTarget,
   TaskFormModal,
@@ -202,5 +206,61 @@ describe("TaskFormModal", () => {
     } finally {
       getComputedStyleSpy.mockRestore();
     }
+  });
+});
+
+describe("TaskFormModal composer", () => {
+  function renderComposer(hasUnsavedText: () => boolean) {
+    const onOpenChange = vi.fn();
+    render(
+      <TaskFormModal
+        open
+        onOpenChange={onOpenChange}
+        title="New task"
+        cancelLabel="Cancel"
+        variant="composer"
+        hasUnsavedText={hasUnsavedText}
+      >
+        <TaskFormModalHeaderStart>
+          <span>Launch</span>
+        </TaskFormModalHeaderStart>
+        <textarea aria-label="Task name" />
+      </TaskFormModal>,
+    );
+    return onOpenChange;
+  }
+
+  it("closes at once when nothing was typed", () => {
+    const onOpenChange = renderComposer(() => false);
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("asks before throwing typed text away, and keeps it on Keep editing", () => {
+    const onOpenChange = renderComposer(() => true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("discardTitle");
+    fireEvent.click(screen.getByRole("button", { name: "keepEditing" }));
+    expect(onOpenChange).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "discard" }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("puts the breadcrumb in the header and expands on request", () => {
+    renderComposer(() => false);
+
+    expect(screen.getByText("Launch")).toBeInTheDocument();
+    const expand = screen.getByRole("button", { name: "expand" });
+    fireEvent.click(expand);
+    expect(screen.getByRole("button", { name: "collapse" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 });

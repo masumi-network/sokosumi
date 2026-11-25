@@ -5,9 +5,12 @@ import type {
 import {
   CMO_CHANNELS,
   CMO_NETWORK_VOLUME,
+  CMO_PIECE_CREDITS,
   type CmoVolumeLevel,
   type CmoVolumeNetwork,
+  cmoMonthPieceBudget,
   cmoMonthTargets,
+  cmoPieceCredits,
   cmoShortVideoFormat,
   isCmoShortVideoFormat,
   isCmoTalkingFormat,
@@ -39,12 +42,12 @@ export interface CmoMonthSlot {
 
 /** A month is four weeks: what a plan's rates are counted over. */
 export const CMO_MONTH_DAYS = 28;
-/** Talking videos a month at each plan (owner, 2026-11-25: four on every plan). */
-export const CMO_MONTH_TALKING_VIDEOS: Record<CmoVolumeLevel, number> = {
-  steady: 4,
-  active: 4,
-  all_in: 4,
-};
+/**
+ * One short video in this many is a talking video; a strategy without short
+ * videos turns one post in this many of its lead network.
+ */
+export const CMO_TALKING_EVERY_SHORT = 4;
+export const CMO_TALKING_EVERY_LEAD_POST = 3;
 
 const DAY_MS = 86_400_000;
 
@@ -228,7 +231,7 @@ export function cmoMonthPositions(input: {
   start: string;
   existing: readonly Pick<
     CmoCalendarEntry,
-    "date" | "channel" | "format" | "status"
+    "date" | "channel" | "format" | "status" | "alsoOn"
   >[];
 }): Position[] {
   const { start, level } = input;
@@ -240,9 +243,13 @@ export function cmoMonthPositions(input: {
   const held = (network: string, from: number, days: number) =>
     live.filter((entry) => {
       const day = dayIndex(start, entry.date);
-      return (
-        bucketNetwork(entry) === network && day >= from && day < from + days
-      );
+      // A talking video's Reel on Facebook stands in for a Facebook post.
+      const counts =
+        bucketNetwork(entry) === network ||
+        (network === "facebook" &&
+          isCmoTalkingFormat(entry.channel.toLowerCase(), entry.format) &&
+          Boolean(entry.alsoOn?.includes("facebook")));
+      return counts && day >= from && day < from + days;
     }).length;
   const positions: Position[] = [];
   const turn = new Map<string, number>();
@@ -315,9 +322,39 @@ export function cmoMonthPositions(input: {
 }
 
 /**
- * Turns one post a week of the lead network into a talking video that goes
- * out on every other network of the strategy that takes one, until the
- * month holds its plan's talking videos.
+ * How many talking videos a month holds: a share of its short videos (or of
+ * its lead network's posts), and never more than the plan's credits pay for
+ * beside the month's other pieces.
+ */
+export function cmoTalkingVideoCount(input: {
+  level: CmoVolumeLevel;
+  /** The month's short videos, or its lead network's posts, talking ones included. */
+  slots: number;
+  fromShorts: boolean;
+  /** Talking videos the month holds already. */
+  held: number;
+  /** What the whole month costs as it stands, in credits. */
+  credits: number;
+}): number {
+  const share = Math.floor(
+    input.slots /
+      (input.fromShorts
+        ? CMO_TALKING_EVERY_SHORT
+        : CMO_TALKING_EVERY_LEAD_POST),
+  );
+  const affordable = Math.floor(
+    Math.max(0, cmoMonthPieceBudget(input.level) - input.credits) /
+      CMO_PIECE_CREDITS.talkingVideo,
+  );
+  return Math.max(input.held, Math.min(share, input.held + affordable));
+}
+
+/**
+ * Turns short videos (or, without them, lead-network posts) into talking
+ * videos, spread evenly over the month, each on its slot's own network so
+ * it counts where the slot did. One a week also goes out on LinkedIn,
+ * which stays slow; up to half of Facebook's posts are talking Reels in
+ * place of its own; all go out on the short-video networks.
  */
 function withTalkingVideos(
   positions: Position[],
@@ -325,7 +362,10 @@ function withTalkingVideos(
     channels: MarketingStrategyPlan["channels"];
     level: CmoVolumeLevel;
     start: string;
-    existing: readonly Pick<CmoCalendarEntry, "date" | "channel" | "format">[];
+    existing: readonly Pick<
+      CmoCalendarEntry,
+      "date" | "channel" | "format" | "alsoOn"
+    >[];
   },
 ): Position[] {
   const planned = input.channels.map((channel) =>
@@ -336,41 +376,144 @@ function withTalkingVideos(
   );
   const lead = TALKING_LEADS.find((key) => takes.includes(key));
   if (!lead) return positions;
-  const talking = input.existing.filter((entry) =>
-    isCmoTalkingFormat(entry.channel.toLowerCase(), entry.format),
+  const month = [...positions, ...input.existing];
+  const isTalking = (entry: { channel: string; format: string }) =>
+    isCmoTalkingFormat(entry.channel.toLowerCase(), entry.format);
+  const fromShorts = month.some((entry) =>
+    isCmoShortVideoFormat(entry.channel.toLowerCase(), entry.format),
   );
-  let left = CMO_MONTH_TALKING_VIDEOS[input.level] - talking.length;
-  const weeks = Array.from({ length: 4 }, (_, week) => week).filter(
-    (week) =>
-      !talking.some(
-        (entry) => Math.floor(dayIndex(input.start, entry.date) / 7) === week,
-      ),
+  const isSlot = (entry: { channel: string; format: string }) => {
+    const channel = entry.channel.toLowerCase();
+    return fromShorts
+      ? isCmoShortVideoFormat(channel, entry.format)
+      : channel === lead && !isTalking(entry);
+  };
+  const talking = input.existing.filter(isTalking);
+  const open = positions.flatMap((position, index) =>
+    isSlot(position) ? [index] : [],
   );
-  // Fewer than four: every other week, so they still spread over the month.
-  const chosen =
-    left >= weeks.length
-      ? weeks
-      : weeks.filter((_, index) => index % 2 === 0).slice(0, left);
-  const leadBucket = bucketNetwork({ channel: lead, format: "talking_video" });
-  for (const week of chosen) {
-    if (left <= 0) break;
-    const at = positions.findIndex(
-      (position) =>
-        bucketNetwork(position) === leadBucket &&
-        (leadBucket === "short" || position.channel === lead) &&
-        Math.floor(dayIndex(input.start, position.date) / 7) === week,
-    );
-    if (at < 0) continue;
+  const total = cmoTalkingVideoCount({
+    level: input.level,
+    slots: open.length + input.existing.filter(isSlot).length + talking.length,
+    fromShorts,
+    held: talking.length,
+    credits: month.reduce(
+      (sum, entry) => sum + cmoPieceCredits(entry.channel, entry.format),
+      0,
+    ),
+  });
+  const left = Math.min(open.length, total - talking.length);
+  const weekOf = (date: string) => Math.floor(dayIndex(input.start, date) / 7);
+  const widelyShared = new Set(
+    talking
+      .filter((entry) => {
+        const reaches = cmoSlotNetworks(entry);
+        return takes.every(
+          (key) => key === "facebook" || reaches.includes(key),
+        );
+      })
+      .map((entry) => weekOf(entry.date)),
+  );
+  for (let turn = 0; turn < left; turn++) {
+    const at = open[Math.floor(((turn + 0.5) * open.length) / left)]!;
     const position = positions[at]!;
+    const week = weekOf(position.date);
+    const everywhere = !widelyShared.has(week);
+    if (everywhere) widelyShared.add(week);
+    const channel = position.channel.toLowerCase();
+    const networks = everywhere
+      ? takes.filter((key) => key !== "facebook")
+      : cmoSlotNetworks(position).filter((key) => takes.includes(key));
+    const alsoOn = networks.filter((key) => key !== channel);
+    const { alsoOn: _, ...rest } = position;
     positions[at] = {
-      ...position,
-      channel: lead,
+      ...rest,
+      channel,
       format: "talking_video",
-      alsoOn: takes.filter((key) => key !== lead),
+      ...(alsoOn.length > 0 ? { alsoOn } : {}),
     };
-    left -= 1;
   }
-  return positions;
+  return takes.includes("facebook")
+    ? onFacebookToo(positions, input.start, input.existing)
+    : positions;
+}
+
+/** Facebook's own formats, the first given up for a talking video's Reel. */
+const FACEBOOK_GIVES_UP = ["link", "reel", "post"];
+
+/** At most this share of Facebook's posts in a month are talking Reels. */
+export const CMO_FACEBOOK_TALKING_SHARE = 0.5;
+
+/**
+ * Sends talking videos out on Facebook as Reels too, each in place of one of
+ * Facebook's own posts that week, so Facebook keeps its pace: a link post or
+ * its weekly Reel first, a picture post only when none is left. At most half
+ * of Facebook's month is talking Reels (owner, 2026-11-25), spread evenly;
+ * the others stay on the short-video networks.
+ */
+function onFacebookToo(
+  positions: Position[],
+  start: string,
+  existing: readonly Pick<CmoCalendarEntry, "channel" | "format" | "alsoOn">[],
+): Position[] {
+  const weekOf = (date: string) => Math.floor(dayIndex(start, date) / 7);
+  const onFacebook = (entry: { format: string; alsoOn?: string[] }) =>
+    entry.format === "talking_video" &&
+    Boolean(entry.alsoOn?.includes("facebook"));
+  const facebookPosts =
+    positions.filter((position) => position.channel === "facebook").length +
+    existing.filter(
+      (entry) =>
+        entry.channel.toLowerCase() === "facebook" || onFacebook(entry),
+    ).length;
+  const room =
+    Math.floor(facebookPosts * CMO_FACEBOOK_TALKING_SHARE) -
+    existing.filter(onFacebook).length;
+  const talking = positions
+    .flatMap((position, at) =>
+      position.format === "talking_video" &&
+      position.channel !== "facebook" &&
+      !onFacebook(position)
+        ? [at]
+        : [],
+    )
+    .sort((a, b) => positions[a]!.date.localeCompare(positions[b]!.date));
+  const count = Math.min(Math.max(0, room), talking.length);
+  const chosen = Array.from(
+    { length: count },
+    (_, turn) => talking[Math.floor(((turn + 0.5) * talking.length) / count)]!,
+  );
+  const given = new Set<number>();
+  const order = (format: string) => {
+    const rank = FACEBOOK_GIVES_UP.indexOf(format);
+    return rank < 0 ? FACEBOOK_GIVES_UP.length : rank;
+  };
+  for (const index of chosen) {
+    const position = positions[index]!;
+    const week = weekOf(position.date);
+    const own = positions
+      .map((other, at) => ({ other, at }))
+      .filter(
+        ({ other, at }) =>
+          !given.has(at) &&
+          other.channel === "facebook" &&
+          other.format !== "talking_video" &&
+          weekOf(other.date) === week,
+      )
+      .sort(
+        (a, b) =>
+          order(a.other.format) - order(b.other.format) ||
+          Math.abs(dayIndex(position.date, a.other.date)) -
+            Math.abs(dayIndex(position.date, b.other.date)),
+      )[0];
+    if (!own) continue;
+    given.add(own.at);
+    positions[index] = {
+      ...position,
+      alsoOn: [...(position.alsoOn ?? []), "facebook"],
+    };
+  }
+  return positions.filter((_, at) => !given.has(at));
 }
 
 /** A Core-written entry's id: its network, day and place in the day. */

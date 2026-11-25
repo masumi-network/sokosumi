@@ -599,6 +599,36 @@ describe("RoomsClient room header chrome", () => {
     expect(screen.getByTestId("edit-channel-dialog-probe")).toBeTruthy();
   });
 
+  // Screen readers list headings and the route announcer reads the first
+  // one; without it a room was "Sokosumi - Chat" like every other room.
+  it("makes the room name the page's heading", () => {
+    renderRoom(channelRoom());
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "general",
+    );
+
+    cleanup();
+    renderRoom(humanDirectRoom());
+    const direct = screen.getByRole("heading", { level: 1 });
+    expect(direct).toHaveTextContent("Bob");
+    // A heading holds phrasing content only.
+    expect(direct.querySelector("div, p")).toBeNull();
+
+    // The self Direct's face is decoration: its initials stay out of the name.
+    cleanup();
+    renderRoom({
+      ...humanDirectRoom(),
+      isSelfDirect: true,
+      isGroupDirect: false,
+      groupName: null,
+      userMembers: [participant("user-1", "Ada")],
+      organizationId: null,
+    });
+    const self = screen.getByRole("heading", { level: 1 });
+    expect(self).toHaveAccessibleName("SelfDirect.youNamed");
+    expect(self.querySelector("div, p")).toBeNull();
+  });
+
   it("opens the members panel from a plain member's channel title", async () => {
     const user = userEvent.setup();
     renderRoom(channelRoom());
@@ -626,7 +656,10 @@ describe("RoomsClient room header chrome", () => {
     expect(title).toHaveAccessibleName("general");
     expect(title).toHaveAttribute("title", "editChannel");
     expect(subtitle).toHaveAttribute("title", "Weekly launch planning");
-    expect(title.parentElement).toContainElement(subtitle);
+    // Beside the heading, not in it: the topic is not part of the room's name.
+    const heading = screen.getByRole("heading", { level: 1 });
+    expect(heading).not.toContainElement(subtitle);
+    expect(heading.parentElement).toContainElement(subtitle);
     expect(subtitle.tagName).not.toBe("BUTTON");
     expect(
       screen.queryByRole("button", { name: "Weekly launch planning" }),

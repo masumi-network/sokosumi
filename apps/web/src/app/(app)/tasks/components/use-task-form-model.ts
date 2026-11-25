@@ -1,11 +1,18 @@
 "use client";
 
 import type { Project } from "@sokosumi/core-client";
-import { TaskStatus } from "@sokosumi/core-client";
+import { TaskPriority, TaskStatus } from "@sokosumi/core-client";
 import { taskContextSelectionResolvesAnything } from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useCallback, useId, useMemo, useRef, useState } from "react";
+import {
+  type SetStateAction,
+  useCallback,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
 import {
   isOtherHumanAssignee,
@@ -79,6 +86,7 @@ export function useTaskFormModel(
     showCancel = true,
     onSubmittingChange,
     onCreatedChange,
+    onDirtyChange,
   }: TaskFormProps,
   session: ReturnType<typeof useSession>["data"],
 ) {
@@ -98,7 +106,11 @@ export function useTaskFormModel(
   const isCopy = copyOfTaskId !== undefined;
   const workspaceKey = `${session?.user.id ?? ""}:${session?.session.activeOrganizationId ?? "personal"}`;
   const [isCreatingTag, setIsCreatingTag] = useState(false);
-  const [name, setName] = useState(initialValues?.name ?? "");
+  const initialName = initialValues?.name ?? "";
+  const [name, setNameState] = useState(initialName);
+  const [priority, setPriority] = useState<TaskPriority>(TaskPriority.NONE);
+  const [dueOn, setDueOn] = useState<string | null>(null);
+  const [createMore, setCreateMore] = useState(false);
   const [isPrivate, setIsPrivate] = useState(
     initialValues?.visibility === "PRIVATE",
   );
@@ -145,7 +157,28 @@ export function useTaskFormModel(
     );
   const initialDescription =
     initialContext?.body ?? initialValues?.description ?? "";
-  const [description, setDescription] = useState(initialDescription);
+  const [description, setDescriptionState] = useState(initialDescription);
+  // Reported from the change handlers, not an effect: the modal asks before
+  // it throws away typed text.
+  const nameRef = useRef(initialName);
+  const descriptionRef = useRef(initialDescription);
+  const reportDirty = () =>
+    onDirtyChange?.(
+      nameRef.current.trim() !== initialName.trim() ||
+        descriptionRef.current.trim() !== initialDescription.trim(),
+    );
+  const setName = (next: string) => {
+    nameRef.current = next;
+    setNameState(next);
+    reportDirty();
+  };
+  const setDescription = (action: SetStateAction<string>) => {
+    const next =
+      typeof action === "function" ? action(descriptionRef.current) : action;
+    descriptionRef.current = next;
+    setDescriptionState(next);
+    reportDirty();
+  };
   const [inlineCreatedProjects, setInlineCreatedProjects] = useState<
     ProjectFilterOption[]
   >([]);
@@ -437,6 +470,8 @@ export function useTaskFormModel(
     : null;
   const hasSaveableDescription =
     Boolean(description.trim()) ||
+    // A new Task may be just a title; it is sent as the description too.
+    (mode === "create" && Boolean(name.trim())) ||
     (mode === "edit" &&
       taskContextSelectionResolvesAnything(contextSelection, {
         projectDesignMdUrl: selectedProject?.designMd?.url ?? null,
@@ -473,29 +508,8 @@ export function useTaskFormModel(
     isSubmittingAny ||
     isUploadingAttachments;
 
-  // Two-step create flow: 1 = spotlight (pick a coworker + a ready-to-run task,
-  // or start from scratch), 2 = compose. Skip the wizard only when a coworker
-  // is prefilled (gallery offer, agents-page deep link). A prompt alone does not
-  // skip step 1 — otherwise a bad coworker slug would land on compose with the
-  // default assignee.
-  const hasPrefilledAssignee = Boolean(
-    initialValues?.assigneeId ??
-      initialValues?.assigneeSokoBotId ??
-      initialValues?.assigneeUserId,
-  );
-  const useWizard = mode === "create" && !hasPrefilledAssignee && !isCopy;
-  const [step, setStep] = useState<1 | 2>(
-    hasPrefilledAssignee || isCopy ? 2 : 1,
-  );
-  const showTaskStep = !useWizard || step === 2;
-  const useComposeLayout = mode === "create" && showTaskStep;
-  const useModalFieldFill = showTaskStep;
   const canUseSubmitShortcut =
-    showTaskStep &&
-    !isSaveDisabled &&
-    !isCreateProjectModalOpen &&
-    !isRunAtModalOpen;
-  const taskStepTitle = labels.taskStepTitle ?? "What should {name} do?";
+    !isSaveDisabled && !isCreateProjectModalOpen && !isRunAtModalOpen;
   const statusPickerLabels = useMemo(
     () =>
       Object.fromEntries(
@@ -573,19 +587,6 @@ export function useTaskFormModel(
     [coworkerOptions, runAt],
   );
   const isAssigneeLockedToAgent = runAt !== null;
-  const showAssigneePicker = mode === "edit" || isCopy;
-  const showModalCoworkerHeader =
-    useComposeLayout && selectedOption !== undefined;
-  const taskFieldsBorder =
-    showModalCoworkerHeader || showAssigneePicker ? "border-t" : "";
-  const cardLabels = useMemo(
-    () => ({
-      defaultBadge: labels.defaultBadge ?? "Default",
-      modelLabel: labels.modelLabel ?? "Model",
-      hostingLabel: labels.hostingLabel ?? "Hosting",
-    }),
-    [labels.defaultBadge, labels.modelLabel, labels.hostingLabel],
-  );
 
   const handleCancel = () => {
     abortActiveUploads();
@@ -618,6 +619,20 @@ export function useTaskFormModel(
           }),
     );
   }
+
+  // "Create more": the next Task keeps its properties and starts with an
+  // empty title and description.
+  const [composeKey, setComposeKey] = useState(0);
+  const onCreateMore = () => {
+    nameRef.current = "";
+    descriptionRef.current = "";
+    setNameState("");
+    setDescriptionState("");
+    onDirtyChange?.(false);
+    workspaceSelection.setWorkspaceTags([]);
+    setSubmittedTagReceipt(undefined);
+    setComposeKey((key) => key + 1);
+  };
 
   const handleGoToTask = () => {
     if (!createdTask) return;
@@ -664,8 +679,13 @@ export function useTaskFormModel(
     privateDescriptionId,
     contextSelection,
     setContextSelection,
-    initialDescription,
     description,
+    priority,
+    setPriority,
+    dueOn,
+    setDueOn,
+    createMore,
+    setCreateMore,
     setDescription,
     localProjectOptions,
     isCreateProjectModalOpen,
@@ -700,13 +720,6 @@ export function useTaskFormModel(
     hasRunAt,
     runAtLabel,
     isSaveDisabled,
-    useWizard,
-    step,
-    setStep,
-    showTaskStep,
-    useComposeLayout,
-    useModalFieldFill,
-    taskStepTitle,
     statusPickerLabels,
     draftTags,
     selectedOption,
@@ -717,10 +730,6 @@ export function useTaskFormModel(
     showPrivateControl,
     availableAssigneeOptions,
     isAssigneeLockedToAgent,
-    showAssigneePicker,
-    showModalCoworkerHeader,
-    taskFieldsBorder,
-    cardLabels,
     handleCancel,
     handleRunAtApply,
     handleRunAtClear,
@@ -742,5 +751,7 @@ export function useTaskFormModel(
     setSubmittedTagReceipt,
     setCreatedTask,
     canUseSubmitShortcut,
+    composeKey,
+    onCreateMore,
   };
 }
