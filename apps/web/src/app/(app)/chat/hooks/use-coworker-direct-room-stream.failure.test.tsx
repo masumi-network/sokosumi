@@ -109,10 +109,12 @@ function renderStream() {
 
 /** Send with a file and a quote, then fail after a partial reply. */
 async function sendAndFail(hook: ReturnType<typeof renderStream>) {
+  let controller!: ReadableStreamDefaultController<UIMessageChunk>;
   transportState.sendQueue.push(
     async () =>
       new ReadableStream<UIMessageChunk>({
-        start(controller) {
+        start(nextController) {
+          controller = nextController;
           controller.enqueue({ type: "start", messageId: "a1" });
           controller.enqueue({ type: "text-start", id: "t1" });
           controller.enqueue({
@@ -120,9 +122,6 @@ async function sendAndFail(hook: ReturnType<typeof renderStream>) {
             id: "t1",
             delta: "Sure, fir",
           });
-          controller.error(
-            new Error(JSON.stringify({ error: "Forbidden", message: BILLING })),
-          );
         },
       }),
   );
@@ -138,6 +137,19 @@ async function sendAndFail(hook: ReturnType<typeof renderStream>) {
         },
       ],
     });
+  });
+
+  await waitFor(() => {
+    expect(hook.result.current.streamOverlayMessages).toEqual([
+      expect.objectContaining({ content: "Plan the launch" }),
+      expect.objectContaining({ content: "Sure, fir" }),
+    ]);
+  });
+
+  act(() => {
+    controller.error(
+      new Error(JSON.stringify({ error: "Forbidden", message: BILLING })),
+    );
   });
 
   await waitFor(() => {

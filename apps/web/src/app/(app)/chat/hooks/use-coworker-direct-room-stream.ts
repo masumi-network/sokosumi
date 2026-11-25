@@ -443,11 +443,23 @@ function createCoworkerRoomChat(
         // row (matched by client_message_id) instead, keeping its quote.
         return;
       }
-      if (chat.messages !== finished || chat.status !== "ready") {
+      if (chat.status !== "ready") {
+        return;
+      }
+      const currentStored = readRawStoredStreamParent(roomId);
+      const sameStoredTurn = currentStored === storedAtFinish;
+      // Same-turn replay replaces chat.messages while keeping the turn's
+      // stored token (or first message id for top-level turns).
+      const sameTurnOverlay =
+        chat.messages === finished ||
+        (sameStoredTurn &&
+          (storedAtFinish !== null ||
+            (finished.length > 0 && chat.messages[0]?.id === finished[0]?.id)));
+      if (!sameTurnOverlay) {
         return;
       }
       chat.messages = [];
-      if (readRawStoredStreamParent(roomId) !== storedAtFinish) {
+      if (!sameStoredTurn) {
         return;
       }
       writeStoredStreamParentMessageId(roomId, null);

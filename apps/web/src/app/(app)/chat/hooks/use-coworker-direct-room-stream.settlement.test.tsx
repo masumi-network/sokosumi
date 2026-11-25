@@ -723,18 +723,130 @@ describe("useCoworkerDirectRoomStream settlement", () => {
     });
     await waitFor(() => expect(settled.calls).toHaveLength(2));
 
-    // First refresh resolves after replay replaced chat.messages -> no-op.
+    // First refresh resolves after replay finished: same turn token + ready -> clears once.
     await act(async () => {
       settled.calls[0]?.resolve(true);
+    });
+    await waitFor(() => {
+      expect(host.current.streamOverlayMessages).toEqual([]);
+      expect(host.current.activeStreamParentMessageId).toBeNull();
+      expect(readStoredStreamParentMessageId("room-a")).toBeNull();
+    });
+
+    // A new thread turn starts before the second refresh resolves; the second refresh is a no-op.
+    act(() => {
+      host.current.sendStreamMessage("Turn 2", {
+        parentMessageId: "parent-2",
+      });
+    });
+    await waitFor(() => expect(transportState.sentStreams).toHaveLength(2));
+    act(() => {
+      transportState.sentStreams[1]?.controlled.emitText("asst-2", "Live 2");
+    });
+    await waitFor(() =>
+      expect(host.current.streamOverlayMessages).toHaveLength(2),
+    );
+
+    await act(async () => {
+      settled.calls[1]?.resolve(true);
+    });
+    expect(host.current.streamOverlayMessages).toHaveLength(2);
+    expect(host.current.activeStreamParentMessageId).toBe("parent-2");
+    expect(readStoredStreamParentMessageId("room-a")).toBe("parent-2");
+  });
+
+  it("clears overlay and parents when abort refresh succeeds and replay refresh fails (abort first)", async () => {
+    const settled = createSettledController();
+    const host = renderActivityRoom(roomA, settled.onStreamSettled);
+
+    act(() => {
+      host.current.sendStreamMessage("Mid-stream", {
+        parentMessageId: "parent-1",
+      });
+    });
+    await waitFor(() => expect(transportState.sentStreams).toHaveLength(1));
+    act(() => {
+      transportState.sentStreams[0]?.controlled.emitText("asst-1", "Part 1");
+    });
+    await waitFor(() =>
+      expect(host.current.streamOverlayMessages).toHaveLength(2),
+    );
+
+    act(() => {
+      host.setMode("hidden");
+    });
+    await waitFor(() => expect(settled.calls).toHaveLength(1));
+
+    transportState.reconnectQueue.push(async (options) => {
+      const replay = createControlledStream(options.abortSignal);
+      replay.finish("asst-1", "Part 1 + Part 2");
+      return replay.stream;
+    });
+    act(() => {
+      host.setMode("visible");
+    });
+    await waitFor(() => expect(settled.calls).toHaveLength(2));
+
+    // Abort refresh succeeds while replay refresh fails (abort settles first).
+    await act(async () => {
+      settled.calls[0]?.resolve(true);
+    });
+    await act(async () => {
+      settled.calls[1]?.resolve(false);
+    });
+
+    await waitFor(() => {
+      expect(host.current.streamOverlayMessages).toEqual([]);
+      expect(host.current.activeStreamParentMessageId).toBeNull();
+      expect(readStoredStreamParentMessageId("room-a")).toBeNull();
+    });
+  });
+
+  it("clears overlay and parents when replay refresh fails first and abort refresh succeeds second", async () => {
+    const settled = createSettledController();
+    const host = renderActivityRoom(roomA, settled.onStreamSettled);
+
+    act(() => {
+      host.current.sendStreamMessage("Mid-stream", {
+        parentMessageId: "parent-1",
+      });
+    });
+    await waitFor(() => expect(transportState.sentStreams).toHaveLength(1));
+    act(() => {
+      transportState.sentStreams[0]?.controlled.emitText("asst-1", "Part 1");
+    });
+    await waitFor(() =>
+      expect(host.current.streamOverlayMessages).toHaveLength(2),
+    );
+
+    act(() => {
+      host.setMode("hidden");
+    });
+    await waitFor(() => expect(settled.calls).toHaveLength(1));
+
+    transportState.reconnectQueue.push(async (options) => {
+      const replay = createControlledStream(options.abortSignal);
+      replay.finish("asst-1", "Part 1 + Part 2");
+      return replay.stream;
+    });
+    act(() => {
+      host.setMode("visible");
+    });
+    await waitFor(() => expect(settled.calls).toHaveLength(2));
+
+    // Replay refresh fails first -> overlay and parents stay until a refresh merges.
+    await act(async () => {
+      settled.calls[1]?.resolve(false);
     });
     expect(host.current.streamOverlayMessages).toHaveLength(2);
     expect(host.current.activeStreamParentMessageId).toBe("parent-1");
     expect(readStoredStreamParentMessageId("room-a")).toBe("parent-1");
 
-    // Second refresh matches the replayed messages array -> clears cleanly.
+    // Abort refresh then succeeds for the same turn -> clears overlay and parents.
     await act(async () => {
-      settled.calls[1]?.resolve(true);
+      settled.calls[0]?.resolve(true);
     });
+
     await waitFor(() => {
       expect(host.current.streamOverlayMessages).toEqual([]);
       expect(host.current.activeStreamParentMessageId).toBeNull();
