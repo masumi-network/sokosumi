@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  planningLine,
   productionShare,
   productionSteps,
   retryWhen,
@@ -58,5 +59,21 @@ describe("production progress", () => {
     expect(withoutPictureLine({ ...production, withoutPicture: ["a"] })).toBe(
       "1 post has no picture: none he made fit your brand, so it stays a draft.",
     );
+  });
+});
+
+describe("planningLine", () => {
+  it("names the plan's minimum while Core plans the month, and nothing after", () => {
+    expect(
+      planningLine({
+        ...production,
+        state: "planning",
+        floor: { promised: 1204, made: 0 },
+      }),
+    ).toBe("At least 1,204 posts are being planned.");
+    expect(planningLine({ ...production, state: "planning" })).toBe(
+      "Your month is being planned.",
+    );
+    expect(planningLine(production)).toBeNull();
   });
 });

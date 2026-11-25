@@ -59,3 +59,15 @@ export function withoutPictureLine(production: Production): string | null {
     ? "1 post has no picture: none he made fit your brand, so it stays a draft."
     : `${count} posts have no picture: none he made fit your brand, so they stay drafts.`;
 }
+
+/**
+ * While Core plans a paid cmo-v22 month, the calendar holds only the
+ * strategy's example posts: what Today and the Calendar say instead of
+ * counting them as the month. Null once the month is written.
+ */
+export function planningLine(production: Production): string | null {
+  if (production.state !== "planning") return null;
+  return production.floor
+    ? `At least ${production.floor.promised.toLocaleString("en-US")} posts are being planned.`
+    : "Your month is being planned.";
+}

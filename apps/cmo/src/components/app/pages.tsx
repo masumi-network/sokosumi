@@ -15,6 +15,7 @@ import { channelInfo, SOON_CHANNELS } from "../../lib/channels";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { cusoSubscribed } from "../../lib/cuso-subscribed";
 import { nextWeeklyReview } from "../../lib/page-lead";
+import { planningLine } from "../../lib/production";
 import { strategyApproved } from "../../lib/strategy";
 import { monthEntries, waitingLine } from "../../lib/today";
 import type { View } from "../../lib/views";
@@ -93,9 +94,15 @@ export function ResultsPage({
       {month.length > 0 ? (
         <section className="card results-month">
           <h3>This month</h3>
-          <MonthBar entries={month} />
-          <h3>By network</h3>
-          <NetworkBars entries={month} />
+          {planningLine(overview.production) ? (
+            <p className="muted">{planningLine(overview.production)}</p>
+          ) : (
+            <>
+              <MonthBar entries={month} />
+              <h3>By network</h3>
+              <NetworkBars entries={month} />
+            </>
+          )}
         </section>
       ) : null}
       <section className="card">
