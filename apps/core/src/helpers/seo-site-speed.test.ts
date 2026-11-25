@@ -783,6 +783,60 @@ describe("the guards of speed data on each path", () => {
     });
   });
 
+  it("keeps the first readable stored measurement of each device of a row", () => {
+    const broken = { ...device(EXTRA, "mobile"), lab: { status: "invalid" } };
+    const second = { ...device(EXTRA, "mobile"), field: { status: "quota" } };
+    const table = storedRows([
+      {
+        url: EXTRA,
+        audited: false,
+        tier: "full",
+        devices: [
+          broken,
+          device(EXTRA, "mobile"),
+          second,
+          device(EXTRA, "desktop"),
+        ],
+      },
+      {
+        url: "https://example.test/twice",
+        audited: false,
+        tier: "full",
+        devices: [
+          device("https://example.test/twice", "mobile"),
+          {
+            ...device("https://example.test/twice", "mobile"),
+            field: { status: "quota" },
+          },
+        ],
+      },
+      {
+        url: "https://example.test/reduced",
+        audited: false,
+        tier: "reduced",
+        check,
+        devices: [
+          device("https://example.test/reduced", "desktop"),
+          device("https://example.test/reduced", "mobile"),
+          device("https://example.test/reduced", "mobile"),
+        ],
+      },
+    ]);
+    expect(table?.dropped).toBe(0);
+    expect(
+      table?.rows.map((row) =>
+        row.devices.map((item) => [item.device, item.field.status]),
+      ),
+    ).toEqual([
+      [
+        ["mobile", "no_data"],
+        ["desktop", "no_data"],
+      ],
+      [["mobile", "no_data"]],
+      [["mobile", "no_data"]],
+    ]);
+  });
+
   it("drops only the stored row Core cannot read and counts it", () => {
     const table = storedRows([
       { url: EXTRA, audited: false, devices: [] },

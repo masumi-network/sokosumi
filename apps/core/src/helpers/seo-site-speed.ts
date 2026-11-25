@@ -177,11 +177,17 @@ export function readableStoredSiteSpeed(value: unknown) {
     const group = publicGroup(row.group);
     const why = publicSpeedText(row.why, SITE_SPEED_WHY_CHARS);
     // The devices of the row's tier come first: a measurement the row cannot show is not read.
+    // Then the first readable measurement of each device: a repeated device is no second result.
     const allowed: readonly unknown[] = speedRowDevices(row.tier, check);
+    const taken = new Set<unknown>();
     const devices = (Array.isArray(row.devices) ? row.devices : [])
       .filter((device) => allowed.includes(reportObject(device)?.device))
       .flatMap(readableStoredMeasurement)
-      .filter((device) => seoPageSpeedRow.safeParse(device).success);
+      .filter((device) => seoPageSpeedRow.safeParse(device).success)
+      .filter((device) => {
+        const name = reportObject(device)?.device;
+        return !taken.has(name) && !!taken.add(name);
+      });
     const stored = storedSiteSpeedRow.safeParse({
       ...rest,
       ...(group && { group }),
