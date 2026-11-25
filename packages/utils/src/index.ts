@@ -505,6 +505,7 @@ export {
   isOwnedProjectLogoUrl,
   isProjectLogoBlobUrl,
 } from "./project-logo-path.js";
+export { seoBrandMatcher } from "./seo-brand.js";
 export {
   SEO_CAPABILITIES,
   SEO_CAPABILITY_GROUPS,
@@ -594,6 +595,7 @@ export {
   SEO_SEARCH_TYPES,
   SEO_TRAFFIC_CHANNELS,
   seoSearchSiteHost,
+  seoSearchTypeHasQueries,
   seoSearchUrlPrefixCovers,
 } from "./seo-traffic.js";
 export {
