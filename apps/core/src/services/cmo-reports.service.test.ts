@@ -12,6 +12,7 @@ import {
   sokoBotFindUnique,
   strategy,
   strategyRows,
+  turnFindMany,
 } from "@/test-fixtures/cmo-service";
 
 vi.mock(
@@ -188,6 +189,43 @@ describe("report_update", () => {
       }),
     );
     expect(record).toMatchObject({ id: MESSAGE_ID, turnId: "turn-1" });
+  });
+
+  it("rewrites the card its background run filed instead of relaying it", async () => {
+    // Local e2e, 2026-11-25: the run carded "Saturday's X draft features the
+    // gift set", then the chat turn carded "Saturday's X post now features it".
+    sokoBotFindUnique.mockResolvedValue(cuso());
+    turnFindMany.mockResolvedValue([{ id: "run-1" }]);
+    messageFindMany.mockResolvedValue([
+      {
+        id: MESSAGE_ID,
+        clientMessageId: "cmo-report:run-1:call-9",
+        metadata: reportMessage({ kind: "production" }).metadata,
+      },
+    ]);
+    messageUpdate.mockImplementation(async (args) => ({
+      id: args.where.id,
+      createdAt: new Date("2026-10-05T09:03:00Z"),
+      metadata: args.data.metadata,
+    }));
+
+    await reportCmoUpdate({
+      sokoBotId: "bot-1",
+      turnId: "turn-1",
+      toolCallId: "call-2",
+      update: {
+        kind: "request",
+        headline: "Saturday's X post now features the gift set",
+        done: [],
+        upNext: [],
+        changes: [],
+      },
+    });
+
+    expect(messageUpsert).not.toHaveBeenCalled();
+    expect(messageUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: MESSAGE_ID } }),
+    );
   });
 
   it("posts a second card for the same turn's report of another kind", async () => {
