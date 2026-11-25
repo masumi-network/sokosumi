@@ -95,7 +95,7 @@ it("says the trend in words, why a short check used one device and how many page
                 weeks: ["2026-10-18", "2026-10-25", "2026-11-01"],
                 lcp: [4200, 3600, 3000],
                 inp: [null, null, 120],
-                cls: [0.05, 0.05, 0.05],
+                cls: [0.05, null, 0.05],
               },
             },
           }),
@@ -148,6 +148,14 @@ it("says the trend in words, why a short check used one device and how many page
     screen.getByText(/INP\): Too few weeks with data to show a trend\./),
   ).toBeVisible();
   expect(document.querySelectorAll("figure svg")).toHaveLength(2);
+  // The two CLS weeks have a week without a value between them: each is a dot, not a line.
+  expect(
+    document
+      .querySelector('figure svg path[d*="h0"]')
+      ?.getAttribute("d")
+      ?.match(/h0/g),
+  ).toHaveLength(2);
+  expect(document.querySelectorAll('figure svg path[d*="h0"]')).toHaveLength(1);
 
   const blog = within(screen.getByRole("row", { name: /blog/ }));
   expect(blog.getByText("No trend yet")).toBeVisible();

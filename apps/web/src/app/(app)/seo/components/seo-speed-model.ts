@@ -211,8 +211,11 @@ export type SeoVitalTrend =
       direction: SeoTrendDirection;
       first: SeoTrendPoint;
       last: SeoTrendPoint;
-      /** One point per week, both axes 0 to 1 with y 0 at the top. A null y is a week without a value: the line breaks there. */
-      points: { x: number; y: number | null }[];
+      /**
+       * One point per week, both axes 0 to 1 with y 0 at the top. A null y is a week without a value: the line breaks there.
+       * `alone`: a value with no value in the week before and after it. It lies on no line, so the chart draws a dot.
+       */
+      points: { x: number; y: number | null; alone: boolean }[];
       /** The y of the good limit: always inside the chart. */
       limit: number;
     }
@@ -255,6 +258,8 @@ export function seoVitalTrend(
     points: values.map((value, index) => ({
       x: weeks.length > 1 ? index / (weeks.length - 1) : 0,
       y: value == null ? null : 1 - value / top,
+      alone:
+        value != null && values[index - 1] == null && values[index + 1] == null,
     })),
     limit: 1 - good / top,
   };

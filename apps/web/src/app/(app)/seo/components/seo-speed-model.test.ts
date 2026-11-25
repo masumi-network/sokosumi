@@ -111,6 +111,13 @@ it("reads a falling LCP as getting faster and breaks the line at a week without 
     false,
     false,
   ]);
+  // The first week has no neighbor with a value: the chart draws it as a dot.
+  expect(trend.points.map(({ alone }) => alone)).toEqual([
+    true,
+    false,
+    false,
+    false,
+  ]);
   // The slow first week is higher in the chart than the last one, and the limit is under both.
   expect(trend.points[0].y).toBeLessThan(trend.points[3].y ?? 0);
   expect(trend.limit).toBeGreaterThan(trend.points[3].y ?? 1);

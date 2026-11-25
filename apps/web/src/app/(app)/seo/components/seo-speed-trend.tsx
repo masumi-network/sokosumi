@@ -14,6 +14,8 @@ import {
 const WIDTH = 240;
 const HEIGHT = 48;
 const PAD = 3;
+/** The diameter of the dot of a week with no neighbor, in screen pixels. */
+const DOT_WIDTH = 4;
 const x = (share: number) => PAD + share * (WIDTH - 2 * PAD);
 const y = (share: number) => PAD + share * (HEIGHT - 2 * PAD);
 
@@ -56,6 +58,14 @@ export function SeoSpeedTrend({ history }: { history: SeoSpeedHistory }) {
                 : `${trend.points[index - 1]?.y == null ? "M" : "L"}${x(point.x).toFixed(1)} ${y(point.y).toFixed(1)}`,
             )
             .join("");
+          // A line of no length with a round end is a dot.
+          const dots = trend.points
+            .map((point) =>
+              point.alone && point.y != null
+                ? `M${x(point.x).toFixed(1)} ${y(point.y).toFixed(1)}h0`
+                : "",
+            )
+            .join("");
           const limit = y(trend.limit).toFixed(1);
           return (
             <figure key={metric} className="min-w-0">
@@ -83,6 +93,16 @@ export function SeoSpeedTrend({ history }: { history: SeoSpeedHistory }) {
                   strokeLinejoin="round"
                   vectorEffect="non-scaling-stroke"
                 />
+                {dots && (
+                  <path
+                    d={dots}
+                    fill="none"
+                    className="stroke-foreground"
+                    strokeWidth={DOT_WIDTH}
+                    strokeLinecap="round"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                )}
               </svg>
               <figcaption className="text-muted-foreground mt-1 text-xs tabular-nums">
                 <span className="text-foreground font-medium">
