@@ -18,7 +18,10 @@ import {
 } from "./preview-resources.ts";
 
 const NETWORKS = ["mainnet", "preprod"];
-const APPS = ["web", "core", "cmo"];
+const APPS = ["web", "core", "cmo", "cmo-website"];
+// Every `/deploy` builds these; the CMO.XYZ website joins them only when the
+// PR changes it (see previewApps).
+export const BASE_PREVIEW_APPS = APPS.filter((app) => app !== "cmo-website");
 const WRITE_PERMISSIONS = new Set(["admin", "maintain", "write"]);
 
 export const VERCEL_TEAM_ID = "team_vDNcRyOgTGZegIQbMw4QXF0n";
@@ -37,6 +40,12 @@ export const VERCEL_PROJECTS = {
     cmo: {
       id: "prj_xtwf8SX1HCG9xfjBiNZ3JmOTlqsN",
       name: "sokosumi-cmo",
+    },
+    // The CMO.XYZ website is static and talks to no network; it rides along
+    // with CMO on mainnet.
+    "cmo-website": {
+      id: "prj_EC4gIS0vwLaFoOKZwP6y4ew6nACW",
+      name: "cmo-xyz",
     },
   },
   preprod: {
@@ -106,7 +115,7 @@ export function usageMessage() {
     "`/deploy mainnet preprod`",
     "`/deploy all`",
     "",
-    "Deploys web + core for the named network(s), plus CMO on mainnet, at this PR's current HEAD. Later pushes stay undeployed until you comment again.",
+    "Deploys web + core for the named network(s), plus CMO on mainnet (and the CMO.XYZ website when the PR changes it), at this PR's current HEAD. Later pushes stay undeployed until you comment again.",
     "",
     "On a pull request from a fork, add the full 40-character head commit SHA you reviewed (for example `/deploy preprod <sha>`). The preview builds that commit with preview secrets, so review the whole diff at that commit first. Commits pushed later never deploy on their own.",
     "",
@@ -146,16 +155,22 @@ export const PREVIEW_RELEVANT_PREFIXES = [
   "apps/web/",
   "apps/core/",
   "apps/cmo/",
+  "apps/cmo-website/",
   "packages/",
 ];
 
-export function isPreviewRelevantPath(filePath) {
-  if (typeof filePath !== "string" || filePath.length === 0) {
-    return false;
+function normalizedPath(filePath) {
+  if (typeof filePath !== "string") {
+    return "";
   }
-  const normalized = filePath.startsWith("./") ? filePath.slice(2) : filePath;
-  return PREVIEW_RELEVANT_PREFIXES.some((prefix) =>
-    normalized.startsWith(prefix),
+  return filePath.startsWith("./") ? filePath.slice(2) : filePath;
+}
+
+export function isPreviewRelevantPath(filePath) {
+  const normalized = normalizedPath(filePath);
+  return (
+    normalized.length > 0 &&
+    PREVIEW_RELEVANT_PREFIXES.some((prefix) => normalized.startsWith(prefix))
   );
 }
 
@@ -183,11 +198,33 @@ export function changesVercelConfig(files) {
   );
 }
 
+/**
+ * The apps a `/deploy` builds. The CMO.XYZ website is static and depends on
+ * nothing else, so it builds only when the PR adds or edits a file under
+ * `apps/cmo-website/`. Branches from before the move into the monorepo, or a
+ * PR that deletes the site, lack its root directory, and its failed build
+ * would fail the whole command.
+ * shortcut: a truncated file list (3,000+ files) may hide a site change and
+ * skips the site; read the head tree for `apps/cmo-website` if that matters.
+ */
+export function previewApps(files) {
+  const changesSite =
+    Array.isArray(files) &&
+    files.some(
+      (file) =>
+        file?.status !== "removed" &&
+        normalizedPath(
+          typeof file === "string" ? file : file?.filename,
+        ).startsWith("apps/cmo-website/"),
+    );
+  return changesSite ? APPS : BASE_PREVIEW_APPS;
+}
+
 export function noPreviewChangesMessage() {
   return [
-    "No preview deployment: this pull request has no changes under `apps/web/`, `apps/core/`, `apps/cmo/`, or `packages/`.",
+    "No preview deployment: this pull request has no changes under `apps/web/`, `apps/core/`, `apps/cmo/`, `apps/cmo-website/`, or `packages/`.",
     "",
-    "Previews only build web, core, CMO, and their package dependencies. If you still need a preview, push a change under one of those paths and comment `/deploy <network>` again.",
+    "Previews only build web, core, CMO, the CMO.XYZ website, and their package dependencies. If you still need a preview, push a change under one of those paths and comment `/deploy <network>` again.",
   ].join("\n");
 }
 
@@ -823,6 +860,7 @@ export async function runPreviewDeployComment(options) {
         await comment(noPreviewChangesMessage());
         return { kind: "skip" };
       }
+      const apps = previewApps(files);
       const fork = !isSameRepoPullRequest(pullRequest);
       if (!fork && pullRequest.head.ref.startsWith("preview-fork/")) {
         await comment(
@@ -858,10 +896,11 @@ export async function runPreviewDeployComment(options) {
           vercelToken,
           teamId,
         },
-        deployTargets(networks),
+        deployTargets(networks, apps),
       );
       const result = await settlePreviewDeployments({
         networks,
+        apps,
         git: previewGitSource(pullRequest, repoId),
         vercelToken,
         teamId,
