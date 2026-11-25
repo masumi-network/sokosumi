@@ -369,6 +369,23 @@ sokosumi projects newsletter-issue-cancel PROJECT_ID ISSUE_ID --input-json '{"re
 
 Also `social-post-queue`, `social-post-duplicate`, `social-account-post-recycle`, `social-queue-slots-update` and the two `statistics-refresh` commands. Send the `revision` you last read. Approving, rejecting, publishing or resuming a post, and approving, scheduling or sending a newsletter answer 403 `person_approval_required` with a `webUrl`: give your user that link instead of retrying. Over MCP these tools are in the `projects` toolset, off by default.
 
+## Projects and newsletters
+
+[VERIFIED: `apps/cli/src/cli/commands/catalog.ts`] `projects …` and `newsletter …` commands run one Core operation each, like `jobs events`: the Project id comes first, writes take `--input-json`, and `--organization-slug WORKSPACE_SLUG` picks the Workspace. `sokosumi --help` lists them all.
+
+```bash
+sokosumi projects list --query state=open --organization-slug WORKSPACE_SLUG
+sokosumi projects get PROJECT_ID
+sokosumi projects brand-brain PROJECT_ID
+sokosumi projects competitors PROJECT_ID
+sokosumi projects strategies PROJECT_ID
+sokosumi newsletter issues PROJECT_ID --query status=DRAFT
+sokosumi newsletter draft-issue PROJECT_ID --input-json '{"brief":"December launch"}'
+sokosumi newsletter submit-issue PROJECT_ID ISSUE_ID --input-json '{"revision":2}'
+```
+
+[VERIFIED: ADR 0077] Agents draft and stop; a person approves. Submit a newsletter issue or write a Marketing strategy, then tell the person to approve it in Sokosumi: no command approves, schedules or sends a newsletter, approves a strategy, or confirms a Brand Brain. `projects competitor-checks` and `projects check-competitors` spend credits: confirm the price with the person first. Answer Brand Brain and strategy questions with the person's own answer, never a guess. Adding newsletter subscribers stays in Sokosumi for now.
+
 ## Use Sokosumi over MCP
 
 [VERIFIED: `apps/core/src/routes/mcp/index.ts`, `docs/mcp.md`] Sokosumi also serves its tools over MCP at `https://api.sokosumi.com/mcp`. Use it when the host speaks MCP and the CLI is not installed. The host connects by URL and signs in through the browser; no API key is needed:

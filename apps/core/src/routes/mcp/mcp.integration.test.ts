@@ -174,15 +174,20 @@ describe("Sokosumi MCP server", () => {
       "projects_image_studio_video",
       "projects_image_studio_short_video",
       "projects_image_studio_talking_video",
+      "projects_competitor_checks",
+      "projects_check_competitors",
     ]);
     const warned = tools.filter((tool) => tool.annotations?.openWorldHint);
     expect(warned.map((tool) => tool.name)).toEqual(spending);
     for (const tool of warned) {
       expect(tool.description).toMatch(/^Spends workspace credits\./);
+      const operation =
+        MCP_TOOLS.find(({ name }) => name === tool.name)?.operation ?? "";
       expect(tool.annotations).toEqual({
         readOnlyHint: false,
         destructiveHint: true,
-        idempotentHint: false,
+        // A spending PUT (projects_competitor_checks) is safe to repeat.
+        idempotentHint: operation.startsWith("PUT "),
         openWorldHint: true,
       });
     }
