@@ -6330,6 +6330,73 @@ export type ReleaseExportLeaseBody = {
     token: string;
 };
 
+export type FundraisingAccess = {
+    enabled: boolean;
+};
+
+export type FundraisingPipeline = {
+    list: {
+        id: string;
+        name: string;
+    } | null;
+    rooms: Array<{
+        id: string;
+        title: string;
+        token: string;
+    }>;
+    prospects: Array<FundraisingProspect>;
+};
+
+export type FundraisingProspect = {
+    contact: Contact;
+    stage: FundraisingStage;
+    stageChangedAt: Date | null;
+    owner: ContactPerson | null;
+    ticketSize: string | null;
+    thesis: string | null;
+    committedUsd: number | null;
+    notes: string | null;
+    source: string | null;
+    dataRoom: FundraisingDataRoomVisit | null;
+};
+
+export const FundraisingStage = {
+    TO_RESEARCH: 'TO_RESEARCH',
+    WARM_PATH: 'WARM_PATH',
+    REACHED_OUT: 'REACHED_OUT',
+    MEETING: 'MEETING',
+    DATA_ROOM: 'DATA_ROOM',
+    DILIGENCE: 'DILIGENCE',
+    COMMITTED: 'COMMITTED',
+    PASSED: 'PASSED'
+} as const;
+
+export type FundraisingStage = typeof FundraisingStage[keyof typeof FundraisingStage];
+
+export type FundraisingDataRoomVisit = {
+    roomId: string;
+    roomTitle: string;
+    memberId: string;
+    email: string;
+    invitedAt: Date;
+    firstVisitAt: Date | null;
+    lastVisitAt: Date | null;
+    views: number;
+    downloads: number;
+    lastOpened: string | null;
+    revoked: boolean;
+};
+
+export type FundraisingProspectUpdate = {
+    stage?: FundraisingStage;
+    ownerUserId?: string | null;
+    ticketSize?: string | null;
+    thesis?: string | null;
+    committedUsd?: number | null;
+    notes?: string | null;
+    source?: string | null;
+};
+
 export type HistoryList = Array<HistoryItem>;
 
 export type HistoryItem = ({
@@ -51648,6 +51715,314 @@ export type AcquireExportLeaseResponses = {
 };
 
 export type AcquireExportLeaseResponse = AcquireExportLeaseResponses[keyof AcquireExportLeaseResponses];
+
+export type GetFundraisingAccessData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/fundraising/access';
+};
+
+export type GetFundraisingAccessErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetFundraisingAccessError = GetFundraisingAccessErrors[keyof GetFundraisingAccessErrors];
+
+export type GetFundraisingAccessResponses = {
+    /**
+     * Access
+     */
+    200: {
+        data: FundraisingAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetFundraisingAccessResponse = GetFundraisingAccessResponses[keyof GetFundraisingAccessResponses];
+
+export type GetFundraisingData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/fundraising';
+};
+
+export type GetFundraisingErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetFundraisingError = GetFundraisingErrors[keyof GetFundraisingErrors];
+
+export type GetFundraisingResponses = {
+    /**
+     * Pipeline
+     */
+    200: {
+        data: FundraisingPipeline;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetFundraisingResponse = GetFundraisingResponses[keyof GetFundraisingResponses];
+
+export type PatchFundraisingProspectsByContactIdData = {
+    body?: FundraisingProspectUpdate;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        contactId: string;
+    };
+    query?: never;
+    url: '/fundraising/prospects/{contactId}';
+};
+
+export type PatchFundraisingProspectsByContactIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid change
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchFundraisingProspectsByContactIdError = PatchFundraisingProspectsByContactIdErrors[keyof PatchFundraisingProspectsByContactIdErrors];
+
+export type PatchFundraisingProspectsByContactIdResponses = {
+    /**
+     * Prospect
+     */
+    200: {
+        data: FundraisingProspect;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchFundraisingProspectsByContactIdResponse = PatchFundraisingProspectsByContactIdResponses[keyof PatchFundraisingProspectsByContactIdResponses];
 
 export type GetHistoryData = {
     body?: never;

@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
 import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import { authClient } from "@/lib/auth/auth.client";
+import { stubLoadedImage } from "@/test/stub-pending-image-load";
 import { WorkspaceSwitcherProvider } from "./workspace-switcher.client";
 import WorkspaceSwitcherMenu from "./workspace-switcher-menu.client";
 
@@ -154,13 +155,15 @@ describe("WorkspaceSwitcherMenu", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows personal workspace from session when no org is active", () => {
+  // Someone who picked Personal sees "Personal", not their own name twice.
+  it("names the personal workspace Personal, not after the person", () => {
     renderSwitcher({
       workspaces: [personalWorkspace],
       activeOrganizationId: null,
     });
 
-    expect(screen.getByText("Test User")).toBeInTheDocument();
+    expect(screen.getByText("personalTitle")).toBeInTheDocument();
+    expect(screen.queryByText("Test User")).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("workspace-switcher-skeleton"),
     ).not.toBeInTheDocument();
@@ -227,7 +230,9 @@ describe("WorkspaceSwitcherMenu", () => {
     expect(screen.getByText("createWorkspace")).toBeInTheDocument();
     expect(screen.queryByText("createPersonalWorkspace")).toBeNull();
     expect(screen.queryByText("createOrganization")).toBeNull();
-    expect(screen.queryByRole("menuitem", { name: /Test User/ })).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: /personalTitle/ }),
+    ).toBeNull();
   });
 
   it("lets an owner invite people from the active organization's header", async () => {
@@ -274,7 +279,7 @@ describe("WorkspaceSwitcherMenu", () => {
       activeOrganizationId: null,
     });
 
-    await user.click(screen.getByRole("button", { name: /Test User/i }));
+    await user.click(screen.getByRole("button", { name: /personalTitle/ }));
 
     expect(
       screen.queryByRole("menuitem", { name: "inviteMembers" }),
@@ -292,7 +297,7 @@ describe("WorkspaceSwitcherMenu", () => {
     });
 
     await user.click(screen.getByRole("button", { name: /Org A/i }));
-    await user.click(screen.getByRole("menuitem", { name: /Test User/ }));
+    await user.click(screen.getByRole("menuitem", { name: /personalTitle/ }));
 
     expect(mocks.handleSelectWorkspace).toHaveBeenCalledWith(null);
     expect(screen.queryByRole("menu")).toBeNull();
@@ -463,11 +468,39 @@ describe("WorkspaceSwitcherMenu", () => {
 
     await user.click(screen.getByRole("button", { name: /Org A/i }));
 
-    expect(screen.getByText("Test User")).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "personalTitle justYou" }),
+    ).toBeInTheDocument();
     expect(screen.getAllByText("Org A").length).toBeGreaterThan(0);
     expect(screen.getByText("createWorkspace")).toBeInTheDocument();
     expect(screen.queryByText("createPersonalWorkspace")).toBeNull();
     expect(screen.queryByText("createOrganization")).toBeNull();
+  });
+
+  // A loaded picture carries the person's name as alt text; the row is the workspace, not them.
+  it("keeps the person's name out of the Personal row when their picture loads", async () => {
+    const user = userEvent.setup();
+    const restore = stubLoadedImage();
+    try {
+      renderSwitcher({
+        workspaces: [personalWorkspace, orgWorkspace],
+        activeOrganizationId: "org-a",
+        user: {
+          ...sessionUser,
+          image: "https://cdn.example.com/test-user.png",
+        },
+      });
+
+      await user.click(screen.getByRole("button", { name: /Org A/i }));
+
+      const row = screen.getByRole("menuitem", { name: /personalTitle/ });
+      await waitFor(() =>
+        expect(row.querySelector("img[data-slot=avatar-image]")).not.toBeNull(),
+      );
+      expect(row).toHaveAccessibleName("personalTitle justYou");
+    } finally {
+      restore();
+    }
   });
 
   it("opens the organization wizard directly when a personal workspace already exists", async () => {

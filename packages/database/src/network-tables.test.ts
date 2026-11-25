@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import networkTables from "../prisma/network-tables.json" with { type: "json" };
 import { Prisma, PrismaClient } from "./generated/prisma/client.js";
+import { $Enums } from "./index.js";
 
 const models = Object.values(Prisma.ModelName);
 const network: Record<string, string> = networkTables.network;
@@ -18,7 +19,12 @@ const dataModel = (
       connectionString: "postgresql://127.0.0.1:1/none",
     }),
   }) as unknown as {
-    _runtimeDataModel: { models: Record<string, { dbName: string | null }> };
+    _runtimeDataModel: {
+      models: Record<
+        string,
+        { dbName: string | null; fields: { kind: string; type: string }[] }
+      >;
+    };
   }
 )._runtimeDataModel.models;
 
@@ -88,6 +94,34 @@ describe("prisma/network-tables.json", () => {
       ([model, table]) => (dataModel[model]?.dbName ?? model) !== table,
     );
     expect(wrong).toEqual([]);
+  });
+
+  it("lists exactly the enums a Network model uses, and none is used on both sides", () => {
+    // The split script's rule: an enum goes with the tables that use it, and
+    // one no table uses stays shared.
+    const users = new Map<string, Set<boolean>>();
+    for (const [model, { fields }] of Object.entries(dataModel)) {
+      for (const field of fields) {
+        if (field.kind !== "enum") continue;
+        users.set(
+          field.type,
+          (users.get(field.type) ?? new Set()).add(model in network),
+        );
+      }
+    }
+    expect(
+      [...users].filter(([, sides]) => sides.size > 1).map(([name]) => name),
+      "an enum is used by a Network and a shared model",
+    ).toEqual([]);
+    expect(
+      [...users]
+        .filter(([, sides]) => sides.has(true))
+        .map(([name]) => name)
+        .sort(),
+    ).toEqual([...networkTables.networkEnums].sort());
+    expect(
+      networkTables.networkEnums.filter((name) => !(name in $Enums)),
+    ).toEqual([]);
   });
 
   it("names every SQL object once", () => {

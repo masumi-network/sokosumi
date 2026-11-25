@@ -22407,6 +22407,297 @@ export const ReleaseExportLeaseBodySchema = {
     additionalProperties: false
 } as const;
 
+export const FundraisingAccessSchema = {
+    type: 'object',
+    properties: {
+        enabled: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'enabled'
+    ]
+} as const;
+
+export const FundraisingPipelineSchema = {
+    type: 'object',
+    properties: {
+        list: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        name: {
+                            type: 'string'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        rooms: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    title: {
+                        type: 'string'
+                    },
+                    token: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'id',
+                    'title',
+                    'token'
+                ]
+            }
+        },
+        prospects: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/FundraisingProspect'
+            }
+        }
+    },
+    required: [
+        'list',
+        'rooms',
+        'prospects'
+    ]
+} as const;
+
+export const FundraisingProspectSchema = {
+    type: 'object',
+    properties: {
+        contact: {
+            $ref: '#/components/schemas/Contact'
+        },
+        stage: {
+            $ref: '#/components/schemas/FundraisingStage'
+        },
+        stageChangedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactPerson'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        ticketSize: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        thesis: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        committedUsd: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        notes: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        source: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        dataRoom: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/FundraisingDataRoomVisit'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'contact',
+        'stage',
+        'stageChangedAt',
+        'owner',
+        'ticketSize',
+        'thesis',
+        'committedUsd',
+        'notes',
+        'source',
+        'dataRoom'
+    ]
+} as const;
+
+export const FundraisingStageSchema = {
+    type: 'string',
+    enum: [
+        'TO_RESEARCH',
+        'WARM_PATH',
+        'REACHED_OUT',
+        'MEETING',
+        'DATA_ROOM',
+        'DILIGENCE',
+        'COMMITTED',
+        'PASSED'
+    ]
+} as const;
+
+export const FundraisingDataRoomVisitSchema = {
+    type: 'object',
+    properties: {
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomTitle: {
+            type: 'string'
+        },
+        memberId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        email: {
+            type: 'string'
+        },
+        invitedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        firstVisitAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastVisitAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        views: {
+            type: 'integer'
+        },
+        downloads: {
+            type: 'integer'
+        },
+        lastOpened: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        revoked: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'roomId',
+        'roomTitle',
+        'memberId',
+        'email',
+        'invitedAt',
+        'firstVisitAt',
+        'lastVisitAt',
+        'views',
+        'downloads',
+        'lastOpened',
+        'revoked'
+    ]
+} as const;
+
+export const FundraisingProspectUpdateSchema = {
+    type: 'object',
+    properties: {
+        stage: {
+            $ref: '#/components/schemas/FundraisingStage'
+        },
+        ownerUserId: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1
+        },
+        ticketSize: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 120
+        },
+        thesis: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2000
+        },
+        committedUsd: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0
+        },
+        notes: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 10000
+        },
+        source: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 120
+        }
+    }
+} as const;
+
 export const HistoryListSchema = {
     type: 'array',
     items: {

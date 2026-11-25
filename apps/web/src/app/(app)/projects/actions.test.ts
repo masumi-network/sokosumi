@@ -133,6 +133,30 @@ describe("loadMoreProjects", () => {
       pinnedFirst: false,
     });
   });
+
+  it("rejects before calling Core when the active organization or viewer changed", async () => {
+    const { loadMoreProjects } = await import("./actions");
+
+    await expect(
+      loadMoreProjects({
+        cursor: null,
+        state: "hidden",
+        expectedOrganizationId: "org-other",
+        expectedViewerId: "user-1",
+      }),
+    ).rejects.toThrow("Active workspace changed");
+
+    await expect(
+      loadMoreProjects({
+        cursor: null,
+        state: "hidden",
+        expectedOrganizationId: "org-1",
+        expectedViewerId: "user-other",
+      }),
+    ).rejects.toThrow("Active viewer changed");
+
+    expect(projectServiceMock.listProjects).not.toHaveBeenCalled();
+  });
 });
 
 describe("project Pin actions", () => {
