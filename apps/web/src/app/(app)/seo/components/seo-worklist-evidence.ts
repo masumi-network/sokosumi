@@ -8,6 +8,7 @@ import type { currentDiscoveryResult } from "./seo-audit-discovery";
 import type { SeoActionBucket } from "./seo-overview-model";
 import { type SeoPlace, seoPlaces } from "./seo-places-model";
 import type { SeoPropertyPageFactsProps } from "./seo-property-page-discovery";
+import { seoPageKey } from "./seo-serp-features-model";
 import { SEO_VITAL_LIMITS } from "./seo-speed-model";
 
 type StrategyAction = ProjectSeoStrategy["actions"][number];
@@ -28,6 +29,9 @@ export interface SeoEvidenceAction {
 const PUBLIC_FIELD_SKIP =
   /Chrome UX Report field data was not collected by this public audit|did not check whether Google has real-user data for this URL|CrUX\) are excluded from this public audit worker|public worker excludes CrUX/i;
 const ACCESS_ROWS = new Set(["AC-01", "AC-03", "AC-05", "AC-06"]);
+/** One key per page for a join: a home page with and without its root slash is one page. A row shows the URL as written. */
+const page = (url?: string | null) =>
+  url && URL.canParse(url) ? seoPageKey(url) : (url ?? "");
 
 export function seoWorklistEvidence(
   workspace: ProjectSeoWorkspace,
@@ -37,7 +41,7 @@ export function seoWorklistEvidence(
 ) {
   const rows: SeoEvidenceAction[] = [];
   const keyOf = (title: string, url?: string) =>
-    JSON.stringify([title.trim().toLowerCase(), url ?? ""]);
+    JSON.stringify([title.trim().toLowerCase(), page(url)]);
   const seen = new Set(saved.map((a) => keyOf(a.title, a.pageUrl)));
   function add(
     title: string,
@@ -54,11 +58,12 @@ export function seoWorklistEvidence(
   const speed = workspace.observations.find((row) => row.kind === "audit_full");
   for (const measurement of speed?.pageSpeed ?? []) {
     const { lab, device, pageUrl } = measurement;
+    const measured = page(pageUrl);
     if (
       workspace.findings.some(
         (f) =>
           f.observationId === speed?.id &&
-          f.pageUrl === pageUrl &&
+          page(f.pageUrl) === measured &&
           ACCESS_ROWS.has(f.rowId),
       ) ||
       measurement.field.status !== "not_checked" ||
@@ -69,7 +74,7 @@ export function seoWorklistEvidence(
       continue;
     const skipped = speed?.checklistBreakdown?.gaps.some(
       (gap) =>
-        gap.pageUrl === pageUrl &&
+        page(gap.pageUrl) === measured &&
         gap.device === device &&
         ["EX-01", "EX-02", "EX-14"].includes(gap.rowId) &&
         PUBLIC_FIELD_SKIP.test(gap.reason),
@@ -77,7 +82,7 @@ export function seoWorklistEvidence(
     const slowFinding = workspace.findings.some(
       (f) =>
         f.observationId === speed?.id &&
-        f.pageUrl === pageUrl &&
+        page(f.pageUrl) === measured &&
         f.device === device &&
         f.rowId === "EX-14" &&
         f.evidence.some((line) => PUBLIC_FIELD_SKIP.test(line)),
@@ -88,13 +93,15 @@ export function seoWorklistEvidence(
     );
     const cited = new Set(
       saved
-        .filter((a) => a.pageUrl === pageUrl && a.observationId === speed?.id)
+        .filter(
+          (a) => page(a.pageUrl) === measured && a.observationId === speed?.id,
+        )
         .flatMap((a) => a.findingIds),
     );
     if (
       workspace.findings.some(
         (f) =>
-          f.pageUrl === pageUrl &&
+          page(f.pageUrl) === measured &&
           cited.has(f.id) &&
           f.rowId === "EX-14" &&
           (f.device === device ||
