@@ -65,6 +65,8 @@ const SWIPE_THRESHOLD = 50;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 4;
 const ZOOM_STEP = 0.25;
+const PRINT_LOAD_TIMEOUT_MS = 10_000;
+const PRINT_CLEANUP_FALLBACK_MS = 500;
 
 // aria-disabled, not disabled: a disabled button drops focus to the body,
 // and the arrow keys stop reaching the viewer after clicking to an end.
@@ -125,8 +127,14 @@ function printImage(src: string, alt: string): void {
     iframe.remove();
   }
 
+  timer = setTimeout(cleanup, PRINT_LOAD_TIMEOUT_MS);
+
   iframe.onload = () => {
     if (cleaned) return;
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
     const contentWindow = iframe.contentWindow;
     contentWindow?.addEventListener("afterprint", cleanup, { once: true });
     try {
@@ -134,7 +142,7 @@ function printImage(src: string, alt: string): void {
       contentWindow?.print();
     } finally {
       if (!cleaned) {
-        timer = setTimeout(cleanup, 500);
+        timer = setTimeout(cleanup, PRINT_CLEANUP_FALLBACK_MS);
       }
     }
   };
