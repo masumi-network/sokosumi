@@ -145,3 +145,20 @@ describe("room Mermaid opt-in", () => {
     expect(container.querySelector("pre")).toHaveTextContent("flowchart LR");
   });
 });
+
+describe("RoomMessageMarkdown headings", () => {
+  it("keeps a message's headings styled but out of the room's heading outline", () => {
+    const { container } = render(
+      <RoomMessageMarkdown
+        content={"# Weekly report\n\n### Next steps\n\nShip it."}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+      />,
+    );
+
+    expect(screen.queryAllByRole("heading")).toHaveLength(0);
+    // Same elements, so the prose heading sizes still apply.
+    expect(container.querySelector("h1")).toHaveTextContent("Weekly report");
+    expect(container.querySelector("h3")).toHaveTextContent("Next steps");
+  });
+});
