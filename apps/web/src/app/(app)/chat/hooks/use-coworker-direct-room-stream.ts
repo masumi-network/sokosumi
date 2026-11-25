@@ -492,8 +492,12 @@ export function useCoworkerDirectRoomStream({
 
   const isStreaming = status === "submitted" || status === "streaming";
 
+  const clearStreamOverlay = useCallback(() => {
+    setMessages([]);
+  }, [setMessages]);
+
   // Leave: drop overlay. Enter: reconnect to Core active stream (Thinking…).
-  useCoworkerStreamResume(roomId, resumeStream);
+  useCoworkerStreamResume(roomId, resumeStream, clearStreamOverlay);
 
   const currentUser = useMemo(() => {
     if (!room) {
