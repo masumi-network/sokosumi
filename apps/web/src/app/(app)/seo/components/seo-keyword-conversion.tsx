@@ -3,13 +3,15 @@
 import { TableCell } from "@/components/ui/table";
 import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
+import { SeoDate } from "./seo-date";
 import type { SeoKeywordGroup } from "./seo-keyword-rows-model";
 
 /** A check's estimate for one keyword: the level, and under it the named product feature the keyword is about. */
 export function SeoConversionCell({
   conversion,
   feature,
-}: Pick<SeoKeywordGroup, "conversion" | "feature">) {
+  estimateAt,
+}: Pick<SeoKeywordGroup, "conversion" | "feature" | "estimateAt">) {
   const t = useSeoResultTranslations("App.Seo");
   return (
     <TableCell
@@ -31,6 +33,14 @@ export function SeoConversionCell({
               {t(`keywords.conversion.phrase.${conversion}`)}
             </span>
           </p>
+          {estimateAt ? (
+            // A newer check that read only the rank keeps this estimate: the date says it is not of that check.
+            <p className="text-muted-foreground text-xs">
+              {t.rich("keywords.conversion.checkedOn", {
+                date: () => <SeoDate value={estimateAt} day report />,
+              })}
+            </p>
+          ) : null}
           {feature ? (
             // A phone row is a name line and one values line: the feature would add a third.
             <p className="text-muted-foreground text-xs break-words max-sm:hidden">

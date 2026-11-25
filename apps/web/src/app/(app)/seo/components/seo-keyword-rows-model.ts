@@ -52,6 +52,8 @@ export type SeoKeywordGroup = {
   sources: string[];
   /** The newest estimate a check gave of how likely a searcher takes the page's action; null without one. */
   conversion: Keyword["conversion"];
+  /** When the estimate comes from another check than the shown ranks: that check's time, else null. */
+  estimateAt: Keyword["observedAt"];
   /** The product feature the keyword is about, in the words of the check. */
   feature: string | null;
   /** The newest keyword difficulty (0 to 100) a check gave; null without one. */
@@ -132,6 +134,10 @@ export function keywordGroups(rows: Keyword[], broad = hasRankedIdeas(rows)) {
       best,
       sources: [...new Set(group.map((row) => row.source))],
       conversion: estimated?.conversion ?? null,
+      estimateAt:
+        reads.length && estimated?.observationId !== top?.observationId
+          ? (estimated?.observedAt ?? null)
+          : null,
       feature: estimated?.feature ?? null,
       difficulty:
         group.find((row) => row.difficulty !== null)?.difficulty ?? null,
