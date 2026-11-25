@@ -195,7 +195,6 @@ const HUMAN_ONLY_WRITES: readonly [
   ["PUT", `${P}/image-studio/brand-kit/look`, { look: null, lookRevision: 0 }],
   ["POST", `${P}/image-studio/brand-kit/logo`, logoUpload()],
   ["POST", `${P}/image-studio/brand-kit/logo/website`, {}],
-  ["POST", `${P}/image-studio/jobs`, { prompt: "A lamp", idempotencyKey: KEY }],
   ["PUT", `${P}/image-studio/products`, { products: [], revision: 0 }],
   ["POST", `${P}/image-studio/products/import`, { url: "https://example.com" }],
   [
@@ -203,27 +202,7 @@ const HUMAN_ONLY_WRITES: readonly [
     `${P}/image-studio/products/photo`,
     { name: "Lamp", imageUrl: "https://example.com/lamp.png" },
   ],
-  [
-    "POST",
-    `${P}/image-studio/video-jobs`,
-    { prompt: "A lamp", idempotencyKey: KEY },
-  ],
-  [
-    "POST",
-    `${P}/image-studio/talking-video-jobs`,
-    {
-      script: SCRIPT,
-      presenter: { kind: "stock", id: "p1" },
-      idempotencyKey: KEY,
-    },
-  ],
-  [
-    "POST",
-    `${P}/image-studio/short-video-jobs`,
-    { format: "voiceover", script: SCRIPT, idempotencyKey: KEY },
-  ],
   ["POST", `${P}/image-studio/talking-video-scripts`, {}],
-  ["POST", `${P}/image-studio/jobs/${ID}/cancel`, {}],
   [
     "POST",
     `${P}/image-studio/assets/${ID}/events`,
@@ -264,6 +243,37 @@ const HUMAN_ONLY_WRITES: readonly [
   ["POST", `${P}/social-account-posts/${ID}/recycle`, {}],
 ];
 
+// ADR 0077 (SOKD-385): credits are the cap, so an agent starts and cancels
+// Studio generations. A photo of a real person stays a person's step.
+const AGENT_GENERATIONS: [string, string, object][] = [
+  ["POST", `${P}/image-studio/jobs`, { prompt: "A lamp", idempotencyKey: KEY }],
+  [
+    "POST",
+    `${P}/image-studio/video-jobs`,
+    { prompt: "A lamp", idempotencyKey: KEY },
+  ],
+  [
+    "POST",
+    `${P}/image-studio/talking-video-jobs`,
+    {
+      script: SCRIPT,
+      presenter: { kind: "stock", id: "p1" },
+      idempotencyKey: KEY,
+    },
+  ],
+  [
+    "POST",
+    `${P}/image-studio/short-video-jobs`,
+    { format: "voiceover", script: SCRIPT, idempotencyKey: KEY },
+  ],
+  ["POST", `${P}/image-studio/jobs/${ID}/cancel`, {}],
+];
+const PHOTO_PRESENTER = {
+  script: SCRIPT,
+  presenter: { kind: "file", fileId: ID, consent: true },
+  idempotencyKey: KEY,
+};
+
 async function call(
   method: string,
   path: string,
@@ -302,6 +312,11 @@ describe("as a Soko Bot", () => {
 
     expect(response.status).toBe(403);
   });
+  it.each(AGENT_GENERATIONS)("is refused %s %s", async (method, path, body) => {
+    const response = await call(method, path, sokoBot, body);
+
+    expect(response.status).toBe(403);
+  });
 });
 
 describe.each(CALLERS)("as %s", (_, authContext) => {
@@ -325,5 +340,30 @@ describe.each(CALLERS)("as %s", (_, authContext) => {
     const response = await call(method, path, authContext, body);
 
     expect(response.status).toBe(403);
+  });
+  it.each(AGENT_GENERATIONS)(
+    "starts or cancels %s %s",
+    async (method, path, body) => {
+      const response = await call(method, path, authContext, body);
+
+      expect(
+        response.status,
+        `the guard should let the caller in: ${await response.text()}`,
+      ).not.toBe(403);
+    },
+  );
+
+  it("is a person's step to start a talking video of a real person's photo", async () => {
+    const response = await call(
+      "POST",
+      `${P}/image-studio/talking-video-jobs`,
+      authContext,
+      PHOTO_PRESENTER,
+    );
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({
+      kind: "person_approval_required",
+    });
   });
 });

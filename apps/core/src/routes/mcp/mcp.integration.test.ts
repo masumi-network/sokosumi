@@ -157,7 +157,7 @@ describe("Sokosumi MCP server", () => {
   it("warns before a tool that spends credits", async () => {
     const client = await connect(
       { Authorization: "Bearer mcp-token" },
-      "?toolsets=tasks,agents",
+      "?toolsets=tasks,agents,projects",
     );
     const { tools } = await client.listTools();
     const spending = MCP_TOOLS.filter((tool) => tool.spendsCredits).map(
@@ -169,6 +169,11 @@ describe("Sokosumi MCP server", () => {
       "tasks_resume_schedule",
       "tasks_run_schedule",
       "agents_hire",
+      // ADR 0077: Image Studio starts spend credits; cancel does not.
+      "projects_image_studio_generate",
+      "projects_image_studio_video",
+      "projects_image_studio_short_video",
+      "projects_image_studio_talking_video",
     ]);
     const warned = tools.filter((tool) => tool.annotations?.openWorldHint);
     expect(warned.map((tool) => tool.name)).toEqual(spending);
