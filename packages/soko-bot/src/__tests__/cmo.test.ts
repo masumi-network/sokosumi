@@ -185,7 +185,7 @@ describe("CMO version", () => {
 
   // Owner, 2026-11-23: this week's changes in one version, the live test a rehire.
   it("makes cmo-v20 the version a new hire gets", () => {
-    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v20");
+    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v23");
   });
 
   it("has cmo-v8 build on cmo-v7 with claims, varied pictures and LinkedIn openings", () => {
@@ -430,7 +430,8 @@ describe("CMO version", () => {
   });
 
   it("gives CMO tools to Cuso on every route and to nobody else", () => {
-    const cmo = getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID);
+    // A version before the organized context, whose packet holds the reads.
+    const cmo = getSokoBotVersion("cmo-v22");
     const assistant = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
     // Cuso also always carries the competitor tools, routed or not, once.
     for (const routed of [
@@ -446,7 +447,9 @@ describe("CMO version", () => {
       ]);
     // Only a version with an organized context reads the rest on demand.
     expect(
-      applyVersionCapabilities(getSokoBotVersion("cmo-v23"), ["read_memory"]),
+      applyVersionCapabilities(getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID), [
+        "read_memory",
+      ]),
     ).toEqual(expect.arrayContaining([...SOKO_BOT_CMO_READ_CAPABILITIES]));
     // Another bot gets them only from its route; Core then asks whether a
     // Project it works in has the weekly check on.
