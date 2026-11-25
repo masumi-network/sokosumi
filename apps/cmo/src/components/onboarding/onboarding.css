@@ -1630,13 +1630,6 @@ body:has(.ob) .site-header {
   padding: 14px 20px;
 }
 
-.ob-budget-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
 .ob-approved {
   display: grid;
   margin: 0;
