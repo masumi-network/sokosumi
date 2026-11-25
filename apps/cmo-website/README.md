@@ -91,6 +91,5 @@ python3 scripts/render-legal.py --check --release-check
 EU/EEA, UK and Switzerland, or when the country is unknown, Google Analytics
 waits for an explicit choice in a small banner. Elsewhere it loads by default.
 Global Privacy Control or an opt-out turns it off everywhere, and an opt-out
-does not expire. "Your Privacy Choices" in the footer reopens the choice. Legal pages do not load analytics. Keep the equivalent script in
-`apps/cmo/public/site` in sync when changing it.
+does not expire. "Your Privacy Choices" in the footer reopens the choice. Legal pages do not load analytics.
 Consent is stored separately for each browser origin for 180 days.
