@@ -431,7 +431,7 @@ sokosumi drive query-table TABLE_ID --input-json '{"limit":50}' --organization-s
 sokosumi drive data-rooms --query scope=org --query organizationId=ORG_ID
 ```
 
-`sokosumi --help` lists the rest: labels, collections, Task outputs, Google Sheet copies, table edits and data rooms. `drive delete`, `drive delete-folder` and `drive close-data-room` cannot be undone; confirm first. Metadata writes need the file's current `metadataRevision`; table writes take a retry `key`. Uploading or downloading file bytes, creating a public link, inviting people to a data room and answering a viewer's question stay in the app (ADR 0077).
+`sokosumi --help` lists the rest: labels, collections, Task outputs, Google Sheet copies, table edits and data rooms. `drive delete`, `drive delete-folder` and `drive close-data-room` cannot be undone; confirm first. Metadata writes need the file's current `metadataRevision`; table writes take a retry `key`. Uploading or downloading file bytes, creating a public link, inviting people to a data room, changing its settings or a member's access, and answering a viewer's question stay in the app (ADR 0077). `drive remove-data-room-member` may take someone out.
 
 ## Use Sokosumi over MCP
 

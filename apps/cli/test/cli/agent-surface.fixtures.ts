@@ -2351,29 +2351,8 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   "GET /drive/data-rooms/{id}": {
     argv: [...API, "drive", "data-room", "id-1", "--query", "scope=me"],
   },
-  "PATCH /drive/data-rooms/{id}": {
-    argv: [
-      ...API,
-      "drive",
-      "update-data-room",
-      "id-1",
-      "--input-json",
-      '{"scope":"me","watermark":true}',
-    ],
-  },
   "DELETE /drive/data-rooms/{id}": {
     argv: [...API, "drive", "close-data-room", "id-1", "--query", "scope=me"],
-  },
-  "PATCH /drive/data-rooms/{id}/members/{memberId}": {
-    argv: [
-      ...API,
-      "drive",
-      "update-data-room-member",
-      "id-1",
-      "memberId-1",
-      "--input-json",
-      '{"scope":"me","name":"Ada"}',
-    ],
   },
   "DELETE /drive/data-rooms/{id}/members/{memberId}": {
     argv: [

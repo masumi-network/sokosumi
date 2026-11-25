@@ -1797,19 +1797,9 @@ export const CLI_COMMAND_CATALOG = [
     operation: "GET /drive/data-rooms/{id}",
   },
   {
-    command: "drive update-data-room",
-    usage: "ROOM_ID --input-json JSON",
-    operation: "PATCH /drive/data-rooms/{id}",
-  },
-  {
     command: "drive close-data-room",
     usage: "ROOM_ID --query scope=me|org [--query organizationId=ORG_ID]",
     operation: "DELETE /drive/data-rooms/{id}",
-  },
-  {
-    command: "drive update-data-room-member",
-    usage: "ROOM_ID MEMBER_ID --input-json JSON",
-    operation: "PATCH /drive/data-rooms/{id}/members/{memberId}",
   },
   {
     command: "drive remove-data-room-member",

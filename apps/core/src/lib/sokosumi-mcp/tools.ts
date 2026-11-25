@@ -2175,24 +2175,10 @@ export const MCP_TOOLS: readonly McpTool[] = [
       "Get a data room's settings, the people let in and what each may see.",
   },
   {
-    name: "drive_update_data_room",
-    operation: "PATCH /drive/data-rooms/{id}",
-    description:
-      "Change a data room's title, welcome note, company page, logo, allowed email domains, closing date, downloads, watermark or first-visit notices.",
-    destructive: true,
-  },
-  {
     name: "drive_close_data_room",
     operation: "DELETE /drive/data-rooms/{id}",
     description:
       "Close a data room: its files move back to ordinary Drive storage and the folder becomes an ordinary folder.",
-  },
-  {
-    name: "drive_update_data_room_member",
-    operation: "PATCH /drive/data-rooms/{id}/members/{memberId}",
-    description:
-      "Change one data room member's name, end date or the folders they see.",
-    destructive: true,
   },
   {
     name: "drive_remove_data_room_member",

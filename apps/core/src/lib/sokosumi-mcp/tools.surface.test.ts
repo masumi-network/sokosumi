@@ -910,16 +910,7 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
   drive_create_data_room: { body: { scope: "me", folderPath: "deal" } },
   drive_open_questions: { scope: "me" },
   drive_data_room: { id: "room-1", scope: "me" },
-  drive_update_data_room: {
-    id: "room-1",
-    body: { scope: "me", watermark: true },
-  },
   drive_close_data_room: { id: "room-1", scope: "me" },
-  drive_update_data_room_member: {
-    id: "room-1",
-    memberId: "member-1",
-    body: { scope: "me", expiresAt: "2026-12-31T00:00:00.000Z" },
-  },
   drive_remove_data_room_member: {
     id: "room-1",
     memberId: "member-1",

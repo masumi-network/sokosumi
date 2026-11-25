@@ -268,7 +268,7 @@ Drive:
   Find: drive search --query scope=me --query q=TEXT, drive files, drive get RESOURCE_ID, drive tasks (Task outputs).
   drive delete and drive delete-folder take the pathname or folderPath as --input-json; they cannot be undone.
   Metadata writes take the file's metadataRevision from drive get. Table writes take a retry key in the body.
-  Uploads, downloads of file bytes, public links, data-room invitations and answers stay in the app.
+  Uploads, downloads of file bytes, public links, data-room invitations, answers, settings and member access stay in the app.
 
 Organization Tasks:
   Add --organization-slug WORKSPACE_SLUG to any tasks command to select that organization.
