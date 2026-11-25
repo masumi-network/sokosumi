@@ -1,4 +1,7 @@
-import type { PageSpeedRows } from "@/schemas/seo-page-speed.schema";
+import {
+  type PageSpeedRows,
+  seoPageSpeedRow,
+} from "@/schemas/seo-page-speed.schema";
 import {
   SITE_SPEED_CAUSES,
   SITE_SPEED_GROUP_CHARS,
@@ -14,7 +17,7 @@ import { reportObject } from "./project-seo-public-report";
 import { auditedSeoPageKey } from "./project-seo-site-findings";
 import {
   publicLanding,
-  readableStoredPageSpeed,
+  readableStoredMeasurement,
   readPageSpeed,
 } from "./seo-page-speed";
 import {
@@ -155,34 +158,36 @@ export function readSiteSpeed(
 
 /**
  * A stored table before the schema reads it. Each row is read alone with the guards of a fresh import: a row
- * Core cannot read is dropped and counted, unsafe text goes and the row stays.
+ * Core cannot read is dropped and counted, unsafe text goes and the row stays. A measurement is read alone
+ * too: one that Core cannot read goes, the row and its other device stay.
  */
 export function readableStoredSiteSpeed(value: unknown) {
   const table = reportObject(value);
   if (!table || !Array.isArray(table.rows)) return value;
-  const rows = table.rows.flatMap((item) => {
+  const rows: StoredSiteSpeed["rows"] = [];
+  for (const item of table.rows) {
     const row = reportObject(item);
-    if (!row || !publicSpeedUrl(row.url)) return [];
+    if (!row || !publicSpeedUrl(row.url)) continue;
     const { check: _check, why: _why, group: _group, ...rest } = row;
     const check =
       row.tier === "reduced" ? readCheck(row.check, true) : undefined;
     const group = publicGroup(row.group);
     const why = publicSpeedText(row.why, SITE_SPEED_WHY_CHARS);
+    // The devices of the row's tier come first: a measurement the row cannot show is not read.
     const allowed: readonly unknown[] = speedRowDevices(row.tier, check);
-    const devices = readableStoredPageSpeed(row.devices);
+    const devices = (Array.isArray(row.devices) ? row.devices : [])
+      .filter((device) => allowed.includes(reportObject(device)?.device))
+      .flatMap(readableStoredMeasurement)
+      .filter((device) => seoPageSpeedRow.safeParse(device).success);
     const stored = storedSiteSpeedRow.safeParse({
       ...rest,
       ...(group && { group }),
       ...(why && { why }),
       ...(check && { check }),
-      devices: Array.isArray(devices)
-        ? devices.filter((device) =>
-            allowed.includes(reportObject(device)?.device),
-          )
-        : devices,
+      devices,
     });
-    return stored.success ? [stored.data] : [];
-  });
+    if (stored.success) rows.push(stored.data);
+  }
   return {
     ...table,
     rows,

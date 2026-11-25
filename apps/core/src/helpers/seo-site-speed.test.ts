@@ -620,6 +620,30 @@ describe("the guards of speed data on each path", () => {
     expect([table?.rows.length, table?.dropped]).toEqual([1, 2]);
   });
 
+  it("keeps a stored row and its readable device when the other device is unreadable", () => {
+    const broken = { ...device(EXTRA, "desktop"), lab: { status: "invalid" } };
+    const table = publicSeoPayloadSchema.parse({
+      ...storedAudit([
+        {
+          url: EXTRA,
+          audited: false,
+          tier: "full",
+          devices: [device(EXTRA, "mobile"), broken],
+        },
+        { url: "https://example.test/none", audited: false, devices: [broken] },
+      ]),
+    }).siteSpeed;
+    expect(table?.dropped).toBe(0);
+    expect(
+      table?.rows.map((row) => row.devices.map((item) => item.device)),
+    ).toEqual([["mobile"], []]);
+    // A fresh import keeps a row whose speed section gives no device too.
+    expect(read([extra(EXTRA, { speed: null })])).toMatchObject({
+      rows: [{ url: EXTRA, devices: [] }],
+      dropped: 0,
+    });
+  });
+
   it("drops a lab insight with credential material and keeps the measurement, fresh and stored", () => {
     const insight = {
       id: "unused-javascript",
