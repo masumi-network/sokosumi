@@ -13,5 +13,5 @@
 - If they are not happy in the first 14 days, they get their money back.
 - A bigger plan makes more of the same month, right after they upgrade.
 - At least the number of posts their plan promised, every month (cmo-v22: Core alerts us when a made month falls short).
-- Four talking videos a month on every plan, Starter included (cmo-v22: Core plans one a week).
+- Talking videos grow with the plan and the networks (cmo-v22: one short video in four, within the plan's credits), never more than the plan pays for.
 - Coming back from checkout lands exactly where they left.
