@@ -4,6 +4,7 @@ import {
   hasReadableSeoMonitorPlan,
   parseSeoMonitorPlan,
   SEO_MONITOR_MARKER,
+  savedScheduleSummaryForUser,
   seoMonitorAuditId,
   seoMonitorDescriptionForUser,
   seoMonitorDescriptionWithRule,
@@ -300,5 +301,15 @@ describe("taskScheduleDescriptionForWrite", () => {
         description: "Weekly report",
       }),
     ).toBe("Weekly report");
+  });
+});
+
+describe("savedScheduleSummaryForUser", () => {
+  it("drops a full audit's request line that a saved card cut in the middle", () => {
+    expect(
+      savedScheduleSummaryForUser(
+        'Full SEO audit of 2 selected pages:\n\nseo_audit: {"version":1,"price":{"kind":"co',
+      ),
+    ).toBe("Full SEO audit of 2 selected pages:");
   });
 });

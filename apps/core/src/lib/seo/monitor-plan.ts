@@ -124,6 +124,16 @@ export function seoMonitorDescription(plan: SeoMonitorPlan): string {
   return `${SEO_MONITOR_MARKER}${JSON.stringify(seoMonitorPacketSchema.parse(plan))}`;
 }
 
+/** A saved card's summary: its 4,000-character cut can end inside a full audit's request line. */
+export function savedScheduleSummaryForUser(
+  summary: string | null,
+): string | null {
+  const at = summary?.search(/^seo_audit:/m) ?? -1;
+  return seoMonitorDescriptionForUser(
+    summary && at >= 0 ? summary.slice(0, at).trimEnd() || null : summary,
+  );
+}
+
 /**
  * The description a schedule edit writes. An SEO monitor keeps its plan, and a full audit's hidden request line
  * stays when the edit sends back the text a person saw.

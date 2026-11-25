@@ -27,7 +27,10 @@ import { mapTaskTags } from "@/helpers/task-tags";
 import prisma from "@/lib/db/prisma";
 import type { FileActor } from "@/lib/files/actor";
 import { requireProjectAccess } from "@/lib/image-studio/access";
-import { seoMonitorDescriptionForUser } from "@/lib/seo/monitor-plan";
+import {
+  savedScheduleSummaryForUser,
+  seoMonitorDescriptionForUser,
+} from "@/lib/seo/monitor-plan";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
 import {
   type ChatResultAvailable,
@@ -1059,7 +1062,7 @@ export async function hydrateChatResultSnapshots(
             ? { sourceHref: current.data.sourceHref }
             : // Cards saved before the plan sentence held the raw seo_monitor line.
               snapshot.data.kind === "task_schedule"
-              ? { summary: seoMonitorDescriptionForUser(snapshot.data.summary) }
+              ? { summary: savedScheduleSummaryForUser(snapshot.data.summary) }
               : {}),
           // A report the owner reverted says so on its card.
           ...(snapshot.data.kind === "cmo_report"
