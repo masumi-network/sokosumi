@@ -198,6 +198,33 @@ describe("CheckoutStep", () => {
     expect(button("Start Scale for $833 a month")).toBeTruthy();
   });
 
+  // cmo-v22: the month is written after payment, so each plan says its floor.
+  it("promises each plan at least its networks' rates for a strategy with examples", async () => {
+    await render({
+      plan: {
+        ...strategy,
+        channels: [
+          { channel: "x", cadence: "6 a day", role: "main" },
+          { channel: "linkedin", cadence: "1 a day", role: "main" },
+        ],
+        calendar: strategy.calendar.slice(0, 3),
+        monthWriter: { state: "examples", attempts: 0 },
+      },
+    });
+    expect(cards()[0]).toContain("At least 104 posts a month");
+    expect(cards()[1]).toContain("At least 140 posts a month");
+    expect(cards()[2]).toContain("At least 196 posts a month");
+    expect(text()).not.toContain("About ");
+    // The plan's networks, not the examples' networks.
+    expect(
+      document
+        .querySelector('[aria-label^="Posts on"]')
+        ?.getAttribute("aria-label"),
+    ).toBe("Posts on X, LinkedIn");
+    // No month is written yet, so no plan "makes all of it".
+    expect(text()).not.toContain("Makes all of it");
+  });
+
   it("marks the plan that already makes a smaller strategy whole", async () => {
     await render({
       plan: {
