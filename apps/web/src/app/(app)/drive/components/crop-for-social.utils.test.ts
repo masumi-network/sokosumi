@@ -1,0 +1,101 @@
+import { describe, expect, it } from "vitest";
+import {
+  croppedFileName,
+  cropRect,
+  folderOfDrivePathname,
+  isCroppableImage,
+  SOCIAL_SHAPES,
+} from "@/app/drive/components/crop-for-social.utils";
+
+const shape = (id: string) => {
+  const found = SOCIAL_SHAPES.find((entry) => entry.id === id);
+  if (!found) throw new Error(id);
+  return found;
+};
+
+describe("cropRect", () => {
+  it("takes the full height of a wide image for a square and slides along x", () => {
+    expect(cropRect(2000, 1000, shape("square"), 0)).toEqual({
+      x: 0,
+      y: 0,
+      width: 1000,
+      height: 1000,
+      axis: "x",
+    });
+    expect(cropRect(2000, 1000, shape("square"), 0.5).x).toBe(500);
+    expect(cropRect(2000, 1000, shape("square"), 1).x).toBe(1000);
+  });
+
+  it("takes the full width of a tall image for landscape and slides along y", () => {
+    const rect = cropRect(1000, 2000, shape("landscape"), 1);
+    expect(rect.width).toBe(1000);
+    expect(rect.height).toBe(524);
+    expect(rect.y).toBe(2000 - 524);
+    expect(rect.axis).toBe("y");
+  });
+
+  it("keeps the whole image when it already has the shape", () => {
+    expect(cropRect(1080, 1920, shape("story"), 0.7)).toEqual({
+      x: 0,
+      y: 0,
+      width: 1080,
+      height: 1920,
+      axis: null,
+    });
+  });
+
+  it("clamps the position into 0..1", () => {
+    expect(cropRect(2000, 1000, shape("square"), -3).x).toBe(0);
+    expect(cropRect(2000, 1000, shape("square"), 9).x).toBe(1000);
+  });
+});
+
+describe("croppedFileName", () => {
+  it("names the copy after the original and the shape", () => {
+    expect(
+      croppedFileName("Team photo.jpeg", shape("portrait"), "image/jpeg"),
+    ).toBe("Team photo-4x5.jpg");
+  });
+
+  it("keeps PNG and uses the PNG extension", () => {
+    expect(croppedFileName("logo.png", shape("square"), "image/png")).toBe(
+      "logo-1x1.png",
+    );
+  });
+
+  it("saves WebP as PNG, which keeps transparency", () => {
+    expect(croppedFileName("cover.webp", shape("story"), "image/webp")).toBe(
+      "cover-9x16.png",
+    );
+  });
+
+  it("handles a name without an extension", () => {
+    expect(croppedFileName("banner", shape("landscape"), "image/jpeg")).toBe(
+      "banner-1.91x1.jpg",
+    );
+  });
+});
+
+describe("isCroppableImage", () => {
+  it("accepts raster photos and refuses SVG and GIF", () => {
+    expect(isCroppableImage("image/jpeg")).toBe(true);
+    expect(isCroppableImage("image/png")).toBe(true);
+    expect(isCroppableImage("image/webp")).toBe(true);
+    expect(isCroppableImage("image/svg+xml")).toBe(false);
+    expect(isCroppableImage("image/gif")).toBe(false);
+  });
+});
+
+describe("folderOfDrivePathname", () => {
+  it("returns the folder below the workspace root", () => {
+    expect(folderOfDrivePathname("drive/users/u1/Launch/Week 1/a.png")).toBe(
+      "Launch/Week 1",
+    );
+    expect(folderOfDrivePathname("drive/orgs/o1/Brand/a.png")).toBe("Brand");
+  });
+
+  it("returns undefined for a file at the root or outside Drive", () => {
+    expect(folderOfDrivePathname("drive/users/u1/a.png")).toBeUndefined();
+    expect(folderOfDrivePathname("tasks/t1/a.png")).toBeUndefined();
+  });
+});

@@ -11084,6 +11084,38 @@
           "saved": "Ajustes guardados",
           "saveFailed": "No se pudieron guardar los ajustes"
         }
+      },
+      "Crop": {
+        "open": "Recortar para redes",
+        "title": "Recortar para redes",
+        "description": "Elige un formato y arrastra el marco. Se guarda una copia junto al original; el original no cambia.",
+        "shapeLabel": "Formato",
+        "frameLabel": "Posición del recorte",
+        "loading": "Cargando imagen…",
+        "loadError": "No se pudo cargar esta imagen. Cierra e inténtalo de nuevo.",
+        "result": "Guarda {name}, {width} × {height} px",
+        "save": "Guardar copia",
+        "saved": "{name} guardado en Archivos",
+        "duplicate": "{name} ya existe. Cámbiale el nombre o elimínalo y vuelve a guardar.",
+        "saveError": "No se pudo guardar la copia. Inténtalo de nuevo.",
+        "shapes": {
+          "square": {
+            "name": "Cuadrado",
+            "hint": "1:1 · Instagram, Facebook"
+          },
+          "portrait": {
+            "name": "Vertical",
+            "hint": "4:5 · feed de Instagram"
+          },
+          "story": {
+            "name": "Historia",
+            "hint": "9:16 · stories, reels, TikTok"
+          },
+          "landscape": {
+            "name": "Horizontal",
+            "hint": "1.91:1 · LinkedIn, X, enlaces"
+          }
+        }
       }
     },
     "SokoBot": {

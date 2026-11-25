@@ -17,6 +17,7 @@ import {
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { type ReactElement, useMemo, useState } from "react";
+import { CropForSocial } from "@/app/drive/components/crop-for-social";
 import {
   DriveFilePreview,
   DriveItemCard,
@@ -384,6 +385,14 @@ export function DriveRecentsPanel({
                           item.resourceId
                             ? `/drive/files/${item.resourceId}`
                             : null
+                        }
+                        imageActions={
+                          <CropForSocial
+                            pathname={item.pathname}
+                            name={item.name}
+                            mimeType={null}
+                            store={driveStore}
+                          />
                         }
                       >
                         {({ activate, nameEl, viewers }) => (

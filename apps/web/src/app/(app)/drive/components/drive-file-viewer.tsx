@@ -5,7 +5,7 @@ import { Download, ExternalLink, XIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
-
+import { CropForSocial } from "@/app/drive/components/crop-for-social";
 import {
   contentUrl,
   effectiveType,
@@ -52,6 +52,8 @@ export interface DriveFileViewerFile {
   displayName: string;
   mimeType: string | null;
   sizeBytes?: number | null;
+  /** The Drive pathname, when the file has one; offers Crop for social on images. */
+  pathname?: string | null;
 }
 
 export function DriveFileViewer({
@@ -117,6 +119,16 @@ export function DriveFileViewer({
         onActiveSrcChange={(src) => {
           if (src === null) onClose();
         }}
+        actions={
+          file.pathname ? (
+            <CropForSocial
+              pathname={file.pathname}
+              name={file.displayName}
+              mimeType={file.mimeType}
+              store={store}
+            />
+          ) : null
+        }
       />
     );
   }
