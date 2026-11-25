@@ -9,22 +9,31 @@ import { getEnv } from "@/config/env";
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import type {
+  FundraisingConnectorDto,
   FundraisingDataRoomVisitDto,
+  FundraisingIntroDto,
   FundraisingPipelineDto,
   FundraisingProspectDto,
   FundraisingProspectUpdate,
+  FundraisingStage,
 } from "@/schemas/fundraising.schema";
 import {
   CONTACT_INCLUDE,
   type ContactActor,
   contactDtos,
+  updateContact,
 } from "@/services/contacts.service";
 import { ownerMailbox } from "@/services/fundraising-mailbox.service";
+import { warmPathsFor } from "@/services/fundraising-paths.service";
 import { researchStatus } from "@/services/fundraising-research.service";
 
 /** `nameKey` of the list the pipeline runs over. */
 export const INVESTORS_LIST_NAME_KEY = "investors";
 const PIPELINE_LIMIT = 500;
+/** Nudge the connector after this many quiet days (Leta: 3 working days, Hustle Fund: 7). */
+export const INTRO_ASK_NUDGE_DAYS = 5;
+/** Chase the investor after this many quiet days once the intro is made. */
+export const INTRO_REPLY_NUDGE_DAYS = 7;
 
 export interface FundraisingActor extends ContactActor {
   organizationId: string;
@@ -130,14 +139,9 @@ export async function dataRoomVisits(
   return visits;
 }
 
-async function owners(
-  prospects: ProspectRow[],
+async function usersById(
+  ids: string[],
 ): Promise<Map<string, FundraisingProspectDto["owner"]>> {
-  const ids = [
-    ...new Set(
-      prospects.flatMap((row) => (row.ownerUserId ? [row.ownerUserId] : [])),
-    ),
-  ];
   if (ids.length === 0) return new Map();
   const users = await prisma.user.findMany({
     where: { id: { in: ids } },
@@ -146,11 +150,70 @@ async function owners(
   return new Map(users.map((user) => [user.id, user]));
 }
 
+/** The contacts named as connectors, as the sheet shows them. */
+async function connectorContacts(
+  ids: string[],
+): Promise<Map<string, FundraisingConnectorDto>> {
+  if (ids.length === 0) return new Map();
+  const rows = await prisma.contact.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true,
+      name: true,
+      avatarUrl: true,
+      channels: {
+        where: { type: "EMAIL" },
+        select: { value: true, isPrimary: true },
+        orderBy: { isPrimary: "desc" },
+      },
+    },
+  });
+  return new Map(
+    rows.map((row) => [
+      row.id,
+      {
+        kind: "contact" as const,
+        id: row.id,
+        name: row.name,
+        image: row.avatarUrl,
+        email: row.channels[0]?.value ?? null,
+      },
+    ]),
+  );
+}
+
+function introDto(
+  row: ProspectRow | undefined,
+  connectors: Map<string, FundraisingConnectorDto>,
+  users: Map<string, FundraisingProspectDto["owner"]>,
+): FundraisingIntroDto {
+  const user = row?.introViaUserId ? users.get(row.introViaUserId) : null;
+  const via = row?.introViaContactId
+    ? (connectors.get(row.introViaContactId) ?? null)
+    : user
+      ? {
+          kind: "teammate" as const,
+          id: user.id,
+          name: user.name,
+          image: user.image,
+          email: null,
+        }
+      : null;
+  return {
+    via,
+    askedAt: row?.introAskedAt ?? null,
+    madeAt: row?.introMadeAt ?? null,
+    declinedAt: row?.introDeclinedAt ?? null,
+  };
+}
+
 function toProspectDto(
   contact: ContactDto,
   row: ProspectRow | undefined,
   owner: FundraisingProspectDto["owner"],
   dataRoom: FundraisingDataRoomVisitDto | undefined,
+  intro: FundraisingIntroDto,
+  bestPath: FundraisingProspectDto["bestPath"],
 ): FundraisingProspectDto {
   return {
     contact,
@@ -166,6 +229,8 @@ function toProspectDto(
     lastDraftAt: row?.lastDraftAt ?? null,
     lastDraftSubject: row?.lastDraftSubject ?? null,
     dataRoom: dataRoom ?? null,
+    intro,
+    bestPath,
   };
 }
 
@@ -184,9 +249,24 @@ async function prospectDtos(
       orderBy: { createdAt: "asc" },
     }),
   ]);
-  const [people, visits] = await Promise.all([
-    owners(rows),
+  const [people, connectors, visits, pathsBy] = await Promise.all([
+    usersById([
+      ...new Set(
+        rows.flatMap((row) => [
+          ...(row.ownerUserId ? [row.ownerUserId] : []),
+          ...(row.introViaUserId ? [row.introViaUserId] : []),
+        ]),
+      ),
+    ]),
+    connectorContacts([
+      ...new Set(
+        rows.flatMap((row) =>
+          row.introViaContactId ? [row.introViaContactId] : [],
+        ),
+      ),
+    ]),
     dataRoomVisits(rooms, contacts),
+    warmPathsFor(actor, contacts),
   ]);
   const byContact = new Map(rows.map((row) => [row.contactId, row]));
   return {
@@ -198,6 +278,8 @@ async function prospectDtos(
         row,
         (row?.ownerUserId ? people.get(row.ownerUserId) : null) ?? null,
         visits.get(contact.id),
+        introDto(row, connectors, people),
+        pathsBy.get(contact.id)?.[0] ?? null,
       );
     }),
   };
@@ -278,22 +360,163 @@ export async function updateFundraisingProspect(
   const existing = await prisma.fundraisingProspect.findUnique({
     where: { contactId },
   });
+  const { intro, ...columns } = patch;
+  const now = new Date();
+  const introChange = intro
+    ? await introColumns(actor, contact.name, existing, intro, now)
+    : null;
+  const stage = patch.stage ?? introChange?.stage;
   const stageChanged =
-    patch.stage !== undefined &&
-    patch.stage !== (existing?.stage ?? "TO_RESEARCH");
+    stage !== undefined && stage !== (existing?.stage ?? "TO_RESEARCH");
   const fields = {
-    ...patch,
-    ...(stageChanged ? { stageChangedAt: new Date() } : {}),
+    ...columns,
+    ...(stage !== undefined ? { stage } : {}),
+    ...(stageChanged ? { stageChangedAt: now } : {}),
+    ...(introChange?.columns ?? {}),
   };
-  await prisma.fundraisingProspect.upsert({
-    where: { contactId },
-    create: { workspaceId: actor.workspaceId, contactId, ...fields },
-    update: fields,
+  await prisma.$transaction(async (tx) => {
+    await tx.fundraisingProspect.upsert({
+      where: { contactId },
+      create: { workspaceId: actor.workspaceId, contactId, ...fields },
+      update: fields,
+    });
+    if (introChange?.contact) {
+      const current = await tx.contact.findUniqueOrThrow({
+        where: { id: contactId },
+        select: { version: true },
+      });
+      await updateContact(tx, actor, contactId, {
+        version: current.version,
+        ...introChange.contact,
+      });
+    }
   });
-  const [dto] = await contactDtos([contact], prisma, actor.userId);
+  const fresh = introChange?.contact
+    ? await prisma.contact.findUniqueOrThrow({
+        where: { id: contactId },
+        include: CONTACT_INCLUDE,
+      })
+    : contact;
+  const [dto] = await contactDtos([fresh], prisma, actor.userId);
   if (!dto) throw notFound("Contact not found");
   const { prospects } = await prospectDtos(actor, [dto]);
   const prospect = prospects[0];
   if (!prospect) throw notFound("Contact not found");
   return prospect;
+}
+
+type IntroPatch = NonNullable<FundraisingProspectUpdate["intro"]>;
+
+function shortDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * What an intro step writes: the prospect columns, the stage it implies, and
+ * the investor's next step and follow-up date. The connector must be a
+ * workspace contact or an organization member.
+ */
+async function introColumns(
+  actor: FundraisingActor,
+  investorName: string,
+  existing: ProspectRow | null,
+  intro: IntroPatch,
+  now: Date,
+): Promise<{
+  columns: Partial<ProspectRow>;
+  stage?: FundraisingStage;
+  contact: { nextStep: string | null; followUpAt: string | null } | null;
+}> {
+  if (intro.state === null)
+    return {
+      columns: {
+        introViaContactId: null,
+        introViaUserId: null,
+        introAskedAt: null,
+        introMadeAt: null,
+        introDeclinedAt: null,
+      },
+      contact: null,
+    };
+  let viaContactId = intro.viaContactId ?? null;
+  let viaUserId = intro.viaUserId ?? null;
+  if (!viaContactId && !viaUserId) {
+    viaContactId = existing?.introViaContactId ?? null;
+    viaUserId = existing?.introViaUserId ?? null;
+  }
+  if (!viaContactId && !viaUserId)
+    throw unprocessableEntity("Say who is asked for the introduction");
+  let viaName: string;
+  if (viaContactId) {
+    const via = await prisma.contact.findFirst({
+      where: {
+        id: viaContactId,
+        workspaceId: actor.workspaceId,
+        archivedAt: null,
+        mergedIntoId: null,
+      },
+      select: { name: true },
+    });
+    if (!via) throw notFound("Contact not found");
+    viaName = via.name;
+    viaUserId = null;
+  } else {
+    const member = await prisma.member.findFirst({
+      where: { userId: viaUserId ?? "", organizationId: actor.organizationId },
+      select: { user: { select: { name: true } } },
+    });
+    if (!member)
+      throw unprocessableEntity(
+        "The connector must be a member of the organization",
+      );
+    viaName = member.user.name;
+  }
+  const via = { introViaContactId: viaContactId, introViaUserId: viaUserId };
+  const currentStage = existing?.stage ?? "TO_RESEARCH";
+  if (intro.state === "ASKED") {
+    const nudgeAt = new Date(now.getTime() + INTRO_ASK_NUDGE_DAYS * 864e5);
+    return {
+      columns: {
+        ...via,
+        introAskedAt: now,
+        introMadeAt: null,
+        introDeclinedAt: null,
+      },
+      stage: currentStage === "TO_RESEARCH" ? "WARM_PATH" : undefined,
+      contact: {
+        nextStep: `Wait for ${viaName} to make the intro to ${investorName}; nudge if quiet by ${shortDate(nudgeAt)}`,
+        followUpAt: shortDate(nudgeAt),
+      },
+    };
+  }
+  if (intro.state === "MADE") {
+    const chaseAt = new Date(now.getTime() + INTRO_REPLY_NUDGE_DAYS * 864e5);
+    return {
+      columns: {
+        ...via,
+        introAskedAt: existing?.introAskedAt ?? now,
+        introMadeAt: now,
+        introDeclinedAt: null,
+      },
+      stage:
+        currentStage === "TO_RESEARCH" || currentStage === "WARM_PATH"
+          ? "REACHED_OUT"
+          : undefined,
+      contact: {
+        nextStep: `Reply on the intro thread with times for a call and thank ${viaName}; follow up if quiet by ${shortDate(chaseAt)}`,
+        followUpAt: shortDate(chaseAt),
+      },
+    };
+  }
+  return {
+    columns: {
+      ...via,
+      introAskedAt: existing?.introAskedAt ?? now,
+      introDeclinedAt: now,
+    },
+    contact: {
+      nextStep: `Find another path to ${investorName}`,
+      followUpAt: null,
+    },
+  };
 }

@@ -26,22 +26,30 @@ model FundraisingProspect {
   contactId   String    @unique @db.Uuid
   contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
-  stage            FundraisingStage @default(TO_RESEARCH)
-  stageChangedAt   DateTime         @default(now())
+  stage             FundraisingStage @default(TO_RESEARCH)
+  stageChangedAt    DateTime         @default(now())
   /// The teammate driving this investor.
-  ownerUserId      String?
+  ownerUserId       String?
   /// Typical cheque as written: "$500K–$3.5M".
-  ticketSize       String?
+  ticketSize        String?
   /// What the fund invests in, in a line or two.
-  thesis           String?
+  thesis            String?
   /// What they committed, in whole US dollars, once they did.
-  committedUsd     Int?
-  notes            String?
-  /// Where the investor came from: "The Swarm", "Find people", "Imported".
-  source           String?
+  committedUsd      Int?
+  notes             String?
+  /// Where the investor came from: "Found with Exa", "Find people", "Imported".
+  source            String?
   /// The last outreach draft put in the owner's mailbox, never sent by us.
-  lastDraftAt      DateTime?
-  lastDraftSubject String?
+  lastDraftAt       DateTime?
+  lastDraftSubject  String?
+  /// The warm introduction in flight: the connector asked (a contact, or a
+  /// teammate by user id), when, and how it ended. One at a time per investor.
+  introViaContactId String?          @db.Uuid
+  introVia          Contact?         @relation("FundraisingIntroVia", fields: [introViaContactId], references: [id], onDelete: SetNull)
+  introViaUserId    String?
+  introAskedAt      DateTime?
+  introMadeAt       DateTime?
+  introDeclinedAt   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

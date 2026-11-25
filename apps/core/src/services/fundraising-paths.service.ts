@@ -5,6 +5,8 @@
  * knows that person and how well. The portfolio comes from one Exa agent run
  * per investor, kept with its sources and refreshed on request.
  */
+
+import type { Prisma } from "@sokosumi/database";
 import {
   notFound,
   serviceUnavailable,
@@ -23,7 +25,7 @@ import type {
 } from "@/schemas/fundraising.schema";
 import {
   CONTACT_INCLUDE,
-  contactCompanyMemberIds,
+  contactCompanyMembersByName,
   contactDtos,
 } from "@/services/contacts.service";
 import {
@@ -270,28 +272,27 @@ async function linkedInConnections(
   return result;
 }
 
-/** The investor's portfolio and every path the workspace has to them, strongest first. */
-export async function warmPaths(
-  actor: FundraisingActor,
-  contactId: string,
-  now = new Date(),
-): Promise<FundraisingPathsDto> {
-  const investorRow = await requireInvestor(actor, contactId);
-  const [investor] = await contactDtos([investorRow], prisma, actor.userId);
-  if (!investor) throw notFound("Contact not found");
-  const [portfolio, research] = await Promise.all([
-    prisma.fundraisingPortfolioCompany.findMany({
-      where: { contactId },
-      orderBy: [{ date: "desc" }, { name: "asc" }],
-    }),
-    researchStatus(actor),
-  ]);
+type PortfolioRow = Prisma.FundraisingPortfolioCompanyGetPayload<
+  Record<string, never>
+>;
 
-  const investorConnections =
-    (await linkedInConnections([contactId])).get(contactId) ?? [];
+function byStrength(a: FundraisingPathDto, b: FundraisingPathDto): number {
+  return (
+    b.strength - a.strength ||
+    (toDate(b.lastTouchAt)?.getTime() ?? 0) -
+      (toDate(a.lastTouchAt)?.getTime() ?? 0)
+  );
+}
+
+/** The teammates who know the investor, then those connected on LinkedIn only. */
+function directPaths(
+  investor: ContactDto,
+  connected: Teammate[],
+  now: Date,
+): FundraisingPathDto[] {
   const paths: FundraisingPathDto[] = investor.knownBy.map((known) => {
     const lastTouchAt = toDate(known.lastInteractionAt);
-    const linkedIn = investorConnections.some((t) => t.id === known.id);
+    const linkedIn = connected.some((t) => t.id === known.id);
     return {
       kind: "direct",
       via: { id: known.id, name: known.name, image: known.image },
@@ -313,7 +314,7 @@ export async function warmPaths(
       lastTouchAt,
     };
   });
-  for (const teammate of investorConnections) {
+  for (const teammate of connected) {
     if (investor.knownBy.some((known) => known.id === teammate.id)) continue;
     paths.push({
       kind: "linkedin",
@@ -336,34 +337,69 @@ export async function warmPaths(
       lastTouchAt: null,
     });
   }
+  return paths;
+}
 
-  const companies: {
+/**
+ * Every path the workspace has to each investor, strongest first, keyed by
+ * investor id. One pass for the whole list: the fund and researched portfolio
+ * companies of every investor are matched against Contacts in one query.
+ */
+export async function warmPathsFor(
+  actor: FundraisingActor,
+  investors: ContactDto[],
+  now = new Date(),
+): Promise<Map<string, FundraisingPathDto[]>> {
+  const result = new Map<string, FundraisingPathDto[]>();
+  if (!investors.length) return result;
+  const investorIds = investors.map((investor) => investor.id);
+  const [portfolioRows, investorConnections] = await Promise.all([
+    prisma.fundraisingPortfolioCompany.findMany({
+      where: { contactId: { in: investorIds } },
+      orderBy: [{ date: "desc" }, { name: "asc" }],
+    }),
+    linkedInConnections(investorIds),
+  ]);
+  const portfolioOf = new Map<string, PortfolioRow[]>();
+  for (const row of portfolioRows) {
+    const list = portfolioOf.get(row.contactId) ?? [];
+    list.push(row);
+    portfolioOf.set(row.contactId, list);
+  }
+  const wants: {
+    investorId: string;
     kind: FundraisingPathDto["kind"];
     name: string;
     company: FundraisingPathDto["company"];
   }[] = [];
-  if (investor.organization)
-    companies.push({
-      kind: "fund",
-      name: investor.organization,
-      company: { name: investor.organization, round: null, date: null },
-    });
-  for (const row of portfolio.slice(0, COMPANIES_MATCHED))
-    companies.push({
-      kind: "portfolio",
-      name: row.name,
-      company: { name: row.name, round: row.round, date: row.date },
-    });
-
-  const idsByCompany = await Promise.all(
-    companies.map(async (company) => ({
-      company,
-      ids: (await contactCompanyMemberIds(actor.workspaceId, company.name))
-        .filter((id) => id !== contactId)
-        .slice(0, PEOPLE_PER_COMPANY),
-    })),
+  for (const investor of investors) {
+    if (investor.organization)
+      wants.push({
+        investorId: investor.id,
+        kind: "fund",
+        name: investor.organization,
+        company: { name: investor.organization, round: null, date: null },
+      });
+    for (const row of (portfolioOf.get(investor.id) ?? []).slice(
+      0,
+      COMPANIES_MATCHED,
+    ))
+      wants.push({
+        investorId: investor.id,
+        kind: "portfolio",
+        name: row.name,
+        company: { name: row.name, round: row.round, date: row.date },
+      });
+  }
+  const members = await contactCompanyMembersByName(
+    actor.workspaceId,
+    wants.map((want) => want.name),
   );
-  const allIds = [...new Set(idsByCompany.flatMap((entry) => entry.ids))];
+  const membersOf = (want: (typeof wants)[number]) =>
+    (members.get(want.name) ?? [])
+      .filter((id) => id !== want.investorId)
+      .slice(0, PEOPLE_PER_COMPANY);
+  const allIds = [...new Set(wants.flatMap(membersOf))];
   const rows = allIds.length
     ? await prisma.contact.findMany({
         where: { id: { in: allIds }, archivedAt: null, mergedIntoId: null },
@@ -375,34 +411,52 @@ export async function warmPaths(
     linkedInConnections(allIds),
   ]);
   const byId = new Map(dtos.map((c) => [c.id, c]));
-  const placed = new Set<string>();
-  for (const { company, ids } of idsByCompany) {
-    for (const id of ids) {
-      const contact = byId.get(id);
-      if (!contact || placed.has(id)) continue;
-      placed.add(id);
-      paths.push(
-        ...pathsThrough(
-          company.kind,
-          contact,
-          company.company,
-          connections,
-          now,
-        ),
-      );
+  for (const investor of investors) {
+    const paths = directPaths(
+      investor,
+      investorConnections.get(investor.id) ?? [],
+      now,
+    );
+    const placed = new Set<string>();
+    for (const want of wants) {
+      if (want.investorId !== investor.id) continue;
+      for (const id of membersOf(want)) {
+        const contact = byId.get(id);
+        if (!contact || placed.has(id)) continue;
+        placed.add(id);
+        paths.push(
+          ...pathsThrough(want.kind, contact, want.company, connections, now),
+        );
+      }
     }
+    paths.sort(byStrength);
+    result.set(investor.id, paths);
   }
-  paths.sort(
-    (a, b) =>
-      b.strength - a.strength ||
-      (toDate(b.lastTouchAt)?.getTime() ?? 0) -
-        (toDate(a.lastTouchAt)?.getTime() ?? 0),
-  );
+  return result;
+}
+
+/** The investor's portfolio and every path the workspace has to them, strongest first. */
+export async function warmPaths(
+  actor: FundraisingActor,
+  contactId: string,
+  now = new Date(),
+): Promise<FundraisingPathsDto> {
+  const investorRow = await requireInvestor(actor, contactId);
+  const [investor] = await contactDtos([investorRow], prisma, actor.userId);
+  if (!investor) throw notFound("Contact not found");
+  const [portfolio, research, pathsBy] = await Promise.all([
+    prisma.fundraisingPortfolioCompany.findMany({
+      where: { contactId },
+      orderBy: [{ date: "desc" }, { name: "asc" }],
+    }),
+    researchStatus(actor),
+    warmPathsFor(actor, [investor], now),
+  ]);
   return {
     portfolio,
     researchedAt: portfolio[0]?.fetchedAt ?? null,
     researchUsd: PORTFOLIO_RESEARCH_USD,
-    paths: paths.slice(0, PATHS_SHOWN),
+    paths: (pathsBy.get(contactId) ?? []).slice(0, PATHS_SHOWN),
     research,
   };
 }
