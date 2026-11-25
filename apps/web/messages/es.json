@@ -1819,6 +1819,7 @@
           "newSchedule": "Nueva programación para {name}",
           "open": "Abrir",
           "youTo": "Tú a {name}",
+          "replied": "{name} respondió",
           "suggestions": {
             "catchUp": "Ponme al día",
             "teamWins": "¿Qué terminamos?",
