@@ -1,5 +1,11 @@
 import { act, render, renderHook, waitFor } from "@testing-library/react";
-import { Activity, createElement } from "react";
+import {
+  Activity,
+  createElement,
+  startTransition,
+  useLayoutEffect,
+} from "react";
+import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GenerationQueue, QueuedGeneration } from "./use-generation-queue";
@@ -361,6 +367,191 @@ describe("useGenerationQueue", () => {
     expect(latestQueue.waitingForSlot).toBe(false);
     expect(onAccepted).toHaveBeenCalledTimes(1);
     expect(onAccepted).toHaveBeenCalledWith({ remaining: 0 });
+  });
+
+  it("does not invoke onAccepted when Core accepts during the Activity hide window before passive cleanup", async () => {
+    let releaseFirst!: (value: unknown) => void;
+    startImageGeneration.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseFirst = resolve;
+        }),
+    );
+
+    const onAccepted = vi.fn();
+    let latestQueue!: GenerationQueue;
+    let onHideCommit: (() => void) | null = null;
+
+    function QueueHarness() {
+      latestQueue = useGenerationQueue({ onAccepted });
+      useLayoutEffect(() => {
+        return () => {
+          onHideCommit?.();
+        };
+      }, []);
+      return null;
+    }
+
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    const previousActEnv = (
+      globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT;
+    try {
+      await act(async () => {
+        root.render(
+          createElement(Activity, {
+            mode: "visible",
+            children: createElement(QueueHarness),
+          }),
+        );
+      });
+
+      await act(async () => {
+        latestQueue.enqueue([request("1")]);
+      });
+      expect(startImageGeneration).toHaveBeenCalledTimes(1);
+
+      // Run the Activity hide transition with browser scheduling so passive
+      // cleanups defer to a macrotask after commit, then settle Core in that
+      // microtask window between the hide commit and passive cleanup.
+      const hideCommitted = Promise.withResolvers<void>();
+      onHideCommit = () => {
+        releaseFirst(accepted);
+        hideCommitted.resolve();
+      };
+
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", false);
+      startTransition(() => {
+        root.render(
+          createElement(Activity, {
+            mode: "hidden",
+            children: createElement(QueueHarness),
+          }),
+        );
+      });
+      await hideCommitted.promise;
+      await Promise.resolve();
+      await Promise.resolve();
+      // Let deferred passive cleanups finish before restoring act mode.
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", previousActEnv);
+      onHideCommit = null;
+
+      expect(onAccepted).not.toHaveBeenCalled();
+
+      // Returning later flushes the deferred acceptance without re-sending.
+      await act(async () => {
+        root.render(
+          createElement(Activity, {
+            mode: "visible",
+            children: createElement(QueueHarness),
+          }),
+        );
+      });
+
+      expect(startImageGeneration).toHaveBeenCalledTimes(1);
+      expect(latestQueue.queued).toEqual([]);
+      expect(onAccepted).toHaveBeenCalledTimes(1);
+      expect(onAccepted).toHaveBeenCalledWith({ remaining: 0 });
+    } finally {
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", previousActEnv);
+      act(() => {
+        root.unmount();
+      });
+      host.remove();
+    }
+  });
+
+  it("retries immediately on reveal when an in-flight send settles busy between reveal layout and passive setup", async () => {
+    let releaseFirst!: (value: unknown) => void;
+    startImageGeneration
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            releaseFirst = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(accepted);
+
+    const onAccepted = vi.fn();
+    let latestQueue!: GenerationQueue;
+    let onRevealLayout: (() => void) | null = null;
+
+    function QueueHarness() {
+      latestQueue = useGenerationQueue({ onAccepted });
+      useLayoutEffect(() => {
+        onRevealLayout?.();
+      }, []);
+      return null;
+    }
+
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    const previousActEnv = (
+      globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT;
+    try {
+      await act(async () => {
+        root.render(
+          createElement(Activity, {
+            mode: "visible",
+            children: createElement(QueueHarness),
+          }),
+        );
+      });
+
+      await act(async () => {
+        latestQueue.enqueue([request("1")]);
+      });
+      expect(startImageGeneration).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        root.render(
+          createElement(Activity, {
+            mode: "hidden",
+            children: createElement(QueueHarness),
+          }),
+        );
+      });
+
+      // Settle busy during the reveal layout phase before passive setup runs.
+      const revealCommitted = Promise.withResolvers<void>();
+      onRevealLayout = () => {
+        onRevealLayout = null;
+        releaseFirst(busy);
+        revealCommitted.resolve();
+      };
+
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", false);
+      startTransition(() => {
+        root.render(
+          createElement(Activity, {
+            mode: "visible",
+            children: createElement(QueueHarness),
+          }),
+        );
+      });
+      await revealCommitted.promise;
+      await Promise.resolve();
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", previousActEnv);
+
+      // Should retry at once on reveal rather than arming a 4 s timer.
+      expect(startImageGeneration).toHaveBeenCalledTimes(2);
+      expect(latestQueue.queued).toEqual([]);
+      expect(latestQueue.waitingForSlot).toBe(false);
+      expect(onAccepted).toHaveBeenCalledWith({ remaining: 0 });
+    } finally {
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", previousActEnv);
+      act(() => {
+        root.unmount();
+      });
+      host.remove();
+    }
   });
 
   it("advances a busy multi-item queue on reveal after Core accepted the head while hidden", async () => {

@@ -1,5 +1,11 @@
 import { render } from "@testing-library/react";
-import { Activity, type RefObject, StrictMode, useLayoutEffect } from "react";
+import {
+  Activity,
+  type RefObject,
+  StrictMode,
+  useEffect,
+  useLayoutEffect,
+} from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useGenerationQueueMountLifecycle } from "./use-generation-queue-mount-lifecycle";
@@ -31,28 +37,34 @@ describe("useGenerationQueueMountLifecycle", () => {
     vi.useRealTimers();
   });
 
-  it("marks mounted in passive effect phase and clears mounted plus any pending retry timer on unmount", async () => {
+  it("marks mounted in passive setup and clears mounted plus any pending retry timer in layout cleanup on unmount", async () => {
     const mountedRef: RefObject<boolean> = { current: false };
     const retryTimerRef: RefObject<ReturnType<typeof setTimeout> | null> = {
       current: null,
     };
     const siblingLayoutSetup: boolean[] = [];
-    const siblingLayoutCleanup: boolean[] = [];
+    const passiveCleanupObserved: boolean[] = [];
     const onRetry = vi.fn();
 
     function Probe() {
+      // Registered before the hook: its passive cleanup only observes false if
+      // the lifecycle hook clears mountedRef in useLayoutEffect.
+      useEffect(() => {
+        return () => {
+          passiveCleanupObserved.push(mountedRef.current);
+        };
+      }, []);
+
       useGenerationQueueMountLifecycle(mountedRef, retryTimerRef);
+
       useLayoutEffect(() => {
         siblingLayoutSetup.push(mountedRef.current);
-        return () => {
-          siblingLayoutCleanup.push(mountedRef.current);
-        };
       }, []);
       return null;
     }
 
     const { unmount } = render(<Probe />);
-    // Passive effect runs after layout effects.
+    // Passive setup runs after layout effects.
     expect(siblingLayoutSetup).toEqual([false]);
     expect(mountedRef.current).toBe(true);
 
@@ -72,8 +84,8 @@ describe("useGenerationQueueMountLifecycle", () => {
 
     unmount();
 
-    // Layout cleanup ran before passive cleanup flipped mountedRef.
-    expect(siblingLayoutCleanup).toEqual([true]);
+    // Layout cleanup flipped mountedRef before passive cleanup ran.
+    expect(passiveCleanupObserved).toEqual([false]);
     expect(mountedRef.current).toBe(false);
     expect(retryTimerRef.current).toBeNull();
 
@@ -85,15 +97,21 @@ describe("useGenerationQueueMountLifecycle", () => {
     expect(onAfterResolve).not.toHaveBeenCalled();
   });
 
-  it("cancels pending retry timer on Activity hide, restores on reveal, and counts exact StrictMode writes", () => {
+  it("cancels pending retry timer in layout cleanup on Activity hide, restores in passive setup on reveal, and counts exact StrictMode writes", () => {
     const mounted = createTrackedRef(false);
     const retryTimerRef: RefObject<ReturnType<typeof setTimeout> | null> = {
       current: null,
     };
     const siblingLayoutOnReveal: boolean[] = [];
+    const passiveCleanupObserved: boolean[] = [];
     const onRetry = vi.fn();
 
     function Probe({ tick: _tick }: { tick?: number }) {
+      useEffect(() => {
+        return () => {
+          passiveCleanupObserved.push(mounted.ref.current);
+        };
+      }, []);
       useGenerationQueueMountLifecycle(mounted.ref, retryTimerRef);
       useLayoutEffect(() => {
         siblingLayoutOnReveal.push(mounted.ref.current);
@@ -126,6 +144,7 @@ describe("useGenerationQueueMountLifecycle", () => {
       onRetry();
     }, 4_000);
 
+    passiveCleanupObserved.length = 0;
     rerender(
       <StrictMode>
         <Activity mode="hidden">
@@ -134,6 +153,7 @@ describe("useGenerationQueueMountLifecycle", () => {
       </StrictMode>,
     );
     expect(mounted.ref.current).toBe(false);
+    expect(passiveCleanupObserved).toEqual([false]);
     expect(retryTimerRef.current).toBeNull();
     expect(mounted.writes).toEqual([true, false, true, false]);
     vi.advanceTimersByTime(5_000);
