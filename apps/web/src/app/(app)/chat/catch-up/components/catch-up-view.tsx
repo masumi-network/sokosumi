@@ -67,6 +67,7 @@ export function CatchUpView({
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-4 pb-4">
+      <h1 className="sr-only">{t("catchUp")}</h1>
       {!showsSummary ? (
         <>
           <div className={HOLDER_CLASS}>

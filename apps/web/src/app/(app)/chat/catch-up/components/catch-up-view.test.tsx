@@ -391,6 +391,12 @@ describe("CatchUpView's unread rooms elsewhere", () => {
     );
     expect(within(summary).getByText("A quiet morning")).toBeTruthy();
     expect(
+      screen.getByRole("heading", {
+        level: 1,
+        name: "App.Channels.Signals.catchUp",
+      }),
+    ).toHaveClass("sr-only");
+    expect(
       within(summary).getByText("App.Channels.Signals.Briefing.welcomeBack"),
     ).toBeVisible();
     expect(
