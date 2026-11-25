@@ -51983,7 +51983,7 @@ export const ProjectSeoKeywordSeriesSchema = {
                     'points'
                 ]
             },
-            maxItems: 25
+            maxItems: 50
         }
     },
     required: [

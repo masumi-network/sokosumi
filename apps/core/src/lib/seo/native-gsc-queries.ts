@@ -100,6 +100,10 @@ export function normalizeGscQueries(
 
 /** Search Console refuses a filter expression longer than this. */
 export const GSC_FILTER_EXPRESSION_LIMIT = 4096;
+/** Keywords in one read: 25 keywords over 366 days stay under the 10,000 row limit. */
+export const SEO_KEYWORD_SERIES_READ_KEYWORDS = 25;
+/** Search Console reads per sync for tracked keyword days. */
+export const SEO_KEYWORD_SERIES_MAX_READS = 4;
 const KEYWORD_SERIES_DIMENSIONS = ["date", "query"];
 const PRIORITY_RANK = { high: 0, medium: 1, low: 2 } as const;
 const gscKeywordSeriesReportSchema = z.object({
@@ -149,9 +153,10 @@ function keywordExpression(keywords: string[]): string {
  * The reader's own choices come first, so the keywords a check tracks from the
  * start never take their place; then priority, then the keywords a check set out
  * to read, then key. Only the reader's own keywords are named as left out.
- * At most 25 fit, in at most 3 countries, each
- * country's set within the filter expression limit. A country Search Console
- * cannot name is left out.
+ * At most 50 fit, in at most 3 countries. One read holds at most 25 keywords
+ * of one country, within the filter expression limit, so 366 days of rows stay
+ * under the row limit; a country with more keywords gets another read, up to
+ * 4 reads per sync. A country Search Console cannot name is left out.
  */
 export function selectTrackedKeywords(keywords: TrackedKeyword[]): {
   groups: TrackedKeywordGroup[];
@@ -189,29 +194,40 @@ export function selectTrackedKeywords(keywords: TrackedKeyword[]): {
       a.key.localeCompare(b.key) ||
       a.countryCode.localeCompare(b.countryCode),
   );
-  const groups = new Map<string, string[]>();
+  const groups = new Map<string, string[][]>();
   const leftOut: string[] = [];
   let chosen = 0;
+  let reads = 0;
   for (const { key, countryCode, own } of ordered) {
-    const group = groups.get(countryCode) ?? [];
+    const chunks = groups.get(countryCode) ?? [];
+    const last = chunks.at(-1);
+    const fits =
+      last !== undefined &&
+      last.length < SEO_KEYWORD_SERIES_READ_KEYWORDS &&
+      keywordExpression([...last, key]).length <= GSC_FILTER_EXPRESSION_LIMIT;
     if (
       chosen < SEO_KEYWORD_SERIES_MAX_KEYWORDS &&
       gscCountry(countryCode) &&
       (groups.has(countryCode) ||
         groups.size < SEO_KEYWORD_SERIES_MAX_COUNTRIES) &&
-      keywordExpression([...group, key]).length <= GSC_FILTER_EXPRESSION_LIMIT
+      (fits ||
+        (reads < SEO_KEYWORD_SERIES_MAX_READS &&
+          keywordExpression([key]).length <= GSC_FILTER_EXPRESSION_LIMIT))
     ) {
-      group.push(key);
-      groups.set(countryCode, group);
+      if (fits) last.push(key);
+      else {
+        chunks.push([key]);
+        reads++;
+      }
+      groups.set(countryCode, chunks);
       chosen++;
       // A note that names keywords the reader never chose would be noise on every sync.
     } else if (own) leftOut.push(`${key} (${countryCode})`);
   }
   return {
-    groups: [...groups].map(([countryCode, chosenKeys]) => ({
-      countryCode,
-      keywords: chosenKeys,
-    })),
+    groups: [...groups].flatMap(([countryCode, chunks]) =>
+      chunks.map((chosenKeys) => ({ countryCode, keywords: chosenKeys })),
+    ),
     leftOut,
   };
 }

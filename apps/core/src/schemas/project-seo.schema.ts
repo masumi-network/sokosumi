@@ -484,8 +484,8 @@ export const seoMetricSchema = z
   })
   .openapi("ProjectSeoMetric");
 export const SEO_KEYWORD_SERIES_ROW_LIMIT = 10_000;
-export const SEO_KEYWORD_SERIES_MAX_KEYWORDS = 25;
-/** One daily read per country; a sync reads at most this many. */
+export const SEO_KEYWORD_SERIES_MAX_KEYWORDS = 50;
+/** A sync reads tracked keyword days for at most this many countries. */
 export const SEO_KEYWORD_SERIES_MAX_COUNTRIES = 3;
 /**
  * Daily Search Console rows for tracked keywords, grouped by normalized query

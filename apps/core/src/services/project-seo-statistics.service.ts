@@ -569,7 +569,7 @@ export async function syncProjectSeoStatistics(
         readsQueries && !audit
           ? selectTrackedKeywords(workspace.keywords)
           : { groups: [], leftOut: [] };
-      // One read per keyword country; any failed read drops the whole series, so no country reads as partial.
+      // One read per keyword group; any failed read drops the whole series, so no country reads as partial.
       const collectKeywordSeries =
         async (): Promise<NativeKeywordSeries | null> => {
           if (!tracked.groups.length) return null;
