@@ -13471,6 +13471,7 @@
         "serp": {
           "title": "Suchergebnisse in bezahlten Prüfungen",
           "note": "Was die Ergebnisseite bei jeder Prüfung zeigte, die neueste zuerst.",
+          "aiNote": "Eine KI-Übersicht ist die Zusammenfassung, die Google über den Ergebnissen schreibt. Sie zitiert eine Seite, wenn sie diese Seite als Quelle verlinkt.",
           "check": "Prüfung",
           "aiOverview": "KI-Übersicht",
           "featured": "Hervorgehobenes Snippet",
@@ -13484,8 +13485,12 @@
             "not_checked": "KI-Übersicht nicht geprüft",
             "undetermined": "Zitierung nicht ermittelt",
             "cited_checked": "Zitiert eine geprüfte Seite",
-            "other_page": "Für eine andere Seite geprüft"
+            "other_page": "Für eine andere Seite geprüft",
+            "site_cited": "Zitiert die Website der Seite"
           },
+          "aiSources": "Quellen",
+          "ownSource": "{domain} (deine Website)",
+          "moreSources": "+{count} weitere",
           "snippet": {
             "owned": "Website der Seite",
             "checked_site": "Eine geprüfte Website",
@@ -15124,7 +15129,7 @@
           },
           "39": {
             "title": "Verlauf der Zitate in KI-Übersichten",
-            "missing": "KI-Übersichten, die Google erst nach der Seite lädt, werden nicht geprüft, weil dieser Abruf extra kostet."
+            "missing": "Du bekommst keinen Hinweis, wenn eine KI-Übersicht deine Seite nicht mehr zitiert."
           },
           "40": {
             "title": "Zugriffe über KI-Assistenten",

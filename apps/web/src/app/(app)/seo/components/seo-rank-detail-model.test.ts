@@ -82,6 +82,14 @@ describe("seoRankDetail", () => {
   it("keeps the AI Overview unknown when the results showed none", () => {
     expect(seoRankDetail(ABSENT_LINES.slice(0, 2))?.aiOverviewCites).toBe(null);
   });
+
+  it("keeps the AI Overview unknown when a source hides its URL, never 'not cited'", () => {
+    const detail = seoRankDetail([
+      ...ABSENT_LINES.slice(0, 2),
+      "an AI Overview shows; whether it cites the page is not determined: a source hides its URL behind a Google redirect",
+    ]);
+    expect(detail?.aiOverviewCites).toBe(null);
+  });
 });
 
 describe("seoRankResult", () => {

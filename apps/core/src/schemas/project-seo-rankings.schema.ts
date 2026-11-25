@@ -46,6 +46,11 @@ export const seoSerpPointSchema = z
          * domain on the page's host (not determined).
          */
         pageCited: z.boolean().nullable(),
+        /**
+         * The AI Overview cites a page on the checked page's site. Null: a source names neither URL nor domain (not determined).
+         * Missing on reads stored before the SEO bot sent it.
+         */
+        siteCited: z.boolean().nullable().optional(),
       }),
       z.null(),
     ]),

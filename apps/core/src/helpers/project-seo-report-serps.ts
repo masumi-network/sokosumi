@@ -32,6 +32,8 @@ export const seoSerpReadSchema = z.object({
       asyncLoaded: z.boolean(),
       citedDomains: z.array(domain).max(LIST_ITEMS),
       pageCited: z.boolean().nullable(),
+      /** Any page on the checked page's site is cited. Null: not determined. Older Runs do not send it. */
+      siteCited: z.boolean().nullable().optional(),
     })
     .nullable(),
   featured: z

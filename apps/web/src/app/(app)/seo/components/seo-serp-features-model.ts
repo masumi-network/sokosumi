@@ -28,7 +28,8 @@ const NOT_COUNTED = new Set([
 ]);
 
 /**
- * "not_checked": the read did not ask for AI Overviews. It never reads as "no AI Overview". "undetermined": an
+ * "not_checked": the read did not ask for AI Overviews. It never reads as "no AI Overview". "site_cited": the AI
+ * Overview cites a page on a checked page's site, and not the checked page or not provably. "undetermined": an
  * AI Overview shows, no reference matches the page by URL and a Google-wrapped reference has no known domain or a
  * domain on the page's host (not determined).
  * "cited" names the row's page: the check read that page alone. A check of several pages cites one of them
@@ -39,6 +40,7 @@ export type SeoAiOverviewMark =
   | "cited"
   | "cited_checked"
   | "other_page"
+  | "site_cited"
   | "shown"
   | "undetermined"
   | "absent"
@@ -57,6 +59,8 @@ export type SeoSerpMarker =
       observationId: string;
       suspect: false;
       aiOverview: SeoAiOverviewMark;
+      /** The sites the AI Overview cites, once each; `own` is a checked page's site, listed first. */
+      aiSources: { domain: string; own: boolean }[];
       featured: "owned" | "checked_site" | "other" | "none";
       /** The People also ask box: an answer links the page's site, it shows, or it does not. */
       peopleAlsoAsk: "owned" | "checked_site" | "shown" | "none";
@@ -125,13 +129,25 @@ export function seoSerpMarkers(
               ? "absent"
               : page !== null && !checked.includes(page)
                 ? "other_page"
-                : ai.pageCited === null
-                  ? "undetermined"
-                  : !ai.pageCited
-                    ? "shown"
-                    : page !== null && checked.length === 1
-                      ? "cited"
-                      : "cited_checked",
+                : ai.pageCited !== true && ai.siteCited === true
+                  ? "site_cited"
+                  : ai.pageCited === null
+                    ? "undetermined"
+                    : !ai.pageCited
+                      ? "shown"
+                      : page !== null && checked.length === 1
+                        ? "cited"
+                        : "cited_checked",
+          // Older reads can hold "www." twins of a domain.
+          aiSources: [
+            ...new Set(
+              (ai?.citedDomains ?? []).map((domain) =>
+                seoHost(`https://${domain}`),
+              ),
+            ),
+          ]
+            .map((domain) => ({ domain, own: checkedHosts.has(domain) }))
+            .sort((a, b) => Number(b.own) - Number(a.own)),
           featured: !point.featured
             ? "none"
             : pageHost !== null && featuredHost !== null

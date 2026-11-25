@@ -984,6 +984,30 @@ describe("SERP reads of a focused result", () => {
     expect(parsed.serps?.[0].aiOverview).toEqual(aiOverview);
   });
 
+  it("keeps the site citation through import and the stored re-parse, and reads an older read without it", () => {
+    const cited = {
+      shown: true,
+      asyncLoaded: true,
+      citedDomains: ["example.com"],
+      pageCited: false,
+    };
+    const parsed = parsePublicSeoArtifact({
+      ...focusedRankingsReport(),
+      serps: [
+        serpRead({ aiOverview: { ...cited, siteCited: true } }),
+        serpRead({ aiOverview: cited }),
+      ],
+    });
+    const stored = publicSeoPayloadSchema.parse(
+      JSON.parse(JSON.stringify(parsed)),
+    );
+    expect(parsed.notes).toEqual([]);
+    expect(stored.serps?.map((read) => read.aiOverview)).toEqual([
+      { ...cited, siteCited: true },
+      cited,
+    ]);
+  });
+
   it("keeps a null AI Overview as not checked and a null featured snippet as none", () => {
     const parsed = parsePublicSeoArtifact({
       ...focusedRankingsReport(),

@@ -81,6 +81,59 @@ describe("seoSerpMarkers", () => {
     expect(mark([0], true, null)).toEqual(["cited_checked"]);
   });
 
+  it("names a citation of the page's site apart from a citation of the page", () => {
+    const mark = (pageCited: boolean | null, siteCited?: boolean | null) =>
+      seoSerpMarkers(
+        [
+          series({}, [
+            point("01", {
+              aiOverview: {
+                ...ai(true, pageCited),
+                ...(siteCited === undefined ? {} : { siteCited }),
+              },
+            }),
+          ]),
+        ],
+        [seoTestKeyword()],
+      ).map((item) => (item.suspect ? "suspect" : item.aiOverview));
+    expect(mark(false, true)).toEqual(["site_cited"]);
+    expect(mark(null, true)).toEqual(["site_cited"]);
+    // The page's own citation says more than the site's.
+    expect(mark(true, true)).toEqual(["cited"]);
+    expect(mark(false, false)).toEqual(["shown"]);
+    expect(mark(null, null)).toEqual(["undetermined"]);
+    // A read stored before the bot sent siteCited keeps its old mark.
+    expect(mark(false)).toEqual(["shown"]);
+    expect(mark(null)).toEqual(["undetermined"]);
+  });
+
+  it("lists each cited site once, a checked page's site first", () => {
+    const [mark] = seoSerpMarkers(
+      [
+        series({ pageUrls: ["https://www.example.com/"] }, [
+          point("01", {
+            aiOverview: {
+              ...ai(true),
+              citedDomains: [
+                "rival.test",
+                "www.rival.test",
+                "www.example.com",
+                "example.com",
+              ],
+            },
+          }),
+        ]),
+      ],
+      [seoTestKeyword({ pageUrl: "https://www.example.com/" })],
+    );
+    expect(mark).toMatchObject({
+      aiSources: [
+        { domain: "example.com", own: true },
+        { domain: "rival.test", own: false },
+      ],
+    });
+  });
+
   it("reads the featured snippet, People also ask and other features of a check", () => {
     const [mark] = seoSerpMarkers(
       [

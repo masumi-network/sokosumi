@@ -13471,6 +13471,7 @@
         "serp": {
           "title": "Resultados de búsqueda en comprobaciones de pago",
           "note": "Lo que mostró la página de resultados en cada comprobación, la más reciente primero.",
+          "aiNote": "Un AI Overview es el resumen que Google escribe encima de los resultados. Cita una página cuando la enlaza como fuente.",
           "check": "Comprobación",
           "aiOverview": "AI Overview",
           "featured": "Fragmento destacado",
@@ -13484,8 +13485,12 @@
             "not_checked": "AI Overview no comprobado",
             "undetermined": "Cita no determinada",
             "cited_checked": "Cita una página comprobada",
-            "other_page": "Comprobado para otra página"
+            "other_page": "Comprobado para otra página",
+            "site_cited": "Cita el sitio de la página"
           },
+          "aiSources": "Fuentes",
+          "ownSource": "{domain} (tu sitio)",
+          "moreSources": "+{count} más",
           "snippet": {
             "owned": "El sitio de la página",
             "checked_site": "Un sitio comprobado",
@@ -15124,7 +15129,7 @@
           },
           "39": {
             "title": "Historial de citas en resúmenes de IA",
-            "missing": "No se comprueban los resúmenes de IA que Google carga después de la página, porque esa lectura cuesta más."
+            "missing": "No recibes ningún aviso cuando un resumen de IA deja de citar tu página."
           },
           "40": {
             "title": "Tráfico desde asistentes de IA",
