@@ -8,6 +8,7 @@ import {
 import { CMO_BRAND_SECTIONS, CMO_RESEARCH_GROUPS } from "../cmo.js";
 import { CMO_BRAND_SECTION_KEYS } from "../project-marketing.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
+import { CMO_PICKED_OPENINGS } from "./cmo-openings-skills.js";
 import { productionWithStyles } from "./cmo-production-styles.js";
 import {
   EVERY_NETWORK_STRATEGY_SKILL,
@@ -762,4 +763,5 @@ export const CMO_SKILLS: readonly SokoBotSkill[] = [
   CMO_SITE_PAGES,
   CMO_INDUSTRY,
   CMO_CONTEXT_ON_DEMAND,
+  CMO_PICKED_OPENINGS,
 ];

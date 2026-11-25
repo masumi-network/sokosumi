@@ -1,6 +1,7 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import {
   type BrandBrain,
+  CMO_OPENINGS_WRITING_GUIDE,
   CMO_PICKED_PIECE_WRITING_GUIDE,
   CMO_PIECE_WRITING_GUIDE,
   CMO_PRODUCTION_TURN_PREFIX,
@@ -8,6 +9,7 @@ import {
   CMO_SHORTS_WRITING_GUIDE,
   CMO_VARIED_PIECE_WRITING_GUIDE,
   type CmoCalendarEntry,
+  cmoPicksOpenings,
   cmoRevisedWritingSkills,
   getSokoBotVersion,
   type MarketingStrategyPlan,
@@ -105,6 +107,18 @@ import {
   cmoOfferPieceIds,
   cmoUnclaimed,
 } from "./cmo-month-points";
+import {
+  cmoOpeningCandidates,
+  cmoPickOpening,
+  cmoPicksOpeningOn,
+  withOpening,
+} from "./cmo-openings";
+import {
+  type CmoWriterExample,
+  cmoClosestExamples,
+  cmoExamplesLines,
+  readCmoWriterExamples,
+} from "./cmo-writer-examples";
 import { type RuntimeOperations } from "./operations";
 
 /**
@@ -138,6 +152,8 @@ export function cmoMonthWriterBudgetMs(): number {
 const SAVE_RESERVE_MS = 15_000;
 /** The month's checks read every draft; they start only with this much left. */
 const CHECKS_RESERVE_MS = 15_000;
+/** What picking a post's first line may take: three rounds of Jev. */
+const OPENING_PICK_MS = 20_000;
 /** A repair round starts only while a chunk call and its saves still fit. */
 const REPAIR_START_MS = 60_000;
 
@@ -184,7 +200,15 @@ const writtenPieceSchema = z.object({
 export const cmoWrittenChunkSchema = z.object({
   pieces: z.array(writtenPieceSchema),
 });
-type WrittenPiece = z.infer<typeof writtenPieceSchema>;
+/** cmo-v23-openings: four more first lines for each Social post. */
+export const cmoWrittenChunkWithOpeningsSchema = z.object({
+  pieces: z.array(
+    writtenPieceSchema.extend({ openings: z.array(z.string()).nullable() }),
+  ),
+});
+type WrittenPiece = z.infer<typeof writtenPieceSchema> & {
+  openings?: string[] | null;
+};
 
 const SHORT_HOOK_LINE_MAX_LENGTH = 48;
 
@@ -274,6 +298,8 @@ export function cmoWriterSystem(input: {
   sitePages?: readonly string[];
   /** cmo-v21: the industry research, one line each with its source. */
   industry?: readonly string[];
+  /** cmo-v23-openings: four more first lines for every Social post. */
+  openings?: boolean;
 }): string {
   const { strategy } = input;
   const live = strategy.calendar.filter((entry) => entry.status !== "skipped");
@@ -294,6 +320,7 @@ export function cmoWriterSystem(input: {
     input.shorts
       ? `${CMO_SHORTS_WRITING_GUIDE}${input.shorts.website ? "" : "\nThis brand has no website: never site_tour."}`
       : "Leave shortFormat and hookLine null.",
+    input.openings ? CMO_OPENINGS_WRITING_GUIDE : "",
     input.chunkSkills
       ? ""
       : writingSkillsBrief(live.map((entry) => entry.channel)),
@@ -362,6 +389,8 @@ interface ChunkExtras {
   skill?: string;
   /** Each offer piece's line: its action and where its link goes. */
   offers?: ReadonlyMap<string, string>;
+  /** cmo-v23-openings: the network's best posts closest to the chunk. */
+  examples?: string;
 }
 
 function chunkPrompt(
@@ -374,6 +403,7 @@ function chunkPrompt(
 ): string {
   return [
     extras.skill ?? "",
+    extras.examples ?? "",
     lead.length > 0
       ? [
           "Lead with this proof in these pieces, so the month spreads its customers and results (any other proof in your brief may follow):",
@@ -445,20 +475,24 @@ async function writeChunk(
   system: string,
   prompt: string,
   deadline: number,
+  openings = false,
 ): Promise<WrittenPiece[]> {
   const timeoutMs = cmoWriterModelTimeoutMs(deadline, Date.now());
   if (timeoutMs <= 0) return [];
+  const schema = openings
+    ? cmoWrittenChunkWithOpeningsSchema
+    : cmoWrittenChunkSchema;
   const result = await generateText({
     ...request,
     system,
     prompt,
-    output: Output.object({ schema: cmoWrittenChunkSchema }),
+    output: Output.object({ schema }),
     maxOutputTokens: 16_000,
     abortSignal: AbortSignal.timeout(timeoutMs),
     telemetry: modelCallTelemetryFor("cmo-month-writer"),
   }).catch(rethrowAiGatewayFailure);
   await chargeWriterCall(input, modelId, result);
-  return cmoWrittenChunkSchema.parse(result.output).pieces;
+  return schema.parse(result.output).pieces;
 }
 
 function timedOut(error: unknown): boolean {
@@ -563,6 +597,9 @@ export async function writeCmoMonthPieces(
   const varied = cmoMakesVariedMonth(authorized.turn.versionId);
   const picksPictures = cmoPicksPictures(authorized.turn.versionId);
   const shorts = cmoWritesShorts(authorized.turn.versionId);
+  const openings = cmoPicksOpenings(
+    getSokoBotVersion(authorized.turn.versionId).skills,
+  );
   const praise = varied
     ? await cmoPraiseOnly(cmoProofPoints(brain))
     : { points: cmoProofPoints(brain), costUsd: 0 };
@@ -620,7 +657,74 @@ export async function writeCmoMonthPieces(
         )
       : undefined,
     industry: industry?.items.map(cmoIndustryLine),
+    openings,
   });
+  const examplePool = openings
+    ? await readCmoWriterExamples(cuso.projectId, new Date()).catch(
+        () => new Map<string, CmoWriterExample[]>(),
+      )
+    : new Map<string, CmoWriterExample[]>();
+  const examplesFor = async (chunk: readonly CmoPiece[]) => {
+    const pool = examplePool.get(chunk[0]!.channel) ?? [];
+    if (pool.length === 0) return undefined;
+    const { examples, costUsd } = await cmoClosestExamples(
+      pool,
+      chunk.map((piece) => piece.claim ?? piece.title).join("\n"),
+    );
+    await chargeCheck(input, EMBEDDING_MODEL, costUsd);
+    return cmoExamplesLines(examples);
+  };
+  // cmo-v23-openings: each Social post keeps the strongest of its first lines.
+  const grounding = JSON.stringify(compactBrandBrain(brain));
+  const pickOpenings = async (
+    results: readonly WrittenPiece[],
+  ): Promise<WrittenPiece[]> => {
+    if (!openings) return [...results];
+    let costUsd = 0;
+    const picked = await Promise.all(
+      results.map(async (written) => {
+        const piece = byId.get(written.id);
+        if (
+          !piece ||
+          !written.draft?.trim() ||
+          !written.openings?.length ||
+          !cmoPicksOpeningOn(piece.channel) ||
+          deadline - Date.now() < SAVE_RESERVE_MS + OPENING_PICK_MS
+        )
+          return written;
+        const grounded = [
+          written.draft,
+          piece.title,
+          piece.brief ?? "",
+          piece.claim ?? "",
+          piece.story ?? "",
+          ...proof,
+          grounding,
+        ].join("\n");
+        const candidates = cmoOpeningCandidates(
+          written.draft,
+          written.openings,
+          piece.channel,
+          grounded,
+        );
+        if (candidates.length < 2) return written;
+        const pick = await cmoPickOpening({
+          candidates,
+          channel: piece.channel,
+          businessName: cuso.businessName,
+        });
+        costUsd += pick.costUsd;
+        return pick.opening
+          ? { ...written, draft: withOpening(written.draft, pick.opening) }
+          : written;
+      }),
+    );
+    await chargeCheck(input, SOKO_BOT_JEV_MODEL, costUsd);
+    return picked;
+  };
+  /** A pick that fails keeps the chunk as written. */
+  const pickOpeningsOrKeep = (results: readonly WrittenPiece[]) =>
+    pickOpenings(results).catch(() => [...results]);
   const skillOf = (channel: string) =>
     points
       ? writingSkillsBrief(
@@ -904,7 +1008,7 @@ export async function writeCmoMonthPieces(
       for (const [id, why] of await save(results)) refused.set(id, why);
     }));
   await Promise.all(
-    chunks.map((chunk, index) =>
+    chunks.map(async (chunk, index) =>
       writeChunkWithRetry(
         input,
         request,
@@ -916,10 +1020,16 @@ export async function writeCmoMonthPieces(
           none,
           cmoChunkProof(proof, index, chunks.length),
           said,
-          { skill: skillOf(chunk[0]!.channel), offers },
+          {
+            skill: skillOf(chunk[0]!.channel),
+            offers,
+            examples: await examplesFor(chunk).catch(() => undefined),
+          },
         ),
         deadline,
+        openings,
       )
+        .then(pickOpeningsOrKeep)
         .catch(chunkFailed(input.turnId))
         .then(saveInTurn),
     ),
@@ -959,7 +1069,10 @@ export async function writeCmoMonthPieces(
             offers,
           }),
           deadline,
-        ).catch(chunkFailed(input.turnId)),
+          openings,
+        )
+          .then(pickOpeningsOrKeep)
+          .catch(chunkFailed(input.turnId)),
       ),
     );
     for (const results of repaired) {

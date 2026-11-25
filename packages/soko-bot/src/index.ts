@@ -247,6 +247,11 @@ export {
   sokoBotUploadFileInputSchema,
 } from "./tool-contracts.js";
 export {
+  CMO_OPENINGS_WRITING_GUIDE,
+  CMO_PICKED_OPENINGS_SKILL,
+  cmoPicksOpenings,
+} from "./versions/cmo-openings-skills.js";
+export {
   CMO_PICKED_PIECE_WRITING_GUIDE,
   CMO_PIECE_WRITING_GUIDE,
   CMO_SCENE_PIECE_WRITING_GUIDE,
