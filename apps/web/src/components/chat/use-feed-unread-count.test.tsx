@@ -23,8 +23,20 @@ vi.mock("@/components/chat/use-show-room-unread-count", () => ({
   useShowRoomUnreadCount: () => true,
 }));
 
-function room(unreadCount: number, unreadNeedsYouCount = 0): ChatRoom {
-  return { id: "room-1", unreadCount, unreadNeedsYouCount } as ChatRoom;
+function room(
+  unreadCount: number,
+  { unreadNeedsYouCount = 0, mutedAt = null as string | null } = {},
+): ChatRoom {
+  return {
+    id: "room-1",
+    unreadCount,
+    unreadNeedsYouCount,
+    mutedAt,
+  } as ChatRoom;
+}
+
+function feedCount(unreadCount: number) {
+  return { items: [], nextCursor: null, unreadCount };
 }
 
 function renderCount() {
@@ -56,10 +68,10 @@ describe("useFeedUnreadCount", () => {
     vi.useRealTimers();
   });
 
-  it("reads the count again once after the rooms' unread changes", async () => {
+  it("reads the count again once per burst of unread changes", async () => {
     fetchChatFeedMock
-      .mockResolvedValueOnce({ items: [], nextCursor: null, unreadCount: 1 })
-      .mockResolvedValueOnce({ items: [], nextCursor: null, unreadCount: 0 });
+      .mockResolvedValueOnce(feedCount(1))
+      .mockResolvedValueOnce(feedCount(0));
     liveRooms.current = [room(1)];
     const { result, rerender } = renderCount();
     await advance(0);
@@ -68,20 +80,24 @@ describe("useFeedUnreadCount", () => {
     await advance(FEED_COUNT_REFRESH_DELAY_MS);
     expect(fetchChatFeedMock).toHaveBeenCalledTimes(1);
 
+    liveRooms.current = [room(2)];
+    rerender();
+    await advance(FEED_COUNT_REFRESH_DELAY_MS / 2);
+    // A change inside the wait neither restarts it nor adds a read.
     liveRooms.current = [room(0)];
     rerender();
-    // Renders inside the wait do not restart or drop it.
-    rerender();
     expect(fetchChatFeedMock).toHaveBeenCalledTimes(1);
-    await advance(FEED_COUNT_REFRESH_DELAY_MS);
+    await advance(FEED_COUNT_REFRESH_DELAY_MS / 2);
     expect(fetchChatFeedMock).toHaveBeenCalledTimes(2);
     expect(result.current.unreadCount).toBe(0);
+    await advance(FEED_COUNT_REFRESH_DELAY_MS);
+    expect(fetchChatFeedMock).toHaveBeenCalledTimes(2);
   });
 
   it("reads again when rooms load after the count", async () => {
     fetchChatFeedMock
-      .mockResolvedValueOnce({ items: [], nextCursor: null, unreadCount: 0 })
-      .mockResolvedValueOnce({ items: [], nextCursor: null, unreadCount: 1 });
+      .mockResolvedValueOnce(feedCount(0))
+      .mockResolvedValueOnce(feedCount(1));
     liveRooms.current = null;
     const { result, rerender } = renderCount();
     await advance(0);
@@ -93,15 +109,52 @@ describe("useFeedUnreadCount", () => {
     expect(result.current.unreadCount).toBe(1);
   });
 
-  it("reads again when only needs-you changes", async () => {
+  it("reads again when the first read is still running at the change", async () => {
+    let finishFirstRead: (value: ReturnType<typeof feedCount>) => void =
+      () => {};
     fetchChatFeedMock
-      .mockResolvedValueOnce({ items: [], nextCursor: null, unreadCount: 0 })
-      .mockResolvedValueOnce({ items: [], nextCursor: null, unreadCount: 1 });
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          finishFirstRead = resolve;
+        }),
+      )
+      .mockResolvedValueOnce(feedCount(1));
+    liveRooms.current = null;
+    const { result, rerender } = renderCount();
+    liveRooms.current = [room(1)];
+    rerender();
+    await advance(FEED_COUNT_REFRESH_DELAY_MS);
+    // The first read started before the Direct and answers late.
+    await act(async () => {
+      finishFirstRead(feedCount(0));
+    });
+    expect(fetchChatFeedMock).toHaveBeenCalledTimes(2);
+    expect(result.current.unreadCount).toBe(1);
+  });
+
+  it("does not read again when rooms only change places", async () => {
+    fetchChatFeedMock.mockResolvedValue(feedCount(1));
+    const other = { ...room(0), id: "room-2" };
+    liveRooms.current = [room(1), other];
+    const { rerender } = renderCount();
+    await advance(0);
+    liveRooms.current = [other, room(1)];
+    rerender();
+    await advance(FEED_COUNT_REFRESH_DELAY_MS);
+    expect(fetchChatFeedMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["needs-you changes", room(1, { unreadNeedsYouCount: 1 })],
+    ["the room is muted", room(1, { mutedAt: "2026-11-25T00:00:00Z" })],
+  ])("reads again when only %s", async (_label, changed) => {
+    fetchChatFeedMock
+      .mockResolvedValueOnce(feedCount(0))
+      .mockResolvedValueOnce(feedCount(1));
     liveRooms.current = [room(1)];
     const { result, rerender } = renderCount();
     await advance(0);
-    // A question tagged for the reader on a message already unread.
-    liveRooms.current = [room(1, 1)];
+    liveRooms.current = [changed];
     rerender();
     await advance(FEED_COUNT_REFRESH_DELAY_MS);
     expect(fetchChatFeedMock).toHaveBeenCalledTimes(2);

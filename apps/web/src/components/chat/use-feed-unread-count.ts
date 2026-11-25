@@ -50,12 +50,15 @@ export function useFeedUnreadCount({
     useLiveChatRooms()
       ?.map(
         (room) =>
-          `${room.id}:${room.unreadCount}:${room.unreadNeedsYouCount ?? 0}`,
+          `${room.id}:${room.unreadCount}:${room.unreadNeedsYouCount ?? 0}:${room.mutedAt != null}`,
       )
+      .sort()
       .join(",") ?? null;
   // The rooms' unread last seen, and whether a change waits for its read.
   // Needs-you is part of it: a signal tagged on a message already unread makes
-  // it a Feed message without changing the room's unread. Rooms present at
+  // it a Feed message without changing the room's unread, and muting a room
+  // drops its messages from the Feed. Sorted, so a room moving to the top of
+  // the list is no change. Rooms present at
   // mount are not a change, the query reads with them; rooms that load later
   // are, as a message can land between the two reads. A change inside the
   // wait needs no wait of its own: the read at its end sees it.
@@ -68,13 +71,15 @@ export function useFeedUnreadCount({
   useTimeout(
     () => {
       setRefreshDue(false);
-      void queryClient.invalidateQueries({
-        queryKey: chatQueryKeys.feedUnread({
-          userId: currentUserId,
-          workspaceId: organizationId,
-        }),
-        exact: true,
+      const queryKey = chatQueryKeys.feedUnread({
+        userId: currentUserId,
+        workspaceId: organizationId,
       });
+      // A query with no count yet hands an invalidation its first read, which
+      // may have read before the change. Cancelling it makes this a new read.
+      void queryClient
+        .cancelQueries({ queryKey, exact: true })
+        .then(() => queryClient.invalidateQueries({ queryKey, exact: true }));
     },
     refreshDue ? FEED_COUNT_REFRESH_DELAY_MS : null,
   );
