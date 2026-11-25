@@ -39,8 +39,8 @@ export function SeoConversionCell({
             </span>
           </p>
           {intentClass && fit ? (
-            // Why the level is what it is. A phone row is a name line and one values line.
-            <p className="text-muted-foreground text-xs max-sm:hidden">
+            // Why the level is what it is. A phone row shows it too: no other view names the reason.
+            <p className="text-muted-foreground text-xs">
               {t("keywords.conversion.reason", {
                 intent: t(`keywords.conversion.intent.${intentClass}`),
                 fit: t(`keywords.conversion.fit.${fit}`),

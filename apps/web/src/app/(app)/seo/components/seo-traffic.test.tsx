@@ -20,6 +20,7 @@ import {
   seoTestMetric,
   seoTestWorkspace,
 } from "./seo-test-fixture";
+import { seoKeyEvents } from "./seo-traffic-model";
 import { SeoWorkspace } from "./seo-workspace";
 
 const { mutate } = vi.hoisted(() => ({ mutate: vi.fn() }));
@@ -783,6 +784,35 @@ describe("SEO Traffic key events", () => {
     );
     const shop = table.getByRole("row", { name: /example\.com\/shop/ });
     expect(within(shop).getAllByRole("cell").at(-2)).toHaveTextContent("3");
+  });
+
+  it("reads a page by its URL as written before another spelling, and takes a value that is no URL", () => {
+    const read = seoKeyEvents({
+      ...landingPages(
+        [{ pageUrl: "https://example.com/shop", keyEvents: 3 }],
+        ["https://example.com/shop", "https://example.com/blog/"],
+      ),
+      skippedUrls: ["https://example.com/shop/"],
+    });
+    // The row's own spelling keeps its number; the spelling the read left out says so.
+    expect(read?.cell("https://example.com/shop")).toBe(3);
+    expect(read?.cell("https://example.com/shop/")).toBe(
+      "traffic.keyEventsNotRead",
+    );
+    // Another spelling of a selected page with no row is the same page: a measured 0.
+    expect(read?.cell("https://www.example.com/blog")).toBe(0);
+    // A selected page whose row has another spelling keeps the row's number.
+    expect(read?.cell("https://www.example.com/shop")).toBe(3);
+    expect(read?.cell("/shop")).toBe("traffic.keyEventsNotSelected");
+    // A response of an older Core version has no pageUrls: the row keeps its number, no page gets a 0.
+    const { pageUrls: _, ...older } = landingPages([
+      { pageUrl: "https://example.com/shop", keyEvents: 3 },
+    ]);
+    const old = seoKeyEvents(older as ReturnType<typeof landingPages>);
+    expect(old?.cell("https://example.com/shop/")).toBe(3);
+    expect(old?.cell("https://example.com/")).toBe(
+      "traffic.keyEventsNotSelected",
+    );
   });
 
   it("says when Google Analytics recorded no key events and shows no column without a read", () => {

@@ -51331,7 +51331,7 @@ export const ProjectSeoLandingPagesSchema = {
             type: 'array',
             items: {
                 type: 'string',
-                maxLength: 2048,
+                maxLength: 4096,
                 format: 'uri'
             }
         },

@@ -124,13 +124,18 @@ export function projectSeoMetricsRow(
     data.channel,
     searchType,
   ]);
-  // Rows come newest first, so the first landing read of a channel is its newest one. A newer read of the
-  // other channel does not replace it: organic key events and AI assistant visits are separate counts.
+  // The newest collection of a channel wins. Rows come by observedAt, and a cached read that is used again gets a
+  // new observedAt with its old collection time, so row order alone would put it before a newer collection. A newer
+  // read of the other channel does not replace it: organic key events and AI assistant visits are separate counts.
   const landingKey =
     data.landingPages?.channel === "ai_assistant"
       ? "aiAssistantPages"
       : "landingPages";
-  if (data.landingPages && !out.landing[landingKey])
+  const held = out.landing[landingKey];
+  if (
+    data.landingPages &&
+    (!held || Date.parse(collectedAt) > Date.parse(held.observedAt))
+  )
     out.landing[landingKey] = {
       ...data.landingPages,
       // The pages the read asked for: one of them without a row had no session, which is a measured zero.

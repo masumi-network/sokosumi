@@ -92,7 +92,8 @@ export type SeoLandingPages = z.infer<typeof seoLandingPagesSchema>;
 export const seoWorkspaceLandingPagesSchema = seoLandingPagesSchema
   .extend({
     /** The pages the read asked for. One without a row had no session of the channel in the period. */
-    pageUrls: z.array(z.string().url().max(2048)),
+    // The stored read's own URL rule: a URL the read holds must not fail the workspace.
+    pageUrls: z.array(seoUrlSchema),
     observationId: z.string().uuid(),
     propertyId: z.string(),
     from: z.string(),
