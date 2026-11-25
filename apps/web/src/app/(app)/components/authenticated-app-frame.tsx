@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { AuthenticatedRoomCache } from "@/app/chat/components/authenticated-room-cache";
 import { HistorySearchDialogProvider } from "@/app/components/history-search-dialog-provider";
+import { GlobalRail } from "@/app/components/sidebar/components/global-rail.client";
 import { SidebarEdgeHandle } from "@/app/components/sidebar/components/sidebar-edge-handle.client";
 import { WorkspaceSwitcherProvider } from "@/app/components/workspace-switcher/workspace-switcher.client";
 import { LiveChatRoomsProvider } from "@/components/chat/use-live-chat-rooms";
@@ -158,6 +159,7 @@ export default async function AuthenticatedAppFrame({
                             userId={session.user.id}
                             campaigns={loadBadgeCampaigns()}
                           >
+                            <GlobalRail />
                             <PrivateCachedAppSidebar
                               sessionUser={session.user}
                               activeOrganizationId={activeOrganizationId}

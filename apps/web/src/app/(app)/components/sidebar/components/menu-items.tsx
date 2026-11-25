@@ -1,33 +1,9 @@
 "use client";
 
-import { AnnouncedFeature } from "@sokosumi/core-client";
-import {
-  Binoculars,
-  Bot,
-  CalendarDays,
-  Clapperboard,
-  HardDrive,
-  House,
-  ImagePlus,
-  ListTodo,
-  Mail,
-  Megaphone,
-  Repeat,
-  SearchCheck,
-  Share2,
-  Users,
-} from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import {
-  type ComponentType,
-  type ReactNode,
-  Suspense,
-  type SVGProps,
-  useState,
-} from "react";
+import { type ReactNode, Suspense, useState } from "react";
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
-import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import { useNavPathname } from "@/components/navigation-progress.client";
 import { RestingIntentLink } from "@/components/resting-intent-link";
 import { Collapsible } from "@/components/ui/collapsible";
@@ -57,32 +33,11 @@ import {
   SIDEBAR_FEATURE_LABEL_CLASS,
   SidebarFeatureLabel,
 } from "./sidebar-feature-label";
-
-interface MenuItemConfig {
-  key: string;
-  href: string;
-  label: string;
-  Icon: ComponentType<SVGProps<SVGSVGElement>>;
-  /** The Badge campaign row this is, when the feature has one. */
-  feature?: AnnouncedFeature;
-  /**
-   * A resting hover loads the page's content, not only its shell. Only for a
-   * page whose reads are private-cached, or the prefetch renders for nothing.
-   */
-  prefetchContent?: true | undefined;
-}
-
-/** The headings the nav's destinations sit under, in the order they show. */
-const NAV_GROUPS = ["work", "records", "marketing"] as const;
-
-type NavGroup = (typeof NAV_GROUPS)[number];
-
-/** A page the nav leads to. Each one says which heading it sits under. */
-interface NavDestination extends MenuItemConfig {
-  group: NavGroup;
-  /** Left off the phone sheet, which reaches the page another way. */
-  desktopOnly?: true;
-}
+import {
+  NAV_DESTINATIONS,
+  type SidebarDestination,
+  sidebarSection,
+} from "./sidebar-sections";
 
 /**
  * `newsletterEnabled` is off by default so the Instant Nav shell, which has
@@ -102,6 +57,8 @@ export default function MenuItems({
   );
 }
 
+const destinations: readonly SidebarDestination[] = NAV_DESTINATIONS;
+
 function ScopedMenuItems({
   newsletterEnabled,
 }: {
@@ -114,150 +71,17 @@ function ScopedMenuItems({
   const { isMobile } = useSidebar();
   const markFeatureSeen = useMarkFeatureSeen();
 
-  const allDestinations: NavDestination[] = [
-    // Desktop only: the phone's top bar leads to Home from its Sokosumi icon.
-    {
-      key: "home",
-      href: "/",
-      label: t("home"),
-      Icon: House,
-      group: "work",
-      desktopOnly: true,
-      prefetchContent: true,
-    },
-    {
-      key: "explore-agents",
-      href: "/agents",
-      label: t("exploreAgents"),
-      Icon: Bot,
-      feature: AnnouncedFeature.AGENTS,
-      group: "work",
-      prefetchContent: true,
-    },
-    {
-      key: "task-manager",
-      href: "/tasks",
-      label: t("taskManager"),
-      Icon: ListTodo,
-      feature: AnnouncedFeature.TASKS,
-      group: "work",
-      prefetchContent: true,
-    },
-    {
-      key: "schedules",
-      href: TASK_SCHEDULES_PATH,
-      label: t("schedules"),
-      Icon: Repeat,
-      feature: AnnouncedFeature.SCHEDULES,
-      group: "work",
-      prefetchContent: true,
-    },
-    // Every dated feature is a filter on this one page.
-    {
-      key: "calendar",
-      href: "/calendar",
-      label: t("calendar"),
-      Icon: CalendarDays,
-      group: "work",
-      prefetchContent: true,
-    },
-    // Workspace-wide like Files, so it is not scoped to the reader's project.
-    {
-      key: "contacts",
-      href: "/contacts",
-      label: t("contacts"),
-      Icon: Users,
-      group: "records",
-    },
-    // Scoped by `?projectId=` like the rows above it, so `hrefFor` carries the
-    // reader's project across without the studio knowing about the switcher.
-    {
-      key: "studio",
-      href: "/studio",
-      label: t("contentStudio"),
-      Icon: ImagePlus,
-      feature: AnnouncedFeature.CONTENT_STUDIO,
-      group: "marketing",
-      prefetchContent: true,
-    },
-    // Talking videos, scoped by `?projectId=` like the studio beside it.
-    {
-      key: "tiktok-studio",
-      href: "/tiktok-studio",
-      label: t("tiktokStudio"),
-      Icon: Clapperboard,
-      group: "marketing",
-      prefetchContent: true,
-    },
-    // Social scheduling is public and follows the studio's project scope.
-    {
-      key: "social",
-      href: "/social",
-      label: t("social"),
-      Icon: Share2,
-      feature: AnnouncedFeature.SOCIAL,
-      group: "marketing",
-      prefetchContent: true,
-    },
-    {
-      key: "seo",
-      href: "/seo",
-      label: t("seo"),
-      Icon: SearchCheck,
-      group: "marketing",
-      prefetchContent: true,
-    },
-    {
-      key: "ads",
-      href: "/ads",
-      label: t("ads"),
-      Icon: Megaphone,
-      feature: AnnouncedFeature.SOCIAL,
-      group: "marketing",
-      prefetchContent: true,
-    },
-    // A project's competitors and its weekly check, scoped like Ads.
-    {
-      key: "competitors",
-      href: "/competitors",
-      label: t("competitors"),
-      Icon: Binoculars,
-      group: "marketing",
-    },
-    ...(newsletterEnabled
-      ? [
-          {
-            key: "newsletter",
-            href: "/newsletter",
-            label: t("newsletter"),
-            Icon: Mail,
-            group: "marketing",
-          } satisfies NavDestination,
-        ]
-      : []),
-    // Desktop only: mobile keeps Files on the You page account surface.
-    {
-      key: "drive",
-      href: "/drive",
-      label: t("drive"),
-      Icon: HardDrive,
-      feature: AnnouncedFeature.DRIVE,
-      group: "records",
-      desktopOnly: true,
-    },
-  ];
-  const destinations = isMobile
-    ? allDestinations.filter(({ desktopOnly }) => !desktopOnly)
-    : allDestinations;
+  const group = sidebarSection(navPathname) ?? "work";
 
   function renderItem({
     key,
     href,
-    label,
+    labelKey,
     Icon,
     feature,
     prefetchContent,
-  }: MenuItemConfig) {
+  }: SidebarDestination) {
+    const label = t(labelKey);
     const isActive = isPathActive(navPathname, href);
 
     return (
@@ -309,13 +133,18 @@ function ScopedMenuItems({
           project-scoped nav from the workspace-wide chats from md, where the
           scope's hairline is gone. */}
       <SidebarGroupContent className="pt-1 pb-2">
-        {NAV_GROUPS.map((group) => (
+        {group !== "chats" ? (
           <MenuGroup key={group} title={t(`groups.${group}`)}>
             {destinations
-              .filter((destination) => destination.group === group)
+              .filter(
+                (destination) =>
+                  destination.group === group &&
+                  !(isMobile && destination.desktopOnly) &&
+                  (newsletterEnabled || !destination.requiresNewsletter),
+              )
               .map(renderItem)}
           </MenuGroup>
-        ))}
+        ) : null}
       </SidebarGroupContent>
     </SidebarGroup>
   );

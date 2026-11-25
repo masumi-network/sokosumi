@@ -34,12 +34,14 @@ describe("HeaderProfileSection", () => {
 
   // From md the switcher is the sidebar header's, and hides with it: the
   // desktop top bar ends in Search and the bell.
-  it("keeps the Workspace switcher for the phone only", () => {
+  it("shows the top-bar Workspace switcher on mobile and collapsed desktop", () => {
     render(<HeaderProfileSection />);
 
     const switcher = screen.getByRole("button", { name: "Acme" });
     expect(switcher).toHaveAttribute("data-placement", "topBar");
-    expect(tokens(switcher.parentElement)).toContain("md:hidden");
+    expect(tokens(switcher.parentElement)).toEqual(
+      expect.arrayContaining(["max-md:flex", "md:sidebar-hidden:flex"]),
+    );
   });
 
   it("keeps Notification Center on every width", () => {
@@ -52,11 +54,13 @@ describe("HeaderProfileSection", () => {
   });
 
   // A project's own pages give the scope chip the row; You keeps the switcher.
-  it("drops the phone Workspace switcher on a project's own pages", () => {
+  it("reserves room for the mobile project scope on project pages", () => {
     mocks.pathname = "/projects/p-1/memory";
     render(<HeaderProfileSection />);
 
-    expect(screen.queryByRole("button", { name: "Acme" })).toBeNull();
+    expect(
+      tokens(screen.getByRole("button", { name: "Acme" }).parentElement),
+    ).not.toContain("max-md:flex");
     expect(screen.getByRole("button", { name: "Notifications" })).toBeVisible();
   });
 });

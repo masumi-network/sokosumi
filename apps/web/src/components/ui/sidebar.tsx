@@ -227,6 +227,7 @@ function Sidebar({
   side = "left",
   variant = "sidebar",
   collapsible = "offcanvas",
+  mobileTriggerId,
   className,
   children,
   ...props
@@ -234,6 +235,7 @@ function Sidebar({
   side?: "left" | "right";
   variant?: "sidebar" | "floating" | "inset";
   collapsible?: "offcanvas" | "none";
+  mobileTriggerId?: string;
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
 
@@ -266,6 +268,9 @@ function Sidebar({
             } as React.CSSProperties
           }
           side={side}
+          onCloseAutoFocus={() => {
+            if (mobileTriggerId) document.getElementById(mobileTriggerId)?.focus();
+          }}
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Sidebar</SheetTitle>
