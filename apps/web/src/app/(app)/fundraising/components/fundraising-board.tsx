@@ -185,16 +185,16 @@ export function FundraisingBoard({
                 <TableHead className={cn(CELL, "w-[11%]")}>
                   {t("columns.stage")}
                 </TableHead>
-                <TableHead className={cn(CELL, "w-[11%]")}>
+                <TableHead className={cn(CELL, "w-[10%]")}>
                   {t("columns.owner")}
                 </TableHead>
-                <TableHead className={cn(CELL, "w-[28%]")}>
+                <TableHead className={cn(CELL, "w-[26%]")}>
                   {t("columns.nextAction")}
                 </TableHead>
                 <TableHead className={cn(CELL, "w-[12%]")}>
                   {t("columns.lastTouch")}
                 </TableHead>
-                <TableHead className={cn(CELL, "w-[10%]")}>
+                <TableHead className={cn(CELL, "w-[13%]")}>
                   {t("columns.dataRoom")}
                 </TableHead>
                 <TableHead className={cn(CELL, "w-[6%] text-right")}>
