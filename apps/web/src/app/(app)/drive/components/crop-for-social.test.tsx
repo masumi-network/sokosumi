@@ -125,27 +125,112 @@ describe("CropForSocial", () => {
     );
   });
 
-  it("places the crop by tapping or dragging the photo", async () => {
-    const user = userEvent.setup();
-    renderCrop();
+  /** The photo, 200 x 100 on screen, under a square frame half its width. */
+  async function openStage(user: ReturnType<typeof userEvent.setup>) {
     await openWithWideImage(user);
-    // Square on 2000 x 1000: the frame is half the photo, which shows 200 px wide.
-    const stage = screen.getByTestId("crop-frame").parentElement as HTMLElement;
+    const frame = screen.getByTestId("crop-frame");
+    const stage = frame.parentElement as HTMLElement;
     vi.spyOn(stage, "getBoundingClientRect").mockReturnValue(
       DOMRect.fromRect({ x: 0, y: 0, width: 200, height: 100 }),
     );
-    const position = screen.getByRole("slider", { name: "positionX" });
+    return {
+      frame,
+      stage,
+      position: screen.getByRole("slider", { name: "positionX" }),
+    };
+  }
 
-    // A tap right of the frame centres it there, as far as the edge allows.
+  it("places the crop where a tap on the photo ends", async () => {
+    const user = userEvent.setup();
+    renderCrop();
+    const { stage, position } = await openStage(user);
+
     fireEvent.pointerDown(stage, { pointerId: 1, clientX: 190, clientY: 50 });
-    expect(position).toHaveValue("100");
-    // Dragging moves it with the pointer; the slider follows.
-    fireEvent.pointerMove(stage, { pointerId: 1, clientX: 140, clientY: 50 });
+    // Nothing moves on press: the gesture may still turn into a scroll.
     expect(position).toHaveValue("50");
-    fireEvent.pointerUp(stage, { pointerId: 1, clientX: 140, clientY: 50 });
+    fireEvent.pointerUp(stage, { pointerId: 1, clientX: 190, clientY: 50 });
+    // Centred on the tap, as far as the edge allows.
+    expect(position).toHaveValue("100");
+  });
+
+  it("drags the frame with the pointer, and the slider follows", async () => {
+    const user = userEvent.setup();
+    renderCrop();
+    const { stage, position } = await openStage(user);
+
+    // The frame spans 50..150 px; grab it at 100 and move left by 25 px.
+    fireEvent.pointerDown(stage, { pointerId: 1, clientX: 100, clientY: 50 });
+    fireEvent.pointerMove(stage, { pointerId: 1, clientX: 75, clientY: 50 });
+    expect(position).toHaveValue("25");
+    fireEvent.pointerUp(stage, { pointerId: 1, clientX: 75, clientY: 50 });
     // Moving without a press changes nothing.
+    fireEvent.pointerMove(stage, { pointerId: 1, clientX: 190, clientY: 50 });
+    expect(position).toHaveValue("25");
+
+    // The saved copy is the dragged crop: a quarter of the 1000 px travel.
+    await user.click(screen.getByRole("button", { name: "save" }));
+    await waitFor(() => expect(upload).toHaveBeenCalledTimes(1));
+    expect(drawImage).toHaveBeenCalledWith(
+      expect.anything(),
+      250,
+      0,
+      1000,
+      1000,
+      0,
+      0,
+      1000,
+      1000,
+    );
+  });
+
+  it("keeps the crop when the browser takes the gesture for a scroll", async () => {
+    const user = userEvent.setup();
+    renderCrop();
+    const { stage, position } = await openStage(user);
+
+    fireEvent.pointerDown(stage, { pointerId: 1, clientX: 100, clientY: 50 });
+    fireEvent.pointerMove(stage, { pointerId: 1, clientX: 75, clientY: 60 });
+    fireEvent.pointerCancel(stage, { pointerId: 1 });
+    expect(position).toHaveValue("50");
+
+    // A cancelled tap outside the frame places nothing either.
+    fireEvent.pointerDown(stage, { pointerId: 2, clientX: 190, clientY: 50 });
+    fireEvent.pointerCancel(stage, { pointerId: 2 });
+    fireEvent.pointerUp(stage, { pointerId: 2, clientX: 190, clientY: 50 });
+    expect(position).toHaveValue("50");
+  });
+
+  it("follows only the pointer that grabbed the frame", async () => {
+    const user = userEvent.setup();
+    renderCrop();
+    const { stage, position } = await openStage(user);
+
+    fireEvent.pointerDown(stage, { pointerId: 1, clientX: 100, clientY: 50 });
+    fireEvent.pointerDown(stage, { pointerId: 2, clientX: 190, clientY: 50 });
+    fireEvent.pointerMove(stage, { pointerId: 2, clientX: 0, clientY: 50 });
+    fireEvent.pointerUp(stage, { pointerId: 2, clientX: 0, clientY: 50 });
+    expect(position).toHaveValue("50");
+    fireEvent.pointerMove(stage, { pointerId: 1, clientX: 125, clientY: 50 });
+    expect(position).toHaveValue("75");
+  });
+
+  it("stops dragging when the photo loses the pointer", async () => {
+    const user = userEvent.setup();
+    renderCrop();
+    const { stage, position } = await openStage(user);
+
+    fireEvent.pointerDown(stage, { pointerId: 1, clientX: 100, clientY: 50 });
+    fireEvent.lostPointerCapture(stage, { pointerId: 1 });
     fireEvent.pointerMove(stage, { pointerId: 1, clientX: 0, clientY: 50 });
     expect(position).toHaveValue("50");
+  });
+
+  it("leaves vertical swipes on the photo to scroll the dialog", async () => {
+    const user = userEvent.setup();
+    renderCrop();
+    const { frame, stage } = await openStage(user);
+    expect(stage).toHaveClass("touch-pan-y");
+    expect(frame).not.toHaveClass("touch-none");
   });
 
   it("places the crop at any point of its travel without a drag", async () => {
@@ -190,6 +275,8 @@ describe("CropForSocial", () => {
       screen.getByRole("radio", { name: /shapes.landscape.name/ }),
     );
     expect(screen.getByRole("slider", { name: "positionY" })).toHaveValue("50");
+    // Only the frame takes vertical touch; the rest of the photo scrolls.
+    expect(screen.getByTestId("crop-frame")).toHaveClass("touch-none");
   });
 
   it("offers no position control when the image already has the shape", async () => {

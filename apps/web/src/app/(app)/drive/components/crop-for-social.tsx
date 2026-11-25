@@ -314,7 +314,14 @@ function CropStage({
   onSize: (size: { width: number; height: number }) => void;
   onError: () => void;
 }) {
-  const drag = useRef<{ at: number; position: number } | null>(null);
+  // The one pointer this gesture follows, where it started, and the position
+  // to restore if the browser takes the gesture over (a scroll).
+  const gesture = useRef<{
+    pointerId: number;
+    at: number;
+    position: number;
+    grabbed: boolean;
+  } | null>(null);
   const axis = rect?.axis ?? null;
 
   /** The pointer and the frame as fractions along the frame's axis. */
@@ -334,26 +341,55 @@ function CropStage({
         };
   }
 
+  /** The gesture this event belongs to, or null for any other pointer. */
+  function owned(event: PointerEvent<HTMLDivElement>) {
+    const current = gesture.current;
+    return current?.pointerId === event.pointerId ? current : null;
+  }
+
   // Direct framing for pointers; the slider below stays the keyboard and
-  // single-tap way to do the same (WCAG 2.5.7).
+  // single-tap way to do the same (WCAG 2.5.7). Grabbing the frame drags it;
+  // a tap elsewhere places it on release, so a swipe that scrolls moves
+  // nothing (WCAG 2.5.2).
   function onPointerDown(event: PointerEvent<HTMLDivElement>) {
     const at = measure(event);
-    if (!at || event.button !== 0) return;
+    if (!at || event.button !== 0 || gesture.current) return;
     const grabbed = at.at >= at.from && at.at <= at.from + at.frame;
-    const next = grabbed ? position : dragPosition({ ...at, start: null });
-    drag.current = { at: at.at, position: next };
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-    onPosition(next);
+    gesture.current = {
+      pointerId: event.pointerId,
+      at: at.at,
+      position,
+      grabbed,
+    };
+    if (grabbed) event.currentTarget.setPointerCapture?.(event.pointerId);
   }
 
   function onPointerMove(event: PointerEvent<HTMLDivElement>) {
+    const current = owned(event);
     const at = measure(event);
-    if (!at || !drag.current) return;
-    onPosition(dragPosition({ ...at, start: drag.current }));
+    if (!current?.grabbed || !at) return;
+    onPosition(dragPosition({ ...at, start: current }));
   }
 
-  function endDrag() {
-    drag.current = null;
+  function onPointerUp(event: PointerEvent<HTMLDivElement>) {
+    const current = owned(event);
+    if (!current) return;
+    gesture.current = null;
+    const at = measure(event);
+    if (!current.grabbed && at) {
+      onPosition(dragPosition({ ...at, start: null }));
+    }
+  }
+
+  function onPointerCancel(event: PointerEvent<HTMLDivElement>) {
+    const current = owned(event);
+    if (!current) return;
+    gesture.current = null;
+    onPosition(current.position);
+  }
+
+  function onLostPointerCapture(event: PointerEvent<HTMLDivElement>) {
+    if (owned(event)) gesture.current = null;
   }
 
   return (
@@ -366,14 +402,14 @@ function CropStage({
         <div
           className={cn(
             "relative w-fit overflow-hidden rounded-sm",
-            // Keep the other axis free so the dialog still scrolls on touch.
-            axis === "x" && "cursor-grab touch-pan-y active:cursor-grabbing",
-            axis === "y" && "cursor-grab touch-pan-x active:cursor-grabbing",
+            // Vertical swipes on the photo still scroll the dialog on touch.
+            axis && "cursor-grab touch-pan-y active:cursor-grabbing",
           )}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerCancel}
+          onLostPointerCapture={onLostPointerCapture}
         >
           {/* Not next/image: authorized same-origin bytes the canvas reads. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -395,7 +431,12 @@ function CropStage({
             <div
               aria-hidden="true"
               data-testid="crop-frame"
-              className="absolute border-2 border-on-media outline-solid outline-[9999px] outline-scrim-strong"
+              className={cn(
+                "absolute border-2 border-on-media outline-solid outline-[9999px] outline-scrim-strong",
+                // A frame that slides up and down takes vertical touch itself;
+                // the rest of the photo keeps scrolling the dialog.
+                axis === "y" && "touch-none",
+              )}
               style={{
                 left: `${(rect.x / size.width) * 100}%`,
                 top: `${(rect.y / size.height) * 100}%`,
