@@ -1901,6 +1901,331 @@ export const MCP_TOOLS: readonly McpTool[] = [
     description:
       "Import a Search Console CSV export for an SEO Task of a Project's SEO workspace: `body.kind`, `body.date` (YYYY-MM-DD) and `body.csv`; an `indexing_examples` export also takes `body.reason`.",
   },
+  // SOKD-375: Drive, in the non-default `drive` toolset.
+  {
+    name: "drive_search",
+    operation: "GET /drive/search",
+    description:
+      "Search a Drive's files by name, extracted text and metadata. Pass `scope` `me` for the personal Drive, or `org` with `organizationId`. Filter with `q`, labels, projects, `folder`, type or dates; page with `cursor`.",
+  },
+  {
+    name: "drive_files",
+    operation: "GET /drive/files",
+    description:
+      "List the folders and files at one level of a Drive; `folder` is the path, the root when omitted. Page with `cursor`.",
+  },
+  {
+    name: "drive_recents",
+    operation: "GET /drive/recents",
+    description: "List a Drive's recent files and Task outputs, newest first.",
+  },
+  {
+    name: "drive_get",
+    operation: "GET /drive/resources/{id}",
+    description:
+      "Get one Drive file with its category, tags, projects, pending suggestions and `metadataRevision`.",
+  },
+  {
+    name: "drive_related",
+    operation: "GET /drive/resources/{id}/related",
+    description: "List up to six documents related to one Drive file.",
+  },
+  {
+    name: "drive_folders",
+    operation: "GET /drive/folders",
+    description: "List the folder paths in a Drive that hold a file.",
+  },
+  {
+    name: "drive_create_folder",
+    operation: "POST /drive/folders",
+    description: "Create an empty Drive folder at `body.folderPath`.",
+  },
+  {
+    name: "drive_rename_folder",
+    operation: "PATCH /drive/folders/rename",
+    description:
+      "Rename or move a Drive folder and everything in it, from `body.oldFolderPath` to `body.newFolderPath`.",
+  },
+  {
+    name: "drive_delete_folder",
+    operation: "DELETE /drive/folders/delete",
+    description:
+      "Delete a Drive folder and every file in it. This cannot be undone.",
+  },
+  {
+    name: "drive_move",
+    operation: "PATCH /drive/files/move",
+    description:
+      "Move a Drive file or folder (`body.itemType`) by its pathname into `body.targetFolderPath`.",
+  },
+  {
+    name: "drive_rename",
+    operation: "PATCH /drive/files/rename",
+    description:
+      "Rename a Drive file: `body.oldPathname` is its `pathname` from drive_files, `body.newFilename` the new name.",
+  },
+  {
+    name: "drive_delete",
+    operation: "DELETE /drive/files/delete",
+    description:
+      "Delete a Drive file by its `pathname` from drive_files. This cannot be undone.",
+  },
+  {
+    name: "drive_update_metadata",
+    operation: "PATCH /drive/resources/{id}/metadata",
+    description:
+      "Change one Drive file's category, tags and confirmed projects. Pass its current `metadataRevision` from drive_get as `body.expectedMetadataRevision`; a stale one answers 409.",
+    destructive: true,
+  },
+  {
+    name: "drive_decide_suggestion",
+    operation: "POST /drive/resources/{id}/suggestions/{suggestionId}/decision",
+    description:
+      "Accept, dismiss or restore one metadata suggestion on a Drive file (`body.decision`), with its current `metadataRevision`.",
+  },
+  {
+    name: "drive_select",
+    operation: "POST /drive/resources/selection-token",
+    description:
+      "Turn the result window behind a drive_search cursor (`body.windowCursor`) into a short-lived selection token for drive_update_metadata_batch. It never selects more than that window.",
+  },
+  {
+    name: "drive_update_metadata_batch",
+    operation: "POST /drive/resources/metadata-batch",
+    description:
+      "Add or remove tags, or set the category, on up to 100 Drive files: `body.resourceIds` or a `body.selectionToken` from drive_select, with an `idempotencyKey`. Each file succeeds or fails on its own; `outcomes` lists each.",
+    destructive: true,
+  },
+  {
+    name: "drive_reindex",
+    operation: "POST /drive/resources/{id}/reindex",
+    description:
+      "Queue a Drive file for text extraction again. Once a minute per file.",
+  },
+  {
+    name: "drive_add_google_sheet",
+    operation: "POST /drive/files/google-sheets",
+    description:
+      "Save a Google Sheet into Drive as a PDF copy that Sokosumi refreshes every hour. The sheet must be shared as 'Anyone with the link can view'; pass its link as `body.url`.",
+  },
+  {
+    name: "drive_google_sheet",
+    operation: "GET /drive/resources/{id}/google-sheet",
+    description:
+      "Get the Google Sheet a Drive file copies. Empty for a plain file.",
+  },
+  {
+    name: "drive_refresh_google_sheet",
+    operation: "POST /drive/resources/{id}/google-sheet/refresh",
+    description:
+      "Read a Drive file's Google Sheet now and rewrite the copy if it changed. A failure comes back in `error`; the copy stays as it was.",
+    destructive: true,
+  },
+  {
+    name: "drive_tasks",
+    operation: "GET /drive/tasks",
+    description:
+      "List the Task output files in a Drive. Filter by `projectId`, `taskId` or `assigneeId`; page with `cursor`.",
+  },
+  {
+    name: "drive_copy_task_file",
+    operation: "POST /drive/tasks/copy",
+    description:
+      "Copy a Task output file (`body.taskFileId` from drive_tasks) to the Drive root. The Task's file stays.",
+  },
+  {
+    name: "drive_labels",
+    operation: "GET /drive/labels",
+    description:
+      "List a Drive's categories and tags. `kind` filters; `includeArchived` adds archived ones.",
+  },
+  {
+    name: "drive_create_label",
+    operation: "POST /drive/labels",
+    description:
+      "Create a Drive tag or category (`body.kind`) named `body.displayName`.",
+  },
+  {
+    name: "drive_update_label",
+    operation: "PATCH /drive/labels/{id}",
+    description:
+      "Rename, describe or archive a Drive tag or category. A rename keeps its id. Merging it into another label (`body.mergeIntoLabelId`) is an admin step: only do it when the person asks.",
+    destructive: true,
+  },
+  {
+    name: "drive_collections",
+    operation: "GET /drive/collections",
+    description:
+      "List saved Drive views: your own collections and those shared in the workspace.",
+  },
+  {
+    name: "drive_create_collection",
+    operation: "POST /drive/collections",
+    description:
+      "Save Drive search filters (`body.definition`) and a sort as a collection. Private unless `body.isShared`.",
+  },
+  {
+    name: "drive_update_collection",
+    operation: "PATCH /drive/collections/{id}",
+    description: "Rename a collection, or replace its filters and sort.",
+    destructive: true,
+  },
+  {
+    name: "drive_delete_collection",
+    operation: "DELETE /drive/collections/{id}",
+    description: "Delete one of your collections. The files in it stay.",
+  },
+  {
+    name: "drive_share",
+    operation: "GET /drive/shares",
+    description:
+      "Get the public link of a Drive file (`resourceId`) or folder (`folderPath`), if it has one.",
+  },
+  {
+    name: "drive_unshare",
+    operation: "DELETE /drive/shares/{id}",
+    description:
+      "Stop sharing a Drive file or folder: its public link stops working at once.",
+  },
+  {
+    name: "drive_tables",
+    operation: "GET /drive/tables",
+    description:
+      "List a workspace's tables. Filter by `projectId`, `search` or `archived`; page with `cursor`.",
+  },
+  {
+    name: "drive_create_table",
+    operation: "POST /drive/tables",
+    description:
+      "Create a table with `body.columns` and optional `body.rows`. `body.key` is a retry key: send the same key to retry without creating a second table.",
+  },
+  {
+    name: "drive_table",
+    operation: "GET /drive/tables/{id}",
+    description: "Get a table's columns, views and `version`.",
+  },
+  {
+    name: "drive_update_table",
+    operation: "PATCH /drive/tables/{id}",
+    description:
+      "Change a table's title, description, columns or archived state. Pass its current `version` and a retry `key`.",
+    destructive: true,
+  },
+  {
+    name: "drive_query_table",
+    operation: "POST /drive/tables/{id}/query",
+    description:
+      "Read a table's rows with filters, sort and paging. Changes nothing.",
+  },
+  {
+    name: "drive_edit_rows",
+    operation: "POST /drive/tables/{id}/rows",
+    description:
+      "Insert rows (`body.insert`) and change cells (`body.patch`) in one batch with a retry `key`. drive_undo_table reverts the batch.",
+    destructive: true,
+  },
+  {
+    name: "drive_save_view",
+    operation: "POST /drive/tables/{id}/views",
+    description:
+      "Create a saved view of a table, or change one by `body.id` and its `version`.",
+  },
+  {
+    name: "drive_undo_table",
+    operation: "POST /drive/tables/{id}/undo",
+    description:
+      "Undo one batch of row edits by `body.batchId`, with a retry `key`.",
+    destructive: true,
+  },
+  {
+    name: "drive_table_history",
+    operation: "GET /drive/tables/{id}/history",
+    description:
+      "List a table's edits, newest first. Filter by `rowId` or `columnId`; page with `cursor`.",
+  },
+  {
+    name: "drive_enrich_table",
+    operation: "POST /drive/tables/{id}/enrich",
+    description:
+      "Create a Task for a Coworker (`body.assigneeId`) or a Soko Bot (`body.assigneeSokoBotId`) to fill the chosen cells following `body.prompt`.",
+  },
+  {
+    name: "drive_data_rooms",
+    operation: "GET /drive/data-rooms",
+    description:
+      "List a Drive's data rooms: folders whose files only the people let in see.",
+  },
+  {
+    name: "drive_create_data_room",
+    operation: "POST /drive/data-rooms",
+    description:
+      "Turn a Drive folder (`body.folderPath`) into a data room. Its files move to private storage, and public links to it or anything in it stop working.",
+    destructive: true,
+  },
+  {
+    name: "drive_open_questions",
+    operation: "GET /drive/data-rooms/questions",
+    description:
+      "List unanswered viewer questions across the data rooms you manage.",
+  },
+  {
+    name: "drive_data_room",
+    operation: "GET /drive/data-rooms/{id}",
+    description:
+      "Get a data room's settings, the people let in and what each may see.",
+  },
+  {
+    name: "drive_update_data_room",
+    operation: "PATCH /drive/data-rooms/{id}",
+    description:
+      "Change a data room's title, welcome note, company page, logo, allowed email domains, closing date, downloads, watermark or first-visit notices.",
+    destructive: true,
+  },
+  {
+    name: "drive_close_data_room",
+    operation: "DELETE /drive/data-rooms/{id}",
+    description:
+      "Close a data room: its files move back to ordinary Drive storage and the folder becomes an ordinary folder.",
+  },
+  {
+    name: "drive_update_data_room_member",
+    operation: "PATCH /drive/data-rooms/{id}/members/{memberId}",
+    description:
+      "Change one data room member's name, end date or the folders they see.",
+    destructive: true,
+  },
+  {
+    name: "drive_remove_data_room_member",
+    operation: "DELETE /drive/data-rooms/{id}/members/{memberId}",
+    description:
+      "Take someone out of a data room at once; their open sessions end.",
+  },
+  {
+    name: "drive_data_room_events",
+    operation: "GET /drive/data-rooms/{id}/events",
+    description:
+      "List a data room's activity, newest first: who came in and what they opened. Filter by `memberId`; page with `before`.",
+  },
+  {
+    name: "drive_data_room_questions",
+    operation: "GET /drive/data-rooms/{id}/questions",
+    description:
+      "List the questions viewers asked about a data room's documents, newest first.",
+  },
+  {
+    name: "drive_order_data_room",
+    operation: "PUT /drive/data-rooms/{id}/order",
+    description:
+      "Set the order of a data room's folders and files (`body.entries`), which also numbers them for viewers.",
+    destructive: true,
+  },
+  {
+    name: "drive_set_data_room_colleagues",
+    operation: "PUT /drive/data-rooms/{id}/colleagues",
+    description:
+      "Choose which organization members (`body.userIds`) may see and run an organization data room, besides its maker, owners and admins. Replaces the list.",
+    destructive: true,
+  },
 ];
 
 /** Route groups with a hyphen, which their tool names spell with `_`. */

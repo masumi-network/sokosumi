@@ -1,3 +1,251 @@
 {
-  "backlog": "SOKD-375"
+  "operations": {
+    "GET /drive/search": {
+      "cli": "drive search",
+      "mcp": "drive_search"
+    },
+    "GET /drive/files": {
+      "cli": "drive files",
+      "mcp": "drive_files"
+    },
+    "GET /drive/recents": {
+      "cli": "drive recents",
+      "mcp": "drive_recents"
+    },
+    "GET /drive/resources/{id}": {
+      "cli": "drive get",
+      "mcp": "drive_get"
+    },
+    "GET /drive/resources/{id}/related": {
+      "cli": "drive related",
+      "mcp": "drive_related"
+    },
+    "GET /drive/folders": {
+      "cli": "drive folders",
+      "mcp": "drive_folders"
+    },
+    "POST /drive/folders": {
+      "cli": "drive create-folder",
+      "mcp": "drive_create_folder"
+    },
+    "PATCH /drive/folders/rename": {
+      "cli": "drive rename-folder",
+      "mcp": "drive_rename_folder"
+    },
+    "DELETE /drive/folders/delete": {
+      "cli": "drive delete-folder",
+      "mcp": "drive_delete_folder"
+    },
+    "PATCH /drive/files/move": {
+      "cli": "drive move",
+      "mcp": "drive_move"
+    },
+    "PATCH /drive/files/rename": {
+      "cli": "drive rename",
+      "mcp": "drive_rename"
+    },
+    "DELETE /drive/files/delete": {
+      "cli": "drive delete",
+      "mcp": "drive_delete"
+    },
+    "POST /drive/files": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Binary upload: it mints a direct upload of file bytes to storage, and the CLI and MCP send JSON only."
+    },
+    "POST /drive/files/finalize": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Binary upload: it confirms the bytes of an upload `POST /drive/files` started, which is not on this surface."
+    },
+    "GET /drive/files/content": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Returns file bytes, not JSON; `drive files` and `drive get` return the file's details."
+    },
+    "GET /drive/resources/{id}/content": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Returns file bytes, not JSON; `drive get` returns the file's details."
+    },
+    "PATCH /drive/resources/{id}/metadata": {
+      "cli": "drive update-metadata",
+      "mcp": "drive_update_metadata"
+    },
+    "POST /drive/resources/{id}/suggestions/{suggestionId}/decision": {
+      "cli": "drive decide-suggestion",
+      "mcp": "drive_decide_suggestion"
+    },
+    "POST /drive/resources/selection-token": {
+      "cli": "drive select",
+      "mcp": "drive_select"
+    },
+    "POST /drive/resources/metadata-batch": {
+      "cli": "drive update-metadata-batch",
+      "mcp": "drive_update_metadata_batch"
+    },
+    "POST /drive/resources/{id}/reindex": {
+      "cli": "drive reindex",
+      "mcp": "drive_reindex"
+    },
+    "POST /drive/files/google-sheets": {
+      "cli": "drive add-google-sheet",
+      "mcp": "drive_add_google_sheet"
+    },
+    "GET /drive/resources/{id}/google-sheet": {
+      "cli": "drive google-sheet",
+      "mcp": "drive_google_sheet"
+    },
+    "POST /drive/resources/{id}/google-sheet/refresh": {
+      "cli": "drive refresh-google-sheet",
+      "mcp": "drive_refresh_google_sheet"
+    },
+    "GET /drive/tasks": {
+      "cli": "drive tasks",
+      "mcp": "drive_tasks"
+    },
+    "POST /drive/tasks/copy": {
+      "cli": "drive copy-task-file",
+      "mcp": "drive_copy_task_file"
+    },
+    "GET /drive/labels": {
+      "cli": "drive labels",
+      "mcp": "drive_labels"
+    },
+    "POST /drive/labels": {
+      "cli": "drive create-label",
+      "mcp": "drive_create_label"
+    },
+    "PATCH /drive/labels/{id}": {
+      "cli": "drive update-label",
+      "mcp": "drive_update_label"
+    },
+    "GET /drive/collections": {
+      "cli": "drive collections",
+      "mcp": "drive_collections"
+    },
+    "POST /drive/collections": {
+      "cli": "drive create-collection",
+      "mcp": "drive_create_collection"
+    },
+    "PATCH /drive/collections/{id}": {
+      "cli": "drive update-collection",
+      "mcp": "drive_update_collection"
+    },
+    "DELETE /drive/collections/{id}": {
+      "cli": "drive delete-collection",
+      "mcp": "drive_delete_collection"
+    },
+    "GET /drive/shares": {
+      "cli": "drive share",
+      "mcp": "drive_share"
+    },
+    "PUT /drive/shares": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A public link opens a file or folder to anyone who has it; a person creates it (ADR 0077)."
+    },
+    "DELETE /drive/shares/{id}": {
+      "cli": "drive unshare",
+      "mcp": "drive_unshare"
+    },
+    "GET /drive/tables": {
+      "cli": "drive tables",
+      "mcp": "drive_tables"
+    },
+    "POST /drive/tables": {
+      "cli": "drive create-table",
+      "mcp": "drive_create_table"
+    },
+    "GET /drive/tables/{id}": {
+      "cli": "drive table",
+      "mcp": "drive_table"
+    },
+    "PATCH /drive/tables/{id}": {
+      "cli": "drive update-table",
+      "mcp": "drive_update_table"
+    },
+    "POST /drive/tables/{id}/query": {
+      "cli": "drive query-table",
+      "mcp": "drive_query_table"
+    },
+    "POST /drive/tables/{id}/rows": {
+      "cli": "drive edit-rows",
+      "mcp": "drive_edit_rows"
+    },
+    "POST /drive/tables/{id}/views": {
+      "cli": "drive save-view",
+      "mcp": "drive_save_view"
+    },
+    "POST /drive/tables/{id}/undo": {
+      "cli": "drive undo-table",
+      "mcp": "drive_undo_table"
+    },
+    "GET /drive/tables/{id}/history": {
+      "cli": "drive table-history",
+      "mcp": "drive_table_history"
+    },
+    "POST /drive/tables/{id}/enrich": {
+      "cli": "drive enrich-table",
+      "mcp": "drive_enrich_table"
+    },
+    "GET /drive/data-rooms": {
+      "cli": "drive data-rooms",
+      "mcp": "drive_data_rooms"
+    },
+    "POST /drive/data-rooms": {
+      "cli": "drive create-data-room",
+      "mcp": "drive_create_data_room"
+    },
+    "GET /drive/data-rooms/questions": {
+      "cli": "drive open-questions",
+      "mcp": "drive_open_questions"
+    },
+    "GET /drive/data-rooms/{id}": {
+      "cli": "drive data-room",
+      "mcp": "drive_data_room"
+    },
+    "PATCH /drive/data-rooms/{id}": {
+      "cli": "drive update-data-room",
+      "mcp": "drive_update_data_room"
+    },
+    "DELETE /drive/data-rooms/{id}": {
+      "cli": "drive close-data-room",
+      "mcp": "drive_close_data_room"
+    },
+    "POST /drive/data-rooms/{id}/members": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Emails invitations that open private files to outside people; a person sends them (ADR 0077)."
+    },
+    "PATCH /drive/data-rooms/{id}/members/{memberId}": {
+      "cli": "drive update-data-room-member",
+      "mcp": "drive_update_data_room_member"
+    },
+    "DELETE /drive/data-rooms/{id}/members/{memberId}": {
+      "cli": "drive remove-data-room-member",
+      "mcp": "drive_remove_data_room_member"
+    },
+    "GET /drive/data-rooms/{id}/events": {
+      "cli": "drive data-room-events",
+      "mcp": "drive_data_room_events"
+    },
+    "GET /drive/data-rooms/{id}/questions": {
+      "cli": "drive data-room-questions",
+      "mcp": "drive_data_room_questions"
+    },
+    "PATCH /drive/data-rooms/{id}/questions/{questionId}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "An answer goes straight to the room's outside viewers in the owner's name; a person writes it (ADR 0077)."
+    },
+    "PUT /drive/data-rooms/{id}/order": {
+      "cli": "drive order-data-room",
+      "mcp": "drive_order_data_room"
+    },
+    "PUT /drive/data-rooms/{id}/colleagues": {
+      "cli": "drive set-data-room-colleagues",
+      "mcp": "drive_set_data_room_colleagues"
+    }
+  }
 }

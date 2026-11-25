@@ -250,7 +250,8 @@ Evals (platform admin; Core runs them on the deployment you select):
 Commands that call one Core operation, such as jobs events, tasks files and tasks list-schedules:
   Positionals fill the path. --query KEY=VALUE (repeatable) adds a query parameter.
   A write needs --input-json JSON or --input-file FILE as its body, unless it takes none (pause-, resume-, end-schedule, join,
-  follow, restore, notifications read, unread and read-all). --organization-slug WORKSPACE_SLUG selects the Workspace.
+  follow, restore, notifications read, unread and read-all, drive reindex and refresh-google-sheet).
+  --organization-slug WORKSPACE_SLUG selects the Workspace.
   Other options are an error. They print Core's JSON body as is. Every jobs command takes --organization-slug.
   transactions and history read the selected Workspace; notifications are the signed-in person's own.
   Sharing a Job, refunds and agent ratings stay in the app.
@@ -260,6 +261,14 @@ Account, organizations and workspaces:
   An action with no body still needs one: sokosumi organizations deny-vendor-grant ORGANIZATION_ID GRANT_ID --input-json '{}'.
   Organization commands take the organization id from workspaces list. Owner and admin commands answer 403 for other members.
   Billing, account deletion, sessions and OAuth consents stay in Sokosumi Web.
+
+Drive:
+  Most drive commands pick the Drive with --query scope=me, or --query scope=org --query organizationId=ORG_ID
+  (organizationId from workspaces list); writes put scope and organizationId in the body. Tables take --organization-slug.
+  Find: drive search --query scope=me --query q=TEXT, drive files, drive get RESOURCE_ID, drive tasks (Task outputs).
+  drive delete and drive delete-folder take the pathname or folderPath as --input-json; they cannot be undone.
+  Metadata writes take the file's metadataRevision from drive get. Table writes take a retry key in the body.
+  Uploads, downloads of file bytes, public links, data-room invitations and answers stay in the app.
 
 Organization Tasks:
   Add --organization-slug WORKSPACE_SLUG to any tasks command to select that organization.

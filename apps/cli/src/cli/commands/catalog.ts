@@ -10,6 +10,8 @@ export interface CliCommandCatalogEntry {
   readonly operation?: `${CoreMethod} /${string}`;
   /** The operation takes no JSON body: the command refuses --input-json like a read. */
   readonly noBody?: true;
+  /** A DELETE whose operation takes a JSON body: the command needs --input-json like a write. */
+  readonly body?: true;
 }
 
 export const CLI_COMMAND_CATALOG = [
@@ -1557,6 +1559,283 @@ export const CLI_COMMAND_CATALOG = [
     command: "seo project-import-console-export",
     usage: "PROJECT_ID TASK_ID",
     operation: "POST /projects/{id}/seo/console-exports/{taskId}",
+  },
+  // SOKD-375: Drive. Most commands pick the Drive with --query scope=me, or
+  // scope=org plus organizationId; tables take --organization-slug.
+  {
+    command: "drive search",
+    usage:
+      "--query scope=me|org [--query organizationId=ORG_ID] [--query q=TEXT]",
+    operation: "GET /drive/search",
+  },
+  {
+    command: "drive files",
+    usage:
+      "--query scope=me|org [--query organizationId=ORG_ID] [--query folder=PATH]",
+    operation: "GET /drive/files",
+  },
+  {
+    command: "drive recents",
+    usage: "--query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/recents",
+  },
+  {
+    command: "drive get",
+    usage: "RESOURCE_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/resources/{id}",
+  },
+  {
+    command: "drive related",
+    usage: "RESOURCE_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/resources/{id}/related",
+  },
+  {
+    command: "drive folders",
+    usage: "--query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/folders",
+  },
+  {
+    command: "drive create-folder",
+    usage: "--input-json JSON",
+    operation: "POST /drive/folders",
+  },
+  {
+    command: "drive rename-folder",
+    usage: "--input-json JSON",
+    operation: "PATCH /drive/folders/rename",
+  },
+  {
+    command: "drive delete-folder",
+    usage: "--input-json JSON",
+    operation: "DELETE /drive/folders/delete",
+    body: true,
+  },
+  {
+    command: "drive move",
+    usage: "--input-json JSON",
+    operation: "PATCH /drive/files/move",
+  },
+  {
+    command: "drive rename",
+    usage: "--input-json JSON",
+    operation: "PATCH /drive/files/rename",
+  },
+  {
+    command: "drive delete",
+    usage: "--input-json JSON",
+    operation: "DELETE /drive/files/delete",
+    body: true,
+  },
+  {
+    command: "drive update-metadata",
+    usage:
+      "RESOURCE_ID --query scope=me|org [--query organizationId=ORG_ID] --input-json JSON",
+    operation: "PATCH /drive/resources/{id}/metadata",
+  },
+  {
+    command: "drive decide-suggestion",
+    usage:
+      "RESOURCE_ID SUGGESTION_ID --query scope=me|org [--query organizationId=ORG_ID] --input-json JSON",
+    operation: "POST /drive/resources/{id}/suggestions/{suggestionId}/decision",
+  },
+  {
+    command: "drive select",
+    usage: "--input-json JSON",
+    operation: "POST /drive/resources/selection-token",
+  },
+  {
+    command: "drive update-metadata-batch",
+    usage: "--input-json JSON",
+    operation: "POST /drive/resources/metadata-batch",
+  },
+  {
+    command: "drive reindex",
+    usage: "RESOURCE_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "POST /drive/resources/{id}/reindex",
+    noBody: true,
+  },
+  {
+    command: "drive add-google-sheet",
+    usage: "--input-json JSON",
+    operation: "POST /drive/files/google-sheets",
+  },
+  {
+    command: "drive google-sheet",
+    usage: "RESOURCE_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/resources/{id}/google-sheet",
+  },
+  {
+    command: "drive refresh-google-sheet",
+    usage: "RESOURCE_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "POST /drive/resources/{id}/google-sheet/refresh",
+    noBody: true,
+  },
+  {
+    command: "drive tasks",
+    usage: "--query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/tasks",
+  },
+  {
+    command: "drive copy-task-file",
+    usage: "--input-json JSON",
+    operation: "POST /drive/tasks/copy",
+  },
+  {
+    command: "drive labels",
+    usage: "--query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/labels",
+  },
+  {
+    command: "drive create-label",
+    usage: "--input-json JSON",
+    operation: "POST /drive/labels",
+  },
+  {
+    command: "drive update-label",
+    usage: "LABEL_ID --input-json JSON",
+    operation: "PATCH /drive/labels/{id}",
+  },
+  {
+    command: "drive collections",
+    usage: "--query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/collections",
+  },
+  {
+    command: "drive create-collection",
+    usage: "--input-json JSON",
+    operation: "POST /drive/collections",
+  },
+  {
+    command: "drive update-collection",
+    usage: "COLLECTION_ID --input-json JSON",
+    operation: "PATCH /drive/collections/{id}",
+  },
+  {
+    command: "drive delete-collection",
+    usage: "COLLECTION_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "DELETE /drive/collections/{id}",
+  },
+  {
+    command: "drive share",
+    usage:
+      "--query scope=me|org [--query organizationId=ORG_ID] [--query resourceId=ID | --query folderPath=PATH]",
+    operation: "GET /drive/shares",
+  },
+  {
+    command: "drive unshare",
+    usage: "SHARE_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "DELETE /drive/shares/{id}",
+  },
+  {
+    command: "drive tables",
+    usage: "[--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /drive/tables",
+  },
+  {
+    command: "drive create-table",
+    usage: "--input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /drive/tables",
+  },
+  {
+    command: "drive table",
+    usage: "TABLE_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /drive/tables/{id}",
+  },
+  {
+    command: "drive update-table",
+    usage: "TABLE_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "PATCH /drive/tables/{id}",
+  },
+  {
+    command: "drive query-table",
+    usage: "TABLE_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /drive/tables/{id}/query",
+  },
+  {
+    command: "drive edit-rows",
+    usage: "TABLE_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /drive/tables/{id}/rows",
+  },
+  {
+    command: "drive save-view",
+    usage: "TABLE_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /drive/tables/{id}/views",
+  },
+  {
+    command: "drive undo-table",
+    usage: "TABLE_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /drive/tables/{id}/undo",
+  },
+  {
+    command: "drive table-history",
+    usage: "TABLE_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /drive/tables/{id}/history",
+  },
+  {
+    command: "drive enrich-table",
+    usage: "TABLE_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /drive/tables/{id}/enrich",
+  },
+  {
+    command: "drive data-rooms",
+    usage: "--query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/data-rooms",
+  },
+  {
+    command: "drive create-data-room",
+    usage: "--input-json JSON",
+    operation: "POST /drive/data-rooms",
+  },
+  {
+    command: "drive open-questions",
+    usage: "--query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/data-rooms/questions",
+  },
+  {
+    command: "drive data-room",
+    usage: "ROOM_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/data-rooms/{id}",
+  },
+  {
+    command: "drive update-data-room",
+    usage: "ROOM_ID --input-json JSON",
+    operation: "PATCH /drive/data-rooms/{id}",
+  },
+  {
+    command: "drive close-data-room",
+    usage: "ROOM_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "DELETE /drive/data-rooms/{id}",
+  },
+  {
+    command: "drive update-data-room-member",
+    usage: "ROOM_ID MEMBER_ID --input-json JSON",
+    operation: "PATCH /drive/data-rooms/{id}/members/{memberId}",
+  },
+  {
+    command: "drive remove-data-room-member",
+    usage:
+      "ROOM_ID MEMBER_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "DELETE /drive/data-rooms/{id}/members/{memberId}",
+  },
+  {
+    command: "drive data-room-events",
+    usage: "ROOM_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/data-rooms/{id}/events",
+  },
+  {
+    command: "drive data-room-questions",
+    usage: "ROOM_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/data-rooms/{id}/questions",
+  },
+  {
+    command: "drive order-data-room",
+    usage: "ROOM_ID --input-json JSON",
+    operation: "PUT /drive/data-rooms/{id}/order",
+  },
+  {
+    command: "drive set-data-room-colleagues",
+    usage: "ROOM_ID --input-json JSON",
+    operation: "PUT /drive/data-rooms/{id}/colleagues",
   },
 ] as const satisfies readonly CliCommandCatalogEntry[];
 
