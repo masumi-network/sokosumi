@@ -93,6 +93,41 @@ describe("SEO audit list", () => {
     expect(rows.queryByRole("button")).toBeNull();
   });
 
+  it("says in each row whether the audit's newest check runs, failed or when it finished", () => {
+    const at = new Date();
+    const check = (status: "running" | "failed" | "completed") => ({
+      kind: "page_check" as const,
+      status,
+      createdAt: at,
+      updatedAt: at,
+    });
+    show(
+      [
+        {
+          ...AUDIT,
+          id: "running",
+          name: "Running",
+          lastCheck: check("running"),
+        },
+        { ...AUDIT, id: "failed", name: "Failed", lastCheck: check("failed") },
+        { ...AUDIT, id: "done", name: "Done", lastCheck: check("completed") },
+      ],
+      false,
+    );
+    const row = (name: string) =>
+      within(screen.getByRole("link", { name: new RegExp(name) }));
+    expect(
+      row("Running").getByText(messages.App.Seo.setup.checkRunningBadge),
+    ).toBeVisible();
+    expect(
+      row("Failed").getByText(messages.App.Seo.audits.checkFailed),
+    ).toBeVisible();
+    expect(row("Done").getByText(/Last check: Page check/)).toBeVisible();
+    expect(
+      row("Done").queryByText(messages.App.Seo.setup.checkRunningBadge),
+    ).toBeNull();
+  });
+
   it.each([{ audits: [] }, { audits: [AUDIT] }])(
     "opens the archive in the current project from the header, including during onboarding",
     async ({ audits }) => {
