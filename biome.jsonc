@@ -11,6 +11,7 @@
       "**",
       "!.agents/**",
       "!!.claude/worktrees",
+      "!.claude/skills/**",
       "!**/.agents/**",
       "!**/.next/**",
       "!**/.output/**",
