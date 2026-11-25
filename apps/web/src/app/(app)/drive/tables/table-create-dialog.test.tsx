@@ -62,6 +62,9 @@ describe("TableCreateDialog from a Files CSV", () => {
     expect(await screen.findByText("007")).toBeTruthy();
     expect(fetch).toHaveBeenCalledWith(URL, expect.anything());
     expect(screen.getByLabelText("title")).toHaveValue("Leads");
+    // The header names the file, so its picker is not offered again.
+    expect(screen.getByText("Leads.csv")).toBeTruthy();
+    expect(screen.queryByLabelText("importCsv")).toBeNull();
     const names = screen.getAllByLabelText("columnName");
     expect(names.map((input) => (input as HTMLInputElement).value)).toEqual([
       "Name",

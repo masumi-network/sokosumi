@@ -80,7 +80,8 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
 
       await open.click();
       const create = page.getByRole("dialog", { name: "New table" });
-      await create.getByRole("cell", { name: "01067" }).waitFor();
+      // A column row lists its first values: the Zip code kept its zero.
+      await create.getByText(/01067/).waitFor();
       assert.equal(await create.getByLabel("Title").inputValue(), "shops");
       assert.deepEqual(
         await create

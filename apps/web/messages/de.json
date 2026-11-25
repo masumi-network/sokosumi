@@ -11921,13 +11921,11 @@
       "chooseCsv": "CSV-Datei wählen",
       "noFileChosen": "Keine Datei ausgewählt",
       "csvLimit": "Bis zu 5 MB, 10.000 Zeilen und 100 Spalten. Die erste Zeile enthält Spaltennamen.",
-      "mapping": "Spalten zuordnen und Vorschau",
       "numberGuess": "Jede ausgefüllte Zelle ist eine Zahl, daher ist hier Zahl voreingestellt. Ändere es, wenn die Ziffern ein Code sind.",
       "columnName": "Spaltenname",
       "type": "Typ",
       "options": "Optionen (durch Semikolon getrennt)",
       "optionsFor": "Optionen für {column} (durch Semikolons getrennt)",
-      "preview": "{count, plural, one {Vorschau von # Zeile} other {Vorschau von # Zeilen}}. Alle Werte werden vor dem Import validiert.",
       "row": "Zeile",
       "importProgress": "{count, plural, one {# Zeile importiert} other {# Zeilen importiert}}. Abgeschlossene Stapel bleiben bei Unterbrechung erhalten.",
       "create": "Tabelle erstellen",
@@ -12129,7 +12127,10 @@
         "add": "Kopie hinzufügen",
         "loadMore": "Weitere Tabellen anzeigen",
         "loadMoreError": "Weitere Tabellen konnten nicht geladen werden. Versuch es noch einmal."
-      }
+      },
+      "rowCount": "{count, plural, one {# Zeile} other {# Zeilen}}",
+      "columns": "Spalten",
+      "examples": "Beispiele"
     },
     "ProjectScope": {
       "clearSearch": "Suche löschen",

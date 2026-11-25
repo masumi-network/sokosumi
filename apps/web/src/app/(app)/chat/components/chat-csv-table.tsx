@@ -45,7 +45,7 @@ export function ChatCsvTable({
     <TableCreateDialog
       workspaceId={workspaceId}
       csvFile={{ url, name: fileName }}
-      labelled
+      attachment
     />
   );
 }
