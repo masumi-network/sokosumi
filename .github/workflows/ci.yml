@@ -105,9 +105,11 @@ jobs:
           turbo_team: ${{ vars.TURBO_TEAM }}
 
       # CMO rides this leg: a small Next.js app, too small for a job of
-      # its own.
+      # its own. So does @sokosumi/mcp-ui: its token test compares its
+      # fallback tokens with apps/web/src/app/globals.css, and the
+      # `packages` filter skips Web-only changes.
       - name: Run Tests
-        run: pnpm exec turbo run test:ci --filter=web --filter=cmo
+        run: pnpm exec turbo run test:ci --filter=web --filter=cmo --filter=@sokosumi/mcp-ui
 
   # Core's PostgreSQL suites in a job of their own, beside the unit suite in
   # `Test Core` instead of after it: the unit suite no longer waits ~100s on

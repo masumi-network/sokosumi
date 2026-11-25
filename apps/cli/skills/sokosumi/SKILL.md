@@ -399,6 +399,22 @@ sokosumi projects ads-campaign-edit PROJECT_ID ACCOUNT_ID CAMPAIGN_ID --input-fi
 
 A new campaign is always paused. Pause at any time. Change the budget or edit only a paused campaign (`409` otherwise), and send a status or a budget per call, not both (`400`). Only a person resumes: `{"status":"ACTIVE"}` answers `403` with kind `person_approval_required` and `webUrl`. Give the operator that link.
 
+## SEO audits and Project SEO
+
+[VERIFIED: `apps/cli/src/cli/commands/catalog.ts`] `seo` commands each call one Core operation and print Core's JSON body. Audit commands take an audit id; `seo project-*` commands take a Project id and act on that Project's SEO workspace. Writes take `--input-json` or `--input-file`.
+
+```bash
+sokosumi seo list-audits --query status=active
+sokosumi seo create-audit --input-json '{"name":"Acme","firstPage":{"url":"https://example.com/"}}'
+sokosumi seo audit-get AUDIT_ID
+sokosumi seo audit-add-page AUDIT_ID --input-json '{"url":"https://example.com/pricing"}'
+sokosumi seo audit-analyze AUDIT_ID --input-file ./analysis.json
+sokosumi seo audit-ask AUDIT_ID --input-json '{"question":"What should I fix first?","idempotencyKey":"question-1"}'
+sokosumi seo project-get PROJECT_ID
+```
+
+Every `seo audit-VERB` has a `seo project-VERB` twin: `get`, `add-page`, `create-scope`, `update-scope`, `import-report`, `analyze`, `save-keyword`, `save-competitor`, `create-task`, `create-monitor`, `review-action`, `properties`, `sync-statistics`, `record-change`, `set-brand-terms`, `brief`, `save-brief`, `suggest-brief`, `console-exports` and `import-console-export`. Audits also have `audit-workspace`, `audit-archive`, `audit-chat` and `audit-ask`. `analyze`, `create-monitor` and `audit-ask` spend workspace credits: confirm the analysis and its price with the person first. Writes that create something (`analyze`, `audit-ask`, `create-task`, `record-change`) take an `idempotencyKey` you choose, so a retry does not repeat them. Connecting Search Console and reading its site traffic stay in the web app.
+
 ## Use Sokosumi over MCP
 
 [VERIFIED: `apps/core/src/routes/mcp/index.ts`, `docs/mcp.md`] Sokosumi also serves its tools over MCP at `https://api.sokosumi.com/mcp`. Use it when the host speaks MCP and the CLI is not installed. The host connects by URL and signs in through the browser; no API key is needed:
