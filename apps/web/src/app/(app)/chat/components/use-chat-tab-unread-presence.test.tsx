@@ -606,7 +606,7 @@ describe("Elsewhere rooms in the unread signals", () => {
     const chats = await screen.findByRole("link", {
       name: "chats, chatsUnread",
     });
-    expect(chats).toHaveAttribute("href", "/chat");
+    expect(chats).toHaveAttribute("href", "/chat/catch-up");
     expect(chats).toHaveAttribute("aria-current", "true");
   });
 });

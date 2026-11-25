@@ -5,6 +5,10 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Suspense } from "react";
 import { useChatTabUnreadPresence } from "@/app/chat/components/use-chat-tab-unread-presence";
+import {
+  CHAT_CATCH_UP_PATH,
+  CHAT_CHATS_LIST_PATH,
+} from "@/app/chat/utils/chat-route-base";
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
 import { useNavPathname } from "@/components/navigation-progress.client";
 import { Button } from "@/components/ui/button";
@@ -44,7 +48,13 @@ function RailLinks({ mobile }: { mobile: boolean }) {
   const { showUnreadDot } = useChatTabUnreadPresence();
   const section = sidebarSection(useNavPathname());
   const sections = [
-    { id: "chats", href: "/chat", Icon: MessageCircle, label: nav("chats") },
+    {
+      id: "chats",
+      // Bare /chat is the phone list and redirects to Welcome on desktop.
+      href: mobile ? CHAT_CHATS_LIST_PATH : CHAT_CATCH_UP_PATH,
+      Icon: MessageCircle,
+      label: nav("chats"),
+    },
     ...NAV_GROUPS.map(({ id, href, Icon }) => ({
       id,
       href: hrefFor(href),
