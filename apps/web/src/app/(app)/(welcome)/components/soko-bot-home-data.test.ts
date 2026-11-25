@@ -181,6 +181,21 @@ describe("withSokoBotChat", () => {
           : { type: "user", user: { id: sender, name: sender } },
       ...extra,
     }) as ChatRoomMessage;
+  // Core links every Soko Bot answer to its question in metadata.
+  const answer = (
+    id: string,
+    to: string,
+    content: string,
+    createdAt: string,
+    metadata: Record<string, unknown> = {},
+  ) =>
+    message(id, "bot", content, createdAt, {
+      metadata: {
+        in_reply_to_message_id: to,
+        mention_id: `mention-${to}`,
+        ...metadata,
+      },
+    });
   const chat = (
     messages: ChatRoomMessage[],
     chats: Parameters<typeof withSokoBotChat>[0] = [],
@@ -209,22 +224,28 @@ describe("withSokoBotChat", () => {
     ]);
   });
 
-  it("shows the bot's newest reply to that question instead, at the time it replied", () => {
+  it("shows the bot's newest answer to that question instead, at the time it replied", () => {
     expect(
-      chat([
-        message(
-          "q1",
-          "me",
-          "What should I set up first?",
-          "2026-11-17T11:50:00Z",
+      chat(
+        [
+          message(
+            "q1",
+            "me",
+            "What should I set up first?",
+            "2026-11-17T11:50:00Z",
+          ),
+          answer("a1", "q1", "First take", "2026-11-17T11:51:00Z"),
+          answer("a2", "q1", "Start with **Tasks**.", "2026-11-17T11:59:00Z"),
+          answer("a3", "q1", "Gone", "2026-11-17T11:59:30Z"),
+          message("o1", "other", "Not the bot", "2026-11-17T11:59:50Z", {
+            metadata: { in_reply_to_message_id: "q1" },
+          }),
+        ].map((m) =>
+          m.id === "a3"
+            ? { ...m, deletedAt: new Date("2026-11-17T11:59:40Z") }
+            : m,
         ),
-        message("a1", "bot", "Working on it", "2026-11-17T11:51:00Z"),
-        message("a2", "bot", "Start with **Tasks**.", "2026-11-17T11:59:00Z"),
-        message("a3", "bot", "Gone", "2026-11-17T11:59:30Z", {
-          deletedAt: new Date("2026-11-17T11:59:40Z"),
-        }),
-        message("o1", "other", "Not the bot", "2026-11-17T11:59:50Z"),
-      ]),
+      ),
     ).toEqual([
       {
         roomId: "bot-room",
@@ -236,11 +257,11 @@ describe("withSokoBotChat", () => {
     ]);
   });
 
-  it("names a reply with no text", () => {
+  it("names a finished answer with no text", () => {
     expect(
       chat([
         message("q1", "me", "Hi", "2026-11-17T10:00:00Z"),
-        message("a1", "bot", "", "2026-11-17T10:01:00Z"),
+        answer("a1", "q1", "", "2026-11-17T10:01:00Z"),
       ])[0],
     ).toMatchObject({
       messageId: "a1",
@@ -249,16 +270,56 @@ describe("withSokoBotChat", () => {
     });
   });
 
+  it("keeps the question while the bot is still answering", () => {
+    expect(
+      chat([
+        message("q1", "me", "Hi", "2026-11-17T10:00:00Z"),
+        answer("a1", "q1", "", "2026-11-17T10:01:00Z", { streaming: true }),
+      ])[0],
+    ).toMatchObject({ messageId: "q1", from: "You to Wren" });
+  });
+
+  it("keeps the question when the bot's answer failed", () => {
+    expect(
+      chat([
+        message("q1", "me", "Hi", "2026-11-17T10:00:00Z"),
+        answer("a1", "q1", "", "2026-11-17T10:01:00Z", {
+          mention_failed: true,
+        }),
+      ])[0],
+    ).toMatchObject({ messageId: "q1", from: "You to Wren" });
+  });
+
+  it("never calls a bot post that answers no question a reply", () => {
+    expect(
+      chat([
+        message("q1", "me", "Hi", "2026-11-17T10:00:00Z"),
+        message("p1", "bot", "Your Monday digest", "2026-11-17T10:30:00Z"),
+      ])[0],
+    ).toMatchObject({ messageId: "q1", from: "You to Wren" });
+  });
+
+  it("never shows a late answer to an earlier question as the answer to the latest one", () => {
+    expect(
+      chat([
+        message("q1", "me", "First", "2026-11-17T10:00:00Z"),
+        message("q2", "me", "Second", "2026-11-17T10:01:00Z"),
+        answer("a1", "q1", "About the first", "2026-11-17T10:02:00Z"),
+      ])[0],
+    ).toMatchObject({ messageId: "q2", from: "You to Wren" });
+  });
+
   it("never calls another bot's message a reply", () => {
     expect(
       chat([
         message("q1", "me", "Hi", "2026-11-17T10:00:00Z"),
-        message("x1", "me", "x", "2026-11-17T10:01:00Z", {
+        {
+          ...answer("x1", "q1", "x", "2026-11-17T10:01:00Z"),
           sender: {
             type: "sokoBot",
             sokoBot: { id: "other-bot", name: "Ash" },
           },
-        } as Partial<ChatRoomMessage>),
+        } as ChatRoomMessage,
       ])[0],
     ).toMatchObject({ messageId: "q1", from: "You to Wren" });
   });

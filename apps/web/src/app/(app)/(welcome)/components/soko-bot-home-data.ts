@@ -218,8 +218,12 @@ export function toImportantChats(
  * Adds the reader's latest chat with their Soko Bot as one row, read or not,
  * so a first chat shows on Home. `messages` is the bot's Direct, oldest
  * first. While the reader's latest question waits, the row shows it ("You to
- * Juno"); once the bot posts after it, the row shows the bot's newest such
- * message ("Juno replied"), so Home says the answer is there. The row is
+ * Juno"); once the bot has answered it, the row shows the bot's newest
+ * answer ("Juno replied"), so Home says the answer is there. An answer is the
+ * bot's message Core links to that question (`in_reply_to_message_id`, set on
+ * every Soko Bot answer) that is neither still streaming nor a failed shell;
+ * a post that answers no question, or a late answer to an earlier one, never
+ * counts. The row is
  * dated by the message it shows. Nothing when the question is over a day old,
  * so a bot post today does not revive an old chat, when the reader never
  * asked, or when an unread row from that room is already listed: that one
@@ -242,24 +246,26 @@ export function withSokoBotChat(
   if (!botRoom || chats.some((chat) => chat.roomId === botRoom.roomId)) {
     return chats;
   }
-  const at = botRoom.messages.findLastIndex(
+  const question = botRoom.messages.findLast(
     (message) =>
       !message.deletedAt &&
       message.sender.type === "user" &&
       message.sender.user.id === reader.userId,
   );
-  const question = botRoom.messages[at];
   if (!question || now.getTime() - question.createdAt.getTime() > DAY_MS) {
     return chats;
   }
-  const reply = botRoom.messages
-    .slice(at + 1)
-    .findLast(
-      (message) =>
-        !message.deletedAt &&
-        message.sender.type === "sokoBot" &&
-        message.sender.sokoBot.id === reader.botId,
+  const reply = botRoom.messages.findLast((message) => {
+    const metadata = message.metadata as Record<string, unknown> | null;
+    return (
+      !message.deletedAt &&
+      message.sender.type === "sokoBot" &&
+      message.sender.sokoBot.id === reader.botId &&
+      metadata?.in_reply_to_message_id === question.id &&
+      metadata.streaming !== true &&
+      metadata.mention_failed !== true
     );
+  });
   const shown = reply ?? question;
   return [
     ...chats,

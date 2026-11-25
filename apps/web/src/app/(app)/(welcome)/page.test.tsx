@@ -370,6 +370,7 @@ describe("WelcomePage", () => {
           deletedAt: null,
           parentMessageId: null,
           sender: { type: "sokoBot", sokoBot: { id: "bot-1" } },
+          metadata: { in_reply_to_message_id: "msg-1" },
         },
       ],
     });
