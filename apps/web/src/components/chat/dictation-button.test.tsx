@@ -1,11 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  DICTATION_MAX_MS,
-  DictationButton,
-  formatVoiceElapsed,
-} from "./dictation-button";
+import { DICTATION_MAX_MS } from "@/hooks/effects/use-dictation-recorder";
+import { DictationButton, formatVoiceElapsed } from "./dictation-button";
 
 const { toastErrorMock } = vi.hoisted(() => ({ toastErrorMock: vi.fn() }));
 

@@ -48,6 +48,7 @@ import {
   UNKNOWN_MENTION_CLASSNAME,
   VIEWPORT_PADDING_PX,
 } from "@/components/ui/mention-textarea-utils";
+import { useComposerActiveFormatsPublish } from "@/hooks/effects/use-composer-active-formats-publish";
 import { useComposerBlurTimeoutCleanup } from "@/hooks/effects/use-composer-blur-timeout-cleanup";
 import { useComposerExternalValueSync } from "@/hooks/effects/use-composer-external-value-sync";
 import { useEventListener } from "@/hooks/effects/use-event-listener";
@@ -1252,10 +1253,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
     }
   });
 
-  useEffect(() => {
-    if (!onActiveFormatsChange) return;
-    publishActiveFormats();
-  }, [onActiveFormatsChange, publishActiveFormats]);
+  useComposerActiveFormatsPublish(onActiveFormatsChange, publishActiveFormats);
 
   useScrollIntoViewWhen(
     () => listRef.current?.querySelector(`[data-index="${activeIndex}"]`),
