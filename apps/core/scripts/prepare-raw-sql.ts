@@ -259,7 +259,7 @@ function reportFailure(location: string, key: string, error: unknown) {
   const code =
     error instanceof Error && "code" in error ? error.code : "no SQLSTATE";
   console.error(
-    `${location} [${code}] ${error instanceof Error ? error.message : error}\nException key: ${key}\nQualify the name, cast the parameter, or add a ticketed entry to EXCEPTIONS in apps/core/scripts/prepare-raw-sql.ts.`,
+    `${location} [${code}] ${error instanceof Error ? error.message : error}\nException key: ${key}\nQualify the name with sharedTable, netTable, sharedType, or netType from @sokosumi/database/sql-tables. See apps/core/AGENTS.md#raw-sql.\nIf applicable, cast the parameter or add a ticketed entry to EXCEPTIONS in apps/core/scripts/prepare-raw-sql.ts.`,
   );
   process.exitCode = 1;
 }
