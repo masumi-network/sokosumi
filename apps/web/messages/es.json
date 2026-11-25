@@ -12764,6 +12764,78 @@
         }
       }
     },
+    "Fundraising": {
+      "title": "Fundraising",
+      "description": "La ronda: cada inversor de la lista “Investors”, en qué punto está y qué abrió en el data room.",
+      "loading": "Cargando la ronda",
+      "subtitle": "{count, plural, one {# inversor} other {# inversores}} en la lista “Investors”",
+      "openList": "Abrir la lista “Investors”",
+      "openContacts": "Abrir Contactos",
+      "all": "Todos",
+      "noListTitle": "Aún no hay lista “Investors”",
+      "noList": "Crea en Contactos una lista de contactos llamada “Investors” y añade los inversores con los que hablas. La ronda se basa en esa lista.",
+      "emptyTitle": "Aún no hay nadie en la lista",
+      "empty": "Añade inversores a la lista “Investors” en Contactos. Cada uno aparece aquí con su fase, su responsable y su actividad en el data room.",
+      "unassigned": "Sin asignar",
+      "noNextStep": "Añadir el siguiente paso",
+      "noTouch": "Sin contacto todavía",
+      "saveFailed": "No se pudo guardar el cambio",
+      "link": "Fundraising",
+      "columns": {
+        "investor": "Inversor",
+        "stage": "Fase",
+        "owner": "Responsable",
+        "nextStep": "Siguiente paso",
+        "lastTouch": "Último contacto",
+        "dataRoom": "Data room",
+        "cheque": "Ticket"
+      },
+      "stages": {
+        "TO_RESEARCH": "Por investigar",
+        "WARM_PATH": "Vía cálida",
+        "REACHED_OUT": "Contactado",
+        "MEETING": "Reunión",
+        "DATA_ROOM": "Data room",
+        "DILIGENCE": "Due diligence",
+        "COMMITTED": "Comprometido",
+        "PASSED": "Descartado"
+      },
+      "room": {
+        "notInvited": "Sin invitar",
+        "invited": "Invitado {when}, sin visitas",
+        "opened": "{views, plural, one {# vista} other {# vistas}}",
+        "revoked": "Acceso retirado"
+      },
+      "sheet": {
+        "noFund": "Aún sin fondo ni cargo",
+        "openContact": "Abrir contacto",
+        "nextStep": "Siguiente paso",
+        "followUp": "Fecha de seguimiento",
+        "noFollowUp": "Sin fecha",
+        "ticket": "Tamaño del ticket",
+        "ticketPlaceholder": "p. ej. 500K–2M $",
+        "committed": "Comprometido",
+        "committedPlaceholder": "p. ej. 250k",
+        "thesis": "Tesis",
+        "thesisPlaceholder": "En qué invierten, en una o dos líneas",
+        "notes": "Notas",
+        "notesPlaceholder": "Qué se dijo, qué necesitan, quién más participa",
+        "knownBy": "Quién los conoce",
+        "knownByNobody": "Nadie del equipo ha tenido contacto todavía.",
+        "touches": "{count, plural, one {# contacto} other {# contactos}}",
+        "room": "Sala",
+        "firstVisit": "Primera visita",
+        "downloads": "Descargas",
+        "lastOpened": "Último abierto",
+        "openRoom": "Abrir la actividad de la sala",
+        "source": "Origen: {source}"
+      },
+      "error": {
+        "title": "No se pudo cargar la ronda",
+        "description": "Algo salió mal. Inténtalo de nuevo.",
+        "retry": "Intentar de nuevo"
+      }
+    },
     "Seo": {
       "title": "SEO",
       "intro": "Consulta los cambios, el trabajo pendiente y las próximas comprobaciones.",

@@ -12764,6 +12764,78 @@
         }
       }
     },
+    "Fundraising": {
+      "title": "Fundraising",
+      "description": "The raise: every investor on the Investors list, where they stand, and what they opened in the data room.",
+      "loading": "Loading the raise",
+      "subtitle": "{count, plural, one {# investor} other {# investors}} on the Investors list",
+      "openList": "Open Investors list",
+      "openContacts": "Open Contacts",
+      "all": "All",
+      "noListTitle": "No Investors list yet",
+      "noList": "Make a contact list named “Investors” in Contacts and add the investors you talk to. The raise runs over that list.",
+      "emptyTitle": "Nobody on the list yet",
+      "empty": "Add investors to the Investors list in Contacts. Each one shows up here with a stage, an owner and what they did in the data room.",
+      "unassigned": "Unassigned",
+      "noNextStep": "Add a next step",
+      "noTouch": "No touch yet",
+      "saveFailed": "Could not save the change",
+      "link": "Fundraising",
+      "columns": {
+        "investor": "Investor",
+        "stage": "Stage",
+        "owner": "Owner",
+        "nextStep": "Next step",
+        "lastTouch": "Last touch",
+        "dataRoom": "Data room",
+        "cheque": "Cheque"
+      },
+      "stages": {
+        "TO_RESEARCH": "To research",
+        "WARM_PATH": "Warm path",
+        "REACHED_OUT": "Reached out",
+        "MEETING": "Meeting",
+        "DATA_ROOM": "Data room",
+        "DILIGENCE": "Diligence",
+        "COMMITTED": "Committed",
+        "PASSED": "Passed"
+      },
+      "room": {
+        "notInvited": "Not invited",
+        "invited": "Invited {when}, not visited",
+        "opened": "{views, plural, one {# view} other {# views}}",
+        "revoked": "Access removed"
+      },
+      "sheet": {
+        "noFund": "No fund or role yet",
+        "openContact": "Open contact",
+        "nextStep": "Next step",
+        "followUp": "Follow-up date",
+        "noFollowUp": "No follow-up date",
+        "ticket": "Cheque size",
+        "ticketPlaceholder": "e.g. $500K–$2M",
+        "committed": "Committed",
+        "committedPlaceholder": "e.g. 250k",
+        "thesis": "Thesis",
+        "thesisPlaceholder": "What they invest in, in a line or two",
+        "notes": "Notes",
+        "notesPlaceholder": "What was said, what they need, who else is involved",
+        "knownBy": "Who knows them",
+        "knownByNobody": "Nobody on the team has been in touch yet.",
+        "touches": "{count, plural, one {# touch} other {# touches}}",
+        "room": "Room",
+        "firstVisit": "First visit",
+        "downloads": "Downloads",
+        "lastOpened": "Last opened",
+        "openRoom": "Open room activity",
+        "source": "Source: {source}"
+      },
+      "error": {
+        "title": "Could not load the raise",
+        "description": "Something went wrong. Try again.",
+        "retry": "Try again"
+      }
+    },
     "Seo": {
       "title": "SEO",
       "intro": "See what changed, what needs work, and what to check next.",

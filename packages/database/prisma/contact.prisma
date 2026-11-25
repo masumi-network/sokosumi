@@ -137,6 +137,7 @@ model Contact {
   newsletterSubscribers NewsletterSubscriber[]
   webLookups            ContactPeopleSearch[]
   search                ContactSearch?
+  fundraising           FundraisingProspect?
 
   notDuplicateOf ContactNotDuplicate[] @relation("NotDuplicateContact")
   notDuplicateTo ContactNotDuplicate[] @relation("NotDuplicateOther")

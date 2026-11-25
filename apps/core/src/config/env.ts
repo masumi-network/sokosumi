@@ -255,6 +255,22 @@ const baseEnvSchema = z.object({
     )
     .pipe(z.array(z.uuid())),
   /**
+   * Organizations whose workspace has the Fundraising pages and tools
+   * (`/v1/fundraising`). Comma-separated organization ids; empty, nobody has
+   * them.
+   */
+  FUNDRAISING_ORGANIZATION_IDS: z
+    .string()
+    .default("")
+    .transform((value: string) =>
+      value.trim() === ""
+        ? []
+        : value
+            .split(",")
+            .map((id) => id.trim())
+            .filter(Boolean),
+    ),
+  /**
    * A local Chrome or Chromium binary for the CMO site screenshots. Unset,
    * Core downloads the `@sparticuz/chromium-min` pack below (Vercel).
    */
