@@ -67,33 +67,55 @@ export function seoSearchTypeShown({
 }
 
 /**
- * Organic key events per page from the newest Google Analytics read. A page without a row had
- * no session of the channel in the read, so it shows no number. `none` is a read with rows where no
- * page had a key event: most often the property has no key events set up.
+ * One key for a page in a Search Console row and in a Google Analytics read: the two can write the
+ * same page with or without "www." and with or without a trailing slash.
+ */
+function pageKey(url: string) {
+  const { pathname, search } = new URL(url);
+  return `${seoSearchSiteHost(url)}${pathname.replace(/\/+$/, "")}${search}`;
+}
+
+/**
+ * Organic key events per page from the newest organic Google Analytics read. `none` is a read with
+ * rows where no page had a key event: most often the property has no key events set up.
  */
 export function seoKeyEvents(landing: ProjectSeoWorkspace["landingPages"]) {
   if (!landing) return null;
+  // Rows that are one page under two spellings add up.
+  const byPage = new Map<string, number>();
+  for (const row of landing.rows) {
+    const key = pageKey(row.pageUrl);
+    byPage.set(key, (byPage.get(key) ?? 0) + row.keyEvents);
+  }
+  const skipped = new Set((landing.skippedUrls ?? []).map(pageKey));
+  const selected = new Set(landing.pageUrls.map(pageKey));
   return {
-    channel: landing.channel,
-    label:
-      landing.channel === "ai_assistant"
-        ? ("traffic.keyEventsAiAssistant" as const)
-        : ("traffic.keyEvents" as const),
     // The landing read can cover another period than the Search Console rows beside it.
     period: { from: landing.from, to: landing.to },
-    byPage: new Map(landing.rows.map((row) => [row.pageUrl, row.keyEvents])),
-    // Pages left out of the read: their cell says why, not "none".
-    skipped: new Set(landing.skippedUrls ?? []),
-    // An empty AI Assistant read is no channel data; the AI assistants section says so.
+    /**
+     * The key events of one page, or the message that says why there is no number. A page the read asked
+     * for that has no row had no organic session: that is a measured 0. A page the read did not ask
+     * for has no number, and 0 would be a claim.
+     */
+    cell(pageUrl: string) {
+      const key = pageKey(pageUrl);
+      if (skipped.has(key)) return "traffic.keyEventsNotRead" as const;
+      return (
+        byPage.get(key) ??
+        (selected.has(key) ? 0 : ("traffic.keyEventsNotSelected" as const))
+      );
+    },
     none:
       landing.rows.length > 0 &&
       landing.rows.every((row) => row.keyEvents === 0),
   };
 }
 
-/** Visits from AI assistants by assistant and page, from an AI Assistant channel read only. */
-export function seoAiAssistants(landing: ProjectSeoWorkspace["landingPages"]) {
-  if (landing?.channel !== "ai_assistant") return null;
+/** Visits from AI assistants by assistant and page, from the newest AI Assistant channel read. */
+export function seoAiAssistants(
+  landing: ProjectSeoWorkspace["aiAssistantPages"],
+) {
+  if (!landing) return null;
   return {
     rows: landing.sources ?? [],
     truncated: landing.truncated === true,

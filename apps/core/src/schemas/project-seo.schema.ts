@@ -44,8 +44,8 @@ import {
   seoSearchQueryRowSchema,
   seoSearchTypeSchema,
   seoTrafficChannelSchema,
-  seoWorkspaceLandingPagesSchema,
   seoWorkspaceSearchBreakdownSchema,
+  workspaceLandingFields,
 } from "./project-seo-traffic.schema";
 import {
   auditSearchConsoleInputFields,
@@ -683,10 +683,7 @@ export const projectSeoWorkspaceSchema = z
       .optional(),
     /** Owner-chosen brand terms that split Search Console queries. Absent before any was saved. */
     brandTerms: z.array(z.string()).optional(),
-    /** Organic key events per landing page from the newest Google Analytics sync in view. */
-    landingPages: z
-      .union([seoWorkspaceLandingPagesSchema, z.null()])
-      .optional(),
+    ...workspaceLandingFields,
     /** Google's index verdict per page from the newest Search Console sync that inspected them. */
     indexStatus: z.union([seoIndexStatusSchema, z.null()]).optional(),
     /** Private indexing assessment for the current viewer's audit and selected pages. */

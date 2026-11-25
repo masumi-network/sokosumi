@@ -47032,6 +47032,16 @@ export const ProjectSeoWorkspaceSchema = {
                 }
             ]
         },
+        aiAssistantPages: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSeoLandingPages'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         indexStatus: {
             anyOf: [
                 {
@@ -51317,6 +51327,14 @@ export const ProjectSeoLandingPagesSchema = {
             },
             maxItems: 10
         },
+        pageUrls: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 2048,
+                format: 'uri'
+            }
+        },
         observationId: {
             type: 'string',
             format: 'uuid'
@@ -51339,6 +51357,7 @@ export const ProjectSeoLandingPagesSchema = {
     required: [
         'channel',
         'rows',
+        'pageUrls',
         'observationId',
         'propertyId',
         'from',

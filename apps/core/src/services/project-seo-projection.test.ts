@@ -2305,6 +2305,57 @@ it("distinguishes changing organic landing rates from a changing session mix onl
   expect(projectSeoProjection(input).landingPages).toBeNull();
 });
 
+it("keeps the newest landing read of each channel, so a newer AI assistant read does not replace organic key events", () => {
+  const input = fixture();
+  input.privateMetricsAllowed = true;
+  const pageUrl = input.pages[0].url;
+  const read = (channel: "organic" | "ai_assistant", at: string) => ({
+    ...observation(input, parsePublicSeoArtifact(legacyReport()), at),
+    kind: "metrics",
+    ownerId: randomUUID(),
+    payload: {
+      provider: "ga4",
+      propertyId: "properties/42",
+      pageUrls: [pageUrl],
+      channel,
+      from: "2026-10-08",
+      to: "2026-10-14",
+      timeZone: "UTC",
+      observedAt: at,
+      coverage: "complete",
+      notes: [],
+      metrics: [],
+      landingPages: {
+        channel,
+        verifiedHost: new URL(pageUrl).hostname,
+        rows: [
+          {
+            pageUrl,
+            sessions: 9,
+            keyEvents: channel === "organic" ? 3 : 1,
+          },
+        ],
+      },
+    },
+  });
+  // Newest first: the AI assistant read is the newer one.
+  input.observations = [
+    read("ai_assistant", "2026-10-16T12:00:00.000Z"),
+    read("organic", "2026-10-15T12:00:00.000Z"),
+  ];
+  const { landingPages, aiAssistantPages } = projectSeoProjection(input);
+  expect(landingPages).toMatchObject({
+    channel: "organic",
+    rows: [{ keyEvents: 3 }],
+    // The pages the read asked for: the reader tells a measured zero from a page outside the read.
+    pageUrls: [pageUrl],
+  });
+  expect(aiAssistantPages).toMatchObject({
+    channel: "ai_assistant",
+    rows: [{ keyEvents: 1 }],
+  });
+});
+
 it("imports only bound public strategy decisions and links stable work to its Task across audits", () => {
   const input = fixture();
   const decision = {

@@ -14867,7 +14867,6 @@
         },
         "keyEvents": "Key events (organic)",
         "noKeyEvents": "Google Analytics recorded no key events for these pages. Set up key events there to see them here.",
-        "keyEventsAiAssistant": "Key events (AI assistants)",
         "aiAssistants": "AI assistants",
         "aiAssistantsHelp": "Visits in Google Analytics' AI Assistant channel (ChatGPT, Perplexity, Gemini, Copilot and others) by the page they landed on",
         "aiAssistantsTruncated": "Only the first rows were kept, so the totals can be higher",
@@ -14891,7 +14890,8 @@
         "cancelBrandTerms": "Cancel",
         "brandSaved": "Brand terms saved",
         "noQueryData": "This search type has no query data",
-        "keyEventsNotRead": "Not read: shares a landing path with another selected page"
+        "keyEventsNotRead": "Not read: shares a landing path with another selected page",
+        "keyEventsNotSelected": "Not in this read"
       },
       "export": {
         "menu": "Export: {table}",

@@ -178,7 +178,7 @@ export function projectSeoProjection(
     searchSources,
     indexSources,
     seenGroups: seenMetricGroups,
-    landingPages: null,
+    landing: { landingPages: null, aiAssistantPages: null },
     landingSources: [],
   };
   for (const row of input.observations) {
@@ -692,7 +692,7 @@ export function projectSeoProjection(
     metrics,
     searchQueries: search.searchQueries,
     searchBreakdown: search.searchBreakdown,
-    landingPages: metricRows.landingPages,
+    ...metricRows.landing,
     landingEngagementChange: landingEngagementChange(
       metricRows.landingSources,
       query,

@@ -14867,7 +14867,6 @@
         },
         "keyEvents": "Eventos clave (orgánico)",
         "noKeyEvents": "Google Analytics no registró eventos clave para estas páginas. Configura eventos clave allí para verlos aquí.",
-        "keyEventsAiAssistant": "Eventos clave (asistentes de IA)",
         "aiAssistants": "Asistentes de IA",
         "aiAssistantsHelp": "Visitas del canal «AI Assistant» de Google Analytics (ChatGPT, Perplexity, Gemini, Copilot y otros) según la página de entrada",
         "aiAssistantsTruncated": "Solo se guardaron las primeras filas, así que los totales pueden ser mayores",
@@ -14891,7 +14890,8 @@
         "cancelBrandTerms": "Cancelar",
         "brandSaved": "Términos de marca guardados",
         "noQueryData": "Este tipo de búsqueda no tiene datos de consultas",
-        "keyEventsNotRead": "No leído: comparte una ruta de página de destino con otra página seleccionada"
+        "keyEventsNotRead": "No leído: comparte una ruta de página de destino con otra página seleccionada",
+        "keyEventsNotSelected": "No está en esta lectura"
       },
       "export": {
         "menu": "Exportar: {table}",

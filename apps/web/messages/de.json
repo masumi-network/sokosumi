@@ -14867,7 +14867,6 @@
         },
         "keyEvents": "Schlüsselereignisse (organisch)",
         "noKeyEvents": "Google Analytics hat für diese Seiten keine Schlüsselereignisse erfasst. Richte dort Schlüsselereignisse ein, um sie hier zu sehen.",
-        "keyEventsAiAssistant": "Schlüsselereignisse (KI-Assistenten)",
         "aiAssistants": "KI-Assistenten",
         "aiAssistantsHelp": "Besuche im Google-Analytics-Kanal „AI Assistant“ (ChatGPT, Perplexity, Gemini, Copilot und andere) nach Einstiegsseite",
         "aiAssistantsTruncated": "Nur die ersten Zeilen wurden behalten, die Summen können höher sein",
@@ -14891,7 +14890,8 @@
         "cancelBrandTerms": "Abbrechen",
         "brandSaved": "Markenbegriffe gespeichert",
         "noQueryData": "Für diesen Suchtyp gibt es keine Suchanfragen",
-        "keyEventsNotRead": "Nicht gelesen: teilt einen Landingpage-Pfad mit einer anderen ausgewählten Seite"
+        "keyEventsNotRead": "Nicht gelesen: teilt einen Landingpage-Pfad mit einer anderen ausgewählten Seite",
+        "keyEventsNotSelected": "Nicht in diesem Abruf"
       },
       "export": {
         "menu": "Exportieren: {table}",
