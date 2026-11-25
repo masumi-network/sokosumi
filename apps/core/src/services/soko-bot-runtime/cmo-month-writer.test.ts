@@ -17,6 +17,7 @@ const m = vi.hoisted(() => ({
   styles: { on: true },
 }));
 
+vi.mock("node:timers/promises", () => ({ setTimeout: async () => undefined }));
 vi.mock("ai", async (original) => ({
   ...(await original<typeof import("ai")>()),
   generateText: m.generateText,
@@ -180,7 +181,7 @@ beforeEach(() => {
 });
 
 describe("cmoWriterChunks", () => {
-  it("chunks pieces per network in date order, ten at most", () => {
+  it("chunks pieces per network in date order, three at most", () => {
     const pieces = [
       ...Array.from({ length: 12 }, (_, n) =>
         piece(`x${n}`, { date: `2026-11-${String(30 - n).padStart(2, "0")}` }),
@@ -188,9 +189,9 @@ describe("cmoWriterChunks", () => {
       piece("li", { channel: "linkedin" }),
     ];
     const chunks = cmoWriterChunks(pieces);
-    expect(chunks.map((chunk) => chunk.length)).toEqual([10, 2, 1]);
+    expect(chunks.map((chunk) => chunk.length)).toEqual([3, 3, 3, 3, 1]);
     expect(chunks[0]![0]!.id).toBe("x11");
-    expect(new Set(chunks[2]!.map((one) => one.channel))).toEqual(
+    expect(new Set(chunks[4]!.map((one) => one.channel))).toEqual(
       new Set(["linkedin"]),
     );
   });
@@ -524,6 +525,84 @@ describe("writeCmoMonthPieces", () => {
     // The month's checks would have run past the deadline: the next call does them.
     expect(m.draftProblems).not.toHaveBeenCalled();
     expect(now - start).toBeLessThan(115_000);
+  });
+
+  it("writes a 24-piece month in chunks of three, each answered in time", async () => {
+    // cmo-month-timed, 2026-11-25: chunks of ten ran past 75 s, and the
+    // month wrote nothing.
+    const pieces = Array.from({ length: 24 }, (_, n) =>
+      piece(`p${n}`, { date: `2026-12-${String(n + 1).padStart(2, "0")}` }),
+    );
+    m.readCmoProduction
+      .mockResolvedValueOnce({
+        strategy,
+        pending: pieces,
+        failedMedia: new Set(),
+      })
+      .mockResolvedValue({ strategy, pending: [], failedMedia: new Set() });
+    m.draftProblems.mockResolvedValue({ problems: [], costUsd: 0 });
+    m.generateText.mockImplementation(
+      async ({ prompt }: { prompt: string }) => ({
+        output: {
+          pieces: pieces
+            .filter((one) => new RegExp(`\\b${one.id}\\b`).test(prompt))
+            .map((one) => written(one.id)),
+        },
+        usage: { inputTokens: 1_000, outputTokens: 200 },
+      }),
+    );
+    const result = await writeCmoMonthPieces(
+      runtime() as never,
+      input,
+      authorized,
+    );
+
+    expect(m.generateText).toHaveBeenCalledTimes(8);
+    expect(result).toMatchObject({ written: 24, refused: [], left: 0 });
+  });
+
+  it("writes a chunk again once when its call failed fast", async () => {
+    m.readCmoProduction
+      .mockResolvedValueOnce({
+        strategy,
+        pending: [piece("p1")],
+        failedMedia: new Set(),
+      })
+      .mockResolvedValue({ strategy, pending: [], failedMedia: new Set() });
+    m.draftProblems.mockResolvedValue({ problems: [], costUsd: 0 });
+    m.generateText
+      .mockRejectedValueOnce(new Error("Gateway answered 502"))
+      .mockResolvedValue({
+        output: { pieces: [written("p1")] },
+        usage: { inputTokens: 1_000, outputTokens: 200 },
+      });
+    const result = await writeCmoMonthPieces(
+      runtime() as never,
+      input,
+      authorized,
+    );
+
+    expect(m.generateText).toHaveBeenCalledTimes(2);
+    expect(result).toMatchObject({ written: 1, refused: [], left: 0 });
+  });
+
+  it("leaves a chunk that ran out its time to the next call", async () => {
+    m.readCmoProduction.mockResolvedValue({
+      strategy,
+      pending: [piece("p1")],
+      failedMedia: new Set(),
+    });
+    m.draftProblems.mockResolvedValue({ problems: [], costUsd: 0 });
+    m.generateText.mockRejectedValue(
+      Object.assign(new Error("The operation was aborted due to timeout"), {
+        name: "TimeoutError",
+      }),
+    );
+    expectCoreLog("warn", "A chunk of the month wrote nothing");
+    expectCoreLog("error", "Core's month writer wrote nothing");
+    await writeCmoMonthPieces(runtime() as never, input, authorized);
+
+    expect(m.generateText).toHaveBeenCalledTimes(1);
   });
 
   it("says plainly that Core failed when every chunk wrote nothing", async () => {
