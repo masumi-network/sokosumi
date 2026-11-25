@@ -39,10 +39,11 @@ function feedCount(unreadCount: number) {
   return { items: [], nextCursor: null, unreadCount };
 }
 
-function renderCount() {
-  const client = new QueryClient({
+function renderCount(
+  client = new QueryClient({
     defaultOptions: { queries: { staleTime: 60 * 1000 } },
-  });
+  }),
+) {
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
@@ -109,7 +110,7 @@ describe("useFeedUnreadCount", () => {
     expect(result.current.unreadCount).toBe(1);
   });
 
-  it("reads again when the first read is still running at the change", async () => {
+  it("reads again after a read still running at the change", async () => {
     let finishFirstRead: (value: ReturnType<typeof feedCount>) => void =
       () => {};
     fetchChatFeedMock
@@ -128,8 +129,58 @@ describe("useFeedUnreadCount", () => {
     await act(async () => {
       finishFirstRead(feedCount(0));
     });
+    await advance(FEED_COUNT_REFRESH_DELAY_MS);
     expect(fetchChatFeedMock).toHaveBeenCalledTimes(2);
     expect(result.current.unreadCount).toBe(1);
+  });
+
+  it("lets every read finish while the rooms keep changing", async () => {
+    const slowReadMs = FEED_COUNT_REFRESH_DELAY_MS * 1.5;
+    let running = 0;
+    let mostRunning = 0;
+    let reads = 0;
+    fetchChatFeedMock.mockImplementation(() => {
+      reads += 1;
+      const answer = feedCount(reads);
+      running += 1;
+      mostRunning = Math.max(mostRunning, running);
+      return new Promise((resolve) =>
+        setTimeout(() => {
+          running -= 1;
+          resolve(answer);
+        }, slowReadMs),
+      );
+    });
+    liveRooms.current = [room(0)];
+    const { result, rerender } = renderCount();
+    for (let unread = 1; unread <= 4; unread += 1) {
+      liveRooms.current = [room(unread)];
+      rerender();
+      await advance(FEED_COUNT_REFRESH_DELAY_MS);
+    }
+    await advance(FEED_COUNT_REFRESH_DELAY_MS * 4);
+    expect(mostRunning).toBe(1);
+    expect(reads).toBeGreaterThan(1);
+    // The last read finished and its count shows.
+    expect(result.current.unreadCount).toBe(reads);
+  });
+
+  it("reads again on mount after a change it left waiting", async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { staleTime: 60 * 1000 } },
+    });
+    fetchChatFeedMock
+      .mockResolvedValueOnce(feedCount(3))
+      .mockResolvedValueOnce(feedCount(0));
+    liveRooms.current = [room(3)];
+    const first = renderCount(client);
+    await advance(0);
+    liveRooms.current = [room(0)];
+    first.rerender();
+    first.unmount();
+    const { result } = renderCount(client);
+    await advance(0);
+    expect(result.current.unreadCount).toBe(0);
   });
 
   it("does not read again when rooms only change places", async () => {

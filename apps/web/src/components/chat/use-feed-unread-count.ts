@@ -44,6 +44,9 @@ export function useFeedUnreadCount({
     queryFn: async () => (await fetchChatFeed({ limit: 1 })).unreadCount,
     retry: false,
     refetchOnWindowFocus: false,
+    // A change seen just before the row unmounted loses its timer; the count
+    // it left behind is still fresh for the cache.
+    refetchOnMount: "always",
   });
 
   const roomsUnread =
@@ -58,30 +61,35 @@ export function useFeedUnreadCount({
   // Needs-you is part of it: a signal tagged on a message already unread makes
   // it a Feed message without changing the room's unread, and muting a room
   // drops its messages from the Feed. Sorted, so a room moving to the top of
-  // the list is no change. Rooms present at
-  // mount are not a change, the query reads with them; rooms that load later
-  // are, as a message can land between the two reads. A change inside the
-  // wait needs no wait of its own: the read at its end sees it.
+  // the list is no change. Rooms present at mount are not a change, the query
+  // reads with them; rooms that load later are, as a message can land between
+  // the two reads. A change inside the wait needs no wait of its own: the read
+  // at its end sees it.
   const [seenRoomsUnread, setSeenRoomsUnread] = useState(roomsUnread);
   const [refreshDue, setRefreshDue] = useState(false);
+  const [waitsForRead, setWaitsForRead] = useState(0);
   if (roomsUnread !== null && roomsUnread !== seenRoomsUnread) {
     setSeenRoomsUnread(roomsUnread);
     setRefreshDue(true);
   }
   useTimeout(
     () => {
-      setRefreshDue(false);
       const queryKey = chatQueryKeys.feedUnread({
         userId: currentUserId,
         workspaceId: organizationId,
       });
-      // A query with no count yet hands an invalidation its first read, which
-      // may have read before the change. Cancelling it makes this a new read.
-      void queryClient
-        .cancelQueries({ queryKey, exact: true })
-        .then(() => queryClient.invalidateQueries({ queryKey, exact: true }));
+      // A running read may have read before the change, and an invalidation
+      // can hand back that same read. Wait another round for it to finish,
+      // then read again; never cancel it, or steady changes starve the count.
+      if (queryClient.isFetching({ queryKey, exact: true }) > 0) {
+        setWaitsForRead((waits) => waits + 1);
+        return;
+      }
+      setRefreshDue(false);
+      void queryClient.invalidateQueries({ queryKey, exact: true });
     },
     refreshDue ? FEED_COUNT_REFRESH_DELAY_MS : null,
+    waitsForRead,
   );
 
   return { unreadCount: data ?? 0, showCount };
