@@ -11090,7 +11090,6 @@
         "title": "Für Social zuschneiden",
         "description": "Wähle ein Format und ziehe den Rahmen. Eine Kopie wird neben dem Original gespeichert; das Original bleibt unverändert.",
         "shapeLabel": "Format",
-        "frameLabel": "Ausschnitt",
         "loading": "Bild wird geladen…",
         "loadError": "Dieses Bild konnte nicht geladen werden. Schließe den Dialog und versuche es erneut.",
         "result": "Speichert {name}, {width, number} × {height, number} px",
@@ -11116,7 +11115,9 @@
             "hint": "1.91:1 · LinkedIn, X, Link-Posts"
           }
         },
-        "tooLarge": "Bilder über 25 MB lassen sich hier noch nicht zuschneiden. Lade das Bild herunter und schneide es auf deinem Gerät zu."
+        "tooLarge": "Bilder über 25 MB lassen sich hier noch nicht zuschneiden. Lade das Bild herunter und schneide es auf deinem Gerät zu.",
+        "positionX": "Ausschnitt, von links nach rechts",
+        "positionY": "Ausschnitt, von oben nach unten"
       }
     },
     "SokoBot": {

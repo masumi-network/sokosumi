@@ -11090,7 +11090,6 @@
         "title": "Recortar para redes",
         "description": "Elige un formato y arrastra el marco. Se guarda una copia junto al original; el original no cambia.",
         "shapeLabel": "Formato",
-        "frameLabel": "Posición del recorte",
         "loading": "Cargando imagen…",
         "loadError": "No se pudo cargar esta imagen. Cierra e inténtalo de nuevo.",
         "result": "Guarda {name}, {width, number} × {height, number} px",
@@ -11116,7 +11115,9 @@
             "hint": "1.91:1 · LinkedIn, X, enlaces"
           }
         },
-        "tooLarge": "Las imágenes de más de 25 MB aún no se pueden recortar aquí. Descárgala y recórtala en tu dispositivo."
+        "tooLarge": "Las imágenes de más de 25 MB aún no se pueden recortar aquí. Descárgala y recórtala en tu dispositivo.",
+        "positionX": "Posición del recorte, de izquierda a derecha",
+        "positionY": "Posición del recorte, de arriba abajo"
       }
     },
     "SokoBot": {

@@ -85,17 +85,17 @@ describe("CropForSocial", () => {
     );
   });
 
-  it("moves the frame with the keyboard and saves that crop beside the original", async () => {
+  it("saves the chosen crop beside the original", async () => {
     const user = userEvent.setup();
     renderCrop();
     await openWithWideImage(user);
 
-    const frame = screen.getByRole("slider", { name: "frameLabel" });
-    expect(frame).toHaveAttribute("aria-valuenow", "50");
-    expect(frame).toHaveAttribute("aria-valuetext", "50 %");
-    frame.focus();
-    await user.keyboard("{Home}");
-    expect(frame).toHaveAttribute("aria-valuenow", "0");
+    const position = screen.getByRole("slider", { name: "positionX" });
+    expect(position).toHaveValue("50");
+    expect(position).toHaveAttribute("aria-valuetext", "50 %");
+    // The browser's own range input handles keys; this sets where they end.
+    fireEvent.change(position, { target: { value: "0" } });
+    expect(position).toHaveValue("0");
 
     await user.click(screen.getByRole("button", { name: "save" }));
 
@@ -125,24 +125,60 @@ describe("CropForSocial", () => {
     );
   });
 
-  it("places the frame where the image is tapped, without a drag", async () => {
+  it("places the crop at any point of its travel without a drag", async () => {
     const user = userEvent.setup();
     renderCrop();
-    const image = await openWithWideImage(user);
-    const stage = screen.getByTestId("crop-stage");
-    vi.spyOn(stage, "getBoundingClientRect").mockReturnValue(
-      DOMRect.fromRect({ x: 0, y: 0, width: 400, height: 200 }),
-    );
-    stage.setPointerCapture = vi.fn();
+    await user.click(screen.getByRole("button", { name: "open" }));
+    // Nearly square: a square frame is 350 px wide with only 50 px of travel.
+    const image = screen.getByRole("img", { name: "Team photo.jpg" });
+    Object.defineProperty(image, "naturalWidth", { value: 400 });
+    Object.defineProperty(image, "naturalHeight", { value: 350 });
+    fireEvent.load(image);
 
-    // Frame is 200px wide on a 400px stage; a tap at x=350 centres it there.
-    fireEvent.pointerDown(image, { clientX: 350, clientY: 100, pointerId: 1 });
-    fireEvent.pointerUp(stage, { pointerId: 1 });
+    // A tap on the track sets the value where it lands.
+    fireEvent.change(screen.getByRole("slider", { name: "positionX" }), {
+      target: { value: "40" },
+    });
+    await user.click(screen.getByRole("button", { name: "save" }));
 
-    expect(screen.getByRole("slider", { name: "frameLabel" })).toHaveAttribute(
-      "aria-valuenow",
-      "100",
+    await waitFor(() => expect(upload).toHaveBeenCalledTimes(1));
+    expect(drawImage).toHaveBeenCalledWith(
+      expect.anything(),
+      20,
+      0,
+      350,
+      350,
+      0,
+      0,
+      350,
+      350,
     );
+  });
+
+  it("moves a landscape crop up and down on a tall image", async () => {
+    const user = userEvent.setup();
+    renderCrop();
+    await user.click(screen.getByRole("button", { name: "open" }));
+    const image = screen.getByRole("img", { name: "Team photo.jpg" });
+    Object.defineProperty(image, "naturalWidth", { value: 1000 });
+    Object.defineProperty(image, "naturalHeight", { value: 2000 });
+    fireEvent.load(image);
+    await user.click(
+      screen.getByRole("radio", { name: /shapes.landscape.name/ }),
+    );
+    expect(screen.getByRole("slider", { name: "positionY" })).toHaveValue("50");
+  });
+
+  it("offers no position control when the image already has the shape", async () => {
+    const user = userEvent.setup();
+    renderCrop();
+    await user.click(screen.getByRole("button", { name: "open" }));
+    const image = screen.getByRole("img", { name: "Team photo.jpg" });
+    Object.defineProperty(image, "naturalWidth", { value: 800 });
+    Object.defineProperty(image, "naturalHeight", { value: 800 });
+    fireEvent.load(image);
+    expect(screen.queryByRole("slider")).toBeNull();
+    expect(screen.getByRole("button", { name: "save" })).toBeEnabled();
   });
 
   it("returns focus to the Crop button when the dialog closes", async () => {

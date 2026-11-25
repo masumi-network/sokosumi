@@ -115,9 +115,19 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
         .click();
 
       const crop = page.getByRole("dialog", { name: "Crop for social" });
-      await crop.getByRole("slider", { name: "Crop position" }).waitFor();
       await crop.getByRole("radio", { name: /Story/ }).click();
       await crop.getByText("Saves beach-9x16.png, 506 × 900 px").waitFor();
+      // A tap near the track's right end places the crop there, no drag.
+      const position = crop.getByRole("slider", {
+        name: "Crop position, left to right",
+      });
+      const track = await position.boundingBox();
+      assert.ok(track);
+      await position.click({
+        position: { x: track.width * 0.8, y: track.height / 2 },
+      });
+      const placed = Number(await position.inputValue());
+      assert.ok(placed > 60 && placed < 95, `crop placed at ${placed}`);
       await shot(page, size, "1-crop");
 
       await crop.getByRole("button", { name: "Save copy" }).click();
