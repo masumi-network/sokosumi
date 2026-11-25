@@ -41,8 +41,12 @@ async function assertNoSidewaysScroll(page: Page) {
   assert.ok(overflow <= 1, `page scrolls sideways by ${overflow}px`);
 }
 
-// Phone: the floating Create task button. Tablet: open the sidebar first.
+// From the project page, its Running count opens the project's Tasks, where
+// New task starts in the project. Phone: the floating Create task button.
+// Tablet: open the sidebar first.
 async function openNewTask(page: Page) {
+  await page.getByRole("link", { name: /^Running/ }).click();
+  await page.waitForURL(/\/tasks\?projectId=/);
   const fab = page.getByRole("button", { name: "Create task" });
   const showSidebar = page.getByRole("button", { name: "Show sidebar" });
   const newTaskButton = page.getByRole("button", { name: "New task" });
@@ -114,6 +118,8 @@ for (const { name: size, isMobile, ...viewport } of SIZES) {
       await newTask
         .getByRole("button", { name: "Bring me to the task" })
         .click({ timeout: 120_000 });
+      // The project page's heading shows until the Task page lands.
+      await page.waitForURL(/\/tasks\/[^/]+$/);
       const taskName = await page
         .getByRole("heading", { level: 1 })
         .innerText();
@@ -123,7 +129,10 @@ for (const { name: size, isMobile, ...viewport } of SIZES) {
       await page.getByRole("button", { name: /^Due / }).waitFor();
 
       await page.goto(`${BASE_URL}/projects`);
-      await page.getByRole("link", { name: "Timeline" }).click();
+      await page
+        .getByTestId("projects-toolbar")
+        .getByRole("link", { name: "Timeline", exact: true })
+        .click();
       await page.waitForURL(`${BASE_URL}/projects/timeline`);
       const table = page.getByRole("table");
       await table.waitFor();
