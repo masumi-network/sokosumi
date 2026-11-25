@@ -83,7 +83,6 @@ await auth.api.createOrganization({
 
 **Note**: The `userId` parameter cannot be used alongside session headers.
 
-
 ## Active Organizations
 
 Stored in the session and scopes subsequent API calls. Set after user selects one.

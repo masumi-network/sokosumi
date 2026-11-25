@@ -17,60 +17,61 @@ View details of one or more events
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument                    | Description                                                                                                             |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `<org/project/event-id...>` | [&lt;org&gt;/&lt;project&gt;] [&lt;event-id&gt;...] - Target (optional) and event IDs, or a selector (default: @latest) |
 
 **Flags:**
+
 - `-w, --web - Open in browser`
 - `--spans <value> - Span tree depth limit (number, "all" for unlimited, "no" to disable) - (default: "3")`
 - `-f, --fresh - Bypass cache, re-detect projects, and fetch fresh data`
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | ID of the event |
-| `groupID` | string \| null | ID of the issue the event belongs to |
-| `eventID` | string | UUID-format event ID |
-| `projectID` | string | ID of the project the event belongs to |
-| `message` | string \| null | Event message |
-| `title` | string | Event title |
-| `location` | string \| null | Source location of the event, such as a file and line |
-| `platform` | string \| null | Platform of the event, such as python or javascript |
-| `dateReceived` | string \| null | When Sentry received the event (ISO 8601) |
-| `size` | number \| null | Size of the event payload in bytes |
-| `entries` | array | Event interfaces, such as exception, breadcrumbs and request, each with a type and data |
-| `dist` | string \| null | Distribution of the release the event was sent with |
-| `packages` | object | Modules loaded when the event occurred, keyed by module name with their versions |
-| `type` | string | Event type, such as error, default or transaction |
-| `metadata` | object | Event metadata |
-| `occurrence` | object \| unknown \| null | Issue occurrence data for events in non-error issues, such as performance issues. Null otherwise |
-| `_meta` | object | Metadata about changes Sentry made to the event's fields, such as data scrubbing or trimming |
-| `user` | object \| null | User context of the event |
-| `tags` | array | Tags attached to the event |
-| `contexts` | object \| null | Contexts of the event, such as device, os, browser and runtime, keyed by alias |
-| `sdk` | object \| null | SDK that sent the event |
-| `context` | object \| null | Additional data sent with the event in its extra field |
-| `errors` | array | Errors Sentry found while processing the event |
-| `crashFile` | string \| null | Crash report attachment of the event, if any |
-| `culprit` | string \| null | Function or module that caused the event |
-| `dateCreated` | string | When the event occurred (ISO 8601) |
-| `fingerprints` | array | Grouping hashes calculated for the event |
-| `groupingConfig` | object | Grouping configuration used to group the event |
-| `startTimestamp` | number | When the transaction started, as a Unix timestamp in seconds |
-| `endTimestamp` | number | When the transaction ended, as a Unix timestamp in seconds |
-| `measurements` | object \| null | Measurements recorded for the transaction, such as web vitals, keyed by name |
-| `breakdowns` | object \| null | Span operation breakdowns for the transaction, keyed by breakdown name |
-| `release` | object \| null | Release the event was sent with. Null when the event has no release |
-| `userReport` | object \| null | User feedback submitted for the event. Null when there's none |
-| `sdkUpdates` | array | Suggested updates for the SDK that sent the event |
-| `resolvedWith` | array | How the event's stack frames were resolved during processing, such as which source map lookup method was used |
-| `nextEventID` | string \| null | ID of the next event in the issue. Null for the latest event or when adjacentEvents is collapsed |
-| `previousEventID` | string \| null | ID of the previous event in the issue. Null for the first event or when adjacentEvents is collapsed |
-| `formatted` | object | Event rendered as Markdown, XML, or JSON; only returned for API requests with llmFormat |
-| `trace` | object \| null | Trace context, or null when unavailable |
-| `attachments` | array | Event attachments; each includes metadata and an absolute authenticated download URL |
+| Field             | Type                      | Description                                                                                                   |
+| ----------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `id`              | string                    | ID of the event                                                                                               |
+| `groupID`         | string \| null            | ID of the issue the event belongs to                                                                          |
+| `eventID`         | string                    | UUID-format event ID                                                                                          |
+| `projectID`       | string                    | ID of the project the event belongs to                                                                        |
+| `message`         | string \| null            | Event message                                                                                                 |
+| `title`           | string                    | Event title                                                                                                   |
+| `location`        | string \| null            | Source location of the event, such as a file and line                                                         |
+| `platform`        | string \| null            | Platform of the event, such as python or javascript                                                           |
+| `dateReceived`    | string \| null            | When Sentry received the event (ISO 8601)                                                                     |
+| `size`            | number \| null            | Size of the event payload in bytes                                                                            |
+| `entries`         | array                     | Event interfaces, such as exception, breadcrumbs and request, each with a type and data                       |
+| `dist`            | string \| null            | Distribution of the release the event was sent with                                                           |
+| `packages`        | object                    | Modules loaded when the event occurred, keyed by module name with their versions                              |
+| `type`            | string                    | Event type, such as error, default or transaction                                                             |
+| `metadata`        | object                    | Event metadata                                                                                                |
+| `occurrence`      | object \| unknown \| null | Issue occurrence data for events in non-error issues, such as performance issues. Null otherwise              |
+| `_meta`           | object                    | Metadata about changes Sentry made to the event's fields, such as data scrubbing or trimming                  |
+| `user`            | object \| null            | User context of the event                                                                                     |
+| `tags`            | array                     | Tags attached to the event                                                                                    |
+| `contexts`        | object \| null            | Contexts of the event, such as device, os, browser and runtime, keyed by alias                                |
+| `sdk`             | object \| null            | SDK that sent the event                                                                                       |
+| `context`         | object \| null            | Additional data sent with the event in its extra field                                                        |
+| `errors`          | array                     | Errors Sentry found while processing the event                                                                |
+| `crashFile`       | string \| null            | Crash report attachment of the event, if any                                                                  |
+| `culprit`         | string \| null            | Function or module that caused the event                                                                      |
+| `dateCreated`     | string                    | When the event occurred (ISO 8601)                                                                            |
+| `fingerprints`    | array                     | Grouping hashes calculated for the event                                                                      |
+| `groupingConfig`  | object                    | Grouping configuration used to group the event                                                                |
+| `startTimestamp`  | number                    | When the transaction started, as a Unix timestamp in seconds                                                  |
+| `endTimestamp`    | number                    | When the transaction ended, as a Unix timestamp in seconds                                                    |
+| `measurements`    | object \| null            | Measurements recorded for the transaction, such as web vitals, keyed by name                                  |
+| `breakdowns`      | object \| null            | Span operation breakdowns for the transaction, keyed by breakdown name                                        |
+| `release`         | object \| null            | Release the event was sent with. Null when the event has no release                                           |
+| `userReport`      | object \| null            | User feedback submitted for the event. Null when there's none                                                 |
+| `sdkUpdates`      | array                     | Suggested updates for the SDK that sent the event                                                             |
+| `resolvedWith`    | array                     | How the event's stack frames were resolved during processing, such as which source map lookup method was used |
+| `nextEventID`     | string \| null            | ID of the next event in the issue. Null for the latest event or when adjacentEvents is collapsed              |
+| `previousEventID` | string \| null            | ID of the previous event in the issue. Null for the first event or when adjacentEvents is collapsed           |
+| `formatted`       | object                    | Event rendered as Markdown, XML, or JSON; only returned for API requests with llmFormat                       |
+| `trace`           | object \| null            | Trace context, or null when unavailable                                                                       |
+| `attachments`     | array                     | Event attachments; each includes metadata and an absolute authenticated download URL                          |
 
 **Examples:**
 
@@ -112,11 +113,12 @@ List events for an issue
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument  | Description                                                                                                           |
+| --------- | --------------------------------------------------------------------------------------------------------------------- |
 | `<issue>` | Issue: @latest, @most_frequent, &lt;org&gt;/ID, &lt;org&gt;/&lt;project&gt;#ID, &lt;project&gt;-suffix, ID, or suffix |
 
 **Flags:**
+
 - `-n, --limit <value> - Number of events (1-1000) - (default: "25")`
 - `-q, --query <value> - Search query (Sentry search syntax)`
 - `--full - Include full event body (stacktraces)`
@@ -126,23 +128,23 @@ List events for an issue
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Internal event ID |
-| `event.type` | string | Event type (error, default, transaction) |
-| `groupID` | string \| null | ID of the issue the event belongs to |
-| `eventID` | string | UUID-format event ID |
-| `projectID` | string | ID of the project the event belongs to |
-| `message` | string | Event message |
-| `title` | string | Event title |
-| `location` | string \| null | Source location of the event, such as a file and line |
-| `culprit` | string \| null | Function or module that caused the event |
-| `user` | object \| null | User context of the event |
-| `tags` | array | Tags attached to the event |
-| `platform` | string \| null | Platform of the event, such as python or javascript |
-| `dateCreated` | string | When the event occurred (ISO 8601) |
-| `crashFile` | string \| null | Crash report attachment of the event, if any |
-| `metadata` | object | Event metadata |
+| Field         | Type           | Description                                           |
+| ------------- | -------------- | ----------------------------------------------------- |
+| `id`          | string         | Internal event ID                                     |
+| `event.type`  | string         | Event type (error, default, transaction)              |
+| `groupID`     | string \| null | ID of the issue the event belongs to                  |
+| `eventID`     | string         | UUID-format event ID                                  |
+| `projectID`   | string         | ID of the project the event belongs to                |
+| `message`     | string         | Event message                                         |
+| `title`       | string         | Event title                                           |
+| `location`    | string \| null | Source location of the event, such as a file and line |
+| `culprit`     | string \| null | Function or module that caused the event              |
+| `user`        | object \| null | User context of the event                             |
+| `tags`        | array          | Tags attached to the event                            |
+| `platform`    | string \| null | Platform of the event, such as python or javascript   |
+| `dateCreated` | string         | When the event occurred (ISO 8601)                    |
+| `crashFile`   | string \| null | Crash report attachment of the event, if any          |
+| `metadata`    | object         | Event metadata                                        |
 
 **Examples:**
 
@@ -181,11 +183,12 @@ Send a Sentry event
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument              | Description                                                     |
+| --------------------- | --------------------------------------------------------------- |
 | `<target-or-file...>` | Optional DSN/project target followed by JSON event file path(s) |
 
 **Flags:**
+
 - `-m, --message <value>... - Event message (repeat for multi-line)`
 - `-a, --message-arg <value>... - Arguments for message template (repeat for multiple)`
 - `-l, --level <value> - Event severity level - (default: "error")`
@@ -246,25 +249,26 @@ Analytics for events Sentry accepted and dropped
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument          | Description                                             |
+| ----------------- | ------------------------------------------------------- |
 | `[<org/project>]` | &lt;org&gt;/&lt;project&gt; or &lt;project&gt; (search) |
 
 **Flags:**
+
 - `-d, --dataset <value> - Dropped-data type: errors, spans, logs, metrics - (default: "errors")`
 - `-t, --period <value> - Time range: "7d", "2024-01-01..2024-02-01", ">=2024-01-01" - (default: "7d")`
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `outcome` | string | Outcome code: accepted, or a drop such as rate_limited or filtered |
-| `label` | string | Human-readable outcome label |
-| `reason` | string | Reason within the outcome (e.g. spike_protection); accepted for accepted volume |
-| `category` | string | Data category (e.g. error, span) |
-| `events` | number | Events in this slice |
-| `share` | number | Fraction of total volume (0-1), not a percentage string |
-| `tags` | array | Drop classification: intentional or unintentional; empty for accepted |
+| Field      | Type   | Description                                                                     |
+| ---------- | ------ | ------------------------------------------------------------------------------- |
+| `outcome`  | string | Outcome code: accepted, or a drop such as rate_limited or filtered              |
+| `label`    | string | Human-readable outcome label                                                    |
+| `reason`   | string | Reason within the outcome (e.g. spike_protection); accepted for accepted volume |
+| `category` | string | Data category (e.g. error, span)                                                |
+| `events`   | number | Events in this slice                                                            |
+| `share`    | number | Fraction of total volume (0-1), not a percentage string                         |
+| `tags`     | array  | Drop classification: intentional or unintentional; empty for accepted           |
 
 **Examples:**
 

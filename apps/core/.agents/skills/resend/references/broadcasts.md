@@ -4,18 +4,18 @@ Send emails to audience segments. Broadcasts follow a two-step lifecycle: **crea
 
 ## SDK Methods
 
-| Operation | Node.js | Python |
-|-----------|---------|--------|
-| Create | `resend.broadcasts.create(params)` | `resend.Broadcasts.create(params)` |
-| Get | `resend.broadcasts.get(id)` | `resend.Broadcasts.get(id)` |
-| List | `resend.broadcasts.list(params)` | `resend.Broadcasts.list(params)` |
-| Send | `resend.broadcasts.send(id, params?)` | `resend.Broadcasts.send(params)` |
-| Cancel | `resend.broadcasts.cancel(id)` | `resend.Broadcasts.cancel(id)` |
-| Duplicate | `resend.broadcasts.duplicate(id)` | `resend.Broadcasts.duplicate(id)` |
-| Update | `resend.broadcasts.update(id, params)` | `resend.Broadcasts.update(params)` |
-| Delete | `resend.broadcasts.remove(id)` | `resend.Broadcasts.remove(id)` |
+| Operation     | Node.js                                       | Python                                         |
+| ------------- | --------------------------------------------- | ---------------------------------------------- |
+| Create        | `resend.broadcasts.create(params)`            | `resend.Broadcasts.create(params)`             |
+| Get           | `resend.broadcasts.get(id)`                   | `resend.Broadcasts.get(id)`                    |
+| List          | `resend.broadcasts.list(params)`              | `resend.Broadcasts.list(params)`               |
+| Send          | `resend.broadcasts.send(id, params?)`         | `resend.Broadcasts.send(params)`               |
+| Cancel        | `resend.broadcasts.cancel(id)`                | `resend.Broadcasts.cancel(id)`                 |
+| Duplicate     | `resend.broadcasts.duplicate(id)`             | `resend.Broadcasts.duplicate(id)`              |
+| Update        | `resend.broadcasts.update(id, params)`        | `resend.Broadcasts.update(params)`             |
+| Delete        | `resend.broadcasts.remove(id)`                | `resend.Broadcasts.remove(id)`                 |
 | Clicked Links | `resend.broadcasts.clickedLinks(id, params?)` | `resend.Broadcasts.clicked_links(id, params?)` |
-| Recipients | `resend.broadcasts.recipients(id, params)` | `resend.Broadcasts.recipients(id, params)` |
+| Recipients    | `resend.broadcasts.recipients(id, params)`    | `resend.Broadcasts.recipients(id, params)`     |
 
 ## Create Parameters
 
@@ -154,17 +154,17 @@ Use triple-mustache with a pipe for fallbacks: `{{{PROPERTY_KEY|fallback}}}`
 
 ## Common Mistakes
 
-| Mistake | Fix |
-|---------|-----|
-| Expecting `create` to send the broadcast | `create` makes a draft. Call `send` separately, or pass `send: true` |
-| Calling `.delete()` instead of `.remove()` | Node.js SDK uses `.remove()` for all delete operations |
-| Deleting a sent broadcast | Only draft or scheduled broadcasts can be deleted |
-| Cancelling a draft or sent broadcast | Only queued or scheduled broadcasts can be cancelled |
-| Using `.remove()` when you just want to stop delivery | `.cancel()` stops/reverts without deleting the broadcast; `.remove()` deletes it entirely |
-| Missing `segmentId` | Required — broadcasts target segments, not all contacts |
-| Missing unsubscribe link | Include `{{{RESEND_UNSUBSCRIBE_URL}}}` in HTML |
-| `{{VAR}}` instead of `{{{VAR}}}` | Triple braces required for variable interpolation |
-| Ignoring `error` return | Node.js SDK returns `{ data, error }` — always check `error` |
-| `scheduledAt` format confusion | Accepts both ISO 8601 (`2025-03-15T10:00:00Z`) and natural language (`in 1 hour`) |
-| Treating clicked links' `id` as an entity ID | It's an opaque pagination cursor for that row — use it with `after`/`before`, not to look up the link elsewhere |
-| Passing `bounceType` with a non-`bounced` type | Rejected with a 422 — only meaningful when `type: 'bounced'` |
+| Mistake                                               | Fix                                                                                                             |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Expecting `create` to send the broadcast              | `create` makes a draft. Call `send` separately, or pass `send: true`                                            |
+| Calling `.delete()` instead of `.remove()`            | Node.js SDK uses `.remove()` for all delete operations                                                          |
+| Deleting a sent broadcast                             | Only draft or scheduled broadcasts can be deleted                                                               |
+| Cancelling a draft or sent broadcast                  | Only queued or scheduled broadcasts can be cancelled                                                            |
+| Using `.remove()` when you just want to stop delivery | `.cancel()` stops/reverts without deleting the broadcast; `.remove()` deletes it entirely                       |
+| Missing `segmentId`                                   | Required — broadcasts target segments, not all contacts                                                         |
+| Missing unsubscribe link                              | Include `{{{RESEND_UNSUBSCRIBE_URL}}}` in HTML                                                                  |
+| `{{VAR}}` instead of `{{{VAR}}}`                      | Triple braces required for variable interpolation                                                               |
+| Ignoring `error` return                               | Node.js SDK returns `{ data, error }` — always check `error`                                                    |
+| `scheduledAt` format confusion                        | Accepts both ISO 8601 (`2025-03-15T10:00:00Z`) and natural language (`in 1 hour`)                               |
+| Treating clicked links' `id` as an entity ID          | It's an opaque pagination cursor for that row — use it with `after`/`before`, not to look up the link elsewhere |
+| Passing `bounceType` with a non-`bounced` type        | Rejected with a 422 — only meaningful when `type: 'bounced'`                                                    |

@@ -24,15 +24,15 @@ bunx --bun prisma generate
 
 ## Options
 
-| Option | Description |
-|--------|-------------|
-| `--schema` | Custom path to your Prisma schema |
-| `--config` | Custom path to your Prisma config file |
-| `--sql` | Generate typed sql module |
-| `--watch` | Watch the Prisma schema and rerun after a change |
-| `--generator` | Generator to use (may be provided multiple times) |
-| `--no-hints` | Hides the hint messages but still outputs errors and warnings |
-| `--require-models` | Do not allow generating a client without models |
+| Option             | Description                                                   |
+| ------------------ | ------------------------------------------------------------- |
+| `--schema`         | Custom path to your Prisma schema                             |
+| `--config`         | Custom path to your Prisma config file                        |
+| `--sql`            | Generate typed sql module                                     |
+| `--watch`          | Watch the Prisma schema and rerun after a change              |
+| `--generator`      | Generator to use (may be provided multiple times)             |
+| `--no-hints`       | Hides the hint messages but still outputs errors and warnings |
+| `--require-models` | Do not allow generating a client without models               |
 
 ## Examples
 

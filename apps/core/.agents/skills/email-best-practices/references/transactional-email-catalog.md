@@ -18,6 +18,7 @@ Use these combinations as a starting point based on what you're building.
 Apps where user accounts and security are core (login systems, identity providers, account management).
 
 **Essential:**
+
 - Email verification
 - Password reset
 - OTP / 2FA codes
@@ -25,6 +26,7 @@ Apps where user accounts and security are core (login systems, identity provider
 - Account update notifications
 
 **Optional:**
+
 - Welcome email (must not be promotional)
 - Account deletion confirmation
 
@@ -33,12 +35,14 @@ Apps where user accounts and security are core (login systems, identity provider
 Apps focused on content delivery and subscriptions.
 
 **Essential:**
+
 - Email verification
 - Password reset
 - Welcome email (must not be promotional)
 - Subscription confirmation
 
 **Optional:**
+
 - OTP / 2FA codes
 - Account update notifications
 
@@ -47,6 +51,7 @@ Apps focused on content delivery and subscriptions.
 Apps where users buy products or services.
 
 **Essential:**
+
 - Email verification
 - Password reset
 - Welcome email (must not be promotional)
@@ -56,6 +61,7 @@ Apps where users buy products or services.
 - Payment failed notices
 
 **Optional:**
+
 - OTP / 2FA codes
 - Security alerts
 - Subscription confirmations (for recurring orders)
@@ -65,6 +71,7 @@ Apps where users buy products or services.
 Apps with paid subscription tiers and ongoing billing.
 
 **Essential:**
+
 - Email verification
 - Password reset
 - Welcome email (must not be promotional)
@@ -76,6 +83,7 @@ Apps with paid subscription tiers and ongoing billing.
 - Invoice / receipt
 
 **Optional:**
+
 - Account update notifications
 - Feature change notifications (for breaking changes)
 
@@ -84,6 +92,7 @@ Apps with paid subscription tiers and ongoing billing.
 Apps handling money, payments, or sensitive financial data.
 
 **Essential:**
+
 - Email verification
 - Password reset
 - OTP / 2FA codes (required for sensitive actions)
@@ -94,6 +103,7 @@ Apps handling money, payments, or sensitive financial data.
 - Payment failed notices
 
 **Optional:**
+
 - Welcome email (must not be promotional)
 - Compliance notices
 
@@ -102,12 +112,14 @@ Apps handling money, payments, or sensitive financial data.
 Apps focused on user interaction and community features.
 
 **Essential:**
+
 - Email verification
 - Password reset
 - Welcome email (must not be promotional)
 - Security alerts
 
 **Optional:**
+
 - OTP / 2FA codes
 - Account update notifications
 - Activity notifications (mentions, replies)
@@ -117,6 +129,7 @@ Apps focused on user interaction and community features.
 Apps targeting developers with API access and integrations.
 
 **Essential:**
+
 - Email verification
 - Password reset
 - OTP / 2FA codes
@@ -126,6 +139,7 @@ Apps targeting developers with API access and integrations.
 - Payment failed notices
 
 **Optional:**
+
 - Welcome email (must not be promotional)
 - Usage alerts (approaching limits)
 - Feature change notifications
@@ -135,6 +149,7 @@ Apps targeting developers with API access and integrations.
 Apps handling protected health information.
 
 **Essential:**
+
 - Email verification
 - Password reset
 - OTP / 2FA codes (required)
@@ -143,6 +158,7 @@ Apps handling protected health information.
 - Appointment confirmations
 
 **Optional:**
+
 - Welcome email (must not be promotional)
 - Compliance notices
 
@@ -161,12 +177,14 @@ Apps handling protected health information.
 **Purpose:** Verify the email address belongs to the user.
 
 **Content should include:**
+
 - Clear verification link or code
 - Expiration time (typically 24-48 hours)
 - Instructions on what to do
 - Security notice if link is clicked by mistake
 
 **Best practices:**
+
 - Send immediately (within seconds)
 - Include expiration notice
 - Provide resend option
@@ -179,12 +197,14 @@ Apps handling protected health information.
 **Purpose:** Provide time-sensitive authentication code.
 
 **Content should include:**
+
 - The OTP code (clearly displayed)
 - Expiration time (typically 5-10 minutes)
 - Security warnings
 - Instructions on what to do if not requested
 
 **Best practices:**
+
 - Send immediately
 - Code should be large and easy to read
 - Include expiration prominently
@@ -198,12 +218,14 @@ Apps handling protected health information.
 **Purpose:** Allow user to securely reset forgotten password.
 
 **Content should include:**
+
 - Reset link (with token)
 - Expiration time (typically 1 hour)
 - Security warnings
 - Instructions if not requested
 
 **Best practices:**
+
 - Send immediately
 - Link expires quickly (1 hour)
 - Include IP address and location if available
@@ -217,6 +239,7 @@ Apps handling protected health information.
 **Purpose:** Notify user of account security events.
 
 **Content should include:**
+
 - What happened (clear description)
 - When it happened
 - Location/IP if available
@@ -224,6 +247,7 @@ Apps handling protected health information.
 - Link to security settings
 
 **Best practices:**
+
 - Send immediately
 - Be clear and specific
 - Include actionable steps
@@ -238,12 +262,14 @@ Apps handling protected health information.
 **Purpose:** Welcome new users and guide them to next steps (must not be promotional).
 
 **Content should include:**
+
 - Welcome message
 - Key features or next steps
 - Links to important resources
 - Support contact information
 
 **Best practices:**
+
 - Send after email verification
 - Keep it focused and actionable
 - Don't overwhelm with information
@@ -256,12 +282,14 @@ Apps handling protected health information.
 **Purpose:** Confirm account changes and provide security notice.
 
 **Content should include:**
+
 - What changed
 - When it changed
 - Action to take if unauthorized
 - Link to account settings
 
 **Best practices:**
+
 - Send immediately after change
 - Be specific about what changed
 - Include security notice
@@ -276,6 +304,7 @@ Apps handling protected health information.
 **Purpose:** Confirm order details and provide receipt.
 
 **Content should include:**
+
 - Order number
 - Items ordered with quantities
 - Pricing breakdown
@@ -284,6 +313,7 @@ Apps handling protected health information.
 - Order tracking link (if available)
 
 **Best practices:**
+
 - Send within minutes of order
 - Include all order details
 - Make it easy to print or save
@@ -296,6 +326,7 @@ Apps handling protected health information.
 **Purpose:** Notify user that order has shipped and provide tracking.
 
 **Content should include:**
+
 - Order number
 - Tracking number
 - Carrier information
@@ -304,6 +335,7 @@ Apps handling protected health information.
 - Shipping address confirmation
 
 **Best practices:**
+
 - Send when order ships
 - Include tracking number prominently
 - Provide carrier tracking link
@@ -316,6 +348,7 @@ Apps handling protected health information.
 **Purpose:** Provide payment confirmation and receipt.
 
 **Content should include:**
+
 - Invoice/receipt number
 - Payment amount
 - Payment method
@@ -324,6 +357,7 @@ Apps handling protected health information.
 - Downloadable PDF (if applicable)
 
 **Best practices:**
+
 - Send immediately after payment
 - Include all payment details
 - Make it easy to download/save
@@ -338,6 +372,7 @@ Apps handling protected health information.
 **Purpose:** Confirm subscription details and billing information.
 
 **Content should include:**
+
 - Subscription plan details
 - Billing amount and frequency
 - Next billing date
@@ -345,6 +380,7 @@ Apps handling protected health information.
 - Link to manage subscription
 
 **Best practices:**
+
 - Send immediately after subscription
 - Clearly state billing terms
 - Provide easy cancellation option
@@ -357,6 +393,7 @@ Apps handling protected health information.
 **Purpose:** Notify user of upcoming renewal and charge.
 
 **Content should include:**
+
 - Renewal date
 - Amount to be charged
 - Payment method on file
@@ -364,6 +401,7 @@ Apps handling protected health information.
 - Link to cancel if desired
 
 **Best practices:**
+
 - Send with enough notice (3-7 days)
 - Be clear about amount and date
 - Make it easy to update payment method
@@ -376,6 +414,7 @@ Apps handling protected health information.
 **Purpose:** Notify user of payment failure and provide resolution steps.
 
 **Content should include:**
+
 - What happened
 - Amount that failed
 - Reason for failure (if available)
@@ -384,6 +423,7 @@ Apps handling protected health information.
 - Consequences if not resolved
 
 **Best practices:**
+
 - Send immediately after failure
 - Be clear about consequences
 - Provide easy resolution path
@@ -398,12 +438,14 @@ Apps handling protected health information.
 **Purpose:** Notify users of changes that affect their use of the service.
 
 **Content should include:**
+
 - What changed
 - How it affects the user
 - What action (if any) is needed
 - Link to more information
 
 **Best practices:**
+
 - Only for significant changes
 - Focus on user impact
 - Provide clear next steps

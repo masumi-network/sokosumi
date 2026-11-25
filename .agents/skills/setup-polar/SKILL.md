@@ -27,6 +27,7 @@ First, check if the Polar MCP server is available by listing organizations: call
 Otherwise, guide the user to install the Polar MCP server based on their environment:
 
 **Claude Code:**
+
 ```bash
 # Production
 claude mcp add --transport http polar https://mcp.polar.sh/mcp/polar-mcp
@@ -36,6 +37,7 @@ claude mcp add --transport http polar-sandbox https://mcp.polar.sh/mcp/polar-san
 ```
 
 **Cursor** (`.cursor/mcp.json`):
+
 ```json
 {
   "mcpServers": {
@@ -72,6 +74,7 @@ From here on, use the `polar-sandbox` server's tools for sandbox and the `polar`
 ### Step 4: Choose the Organization
 
 List the organizations with MCP. If there are several, ask which one to use. Note its `id`, `slug` and `default_presentment_currency`. Signing in to the MCP server already asks a user without an organization to create one; without MCP, they can create one at:
+
 - Sandbox: https://sandbox.polar.sh/start
 - Production: https://polar.sh/start
 

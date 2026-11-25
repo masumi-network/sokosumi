@@ -17,6 +17,7 @@ Understanding the difference between transactional and marketing emails is cruci
 **Definition:** Emails that facilitate or confirm a transaction the user initiated or expects. They're directly related to an action the user took or are legal notices you're required to serve.
 
 **Characteristics:**
+
 - User-initiated or expected
 - Time-sensitive and actionable
 - Required for the user to complete an action
@@ -24,6 +25,7 @@ Understanding the difference between transactional and marketing emails is cruci
 - Can be sent without explicit opt-in (with limitations)
 
 **Examples:**
+
 - Password reset links
 - Order confirmations
 - Account verification
@@ -38,6 +40,7 @@ Think of transactional emails for everything that would leave you with a paper r
 **Definition:** Emails sent for promotional, advertising, or informational purposes that are not directly related to a specific transaction or legal requirement.
 
 **Characteristics:**
+
 - Promotional or informational content
 - Not time-sensitive to complete a transaction
 - Require explicit opt-in (consent)
@@ -45,6 +48,7 @@ Think of transactional emails for everything that would leave you with a paper r
 - Subject to stricter compliance requirements
 
 **Examples:**
+
 - Newsletters
 - Abandoned cart
 - Product announcements
@@ -57,12 +61,14 @@ Think of transactional emails for everything that would leave you with a paper r
 ### CAN-SPAM Act (US)
 
 **Transactional emails:**
+
 - Can be sent without opt-in
 - Must be related to a transaction
 - Cannot contain promotional content (with exceptions)
 - Must identify sender and provide contact information
 
 **Marketing emails:**
+
 - Require opt-out mechanism (not opt-in in US)
 - Must include clear sender identification
 - Must include physical mailing address
@@ -71,11 +77,13 @@ Think of transactional emails for everything that would leave you with a paper r
 ### GDPR (EU)
 
 **Transactional emails:**
+
 - Can be sent based on legitimate interest or contract fulfillment
 - Must be necessary for service delivery
 - Cannot contain marketing content without consent
 
 **Marketing emails:**
+
 - Require explicit opt-in consent
 - Must clearly state purpose of data collection
 - Must provide easy unsubscribe
@@ -84,10 +92,12 @@ Think of transactional emails for everything that would leave you with a paper r
 ### CASL (Canada)
 
 **Transactional emails:**
+
 - Can be sent without consent if related to ongoing business relationship
 - Must be factual and not promotional
 
 **Marketing emails:**
+
 - Require express or implied consent
 - Must include unsubscribe mechanism
 - Must identify sender clearly
@@ -115,9 +125,10 @@ Think of transactional emails for everything that would leave you with a paper r
 
 Some emails mix transactional and marketing content. This isn't best practice and should be avoided.
 
-**Best practice:** Keep transactional and marketing separate. 
+**Best practice:** Keep transactional and marketing separate.
 
 **Example of problematic hybrid:**
+
 - Newsletter (marketing) with a small order status update (transactional)
 
 ## Transactional Email Catalog
@@ -125,11 +136,13 @@ Some emails mix transactional and marketing content. This isn't best practice an
 For a complete catalog of transactional emails and recommended combinations by app type, see [Transactional Email Catalog](./transactional-email-catalog.md).
 
 **Quick reference - Essential emails for most apps:**
+
 1. **Email verification** - Required for account creation
 2. **Password reset** - Required for account recovery
 3. **Welcome email** - Good user experience
 
 The catalog includes detailed guidance for:
+
 - Authentication-focused apps
 - Newsletter / content platforms
 - E-commerce / marketplaces
@@ -146,17 +159,20 @@ The catalog includes detailed guidance for:
 **Best practice:** Use separate sending subdomains for transactional and marketing emails.
 
 **Benefits:**
+
 - Protect transactional deliverability
 - Different authentication domains
 - Independent reputation
 - Easier compliance management
 
 **Implementation:**
+
 - Use different subdomains (e.g., `t.example.com` for transactional, `m.example.com` for marketing)
 
 ### Email Service Considerations
 
 Choose an email service that:
+
 - Provides reliable delivery for transactional emails
 - Offers separate sending domains
 - Has good API for programmatic sending

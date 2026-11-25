@@ -6,23 +6,23 @@ Fine-grained subscription preferences — contacts opt in or out per topic. Topi
 
 ### Node.js
 
-| Operation | Method |
-|-----------|--------|
-| Create | `resend.topics.create(params)` |
-| Get | `resend.topics.get(id)` |
-| List | `resend.topics.list()` — no pagination params |
-| Update | `resend.topics.update(params)` |
-| Delete | `resend.topics.remove(id)` — not `.delete()` |
+| Operation | Method                                        |
+| --------- | --------------------------------------------- |
+| Create    | `resend.topics.create(params)`                |
+| Get       | `resend.topics.get(id)`                       |
+| List      | `resend.topics.list()` — no pagination params |
+| Update    | `resend.topics.update(params)`                |
+| Delete    | `resend.topics.remove(id)` — not `.delete()`  |
 
 ### Python
 
-| Operation | Method |
-|-----------|--------|
-| Create | `resend.Topics.create(params)` |
-| Get | `resend.Topics.get(id)` |
-| List | `resend.Topics.list(params?)` — `limit`, `after`, `before` |
-| Update | `resend.Topics.update(id, params)` |
-| Delete | `resend.Topics.remove(id)` |
+| Operation | Method                                                     |
+| --------- | ---------------------------------------------------------- |
+| Create    | `resend.Topics.create(params)`                             |
+| Get       | `resend.Topics.get(id)`                                    |
+| List      | `resend.Topics.list(params?)` — `limit`, `after`, `before` |
+| Update    | `resend.Topics.update(id, params)`                         |
+| Delete    | `resend.Topics.remove(id)`                                 |
 
 ## Create Topic
 
@@ -89,19 +89,19 @@ await resend.broadcasts.create({
 
 ## Constraints
 
-| Constraint | Limit |
-|------------|-------|
-| Name max length | 50 characters |
-| Description max length | 200 characters |
-| `defaultSubscription` | `"opt_in"` or `"opt_out"` — immutable after create |
-| `visibility` | `"public"` (shown on the unsubscribe page) or `"private"` (default) |
+| Constraint             | Limit                                                               |
+| ---------------------- | ------------------------------------------------------------------- |
+| Name max length        | 50 characters                                                       |
+| Description max length | 200 characters                                                      |
+| `defaultSubscription`  | `"opt_in"` or `"opt_out"` — immutable after create                  |
+| `visibility`           | `"public"` (shown on the unsubscribe page) or `"private"` (default) |
 
 ## Common Mistakes
 
-| Mistake | Fix |
-|---------|-----|
-| Omitting `defaultSubscription` on create | Required — must be `"opt_in"` or `"opt_out"` |
-| Trying to change `defaultSubscription` | Immutable after creation — delete and recreate with new value |
-| Calling `.delete()` | SDK method is `.remove()` |
-| `visibility: "hidden"` | Not a valid value — use `"private"` |
-| Broadcast without `topicId` | Goes to all contacts in segment regardless of topic preferences |
+| Mistake                                  | Fix                                                             |
+| ---------------------------------------- | --------------------------------------------------------------- |
+| Omitting `defaultSubscription` on create | Required — must be `"opt_in"` or `"opt_out"`                    |
+| Trying to change `defaultSubscription`   | Immutable after creation — delete and recreate with new value   |
+| Calling `.delete()`                      | SDK method is `.remove()`                                       |
+| `visibility: "hidden"`                   | Not a valid value — use `"private"`                             |
+| Broadcast without `topicId`              | Goes to all contacts in segment regardless of topic preferences |

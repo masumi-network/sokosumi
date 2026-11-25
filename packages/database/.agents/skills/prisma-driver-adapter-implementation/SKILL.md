@@ -54,15 +54,15 @@ interface Transaction extends AdapterInfo {
 
 ## Priority rules
 
-| Priority | Rule | Impact |
-|----------|------|--------|
-| CRITICAL | One dedicated connection per transaction | Prevents interleaving and leaks |
-| CRITICAL | `commit`/`rollback` are lifecycle cleanup hooks | Prevents duplicate COMMIT/ROLLBACK |
-| CRITICAL | Savepoints live on `Transaction`, not adapter-global depth | Makes nested scopes connection-local |
-| CRITICAL | Preserve original database error code/message | Enables useful `P2039` fallback |
-| HIGH | Map arguments and result metadata exactly | Prevents silent value corruption |
-| HIGH | Shadow databases are isolated and always cleaned up | Makes Migrate safe |
-| HIGH | Dispose only resources the adapter owns | Prevents shutting down caller-owned pools |
+| Priority | Rule                                                       | Impact                                    |
+| -------- | ---------------------------------------------------------- | ----------------------------------------- |
+| CRITICAL | One dedicated connection per transaction                   | Prevents interleaving and leaks           |
+| CRITICAL | `commit`/`rollback` are lifecycle cleanup hooks            | Prevents duplicate COMMIT/ROLLBACK        |
+| CRITICAL | Savepoints live on `Transaction`, not adapter-global depth | Makes nested scopes connection-local      |
+| CRITICAL | Preserve original database error code/message              | Enables useful `P2039` fallback           |
+| HIGH     | Map arguments and result metadata exactly                  | Prevents silent value corruption          |
+| HIGH     | Shadow databases are isolated and always cleaned up        | Makes Migrate safe                        |
+| HIGH     | Dispose only resources the adapter owns                    | Prevents shutting down caller-owned pools |
 
 ## Query implementation
 

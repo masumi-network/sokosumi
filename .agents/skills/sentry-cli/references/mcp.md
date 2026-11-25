@@ -17,11 +17,12 @@ Start a local Sentry MCP server
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument          | Description                                                                     |
+| ----------------- | ------------------------------------------------------------------------------- |
 | `[<org/project>]` | &lt;org&gt;/ (an organization) or &lt;org&gt;/&lt;project&gt; to limit calls to |
 
 **Flags:**
+
 - `--org <value> - Limit every call to this organization`
 - `--project <value> - Limit calls to this project`
 - `--skills <value> - Skills to grant, comma-separated (default: active skills; seer is left out on self-hosted)`

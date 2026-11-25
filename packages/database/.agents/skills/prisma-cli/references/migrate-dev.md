@@ -18,13 +18,13 @@ prisma migrate dev [options]
 
 ## Options
 
-| Option | Description |
-|--------|-------------|
-| `--name` / `-n` | Name the migration |
-| `--create-only` | Create a new migration but do not apply it |
-| `--schema` | Custom path to your Prisma schema |
-| `--config` | Custom path to your Prisma config file |
-| `--url` | Override the datasource URL from the Prisma config file |
+| Option          | Description                                             |
+| --------------- | ------------------------------------------------------- |
+| `--name` / `-n` | Name the migration                                      |
+| `--create-only` | Create a new migration but do not apply it              |
+| `--schema`      | Custom path to your Prisma schema                       |
+| `--config`      | Custom path to your Prisma config file                  |
+| `--url`         | Override the datasource URL from the Prisma config file |
 
 ### Follow-up Commands
 
