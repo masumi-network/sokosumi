@@ -21,7 +21,14 @@ vi.mock("@/clients/masumi-registry.client", () => ({
   registryClient: { listEntries: listEntriesMock },
 }));
 
-const { default: registryAgentsRouter } = await import("./index.js");
+const { incrementMock } = vi.hoisted(() => ({ incrementMock: vi.fn() }));
+
+vi.mock("@/lib/redis-rate-limit", () => ({
+  incrementRedisRateLimit: incrementMock,
+}));
+
+const { default: registryAgentsRouter, REGISTRY_READS_PER_MINUTE } =
+  await import("./index.js");
 
 const USER_API_KEY: AuthenticationContext = {
   actor: "user",
@@ -85,6 +92,8 @@ describe("GET /registry/agents", () => {
   beforeEach(() => {
     listEntriesMock.mockReset();
     listEntriesMock.mockResolvedValue(ok([entry("a")]));
+    incrementMock.mockReset();
+    incrementMock.mockResolvedValue(1);
   });
 
   it.each<[string, AuthenticationContext]>([
@@ -228,5 +237,34 @@ describe("GET /registry/agents", () => {
 
     expect(response.status).toBe(422);
     expect(listEntriesMock).not.toHaveBeenCalled();
+  });
+
+  it.each<[string, AuthenticationContext, string]>([
+    ["a user", USER_API_KEY, "registry:agents-read:user:user_1"],
+    [
+      "a Coworker",
+      { actor: "coworker", coworkerId: "cow_1", vendorId: "vendor_1" },
+      "registry:agents-read:coworker:cow_1",
+    ],
+  ])(
+    "answers 429 once %s has used the minute's budget",
+    async (_, auth, key) => {
+      incrementMock.mockResolvedValue(REGISTRY_READS_PER_MINUTE + 1);
+
+      const response = await createApp(auth).request("/");
+
+      expect(incrementMock).toHaveBeenCalledWith(key, 60);
+      expect(response.status).toBe(429);
+      expect(response.headers.get("Retry-After")).toBe("60");
+      expect(listEntriesMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("serves the last read inside the budget", async () => {
+    incrementMock.mockResolvedValue(REGISTRY_READS_PER_MINUTE);
+
+    const response = await createApp().request("/");
+
+    expect(response.status).toBe(200);
   });
 });

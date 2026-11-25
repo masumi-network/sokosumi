@@ -98,6 +98,7 @@ const route = withCoworkerContextHeaderParameters(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("API key required"),
       422: jsonErrorResponse("Invalid query"),
+      429: jsonErrorResponse("Registry read budget used up"),
       502: jsonErrorResponse("Masumi registry unavailable"),
     },
   }),

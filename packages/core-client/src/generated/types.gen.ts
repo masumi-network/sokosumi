@@ -114629,6 +114629,21 @@ export type ListRegistryAgentsErrors = {
         };
     };
     /**
+     * Registry read budget used up
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Masumi registry unavailable
      */
     502: {
