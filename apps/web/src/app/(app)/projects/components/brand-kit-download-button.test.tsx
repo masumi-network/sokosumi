@@ -34,7 +34,10 @@ describe("brandKitFiles", () => {
   it("bundles DESIGN.md, the colours and fonts as text, and the logo", () => {
     const files = brandKitFiles({
       markdown: MARKDOWN,
-      logoUrl: "https://blob.test/projects/p/logos/abc.svg",
+      logo: {
+        url: "https://blob.test/projects/p/logos/abc",
+        type: "image/svg+xml",
+      },
       labels: LABELS,
     });
 
@@ -47,32 +50,77 @@ describe("brandKitFiles", () => {
     expect(decode(files[1].fileUrl)).toBe(
       "Colors\nprimary: #2F7D4F\nlink: {colors.primary}\n\nTypography\ndisplay: Inter · 30px · 300\n",
     );
-    expect(files[2].fileUrl).toBe("https://blob.test/projects/p/logos/abc.svg");
+    expect(files[2].fileUrl).toBe("https://blob.test/projects/p/logos/abc");
   });
 
   it("leaves out the logo and the token file when there are none", () => {
     const files = brandKitFiles({
       markdown: "# Brand\n",
-      logoUrl: null,
+      logo: null,
       labels: LABELS,
     });
 
     expect(files.map((file) => file.name)).toEqual(["DESIGN.md"]);
   });
 
-  it("names a logo without a known extension .png", () => {
+  it.each([
+    ["image/jpeg", "logo.jpg"],
+    ["image/webp; charset=binary", "logo.webp"],
+    ["image/png", "logo.png"],
+    [null, "logo.png"],
+  ])("names a %s logo %s", (type, name) => {
     const files = brandKitFiles({
       markdown: "# Brand\n",
-      logoUrl: "https://blob.test/projects/p/logos/abc",
+      logo: { url: "https://blob.test/projects/p/logos/abc", type },
       labels: LABELS,
     });
 
-    expect(files.at(-1)?.name).toBe("logo.png");
+    expect(files.at(-1)?.name).toBe(name);
   });
 });
 
 describe("BrandKitDownloadButton", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("names the logo after the type the store serves it as", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(null, { headers: { "content-type": "image/jpeg" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    archive.createFilesArchive.mockResolvedValue({
+      data: new ArrayBuffer(1),
+      included: [],
+      missing: [],
+    });
+    render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <BrandKitDownloadButton
+          projectName="Launch plan"
+          markdown="# Brand"
+          logoUrl="https://blob.test/projects/p/logos/abc"
+        />
+      </NextIntlClientProvider>,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Download brand kit" }),
+    );
+
+    await waitFor(() => expect(archive.saveZip).toHaveBeenCalled());
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://blob.test/projects/p/logos/abc",
+      expect.objectContaining({ method: "HEAD" }),
+    );
+    expect(
+      archive.createFilesArchive.mock.calls[0][0].map(
+        (file: { name: string }) => file.name,
+      ),
+    ).toEqual(["DESIGN.md", "logo.jpg"]);
+  });
 
   it("saves the kit as a zip named after the project", async () => {
     archive.createFilesArchive.mockResolvedValue({

@@ -10,7 +10,16 @@ import { Button } from "@/components/ui/button";
 import { useFilesArchiveDownload } from "@/hooks/effects/use-files-archive-download";
 import type { ArchiveFile } from "@/lib/files-archive";
 
-const LOGO_EXTENSION = /\.(png|jpe?g|svg|webp|gif|ico|avif)$/i;
+// The store keeps logos under a content hash with no extension, so the
+// served type names the file.
+const LOGO_EXTENSIONS: Record<string, string> = {
+  "image/png": ".png",
+  "image/jpeg": ".jpg",
+  "image/webp": ".webp",
+  "image/svg+xml": ".svg",
+  "image/gif": ".gif",
+  "image/avif": ".avif",
+};
 
 function textUrl(text: string, type: string): string {
   return `data:${type};charset=utf-8,${encodeURIComponent(text)}`;
@@ -24,11 +33,11 @@ function textUrl(text: string, type: string): string {
  */
 export function brandKitFiles({
   markdown,
-  logoUrl,
+  logo,
   labels,
 }: {
   markdown: string;
-  logoUrl: string | null;
+  logo: { url: string; type: string | null } | null;
   labels: { colors: string; typography: string };
 }): ArchiveFile[] {
   const files: ArchiveFile[] = [
@@ -57,13 +66,25 @@ export function brandKitFiles({
     files.push({ name: "brand.txt", fileUrl: textUrl(text, "text/plain") });
   }
 
-  if (logoUrl) {
-    const extension =
-      LOGO_EXTENSION.exec(logoUrl.split(/[?#]/)[0] ?? "")?.[0].toLowerCase() ??
-      ".png";
-    files.push({ name: `logo${extension}`, fileUrl: logoUrl });
+  if (logo) {
+    const type = logo.type?.split(";")[0]?.trim().toLowerCase() ?? "";
+    const extension = LOGO_EXTENSIONS[type] ?? ".png";
+    files.push({ name: `logo${extension}`, fileUrl: logo.url });
   }
   return files;
+}
+
+/** Null when the store does not answer; the zip step then names the logo as missing. */
+async function logoType(
+  url: string,
+  signal: AbortSignal,
+): Promise<string | null> {
+  try {
+    const response = await fetch(url, { method: "HEAD", signal });
+    return response.ok ? response.headers.get("content-type") : null;
+  } catch {
+    return null;
+  }
 }
 
 export function BrandKitDownloadButton({
@@ -86,10 +107,12 @@ export function BrandKitDownloadButton({
       data-testid="project-brand-kit-download"
       loading={downloading}
       onClick={() =>
-        download(t("brandKitFileName", { name: projectName }), () =>
+        download(t("brandKitFileName", { name: projectName }), async (signal) =>
           brandKitFiles({
             markdown,
-            logoUrl,
+            logo: logoUrl
+              ? { url: logoUrl, type: await logoType(logoUrl, signal) }
+              : null,
             labels: { colors: t("colors"), typography: t("typography") },
           }),
         )
