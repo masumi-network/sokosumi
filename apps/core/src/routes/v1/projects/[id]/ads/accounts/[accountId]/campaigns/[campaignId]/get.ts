@@ -5,7 +5,7 @@ import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   adCampaignDetailsSchema,
@@ -21,7 +21,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/{id}/ads/accounts/{accountId}/campaigns/{campaignId}",
     description:
-      "Details of one Google campaign of an ad account attached to a Project: settings, targeting, keywords, ad, sitelinks, callouts, and spend, impressions, clicks, CTR, CPC and conversions over the range (totals and one entry per day). Money is a decimal in the account currency. Google Ads accounts only; a Meta account, an unknown campaign and a removed campaign are 404. Requires an interactive user session in the Project's Workspace.",
+      "Details of one Google campaign of an ad account attached to a Project: settings, targeting, keywords, ad, sitelinks, callouts, and spend, impressions, clicks, CTR, CPC and conversions over the range (totals and one entry per day). Money is a decimal in the account currency. Google Ads accounts only; a Meta account, an unknown campaign and a removed campaign are 404. Open to a person by any sign-in (browser, API key or OAuth token) in the Project's Workspace.",
     tags: ["Projects"],
     request: {
       params: projectAdCampaignParamsSchema,
@@ -43,7 +43,7 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    requireInteractiveUserAuthContext(c.var.authContext);
+    requireUserAuthContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, accountId, campaignId } = c.req.valid("param");
     const { range } = c.req.valid("query");

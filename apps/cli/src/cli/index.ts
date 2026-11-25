@@ -172,7 +172,8 @@ const GENERIC_ROWS = CLI_COMMAND_CATALOG.filter(
   (entry): entry is Extract<typeof entry, { operation: string }> =>
     "operation" in entry,
 );
-const GENERIC_COMMANDS = GENERIC_ROWS.map((entry) => entry.command).join(", ");
+const GENERIC_COMMANDS =
+  "the commands that call one Core operation (see sokosumi --help)";
 interface ParsedArgv {
   positionals: string[];
   options: CliOptions;

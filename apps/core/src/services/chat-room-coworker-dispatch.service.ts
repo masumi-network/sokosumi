@@ -15,6 +15,7 @@ import {
 } from "@/helpers/persist-assistant-to-chat-room";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotMessageMemberId } from "@/helpers/soko-bot-message-member";
+import { getCoworkerAuthorizationHeader } from "@/lib/coworker-request-auth";
 import prisma from "@/lib/db/prisma";
 import { isEvalWorkspace } from "@/lib/evals/eval-guard";
 import {
@@ -497,6 +498,13 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       sokosumiUserId: userId,
       sokosumiOrganizationId: mention.message.room.organizationId,
       providerConversationId: providerConversation.id,
+      getAuthorization: () =>
+        getCoworkerAuthorizationHeader({
+          coworkerBaseUrl: baseURL,
+          userId,
+          organizationId: mention.message.room.organizationId,
+          coworkerSlug: coworker.slug,
+        }),
       onResponseStarted: (responseId: string) => {
         providerResponseId = responseId;
       },

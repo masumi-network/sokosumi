@@ -25,13 +25,14 @@ vi.mock("@/lib/ably/ably-connection-health-store", () => ({
   useAblyConnectionHealthy: () => true,
 }));
 
+import * as chatRefreshScheduler from "@/hooks/effects/use-chat-refresh-scheduler";
+
 import {
   clearMembershipVisibleRoomsSnapshot,
   publishMembershipVisibleRooms,
   registerMembershipVisibleRoomsPublisher,
 } from "./membership-visible-rooms-store";
 import { clearRoomReadOverlays, rememberRoomRead } from "./room-read-overlay";
-import * as chatRefreshScheduler from "./use-chat-refresh-scheduler";
 import { useLiveChatRooms, useLiveChatRoomsRead } from "./use-live-chat-rooms";
 
 function TabUnread() {

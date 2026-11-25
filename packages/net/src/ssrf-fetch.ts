@@ -28,6 +28,12 @@ export interface SsrfSafeFetchInit {
   headers?: Record<string, string>;
   body?: string | Uint8Array<ArrayBuffer>;
   signal?: AbortSignal;
+  /**
+   * Redirect handling for GET/HEAD requests (default `"follow"`). Pass
+   * `"manual"` for credentialed requests so 3xx responses return as-is instead
+   * of forwarding credentials or replaying single-use tokens.
+   */
+  redirect?: "follow" | "manual";
   /** Called before buffering each response chunk, including redirect/error bodies.
    * Throw to abort the response, for example when a shared byte budget expires. */
   onResponseBytes?: (bytes: number) => void;
@@ -235,7 +241,8 @@ export async function ssrfSafeFetch(
   }
 
   const method = (init.method ?? "GET").toUpperCase();
-  const followRedirects = method === "GET" || method === "HEAD";
+  const followRedirects =
+    init.redirect !== "manual" && (method === "GET" || method === "HEAD");
 
   let currentUrl: string | URL = rawUrl;
 

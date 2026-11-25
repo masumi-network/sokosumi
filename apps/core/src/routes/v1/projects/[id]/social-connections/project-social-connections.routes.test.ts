@@ -601,10 +601,53 @@ describe("Project social connection routes", () => {
   });
 
   it.each([
-    ["coworker", COWORKER_CONTEXT_AUTH],
-    ["Soko Bot", SOKO_BOT_CONTEXT_AUTH],
     ["user API key", USER_API_KEY_AUTH],
     ["OAuth token", OAUTH_TOKEN_AUTH],
+  ] as const)(
+    "lets a person's %s list connections, but not connect or disconnect",
+    async (_name, auth) => {
+      listProjectSocialConnectionsMock.mockResolvedValue([]);
+      const app = createApp(auth);
+      const list = await app.request(
+        `http://localhost/${PROJECT_ID}/social-connections`,
+      );
+      expect(list.status).toBe(200);
+      expect(listProjectSocialConnectionsMock).toHaveBeenCalled();
+
+      const responses = await Promise.all([
+        app.request(
+          `http://localhost/${PROJECT_ID}/social-connections/initiate`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "connect", provider: "x" }),
+          },
+        ),
+        app.request(
+          `http://localhost/${PROJECT_ID}/social-connections/finalize`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ connectionId: CONNECTION_ID }),
+          },
+        ),
+        app.request(
+          `http://localhost/${PROJECT_ID}/social-connections/${SOCIAL_CONNECTION_ID}`,
+          { method: "DELETE" },
+        ),
+      ]);
+      expect(responses.map((response) => response.status)).toEqual([
+        403, 403, 403,
+      ]);
+      expect(initiateComposioConnectionMock).not.toHaveBeenCalled();
+      expect(finalizeProjectSocialConnectionMock).not.toHaveBeenCalled();
+      expect(disconnectProjectSocialConnectionMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ["coworker", COWORKER_CONTEXT_AUTH],
+    ["Soko Bot", SOKO_BOT_CONTEXT_AUTH],
   ] as const)(
     "rejects %s before every social-connection operation",
     async (_name, auth) => {

@@ -1,7 +1,3 @@
-"use client";
-
-import { useCallback, useEffect, useRef } from "react";
-
 import { chatReadThrottleResumeInMs } from "@/lib/chat/chat-read-throttle";
 
 /** Recovery read cadence while Ably is healthy (SOK-986 starting policy). */
@@ -12,35 +8,51 @@ function isChatForeground(): boolean {
   return document.visibilityState === "visible" && document.hasFocus();
 }
 
-interface UseChatRefreshSchedulerOptions {
-  /** Identity of the data set; a new key restarts, null disables. */
-  key: string | null;
-  refresh: (isCurrent: () => boolean) => Promise<void>;
-  /** Realtime is delivering for this data set; picks the recovery cadence. */
-  healthy: boolean;
+export interface ChatRefreshSchedulerStartOptions {
   /**
    * Poll cadence while unhealthy (the pre-SOK-986 interval). Left out, the data
    * set has no timer at all and reads only when asked: on mount, on recovery,
-   * on `requestRefresh`.
+   * on `request`.
    */
   fallbackIntervalMs?: number;
   /**
-   * Read at once on mount and on key change, not only after an interval.
+   * Read at once on start, not only after an interval.
    * This read runs in the background too, like an explicit request.
    */
   refreshOnMount?: boolean;
-  /**
-   * Read once when `healthy` flips back on. For consumers with no
-   * continuity signal of their own (the sidebar collections); the open room
-   * gets that from its channel instead.
-   */
-  refreshOnRecovery?: boolean;
   /**
    * Read each time the window returns to the foreground, stale or not. For a
    * data set another tab or device can change with no event to say so.
    */
   refreshOnForeground?: boolean;
 }
+
+export interface ChatRefreshSchedulerOptions
+  extends ChatRefreshSchedulerStartOptions {
+  refresh: (isCurrent: () => boolean) => Promise<void>;
+  /** Realtime is delivering for this data set; picks the recovery cadence. */
+  healthy: boolean;
+  /**
+   * Optional live health reader consulted when arming the timer (e.g. a React
+   * ref written during render). Falls back to the latest `setHealth` value.
+   */
+  getHealthy?: () => boolean;
+  /**
+   * Read once when `healthy` flips back on. For consumers with no
+   * continuity signal of their own (the sidebar collections); the open room
+   * gets that from its channel instead.
+   */
+  refreshOnRecovery?: boolean;
+}
+
+export interface ChatRefreshScheduler {
+  start: (overrides?: ChatRefreshSchedulerStartOptions) => void;
+  stop: () => void;
+  request: () => void;
+  setHealth: (healthy: boolean, refreshOnRecovery?: boolean) => void;
+}
+
+const noop = () => {};
 
 /**
  * Schedules one chat data set's automatic HTTP reads (SOK-986).
@@ -66,30 +78,47 @@ interface UseChatRefreshSchedulerOptions {
  *   recorded as a need and runs once when the window ends. Explicit
  *   requests defer too — never bypassing the throttle — but keep their
  *   privilege and fire while backgrounded when the window ends.
- *
- * Returns a stable `requestRefresh` for callers that learned something
- * changed (id envelope, lost continuity, collection invalidation).
  */
-export function useChatRefreshScheduler({
-  key,
+export function createChatRefreshScheduler({
   refresh,
-  healthy,
-  fallbackIntervalMs,
-  refreshOnMount = false,
-  refreshOnRecovery = false,
-  refreshOnForeground = false,
-}: UseChatRefreshSchedulerOptions): () => void {
-  const refreshRef = useRef(refresh);
-  refreshRef.current = refresh;
-  const healthyRef = useRef(healthy);
-  healthyRef.current = healthy;
-  const requestRef = useRef<() => void>(() => {});
-  const rescheduleRef = useRef<() => void>(() => {});
+  healthy: initialHealthy,
+  getHealthy,
+  fallbackIntervalMs: initialFallbackIntervalMs,
+  refreshOnMount: initialRefreshOnMount = false,
+  refreshOnRecovery: initialRefreshOnRecovery = false,
+  refreshOnForeground: initialRefreshOnForeground = false,
+}: ChatRefreshSchedulerOptions): ChatRefreshScheduler {
+  let currentHealthy = initialHealthy;
+  // A health flip re-arms the pending timer with the new cadence. A
+  // recovery read is only for a drop after this instance has already
+  // been healthy — the first connect is not a gap (SOK-986).
+  let wasHealthy = initialHealthy;
+  let hadHealthy = initialHealthy;
+  let requestCurrent: () => void = noop;
+  let rescheduleCurrent: () => void = noop;
+  let stopCurrent: (() => void) | null = null;
 
-  useEffect(() => {
-    if (!key) {
-      return;
-    }
+  function readHealthy(): boolean {
+    return getHealthy ? getHealthy() : currentHealthy;
+  }
+
+  function stop(): void {
+    const cleanup = stopCurrent;
+    stopCurrent = null;
+    cleanup?.();
+  }
+
+  function start(overrides?: ChatRefreshSchedulerStartOptions): void {
+    stop();
+
+    const fallbackIntervalMs =
+      overrides && "fallbackIntervalMs" in overrides
+        ? overrides.fallbackIntervalMs
+        : initialFallbackIntervalMs;
+    const refreshOnMount = overrides?.refreshOnMount ?? initialRefreshOnMount;
+    const refreshOnForeground =
+      overrides?.refreshOnForeground ?? initialRefreshOnForeground;
+
     let cancelled = false;
     let inFlight = false;
     let queued = false;
@@ -105,7 +134,7 @@ export function useChatRefreshScheduler({
       if (cancelled || fallbackIntervalMs === undefined) return;
       timer = window.setTimeout(
         onTimer,
-        healthyRef.current ? CHAT_HEALTHY_REFRESH_MS : fallbackIntervalMs,
+        readHealthy() ? CHAT_HEALTHY_REFRESH_MS : fallbackIntervalMs,
       );
     }
 
@@ -154,7 +183,7 @@ export function useChatRefreshScheduler({
       inFlight = true;
       needed = false;
       try {
-        await refreshRef.current(() => !cancelled);
+        await refresh(() => !cancelled);
       } catch {
         // Keep the current data; the next interval retries.
       } finally {
@@ -189,8 +218,8 @@ export function useChatRefreshScheduler({
 
     const onOnline = () => void run();
 
-    requestRef.current = () => void run(true);
-    rescheduleRef.current = () => {
+    requestCurrent = () => void run(true);
+    rescheduleCurrent = () => {
       if (!inFlight) schedule();
     };
 
@@ -199,16 +228,7 @@ export function useChatRefreshScheduler({
     document.addEventListener("visibilitychange", onForegroundChange);
     window.addEventListener("online", onOnline);
 
-    // The first read is what the page shows, not background upkeep: it must
-    // not wait for focus. Typing the URL leaves focus in the address bar, and
-    // a room opened in a background tab would otherwise sit on skeletons.
-    if (refreshOnMount) {
-      void run(true);
-    } else {
-      schedule();
-    }
-
-    return () => {
+    stopCurrent = () => {
       cancelled = true;
       queued = false;
       queuedExplicit = false;
@@ -218,31 +238,39 @@ export function useChatRefreshScheduler({
       window.removeEventListener("blur", onForegroundChange);
       document.removeEventListener("visibilitychange", onForegroundChange);
       window.removeEventListener("online", onOnline);
-      requestRef.current = () => {};
-      rescheduleRef.current = () => {};
+      requestCurrent = noop;
+      rescheduleCurrent = noop;
     };
-  }, [key, fallbackIntervalMs, refreshOnMount, refreshOnForeground]);
 
-  // A health flip re-arms the pending timer with the new cadence. A
-  // recovery read is only for a drop after this instance has already
-  // been healthy — the first connect is not a gap (SOK-986).
-  const wasHealthyRef = useRef(healthy);
-  const hadHealthyRef = useRef(healthy);
-  useEffect(() => {
-    rescheduleRef.current();
-    if (
-      refreshOnRecovery &&
-      healthy &&
-      hadHealthyRef.current &&
-      !wasHealthyRef.current
-    ) {
-      requestRef.current();
+    // The first read is what the page shows, not background upkeep: it must
+    // not wait for focus. Typing the URL leaves focus in the address bar, and
+    // a room opened in a background tab would otherwise sit on skeletons.
+    if (refreshOnMount) {
+      void run(true);
+    } else {
+      schedule();
+    }
+  }
+
+  function setHealth(
+    healthy: boolean,
+    refreshOnRecovery = initialRefreshOnRecovery,
+  ): void {
+    currentHealthy = healthy;
+    rescheduleCurrent();
+    if (refreshOnRecovery && healthy && hadHealthy && !wasHealthy) {
+      requestCurrent();
     }
     if (healthy) {
-      hadHealthyRef.current = true;
+      hadHealthy = true;
     }
-    wasHealthyRef.current = healthy;
-  }, [healthy, refreshOnRecovery]);
+    wasHealthy = healthy;
+  }
 
-  return useCallback(() => requestRef.current(), []);
+  return {
+    start,
+    stop,
+    request: () => requestCurrent(),
+    setHealth,
+  };
 }

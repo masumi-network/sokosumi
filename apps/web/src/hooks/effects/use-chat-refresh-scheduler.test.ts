@@ -1,16 +1,14 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CHAT_HEALTHY_REFRESH_MS } from "@/components/chat/chat-refresh-scheduler";
+import { fetchBackgroundJson } from "@/components/chat/fetch-background-json";
 import {
   CHAT_READ_THROTTLE_FALLBACK_SECONDS,
   resetChatReadThrottleForTests,
 } from "@/lib/chat/chat-read-throttle";
 
-import { fetchBackgroundJson } from "./fetch-background-json";
-import {
-  CHAT_HEALTHY_REFRESH_MS,
-  useChatRefreshScheduler,
-} from "./use-chat-refresh-scheduler";
+import { useChatRefreshScheduler } from "./use-chat-refresh-scheduler";
 
 const FALLBACK_MS = 3_000;
 

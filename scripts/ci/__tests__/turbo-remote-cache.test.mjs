@@ -112,6 +112,7 @@ describe("GitHub OIDC remote cache wiring", () => {
     for (const jobId of [
       "core",
       "core-postgres",
+      "core-postgres-split",
       "packages",
       "cli",
       "build",
@@ -270,6 +271,7 @@ describe("GitHub OIDC remote cache wiring", () => {
       ["web", "web"],
       ["core", "core"],
       ["core-postgres", "core"],
+      ["core-postgres-split", "core"],
       ["packages", "packages"],
       ["cli", "cli"],
       ["local-env", "local-env"],
@@ -327,16 +329,27 @@ describe("GitHub OIDC remote cache wiring", () => {
 
   it("the PostgreSQL suites run in parallel only on per-worker databases", async () => {
     const test = await readRepoFile(".github", "workflows", "ci.yml");
-    const step = jobBlock(test, "core-postgres").match(
-      /- name: Test against PostgreSQL\n([\s\S]*?)(?=\n      - |\n\n  [a-z]|$)/,
-    );
-    assert.ok(step, "missing step Test against PostgreSQL");
-    // Without the flag the files share one database and its job queue, and
-    // parallel files steal each other's jobs.
-    assert.match(
-      step[1],
-      /POSTGRES_TEST_DATABASE_PER_WORKER=true|--no-file-parallelism/,
-    );
+    for (const [jobId, stepName] of [
+      ["core-postgres", "Test against PostgreSQL"],
+      ["core-postgres-split", "Test against PostgreSQL on the split layout"],
+      [
+        "core-postgres-split",
+        "Check the pending files still fail on the split layout",
+      ],
+    ]) {
+      const step = jobBlock(test, jobId).match(
+        new RegExp(
+          `- name: ${stepName}\\n([\\s\\S]*?)(?=\\n      - |\\n\\n  [a-z]|$)`,
+        ),
+      );
+      assert.ok(step, `missing step ${stepName}`);
+      // Without the flag the files share one database and its job queue, and
+      // parallel files steal each other's jobs.
+      assert.match(
+        step[1],
+        /POSTGRES_TEST_DATABASE_PER_WORKER=true|--no-file-parallelism/,
+      );
+    }
   });
 
   it("per-leg filters only drop what the leg cannot reach", async () => {

@@ -394,8 +394,13 @@ describe("GET /projects/{id}/calendar", () => {
     expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
   });
 
-  it("rejects automation opt-in to Social post calendar data", async () => {
-    const response = await createApp().request(
+  it("rejects a Coworker's opt-in to Social post calendar data", async () => {
+    vendorGrantFindUniqueMock.mockResolvedValue({
+      id: "grant_123",
+      status: VendorGrantStatus.GRANTED,
+      permission: "workspace",
+    });
+    const response = await createApp(COWORKER_AUTH_CONTEXT).request(
       `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}&includeSocialPosts=true`,
     );
     expect(response.status).toBe(403);
@@ -441,8 +446,13 @@ describe("GET /projects/{id}/calendar", () => {
     expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
   });
 
-  it("rejects automation opt-in to other features", async () => {
-    const response = await createApp().request(
+  it("rejects a Coworker's opt-in to other features", async () => {
+    vendorGrantFindUniqueMock.mockResolvedValue({
+      id: "grant_123",
+      status: VendorGrantStatus.GRANTED,
+      permission: "workspace",
+    });
+    const response = await createApp(COWORKER_AUTH_CONTEXT).request(
       `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}&types=contacts`,
     );
     expect(response.status).toBe(403);

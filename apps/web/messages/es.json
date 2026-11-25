@@ -1780,7 +1780,12 @@
           "needsYou": "{count, plural, one {# solicitud te necesita} other {# solicitudes te necesitan}}",
           "byTeammates": "{count, plural, one {# tarea de tu equipo} other {# tareas de tu equipo}}",
           "recent": "En las últimas 24 horas",
-          "workedHours": "{hours, plural, one {# hora trabajada} other {# horas trabajadas}}"
+          "workedHours": "{hours, plural, one {# hora trabajada} other {# horas trabajadas}}",
+          "loadError": {
+            "title": "No se pudieron cargar las cifras de hoy.",
+            "help": "Inténtalo de nuevo en un momento.",
+            "retry": "Reintentar"
+          }
         },
         "MyDay": {
           "title": "Mi día",
@@ -1822,7 +1827,8 @@
           "failedReply": "{name} no pudo terminar su última respuesta",
           "openChat": "Abrir el chat",
           "failedWork": "{name} no pudo terminar lo que estaba haciendo",
-          "openBot": "Abrir la página de {name}"
+          "openBot": "Abrir la página de {name}",
+          "welcome": "{name} te envió una bienvenida"
         },
         "SokoBotSetup": {
           "title": "Consigue tu Soko Bot",
@@ -1960,6 +1966,7 @@
         "loadMore": "Cargar más"
       },
       "noTitle": "(Sin título)",
+      "inResult": "En el resultado",
       "unansweredMention": "Tienes una mención sin responder",
       "createTaskFab": "Crear tarea",
       "personalAssistant": "Asistente personal",
@@ -2031,6 +2038,9 @@
         "clear": "Borrar filtros",
         "noMatchesTitle": "Ninguna Task coincide con estos filtros",
         "noMatchesDescription": "Quita un filtro o bórralos todos para volver a ver tus Tasks.",
+        "noSearchMatchesTitle": "Ninguna Task coincide con tu búsqueda",
+        "noSearchMatchesDescription": "Nada coincide con «{query}». Revisa la ortografía o prueba con menos palabras.",
+        "clearSearch": "Borrar búsqueda",
         "stuck": "Atascadas",
         "stuckDays": "{days}+ días",
         "workspaceTags": "Etiquetas del espacio de trabajo",
@@ -2079,6 +2089,7 @@
         "commentPlaceholder": "Escribe un comentario...",
         "fileLabel": "Archivo",
         "uploadFileErrorRetry": "No se pudo subir el archivo. ¡Por favor, inténtalo de nuevo!",
+        "commentSendError": "No se pudo publicar el comentario. Inténtalo de nuevo.",
         "uploadingFile": "Uploading {fileName}",
         "uploadingFiles": "Uploading {count} files",
         "submit": "Enviar",
@@ -3298,6 +3309,20 @@
           "confirm": "Reintentar selección",
           "resultsTitle": "Resultado",
           "published": "Publicada"
+        },
+        "bulkApprove": {
+          "selectPost": "Seleccionar la publicación {position} de {count} para aprobar: {post}",
+          "approveSelected": "Aprobar selección",
+          "title": "{count, plural, one {¿Aprobar # publicación?} other {¿Aprobar # publicaciones?}}",
+          "description": "Cada publicación se aprueba tal como la ves ahora. Una publicación cuya hora aún está lo bastante lejos se programa; las demás pasan a borrador. El resultado muestra qué pasó con cada una.",
+          "willSchedule": "Prevista para {date}. Se programa si esa hora aún está lo bastante lejos al aprobarla; si no, pasa a borrador.",
+          "willDraft": "Pasa a borrador",
+          "resultsTitle": "Resultado de la aprobación",
+          "scheduled": "Aprobada. Sale {date}",
+          "drafted": "Aprobada como borrador",
+          "conflict": "Cambió desde que la viste. Ábrela para revisarla de nuevo.",
+          "signedOut": "No aprobada: tu sesión terminó. Inicia sesión e inténtalo de nuevo.",
+          "skipped": "No intentada: tu sesión terminó. Inicia sesión e inténtalo de nuevo."
         },
         "connectPrompt": {
           "title": "Conecta una cuenta para empezar a publicar",
@@ -5814,7 +5839,7 @@
       "check": {
         "price": "{count, plural, =0 {Cuesta {each} créditos por competidor a la semana.} one {Cuesta {credits} créditos a la semana por # competidor.} other {Cuesta {credits} créditos a la semana por # competidores, {each} cada uno.}}",
         "last": "Última revisión {last}, próxima {next}.",
-        "sourceFailed": "La última revisión no pudo leer: {sources}. La próxima lo intenta de nuevo.",
+        "sourceFailed": "La última revisión no pudo leer: {sources}.{on, select, true { La próxima lo intenta de nuevo.} other {}}",
         "source": {
           "pages": "sitios web",
           "news": "noticias",
@@ -5834,9 +5859,12 @@
         "status": {
           "off": "La revisión semanal está apagada",
           "running": "La primera revisión está en marcha",
-          "on": "La revisión semanal está activa"
+          "on": "La revisión semanal está activa",
+          "waiting": "Aún no se ha hecho ninguna revisión"
         },
-        "running": "Lo que encuentre aparecerá aquí en un minuto."
+        "running": "Lo que encuentre aparecerá aquí en un minuto.",
+        "waiting": "«Revisar ahora» hace la primera.",
+        "waitingCmo": "CMO la hace mientras Cuso esté pagado."
       },
       "list": {
         "title": "En seguimiento",
@@ -5849,7 +5877,14 @@
         "removeNamed": "Quitar {name}",
         "add": "Añadir competidor",
         "full": "Son los {limit}. Quita uno para observar otro.",
-        "failed": "No funcionó. Inténtalo de nuevo."
+        "failed": "No funcionó. Inténtalo de nuevo.",
+        "removed": "Se quitó {name}",
+        "undo": "Deshacer",
+        "restoreFailed": "No se pudo recuperar {name}.",
+        "restoreStale": "Ya no se puede deshacer la acción de quitar {name}.",
+        "restoreFull": "No se pudo recuperar {name}: ya observas {limit}. Quita uno primero.",
+        "restoreNameTaken": "No se pudo recuperar {name}: otro competidor tiene ahora ese nombre.",
+        "retry": "Reintentar"
       },
       "form": {
         "addTitle": "Añadir un competidor",
@@ -6089,6 +6124,7 @@
       "created": "Creado",
       "filesGroup": "Archivos",
       "filesSeeAll": "Ver todos los archivos",
+      "tasksSeeAll": "Buscar «{query}» en tareas y resultados",
       "filesFilenameMatch": "Coincide el nombre",
       "peopleGroup": "Personas",
       "copyEmail": "Copiar {email}",
@@ -11189,7 +11225,7 @@
         "mailAutoReadError": "No se pudo actualizar la gestión del correo",
         "followBoardError": "No se pudo actualizar el ajuste.",
         "teamStandupTitle": "Unirse al stand-up del equipo",
-        "teamStandupDescription": "Compartir el trabajo de este asistente (Tasks y publicaciones, nunca correo ni calendario) en el stand-up diario de tu organización.",
+        "teamStandupDescription": "Este asistente publica su propia actualización en el stand-up diario de tu organización, a partir de sus Tasks y publicaciones, nunca del correo ni del calendario.",
         "teamStandupError": "No se pudo actualizar el ajuste.",
         "archiveTitle": "Archivar Soko Bot",
         "archiveDescription": "Detiene todos los turnos y programaciones. Puedes crearlo de nuevo más tarde; el historial y la atribución se conservan.",
@@ -15096,7 +15132,7 @@
     "TeamStandup": {
       "title": "Stand-up diario de agentes",
       "enabledLabel": "Hacer el stand-up",
-      "enabledHelp": "Cada día laborable los agentes publican un hilo en el canal Stand-up: qué se hizo, qué sigue, qué espera a una persona y hasta tres traspasos entre agentes. Una vez por semana, un Resumen semanal añade una línea por persona y por agente. Las líneas salen de Tasks, aprobaciones y publicaciones, nunca del correo ni de calendarios. Si no hay nada nuevo, no se publica nada.",
+      "enabledHelp": "Cada día laborable cada agente publica su propia actualización en el canal Stand-up: qué hizo, qué sigue y qué espera a una persona. Hasta tres traspasos entre agentes siguen como respuestas. Una vez por semana, un Resumen semanal añade una línea por persona y por agente. Las líneas salen de Tasks, aprobaciones y publicaciones, nunca del correo ni de calendarios. Si no hay nada nuevo, no se publica nada.",
       "timeLabel": "Hora",
       "timezoneLabel": "Zona horaria",
       "weekdaysLabel": "Días",

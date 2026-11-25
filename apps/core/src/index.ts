@@ -20,8 +20,10 @@ import { sentryMiddleware } from "@/middleware/sentry";
 import authRouter from "@/routes/auth/index";
 import healthRouter from "@/routes/health/index";
 import imageStudioAgentRouter from "@/routes/image-studio-agent/index";
+import mcpRouter from "@/routes/mcp/index";
 import syncRouter from "@/routes/sync/index";
 import apiV1 from "@/routes/v1/index";
+import { getV1OpenApiDocument } from "@/routes/v1/openapi-document";
 import falWebhooksRouter from "@/routes/webhooks/fal/image-jobs";
 import wellKnownRouter from "@/routes/well-known/index";
 
@@ -55,6 +57,9 @@ app.route("/", wellKnownRouter);
 app.route("/health", healthRouter);
 app.route("/auth", authRouter);
 app.route("/v1", apiV1);
+// MCP server (ADR 0076). Verifies its own audience-bound tokens, then runs
+// each tool call through `/v1` in process.
+app.route("/mcp", mcpRouter);
 app.route("/sync", syncRouter);
 // Signature-authenticated provider callback; deliberately outside /v1, which
 // is the session-authenticated surface.
@@ -80,16 +85,6 @@ app.get(
   }),
 );
 
-// Markdown documentation
-const content = apiV1.getOpenAPI31Document({
-  openapi: "3.1.0",
-  info: {
-    title: "Sokosumi API",
-    version: "1.0.0",
-    description: "Sokosumi API documentation",
-  },
-});
-
 let llmsMarkdown: string | null = null;
 let llmsMarkdownPromise: Promise<string> | null = null;
 
@@ -99,7 +94,9 @@ async function getLlmsMarkdown(): Promise<string> {
   }
 
   if (!llmsMarkdownPromise) {
-    llmsMarkdownPromise = createMarkdownFromOpenApi(JSON.stringify(content))
+    llmsMarkdownPromise = createMarkdownFromOpenApi(
+      JSON.stringify(getV1OpenApiDocument()),
+    )
       .then((markdown) => {
         llmsMarkdown = markdown;
         return markdown;

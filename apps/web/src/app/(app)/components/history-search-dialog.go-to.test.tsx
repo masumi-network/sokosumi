@@ -66,6 +66,7 @@ const labels = {
   created: "Created",
   filesGroup: "Files",
   filesSeeAll: "See all files",
+  tasksSeeAll: (query: string) => `Search tasks and results for ${query}`,
   filesFilenameMatch: "Filename match",
   peopleGroup: "People",
   copyEmail: (email: string) => `Copy ${email}`,

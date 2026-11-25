@@ -49,7 +49,7 @@ import {
   createRoomTypingStore,
   useRoomTypingSync,
 } from "@/hooks/effects/use-room-typing";
-import { getAblyChatRoomScope } from "./chat-room-auth-scope.client";
+import { getAblyChatRoomScope } from "@/lib/ably/chat-room-auth-scope.client";
 import { useChatRoomRealtime } from "./use-chat-room-realtime";
 
 type FakeChannelListener = (message: { data: unknown }) => void;

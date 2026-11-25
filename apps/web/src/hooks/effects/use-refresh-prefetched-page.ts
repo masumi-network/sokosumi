@@ -153,6 +153,8 @@ export function useRefreshPrefetchedPage(everyVisit: boolean): void {
       clearInterval(check);
       refreshNow(page, router);
     }, CONTROL_IN_USE_CHECK_MS);
-    return () => clearInterval(check);
+    return () => {
+      clearInterval(check);
+    };
   }, [router, everyVisit]);
 }

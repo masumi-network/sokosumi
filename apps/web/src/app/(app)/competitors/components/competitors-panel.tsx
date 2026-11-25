@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 
 import {
   HOLDER_CLASS,
@@ -8,12 +8,16 @@ import { cn } from "@/lib/utils";
 
 /** One titled panel of the page: the light-gray holder with its label. */
 export function CompetitorsPanel({
+  className,
   id,
+  ref,
   title,
   aside,
   children,
 }: {
+  className?: string;
   id: string;
+  ref?: Ref<HTMLElement>;
   title: string;
   /** A short fact that belongs to the panel, beside its title. */
   aside?: ReactNode;
@@ -22,7 +26,8 @@ export function CompetitorsPanel({
   return (
     <section
       aria-labelledby={id}
-      className={cn(HOLDER_CLASS, "flex flex-col gap-2")}
+      className={cn(HOLDER_CLASS, "flex flex-col gap-2", className)}
+      ref={ref}
     >
       <div className="flex items-baseline justify-between gap-3 px-2 pt-1">
         <h2 className="text-muted-foreground text-xs font-medium" id={id}>

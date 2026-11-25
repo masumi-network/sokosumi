@@ -13,11 +13,13 @@ import {
 } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
+import { hasSessionCookie } from "@/lib/auth/session-cookie";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
 import { taskService } from "@/lib/services/task.service";
 import { normalizeTaskNameForCoreApi } from "@/lib/utils/task-transformer";
@@ -590,6 +592,16 @@ export const deleteTaskLink = withSession<
     );
   }
 });
+
+/**
+ * Revalidates `/tasks` after a browser-direct archive DELETE settles, so Next
+ * drops its cached `/tasks` pages without making another Core call.
+ */
+export async function revalidateTasksAfterArchive(): Promise<boolean> {
+  if (!hasSessionCookie(await headers())) return false;
+  revalidatePath("/tasks");
+  return true;
+}
 
 export const createTaskAndLink = withSession<
   CreateAndLinkTaskParameters,

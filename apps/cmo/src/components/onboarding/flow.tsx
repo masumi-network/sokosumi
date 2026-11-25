@@ -38,10 +38,6 @@ const HIDDEN_POLL_MS = 20_000;
 interface OnboardingFlowProps {
   overview: CmoOverview;
   messages: CusoMessage[];
-  /** "results" when a measurement connection sends the founder back to it. */
-  initialStep?: "results" | undefined;
-  /** Why a measurement connection that sent the founder back did not finish. */
-  measureError?: string | null;
   /** What this person skipped in hiring, from CMO's cookie. */
   skipped?: SkippedStep[];
   /** The CMO plans the checkout step offers; empty when Core could not read them. */
@@ -59,8 +55,6 @@ interface OnboardingFlowProps {
 export function OnboardingFlow({
   overview: initialOverview,
   messages: initialMessages,
-  initialStep,
-  measureError = null,
   skipped: initialSkipped = [],
   plans = [],
   returnedFromCheckout = false,
@@ -71,15 +65,10 @@ export function OnboardingFlow({
   const [skipped, setSkipped] = useState(initialSkipped);
   // Back from Polar, until the payment shows or the person says they did not pay.
   const [confirming, setConfirming] = useState(returnedFromCheckout);
-  // A finished step opened again from the markers; Results after a connection.
-  const [viewing, setViewing] = useState<OnboardingStep | null>(
-    initialStep === "results" ? "plan" : null,
-  );
+  // A finished step opened again from the markers.
+  const [viewing, setViewing] = useState<OnboardingStep | null>(null);
   // Why a connection came back without an account, read before the query goes.
   const returnNotice = useOnboardingReturnNotice(returnedFromCheckout);
-  // One-shot measurement return error: consumed when leaving Results or Plan so
-  // revisiting Brand and returning to Strategy never replays it.
-  const [pendingMeasureError, setPendingMeasureError] = useState(measureError);
 
   const refresh = useCallback(async () => {
     const state = await actions.loadState().catch(() => null);
@@ -131,9 +120,6 @@ export function OnboardingFlow({
   const [prevStep, setPrevStep] = useState(step);
   if (prevStep !== step) {
     setPrevStep(step);
-    if (prevStep === "plan" && pendingMeasureError !== null) {
-      setPendingMeasureError(null);
-    }
   }
   const current = stepIndex(step);
   useOnboardingStepScroll(step);
@@ -301,9 +287,6 @@ export function OnboardingFlow({
             overview={overview}
             phase={planPhase}
             starting={starting}
-            initialTab={initialStep === "results" ? "results" : undefined}
-            measureError={pendingMeasureError}
-            onConsumeMeasureError={() => setPendingMeasureError(null)}
             ahead={ahead}
             onRequest={request}
             onSetAds={async (monthly, currency) =>
@@ -320,9 +303,6 @@ export function OnboardingFlow({
               // Approving opens Subscribe, or Launch with Tester credits.
               setViewing(null);
             }}
-            onConnectMeasurement={(provider) =>
-              actions.connectMeasurement(provider, "onboarding")
-            }
             topUp={topUp}
             subscribe={subscribe}
             skip={skip}

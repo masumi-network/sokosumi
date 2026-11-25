@@ -58,7 +58,10 @@ import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete
 import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
 import prisma from "@/lib/db/prisma";
 import { runAsBackgroundWork } from "@/lib/evlog";
-import { mcpOAuthResource } from "@/lib/sokosumi-mcp/resource";
+import {
+  mcpOAuthResource,
+  mcpResourceIdentifier,
+} from "@/lib/sokosumi-mcp/resource";
 import { handleStripeAuthWebhookOnEvent } from "@/lib/stripe-auth-webhook-on-event";
 import { resolveActiveOrganizationIdForSession } from "@/services/preferred-workspace.service";
 import { disconnectLeaverSokoBotIntegrationsBestEffort } from "@/services/soko-bot-integration-leaver.service";
@@ -74,9 +77,11 @@ import {
   emailCodeSignIn,
   resolveEmailCodeSignUpLoginMethod,
 } from "./auth-email-code-sign-in";
-import { afterNewSession } from "./auth-new-session";
+import { afterAuthRequest } from "./auth-new-session";
 import {
   acceptCmoPreviewCallback,
+  applyOAuthClientPolicy,
+  clientRegistrationOptions,
   jwtKeyStoreOptions,
   oauthRefreshTokenOptions,
   revokeUserOAuthTokens,
@@ -120,6 +125,7 @@ const EMAIL_CODE_EXPIRES_IN_SECONDS = 10 * 60;
 const env = getEnv();
 const webAppBaseUrl = getWebAppBaseUrl();
 const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
+const mcpResource = mcpResourceIdentifier(betterAuthBaseUrl);
 const betterAuthCookiePrefixParams = {
   network: env.NETWORK,
   vercelEnv: env.VERCEL_ENV,
@@ -387,6 +393,8 @@ export const auth = betterAuth({
       if (ctx.path === "/update-user") {
         await validateUpdatedUserName(ctx);
       }
+
+      return applyOAuthClientPolicy(ctx, mcpResource);
     }),
     after: createAuthMiddleware(async (ctx) => {
       if (ctx.path === "/organization/leave") {
@@ -422,7 +430,7 @@ export const auth = betterAuth({
       }
 
       await captureBetterAuthOAuthErrorURL(ctx.path);
-      await afterNewSession(ctx);
+      return await afterAuthRequest(ctx);
     }),
   },
   emailAndPassword: {
@@ -661,10 +669,9 @@ export const auth = betterAuth({
       // to them ships with the deploy. Columns it leaves out, such as
       // `disabled` or `refreshTokenTtl`, keep any edit made in the database.
       resourceSeedMode: "merge",
-      // Defaults to identity-only; allow-list keeps sokosumi:api opt-in available
-      // for authenticated create-client and for DCR if enabled later.
-      clientRegistrationDefaultScopes: ["openid"],
-      clientRegistrationAllowedScopes: [...OAUTH_PROVIDER_SCOPES],
+      // Open self-registration for MCP clients: public PKCE clients capped
+      // at the MCP scopes and linked to the MCP resource (ADR 0076).
+      ...clientRegistrationOptions(mcpResource),
       grantTypes: ["authorization_code", "refresh_token"],
       // Production keeps exact redirect URI matching (ADR 0045).
       ...(env.VERCEL_ENV === "preview"

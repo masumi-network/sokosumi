@@ -1,11 +1,77 @@
 {
-  "backlog": "SOKD-372",
   "operations": {
-    "GET /vendors/me": {
-      "cli": "vendors me"
+    "GET /vendors": {
+      "cli": "vendors list",
+      "mcp": "vendors_list"
     },
     "POST /vendors": {
-      "cli": "vendors create"
+      "cli": "vendors create",
+      "mcp": "vendors_create"
+    },
+    "GET /vendors/me": {
+      "cli": "vendors me",
+      "mcp": "vendors_me"
+    },
+    "PATCH /vendors/{id}": {
+      "cli": "vendors update",
+      "mcp": "vendors_update"
+    },
+    "POST /vendors/{id}/files": {
+      "cli": "vendors logo-upload",
+      "mcp": false,
+      "reason": "Mints a signed Blob upload URL; the file bytes then go to Blob storage, which an MCP tool cannot send."
+    },
+    "POST /vendors/{id}/files/cleanup": {
+      "cli": "vendors logo-cleanup",
+      "mcp": "vendors_logo_cleanup"
+    },
+    "GET /vendors/{id}/members": {
+      "cli": "vendors members",
+      "mcp": "vendors_members"
+    },
+    "PATCH /vendors/{id}/members/{userId}": {
+      "cli": "vendors update-member",
+      "mcp": "vendors_update_member"
+    },
+    "DELETE /vendors/{id}/members/{userId}": {
+      "cli": "vendors remove-member",
+      "mcp": "vendors_remove_member"
+    },
+    "GET /vendors/{id}/invites": {
+      "cli": "vendors invites",
+      "mcp": "vendors_invites"
+    },
+    "POST /vendors/{id}/invites": {
+      "cli": "vendors invite",
+      "mcp": "vendors_invite"
+    },
+    "DELETE /vendors/{id}/invites/{inviteId}": {
+      "cli": "vendors revoke-invite",
+      "mcp": "vendors_revoke_invite"
+    },
+    "GET /vendors/invites": {
+      "cli": "vendors my-invites",
+      "mcp": "vendors_my_invites"
+    },
+    "POST /vendors/invites/{inviteId}/accept": {
+      "cli": "vendors accept-invite",
+      "mcp": "vendors_accept_invite"
+    },
+    "POST /vendors/invites/{inviteId}/decline": {
+      "cli": "vendors decline-invite",
+      "mcp": "vendors_decline_invite"
+    },
+    "GET /vendors/{id}/coworkers/{coworkerId}/assignments": {
+      "cli": "vendors assignments",
+      "mcp": "vendors_assignments"
+    },
+    "PUT /vendors/{id}/coworkers/{coworkerId}/assignments": {
+      "cli": "vendors assign",
+      "mcp": "vendors_assign"
+    },
+    "DELETE /vendors/{id}/coworkers/{coworkerId}/assignments/{userId}": {
+      "cli": "vendors unassign",
+      "mcp": "vendors_unassign"
     }
   }
 }

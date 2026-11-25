@@ -57,6 +57,8 @@ export {
 export {
   composeSokoBotIntroduction,
   composeSokoBotVersionNotice,
+  isSokoBotIntroduction,
+  SOKO_BOT_INTRODUCTION_METADATA,
   type SokoBotPersona,
 } from "./persona.js";
 export {

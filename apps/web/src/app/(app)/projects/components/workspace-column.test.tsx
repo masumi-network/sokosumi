@@ -254,11 +254,13 @@ describe("NeedsYouPanel", () => {
         feed: Promise.resolve([]),
         projects: {},
         quiet: true,
-        lead: {
-          title: "Pip couldn't finish its last reply",
-          detail: "Open the chat",
-          href: "/chat/rooms/room-1",
-        },
+        leads: [
+          {
+            title: "Pip couldn't finish its last reply",
+            detail: "Open the chat",
+            href: "/chat/rooms/room-1",
+          },
+        ],
       }),
     );
 
@@ -276,6 +278,33 @@ describe("NeedsYouPanel", () => {
         name: "App.Projects.column.needsYou.showAll",
       }),
     ).toBeNull();
+  });
+  it("puts your bot's unread welcome first on Home, with its time", async () => {
+    render(
+      await NeedsYouPanel({
+        feed: Promise.resolve([notification("n1")]),
+        projects: {},
+        quiet: true,
+        leads: [
+          {
+            title: "Pip sent you a welcome",
+            detail: "Open the chat",
+            href: "/chat/rooms/room-1?message=m1",
+            at: HOURS_AGO,
+            kind: "message",
+          },
+        ],
+      }),
+    );
+
+    const [first, second] = screen.getAllByTestId("home-needs-you-row");
+    const link = within(first).getByRole("link", {
+      name: /Pip sent you a welcome.*2h ago.*Open the chat/,
+    });
+    expect(link).toHaveAttribute("href", "/chat/rooms/room-1?message=m1");
+    // A message, not a failure: no red alert glyph.
+    expect(first.querySelector(".text-semantic-destructive")).toBeNull();
+    expect(second).toHaveTextContent("message:");
   });
 });
 

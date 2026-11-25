@@ -2,8 +2,7 @@
 
 import type { TaskTagSuggestion } from "@sokosumi/core-client";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-
-import { useTaskTagCatalog } from "./task-tag-catalog";
+import { useTaskTagCatalog } from "@/app/tasks/components/task-tag-catalog";
 
 interface DraftInput {
   name: string;
