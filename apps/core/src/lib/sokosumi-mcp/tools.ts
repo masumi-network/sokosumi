@@ -21,7 +21,10 @@ export interface McpTool {
    * clients ask the person first; the description starts with the warning.
    */
   spendsCredits?: boolean;
-  /** Acts on a service outside Sokosumi (Google, Meta). Annotated open-world. */
+  /**
+   * Acts on a service outside Sokosumi (Google, Meta) or fetches a public URL.
+   * Annotated open-world.
+   */
   openWorld?: boolean;
 }
 
@@ -1165,12 +1168,14 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "POST /projects/{id}/image-studio/website-draft",
     description:
       "Read the Project's website and suggest brand copy, products, colors, fonts and a logo for review. Nothing is saved: save what you keep with the brand-kit, brand-look and products tools.",
+    openWorld: true,
   },
   {
     name: "projects_image_studio_website_logo",
     operation: "POST /projects/{id}/image-studio/brand-kit/logo/website",
     description:
       "Find a logo on the Project's website and return its URL for review. It does not change the Project's logo.",
+    openWorld: true,
   },
   {
     name: "projects_image_studio_products_update",
@@ -1184,12 +1189,14 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "POST /projects/{id}/image-studio/products/import",
     description:
       "Find products on a public website `url` for review. Nothing is saved: save the ones you keep with projects_image_studio_products_update.",
+    openWorld: true,
   },
   {
     name: "projects_image_studio_product_photo",
     operation: "POST /projects/{id}/image-studio/products/photo",
     description:
       "Copy a product photo from a public `imageUrl` into the workspace's Files. Put the returned `{ id, name }` in a product's `photo`.",
+    openWorld: true,
   },
   {
     name: "projects_image_studio_talking_video_scripts",
