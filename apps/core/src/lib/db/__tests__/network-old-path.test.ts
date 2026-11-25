@@ -485,6 +485,40 @@ function typedRelation(
     walkRelations(value, relation.model, relation.context, bindings, report);
 }
 
+function isNetworkDbPick(
+  type: ts.TypeNode | undefined,
+  bindings: ts.TypeChecker,
+): boolean {
+  if (!type) return false;
+  if (ts.isParenthesizedTypeNode(type))
+    return isNetworkDbPick(type.type, bindings);
+  if (!ts.isTypeReferenceNode(type) || !ts.isIdentifier(type.typeName))
+    return false;
+
+  const name = type.typeName;
+  const declaration = declarationOf(name, bindings);
+  if (
+    declaration &&
+    ts.isTypeAliasDeclaration(declaration) &&
+    !declaration.typeParameters &&
+    declaration.end < type.pos
+  ) {
+    return isNetworkDbPick(declaration.type, bindings);
+  }
+
+  // The binder runs without lib.d.ts. A local Pick has a binding; the
+  // standard utility type does not.
+  if (name.text !== "Pick" || declaration) return false;
+  const target = type.typeArguments?.[0];
+  return (
+    !!target &&
+    ts.isTypeReferenceNode(target) &&
+    ts.isIdentifier(target.typeName) &&
+    importedName(target.typeName, bindings, "lib/db/network-scope", true) ===
+      "NetworkDb"
+  );
+}
+
 function assertAllowlist(
   label: string,
   allowlist: string,
@@ -533,6 +567,7 @@ it("keeps the Network allowlists from growing or going stale", () => {
   const bindings = program.getTypeChecker();
   const defaultCalls = new Map<string, string[]>();
   const relations = new Map<string, string[]>();
+  const networkDbPicks: string[] = [];
 
   for (const source of program.getSourceFiles()) {
     const calls: string[] = [];
@@ -579,6 +614,9 @@ it("keeps the Network allowlists from growing or going stale", () => {
         }
       }
       typedRelation(node, bindings, reportRelation);
+      if (ts.isParameter(node) && isNetworkDbPick(node.type, bindings)) {
+        networkDbPicks.push(location(node));
+      }
       ts.forEachChild(node, visit);
     }
     visit(source);
@@ -599,4 +637,10 @@ it("keeps the Network allowlists from growing or going stale", () => {
     "network-relation-allowlist.txt",
     relations,
   );
+  expect
+    .soft(
+      networkDbPicks,
+      "Take NetworkDb whole so the parameter retains its brand.",
+    )
+    .toEqual([]);
 });
