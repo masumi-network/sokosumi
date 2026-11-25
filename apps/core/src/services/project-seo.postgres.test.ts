@@ -15,7 +15,10 @@ import { getEnv } from "@/config/env";
 import { forbidden } from "@/helpers/error";
 import { jsonInput } from "@/helpers/prisma-json";
 import { reportObject } from "@/helpers/project-seo-public-report";
-import { parsePublicSeoArtifact } from "@/helpers/project-seo-report";
+import {
+  parsePublicSeoArtifact,
+  publicSeoPayloadSchema,
+} from "@/helpers/project-seo-report";
 import { SEO_SERPS_NOT_READ } from "@/helpers/project-seo-report-serps";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -74,6 +77,7 @@ import {
   createProjectSeoActionTask,
   requestProjectSeoAnalysis,
 } from "./project-seo-operations.service";
+import { seoRankPoints } from "./project-seo-rank-points";
 import { SEO_RANK_HISTORY_OBSERVATIONS } from "./project-seo-rankings";
 import { saveProjectSeoBrandTerms } from "./project-seo-settings.service";
 import { acknowledgeSeoReview } from "./seo-action-reviews";
@@ -2568,6 +2572,19 @@ describe.skipIf(!enabled)(
         owner,
         { taskId: task.id, fileId: file.id },
         { fetchImpl: async () => new Response(body) },
+      );
+      // The import copies the audit's position reads into the rank point table, in the same transaction.
+      const points = await prisma.projectSeoRankPoint.findMany({
+        where: { observationId: observation.id },
+      });
+      expect(points.length).toBeGreaterThan(0);
+      expect(points.map((point) => point.key).sort()).toEqual(
+        seoRankPoints(
+          observation.id,
+          publicSeoPayloadSchema.parse(observation.payload),
+        )
+          .map((point) => point.key)
+          .sort(),
       );
       const workspace = await getProjectSeoWorkspace(owner);
       const plan = workspace.observations[0]?.auditPlan;
