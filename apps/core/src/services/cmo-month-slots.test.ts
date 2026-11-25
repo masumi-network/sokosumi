@@ -291,6 +291,18 @@ describe("cmoPlanMonthSlots", () => {
     expect(steady.length + more.length).toBe(slotsAt("all_in").length);
   });
 
+  it("adds nothing on a downgrade: the bigger month holds the smaller one", () => {
+    const scale = asEntries(slotsAt("all_in"));
+    for (const level of ["steady", "active"] as const)
+      expect(
+        cmoPlanMonthSlots({
+          plan: plan({ calendar: scale }),
+          level,
+          start: START,
+        }),
+      ).toEqual([]);
+  });
+
   it("follows a cadence the owner lowered", () => {
     const slots = slotsAt(
       "all_in",
