@@ -29,6 +29,7 @@ import {
   deployTargets,
   isMainModule,
   parseNetworkCommand,
+  previewApps,
   previewGitSource,
   readActionsContext,
   runPreviewDeployComment,
@@ -119,11 +120,14 @@ const RESET_DB_COMMAND = {
   retry: (networks) => `/reset-db ${networks.join(" ")}`,
 };
 
-/** `/deploy --reset-db`: reset, then deploy like `/deploy` (CMO too on mainnet). */
+/**
+ * `/deploy --reset-db`: reset, then deploy like `/deploy` (CMO too on mainnet).
+ * The static CMO.XYZ website uses no database, so a reset never rebuilds it.
+ */
 const DEPLOY_RESET_COMMAND = {
   name: "/deploy",
   subject: "Preview deploy",
-  apps: undefined,
+  apps: previewApps([]),
   redeploy: "preview deploy",
   deployed: "deployed the previews",
   retry: (networks) => `/deploy ${networks.join(" ")} ${RESET_DB_FLAG}`,

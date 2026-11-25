@@ -21,6 +21,7 @@ import {
   parseNetworkCommand,
   pointForkPreviewBranch,
   pollDeploymentUntilSettled,
+  previewApps,
   previewUrl,
   runPreviewDeployComment,
   runPreviewFromGithubEvent,
@@ -224,15 +225,19 @@ describe("usageMessage", () => {
 });
 
 describe("deployTargets", () => {
-  it("always deploys web and core together per network, and CMO on mainnet", () => {
+  it("always deploys web and core together per network, and CMO and its website on mainnet", () => {
     const mainnet = deployTargets(["mainnet"]);
     assert.deepEqual(
       mainnet.map((target) => `${target.network}:${target.app}`),
-      ["mainnet:web", "mainnet:core", "mainnet:cmo"],
+      ["mainnet:web", "mainnet:core", "mainnet:cmo", "mainnet:cmo-website"],
     );
     assert.equal(mainnet[0].projectId, VERCEL_PROJECTS.mainnet.web.id);
     assert.equal(mainnet[1].projectId, VERCEL_PROJECTS.mainnet.core.id);
     assert.equal(mainnet[2].projectId, VERCEL_PROJECTS.mainnet.cmo.id);
+    assert.equal(
+      mainnet[3].projectId,
+      VERCEL_PROJECTS.mainnet["cmo-website"].id,
+    );
 
     const both = deployTargets(["mainnet", "preprod"]);
     assert.deepEqual(
@@ -241,12 +246,13 @@ describe("deployTargets", () => {
         "mainnet:web",
         "mainnet:core",
         "mainnet:cmo",
+        "mainnet:cmo-website",
         "preprod:web",
         "preprod:core",
       ],
     );
-    assert.equal(both[3].projectId, VERCEL_PROJECTS.preprod.web.id);
-    assert.equal(both[4].projectId, VERCEL_PROJECTS.preprod.core.id);
+    assert.equal(both[4].projectId, VERCEL_PROJECTS.preprod.web.id);
+    assert.equal(both[5].projectId, VERCEL_PROJECTS.preprod.core.id);
   });
 
   it("limits targets to the named apps", () => {
@@ -298,6 +304,19 @@ describe("project ids", () => {
       "pnpm install --frozen-lockfile --filter cmo...",
     );
     assert.deepEqual(cmo.git, web.git);
+  });
+
+  it("deploys the CMO.XYZ website from main and /deploy only, like web", async () => {
+    const web = JSON.parse(
+      await readFile(path.join(repoRoot, "apps/web/vercel.json"), "utf8"),
+    );
+    const site = JSON.parse(
+      await readFile(
+        path.join(repoRoot, "apps/cmo-website/vercel.json"),
+        "utf8",
+      ),
+    );
+    assert.deepEqual(site.git, web.git);
   });
 });
 
@@ -645,6 +664,40 @@ describe("runPreviewDeployComment", () => {
     assert.equal(created[0].repoId, 99);
     assert.deepEqual(posted, []);
     assert.deepEqual(reactions, ["eyes", "rocket"]);
+  });
+
+  it("adds the CMO.XYZ website preview when the PR changes it", async () => {
+    const prepared = [];
+    const created = [];
+    const result = await runPreviewDeployComment({
+      commentBody: "/deploy mainnet",
+      isPullRequest: true,
+      commentAuthor: "alice",
+      repoId: 99,
+      readPermission: async () => "admin",
+      readPullRequest: async () => ({
+        state: "open",
+        number: 12,
+        head: { sha: "deadbeef", ref: "feat/x", repo: { id: 99, fork: false } },
+        base: { repo: { id: 99 } },
+      }),
+      listFiles: async () => [
+        { filename: "apps/cmo-website/public/index.html" },
+      ],
+      prepareResources: async (_options, targets) => {
+        prepared.push(...targets.map((target) => target.app));
+      },
+      createDeployment: async (input) => {
+        created.push(input.target.app);
+        return { id: `dpl_${input.target.app}`, readyState: "READY" };
+      },
+      pollDeployment: async (deployment) => deployment,
+      postComment: async () => {},
+      addReaction: async () => {},
+    });
+    assert.equal(result.kind, "deploy");
+    assert.deepEqual(created, ["web", "core", "cmo", "cmo-website"]);
+    assert.deepEqual(prepared, created);
   });
 
   it("reacts eyes then rocket on the triggering comment via the GitHub API", async () => {
@@ -1163,7 +1216,7 @@ describe("settlePreviewDeployments", () => {
     assert.equal(await settledBefore(run, core.resolve), false);
     // web comes first in the target order, so its create error wins.
     await assert.rejects(run, /Vercel 500/);
-    assert.deepEqual(polled, ["core", "cmo"]);
+    assert.deepEqual(polled, ["core", "cmo", "cmo-website"]);
   });
 });
 
@@ -1276,11 +1329,43 @@ describe("changesVercelConfig", () => {
   });
 });
 
+describe("previewApps", () => {
+  it("builds the CMO.XYZ website only when the PR changes it", () => {
+    assert.deepEqual(previewApps([{ filename: "apps/web/app/page.tsx" }]), [
+      "web",
+      "core",
+      "cmo",
+    ]);
+    assert.deepEqual(
+      previewApps([{ filename: "apps/cmo-website/public/index.html" }]),
+      ["web", "core", "cmo", "cmo-website"],
+    );
+    assert.deepEqual(previewApps(["apps/cmo-website/vercel.json"]), [
+      "web",
+      "core",
+      "cmo",
+      "cmo-website",
+    ]);
+  });
+
+  it("builds the website when the file list may be truncated", () => {
+    const files = Array.from({ length: GITHUB_PR_FILES_LIMIT }, (_, i) => ({
+      filename: `apps/web/f${i}.ts`,
+    }));
+    assert.equal(isTruncatedFileList(files), true);
+    assert.ok(previewApps(files).includes("cmo-website"));
+  });
+});
+
 describe("preview change gating", () => {
   it("matches web, core, CMO, and workspace package paths", () => {
     assert.equal(isPreviewRelevantPath("apps/web/app/page.tsx"), true);
     assert.equal(isPreviewRelevantPath("apps/core/src/index.ts"), true);
     assert.equal(isPreviewRelevantPath("apps/cmo/src/app/page.tsx"), true);
+    assert.equal(
+      isPreviewRelevantPath("apps/cmo-website/public/index.html"),
+      true,
+    );
     assert.equal(
       isPreviewRelevantPath("packages/database/prisma/schema.prisma"),
       true,
@@ -1328,7 +1413,8 @@ describe("preview change gating", () => {
     assert.match(message, /No preview deployment/);
     assert.match(message, /apps\/web/);
     assert.match(message, /apps\/core/);
-    assert.match(message, /apps\/cmo/);
+    assert.match(message, /apps\/cmo\//);
+    assert.match(message, /apps\/cmo-website/);
     assert.match(message, /packages\//);
     assert.match(message, /\/deploy <network>/);
   });
@@ -1595,7 +1681,7 @@ describe("preview skip on /deploy", () => {
       }),
     );
     assert.equal(result.kind, "deploy");
-    assert.equal(created.length, 3);
+    assert.equal(created.length, 4);
     assert.deepEqual(posted, []);
   });
 

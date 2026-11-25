@@ -4,7 +4,7 @@ Required when the matching trigger in [AGENTS.md](../../AGENTS.md) applies. How 
 
 ## Production deploys
 
-- **A merge is a production deploy.** Every merge to `main` production-deploys Core, Web, and CMO wherever the change affects them; there is no separate release step. `/deploy mainnet` builds previews on a Neon copy of mainnet, not production.
+- **A merge is a production deploy.** Every merge to `main` production-deploys Core, Web, CMO, and the CMO.XYZ website wherever the change affects them; there is no separate release step. `/deploy mainnet` builds previews on a Neon copy of mainnet, not production.
 - **Prove a Core change is live** before merging anything that depends on it: `curl -s https://api.sokosumi.com/v1/openapi.json` and look for the new `operationId`. A merge alone proves nothing, because the ignore step may skip a project, and the deploy takes minutes.
 - **Release-ordered PRs** (Core route, then its caller, then a lock) merge one at a time, each after the previous one is live.
 
