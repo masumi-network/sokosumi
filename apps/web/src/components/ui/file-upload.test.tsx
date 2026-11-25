@@ -131,4 +131,39 @@ describe("FileUpload", () => {
     expect(dropzone).toHaveAttribute("aria-invalid", "false");
     expect(dropzone).not.toHaveAttribute("data-invalid");
   });
+
+  it("keeps each reject's 2 s visible deadline and clears all pending timers on hide or unmount", () => {
+    vi.useFakeTimers();
+
+    const { container, unmount } = render(
+      <FileUpload accept="image/png">
+        <FileUploadDropzone />
+      </FileUpload>,
+    );
+
+    const badFile = new File(["text"], "notes.txt", { type: "text/plain" });
+    selectFiles(container, [badFile]);
+
+    const dropzone = screen.getByRole("region");
+    expect(dropzone).toHaveAttribute("aria-invalid", "true");
+
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+    expect(dropzone).toHaveAttribute("aria-invalid", "true");
+
+    selectFiles(container, [badFile]);
+    expect(dropzone).toHaveAttribute("aria-invalid", "true");
+    expect(vi.getTimerCount()).toBe(2);
+
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(dropzone).toHaveAttribute("aria-invalid", "false");
+    expect(dropzone).not.toHaveAttribute("data-invalid");
+    expect(vi.getTimerCount()).toBe(1);
+
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
 });

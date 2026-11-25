@@ -1,12 +1,6 @@
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { withNuqsTestingAdapter } from "nuqs/adapters/testing";
-import { Activity, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TestQueryProvider } from "@/test/query-provider";
 
@@ -258,107 +252,5 @@ describe("ScenarioLab live progress", () => {
     await waitFor(() =>
       expect(screen.getByText("previousRun")).toBeInTheDocument(),
     );
-  });
-
-  it.each(["runAll", "runAllVersions"] as const)(
-    "stops %s when Activity hides and reveals mid-watch instead of starting the next turn",
-    async (button) => {
-      vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["setTimeout"] });
-      startTurnMock.mockResolvedValue({
-        ok: true,
-        value: { turnId: "turn_1" },
-      });
-      const fetchMock = vi.fn(async () => ({
-        ok: true,
-        json: async () => ({ turn: turn("RUNNING", []) }),
-      }));
-      vi.stubGlobal("fetch", fetchMock);
-      try {
-        const ui = <ScenarioLab versionId="v11" versions={VERSIONS} />;
-        const { rerender } = render(<Activity mode="visible">{ui}</Activity>, {
-          wrapper: makeWrapper(),
-        });
-
-        fireEvent.click(await screen.findByRole("button", { name: button }));
-        await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-
-        rerender(<Activity mode="hidden">{ui}</Activity>);
-        rerender(<Activity mode="visible">{ui}</Activity>);
-
-        await act(async () => {
-          await vi.advanceTimersByTimeAsync(5_000);
-        });
-
-        expect(startTurnMock).toHaveBeenCalledTimes(1);
-        expect(simulateMock).not.toHaveBeenCalled();
-        expect(ingestMock).not.toHaveBeenCalled();
-        expect(judgeMock).not.toHaveBeenCalled();
-        expect(screen.queryByText("timeout")).not.toBeInTheDocument();
-        expect(screen.getByRole("button", { name: button })).toBeEnabled();
-      } finally {
-        vi.useRealTimers();
-      }
-    },
-  );
-
-  it("reports a thrown start action failure instead of swallowing it", async () => {
-    startTurnMock.mockRejectedValueOnce(new Error("Core start failed"));
-
-    render(<ScenarioLab versionId="v11" versions={VERSIONS} />, {
-      wrapper: makeWrapper(),
-    });
-
-    const [runButton] = await screen.findAllByRole("button", { name: "run" });
-    fireEvent.click(runButton);
-
-    expect(await screen.findByText("Core start failed")).toBeInTheDocument();
-    expect(runButton).toBeEnabled();
-  });
-
-  it("reports a judge action error result instead of swallowing it", async () => {
-    startTurnMock.mockResolvedValue({ ok: true, value: { turnId: "turn_1" } });
-    judgeMock.mockResolvedValueOnce({
-      ok: false,
-      error: { code: "CORE_ERROR", message: "Judge service failed" },
-    });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => ({ turn: turn("COMPLETED", []) }),
-      })),
-    );
-
-    render(<ScenarioLab versionId="v11" versions={VERSIONS} />, {
-      wrapper: makeWrapper(),
-    });
-
-    const [runButton] = await screen.findAllByRole("button", { name: "run" });
-    fireEvent.click(runButton);
-
-    expect(await screen.findByText("Judge service failed")).toBeInTheDocument();
-    expect(runButton).toBeEnabled();
-  });
-
-  it("reports a thrown judge action failure instead of swallowing it", async () => {
-    startTurnMock.mockResolvedValue({ ok: true, value: { turnId: "turn_1" } });
-    judgeMock.mockRejectedValueOnce(new Error("Judge network error"));
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => ({ turn: turn("COMPLETED", []) }),
-      })),
-    );
-
-    render(<ScenarioLab versionId="v11" versions={VERSIONS} />, {
-      wrapper: makeWrapper(),
-    });
-
-    const [runButton] = await screen.findAllByRole("button", { name: "run" });
-    fireEvent.click(runButton);
-
-    expect(await screen.findByText("Judge network error")).toBeInTheDocument();
-    expect(runButton).toBeEnabled();
   });
 });

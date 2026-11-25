@@ -18,7 +18,6 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { formatUsd } from "@/components/soko-bot/format";
 import { Button } from "@/components/ui/button";
-import { useAbortControllers } from "@/hooks/effects/use-abort-controller";
 import { useInterval } from "@/hooks/effects/use-interval";
 import { useScenarioLabMountedRef } from "@/hooks/effects/use-scenario-lab-mounted-ref";
 import { useScenarioLabVersion } from "@/hooks/effects/use-scenario-lab-version";
@@ -89,36 +88,14 @@ interface LiveRun {
   startedAt: number;
 }
 
-async function fetchTurn(
-  turnId: string,
-  signal?: AbortSignal,
-): Promise<ChatTurnDetail | null> {
-  try {
-    const response = await fetch(
-      `/api/admin/soko-bots/turns/${encodeURIComponent(turnId)}`,
-      { credentials: "same-origin", cache: "no-store", signal },
-    );
-    if (!response.ok) return null;
-    const body = (await response.json()) as { turn?: ChatTurnDetail };
-    return body.turn ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function waitForPoll(ms: number, signal?: AbortSignal): Promise<void> {
-  if (signal?.aborted) return Promise.resolve();
-  return new Promise((resolve) => {
-    const onAbort = () => {
-      clearTimeout(timer);
-      resolve();
-    };
-    const timer = setTimeout(() => {
-      signal?.removeEventListener("abort", onAbort);
-      resolve();
-    }, ms);
-    signal?.addEventListener("abort", onAbort, { once: true });
-  });
+async function fetchTurn(turnId: string): Promise<ChatTurnDetail | null> {
+  const response = await fetch(
+    `/api/admin/soko-bots/turns/${encodeURIComponent(turnId)}`,
+    { credentials: "same-origin", cache: "no-store" },
+  );
+  if (!response.ok) return null;
+  const body = (await response.json()) as { turn?: ChatTurnDetail };
+  return body.turn ?? null;
 }
 
 const FINAL_STATUSES = new Set(["COMPLETED", "FAILED", "CANCELLED"]);
@@ -132,18 +109,16 @@ async function watchTurn(
   turnId: string,
   onProgress: (turn: ChatTurnDetail) => void,
   isMounted: () => boolean,
-  signal?: AbortSignal,
 ): Promise<ChatTurnDetail | null> {
   const deadline = Date.now() + TIMEOUT_MS;
   // A lab closed mid-run stops polling instead of until the deadline.
-  while (Date.now() < deadline && isMounted() && !signal?.aborted) {
-    const turn = await fetchTurn(turnId, signal);
-    if (!isMounted() || signal?.aborted) return null;
+  while (Date.now() < deadline && isMounted()) {
+    const turn = await fetchTurn(turnId);
     if (turn) {
       onProgress(turn);
       if (FINAL_STATUSES.has(turn.status)) return turn;
     }
-    await waitForPoll(POLL_MS, signal);
+    await new Promise((resolve) => setTimeout(resolve, POLL_MS));
   }
   return null;
 }
@@ -280,7 +255,6 @@ export function ScenarioLab({
   const [live, setLive] = useState<LiveRun | null>(null);
   const mountedRef = useRef(false);
   useScenarioLabMountedRef(mountedRef);
-  const runAbort = useAbortControllers();
   /** Where a Run all has got to, so the wait has a denominator. */
   const [batch, setBatch] = useState<{
     done: number;
@@ -305,10 +279,9 @@ export function ScenarioLab({
   });
   const history = historyQuery.data ?? {};
 
-  async function run(scenario: SokoBotScenario): Promise<boolean> {
+  async function run(scenario: SokoBotScenario) {
     // A closed lab starts nothing: each start is a real server action.
-    if (!mountedRef.current) return false;
-    const runController = runAbort.create();
+    if (!mountedRef.current) return;
     setRunning((current) => new Set(current).add(scenario.id));
     setFailures(({ [scenario.id]: _dropped, ...rest }) => rest);
     setLive({
@@ -328,13 +301,12 @@ export function ScenarioLab({
         const ingest = await runSokoBotLabIngestAction({
           input: { beat: scenario.trigger.beat },
         });
-        if (runController.signal.aborted || !mountedRef.current) return false;
         if (!ingest.ok) {
           setFailures((current) => ({
             ...current,
             [scenario.id]: ingest.error.message ?? t("startError"),
           }));
-          return true;
+          return;
         }
         turnId = ingest.value.turnId;
       } else if (scenario.trigger?.kind === "task_event") {
@@ -344,13 +316,12 @@ export function ScenarioLab({
             comment: scenario.trigger.comment,
           },
         });
-        if (runController.signal.aborted || !mountedRef.current) return false;
         if (!simulated.ok) {
           setFailures((current) => ({
             ...current,
             [scenario.id]: simulated.error.message ?? t("startError"),
           }));
-          return true;
+          return;
         }
         // The simulation starts the turn and hands back its id. It used to
         // be left to the one-minute events cron and found by scanning state
@@ -364,13 +335,12 @@ export function ScenarioLab({
             message: scenario.prompt,
           },
         });
-        if (runController.signal.aborted || !mountedRef.current) return false;
         if (!started.ok) {
           setFailures((current) => ({
             ...current,
             [scenario.id]: started.error.message ?? t("startError"),
           }));
-          return true;
+          return;
         }
         turnId = started.value.turnId;
       }
@@ -379,7 +349,7 @@ export function ScenarioLab({
           ...current,
           [scenario.id]: t("noTurn"),
         }));
-        return true;
+        return;
       }
       setLive((current) =>
         current?.scenarioId === scenario.id
@@ -402,18 +372,17 @@ export function ScenarioLab({
           );
         },
         () => mountedRef.current,
-        runController.signal,
       );
-      if (runController.signal.aborted || !mountedRef.current) return false;
+      if (!mountedRef.current) return;
       if (!turn) {
         setFailures((current) => ({
           ...current,
           [scenario.id]: t("timeout", { turnId }),
         }));
-        return true;
+        return;
       }
       const result = evaluateScenario(scenario, turn);
-      const judged = await judgeSokoBotLabTurnAction({
+      await judgeSokoBotLabTurnAction({
         input: {
           turnId: turn.id,
           scenarioId: scenario.id,
@@ -424,30 +393,9 @@ export function ScenarioLab({
           },
         },
       });
-      if (runController.signal.aborted || !mountedRef.current) return false;
-      if (!judged.ok) {
-        setFailures((current) => ({
-          ...current,
-          [scenario.id]: judged.error.message ?? t("startError"),
-        }));
-        return true;
-      }
       await historyQuery.refetch();
-      if (runController.signal.aborted || !mountedRef.current) return false;
       onTurnFinished?.();
-      return true;
-    } catch (error) {
-      if (runController.signal.aborted || !mountedRef.current) return false;
-      setFailures((current) => ({
-        ...current,
-        [scenario.id]:
-          error instanceof Error && error.message
-            ? error.message
-            : t("startError"),
-      }));
-      return true;
     } finally {
-      runAbort.release(runController);
       setRunning((current) => {
         const next = new Set(current);
         next.delete(scenario.id);
@@ -461,7 +409,6 @@ export function ScenarioLab({
 
   async function runAll() {
     // Sequential: turns share the bot's session lock and the context they read.
-    const batchController = runAbort.create();
     setBatch({
       done: 0,
       total: SOKO_BOT_SCENARIOS.length,
@@ -469,27 +416,18 @@ export function ScenarioLab({
     });
     try {
       for (const scenario of SOKO_BOT_SCENARIOS) {
-        if (batchController.signal.aborted || !mountedRef.current) return;
-        const completed = await run(scenario);
-        if (
-          !completed ||
-          batchController.signal.aborted ||
-          !mountedRef.current
-        ) {
-          return;
-        }
+        if (!mountedRef.current) return;
+        await run(scenario);
         setBatch((current) =>
           current ? { ...current, done: current.done + 1 } : current,
         );
       }
     } finally {
-      runAbort.release(batchController);
       setBatch(null);
     }
   }
 
   async function runAllVersions() {
-    const batchController = runAbort.create();
     setBatch({
       done: 0,
       total: versions.length * SOKO_BOT_SCENARIOS.length,
@@ -497,26 +435,17 @@ export function ScenarioLab({
     });
     try {
       for (const version of versions) {
-        if (batchController.signal.aborted || !mountedRef.current) return;
+        if (!mountedRef.current) return;
         await chooseVersion(version.id);
-        if (batchController.signal.aborted || !mountedRef.current) return;
         for (const scenario of SOKO_BOT_SCENARIOS) {
-          if (batchController.signal.aborted || !mountedRef.current) return;
-          const completed = await run(scenario);
-          if (
-            !completed ||
-            batchController.signal.aborted ||
-            !mountedRef.current
-          ) {
-            return;
-          }
+          if (!mountedRef.current) return;
+          await run(scenario);
           setBatch((current) =>
             current ? { ...current, done: current.done + 1 } : current,
           );
         }
       }
     } finally {
-      runAbort.release(batchController);
       setBatch(null);
     }
   }

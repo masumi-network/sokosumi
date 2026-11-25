@@ -362,9 +362,9 @@ function FileUploadRoot(props: FileUploadRootProps) {
   const storeRef = useLatestRef(store);
   const invalidPropRef = useLatestRef(invalid);
   const progressFrameRef = React.useRef(0);
-  const invalidTimeoutRef = React.useRef<
-    ReturnType<typeof setTimeout> | undefined
-  >(undefined);
+  const invalidTimeouts = useLazyRef(
+    () => new Set<ReturnType<typeof setTimeout>>(),
+  ).current;
 
   const onProgress = useLazyRef(() => {
     return (file: File, progress: number) => {
@@ -398,9 +398,11 @@ function FileUploadRoot(props: FileUploadRootProps) {
         cancelAnimationFrame(progressFrameRef.current);
         progressFrameRef.current = 0;
       }
-      if (invalidTimeoutRef.current !== undefined) {
-        clearTimeout(invalidTimeoutRef.current);
-        invalidTimeoutRef.current = undefined;
+      if (invalidTimeouts.size > 0) {
+        for (const timeoutId of invalidTimeouts) {
+          clearTimeout(timeoutId);
+        }
+        invalidTimeouts.clear();
         storeRef.current.dispatch({
           type: "SET_INVALID",
           invalid: invalidPropRef.current,
@@ -413,7 +415,7 @@ function FileUploadRoot(props: FileUploadRootProps) {
         }
       }
     };
-  }, [files, invalidPropRef, storeRef, urlCache]);
+  }, [files, invalidPropRef, invalidTimeouts, storeRef, urlCache]);
 
   const onFilesChange = React.useCallback(
     (originalFiles: File[]) => {
@@ -501,16 +503,14 @@ function FileUploadRoot(props: FileUploadRootProps) {
 
       if (invalid) {
         store.dispatch({ type: "SET_INVALID", invalid });
-        if (invalidTimeoutRef.current !== undefined) {
-          clearTimeout(invalidTimeoutRef.current);
-        }
-        invalidTimeoutRef.current = setTimeout(() => {
-          invalidTimeoutRef.current = undefined;
+        const timeoutId = setTimeout(() => {
+          invalidTimeouts.delete(timeoutId);
           storeRef.current.dispatch({
             type: "SET_INVALID",
             invalid: invalidPropRef.current,
           });
         }, 2000);
+        invalidTimeouts.add(timeoutId);
       }
 
       if (acceptedFiles.length > 0) {
