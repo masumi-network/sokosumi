@@ -2971,4 +2971,365 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   "GET /chats/stickers": {
     argv: [...API, "chats", "stickers"],
   },
+  // SOKD-377 soko-bots
+  "GET /soko-bots/me": {
+    argv: [...API, "soko-bots", "me"],
+  },
+  "POST /soko-bots/me": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "create-mine",
+      "--input-json",
+      '{"name":"Pebble"}',
+    ],
+  },
+  "DELETE /soko-bots/me": {
+    argv: [...API, "soko-bots", "archive-mine"],
+  },
+  "DELETE /soko-bots/me/permanent": {
+    argv: [...API, "soko-bots", "delete-mine"],
+  },
+  "GET /soko-bots/me/activity": {
+    argv: [...API, "soko-bots", "my-activity"],
+  },
+  "GET /soko-bots/me/usage": {
+    argv: [...API, "soko-bots", "my-usage"],
+  },
+  "GET /soko-bots/me/stats": {
+    argv: [...API, "soko-bots", "my-stats"],
+  },
+  "GET /soko-bots/me/turns": {
+    argv: [...API, "soko-bots", "my-turns"],
+  },
+  "POST /soko-bots/me/turns": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "ask-mine",
+      "--input-json",
+      '{"clientTurnId":"cli-1","message":"What is due this week?"}',
+    ],
+  },
+  "GET /soko-bots/me/turns/{turnId}": {
+    argv: [...API, "soko-bots", "my-turn", "turn-1"],
+  },
+  "GET /soko-bots/me/turns/{turnId}/results": {
+    argv: [...API, "soko-bots", "my-turn-results", "turn-1"],
+  },
+  "GET /soko-bots/me/turns/{id}/conversation": {
+    argv: [...API, "soko-bots", "my-turn-conversation", "turn-1"],
+  },
+  "POST /soko-bots/me/turns/{turnId}/cancel": {
+    argv: [...API, "soko-bots", "cancel-my-turn", "turn-1"],
+  },
+  "POST /soko-bots/me/turns/{id}/feedback": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "rate-my-turn",
+      "turn-1",
+      "--input-json",
+      '{"useful":true}',
+    ],
+  },
+  "POST /soko-bots/me/memory/reset": {
+    argv: [...API, "soko-bots", "reset-my-memory"],
+  },
+  "POST /soko-bots/me/schedules": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "create-my-schedule",
+      "--input-json",
+      '{"name":"Standup","prompt":"Summarize yesterday","cronExpression":"0 9 * * 1-5","timezone":"Europe/Berlin"}',
+    ],
+  },
+  "PATCH /soko-bots/me/schedules/{scheduleId}": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "update-my-schedule",
+      "schedule-1",
+      "--input-json",
+      '{"enabled":false}',
+    ],
+  },
+  "DELETE /soko-bots/me/schedules/{scheduleId}": {
+    argv: [...API, "soko-bots", "delete-my-schedule", "schedule-1"],
+  },
+  "POST /soko-bots/me/introduce": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "introduce-mine",
+      "--input-json",
+      '{"roomId":"room-1"}',
+    ],
+  },
+  "PUT /soko-bots/me/name": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "rename-mine",
+      "--input-json",
+      '{"name":"Pebble"}',
+    ],
+  },
+  "PUT /soko-bots/me/avatar-code": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "set-my-avatar",
+      "--input-json",
+      '{"code":"ab12"}',
+    ],
+  },
+  "PUT /soko-bots/me/version": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "set-my-version",
+      "--input-json",
+      '{"versionId":"version-1"}',
+    ],
+  },
+  "PUT /soko-bots/me/proactive": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "set-my-proactive",
+      "--input-json",
+      '{"paused":true}',
+    ],
+  },
+  "PUT /soko-bots/me/board-following": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "set-my-board-following",
+      "--input-json",
+      '{"enabled":false}',
+    ],
+  },
+  "PUT /soko-bots/me/team-standup": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "set-my-team-standup",
+      "--input-json",
+      '{"enabled":false}',
+    ],
+  },
+  "GET /soko-bots/me/skills": {
+    argv: [...API, "soko-bots", "my-skills"],
+  },
+  "POST /soko-bots/me/skills": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "install-my-skill",
+      "--input-json",
+      '{"source":"owner/repo"}',
+    ],
+  },
+  "DELETE /soko-bots/me/skills/{skillId}": {
+    argv: [...API, "soko-bots", "remove-my-skill", "skill-1"],
+  },
+  "POST /soko-bots/me/lab/ingest": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "lab-ingest",
+      "--input-json",
+      '{"beat":"standup"}',
+    ],
+  },
+  "POST /soko-bots/me/lab/task-event": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "lab-task-event",
+      "--input-json",
+      '{"status":"COMPLETED","comment":"Done"}',
+    ],
+  },
+  "GET /soko-bots/me/lab/runs": {
+    argv: [...API, "soko-bots", "lab-runs"],
+  },
+  "POST /soko-bots/me/lab/judge": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "lab-judge",
+      "--input-json",
+      '{"turnId":"turn-1","scenarioId":"standup"}',
+    ],
+  },
+  "GET /soko-bots/versions": {
+    argv: [...API, "soko-bots", "versions"],
+  },
+  "GET /soko-bots/team": {
+    argv: [...API, "soko-bots", "team"],
+  },
+  "GET /soko-bots/skills/search": {
+    argv: [...API, "soko-bots", "search-skills", "--query", "q=seo"],
+  },
+  "GET /soko-bots/skills/browse": {
+    argv: [...API, "soko-bots", "browse-skills"],
+  },
+  "POST /soko-bots": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "create",
+      "--input-json",
+      '{"scope":"workspace","name":"Ops"}',
+    ],
+  },
+  "GET /soko-bots/{sokoBotId}": {
+    argv: [...API, "soko-bots", "get", "bot-1"],
+  },
+  "POST /soko-bots/{sokoBotId}": {
+    argv: [...API, "soko-bots", "reactivate", "bot-1"],
+  },
+  "DELETE /soko-bots/{sokoBotId}": {
+    argv: [...API, "soko-bots", "archive", "bot-1"],
+  },
+  "DELETE /soko-bots/{sokoBotId}/permanent": {
+    argv: [...API, "soko-bots", "delete", "bot-1"],
+  },
+  "GET /soko-bots/{sokoBotId}/activity": {
+    argv: [...API, "soko-bots", "activity", "bot-1"],
+  },
+  "GET /soko-bots/{sokoBotId}/usage": {
+    argv: [...API, "soko-bots", "usage", "bot-1"],
+  },
+  "GET /soko-bots/{sokoBotId}/stats": {
+    argv: [...API, "soko-bots", "stats", "bot-1"],
+  },
+  "GET /soko-bots/{sokoBotId}/turns": {
+    argv: [...API, "soko-bots", "turns", "bot-1"],
+  },
+  "POST /soko-bots/{sokoBotId}/turns": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "ask",
+      "bot-1",
+      "--input-json",
+      '{"clientTurnId":"cli-1","message":"What is due this week?"}',
+    ],
+  },
+  "GET /soko-bots/{sokoBotId}/turns/{turnId}": {
+    argv: [...API, "soko-bots", "turn", "bot-1", "turn-1"],
+  },
+  "GET /soko-bots/{sokoBotId}/turns/{turnId}/results": {
+    argv: [...API, "soko-bots", "turn-results", "bot-1", "turn-1"],
+  },
+  "POST /soko-bots/{sokoBotId}/turns/{turnId}/cancel": {
+    argv: [...API, "soko-bots", "cancel-turn", "bot-1", "turn-1"],
+  },
+  "POST /soko-bots/{sokoBotId}/memory/reset": {
+    argv: [...API, "soko-bots", "reset-memory", "bot-1"],
+  },
+  "POST /soko-bots/{sokoBotId}/schedules": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "create-schedule",
+      "bot-1",
+      "--input-json",
+      '{"name":"Standup","prompt":"Summarize yesterday","cronExpression":"0 9 * * 1-5","timezone":"Europe/Berlin"}',
+    ],
+  },
+  "PATCH /soko-bots/{sokoBotId}/schedules/{scheduleId}": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "update-schedule",
+      "bot-1",
+      "schedule-1",
+      "--input-json",
+      '{"enabled":false}',
+    ],
+  },
+  "DELETE /soko-bots/{sokoBotId}/schedules/{scheduleId}": {
+    argv: [...API, "soko-bots", "delete-schedule", "bot-1", "schedule-1"],
+  },
+  "PUT /soko-bots/{sokoBotId}/name": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "rename",
+      "bot-1",
+      "--input-json",
+      '{"name":"Ops"}',
+    ],
+  },
+  "PUT /soko-bots/{sokoBotId}/avatar-code": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "set-avatar",
+      "bot-1",
+      "--input-json",
+      '{"code":"ab12"}',
+    ],
+  },
+  "PUT /soko-bots/{sokoBotId}/version": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "set-version",
+      "bot-1",
+      "--input-json",
+      '{"versionId":"version-1"}',
+    ],
+  },
+  "PUT /soko-bots/{sokoBotId}/proactive": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "set-proactive",
+      "bot-1",
+      "--input-json",
+      '{"paused":true}',
+    ],
+  },
+  "PUT /soko-bots/{sokoBotId}/board-following": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "set-board-following",
+      "bot-1",
+      "--input-json",
+      '{"enabled":false}',
+    ],
+  },
+  "PUT /soko-bots/{sokoBotId}/team-standup": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "set-team-standup",
+      "bot-1",
+      "--input-json",
+      '{"enabled":false}',
+    ],
+  },
+  "GET /soko-bots/me/integrations": {
+    argv: [...API, "soko-bots", "my-integrations"],
+  },
+  "GET /soko-bots/{sokoBotId}/integrations": {
+    argv: [...API, "soko-bots", "integrations", "bot-1"],
+  },
+  "GET /soko-bots/integrations/catalog": {
+    argv: [
+      ...API,
+      "soko-bots",
+      "integration-catalog",
+      "--query",
+      "query=gmail",
+    ],
+  },
 };
