@@ -41,6 +41,7 @@ import {
   cmoV20Strategy,
 } from "./cmo-v20-skills.js";
 import { CMO_INDUSTRY, cmoV21Strategy } from "./cmo-v21-skills.js";
+import { cmoV22Strategy } from "./cmo-v22-skills.js";
 import type { SokoBotSkill } from "./skills.js";
 
 const nearestTen = (credits: number): number => Math.round(credits / 10) * 10;
@@ -725,6 +726,14 @@ const claims = claimsStrategy(everyNetwork);
 const seo = SKILLS.find((skill) => skill.id === "cmo-seo");
 if (!seo) throw new Error("cmo-seo is missing");
 
+const v21Strategy = cmoV21Strategy(
+  cmoV20Strategy(
+    stageSpreadStrategy(
+      plainWordsStrategy(channelFitStrategy(partPatchStrategy(claims))),
+    ),
+  ),
+);
+
 export const CMO_SKILLS: readonly SokoBotSkill[] = [
   ...SKILLS,
   productionWithStyles(production),
@@ -745,13 +754,8 @@ export const CMO_SKILLS: readonly SokoBotSkill[] = [
       plainWordsStrategy(channelFitStrategy(partPatchStrategy(claims))),
     ),
   ),
-  cmoV21Strategy(
-    cmoV20Strategy(
-      stageSpreadStrategy(
-        plainWordsStrategy(channelFitStrategy(partPatchStrategy(claims))),
-      ),
-    ),
-  ),
+  v21Strategy,
+  cmoV22Strategy(v21Strategy),
   seoPlain(seoReports(seo)),
   CMO_MONTH_POINTS,
   CMO_SITE_PAGES,

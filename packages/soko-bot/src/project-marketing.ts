@@ -1,4 +1,4 @@
-import { SHORT_VIDEO_FORMATS } from "@sokosumi/utils";
+import { CMO_VOLUME_LEVELS, SHORT_VIDEO_FORMATS } from "@sokosumi/utils";
 import { z } from "zod";
 
 /**
@@ -1013,6 +1013,47 @@ export const cmoPreviewSchema = z.object({
   body: longText,
 });
 
+/**
+ * Where Core's calendar for a cmo-v22 month stands: examples before payment,
+ * writing while Core writes it, written once it holds the plan's month.
+ */
+export const CMO_MONTH_WRITER_STATES = [
+  "examples",
+  "writing",
+  "written",
+] as const;
+
+export const cmoMonthWriterSchema = z.object({
+  state: z.enum(CMO_MONTH_WRITER_STATES),
+  /** The plan level the calendar was last written for. */
+  level: z.enum(CMO_VOLUME_LEVELS).optional(),
+  /** The month's first day, fixed by the first write, so a refill keeps its days. */
+  start: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  /** Writes started for this approval; a failed one is retried. */
+  attempts: z.number().int().min(0).max(1000).default(0),
+  /** When the last write started (ISO), so a stale one is retried. */
+  startedAt: z.string().max(40).optional(),
+  /** When the last write ended (ISO), whole or short. */
+  endedAt: z.string().max(40).optional(),
+  /** Why the last write stopped short, for Core's logs; never shown. */
+  error: z.string().max(300).optional(),
+  /** What every write of this month cost on the model, in US dollars. */
+  costUsd: z.number().min(0).optional(),
+  /** When Core raised that the made month fell short of the plan's floor. */
+  floorAlertAt: z.string().max(40).optional(),
+});
+export type CmoMonthWriter = z.infer<typeof cmoMonthWriterSchema>;
+
+/** Whether Core writes this strategy's calendar after payment (cmo-v22). */
+export function cmoCalendarAfterPayment(
+  plan: { monthWriter?: unknown } | null | undefined,
+): boolean {
+  return plan?.monthWriter != null;
+}
+
 export const marketingStrategyPlanSchema = z.object({
   /** The month the plan covers, YYYY-MM. */
   month: z.string().regex(/^\d{4}-\d{2}$/, "Use YYYY-MM"),
@@ -1057,6 +1098,14 @@ export const marketingStrategyPlanSchema = z.object({
    * the owner reads. The next whole save clears it.
    */
   fitted: z.array(shortText).max(12).optional(),
+  /**
+   * cmo-v22: Core writes the month's calendar after payment, sized to the
+   * plan bought; until then the calendar holds the strategy's example posts.
+   * Present on every strategy of that shape, whatever its state, so a full
+   * calendar written before (every strategy before cmo-v22) never has it.
+   * Set by Core; Cuso never sends it.
+   */
+  monthWriter: cmoMonthWriterSchema.optional(),
   /**
    * What the last patch changed: each entry it touched, with the entry as it
    * was before (null when the patch added it), so CMO can strike it through.
