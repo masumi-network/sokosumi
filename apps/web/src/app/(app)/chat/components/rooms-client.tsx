@@ -196,7 +196,10 @@ import {
   isChatRoomMessageIdEnvelope,
   isChatRoomMessagePatchEvent,
 } from "@/lib/ably/schema";
-import { isRoomOfWorkspace } from "@/lib/chat/room-workspace-scope";
+import {
+  isOwnedByWorkspace,
+  isRoomOfWorkspace,
+} from "@/lib/chat/room-workspace-scope";
 import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 import {
@@ -205,6 +208,7 @@ import {
   chatRoomMessageHref,
 } from "@/lib/utils/notification-href";
 import { chatQueryKeys } from "@/queries/chat";
+import { ChatCsvTableWorkspace } from "./chat-csv-table";
 import { CoworkerFirstPrompts } from "./coworker-first-prompts";
 import {
   openDirectWithParticipant,
@@ -577,6 +581,14 @@ function RoomView({
     (room) =>
       room.id === selectedRoomId && !isRoomOfWorkspace(room, organizationId),
   );
+  // Core makes a Table in the active workspace: offer it only when the room
+  // is that workspace's own, so an External or visited room's CSV stays put.
+  const csvTableWorkspace = rooms.some(
+    (room) =>
+      room.id === selectedRoomId && isOwnedByWorkspace(room, organizationId),
+  )
+    ? organizationId
+    : undefined;
   // The sidebar lists the active workspace. On a Room visit its channels are
   // not the room's: a `#general` here must not resolve to that workspace's.
   const channelCatalogRooms = useMemo(
@@ -3267,7 +3279,7 @@ function RoomView({
     );
 
     return (
-      <>
+      <ChatCsvTableWorkspace workspaceId={csvTableWorkspace}>
         {mobileHeaderPortaled && headerRoomSlotHost && roomHeaderChrome
           ? createPortal(
               // Portaled out of the room shell, so it carries the room's
@@ -3574,7 +3586,7 @@ function RoomView({
             ) : null
           }
         />
-      </>
+      </ChatCsvTableWorkspace>
     );
   }
 

@@ -11911,7 +11911,7 @@
       "newTable": "Nueva tabla",
       "openAsTable": "Abrir como tabla",
       "loadingCsv": "Leyendo el CSV…",
-      "fileMissing": "No se pudo abrir el archivo. Ya no está en Archivos.",
+      "fileMissing": "No se pudo abrir el archivo. Ya no está disponible.",
       "createDescription": "Empieza con una tabla vacía o importa un archivo CSV.",
       "title": "Título",
       "description": "Descripción",
@@ -11922,13 +11922,11 @@
       "chooseCsv": "Elegir archivo CSV",
       "noFileChosen": "Ningún archivo seleccionado",
       "csvLimit": "Hasta 5 MB, 10.000 filas y 100 columnas. La primera fila contiene los nombres de las columnas.",
-      "mapping": "Asignar columnas y vista previa",
       "numberGuess": "Todas las celdas con contenido son números, por eso empieza como Número. Cámbialo si los dígitos son un código.",
       "columnName": "Nombre de columna",
       "type": "Tipo",
       "options": "Opciones (separadas por punto y coma)",
       "optionsFor": "Opciones de {column} (separadas por punto y coma)",
-      "preview": "{count, plural, one {Vista previa de # fila} other {Vista previa de # filas}}. Todos los valores se validan antes de importar.",
       "row": "Fila",
       "importProgress": "{count, plural, one {# fila importada} other {# filas importadas}}. Los lotes completados se conservan si se interrumpe.",
       "create": "Crear tabla",
@@ -12130,7 +12128,10 @@
         "add": "Añadir copia",
         "loadMore": "Mostrar más tablas",
         "loadMoreError": "No se pudieron cargar más tablas. Inténtalo de nuevo."
-      }
+      },
+      "rowCount": "{count, plural, one {# fila} other {# filas}}",
+      "columns": "Columnas",
+      "examples": "Ejemplos"
     },
     "ProjectScope": {
       "clearSearch": "Borrar búsqueda",

@@ -71,6 +71,9 @@ describe("TableCreateDialog from a Files CSV", () => {
     expect(await screen.findByText("007")).toBeTruthy();
     expect(fetch).toHaveBeenCalledWith(URL, expect.anything());
     expect(screen.getByLabelText("title")).toHaveValue("Leads");
+    // The header names the file, so its picker is not offered again.
+    expect(screen.getByText("Leads.csv")).toBeTruthy();
+    expect(screen.queryByLabelText("importCsv")).toBeNull();
     const names = screen.getAllByLabelText("columnName");
     expect(names.map((input) => (input as HTMLInputElement).value)).toEqual([
       "Name",
@@ -97,6 +100,67 @@ describe("TableCreateDialog from a Files CSV", () => {
     expect(await screen.findByText("fileMissing")).toBeTruthy();
     expect(screen.getByText("Leads.csv")).toBeTruthy();
     expect(screen.queryByLabelText("columnName")).toBeNull();
+  });
+
+  it.each([
+    ["could not be read", new Response("", { status: 404 }), "fileMissing"],
+    [
+      "is not a readable CSV",
+      new Response('Name\n"open quote\n'),
+      "errors.csv",
+    ],
+  ])(
+    "offers the picker to recover when the file %s",
+    async (_case, response, message) => {
+      openFromFiles(response);
+
+      expect(await screen.findByText(message)).toBeTruthy();
+      fireEvent.change(screen.getByLabelText("importCsv"), {
+        target: { files: [new File(["Name,Zip\nAda,007\n"], "Fixed.csv")] },
+      });
+
+      expect(await screen.findByText("007")).toBeTruthy();
+      expect(screen.getByText("Fixed.csv")).toBeTruthy();
+      expect(screen.queryByLabelText("importCsv")).toBeNull();
+      expect(screen.getByRole("button", { name: "create" })).toBeEnabled();
+    },
+  );
+
+  it("scrolls a field that gets focus into view, even when focus wraps without scrolling", async () => {
+    openFromFiles(new Response("Name,Zip\nAda,007\n"));
+    await screen.findByText("007");
+    const scrollIntoView = vi.fn();
+    const title = screen.getByLabelText("title");
+    title.scrollIntoView = scrollIntoView;
+
+    // Focus starts on the title; it leaves, as it does for the Close button,
+    // and Radix brings it back to the first field with `preventScroll`.
+    act(() => screen.getByLabelText("description").focus());
+    act(() => title.focus({ preventScroll: true }));
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
+  });
+
+  it("separates the file's name and counts in the description it announces", async () => {
+    openFromFiles(new Response("Name,Zip\nAda,007\n"));
+    await screen.findByText("007");
+
+    expect(screen.getByRole("dialog")).toHaveAccessibleDescription(
+      /^Leads\.csv · rowCount.* · columnCount/,
+    );
+  });
+
+  it("shows each column's first filled values, read once from the file", async () => {
+    openFromFiles(
+      new Response("Name,Zip\nAda,\n,0101\nBo,0202\nCy,0303\nDi,0404\n"),
+    );
+
+    expect(await screen.findByText("Ada · Bo · Cy")).toBeTruthy();
+    expect(screen.getByText("0101 · 0202 · 0303")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("title"), {
+      target: { value: "Renamed" },
+    });
+    expect(screen.getByText("Ada · Bo · Cy")).toBeTruthy();
   });
 
   it("never creates an empty Table when the file is not a readable CSV", async () => {
