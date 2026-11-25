@@ -14,13 +14,14 @@ export default function mount(app: Hono) {
       TASK_X402_PAYMENT_HEADERS_PURGE_SYNC_LOCK_KEY,
       async (context) => {
         const result =
-          await taskX402PaymentPurgeService.purgeExpiredTaskX402PaymentHeaders({
-            abortSignal: context.abortSignal,
-          });
+          await taskX402PaymentPurgeService.purgeExpiredTaskX402PaymentHeaders(
+            context.scope.networkDb,
+            { abortSignal: context.abortSignal },
+          );
 
         context.log.set({ result: { purged: result.purged } });
       },
-      { errorDetail: "safe-fields" },
+      { errorDetail: "safe-fields", network: "mainnet" },
     );
   });
 }
