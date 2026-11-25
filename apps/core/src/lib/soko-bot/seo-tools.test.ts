@@ -62,6 +62,87 @@ describe("the SEO workspace as Soko Bot reads it", () => {
     }
   });
 
+  it("gives Soko Bot the measured values of a speed table row and none of the worker's text", async () => {
+    const measured = {
+      pageUrl: row.url,
+      testedUrl: row.url,
+      device: "mobile",
+      lab: {
+        status: "measured",
+        median: { lcp: 2400, cls: 0, fcp: 1200, tbt: 180, si: 3600 },
+        runs: 3,
+        ok: 3,
+        lighthouse: "13.6.0",
+        pageSpeed: {
+          scores: { performance: 72 },
+          insights: [
+            {
+              id: "unused-javascript",
+              title: `${INJECTED} title`,
+              detail: `${INJECTED} detail`,
+              action: `${INJECTED} action`,
+            },
+          ],
+          measuredAt: "2026-11-01T12:00:00.000Z",
+        },
+      },
+      field: {
+        status: "measured",
+        level: "url",
+        url: row.url,
+        p75: { lcp: 1300, cls: 0, fcp: null, inp: 60, ttfb: null },
+        period: { first: "2026-10-01", last: "2026-10-28" },
+        history: { status: "comparable", weeks: ["2026-10-25"], lcp: [1300] },
+      },
+    };
+    service.getProjectSeoWorkspace.mockResolvedValue({
+      siteSpeed: {
+        rows: [
+          {
+            ...row,
+            tier: "full",
+            group: `/${INJECTED}`,
+            later: INJECTED,
+            devices: [{ ...measured, later: INJECTED }],
+          },
+        ],
+        dropped: 0,
+      },
+    });
+    const result = await runSeoTool(
+      "get_seo_workspace",
+      { projectId },
+      actor,
+      {},
+    );
+    expect(JSON.stringify(result)).not.toContain(INJECTED);
+    expect(result).toMatchObject({
+      siteSpeed: {
+        rows: [
+          {
+            url: row.url,
+            tier: "full",
+            devices: [
+              {
+                device: "mobile",
+                lab: {
+                  status: "measured",
+                  median: measured.lab.median,
+                  pageSpeed: { scores: { performance: 72 } },
+                },
+                field: {
+                  status: "measured",
+                  p75: measured.field.p75,
+                  history: measured.field.history,
+                },
+              },
+            ],
+          },
+        ],
+      },
+    });
+  });
+
   it("keeps a workspace without a speed table as it is", async () => {
     service.getProjectSeoWorkspace.mockResolvedValue({ siteSpeed: null });
     expect(

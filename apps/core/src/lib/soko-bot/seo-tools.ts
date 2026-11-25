@@ -8,6 +8,7 @@ import { isEvalWorkspace } from "@/lib/evals/eval-guard";
 import {
   addSeoPageSchema,
   createSeoScopeSchema,
+  type ProjectSeoWorkspace,
   requestSeoAnalysisSchema,
   type SeoActor,
   saveSeoCompetitorSchema,
@@ -42,9 +43,55 @@ const PROVIDER_BACKED_SEO_TOOLS = new Set<SokoBotSeoCapability>([
   "sync_seo_statistics",
 ]);
 
+type SiteSpeedRow = NonNullable<
+  ProjectSeoWorkspace["siteSpeed"]
+>["rows"][number];
+
+/** A measurement as Soko Bot reads it: values, statuses and codes. A lab insight's text is the worker's: it is left out. */
+function botSpeedDevice({
+  pageUrl,
+  testedUrl,
+  device,
+  lab,
+  field,
+}: SiteSpeedRow["devices"][number]) {
+  return {
+    pageUrl,
+    testedUrl,
+    device,
+    lab:
+      lab.status === "measured"
+        ? {
+            status: lab.status,
+            median: lab.median,
+            runs: lab.runs,
+            ok: lab.ok,
+            ...(lab.pageSpeed && {
+              pageSpeed: {
+                scores: lab.pageSpeed.scores,
+                measuredAt: lab.pageSpeed.measuredAt,
+              },
+            }),
+          }
+        : { status: lab.status },
+    field:
+      field.status === "measured"
+        ? {
+            status: field.status,
+            level: field.level,
+            url: field.url,
+            p75: field.p75,
+            period: field.period,
+            history: field.history,
+          }
+        : { status: field.status },
+  };
+}
+
 /**
- * The workspace as Soko Bot reads it. A speed table row's `why` is the SEO worker's free text: it can carry
- * instructions for a model, so only the SEO page gets it.
+ * The workspace as Soko Bot reads it. The speed table holds the SEO worker's free text (a row's `why` and
+ * `group`, a lab insight's sentences): it can carry instructions for a model, so only the SEO page gets it.
+ * Each field of a row is named here: a new field of the table does not reach Soko Bot by default.
  */
 async function botSeoWorkspace(
   ...args: Parameters<typeof getProjectSeoWorkspace>
@@ -55,7 +102,14 @@ async function botSeoWorkspace(
     ...workspace,
     siteSpeed: {
       ...workspace.siteSpeed,
-      rows: workspace.siteSpeed.rows.map(({ why: _why, ...row }) => row),
+      rows: workspace.siteSpeed.rows.map((row) => ({
+        url: row.url,
+        audited: row.audited,
+        cause: row.cause,
+        tier: row.tier,
+        check: row.check,
+        devices: row.devices.map(botSpeedDevice),
+      })),
     },
   };
 }
