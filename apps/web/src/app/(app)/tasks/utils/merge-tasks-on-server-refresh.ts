@@ -1,4 +1,7 @@
-import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
+import type {
+  KanbanColumnId,
+  TaskWithCoworker,
+} from "@/app/tasks/types/task-board";
 
 interface MergeTasksOnServerRefreshParams {
   prev: TaskWithCoworker[];
@@ -9,6 +12,11 @@ interface MergeTasksOnServerRefreshParams {
    * List view must drop them — `updatedAt` order invalidates advanced cursors.
    */
   keepLocalOnlyTasks: boolean;
+  /**
+   * Columns whose server response has no next cursor: missing non-moving rows
+   * left the column (e.g. archived in another tab) and must be dropped.
+   */
+  completeColumnIds?: ReadonlySet<KanbanColumnId>;
 }
 
 /**
@@ -20,6 +28,7 @@ export function mergeTasksOnServerRefresh({
   serverTasks,
   pendingMoveTaskIds,
   keepLocalOnlyTasks,
+  completeColumnIds,
 }: MergeTasksOnServerRefreshParams): TaskWithCoworker[] {
   const prevById = new Map(prev.map((task) => [task.id, task]));
   const next = serverTasks.map((task) => {
@@ -36,9 +45,14 @@ export function mergeTasksOnServerRefresh({
 
   const nextIds = new Set(serverTasks.map((task) => task.id));
   for (const task of prev) {
-    if (!nextIds.has(task.id)) {
-      next.push(task);
+    if (nextIds.has(task.id)) continue;
+    if (
+      !pendingMoveTaskIds.has(task.id) &&
+      completeColumnIds?.has(task.columnId)
+    ) {
+      continue;
     }
+    next.push(task);
   }
 
   return next;
