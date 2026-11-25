@@ -1,5 +1,12 @@
 import { act, render } from "@testing-library/react";
-import { Activity, StrictMode } from "react";
+import {
+  Activity,
+  StrictMode,
+  startTransition,
+  useLayoutEffect,
+  useState,
+} from "react";
+import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -69,6 +76,14 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
+
+function nextMacrotask() {
+  return new Promise<void>((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => resolve();
+    channel.port2.postMessage(null);
+  });
+}
 
 describe("useDictationRecorder", () => {
   it("records audio, tracks elapsedMs, delivers a File on finish(true), and works under StrictMode", async () => {
@@ -555,5 +570,230 @@ describe("useDictationRecorder", () => {
     expect(api.starting).toBe(false);
     expect(api.elapsedMs).toBe(0);
     expect(onRecordingChange).toHaveBeenCalledWith(true);
+  });
+
+  it("starts recording when start is called right after Activity reveal commit before passive effects run", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    const onRecordingChange = vi.fn();
+    let api!: ReturnType<typeof useDictationRecorder>;
+    let setMode!: (mode: "visible" | "hidden") => void;
+    let resolveRevealCommit: () => void = () => undefined;
+    const revealCommitted = new Promise<void>((resolve) => {
+      resolveRevealCommit = resolve;
+    });
+
+    function Probe() {
+      api = useDictationRecorder({ onRecorded: vi.fn(), onRecordingChange });
+      return null;
+    }
+
+    function CommitSignal() {
+      useLayoutEffect(() => {
+        resolveRevealCommit();
+      }, []);
+      return null;
+    }
+
+    function Host() {
+      const [mode, updateMode] = useState<"visible" | "hidden">("hidden");
+      setMode = updateMode;
+      return (
+        <Activity mode={mode}>
+          <Probe />
+          <CommitSignal />
+        </Activity>
+      );
+    }
+
+    try {
+      await act(async () => {
+        root.render(<Host />);
+      });
+
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", false);
+      startTransition(() => {
+        setMode("visible");
+      });
+      await revealCommitted;
+
+      // Passive effects are still queued on the next macrotask; start runs in the commit-to-passive window.
+      await api.start();
+      await nextMacrotask();
+      await nextMacrotask();
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+
+      expect(getUserMedia).toHaveBeenCalledOnce();
+      expect(api.elapsedMs).toBe(0);
+      expect(onRecordingChange).toHaveBeenLastCalledWith(true);
+    } finally {
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+      act(() => {
+        root.unmount();
+      });
+      container.remove();
+    }
+  });
+
+  it("drops a recorder stop event arriving between Activity hide commit and passive cleanup", async () => {
+    deferStop = true;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    const onRecorded = vi.fn();
+    let api!: ReturnType<typeof useDictationRecorder>;
+    let setMode!: (mode: "visible" | "hidden") => void;
+    let resolveHideCommit: () => void = () => undefined;
+    const hideCommitted = new Promise<void>((resolve) => {
+      resolveHideCommit = resolve;
+    });
+
+    function Probe() {
+      api = useDictationRecorder({ onRecorded });
+      return null;
+    }
+
+    function CommitSignal() {
+      useLayoutEffect(() => {
+        return () => {
+          resolveHideCommit();
+        };
+      }, []);
+      return null;
+    }
+
+    function Host() {
+      const [mode, updateMode] = useState<"visible" | "hidden">("visible");
+      setMode = updateMode;
+      return (
+        <Activity mode={mode}>
+          <Probe />
+          <CommitSignal />
+        </Activity>
+      );
+    }
+
+    try {
+      await act(async () => {
+        root.render(<Host />);
+      });
+
+      await act(async () => {
+        await api.start();
+      });
+      const activeRecorder = lastRecorder;
+      act(() => {
+        api.finish(true);
+      });
+
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", false);
+      startTransition(() => {
+        setMode("hidden");
+      });
+      await hideCommitted;
+
+      // Passive cleanup has not run yet; a queued stop event must still be dropped.
+      activeRecorder?.flushStop();
+      await nextMacrotask();
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+
+      expect(onRecorded).not.toHaveBeenCalled();
+    } finally {
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+      act(() => {
+        root.unmount();
+      });
+      container.remove();
+    }
+  });
+
+  it("does not start recording when a permission grant arrives between Activity hide commit and passive cleanup", async () => {
+    let grant: (stream: unknown) => void = () => undefined;
+    getUserMedia.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          grant = resolve;
+        }),
+    );
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    const onRecordingChange = vi.fn();
+    let api!: ReturnType<typeof useDictationRecorder>;
+    let setMode!: (mode: "visible" | "hidden") => void;
+    let resolveHideCommit: () => void = () => undefined;
+    const hideCommitted = new Promise<void>((resolve) => {
+      resolveHideCommit = resolve;
+    });
+
+    function Probe() {
+      api = useDictationRecorder({ onRecorded: vi.fn(), onRecordingChange });
+      return null;
+    }
+
+    function CommitSignal() {
+      useLayoutEffect(() => {
+        return () => {
+          resolveHideCommit();
+        };
+      }, []);
+      return null;
+    }
+
+    function Host() {
+      const [mode, updateMode] = useState<"visible" | "hidden">("visible");
+      setMode = updateMode;
+      return (
+        <Activity mode={mode}>
+          <Probe />
+          <CommitSignal />
+        </Activity>
+      );
+    }
+
+    try {
+      await act(async () => {
+        root.render(<Host />);
+      });
+
+      act(() => {
+        void api.start();
+      });
+      expect(api.starting).toBe(true);
+
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", false);
+      startTransition(() => {
+        setMode("hidden");
+      });
+      await hideCommitted;
+
+      // Resolve getUserMedia in the microtask turn before passive cleanup runs.
+      grant({ getTracks: () => [{ stop: stopTrack }] });
+      await Promise.resolve();
+
+      expect(stopTrack).toHaveBeenCalledOnce();
+      expect(lastRecorder).toBeNull();
+      expect(onRecordingChange).not.toHaveBeenCalled();
+
+      await nextMacrotask();
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+
+      await act(async () => {
+        setMode("visible");
+      });
+      expect(api.starting).toBe(false);
+      expect(api.elapsedMs).toBeNull();
+    } finally {
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+      act(() => {
+        root.unmount();
+      });
+      container.remove();
+    }
   });
 });

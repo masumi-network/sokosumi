@@ -1,7 +1,13 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 /** Dictation stops and turns into text on its own after two minutes. */
@@ -82,10 +88,15 @@ export function useDictationRecorder({
     finish(false);
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     lifetimeRef.current = {};
     return () => {
       lifetimeRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
       stopOnCleanup();
     };
   }, []);
