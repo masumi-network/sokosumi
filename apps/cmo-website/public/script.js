@@ -1,14 +1,5 @@
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-function trackCtas() {
-  document.querySelectorAll("[data-cta]").forEach((el) => {
-    el.addEventListener("click", () => {
-      if (typeof gtag !== "function") return;
-      gtag("event", "cta_click", { cta_location: el.dataset.cta, link_url: el.href });
-    });
-  });
-}
-
 function revealOnScroll() {
   const items = document.querySelectorAll(".reveal");
   if (reducedMotion || !("IntersectionObserver" in window)) return;
@@ -305,7 +296,6 @@ function themeToggle() {
   show();
 }
 
-trackCtas();
 themeToggle();
 revealOnScroll();
 bringCusoToLife();
