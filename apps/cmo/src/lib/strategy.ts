@@ -10,6 +10,18 @@ export function strategyApproved(
 
 type CalendarEntry = NonNullable<CmoOverview["strategy"]>["calendar"][number];
 
+/**
+ * Whether the calendar holds only the strategy's example posts (cmo-v22):
+ * Core writes the month after payment, so nothing is counted from it yet.
+ */
+export function calendarIsExamples(
+  strategy: Pick<NonNullable<CmoOverview["strategy"]>, "monthWriter">,
+): boolean {
+  return (
+    strategy.monthWriter != null && strategy.monthWriter.state !== "written"
+  );
+}
+
 /** A search or social ad: the owner launches it, it is never a post. */
 export function isAd(entry: Pick<CalendarEntry, "channel">): boolean {
   return channelInfo(entry.channel)?.group === "ads";
