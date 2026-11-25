@@ -7,7 +7,12 @@ import type {
   ChatRoomMessage,
   ChatRoomUserParticipant,
 } from "@sokosumi/core-client";
-import { DefaultChatTransport, type FileUIPart, type UIMessage } from "ai";
+import {
+  type ChatTransport,
+  DefaultChatTransport,
+  type FileUIPart,
+  type UIMessage,
+} from "ai";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -387,6 +392,11 @@ export function useCoworkerDirectRoomStream({
   /** Body of the last send, so Retry keeps its thread parent and quote. */
   const lastSendOptionsRef =
     useRef<ReturnType<typeof buildCoworkerStreamSendMessageOptions>>(undefined);
+  // Tracks an in-flight reconnect GET so a newer send can supersede it via a
+  // no-op resumeStream before Chat consumes the delayed replay or resets status.
+  const reconnectGuardRef = useRef<
+    { kind: "reconnect" } | { kind: "cancel"; consumed: boolean } | null
+  >(null);
 
   // Restore thread parent for mid-stream resume (sessionStorage survives remount).
   useEffect(() => {
@@ -394,55 +404,89 @@ export function useCoworkerDirectRoomStream({
     if (!roomId) {
       setStreamParentMessageId(null);
       overlayCreatedAtByMessageIdRef.current.clear();
-      return;
+    } else {
+      setStreamParentMessageId(readStoredStreamParentMessageId(roomId));
     }
-    setStreamParentMessageId(readStoredStreamParentMessageId(roomId));
+    return () => {
+      reconnectGuardRef.current = null;
+    };
   }, [roomId]);
 
-  const transport = useMemo(
-    () =>
-      new DefaultChatTransport({
-        api: CHAT_API_PATH,
-        credentials: "include",
-        headers: () => {
-          const slug = organizationSlugRef.current;
-          return slug
-            ? { "x-organization-slug": slug }
-            : ({} as Record<string, string>);
-        },
-        prepareSendMessagesRequest({ messages, body }) {
-          const id = roomIdRef.current;
+  const transport = useMemo<ChatTransport<UIMessage>>(() => {
+    const baseTransport = new DefaultChatTransport({
+      api: CHAT_API_PATH,
+      credentials: "include",
+      headers: () => {
+        const slug = organizationSlugRef.current;
+        return slug
+          ? { "x-organization-slug": slug }
+          : ({} as Record<string, string>);
+      },
+      prepareSendMessagesRequest({ messages, body }) {
+        const id = roomIdRef.current;
+        return {
+          body: {
+            ...(body ?? {}),
+            roomId: id,
+            id: id ?? undefined,
+            messages,
+          },
+        };
+      },
+      prepareReconnectToStreamRequest({ id }) {
+        const slug = organizationSlugRef.current;
+        const headers = slug
+          ? ({ "x-organization-slug": slug } as Record<string, string>)
+          : undefined;
+        const rid = (roomIdRef.current ?? id)?.trim() ?? "";
+        if (!rid) {
           return {
-            body: {
-              ...(body ?? {}),
-              roomId: id,
-              id: id ?? undefined,
-              messages,
-            },
-          };
-        },
-        prepareReconnectToStreamRequest({ id }) {
-          const slug = organizationSlugRef.current;
-          const headers = slug
-            ? ({ "x-organization-slug": slug } as Record<string, string>)
-            : undefined;
-          const rid = (roomIdRef.current ?? id)?.trim() ?? "";
-          if (!rid) {
-            return {
-              api: CHAT_NO_RESUMABLE_STREAM_PATH,
-              credentials: "include" as RequestCredentials,
-              headers,
-            };
-          }
-          return {
-            api: `/api/chat/${rid}/stream`,
+            api: CHAT_NO_RESUMABLE_STREAM_PATH,
             credentials: "include" as RequestCredentials,
             headers,
           };
-        },
-      }),
-    [],
-  );
+        }
+        return {
+          api: `/api/chat/${rid}/stream`,
+          credentials: "include" as RequestCredentials,
+          headers,
+        };
+      },
+    });
+
+    return {
+      get resumeStreamIsReplay() {
+        return baseTransport.resumeStreamIsReplay;
+      },
+      sendMessages: (options) => baseTransport.sendMessages(options),
+      reconnectToStream: async (options) => {
+        const current = reconnectGuardRef.current;
+        if (current?.kind === "cancel" && !current.consumed) {
+          current.consumed = true;
+          return null;
+        }
+        const token = { kind: "reconnect" as const };
+        reconnectGuardRef.current = token;
+        try {
+          const stream = await baseTransport.reconnectToStream(options);
+          if (reconnectGuardRef.current !== token) {
+            await stream?.cancel().catch(() => {});
+            return null;
+          }
+          return stream;
+        } catch (error) {
+          if (reconnectGuardRef.current !== token) {
+            return null;
+          }
+          throw error;
+        } finally {
+          if (reconnectGuardRef.current === token) {
+            reconnectGuardRef.current = null;
+          }
+        }
+      },
+    };
+  }, []);
 
   const {
     messages,
@@ -595,6 +639,28 @@ export function useCoworkerDirectRoomStream({
     failure,
   ]);
 
+  const startTurnAfterPendingReconnect = useCallback(
+    (targetRoomId: string, startTurn: () => void) => {
+      if (reconnectGuardRef.current === null) {
+        startTurn();
+        return;
+      }
+      const cancelToken = { kind: "cancel" as const, consumed: false };
+      reconnectGuardRef.current = cancelToken;
+      void resumeStream().then(() => {
+        if (
+          reconnectGuardRef.current !== cancelToken ||
+          roomIdRef.current !== targetRoomId
+        ) {
+          return;
+        }
+        reconnectGuardRef.current = null;
+        startTurn();
+      });
+    },
+    [resumeStream],
+  );
+
   const sendStreamMessage = useCallback(
     (text: string, options?: CoworkerStreamSendOptions): boolean => {
       const trimmed = text.trim();
@@ -615,15 +681,17 @@ export function useCoworkerDirectRoomStream({
       setStreamParentMessageId(parentMessageId);
       writeStoredStreamParentMessageId(roomId, parentMessageId);
       const files = toCoworkerStreamFileParts(options?.files);
-      lastSendOptionsRef.current =
-        buildCoworkerStreamSendMessageOptions(options);
-      void sendMessage(
-        files.length > 0 ? { text: trimmed, files } : { text: trimmed },
-        lastSendOptionsRef.current,
-      );
+      const sendOptions = buildCoworkerStreamSendMessageOptions(options);
+      lastSendOptionsRef.current = sendOptions;
+      startTurnAfterPendingReconnect(roomId, () => {
+        void sendMessage(
+          files.length > 0 ? { text: trimmed, files } : { text: trimmed },
+          sendOptions,
+        );
+      });
       return true;
     },
-    [enabled, roomId, sendMessage, setMessages],
+    [enabled, roomId, sendMessage, setMessages, startTurnAfterPendingReconnect],
   );
 
   const retryFailedStreamMessage = useCallback(() => {
@@ -633,10 +701,18 @@ export function useCoworkerDirectRoomStream({
     failureRef.current = null;
     setFailure(null);
     writeStoredStreamParentMessageId(roomId, streamParentMessageId);
+    const retryOptions = lastSendOptionsRef.current;
     // Same last user message (id, text, files): Core dedupes it by
     // client_message_id and its room lock refuses a second live turn.
-    void regenerate(lastSendOptionsRef.current);
-  }, [regenerate, roomId, streamParentMessageId]);
+    startTurnAfterPendingReconnect(roomId, () => {
+      void regenerate(retryOptions);
+    });
+  }, [
+    regenerate,
+    roomId,
+    startTurnAfterPendingReconnect,
+    streamParentMessageId,
+  ]);
 
   return {
     streamOverlayMessages,
