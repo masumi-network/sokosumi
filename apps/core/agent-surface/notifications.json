@@ -1,3 +1,53 @@
 {
-  "backlog": "SOKD-370"
+  "operations": {
+    "GET /notifications": {
+      "cli": "notifications list",
+      "mcp": "notifications_list"
+    },
+    "GET /notifications/counts": {
+      "cli": "notifications counts",
+      "mcp": "notifications_counts"
+    },
+    "PATCH /notifications/{id}/read": {
+      "cli": "notifications read",
+      "mcp": "notifications_read"
+    },
+    "PATCH /notifications/{id}/unread": {
+      "cli": "notifications unread",
+      "mcp": "notifications_unread"
+    },
+    "PATCH /notifications/read": {
+      "cli": "notifications read-many",
+      "mcp": "notifications_read_many"
+    },
+    "PATCH /notifications/read-all": {
+      "cli": "notifications read-all",
+      "mcp": "notifications_read_all"
+    },
+    "GET /notifications/push-devices": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Machine caller: the browser's push settings list its own registrations."
+    },
+    "POST /notifications/push-devices/activations": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Machine caller: a browser activates its own push registration."
+    },
+    "PUT /notifications/push-devices/{id}/subscription": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Machine caller: a browser subscribes its own push registration."
+    },
+    "PATCH /notifications/push-devices/{id}/browser": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Machine caller: a browser records its own details on its push registration."
+    },
+    "DELETE /notifications/push-devices/{id}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Machine caller: a browser revokes its own push registration."
+    }
+  }
 }

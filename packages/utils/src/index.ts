@@ -181,6 +181,13 @@ export {
 } from "./cmo-competitor-week.js";
 export { withoutSokosumiLinks } from "./cmo-links.js";
 export {
+  CMO_PIECE_CREDITS,
+  CMO_PLAN_CREDITS,
+  CMO_PLAN_CREDITS_KEPT,
+  cmoMonthPieceBudget,
+  cmoPieceCredits,
+} from "./cmo-month-credits.js";
+export {
   CMO_PLAIN_WORDS,
   cmoJargonIn,
   cmoPlainWordsLine,
@@ -189,11 +196,17 @@ export {
   CMO_NETWORK_VOLUME,
   CMO_SHORT_VIDEOS_PER_WEEK,
   CMO_VOLUME_LEVELS,
+  type CmoMonthTargets,
   type CmoMonthVolume,
   type CmoNetworkRate,
+  type CmoNetworkTarget,
+  type CmoTargetChannel,
   type CmoVolumeLevel,
   type CmoVolumeNetwork,
+  cmoCadencePerWeek,
   cmoMonthAtLevel,
+  cmoMonthFloor,
+  cmoMonthTargets,
   cmoNetworkMonth,
   cmoVolumeLevelForTier,
 } from "./cmo-plan-volume.js";
@@ -578,6 +591,7 @@ export {
   seoStatisticsQueryRowsCutNote,
 } from "./seo-statistics-notes.js";
 export {
+  hideSeoAuditRequest,
   removeSeoTaskRequest,
   type SeoTaskMarker,
   seoTaskDescription,

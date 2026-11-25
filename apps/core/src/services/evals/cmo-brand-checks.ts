@@ -7,8 +7,10 @@ import { CMO_CHANNELS } from "@sokosumi/utils";
 import { parseBrandBrain } from "@/services/brand-brain.service";
 import {
   CMO_LIVE_NETWORKS,
+  cmoExampleProblems,
   cmoFunnelPlanProblems,
   cmoLeftOutProblems,
+  cmoMonthByCore,
   cmoPlanProblems,
   cmoPlanRuleProblems,
   cmoTopVolumeProblems,
@@ -146,6 +148,26 @@ export function strategyChecks(
   if (brand.focus && brand.focus !== "claims")
     checks.push(focusCheck(brand.focus, strategy, options));
   if (options.everyNetwork) checks.push(firstStrategyAdsCheck(strategy));
+  // cmo-v22: the strategy shows a few examples; Core writes the month.
+  if (options.examplesOnly) {
+    const problems = cmoExampleProblems(strategy, options);
+    const examples = strategy.calendar.filter(
+      (entry) => entry.status !== "skipped",
+    );
+    checks.push({
+      label: "Shows 3 to 5 example posts on its pillars, and no month",
+      pass: strategy.monthWriter?.state === "examples" && problems.length === 0,
+      actual:
+        strategy.monthWriter?.state !== "examples"
+          ? `no examples shape; ${examples.length} pieces`
+          : problems.join(" · ") ||
+            examples
+              .map(
+                (entry) => `${entry.channel}/${entry.format} · ${entry.pillar}`,
+              )
+              .join(", "),
+    });
+  }
   // The claims case is scored on its claims; every other strategy case
   // holds the plan to the skill's rules.
   if (brand.focus === "claims") return { strategy, checks };
@@ -241,15 +263,18 @@ function focusCheck(
           )[entry.channel]?.formats[entry.format]?.video,
         )
       : entry.format === "talking_video";
+  // cmo-v22: Core's month always carries the short videos of a planned network.
+  const byCore = cmoMonthByCore(strategy);
   const missing = ["youtube", "tiktok"].filter(
     (network) =>
       !strategy.channels.some((channel) => channel.channel === network) ||
-      !strategy.calendar.some(
-        (entry) =>
-          video(entry) &&
-          entry.status !== "skipped" &&
-          (entry.channel === network || entry.alsoOn?.includes(network)),
-      ),
+      (!byCore &&
+        !strategy.calendar.some(
+          (entry) =>
+            video(entry) &&
+            entry.status !== "skipped" &&
+            (entry.channel === network || entry.alsoOn?.includes(network)),
+        )),
   );
   return {
     label: "Plans YouTube and TikTok with the month's videos",

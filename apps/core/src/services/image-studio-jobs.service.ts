@@ -33,6 +33,7 @@ import {
   createTaskEventTransaction,
   isInsufficientBalanceError,
 } from "@/helpers/task-credits";
+import { DATA_ROOM_PEOPLE_KINDS } from "@/lib/data-room-visibility";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { driveHead, driveReadUrl } from "@/lib/drive-blob";
@@ -1023,7 +1024,7 @@ export async function createImageJob(input: CreateImageJobInput) {
 
   if (
     input.useProductCutout &&
-    (input.referenceFileActor?.kind !== "interactive" ||
+    (!isUserFileActor(input.referenceFileActor) ||
       input.referenceFileIds?.length !== 1 ||
       input.referenceAssetIds.length !== 0 ||
       input.parentAssetId !== null)
@@ -1120,7 +1121,7 @@ export async function createImageJob(input: CreateImageJobInput) {
     reuseParentCutout:
       (lettering !== "ideogram" || startsLettering) &&
       input.reuseParentCutout &&
-      input.referenceFileActor?.kind === "interactive" &&
+      isUserFileActor(input.referenceFileActor) &&
       !input.referenceFileIds?.length &&
       refinesSingleSource,
     kind,
@@ -1897,6 +1898,15 @@ async function storeTalkingVideoSitePage(job: {
   } catch {
     return null;
   }
+}
+
+/**
+ * A person's own credential: a session, an API key or an OAuth token
+ * (ADR 0077). Only these may cut a product out of a Drive photo; a Soko Bot
+ * may not.
+ */
+function isUserFileActor(actor: FileActor | undefined): boolean {
+  return actor !== undefined && DATA_ROOM_PEOPLE_KINDS.includes(actor.kind);
 }
 
 /**

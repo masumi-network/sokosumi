@@ -22,7 +22,12 @@ import {
 } from "./scoped-queries";
 
 function createTestClient() {
-  return new QueryClient();
+  return new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  });
 }
 
 function renderWithClient(ui: ReactNode, client: QueryClient) {

@@ -4,12 +4,12 @@ Create, list, update, and delete API keys programmatically. No get endpoint exis
 
 ## SDK Methods
 
-| Operation | Node.js | Python |
-|-----------|---------|--------|
-| Create | `resend.apiKeys.create(params)` | `resend.ApiKeys.create(params)` |
-| List | `resend.apiKeys.list(params?)` | `resend.ApiKeys.list()` |
-| Update | `resend.apiKeys.update(id, params)` | `resend.ApiKeys.update(params)` |
-| Delete | `resend.apiKeys.remove(id)` | `resend.ApiKeys.remove(id)` |
+| Operation | Node.js                             | Python                          |
+| --------- | ----------------------------------- | ------------------------------- |
+| Create    | `resend.apiKeys.create(params)`     | `resend.ApiKeys.create(params)` |
+| List      | `resend.apiKeys.list(params?)`      | `resend.ApiKeys.list()`         |
+| Update    | `resend.apiKeys.update(id, params)` | `resend.ApiKeys.update(params)` |
+| Delete    | `resend.apiKeys.remove(id)`         | `resend.ApiKeys.remove(id)`     |
 
 ## Create Parameters
 
@@ -95,23 +95,23 @@ resend.ApiKeys.remove("api_key_id")
 
 ## Common Mistakes
 
-| Mistake | Fix |
-|---------|-----|
-| Not storing the token on create | The token is returned **once** — store it immediately |
-| Expecting a get endpoint | Doesn't exist — list returns metadata only (no tokens) |
+| Mistake                                     | Fix                                                           |
+| ------------------------------------------- | ------------------------------------------------------------- |
+| Not storing the token on create             | The token is returned **once** — store it immediately         |
+| Expecting a get endpoint                    | Doesn't exist — list returns metadata only (no tokens)        |
 | Trying to update `permission` or `domainId` | Only `name` can be patched — recreate the key to change scope |
-| Setting `domainId` with `full_access` | `domainId` only applies to `sending_access` keys |
-| Calling `.delete()` instead of `.remove()` | Node.js SDK uses `.remove()` for all delete operations |
-| Ignoring `error` return | Node.js SDK returns `{ data, error }` — always check `error` |
-| Name over 50 characters | `name` has a 50-character limit |
+| Setting `domainId` with `full_access`       | `domainId` only applies to `sending_access` keys              |
+| Calling `.delete()` instead of `.remove()`  | Node.js SDK uses `.remove()` for all delete operations        |
+| Ignoring `error` return                     | Node.js SDK returns `{ data, error }` — always check `error`  |
+| Name over 50 characters                     | `name` has a 50-character limit                               |
 
 ## Response Fields
 
 List returns metadata for each key:
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | API key ID |
-| `name` | string | Display name |
-| `created_at` | string | Creation timestamp |
+| Field          | Type           | Description                                     |
+| -------------- | -------------- | ----------------------------------------------- |
+| `id`           | string         | API key ID                                      |
+| `name`         | string         | Display name                                    |
+| `created_at`   | string         | Creation timestamp                              |
 | `last_used_at` | string \| null | Last time the key was used (null if never used) |

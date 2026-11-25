@@ -50,7 +50,10 @@ function setPage(pathname: string, search: string) {
 
 function renderWithClient(ui: () => ReactNode) {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   const tree = () => (
     <QueryClientProvider client={client}>{ui()}</QueryClientProvider>

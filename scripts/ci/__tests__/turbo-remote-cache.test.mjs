@@ -126,7 +126,7 @@ describe("GitHub OIDC remote cache wiring", () => {
     const test = await readRepoFile(".github", "workflows", "ci.yml");
     assert.match(
       jobBlock(test, "web"),
-      /turbo run test:ci --filter=web --filter=cmo\n/,
+      /turbo run test:ci --filter=web --filter=cmo --filter=@sokosumi\/mcp-ui\n/,
     );
     assert.match(
       jobBlock(test, "core"),
@@ -519,7 +519,7 @@ describe("Vercel web turbo build command", () => {
   });
 
   it("gates each app's build on its own turbo package", async () => {
-    for (const app of ["web", "core", "cmo"]) {
+    for (const app of ["web", "core", "cmo", "cmo-website"]) {
       const config = JSON.parse(await readRepoFile("apps", app, "vercel.json"));
       const { name } = JSON.parse(
         await readRepoFile("apps", app, "package.json"),
@@ -565,12 +565,13 @@ describe("Vercel web turbo build command", () => {
     );
     await writeFile(
       path.join(fixture, "pnpm-lock.yaml"),
-      "lockfileVersion: '9.0'\nimporters:\n  .: {}\n  apps/web: {}\n  apps/core: {}\n  apps/cmo: {}\n",
+      "lockfileVersion: '9.0'\nimporters:\n  .: {}\n  apps/web: {}\n  apps/core: {}\n  apps/cmo: {}\n  apps/cmo-website: {}\n",
     );
     for (const [app, name] of [
       ["web", "web"],
       ["core", "@sokosumi/core"],
       ["cmo", "cmo"],
+      ["cmo-website", "cmo-website"],
     ]) {
       await mkdir(path.join(fixture, "apps", app), { recursive: true });
       await writeFile(
@@ -601,7 +602,7 @@ describe("Vercel web turbo build command", () => {
       await writeFile(path.join(fixture, file), content);
       git("add", "-f", file);
       git("commit", "-qm", `change ${file}`);
-      for (const name of ["web", "@sokosumi/core", "cmo"]) {
+      for (const name of ["web", "@sokosumi/core", "cmo", "cmo-website"]) {
         const result = spawnSync(
           path.join(repoRoot, "node_modules/.bin/turbo"),
           [

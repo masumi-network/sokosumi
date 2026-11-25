@@ -1,7 +1,11 @@
 "use client";
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
-import { cmoMonthAtLevel, cmoVolumeLevelForTier } from "@sokosumi/utils";
+import {
+  cmoMonthAtLevel,
+  cmoMonthFloor,
+  cmoVolumeLevelForTier,
+} from "@sokosumi/utils";
 import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { channelLabel } from "../../lib/calendar";
@@ -64,7 +68,7 @@ const QUOTE = {
   text: "CMO.xyz complements and connects our established agency offerings. Agentic services enable interaction, and with it the thread that ties together all of our AI applications and services.",
   name: "Florian Haller",
   role: "CEO, Serviceplan Group",
-  initials: "FH",
+  photo: "/florian-haller.webp",
 };
 
 /** A plan's monthly credits, in plain words. */
@@ -78,6 +82,10 @@ function creditsLine(credits: number): string {
  * volume, and each plan makes its share of it (Core makes the same).
  */
 function planPosts(strategy: Strategy, tier: string): number {
+  // cmo-v22: Core writes the month after payment, so each plan promises
+  // its floor, from the strategy's networks alone.
+  if (strategy.monthWriter)
+    return cmoMonthFloor(strategy.channels, cmoVolumeLevelForTier(tier)).total;
   const { made } = cmoMonthAtLevel(
     strategy.calendar,
     cmoVolumeLevelForTier(tier),
@@ -86,7 +94,8 @@ function planPosts(strategy: Strategy, tier: string): number {
 }
 
 /** What a plan makes of the month, in one plain line. */
-function postsLine(posts: number, most: number): string {
+function postsLine(posts: number, most: number, floor: boolean): string {
+  if (floor) return `At least ${posts} posts a month`;
   if (posts >= most) return `All ${posts} posts a month`;
   const about = posts >= 20 ? Math.round(posts / 10) * 10 : posts;
   return `About ${about} posts a month`;
@@ -159,6 +168,11 @@ function yearlySaving(plans: CmoSubscriptionPlan[]): number {
 
 /** The networks the approved month posts on; ads are not a network here. */
 function strategyNetworks(strategy: Strategy | null): string[] {
+  // cmo-v22: the calendar holds a few examples; the plan's networks are its own.
+  if (strategy?.monthWriter)
+    return NETWORKS.filter((network) =>
+      strategy.channels.some((entry) => channelKey(entry.channel) === network),
+    );
   const live = strategy?.calendar.filter((entry) => entry.status !== "skipped");
   if (!live?.length) return NETWORKS;
   return [
@@ -242,7 +256,9 @@ export function CheckoutStep({
       : [],
   );
   const most = Math.max(0, ...makes.values());
-  // The smallest plan that makes the whole strategy.
+  // The smallest plan that makes the whole strategy. A cmo-v22 strategy has
+  // no whole month yet, only floors: the top one is picked, never named so.
+  const floors = Boolean(planned?.monthWriter);
   const whole = planned
     ? offered.find((plan) => makes.get(plan.tier) === most)?.tier
     : undefined;
@@ -340,7 +356,7 @@ export function CheckoutStep({
                   }
                   onClick={() => setPicked(plan.tier)}
                 >
-                  {plan.tier === whole && offered.length > 1 ? (
+                  {plan.tier === whole && offered.length > 1 && !floors ? (
                     <span className="ob-plan-fit">Makes all of it</span>
                   ) : null}
                   <span className="ob-plan-name">{tierName(plan.tier)}</span>
@@ -382,7 +398,9 @@ export function CheckoutStep({
                       : "Billed monthly"}
                   </span>
                   {posts !== undefined ? (
-                    <span className="ob-small">{postsLine(posts, most)}</span>
+                    <span className="ob-small">
+                      {postsLine(posts, most, floors)}
+                    </span>
                   ) : PLAN_LINES[place] ? (
                     <span className="ob-small">{PLAN_LINES[place]}</span>
                   ) : null}
@@ -413,9 +431,13 @@ export function CheckoutStep({
           <figure className="ob-quote">
             <blockquote>“{QUOTE.text}”</blockquote>
             <figcaption>
-              <span className="ob-quote-avatar" aria-hidden="true">
-                {QUOTE.initials}
-              </span>
+              <img
+                className="ob-quote-avatar"
+                src={QUOTE.photo}
+                alt={QUOTE.name}
+                width={40}
+                height={40}
+              />
               <span>
                 <span className="ob-quote-name">{QUOTE.name}</span>
                 <span className="muted">{QUOTE.role}</span>

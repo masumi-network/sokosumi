@@ -154,7 +154,9 @@ describe("getChatRoomThreadAggregates", () => {
     // (Postgres 42803 / SOKOSUMI-CORE-32).
     expect(sql).toContain('SELECT MAX(r."createdAt")');
     expect(sql).toContain('SELECT p."createdAt"');
-    expect(sql).not.toMatch(/LEFT JOIN "chat_room_message" r[\s\S]*GROUP BY/i);
+    expect(sql).not.toMatch(
+      /LEFT JOIN (?:"public"\.)?"chat_room_message" r[\s\S]*GROUP BY/i,
+    );
     expect(sql).not.toContain(
       'MAX(r."createdAt") FILTER (WHERE r."deletedAt" IS NULL)',
     );
@@ -342,7 +344,7 @@ describe("thread mute gate", () => {
     const [sql] = await sqlOf(run);
 
     expect(sql).toMatch(
-      /OR EXISTS \(\s*SELECT 1\s*FROM "chat_room_user_mention" reply_mention/,
+      /OR EXISTS \(\s*SELECT 1\s*FROM "public"."chat_room_user_mention" reply_mention/,
     );
     expect(sql).toContain('reply_mention."messageId" = reply.id');
   });

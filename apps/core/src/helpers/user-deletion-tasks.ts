@@ -7,6 +7,7 @@ import {
   TaskX402PaymentStatus,
 } from "@sokosumi/database";
 import type { createPrismaClient } from "@sokosumi/database/client";
+import { netTable, sharedTable } from "@sokosumi/database/sql-tables";
 import { APIError } from "better-auth/api";
 
 import {
@@ -145,7 +146,7 @@ export async function prepareTasksForUserDeletion(
         // child and fall into a late foreign-key failure instead.
         await tx.$queryRaw`
           SELECT "id"
-          FROM "user"
+          FROM ${sharedTable("user")}
           WHERE "id" = ${userId}
           FOR UPDATE
         `;
@@ -153,25 +154,25 @@ export async function prepareTasksForUserDeletion(
           Array<{ id: string; userId: string | null }>
         >`
           SELECT workspace.id, workspace."userId"
-          FROM "workspace" AS workspace
+          FROM ${sharedTable("workspace")} AS workspace
           WHERE workspace.id IN (
-            SELECT id FROM "workspace" WHERE "userId" = ${userId}
+            SELECT id FROM ${sharedTable("workspace")} WHERE "userId" = ${userId}
             UNION
-            SELECT "workspaceId" FROM "task" WHERE "ownerId" = ${userId}
+            SELECT "workspaceId" FROM ${sharedTable("task")} WHERE "ownerId" = ${userId}
           )
           ORDER BY workspace.id ASC
           FOR UPDATE OF workspace
         `;
         await tx.$queryRaw`
           SELECT project.id
-          FROM "project" AS project
+          FROM ${sharedTable("project")} AS project
           WHERE project.id IN (
             SELECT workspace_project.id
-            FROM "project" AS workspace_project
-            JOIN "workspace" ON workspace.id = workspace_project."workspaceId"
+            FROM ${sharedTable("project")} AS workspace_project
+            JOIN ${sharedTable("workspace")} ON workspace.id = workspace_project."workspaceId"
             WHERE workspace."userId" = ${userId}
             UNION
-            SELECT "projectId" FROM "task" WHERE "ownerId" = ${userId}
+            SELECT "projectId" FROM ${sharedTable("task")} WHERE "ownerId" = ${userId}
           )
           ORDER BY project.id ASC
           FOR UPDATE OF project
@@ -194,7 +195,7 @@ export async function prepareTasksForUserDeletion(
 
         await tx.$queryRaw`
           SELECT "id"
-          FROM "task"
+          FROM ${sharedTable("task")}
           WHERE "ownerId" = ${userId}
           ORDER BY id ASC
           FOR UPDATE
@@ -215,23 +216,23 @@ export async function prepareTasksForUserDeletion(
         // locks, exactly like FOR UPDATE OF payment did on the join.
         await tx.$queryRaw`
           SELECT payment."id"
-          FROM "task_x402_payment" AS payment
+          FROM ${netTable("mainnet", "task_x402_payment")} AS payment
           WHERE payment."id" IN (
             SELECT charge_payment."id"
-            FROM "task_x402_payment" AS charge_payment
-            INNER JOIN "Transaction" AS charge
+            FROM ${netTable("mainnet", "task_x402_payment")} AS charge_payment
+            INNER JOIN ${netTable("mainnet", "Transaction")} AS charge
               ON charge."id" = charge_payment."transactionId"
             WHERE charge."userId" = ${userId}
             UNION
             SELECT refund_payment."id"
-            FROM "task_x402_payment" AS refund_payment
-            INNER JOIN "Transaction" AS refund
+            FROM ${netTable("mainnet", "task_x402_payment")} AS refund_payment
+            INNER JOIN ${netTable("mainnet", "Transaction")} AS refund
               ON refund."id" = refund_payment."refundTransactionId"
             WHERE refund."userId" = ${userId}
             UNION
             SELECT task_payment."id"
-            FROM "task_x402_payment" AS task_payment
-            INNER JOIN "task" AS payment_task
+            FROM ${netTable("mainnet", "task_x402_payment")} AS task_payment
+            INNER JOIN ${sharedTable("task")} AS payment_task
               ON payment_task."id" = task_payment."taskId"
             WHERE payment_task."ownerId" = ${userId}
           )

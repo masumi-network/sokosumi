@@ -3,7 +3,6 @@
 import type { AgentExampleOutput } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
 
 import ExampleDetailThumbnail from "./example-detail-thumbnail";
 
@@ -33,20 +32,4 @@ function AgentDetailExamples({
   );
 }
 
-function AgentDetailExamplesSkeleton() {
-  return (
-    <div className="border-border w-full space-y-2 rounded-lg border px-4 py-4">
-      <Skeleton className="h-4 w-12" />
-      <ScrollArea className="h-60 w-full">
-        <div className="flex h-full gap-2">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="size-60" />
-          ))}
-        </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
-    </div>
-  );
-}
-
-export { AgentDetailExamples, AgentDetailExamplesSkeleton };
+export { AgentDetailExamples };

@@ -616,6 +616,59 @@ describe("updateGoogleCampaign", () => {
     expect(deleteSessionMock).toHaveBeenCalled();
   });
 
+  describe("onlyWhilePaused", () => {
+    const withStatus = (status: string) =>
+      lookup({
+        campaign: {
+          id: "42",
+          campaignBudget: "customers/111/campaignBudgets/7",
+          status,
+        },
+      });
+
+    it("reads the campaign's status", async () => {
+      await updateGoogleCampaign({ ...update, status: "PAUSED" });
+      const [first] = executeToolMock.mock.calls[0] ?? [];
+      expect(first.arguments.query).toMatch(/campaign\.status,/);
+    });
+
+    it.each(["ENABLED", undefined])(
+      "returns 409 without any write for a campaign with status %s",
+      async (status) => {
+        executeToolMock.mockResolvedValue(
+          status ? withStatus(status) : lookup(),
+        );
+        await expect(
+          updateGoogleCampaign({
+            ...update,
+            dailyBudget: 9,
+            onlyWhilePaused: true,
+          }),
+        ).rejects.toMatchObject({
+          status: 409,
+          message: "An agent changes a campaign only while it is paused",
+        });
+        expect(writes()).toEqual([]);
+      },
+    );
+
+    it("changes the budget of a paused campaign", async () => {
+      executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
+        call.toolSlug === "GOOGLEADS_SEARCH_STREAM_GAQL"
+          ? withStatus("PAUSED")
+          : mutated,
+      );
+      await updateGoogleCampaign({
+        ...update,
+        dailyBudget: 9,
+        onlyWhilePaused: true,
+      });
+      expect(writes().map((call) => call.toolSlug)).toEqual([
+        "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS",
+      ]);
+    });
+  });
+
   it("returns 409 without any write for a shared budget", async () => {
     executeToolMock.mockResolvedValue(
       lookup({
@@ -2994,6 +3047,26 @@ describe("editGoogleCampaign", () => {
         status: 409,
         message: "Campaign can't be edited here",
       });
+    });
+
+    it("returns 409 for an agent's edit of a campaign that is not paused", async () => {
+      await refused(
+        { ...edit, name: "New name", onlyWhilePaused: true },
+        {
+          status: 409,
+          message: "An agent changes a campaign only while it is paused",
+        },
+      );
+    });
+
+    it("edits a paused campaign for an agent", async () => {
+      mockResults({ campaign: [campaignRow({ status: "PAUSED" })] }, applied);
+      await editGoogleCampaign({
+        ...edit,
+        name: "New name",
+        onlyWhilePaused: true,
+      });
+      expect(batches()).toHaveLength(1);
     });
 
     it("returns 404 for an unknown or removed campaign", async () => {

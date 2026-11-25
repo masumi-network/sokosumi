@@ -985,22 +985,6 @@ time {
   }
 }
 
-@utility agent-card-roll-up {
-  animation: var(--animate-roll-down);
-
-  &:hover {
-    animation: var(--animate-roll-up);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    animation: none;
-
-    &:hover {
-      animation: none;
-    }
-  }
-}
-
 @utility reasoning-text-shine {
   background: linear-gradient(
     90deg,

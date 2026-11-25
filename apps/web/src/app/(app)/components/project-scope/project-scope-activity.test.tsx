@@ -45,7 +45,12 @@ it("shows linked activity on shell routes and drops late data from the previous 
       .mockResolvedValueOnce(Response.json(response))
       .mockReturnValueOnce(next.promise),
   );
-  const client = new QueryClient();
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  });
   function wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={client}>

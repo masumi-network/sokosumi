@@ -625,6 +625,7 @@ When implementing or reviewing UI in this app, load and follow these app-scoped 
 - [`.agents/skills/explain-interface/`](.agents/skills/explain-interface/)
 - [`.agents/skills/variant/`](.agents/skills/variant/)
 - [`.agents/skills/break/`](.agents/skills/break/)
+- [`modern-web-guidance`](../../.agents/skills/modern-web-guidance/) (root skill) – run its `search` first for any HTML, CSS, or client-side platform API (dialogs, popovers, forms, view transitions, CWV); the `better-*` skills above judge the design, this one picks the current platform feature
 
 ## Additional Rules
 

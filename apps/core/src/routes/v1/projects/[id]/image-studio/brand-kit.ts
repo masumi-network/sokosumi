@@ -13,10 +13,7 @@ import {
   readStudioWebsiteCopy,
   saveStudioBrandLook,
 } from "@/lib/image-studio/studio-brand";
-import {
-  requireInteractiveUserAuthContext,
-  requireUserAuthContext,
-} from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { imageStudioProjectParamsSchema } from "@/schemas/project-image-studio.schema";
 import {
@@ -179,7 +176,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
   });
 
   app.openapi(websiteResearchRoute, async (c) => {
-    const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
+    const { userId } = requireUserAuthContext(c.var.authContext);
     const { workspaceId } = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
     await requireProjectAccess({ userId, workspaceId, projectId });
@@ -187,7 +184,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
   });
 
   app.openapi(putRoute, async (c) => {
-    const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
+    const { userId } = requireUserAuthContext(c.var.authContext);
     const { workspaceId } = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
     await requireProjectAccess({ userId, workspaceId, projectId });
@@ -198,7 +195,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
   });
 
   app.openapi(lookRoute, async (c) => {
-    const { userId } = requireInteractiveUserAuthContext(c.var.authContext);
+    const { userId } = requireUserAuthContext(c.var.authContext);
     const { workspaceId } = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
     await requireProjectAccess({ userId, workspaceId, projectId });

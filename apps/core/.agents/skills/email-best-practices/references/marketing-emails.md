@@ -13,11 +13,13 @@ Promotional emails that require explicit consent and provide value to recipients
 ### Explicit Opt-In
 
 **What counts:**
+
 - User checks unchecked box
 - User clicks "Subscribe" button
 - User completes form with clear subscription intent
 
 **What doesn't count:**
+
 - Pre-checked boxes
 - Opt-out model
 - Assumed consent from purchase
@@ -42,6 +44,7 @@ Benefits: Verifies deliverability, confirms intent, reduces complaints, required
 ## Unsubscribe Requirements
 
 **Must be:**
+
 - Prominent in every email
 - One-click (preferred)
 - Immediate (GDPR) or within 10 days (CAN-SPAM) (immediate preferred)

@@ -1152,6 +1152,7 @@ function RoomView({
       const threadParentId =
         threadParentMessageRef.current?.id ??
         readStoredStreamParentMessageId(roomId);
+      const threadGeneration = threadLoadGenerationRef.current;
       const [roomResult, threadResult] = await Promise.all([
         listRoomMessagesAction(roomId),
         threadParentId
@@ -1166,7 +1167,15 @@ function RoomView({
         return false;
       }
       setTranscript((current) => mergeRoomHeadPage(current, roomResult.value));
-      if (threadResult?.ok && threadParentId && !historicalThreadRef.current) {
+      const openThreadParentId = threadParentMessageRef.current?.id ?? null;
+      if (
+        threadResult?.ok &&
+        threadParentId &&
+        threadLoadGenerationRef.current === threadGeneration &&
+        (openThreadParentId === null ||
+          openThreadParentId === threadParentId) &&
+        !historicalThreadRef.current
+      ) {
         setThreadMessages((current) =>
           mergeRoomMessages(current, threadResult.value.messages),
         );
@@ -1802,7 +1811,7 @@ function RoomView({
     });
 
   const refreshFocusedRoomMessages = useCallback(
-    async (isCurrent: () => boolean) => {
+    async (isCurrent: () => boolean, signal?: AbortSignal) => {
       const roomId = selectedRoomIdRef.current;
       if (!roomId) {
         return;
@@ -1821,9 +1830,9 @@ function RoomView({
       const [result, threadResult] = await Promise.all([
         retained
           ? retained.refresh(isCurrent, noteUnreadDivider).then(() => null)
-          : fetchRoomMessages(roomId),
+          : fetchRoomMessages(roomId, null, { signal }),
         threadParentId
-          ? fetchRoomMessages(roomId, threadParentId)
+          ? fetchRoomMessages(roomId, threadParentId, { signal })
           : Promise.resolve(null),
       ]);
       if (!isCurrent() || selectedRoomIdRef.current !== roomId) {

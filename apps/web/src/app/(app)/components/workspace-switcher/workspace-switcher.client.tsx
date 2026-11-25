@@ -158,18 +158,12 @@ export function WorkspaceSwitcherProvider({
             id: null,
             role: null,
             memberCount: null,
-            name:
-              sessionUser.name ??
-              sessionUser.email ??
-              tOrganizationSwitcher("personalAccount"),
+            // The choice the person made at setup. Their own name stays on
+            // the account at the sidebar's foot, so it is not shown twice.
+            name: tIdentity("personalTitle"),
           }
         : null,
-    [
-      hasPersonalWorkspace,
-      sessionUser.email,
-      sessionUser.name,
-      tOrganizationSwitcher,
-    ],
+    [hasPersonalWorkspace, tIdentity],
   );
 
   const organizationWorkspaces = useMemo(

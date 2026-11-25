@@ -17,27 +17,28 @@ List teams
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument          | Description                                                                                                                       |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `[<org/project>]` | &lt;org&gt;/ (all), &lt;org&gt;/&lt;name&gt; or &lt;name&gt; (a project, else matching names), or a name glob (&lt;org&gt;/web-*) |
 
 **Flags:**
+
 - `-n, --limit <value> - Maximum number of teams to list - (default: "25")`
 - `-f, --fresh - Bypass cache, re-detect projects, and fetch fresh data`
 - `-c, --cursor <value> - Navigate pages: "next", "prev", "first" (or raw cursor string)`
 
 **JSON Fields** (use `--json --fields` to select specific fields):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Team ID |
-| `slug` | string | Team slug |
-| `name` | string | Team name |
-| `dateCreated` | string \| null | When the team was created (ISO 8601) |
-| `isMember` | boolean | Whether the requesting user is a member of the team |
-| `teamRole` | string \| null | The requesting user's role in the team |
-| `memberCount` | number | Number of members in the team |
-| `orgSlug` | string | Organization slug |
+| Field         | Type           | Description                                         |
+| ------------- | -------------- | --------------------------------------------------- |
+| `id`          | string         | Team ID                                             |
+| `slug`        | string         | Team slug                                           |
+| `name`        | string         | Team name                                           |
+| `dateCreated` | string \| null | When the team was created (ISO 8601)                |
+| `isMember`    | boolean        | Whether the requesting user is a member of the team |
+| `teamRole`    | string \| null | The requesting user's role in the team              |
+| `memberCount` | number         | Number of members in the team                       |
+| `orgSlug`     | string         | Organization slug                                   |
 
 **Examples:**
 

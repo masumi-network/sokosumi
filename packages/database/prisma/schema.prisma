@@ -155,11 +155,13 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  dataTables          DataTable[]
-  contacts            Contact[]
-  contactLists        ContactList[]
-  contactCompanies    ContactCompany[]
-  contactCompanyLists ContactCompanyList[]
+  dataTables           DataTable[]
+  contacts             Contact[]
+  contactLists         ContactList[]
+  contactCompanies     ContactCompany[]
+  contactCompanyLists  ContactCompanyList[]
+  fundraisingProspects FundraisingProspect[]
+  fundraisingPortfolio FundraisingPortfolioCompany[]
 
   seoAudits            SeoAudit[]
   seoConnections       SeoConnection[]
@@ -2665,8 +2667,12 @@ model SokoBot {
   /// default: an assistant that only watches what it created misses most of
   /// what its owner is actually working on.
   followWholeBoard    Boolean   @default(true)
-  /// The owner put this bot in the organization's daily stand-up.
+  /// Unused: the old opt-in switch, superseded by `leftTeamStandupAt`. Kept
+  /// so a running deployment still reads it during a deploy; drop it later.
   joinsTeamStandup    Boolean   @default(false)
+  /// When a member took this bot out of the daily stand-up; null = it joins
+  /// (on by default, so every live bot speaks without a row written for it).
+  leftTeamStandupAt   DateTime?
   /// Kill switch for everything the bot starts on its own (rhythms, ingest, nudges).
   proactivePaused     Boolean   @default(false)
   /// Max self-started turns per local day; beyond it the syncs skip the bot.

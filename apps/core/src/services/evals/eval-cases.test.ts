@@ -32,7 +32,6 @@ const NOT_YET_COVERED = new Set([
   "delete_ad_campaign",
   "edit_ad_campaign",
   "enrich_contact",
-  "find_people",
   "log_contact_interaction",
   "merge_contacts",
   "update_ad_campaign",

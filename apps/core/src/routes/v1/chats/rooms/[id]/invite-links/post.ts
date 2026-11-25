@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-
 import { createRoute, z } from "@hono/zod-openapi";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { LIMITS } from "@/config/constants";
 import { toChatRoomGuestInviteLinkResponse } from "@/helpers/chat-room-guest-invite-link-response";
@@ -73,12 +73,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       // Serialize active-link counts and hourly creates against concurrent mints.
       await tx.$queryRaw`
-        SELECT "id" FROM "chat_room"
+        SELECT "id" FROM ${sharedTable("chat_room")}
         WHERE "id" = ${roomId}::uuid
         FOR UPDATE
       `;
       await tx.$queryRaw`
-        SELECT "id" FROM "user"
+        SELECT "id" FROM ${sharedTable("user")}
         WHERE "id" = ${userContext.userId}
         FOR UPDATE
       `;

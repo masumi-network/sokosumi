@@ -16,6 +16,7 @@ import { useMemo, useState } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { foldCopies, formatDay, planWeeks } from "../../lib/calendar";
 import { formatMedia } from "../../lib/channels";
+import { calendarIsExamples } from "../../lib/strategy";
 import { brandStyle, Section } from "../brand-profile";
 import { businessDisplayName } from "../business-mark";
 import { ChannelIcon } from "../channel-icon";
@@ -75,6 +76,8 @@ interface PlanPanelProps {
  */
 export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
   const stages = strategy.funnel ?? [];
+  // A few example posts say nothing about the month's shares yet.
+  const examples = calendarIsExamples(strategy);
   const mix = strategy.mix ?? [];
   const alternatives = strategy.alternatives ?? [];
   const [comparing, setComparing] = useState(false);
@@ -90,7 +93,10 @@ export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
           <p className="note">
             How strangers become customers. Every network helps at every step.
           </p>
-          <FunnelPlan stages={stages} calendar={strategy.calendar} />
+          <FunnelPlan
+            stages={stages}
+            calendar={examples ? [] : strategy.calendar}
+          />
         </Section>
       ) : null}
       {strategy.calendar.length > 0 ? (
@@ -117,6 +123,7 @@ export function PlanPanel({ overview, strategy, onAsk }: PlanPanelProps) {
           <Mix
             mix={mix}
             calendar={strategy.calendar}
+            planned={examples}
             business={businessDisplayName(overview)}
           />
           <Topics pillars={strategy.pillars} />
@@ -281,6 +288,7 @@ export function MonthPanel({
     return map;
   }, [cards]);
   const first = cards.slice(0, UP_FIRST);
+  const examples = calendarIsExamples(strategy);
   const [openDays, setOpenDays] = useState<ReadonlySet<string>>(new Set());
   const toggleDay = (day: string) =>
     setOpenDays((current) => {
@@ -290,7 +298,17 @@ export function MonthPanel({
     });
   return (
     <div className="ob-month">
-      {pending ? (
+      {examples ? (
+        <div className="ob-month-pending">
+          <Info size={16} aria-hidden="true" />
+          <p>
+            <b>These are example posts.</b>{" "}
+            {pending
+              ? "Once you subscribe, I plan every post your plan makes, topic by topic, and keep these in it."
+              : "I'm planning every post your plan makes, topic by topic. These stay in it."}
+          </p>
+        </div>
+      ) : pending ? (
         <div className="ob-month-pending">
           <Info size={16} aria-hidden="true" />
           <p>

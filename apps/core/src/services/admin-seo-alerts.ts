@@ -72,7 +72,7 @@ export async function listAdminSeoAlerts(
         (status NOT IN ('completed','failed') AND task_status = 'RUNNING' AND worker_failed
         AND settled_at <= (now() AT TIME ZONE 'UTC') - make_interval(mins => ${SEO_WORKER_DEADLINE_MINUTES}::int)) AS overdue
       FROM runs
-    ), ${seoBillingCtes}, priced_runs AS (
+    ), ${seoBillingCtes()}, priced_runs AS (
       SELECT p.*, b.cap AS "approvedMaxCredits", b.billing_status, b.cost, b.attempted_credits, b.charged_credits, b.data_budget, b.over_budget,
         coalesce(b.billing_status IN ('unverified', 'abandoned') OR b.over_budget, false) AS billing_attention
       FROM progress p LEFT JOIN billing_summary b USING(run)

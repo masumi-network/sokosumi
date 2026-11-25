@@ -4,6 +4,7 @@ import {
   type FileSourceKind,
 } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable, sharedType } from "@sokosumi/database/sql-tables";
 import {
   DRIVE_OWNER_PREFIX_PATTERN,
   normalizeFileResourceName,
@@ -81,7 +82,7 @@ const FINDABLE_LABEL_STATES = [
  * comparison written four times, and the defect it carried was in all four.
  */
 function findableLabelState(column: PrismaRaw.Sql): PrismaRaw.Sql {
-  return PrismaRaw.sql`${column} = ANY(${FINDABLE_LABEL_STATES.map(String)}::"FileMetadataState"[])`;
+  return PrismaRaw.sql`${column} = ANY(${FINDABLE_LABEL_STATES.map(String)}::${sharedType("FileMetadataState")}[])`;
 }
 
 /**
@@ -210,7 +211,7 @@ function buildFiltersSql(filters: FileSearchFilters): PrismaRaw.Sql {
 
   if (filters.extractionStates?.length) {
     clauses.push(PrismaRaw.sql`EXISTS (
-      SELECT 1 FROM file_version fv
+      SELECT 1 FROM ${sharedTable("file_version")} fv
       WHERE fv."resourceId" = fr.id
         AND fv.revision = fr."contentRevision"
         AND fv."extractionState"::text = ANY(${filters.extractionStates.map(String)})
@@ -226,7 +227,7 @@ function buildFiltersSql(filters: FileSearchFilters): PrismaRaw.Sql {
   // never advanced, so it could not. See the note in `evidence-scope.ts`.
   if (filters.categoryLabelIds?.length) {
     clauses.push(PrismaRaw.sql`EXISTS (
-      SELECT 1 FROM file_label fl
+      SELECT 1 FROM ${sharedTable("file_label")} fl
       WHERE fl."resourceId" = fr.id
         AND ${findableLabelState(PrismaRaw.sql`fl.state`)}
         AND fl."labelId"::text = ANY(${filters.categoryLabelIds})
@@ -237,14 +238,14 @@ function buildFiltersSql(filters: FileSearchFilters): PrismaRaw.Sql {
     const tagIds = filters.tagLabelIds;
     if (filters.tagMatch === "all") {
       clauses.push(PrismaRaw.sql`(
-        SELECT COUNT(DISTINCT fl."labelId") FROM file_label fl
+        SELECT COUNT(DISTINCT fl."labelId") FROM ${sharedTable("file_label")} fl
         WHERE fl."resourceId" = fr.id
           AND ${findableLabelState(PrismaRaw.sql`fl.state`)}
           AND fl."labelId"::text = ANY(${tagIds})
       ) = ${tagIds.length}`);
     } else {
       clauses.push(PrismaRaw.sql`EXISTS (
-        SELECT 1 FROM file_label fl
+        SELECT 1 FROM ${sharedTable("file_label")} fl
         WHERE fl."resourceId" = fr.id
           AND ${findableLabelState(PrismaRaw.sql`fl.state`)}
           AND fl."labelId"::text = ANY(${tagIds})
@@ -290,9 +291,9 @@ function buildFiltersSql(filters: FileSearchFilters): PrismaRaw.Sql {
 
   if (filters.projectIds?.length) {
     clauses.push(PrismaRaw.sql`EXISTS (
-      SELECT 1 FROM file_project_link fpl
+      SELECT 1 FROM ${sharedTable("file_project_link")} fpl
       WHERE fpl."resourceId" = fr.id
-        AND fpl.state = ${FileMetadataState.CONFIRMED}::"FileMetadataState"
+        AND fpl.state = ${FileMetadataState.CONFIRMED}::${sharedType("FileMetadataState")}
         AND fpl."projectId"::text = ANY(${filters.projectIds})
     )`);
   }
@@ -327,7 +328,8 @@ interface RawResourceRow {
   metadataConfirmed?: boolean;
 }
 
-const RESOURCE_COLUMNS = PrismaRaw.sql`
+function resourceColumns() {
+  return PrismaRaw.sql`
   fr.id,
   fr."lineageId",
   fr."displayName",
@@ -344,11 +346,14 @@ const RESOURCE_COLUMNS = PrismaRaw.sql`
   fv."extractionState",
   fv."extractionCoverage"
 `;
+}
 
-const CURRENT_VERSION_JOIN = PrismaRaw.sql`
-  LEFT JOIN file_version fv
+function currentVersionJoin() {
+  return PrismaRaw.sql`
+  LEFT JOIN ${sharedTable("file_version")} fv
     ON fv."resourceId" = fr.id AND fv.revision = fr."contentRevision"
 `;
+}
 
 function toCandidate(row: RawResourceRow): FileCandidate {
   return {
@@ -423,9 +428,9 @@ export async function retrieveFileCandidates(input: {
           : PrismaRaw.sql`fr."updatedAt" DESC, fr.id DESC`;
 
     const rows = await prisma.$queryRaw<RawResourceRow[]>(PrismaRaw.sql`
-      SELECT ${RESOURCE_COLUMNS}
-      FROM file_resource fr
-      ${CURRENT_VERSION_JOIN}
+      SELECT ${resourceColumns()}
+      FROM ${sharedTable("file_resource")} fr
+      ${currentVersionJoin()}
       WHERE ${authorized} AND ${filters}
       ORDER BY ${browseOrder}
       LIMIT ${RESULT_WINDOW_LIMIT + 1}
@@ -451,10 +456,10 @@ export async function retrieveFileCandidates(input: {
   const nameRows = await prisma.$queryRaw<
     (RawResourceRow & { exact: boolean })[]
   >(PrismaRaw.sql`
-    SELECT ${RESOURCE_COLUMNS},
+    SELECT ${resourceColumns()},
       (fr."normalizedName" = ${normalizedQuery}) AS exact
-    FROM file_resource fr
-    ${CURRENT_VERSION_JOIN}
+    FROM ${sharedTable("file_resource")} fr
+    ${currentVersionJoin()}
     WHERE ${authorized} AND ${filters}
       AND (
         fr."normalizedName" = ${normalizedQuery}
@@ -512,11 +517,11 @@ export async function retrieveFileCandidates(input: {
         ROW_NUMBER() OVER (
           PARTITION BY fr.id ORDER BY ts_rank(fc.search_vector, q.tsq) DESC, fc.ordinal ASC
         ) AS chunk_rank
-      FROM file_resource fr
-      JOIN file_version fv
+      FROM ${sharedTable("file_resource")} fr
+      JOIN ${sharedTable("file_version")} fv
         ON fv."resourceId" = fr.id AND fv.revision = fr."contentRevision"
-      JOIN file_chunk fc ON fc."versionId" = fv.id
-      JOIN file_evidence_scope fes
+      JOIN ${sharedTable("file_chunk")} fc ON fc."versionId" = fv.id
+      JOIN ${sharedTable("file_evidence_scope")} fes
         ON fes.id = fc."evidenceScopeId" AND fes."scopeVersion" = fc."scopeVersion"
       CROSS JOIN q
       WHERE ${authorized} AND ${filters}
@@ -554,14 +559,14 @@ export async function retrieveFileCandidates(input: {
       ORDER BY rank DESC, resource_id DESC
       LIMIT ${CANDIDATE_BUDGET_FTS_DOCUMENTS + 1}
     )
-    SELECT ${RESOURCE_COLUMNS},
+    SELECT ${resourceColumns()},
       best.rank AS "rank",
       best.chunk_id AS "chunkId",
       best.chunk_text AS "chunkText",
       best.chunk_anchor AS "chunkAnchor"
     FROM best
-    JOIN file_resource fr ON fr.id = best.resource_id
-    ${CURRENT_VERSION_JOIN}
+    JOIN ${sharedTable("file_resource")} fr ON fr.id = best.resource_id
+    ${currentVersionJoin()}
     -- The same clause as the cut above, because this order is the one the
     -- fusion below consumes. RRF scores by position, so every candidate
     -- gets a distinct fused score and the recency tiebreak in
@@ -588,8 +593,8 @@ export async function retrieveFileCandidates(input: {
    * how the flag and the match drift into disagreeing about the same row.
    */
   const labelNameMatch = (state: PrismaRaw.Sql) => PrismaRaw.sql`EXISTS (
-    SELECT 1 FROM file_label fl
-    JOIN workspace_label wl ON wl.id = fl."labelId"
+    SELECT 1 FROM ${sharedTable("file_label")} fl
+    JOIN ${sharedTable("workspace_label")} wl ON wl.id = fl."labelId"
     WHERE fl."resourceId" = fr.id
       AND ${state}
       AND wl."normalizedName" LIKE ${likeAnywhere} ESCAPE '\\'
@@ -604,21 +609,21 @@ export async function retrieveFileCandidates(input: {
    * promoter.
    */
   const projectNameMatch = PrismaRaw.sql`EXISTS (
-    SELECT 1 FROM file_project_link fpl
-    JOIN project p ON p.id = fpl."projectId"
+    SELECT 1 FROM ${sharedTable("file_project_link")} fpl
+    JOIN ${sharedTable("project")} p ON p.id = fpl."projectId"
     WHERE fpl."resourceId" = fr.id
-      AND fpl.state = ${FileMetadataState.CONFIRMED}::"FileMetadataState"
+      AND fpl.state = ${FileMetadataState.CONFIRMED}::${sharedType("FileMetadataState")}
       AND lower(p.name) LIKE ${likeAnywhere} ESCAPE '\\'
   )`;
 
   const metadataRows = await prisma.$queryRaw<RawResourceRow[]>(PrismaRaw.sql`
-    SELECT DISTINCT ${RESOURCE_COLUMNS},
+    SELECT DISTINCT ${resourceColumns()},
       (
-        ${labelNameMatch(PrismaRaw.sql`fl.state = ${FileMetadataState.CONFIRMED}::"FileMetadataState"`)}
+        ${labelNameMatch(PrismaRaw.sql`fl.state = ${FileMetadataState.CONFIRMED}::${sharedType("FileMetadataState")}`)}
         OR ${projectNameMatch}
       ) AS "metadataConfirmed"
-    FROM file_resource fr
-    ${CURRENT_VERSION_JOIN}
+    FROM ${sharedTable("file_resource")} fr
+    ${currentVersionJoin()}
     WHERE ${authorized} AND ${filters}
       AND (
         ${labelNameMatch(findableLabelState(PrismaRaw.sql`fl.state`))}

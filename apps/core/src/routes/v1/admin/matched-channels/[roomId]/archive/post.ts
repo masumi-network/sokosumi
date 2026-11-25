@@ -1,4 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -49,7 +50,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }>
       >`
         SELECT "id", "organizationId", "kind", "discoverability", "archivedAt"
-        FROM "chat_room"
+        FROM ${sharedTable("chat_room")}
         WHERE "id" = ${roomId}::uuid
         FOR UPDATE
       `;

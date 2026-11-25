@@ -74,7 +74,16 @@ function renderDialog(account: ProjectAdAccount) {
   const onClose = vi.fn();
   const user = userEvent.setup();
   render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: {
+            queries: { gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        })
+      }
+    >
       <NextIntlClientProvider locale="en" messages={messages}>
         <AdsNewCampaignDialog
           account={account}

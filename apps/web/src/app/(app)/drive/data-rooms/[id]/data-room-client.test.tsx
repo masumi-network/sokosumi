@@ -68,7 +68,12 @@ function Frame({ search, children }: { search: string; children: ReactNode }) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  });
   Element.prototype.scrollIntoView = vi.fn();
   api.fetchDataRoom.mockResolvedValue({
     room: {

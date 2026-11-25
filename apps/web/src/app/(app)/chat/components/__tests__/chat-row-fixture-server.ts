@@ -75,7 +75,8 @@ export async function startChatRowFixtureServer({
               export const setTaskWorkspaceTags = forbidden;
               export const loadTaskWorkspaceTags = forbidden;
               export const sendSokoBotTurnFeedbackAction = forbidden;
-              export const resolveSokoBotDecisionAction = forbidden;`;
+              export const resolveSokoBotDecisionAction = forbidden;
+              export const getSokoBotTurnConversationAction = forbidden;`;
           }
           if (id === "\0fixture-project-action") {
             return `export const selectChatProjectAction = () => {

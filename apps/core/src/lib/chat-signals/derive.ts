@@ -1,3 +1,4 @@
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   CHAT_SIGNAL_TAGS,
   type ChatSignalCorrection,
@@ -161,7 +162,7 @@ export function sqlChatSignalHasTag(alias: string, tag: ChatSignalTag): string {
   }
   return `COALESCE(
     (SELECT correction.applies
-     FROM "chat_message_signal_correction" correction
+     FROM ${sharedTable("chat_message_signal_correction").sql} correction
      WHERE correction."signalId" = ${alias}.id AND correction.tag = '${tag}'
      ORDER BY correction."updatedAt" DESC
      LIMIT 1),

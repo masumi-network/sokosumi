@@ -1,6 +1,7 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
+import { cmoMonthFloor } from "@sokosumi/utils";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 import { useScrollIntoViewWhen } from "../../hooks/effects/use-scroll-into-view-when";
@@ -13,6 +14,7 @@ import {
 } from "../../lib/calendar";
 import { channelInfo, channelKey } from "../../lib/channels";
 import { joinNames } from "../../lib/names";
+import { calendarIsExamples } from "../../lib/strategy";
 import type { AdActions } from "../ads";
 import { ChannelIcon } from "../channel-icon";
 import { cusoArt } from "../cuso";
@@ -166,6 +168,15 @@ export function LaunchStep({
     required.length > 0 && !required.some((key) => connected.has(key));
   const pieces = (key: string) =>
     calendar.filter((entry) => channelKey(entry.channel) === key).length;
+  // cmo-v22: until Core has written the month, each network says its floor.
+  const floor =
+    plan && calendarIsExamples(plan)
+      ? new Map<string, number>(
+          cmoMonthFloor(plan.channels, overview.production.level).byNetwork.map(
+            ({ network, posts }) => [network, posts],
+          ),
+        )
+      : null;
 
   function connect(key: string) {
     setPending(key);
@@ -304,7 +315,9 @@ export function LaunchStep({
                     <p className="ob-small muted">
                       {key === "seo"
                         ? "Page fixes and articles you paste into your site."
-                        : `${pieces(key)} of ${calendar.length} posts go here`}
+                        : floor
+                          ? `At least ${floor.get(key) ?? 0} posts a month go here`
+                          : `${pieces(key)} of ${calendar.length} posts go here`}
                     </p>
                   </div>
                   {key === "seo" ? (

@@ -1,4 +1,5 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import { seoFullAuditAutoPages } from "@sokosumi/utils";
 import {
   defaultFullAuditSeconds,
   type SeoAnalysisKind,
@@ -33,7 +34,7 @@ const newestAnalysis = (analyses: SeoAnalysis[]) =>
  * the page stops saying that it runs, and the reader can start the next. The longest check, a full audit, has a
  * time limit of 90 minutes.
  */
-const SEO_CHECK_STALE_MS = 3 * 60 * 60_000;
+export const SEO_CHECK_STALE_MS = 3 * 60 * 60_000;
 
 /** The newest check that Core accepted and has not finished, if it started less than three hours ago. */
 export function seoRunningCheck(
@@ -57,16 +58,20 @@ export function seoCheckBlocking(workspace: ProjectSeoWorkspace, now: Date) {
   return seoRunningCheck(workspace, now) !== null;
 }
 
-/** A full audit ends some minutes after its time limit: the last steps run after it. */
-const SEO_AFTER_LIMIT_SECONDS = 300;
+/**
+ * The time a full audit needs after its last page: the steps for the whole site, then the report files. Measured
+ * on the first audit that added pages (2026-11-22, 5 pages): the last page ended after 28 minutes, the Task after 48.
+ */
+const SEO_AFTER_PAGES_SECONDS = 1200;
 /** The bar never shows a full share: only the result says that the check is done. */
 const SEO_RUN_SHARE_MAX = 0.95;
 const MINUTE_MS = 60_000;
 
 /**
  * How far the check in flight is, as an estimate. Core reports no progress and no end time, so the usual time
- * is the middle time of the earlier runs of the same kind. A first full audit has none: its usual time is the
- * default time limit of its pages. Another first check has no usual time: no share and no time left.
+ * is the middle time of the earlier runs of the same kind. A full audit takes at least the time of its pages: the
+ * selected pages and the pages it adds. An earlier full audit can be shorter, because it added no page. A first
+ * check of another kind has no usual time: no share and no time left.
  */
 export function seoRunProgress(workspace: ProjectSeoWorkspace, now: Date) {
   const check = seoRunningCheck(workspace, now);
@@ -76,11 +81,16 @@ export function seoRunProgress(workspace: ProjectSeoWorkspace, now: Date) {
       run.kind === check.kind && run.seconds ? [run.seconds] : [],
     )
     .sort((a, b) => a - b);
-  const usualSeconds = earlier.length
+  const middle = earlier.length
     ? earlier[Math.floor((earlier.length - 1) / 2)]
-    : check.kind === "audit_full"
-      ? defaultFullAuditSeconds(check.pageIds.length) + SEO_AFTER_LIMIT_SECONDS
-      : null;
+    : 0;
+  const selected = check.pageIds.length;
+  const pagesSeconds =
+    check.kind === "audit_full"
+      ? defaultFullAuditSeconds(selected + seoFullAuditAutoPages(selected)) +
+        SEO_AFTER_PAGES_SECONDS
+      : 0;
+  const usualSeconds = Math.max(middle, pagesSeconds);
   if (!usualSeconds) return { share: null, minutesLeft: null, late: false };
   const usual = usualSeconds * 1000;
   // A clock that runs behind Core's gives a time before the start.
@@ -177,9 +187,13 @@ export function seoSetup(
     return null;
   const hasPages = workspace.scope.pageIds.length > 0;
   const running = seoCheckRunning(workspace);
-  // Google connection and an explicit skip remain available even while the check service is off.
-  const connection: SeoSetupState =
-    running || googleReady ? "done" : hasPages ? "next" : "waiting";
+  // Google connection and an explicit skip remain available even while the check service is off, and while the
+  // free check that starts with a new audit runs: that check is no Google choice.
+  const connection: SeoSetupState = googleReady
+    ? "done"
+    : hasPages
+      ? "next"
+      : "waiting";
   const check: SeoSetupState = running
     ? "running"
     : hasPages && connection === "done"

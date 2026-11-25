@@ -1,6 +1,12 @@
+import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
+import type { AuthenticationContext } from "@/middleware/auth";
+import { expectPersonApprovalRequired } from "@/test-fixtures/person-approval";
+
 import {
+  agentUserRouteAllowlistMiddleware,
   isAgentAllowedUserSubpath,
   isAgentSelfFilteringUserSubpath,
   userRouteSubpathAfterId,
@@ -70,5 +76,52 @@ describe("isAgentSelfFilteringUserSubpath", () => {
       ),
     ).toBe(false);
     expect(isAgentSelfFilteringUserSubpath("/organizations")).toBe(false);
+  });
+});
+
+describe("agentUserRouteAllowlistMiddleware", () => {
+  const coworker: AuthenticationContext = {
+    actor: "coworker",
+    coworkerId: "coworker_1",
+    vendorId: "vendor_1",
+    context: { userId: "user_123", organizationId: null },
+  };
+
+  function post(path: string) {
+    const users = new Hono();
+    users.use("*", agentUserRouteAllowlistMiddleware);
+    users.post("*", (c) => c.text("handled"));
+    const app = new Hono();
+    app.use("*", async (c, next) => {
+      c.set("authContext" as never, coworker as never);
+      await next();
+    });
+    app.route("/:id", users);
+    app.onError(errorHandler);
+    return app.request(`http://localhost/user_123${path}`, { method: "POST" });
+  }
+
+  // ADR 0077: an agent may ask; a person approves in Sokosumi.
+  it.each([
+    "/coworker-access/a1/approve",
+    "/vendor-grants",
+    "/vendor-grants/g1/approve",
+    "/vendor-grants/g1/approve/",
+  ])("sends an agent's POST %s to the account page", async (path) => {
+    await expectPersonApprovalRequired(
+      await post(path),
+      "https://example.com/account",
+    );
+  });
+
+  it.each([
+    "/coworker-access/a1/deny",
+    "/coworker-access/a1/revoke",
+    "/vendor-grants/g1/deny",
+    "/vendor-grants/g1/revoke",
+  ])("keeps the allowlist's 403 for %s", async (path) => {
+    const response = await post(path);
+    expect(response.status).toBe(403);
+    expect(await response.json()).not.toHaveProperty("kind");
   });
 });

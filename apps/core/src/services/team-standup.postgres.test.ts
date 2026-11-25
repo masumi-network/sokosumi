@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
+import { botFallbackMessage } from "@/lib/team-standup/standup-text";
 import { runTeamStandup } from "./team-standup.service";
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
@@ -48,27 +49,45 @@ async function organizationWith(name: string) {
   const vendor = await prisma.vendor.create({
     data: { name: "Standup test", slug: `standup-${suffix}` },
   });
-  const mira = await prisma.coworker.create({
-    data: {
-      name: "Mira",
-      slug: `mira-${suffix}`,
-      capabilities: ["tasks", "chat"],
-      vendorId: vendor.id,
-    },
-  });
+  const coworker = (who: string) =>
+    prisma.coworker.create({
+      data: {
+        name: who,
+        slug: `${who.toLowerCase()}-${suffix}`,
+        capabilities: ["tasks", "chat"],
+        vendorId: vendor.id,
+      },
+    });
+  const mira = await coworker("Mira");
+  const maya = await coworker("Maya");
+  // On by default: nobody switched Soko on.
   const bot = await prisma.sokoBot.create({
+    data: { userId: robin.id, workspaceId, name: "Soko" },
+    select: { id: true },
+  });
+  const left = await prisma.sokoBot.create({
     data: {
-      userId: robin.id,
+      userId: hannah.id,
       workspaceId,
-      name: "Soko",
-      joinsTeamStandup: true,
+      name: "Hal",
+      leftTeamStandupAt: new Date(),
     },
     select: { id: true },
   });
   const standup = await prisma.teamStandup.create({
     data: { organizationId: organization.id, enabled: true },
   });
-  return { robin, hannah, organization, workspaceId, mira, bot, standup };
+  return {
+    robin,
+    hannah,
+    organization,
+    workspaceId,
+    mira,
+    maya,
+    bot,
+    left,
+    standup,
+  };
 }
 
 describe.skipIf(!enabled)("team stand-up", () => {
@@ -81,6 +100,7 @@ describe.skipIf(!enabled)("team stand-up", () => {
     const outcome = await runTeamStandup({
       standupId: world.standup.id,
       scheduledFor: new Date(),
+      mayPost: async () => true,
       host: async () => {
         throw new Error("the host is not asked on a quiet day");
       },
@@ -96,21 +116,40 @@ describe.skipIf(!enabled)("team stand-up", () => {
     ).toBe(0);
   });
 
-  it("posts an opener, then each agent's own message, mentions the person a Task waits on, and opens the match's hand-off under the needing bot's message once", async () => {
+  it("posts an opener, then one message per bot that tells its person's Coworker work, mentions the person a Task waits on, and opens the match's hand-off under the bot's message once", async () => {
     const world = await organizationWith("Busy Co");
-    const task = (name: string, status: "RUNNING" | "INPUT_REQUIRED") =>
+    const task = (input: {
+      name: string;
+      status: "RUNNING" | "INPUT_REQUIRED" | "COMPLETED";
+      ownerId: string;
+      assigneeId: string;
+    }) =>
       prisma.task.create({
         data: {
-          name,
-          status,
+          ...input,
           workspaceId: world.workspaceId,
           organizationId: world.organization.id,
-          ownerId: world.robin.id,
-          assigneeId: world.mira.id,
         },
       });
-    await task("EU marketplace pricing research", "RUNNING");
-    await task("Competitor note on Langdock", "INPUT_REQUIRED");
+    await task({
+      name: "EU marketplace pricing research",
+      status: "RUNNING",
+      ownerId: world.robin.id,
+      assigneeId: world.mira.id,
+    });
+    await task({
+      name: "Competitor note on Langdock",
+      status: "INPUT_REQUIRED",
+      ownerId: world.robin.id,
+      assigneeId: world.mira.id,
+    });
+    // Hannah took her bot out: Maya's work for her goes in the opener.
+    await task({
+      name: "Content batch",
+      status: "COMPLETED",
+      ownerId: world.hannah.id,
+      assigneeId: world.maya.id,
+    });
     await prisma.task.create({
       data: {
         name: "Private salary review",
@@ -128,12 +167,13 @@ describe.skipIf(!enabled)("team stand-up", () => {
       runTeamStandup({
         standupId: world.standup.id,
         scheduledFor: slot,
+        mayPost: async () => true,
         dispatch: async (mentionId) => {
           dispatched.push(mentionId);
         },
         writeBot: async (record) => ({
-          text: `Nothing finished yet. Next: ${record.open.join(", ")}.`,
-          source: "own",
+          text: botFallbackMessage(record),
+          source: "record",
           costUsd: 0.001,
         }),
         shorten: async (titles) => ({
@@ -145,14 +185,12 @@ describe.skipIf(!enabled)("team stand-up", () => {
           ),
           costUsd: 0.001,
         }),
-        host: async ({ records }) => ({
+        host: async ({ coworkers }) => ({
           costUsd: 0.002,
           matches: [
             {
               needingAgentId: world.bot.id,
-              offeringAgentId:
-                records.find((record) => record.agent.kind === "coworker")
-                  ?.agent.id ?? "",
+              offeringAgentId: coworkers?.[0]?.id ?? "",
               need: "a DACH market study",
               offer: "is researching EU marketplace pricing",
               askedFor: "Could you share what you have on the DACH market?",
@@ -175,6 +213,7 @@ describe.skipIf(!enabled)("team stand-up", () => {
       where: { organizationId: world.organization.id },
       select: {
         name: true,
+        coworkerMembers: { select: { coworkerId: true } },
         messages: {
           where: { parentMessageId: null },
           orderBy: [{ createdAt: "asc" }, { id: "asc" }],
@@ -199,7 +238,7 @@ describe.skipIf(!enabled)("team stand-up", () => {
       },
     });
     expect(room.name).toBe("Stand-up");
-    const [opener, bot, mira, ...rest] = room.messages;
+    const [opener, bot, ...rest] = room.messages;
     expect(rest).toHaveLength(0);
     expect(opener).toMatchObject({
       id: outcome!.messageId,
@@ -207,22 +246,22 @@ describe.skipIf(!enabled)("team stand-up", () => {
       senderSokoBotId: null,
       senderCoworkerId: null,
     });
-    expect(opener!.content).toMatch(/^\*\*Stand-up · .+\*\*$/);
-    expect(bot).toMatchObject({
-      senderSokoBotId: world.bot.id,
-      content: "Nothing finished yet. Next: DACH market study.",
-    });
-    expect(mira!.senderCoworkerId).toBe(world.mira.id);
-    expect(mira!.content).toBe(
+    expect(opener!.content).toMatch(
+      /^\*\*Stand-up · .+\*\*\nAlso from Coworkers: Maya finished Content batch\.$/,
+    );
+    expect(bot!.senderSokoBotId).toBe(world.bot.id);
+    expect(bot!.content).toBe(
       [
-        "Working on: EU pricing research.",
-        `Waiting on @${world.robin.id}: Competitor note on Langdock.`,
+        "Open on Robin Keller's list, nobody has it yet: DACH market study.",
+        "Mira is on EU pricing research.",
+        `Mira waits on @${world.robin.id}: Competitor note on Langdock.`,
       ].join("\n"),
     );
-    expect(mira!.userMentionsAsSource).toEqual([{ userId: world.robin.id }]);
+    expect(bot!.userMentionsAsSource).toEqual([{ userId: world.robin.id }]);
     expect(
       room.messages.some((message) => message.content.includes("salary")),
     ).toBe(false);
+    expect(room.coworkerMembers).toEqual([{ coworkerId: world.mira.id }]);
     expect(bot!.replies).toHaveLength(1);
     expect(bot!.replies[0]).toMatchObject({
       senderSokoBotId: world.bot.id,

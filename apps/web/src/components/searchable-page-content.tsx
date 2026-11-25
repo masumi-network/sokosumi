@@ -81,7 +81,6 @@ interface ToolbarProps {
   lists: number;
   hits: number;
   partial: number;
-  focusOnMount?: boolean;
   /** Below md, out of sight until focused or holding a query: a page's own icon opens it. */
   collapsed?: boolean;
   heading?: ReactNode;
@@ -103,7 +102,6 @@ const SECTION_PATHS = [
 function SidebarSearchToolbar(props: ToolbarProps) {
   const pathname = useChromePathname();
   const params = useSearchParams();
-  const agentProfile = /^\/agents\/[^/]+$/.test(pathname);
   // A project's title row has the phone's Find icon (ProjectFindButton).
   const projectOverview = /^\/projects\/[^/]+$/.test(pathname);
   const newsletterDashboard =
@@ -116,18 +114,10 @@ function SidebarSearchToolbar(props: ToolbarProps) {
       (section) => pathname === section || pathname.startsWith(section + "/"),
     ) ||
     projectOverview ||
-    agentProfile ||
     newsletterDashboard;
   const key = JSON.stringify([pathname, params?.get("projectId")]);
   if (!scoped) return null;
-  return (
-    <SearchToolbar
-      key={key}
-      {...props}
-      focusOnMount={agentProfile}
-      collapsed={projectOverview}
-    />
-  );
+  return <SearchToolbar key={key} {...props} collapsed={projectOverview} />;
 }
 
 function SearchToolbar({
@@ -137,7 +127,6 @@ function SearchToolbar({
   lists,
   hits,
   partial,
-  focusOnMount,
   collapsed,
   heading,
   renderHeader,
@@ -150,8 +139,7 @@ function SearchToolbar({
   const controls = (
     <>
       <PageSearchField
-        inHeader={!focusOnMount}
-        focusOnMount={focusOnMount}
+        inHeader
         placeholder={t(lists ? "filter" : "find")}
         value={query}
         onValueChange={setQuery}
@@ -222,11 +210,7 @@ function SearchToolbar({
       )}
     >
       {heading}
-      {focusOnMount ? (
-        controls
-      ) : (
-        <PageSearchActions>{controls}</PageSearchActions>
-      )}
+      <PageSearchActions>{controls}</PageSearchActions>
     </div>
   );
 }

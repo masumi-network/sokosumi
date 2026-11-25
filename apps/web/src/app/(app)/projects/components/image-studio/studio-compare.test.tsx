@@ -67,7 +67,10 @@ const B: StudioAsset = {
 
 function mount(strict = false) {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   const onClose = vi.fn();
   const content = (
@@ -246,7 +249,16 @@ describe("batch comparisons", () => {
         );
       }
       render(
-        <QueryClientProvider client={new QueryClient()}>
+        <QueryClientProvider
+          client={
+            new QueryClient({
+              defaultOptions: {
+                queries: { gcTime: Number.POSITIVE_INFINITY },
+                mutations: { gcTime: Number.POSITIVE_INFINITY },
+              },
+            })
+          }
+        >
           <NextIntlClientProvider
             locale="en"
             messages={messages}
@@ -271,7 +283,12 @@ describe("batch comparisons", () => {
 
 describe("compare entry", () => {
   function mountLightbox() {
-    const client = new QueryClient();
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     const onCompare = vi.fn();
     render(
       <QueryClientProvider client={client}>

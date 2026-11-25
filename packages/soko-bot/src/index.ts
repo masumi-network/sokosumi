@@ -108,16 +108,21 @@ export {
   CMO_BRAND_ANSWERS,
   CMO_BRAND_SECTION_KEYS,
   CMO_CALENDAR_STATUSES,
+  CMO_MONTH_WRITER_STATES,
   type CmoBrandAnswer,
   type CmoBrandFinding,
   type CmoBrandProfile,
   type CmoBrandQuestion,
   type CmoBrandSectionKey,
   type CmoCalendarEntry,
+  type CmoMonthWriter,
   type CmoPillar,
   type CmoPlanQuestion,
   type CmoSearchAd,
   cmoBrandProfileSchema,
+  cmoCalendarAfterPayment,
+  cmoCalendarEntrySchema,
+  cmoMonthWriterSchema,
   cmoSearchAdSchema,
   type MarketingStrategyPlan,
   marketingStrategyPlanSchema,
@@ -273,6 +278,11 @@ export {
   CMO_V21_STRATEGY_SKILL,
   cmoReadsIndustry,
 } from "./versions/cmo-v21-skills.js";
+export {
+  CMO_STRATEGY_EXAMPLES,
+  CMO_V22_STRATEGY_SKILL,
+  cmoWritesExamplesOnly,
+} from "./versions/cmo-v22-skills.js";
 export {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,

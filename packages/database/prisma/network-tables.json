@@ -1,5 +1,5 @@
 {
-  "description": "Which Prisma model lives in the shared schema and which in each Network schema (mainnet and preprod hold the same tables). network and shared map each model to its SQL table; networkJoinTables are the Prisma implicit join tables between Network models; sharedSqlOnly are shared objects no model declares. PublicShare stays shared until its Job rows move to a Network JobShare table. Read by scripts/split-network-layout.sh and checked by src/network-tables.test.ts.",
+  "description": "Which Prisma model lives in the shared schema and which in each Network schema (mainnet and preprod hold the same tables). network and shared map each model to its SQL table; networkJoinTables are the Prisma implicit join tables between Network models; networkEnums are the enum types a Network model uses (every other enum is shared, none is used on both sides); sharedSqlOnly are shared objects no model declares. PublicShare stays shared until its Job rows move to a Network JobShare table. Read by scripts/split-network-layout.sh and checked by src/network-tables.test.ts.",
   "network": {
     "Agent": "Agent",
     "AgentPricing": "AgentPricing",
@@ -33,6 +33,24 @@
     "_AgentCategory",
     "_AgentMetadataOverrideToTag",
     "_AgentTag"
+  ],
+  "networkEnums": [
+    "AgentEntryType",
+    "AgentJobStatus",
+    "AgentStatus",
+    "BlobStatus",
+    "CreditBucketReferenceType",
+    "JobType",
+    "NextJobAction",
+    "NextJobActionErrorType",
+    "OnChainJobStatus",
+    "OnChainTransactionStatus",
+    "PaymentType",
+    "PricingType",
+    "RiskClassification",
+    "TaskPaymentClaimStatus",
+    "TaskX402PaymentRefundKind",
+    "TaskX402PaymentStatus"
   ],
   "shared": {
     "Account": "account",
@@ -77,6 +95,7 @@
     "ContactCompanyList": "contact_company_list",
     "ContactCompanyListMember": "contact_company_list_member",
     "ContactInteraction": "contact_interaction",
+    "ContactLinkedInConnection": "contact_linkedin_connection",
     "ContactList": "contact_list",
     "ContactListMember": "contact_list_member",
     "ContactNotDuplicate": "contact_not_duplicate",
@@ -115,6 +134,8 @@
     "FileResource": "file_resource",
     "FileResultWindow": "file_result_window",
     "FileVersion": "file_version",
+    "FundraisingPortfolioCompany": "fundraising_portfolio_company",
+    "FundraisingProspect": "fundraising_prospect",
     "GeocodedPlace": "geocoded_place",
     "HermesMessage": "hermesMessage",
     "HermesPendingConnection": "hermesPendingConnection",

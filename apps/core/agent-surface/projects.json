@@ -1,5 +1,4 @@
 {
-  "backlog": "SOKD-373",
   "operations": {
     "GET /projects/{id}/ads/accounts": {
       "cli": "projects ads-accounts",
@@ -104,17 +103,17 @@
     "GET /projects/{id}/ads/market/keywords": {
       "cli": false,
       "mcp": false,
-      "reason": "Buys DataForSEO data on a cache miss; human-only pending ADR 0077's follow-up tickets."
+      "reason": "Buys DataForSEO data on a cache miss, so a person runs it in Sokosumi (ADR 0077)."
     },
     "GET /projects/{id}/ads/market/ads": {
       "cli": false,
       "mcp": false,
-      "reason": "Buys DataForSEO data on a cache miss; human-only pending ADR 0077's follow-up tickets."
+      "reason": "Buys DataForSEO data on a cache miss, so a person runs it in Sokosumi (ADR 0077)."
     },
     "GET /projects/{id}/image-studio/assets/{assetId}/social-media": {
       "cli": false,
       "mcp": false,
-      "reason": "Copies a private image to a permanent public URL; human-only pending ADR 0077's follow-up tickets."
+      "reason": "Copies a private image to a permanent public URL, so a person shares it (ADR 0077)."
     },
     "GET /projects/{id}/image-studio/assets/{assetId}/content": {
       "cli": false,
@@ -152,124 +151,105 @@
       "reason": "A person approves, publishes and connects accounts (ADR 0077)."
     },
     "POST /projects/{id}/ads/accounts/{accountId}/campaigns": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects ads-campaign-create",
+      "mcp": "projects_ads_campaign_create"
     },
     "PUT /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects ads-campaign-edit",
+      "mcp": "projects_ads_campaign_edit"
     },
     "PATCH /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}": {
-      "cli": false,
-      "mcp": false,
-      "reason": "A person resumes ad spend (ADR 0077); pausing and budgets wait for its follow-up tickets."
+      "cli": "projects ads-campaign-update",
+      "mcp": "projects_ads_campaign_update"
     },
     "PUT /projects/{id}/ads/market": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "cli": "projects ads-market-update",
+      "mcp": "projects_ads_market_update"
     },
     "PUT /projects/{id}/image-studio/batches/{batchId}/compare": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "reason": "Feeds the model scoreboard as the person's own signal (ADR 0077)."
     },
     "PUT /projects/{id}/image-studio/brand-kit": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "cli": "projects image-studio-brand-kit-update",
+      "mcp": "projects_image_studio_brand_kit_update"
     },
     "POST /projects/{id}/image-studio/website-draft": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "cli": "projects image-studio-website-research",
+      "mcp": "projects_image_studio_website_research"
     },
     "PUT /projects/{id}/image-studio/brand-kit/look": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "cli": "projects image-studio-brand-look-update",
+      "mcp": "projects_image_studio_brand_look_update"
     },
     "POST /projects/{id}/image-studio/brand-kit/logo": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "reason": "Binary or multipart upload: the CLI and MCP send JSON. An API key can POST it directly; image-studio-website-logo stages the site's logo instead."
     },
     "POST /projects/{id}/image-studio/brand-kit/logo/website": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "cli": "projects image-studio-website-logo",
+      "mcp": "projects_image_studio_website_logo"
     },
     "POST /projects/{id}/image-studio/jobs": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects image-studio-generate",
+      "mcp": "projects_image_studio_generate"
     },
     "PUT /projects/{id}/image-studio/products": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "cli": "projects image-studio-products-update",
+      "mcp": "projects_image_studio_products_update"
     },
     "POST /projects/{id}/image-studio/products/import": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "cli": "projects image-studio-products-import",
+      "mcp": "projects_image_studio_products_import"
     },
     "POST /projects/{id}/image-studio/products/photo": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "cli": "projects image-studio-product-photo",
+      "mcp": "projects_image_studio_product_photo"
     },
     "POST /projects/{id}/image-studio/video-jobs": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects image-studio-video",
+      "mcp": "projects_image_studio_video"
     },
     "POST /projects/{id}/image-studio/talking-video-jobs": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects image-studio-talking-video",
+      "mcp": "projects_image_studio_talking_video"
     },
     "POST /projects/{id}/image-studio/short-video-jobs": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects image-studio-short-video",
+      "mcp": "projects_image_studio_short_video"
     },
     "POST /projects/{id}/image-studio/talking-video-scripts": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects image-studio-talking-video-scripts",
+      "mcp": "projects_image_studio_talking_video_scripts"
     },
     "POST /projects/{id}/image-studio/jobs/{jobId}/cancel": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects image-studio-cancel",
+      "mcp": "projects_image_studio_cancel"
     },
     "POST /projects/{id}/image-studio/assets/{assetId}/events": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "reason": "Feeds the model scoreboard as the person's own signal (ADR 0077)."
     },
     "PUT /projects/{id}/image-studio/assets/{assetId}/feedback": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "reason": "Feeds the model scoreboard as the person's own signal (ADR 0077)."
     },
     "POST /projects/{id}/image-studio/assets/{assetId}/hide": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "reason": "Feeds the model scoreboard as the person's own signal (ADR 0077)."
     },
     "PUT /projects/{id}/image-studio/assets/{assetId}/headline": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only until SOKD-394 opens agent drafts (ADR 0077)."
+      "cli": "projects image-studio-asset-headline",
+      "mcp": "projects_image_studio_asset_headline"
     },
     "POST /projects/{id}/image-studio/assets/{assetId}/caption": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects image-studio-asset-caption",
+      "mcp": "projects_image_studio_asset_caption"
     },
     "POST /projects/{id}/social-connections/initiate": {
       "cli": false,
@@ -287,74 +267,448 @@
       "reason": "A person approves, publishes and connects accounts (ADR 0077)."
     },
     "POST /projects/{id}/social-connections/{connectionId}/statistics/refresh": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects social-connection-statistics-refresh",
+      "mcp": "projects_social_connection_statistics_refresh"
     },
     "POST /projects/{id}/social-posts": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects social-post-create",
+      "mcp": "projects_social_post_create"
     },
     "PATCH /projects/{id}/social-posts/{postId}": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects social-post-update",
+      "mcp": "projects_social_post_update"
     },
     "POST /projects/{id}/social-posts/{postId}/publish": {
       "cli": false,
       "mcp": false,
-      "reason": "A person approves, publishes and connects accounts (ADR 0077)."
+      "reason": "A person approves, publishes and sends this in Sokosumi (ADR 0077)."
     },
     "POST /projects/{id}/social-posts/{postId}/schedule": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects social-post-schedule",
+      "mcp": "projects_social_post_schedule"
     },
     "POST /projects/{id}/social-posts/{postId}/queue": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects social-post-queue",
+      "mcp": "projects_social_post_queue"
     },
     "POST /projects/{id}/social-posts/{postId}/approve": {
       "cli": false,
       "mcp": false,
-      "reason": "A person approves, publishes and connects accounts (ADR 0077)."
+      "reason": "A person approves, publishes and sends this in Sokosumi (ADR 0077)."
     },
     "POST /projects/{id}/social-posts/{postId}/reject": {
       "cli": false,
       "mcp": false,
-      "reason": "A person approves, publishes and connects accounts (ADR 0077)."
+      "reason": "A person approves, publishes and sends this in Sokosumi (ADR 0077)."
     },
     "POST /projects/{id}/social-posts/{postId}/cancel": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects social-post-cancel",
+      "mcp": "projects_social_post_cancel"
     },
     "POST /projects/{id}/social-posts/{postId}/duplicate": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects social-post-duplicate",
+      "mcp": "projects_social_post_duplicate"
     },
     "POST /projects/{id}/social-posts/{postId}/thread/resume": {
       "cli": false,
       "mcp": false,
-      "reason": "A person approves, publishes and connects accounts (ADR 0077)."
+      "reason": "A person approves, publishes and sends this in Sokosumi (ADR 0077)."
     },
     "POST /projects/{id}/social-posts/{postId}/statistics/refresh": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects social-post-statistics-refresh",
+      "mcp": "projects_social_post_statistics_refresh"
     },
     "PUT /projects/{id}/social-queue-slots": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects social-queue-slots-update",
+      "mcp": "projects_social_queue_slots_update"
     },
     "POST /projects/{id}/social-account-posts/{accountPostId}/recycle": {
+      "cli": "projects social-account-post-recycle",
+      "mcp": "projects_social_account_post_recycle"
+    },
+    "POST /projects/{id}/newsletter/issues/{issueId}/cancel": {
+      "cli": "projects newsletter-issue-cancel",
+      "mcp": "projects_newsletter_issue_cancel"
+    },
+    "POST /projects/{id}/newsletter/issues/{issueId}/approve": {
       "cli": false,
       "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "reason": "A person approves, publishes and sends this in Sokosumi (ADR 0077)."
+    },
+    "POST /projects/{id}/newsletter/issues/{issueId}/schedule": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A person approves, publishes and sends this in Sokosumi (ADR 0077)."
+    },
+    "POST /projects/{id}/newsletter/issues/{issueId}/send-now": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A person approves, publishes and sends this in Sokosumi (ADR 0077)."
+    },
+    "GET /projects": {
+      "cli": "projects list",
+      "mcp": "projects_list"
+    },
+    "POST /projects": {
+      "cli": "projects create",
+      "mcp": "projects_create"
+    },
+    "GET /projects/stats": {
+      "cli": "projects stats",
+      "mcp": "projects_stats"
+    },
+    "GET /projects/activity": {
+      "cli": "projects activity",
+      "mcp": "projects_activity"
+    },
+    "GET /projects/starred": {
+      "cli": "projects starred",
+      "mcp": "projects_starred"
+    },
+    "GET /projects/{id}": {
+      "cli": "projects get",
+      "mcp": "projects_get"
+    },
+    "PATCH /projects/{id}": {
+      "cli": "projects update",
+      "mcp": "projects_update"
+    },
+    "DELETE /projects/{id}": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Removed: Core always answers 409 and points to closing the Project (`projects close`)."
+    },
+    "POST /projects/{id}/star": {
+      "cli": "projects star",
+      "mcp": "projects_star"
+    },
+    "DELETE /projects/{id}/star": {
+      "cli": "projects unstar",
+      "mcp": "projects_unstar"
+    },
+    "GET /projects/{id}/hide": {
+      "cli": "projects hidden",
+      "mcp": "projects_hidden"
+    },
+    "POST /projects/{id}/hide": {
+      "cli": "projects hide",
+      "mcp": "projects_hide"
+    },
+    "DELETE /projects/{id}/hide": {
+      "cli": "projects unhide",
+      "mcp": "projects_unhide"
+    },
+    "POST /projects/{id}/jobs": {
+      "cli": "projects add-job",
+      "mcp": "projects_add_job"
+    },
+    "DELETE /projects/{id}/jobs/{jobId}": {
+      "cli": "projects remove-job",
+      "mcp": "projects_remove_job"
+    },
+    "POST /projects/{id}/tasks": {
+      "cli": "projects add-task",
+      "mcp": "projects_add_task"
+    },
+    "DELETE /projects/{id}/tasks/{taskId}": {
+      "cli": "projects remove-task",
+      "mcp": "projects_remove_task"
+    },
+    "GET /projects/{id}/context-md": {
+      "cli": "projects context",
+      "mcp": "projects_context"
+    },
+    "GET /projects/{id}/posting-instructions": {
+      "cli": "projects posting-instructions",
+      "mcp": "projects_posting_instructions"
+    },
+    "PUT /projects/{id}/design-md": {
+      "cli": "projects set-design",
+      "mcp": "projects_set_design"
+    },
+    "DELETE /projects/{id}/design-md": {
+      "cli": "projects clear-design",
+      "mcp": "projects_clear_design"
+    },
+    "GET /projects/{id}/needs-attention": {
+      "cli": "projects needs-attention",
+      "mcp": "projects_needs_attention"
+    },
+    "GET /projects/{id}/close": {
+      "cli": "projects close-status",
+      "mcp": "projects_close_status"
+    },
+    "POST /projects/{id}/close": {
+      "cli": "projects close",
+      "mcp": "projects_close"
+    },
+    "POST /projects/{id}/close/retry": {
+      "cli": "projects retry-close",
+      "mcp": "projects_retry_close"
+    },
+    "POST /projects/{id}/close/cancel-owed": {
+      "cli": "projects cancel-owed",
+      "mcp": "projects_cancel_owed"
+    },
+    "GET /projects/{id}/brand-brain": {
+      "cli": "projects brand-brain",
+      "mcp": "projects_brand_brain"
+    },
+    "PUT /projects/{id}/brand-brain": {
+      "cli": "projects set-brand-brain",
+      "mcp": "projects_set_brand_brain"
+    },
+    "POST /projects/{id}/brand-brain/confirm": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Records that a person checked the Brand Brain, so bots trust it; an agent confirming it would make that untrue (ADR 0077: a person approves)."
+    },
+    "POST /projects/{id}/brand-brain/answers": {
+      "cli": "projects answer-brand-brain",
+      "mcp": "projects_answer_brand_brain"
+    },
+    "GET /projects/{id}/competitors": {
+      "cli": "projects competitors",
+      "mcp": "projects_competitors"
+    },
+    "POST /projects/{id}/competitors": {
+      "cli": "projects add-competitor",
+      "mcp": "projects_add_competitor"
+    },
+    "PATCH /projects/{id}/competitors/{competitorId}": {
+      "cli": "projects update-competitor",
+      "mcp": "projects_update_competitor"
+    },
+    "DELETE /projects/{id}/competitors/{competitorId}": {
+      "cli": "projects remove-competitor",
+      "mcp": "projects_remove_competitor"
+    },
+    "POST /projects/{id}/competitors/{competitorId}/restore": {
+      "cli": "projects restore-competitor",
+      "mcp": "projects_restore_competitor"
+    },
+    "PUT /projects/{id}/competitors/checks": {
+      "cli": "projects competitor-checks",
+      "mcp": "projects_competitor_checks"
+    },
+    "POST /projects/{id}/competitors/check": {
+      "cli": "projects check-competitors",
+      "mcp": "projects_check_competitors"
+    },
+    "POST /projects/{id}/competitors/suggestions": {
+      "cli": "projects suggest-competitors",
+      "mcp": "projects_suggest_competitors"
+    },
+    "GET /projects/{id}/marketing-strategies": {
+      "cli": "projects strategies",
+      "mcp": "projects_strategies"
+    },
+    "POST /projects/{id}/marketing-strategies": {
+      "cli": "projects create-strategy",
+      "mcp": "projects_create_strategy"
+    },
+    "GET /projects/{id}/marketing-strategies/{strategyId}": {
+      "cli": "projects strategy",
+      "mcp": "projects_strategy"
+    },
+    "POST /projects/{id}/marketing-strategies/{strategyId}/approve": {
+      "cli": false,
+      "mcp": false,
+      "reason": "A person approves a strategy; approving starts the plan, and a CMO Soko Bot acts on it at once (ADR 0077)."
+    },
+    "POST /projects/{id}/marketing-strategies/{strategyId}/answers": {
+      "cli": "projects answer-strategy",
+      "mcp": "projects_answer_strategy"
+    },
+    "GET /projects/{id}/newsletter": {
+      "cli": "newsletter get",
+      "mcp": "newsletter_get"
+    },
+    "PUT /projects/{id}/newsletter": {
+      "cli": "newsletter set",
+      "mcp": "newsletter_set"
+    },
+    "GET /projects/{id}/newsletter/analytics": {
+      "cli": "newsletter analytics",
+      "mcp": "newsletter_analytics"
+    },
+    "GET /projects/{id}/newsletter/issues/{issueId}/analytics": {
+      "cli": "newsletter issue-analytics",
+      "mcp": "newsletter_issue_analytics"
+    },
+    "GET /projects/{id}/newsletter/issues": {
+      "cli": "newsletter issues",
+      "mcp": "newsletter_issues"
+    },
+    "POST /projects/{id}/newsletter/issues": {
+      "cli": "newsletter create-issue",
+      "mcp": "newsletter_create_issue"
+    },
+    "POST /projects/{id}/newsletter/issues/draft-with-ai": {
+      "cli": "newsletter draft-issue",
+      "mcp": "newsletter_draft_issue"
+    },
+    "POST /projects/{id}/newsletter/issues/{issueId}/submit": {
+      "cli": "newsletter submit-issue",
+      "mcp": "newsletter_submit_issue"
+    },
+    "POST /projects/{id}/newsletter/issues/preview": {
+      "cli": "newsletter preview",
+      "mcp": "newsletter_preview"
+    },
+    "GET /projects/{id}/newsletter/issues/{issueId}": {
+      "cli": "newsletter issue",
+      "mcp": "newsletter_issue"
+    },
+    "PATCH /projects/{id}/newsletter/issues/{issueId}": {
+      "cli": "newsletter update-issue",
+      "mcp": "newsletter_update_issue"
+    },
+    "DELETE /projects/{id}/newsletter/issues/{issueId}": {
+      "cli": "newsletter delete-issue",
+      "mcp": "newsletter_delete_issue"
+    },
+    "GET /projects/{id}/newsletter/sending-domain": {
+      "cli": "newsletter sending-domain",
+      "mcp": "newsletter_sending_domain"
+    },
+    "PUT /projects/{id}/newsletter/sending-domain": {
+      "cli": "newsletter set-sending-domain",
+      "mcp": "newsletter_set_sending_domain"
+    },
+    "DELETE /projects/{id}/newsletter/sending-domain": {
+      "cli": "newsletter remove-sending-domain",
+      "mcp": "newsletter_remove_sending_domain"
+    },
+    "POST /projects/{id}/newsletter/sending-domain/check": {
+      "cli": "newsletter check-sending-domain",
+      "mcp": "newsletter_check_sending_domain"
+    },
+    "POST /projects/{id}/newsletter/sending-domain/cloudflare": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Takes the person's Cloudflare API token; a third-party credential stays out of agent tool calls (connecting an account is a person's step, ADR 0077)."
+    },
+    "GET /projects/{id}/newsletter/sending-domain/domain-connect": {
+      "cli": "newsletter domain-connect",
+      "mcp": "newsletter_domain_connect"
+    },
+    "POST /projects/{id}/newsletter/sending-domain/warmup/resume": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Resumes paused newsletter sending; a person starts sends (ADR 0077)."
+    },
+    "GET /projects/{id}/newsletter/subscribers": {
+      "cli": "newsletter subscribers",
+      "mcp": "newsletter_subscribers"
+    },
+    "POST /projects/{id}/newsletter/subscribers": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Subscriber consent: a person adds subscribers (ADR 0077)."
+    },
+    "POST /projects/{id}/newsletter/subscribers/import": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Subscriber consent: a person adds subscribers (ADR 0077)."
+    },
+    "POST /projects/{id}/newsletter/subscribers/from-contacts": {
+      "cli": false,
+      "mcp": false,
+      "reason": "Subscriber consent: a person adds subscribers (ADR 0077)."
+    },
+    "PATCH /projects/{id}/newsletter/subscribers/{subscriberId}": {
+      "cli": "newsletter update-subscriber",
+      "mcp": "newsletter_update_subscriber"
+    },
+    "DELETE /projects/{id}/newsletter/subscribers/{subscriberId}": {
+      "cli": "newsletter remove-subscriber",
+      "mcp": "newsletter_remove_subscriber"
+    },
+    "GET /projects/{id}/seo": {
+      "cli": "seo project-get",
+      "mcp": "seo_project_get"
+    },
+    "POST /projects/{id}/seo/pages": {
+      "cli": "seo project-add-page",
+      "mcp": "seo_project_add_page"
+    },
+    "POST /projects/{id}/seo/scopes": {
+      "cli": "seo project-create-scope",
+      "mcp": "seo_project_create_scope"
+    },
+    "PUT /projects/{id}/seo/scopes/{scopeId}": {
+      "cli": "seo project-update-scope",
+      "mcp": "seo_project_update_scope"
+    },
+    "POST /projects/{id}/seo/imports": {
+      "cli": "seo project-import-report",
+      "mcp": "seo_project_import_report"
+    },
+    "POST /projects/{id}/seo/analyses": {
+      "cli": "seo project-analyze",
+      "mcp": "seo_project_analyze"
+    },
+    "POST /projects/{id}/seo/keywords": {
+      "cli": "seo project-save-keyword",
+      "mcp": "seo_project_save_keyword"
+    },
+    "POST /projects/{id}/seo/competitors": {
+      "cli": "seo project-save-competitor",
+      "mcp": "seo_project_save_competitor"
+    },
+    "POST /projects/{id}/seo/actions": {
+      "cli": "seo project-create-task",
+      "mcp": "seo_project_create_task"
+    },
+    "POST /projects/{id}/seo/monitors": {
+      "cli": "seo project-create-monitor",
+      "mcp": "seo_project_create_monitor"
+    },
+    "POST /projects/{id}/seo/actions/reviews": {
+      "cli": "seo project-review-action",
+      "mcp": "seo_project_review_action"
+    },
+    "GET /projects/{id}/seo/statistics/properties": {
+      "cli": "seo project-properties",
+      "mcp": "seo_project_properties"
+    },
+    "POST /projects/{id}/seo/statistics/sync": {
+      "cli": "seo project-sync-statistics",
+      "mcp": "seo_project_sync_statistics"
+    },
+    "POST /projects/{id}/seo/statistics/traffic": {
+      "cli": false,
+      "mcp": false,
+      "reason": "First-party app only (requireFirstPartyUserAuthContext): API keys and MCP tokens get 403."
+    },
+    "POST /projects/{id}/seo/page-changes": {
+      "cli": "seo project-record-change",
+      "mcp": "seo_project_record_change"
+    },
+    "PUT /projects/{id}/seo/brand-terms": {
+      "cli": "seo project-set-brand-terms",
+      "mcp": "seo_project_set_brand_terms"
+    },
+    "GET /projects/{id}/seo/brief": {
+      "cli": "seo project-brief",
+      "mcp": "seo_project_brief"
+    },
+    "PUT /projects/{id}/seo/brief": {
+      "cli": "seo project-save-brief",
+      "mcp": "seo_project_save_brief"
+    },
+    "GET /projects/{id}/seo/brief/suggestion": {
+      "cli": "seo project-suggest-brief",
+      "mcp": "seo_project_suggest_brief"
+    },
+    "GET /projects/{id}/seo/console-exports/{taskId}": {
+      "cli": "seo project-console-exports",
+      "mcp": "seo_project_console_exports"
+    },
+    "POST /projects/{id}/seo/console-exports/{taskId}": {
+      "cli": "seo project-import-console-export",
+      "mcp": "seo_project_import_console_export"
     }
   }
 }

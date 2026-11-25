@@ -25,9 +25,8 @@ import { validateTaskScheduleRule } from "@/helpers/task-schedule";
 import { creatorFields } from "@/helpers/work-creator";
 import prisma from "@/lib/db/prisma";
 import {
-  isSeoMonitorDescription,
   requireSeoMonitorApprovalForWrite,
-  seoMonitorDescriptionWithRule,
+  taskScheduleDescriptionForWrite,
 } from "@/lib/seo/monitor-plan";
 import { type WorkspaceContext } from "@/middleware/workspace";
 import type {
@@ -303,9 +302,10 @@ export async function updateTaskSchedule(
     requireSeoMonitorApprovalForWrite(input.description, current.description);
     requireSeoMonitorOwner(actor, current);
     // An SEO monitor keeps its approved pages and check: an edit replaces its rule only.
-    const description = isSeoMonitorDescription(current.description)
-      ? seoMonitorDescriptionWithRule(current.description, input)
-      : input.description;
+    const description = taskScheduleDescriptionForWrite(
+      current.description,
+      input,
+    );
     if (current.state === TaskScheduleState.ENDED) {
       throwStateConflict("An Ended Task Schedule cannot be changed");
     }

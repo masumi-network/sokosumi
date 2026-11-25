@@ -432,6 +432,15 @@ vi.mock("@/lib/actions/task/subtask-action", () => ({
   setTaskParent: setTaskParentMock,
 }));
 
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({
+    data: {
+      user: { id: "user-1" },
+      session: { activeOrganizationId: null },
+    },
+  }),
+}));
+
 vi.mock("@/lib/clients/core.browser.client", () => {
   class TestCoreApiRequestError extends Error {
     status?: number;
@@ -760,7 +769,12 @@ const coworkerOptions = [
 ];
 
 /** The app's query cache; the sub-task checklist reads and writes it. */
-let queryClient = new QueryClient();
+let queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { gcTime: Number.POSITIVE_INFINITY },
+    mutations: { gcTime: Number.POSITIVE_INFINITY },
+  },
+});
 
 function renderActionsElement(
   props?: Partial<ComponentProps<typeof TaskDetailActions>>,
@@ -823,7 +837,12 @@ describe("TaskDetailActions", () => {
     vi.clearAllMocks();
     pushMock.mockReset();
     refreshMock.mockReset();
-    queryClient = new QueryClient();
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     createRelatedVisibilityMock.current = undefined;
     isMobileMock.mockReturnValue(false);
     browserCoreClientMock.getTasks.mockReset();

@@ -16,6 +16,7 @@ Upload React Native sourcemaps from build steps
 Upload a React Native bundle + sourcemap (Gradle build step)
 
 **Flags:**
+
 - `--sourcemap <value> - Path to the sourcemap to upload`
 - `--bundle <value> - Path to the bundle to upload`
 - `--release <value> - Release version to publish to`
@@ -39,11 +40,12 @@ Upload React Native sourcemaps (Xcode build step)
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument          | Description                                |
+| ----------------- | ------------------------------------------ |
 | `<script-arg...>` | Extra arguments passed to the build script |
 
 **Flags:**
+
 - `-f, --force - Run even in a debug configuration`
 - `--allow-fetch - Fetch sourcemaps from the packager on simulator builds`
 - `--fetch-from <value> - Packager URL to fetch from (default: http://127.0.0.1:8081/)`

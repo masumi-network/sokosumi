@@ -86,10 +86,13 @@ export function Mix({
   mix,
   calendar,
   business,
+  planned = false,
 }: {
   mix: NonNullable<Strategy["mix"]>;
   calendar: Entry[];
   business: string;
+  /** The calendar holds examples only (cmo-v22): the bars show the planned shares. */
+  planned?: boolean;
 }) {
   const pieces = planPieces(calendar);
   return (
@@ -98,9 +101,10 @@ export function Mix({
         const mine = pieces.filter((entry) => entry.approach === part.approach);
         const example = mine[0];
         // The bar shows what the calendar holds; the planned share until it does.
-        const width = mine.length
-          ? Math.round((mine.length / pieces.length) * 100)
-          : part.share;
+        const width =
+          mine.length && !planned
+            ? Math.round((mine.length / pieces.length) * 100)
+            : part.share;
         return (
           <li key={part.approach}>
             <div className="bb-mix-head">

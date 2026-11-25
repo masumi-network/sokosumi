@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 
-import { describe, it, vi } from "vitest";
+import { describe, it, onTestFinished, vi } from "vitest";
 
 import {
   CreditBucketReferenceType,
   Prisma,
 } from "../generated/prisma/client.js";
+import { configureSqlTables } from "../sql-tables.js";
 import {
   creditBucketRepository,
   InsufficientBalanceError,
@@ -53,7 +54,9 @@ function extractNestedSql(args: unknown[]): {
       arg &&
       typeof arg === "object" &&
       "values" in arg &&
-      Array.isArray((arg as { values: unknown }).values)
+      Array.isArray((arg as { values: unknown }).values) &&
+      // The table names come first, as fragments without values.
+      (arg as { values: unknown[] }).values.length > 0
     );
   });
 
@@ -433,9 +436,15 @@ describe("creditBucketRepository.listProjectBucketsWithBalances", () => {
     const { text, values } = extractNestedSql(queryArgs);
     assert.ok(values.includes("org-1"));
     assert.ok(text.includes('cb."projectId" IS NOT NULL'));
-    const query = (queryArgs[0] as string[]).join("");
+    const [strings, ...parts] = queryArgs as [
+      TemplateStringsArray,
+      ...unknown[],
+    ];
+    const query = Prisma.sql(strings, ...parts).sql;
     assert.ok(query.includes('p.name AS "projectName"'));
-    assert.ok(query.includes('LEFT JOIN project p ON p.id = cb."projectId"'));
+    assert.ok(
+      query.includes('LEFT JOIN "public"."project" p ON p.id = cb."projectId"'),
+    );
   });
 });
 
@@ -477,6 +486,28 @@ describe("creditBucketRepository with Project credits", () => {
     const [strings, ...values] = args as [TemplateStringsArray, ...unknown[]];
     return Prisma.sql(strings, ...values).sql.replace(/\s+/g, " ");
   }
+
+  it("names each table in the configured schema", async () => {
+    const { tx, calls } = capturingTx([]);
+    onTestFinished(
+      configureSqlTables({
+        shared: "shared",
+        mainnet: "mainnet",
+        preprod: "preprod",
+        preprodOn: true,
+      }),
+    );
+    await creditBucketRepository.listProjectBucketsWithBalances(
+      "user-1",
+      "org-1",
+      tx,
+    );
+
+    const query = queryText(calls[0]);
+    assert.ok(query.includes('FROM "mainnet"."credit_bucket" cb'));
+    assert.ok(query.includes('LEFT JOIN "mainnet"."credit_consumption" cc ON'));
+    assert.ok(query.includes('LEFT JOIN "shared"."project" p ON'));
+  });
 
   it("draws a Project's buckets first, then the pool in today's order", async () => {
     const { tx, calls } = capturingTx([{ id: "bucket-1", available: 10n }]);

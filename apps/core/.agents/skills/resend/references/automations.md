@@ -10,17 +10,17 @@ Automations are created in a `disabled` state by default. Set `status: "enabled"
 
 ### Node.js
 
-| Operation | Method | Notes |
-|-----------|--------|-------|
-| Create | `resend.automations.create(params)` | Returns automation ID |
-| Get | `resend.automations.get(id)` | Returns full automation with steps and connections |
-| List | `resend.automations.list(params?)` | Filter by `status`, cursor-paginated |
-| Update | `resend.automations.update(params)` | Partial update — name, status, or steps+connections |
-| Duplicate | `resend.automations.duplicate(id)` | Copies steps and connections, returns the new automation ID |
-| Delete | `resend.automations.remove(id)` | Permanent |
-| Stop | `resend.automations.stop(id)` | Sets status to `disabled` |
-| List Runs | `resend.automations.runs.list({ automationId, status? })` | Filter by run status |
-| Get Run | `resend.automations.runs.get({ automationId, runId })` | Returns run with executed steps |
+| Operation | Method                                                    | Notes                                                       |
+| --------- | --------------------------------------------------------- | ----------------------------------------------------------- |
+| Create    | `resend.automations.create(params)`                       | Returns automation ID                                       |
+| Get       | `resend.automations.get(id)`                              | Returns full automation with steps and connections          |
+| List      | `resend.automations.list(params?)`                        | Filter by `status`, cursor-paginated                        |
+| Update    | `resend.automations.update(params)`                       | Partial update — name, status, or steps+connections         |
+| Duplicate | `resend.automations.duplicate(id)`                        | Copies steps and connections, returns the new automation ID |
+| Delete    | `resend.automations.remove(id)`                           | Permanent                                                   |
+| Stop      | `resend.automations.stop(id)`                             | Sets status to `disabled`                                   |
+| List Runs | `resend.automations.runs.list({ automationId, status? })` | Filter by run status                                        |
+| Get Run   | `resend.automations.runs.get({ automationId, runId })`    | Returns run with executed steps                             |
 
 ### Python
 
@@ -34,16 +34,16 @@ An automation is a directed graph of **steps** connected by **connections**.
 
 Each step has a `key` (unique within the graph), a `type`, and a `config` object whose shape depends on the type.
 
-| Type | Config | Description |
-|------|--------|-------------|
-| `trigger` | `{ event_name: string }` | Entry point — fires when the named event occurs |
-| `send_email` | `{ template: { id: string, variables?: object }, subject?: string, from?: string, reply_to?: string }` | Sends an email using a published template |
-| `delay` | `{ duration: string }` | Pauses the run. `duration` is human-readable (e.g. `"30 minutes"`, `"3 days"`) |
-| `wait_for_event` | `{ event_name: string, timeout?: string, filter_rule?: object }` | Waits for an event. `timeout` is human-readable (e.g. `"1 hour"`). `filter_rule` uses the same rule tree as `condition` but restricted to `event.*` fields |
-| `condition` | Rule tree (see below) | Branches based on contact data |
-| `contact_update` | `{ first_name?, last_name?, unsubscribed?, properties? }` | Updates the contact |
-| `contact_delete` | `{}` | Deletes the contact |
-| `add_to_segment` | `{ segment_id: string }` | Adds the contact to a segment |
+| Type             | Config                                                                                                 | Description                                                                                                                                                |
+| ---------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `trigger`        | `{ event_name: string }`                                                                               | Entry point — fires when the named event occurs                                                                                                            |
+| `send_email`     | `{ template: { id: string, variables?: object }, subject?: string, from?: string, reply_to?: string }` | Sends an email using a published template                                                                                                                  |
+| `delay`          | `{ duration: string }`                                                                                 | Pauses the run. `duration` is human-readable (e.g. `"30 minutes"`, `"3 days"`)                                                                             |
+| `wait_for_event` | `{ event_name: string, timeout?: string, filter_rule?: object }`                                       | Waits for an event. `timeout` is human-readable (e.g. `"1 hour"`). `filter_rule` uses the same rule tree as `condition` but restricted to `event.*` fields |
+| `condition`      | Rule tree (see below)                                                                                  | Branches based on contact data                                                                                                                             |
+| `contact_update` | `{ first_name?, last_name?, unsubscribed?, properties? }`                                              | Updates the contact                                                                                                                                        |
+| `contact_delete` | `{}`                                                                                                   | Deletes the contact                                                                                                                                        |
+| `add_to_segment` | `{ segment_id: string }`                                                                               | Adds the contact to a segment                                                                                                                              |
 
 ### Rule Tree (condition & filter_rule)
 
@@ -59,13 +59,13 @@ For `condition` steps, fields use the `contact.*`, `event.*`, or `wait_events.*`
 
 Connections link steps by their `key`. Each connection has a `type`:
 
-| Connection Type | Use |
-|-----------------|-----|
-| `default` | Normal flow between steps |
-| `condition_met` | Branch when condition is true |
-| `condition_not_met` | Branch when condition is false |
-| `timeout` | Branch when `wait_for_event` times out |
-| `event_received` | Branch when `wait_for_event` receives the event |
+| Connection Type     | Use                                             |
+| ------------------- | ----------------------------------------------- |
+| `default`           | Normal flow between steps                       |
+| `condition_met`     | Branch when condition is true                   |
+| `condition_not_met` | Branch when condition is false                  |
+| `timeout`           | Branch when `wait_for_event` times out          |
+| `event_received`    | Branch when `wait_for_event` receives the event |
 
 ## Examples
 
@@ -226,12 +226,12 @@ const { data, error } = await resend.automations.duplicate('aut_abc123');
 
 ## Common Mistakes
 
-| Mistake | Fix |
-|---------|-----|
-| Creating without a trigger step | Every automation needs at least one step with `type: "trigger"` |
-| Updating steps without connections (or vice versa) | When changing the graph, provide both `steps` and `connections` together |
-| Using `ref` or `edges` (old naming) | Use `key` for step identifiers and `connections` for links between steps |
-| Using `template_id` in send_email config | Use `template: { id: "..." }` — template is a nested object |
-| Using `seconds` in delay config (old naming) | Use `duration` (e.g. `"30 minutes"`) — `seconds` is no longer accepted |
-| Forgetting to enable the automation | Automations default to `disabled` — set `status: "enabled"` on create or update |
-| Not checking `error` in Node.js | SDK returns `{ data, error }`, does not throw — always destructure and check |
+| Mistake                                            | Fix                                                                             |
+| -------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Creating without a trigger step                    | Every automation needs at least one step with `type: "trigger"`                 |
+| Updating steps without connections (or vice versa) | When changing the graph, provide both `steps` and `connections` together        |
+| Using `ref` or `edges` (old naming)                | Use `key` for step identifiers and `connections` for links between steps        |
+| Using `template_id` in send_email config           | Use `template: { id: "..." }` — template is a nested object                     |
+| Using `seconds` in delay config (old naming)       | Use `duration` (e.g. `"30 minutes"`) — `seconds` is no longer accepted          |
+| Forgetting to enable the automation                | Automations default to `disabled` — set `status: "enabled"` on create or update |
+| Not checking `error` in Node.js                    | SDK returns `{ data, error }`, does not throw — always destructure and check    |

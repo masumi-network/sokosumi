@@ -43,7 +43,7 @@ export function saveStudioDownload(blob: Blob, filename: string) {
   link.download = filename;
   link.click();
   // Allow the browser to begin saving before releasing the blob.
-  window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
 export async function createStudioAdArchive(

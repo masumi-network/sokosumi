@@ -73,6 +73,9 @@ async function status(
   const response = await appFor(userId, activeOrganizationId).request(
     `/transactions${path}?scope=workspace&taskId=${taskId}`,
   );
+  // The export streams its ledger query as the body is read: drain it so the
+  // query has settled before `afterAll` deletes the fixtures.
+  await response.arrayBuffer();
   return response.status;
 }
 
@@ -216,12 +219,14 @@ describe.skipIf(!enabled)(
       },
     );
 
+    // Three ledger requests in one case: the one that timed out at 5 s in a
+    // full-suite run (not reproduced alone, even at load average 90).
     it("lets a member read their own private Task's rows on every route", async () => {
       for (const path of ["", "/daily", "/export"]) {
         expect(await status(memberA, organizationId, path, privateTaskId)).toBe(
           200,
         );
       }
-    });
+    }, 30_000);
   },
 );

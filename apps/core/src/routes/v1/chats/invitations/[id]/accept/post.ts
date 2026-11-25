@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { joinExternalChannelAsGuest } from "@/helpers/chat-room-guest-membership";
 import {
@@ -174,7 +175,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // Lock invitation before status decisions so revoke/decline cannot
         // commit after a stale pending read and still lose to accept.
         await tx.$queryRaw`
-          SELECT "id" FROM "chat_room_guest_invitation"
+          SELECT "id" FROM ${sharedTable("chat_room_guest_invitation")}
           WHERE "id" = ${id}::uuid
           FOR UPDATE
         `;

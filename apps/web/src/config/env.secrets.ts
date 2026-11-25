@@ -4,12 +4,13 @@ import * as z from "zod";
 import { studioRouterTrialSchema } from "../../agents/image-studio/agent/lib/router-trial";
 
 /**
- * Official `@sparticuz/chromium-min` 153 x64 pack for Vercel PDF export.
- * Matches puppeteer / puppeteer-core 25.11.0 Chrome 153.0.8010.36
- * (pack binary is Chromium 153.0.8010.36).
+ * Official `@sparticuz/chromium-min` 158 x64 pack for Vercel PDF export.
+ * puppeteer / puppeteer-core 25.18.1 target Chrome 157.0.8103.78.
+ * Sparticuz publishes no 154–157 pack (153.0.0, then 158.0.0), so the
+ * downloadable binary is Chromium 158.
  */
 export const DEFAULT_CHROMIUM_EXECUTABLE_URL =
-  "https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar";
+  "https://github.com/Sparticuz/chromium/releases/download/v158.0.0/chromium-v158.0.0-pack.x64.tar";
 
 const envSecretsSchema = z.object({
   // Environment

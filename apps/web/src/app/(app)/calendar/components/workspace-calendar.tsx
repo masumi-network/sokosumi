@@ -8,11 +8,8 @@ import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
 import "@fullcalendar/react/themes/classic/palette.css";
 import {
-  type ProjectSocialProvider as ProjectSocialProviderValue,
   type SocialPostCalendarItem,
-  SocialPostStatus,
   type SocialPostStatus as SocialPostStatusValue,
-  TaskStatus,
   type TaskStatus as TaskStatusValue,
   type WorkspaceCalendarEntry,
   type WorkspaceCalendarItem,
@@ -48,17 +45,10 @@ import {
   useLocale,
   useTranslations,
 } from "next-intl";
-import {
-  parseAsArrayOf,
-  parseAsString,
-  parseAsStringEnum,
-  parseAsStringLiteral,
-  useQueryStates,
-} from "nuqs";
+import { useQueryStates } from "nuqs";
 import {
   type PointerEvent,
   type ReactNode,
-  useEffect,
   useId,
   useRef,
   useState,
@@ -66,8 +56,15 @@ import {
 import { toast } from "sonner";
 import { Temporal } from "temporal-polyfill";
 import {
+  CALENDAR_STATUSES,
+  CALENDAR_VIEWS,
+  type CalendarView,
+  calendarParsers,
+  SOCIAL_CALENDAR_VIEWS,
+  SOCIAL_POST_STATUSES,
+} from "@/app/calendar/calendar-parsers";
+import {
   availableCalendarTypes,
-  CALENDAR_TYPES,
   type CalendarType,
   calendarTypesQuery,
   isSocialOnly,
@@ -85,10 +82,7 @@ import {
   taskSchedulePath,
 } from "@/app/tasks/utils/task-schedule-view";
 import { type FilterDropdownMenuSection } from "@/components/common/filter-dropdown-menu";
-import {
-  SOCIAL_POST_PROVIDERS,
-  socialPlatformFilterSection,
-} from "@/components/social-platform-filter";
+import { socialPlatformFilterSection } from "@/components/social-platform-filter";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -98,6 +92,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
+import { useCalendarMobileAgendaDefault } from "@/hooks/effects/use-calendar-mobile-agenda-default";
 import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { useLoadWhenVisible } from "@/hooks/effects/use-load-when-visible";
 import { useIsMobile } from "@/hooks/effects/use-mobile";
@@ -152,16 +147,6 @@ import { SocialStatusSummary } from "./social-status-summary";
 import { SourceMarker } from "./source-marker";
 import { useBotRunChanges } from "./use-bot-run-changes";
 import { useRunChanges } from "./use-run-changes";
-
-const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
-type CalendarView = (typeof CALENDAR_VIEWS)[number];
-// Social lists its drafts and failures in tabs of its own, and the month grid
-// already shows what is coming up, so its calendar has no agenda list.
-const SOCIAL_CALENDAR_VIEWS = ["month", "week"] as const;
-const CALENDAR_STATUSES = Object.values(TaskStatus);
-const SOCIAL_POST_STATUSES = Object.values(SocialPostStatus).filter(
-  (status) => status !== SocialPostStatus.DRAFT,
-);
 
 function isCalendarStatus(value: string | null): value is TaskStatusValue {
   return value !== null && CALENDAR_STATUSES.some((status) => status === value);
@@ -242,25 +227,6 @@ interface WorkspaceCalendarProps {
   lockedProjectId?: string;
   workspaceId?: string | null;
 }
-
-const calendarParsers = {
-  assigneeId: parseAsString,
-  assigneeUserId: parseAsString,
-  date: parseAsString,
-  projectId: parseAsString,
-  scope: parseAsStringLiteral(["owned", "workspace"]).withDefault("workspace"),
-  types: parseAsArrayOf(parseAsStringLiteral(CALENDAR_TYPES)),
-  status: parseAsStringEnum<TaskStatusValue>(CALENDAR_STATUSES),
-  postStatus:
-    parseAsStringEnum<Exclude<SocialPostStatusValue, "DRAFT">>(
-      SOCIAL_POST_STATUSES,
-    ),
-  provider: parseAsStringEnum<ProjectSocialProviderValue>(
-    SOCIAL_POST_PROVIDERS,
-  ),
-  timezone: parseAsString,
-  view: parseAsStringLiteral(CALENDAR_VIEWS),
-};
 
 function parseCalendarDate(value: string, fallback: string): Date {
   try {
@@ -1233,12 +1199,7 @@ function WorkspaceCalendarView({
   );
 
   useUrlTimezone(state.timezone, timeZone, renderedTimezone, setState);
-
-  useEffect(() => {
-    if (isMobile && state.view === null && !socialOnly) {
-      void setState({ view: "agenda" }, { shallow: false });
-    }
-  }, [isMobile, state.view, setState, socialOnly]);
+  useCalendarMobileAgendaDefault(isMobile, socialOnly);
 
   function isVisible(item: WorkspaceCalendarEntry, anyPostStatus = false) {
     // Only Social posts survive a Social-only Show / embed lock. Grid views
@@ -1247,6 +1208,7 @@ function WorkspaceCalendarView({
     if (socialOnly && item.kind !== "socialPost") return false;
     if (item.kind === "socialPost")
       return (
+        (state.showCanceled || item.status !== "CANCELED") &&
         (view !== "agenda" ||
           (["SCHEDULED", "PUBLISHING"].includes(item.status) &&
             getCalendarItemDateKey(item.scheduledAt, timeZone) >=
@@ -1754,6 +1716,13 @@ function WorkspaceCalendarView({
               available={availableTypes}
               selected={shownTypes}
               onChange={types ? undefined : handleTypesChange}
+              showCanceled={state.showCanceled}
+              onShowCanceledChange={(showCanceled) =>
+                void setState(
+                  { showCanceled: showCanceled || null },
+                  { shallow: false },
+                )
+              }
               sections={filterSections}
               filtersActive={filtersActive}
               socialOnly={socialOnly}

@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { NotificationKind } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { waitUntil } from "@vercel/functions";
 
 import { badRequest, forbidden, notFound } from "@/helpers/error";
@@ -87,7 +88,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const lockedRooms = await tx.$queryRaw<Array<{ id: string }>>`
-        SELECT "id" FROM "chat_room"
+        SELECT "id" FROM ${sharedTable("chat_room")}
         WHERE "id" = ${existing.id}::uuid
         FOR UPDATE
       `;

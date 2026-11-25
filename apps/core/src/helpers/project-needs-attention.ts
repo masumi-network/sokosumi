@@ -4,7 +4,7 @@ import {
   isJobStatusSettled,
 } from "@sokosumi/database/helpers";
 import { jobForStatusComputeSelect } from "@sokosumi/database/types/job";
-import { SokosumiJobStatus } from "@sokosumi/utils";
+import { hideSeoAuditRequest, SokosumiJobStatus } from "@sokosumi/utils";
 
 import { loadAgentPreviewsByIds } from "@/helpers/history";
 import prisma from "@/lib/db/prisma";
@@ -185,7 +185,7 @@ function mapTaskToHistoryItem(task: {
       kind: "task",
       id: task.id,
       title: task.name,
-      description: task.description,
+      description: hideSeoAuditRequest(task.description),
       // Task.status is never CREATED.
       status: task.status as Exclude<TaskStatus, "CREATED">,
       createdAt: task.createdAt.toISOString(),

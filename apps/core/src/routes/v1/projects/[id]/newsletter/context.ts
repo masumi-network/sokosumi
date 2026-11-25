@@ -26,6 +26,11 @@ export async function newsletterScope(
   return { projectId, workspaceId };
 }
 
+/** The issue in Sokosumi, where a person approves and sends it (ADR 0077). */
+export function newsletterIssueWebPath(projectId: string, issueId: string) {
+  return `/newsletter/issues/${encodeURIComponent(issueId)}?${new URLSearchParams({ projectId })}`;
+}
+
 /** The member adding subscribers; confirmation emails count per client IP. */
 export async function newsletterSubscriberAdder(
   c: Context<EnvVariables>,

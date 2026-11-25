@@ -17,8 +17,8 @@ Inspect a debug information file
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument | Description                        |
+| -------- | ---------------------------------- |
 | `<path>` | Path to the debug information file |
 
 **Examples:**
@@ -40,11 +40,12 @@ Locate debug files for given debug identifiers
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument  | Description                       |
+| --------- | --------------------------------- |
 | `<id...>` | Debug identifier(s) to search for |
 
 **Flags:**
+
 - `-t, --type <value>... - Only consider debug files of the given type (repeatable). Default: all`
 - `--no-well-known - Do not look for debug files in well-known locations`
 - `--no-cwd - Do not look for debug files in the current directory`
@@ -69,11 +70,12 @@ Upload debug information files to Sentry
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument    | Description                                              |
+| ----------- | -------------------------------------------------------- |
 | `<path...>` | Files or directories to scan for debug information files |
 
 **Flags:**
+
 - `-t, --type <value>... - Only upload files of this type (repeatable): dsym, elf, pe, pdb, portablepdb, wasm, breakpad, sourcebundle, jvm, dxil`
 - `--id <value>... - Only upload the object with this debug id (repeatable)`
 - `--require-all - Fail if any --id value was not found among scanned files`
@@ -128,8 +130,8 @@ List the source files a debug file references
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument | Description                        |
+| -------- | ---------------------------------- |
 | `<path>` | Path to the debug information file |
 
 **Examples:**
@@ -148,11 +150,12 @@ Bundle a debug file's source files for source context
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument | Description                        |
+| -------- | ---------------------------------- |
 | `<path>` | Path to the debug information file |
 
 **Flags:**
+
 - `-o, --output <value> - Output path for the source bundle ZIP (default: <path>.src.zip)`
 
 **Examples:**
@@ -171,11 +174,12 @@ Create a JVM source bundle for source context
 
 **Arguments:**
 
-| Argument | Description |
-|----------|-------------|
+| Argument | Description                           |
+| -------- | ------------------------------------- |
 | `<path>` | Directory containing JVM source files |
 
 **Flags:**
+
 - `-o, --output <value> - Output directory for the bundle ZIP`
 - `-d, --debug-id <value> - Debug ID (UUID) to stamp on the bundle`
 - `-e, --exclude <value>... - Additional directory names to exclude (repeatable)`

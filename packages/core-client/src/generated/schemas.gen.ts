@@ -17084,6 +17084,45 @@ export const ContactImportResultSchema = {
     ]
 } as const;
 
+export const ContactLinkedInImportResultSchema = {
+    type: 'object',
+    properties: {
+        connections: {
+            type: 'integer'
+        },
+        created: {
+            type: 'integer'
+        },
+        updated: {
+            type: 'integer'
+        },
+        listId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'connections',
+        'created',
+        'updated',
+        'listId'
+    ]
+} as const;
+
+export const ContactLinkedInImportInputSchema = {
+    type: 'object',
+    properties: {
+        csv: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 5000000
+        }
+    },
+    required: [
+        'csv'
+    ]
+} as const;
+
 export const ContactOrganizationSchema = {
     type: 'object',
     properties: {
@@ -22405,6 +22444,734 @@ export const ReleaseExportLeaseBodySchema = {
         'token'
     ],
     additionalProperties: false
+} as const;
+
+export const FundraisingAccessSchema = {
+    type: 'object',
+    properties: {
+        enabled: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'enabled'
+    ]
+} as const;
+
+export const FundraisingPipelineSchema = {
+    type: 'object',
+    properties: {
+        list: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        name: {
+                            type: 'string'
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        rooms: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    title: {
+                        type: 'string'
+                    },
+                    token: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'id',
+                    'title',
+                    'token'
+                ]
+            }
+        },
+        prospects: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/FundraisingProspect'
+            }
+        },
+        research: {
+            $ref: '#/components/schemas/FundraisingResearch'
+        },
+        mailbox: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        provider: {
+                            type: 'string'
+                        },
+                        botId: {
+                            type: 'string',
+                            format: 'uuid'
+                        }
+                    },
+                    required: [
+                        'provider',
+                        'botId'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'list',
+        'rooms',
+        'prospects',
+        'research',
+        'mailbox'
+    ]
+} as const;
+
+export const FundraisingProspectSchema = {
+    type: 'object',
+    properties: {
+        contact: {
+            $ref: '#/components/schemas/Contact'
+        },
+        stage: {
+            $ref: '#/components/schemas/FundraisingStage'
+        },
+        stageChangedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactPerson'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        ticketSize: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        thesis: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        committedUsd: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        notes: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        source: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        lastDraftAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastDraftSubject: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        dataRoom: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/FundraisingDataRoomVisit'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'contact',
+        'stage',
+        'stageChangedAt',
+        'owner',
+        'ticketSize',
+        'thesis',
+        'committedUsd',
+        'notes',
+        'source',
+        'lastDraftAt',
+        'lastDraftSubject',
+        'dataRoom'
+    ]
+} as const;
+
+export const FundraisingStageSchema = {
+    type: 'string',
+    enum: [
+        'TO_RESEARCH',
+        'WARM_PATH',
+        'REACHED_OUT',
+        'MEETING',
+        'DATA_ROOM',
+        'DILIGENCE',
+        'COMMITTED',
+        'PASSED'
+    ]
+} as const;
+
+export const FundraisingDataRoomVisitSchema = {
+    type: 'object',
+    properties: {
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomTitle: {
+            type: 'string'
+        },
+        memberId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        email: {
+            type: 'string'
+        },
+        invitedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        firstVisitAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastVisitAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        views: {
+            type: 'integer'
+        },
+        downloads: {
+            type: 'integer'
+        },
+        lastOpened: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        revoked: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'roomId',
+        'roomTitle',
+        'memberId',
+        'email',
+        'invitedAt',
+        'firstVisitAt',
+        'lastVisitAt',
+        'views',
+        'downloads',
+        'lastOpened',
+        'revoked'
+    ]
+} as const;
+
+export const FundraisingResearchSchema = {
+    type: 'object',
+    properties: {
+        monthUsd: {
+            type: 'number'
+        },
+        capUsd: {
+            type: 'number'
+        },
+        perSearchUsd: {
+            type: 'number'
+        },
+        exaConfigured: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'monthUsd',
+        'capUsd',
+        'perSearchUsd',
+        'exaConfigured'
+    ]
+} as const;
+
+export const FundraisingProspectUpdateSchema = {
+    type: 'object',
+    properties: {
+        stage: {
+            $ref: '#/components/schemas/FundraisingStage'
+        },
+        ownerUserId: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1
+        },
+        ticketSize: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 120
+        },
+        thesis: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2000
+        },
+        committedUsd: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0
+        },
+        notes: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 10000
+        },
+        source: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 120
+        }
+    }
+} as const;
+
+export const FundraisingFindResultSchema = {
+    type: 'object',
+    properties: {
+        found: {
+            type: 'integer'
+        },
+        costUsd: {
+            type: 'number'
+        },
+        research: {
+            $ref: '#/components/schemas/FundraisingResearch'
+        }
+    },
+    required: [
+        'found',
+        'costUsd',
+        'research'
+    ]
+} as const;
+
+export const FundraisingFindInputSchema = {
+    type: 'object',
+    properties: {
+        brief: {
+            type: 'string',
+            minLength: 10,
+            maxLength: 1500
+        },
+        size: {
+            anyOf: [
+                {
+                    type: 'number',
+                    enum: [
+                        10
+                    ]
+                },
+                {
+                    type: 'number',
+                    enum: [
+                        25
+                    ]
+                }
+            ],
+            default: 10
+        }
+    },
+    required: [
+        'brief'
+    ]
+} as const;
+
+export const FundraisingSuggestionIdsSchema = {
+    type: 'object',
+    properties: {
+        ids: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            minItems: 1,
+            maxItems: 100
+        }
+    },
+    required: [
+        'ids'
+    ]
+} as const;
+
+export const FundraisingPathsSchema = {
+    type: 'object',
+    properties: {
+        portfolio: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/FundraisingPortfolioCompany'
+            }
+        },
+        researchedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        researchUsd: {
+            type: 'number'
+        },
+        paths: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/FundraisingPath'
+            }
+        },
+        research: {
+            $ref: '#/components/schemas/FundraisingResearch'
+        }
+    },
+    required: [
+        'portfolio',
+        'researchedAt',
+        'researchUsd',
+        'paths',
+        'research'
+    ]
+} as const;
+
+export const FundraisingPortfolioCompanySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        website: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        round: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        date: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        amountUsd: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        sourceUrl: {
+            type: 'string'
+        },
+        fetchedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'website',
+        'round',
+        'date',
+        'amountUsd',
+        'sourceUrl',
+        'fetchedAt'
+    ]
+} as const;
+
+export const FundraisingPathSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            $ref: '#/components/schemas/FundraisingPathKind'
+        },
+        via: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactPerson'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        linkedIn: {
+            type: 'boolean'
+        },
+        through: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        name: {
+                            type: 'string'
+                        },
+                        role: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        organization: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        avatarUrl: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        email: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'role',
+                        'organization',
+                        'avatarUrl',
+                        'email'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        company: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        name: {
+                            type: 'string'
+                        },
+                        round: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        date: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'name',
+                        'round',
+                        'date'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        strength: {
+            type: 'integer'
+        },
+        touches: {
+            type: 'integer'
+        },
+        lastTouchAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'kind',
+        'via',
+        'linkedIn',
+        'through',
+        'company',
+        'strength',
+        'touches',
+        'lastTouchAt'
+    ]
+} as const;
+
+export const FundraisingPathKindSchema = {
+    type: 'string',
+    enum: [
+        'direct',
+        'linkedin',
+        'fund',
+        'portfolio'
+    ]
+} as const;
+
+export const FundraisingDraftResultSchema = {
+    type: 'object',
+    properties: {
+        to: {
+            type: 'string'
+        },
+        subject: {
+            type: 'string'
+        },
+        body: {
+            type: 'string'
+        },
+        draftId: {
+            type: 'string'
+        },
+        provider: {
+            type: 'string'
+        },
+        roomLink: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        prospect: {
+            $ref: '#/components/schemas/FundraisingProspect'
+        }
+    },
+    required: [
+        'to',
+        'subject',
+        'body',
+        'draftId',
+        'provider',
+        'roomLink',
+        'prospect'
+    ]
+} as const;
+
+export const FundraisingDraftInputSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'intro',
+                'follow_up'
+            ]
+        },
+        viaContactId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        inviteToRoomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        note: {
+            type: 'string',
+            maxLength: 1000
+        }
+    },
+    required: [
+        'kind'
+    ]
 } as const;
 
 export const HistoryListSchema = {
@@ -34704,6 +35471,60 @@ export const MarketingStrategySchema = {
                             },
                             maxItems: 12
                         },
+                        monthWriter: {
+                            type: 'object',
+                            properties: {
+                                state: {
+                                    type: 'string',
+                                    enum: [
+                                        'examples',
+                                        'writing',
+                                        'written'
+                                    ]
+                                },
+                                level: {
+                                    type: 'string',
+                                    enum: [
+                                        'steady',
+                                        'active',
+                                        'all_in'
+                                    ]
+                                },
+                                start: {
+                                    type: 'string',
+                                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                },
+                                attempts: {
+                                    type: 'integer',
+                                    minimum: 0,
+                                    maximum: 1000,
+                                    default: 0
+                                },
+                                startedAt: {
+                                    type: 'string',
+                                    maxLength: 40
+                                },
+                                endedAt: {
+                                    type: 'string',
+                                    maxLength: 40
+                                },
+                                error: {
+                                    type: 'string',
+                                    maxLength: 300
+                                },
+                                costUsd: {
+                                    type: 'number',
+                                    minimum: 0
+                                },
+                                floorAlertAt: {
+                                    type: 'string',
+                                    maxLength: 40
+                                }
+                            },
+                            required: [
+                                'state'
+                            ]
+                        },
                         patched: {
                             type: 'array',
                             items: {
@@ -36688,6 +37509,60 @@ export const MarketingStrategyRequestSchema = {
                         maxLength: 400
                     },
                     maxItems: 12
+                },
+                monthWriter: {
+                    type: 'object',
+                    properties: {
+                        state: {
+                            type: 'string',
+                            enum: [
+                                'examples',
+                                'writing',
+                                'written'
+                            ]
+                        },
+                        level: {
+                            type: 'string',
+                            enum: [
+                                'steady',
+                                'active',
+                                'all_in'
+                            ]
+                        },
+                        start: {
+                            type: 'string',
+                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                        },
+                        attempts: {
+                            type: 'integer',
+                            minimum: 0,
+                            maximum: 1000,
+                            default: 0
+                        },
+                        startedAt: {
+                            type: 'string',
+                            maxLength: 40
+                        },
+                        endedAt: {
+                            type: 'string',
+                            maxLength: 40
+                        },
+                        error: {
+                            type: 'string',
+                            maxLength: 300
+                        },
+                        costUsd: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        floorAlertAt: {
+                            type: 'string',
+                            maxLength: 40
+                        }
+                    },
+                    required: [
+                        'state'
+                    ]
                 },
                 patched: {
                     type: 'array',
@@ -54191,6 +55066,16 @@ export const SeoAuditSummarySchema = {
             type: 'integer',
             minimum: 0
         },
+        lastCheck: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SeoAuditLastCheck'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -54207,6 +55092,48 @@ export const SeoAuditSummarySchema = {
         'name',
         'projectId',
         'pageCount',
+        'lastCheck',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const SeoAuditLastCheckSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'page_check',
+                'rankings',
+                'links',
+                'audit_lite',
+                'audit_full'
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'requested',
+                'running',
+                'completed',
+                'failed'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'kind',
+        'status',
         'createdAt',
         'updatedAt'
     ]
@@ -62069,6 +62996,60 @@ export const CmoPlanSchema = {
             },
             maxItems: 12
         },
+        monthWriter: {
+            type: 'object',
+            properties: {
+                state: {
+                    type: 'string',
+                    enum: [
+                        'examples',
+                        'writing',
+                        'written'
+                    ]
+                },
+                level: {
+                    type: 'string',
+                    enum: [
+                        'steady',
+                        'active',
+                        'all_in'
+                    ]
+                },
+                start: {
+                    type: 'string',
+                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                },
+                attempts: {
+                    type: 'integer',
+                    minimum: 0,
+                    maximum: 1000,
+                    default: 0
+                },
+                startedAt: {
+                    type: 'string',
+                    maxLength: 40
+                },
+                endedAt: {
+                    type: 'string',
+                    maxLength: 40
+                },
+                error: {
+                    type: 'string',
+                    maxLength: 300
+                },
+                costUsd: {
+                    type: 'number',
+                    minimum: 0
+                },
+                floorAlertAt: {
+                    type: 'string',
+                    maxLength: 40
+                }
+            },
+            required: [
+                'state'
+            ]
+        },
         patched: {
             type: 'array',
             items: {
@@ -62768,13 +63749,14 @@ export const CmoProductionSchema = {
             type: 'string',
             enum: [
                 'waiting',
+                'planning',
                 'starting',
                 'running',
                 'ready',
                 'stuck',
                 'blocked'
             ],
-            description: 'starting: approved, but no run is working yet; the next sync starts one. stuck: the last run made nothing ready; the next starts at retryAt. blocked: no run could start for half an hour; Core keeps trying.'
+            description: 'planning: paid, and Core is writing the month\'s calendar (cmo-v22). starting: approved, but no run is working yet; the next sync starts one. stuck: the last run made nothing ready; the next starts at retryAt. blocked: no run could start for half an hour; Core keeps trying.'
         },
         ready: {
             type: 'integer'
@@ -62882,6 +63864,29 @@ export const CmoProductionSchema = {
                 }
             ],
             description: 'When a stuck month\'s next production run starts. Null unless state is stuck.'
+        },
+        floor: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        promised: {
+                            type: 'integer'
+                        },
+                        made: {
+                            type: 'integer'
+                        }
+                    },
+                    required: [
+                        'promised',
+                        'made'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'cmo-v22: the posts the plan promises at least, and the month\'s posts made, gone out or paused by the owner. Null for a month Cuso wrote himself.'
         }
     },
     required: [
@@ -62896,7 +63901,8 @@ export const CmoProductionSchema = {
         'level',
         'beyondPlan',
         'withoutPicture',
-        'retryAt'
+        'retryAt',
+        'floor'
     ],
     description: 'After approval Cuso makes the whole month at once: how many of its pieces are made.'
 } as const;

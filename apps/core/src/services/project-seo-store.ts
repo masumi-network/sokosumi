@@ -189,7 +189,7 @@ export async function canReadPrivateSeoMetrics(
 }
 /** Use the same human-private or public-only scope for a stored Task link as for its Task. */
 export function seoLinkedTaskWhere(
-  actor: SeoActor,
+  actor: Pick<SeoActor, "workspaceId" | "userId">,
   ownerPrivateAccess: boolean,
 ): Prisma.TaskWhereInput {
   return {

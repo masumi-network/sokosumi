@@ -64,9 +64,10 @@ const activeHighlights = new Map<
   Element,
   {
     element: HTMLElement;
-    timer: number;
+    timer: ReturnType<typeof setTimeout>;
     landedAt: number;
     stopWatchingScroll: () => void;
+    stopWatchingDetach: () => void;
   }
 >();
 
@@ -97,22 +98,60 @@ const READER_SCROLL_EVENTS = ["wheel", "touchmove"] as const;
  * ancestor both sit in would answer for both.
  */
 function watchReaderScroll(list: Element): () => void {
+  const win = window;
   const onReaderScroll = (event: Event) => {
+    const active = activeHighlights.get(list);
+    if (!active) {
+      return;
+    }
+    if (!active.element.isConnected) {
+      clearHighlight(list);
+      return;
+    }
     if (event.target instanceof Node && list.contains(event.target)) {
       fadeOutHighlight(list);
     }
   };
   for (const type of READER_SCROLL_EVENTS) {
-    window.addEventListener(type, onReaderScroll, {
+    win.addEventListener(type, onReaderScroll, {
       capture: true,
       passive: true,
     });
   }
   return () => {
     for (const type of READER_SCROLL_EVENTS) {
-      window.removeEventListener(type, onReaderScroll, { capture: true });
+      win.removeEventListener(type, onReaderScroll, { capture: true });
     }
   };
+}
+
+/**
+ * Dispose the highlight as soon as its row leaves the document (room switch,
+ * thread close, unmount, or test cleanup). A row hidden under React
+ * `<Activity>` stays connected and keeps its original expiry.
+ */
+function watchDetach(list: Element, target: HTMLElement): () => void {
+  const root = target.ownerDocument.documentElement;
+  if (typeof MutationObserver === "undefined" || !root) {
+    return () => {};
+  }
+  const observer = new MutationObserver(() => {
+    if (!target.isConnected) {
+      clearHighlight(list);
+    }
+  });
+  observer.observe(root, { childList: true, subtree: true });
+  return () => {
+    observer.disconnect();
+  };
+}
+
+function pruneDisconnectedHighlights(): void {
+  for (const [list, active] of [...activeHighlights]) {
+    if (!active.element.isConnected) {
+      clearHighlight(list);
+    }
+  }
 }
 
 function clearHighlight(list: Element): void {
@@ -120,8 +159,9 @@ function clearHighlight(list: Element): void {
   if (!active) {
     return;
   }
-  window.clearTimeout(active.timer);
+  clearTimeout(active.timer);
   active.stopWatchingScroll();
+  active.stopWatchingDetach();
   delete active.element.dataset.searchLanded;
   activeHighlights.delete(list);
 }
@@ -137,7 +177,11 @@ function fadeOutHighlight(list: Element): void {
   if (!active || active.element.dataset.searchLanded === LEAVING) {
     return;
   }
-  window.clearTimeout(active.timer);
+  if (!active.element.isConnected) {
+    clearHighlight(list);
+    return;
+  }
+  clearTimeout(active.timer);
   active.stopWatchingScroll();
   const held = Date.now() - active.landedAt;
   if (
@@ -152,7 +196,7 @@ function fadeOutHighlight(list: Element): void {
   activeHighlights.set(list, {
     ...active,
     stopWatchingScroll: () => {},
-    timer: window.setTimeout(() => {
+    timer: setTimeout(() => {
       clearHighlight(list);
     }, ROOM_MESSAGE_HIGHLIGHT_LEAVE_MS),
   });
@@ -166,6 +210,7 @@ function fadeOutHighlight(list: Element): void {
  */
 function landOn(list: Element, target: HTMLElement): void {
   target.scrollIntoView({ behavior: "auto", block: "center" });
+  pruneDisconnectedHighlights();
   clearHighlight(list);
   // Reading layout between the two writes, so that a second landing on the
   // row that is already marked shows. Without the recalc in between, the
@@ -178,10 +223,11 @@ function landOn(list: Element, target: HTMLElement): void {
   activeHighlights.set(list, {
     element: target,
     landedAt: Date.now(),
-    timer: window.setTimeout(() => {
+    timer: setTimeout(() => {
       clearHighlight(list);
     }, ROOM_MESSAGE_HIGHLIGHT_MS),
     stopWatchingScroll: watchReaderScroll(list),
+    stopWatchingDetach: watchDetach(list, target),
   });
 }
 

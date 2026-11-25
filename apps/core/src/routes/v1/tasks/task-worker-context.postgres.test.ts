@@ -1,6 +1,7 @@
 /** Real Task authorization and PostgreSQL locking. Only external boundaries are local fixtures. */
 import { createHash, generateKeyPairSync, randomUUID, sign } from "node:crypto";
 import { TaskStatus } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { Hono } from "hono";
 import {
@@ -185,12 +186,13 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
 
   async function waitForBlockedTaskWrite(holderPid: number) {
     const deadline = Date.now() + LOCK_WAIT_TIMEOUT_MS;
+    const fromTask = `FROM ${sharedTable("task").sql}`;
     while (Date.now() < deadline) {
       const [state] = await prisma.$queryRaw<Array<{ waiting: boolean }>>`
         SELECT EXISTS (
           SELECT 1 FROM pg_stat_activity
           WHERE ${holderPid} = ANY(pg_blocking_pids(pid))
-            AND query LIKE '%FROM "task"%'
+            AND strpos(query, ${fromTask}) > 0
             AND query LIKE '%FOR UPDATE%'
         ) AS waiting
       `;

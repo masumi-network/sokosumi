@@ -110,6 +110,13 @@
       "sourceType": "local",
       "computedHash": "c1e4e74588d39b0c5581d48005217806862fe9b286684146f18827b74a2ecffe"
     },
+    "modern-web-guidance": {
+      "source": "GoogleChrome/modern-web-guidance",
+      "commit": "2b4aa13a72dd47cd135b06ce5abfccd92e19b24f",
+      "sourceType": "github",
+      "skillPath": "skills/modern-web-guidance/SKILL.md",
+      "computedHash": "1a97aea5d1c5abbf1b7b022ae7a2833a014627f741ba3cbd8cb6249a3ab359db"
+    },
     "polar-integration": {
       "source": "polarsource/agent-toolkit",
       "sourceType": "github",

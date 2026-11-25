@@ -32,7 +32,12 @@ const ben = { id: "contact-2", name: "Ben" } as Contact;
 const key = [...CONTACTS_KEY, "ws", {}];
 
 function setup(options?: { restore: boolean }) {
-  const cache = new QueryClient();
+  const cache = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  });
   cache.setQueryData(key, {
     pages: [{ contacts: [ada, ben], nextCursor: null, total: 2 }],
     pageParams: [null],

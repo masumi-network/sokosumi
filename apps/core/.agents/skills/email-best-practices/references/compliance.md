@@ -4,15 +4,16 @@ Legal requirements for email by jurisdiction. **Not legal advice—consult an at
 
 ## Quick Reference
 
-| Law | Region | Key Requirement | Penalty |
-|-----|--------|-----------------|---------|
-| CAN-SPAM | US | Opt-out mechanism, physical address | $53k/email |
-| GDPR | EU | Explicit opt-in consent | €20M or 4% revenue |
-| CASL | Canada | Express consent, opt-out mechanism | $1M (individual) to $10M (organization) CAD |
+| Law      | Region | Key Requirement                     | Penalty                                     |
+| -------- | ------ | ----------------------------------- | ------------------------------------------- |
+| CAN-SPAM | US     | Opt-out mechanism, physical address | $53k/email                                  |
+| GDPR     | EU     | Explicit opt-in consent             | €20M or 4% revenue                          |
+| CASL     | Canada | Express consent, opt-out mechanism  | $1M (individual) to $10M (organization) CAD |
 
 ## CAN-SPAM (United States)
 
 **Requirements:**
+
 - Accurate header info (From, To, Reply-To)
 - Non-deceptive subject lines
 - Physical mailing address in every email
@@ -24,6 +25,7 @@ Legal requirements for email by jurisdiction. **Not legal advice—consult an at
 ## GDPR (European Union)
 
 **Requirements:**
+
 - Explicit opt-in consent (not pre-checked boxes)
 - Consent must be freely given, specific, informed
 - Easy to withdraw consent (as easy as giving it)
@@ -37,10 +39,12 @@ Legal requirements for email by jurisdiction. **Not legal advice—consult an at
 ## CASL (Canada)
 
 **Consent types:**
+
 - **Express consent:** Explicit opt-in (ideal)
 - **Implied consent:** Existing business relationship (2 years) or inquiry (6 months)
 
 **Requirements:**
+
 - Clear sender identification that will be valid for 60 days after send
 - Unsubscribe functional for 60 days after send
 - Process unsubscribe no later than 10 business days
@@ -48,19 +52,19 @@ Legal requirements for email by jurisdiction. **Not legal advice—consult an at
 
 ## Other Regions
 
-| Region | Law | Key Points |
-|--------|-----|------------|
+| Region    | Law           | Key Points                                        |
+| --------- | ------------- | ------------------------------------------------- |
 | Australia | Spam Act 2003 | Consent required, honor unsubscribe within 5 days |
-| UK | PECR + GDPR | Same as GDPR |
-| Brazil | LGPD | Similar to GDPR, explicit consent for marketing |
+| UK        | PECR + GDPR   | Same as GDPR                                      |
+| Brazil    | LGPD          | Similar to GDPR, explicit consent for marketing   |
 
 ## Unsubscribe Requirements Summary
 
-| Law | Timing | Notes |
-|-----|--------|-------|
+| Law      | Timing           | Notes                        |
+| -------- | ---------------- | ---------------------------- |
 | CAN-SPAM | 10 business days | Must work 30 days after send |
-| GDPR | Immediately | Must be as easy as opting in |
-| CASL | 10 business days | Must work 60 days after send |
+| GDPR     | Immediately      | Must be as easy as opting in |
+| CASL     | 10 business days | Must work 60 days after send |
 
 **Universal best practices:** Prominent link, one-click when possible, no login required, free, confirm action.
 
@@ -78,6 +82,7 @@ headers: {
 ```
 
 **Your unsubscribe endpoint must:**
+
 - Accept POST requests — return `200` or `202` with a blank page
 - Display standard unsubscribe page for GET requests
 - Stop sending within 48 hours of the request
@@ -89,6 +94,7 @@ Most legistlations require a one-click unsubscribe. `Managing preferences` is a 
 ## Consent Management
 
 **Record:**
+
 - Email address
 - Date/time of consent
 - Method (form, checkbox)
@@ -99,10 +105,10 @@ Most legistlations require a one-click unsubscribe. `Managing preferences` is a 
 
 ## Data Retention
 
-| Law | Requirement |
-|-----|-------------|
+| Law  | Requirement                                                  |
+| ---- | ------------------------------------------------------------ |
 | GDPR | Keep only as long as necessary, delete when no longer needed |
-| CASL | Keep consent records 3 years after expiration |
+| CASL | Keep consent records 3 years after expiration                |
 
 **Best practice:** Have clear retention policy, honor deletion requests promptly, review and clean regularly.
 

@@ -1,3 +1,4 @@
+import { PrismaRaw } from "@sokosumi/database/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
@@ -237,14 +238,15 @@ describe("POST /chats/invitations/{id}/accept", () => {
     );
     // Invitation row locked before room so revoke/decline serialize.
     expect(queryRawMock).toHaveBeenCalled();
-    const lockSql = queryRawMock.mock.calls
-      .map((call) => {
-        const parts = call[0] as TemplateStringsArray | string[];
-        return Array.isArray(parts) ? parts.join(" ") : String(parts);
-      })
-      .join(" ");
-    expect(lockSql).toContain("chat_room_guest_invitation");
-    expect(lockSql).toContain("FOR UPDATE");
+    const lockSql = queryRawMock.mock.calls.map(
+      ([strings, ...values]) =>
+        PrismaRaw.sql(strings as TemplateStringsArray, ...values).sql,
+    );
+    expect(lockSql).toContainEqual(
+      expect.stringMatching(
+        /FROM "public"\."chat_room_guest_invitation"[\s\S]*FOR UPDATE/,
+      ),
+    );
     // No org Member create — only the host-membership check.
     expect(memberFindUniqueMock).toHaveBeenCalled();
     expect(

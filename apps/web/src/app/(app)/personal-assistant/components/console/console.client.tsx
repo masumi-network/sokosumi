@@ -589,7 +589,7 @@ export function SokoBotConsole({
                             initial={bot.followWholeBoard ?? false}
                           />
                           <TeamStandupToggle
-                            initial={bot.joinsTeamStandup ?? false}
+                            initial={bot.joinsTeamStandup ?? true}
                           />
                           <MailAutoReadToggle
                             initial={bot.mailAutoRead ?? false}

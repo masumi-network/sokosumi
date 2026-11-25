@@ -826,7 +826,12 @@ describe("TaskForm", () => {
     vi.mocked(createTask).mockResolvedValue(
       createTaskSuccess("task-1", "Title"),
     );
-    const client = new QueryClient();
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     render(
       <QueryClientProvider client={client}>
         <TaskForm
@@ -884,7 +889,12 @@ describe("TaskForm", () => {
       color: "green",
       customColor: "#248F76",
     });
-    const client = new QueryClient();
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     render(
       <QueryClientProvider client={client}>
         <TaskForm
@@ -965,7 +975,12 @@ describe("TaskForm", () => {
 
   it("removes both parts of a merged preset badge without dismissing a same-named custom topic", async () => {
     const user = userEvent.setup();
-    const client = new QueryClient();
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     const label = {
       kind: "TAG" as const,
       archived: false,
@@ -1029,7 +1044,12 @@ describe("TaskForm", () => {
       description: null,
       vocabularyVersion: 1,
     };
-    const client = new QueryClient();
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     const first =
       Promise.withResolvers<Awaited<ReturnType<typeof setWorkspaceTagColor>>>();
     let saved: string | null = null;
@@ -1192,7 +1212,12 @@ describe("TaskForm", () => {
     });
 
     function renderCopy(initialValues: Record<string, unknown>) {
-      const client = new QueryClient();
+      const client = new QueryClient({
+        defaultOptions: {
+          queries: { gcTime: Number.POSITIVE_INFINITY },
+          mutations: { gcTime: Number.POSITIVE_INFINITY },
+        },
+      });
       render(
         <TaskForm
           mode="create"
@@ -4146,7 +4171,12 @@ describe("TaskForm draft tags", () => {
   it("scores an unchanged draft again after the catalog meaning changes, and keeps its score after a recolor", async () => {
     vi.useFakeTimers();
     try {
-      const client = new QueryClient();
+      const client = new QueryClient({
+        defaultOptions: {
+          queries: { gcTime: Number.POSITIVE_INFINITY },
+          mutations: { gcTime: Number.POSITIVE_INFINITY },
+        },
+      });
       const label = {
         id: "label",
         displayName: "Procurement",
@@ -4199,7 +4229,12 @@ describe("TaskForm draft tags", () => {
   it("drops a retired draft workspace veto while keeping its built-in topic veto", async () => {
     vi.useFakeTimers();
     try {
-      const client = new QueryClient();
+      const client = new QueryClient({
+        defaultOptions: {
+          queries: { gcTime: Number.POSITIVE_INFINITY },
+          mutations: { gcTime: Number.POSITIVE_INFINITY },
+        },
+      });
       const label = {
         id: "preset",
         displayName: "Design",

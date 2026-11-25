@@ -100,7 +100,7 @@ describe("isFirstPartyAppUrl", () => {
     );
     expect(
       isFirstPartyAppUrl(
-        "https://sokosumi-cmo-git-x.preview.cmo.xyz/connect/callback",
+        "https://cmo-app-git-x.preview.cmo.xyz/connect/callback",
       ),
     ).toBe(true);
     expect(

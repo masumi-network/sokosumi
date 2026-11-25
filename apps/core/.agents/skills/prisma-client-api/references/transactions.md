@@ -70,12 +70,12 @@ await prisma.$transaction(
 
 ### Isolation levels
 
-| Level | Description |
-|-------|-------------|
+| Level             | Description                                    |
+| ----------------- | ---------------------------------------------- |
 | `ReadUncommitted` | Lowest isolation, can read uncommitted changes |
-| `ReadCommitted` | Only read committed changes |
-| `RepeatableRead` | Consistent reads within transaction |
-| `Serializable` | Highest isolation, serialized execution |
+| `ReadCommitted`   | Only read committed changes                    |
+| `RepeatableRead`  | Consistent reads within transaction            |
+| `Serializable`    | Highest isolation, serialized execution        |
 
 ## Nested Writes
 
@@ -175,10 +175,10 @@ await prisma.$transaction(
 
 ## Sequential vs Interactive
 
-| Feature | Sequential | Interactive |
-|---------|------------|-------------|
-| Syntax | Array | Async function |
-| Dependent ops | No | Yes |
-| Conditional logic | No | Yes |
-| Performance | Better | More flexible |
-| Use case | Simple batch | Complex logic |
+| Feature           | Sequential   | Interactive    |
+| ----------------- | ------------ | -------------- |
+| Syntax            | Array        | Async function |
+| Dependent ops     | No           | Yes            |
+| Conditional logic | No           | Yes            |
+| Performance       | Better       | More flexible  |
+| Use case          | Simple batch | Complex logic  |

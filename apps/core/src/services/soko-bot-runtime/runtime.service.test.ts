@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
 import { TaskStatus } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
 import { marketingStrategyPlanSchema } from "@sokosumi/soko-bot";
 import { socialProviderUnavailableMessage } from "@sokosumi/utils";
 import sharp from "sharp";
@@ -3476,10 +3477,14 @@ describe("SokoBotRuntimeService authorization", () => {
           taskFindFirstMock.mockResolvedValue({ id: TASK_ID });
           // Every row lock finds each row it asks for.
           transactionTurnLockMock.mockImplementation(
-            async (_query: unknown, ids: unknown) =>
-              Array.isArray(ids)
+            async (query: unknown, ...values: unknown[]) => {
+              const ids = Array.isArray(query)
+                ? PrismaRaw.sql(query, ...values).values[0]
+                : undefined;
+              return Array.isArray(ids)
                 ? ids.map((id) => ({ id }))
-                : [{ id: "locked" }],
+                : [{ id: "locked" }];
+            },
           );
           transactionTaskUpdateMock.mockImplementation(
             async (args: { where: { id: string }; data: object }) => ({

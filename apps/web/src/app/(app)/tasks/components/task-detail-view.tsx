@@ -572,6 +572,7 @@ async function TaskDetailActionsSlot({
         tTasks("personalAssistant"),
       )}
       initialDesignMdAttachment={initialDesignMdAttachment}
+      workspaceId={task.workspace.id}
       currentOrganizationId={task.workspace.organizationId ?? null}
       organizations={members}
       hasPersonalWorkspace={workspaceAccess?.hasPersonalWorkspace ?? false}
@@ -588,8 +589,13 @@ async function TaskDetailActionsSlot({
               name: task.name,
               tags: task.tags,
               workspaceTags: task.workspaceTags,
+              // A full audit's request line holds its approved price terms, which no reader sees. A focused
+              // check's line carries no price and lets the repeated Task start, so it stays.
               description: task.description
-                ? removeTaskContextAttachmentLinks(task.description)
+                ? removeSeoTaskRequest(
+                    removeTaskContextAttachmentLinks(task.description),
+                    ["seo_audit"],
+                  )
                 : null,
               projectId: task.projectId,
               visibility: task.visibility,

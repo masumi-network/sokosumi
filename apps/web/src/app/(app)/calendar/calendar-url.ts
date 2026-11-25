@@ -12,6 +12,7 @@ const CALENDAR_PARAMS = [
   "status",
   "postStatus",
   "provider",
+  "showCanceled",
   "view",
   "timezone",
   // Legacy: became `types=social`.

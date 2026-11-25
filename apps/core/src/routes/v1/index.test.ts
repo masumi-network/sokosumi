@@ -29,6 +29,7 @@ vi.mock("./coupons/index.js", () => ({ default: new Hono() }));
 vi.mock("./coworkers/index.js", () => ({ default: new Hono() }));
 vi.mock("./credit-costs/index.js", () => ({ default: new Hono() }));
 vi.mock("./developer/index.js", () => ({ default: new Hono() }));
+vi.mock("./fundraising/index.js", () => ({ default: new Hono() }));
 vi.mock("./drive/index.js", () => ({ default: new Hono() }));
 vi.mock("./enterprise/index.js", () => ({ default: new Hono() }));
 vi.mock("./exports/index.js", () => ({ default: new Hono() }));

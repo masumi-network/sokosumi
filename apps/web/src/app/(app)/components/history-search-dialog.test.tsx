@@ -129,7 +129,9 @@ function renderWithQuery(ui: ReactNode) {
     defaultOptions: {
       queries: {
         retry: false,
+        gcTime: Number.POSITIVE_INFINITY,
       },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
     },
   });
 

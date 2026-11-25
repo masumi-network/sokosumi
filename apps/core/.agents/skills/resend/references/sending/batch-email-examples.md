@@ -153,15 +153,15 @@ else:
 
 ### Common Error Codes
 
-| Code | Description | Action |
-|------|-------------|--------|
-| 400 | Bad request (invalid params) | Fix request parameters, don't retry |
-| 401 | Invalid API key | Check RESEND_API_KEY, don't retry |
-| 403 | Domain not verified | Verify domain at resend.com/domains |
-| 409 | Idempotency conflict | Same key with different payload |
-| 422 | Unprocessable entity | Check email format/content, don't retry |
-| 429 | Rate limited | Retry with exponential backoff |
-| 500 | Server error | Retry with exponential backoff |
+| Code | Description                  | Action                                  |
+| ---- | ---------------------------- | --------------------------------------- |
+| 400  | Bad request (invalid params) | Fix request parameters, don't retry     |
+| 401  | Invalid API key              | Check RESEND_API_KEY, don't retry       |
+| 403  | Domain not verified          | Verify domain at resend.com/domains     |
+| 409  | Idempotency conflict         | Same key with different payload         |
+| 422  | Unprocessable entity         | Check email format/content, don't retry |
+| 429  | Rate limited                 | Retry with exponential backoff          |
+| 500  | Server error                 | Retry with exponential backoff          |
 
 ### Node.js
 

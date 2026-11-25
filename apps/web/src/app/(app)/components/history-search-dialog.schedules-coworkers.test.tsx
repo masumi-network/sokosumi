@@ -98,7 +98,10 @@ function coworker(id: string, name: string) {
 
 function renderDialog(onOpenChange = vi.fn()) {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   render(
     <QueryClientProvider client={client}>

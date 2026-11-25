@@ -1,5 +1,5 @@
 // Requires: npm install resend
-import { Resend } from 'resend';
+import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -17,7 +17,7 @@ async function fetchAllTemplates() {
     const { data, error } = await resend.templates.list(listParams);
 
     if (error) {
-      console.error('Error fetching templates:', error);
+      console.error("Error fetching templates:", error);
       throw new Error(`Failed to fetch templates: ${error.message}`);
     }
 

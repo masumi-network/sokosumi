@@ -107,7 +107,10 @@ function wrap(children: ReactNode, client: QueryClient) {
 }
 function client() {
   const value = new QueryClient({
-    defaultOptions: { queries: { retryDelay: 0 } },
+    defaultOptions: {
+      queries: { retryDelay: 0, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   clients.push(value);
   return value;

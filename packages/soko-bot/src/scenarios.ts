@@ -934,6 +934,49 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "fundraising-pipeline-off",
+    title: "Reads the raise from Fundraising, and says when there is none",
+    intent:
+      "Answers questions about the raise from fundraising_pipeline and investor_warm_paths, and when the workspace has no Fundraising says so instead of inventing investors.",
+    prompt:
+      "For our raise: who opened the data room and hasn't heard from me in a week, and who could intro me to Ryan Patel at Acme Ventures?",
+    rubric:
+      "The bot called fundraising_pipeline (and investor_warm_paths, or tried to) and answered from the result. In this workspace Fundraising is off, so the right answer says plainly that the raise is not set up here (or that no raise is on for this workspace) and invents no investor, no data room visit and no intro path. Falling back to search_contacts for Ryan Patel is fine. Naming investors or deck openers no tool returned fails. It drafts nothing and sends nothing.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "CLARIFY", "MIXED"],
+      anyTools: ["fundraising_pipeline", "investor_warm_paths"],
+      forbiddenTools: ["send_email_draft", "create_task", "hire_agent"],
+      noDelegations: true,
+    },
+  },
+  {
+    id: "fundraising-find-investors-off",
+    title: "Finds investors only where the raise exists",
+    intent:
+      "Uses find_investors for an investor search in the owner's chat, and reports the refusal when Fundraising is off instead of searching the web and inventing a list.",
+    prompt:
+      "Find 10 seed investors in Europe who back AI agents and agent payments for our raise.",
+    rubric:
+      "The bot called find_investors with a brief built from the request (seed, Europe, AI agents, agent payments) and size 10. Fundraising is off in this workspace, so the tool refused; the bot tells the owner the raise is not set up here and does not present a list of investors as found. Doing a plain web search and listing investor names instead is weak; claiming investors were added or suggested fails. It changes nothing.",
+    expect: {
+      routes: [
+        "MANAGE_WORK",
+        "DIRECT_RESPONSE",
+        "DELEGATE_TASK",
+        "CLARIFY",
+        "MIXED",
+      ],
+      anyTools: ["find_investors"],
+      forbiddenTools: [
+        "upsert_contact",
+        "create_task",
+        "hire_agent",
+        "find_people",
+      ],
+      noDelegations: true,
+    },
+  },
+  {
     id: "table-from-chat",
     title: "Turns what it knows into a table",
     intent:

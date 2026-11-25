@@ -4706,6 +4706,17 @@ export type ContactImportResult = {
     mergeSuggestions: Array<ContactMergeSuggestion>;
 };
 
+export type ContactLinkedInImportResult = {
+    connections: number;
+    created: number;
+    updated: number;
+    listId: string;
+};
+
+export type ContactLinkedInImportInput = {
+    csv: string;
+};
+
 export type ContactOrganization = {
     name: string;
     /**
@@ -6328,6 +6339,169 @@ export type ReleaseExportLeaseResponse = {
 
 export type ReleaseExportLeaseBody = {
     token: string;
+};
+
+export type FundraisingAccess = {
+    enabled: boolean;
+};
+
+export type FundraisingPipeline = {
+    list: {
+        id: string;
+        name: string;
+    } | null;
+    rooms: Array<{
+        id: string;
+        title: string;
+        token: string;
+    }>;
+    prospects: Array<FundraisingProspect>;
+    research: FundraisingResearch;
+    mailbox: {
+        provider: string;
+        botId: string;
+    } | null;
+};
+
+export type FundraisingProspect = {
+    contact: Contact;
+    stage: FundraisingStage;
+    stageChangedAt: Date | null;
+    owner: ContactPerson | null;
+    ticketSize: string | null;
+    thesis: string | null;
+    committedUsd: number | null;
+    notes: string | null;
+    source: string | null;
+    lastDraftAt: Date | null;
+    lastDraftSubject: string | null;
+    dataRoom: FundraisingDataRoomVisit | null;
+};
+
+export const FundraisingStage = {
+    TO_RESEARCH: 'TO_RESEARCH',
+    WARM_PATH: 'WARM_PATH',
+    REACHED_OUT: 'REACHED_OUT',
+    MEETING: 'MEETING',
+    DATA_ROOM: 'DATA_ROOM',
+    DILIGENCE: 'DILIGENCE',
+    COMMITTED: 'COMMITTED',
+    PASSED: 'PASSED'
+} as const;
+
+export type FundraisingStage = typeof FundraisingStage[keyof typeof FundraisingStage];
+
+export type FundraisingDataRoomVisit = {
+    roomId: string;
+    roomTitle: string;
+    memberId: string;
+    email: string;
+    invitedAt: Date;
+    firstVisitAt: Date | null;
+    lastVisitAt: Date | null;
+    views: number;
+    downloads: number;
+    lastOpened: string | null;
+    revoked: boolean;
+};
+
+export type FundraisingResearch = {
+    monthUsd: number;
+    capUsd: number;
+    perSearchUsd: number;
+    exaConfigured: boolean;
+};
+
+export type FundraisingProspectUpdate = {
+    stage?: FundraisingStage;
+    ownerUserId?: string | null;
+    ticketSize?: string | null;
+    thesis?: string | null;
+    committedUsd?: number | null;
+    notes?: string | null;
+    source?: string | null;
+};
+
+export type FundraisingFindResult = {
+    found: number;
+    costUsd: number;
+    research: FundraisingResearch;
+};
+
+export type FundraisingFindInput = {
+    brief: string;
+    size?: 10 | 25;
+};
+
+export type FundraisingSuggestionIds = {
+    ids: Array<string>;
+};
+
+export type FundraisingPaths = {
+    portfolio: Array<FundraisingPortfolioCompany>;
+    researchedAt: Date | null;
+    researchUsd: number;
+    paths: Array<FundraisingPath>;
+    research: FundraisingResearch;
+};
+
+export type FundraisingPortfolioCompany = {
+    id: string;
+    name: string;
+    website: string | null;
+    round: string | null;
+    date: string | null;
+    amountUsd: number | null;
+    sourceUrl: string;
+    fetchedAt: Date;
+};
+
+export type FundraisingPath = {
+    kind: FundraisingPathKind;
+    via: ContactPerson | null;
+    linkedIn: boolean;
+    through: {
+        id: string;
+        name: string;
+        role: string | null;
+        organization: string | null;
+        avatarUrl: string | null;
+        email: string | null;
+    } | null;
+    company: {
+        name: string;
+        round: string | null;
+        date: string | null;
+    } | null;
+    strength: number;
+    touches: number;
+    lastTouchAt: Date | null;
+};
+
+export const FundraisingPathKind = {
+    DIRECT: 'direct',
+    LINKEDIN: 'linkedin',
+    FUND: 'fund',
+    PORTFOLIO: 'portfolio'
+} as const;
+
+export type FundraisingPathKind = typeof FundraisingPathKind[keyof typeof FundraisingPathKind];
+
+export type FundraisingDraftResult = {
+    to: string;
+    subject: string;
+    body: string;
+    draftId: string;
+    provider: string;
+    roomLink: string | null;
+    prospect: FundraisingProspect;
+};
+
+export type FundraisingDraftInput = {
+    kind: 'intro' | 'follow_up';
+    viaContactId?: string;
+    inviteToRoomId?: string;
+    note?: string;
 };
 
 export type HistoryList = Array<HistoryItem>;
@@ -9379,6 +9553,17 @@ export type MarketingStrategy = MarketingStrategyVersion & {
         }>;
         changes?: Array<string>;
         fitted?: Array<string>;
+        monthWriter?: {
+            state: 'examples' | 'writing' | 'written';
+            level?: 'steady' | 'active' | 'all_in';
+            start?: string;
+            attempts?: number;
+            startedAt?: string;
+            endedAt?: string;
+            error?: string;
+            costUsd?: number;
+            floorAlertAt?: string;
+        };
         patched?: Array<{
             id: string;
             was: {
@@ -9718,6 +9903,17 @@ export type MarketingStrategyRequest = {
         }>;
         changes?: Array<string>;
         fitted?: Array<string>;
+        monthWriter?: {
+            state: 'examples' | 'writing' | 'written';
+            level?: 'steady' | 'active' | 'all_in';
+            start?: string;
+            attempts?: number;
+            startedAt?: string;
+            endedAt?: string;
+            error?: string;
+            costUsd?: number;
+            floorAlertAt?: string;
+        };
         patched?: Array<{
             id: string;
             was: {
@@ -13578,6 +13774,14 @@ export type SeoAuditSummary = {
     name: string;
     projectId: string | null;
     pageCount: number;
+    lastCheck: SeoAuditLastCheck | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type SeoAuditLastCheck = {
+    kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full';
+    status: 'requested' | 'running' | 'completed' | 'failed';
     createdAt: Date;
     updatedAt: Date;
 };
@@ -15243,6 +15447,17 @@ export type CmoPlan = {
     }>;
     changes?: Array<string>;
     fitted?: Array<string>;
+    monthWriter?: {
+        state: 'examples' | 'writing' | 'written';
+        level?: 'steady' | 'active' | 'all_in';
+        start?: string;
+        attempts?: number;
+        startedAt?: string;
+        endedAt?: string;
+        error?: string;
+        costUsd?: number;
+        floorAlertAt?: string;
+    };
     patched?: Array<{
         id: string;
         was: {
@@ -15380,9 +15595,9 @@ export type CmoMeasurement = {
  */
 export type CmoProduction = {
     /**
-     * starting: approved, but no run is working yet; the next sync starts one. stuck: the last run made nothing ready; the next starts at retryAt. blocked: no run could start for half an hour; Core keeps trying.
+     * planning: paid, and Core is writing the month's calendar (cmo-v22). starting: approved, but no run is working yet; the next sync starts one. stuck: the last run made nothing ready; the next starts at retryAt. blocked: no run could start for half an hour; Core keeps trying.
      */
-    state: 'waiting' | 'starting' | 'running' | 'ready' | 'stuck' | 'blocked';
+    state: 'waiting' | 'planning' | 'starting' | 'running' | 'ready' | 'stuck' | 'blocked';
     ready: number;
     total: number;
     /**
@@ -15423,6 +15638,13 @@ export type CmoProduction = {
      * When a stuck month's next production run starts. Null unless state is stuck.
      */
     retryAt: string | null;
+    /**
+     * cmo-v22: the posts the plan promises at least, and the month's posts made, gone out or paused by the owner. Null for a month Cuso wrote himself.
+     */
+    floor: {
+        promised: number;
+        made: number;
+    } | null;
 };
 
 export type CmoOnboardingConflictError = {
@@ -39743,6 +39965,108 @@ export type PostContactsImportResponses = {
 
 export type PostContactsImportResponse = PostContactsImportResponses[keyof PostContactsImportResponses];
 
+export type PostContactsLinkedinConnectionsData = {
+    body?: ContactLinkedInImportInput;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/contacts/linkedin-connections';
+};
+
+export type PostContactsLinkedinConnectionsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a LinkedIn export, or too many rows
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactsLinkedinConnectionsError = PostContactsLinkedinConnectionsErrors[keyof PostContactsLinkedinConnectionsErrors];
+
+export type PostContactsLinkedinConnectionsResponses = {
+    /**
+     * Imported
+     */
+    200: {
+        data: ContactLinkedInImportResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactsLinkedinConnectionsResponse = PostContactsLinkedinConnectionsResponses[keyof PostContactsLinkedinConnectionsResponses];
+
 export type GetContactsOrganizationsData = {
     body?: never;
     headers?: {
@@ -51648,6 +51972,1128 @@ export type AcquireExportLeaseResponses = {
 };
 
 export type AcquireExportLeaseResponse = AcquireExportLeaseResponses[keyof AcquireExportLeaseResponses];
+
+export type GetFundraisingAccessData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/fundraising/access';
+};
+
+export type GetFundraisingAccessErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetFundraisingAccessError = GetFundraisingAccessErrors[keyof GetFundraisingAccessErrors];
+
+export type GetFundraisingAccessResponses = {
+    /**
+     * Access
+     */
+    200: {
+        data: FundraisingAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetFundraisingAccessResponse = GetFundraisingAccessResponses[keyof GetFundraisingAccessResponses];
+
+export type GetFundraisingData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/fundraising';
+};
+
+export type GetFundraisingErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetFundraisingError = GetFundraisingErrors[keyof GetFundraisingErrors];
+
+export type GetFundraisingResponses = {
+    /**
+     * Pipeline
+     */
+    200: {
+        data: FundraisingPipeline;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetFundraisingResponse = GetFundraisingResponses[keyof GetFundraisingResponses];
+
+export type PatchFundraisingProspectsByContactIdData = {
+    body?: FundraisingProspectUpdate;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        contactId: string;
+    };
+    query?: never;
+    url: '/fundraising/prospects/{contactId}';
+};
+
+export type PatchFundraisingProspectsByContactIdErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid change
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchFundraisingProspectsByContactIdError = PatchFundraisingProspectsByContactIdErrors[keyof PatchFundraisingProspectsByContactIdErrors];
+
+export type PatchFundraisingProspectsByContactIdResponses = {
+    /**
+     * Prospect
+     */
+    200: {
+        data: FundraisingProspect;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchFundraisingProspectsByContactIdResponse = PatchFundraisingProspectsByContactIdResponses[keyof PatchFundraisingProspectsByContactIdResponses];
+
+export type PostFundraisingFindData = {
+    body?: FundraisingFindInput;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/fundraising/find';
+};
+
+export type PostFundraisingFindErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No Investors list, Exa missing, or the cap is reached
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Exa did not answer
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostFundraisingFindError = PostFundraisingFindErrors[keyof PostFundraisingFindErrors];
+
+export type PostFundraisingFindResponses = {
+    /**
+     * Found
+     */
+    200: {
+        data: FundraisingFindResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostFundraisingFindResponse = PostFundraisingFindResponses[keyof PostFundraisingFindResponses];
+
+export type GetFundraisingSuggestionsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/fundraising/suggestions';
+};
+
+export type GetFundraisingSuggestionsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetFundraisingSuggestionsError = GetFundraisingSuggestionsErrors[keyof GetFundraisingSuggestionsErrors];
+
+export type GetFundraisingSuggestionsResponses = {
+    /**
+     * Suggestions
+     */
+    200: {
+        data: Array<ContactSuggestion>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetFundraisingSuggestionsResponse = GetFundraisingSuggestionsResponses[keyof GetFundraisingSuggestionsResponses];
+
+export type PostFundraisingSuggestionsAddData = {
+    body?: FundraisingSuggestionIds;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/fundraising/suggestions/add';
+};
+
+export type PostFundraisingSuggestionsAddErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostFundraisingSuggestionsAddError = PostFundraisingSuggestionsAddErrors[keyof PostFundraisingSuggestionsAddErrors];
+
+export type PostFundraisingSuggestionsAddResponses = {
+    /**
+     * Added
+     */
+    200: {
+        data: {
+            added: number;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostFundraisingSuggestionsAddResponse = PostFundraisingSuggestionsAddResponses[keyof PostFundraisingSuggestionsAddResponses];
+
+export type PostFundraisingSuggestionsDismissData = {
+    body?: FundraisingSuggestionIds;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/fundraising/suggestions/dismiss';
+};
+
+export type PostFundraisingSuggestionsDismissErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostFundraisingSuggestionsDismissError = PostFundraisingSuggestionsDismissErrors[keyof PostFundraisingSuggestionsDismissErrors];
+
+export type PostFundraisingSuggestionsDismissResponses = {
+    /**
+     * Dismissed
+     */
+    200: {
+        data: {
+            dismissed: number;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostFundraisingSuggestionsDismissResponse = PostFundraisingSuggestionsDismissResponses[keyof PostFundraisingSuggestionsDismissResponses];
+
+export type GetFundraisingProspectsByContactIdPathsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        contactId: string;
+    };
+    query?: never;
+    url: '/fundraising/prospects/{contactId}/paths';
+};
+
+export type GetFundraisingProspectsByContactIdPathsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not on the Investors list
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetFundraisingProspectsByContactIdPathsError = GetFundraisingProspectsByContactIdPathsErrors[keyof GetFundraisingProspectsByContactIdPathsErrors];
+
+export type GetFundraisingProspectsByContactIdPathsResponses = {
+    /**
+     * Paths
+     */
+    200: {
+        data: FundraisingPaths;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetFundraisingProspectsByContactIdPathsResponse = GetFundraisingProspectsByContactIdPathsResponses[keyof GetFundraisingProspectsByContactIdPathsResponses];
+
+export type PostFundraisingProspectsByContactIdResearchData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        contactId: string;
+    };
+    query?: never;
+    url: '/fundraising/prospects/{contactId}/research';
+};
+
+export type PostFundraisingProspectsByContactIdResearchErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not on the Investors list
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No fund on the contact, Exa missing, or the cap is reached
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Exa did not answer
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostFundraisingProspectsByContactIdResearchError = PostFundraisingProspectsByContactIdResearchErrors[keyof PostFundraisingProspectsByContactIdResearchErrors];
+
+export type PostFundraisingProspectsByContactIdResearchResponses = {
+    /**
+     * Paths
+     */
+    200: {
+        data: FundraisingPaths;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostFundraisingProspectsByContactIdResearchResponse = PostFundraisingProspectsByContactIdResearchResponses[keyof PostFundraisingProspectsByContactIdResearchResponses];
+
+export type PostFundraisingProspectsByContactIdDraftData = {
+    body?: FundraisingDraftInput;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        contactId: string;
+    };
+    query?: never;
+    url: '/fundraising/prospects/{contactId}/draft';
+};
+
+export type PostFundraisingProspectsByContactIdDraftErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No mailbox, or no email address
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The model or the mailbox did not answer
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostFundraisingProspectsByContactIdDraftError = PostFundraisingProspectsByContactIdDraftErrors[keyof PostFundraisingProspectsByContactIdDraftErrors];
+
+export type PostFundraisingProspectsByContactIdDraftResponses = {
+    /**
+     * Draft
+     */
+    200: {
+        data: FundraisingDraftResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostFundraisingProspectsByContactIdDraftResponse = PostFundraisingProspectsByContactIdDraftResponses[keyof PostFundraisingProspectsByContactIdDraftResponses];
 
 export type GetHistoryData = {
     body?: never;
@@ -72509,6 +73955,21 @@ export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData = {
 
 export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors = {
     /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -78674,6 +80135,21 @@ export type PostProjectsByIdImageStudioTalkingVideoScriptsErrors = {
         };
     };
     /**
+     * An agent reached its hourly limit
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Service Unavailable
      */
     503: {
@@ -79631,6 +81107,21 @@ export type PostProjectsByIdImageStudioAssetsByAssetIdCaptionErrors = {
      * CMO project is read-only
      */
     409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * An agent reached its hourly limit
+     */
+    429: {
         error: string;
         message: string;
         kind?: string;

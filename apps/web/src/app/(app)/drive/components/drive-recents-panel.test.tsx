@@ -164,7 +164,9 @@ function makeQueryClient() {
       queries: {
         retry: false,
         staleTime: 60_000,
+        gcTime: Number.POSITIVE_INFINITY,
       },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
     },
   });
 }

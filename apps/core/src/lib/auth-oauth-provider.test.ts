@@ -422,7 +422,7 @@ describe("isRefreshTokenRotating", () => {
 describe("acceptCmoPreviewCallback", () => {
   const CMO_CALLBACK = "https://app.cmo.xyz/api/auth/callback/sokosumi";
   const PREVIEW_CALLBACK =
-    "https://sokosumi-cmo-git-feat-x.preview.cmo.xyz/api/auth/callback/sokosumi";
+    "https://cmo-app-git-feat-x.preview.cmo.xyz/api/auth/callback/sokosumi";
 
   // Better Auth's authorize endpoint on an in-memory store, with the hook.
   async function authorize(registeredUris: string[], redirectUri: string) {
@@ -491,7 +491,7 @@ describe("acceptCmoPreviewCallback", () => {
   it("accepts a branch alias Vercel truncated with a hash", () => {
     expect(
       acceptCmoPreviewCallback(
-        "https://sokosumi-cmo-git-claude-sidebar-new-badge-featu-fceb86.preview.cmo.xyz/api/auth/callback/sokosumi",
+        "https://cmo-app-git-claude-sidebar-new-badge-featu-fceb86.preview.cmo.xyz/api/auth/callback/sokosumi",
         [CMO_CALLBACK],
         false,
       ),
@@ -505,12 +505,20 @@ describe("acceptCmoPreviewCallback", () => {
       "https://sokosumi-knutofq4p.preview.cmo.xyz/api/auth/callback/sokosumi",
     ],
     [
+      "a cmo-app per-deployment URL",
+      "https://cmo-app-knutofq4p.preview.cmo.xyz/api/auth/callback/sokosumi",
+    ],
+    [
       "another project on the suffix",
       "https://evil-git-x.preview.cmo.xyz/api/auth/callback/sokosumi",
     ],
     [
       "a lookalike domain",
-      "https://sokosumi-cmo-git-x.preview.cmo.xyz.evil.com/api/auth/callback/sokosumi",
+      "https://cmo-app-git-x.preview.cmo.xyz.evil.com/api/auth/callback/sokosumi",
+    ],
+    [
+      "the project's old name",
+      "https://sokosumi-cmo-git-x.preview.cmo.xyz/api/auth/callback/sokosumi",
     ],
     ["plain HTTP", PREVIEW_CALLBACK.replace("https:", "http:")],
     ["a port", PREVIEW_CALLBACK.replace(".xyz/", ".xyz:8443/")],

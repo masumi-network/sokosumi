@@ -80,7 +80,12 @@ describe("JobDetailsName", () => {
 describe("useJobDetailsNameController", () => {
   it("writes the new name to the job query, which the page reads", async () => {
     vi.mocked(updateJobName).mockResolvedValue({ ok: true, value: undefined });
-    const queryClient = new QueryClient();
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     const job = { id: "job-1", name: "Old name" } as Job;
     queryClient.setQueryData(getJobQueryKey(job.id), job);
 

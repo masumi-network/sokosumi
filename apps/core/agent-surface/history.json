@@ -1,3 +1,8 @@
 {
-  "backlog": "SOKD-370"
+  "operations": {
+    "GET /history": {
+      "cli": "history list",
+      "mcp": "history_list"
+    }
+  }
 }

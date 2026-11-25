@@ -3,7 +3,6 @@ import { getTranslations } from "next-intl/server";
 import { AgentRatingForm } from "@/components/agents/agent-rating-form";
 import { RatingDistribution } from "@/components/agents/rating-distribution";
 import { StarRating } from "@/components/agents/star-rating";
-import { Skeleton } from "@/components/ui/skeleton";
 import type { AgentRatingStats } from "@/lib/types/core-dto";
 
 import { ReviewsList } from "./reviews-list";
@@ -86,23 +85,5 @@ export async function AgentDetailReviews({
         </div>
       )}
     </section>
-  );
-}
-
-export function AgentDetailReviewsSkeleton() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <Skeleton className="mb-4 h-6 w-32" />
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Skeleton className="h-20" />
-          <div className="space-y-2">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <Skeleton key={i} className="h-5" />
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }

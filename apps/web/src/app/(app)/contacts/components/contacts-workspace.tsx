@@ -13,7 +13,7 @@ import { GitMerge, Users } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { type ExternalToast, toast } from "sonner";
 import { useDebounce } from "use-debounce";
 import {
@@ -32,6 +32,7 @@ import {
   replaceVisibleSelection,
   smartFilterOf,
 } from "@/app/contacts/contacts-view";
+import { FundraisingLink } from "@/app/fundraising/components/fundraising-link";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageSearchField } from "@/components/page-search-field";
 import {
@@ -72,6 +73,7 @@ import { ContactsViewMenus } from "./contacts-views-bar";
 import { ContactsWorkspaceHeader } from "./contacts-workspace-header";
 import { DuplicatesDialog } from "./duplicates-dialog";
 import { ImportContactsDialog } from "./import-contacts-dialog";
+import { ImportLinkedInDialog } from "./import-linkedin-dialog";
 import { ListOverview } from "./list-overview";
 import { ListSuggestions } from "./list-suggestions";
 import { MergeContactsDialog } from "./merge-contacts-dialog";
@@ -99,6 +101,7 @@ const ContactsMap = dynamic(
 type Dialog =
   | { kind: "add" }
   | { kind: "import" }
+  | { kind: "linkedin" }
   | { kind: "list"; list?: ContactList }
   | { kind: "deleteList"; list: ContactList }
   | { kind: "duplicates" }
@@ -163,9 +166,6 @@ export function ContactsWorkspace({
   // and a link that names both opens the archive.
   const archived = view === "archived";
   const layout = archived ? null : urlLayout;
-  useEffect(() => {
-    if (archived && urlLayout) void setLayout(null);
-  }, [archived, urlLayout, setLayout]);
   const [selectedIds, setSelected] = useState<string[]>([]);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
@@ -243,6 +243,7 @@ export function ContactsWorkspace({
 
   function changeView(next: string) {
     void setView(next === "all" ? null : next);
+    if (next === "archived") void setLayout(null);
     setSelected([]);
   }
   function changeOrganization(next: string | null) {
@@ -483,6 +484,9 @@ export function ContactsWorkspace({
                 />
               )}
               <span className="ms-auto flex shrink-0 items-center gap-2">
+                {viewList?.name.trim().toLowerCase() === "investors" ? (
+                  <FundraisingLink className="h-10 md:h-8" />
+                ) : null}
                 {duplicateGroups.length ? (
                   <Button
                     size="sm"
@@ -664,6 +668,9 @@ export function ContactsWorkspace({
       ) : null}
       {dialog?.kind === "import" ? (
         <ImportContactsDialog onClose={() => setDialog(null)} />
+      ) : null}
+      {dialog?.kind === "linkedin" ? (
+        <ImportLinkedInDialog onClose={() => setDialog(null)} />
       ) : null}
       {dialog?.kind === "list" ? (
         <ContactListDialog

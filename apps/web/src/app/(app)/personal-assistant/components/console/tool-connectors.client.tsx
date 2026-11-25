@@ -60,13 +60,22 @@ interface Connector {
  * in for it, and a failed search stays failed while Try again runs.
  */
 function useCatalog(query: string, enabled: boolean) {
-  const [debounced, setDebounced] = useState(query);
-  useTimeout(() => setDebounced(query), SEARCH_DELAY_MS, query);
+  const trimmed = query.trim();
+  const [debounced, setDebounced] = useState(trimmed);
+  if (trimmed === "" && debounced !== "") {
+    setDebounced("");
+  }
+  const activeQuery = trimmed === "" ? "" : debounced;
+  useTimeout(
+    () => setDebounced(trimmed),
+    trimmed === "" || trimmed === debounced ? null : SEARCH_DELAY_MS,
+    trimmed,
+  );
   const catalog = useQuery({
-    queryKey: ["soko-bot-integration-catalog", debounced.trim()],
+    queryKey: ["soko-bot-integration-catalog", activeQuery],
     queryFn: async (): Promise<SokoBotIntegrationCatalogEntry[]> => {
       const result = await searchSokoBotIntegrationCatalogAction({
-        query: debounced.trim(),
+        query: activeQuery,
       });
       // A failed search is not an empty one; Try again is the retry.
       if (!result.ok) throw new Error("Catalog search failed");
@@ -85,7 +94,7 @@ function useCatalog(query: string, enabled: boolean) {
     catalog.isError ||
     (inFlight && catalog.errorUpdatedAt > catalog.dataUpdatedAt);
   const phase: "searching" | "failed" | "done" =
-    query.trim() !== debounced.trim()
+    trimmed !== activeQuery
       ? "searching"
       : failed
         ? "failed"

@@ -20,6 +20,7 @@ const production = {
   beyondPlan: [],
   withoutPicture: [],
   retryAt: null,
+  floor: null,
 };
 
 describe("production progress", () => {

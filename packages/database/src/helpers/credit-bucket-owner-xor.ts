@@ -3,6 +3,7 @@ import {
   Prisma,
   type PrismaClient,
 } from "../generated/prisma/client.js";
+import { netTable } from "../sql-tables.js";
 import { ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX } from "./credit.js";
 
 export const CREDIT_BUCKET_OWNER_XOR_CLASSES = {
@@ -183,8 +184,8 @@ async function listOwnerXorRows(
       cb."referenceId",
       cb."referenceType",
       (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining
-    FROM credit_bucket cb
-    LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+    FROM ${netTable("mainnet", "credit_bucket")} cb
+    LEFT JOIN ${netTable("mainnet", "credit_consumption")} cc ON cc."bucketId" = cb.id
     WHERE ${ownerFilter}
       AND ${organizationFilter}
     GROUP BY

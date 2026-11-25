@@ -30,7 +30,10 @@ let propertyRows = [{ id: "sc-domain:example.com", name: "Example" }];
 let workspace = seoTestWorkspace();
 function mount(settings = false) {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   clients.push(client);
   const wrapper = ({ children }: { children: ReactNode }) => (

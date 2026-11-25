@@ -57,7 +57,7 @@ export function requireSeoFullAuditPriceApproval(
     return;
   if (!input.fullAuditPrice || input.fullAuditPrice.maxCredits !== undefined)
     throw conflict(
-      "The full-audit price changed. Review its minimum charge and cost-plus terms before starting.",
+      "The full-audit price changed. Review the new price before you start.",
     );
 }
 

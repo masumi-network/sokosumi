@@ -1,16 +1,30 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
 import type { EnvVariables } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 
-const { createImageJobMock, createVideoJobMock } = vi.hoisted(() => ({
+const {
+  createImageJobMock,
+  createVideoJobMock,
+  createShortVideoJobMock,
+  createTalkingVideoJobMock,
+  requestCancelMock,
+} = vi.hoisted(() => ({
   createImageJobMock: vi.fn(),
   createVideoJobMock: vi.fn(),
+  createShortVideoJobMock: vi.fn(),
+  createTalkingVideoJobMock: vi.fn(),
+  requestCancelMock: vi.fn(),
 }));
 
 vi.mock("@/services/image-studio-jobs.service", () => ({
   createImageJob: createImageJobMock,
   createVideoJob: createVideoJobMock,
+  createShortVideoJob: createShortVideoJobMock,
+  createTalkingVideoJob: createTalkingVideoJobMock,
+  requestCancel: requestCancelMock,
   DEFAULT_SETTINGS: {
     aspectRatio: "1:1",
     resolution: "1K",
@@ -19,7 +33,10 @@ vi.mock("@/services/image-studio-jobs.service", () => ({
   },
 }));
 
+import mountCancel from "./job-cancel-post";
 import mount from "./jobs-post";
+import mountShortVideo from "./short-video-jobs-post";
+import mountTalkingVideo from "./talking-video-jobs-post";
 import mountVideo from "./video-jobs-post";
 
 const PROJECT_ID = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
@@ -50,17 +67,19 @@ const QUEUED_JOB = {
   cancelRequestedAt: null,
 };
 
-function createApp() {
+const SESSION: AuthenticationContext = {
+  actor: "user",
+  authenticationMethod: "session",
+  userId: "user-a",
+  organizationId: null,
+  role: "user",
+};
+
+function createApp(authContext: AuthenticationContext = SESSION) {
   const app = new OpenAPIHono<EnvVariables>();
   app.use("*", async (c, next) => {
     c.set("requestId", "studio-create-request");
-    c.set("authContext", {
-      actor: "user",
-      authenticationMethod: "session",
-      userId: "user-a",
-      organizationId: null,
-      role: "user",
-    });
+    c.set("authContext", authContext);
     c.set("workspaceContext", {
       workspaceId: "workspace-a",
       userId: "user-a",
@@ -68,8 +87,12 @@ function createApp() {
     });
     await next();
   });
+  app.onError(errorHandler);
   mount(app);
   mountVideo(app);
+  mountShortVideo(app);
+  mountTalkingVideo(app);
+  mountCancel(app);
   return app;
 }
 
@@ -210,4 +233,187 @@ describe("direct Studio generation", () => {
       expect(createImageJobMock).not.toHaveBeenCalled();
     },
   );
+});
+
+const SCRIPT =
+  "Meet the vase that makes every shelf look finished. Order yours today.";
+
+/** Every start and the cancel, as an agent would send them. */
+const AGENT_CALLS = [
+  {
+    path: `/${PROJECT_ID}/image-studio/jobs`,
+    body: { prompt: "A red vase", referenceFileIds: [PHOTO_ID] },
+    service: createImageJobMock,
+    fileActor: (input: Record<string, unknown>) => input.referenceFileActor,
+  },
+  {
+    path: `/${PROJECT_ID}/image-studio/video-jobs`,
+    body: { prompt: "A red vase turning" },
+    service: createVideoJobMock,
+    fileActor: null,
+  },
+  {
+    path: `/${PROJECT_ID}/image-studio/short-video-jobs`,
+    body: { format: "voiceover", script: SCRIPT, pictureFileIds: [PHOTO_ID] },
+    service: createShortVideoJobMock,
+    fileActor: (input: Record<string, unknown>) =>
+      (input.pictures as { actor: unknown }).actor,
+  },
+  {
+    path: `/${PROJECT_ID}/image-studio/talking-video-jobs`,
+    body: { script: SCRIPT, presenter: { kind: "stock", id: "ada" } },
+    service: createTalkingVideoJobMock,
+    fileActor: null,
+  },
+  {
+    path: `/${PROJECT_ID}/image-studio/jobs/${JOB_ID}/cancel`,
+    body: null,
+    service: requestCancelMock,
+    fileActor: null,
+  },
+] as const;
+
+function send(
+  app: ReturnType<typeof createApp>,
+  call: (typeof AGENT_CALLS)[number],
+) {
+  return app.request(call.path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body:
+      call.body === null
+        ? undefined
+        : JSON.stringify({ ...call.body, idempotencyKey: "agent-intent-a" }),
+  });
+}
+
+describe("agents start and cancel Studio generations (ADR 0077)", () => {
+  beforeEach(() => {
+    for (const mock of [
+      createImageJobMock,
+      createVideoJobMock,
+      createShortVideoJobMock,
+      createTalkingVideoJobMock,
+    ]) {
+      mock.mockResolvedValue(QUEUED_JOB);
+    }
+    requestCancelMock.mockResolvedValue({ accepted: true });
+  });
+
+  it.each(
+    (["api_key", "oauth"] as const).flatMap((authenticationMethod) =>
+      AGENT_CALLS.map((call) => ({ authenticationMethod, call })),
+    ),
+  )(
+    "lets $authenticationMethod call $call.path as its own user",
+    async ({ authenticationMethod, call }) => {
+      const response = await send(
+        createApp({ ...SESSION, authenticationMethod }),
+        call,
+      );
+
+      expect(response.status).toBeLessThan(300);
+      expect(call.service).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ userId: "user-a", projectId: PROJECT_ID }),
+      );
+      // Files are read as the caller's credential, never as a browser session.
+      if (call.fileActor) {
+        expect(call.fileActor(call.service.mock.calls[0][0])).toEqual({
+          userId: "user-a",
+          organizationId: null,
+          kind: authenticationMethod,
+        });
+      }
+    },
+  );
+
+  it.each(AGENT_CALLS)("refuses a Coworker key on $path", async (call) => {
+    const response = await send(
+      createApp({
+        actor: "coworker",
+        coworkerId: "cw-1",
+        vendorId: "vendor-1",
+        context: { userId: "user-a", organizationId: null },
+      }),
+      call,
+    );
+
+    expect(response.status).toBe(403);
+    expect(call.service).not.toHaveBeenCalled();
+  });
+
+  it.each(AGENT_CALLS.filter((call) => call.body !== null))(
+    "refuses a start on $path without an idempotencyKey",
+    async (call) => {
+      const response = await createApp({
+        ...SESSION,
+        authenticationMethod: "api_key",
+      }).request(call.path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(call.body),
+      });
+
+      expect(response.status).toBe(422);
+      expect(call.service).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe("a talking video of a real person's photo (ADR 0077)", () => {
+  const request = (authContext: AuthenticationContext) =>
+    createApp(authContext).request(
+      `/${PROJECT_ID}/image-studio/talking-video-jobs`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          script: SCRIPT,
+          presenter: { kind: "file", fileId: PHOTO_ID, consent: true },
+          idempotencyKey: "agent-intent-a",
+        }),
+      },
+    );
+
+  beforeEach(() => {
+    createTalkingVideoJobMock.mockResolvedValue(QUEUED_JOB);
+  });
+
+  it.each(["api_key", "oauth"] as const)(
+    "is a person's step for %s: an agent cannot consent for someone's face",
+    async (authenticationMethod) => {
+      const response = await request({ ...SESSION, authenticationMethod });
+
+      expect(response.status).toBe(403);
+      const body = (await response.json()) as {
+        kind: string;
+        webUrl: string;
+      };
+      expect(body.kind).toBe("person_approval_required");
+      expect(new URL(body.webUrl).pathname).toBe("/studio");
+      expect(new URL(body.webUrl).searchParams.get("projectId")).toBe(
+        PROJECT_ID,
+      );
+      expect(createTalkingVideoJobMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("still starts for a person in the browser, with their consent", async () => {
+    const response = await request(SESSION);
+
+    expect(response.status).toBe(201);
+    expect(createTalkingVideoJobMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        presenter: expect.objectContaining({
+          kind: "file",
+          fileId: PHOTO_ID,
+          actor: {
+            userId: "user-a",
+            organizationId: null,
+            kind: "interactive",
+          },
+        }),
+      }),
+    );
+  });
 });

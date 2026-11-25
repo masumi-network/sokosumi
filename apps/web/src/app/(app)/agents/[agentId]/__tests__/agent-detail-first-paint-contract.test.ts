@@ -97,7 +97,10 @@ describe("agent detail first-paint contract (SOK-781)", () => {
   it("detail surfaces show no price/credits while app Hire is off (SOK-922)", () => {
     const page = stripComments(readAgentId("page.tsx"));
     const detailHeader = stripComments(
-      readWebSrc("components/agents/agent-detail/header.tsx"),
+      readWebSrc("components/agents/agent-detail/agent-detail.tsx") +
+        readWebSrc(
+          "components/agents/agent-detail/marketplace-agent-actions.tsx",
+        ),
     );
     const jobsHeader = stripComments(readAgentId("jobs/components/header.tsx"));
     const viewTracker = stripComments(

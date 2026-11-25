@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -23,10 +23,12 @@ vi.mock("./avatar-studio.client", () => ({
     code,
     onChange,
     compact,
+    onMoreDetailsChange,
   }: {
     code: string | null;
     onChange: (code: string) => void;
     compact?: boolean;
+    onMoreDetailsChange?: (open: boolean) => void;
   }) => (
     <div
       data-testid="avatar-studio"
@@ -36,7 +38,19 @@ vi.mock("./avatar-studio.client", () => ({
       <button type="button" onClick={() => onChange("v1-owl")}>
         owl look
       </button>
+      <button type="button" onClick={() => onMoreDetailsChange?.(true)}>
+        open details
+      </button>
+      <button type="button" onClick={() => onMoreDetailsChange?.(false)}>
+        close details
+      </button>
     </div>
+  ),
+}));
+
+vi.mock("@/components/soko-bot/lazy-live-bot-avatar.client", () => ({
+  LiveBotAvatarLazy: ({ code }: { code: string }) => (
+    <span data-testid="mini-preview" data-code={code} />
   ),
 }));
 
@@ -111,6 +125,44 @@ describe("CreateState", () => {
     // One pinned row: Back stays on screen while the pictures scroll.
     expect(back.parentElement).toBe(create.parentElement);
     expect(back.parentElement?.className).toContain("sticky");
+  });
+
+  // With More details open the big preview is scrolled away; each pick shows here instead.
+  it("shows a live mini preview beside Back while More details is open", async () => {
+    const user = userEvent.setup();
+    renderCreate();
+    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
+    expect(screen.queryByTestId("mini-preview")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "open details" }));
+    await user.click(screen.getByRole("button", { name: "owl look" }));
+    const mini = screen.getByTestId("mini-preview");
+    expect(mini).toHaveAttribute("data-code", "v1-owl");
+    // In the pinned bar, beside Back and Create.
+    expect(mini.closest(".sticky")).toBe(
+      screen.getByRole("button", { name: "Back" }).parentElement,
+    );
+
+    await user.click(screen.getByRole("button", { name: "close details" }));
+    expect(screen.queryByTestId("mini-preview")).toBeNull();
+  });
+
+  // The mini avatar takes room from Create; Back gives it back as an icon, so a
+  // long name fits as well as with More details closed.
+  it("shrinks Back to its icon while More details is open, keeping its name", async () => {
+    const user = userEvent.setup();
+    renderCreate();
+    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
+    const back = screen.getByRole("button", { name: "Back" });
+    expect(within(back).getByText("Back")).not.toHaveClass("sr-only");
+
+    await user.click(screen.getByRole("button", { name: "open details" }));
+    expect(back).toHaveAccessibleName("Back");
+    expect(back).toHaveClass("size-10");
+    expect(within(back).getByText("Back")).toHaveClass("sr-only");
+
+    await user.click(screen.getByRole("button", { name: "close details" }));
+    expect(within(back).getByText("Back")).not.toHaveClass("sr-only");
   });
 
   it("says a name is needed in the page, not a browser bubble, when it is empty", async () => {

@@ -39,7 +39,14 @@ const leads = {
   updatedAt: new Date(),
 };
 
-function renderDialog(client = new QueryClient()) {
+function renderDialog(
+  client = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  }),
+) {
   const onPick = vi.fn();
   const onClose = vi.fn();
   const view = render(
@@ -103,7 +110,10 @@ describe("TableAttachDialog", () => {
 
   it("lists only the active workspace's Tables from a shared cache", async () => {
     const client = new QueryClient({
-      defaultOptions: { queries: { staleTime: 60_000 } },
+      defaultOptions: {
+        queries: { staleTime: 60_000, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     f.list.mockImplementation(() =>
       Promise.resolve({
@@ -156,7 +166,16 @@ describe("TableAttachDialog", () => {
     document.body.append(attach);
     const onClose = vi.fn();
     const view = render(
-      <QueryClientProvider client={new QueryClient()}>
+      <QueryClientProvider
+        client={
+          new QueryClient({
+            defaultOptions: {
+              queries: { gcTime: Number.POSITIVE_INFINITY },
+              mutations: { gcTime: Number.POSITIVE_INFINITY },
+            },
+          })
+        }
+      >
         <TableAttachDialog
           onClose={onClose}
           onPick={vi.fn()}
@@ -237,7 +256,12 @@ describe("TableAttachDialog", () => {
       });
     });
     renderDialog(
-      new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+      new QueryClient({
+        defaultOptions: {
+          queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+          mutations: { gcTime: Number.POSITIVE_INFINITY },
+        },
+      }),
     );
 
     fireEvent.click(await screen.findByRole("button", { name: "loadMore" }));

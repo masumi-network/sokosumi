@@ -4,7 +4,7 @@ import {
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { requireSocialPostReader } from "@/helpers/social-post-access";
+import { requireSocialPostActor } from "@/helpers/social-post-access";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -48,7 +48,7 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    const userContext = await requireSocialPostReader(c.var.authContext);
+    const userContext = await requireSocialPostActor(c.var.authContext);
     const { workspaceId } = requireWorkspaceContext(c.var.workspaceContext);
     const { status: statuses, cursor, limit } = c.req.valid("query");
 
@@ -74,7 +74,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         c,
         z.array(workspaceSocialPostSchema).parse(
           posts.map((post) => ({
-            post: presentSocialPost(post, userContext.coworkerId),
+            post: presentSocialPost(post, userContext),
             projectName: names.get(post.projectId) ?? "",
             projectCmo: cmoProjects.has(post.projectId),
           })),

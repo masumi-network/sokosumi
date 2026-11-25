@@ -8,7 +8,7 @@ import {
   redactSokoBotSensitiveText,
   sanitizeSokoBotMemoryMarkdown,
 } from "@sokosumi/soko-bot";
-import { convertCentsToCredits } from "@sokosumi/utils";
+import { convertCentsToCredits, hideSeoAuditRequest } from "@sokosumi/utils";
 import { DAY_MS } from "@/config/constants";
 import { taskOwnerLabel } from "@/helpers/soko-bot-owner";
 import { buildCreditsPayload } from "@/helpers/subscription";
@@ -1006,7 +1006,10 @@ export class ContextPacketBuilder {
         requiredReference: input.referencedTaskIds?.includes(task.id) ?? false,
         id: boundedIdentifier(task.id),
         name: sanitizeText(task.name, TEXT_LIMITS.name),
-        summary: sanitizeText(task.description, TEXT_LIMITS.summary),
+        summary: sanitizeText(
+          hideSeoAuditRequest(task.description),
+          TEXT_LIMITS.summary,
+        ),
         status: task.status,
         owner: taskOwnerLabel(task, input.userId),
         priority: null,
