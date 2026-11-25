@@ -258,11 +258,9 @@ describe("TasksBoard actions", () => {
   });
 
   it("refreshes by re-calling tasks_list with the same arguments", async () => {
-    const { sent } = await openBoard(
-      BOARD.result,
-      {},
-      async () => BOARD.personal,
-    );
+    // tasks_list's own result: no `_meta.sokosumi`, which only the show tool adds.
+    const { _meta, ...plain } = BOARD.personal;
+    const { sent } = await openBoard(BOARD.result, {}, async () => plain);
 
     await act(async () =>
       fireEvent.click(screen.getByRole("button", { name: "Refresh" })),
@@ -272,6 +270,29 @@ describe("TasksBoard actions", () => {
     expect(screen.queryByText("Acme Studio")).toBeNull();
     expect(screen.queryByText("Send the December newsletter")).toBeTruthy();
     expect(screen.queryByText("Approve the January social posts")).toBeNull();
+
+    await act(async () =>
+      fireEvent.click(taskButton("Send the December newsletter")),
+    );
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "Open in Sokosumi" })),
+    );
+    expect(sent.links).toHaveBeenCalledWith(
+      `https://app.sokosumi.com/tasks/${BOARD.tasks[1].id}`,
+    );
+  });
+
+  it("keeps the board when a refresh returns a result it cannot read", async () => {
+    await openBoard(BOARD.result, {}, async () => ({ content: [] }));
+
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "Refresh" })),
+    );
+
+    expect(
+      screen.getByText("Could not refresh. This is the last result."),
+    ).toBeTruthy();
+    expect(screen.getByText("Acme Studio")).toBeTruthy();
   });
 
   it("keeps the last result and says so when a refresh fails", async () => {

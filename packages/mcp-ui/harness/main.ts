@@ -64,7 +64,7 @@ async function main() {
   document.body.prepend(iframe);
   if (!iframe.contentWindow) throw new Error("The iframe has no window");
 
-  const hostContext: McpUiHostContext = {
+  let hostContext: McpUiHostContext = {
     theme,
     ...(styles && { styles: { variables: styles } }),
     locale: "en-US",
@@ -91,7 +91,8 @@ async function main() {
   };
   bridge.onrequestdisplaymode = async ({ mode }) => {
     record(`ui/request-display-mode ${mode}`);
-    bridge.setHostContext({ ...hostContext, displayMode: mode });
+    hostContext = { ...hostContext, displayMode: mode };
+    bridge.setHostContext(hostContext);
     return { mode };
   };
   bridge.onupdatemodelcontext = async ({ content }) => {
@@ -113,6 +114,7 @@ async function main() {
     if (params.has("retheme")) {
       const next = theme === "dark" ? "light" : "dark";
       document.documentElement.dataset.theme = next;
+      hostContext = { ...hostContext, theme: next };
       await bridge.sendHostContextChange({ theme: next });
       record(`host-context-changed theme=${next} only`);
     }

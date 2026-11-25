@@ -21,10 +21,15 @@ export type ConnectionState = {
   | { status: "failed" }
 );
 
-/** Calls a server tool through the host; a success replaces the result. */
+/**
+ * Calls a server tool through the host. A result `accept` takes replaces the
+ * shown one, keeping its `_meta` (such as Core's `webBaseUrl`, which only the
+ * show tool adds) under the new result's own.
+ */
 export type Rerun = (
   name: string,
   args: Record<string, unknown>,
+  accept: (result: ToolResult) => boolean,
 ) => Promise<boolean>;
 
 export function systemTheme(): McpUiTheme {
@@ -89,12 +94,20 @@ export function useViewConnection(
   }, [app, transport, update]);
 
   const rerun = useCallback<Rerun>(
-    async (name, args) => {
+    async (name, args, accept) => {
       try {
         const result = await app.callServerTool({ name, arguments: args });
-        if (result.isError) return false;
+        if (result.isError || !accept(result)) return false;
         update((previous) =>
-          previous.status === "result" ? { ...previous, result } : previous,
+          previous.status === "result"
+            ? {
+                ...previous,
+                result: {
+                  ...result,
+                  _meta: { ...previous.result._meta, ...result._meta },
+                },
+              }
+            : previous,
         );
         return true;
       } catch {

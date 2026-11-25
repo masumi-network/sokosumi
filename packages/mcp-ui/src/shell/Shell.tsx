@@ -88,7 +88,12 @@ export function Shell<T>({
   const { input, host } = connection;
   const refresh =
     refreshTool && input && app.getHostCapabilities()?.serverTools
-      ? () => rerun(refreshTool, input)
+      ? () =>
+          rerun(
+            refreshTool,
+            input,
+            (result) => schema.safeParse(result.structuredContent).success,
+          )
       : undefined;
 
   return (
