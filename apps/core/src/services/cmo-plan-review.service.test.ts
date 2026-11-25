@@ -23,6 +23,7 @@ import {
   cmoChannelFitProblems,
   cmoDistinctClaims,
   cmoDraftProblems,
+  cmoExampleProblems,
   cmoFitMonthToCalendar,
   cmoFollowCadenceChange,
   cmoFunnelPlanProblems,
@@ -1340,6 +1341,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       stageSpread: false,
       pillarFacts: false,
       industryTopics: false,
+      examplesOnly: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-weekly"])).toEqual({
       weekly: true,
@@ -1352,6 +1354,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       stageSpread: false,
       pillarFacts: false,
       industryTopics: false,
+      examplesOnly: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-part-patch"])).toEqual({
       weekly: true,
@@ -1364,6 +1367,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       stageSpread: false,
       pillarFacts: false,
       industryTopics: false,
+      examplesOnly: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-channel-fit"])).toEqual({
       weekly: true,
@@ -1376,6 +1380,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       stageSpread: false,
       pillarFacts: false,
       industryTopics: false,
+      examplesOnly: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-plain-words"])).toEqual({
       weekly: true,
@@ -1388,6 +1393,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       stageSpread: false,
       pillarFacts: false,
       industryTopics: false,
+      examplesOnly: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-v20"])).toEqual({
       weekly: true,
@@ -1400,6 +1406,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       stageSpread: true,
       pillarFacts: true,
       industryTopics: false,
+      examplesOnly: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-v21"])).toEqual({
       weekly: true,
@@ -1412,6 +1419,20 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       stageSpread: true,
       pillarFacts: true,
       industryTopics: true,
+      examplesOnly: false,
+    });
+    expect(cmoStrategyRules(["cmo-strategy-v22"])).toEqual({
+      weekly: true,
+      aida: true,
+      everyNetwork: true,
+      claims: true,
+      partPatch: true,
+      channelFit: true,
+      plainWords: true,
+      stageSpread: true,
+      pillarFacts: true,
+      industryTopics: true,
+      examplesOnly: true,
     });
     expect(cmoStrategyRules(["cmo-strategy-patches"])).toEqual({
       weekly: false,
@@ -1424,6 +1445,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       stageSpread: false,
       pillarFacts: false,
       industryTopics: false,
+      examplesOnly: false,
     });
   });
 
@@ -2099,6 +2121,7 @@ describe("claims", () => {
       stageSpread: false,
       pillarFacts: false,
       industryTopics: false,
+      examplesOnly: false,
     });
     const strategy = plan({
       calendar: [
@@ -2869,5 +2892,109 @@ describe("cmoPlainWordsProblems", () => {
 
   it("passes the plain base plan, operations leads and all", () => {
     expect(cmoPlainWordsProblems(plan())).toEqual([]);
+  });
+});
+
+describe("cmo-v22's example posts", () => {
+  const example = (
+    id: string,
+    channel: string,
+    format: string,
+    pillar: string,
+    extra: Partial<MarketingStrategyPlan["calendar"][number]> = {},
+  ) => ({
+    ...entry(id, channel, format),
+    title: `Example ${id}`,
+    pillar,
+    approach: "educational" as const,
+    stage: "awareness" as const,
+    brief: "What it shows",
+    why: "Serves the pillar",
+    claim: `Claim ${id}`,
+    ...extra,
+  });
+  const networks = ["x", "linkedin", "instagram", "tiktok"].map((channel) => ({
+    channel,
+    cadence: "top rate",
+  }));
+  const shaped = (calendar: MarketingStrategyPlan["calendar"]) =>
+    plan({
+      channels: networks,
+      calendar,
+      monthWriter: { state: "examples", attempts: 0 },
+    });
+  const good = [
+    example("e1", "x", "image", "Recurring work"),
+    example("e2", "linkedin", "image", "Pilot results"),
+    example("e3", "tiktok", "video", "Setup", {
+      alsoOn: ["instagram"],
+      approach: "promotional",
+      stage: "action",
+    }),
+  ];
+
+  it("passes three to five whole examples on different pillars and networks", () => {
+    expect(
+      cmoExampleProblems(shaped(good), { stageSpread: true, claims: true }),
+    ).toEqual([]);
+  });
+
+  it("asks for the range: pillars, networks, a short video, whole briefs", () => {
+    const narrow = [
+      example("e1", "x", "image", "Recurring work"),
+      example("e2", "x", "post", "Recurring work"),
+      example("e3", "x", "image", "Recurring work", { claim: undefined }),
+    ];
+    expect(
+      cmoExampleProblems(shaped(narrow), { stageSpread: true, claims: true }),
+    ).toEqual([
+      "the examples cover 1 of the 3 pillars; give each example another pillar, so the owner sees what each pillar makes.",
+      "the examples go out on 1 network; put them on at least 3 of the strategy's networks.",
+      "no example is a short video; make one a instagram reel or tiktok video with the other short-video networks in alsoOn.",
+      "e3 is not whole examples; give each its brief, why, approach, stage and claim.",
+    ]);
+    expect(cmoExampleProblems(shaped(good.slice(0, 2)))[0]).toBe(
+      "the calendar holds 2 example posts; show 3 to 5, so the owner sees what the month makes before paying.",
+    );
+  });
+
+  it("holds the examples to no volume, cadence or share rule, and refuses more than five", () => {
+    const problems = cmoPlanProblems(shaped(good), {
+      ...cmoStrategyRules(["cmo-strategy-v22"]),
+    });
+    expect(
+      problems.filter((problem) =>
+        /calendar (covers|has|uses)|pieces a week|no piece serves|planned at|crowd/.test(
+          problem,
+        ),
+      ),
+    ).toEqual([]);
+    expect(cmoPlanRuleProblems(shaped(good))).toEqual([]);
+    const six = [0, 1, 2, 3, 4, 5].map((index) =>
+      example(`s${index}`, "x", "image", "Setup"),
+    );
+    expect(cmoPlanRuleProblems(shaped(six))).toEqual([
+      'Rule "5 example posts": the calendar has 6 pieces; before payment it holds 3 to 5 example posts, and Core writes the whole month after payment. Save only your best 5.',
+    ]);
+  });
+
+  it("promises nothing a finish turn or the approval would ask of Cuso", () => {
+    const rules = cmoStrategyRules(["cmo-strategy-v22"]);
+    expect(cmoPromiseGaps(shaped(good), rules)).toEqual([]);
+    expect(cmoMonthShortfall(shaped(good), rules)).toBeNull();
+    // Written after payment at Starter, the month is still Core's.
+    const written = plan({
+      channels: networks,
+      calendar: good,
+      monthWriter: { state: "written", level: "steady", attempts: 1 },
+    });
+    expect(cmoPromiseGaps(written, rules)).toEqual([]);
+  });
+
+  it("leaves a month without monthWriter to the rules it always had", () => {
+    const rules = cmoStrategyRules(["cmo-strategy-v22"]);
+    const old = plan({ channels: networks, calendar: good });
+    expect(cmoPromiseGaps(old, rules).length).toBeGreaterThan(0);
+    expect(cmoPlanRuleProblems(old)[0]).toContain('Rule "16 pieces"');
   });
 });

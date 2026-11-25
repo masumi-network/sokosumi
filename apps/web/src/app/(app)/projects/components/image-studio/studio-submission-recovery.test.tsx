@@ -1,11 +1,17 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
   waitFor,
   within,
 } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  resetScopeDialogs,
+  selectProjectScope,
+} from "@/app/components/project-scope/sidebar-project-scope-state";
 
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
@@ -17,6 +23,10 @@ import type {
 } from "./types";
 
 const startImageGeneration = vi.hoisted(() => vi.fn());
+const navMocks = vi.hoisted(() => ({
+  replace: vi.fn(),
+  pathname: "/projects/campaign/studio",
+}));
 // happy-dom has no layout for next/image to measure a `fill` parent by.
 vi.mock("next/image", () => import("@/test/next-image"));
 
@@ -26,8 +36,8 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
   prepareStudioAssetSocialMedia: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: vi.fn() }),
-  usePathname: () => "/projects/campaign/studio",
+  useRouter: () => ({ replace: navMocks.replace }),
+  usePathname: () => navMocks.pathname,
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("next-intl", () => ({
@@ -160,7 +170,15 @@ function savedSubmission() {
   return screen.findByRole("article", { name: "savedSubmission" });
 }
 
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  navMocks.pathname = "/projects/campaign/studio";
+  resetScopeDialogs();
+});
+
+afterEach(() => {
+  resetScopeDialogs();
+});
 
 describe("submission recovery in the studio", () => {
   it("never replaces a newer draft with an earlier rejected submission", async () => {
@@ -499,5 +517,34 @@ describe("submission recovery in the studio", () => {
     ).toBeEnabled();
     expect(promptBox()).toHaveValue("");
     expect(startImageGeneration).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes to the picked project when Core accepts in the still-active Studio", async () => {
+    navMocks.pathname = "/studio";
+    startImageGeneration.mockResolvedValueOnce({
+      ok: true,
+      job: { id: "job" },
+    });
+    render(
+      <ImageStudio
+        catalog={{ ...TEST_CATALOG, models: [TEST_CATALOG.models[0]] }}
+        initialSelectedAssetId={null}
+        initialState={{ assets: [], jobs: [], nextCursor: null }}
+        labels={TEST_LABELS}
+        projectId={null}
+      />,
+    );
+
+    submit("Studio launch creative");
+    act(() => {
+      selectProjectScope("project-picked", vi.fn());
+    });
+
+    await waitFor(() =>
+      expect(navMocks.replace).toHaveBeenCalledWith(
+        "/studio?projectId=project-picked",
+        { scroll: false },
+      ),
+    );
   });
 });

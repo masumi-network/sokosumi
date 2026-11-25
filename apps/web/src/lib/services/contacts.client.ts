@@ -48,6 +48,7 @@ import {
   postContactsCompanyListsByListIdMembers,
   postContactsDuplicatesDismiss,
   postContactsImport,
+  postContactsLinkedinConnections,
   postContactsMerge,
   postContactsStage,
   postContactsStageUndo,
@@ -334,6 +335,12 @@ export const contactsService = {
         path: { id: listId },
         body: { ids },
       })
+    ).data.data;
+  },
+  /** The caller's LinkedIn Connections.csv, as text. */
+  async importLinkedIn(csv: string) {
+    return (
+      await postContactsLinkedinConnections({ ...options(), body: { csv } })
     ).data.data;
   },
   async members(organizationId: string) {

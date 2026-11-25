@@ -19,6 +19,7 @@ import {
   type ContactActor,
   contactDtos,
 } from "@/services/contacts.service";
+import { ownerMailbox } from "@/services/fundraising-mailbox.service";
 import { researchStatus } from "@/services/fundraising-research.service";
 
 /** `nameKey` of the list the pipeline runs over. */
@@ -162,6 +163,8 @@ function toProspectDto(
     committedUsd: row?.committedUsd ?? null,
     notes: row?.notes ?? null,
     source: row?.source ?? null,
+    lastDraftAt: row?.lastDraftAt ?? null,
+    lastDraftSubject: row?.lastDraftSubject ?? null,
     dataRoom: dataRoom ?? null,
   };
 }
@@ -212,8 +215,11 @@ export async function listFundraisingPipeline(
     },
     select: { id: true, name: true },
   });
-  const research = await researchStatus(actor);
-  if (!list) return { list: null, rooms: [], prospects: [], research };
+  const [research, mailbox] = await Promise.all([
+    researchStatus(actor),
+    ownerMailbox(actor),
+  ]);
+  if (!list) return { list: null, rooms: [], prospects: [], research, mailbox };
   const rows = await prisma.contact.findMany({
     where: {
       workspaceId: actor.workspaceId,
@@ -236,6 +242,7 @@ export async function listFundraisingPipeline(
     })),
     prospects,
     research,
+    mailbox,
   };
 }
 

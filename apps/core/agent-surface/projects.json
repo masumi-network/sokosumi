@@ -1,5 +1,4 @@
 {
-  "backlog": "SOKD-373",
   "operations": {
     "GET /projects/{id}/ads/accounts": {
       "cli": "projects ads-accounts",
@@ -152,19 +151,16 @@
       "reason": "A person approves, publishes and connects accounts (ADR 0077)."
     },
     "POST /projects/{id}/ads/accounts/{accountId}/campaigns": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects ads-campaign-create",
+      "mcp": "projects_ads_campaign_create"
     },
     "PUT /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}": {
-      "cli": false,
-      "mcp": false,
-      "reason": "Human-only pending ADR 0077's follow-up tickets."
+      "cli": "projects ads-campaign-edit",
+      "mcp": "projects_ads_campaign_edit"
     },
     "PATCH /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}": {
-      "cli": false,
-      "mcp": false,
-      "reason": "A person resumes ad spend (ADR 0077); pausing and budgets wait for its follow-up tickets."
+      "cli": "projects ads-campaign-update",
+      "mcp": "projects_ads_campaign_update"
     },
     "PUT /projects/{id}/ads/market": {
       "cli": false,
@@ -498,6 +494,10 @@
       "cli": "projects remove-competitor",
       "mcp": "projects_remove_competitor"
     },
+    "POST /projects/{id}/competitors/{competitorId}/restore": {
+      "cli": "projects restore-competitor",
+      "mcp": "projects_restore_competitor"
+    },
     "PUT /projects/{id}/competitors/checks": {
       "cli": "projects competitor-checks",
       "mcp": "projects_competitor_checks"
@@ -635,6 +635,91 @@
     "DELETE /projects/{id}/newsletter/subscribers/{subscriberId}": {
       "cli": "newsletter remove-subscriber",
       "mcp": "newsletter_remove_subscriber"
+    },
+    "GET /projects/{id}/seo": {
+      "cli": "seo project-get",
+      "mcp": "seo_project_get"
+    },
+    "POST /projects/{id}/seo/pages": {
+      "cli": "seo project-add-page",
+      "mcp": "seo_project_add_page"
+    },
+    "POST /projects/{id}/seo/scopes": {
+      "cli": "seo project-create-scope",
+      "mcp": "seo_project_create_scope"
+    },
+    "PUT /projects/{id}/seo/scopes/{scopeId}": {
+      "cli": "seo project-update-scope",
+      "mcp": "seo_project_update_scope"
+    },
+    "POST /projects/{id}/seo/imports": {
+      "cli": "seo project-import-report",
+      "mcp": "seo_project_import_report"
+    },
+    "POST /projects/{id}/seo/analyses": {
+      "cli": "seo project-analyze",
+      "mcp": "seo_project_analyze"
+    },
+    "POST /projects/{id}/seo/keywords": {
+      "cli": "seo project-save-keyword",
+      "mcp": "seo_project_save_keyword"
+    },
+    "POST /projects/{id}/seo/competitors": {
+      "cli": "seo project-save-competitor",
+      "mcp": "seo_project_save_competitor"
+    },
+    "POST /projects/{id}/seo/actions": {
+      "cli": "seo project-create-task",
+      "mcp": "seo_project_create_task"
+    },
+    "POST /projects/{id}/seo/monitors": {
+      "cli": "seo project-create-monitor",
+      "mcp": "seo_project_create_monitor"
+    },
+    "POST /projects/{id}/seo/actions/reviews": {
+      "cli": "seo project-review-action",
+      "mcp": "seo_project_review_action"
+    },
+    "GET /projects/{id}/seo/statistics/properties": {
+      "cli": "seo project-properties",
+      "mcp": "seo_project_properties"
+    },
+    "POST /projects/{id}/seo/statistics/sync": {
+      "cli": "seo project-sync-statistics",
+      "mcp": "seo_project_sync_statistics"
+    },
+    "POST /projects/{id}/seo/statistics/traffic": {
+      "cli": false,
+      "mcp": false,
+      "reason": "First-party app only (requireFirstPartyUserAuthContext): API keys and MCP tokens get 403."
+    },
+    "POST /projects/{id}/seo/page-changes": {
+      "cli": "seo project-record-change",
+      "mcp": "seo_project_record_change"
+    },
+    "PUT /projects/{id}/seo/brand-terms": {
+      "cli": "seo project-set-brand-terms",
+      "mcp": "seo_project_set_brand_terms"
+    },
+    "GET /projects/{id}/seo/brief": {
+      "cli": "seo project-brief",
+      "mcp": "seo_project_brief"
+    },
+    "PUT /projects/{id}/seo/brief": {
+      "cli": "seo project-save-brief",
+      "mcp": "seo_project_save_brief"
+    },
+    "GET /projects/{id}/seo/brief/suggestion": {
+      "cli": "seo project-suggest-brief",
+      "mcp": "seo_project_suggest_brief"
+    },
+    "GET /projects/{id}/seo/console-exports/{taskId}": {
+      "cli": "seo project-console-exports",
+      "mcp": "seo_project_console_exports"
+    },
+    "POST /projects/{id}/seo/console-exports/{taskId}": {
+      "cli": "seo project-import-console-export",
+      "mcp": "seo_project_import_console_export"
     }
   }
 }

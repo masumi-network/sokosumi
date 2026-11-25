@@ -386,6 +386,53 @@ sokosumi newsletter submit-issue PROJECT_ID ISSUE_ID --input-json '{"revision":2
 
 [VERIFIED: ADR 0077] Agents draft and stop; a person approves. Submit a newsletter issue or write a Marketing strategy, then tell the person to approve it in Sokosumi: no command approves, schedules or sends a newsletter, approves a strategy, or confirms a Brand Brain. `projects competitor-checks` and `projects check-competitors` spend credits: confirm the price with the person first. Answer Brand Brain and strategy questions with the person's own answer, never a guess. Adding newsletter subscribers stays in Sokosumi for now.
 
+## Ad campaigns
+
+[VERIFIED: ADR 0077, `apps/core/src/routes/v1/projects/[id]/ads/accounts/[accountId]/campaigns/`] An agent prepares and stops ad campaigns; a person starts the spend. Ad money is billed by Google or Meta, outside Sokosumi credits, so confirm the budget with the operator before any of these writes:
+
+```bash
+sokosumi projects ads-campaign-create PROJECT_ID ACCOUNT_ID --input-file ./campaign.json
+sokosumi projects ads-campaign-update PROJECT_ID ACCOUNT_ID CAMPAIGN_ID --input-json '{"status":"PAUSED"}'
+sokosumi projects ads-campaign-update PROJECT_ID ACCOUNT_ID CAMPAIGN_ID --input-json '{"dailyBudget":20}'
+sokosumi projects ads-campaign-edit PROJECT_ID ACCOUNT_ID CAMPAIGN_ID --input-file ./campaign.json
+```
+
+A new campaign is always paused. Pause at any time. Change the budget or edit only a paused campaign (`409` otherwise), and send a status or a budget per call, not both (`400`). Only a person resumes: `{"status":"ACTIVE"}` answers `403` with kind `person_approval_required` and `webUrl`. Give the operator that link.
+
+## SEO audits and Project SEO
+
+[VERIFIED: `apps/cli/src/cli/commands/catalog.ts`] `seo` commands each call one Core operation and print Core's JSON body. Audit commands take an audit id; `seo project-*` commands take a Project id and act on that Project's SEO workspace. Writes take `--input-json` or `--input-file`.
+
+```bash
+sokosumi seo list-audits --query status=active
+sokosumi seo create-audit --input-json '{"name":"Acme","firstPage":{"url":"https://example.com/"}}'
+sokosumi seo audit-get AUDIT_ID
+sokosumi seo audit-add-page AUDIT_ID --input-json '{"url":"https://example.com/pricing"}'
+sokosumi seo audit-analyze AUDIT_ID --input-file ./analysis.json
+sokosumi seo audit-ask AUDIT_ID --input-json '{"question":"What should I fix first?","idempotencyKey":"question-1"}'
+sokosumi seo project-get PROJECT_ID
+```
+
+Every `seo audit-VERB` has a `seo project-VERB` twin: `get`, `add-page`, `create-scope`, `update-scope`, `import-report`, `analyze`, `save-keyword`, `save-competitor`, `create-task`, `create-monitor`, `review-action`, `properties`, `sync-statistics`, `record-change`, `set-brand-terms`, `brief`, `save-brief`, `suggest-brief`, `console-exports` and `import-console-export`. Audits also have `audit-workspace`, `audit-archive`, `audit-chat` and `audit-ask`. `analyze`, `create-monitor` and `audit-ask` spend workspace credits: confirm the analysis and its price with the person first. Writes that create something (`analyze`, `audit-ask`, `create-task`, `record-change`) take an `idempotencyKey` you choose, so a retry does not repeat them. Connecting Search Console and reading its site traffic stay in the web app.
+
+## Drive
+
+[VERIFIED: `apps/cli/src/cli/commands/catalog.ts`, `apps/core/agent-surface/drive.json`] Drive commands each call one Core operation and print Core's JSON body. Most pick the Drive with `--query scope=me` for the personal Drive, or `--query scope=org --query organizationId=ORG_ID` for an organization's; `organizationId` comes from `workspaces list`. Writes put `scope` and `organizationId` in the `--input-json` body. Tables use `--organization-slug` instead.
+
+```bash
+sokosumi drive search --query scope=me --query q=pricing
+sokosumi drive files --query scope=me --query folder=reports
+sokosumi drive get RESOURCE_ID --query scope=me
+sokosumi drive update-metadata RESOURCE_ID --query scope=me --input-json '{"expectedMetadataRevision":3,"addTagLabelIds":["LABEL_ID"]}'
+sokosumi drive create-folder --input-json '{"scope":"me","folderPath":"reports/2026"}'
+sokosumi drive delete --input-json '{"pathname":"PATHNAME"}'
+sokosumi drive tables --organization-slug WORKSPACE_SLUG
+sokosumi drive query-table TABLE_ID --input-json '{"limit":50}' --organization-slug WORKSPACE_SLUG
+sokosumi drive data-rooms --query scope=org --query organizationId=ORG_ID
+```
+
+`sokosumi --help` lists the rest: labels, collections, Task outputs, Google Sheet copies, table edits and data rooms. `drive delete`, `drive delete-folder` and `drive close-data-room` cannot be undone; confirm first. Metadata writes need the file's current `metadataRevision`; table writes take a retry `key`. Uploading or downloading file bytes, creating a public link, inviting people to a data room, changing its settings or a member's access, and answering a viewer's question stay in the app (ADR 0077). `drive remove-data-room-member` may take someone out.
+
 ## Use Sokosumi over MCP
 
 [VERIFIED: `apps/core/src/routes/mcp/index.ts`, `docs/mcp.md`] Sokosumi also serves its tools over MCP at `https://api.sokosumi.com/mcp`. Use it when the host speaks MCP and the CLI is not installed. The host connects by URL and signs in through the browser; no API key is needed:
@@ -394,7 +441,7 @@ sokosumi newsletter submit-issue PROJECT_ID ISSUE_ID --input-json '{"revision":2
 claude mcp add --transport http sokosumi https://api.sokosumi.com/mcp
 ```
 
-[VERIFIED: `apps/core/src/lib/sokosumi-mcp/server.ts`, `docs/agents/agent-surface.md`] A tool's name is its CLI command with `_`: `tasks list` → `tasks_list`. Call `workspaces_list` first. A tool acts in the personal Workspace unless you pass an organization Workspace's slug as `workspace`, the MCP form of `--organization-slug`. The server URL without `?toolsets=` lists `workspaces`, `tasks` and `coworkers`. The marketplace is opt-in: add `agents` and `jobs` to browse and hire agents (`agents_hire` spends credits) and follow their Jobs, as in `?toolsets=workspaces,tasks,coworkers,agents,jobs`; `tasks_jobs` lists a Task's Jobs without them.
+[VERIFIED: `apps/core/src/lib/sokosumi-mcp/server.ts`, `docs/agents/agent-surface.md`] A tool's name is its CLI command with `_`: `tasks list` → `tasks_list`. Call `workspaces_list` first. A tool acts in the personal Workspace unless you pass an organization Workspace's slug as `workspace`, the MCP form of `--organization-slug`. The server URL without `?toolsets=` lists `workspaces`, `tasks` and `coworkers`. The marketplace is opt-in: add `agents` and `jobs` to browse and hire agents (`agents_hire` spends credits) and follow their Jobs, as in `?toolsets=workspaces,tasks,coworkers,agents,jobs`; `tasks_jobs` lists a Task's Jobs without them. Drive tools sit in the `drive` toolset, off by default (`?toolsets=drive`), and take `scope` like the CLI.
 
 [VERIFIED: ADR 0076, `apps/core/src/routes/mcp/mcp-oauth.integration.test.ts`] MCP tokens and CLI credentials do not mix. An MCP token works only at `/mcp`, and a CLI OAuth token or API key gets 401 there. Never ask for or paste either in chat. MCP writes to mainnet need the same explicit operator yes as CLI writes.
 

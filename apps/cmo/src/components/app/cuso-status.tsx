@@ -59,13 +59,18 @@ export function cusoMood(overview: CmoOverview, now: Date = new Date()): Mood {
       ? "One thing needs you"
       : needs > 1
         ? `${needs} things need you`
-        : production.state === "running" || production.state === "starting"
-          ? madeLine(overview)
-          : production.state === "stuck"
-            ? stoppedLine(overview)
-            : cusoStatus(overview);
+        : production.state === "planning"
+          ? "Planning your month"
+          : production.state === "running" || production.state === "starting"
+            ? madeLine(overview)
+            : production.state === "stuck"
+              ? stoppedLine(overview)
+              : cusoStatus(overview);
   const busy =
-    pose === "reading" || pose === "thinking" || production.state === "running";
+    pose === "reading" ||
+    pose === "thinking" ||
+    production.state === "running" ||
+    production.state === "planning";
   // A month that stopped or could not start is said on every page.
   const alarm = production.state === "stuck" || production.state === "blocked";
   return { pose, art: ART[pose], line, needs, busy, alarm };

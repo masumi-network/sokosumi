@@ -12763,6 +12763,26 @@
           "industry": "Industry",
           "lists": "Lists"
         }
+      },
+      "linkedInImport": {
+        "menu": "Import LinkedIn connections",
+        "title": "Import your LinkedIn connections",
+        "description": "Every connection becomes a contact (or fills one you already have), and the raise knows you can ask them for an introduction.",
+        "doneDescription": "Done. Your connections are on the “LinkedIn connections” list.",
+        "step1": "On LinkedIn open Settings → Data privacy → Get a copy of your data.",
+        "step2": "Tick Connections and request the archive; LinkedIn mails it within minutes.",
+        "step3": "Upload the Connections.csv from that archive here.",
+        "fileLabel": "Connections.csv",
+        "tooLarge": "That file is over 5 MB. Split it first.",
+        "failed": "The import did not finish. Nothing was changed.",
+        "result": {
+          "connections": "Connections",
+          "created": "New contacts",
+          "updated": "Already known"
+        },
+        "import": "Import",
+        "cancel": "Cancel",
+        "done": "Done"
       }
     },
     "Fundraising": {
@@ -12892,7 +12912,36 @@
         "noFund": "Add the fund to this contact first; the research looks the fund up.",
         "capReached": "This month's research budget is used up.",
         "noPortfolio": "No portfolio researched yet.",
-        "source": "Source"
+        "source": "Source",
+        "linkedinDirect": "{who} is connected with them on LinkedIn",
+        "onLinkedIn": "connected on LinkedIn",
+        "importHint": "Import your LinkedIn connections in Contacts to find more paths."
+      },
+      "outreach": {
+        "title": "Outreach",
+        "noMailbox": "Drafts go into your own Gmail through your Soko Bot. Connect Gmail there first.",
+        "connect": "Open Soko Bots",
+        "kind": "What to write",
+        "kinds": {
+          "intro": "First mail",
+          "follow_up": "Follow-up"
+        },
+        "via": "Through whom",
+        "direct": "Write to them directly",
+        "viaName": "Ask {name} for an intro",
+        "inviteRoom": "Let them into “{room}” and link it",
+        "linkRoom": "Link “{room}” (they are already in)",
+        "noteLabel": "Anything to mention",
+        "notePlaceholder": "e.g. we met at the Draper dinner; mention the Cardano partnership",
+        "noEmail": "No email address on file; add one in Contacts or ask a mutual contact for an intro.",
+        "draft": "Write draft in {mailbox}",
+        "neverSends": "Sokosumi never sends. You read it in your mailbox and send it yourself.",
+        "drafted": "Draft is in your {mailbox}",
+        "failed": "The draft could not be written",
+        "inMailbox": "In your {mailbox} drafts, to {to}",
+        "openDrafts": "Open Gmail drafts",
+        "another": "Write another",
+        "lastDraft": "Last draft “{subject}” · {when}"
       }
     },
     "Seo": {

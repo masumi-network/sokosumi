@@ -417,6 +417,11 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
     body: { pricingUrl: "https://acme.example/pricing" },
   },
   projects_remove_competitor: { id: "p-1", competitorId: "comp-1" },
+  projects_restore_competitor: {
+    id: "p-1",
+    competitorId: "comp-1",
+    body: { removal: 1 },
+  },
   projects_competitor_checks: { id: "p-1", body: { on: true } },
   projects_check_competitors: { id: "p-1" },
   projects_suggest_competitors: { id: "p-1" },
@@ -491,6 +496,432 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
     body: { name: "Ada Lovelace" },
   },
   newsletter_remove_subscriber: { id: "p-1", subscriberId: "sub-1" },
+  projects_ads_campaign_create: {
+    id: "project-1",
+    accountId: "account-1",
+    body: { name: "Spring", dailyBudget: 5, objective: "OUTCOME_TRAFFIC" },
+  },
+  projects_ads_campaign_update: {
+    id: "project-1",
+    accountId: "account-1",
+    campaignId: "42",
+    body: { status: "PAUSED" },
+  },
+  projects_ads_campaign_edit: {
+    id: "project-1",
+    accountId: "account-1",
+    campaignId: "42",
+    body: {
+      name: "Spring",
+      dailyBudget: 5,
+      google: {
+        type: "SEARCH",
+        locationIds: [],
+        languageIds: [],
+        finalUrl: "https://example.com",
+        keywords: [{ text: "running shoes", matchType: "BROAD" }],
+        headlines: ["One", "Two", "Three"],
+        descriptions: ["First description", "Second description"],
+      },
+    },
+  },
+  // SOKD-374: SEO
+  seo_list_audits: { workspace: "acme", status: "active" },
+  seo_create_audit: {
+    body: { name: "Acme site", firstPage: { url: "https://example.com/" } },
+  },
+  seo_audit_workspace: { id: "00000000-0000-4000-8000-0000000000a1" },
+  seo_audit_archive: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: { archived: true },
+  },
+  seo_audit_chat: { id: "00000000-0000-4000-8000-0000000000a1" },
+  seo_audit_ask: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: {
+      question: "Which page should I fix first?",
+      idempotencyKey: "question-1",
+    },
+  },
+  seo_audit_get: { id: "00000000-0000-4000-8000-0000000000a1" },
+  seo_audit_add_page: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: { url: "https://example.com/pricing" },
+  },
+  seo_audit_create_scope: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: {
+      name: "Pricing",
+      pageIds: ["00000000-0000-4000-8000-0000000000e1"],
+    },
+  },
+  seo_audit_update_scope: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    scopeId: "00000000-0000-4000-8000-0000000000c1",
+    body: {
+      name: "Pricing",
+      pageIds: ["00000000-0000-4000-8000-0000000000e1"],
+      expectedVersion: 1,
+    },
+  },
+  seo_audit_import_report: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: { taskId: "00000000-0000-4000-8000-0000000000d1", fileId: "file-1" },
+  },
+  seo_audit_analyze: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: {
+      kind: "page_check",
+      pageIds: ["00000000-0000-4000-8000-0000000000e1"],
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop"],
+      idempotencyKey: "analysis-1",
+    },
+  },
+  seo_audit_save_keyword: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: { keyword: "seo audit", countryCode: "US", languageCode: "en" },
+  },
+  seo_audit_save_competitor: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: { url: "https://rival.example", confirmed: true },
+  },
+  seo_audit_create_task: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: {
+      observationId: "00000000-0000-4000-8000-0000000000f1",
+      actionId: "action-1",
+      idempotencyKey: "create-task-1",
+    },
+  },
+  seo_audit_create_monitor: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: {
+      operationId: "00000000-0000-4000-8000-0000000000f1",
+      rule: { expr: "0 9 * * 1", timezone: "UTC" },
+      analysis: {
+        kind: "page_check",
+        pageIds: ["00000000-0000-4000-8000-0000000000e1"],
+        countryCode: "US",
+        languageCode: "en",
+        devices: ["desktop"],
+        idempotencyKey: "analysis-1",
+      },
+    },
+  },
+  seo_audit_review_action: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: {
+      pageId: "00000000-0000-4000-8000-0000000000e1",
+      actionId: "action-1",
+      kind: "kept",
+      baselineObservationId: "00000000-0000-4000-8000-0000000000f1",
+      observationId: "00000000-0000-4000-8000-0000000000f1",
+    },
+  },
+  seo_audit_properties: { id: "00000000-0000-4000-8000-0000000000a1" },
+  seo_audit_sync_statistics: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: {
+      provider: "search_console",
+      propertyId: "sc-domain:example.com",
+      from: "2026-10-01",
+      to: "2026-10-31",
+    },
+  },
+  seo_audit_record_change: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: {
+      pageIds: ["00000000-0000-4000-8000-0000000000e1"],
+      occurredAt: "2026-11-01T09:00:00.000Z",
+      title: "New title tag",
+      idempotencyKey: "change-0001",
+    },
+  },
+  seo_audit_set_brand_terms: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: { terms: ["acme"] },
+  },
+  seo_audit_brief: { id: "00000000-0000-4000-8000-0000000000a1" },
+  seo_audit_save_brief: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: { expectedRevision: 0 },
+  },
+  seo_audit_suggest_brief: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    pageId: "00000000-0000-4000-8000-0000000000e1",
+  },
+  seo_audit_console_exports: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    taskId: "00000000-0000-4000-8000-0000000000d1",
+  },
+  seo_audit_import_console_export: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    taskId: "00000000-0000-4000-8000-0000000000d1",
+    body: {
+      kind: "indexing_examples",
+      reason: "crawled_not_indexed",
+      date: "2026-11-01",
+      csv: "URL\nhttps://example.com/",
+    },
+  },
+  seo_project_get: { id: "00000000-0000-4000-8000-0000000000b1" },
+  seo_project_add_page: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: { url: "https://example.com/pricing" },
+  },
+  seo_project_create_scope: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: {
+      name: "Pricing",
+      pageIds: ["00000000-0000-4000-8000-0000000000e1"],
+    },
+  },
+  seo_project_update_scope: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    scopeId: "00000000-0000-4000-8000-0000000000c1",
+    body: {
+      name: "Pricing",
+      pageIds: ["00000000-0000-4000-8000-0000000000e1"],
+      expectedVersion: 1,
+    },
+  },
+  seo_project_import_report: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: { taskId: "00000000-0000-4000-8000-0000000000d1", fileId: "file-1" },
+  },
+  seo_project_analyze: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: {
+      kind: "page_check",
+      pageIds: ["00000000-0000-4000-8000-0000000000e1"],
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop"],
+      idempotencyKey: "analysis-1",
+    },
+  },
+  seo_project_save_keyword: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: { keyword: "seo audit", countryCode: "US", languageCode: "en" },
+  },
+  seo_project_save_competitor: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: { url: "https://rival.example", confirmed: true },
+  },
+  seo_project_create_task: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: {
+      observationId: "00000000-0000-4000-8000-0000000000f1",
+      actionId: "action-1",
+      idempotencyKey: "create-task-1",
+    },
+  },
+  seo_project_create_monitor: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: {
+      operationId: "00000000-0000-4000-8000-0000000000f1",
+      rule: { expr: "0 9 * * 1", timezone: "UTC" },
+      analysis: {
+        kind: "page_check",
+        pageIds: ["00000000-0000-4000-8000-0000000000e1"],
+        countryCode: "US",
+        languageCode: "en",
+        devices: ["desktop"],
+        idempotencyKey: "analysis-1",
+      },
+    },
+  },
+  seo_project_review_action: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: {
+      pageId: "00000000-0000-4000-8000-0000000000e1",
+      actionId: "action-1",
+      kind: "kept",
+      baselineObservationId: "00000000-0000-4000-8000-0000000000f1",
+      observationId: "00000000-0000-4000-8000-0000000000f1",
+    },
+  },
+  seo_project_properties: { id: "00000000-0000-4000-8000-0000000000b1" },
+  seo_project_sync_statistics: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: {
+      provider: "search_console",
+      propertyId: "sc-domain:example.com",
+      from: "2026-10-01",
+      to: "2026-10-31",
+    },
+  },
+  seo_project_record_change: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: {
+      pageIds: ["00000000-0000-4000-8000-0000000000e1"],
+      occurredAt: "2026-11-01T09:00:00.000Z",
+      title: "New title tag",
+      idempotencyKey: "change-0001",
+    },
+  },
+  seo_project_set_brand_terms: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: { terms: ["acme"] },
+  },
+  seo_project_brief: { id: "00000000-0000-4000-8000-0000000000b1" },
+  seo_project_save_brief: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: { expectedRevision: 0 },
+  },
+  seo_project_suggest_brief: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    pageId: "00000000-0000-4000-8000-0000000000e1",
+  },
+  seo_project_console_exports: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    taskId: "00000000-0000-4000-8000-0000000000d1",
+  },
+  seo_project_import_console_export: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    taskId: "00000000-0000-4000-8000-0000000000d1",
+    body: {
+      kind: "indexing_examples",
+      reason: "crawled_not_indexed",
+      date: "2026-11-01",
+      csv: "URL\nhttps://example.com/",
+    },
+  },
+  // SOKD-375: Drive
+  drive_search: { scope: "me", q: "pricing", limit: 10 },
+  drive_files: { scope: "org", organizationId: "org-1", folder: "reports" },
+  drive_recents: { scope: "me" },
+  drive_get: { id: "file-1", scope: "me" },
+  drive_related: { id: "file-1", scope: "me" },
+  drive_folders: { scope: "me" },
+  drive_create_folder: { body: { scope: "me", folderPath: "reports/2026" } },
+  drive_rename_folder: {
+    body: {
+      scope: "me",
+      oldFolderPath: "reports",
+      newFolderPath: "archive/reports",
+    },
+  },
+  drive_delete_folder: { body: { scope: "me", folderPath: "drafts" } },
+  drive_move: {
+    body: {
+      scope: "me",
+      sourcePathname: "notes.pdf",
+      targetFolderPath: "reports",
+      itemType: "file",
+    },
+  },
+  drive_rename: {
+    body: { oldPathname: "users/u/notes.pdf", newFilename: "minutes.pdf" },
+  },
+  drive_delete: { body: { pathname: "users/u/notes.pdf" } },
+  drive_update_metadata: {
+    id: "file-1",
+    scope: "me",
+    body: { expectedMetadataRevision: 3, addTagLabelIds: ["label-1"] },
+  },
+  drive_decide_suggestion: {
+    id: "file-1",
+    suggestionId: "suggestion-1",
+    scope: "me",
+    body: { decision: "accept", expectedMetadataRevision: 3 },
+  },
+  drive_select: { body: { scope: "me", windowCursor: "cursor-1" } },
+  drive_update_metadata_batch: {
+    body: {
+      scope: "me",
+      selectionToken: "token-1",
+      idempotencyKey: "tag-contracts-1",
+      addTagLabelIds: ["label-1"],
+    },
+  },
+  drive_reindex: { id: "file-1", scope: "me" },
+  drive_add_google_sheet: {
+    body: {
+      scope: "me",
+      url: "https://docs.google.com/spreadsheets/d/abc/edit",
+    },
+  },
+  drive_google_sheet: { id: "file-1", scope: "me" },
+  drive_refresh_google_sheet: { id: "file-1", scope: "me" },
+  drive_tasks: { scope: "me", taskId: "task-1" },
+  drive_copy_task_file: { body: { scope: "me", taskFileId: "task-file-1" } },
+  drive_labels: { scope: "me", kind: "TAG" },
+  drive_create_label: {
+    body: { scope: "me", kind: "TAG", displayName: "Contracts" },
+  },
+  drive_update_label: {
+    id: "label-1",
+    body: { scope: "me", displayName: "Signed contracts" },
+  },
+  drive_collections: { scope: "me" },
+  drive_create_collection: {
+    body: { scope: "me", name: "Contracts", definition: { q: "contract" } },
+  },
+  drive_update_collection: {
+    id: "collection-1",
+    body: { scope: "me", name: "Signed contracts" },
+  },
+  drive_delete_collection: { id: "collection-1", scope: "me" },
+  drive_share: { scope: "me", resourceId: "file-1" },
+  drive_unshare: { id: "share-1", scope: "me" },
+  drive_tables: { workspace: "acme", search: "leads" },
+  drive_create_table: {
+    workspace: "acme",
+    body: {
+      key: "create-leads-1",
+      title: "Leads",
+      columns: [{ name: "Company", type: "text" }],
+    },
+  },
+  drive_table: { id: "table-1" },
+  drive_update_table: {
+    id: "table-1",
+    body: { key: "rename-1", version: 2, title: "Qualified leads" },
+  },
+  drive_query_table: { id: "table-1", body: { limit: 50 } },
+  drive_edit_rows: {
+    id: "table-1",
+    body: { key: "rows-1", insert: [{ cells: {} }] },
+  },
+  drive_save_view: {
+    id: "table-1",
+    body: { key: "view-1", name: "Open", definition: {} },
+  },
+  drive_undo_table: {
+    id: "table-1",
+    body: { key: "undo-1", batchId: "batch-1" },
+  },
+  drive_table_history: { id: "table-1", limit: 20 },
+  drive_enrich_table: {
+    id: "table-1",
+    body: {
+      key: "enrich-1",
+      prompt: "Find each company's website",
+      rowIds: ["row-1"],
+      columnIds: ["column-1"],
+      assigneeId: "cw-1",
+    },
+  },
+  drive_data_rooms: { scope: "org", organizationId: "org-1" },
+  drive_create_data_room: { body: { scope: "me", folderPath: "deal" } },
+  drive_open_questions: { scope: "me" },
+  drive_data_room: { id: "room-1", scope: "me" },
+  drive_close_data_room: { id: "room-1", scope: "me" },
+  drive_remove_data_room_member: {
+    id: "room-1",
+    memberId: "member-1",
+    scope: "me",
+  },
+  drive_data_room_events: { id: "room-1", scope: "me" },
+  drive_data_room_questions: { id: "room-1", scope: "me" },
+  drive_order_data_room: { id: "room-1", body: { scope: "me", entries: [] } },
+  drive_set_data_room_colleagues: {
+    id: "room-1",
+    body: { scope: "org", organizationId: "org-1", userIds: ["user-2"] },
+  },
 };
 
 const CORE = "https://core.example.test";

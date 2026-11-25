@@ -130,6 +130,43 @@ test("a generic write sends --input-json or --input-file as the body", async () 
   assert.deepEqual(JSON.parse(output[0]!), { data: { id: "x-1" } });
 });
 
+test("a generic DELETE sends a body only when its row takes one", async () => {
+  const calls: { path: string; body: unknown }[] = [];
+  const client = {
+    delete: async <T>(path: string, body?: unknown) => {
+      calls.push({ path, body });
+      return undefined as T;
+    },
+  } as unknown as CoreHttpClient;
+  const run = (body: boolean, options: Record<string, string>) =>
+    runGenericCommand({
+      client,
+      stdout: { write() {} },
+      row: {
+        command: "things delete",
+        usage: "",
+        operation: "DELETE /things/delete",
+        ...(body ? { body: true as const } : {}),
+      },
+      args: [],
+      options,
+    });
+  await run(true, { "input-json": '{"pathname":"a.pdf"}' });
+  await run(false, {});
+  await assert.rejects(
+    run(true, {}),
+    /`things delete` needs --input-json or --input-file/,
+  );
+  await assert.rejects(
+    run(false, { "input-json": "{}" }),
+    /`things delete` takes no --input-json or --input-file/,
+  );
+  assert.deepEqual(calls, [
+    { path: "/v1/things/delete", body: { pathname: "a.pdf" } },
+    { path: "/v1/things/delete", body: undefined },
+  ]);
+});
+
 test("a generic Task command resolves a short identifier to the Task id", async (t) => {
   const id = "01a20919-70ff-7529-9bd5-78b72b6a3ea2";
   const f = fixture(t, { data: { id, identifier: "SOK-12" } });

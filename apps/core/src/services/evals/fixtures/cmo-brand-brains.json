@@ -10654,5 +10654,705 @@
         "sourceUrl": "https://www.nmkr.io/clients/turf"
       }
     ]
+  },
+  "entry.fyi": {
+    "voice": {
+      "do": [
+        "Name the source or feature",
+        "Explain what the user reviews",
+        "Keep claims specific"
+      ],
+      "dont": [
+        "Use hype or big promises",
+        "Present founder experience as customer proof",
+        "Promise updates publish automatically"
+      ],
+      "tone": "Clear, calm, practical. Explain what Entry does in plain words, with a quiet, direct tone.",
+      "examples": [
+        "One current page from your GitHub, site and X",
+        "Your page, your sources and your assistant",
+        "Nothing goes live until you approve it"
+      ]
+    },
+    "offers": [
+      {
+        "url": "https://entry.fyi/pricing",
+        "name": "Entry Free",
+        "what": "A personal or company homepage with up to three sources, one scan a month, five work entries and projects, and three published posts and assists a month.",
+        "price": "Free forever",
+        "forWhom": "Professionals and companies trying an Entry homepage"
+      },
+      {
+        "url": "https://entry.fyi/pricing",
+        "name": "Entry Pro monthly",
+        "what": "An Entry homepage with a custom domain, more scans and expanded page and writing options.",
+        "price": "$9 a month",
+        "forWhom": "People who want more Entry page and writing options"
+      },
+      {
+        "url": "https://entry.fyi/pricing",
+        "name": "Entry Pro annual",
+        "what": "The annual Entry Pro plan.",
+        "price": "$49 a year for first 200 plans; then $72 a year",
+        "forWhom": "People choosing an annual Pro plan"
+      },
+      {
+        "url": "https://entry.fyi/",
+        "name": "Free homepage preview",
+        "what": "Preview an Entry homepage without an account; it is deleted after 24 hours unless claimed.",
+        "price": "Free",
+        "forWhom": "Anyone who wants to see an Entry page before claiming it"
+      }
+    ],
+    "reveal": {
+      "map": {
+        "x": {
+          "low": "Manual updates",
+          "high": "Source-updated"
+        },
+        "y": {
+          "low": "People only",
+          "high": "Agent-ready"
+        },
+        "players": [
+          {
+            "x": 90,
+            "y": 90,
+            "you": true,
+            "name": "Entry"
+          },
+          {
+            "x": 80,
+            "y": 80,
+            "name": "Goo"
+          },
+          {
+            "x": 55,
+            "y": 60,
+            "name": "Hello.cv"
+          },
+          {
+            "x": 80,
+            "y": 15,
+            "name": "FolioHub"
+          },
+          {
+            "x": 70,
+            "y": 10,
+            "name": "Devb.io"
+          },
+          {
+            "x": 80,
+            "y": 15,
+            "name": "Authory"
+          }
+        ]
+      },
+      "buyers": [
+        {
+          "role": "Independent developer",
+          "wants": "A work page that stays current",
+          "worry": "Having to maintain another profile"
+        },
+        {
+          "role": "Indie maker",
+          "wants": "One page for projects and updates",
+          "worry": "Giving up control of what gets published"
+        },
+        {
+          "role": "Company team",
+          "wants": "A current page for products and news",
+          "worry": "Who owns and approves page updates"
+        }
+      ],
+      "insights": [
+        {
+          "title": "The founder felt the upkeep",
+          "detail": "Francis Luz says his old about.me page had gone 13 years without an update.",
+          "sourceUrl": "https://dev.to/francisluz/how-i-built-entrys-homepage-preview-hni"
+        },
+        {
+          "title": "Approval is part of the product",
+          "detail": "Entry says suggested changes do not go live until the owner approves them.",
+          "sourceUrl": "https://entry.fyi/"
+        },
+        {
+          "title": "A free preview lowers the first step",
+          "detail": "Anyone can preview a page without an account; it expires after 24 hours unless claimed.",
+          "sourceUrl": "https://entry.fyi/"
+        }
+      ],
+      "positioning": "Source-backed homepages that stay current with your approval"
+    },
+    "profile": {
+      "offer": {
+        "answer": "Entry builds a personal or company homepage from sources such as GitHub, a website and X, then suggests updates for the owner to approve. A free preview is available without an account and is deleted after 24 hours unless claimed.",
+        "findings": [
+          {
+            "asOf": "2026-11",
+            "point": "Entry combines work, projects and updates from sources including GitHub, a website and X into a homepage.",
+            "evidence": "claim",
+            "sourceUrl": "https://entry.fyi/",
+            "confidence": "high",
+            "implication": "Show the source-to-page workflow with real examples."
+          },
+          {
+            "asOf": "2026-11",
+            "point": "Entry suggests updates and leaves them for the owner to approve before publishing.",
+            "evidence": "fact",
+            "sourceUrl": "https://entry.fyi/",
+            "confidence": "high",
+            "implication": "Make owner review a central trust message."
+          },
+          {
+            "asOf": "2026-11",
+            "point": "The free preview needs no account and is deleted after 24 hours unless claimed.",
+            "evidence": "fact",
+            "sourceUrl": "https://entry.fyi/",
+            "confidence": "high",
+            "implication": "Explain the preview window beside the first action."
+          }
+        ],
+        "headline": "A current page from existing sources",
+        "openQuestions": []
+      },
+      "proof": {
+        "answer": "The research found no customer-authored quotes or named external customer stories clearly tied to Entry. Neuralspark says its own site runs on Entry, which is not an independent case study.",
+        "findings": [
+          {
+            "asOf": "2026-11",
+            "point": "ShipDeck showed one rating of 3.77 but no written review, and marked its listing unverified.",
+            "evidence": "fact",
+            "sourceUrl": "https://shipdeck.co/products/entry-eb621d",
+            "confidence": "medium",
+            "implication": "Do not turn the rating into a customer quote or proof claim."
+          },
+          {
+            "asOf": "2026-11",
+            "point": "Neuralspark says its own site runs on Entry.",
+            "evidence": "fact",
+            "sourceUrl": "https://neuralspark.io/work/entry",
+            "confidence": "high",
+            "implication": "If used, label it clearly as the maker's own use."
+          }
+        ],
+        "headline": "No independent customer stories found",
+        "openQuestions": []
+      },
+      "sales": {
+        "answer": "The described flow is to paste sources, review the draft, claim the page and approve suggested updates. A free preview is available without an account; Pro is $9 monthly.",
+        "findings": [
+          {
+            "asOf": "2026-11",
+            "point": "Entry offers a free preview without an account and says it is deleted after 24 hours unless claimed.",
+            "evidence": "fact",
+            "sourceUrl": "https://entry.fyi/",
+            "confidence": "high",
+            "implication": "Make the preview-to-claim steps easy to understand."
+          },
+          {
+            "asOf": "2026-11",
+            "point": "Entry describes a self-serve process of adding sources, reviewing the draft, claiming the address and approving updates.",
+            "evidence": "claim",
+            "sourceUrl": "https://entry.fyi/",
+            "confidence": "high",
+            "implication": "Use the steps as a simple product walkthrough."
+          }
+        ],
+        "headline": "A self-serve preview, then claim",
+        "openQuestions": []
+      },
+      "value": {
+        "answer": "Entry's main promise is one current page built from existing sources, with proposed updates that the owner can review before they go live.",
+        "findings": [
+          {
+            "asOf": "2026-11",
+            "point": "Entry describes one current page from GitHub, a site and X.",
+            "evidence": "claim",
+            "sourceUrl": "https://entry.fyi/",
+            "confidence": "high",
+            "implication": "Lead with the joined-up page rather than a generic profile-builder claim."
+          },
+          {
+            "asOf": "2026-11",
+            "point": "Entry says nothing goes live until the owner approves it.",
+            "evidence": "claim",
+            "sourceUrl": "https://entry.fyi/",
+            "confidence": "high",
+            "implication": "Show the review step to address concerns about automated publishing."
+          }
+        ],
+        "headline": "One page, updates for approval",
+        "openQuestions": []
+      },
+      "buyers": {
+        "answer": "The self-serve preview and no-card Free plan point to individuals maintaining their own work pages. The site does not confirm who usually pays for Pro or company pages.",
+        "findings": [
+          {
+            "asOf": "2026-11",
+            "point": "Entry offers a self-serve preview and a Free plan, suggesting individuals can start without a sales conversation.",
+            "evidence": "inference",
+            "sourceUrl": "https://entry.fyi/for-humans",
+            "confidence": "medium",
+            "implication": "Keep the first step easy to try."
+          }
+        ],
+        "headline": "Individuals likely choose their own page",
+        "openQuestions": []
+      },
+      "company": {
+        "answer": "Entry is made by Neuralspark Limited in Dublin, Ireland. The company describes Entry as an early-access product; team size was not confirmed.",
+        "findings": [
+          {
+            "asOf": "2026-11",
+            "point": "Entry is made by Neuralspark Limited in Dublin, Ireland.",
+            "evidence": "fact",
+            "sourceUrl": "https://entry.fyi/media-kit",
+            "confidence": "high",
+            "implication": "Keep the maker and early-access stage clear in company descriptions."
+          },
+          {
+            "asOf": "2026-11",
+            "point": "Entry's site describes it as early access.",
+            "evidence": "fact",
+            "sourceUrl": "https://entry.fyi/media-kit",
+            "confidence": "high",
+            "implication": "Set expectations that the product is still developing."
+          }
+        ],
+        "headline": "Early-access product from Dublin",
+        "openQuestions": []
+      },
+      "content": {
+        "answer": "The site has dated product updates, guides, comparisons and examples, with updates appearing frequently in November. A fixed publishing schedule and newsletter signup were not established.",
+        "findings": [
+          {
+            "asOf": "2026-11",
+            "point": "The changelog included dated updates through November 24, 2026.",
+            "evidence": "fact",
+            "sourceUrl": "https://entry.fyi/changelog",
+            "confidence": "high",
+            "implication": "Turn clear product changes into short, dated explanations."
+          },
+          {
+            "asOf": "2026-11",
+            "point": "The homepage presents more than one prominent next step, and customer proof is not prominent beside the first action.",
+            "evidence": "inference",
+            "sourceUrl": "https://entry.fyi/",
+            "confidence": "medium",
+            "implication": "Consider making the free preview the clearest first action and adding proof when available."
+          }
+        ],
+        "headline": "Frequent product updates, no fixed blog rhythm",
+        "openQuestions": []
+      },
+      "pricing": {
+        "answer": "Entry has a Free plan and Pro at $9 monthly. Annual Pro is $49 a year for the first 200 plans, then $72 a year; the free homepage preview expires after 24 hours unless claimed.",
+        "findings": [
+          {
+            "asOf": "2026-11",
+            "point": "The Entry Free plan costs $0 forever.",
+            "evidence": "fact",
+            "sourceUrl": "https://entry.fyi/pricing",
+            "confidence": "high",
+            "implication": "Use Free as the low-risk first step."
+          },
+          {
+            "asOf": "2026-11",
+            "point": "Pro monthly costs $9 a month.",
+            "evidence": "fact",
+            "sourceUrl": "https://entry.fyi/pricing",
+            "confidence": "high",
+            "implication": "State the monthly price plainly."
+          },
+          {
+            "asOf": "2026-11",
+            "point": "Pro annual costs $49 a year for the first 200 annual plans, then $72 a year.",
+            "evidence": "fact",
+            "sourceUrl": "https://entry.fyi/pricing",
+            "confidence": "high",
+            "implication": "Keep the first-200-plan condition beside the annual price."
+          }
+        ],
+        "headline": "Free, then Pro from $9 monthly",
+        "openQuestions": []
+      },
+      "momentum": {
+        "answer": "Entry is founder-led by Francis Luz and in early access. Its homepage announced a Grok Bot connection on October 25, 2026; a directory says no funding has been announced.",
+        "findings": [
+          {
+            "asOf": "2026-11",
+            "point": "Founder Francis Luz says he started Entry after his about.me page went 13 years without an update.",
+            "evidence": "claim",
+            "sourceUrl": "https://dev.to/francisluz/how-i-built-entrys-homepage-preview-hni",
+            "confidence": "medium",
+            "implication": "The origin story can explain the upkeep problem, but is founder experience, not customer proof."
+          },
+          {
+            "asOf": "2026-10",
+            "point": "Entry's homepage labels its Grok Bot connection as new on October 25, 2026.",
+            "evidence": "fact",
+            "sourceUrl": "https://entry.fyi/",
+            "confidence": "high",
+            "implication": "Explain how assistant connections fit the existing-source workflow."
+          },
+          {
+            "asOf": "2026-11",
+            "point": "EU-Startups lists Entry as founded in 2026 and says no funding has been announced.",
+            "evidence": "fact",
+            "sourceUrl": "https://www.eu-startups.com/directory/entry/",
+            "confidence": "medium",
+            "implication": "Do not imply outside funding or scale."
+          }
+        ],
+        "headline": "Grok Bot connection announced",
+        "openQuestions": []
+      },
+      "problems": {
+        "answer": "Entry addresses the effort of keeping a work homepage current by drawing from existing sources and suggesting updates. Independent buyer complaints were not found in the sources reviewed.",
+        "findings": [
+          {
+            "asOf": "2026-11",
+            "point": "Entry's founder says his about.me page had not changed in 13 years.",
+            "evidence": "claim",
+            "sourceUrl": "https://entry.fyi/for-humans",
+            "confidence": "medium",
+            "implication": "Frame outdated profiles as a real upkeep problem, not independent customer proof."
+          }
+        ],
+        "headline": "Work pages become outdated",
+        "openQuestions": []
+      },
+      "customers": {
+        "answer": "Entry names developers, indie makers, agent users and busy professionals, and also presents company homepages for products, teams and news.",
+        "findings": [
+          {
+            "asOf": "2026-11",
+            "point": "Entry names developers, indie makers and agent users among its intended users.",
+            "evidence": "claim",
+            "sourceUrl": "https://entry.fyi/",
+            "confidence": "high",
+            "implication": "Use those groups as the first audiences to test."
+          },
+          {
+            "asOf": "2026-11",
+            "point": "Entry also describes company homepages for products, teams and news.",
+            "evidence": "claim",
+            "sourceUrl": "https://entry.fyi/",
+            "confidence": "high",
+            "implication": "Keep team pages as a distinct audience and use case."
+          }
+        ],
+        "headline": "Professionals, makers and teams",
+        "openQuestions": []
+      },
+      "marketing": {
+        "answer": "Entry links to X, Instagram, TikTok and YouTube, and has an official GitHub profile. Recent activity was visible on X and YouTube; ads remain unknown.",
+        "findings": [
+          {
+            "asOf": "2026-11",
+            "point": "X showed 15 followers and four visible posts in the last 30 days.",
+            "evidence": "fact",
+            "sourceUrl": "https://x.com/entry_fyi",
+            "confidence": "medium",
+            "implication": "Use X as an active update channel."
+          },
+          {
+            "asOf": "2026-11",
+            "point": "YouTube showed three subscribers and at least nine uploads in the last 30 days.",
+            "evidence": "fact",
+            "sourceUrl": "https://youtube.com/@entry_fyi",
+            "confidence": "medium",
+            "implication": "Build on the existing how-to and comparison videos."
+          },
+          {
+            "asOf": "2026-11",
+            "point": "The Instagram and TikTok profiles showed five and seven followers respectively; recent post frequency could not be established.",
+            "evidence": "fact",
+            "sourceUrl": "https://instagram.com/entry_fyi",
+            "confidence": "medium",
+            "implication": "Treat activity there as unconfirmed rather than assuming a posting rhythm."
+          }
+        ],
+        "headline": "X and YouTube are active",
+        "openQuestions": []
+      },
+      "reputation": {
+        "answer": "Entry is described as early access, with limited independent reviews, awards or trust signals found in the reviewed sources.",
+        "findings": [
+          {
+            "asOf": "2026-11",
+            "point": "Entry's media kit describes the product as early access.",
+            "evidence": "fact",
+            "sourceUrl": "https://entry.fyi/media-kit",
+            "confidence": "high",
+            "implication": "Be clear about the product's stage."
+          },
+          {
+            "asOf": "2026-11",
+            "point": "The reviewed sources did not establish independent awards, certifications or attributable customer praise.",
+            "evidence": "fact",
+            "sourceUrl": "https://entry.fyi/media-kit",
+            "confidence": "medium",
+            "implication": "Build proof through clearly named, permissioned user stories."
+          }
+        ],
+        "headline": "Early access, little outside feedback",
+        "openQuestions": []
+      },
+      "competition": {
+        "answer": "Entry overlaps with profile, portfolio and personal-site products. Public customer evidence for close alternatives was sparse, so comparative strengths and weaknesses remain unconfirmed.",
+        "findings": [
+          {
+            "asOf": "2026-11",
+            "point": "The research found direct or adjacent products including Goo, Hello.cv, FolioHub, Devb.io, Livefolio, ShowProof, YourSitee, Authory and Devfolio.me.",
+            "evidence": "fact",
+            "sourceUrl": "https://goo.io/",
+            "confidence": "medium",
+            "implication": "Compare the source-updated workflow with manual profile and portfolio options."
+          },
+          {
+            "asOf": "2026-11",
+            "point": "No usable buyer-written strengths or weaknesses for the three closest products surfaced in the reviewed sources.",
+            "evidence": "fact",
+            "sourceUrl": "https://entry.fyi/",
+            "confidence": "medium",
+            "implication": "Avoid unsupported claims about competitors."
+          }
+        ],
+        "headline": "A young, crowded profile category",
+        "openQuestions": []
+      },
+      "positioning": {
+        "answer": "Entry positions itself as a source-backed identity page for people and agents: it brings public information together and lets the owner review changes.",
+        "findings": [
+          {
+            "asOf": "2026-11",
+            "point": "Entry describes its pages as source-backed identity pages for people and agents.",
+            "evidence": "claim",
+            "sourceUrl": "https://entry.fyi/",
+            "confidence": "high",
+            "implication": "Differentiate with traceable sources and owner approval."
+          }
+        ],
+        "headline": "Source-backed pages with owner approval",
+        "openQuestions": []
+      },
+      "opportunities": {
+        "answer": "Entry can make the upkeep problem concrete by showing how existing work sources become a reviewable page. Public sources did not establish team size, customer traction or the usual buyer for Pro and company pages.",
+        "findings": [
+          {
+            "asOf": "2026-11",
+            "point": "Entry connects public sources such as GitHub and X and presents updates for owner approval.",
+            "evidence": "claim",
+            "sourceUrl": "https://entry.fyi/",
+            "confidence": "high",
+            "implication": "Demonstrate the source, suggested update and approval step together."
+          },
+          {
+            "asOf": "2026-11",
+            "point": "The reviewed public sources did not establish team size or customer traction.",
+            "evidence": "fact",
+            "sourceUrl": "https://entry.fyi/media-kit",
+            "confidence": "medium",
+            "implication": "Avoid claims about adoption or company scale until confirmed."
+          }
+        ],
+        "headline": "Make page upkeep the clear story",
+        "openQuestions": []
+      }
+    },
+    "summary": "Entry.fyi by Neuralspark builds source-backed personal and company homepages from existing work, with updates owners review before publishing.",
+    "audience": [
+      "Developers, indie makers and busy professionals who want a current work homepage",
+      "Teams presenting products, people and company news",
+      "People using AI assistants with their public work"
+    ],
+    "channels": [
+      {
+        "url": "https://entry.fyi/",
+        "name": "Website"
+      },
+      {
+        "url": "https://x.com/entry_fyi",
+        "name": "X"
+      },
+      {
+        "url": "https://instagram.com/entry_fyi",
+        "name": "Instagram"
+      },
+      {
+        "url": "https://tiktok.com/@entry_fyi",
+        "name": "TikTok"
+      },
+      {
+        "url": "https://youtube.com/@entry_fyi",
+        "name": "YouTube"
+      },
+      {
+        "url": "https://github.com/entry-fyi",
+        "name": "GitHub"
+      }
+    ],
+    "products": [
+      "Entry personal and company homepages built from connected public sources",
+      "Entry MCP server and public API; separate pricing not listed"
+    ],
+    "questions": [
+      {
+        "id": "pro-buyer",
+        "section": "buyers",
+        "question": "Do individual professionals make up most of your paid Pro customers?",
+        "statement": "Individual professionals make up most paid Pro customers."
+      },
+      {
+        "id": "company-pages",
+        "section": "customers",
+        "question": "Do teams already pay for Entry company pages?",
+        "statement": "Teams already pay for Entry company pages."
+      },
+      {
+        "id": "main-channel",
+        "section": "marketing",
+        "question": "Does YouTube bring Entry more new users than X today?",
+        "statement": "YouTube brings Entry more new users than X today."
+      }
+    ],
+    "competitors": [
+      {
+        "url": "https://goo.io/",
+        "name": "Goo",
+        "note": "Adjacent living profile for people and AI agents; customer evidence and price were not confirmed."
+      },
+      {
+        "url": "https://hello.cv/",
+        "name": "Hello.cv",
+        "note": "Personal profile product with AI agents; accessible pricing details were not confirmed."
+      },
+      {
+        "url": "https://portfolioapp.net/",
+        "name": "FolioHub",
+        "note": "Portfolio that syncs work from connected platforms; a free plan is listed."
+      },
+      {
+        "url": "https://devb.io/",
+        "name": "Devb.io",
+        "note": "Developer portfolio generated from GitHub, with weekly updates."
+      },
+      {
+        "url": "https://livefolio.me/",
+        "name": "Livefolio",
+        "note": "Portfolio built from resumes and connected work."
+      },
+      {
+        "url": "https://showproof.io/",
+        "name": "ShowProof",
+        "note": "Developer profile built from GitHub, GitLab and LinkedIn data."
+      },
+      {
+        "url": "https://yoursit.ee/",
+        "name": "YourSitee",
+        "note": "Customizable link and content page."
+      },
+      {
+        "url": "https://authory.com/",
+        "name": "Authory",
+        "note": "Self-updating portfolio for published work."
+      },
+      {
+        "url": "https://devfolio.me/",
+        "name": "Devfolio.me",
+        "note": "Developer portfolio builder."
+      }
+    ],
+    "alternatives": [
+      {
+        "url": "https://linktr.ee/",
+        "name": "Linktree",
+        "note": "A link-in-bio page."
+      },
+      {
+        "url": "https://carrd.co/",
+        "name": "Carrd",
+        "note": "A simple site built by hand."
+      },
+      {
+        "url": "https://www.squarespace.com/",
+        "name": "Squarespace",
+        "note": "A broader website builder."
+      },
+      {
+        "url": "https://www.linkedin.com/",
+        "name": "LinkedIn",
+        "note": "A professional profile on a large network."
+      },
+      {
+        "name": "Build a personal site",
+        "note": "Create and maintain a site yourself."
+      }
+    ],
+    "marketingToday": {
+      "ads": {
+        "note": "Public search did not establish whether Entry currently advertises.",
+        "status": "unknown"
+      },
+      "summary": "X and YouTube show recent activity; Instagram and TikTok audiences are small and posting frequency is unclear; ad activity is unknown.",
+      "website": {
+        "blog": "Dated changelog and guides; frequent November updates, no fixed schedule confirmed.",
+        "notes": [
+          "Homepage explains the product and names developers, indie makers and agent users.",
+          "Free preview and pricing are visible; multiple prominent next steps and little customer proof near the first action.",
+          "Newsletter signup and phone usability were not established."
+        ]
+      },
+      "channels": [
+        {
+          "url": "https://x.com/entry_fyi",
+          "name": "X",
+          "basis": "measured",
+          "themes": [
+            "Entry updates",
+            "personal homepages",
+            "Claude for job searches"
+          ],
+          "formats": ["text posts", "article", "video"],
+          "lastPost": "Recent post within last 30 days",
+          "followers": "15",
+          "postsPerMonth": 4
+        },
+        {
+          "url": "https://instagram.com/entry_fyi",
+          "name": "Instagram",
+          "basis": "unknown",
+          "themes": [],
+          "formats": [],
+          "followers": "5"
+        },
+        {
+          "url": "https://tiktok.com/@entry_fyi",
+          "name": "TikTok",
+          "basis": "unknown",
+          "themes": [],
+          "formats": [],
+          "followers": "7"
+        },
+        {
+          "url": "https://youtube.com/@entry_fyi",
+          "name": "YouTube",
+          "basis": "measured",
+          "themes": [
+            "product comparisons",
+            "how-to guides",
+            "Entry Pages",
+            "job-search uses with Claude"
+          ],
+          "formats": ["videos"],
+          "lastPost": "Recent upload within last 30 days",
+          "followers": "3 subscribers",
+          "postsPerMonth": 9
+        }
+      ]
+    },
+    "voiceOfCustomer": []
   }
 }

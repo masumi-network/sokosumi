@@ -14,7 +14,7 @@ import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
 import { changeIdeas } from "../../lib/change-ideas";
 import { channelInfo } from "../../lib/channels";
-import { strategyApproved } from "../../lib/strategy";
+import { calendarIsExamples, strategyApproved } from "../../lib/strategy";
 import { WriteNewStrategy } from "../app/write-new-strategy";
 import { ChannelIcon } from "../channel-icon";
 import { CusoAvatar } from "../cuso";
@@ -26,6 +26,7 @@ import type { SkipSubscription, StartTopUp } from "../top-up";
 import {
   Checklist,
   type ChecklistItem,
+  EXAMPLE_PLANNING_PHASES,
   PLANNING_PHASES,
   useElapsed,
   workChecklist,
@@ -138,7 +139,11 @@ export function planningChecklist(
   strategy: Strategy | null,
   running: boolean,
 ): ChecklistItem[] {
-  const items = workChecklist(steps, PLANNING_PHASES, running);
+  const phases =
+    strategy && calendarIsExamples(strategy)
+      ? EXAMPLE_PLANNING_PHASES
+      : PLANNING_PHASES;
+  const items = workChecklist(steps, phases, running);
   if (!running || !strategy) return items;
   return items.map((item, at) => ({
     ...item,
@@ -274,7 +279,9 @@ function Planning({
         ) : (
           <p className="muted">
             {running
-              ? `Every post and ad ${AGENT_NAME} will make, and when. This takes a few minutes.`
+              ? overview.strategy && calendarIsExamples(overview.strategy)
+                ? `Your plan and a few example posts. This takes a few minutes.`
+                : `Every post and ad ${AGENT_NAME} will make, and when. This takes a few minutes.`
               : `Nothing was lost. Try again and I start over.`}
           </p>
         )}

@@ -1422,6 +1422,17 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   "DELETE /projects/{id}/competitors/{competitorId}": {
     argv: [...API, "projects", "remove-competitor", "p-1", "comp-1"],
   },
+  "POST /projects/{id}/competitors/{competitorId}/restore": {
+    argv: [
+      ...API,
+      "projects",
+      "restore-competitor",
+      "p-1",
+      "comp-1",
+      "--input-json",
+      '{"removal":1}',
+    ],
+  },
   "PUT /projects/{id}/competitors/checks": {
     argv: [
       ...API,
@@ -1593,5 +1604,798 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   },
   "DELETE /projects/{id}/newsletter/subscribers/{subscriberId}": {
     argv: [...API, "newsletter", "remove-subscriber", "p-1", "sub-1"],
+  },
+  // Ad campaign writes (SOKD-384).
+  "POST /projects/{id}/ads/accounts/{accountId}/campaigns": {
+    argv: [
+      ...API,
+      "projects",
+      "ads-campaign-create",
+      "project-1",
+      "account-1",
+      "--input-json",
+      '{"name":"Spring","dailyBudget":5,"objective":"OUTCOME_TRAFFIC"}',
+    ],
+  },
+  "PATCH /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}": {
+    argv: [
+      ...API,
+      "projects",
+      "ads-campaign-update",
+      "project-1",
+      "account-1",
+      "42",
+      "--input-json",
+      '{"status":"PAUSED"}',
+    ],
+  },
+  "PUT /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}": {
+    argv: [
+      ...API,
+      "projects",
+      "ads-campaign-edit",
+      "project-1",
+      "account-1",
+      "42",
+      "--input-json",
+      '{"name":"Spring","dailyBudget":5,"google":{"type":"SEARCH"}}',
+    ],
+  },
+  // SOKD-374: SEO
+  "GET /seo/audits": { argv: [...API, "seo", "list-audits"] },
+  "POST /seo/audits": {
+    argv: [
+      ...API,
+      "seo",
+      "create-audit",
+      "--input-json",
+      '{"name": "Acme site", "firstPage": {"url": "https://example.com/"}}',
+    ],
+  },
+  "GET /seo/audits/{id}/workspace": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-workspace",
+      "00000000-0000-4000-8000-0000000000a1",
+    ],
+  },
+  "PATCH /seo/audits/{id}": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-archive",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"archived": true}',
+    ],
+  },
+  "GET /seo/audits/{id}/chat": {
+    argv: [...API, "seo", "audit-chat", "00000000-0000-4000-8000-0000000000a1"],
+  },
+  "POST /seo/audits/{id}/chat": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-ask",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"question": "Which page should I fix first?", "idempotencyKey": "question-1"}',
+    ],
+  },
+  "GET /seo/audits/{id}": {
+    argv: [...API, "seo", "audit-get", "00000000-0000-4000-8000-0000000000a1"],
+  },
+  "POST /seo/audits/{id}/pages": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-add-page",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"url": "https://example.com/pricing"}',
+    ],
+  },
+  "POST /seo/audits/{id}/scopes": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-create-scope",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"name": "Pricing", "pageIds": ["00000000-0000-4000-8000-0000000000e1"]}',
+    ],
+  },
+  "PUT /seo/audits/{id}/scopes/{scopeId}": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-update-scope",
+      "00000000-0000-4000-8000-0000000000a1",
+      "00000000-0000-4000-8000-0000000000c1",
+      "--input-json",
+      '{"name": "Pricing", "pageIds": ["00000000-0000-4000-8000-0000000000e1"], "expectedVersion": 1}',
+    ],
+  },
+  "POST /seo/audits/{id}/imports": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-import-report",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"taskId": "00000000-0000-4000-8000-0000000000d1", "fileId": "file-1"}',
+    ],
+  },
+  "POST /seo/audits/{id}/analyses": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-analyze",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"kind": "page_check", "pageIds": ["00000000-0000-4000-8000-0000000000e1"], "countryCode": "US", "languageCode": "en", "devices": ["desktop"], "idempotencyKey": "analysis-1"}',
+    ],
+  },
+  "POST /seo/audits/{id}/keywords": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-save-keyword",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"keyword": "seo audit", "countryCode": "US", "languageCode": "en"}',
+    ],
+  },
+  "POST /seo/audits/{id}/competitors": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-save-competitor",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"url": "https://rival.example", "confirmed": true}',
+    ],
+  },
+  "POST /seo/audits/{id}/actions": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-create-task",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"observationId": "00000000-0000-4000-8000-0000000000f1", "actionId": "action-1", "idempotencyKey": "create-task-1"}',
+    ],
+  },
+  "POST /seo/audits/{id}/monitors": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-create-monitor",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"operationId": "00000000-0000-4000-8000-0000000000f1", "rule": {"expr": "0 9 * * 1", "timezone": "UTC"}, "analysis": {"kind": "page_check", "pageIds": ["00000000-0000-4000-8000-0000000000e1"], "countryCode": "US", "languageCode": "en", "devices": ["desktop"], "idempotencyKey": "analysis-1"}}',
+    ],
+  },
+  "POST /seo/audits/{id}/actions/reviews": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-review-action",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"pageId": "00000000-0000-4000-8000-0000000000e1", "actionId": "action-1", "kind": "kept", "baselineObservationId": "00000000-0000-4000-8000-0000000000f1", "observationId": "00000000-0000-4000-8000-0000000000f1"}',
+    ],
+  },
+  "GET /seo/audits/{id}/statistics/properties": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-properties",
+      "00000000-0000-4000-8000-0000000000a1",
+    ],
+  },
+  "POST /seo/audits/{id}/statistics/sync": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-sync-statistics",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"provider": "search_console", "propertyId": "sc-domain:example.com", "from": "2026-10-01", "to": "2026-10-31"}',
+    ],
+  },
+  "POST /seo/audits/{id}/page-changes": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-record-change",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"pageIds": ["00000000-0000-4000-8000-0000000000e1"], "occurredAt": "2026-11-01T09:00:00.000Z", "title": "New title tag", "idempotencyKey": "change-0001"}',
+    ],
+  },
+  "PUT /seo/audits/{id}/brand-terms": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-set-brand-terms",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"terms": ["acme"]}',
+    ],
+  },
+  "GET /seo/audits/{id}/brief": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-brief",
+      "00000000-0000-4000-8000-0000000000a1",
+    ],
+  },
+  "PUT /seo/audits/{id}/brief": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-save-brief",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"expectedRevision": 0}',
+    ],
+  },
+  "GET /seo/audits/{id}/brief/suggestion": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-suggest-brief",
+      "00000000-0000-4000-8000-0000000000a1",
+    ],
+  },
+  "GET /seo/audits/{id}/console-exports/{taskId}": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-console-exports",
+      "00000000-0000-4000-8000-0000000000a1",
+      "00000000-0000-4000-8000-0000000000d1",
+    ],
+  },
+  "POST /seo/audits/{id}/console-exports/{taskId}": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-import-console-export",
+      "00000000-0000-4000-8000-0000000000a1",
+      "00000000-0000-4000-8000-0000000000d1",
+      "--input-json",
+      '{"kind": "indexing_examples", "date": "2026-11-01", "csv": "URL"}',
+    ],
+  },
+  "GET /projects/{id}/seo": {
+    argv: [
+      ...API,
+      "seo",
+      "project-get",
+      "00000000-0000-4000-8000-0000000000b1",
+    ],
+  },
+  "POST /projects/{id}/seo/pages": {
+    argv: [
+      ...API,
+      "seo",
+      "project-add-page",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"url": "https://example.com/pricing"}',
+    ],
+  },
+  "POST /projects/{id}/seo/scopes": {
+    argv: [
+      ...API,
+      "seo",
+      "project-create-scope",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"name": "Pricing", "pageIds": ["00000000-0000-4000-8000-0000000000e1"]}',
+    ],
+  },
+  "PUT /projects/{id}/seo/scopes/{scopeId}": {
+    argv: [
+      ...API,
+      "seo",
+      "project-update-scope",
+      "00000000-0000-4000-8000-0000000000b1",
+      "00000000-0000-4000-8000-0000000000c1",
+      "--input-json",
+      '{"name": "Pricing", "pageIds": ["00000000-0000-4000-8000-0000000000e1"], "expectedVersion": 1}',
+    ],
+  },
+  "POST /projects/{id}/seo/imports": {
+    argv: [
+      ...API,
+      "seo",
+      "project-import-report",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"taskId": "00000000-0000-4000-8000-0000000000d1", "fileId": "file-1"}',
+    ],
+  },
+  "POST /projects/{id}/seo/analyses": {
+    argv: [
+      ...API,
+      "seo",
+      "project-analyze",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"kind": "page_check", "pageIds": ["00000000-0000-4000-8000-0000000000e1"], "countryCode": "US", "languageCode": "en", "devices": ["desktop"], "idempotencyKey": "analysis-1"}',
+    ],
+  },
+  "POST /projects/{id}/seo/keywords": {
+    argv: [
+      ...API,
+      "seo",
+      "project-save-keyword",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"keyword": "seo audit", "countryCode": "US", "languageCode": "en"}',
+    ],
+  },
+  "POST /projects/{id}/seo/competitors": {
+    argv: [
+      ...API,
+      "seo",
+      "project-save-competitor",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"url": "https://rival.example", "confirmed": true}',
+    ],
+  },
+  "POST /projects/{id}/seo/actions": {
+    argv: [
+      ...API,
+      "seo",
+      "project-create-task",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"observationId": "00000000-0000-4000-8000-0000000000f1", "actionId": "action-1", "idempotencyKey": "create-task-1"}',
+    ],
+  },
+  "POST /projects/{id}/seo/monitors": {
+    argv: [
+      ...API,
+      "seo",
+      "project-create-monitor",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"operationId": "00000000-0000-4000-8000-0000000000f1", "rule": {"expr": "0 9 * * 1", "timezone": "UTC"}, "analysis": {"kind": "page_check", "pageIds": ["00000000-0000-4000-8000-0000000000e1"], "countryCode": "US", "languageCode": "en", "devices": ["desktop"], "idempotencyKey": "analysis-1"}}',
+    ],
+  },
+  "POST /projects/{id}/seo/actions/reviews": {
+    argv: [
+      ...API,
+      "seo",
+      "project-review-action",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"pageId": "00000000-0000-4000-8000-0000000000e1", "actionId": "action-1", "kind": "kept", "baselineObservationId": "00000000-0000-4000-8000-0000000000f1", "observationId": "00000000-0000-4000-8000-0000000000f1"}',
+    ],
+  },
+  "GET /projects/{id}/seo/statistics/properties": {
+    argv: [
+      ...API,
+      "seo",
+      "project-properties",
+      "00000000-0000-4000-8000-0000000000b1",
+    ],
+  },
+  "POST /projects/{id}/seo/statistics/sync": {
+    argv: [
+      ...API,
+      "seo",
+      "project-sync-statistics",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"provider": "search_console", "propertyId": "sc-domain:example.com", "from": "2026-10-01", "to": "2026-10-31"}',
+    ],
+  },
+  "POST /projects/{id}/seo/page-changes": {
+    argv: [
+      ...API,
+      "seo",
+      "project-record-change",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"pageIds": ["00000000-0000-4000-8000-0000000000e1"], "occurredAt": "2026-11-01T09:00:00.000Z", "title": "New title tag", "idempotencyKey": "change-0001"}',
+    ],
+  },
+  "PUT /projects/{id}/seo/brand-terms": {
+    argv: [
+      ...API,
+      "seo",
+      "project-set-brand-terms",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"terms": ["acme"]}',
+    ],
+  },
+  "GET /projects/{id}/seo/brief": {
+    argv: [
+      ...API,
+      "seo",
+      "project-brief",
+      "00000000-0000-4000-8000-0000000000b1",
+    ],
+  },
+  "PUT /projects/{id}/seo/brief": {
+    argv: [
+      ...API,
+      "seo",
+      "project-save-brief",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"expectedRevision": 0}',
+    ],
+  },
+  "GET /projects/{id}/seo/brief/suggestion": {
+    argv: [
+      ...API,
+      "seo",
+      "project-suggest-brief",
+      "00000000-0000-4000-8000-0000000000b1",
+    ],
+  },
+  "GET /projects/{id}/seo/console-exports/{taskId}": {
+    argv: [
+      ...API,
+      "seo",
+      "project-console-exports",
+      "00000000-0000-4000-8000-0000000000b1",
+      "00000000-0000-4000-8000-0000000000d1",
+    ],
+  },
+  "POST /projects/{id}/seo/console-exports/{taskId}": {
+    argv: [
+      ...API,
+      "seo",
+      "project-import-console-export",
+      "00000000-0000-4000-8000-0000000000b1",
+      "00000000-0000-4000-8000-0000000000d1",
+      "--input-json",
+      '{"kind": "indexing_examples", "date": "2026-11-01", "csv": "URL"}',
+    ],
+  },
+  // SOKD-375: Drive
+  "GET /drive/search": {
+    argv: [...API, "drive", "search", "--query", "scope=me"],
+  },
+  "GET /drive/files": {
+    argv: [...API, "drive", "files", "--query", "scope=me"],
+  },
+  "GET /drive/recents": {
+    argv: [...API, "drive", "recents", "--query", "scope=me"],
+  },
+  "GET /drive/resources/{id}": {
+    argv: [...API, "drive", "get", "id-1", "--query", "scope=me"],
+  },
+  "GET /drive/resources/{id}/related": {
+    argv: [...API, "drive", "related", "id-1", "--query", "scope=me"],
+  },
+  "GET /drive/folders": {
+    argv: [...API, "drive", "folders", "--query", "scope=me"],
+  },
+  "POST /drive/folders": {
+    argv: [
+      ...API,
+      "drive",
+      "create-folder",
+      "--input-json",
+      '{"scope":"me","folderPath":"reports"}',
+    ],
+  },
+  "PATCH /drive/folders/rename": {
+    argv: [
+      ...API,
+      "drive",
+      "rename-folder",
+      "--input-json",
+      '{"scope":"me","oldFolderPath":"a","newFolderPath":"b"}',
+    ],
+  },
+  "DELETE /drive/folders/delete": {
+    argv: [
+      ...API,
+      "drive",
+      "delete-folder",
+      "--input-json",
+      '{"scope":"me","folderPath":"drafts"}',
+    ],
+  },
+  "PATCH /drive/files/move": {
+    argv: [
+      ...API,
+      "drive",
+      "move",
+      "--input-json",
+      '{"sourcePathname":"notes.pdf","targetFolderPath":"reports","itemType":"file"}',
+    ],
+  },
+  "PATCH /drive/files/rename": {
+    argv: [
+      ...API,
+      "drive",
+      "rename",
+      "--input-json",
+      '{"oldPathname":"users/u/a.pdf","newFilename":"b.pdf"}',
+    ],
+  },
+  "DELETE /drive/files/delete": {
+    argv: [
+      ...API,
+      "drive",
+      "delete",
+      "--input-json",
+      '{"pathname":"users/u/a.pdf"}',
+    ],
+  },
+  "PATCH /drive/resources/{id}/metadata": {
+    argv: [
+      ...API,
+      "drive",
+      "update-metadata",
+      "id-1",
+      "--input-json",
+      '{"expectedMetadataRevision":1}',
+    ],
+  },
+  "POST /drive/resources/{id}/suggestions/{suggestionId}/decision": {
+    argv: [
+      ...API,
+      "drive",
+      "decide-suggestion",
+      "id-1",
+      "suggestionId-1",
+      "--input-json",
+      '{"decision":"accept","expectedMetadataRevision":1}',
+    ],
+  },
+  "POST /drive/resources/selection-token": {
+    argv: [
+      ...API,
+      "drive",
+      "select",
+      "--input-json",
+      '{"scope":"me","windowCursor":"c"}',
+    ],
+  },
+  "POST /drive/resources/metadata-batch": {
+    argv: [
+      ...API,
+      "drive",
+      "update-metadata-batch",
+      "--input-json",
+      '{"scope":"me"}',
+    ],
+  },
+  "POST /drive/resources/{id}/reindex": {
+    argv: [...API, "drive", "reindex", "id-1", "--query", "scope=me"],
+  },
+  "POST /drive/files/google-sheets": {
+    argv: [
+      ...API,
+      "drive",
+      "add-google-sheet",
+      "--input-json",
+      '{"scope":"me","url":"https://docs.google.com/spreadsheets/d/abc/edit"}',
+    ],
+  },
+  "GET /drive/resources/{id}/google-sheet": {
+    argv: [...API, "drive", "google-sheet", "id-1", "--query", "scope=me"],
+  },
+  "POST /drive/resources/{id}/google-sheet/refresh": {
+    argv: [
+      ...API,
+      "drive",
+      "refresh-google-sheet",
+      "id-1",
+      "--query",
+      "scope=me",
+    ],
+  },
+  "GET /drive/tasks": {
+    argv: [...API, "drive", "tasks", "--query", "scope=me"],
+  },
+  "POST /drive/tasks/copy": {
+    argv: [
+      ...API,
+      "drive",
+      "copy-task-file",
+      "--input-json",
+      '{"scope":"me","taskFileId":"tf-1"}',
+    ],
+  },
+  "GET /drive/labels": {
+    argv: [...API, "drive", "labels", "--query", "scope=me"],
+  },
+  "POST /drive/labels": {
+    argv: [
+      ...API,
+      "drive",
+      "create-label",
+      "--input-json",
+      '{"scope":"me","kind":"TAG","displayName":"Contracts"}',
+    ],
+  },
+  "PATCH /drive/labels/{id}": {
+    argv: [
+      ...API,
+      "drive",
+      "update-label",
+      "id-1",
+      "--input-json",
+      '{"scope":"me","displayName":"Signed"}',
+    ],
+  },
+  "GET /drive/collections": {
+    argv: [...API, "drive", "collections", "--query", "scope=me"],
+  },
+  "POST /drive/collections": {
+    argv: [
+      ...API,
+      "drive",
+      "create-collection",
+      "--input-json",
+      '{"scope":"me","name":"Contracts","definition":{}}',
+    ],
+  },
+  "PATCH /drive/collections/{id}": {
+    argv: [
+      ...API,
+      "drive",
+      "update-collection",
+      "id-1",
+      "--input-json",
+      '{"scope":"me","name":"Signed"}',
+    ],
+  },
+  "DELETE /drive/collections/{id}": {
+    argv: [...API, "drive", "delete-collection", "id-1", "--query", "scope=me"],
+  },
+  "GET /drive/shares": {
+    argv: [...API, "drive", "share", "--query", "scope=me"],
+  },
+  "DELETE /drive/shares/{id}": {
+    argv: [...API, "drive", "unshare", "id-1", "--query", "scope=me"],
+  },
+  "GET /drive/tables": { argv: [...API, "drive", "tables"] },
+  "POST /drive/tables": {
+    argv: [
+      ...API,
+      "drive",
+      "create-table",
+      "--input-json",
+      '{"key":"k-1","title":"Leads","columns":[]}',
+    ],
+  },
+  "GET /drive/tables/{id}": { argv: [...API, "drive", "table", "id-1"] },
+  "PATCH /drive/tables/{id}": {
+    argv: [
+      ...API,
+      "drive",
+      "update-table",
+      "id-1",
+      "--input-json",
+      '{"key":"k-1","version":1}',
+    ],
+  },
+  "POST /drive/tables/{id}/query": {
+    argv: [...API, "drive", "query-table", "id-1", "--input-json", "{}"],
+  },
+  "POST /drive/tables/{id}/rows": {
+    argv: [
+      ...API,
+      "drive",
+      "edit-rows",
+      "id-1",
+      "--input-json",
+      '{"key":"k-1","insert":[]}',
+    ],
+  },
+  "POST /drive/tables/{id}/views": {
+    argv: [
+      ...API,
+      "drive",
+      "save-view",
+      "id-1",
+      "--input-json",
+      '{"key":"k-1","name":"Open","definition":{}}',
+    ],
+  },
+  "POST /drive/tables/{id}/undo": {
+    argv: [
+      ...API,
+      "drive",
+      "undo-table",
+      "id-1",
+      "--input-json",
+      '{"key":"k-1","batchId":"b-1"}',
+    ],
+  },
+  "GET /drive/tables/{id}/history": {
+    argv: [...API, "drive", "table-history", "id-1"],
+  },
+  "POST /drive/tables/{id}/enrich": {
+    argv: [
+      ...API,
+      "drive",
+      "enrich-table",
+      "id-1",
+      "--input-json",
+      '{"key":"k-1","prompt":"Fill","rowIds":[],"columnIds":[]}',
+    ],
+  },
+  "GET /drive/data-rooms": {
+    argv: [...API, "drive", "data-rooms", "--query", "scope=me"],
+  },
+  "POST /drive/data-rooms": {
+    argv: [
+      ...API,
+      "drive",
+      "create-data-room",
+      "--input-json",
+      '{"scope":"me","folderPath":"deal"}',
+    ],
+  },
+  "GET /drive/data-rooms/questions": {
+    argv: [...API, "drive", "open-questions", "--query", "scope=me"],
+  },
+  "GET /drive/data-rooms/{id}": {
+    argv: [...API, "drive", "data-room", "id-1", "--query", "scope=me"],
+  },
+  "DELETE /drive/data-rooms/{id}": {
+    argv: [...API, "drive", "close-data-room", "id-1", "--query", "scope=me"],
+  },
+  "DELETE /drive/data-rooms/{id}/members/{memberId}": {
+    argv: [
+      ...API,
+      "drive",
+      "remove-data-room-member",
+      "id-1",
+      "memberId-1",
+      "--query",
+      "scope=me",
+    ],
+  },
+  "GET /drive/data-rooms/{id}/events": {
+    argv: [...API, "drive", "data-room-events", "id-1", "--query", "scope=me"],
+  },
+  "GET /drive/data-rooms/{id}/questions": {
+    argv: [
+      ...API,
+      "drive",
+      "data-room-questions",
+      "id-1",
+      "--query",
+      "scope=me",
+    ],
+  },
+  "PUT /drive/data-rooms/{id}/order": {
+    argv: [
+      ...API,
+      "drive",
+      "order-data-room",
+      "id-1",
+      "--input-json",
+      '{"scope":"me","entries":[]}',
+    ],
+  },
+  "PUT /drive/data-rooms/{id}/colleagues": {
+    argv: [
+      ...API,
+      "drive",
+      "set-data-room-colleagues",
+      "id-1",
+      "--input-json",
+      '{"scope":"org","organizationId":"org-1","userIds":[]}',
+    ],
   },
 };

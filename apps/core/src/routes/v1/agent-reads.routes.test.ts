@@ -161,25 +161,6 @@ const HUMAN_ONLY_WRITES: readonly [
   ["POST", `${P}/ads/connections/initiate`, { provider: "google_ads" }],
   ["POST", `${P}/ads/connections/finalize`, { connectionId: "ca_1" }],
   ["DELETE", `${P}/ads/connections/${ID}`],
-  ["POST", `${P}/ads/accounts/${ID}/campaigns`, CAMPAIGN],
-  [
-    "PUT",
-    `${P}/ads/accounts/${ID}/campaigns/123`,
-    {
-      ...CAMPAIGN,
-      google: {
-        type: "SEARCH",
-        startDate: "2030-10-01",
-        locationIds: ["2276"],
-        languageIds: ["1001"],
-        finalUrl: "https://example.com/spring",
-        keywords: [{ text: "running shoes", matchType: "BROAD" }],
-        headlines: ["One", "Two", "Three"],
-        descriptions: ["First description", "Second description"],
-      },
-    },
-  ],
-  ["PATCH", `${P}/ads/accounts/${ID}/campaigns/123`, { status: "PAUSED" }],
   [
     "PUT",
     `${P}/ads/market`,
@@ -253,6 +234,27 @@ const OPENED_WRITES: [string, string, object][] = [
   ["POST", `${P}/social-posts/${ID}/statistics/refresh`, {}],
   ["PUT", `${P}/social-queue-slots`, { timezone: "UTC", slots: [] }],
   ["POST", `${P}/social-account-posts/${ID}/recycle`, {}],
+  // SOKD-384: an agent creates a paused campaign, pauses it, and changes
+  // or edits it only while paused; a person resumes it (below).
+  ["POST", `${P}/ads/accounts/${ID}/campaigns`, CAMPAIGN],
+  [
+    "PUT",
+    `${P}/ads/accounts/${ID}/campaigns/123`,
+    {
+      ...CAMPAIGN,
+      google: {
+        type: "SEARCH",
+        startDate: "2030-10-01",
+        locationIds: ["2276"],
+        languageIds: ["1001"],
+        finalUrl: "https://example.com/spring",
+        keywords: [{ text: "running shoes", matchType: "BROAD" }],
+        headlines: ["One", "Two", "Three"],
+        descriptions: ["First description", "Second description"],
+      },
+    },
+  ],
+  ["PATCH", `${P}/ads/accounts/${ID}/campaigns/123`, { status: "PAUSED" }],
 ];
 
 // ADR 0077 (SOKD-385): credits are the cap, so an agent starts and cancels
@@ -373,6 +375,20 @@ describe.each(CALLERS)("as %s", (_, authContext) => {
       ).not.toBe(403);
     },
   );
+
+  it("is a person's step to resume an ad campaign", async () => {
+    const response = await call(
+      "PATCH",
+      `${P}/ads/accounts/${ID}/campaigns/123`,
+      authContext,
+      { status: "ACTIVE" },
+    );
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({
+      kind: "person_approval_required",
+    });
+  });
 
   it("is a person's step to start a talking video of a real person's photo", async () => {
     const response = await call(

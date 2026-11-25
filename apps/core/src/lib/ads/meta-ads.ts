@@ -10,6 +10,7 @@ import {
   type AdCampaignStatus,
   type AdCampaignUpdate,
   type AdRange,
+  AGENT_PAUSED_ONLY_MESSAGE,
   buildAdCampaign,
   completeDaysRange,
   fromMinorUnits,
@@ -247,6 +248,7 @@ const metaCampaignOwnerSchema = z.object({
   objective: z.string().min(1).nullish(),
   /** Smallest currency unit; absent when the budget is on the ad sets. */
   daily_budget: z.coerce.number().nullish(),
+  status: z.string().nullish(),
 });
 
 const metaSuccessSchema = z.object({ success: z.literal(true) });
@@ -268,7 +270,7 @@ async function lookUpMetaCampaign(
   const campaign = parseToolRow(
     await execute(GET_OBJECT, {
       object_id: campaignId,
-      fields: ["id", "account_id", "objective", "daily_budget"],
+      fields: ["id", "account_id", "objective", "daily_budget", "status"],
     }),
     metaCampaignOwnerSchema,
     "look up Meta campaign",
@@ -295,7 +297,14 @@ export async function updateMetaCampaign(
   input: AdsConnectedAccount &
     AdCampaignUpdate & { adAccountId: string; campaignId: string },
 ): Promise<void> {
-  const { adAccountId, campaignId, status, dailyBudget, ...connected } = input;
+  const {
+    adAccountId,
+    campaignId,
+    status,
+    dailyBudget,
+    onlyWhilePaused,
+    ...connected
+  } = input;
 
   await withAdsToolSession(
     {
@@ -309,6 +318,9 @@ export async function updateMetaCampaign(
         adAccountId,
         campaignId,
       );
+      if (onlyWhilePaused && campaign.status !== "PAUSED") {
+        throw conflict(AGENT_PAUSED_ONLY_MESSAGE);
+      }
       if (dailyBudget !== undefined && !campaign.daily_budget) {
         throw conflict("This campaign's budget is set on its ad sets");
       }

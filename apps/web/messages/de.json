@@ -12763,6 +12763,26 @@
           "industry": "Branche",
           "lists": "Listen"
         }
+      },
+      "linkedInImport": {
+        "menu": "LinkedIn-Kontakte importieren",
+        "title": "Deine LinkedIn-Kontakte importieren",
+        "description": "Jede Verbindung wird ein Kontakt (oder ergänzt einen vorhandenen), und die Runde weiß, dass du sie um eine Vorstellung bitten kannst.",
+        "doneDescription": "Fertig. Deine Verbindungen stehen auf der Liste „LinkedIn connections“.",
+        "step1": "Öffne auf LinkedIn Einstellungen → Datenschutz → Kopie deiner Daten anfordern.",
+        "step2": "Wähle Kontakte aus und fordere das Archiv an; LinkedIn schickt es in wenigen Minuten per Mail.",
+        "step3": "Lade hier die Connections.csv aus dem Archiv hoch.",
+        "fileLabel": "Connections.csv",
+        "tooLarge": "Die Datei ist größer als 5 MB. Teile sie zuerst.",
+        "failed": "Der Import wurde nicht fertig. Es wurde nichts geändert.",
+        "result": {
+          "connections": "Verbindungen",
+          "created": "Neue Kontakte",
+          "updated": "Schon bekannt"
+        },
+        "import": "Importieren",
+        "cancel": "Abbrechen",
+        "done": "Fertig"
       }
     },
     "Fundraising": {
@@ -12892,7 +12912,36 @@
         "noFund": "Trage zuerst den Fonds beim Kontakt ein; die Recherche schlägt den Fonds nach.",
         "capReached": "Das Recherchebudget dieses Monats ist aufgebraucht.",
         "noPortfolio": "Noch kein Portfolio recherchiert.",
-        "source": "Quelle"
+        "source": "Quelle",
+        "linkedinDirect": "{who} ist auf LinkedIn mit ihnen verbunden",
+        "onLinkedIn": "auf LinkedIn verbunden",
+        "importHint": "Importiere deine LinkedIn-Kontakte in Kontakte, um mehr Wege zu finden."
+      },
+      "outreach": {
+        "title": "Ansprache",
+        "noMailbox": "Entwürfe landen über deinen Soko Bot in deinem eigenen Gmail. Verbinde dort zuerst Gmail.",
+        "connect": "Soko Bots öffnen",
+        "kind": "Was schreiben",
+        "kinds": {
+          "intro": "Erste Mail",
+          "follow_up": "Nachfassen"
+        },
+        "via": "Über wen",
+        "direct": "Direkt anschreiben",
+        "viaName": "{name} um eine Vorstellung bitten",
+        "inviteRoom": "In „{room}“ lassen und verlinken",
+        "linkRoom": "„{room}“ verlinken (schon drin)",
+        "noteLabel": "Erwähnenswertes",
+        "notePlaceholder": "z. B. beim Draper-Dinner getroffen; Cardano-Partnerschaft erwähnen",
+        "noEmail": "Keine E-Mail-Adresse hinterlegt; in Kontakte ergänzen oder einen gemeinsamen Kontakt um eine Vorstellung bitten.",
+        "draft": "Entwurf in {mailbox} schreiben",
+        "neverSends": "Sokosumi sendet nie. Du liest ihn in deinem Postfach und sendest selbst.",
+        "drafted": "Der Entwurf liegt in deinem {mailbox}",
+        "failed": "Der Entwurf konnte nicht geschrieben werden",
+        "inMailbox": "In deinen {mailbox}-Entwürfen, an {to}",
+        "openDrafts": "Gmail-Entwürfe öffnen",
+        "another": "Noch einen schreiben",
+        "lastDraft": "Letzter Entwurf „{subject}“ · {when}"
       }
     },
     "Seo": {

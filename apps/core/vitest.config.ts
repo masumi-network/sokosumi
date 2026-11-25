@@ -43,6 +43,7 @@ const optInPostgresFiles = [
   "src/routes/v1/webhooks/polar-top-up.postgres.test.ts",
   "src/services/polar-credit-grant.postgres.test.ts",
   "src/services/cmo-free-hiring.postgres.test.ts",
+  "src/services/cmo-month-calendar.postgres.test.ts",
   "src/services/cmo-tester-credits.postgres.test.ts",
   "src/services/cmo-test-copy.postgres.test.ts",
   "src/services/polar-plan-change.postgres.test.ts",

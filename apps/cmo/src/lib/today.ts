@@ -260,6 +260,9 @@ export function todayLine(overview: CmoOverview, needs: number): string {
   }
   const { state } = overview.production;
   const { ready, total } = monthMade(overview);
+  if (state === "planning") {
+    return "I'm planning your month, topic by topic. It takes a few minutes, then I make every post.";
+  }
   if (state === "running" || state === "starting") {
     return `I'm making your month: ${ready} of ${total} ready.`;
   }
