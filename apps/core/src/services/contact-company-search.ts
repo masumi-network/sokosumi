@@ -1,4 +1,5 @@
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { literalSubstringPattern } from "@/helpers/project-activity";
 import prisma from "@/lib/db/prisma";
 import type {
@@ -32,7 +33,7 @@ export async function companyStats(
   options: { search?: string; name?: string; keys?: readonly string[] } = {},
 ): Promise<CompanyStats[]> {
   const named = (pattern: string) => PrismaRaw.sql`a.key IN (
-      SELECT cc.key FROM contact_company cc
+      SELECT cc.key FROM ${sharedTable("contact_company")} cc
       WHERE cc."workspaceId" = ${workspaceId}::uuid AND cc.name ILIKE ${pattern} ESCAPE '\\'
     )`;
   const pattern = options.search
@@ -42,7 +43,7 @@ export async function companyStats(
     ? PrismaRaw.sql`HAVING bool_or(a.raw ILIKE ${pattern} ESCAPE '\\')
         OR bool_or(a.key ILIKE ${pattern} ESCAPE '\\')
         OR a.key IN (
-          SELECT cc.key FROM contact_company cc
+          SELECT cc.key FROM ${sharedTable("contact_company")} cc
           WHERE cc."workspaceId" = ${workspaceId}::uuid AND (
             cc.name ILIKE ${pattern} OR cc.description ILIKE ${pattern}
             OR cc.industry ILIKE ${pattern} OR cc.headquarters ILIKE ${pattern}
@@ -66,13 +67,13 @@ export async function companyStats(
       CASE WHEN a.key LIKE 'd:%' THEN substr(a.key, 3) END AS domain,
       coalesce(array_agg(DISTINCT a.org) FILTER (WHERE a.org <> ''), '{}') AS orgs,
       count(*)::int AS people,
-      (SELECT count(DISTINCT i."userId")::int FROM contact_interaction i
+      (SELECT count(DISTINCT i."userId")::int FROM ${sharedTable("contact_interaction")} i
         WHERE i."contactId" = ANY(array_agg(a.id)) AND i."userId" IS NOT NULL) AS teammates,
       sum(c."interactionCount")::int AS interactions,
       max(c."lastContactAt") AS "lastContactAt",
       array_agg(DISTINCT c.stage::text) AS stages
     FROM assigned a
-    JOIN contact c ON c.id = a.id
+    JOIN ${sharedTable("contact")} c ON c.id = a.id
     WHERE a.key IS NOT NULL ${keys} ${name}
     GROUP BY a.key
     ${search}

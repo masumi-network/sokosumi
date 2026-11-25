@@ -1,4 +1,5 @@
 import { PrismaRaw as Prisma } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import {
@@ -77,7 +78,7 @@ async function totals(
         where: { newsletterId, status: "ACTIVE" },
       }),
       prisma.$queryRaw<EventCounts[]>(Prisma.sql`
-      SELECT ${EVENT_COUNTS} FROM newsletter_event
+      SELECT ${EVENT_COUNTS} FROM ${sharedTable("newsletter_event")}
       WHERE "newsletterId" = ${newsletterId}::uuid
       ${issueId ? Prisma.sql`AND "issueId" = ${issueId}::uuid` : Prisma.empty}
       ${range ? Prisma.sql`AND "occurredAt" >= ${range.start} AND "occurredAt" < ${range.end}` : Prisma.empty}
@@ -86,10 +87,10 @@ async function totals(
         ? Promise.resolve([{ count: null }])
         : prisma.$queryRaw<Array<{ count: number }>>(Prisma.sql`
           SELECT COUNT(DISTINCT "subscriberId")::int AS count FROM (
-            SELECT "subscriberId", "occurredAt" AS at FROM newsletter_event
+            SELECT "subscriberId", "occurredAt" AS at FROM ${sharedTable("newsletter_event")}
             WHERE "newsletterId" = ${newsletterId}::uuid AND type IN ('UNSUBSCRIBED', 'COMPLAINED')
             UNION ALL
-            SELECT id, "unsubscribedAt" FROM newsletter_subscriber
+            SELECT id, "unsubscribedAt" FROM ${sharedTable("newsletter_subscriber")}
             WHERE "newsletterId" = ${newsletterId}::uuid AND "unsubscribedAt" IS NOT NULL
           ) departures
           ${range ? Prisma.sql`WHERE at >= ${range.start} AND at < ${range.end}` : Prisma.empty}
@@ -144,7 +145,7 @@ export async function getNewsletterAnalytics(
     >(Prisma.sql`
       WITH subscribers AS (
         SELECT id, "createdAt", "confirmedAt", "unsubscribedAt", "bouncedAt", source, status
-        FROM newsletter_subscriber WHERE "newsletterId" = ${newsletter.id}::uuid
+        FROM ${sharedTable("newsletter_subscriber")} WHERE "newsletterId" = ${newsletter.id}::uuid
       ), transitions AS (
         SELECT id, "createdAt" AS at, 1 AS active, 0 AS unsubscribed, 0 AS bounced
         FROM subscribers WHERE source <> 'SIGNUP_FORM' AND status <> 'PENDING'
@@ -154,7 +155,7 @@ export async function getNewsletterAnalytics(
         SELECT e."subscriberId", e."occurredAt",
           CASE WHEN e.type = 'CONFIRMED' THEN 1 ELSE 0 END,
           CASE WHEN e.type = 'CONFIRMED' THEN 0 ELSE 1 END, 0
-        FROM newsletter_event e JOIN subscribers s ON s.id = e."subscriberId"
+        FROM ${sharedTable("newsletter_event")} e JOIN subscribers s ON s.id = e."subscriberId"
         WHERE e."newsletterId" = ${newsletter.id}::uuid
           AND e.type IN ('CONFIRMED', 'UNSUBSCRIBED', 'COMPLAINED')
         UNION
@@ -195,7 +196,7 @@ export async function getNewsletterAnalytics(
         SELECT "occurredAt"::date AS day,
           COUNT(DISTINCT "subscriberId") FILTER (WHERE type = 'OPENED')::int AS "uniqueOpens",
           COUNT(DISTINCT "subscriberId") FILTER (WHERE type = 'CLICKED')::int AS "uniqueClicks"
-        FROM newsletter_event WHERE "newsletterId" = ${newsletter.id}::uuid
+        FROM ${sharedTable("newsletter_event")} WHERE "newsletterId" = ${newsletter.id}::uuid
           AND "occurredAt" >= ${range.start} AND "occurredAt" < ${range.end}
           AND type IN ('OPENED', 'CLICKED') GROUP BY 1
       )
@@ -205,12 +206,12 @@ export async function getNewsletterAnalytics(
     `),
     prisma.$queryRaw<IssueCounts[]>(Prisma.sql`
       WITH sends AS (
-        SELECT s."issueId", COUNT(*)::int AS sent FROM newsletter_send s
-        JOIN newsletter_issue i ON i.id = s."issueId"
+        SELECT s."issueId", COUNT(*)::int AS sent FROM ${sharedTable("newsletter_send")} s
+        JOIN ${sharedTable("newsletter_issue")} i ON i.id = s."issueId"
         WHERE i."newsletterId" = ${newsletter.id}::uuid AND s.status = 'SENT'
           AND s."sentAt" >= ${range.start} AND s."sentAt" < ${range.end} GROUP BY s."issueId"
       ), events AS (
-        SELECT "issueId", ${EVENT_COUNTS} FROM newsletter_event
+        SELECT "issueId", ${EVENT_COUNTS} FROM ${sharedTable("newsletter_event")}
         WHERE "newsletterId" = ${newsletter.id}::uuid
           AND "occurredAt" >= ${range.start} AND "occurredAt" < ${range.end}
           AND type IN ('DELIVERED', 'OPENED', 'CLICKED', 'UNSUBSCRIBED', 'BOUNCED', 'COMPLAINED')
@@ -220,7 +221,7 @@ export async function getNewsletterAnalytics(
         COALESCE(e.delivered, 0)::int AS delivered, COALESCE(e."uniqueOpens", 0)::int AS "uniqueOpens",
         COALESCE(e."uniqueClicks", 0)::int AS "uniqueClicks", COALESCE(e.unsubscribes, 0)::int AS unsubscribes,
         COALESCE(e.bounces, 0)::int AS bounces, COALESCE(e.complaints, 0)::int AS complaints
-      FROM newsletter_issue i LEFT JOIN sends s ON s."issueId" = i.id LEFT JOIN events e ON e."issueId" = i.id
+      FROM ${sharedTable("newsletter_issue")} i LEFT JOIN sends s ON s."issueId" = i.id LEFT JOIN events e ON e."issueId" = i.id
       WHERE i."newsletterId" = ${newsletter.id}::uuid AND
         (s."issueId" IS NOT NULL OR e."issueId" IS NOT NULL OR (i.status = 'SENT' AND i."sentAt" >= ${range.start} AND i."sentAt" < ${range.end}))
       )
@@ -231,7 +232,7 @@ export async function getNewsletterAnalytics(
       ${
         cursor
           ? Prisma.sql`WHERE (COALESCE("sentAt", '-infinity'::timestamp), id) < (
-        SELECT COALESCE("sentAt", '-infinity'::timestamp), id FROM newsletter_issue
+        SELECT COALESCE("sentAt", '-infinity'::timestamp), id FROM ${sharedTable("newsletter_issue")}
         WHERE id = ${cursor}::uuid AND "newsletterId" = ${newsletter.id}::uuid
       )`
           : Prisma.empty
@@ -281,7 +282,7 @@ export async function getNewsletterIssueAnalytics(
     totals(newsletter.id, undefined, issueId),
     prisma.$queryRaw<Array<{ url: string; uniqueClicks: number }>>(Prisma.sql`
       SELECT url, COUNT(DISTINCT "subscriberId")::int AS "uniqueClicks"
-      FROM newsletter_event WHERE "newsletterId" = ${newsletter.id}::uuid
+      FROM ${sharedTable("newsletter_event")} WHERE "newsletterId" = ${newsletter.id}::uuid
         AND "issueId" = ${issueId}::uuid AND type = 'CLICKED' AND url IS NOT NULL AND "subscriberId" IS NOT NULL
       GROUP BY url ORDER BY "uniqueClicks" DESC, url ASC LIMIT 20
     `),
