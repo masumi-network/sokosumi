@@ -65,6 +65,13 @@ export async function dispatchOtherTools(
     case "export_contacts_to_table":
       return runtime.exportContactsToTable(input, authorized);
 
+    case "fundraising_pipeline":
+
+    case "investor_warm_paths":
+
+    case "find_investors":
+      return runtime.executeFundraisingTool(input, authorized);
+
     case "create_project":
 
     case "update_project":
