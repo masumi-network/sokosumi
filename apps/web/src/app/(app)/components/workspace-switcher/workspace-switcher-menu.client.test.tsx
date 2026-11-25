@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
 import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import { authClient } from "@/lib/auth/auth.client";
+import { stubLoadedImage } from "@/test/stub-pending-image-load";
 import { WorkspaceSwitcherProvider } from "./workspace-switcher.client";
 import WorkspaceSwitcherMenu from "./workspace-switcher-menu.client";
 
@@ -474,6 +475,32 @@ describe("WorkspaceSwitcherMenu", () => {
     expect(screen.getByText("createWorkspace")).toBeInTheDocument();
     expect(screen.queryByText("createPersonalWorkspace")).toBeNull();
     expect(screen.queryByText("createOrganization")).toBeNull();
+  });
+
+  // A loaded picture carries the person's name as alt text; the row is the workspace, not them.
+  it("keeps the person's name out of the Personal row when their picture loads", async () => {
+    const user = userEvent.setup();
+    const restore = stubLoadedImage();
+    try {
+      renderSwitcher({
+        workspaces: [personalWorkspace, orgWorkspace],
+        activeOrganizationId: "org-a",
+        user: {
+          ...sessionUser,
+          image: "https://cdn.example.com/test-user.png",
+        },
+      });
+
+      await user.click(screen.getByRole("button", { name: /Org A/i }));
+
+      const row = screen.getByRole("menuitem", { name: /personalTitle/ });
+      await waitFor(() =>
+        expect(row.querySelector("img[data-slot=avatar-image]")).not.toBeNull(),
+      );
+      expect(row).toHaveAccessibleName("personalTitle justYou");
+    } finally {
+      restore();
+    }
   });
 
   it("opens the organization wizard directly when a personal workspace already exists", async () => {

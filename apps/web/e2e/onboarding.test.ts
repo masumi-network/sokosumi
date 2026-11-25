@@ -226,9 +226,15 @@ for (const { name, ...viewport } of PROJECTS) {
       await mini.waitFor();
       const before = await mini.getAttribute("src");
       const headwear = page.getByRole("radiogroup", { name: "Headwear" });
-      await headwear.getByRole("radio", { name: "Crown" }).click();
+      // The look starts random, so pick a headwear it does not wear yet:
+      // only a real change can change the picture.
+      const pick = headwear
+        .locator("[role=radio][aria-checked=false]:enabled")
+        .first();
+      const picked = (await pick.textContent())?.trim() ?? "";
+      await pick.click();
       await page.waitForFunction(
-        ([el, src]) => (el as HTMLImageElement).src !== src,
+        ([el, src]) => el?.getAttribute("src") !== src,
         [await mini.elementHandle(), before] as const,
       );
       await more.click();
@@ -237,7 +243,7 @@ for (const { name, ...viewport } of PROJECTS) {
       await mini.waitFor();
       assert.equal(
         await headwear
-          .getByRole("radio", { name: "Crown" })
+          .getByRole("radio", { name: picked, exact: true })
           .getAttribute("aria-checked"),
         "true",
         "a pick survives folding More details",

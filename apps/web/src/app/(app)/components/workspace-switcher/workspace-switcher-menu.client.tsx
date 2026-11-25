@@ -87,6 +87,9 @@ function WorkspaceMenuItem({
         organization={workspace.organization ?? null}
         className="size-6 md:size-6"
         logoSize={14}
+        // The personal row's picture is the person's; its alt would put their
+        // name back into the workspace's name.
+        decorative={!workspace.organization}
       />
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate">{workspace.name}</span>
