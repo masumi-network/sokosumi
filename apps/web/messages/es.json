@@ -14680,6 +14680,24 @@
         "scheduled": "Programada",
         "next": "Próxima comprobación"
       },
+      "runDiff": {
+        "title": "Desde la comprobación del {day}",
+        "open": "Qué cambió desde la comprobación anterior",
+        "issues": "Problemas abiertos: {from, number} antes, {to, number} ahora",
+        "new": "Nuevos ({count, number})",
+        "fixed": "Corregidos ({count, number})",
+        "stillOpen": "Siguen abiertos ({count, number})",
+        "none": "Ninguno",
+        "more": "y {count, number} más",
+        "notCheckedAgain": "{count, plural, one {# problema anterior no se comprobó de nuevo. No cuenta como corregido ni como abierto.} other {# problemas anteriores no se comprobaron de nuevo. No cuentan como corregidos ni como abiertos.}}",
+        "moves": "Cambios de posición ({count, number})",
+        "notComparable": {
+          "title": "Sin comparación con la comprobación anterior",
+          "market": "Las dos comprobaciones usaron mercados distintos, así que sus problemas no se comparan.",
+          "rulebook": "Las pruebas cambiaron entre las dos comprobaciones, así que sus problemas no se comparan.",
+          "pages": "Una de las dos comprobaciones no leyó todas las páginas seleccionadas, así que sus problemas no se comparan."
+        }
+      },
       "filterDates": "Filtrar por fecha",
       "syncNow": "Sincronizar ahora",
       "breakdown": {

@@ -14,7 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { seoMonitorChangeSummary } from "./seo-monitor-model";
 
-const pathOf = (url: string) => {
+export const pathOf = (url: string) => {
   try {
     const parsed = new URL(url);
     return `${parsed.pathname}${parsed.search}` || "/";

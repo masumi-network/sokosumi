@@ -14680,6 +14680,24 @@
         "scheduled": "Scheduled",
         "next": "Next check"
       },
+      "runDiff": {
+        "title": "Since the check on {day}",
+        "open": "What changed since the check before",
+        "issues": "Open issues: {from, number} before, {to, number} now",
+        "new": "New ({count, number})",
+        "fixed": "Fixed ({count, number})",
+        "stillOpen": "Still open ({count, number})",
+        "none": "None",
+        "more": "and {count, number} more",
+        "notCheckedAgain": "{count, plural, one {# earlier issue was not checked again. It counts as neither fixed nor open.} other {# earlier issues were not checked again. They count as neither fixed nor open.}}",
+        "moves": "Ranking moves ({count, number})",
+        "notComparable": {
+          "title": "Not compared with the check before",
+          "market": "The two checks used different markets, so their issues are not compared.",
+          "rulebook": "The tests changed between the two checks, so their issues are not compared.",
+          "pages": "One of the two checks did not read every selected page, so their issues are not compared."
+        }
+      },
       "filterDates": "Filter by date",
       "syncNow": "Sync now",
       "breakdown": {

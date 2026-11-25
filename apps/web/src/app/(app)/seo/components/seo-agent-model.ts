@@ -81,6 +81,7 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
   return {
     lastCheck: lastCheck
       ? {
+          id: lastCheck.id,
           at: lastCheck.observedAt,
           checked: lastCheck.coverage.checked,
           pages: lastCheck.pageIds.length,

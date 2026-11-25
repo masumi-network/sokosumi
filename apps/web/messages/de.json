@@ -14680,6 +14680,24 @@
         "scheduled": "Geplant",
         "next": "Nächste Prüfung"
       },
+      "runDiff": {
+        "title": "Seit der Prüfung vom {day}",
+        "open": "Was sich seit der Prüfung davor geändert hat",
+        "issues": "Offene Probleme: vorher {from, number}, jetzt {to, number}",
+        "new": "Neu ({count, number})",
+        "fixed": "Behoben ({count, number})",
+        "stillOpen": "Weiter offen ({count, number})",
+        "none": "Keine",
+        "more": "und {count, number} weitere",
+        "notCheckedAgain": "{count, plural, one {# früheres Problem wurde nicht erneut geprüft. Es zählt weder als behoben noch als offen.} other {# frühere Probleme wurden nicht erneut geprüft. Sie zählen weder als behoben noch als offen.}}",
+        "moves": "Ranking-Bewegungen ({count, number})",
+        "notComparable": {
+          "title": "Nicht mit der Prüfung davor verglichen",
+          "market": "Die zwei Prüfungen nutzten verschiedene Märkte. Ihre Probleme werden nicht verglichen.",
+          "rulebook": "Die Tests haben sich zwischen den zwei Prüfungen geändert. Ihre Probleme werden nicht verglichen.",
+          "pages": "Eine der zwei Prüfungen hat nicht jede ausgewählte Seite gelesen. Ihre Probleme werden nicht verglichen."
+        }
+      },
       "filterDates": "Nach Datum filtern",
       "syncNow": "Jetzt synchronisieren",
       "breakdown": {

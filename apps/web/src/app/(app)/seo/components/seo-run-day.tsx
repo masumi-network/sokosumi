@@ -26,6 +26,8 @@ import {
   useSeoResultFormatter,
   useSeoResultTranslations,
 } from "@/i18n/use-seo-result-translations";
+import { SeoRunDiff } from "./seo-run-diff";
+import { seoRunDiffOf } from "./seo-run-diff-model";
 import { SeoTimeline } from "./seo-timeline";
 import {
   type SeoStopNode,
@@ -240,6 +242,10 @@ export function SeoRunDayDialog({
   /** Where focus goes when the dialog closes: it has no trigger of its own to go back to. */
   onCloseAutoFocus?: (event: Event) => void;
 }) {
+  const diff = seoRunDiffOf(
+    workspace,
+    seoStopDigest(nodes).newestCheck?.observation?.id,
+  );
   return (
     <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
@@ -250,6 +256,7 @@ export function SeoRunDayDialog({
           <DialogTitle lang="en">{title}</DialogTitle>
           <DialogDescription lang="en">{description}</DialogDescription>
         </DialogHeader>
+        {diff ? <SeoRunDiff diff={diff} titled /> : null}
         <SeoTimeline workspace={workspace} nodes={nodes} />
       </DialogContent>
     </Dialog>

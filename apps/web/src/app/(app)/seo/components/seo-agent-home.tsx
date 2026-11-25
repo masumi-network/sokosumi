@@ -40,10 +40,12 @@ import { seoPlanMessage } from "./seo-plan-message-model";
 import { SeoPlanPdfLink } from "./seo-plan-pdf-link";
 import { SeoPropertyPerformance } from "./seo-property-performance";
 import { SeoReportPlan } from "./seo-report-plan";
+import { SeoRunDiff } from "./seo-run-diff";
+import { seoRunDiffOf } from "./seo-run-diff-model";
 import { seoRunsDateCheck } from "./seo-runs-model";
 import { SeoCheckRunning, SeoSetupCard } from "./seo-setup";
 import { seoCheckRunning, seoRunAction } from "./seo-setup-model";
-import { SEO_ROW_LIST_CLASS, SeoDate } from "./seo-shared";
+import { SEO_ROW_LIST_CLASS, SeoDate, SeoFoldSummary } from "./seo-shared";
 import { seoSearchTraffic } from "./seo-statistics-model";
 import { SeoStrategyLine } from "./seo-strategy";
 import { lastRuleCheck, seoSummary } from "./seo-summary-model";
@@ -90,6 +92,7 @@ function SeoAgentPanel({
   const reportFormat = useSeoResultFormatter();
   // "No issues" holds only for the newest check, and only if it measured something.
   const lastCheckMeasured = (brief.lastCheck?.checked ?? 0) > 0;
+  const lastCheckDiff = seoRunDiffOf(model.data, brief.lastCheck?.id);
   const check = lastRuleCheck(model.data);
   const runsShown = seoRunsDateCheck(
     model.data,
@@ -407,6 +410,16 @@ function SeoAgentPanel({
               {report("agent.lastCheckOn")}{" "}
               <SeoDate report day value={brief.lastCheck.at} />
             </p>
+          ) : null}
+          {lastCheckDiff ? (
+            <details data-testid="seo-agent-run-diff">
+              <SeoFoldSummary className="text-muted-foreground text-sm">
+                <span lang="en">{report("runDiff.open")}</span>
+              </SeoFoldSummary>
+              <div className="pt-2">
+                <SeoRunDiff diff={lastCheckDiff} />
+              </div>
+            </details>
           ) : null}
           <SeoStrategyLine strategy={model.data.strategy} />
           {auditReport && <SeoPropertyPerformance evidence={auditReport} />}
