@@ -138,6 +138,10 @@
       "schedule": "20 * * * *"
     },
     {
+      "path": "/sync/seo-impact",
+      "schedule": "15 6 * * *"
+    },
+    {
       "path": "/sync/polar-yearly-grants",
       "schedule": "*/5 * * * *"
     },

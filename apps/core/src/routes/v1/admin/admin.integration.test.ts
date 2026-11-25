@@ -138,6 +138,17 @@ describe("admin router (real mount, real auth + admin guard)", () => {
     ).toBe(422);
   });
 
+  it("serves tracked SEO page changes only to an authenticated admin", async () => {
+    getSessionMock.mockResolvedValue(null);
+    expect(
+      (await adminRouter.request("http://localhost/seo-impact")).status,
+    ).toBe(401);
+    mockSession("user");
+    expect(
+      (await adminRouter.request("http://localhost/seo-impact")).status,
+    ).toBe(403);
+  });
+
   it("rejects an authenticated non-admin with 403 on /search/users", async () => {
     mockSession("user");
 

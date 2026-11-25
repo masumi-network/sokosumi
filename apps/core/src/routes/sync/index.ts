@@ -23,6 +23,7 @@ import mountGetNotificationFollowUpsSync from "./notification-follow-ups/get.js"
 import mountGetNotificationPublishesSync from "./notification-publishes/get.js";
 import mountGetPolarYearlyGrantsSync from "./polar-yearly-grants/get.js";
 import mountGetProjectClosesSync from "./project-closes/get.js";
+import mountGetSeoImpactSync from "./seo-impact/get.js";
 import mountGetSkillCatalogSync from "./skill-catalog/get.js";
 import mountGetSocialPerformanceSync from "./social-performance/get.js";
 import mountGetSocialPostsPublishSync from "./social-posts-publish/get.js";
@@ -62,6 +63,7 @@ mountGetNotificationFollowUpsSync(app);
 mountSendNewsletterIssues(app);
 mountGetNotificationPublishesSync(app);
 mountGetProjectClosesSync(app);
+mountGetSeoImpactSync(app);
 mountGetDataRoomsSync(app);
 mountGetSkillCatalogSync(app);
 mountGetSocialPerformanceSync(app);
