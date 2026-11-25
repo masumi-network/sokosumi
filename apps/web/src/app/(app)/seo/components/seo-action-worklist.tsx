@@ -107,12 +107,8 @@ export function SeoActionWorklist({
   // A filter whose rows left (a new check) goes back to all rows, and stays there when they come back.
   if (!filters.includes(filter)) setFilter("all");
   const shown = filters.includes(filter) ? filter : "all";
-  useSeoWorklistFocus(
-    root,
-    filterLine,
-    list,
-    shownStrategy && led,
-    setShownStrategy,
+  useSeoWorklistFocus(root, filterLine, list, shownStrategy && led, () =>
+    setShownStrategy(false),
   );
   const rows = rowsFor(shown);
   const firstStrategy = evidence.find((action) => action.strategy);
