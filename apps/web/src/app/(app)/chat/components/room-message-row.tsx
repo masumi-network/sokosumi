@@ -2788,6 +2788,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         // than 16rem that every row gives up forever so that one hovered row
         // has somewhere to put eight buttons.
         "group relative isolate -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md px-2 transition-colors hover:bg-accent",
+        // The actions trigger is screen-reader-only, so a Tab onto it would
+        // show nothing. Mark the whole row instead, the way hover does.
+        "has-[[data-message-actions-trigger]:focus-visible]:bg-accent has-[[data-message-actions-trigger]:focus-visible]:ring-2 has-[[data-message-actions-trigger]:focus-visible]:ring-ring has-[[data-message-actions-trigger]:focus-visible]:ring-inset",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isSaving && "opacity-60",
         isContinuation
