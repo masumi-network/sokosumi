@@ -126,8 +126,11 @@ export function BrandKitDownloadButton({
     <Button
       type="button"
       size="sm"
-      variant="outline"
-      className="gap-1.5"
+      // Filled, not bordered: the row's status badge and every swatch below
+      // are bordered, so the one action reads as the button. `hit-area`
+      // grows the tap target to 40px on phones and keeps the row 32px tall.
+      variant="secondary"
+      className="hit-area"
       data-testid="project-brand-kit-download"
       loading={downloading}
       onClick={() =>
