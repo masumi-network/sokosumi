@@ -2089,7 +2089,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     id: "cmo-reads-last-weeks-report",
     title: "Quotes last week's report instead of guessing",
     intent:
-      "The owner refers to the report from last week, which daily reports have since pushed down: Cuso reads it and quotes its real numbers.",
+      "The owner refers to the report from last week, which daily reports have since pushed down: Cuso quotes its real numbers, from his context when Core picked it or by reading it.",
     prompt:
       "What did the report from last week say about LinkedIn? Two lines, with the numbers it gave.",
     rubric:
@@ -2097,7 +2097,6 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     expect: {
       routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
       forbiddenTools: ["save_strategy", "report_update"],
-      anyTools: ["read_report", "read_chat"],
       answerMatches: "4[,.\\u202f ]?210",
     },
   },
