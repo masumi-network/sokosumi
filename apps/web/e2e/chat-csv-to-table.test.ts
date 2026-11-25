@@ -10,8 +10,12 @@ import { signUpWithOrganization } from "./sign-up.ts";
 // A new user turns a CSV shared in chat into a Table: create a channel, post
 // an invented CSV, Open as table on the message, check the mapping and
 // preview (a leading-zero code stays text), create, and find the rows in the
-// Table. Each size signs up its own disposable mail.tm inbox.
+// Table. Each size signs up its own disposable mail.tm inbox, unless
+// E2E_STORAGE_STATE holds a signed-in disposable user's Playwright storage
+// state (create it per run, never commit it): then nobody signs up and the
+// CSV goes to that user's own notes chat.
 const BASE_URL = resolveBaseUrl(process.env);
+const STORAGE_STATE = process.env.E2E_STORAGE_STATE?.trim();
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 const CSV = [
   "Shop,Zip,Orders",
@@ -46,21 +50,33 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
         viewport,
         isMobile,
         hasTouch: isMobile,
+        storageState: STORAGE_STATE || undefined,
       });
       const page = await context.newPage();
       page.setDefaultTimeout(30_000);
       const errors: string[] = [];
       page.on("pageerror", (e) => errors.push(e.message));
 
-      await signUpWithOrganization(page, BASE_URL);
-      await page.goto(`${BASE_URL}/chat/catch-up`);
-      await page.getByRole("button", { name: "Create a channel" }).click();
-      // Typed, not filled: the handle drives the name and an availability check.
-      await page
-        .getByRole("textbox", { name: "Handle" })
-        .pressSequentially("shop-list", { delay: 30 });
-      await page.getByRole("button", { name: "Next" }).click();
-      await page.getByRole("button", { name: "Create" }).click();
+      if (STORAGE_STATE) {
+        // Phones list chats at /chat. From md there is no list page: the
+        // sidebar lists them, and a tablet keeps it folded away.
+        await page.goto(`${BASE_URL}${viewport.width < 768 ? "/chat" : "/"}`);
+        const own = page.getByRole("link", { name: /\(you\)/ }).first();
+        const showSidebar = page.getByRole("button", { name: "Show sidebar" });
+        await own.or(showSidebar).first().waitFor();
+        if (await showSidebar.isVisible()) await showSidebar.click();
+        await own.click();
+      } else {
+        await signUpWithOrganization(page, BASE_URL);
+        await page.goto(`${BASE_URL}/chat/catch-up`);
+        await page.getByRole("button", { name: "Create a channel" }).click();
+        // Typed, not filled: the handle drives the name and an availability check.
+        await page
+          .getByRole("textbox", { name: "Handle" })
+          .pressSequentially("shop-list", { delay: 30 });
+        await page.getByRole("button", { name: "Next" }).click();
+        await page.getByRole("button", { name: "Create" }).click();
+      }
       await page.waitForURL(/\/chat\/rooms\//);
 
       await page.getByRole("button", { name: "Attach file" }).click();
@@ -73,8 +89,11 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       });
       // Send stays disabled until the upload lands as a chip.
       await page.getByRole("button", { name: "Remove shops.csv" }).waitFor();
+      const openAsTable = page.getByRole("button", { name: "Open as table" });
+      const earlier = await openAsTable.count();
       await page.getByRole("button", { name: "Send message" }).click();
-      const open = page.getByRole("button", { name: "Open as table" });
+      // The notes chat keeps earlier runs' CSVs: this one adds the next button.
+      const open = openAsTable.nth(earlier);
       await open.waitFor();
       await shot(page, size, "1-message");
 
