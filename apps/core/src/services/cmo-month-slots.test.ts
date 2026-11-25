@@ -88,7 +88,7 @@ const postsOut = (
 
 describe("cmoPlanMonthSlots", () => {
   it.each(CMO_VOLUME_LEVELS)(
-    "plans the %s plan's floor exactly, before talking videos go out on more networks",
+    "plans the %s plan's floor exactly and four talking videos, before they go out on more networks",
     (level) => {
       const slots = slotsAt(level);
       const talking = slots.filter((slot) =>
@@ -101,7 +101,8 @@ describe("cmoPlanMonthSlots", () => {
       expect(postsOut(slots) - copies).toBe(
         cmoMonthFloor(EVERY_NETWORK, level).total,
       );
-      expect(talking).toHaveLength(CMO_MONTH_TALKING_VIDEOS[level]);
+      expect(talking).toHaveLength(4);
+      expect(CMO_MONTH_TALKING_VIDEOS[level]).toBe(4);
     },
   );
 

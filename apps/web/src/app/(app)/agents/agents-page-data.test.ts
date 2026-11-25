@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const connectionMock = vi.fn(async () => undefined);
 const listCoworkersMock = vi.fn();
 const getAllCoreAgentsMock = vi.fn();
-const getCoreCategoriesMock = vi.fn();
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
@@ -15,7 +14,6 @@ vi.mock("@/lib/services/coworker.service", () => ({
 }));
 vi.mock("@/lib/agents/core-loaders", () => ({
   getAllCoreAgents: getAllCoreAgentsMock,
-  getCoreCategories: getCoreCategoriesMock,
 }));
 
 const { loadAgentsCatalog, loadAgentsCoworkers } = await import(
@@ -27,22 +25,17 @@ describe("agents page data", () => {
     vi.clearAllMocks();
     listCoworkersMock.mockReset();
     getAllCoreAgentsMock.mockReset();
-    getCoreCategoriesMock.mockReset();
   });
 
   // connection() would drop the gallery from every link prefetch.
   it("reads both tiers without deferring to the request", async () => {
     listCoworkersMock.mockResolvedValue([{ id: "coworker-1" }]);
     getAllCoreAgentsMock.mockResolvedValue([{ id: "agent-1" }]);
-    getCoreCategoriesMock.mockResolvedValue([]);
 
     await expect(loadAgentsCoworkers()).resolves.toEqual([
       { id: "coworker-1" },
     ]);
-    await expect(loadAgentsCatalog()).resolves.toEqual([
-      [{ id: "agent-1" }],
-      [],
-    ]);
+    await expect(loadAgentsCatalog()).resolves.toEqual([{ id: "agent-1" }]);
     expect(connectionMock).not.toHaveBeenCalled();
   });
 
@@ -51,12 +44,8 @@ describe("agents page data", () => {
   it("renders a failed catalog read fresh, and empty when it fails again", async () => {
     expectConsole("warn", "[agents] agent catalog fetch failed");
     getAllCoreAgentsMock.mockRejectedValue(new Error("Core answered 503"));
-    getCoreCategoriesMock.mockResolvedValue([{ id: "category-1" }]);
 
-    await expect(loadAgentsCatalog()).resolves.toEqual([
-      [],
-      [{ id: "category-1" }],
-    ]);
+    await expect(loadAgentsCatalog()).resolves.toEqual([]);
     expect(connectionMock).toHaveBeenCalledOnce();
   });
 

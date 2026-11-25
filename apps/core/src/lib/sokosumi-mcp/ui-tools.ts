@@ -24,6 +24,13 @@ export const MCP_UI_TOOLS: readonly McpUiTool[] = [
       "Show Tasks in a workspace to the person as a board: counts and the first Tasks per status, and every Task by status in full screen. Takes tasks_list's arguments and returns its result. Pass `limit: 100` so the board holds more than one page. Pass `scope: \"workspace\"` when the person asks for the team's or the workspace's board; otherwise leave the default. Use it when the person wants to see their Tasks; use tasks_list when you only need the data.",
   },
   {
+    name: "agents_show_hire",
+    data: "agents_input_schema",
+    ui: "agents-hire",
+    description:
+      "Show the person a form to hire an agent: its input as fields, then the price and the workspace balance to confirm. The person's Hire click starts the paid Job from the view, capped at the price shown. Takes agents_input_schema's arguments (`id`, and `workspace` for an organization) and returns its result. Use it when the person wants to hire an agent and fill in its input themselves; use agents_input_schema and agents_hire when you fill the input.",
+  },
+  {
     name: "jobs_show",
     data: "jobs_get",
     ui: "job-status",

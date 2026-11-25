@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   type AgentRecord,
   botFallbackMessage,
-  coworkerStandupMessage,
   emptyRecord,
   formatWeekInReview,
   handoffMessage,
@@ -47,15 +46,41 @@ describe("stand-up text", () => {
     expect(standupOpener("Tue 24 Nov")).toBe("**Stand-up · Tue 24 Nov**");
   });
 
-  it("writes a Coworker's message in plain lines, each waited-on person mentioned once", () => {
-    const text = coworkerStandupMessage(mira, (task) =>
-      task.startsWith("Weekly") ? "competitor report" : task,
+  it("names Coworker work no bot speaks for in one opener line", () => {
+    expect(
+      standupOpener("Wed 25 Nov", [
+        { id: "maya", name: "Maya", finished: ["content batch"], working: [] },
+        { id: "elena", name: "Elena", finished: [], working: ["test Task"] },
+      ]),
+    ).toBe(
+      "**Stand-up · Wed 25 Nov**\nAlso from Coworkers: Maya finished content batch; Elena is on test Task.",
     );
+  });
+
+  it("tells the Coworker work a bot handed out inside its fallback, grouped per person and Coworker", () => {
+    const text = botFallbackMessage({
+      ...soko,
+      open: [],
+      coworkers: [
+        {
+          id: "mira",
+          name: "Mira",
+          finished: ["competitor report"],
+          working: ["Pricing research", "Pricing research"],
+        },
+      ],
+      waiting: [
+        { task: "Langdock note", failed: false, waitsOn: robin, by: "Mira" },
+        { task: "Tender scan", failed: false, waitsOn: robin },
+        { task: "Old export", failed: true, waitsOn: null },
+      ],
+    });
     expect(text).toBe(
       [
-        "Finished: competitor report.",
-        "Working on: Pricing research.",
-        "Waiting on @robin: Langdock note and Tender scan.",
+        "Since the last stand-up: 2 posts scheduled and 1 Task created.",
+        "Mira finished competitor report, still on Pricing research.",
+        "Mira waits on @robin: Langdock note.",
+        "Waiting on @robin: Tender scan.",
         "Failed: Old export.",
       ].join("\n"),
     );
@@ -76,8 +101,12 @@ describe("stand-up text", () => {
         open: [],
         waiting: [{ task: "Q1 plan", failed: false, waitsOn: robin }],
       }),
-    ).toBe(
-      "Nothing finished since the last stand-up.\nWaiting on @robin: Q1 plan.",
+    ).toBe("Waiting on @robin: Q1 plan.");
+  });
+
+  it("says when there is nothing new at all", () => {
+    expect(botFallbackMessage(emptyRecord(soko.agent))).toBe(
+      "Nothing new since the last stand-up.",
     );
   });
 

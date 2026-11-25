@@ -55,6 +55,34 @@ describe("a bot's stand-up update", () => {
     expect(facts).toContain("waiting: Q1 plan: waits on Robin Keller");
   });
 
+  it("checks what it says about its person's Coworkers against their Tasks", async () => {
+    modelSays(
+      "Hannah finished the competitor report for Robin; CodePat is still on the app UX loop.",
+    );
+    standupClaimsUnrecordedWork.mockResolvedValueOnce(false);
+    const update = await writeBotUpdate({
+      ...record,
+      counts: [],
+      touched: [],
+      waiting: [],
+      coworkers: [
+        {
+          id: "h",
+          name: "Hannah",
+          finished: ["competitor report"],
+          working: [],
+        },
+        { id: "c", name: "CodePat", finished: [], working: ["app UX loop"] },
+      ],
+    });
+    expect(update.source).toBe("own");
+    const [, facts] = standupClaimsUnrecordedWork.mock.calls[0]!;
+    expect(facts).toEqual([
+      "Hannah finished: competitor report",
+      "CodePat is still on: app UX loop",
+    ]);
+  });
+
   it("adds the mention when the bot only wrote the name", async () => {
     modelSays("I saved 5 files. Robin still has to answer on the Q1 plan.");
     standupClaimsUnrecordedWork.mockResolvedValueOnce(false);

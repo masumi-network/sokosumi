@@ -66,7 +66,7 @@ async function handle(
   const updated = bot
     ? await prisma.sokoBot.updateMany({
         where: { id: bot.id, archivedAt: null },
-        data: { joinsTeamStandup: input.enabled },
+        data: { leftTeamStandupAt: input.enabled ? null : new Date() },
       })
     : { count: 0 };
   if (updated.count === 0) throw notFound("Create a Soko Bot first");

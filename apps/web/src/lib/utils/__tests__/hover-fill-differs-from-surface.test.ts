@@ -16,7 +16,7 @@ function read(rel: string): string {
 /**
  * An element that paints `bg-card-background` and hovers to
  * `hover:bg-card-background` hovers to its own colour, so nothing happens
- * under the pointer. The agent cards had this on every size variant, which
+ * under the pointer. The old agent cards had this on every size variant, which
  * left the whole gallery with no hover response; the Soko Bots "you" row had
  * it too. `--card-background-hover` is the step
  * that exists for this case.
@@ -31,9 +31,7 @@ function read(rel: string): string {
  * `panel-divider-spans-panel` pins the panel that had its own.
  */
 const FIXED_SITES: ReadonlyArray<readonly [string, string]> = [
-  ["components/agents/agent-card.tsx", 'xs: "hover:bg-card-background-hover'],
-  ["components/agents/agent-card.tsx", 'sm: "hover:bg-card-background-hover'],
-  ["components/agents/agent-card.tsx", "md:hover:bg-card-background-hover"],
+  ["components/agents/directory/agent-tile.tsx", "HOLDER_ITEM_HOVER_CLASS,"],
   [
     "components/notifications/notification-center-row.tsx",
     'className="hover:bg-accent -mx-1',
@@ -45,11 +43,11 @@ describe("hover fills differ from the surface they sit on", () => {
     expect(read(file)).toContain(expected);
   });
 
-  it("leaves the agent card's resting fill as the card surface", () => {
-    // The pairing is what matters: if this base ever stops being
-    // bg-card-background, the hover step above is the wrong one.
-    expect(read("components/agents/agent-card.tsx")).toContain(
-      "shadow-none bg-card-background",
+  it("rests the Agents page tile on the page surface, not its hover fill", () => {
+    // The tile rests on bg-background (HOLDER_ITEM_CLASS) and hovers to
+    // bg-accent (HOLDER_ITEM_HOVER_CLASS); both must stay on it.
+    expect(read("components/agents/directory/agent-tile.tsx")).toContain(
+      "HOLDER_ITEM_CLASS,",
     );
   });
 });

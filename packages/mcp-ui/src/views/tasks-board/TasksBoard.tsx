@@ -4,6 +4,7 @@ import type { ViewContext } from "../../shell/Shell.tsx";
 import {
   formatDay,
   isMessageKey,
+  isPlainReference,
   isUnderBase,
   type MessageKey,
   t,
@@ -108,11 +109,8 @@ export function initials(name: string): string {
  * What the model may read about a selection: an identifier such as SOK-12,
  * else the id, and only if it is a plain reference, never record text (ADR 0083).
  */
-const PLAIN_REFERENCE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 function referenceOf(task: BoardTask): string | undefined {
-  return [task.identifier, task.id].find(
-    (ref): ref is string => !!ref && PLAIN_REFERENCE.test(ref),
-  );
+  return [task.identifier, task.id].find(isPlainReference);
 }
 
 export function TasksBoard({

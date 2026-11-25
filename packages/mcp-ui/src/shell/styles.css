@@ -14,6 +14,8 @@
     var(--muted-foreground)
   );
   --color-border: var(--color-border-primary, var(--border));
+  --color-input: var(--input);
+  --color-destructive: var(--color-text-danger, var(--destructive));
   --color-ring: var(--color-ring-primary, var(--ring));
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);

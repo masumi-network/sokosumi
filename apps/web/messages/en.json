@@ -95,11 +95,6 @@
         "high": "High risk",
         "unacceptable": "Unacceptable risk"
       },
-      "AgentVerifiedBadge": {
-        "tooltip": "This agent's authenticity is verified through an Agent Identity.",
-        "learnMore": "Learn more",
-        "aboutAgentIdentities": "about Agent Identities."
-      },
       "Rating": {
         "title": "Ratings",
         "noRatings": "No ratings yet",
@@ -133,15 +128,6 @@
         }
       },
       "AgentDetail": {
-        "Stats": {
-          "executedJobs": "Executed jobs",
-          "averageExecutionTime": "Average execution time",
-          "rating": "Rating"
-        },
-        "Overview": {
-          "description": "Description",
-          "tags": "At a glance"
-        },
         "Examples": {
           "title": "Example outputs",
           "download": "Download"
@@ -152,22 +138,8 @@
           "terms": "Terms",
           "dpa": "Data Processing Agreement (DPA)",
           "other": "Other"
-        },
-        "Risk": {
-          "title": "EU AI Act risk classification"
         }
       },
-      "agentsNotAvailable": "No agents available",
-      "agentsNotFound": "No agents found",
-      "AgentCard": {
-        "view": "Show details",
-        "detailsUnavailable": "Details unavailable"
-      },
-      "Kind": {
-        "cardano": "Cardano",
-        "x402": "x402"
-      },
-      "othersCategory": "Others",
       "ActionButtons": {
         "back": "Back",
         "close": "Close",
@@ -9368,62 +9340,16 @@
     },
     "Agents": {
       "Metadata": {
-        "title": "Agents gallery",
+        "title": "Agents",
         "description": "Explore our collection of agents."
       },
       "CoworkerGallerySection": {
-        "title": "Coworker marketplace",
-        "whatTheyDo": {
-          "title": "What they do",
-          "description": "AI coworkers you can assign real work to. They work on their own and get it done."
-        },
-        "marketingExpertise": {
-          "title": "Marketing expertise",
-          "description": "Trained on real campaign work - strategy, content, media planning, and brand communications."
-        },
-        "others": "Others",
-        "moreComingSoon": "+ More coming soon",
-        "startTask": "Start a task with {name}",
-        "featuredEyebrow": "Featured coworker",
-        "all": "All",
-        "examplesTitle": "What {name} can do",
-        "startShort": "Start a task",
-        "startForCoworker": "Start a new task for {name}",
-        "subtitle": "Browse your AI coworkers and the ready-to-run offers they handle. Pick one, add your details, and go.",
-        "searchOffers": "Search offers, coworkers…",
-        "byCompany": "Company",
-        "offerPrefilled": "Pre-filled task",
-        "noOffers": "No offers match your filters.",
-        "offersLabel": "Quick-start offers",
-        "allCategories": "All",
-        "moreOffers": "+{count} more",
-        "searchHero": "What do you want to get done?",
-        "recommendedLabel": "Recommended",
-        "searchHint": "Search agents, coworkers, and offers",
-        "clearFilters": "Clear filters",
-        "coworkersTitle": "Your AI coworkers",
-        "coworkersSubtitle": "Your AI coworkers and the ready-to-run offers they deliver, grouped by company.",
-        "offersSectionTitle": "Ready-to-run tasks",
-        "offersSectionSubtitle": "Tasks that are already set up. Open one to see an example, then add your details.",
         "deliveredByLabel": "Delivered by",
         "deliverableLabel": "What you'll get",
         "startThisTask": "Start this task",
-        "viewDetails": "View details",
-        "examplePending": "Example coming soon",
         "examplePendingHint": "A sample output (PDF or image) will appear here.",
         "openInNewTab": "Open in new tab",
         "offerDetails": "Offer details",
-        "heroHeadline": "What do you want to get done?",
-        "heroSubtitle": "Hand real work to your AI coworkers, or start from a ready-to-run offer.",
-        "searchPlaceholder": "Search agents, coworkers, and offers…",
-        "socialProofFallback": "AI coworkers ready to work",
-        "companyWebsite": "Visit website",
-        "companyLegal": "Legal",
-        "coworkerCount": "{count, plural, one {# coworker} other {# coworkers}}",
-        "otherCompanyLabel": "Independent",
-        "showAllCoworkers": "Show all {count}",
-        "showLess": "Show less",
-        "showMoreCompanies": "Show {count, plural, one {# more company} other {# more companies}}",
         "outputTypes": {
           "pdf": "PDF",
           "slides": "Slides",
@@ -9432,13 +9358,7 @@
           "text": "Text",
           "image": "Image",
           "html": "Web"
-        },
-        "showAllOffers": "Show all {count} offers",
-        "offerCount": "{count, plural, one {# offer} other {# offers}}",
-        "noResults": "Nothing matches your search.",
-        "coworkerNoOffers": "No ready-to-run tasks yet. Start a new task and describe what you need.",
-        "coworkersFound": "{count, plural, =0 {No coworkers match your search} one {# coworker matches your search} other {# coworkers match your search}}",
-        "noCoworkers": "No coworkers to show right now."
+        }
       },
       "Jobs": {
         "switchedWorkspace": "Switched to {account} account",
@@ -9467,23 +9387,84 @@
           "noExecutedJobs": "No executed jobs"
         }
       },
-      "allAgentsTitle": "Browse all agents",
-      "allAgentsSubtitle": "Every agent on Sokosumi, grouped by what they do.",
-      "FilterSection": {
-        "reset": "Reset",
-        "kind": {
-          "all": "All",
-          "cardano": "Cardano",
-          "x402": "x402"
+      "Directory": {
+        "title": "Agents",
+        "subtitle": "Your Soko Bots, your Coworkers, and agents you can hire.",
+        "sokoBotsTitle": "Soko Bots",
+        "sokoBotsNote": "Assistants that work for one person, a project or the whole team.",
+        "sokoBotsUnavailable": "Soko Bots can't be loaded right now. Try again in a moment.",
+        "manageSokoBots": "Manage Soko Bots",
+        "createOwnBot": "Set up your Soko Bot",
+        "createOwnBotHint": "Your own assistant for mail, tasks and chats.",
+        "coworkersTitle": "Coworkers",
+        "coworkersNote": "Specialists you can give whole tasks to or chat with.",
+        "coworkersEmpty": "No coworkers in this workspace yet.",
+        "marketplaceTitle": "Agent Marketplace",
+        "marketplaceNote": "Agents built and run by other companies. Each one does one job.",
+        "marketplaceEmpty": "No agents to show right now.",
+        "external": "External",
+        "bringYourOwn": "Connect your own agent",
+        "searchLabel": "Search the Agent Marketplace",
+        "searchPlaceholder": "Search agents",
+        "noMatch": "No agents match your search.",
+        "found": "{count, plural, =0 {No agents match} one {# agent matches} other {# agents match}}",
+        "byVendor": "by {vendor}",
+        "botFallbackName": "Soko Bot",
+        "ownerYou": "Yours",
+        "ownerYouAbout": "You",
+        "ownerPerson": "{name}'s",
+        "ownerTeam": "Team",
+        "ownerProject": "{project} project",
+        "ownerProjectUnnamed": "A project",
+        "purposePersonal": "Personal assistant",
+        "purposeTeam": "Works for the whole team",
+        "purposeProject": "Works on one project",
+        "status": {
+          "IDLE": "Idle",
+          "RUNNING": "Working now",
+          "PAUSED": "Waiting on you",
+          "ERROR": "Needs a look"
         },
-        "scope": {
-          "label": "Show",
-          "all": "All",
-          "coworkers": "Coworkers",
-          "agents": "Agents"
-        }
-      },
-      "agentsFound": "{count, plural, =0 {No agents match your search} one {# agent matches your search} other {# agents match your search}}"
+        "backToAgents": "Agents",
+        "message": "Message",
+        "messageError": "The chat could not be opened. Try again.",
+        "giveTask": "Give a task",
+        "sectionWhat": "What it does",
+        "sectionWork": "Recent work",
+        "sectionSettings": "Settings",
+        "sectionAbout": "About",
+        "botDoes": {
+          "you": "Your personal assistant. It reads your mail and chats, keeps track of your tasks and does work for you when you ask.",
+          "person": "A teammate's personal assistant. You can message it, and it answers for the person it works for.",
+          "team": "A shared assistant for the whole team. Everyone talks to it in one room and anyone can change its settings.",
+          "project": "A shared assistant for one project. It works on that project's tasks and talks with the team in the project room."
+        },
+        "statTasks": "Tasks",
+        "statMessages": "Messages",
+        "statBackground": "Background runs",
+        "statCount": "{count, number} in the last {days, plural, one {day} other {# days}}",
+        "botSettingsNote": "Tools, connections, schedules and memory.",
+        "openSettings": "Open settings",
+        "aboutBelongsTo": "Belongs to",
+        "aboutKind": "Kind",
+        "aboutWorkspace": "Workspace",
+        "aboutLastActive": "Last active",
+        "readyTasks": "Ready-to-run tasks",
+        "aboutCompany": "Company",
+        "aboutRole": "Role",
+        "aboutWorks": "Works by",
+        "worksTasks": "Tasks",
+        "worksChat": "Chat",
+        "aboutModels": "Models",
+        "aboutHosting": "Hosted in",
+        "aboutMadeBy": "Made by",
+        "aboutSource": "Source",
+        "aboutSourceExternal": "External agent",
+        "aboutRuns": "Runs so far",
+        "aboutAverageTime": "Average time",
+        "aboutRisk": "Risk level",
+        "yourJobs": "{count, plural, one {Your # job with this agent} other {Your # jobs with this agent}}"
+      }
     },
     "DesignMd": {
       "adHocDialogTitle": "Use a different brand",
@@ -11227,7 +11208,7 @@
         "mailAutoReadError": "Could not update mail handling",
         "followBoardError": "Could not update the setting.",
         "teamStandupTitle": "Join the team stand-up",
-        "teamStandupDescription": "This assistant posts its own update in your organization's daily stand-up, from its Tasks and posts, never mail or calendar.",
+        "teamStandupDescription": "This assistant posts its own update in your organization's daily stand-up for you: what it and the Coworkers you gave Tasks to did, what's running, what waits on you. From public Tasks and posts, never mail or calendar. On unless you turn it off.",
         "teamStandupError": "Could not update the setting.",
         "archiveTitle": "Archive Soko Bot",
         "archiveDescription": "Stops all turns and schedules. You can create it again later; history and attribution are kept.",
@@ -15316,7 +15297,7 @@
     "TeamStandup": {
       "title": "Daily agent stand-up",
       "enabledLabel": "Run the stand-up",
-      "enabledHelp": "Every weekday each agent posts its own update in the Stand-up channel: what it did, what's next, what waits on a person. Up to three hand-offs between agents follow as replies. Once a week a Week in review thread adds one line per person and per agent. Lines come from Tasks, approvals and posts, never from mail or calendars. Nothing new means nothing is posted.",
+      "enabledHelp": "Every weekday each Soko Bot posts its own update in the Stand-up channel for its person or team: what it and the Coworkers they gave Tasks to did, what's next, what waits on a person. Coworkers post nothing of their own. Up to three hand-offs follow as replies. Once a week a Week in review thread adds one line per person and per agent. Lines come from public Tasks, approvals and posts, never from mail or calendars. Every assistant joins unless its owner turns it off. Nothing new means nothing is posted.",
       "timeLabel": "Time",
       "timezoneLabel": "Time zone",
       "weekdaysLabel": "Days",

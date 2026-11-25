@@ -23,100 +23,119 @@ import mcpRouter from "./index";
  * challenge. Token verification and the database are the only fakes.
  */
 
-const { CORE, USER, JOB, FIXTURE_UI_TOOLS } = vi.hoisted(() => ({
-  /**
-   * Extra UI tools on the package's placeholder `hello` view, in this file
-   * only: a twin that needs no database (users_get) and one in a default
-   * toolset outside the tasks toolset's real tool.
-   */
-  FIXTURE_UI_TOOLS: [
-    {
-      name: "users_show_profile",
-      data: "users_get",
-      ui: "hello",
-      description: "Show a user's profile.",
-    },
-    {
-      name: "tasks_show_task",
-      data: "tasks_get",
-      ui: "hello",
-      description: "Show a Task.",
-    },
-  ] satisfies McpUiTool[],
-  CORE: "https://core.example.test",
-  /** A completed Job as Prisma returns it with `jobInclude`. */
-  JOB: {
-    id: "job_mcp",
-    createdAt: new Date("2026-11-25T09:00:00.000Z"),
-    updatedAt: new Date("2026-11-25T09:12:00.000Z"),
-    completedAt: new Date("2026-11-25T09:12:00.000Z"),
-    agentId: "agent_mcp",
-    ownerId: "user_mcp",
-    owner: { id: "user_mcp", name: "Ada", image: null },
-    organizationId: null,
-    organization: null,
-    taskId: null,
-    name: "Competitor pricing",
-    jobType: "FREE",
-    agentJobId: "agent_job_mcp",
-    identifierFromPurchaser: null,
-    payByTime: null,
-    submitResultTime: null,
-    unlockTime: null,
-    externalDisputeUnlockTime: null,
-    blockchainIdentifier: null,
-    sellerVkey: null,
-    refundedTransaction: null,
-    refundedTransactionId: null,
-    share: null,
-    agent: {
-      id: "agent_mcp",
-      name: "Research Agent",
-      icon: null,
-      image: null,
-      legalPrivacyPolicy: null,
-      legalTerms: null,
-      legalDpa: null,
-      legalOther: null,
+const { CORE, USER, JOB, FIXTURE_UI_TOOLS, HIRE_AGENT, INPUT_SCHEMA } =
+  vi.hoisted(() => ({
+    HIRE_AGENT: {
+      id: "cm_agent_analyst",
+      name: "Market Analyst",
+      blockchainIdentifier: "agent_analyst",
+      apiBaseUrl: "https://agent.example.test",
       metadataOverride: null,
     },
-    transaction: null,
-    transactionId: null,
-    workspaceId: "0196a000-0000-7000-8000-00000000a001",
-    workspace: {
-      id: "0196a000-0000-7000-8000-00000000a001",
+    INPUT_SCHEMA: {
+      input_data: [
+        { id: "topic", type: "string", name: "Topic" },
+        {
+          id: "brief",
+          type: "file",
+          name: "Brief",
+          data: { outputFormat: "url" },
+        },
+      ],
+    },
+    /**
+     * Extra UI tools on the package's placeholder `hello` view, in this file
+     * only: a twin that needs no database (users_get) and one in a default
+     * toolset outside the tasks toolset's real tool.
+     */
+    FIXTURE_UI_TOOLS: [
+      {
+        name: "users_show_profile",
+        data: "users_get",
+        ui: "hello",
+        description: "Show a user's profile.",
+      },
+      {
+        name: "tasks_show_task",
+        data: "tasks_get",
+        ui: "hello",
+        description: "Show a Task.",
+      },
+    ] satisfies McpUiTool[],
+    CORE: "https://core.example.test",
+    /** A completed Job as Prisma returns it with `jobInclude`. */
+    JOB: {
+      id: "job_mcp",
+      createdAt: new Date("2026-11-25T09:00:00.000Z"),
+      updatedAt: new Date("2026-11-25T09:12:00.000Z"),
+      completedAt: new Date("2026-11-25T09:12:00.000Z"),
+      agentId: "agent_mcp",
+      ownerId: "user_mcp",
+      owner: { id: "user_mcp", name: "Ada", image: null },
       organizationId: null,
       organization: null,
-    },
-    purchase: null,
-    purchaseId: null,
-    events: [
-      {
-        id: "event_completed",
-        createdAt: new Date("2026-11-25T09:12:00.000Z"),
-        updatedAt: new Date("2026-11-25T09:12:00.000Z"),
-        status: "COMPLETED",
-        inputSchema: null,
-        input: null,
-        result: "Three competitors bill yearly.",
-        blobs: [],
-        links: [],
+      taskId: null,
+      name: "Competitor pricing",
+      jobType: "FREE",
+      agentJobId: "agent_job_mcp",
+      identifierFromPurchaser: null,
+      payByTime: null,
+      submitResultTime: null,
+      unlockTime: null,
+      externalDisputeUnlockTime: null,
+      blockchainIdentifier: null,
+      sellerVkey: null,
+      refundedTransaction: null,
+      refundedTransactionId: null,
+      share: null,
+      agent: {
+        id: "agent_mcp",
+        name: "Research Agent",
+        icon: null,
+        image: null,
+        legalPrivacyPolicy: null,
+        legalTerms: null,
+        legalDpa: null,
+        legalOther: null,
+        metadataOverride: null,
       },
-    ],
-  },
-  USER: {
-    id: "user_mcp",
-    createdAt: new Date("2026-01-01T00:00:00.000Z"),
-    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-    name: "Ada",
-    firstName: "Ada",
-    lastName: "Lovelace",
-    email: "ada@example.com",
-    emailVerified: true,
-    image: null,
-    role: "user",
-  },
-}));
+      transaction: null,
+      transactionId: null,
+      workspaceId: "0196a000-0000-7000-8000-00000000a001",
+      workspace: {
+        id: "0196a000-0000-7000-8000-00000000a001",
+        organizationId: null,
+        organization: null,
+      },
+      purchase: null,
+      purchaseId: null,
+      events: [
+        {
+          id: "event_completed",
+          createdAt: new Date("2026-11-25T09:12:00.000Z"),
+          updatedAt: new Date("2026-11-25T09:12:00.000Z"),
+          status: "COMPLETED",
+          inputSchema: null,
+          input: null,
+          result: "Three competitors bill yearly.",
+          blobs: [],
+          links: [],
+        },
+      ],
+    },
+    USER: {
+      id: "user_mcp",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      name: "Ada",
+      firstName: "Ada",
+      lastName: "Lovelace",
+      email: "ada@example.com",
+      emailVerified: true,
+      image: null,
+      role: "user",
+    },
+  }));
 
 vi.mock("@/lib/auth", () => ({
   auth: { $context: Promise.resolve({ baseURL: `${CORE}/auth` }) },
@@ -139,6 +158,8 @@ vi.mock("@/lib/sokosumi-mcp/auth", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     user: { findUnique: async () => USER },
+    // The hire form's twin reads the agent, then asks it for its input schema.
+    agent: { findUnique: async () => HIRE_AGENT },
     // An empty Task list: the board test needs a successful tasks_list.
     task: { findMany: async () => [], count: async () => 0 },
     // One completed Job: the Job status test needs a successful jobs_get.
@@ -146,6 +167,16 @@ vi.mock("@/lib/db/prisma", () => ({
     taskEventMention: { findMany: async () => [] },
   },
 }));
+vi.mock("@sokosumi/masumi", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sokosumi/masumi")>();
+  const { ok } = await import("neverthrow");
+  return {
+    ...actual,
+    createAgentClient: () => ({
+      fetchAgentInputSchema: async () => ok(INPUT_SCHEMA),
+    }),
+  };
+});
 vi.mock("@/lib/sokosumi-mcp/ui-tools", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/lib/sokosumi-mcp/ui-tools")>();
@@ -156,13 +187,13 @@ vi.mock("@/lib/sokosumi-mcp/ui-tools", async (importOriginal) => {
 });
 
 /** Every view a UI tool uses, real rows first. */
-const VIEW_RESOURCES = (["tasks-board", "job-status", "hello"] as const).map(
-  (id) => ({
-    uri: MCP_UI[id].uri,
-    name: id,
-    mimeType: "text/html;profile=mcp-app",
-  }),
-);
+const VIEW_RESOURCES = (
+  ["tasks-board", "agents-hire", "job-status", "hello"] as const
+).map((id) => ({
+  uri: MCP_UI[id].uri,
+  name: id,
+  mimeType: "text/html;profile=mcp-app",
+}));
 
 const app = new Hono();
 app.use(requestId());
@@ -423,6 +454,46 @@ describe("Sokosumi MCP server", () => {
     expect(uiMeta).toEqual({
       ...dataMeta,
       ui: { resourceUri: MCP_UI["tasks-board"].uri },
+      sokosumi: { webBaseUrl: getWebAppBaseUrl() },
+    });
+  }, 15_000);
+
+  it("shows the hire form in the agents toolset with exactly agents_input_schema's result", async () => {
+    const client = await connect(
+      { Authorization: "Bearer mcp-token" },
+      "?toolsets=agents",
+    );
+    const { tools } = await client.listTools();
+    const twin = tools.find((tool) => tool.name === "agents_input_schema");
+    const hire = tools.find((tool) => tool.name === "agents_show_hire");
+    expect(hire).toMatchObject({
+      inputSchema: twin?.inputSchema,
+      annotations: { readOnlyHint: true },
+      _meta: { ui: { resourceUri: MCP_UI["agents-hire"].uri } },
+    });
+    // Off unless the agents toolset is on.
+    const defaults = await connect({ Authorization: "Bearer mcp-token" });
+    expect(
+      (await defaults.listTools()).tools.map(({ name }) => name),
+    ).not.toContain("agents_show_hire");
+
+    const args = { id: HIRE_AGENT.id };
+    const data = await client.callTool({
+      name: "agents_input_schema",
+      arguments: args,
+    });
+    const ui = await client.callTool({
+      name: "agents_show_hire",
+      arguments: args,
+    });
+    expect(data).toMatchObject({ structuredContent: { data: INPUT_SCHEMA } });
+    expect(data.isError).toBeFalsy();
+    const { _meta: uiMeta, ...uiResult } = ui;
+    const { _meta: dataMeta, ...dataResult } = data;
+    expect(uiResult).toEqual(dataResult);
+    expect(uiMeta).toEqual({
+      ...dataMeta,
+      ui: { resourceUri: MCP_UI["agents-hire"].uri },
       sokosumi: { webBaseUrl: getWebAppBaseUrl() },
     });
   }, 15_000);

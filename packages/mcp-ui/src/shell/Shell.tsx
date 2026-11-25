@@ -11,6 +11,8 @@ import {
 
 export interface ViewContext {
   app: App;
+  /** The tool call's arguments, once the host sends them. */
+  input?: Record<string, unknown>;
   /** BCP 47 locale and IANA time zone from the host, for `formatDateTime`. */
   locale?: string;
   timeZone?: string;
@@ -118,6 +120,7 @@ export function Shell<T>({
       {view.kind === "ready" &&
         children(view.data, {
           app,
+          input,
           locale: host.locale,
           timeZone: host.timeZone,
           webBaseUrl: view.webBaseUrl,

@@ -1,9 +1,9 @@
 /**
  * Screenshots every view in the host harness: the default and fullscreen
- * fixtures, and any marked `allWidths`, in light and dark at 320, 402 and
- * 768px; every other fixture
- * (loading, empty, error, ...) at 402px; and the first control focused from
- * the keyboard. Build first.
+ * fixtures, and those marked `allWidths`, in light and dark at 320, 402 and
+ * 768px; every other fixture (loading, empty, error, ...) at 402px; and the
+ * first control focused from the keyboard. A fixture's `play` steps (fill a
+ * field, click a button) run before its shot. Build first.
  *
  *   node scripts/screenshots.ts [outDir]
  *
@@ -26,12 +26,13 @@ const ALL_WIDTHS = new Set(["default", "fullscreen"]);
 const STATES = new Set(["loading", "empty", "error"]);
 
 const shots = Object.entries(FIXTURES).flatMap(([view, fixtures]) =>
-  Object.entries(fixtures).flatMap(([fixture, { allWidths, waitFor }]) =>
-    THEMES.flatMap((theme) =>
-      (allWidths || ALL_WIDTHS.has(fixture) ? WIDTHS : [STATE_WIDTH]).map(
-        (width) => ({ view, fixture, theme, width, waitFor }),
+  Object.entries(fixtures).flatMap(
+    ([fixture, { allWidths, play = [], step }]) =>
+      THEMES.flatMap((theme) =>
+        (ALL_WIDTHS.has(fixture) || allWidths ? WIDTHS : [STATE_WIDTH]).map(
+          (width) => ({ view, fixture, theme, width, play, step }),
+        ),
       ),
-    ),
   ),
 );
 
@@ -49,7 +50,7 @@ const browser = await chromium.launch({
 });
 
 try {
-  for (const { view, fixture, theme, width, waitFor } of shots) {
+  for (const { view, fixture, theme, width, play, step } of shots) {
     const page = await browser.newPage({
       viewport: { width, height: 900 },
       colorScheme: theme,
@@ -66,9 +67,21 @@ try {
     const expected = STATES.has(fixture) ? fixture : "ready";
     await page
       .frameLocator("iframe")
-      .locator(waitFor ?? `[data-state="${expected}"]`)
+      .locator(`[data-state="${expected}"]`)
       .waitFor();
     await page.locator("iframe[data-sized]").waitFor();
+    // Interactive states (confirm, submitting, ...): play the fixture's steps.
+    const frame = page.frameLocator("iframe");
+    for (const step of play) {
+      if ("fill" in step) {
+        await frame.getByLabel(step.fill).fill(step.value);
+      } else {
+        await frame
+          .getByRole("button", { name: step.click, exact: true })
+          .click();
+      }
+    }
+    if (step) await frame.locator(`[data-step="${step}"]`).waitFor();
     if (errors.length > 0) {
       throw new Error(`${view}/${fixture}/${theme}: ${errors.join("; ")}`);
     }

@@ -155,7 +155,7 @@ export function JobStatus({
       </section>
 
       {missingTool && (
-        <section data-poll="missing-tool" className="flex flex-col gap-1">
+        <section data-step="missing-tool" className="flex flex-col gap-1">
           <h2 className="text-sm font-semibold">
             {t("jobStatus.missingToolset.title")}
           </h2>
@@ -169,7 +169,7 @@ export function JobStatus({
       )}
 
       {gone && (
-        <section data-poll="gone" className="flex flex-col gap-1">
+        <section data-step="gone" className="flex flex-col gap-1">
           <h2 className="text-sm font-semibold">{t("jobStatus.gone.title")}</h2>
           <p className="text-muted-foreground text-sm">
             {t("jobStatus.gone.body")}

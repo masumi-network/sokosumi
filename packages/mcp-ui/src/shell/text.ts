@@ -44,6 +44,17 @@ export function formatDateTime(iso: string, host: HostLocale): string {
   return new Intl.DateTimeFormat(undefined, options).format(date);
 }
 
+/** An exact number (every digit, such as a price) in the host's locale. */
+export function formatNumber(value: number, locale?: string): string {
+  const options = { maximumFractionDigits: 20 };
+  try {
+    return new Intl.NumberFormat(locale, options).format(value);
+  } catch {
+    // A host may send a locale this runtime does not know.
+    return new Intl.NumberFormat(undefined, options).format(value);
+  }
+}
+
 /**
  * A calendar day (`YYYY-MM-DD`, such as a due date) in the host's locale.
  * It has no time zone, so it is read and shown in UTC.
@@ -84,4 +95,15 @@ export function isUnderBase(url: string, base: string | undefined): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Whether `value` is a plain reference (an id, identifier or slug) that a
+ * view may put in a fixed `ui/message` or model-context template: never
+ * record text (ADR 0083).
+ */
+export function isPlainReference(value: unknown): value is string {
+  return (
+    typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(value)
+  );
 }

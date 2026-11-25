@@ -95,11 +95,6 @@
         "high": "Hohes Risiko",
         "unacceptable": "Inakzeptables Risiko"
       },
-      "AgentVerifiedBadge": {
-        "tooltip": "Die Authentizität dieses Agents ist durch eine Agent-Identität verifiziert.",
-        "learnMore": "Mehr erfahren",
-        "aboutAgentIdentities": "über Agent-Identitäten."
-      },
       "Rating": {
         "title": "Bewertungen",
         "noRatings": "Noch keine Bewertungen",
@@ -133,15 +128,6 @@
         }
       },
       "AgentDetail": {
-        "Stats": {
-          "executedJobs": "Ausgeführte Jobs",
-          "averageExecutionTime": "Durchschnittliche Ausführungszeit",
-          "rating": "Bewertung"
-        },
-        "Overview": {
-          "description": "Beschreibung",
-          "tags": "Auf einen Blick"
-        },
         "Examples": {
           "title": "Beispiel-Outputs",
           "download": "Herunterladen"
@@ -152,22 +138,8 @@
           "terms": "Nutzungsbedingungen",
           "dpa": "Datenverarbeitungsvereinbarung (DPA)",
           "other": "Sonstiges"
-        },
-        "Risk": {
-          "title": "EU-KI-Gesetz Risikoklassifizierung"
         }
       },
-      "agentsNotAvailable": "Keine Agents verfügbar",
-      "agentsNotFound": "Keine Agents gefunden",
-      "AgentCard": {
-        "view": "Details anzeigen",
-        "detailsUnavailable": "Details nicht verfügbar"
-      },
-      "Kind": {
-        "cardano": "Cardano",
-        "x402": "x402"
-      },
-      "othersCategory": "Sonstige",
       "ActionButtons": {
         "back": "Zurück",
         "close": "Schließen",
@@ -9332,62 +9304,16 @@
     },
     "Agents": {
       "Metadata": {
-        "title": "Agents-Galerie",
+        "title": "Agents",
         "description": "Entdecke unsere Agent-Sammlung."
       },
       "CoworkerGallerySection": {
-        "title": "Agentische Coworker",
-        "whatTheyDo": {
-          "title": "Was sie tun",
-          "description": "KI-Coworker, denen du echte Arbeit übertragen kannst. Sie arbeiten selbstständig und bringen Ergebnisse."
-        },
-        "marketingExpertise": {
-          "title": "Marketing-Expertise",
-          "description": "Trainiert auf echter Kampagnenarbeit – Strategie, Content, Mediaplanung und Markenkommunikation."
-        },
-        "others": "Sonstige",
-        "moreComingSoon": "+ Mehr folgt in Kürze",
-        "startTask": "Start a task with {name}",
-        "featuredEyebrow": "Featured coworker",
-        "all": "All",
-        "examplesTitle": "What {name} can do",
-        "startShort": "Start a task",
-        "startForCoworker": "Neuen Task für {name} starten",
-        "subtitle": "Browse your AI coworkers and the ready-to-run offers they handle. Pick one, add your details, and go.",
-        "searchOffers": "Search offers, coworkers…",
-        "byCompany": "Company",
-        "offerPrefilled": "Pre-filled task",
-        "noOffers": "No offers match your filters.",
-        "offersLabel": "Quick-start offers",
-        "allCategories": "All",
-        "moreOffers": "+{count} more",
-        "searchHero": "What do you want to get done?",
-        "recommendedLabel": "Recommended",
-        "searchHint": "Search agents, coworkers, and offers",
-        "clearFilters": "Clear filters",
-        "coworkersTitle": "Your AI coworkers",
-        "coworkersSubtitle": "Your AI coworkers and the ready-to-run offers they deliver, grouped by company.",
-        "offersSectionTitle": "Sofort startbare Tasks",
-        "offersSectionSubtitle": "Tasks that are already set up. Open one to see an example, then add your details.",
         "deliveredByLabel": "Delivered by",
         "deliverableLabel": "What you'll get",
         "startThisTask": "Start this task",
-        "viewDetails": "View details",
-        "examplePending": "Example coming soon",
         "examplePendingHint": "A sample output (PDF or image) will appear here.",
         "openInNewTab": "Open in new tab",
         "offerDetails": "Offer details",
-        "heroHeadline": "What do you want to get done?",
-        "heroSubtitle": "Hand real work to your AI coworkers, or start from a ready-to-run offer.",
-        "searchPlaceholder": "Search agents, coworkers, and offers…",
-        "socialProofFallback": "AI coworkers ready to work",
-        "companyWebsite": "Visit website",
-        "companyLegal": "Legal",
-        "coworkerCount": "{count, plural, one {# coworker} other {# coworkers}}",
-        "otherCompanyLabel": "Independent",
-        "showAllCoworkers": "Show all {count}",
-        "showLess": "Show less",
-        "showMoreCompanies": "Show {count, plural, one {# more company} other {# more companies}}",
         "outputTypes": {
           "pdf": "PDF",
           "slides": "Slides",
@@ -9396,13 +9322,7 @@
           "text": "Text",
           "image": "Image",
           "html": "Web"
-        },
-        "showAllOffers": "Show all {count} offers",
-        "offerCount": "{count, plural, one {# offer} other {# offers}}",
-        "noResults": "Nothing matches your search.",
-        "coworkerNoOffers": "Noch keine sofort startbaren Tasks. Starte einen neuen Task und beschreibe, was du brauchst.",
-        "coworkersFound": "{count, plural, =0 {Keine Coworker passen zu deiner Suche} one {# Coworker passt zu deiner Suche} other {# Coworker passen zu deiner Suche}}",
-        "noCoworkers": "Gerade sind keine Coworker verfügbar."
+        }
       },
       "Jobs": {
         "switchedWorkspace": "Zu {account}-Account gewechselt",
@@ -9431,23 +9351,84 @@
           "noExecutedJobs": "Keine ausgeführten Jobs"
         }
       },
-      "allAgentsTitle": "Alle Agents durchsuchen",
-      "allAgentsSubtitle": "Jeder Agent auf Sokosumi, nach Aufgaben gruppiert.",
-      "FilterSection": {
-        "reset": "Zurücksetzen",
-        "kind": {
-          "all": "Alle",
-          "cardano": "Cardano",
-          "x402": "x402"
+      "Directory": {
+        "title": "Agents",
+        "subtitle": "Deine Soko Bots, deine Coworker und Agents, die du beauftragen kannst.",
+        "sokoBotsTitle": "Soko Bots",
+        "sokoBotsNote": "Assistenten, die für eine Person, ein Projekt oder das ganze Team arbeiten.",
+        "sokoBotsUnavailable": "Soko Bots können gerade nicht geladen werden. Versuch es gleich noch einmal.",
+        "manageSokoBots": "Soko Bots verwalten",
+        "createOwnBot": "Deinen Soko Bot einrichten",
+        "createOwnBotHint": "Dein eigener Assistent für Mail, Aufgaben und Chats.",
+        "coworkersTitle": "Coworker",
+        "coworkersNote": "Spezialisten, denen du ganze Aufgaben gibst oder mit denen du chattest.",
+        "coworkersEmpty": "In diesem Workspace gibt es noch keine Coworker.",
+        "marketplaceTitle": "Agent-Marktplatz",
+        "marketplaceNote": "Agents, die andere Firmen bauen und betreiben. Jeder erledigt eine Aufgabe.",
+        "marketplaceEmpty": "Gerade gibt es keine Agents.",
+        "external": "Extern",
+        "bringYourOwn": "Eigenen Agent verbinden",
+        "searchLabel": "Agent-Marktplatz durchsuchen",
+        "searchPlaceholder": "Agents suchen",
+        "noMatch": "Kein Agent passt zu deiner Suche.",
+        "found": "{count, plural, =0 {Kein Agent passt} one {# Agent passt} other {# Agents passen}}",
+        "byVendor": "von {vendor}",
+        "botFallbackName": "Soko Bot",
+        "ownerYou": "Deiner",
+        "ownerYouAbout": "Dir",
+        "ownerPerson": "von {name}",
+        "ownerTeam": "Team",
+        "ownerProject": "Projekt {project}",
+        "ownerProjectUnnamed": "Ein Projekt",
+        "purposePersonal": "Persönlicher Assistent",
+        "purposeTeam": "Arbeitet für das ganze Team",
+        "purposeProject": "Arbeitet an einem Projekt",
+        "status": {
+          "IDLE": "Bereit",
+          "RUNNING": "Arbeitet gerade",
+          "PAUSED": "Wartet auf dich",
+          "ERROR": "Braucht einen Blick"
         },
-        "scope": {
-          "label": "Anzeigen",
-          "all": "Alle",
-          "coworkers": "Coworker",
-          "agents": "Agents"
-        }
-      },
-      "agentsFound": "{count, plural, =0 {Keine Agents passen zu deiner Suche} one {# Agent passt zu deiner Suche} other {# Agents passen zu deiner Suche}}"
+        "backToAgents": "Agents",
+        "message": "Nachricht",
+        "messageError": "Der Chat konnte nicht geöffnet werden. Versuch es noch einmal.",
+        "giveTask": "Aufgabe geben",
+        "sectionWhat": "Was er macht",
+        "sectionWork": "Letzte Arbeit",
+        "sectionSettings": "Einstellungen",
+        "sectionAbout": "Info",
+        "botDoes": {
+          "you": "Dein persönlicher Assistent. Er liest deine Mails und Chats, behält deine Aufgaben im Blick und erledigt Arbeit, wenn du ihn fragst.",
+          "person": "Der persönliche Assistent einer Kollegin oder eines Kollegen. Du kannst ihm schreiben, und er antwortet für die Person, für die er arbeitet.",
+          "team": "Ein gemeinsamer Assistent für das ganze Team. Alle sprechen in einem Raum mit ihm, und jede und jeder kann seine Einstellungen ändern.",
+          "project": "Ein gemeinsamer Assistent für ein Projekt. Er arbeitet an dessen Aufgaben und spricht im Projektraum mit dem Team."
+        },
+        "statTasks": "Aufgaben",
+        "statMessages": "Nachrichten",
+        "statBackground": "Hintergrundläufe",
+        "statCount": "{count, number} in {days, plural, one {dem letzten Tag} other {den letzten # Tagen}}",
+        "botSettingsNote": "Tools, Verbindungen, Zeitpläne und Gedächtnis.",
+        "openSettings": "Einstellungen öffnen",
+        "aboutBelongsTo": "Gehört zu",
+        "aboutKind": "Art",
+        "aboutWorkspace": "Workspace",
+        "aboutLastActive": "Zuletzt aktiv",
+        "readyTasks": "Startklare Aufgaben",
+        "aboutCompany": "Firma",
+        "aboutRole": "Rolle",
+        "aboutWorks": "Arbeitet über",
+        "worksTasks": "Aufgaben",
+        "worksChat": "Chat",
+        "aboutModels": "Modelle",
+        "aboutHosting": "Gehostet in",
+        "aboutMadeBy": "Gebaut von",
+        "aboutSource": "Herkunft",
+        "aboutSourceExternal": "Externer Agent",
+        "aboutRuns": "Bisherige Läufe",
+        "aboutAverageTime": "Durchschnittliche Dauer",
+        "aboutRisk": "Risikostufe",
+        "yourJobs": "{count, plural, one {Dein # Job mit diesem Agent} other {Deine # Jobs mit diesem Agent}}"
+      }
     },
     "EmailVerificationNotice": {
       "title": "Bestätige deine E-Mail-Adresse",
@@ -11227,7 +11208,7 @@
         "mailAutoReadError": "Mail-Einstellung konnte nicht gespeichert werden",
         "followBoardError": "Einstellung konnte nicht gespeichert werden.",
         "teamStandupTitle": "Am Team-Stand-up teilnehmen",
-        "teamStandupDescription": "Dieser Assistent postet ein eigenes Update im täglichen Stand-up deiner Organisation, aus seinen Tasks und Beiträgen, nie aus Mail oder Kalender.",
+        "teamStandupDescription": "Dieser Assistent postet im täglichen Stand-up deiner Organisation ein eigenes Update für dich: was er und die Coworker, denen du Tasks gegeben hast, erledigt haben, was läuft, was auf dich wartet. Aus öffentlichen Tasks und Beiträgen, nie aus Mail oder Kalender. An, solange du es nicht ausschaltest.",
         "teamStandupError": "Einstellung konnte nicht gespeichert werden.",
         "archiveTitle": "Soko Bot archivieren",
         "archiveDescription": "Stoppt alle Turns und Zeitpläne. Du kannst ihn später erneut erstellen; Verlauf und Zuordnung bleiben erhalten.",
@@ -15316,7 +15297,7 @@
     "TeamStandup": {
       "title": "Tägliches Agenten-Stand-up",
       "enabledLabel": "Stand-up durchführen",
-      "enabledHelp": "An jedem Werktag postet jeder Agent ein eigenes Update im Stand-up-Kanal: was er erledigt hat, was als Nächstes kommt, was auf eine Person wartet. Bis zu drei Übergaben zwischen Agenten folgen als Antworten. Einmal pro Woche kommt ein Wochenrückblick dazu, mit einer Zeile pro Person und pro Agent. Die Zeilen stammen aus Tasks, Freigaben und Posts, nie aus E-Mails oder Kalendern. Gibt es nichts Neues, wird nichts gepostet.",
+      "enabledHelp": "An jedem Werktag postet jeder Soko Bot im Stand-up-Channel ein eigenes Update für seine Person oder sein Team: was er und die Coworker, denen sie Tasks gegeben haben, erledigt haben, was als Nächstes kommt, was auf eine Person wartet. Coworker posten nichts Eigenes. Bis zu drei Übergaben folgen als Antworten. Einmal pro Woche ergänzt ein Wochenrückblick-Thread eine Zeile pro Person und pro Agent. Die Zeilen stammen aus öffentlichen Tasks, Freigaben und Beiträgen, nie aus Mail oder Kalendern. Jeder Assistent nimmt teil, solange sein Owner es nicht ausschaltet. Gibt es nichts Neues, wird nichts gepostet.",
       "timeLabel": "Uhrzeit",
       "timezoneLabel": "Zeitzone",
       "weekdaysLabel": "Tage",

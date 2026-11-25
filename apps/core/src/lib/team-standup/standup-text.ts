@@ -32,6 +32,8 @@ export interface StandupAgent {
   name: string;
   /** A personal bot's owner; null for a Coworker or a shared bot. */
   ownerName: string | null;
+  /** A project bot's Project: the team it speaks for. */
+  projectName?: string | null;
 }
 
 export interface StandupPerson {
@@ -44,6 +46,16 @@ export interface StandupWait {
   failed: boolean;
   /** The person it waits on, mentioned in the agent's message. */
   waitsOn: StandupPerson | null;
+  /** The Coworker the Task is with, when it is not the bot's own. */
+  by?: string | null;
+}
+
+/** What one Coworker did on a bot's or its person's Tasks. */
+export interface CoworkerWork {
+  id: string;
+  name: string;
+  finished: string[];
+  working: string[];
 }
 
 /** What one agent's records say since the last stand-up: public Task names and counts only. */
@@ -60,6 +72,8 @@ export interface AgentRecord {
   /** A bot owner's public Tasks nobody has yet. */
   open: string[];
   waiting: StandupWait[];
+  /** Coworkers working on Tasks this bot handed out or its person owns. */
+  coworkers: CoworkerWork[];
 }
 
 export interface StandupMatch {
@@ -78,6 +92,7 @@ export function emptyRecord(agent: StandupAgent): AgentRecord {
     working: [],
     open: [],
     waiting: [],
+    coworkers: [],
   };
 }
 
@@ -88,7 +103,8 @@ export function recordIsEmpty(record: AgentRecord): boolean {
     record.finished.length === 0 &&
     record.working.length === 0 &&
     record.open.length === 0 &&
-    record.waiting.length === 0
+    record.waiting.length === 0 &&
+    record.coworkers.length === 0
   );
 }
 
@@ -125,8 +141,12 @@ export function mentionToken(person: StandupPerson): string {
   return `@${person.userId}`;
 }
 
-export function standupOpener(date: string): string {
-  return `**Stand-up · ${date}**`;
+export function standupOpener(
+  date: string,
+  coworkers: CoworkerWork[] = [],
+): string {
+  const also = coworkerOpenerLine(coworkers);
+  return [`**Stand-up · ${date}**`, ...(also ? [also] : [])].join("\n");
 }
 
 /** What the agent did, in the week's words: counts for bots, quoted names for Coworkers. */
@@ -134,59 +154,47 @@ export function recordDone(record: AgentRecord): string[] {
   return [...record.counts, ...record.finished.map((name) => `"${name}"`)];
 }
 
-/** Waits grouped per person, so one line names each person once. */
+/** Waits grouped per person and Coworker, so one line names each once. */
 function waitLines(waiting: StandupWait[], short: (task: string) => string) {
-  const byPerson = new Map<
+  const groups = new Map<
     string,
-    { person: StandupPerson; tasks: string[] }
+    { person: StandupPerson; by: string | null; tasks: string[] }
   >();
   const failed: string[] = [];
   const unowned: string[] = [];
   for (const wait of waiting) {
-    if (wait.failed) failed.push(short(wait.task));
+    const task = short(wait.task);
+    if (wait.failed) failed.push(wait.by ? `${task} (${wait.by})` : task);
     else if (wait.waitsOn) {
-      const entry = byPerson.get(wait.waitsOn.userId) ?? {
+      const key = `${wait.waitsOn.userId}:${wait.by ?? ""}`;
+      const entry = groups.get(key) ?? {
         person: wait.waitsOn,
+        by: wait.by ?? null,
         tasks: [],
       };
-      entry.tasks.push(short(wait.task));
-      byPerson.set(wait.waitsOn.userId, entry);
-    } else unowned.push(short(wait.task));
+      entry.tasks.push(task);
+      groups.set(key, entry);
+    } else unowned.push(wait.by ? `${task} (${wait.by})` : task);
   }
   return [
-    ...[...byPerson.values()].map(({ person, tasks }) =>
-      sentence(`Waiting on ${mentionToken(person)}: `, tasks),
+    ...[...groups.values()].map(({ person, by, tasks }) =>
+      sentence(
+        `${by ? `${by} waits on` : "Waiting on"} ${mentionToken(person)}: `,
+        tasks,
+      ),
     ),
     ...(unowned.length ? [sentence(`Waiting for an answer: `, unowned)] : []),
     ...(failed.length ? [sentence(`Failed: `, failed)] : []),
   ];
 }
 
-/** A Coworker's stand-up message: Core writes it, since a Coworker only reads Task text. */
-export function coworkerStandupMessage(
-  record: AgentRecord,
-  short: (task: string) => string = (task) => task,
-): string {
-  const finished = [...new Set(record.finished.map(short))];
-  const working = [...new Set(record.working.map(short))].filter(
-    (task) => !finished.includes(task),
-  );
-  return [
-    ...(finished.length ? [sentence(`Finished: `, finished)] : []),
-    ...(working.length ? [sentence(`Working on: `, working)] : []),
-    ...waitLines(record.waiting, short),
-  ].join("\n");
-}
-
 /** A bot's message when its own words cannot be shown: the record, in the first person. */
 export function botFallbackMessage(record: AgentRecord): string {
   const did = [...record.counts];
-  return [
-    did.length
-      ? sentence(`Since the last stand-up: `, did, 4)
-      : "Nothing finished since the last stand-up.",
+  const lines = [
+    ...(did.length ? [sentence(`Since the last stand-up: `, did, 4)] : []),
     ...(record.working.length
-      ? [sentence(`Still running: `, record.working)]
+      ? [sentence(`Handed out, still running: `, record.working)]
       : []),
     ...(record.open.length
       ? [
@@ -196,8 +204,42 @@ export function botFallbackMessage(record: AgentRecord): string {
           ),
         ]
       : []),
+    ...record.coworkers.map(coworkerLine),
     ...waitLines(record.waiting, (task) => task),
-  ].join("\n");
+  ];
+  return (lines.length ? lines : ["Nothing new since the last stand-up."]).join(
+    "\n",
+  );
+}
+
+/** "Hannah finished X and Y, still on Z." */
+export function coworkerLine(work: CoworkerWork): string {
+  const finished = [...new Set(work.finished)];
+  const working = [...new Set(work.working)].filter(
+    (task) => !finished.includes(task),
+  );
+  const parts = [
+    ...(finished.length ? [`finished ${plainList(finished)}`] : []),
+    ...(working.length
+      ? [`${finished.length ? "still on" : "is on"} ${plainList(working)}`]
+      : []),
+  ];
+  return sentence(`${work.name} `, [parts.join(", ")]);
+}
+
+/** Coworker work no posting bot speaks for, in the opener: one short line. */
+export function coworkerOpenerLine(work: CoworkerWork[]): string | null {
+  const shown = work.slice(0, 3).map((one) => {
+    const line = coworkerLine({
+      ...one,
+      finished: one.finished.slice(0, 1),
+      working: one.finished.length ? [] : one.working.slice(0, 1),
+    });
+    return line.replace(/[.…]$/, "");
+  });
+  if (shown.length === 0) return null;
+  const more = work.length - shown.length;
+  return `Also from Coworkers: ${shown.join("; ")}${more > 0 ? ` and ${more} more` : ""}.`;
 }
 
 /** The people a record waits on: each must be mentioned in the agent's message. */
