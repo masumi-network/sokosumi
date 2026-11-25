@@ -16,6 +16,17 @@ import { chatQueryKeys } from "@/queries/chat";
 export const FEED_COUNT_REFRESH_DELAY_MS = 1000;
 
 /**
+ * Orders room changes and count reads across every Feed row on the page. A
+ * wall clock can move back and make an older read look newer; this only
+ * moves forward.
+ */
+let feedCountStep = 0;
+function nextFeedCountStep() {
+  feedCountStep += 1;
+  return feedCountStep;
+}
+
+/**
  * How many Feed messages the reader has not read, for the sidebar Feed row.
  *
  * Reads one item: Core counts the unread across every page, so the row needs
@@ -40,19 +51,19 @@ export function useFeedUnreadCount({
     userId: currentUserId,
     workspaceId: organizationId,
   });
-  // When the last change waiting for a read was seen, or null when none
+  // The step of the last change waiting for a read, or null when none
   // waits. A read still running from before this mount may predate the last
   // change the unmounted row saw; the mount read reuses it, so it waits too.
   const [changedAt, setChangedAt] = useState(() =>
     queryClient.isFetching({ queryKey: countKey, exact: true }) > 0
-      ? Date.now()
+      ? nextFeedCountStep()
       : null,
   );
   const { data } = useQuery({
     queryKey: countKey,
     // `startedAt` says which changes the count already includes.
     queryFn: async () => {
-      const startedAt = Date.now();
+      const startedAt = nextFeedCountStep();
       const { unreadCount } = await fetchChatFeed({ limit: 1 });
       return { unreadCount, startedAt };
     },
@@ -86,7 +97,7 @@ export function useFeedUnreadCount({
   if (roomsUnread !== null && roomsUnread !== seenRoomsUnread) {
     setSeenRoomsUnread(roomsUnread);
     if (seenRoomsUnread !== null || roomsUnread !== "") {
-      setChangedAt(Date.now());
+      setChangedAt(nextFeedCountStep());
     }
   }
   useTimeout(

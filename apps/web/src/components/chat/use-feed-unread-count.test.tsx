@@ -267,6 +267,21 @@ describe("useFeedUnreadCount", () => {
     expect(fetchChatFeedMock).toHaveBeenCalledTimes(1);
   });
 
+  it("reads again when the clock moved back between the read and the change", async () => {
+    fetchChatFeedMock
+      .mockResolvedValueOnce(feedCount(1))
+      .mockResolvedValueOnce(feedCount(0));
+    liveRooms.current = [room(1)];
+    const { result, rerender } = renderCount();
+    await advance(0);
+    vi.setSystemTime(Date.now() - 60 * 1000);
+    liveRooms.current = [room(0)];
+    rerender();
+    await advance(FEED_COUNT_REFRESH_DELAY_MS);
+    expect(fetchChatFeedMock).toHaveBeenCalledTimes(2);
+    expect(result.current.unreadCount).toBe(0);
+  });
+
   it("does not read again when rooms only change places", async () => {
     fetchChatFeedMock.mockResolvedValue(feedCount(1));
     const other = { ...room(0), id: "room-2" };
