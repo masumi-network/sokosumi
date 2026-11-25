@@ -788,7 +788,6 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
       date: "2026-11-01",
       csv: "URL\nhttps://example.com/",
     },
-    },
   },
   // SOKD-375: Drive
   drive_search: { scope: "me", q: "pricing", limit: 10 },
