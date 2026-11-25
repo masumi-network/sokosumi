@@ -7,12 +7,20 @@ import {
 import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@sokosumi/utils";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext } from "@/middleware/auth";
+import type {
+  AuthenticationContext,
+  UserAuthenticationContext,
+} from "@/middleware/auth";
 import {
   applyUserRouteMiddleware,
   type UserRouteVariables,
 } from "@/routes/v1/users/user-route-context";
+import {
+  agentCredentials,
+  expectPersonApprovalRequired,
+} from "@/test-fixtures/person-approval";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -53,11 +61,12 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-const SESSION_USER: AuthenticationContext = {
+const SESSION_USER: UserAuthenticationContext = {
   actor: "user",
   userId: "user_123",
   organizationId: null,
   role: "user",
+  authenticationMethod: "session",
 };
 
 const grantId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -81,6 +90,7 @@ function createApp(authContext: AuthenticationContext = SESSION_USER) {
   applyUserRouteMiddleware(userByIdApp);
   mountPostUserVendorGrant(userByIdApp);
   app.route("/:id", userByIdApp);
+  app.onError(errorHandler);
   return app;
 }
 
@@ -186,6 +196,27 @@ describe("POST /users/{id}/vendor-grants", () => {
       status: "GRANTED",
     });
   });
+
+  // A direct grant approves without a request, so a person makes it too.
+  it.each(agentCredentials(SESSION_USER))(
+    "sends %s to the person's account page",
+    async (_, authContext) => {
+      const response = await createApp(authContext).request(
+        "http://localhost/user_123/vendor-grants",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ vendorId }),
+        },
+      );
+
+      await expectPersonApprovalRequired(
+        response,
+        "https://example.com/account",
+      );
+      expect(vendorGrantUpsertMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("returns 403 when caller cannot access the target user", async () => {
     const response = await createApp().request(

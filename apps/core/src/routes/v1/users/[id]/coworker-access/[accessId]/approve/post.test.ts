@@ -2,12 +2,20 @@ import { CoworkerWorkspaceAccessStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { notFound } from "@/helpers/error";
+import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext } from "@/middleware/auth";
+import type {
+  AuthenticationContext,
+  UserAuthenticationContext,
+} from "@/middleware/auth";
 import {
   applyUserRouteMiddleware,
   type UserRouteVariables,
 } from "@/routes/v1/users/user-route-context";
+import {
+  agentCredentials,
+  expectPersonApprovalRequired,
+} from "@/test-fixtures/person-approval";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -38,7 +46,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 // usersPathUserContextMiddleware binds coworker→user via grant/baseline;
-// incomplete prisma mocks 500 before requireOwnerUserContext can return 403.
+// stub it so incomplete prisma mocks never 500 a request.
 vi.mock("@/helpers/coworker-user-context-binding", () => ({
   assertCoworkerUserContextBinding: vi.fn().mockResolvedValue(undefined),
   requireAuthorizedUserContext: vi.fn(),
@@ -58,11 +66,12 @@ vi.mock("@/helpers/coworker-workspace-access", async (importOriginal) => {
 
 import mountApproveUserCoworkerAccess from "./post";
 
-const SESSION_USER: AuthenticationContext = {
+const SESSION_USER: UserAuthenticationContext = {
   actor: "user",
   userId: "user_123",
   organizationId: null,
   role: "user",
+  authenticationMethod: "session",
 };
 
 const accessId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -114,6 +123,7 @@ function createApp(authContext: AuthenticationContext = SESSION_USER) {
   applyUserRouteMiddleware(userByIdApp);
   mountApproveUserCoworkerAccess(userByIdApp);
   app.route("/:id", userByIdApp);
+  app.onError(errorHandler);
   return app;
 }
 
@@ -158,22 +168,22 @@ describe("POST /users/{id}/coworker-access/{accessId}/approve", () => {
     );
   });
 
-  it("rejects coworker context with 403", async () => {
-    const response = await createApp({
-      actor: "coworker",
-      coworkerId: "coworker_1",
-      vendorId: "vendor_1",
-      context: { userId: "user_123", organizationId: null },
-    }).request(
-      `http://localhost/user_123/coworker-access/${accessId}/approve`,
-      {
-        method: "POST",
-      },
-    );
+  // ADR 0077: an agent may ask for access; a person approves it.
+  it.each(agentCredentials(SESSION_USER))(
+    "sends %s to the person's account page",
+    async (_, authContext) => {
+      const response = await createApp(authContext).request(
+        `http://localhost/user_123/coworker-access/${accessId}/approve`,
+        { method: "POST" },
+      );
 
-    expect(response.status).toBe(403);
-    expect(approveMock).not.toHaveBeenCalled();
-  });
+      await expectPersonApprovalRequired(
+        response,
+        "https://example.com/account",
+      );
+      expect(approveMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("rejects wrong user path with 403", async () => {
     userFindUniqueMock.mockResolvedValue({ id: "other_user" });
