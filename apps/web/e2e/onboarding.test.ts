@@ -121,10 +121,10 @@ for (const { name, ...viewport } of PROJECTS) {
       await page
         .getByRole("button", { name: "Add a password for future logins" })
         .click();
-      const password = page.getByRole("textbox", { name: "Password" });
-      assert.ok(
-        await password.evaluate((el) => el === document.activeElement),
-        "the added password field has focus",
+      // Focus moves on the frame after the field appears; wait for it.
+      await page.getByRole("textbox", { name: "Password" }).waitFor();
+      await page.waitForFunction(
+        () => document.activeElement?.getAttribute("name") === "password",
       );
       const passwordLabel = await page
         .locator("label", { hasText: /^Password$/ })
