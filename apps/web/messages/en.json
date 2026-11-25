@@ -11088,7 +11088,7 @@
       "Crop": {
         "open": "Crop for social",
         "title": "Crop for social",
-        "description": "Pick a shape and drag the frame. A copy is saved next to the original; the original stays as it is.",
+        "description": "Pick a shape, then move the slider to place the crop. A copy is saved next to the original; the original stays as it is.",
         "shapeLabel": "Shape",
         "loading": "Loading image…",
         "loadError": "This image couldn't be loaded. Close and try again.",
