@@ -54807,6 +54807,16 @@ export const SeoAuditSummarySchema = {
             type: 'integer',
             minimum: 0
         },
+        lastCheck: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SeoAuditLastCheck'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -54823,6 +54833,48 @@ export const SeoAuditSummarySchema = {
         'name',
         'projectId',
         'pageCount',
+        'lastCheck',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const SeoAuditLastCheckSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'page_check',
+                'rankings',
+                'links',
+                'audit_lite',
+                'audit_full'
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'requested',
+                'running',
+                'completed',
+                'failed'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'kind',
+        'status',
         'createdAt',
         'updatedAt'
     ]

@@ -26,6 +26,7 @@ const AUDIT: SeoAuditSummary = {
   name: "Battery audit",
   projectId: null,
   pageCount: 1,
+  lastCheck: null,
   createdAt: new Date("2026-01-02T12:00:00Z"),
   updatedAt: new Date("2026-01-02T12:00:00Z"),
 };

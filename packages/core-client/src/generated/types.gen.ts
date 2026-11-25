@@ -13716,6 +13716,14 @@ export type SeoAuditSummary = {
     name: string;
     projectId: string | null;
     pageCount: number;
+    lastCheck: SeoAuditLastCheck | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type SeoAuditLastCheck = {
+    kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full';
+    status: 'requested' | 'running' | 'completed' | 'failed';
     createdAt: Date;
     updatedAt: Date;
 };

@@ -22,6 +22,7 @@ import {
   type SeoWorkspaceActor,
 } from "./project-seo-store";
 import { requireScopedProject } from "./project-social-connections.service";
+import { seoAnalysisStatus } from "./seo-analysis-status";
 
 export async function listSeoAudits(
   actor: SeoWorkspaceActor,
@@ -78,14 +79,50 @@ export async function listSeoAudits(
         createdAt: true,
         updatedAt: true,
         _count: { select: { pages: true } },
+        analyses: {
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: 1,
+          select: {
+            kind: true,
+            status: true,
+            taskId: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
       },
     }),
     prisma.seoAudit.count({ where }),
   ]);
-  const audits = rows.slice(0, take).map((row) =>
+  const page = rows.slice(0, take);
+  const taskIds = page.flatMap(({ analyses }) =>
+    analyses[0]?.taskId ? [analyses[0].taskId] : [],
+  );
+  const taskStatuses = new Map(
+    taskIds.length
+      ? (
+          await prisma.task.findMany({
+            where: { id: { in: taskIds } },
+            select: { id: true, status: true },
+          })
+        ).map((task) => [task.id, task.status])
+      : [],
+  );
+  const audits = page.map(({ _count, analyses: [check], ...row }) =>
     seoAuditSummarySchema.parse({
       ...row,
-      pageCount: row._count.pages,
+      pageCount: _count.pages,
+      lastCheck: check
+        ? {
+            kind: check.kind,
+            status: seoAnalysisStatus(
+              check.status,
+              check.taskId ? taskStatuses.get(check.taskId) : undefined,
+            ),
+            createdAt: check.createdAt,
+            updatedAt: check.updatedAt,
+          }
+        : null,
     }),
   );
   return {

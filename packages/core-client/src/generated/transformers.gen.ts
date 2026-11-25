@@ -5183,7 +5183,16 @@ export const getProjectSeoBriefSuggestionResponseTransformer = async (data: any)
     return data;
 };
 
+const seoAuditLastCheckSchemaResponseTransformer = (data: any) => {
+    data.createdAt = new Date(data.createdAt);
+    data.updatedAt = new Date(data.updatedAt);
+    return data;
+};
+
 const seoAuditSummarySchemaResponseTransformer = (data: any) => {
+    if (data.lastCheck) {
+        data.lastCheck = seoAuditLastCheckSchemaResponseTransformer(data.lastCheck);
+    }
     data.createdAt = new Date(data.createdAt);
     data.updatedAt = new Date(data.updatedAt);
     return data;
