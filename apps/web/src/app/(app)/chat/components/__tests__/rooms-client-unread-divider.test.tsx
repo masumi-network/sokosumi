@@ -291,7 +291,12 @@ describe("RoomsClient opens a room at the Unread divider", () => {
 
     // The click's read carries no visit signal; the room asked for no other.
     expect(openAtUnreadCalls()).toEqual([
-      [room.id, null, { openAtUnread: true }, expect.any(Function)],
+      [
+        room.id,
+        null,
+        { openAtUnread: true, signal: expect.any(AbortSignal) },
+        expect.any(Function),
+      ],
     ]);
     view.unmount();
     clearMembershipVisibleRoomsSnapshot();
