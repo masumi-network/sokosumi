@@ -3,7 +3,7 @@
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { cmoMonthAtLevel, cmoVolumeLevelForTier } from "@sokosumi/utils";
 import { ArrowRight, Loader2 } from "lucide-react";
-import { useState, useTransition } from "react";
+import { type CSSProperties, useState, useTransition } from "react";
 import { channelLabel } from "../../lib/calendar";
 import { channelInfo, channelKey } from "../../lib/channels";
 import { postsGoingOut } from "../../lib/strategy";
@@ -55,6 +55,65 @@ function postsLine(posts: number, most: number): string {
   if (posts >= most) return `All ${posts} posts a month`;
   const about = posts >= 20 ? Math.round(posts / 10) * 10 : posts;
   return `About ${about} posts a month`;
+}
+
+type Point = readonly [number, number];
+
+/**
+ * Each plan's rise, from the cheapest up, in a 64 by 40 box: gentle, steeper,
+ * then a hockey stick that shoots out past the card's top line, into the gap
+ * above it (no further: on a phone the plan above sits there).
+ */
+const RISES: readonly (readonly Point[])[] = [
+  [
+    [2, 32],
+    [22, 27],
+    [40, 23],
+    [58, 15],
+  ],
+  [
+    [2, 32],
+    [20, 27],
+    [36, 17],
+    [58, 0],
+  ],
+  [
+    [2, 34],
+    [24, 32],
+    [38, 28],
+    [46, 17],
+    [52, -14],
+  ],
+];
+
+/** The rise as one unbroken stroke, the line then its arrowhead, so it draws in that order. */
+function risePath(points: readonly Point[], head: number): string {
+  const [x0, y0] = points[points.length - 2] ?? [0, 0];
+  const [x, y] = points[points.length - 1] ?? [0, 0];
+  const length = Math.hypot(x - x0, y - y0);
+  const [ux, uy] = [(x - x0) / length, (y - y0) / length];
+  const side = (sign: number) =>
+    `${(x - head * ux + sign * head * 0.7 * uy).toFixed(1)} ${(y - head * uy - sign * head * 0.7 * ux).toFixed(1)}`;
+  const line = points.map(([px, py]) => `${px} ${py}`).join(" L");
+  return `M${line} L${side(1)} L${x} ${y} L${side(-1)}`;
+}
+
+/** A plan's chart arrow, steeper for each plan up; a picture, not read out. */
+function PlanRise({ place }: { place: number }) {
+  const top = Math.min(place, RISES.length - 1);
+  const points = RISES[top] ?? [];
+  const steep = top === RISES.length - 1;
+  return (
+    <svg
+      className={steep ? "ob-plan-rise ob-plan-rise-steep" : "ob-plan-rise"}
+      viewBox="0 0 64 40"
+      aria-hidden="true"
+      focusable="false"
+      style={{ "--rise-delay": `${450 + top * 150}ms` } as CSSProperties}
+    >
+      <path d={risePath(points, steep ? 8 : 6)} pathLength={1} />
+    </svg>
+  );
 }
 
 /** A plan's price in its currency's main unit. */
@@ -258,19 +317,30 @@ export function CheckoutStep({
                   {plan.tier === whole && offered.length > 1 ? (
                     <span className="ob-plan-fit">Makes all of it</span>
                   ) : null}
+                  <PlanRise place={place} />
                   <span className="ob-plan-name">{tierName(plan.tier)}</span>
+                  {/* Both intervals fill the same lines, so switching never moves the cards. */}
                   {interval === "year" && monthly ? (
-                    <s className="ob-small muted">{price(monthly)} a month</s>
-                  ) : null}
-                  <span className="ob-value">
+                    <s className="ob-small muted ob-swap">
+                      {price(monthly)} a month
+                    </s>
+                  ) : (
+                    <span className="ob-small" aria-hidden="true">
+                      {"\u00a0"}
+                    </span>
+                  )}
+                  <span key={interval} className="ob-value ob-swap">
                     {price(plan, months)}{" "}
                     <span className="ob-small muted">a month</span>
                   </span>
-                  {interval === "year" ? (
-                    <span className="ob-small muted">
-                      {price(plan)} billed yearly
-                    </span>
-                  ) : null}
+                  <span
+                    key={`${interval}-billed`}
+                    className="ob-small muted ob-swap"
+                  >
+                    {interval === "year"
+                      ? `${price(plan)} billed yearly`
+                      : "Billed monthly"}
+                  </span>
                   {posts !== undefined ? (
                     <span className="ob-small">{postsLine(posts, most)}</span>
                   ) : PLAN_LINES[place] ? (
