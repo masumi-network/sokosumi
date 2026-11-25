@@ -14276,6 +14276,7 @@
       "planMessage": {
         "title": "Your plan",
         "pdf": "Open full audit PDF",
+        "pdfMissing": "No PDF for this check",
         "direction": "Direction:",
         "steps": "Steps of the plan",
         "order": "Why at this position:",

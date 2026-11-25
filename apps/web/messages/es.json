@@ -14276,6 +14276,7 @@
       "planMessage": {
         "title": "Tu plan",
         "pdf": "Abrir el PDF completo de la auditoría",
+        "pdfMissing": "Esta comprobación no tiene PDF",
         "direction": "Dirección:",
         "steps": "Pasos del plan",
         "order": "Por qué en esta posición:",

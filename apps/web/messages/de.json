@@ -14276,6 +14276,7 @@
       "planMessage": {
         "title": "Dein Plan",
         "pdf": "Vollständiges Audit als PDF öffnen",
+        "pdfMissing": "Keine PDF für diese Prüfung",
         "direction": "Richtung:",
         "steps": "Schritte des Plans",
         "order": "Warum an dieser Stelle:",

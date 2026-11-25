@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useSeoReportFiles } from "./use-seo-report-files";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-/** The audit's PDF, from the files of its Task. No button while the files load or where the Task has no PDF. */
+/** The audit's PDF, from the files of its Task. While the files load the button waits; a failed load offers a retry. */
 export function SeoPlanPdfLink({
   model,
   taskId,
@@ -20,7 +20,7 @@ export function SeoPlanPdfLink({
   const t = useTranslations("App.Seo");
   const fileText = useTranslations("Components.DocumentViewer");
   const newTabId = useId();
-  const { files } = useSeoReportFiles(
+  const { files, error, retry, refreshing } = useSeoReportFiles(
     {
       model,
       versions: [
@@ -29,8 +29,41 @@ export function SeoPlanPdfLink({
     },
     true,
   );
-  const pdf = files?.find((file) => file.format === "pdf");
-  if (!pdf) return null;
+  if (error) {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-muted-foreground text-sm">
+          {t(`reportFiles.${error}`)}
+        </p>
+        {retry ? (
+          <Button
+            size="sm"
+            variant="outline"
+            loading={refreshing}
+            onClick={() => void retry()}
+          >
+            {t("retry")}
+          </Button>
+        ) : null}
+      </div>
+    );
+  }
+  if (!files) {
+    return (
+      <Button size="sm" variant="outline" loading>
+        <FileText aria-hidden />
+        {t("planMessage.pdf")}
+      </Button>
+    );
+  }
+  const pdf = files.find((file) => file.format === "pdf");
+  if (!pdf) {
+    return (
+      <p className="text-muted-foreground text-sm">
+        {t("planMessage.pdfMissing")}
+      </p>
+    );
+  }
   return (
     <>
       <span className="sr-only" id={newTabId}>
