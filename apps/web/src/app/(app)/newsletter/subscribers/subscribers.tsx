@@ -32,6 +32,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getEnvPublicConfig } from "@/config/env.public";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
+import { useNewsletterSearchCancel } from "@/hooks/effects/use-newsletter-search-cancel";
 import { cn } from "@/lib/utils";
 import { AddFromContactsDialog } from "./add-from-contacts-dialog";
 import { AddSubscriberDialog } from "./add-subscriber-dialog";
@@ -80,8 +82,12 @@ export function Subscribers({
   if (prevNavKey !== navKey) {
     setPrevNavKey(navKey);
     setSearchValue(query.search);
-    debouncedSearch.cancel();
   }
+  useNewsletterSearchCancel({ navKey, debouncedSearch });
+  useEventListener("window", "popstate", () => {
+    debouncedSearch.cancel();
+    setSearchValue(query.search);
+  });
   const [dialog, setDialog] = useState<"add" | "import" | "contacts" | null>(
     null,
   );

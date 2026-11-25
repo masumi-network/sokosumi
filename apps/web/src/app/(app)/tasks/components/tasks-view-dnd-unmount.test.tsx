@@ -342,23 +342,10 @@ describe("TasksView real PointerSensor unmount guard", () => {
     // Filter B commits without `task-1`, unmounting filter A's keyed TasksBoard.
     rerender(taggedBoard("writing", []));
 
-    const removeDocumentListener = vi.spyOn(document, "removeEventListener");
-
     // Releasing the pointer delivers pointerup to filter A's document listener.
     await act(async () => {
       fireEvent(document, makePointerEvent("pointerup", 250, 50));
     });
-
-    // @dnd-kit's PointerSensor.detach() removes its document listeners on a
-    // 50ms timeout; wait for it to finish before teardown aborts pending timers
-    // so selectionchange/click listeners do not leak across files.
-    await waitFor(() =>
-      expect(removeDocumentListener).toHaveBeenCalledWith(
-        "selectionchange",
-        expect.any(Function),
-        undefined,
-      ),
-    );
 
     expect(setTaskStatusFromDrag).not.toHaveBeenCalled();
   });

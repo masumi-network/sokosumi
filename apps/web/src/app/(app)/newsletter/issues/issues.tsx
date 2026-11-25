@@ -20,6 +20,8 @@ import {
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { getEnvPublicConfig } from "@/config/env.public";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
+import { useNewsletterSearchCancel } from "@/hooks/effects/use-newsletter-search-cancel";
 import { cn } from "@/lib/utils";
 import { newsletterHref } from "../newsletter-tabs";
 import { DraftIssueButton } from "./draft-issue-dialog";
@@ -66,9 +68,13 @@ export function Issues({
   if (prevNavKey !== navKey) {
     setPrevNavKey(navKey);
     setSearchValue(query.q);
-    debouncedSearch.cancel();
   }
-  const searching = Boolean(query.q.trim());
+  useNewsletterSearchCancel({ navKey, debouncedSearch });
+  useEventListener("window", "popstate", () => {
+    debouncedSearch.cancel();
+    setSearchValue(query.q);
+  });
+  const searching = Boolean(searchValue.trim());
   const newIssue = readOnly ? null : (
     <div className="flex flex-wrap justify-center gap-2">
       <DraftIssueButton projectId={projectId} />

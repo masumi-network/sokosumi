@@ -16,7 +16,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getEnvPublicConfig } from "@/config/env.public";
 import de from "@/messages/de.json";
 import en from "@/messages/en.json";
@@ -165,6 +165,10 @@ beforeEach(() => {
   mocks.remove.mockResolvedValue({ ok: true, value: null });
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("newsletter subscribers", () => {
   it.each(["en", "de", "es"] as const)(
     "labels subscriber card metadata in %s",
@@ -269,26 +273,50 @@ describe("newsletter subscribers", () => {
   });
 
   it("cancels a pending debounced search when a competing action runs", async () => {
-    const user = userEvent.setup();
+    vi.useFakeTimers();
     renderSubscribers({ searchParams: "?cursor=s1&status=ACTIVE" });
     const searchbox = screen.getByRole("searchbox");
-    await user.type(searchbox, "ada");
+    fireEvent.change(searchbox, { target: { value: "ada" } });
     expect(searchbox).toHaveValue("ada");
     expect(mocks.url).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: COPY.nextPage }));
-    await waitFor(() => expect(mocks.url).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: COPY.nextPage }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(mocks.url).toHaveBeenCalledTimes(1);
     expect(mocks.url.mock.lastCall?.[0].searchParams.get("cursor")).toBe("s2");
     expect(mocks.url.mock.lastCall?.[0].searchParams.has("search")).toBe(false);
     expect(searchbox).toHaveValue("");
 
-    await new Promise((resolve) =>
-      setTimeout(
-        resolve,
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(
         getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME + 50,
-      ),
-    );
+      );
+    });
     expect(mocks.url).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels a pending debounced search on Back navigation to the same query values", async () => {
+    vi.useFakeTimers();
+    renderSubscribers({ searchParams: "?cursor=s1&status=ACTIVE" });
+    const searchbox = screen.getByRole("searchbox");
+    fireEvent.change(searchbox, { target: { value: "ada" } });
+    expect(searchbox).toHaveValue("ada");
+    expect(mocks.url).not.toHaveBeenCalled();
+
+    window.history.replaceState(null, "", "#section");
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(searchbox).toHaveValue("");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(
+        getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME + 50,
+      );
+    });
+    expect(mocks.url).not.toHaveBeenCalled();
   });
 
   it("links the subscriber's current contact name and the newsletter's list to Contacts", () => {
