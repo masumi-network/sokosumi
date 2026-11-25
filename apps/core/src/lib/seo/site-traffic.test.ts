@@ -312,6 +312,28 @@ describe("website-scoped Search Console traffic", () => {
     expect(report.brand).toBeUndefined();
     expect(report.totals).toEqual({ clicks: 12, impressions: 97 });
   });
+  it("returns the totals when the query read never answers", async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = readSiteTraffic(
+        request,
+        apex,
+        [apex],
+        [inspection],
+        (args) =>
+          (args.dimensions as string[]).includes("query")
+            ? new Promise<never>(() => {})
+            : google(args),
+        ["Sample Site"],
+      );
+      await vi.advanceTimersByTimeAsync(40_000);
+      const report = await pending;
+      expect(report.brand).toBeUndefined();
+      expect(report.totals).toEqual({ clicks: 12, impressions: 97 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it("asks a feed for no query rows", async () => {
     const read = vi.fn(google);
     const report = await readSiteTraffic(

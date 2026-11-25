@@ -53,7 +53,6 @@ function readRows(value: unknown, schema = response) {
     throw new Error("Unrecognized Search Console traffic response");
   return schema.parse(payload).rows;
 }
-/** Every provider call, including the headline total, carries the same site boundary. */
 /** Gives up on one hung read after twice the read budget. The split is then absent. */
 function withBrandBudget<T>(split: Promise<T>): Promise<T | undefined> {
   let stop = () => {};
@@ -64,6 +63,7 @@ function withBrandBudget<T>(split: Promise<T>): Promise<T | undefined> {
   return Promise.race([split.catch(() => undefined), late]).finally(stop);
 }
 
+/** Every provider call, including the headline total, carries the same site boundary. */
 export async function readSiteTraffic(
   input: SiteTrafficInput,
   siteUrl: string,
