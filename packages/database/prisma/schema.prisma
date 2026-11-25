@@ -161,6 +161,7 @@ model Workspace {
   contactCompanies     ContactCompany[]
   contactCompanyLists  ContactCompanyList[]
   fundraisingProspects FundraisingProspect[]
+  fundraisingPortfolio FundraisingPortfolioCompany[]
 
   seoAudits            SeoAudit[]
   seoConnections       SeoConnection[]

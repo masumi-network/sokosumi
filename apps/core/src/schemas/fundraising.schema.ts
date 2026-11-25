@@ -128,3 +128,66 @@ export const fundraisingSuggestionIdsSchema = z
   .openapi("FundraisingSuggestionIds");
 
 export type FundraisingResearchDto = z.input<typeof fundraisingResearchSchema>;
+
+export const fundraisingPortfolioCompanySchema = z
+  .object({
+    id: z.uuid(),
+    name: z.string(),
+    website: z.string().nullable(),
+    round: z.string().nullable(),
+    date: z.string().nullable(),
+    amountUsd: z.int().nullable(),
+    sourceUrl: z.string(),
+    fetchedAt: dateTimeSchema,
+  })
+  .openapi("FundraisingPortfolioCompany");
+
+export const FUNDRAISING_PATH_KINDS = ["direct", "fund", "portfolio"] as const;
+
+/** One way to reach an investor, strongest first. */
+export const fundraisingPathSchema = z
+  .object({
+    kind: z.enum(FUNDRAISING_PATH_KINDS).openapi("FundraisingPathKind"),
+    /** The teammate who holds the relationship; null when nobody has been in touch. */
+    via: z.union([contactPersonSchema, z.null()]),
+    /** The contact the path runs through; null for a direct path. */
+    through: z.union([
+      z.object({
+        id: z.uuid(),
+        name: z.string(),
+        role: z.string().nullable(),
+        organization: z.string().nullable(),
+        avatarUrl: z.string().nullable(),
+        email: z.string().nullable(),
+      }),
+      z.null(),
+    ]),
+    /** The fund, or the portfolio company the path runs through. */
+    company: z.union([
+      z.object({
+        name: z.string(),
+        round: z.string().nullable(),
+        date: z.string().nullable(),
+      }),
+      z.null(),
+    ]),
+    /** 0 to 100: how much to trust this path. */
+    strength: z.int(),
+    touches: z.int(),
+    lastTouchAt: dateTimeSchema.nullable(),
+  })
+  .openapi("FundraisingPath");
+
+export const fundraisingPathsSchema = z
+  .object({
+    portfolio: z.array(fundraisingPortfolioCompanySchema),
+    researchedAt: dateTimeSchema.nullable(),
+    /** What one portfolio research run costs. */
+    researchUsd: z.number(),
+    paths: z.array(fundraisingPathSchema),
+    research: fundraisingResearchSchema,
+  })
+  .openapi("FundraisingPaths");
+
+export type FundraisingPathDto = z.input<typeof fundraisingPathSchema>;
+export type FundraisingPathsDto = z.input<typeof fundraisingPathsSchema>;

@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { render } from "@testing-library/react";
+import { Activity, createElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -394,6 +396,96 @@ describe("room message highlight", () => {
 
     expect(reply.dataset.searchLanded).toBe("true");
     expect(parent.dataset.searchLanded).toBe("true");
+  });
+
+  it("keeps an active highlight across React Activity hide and reveal, then removes it at expiry", async () => {
+    vi.useFakeTimers();
+
+    function ListTree() {
+      return createElement(
+        "div",
+        { "data-chat-message-list": CHAT_MESSAGE_LIST_ROOM },
+        createElement("article", { "data-message-id": "msg-80" }),
+      );
+    }
+
+    const { container, rerender } = render(
+      createElement(Activity, {
+        mode: "visible",
+        children: createElement(ListTree),
+      }),
+    );
+    const article = container.querySelector<HTMLElement>(
+      '[data-message-id="msg-80"]',
+    );
+    if (!article) {
+      throw new Error("expected message row");
+    }
+    article.scrollIntoView = vi.fn();
+
+    expect(highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-80")).toBe(true);
+    expect(article.dataset.searchLanded).toBe("true");
+
+    // Activity hide sets display:none while keeping the row connected.
+    const halfHold = Math.floor(ROOM_MESSAGE_HIGHLIGHT_MS / 2);
+    rerender(
+      createElement(Activity, {
+        mode: "hidden",
+        children: createElement(ListTree),
+      }),
+    );
+    await Promise.resolve();
+    vi.advanceTimersByTime(halfHold);
+
+    rerender(
+      createElement(Activity, {
+        mode: "visible",
+        children: createElement(ListTree),
+      }),
+    );
+    expect(article.isConnected).toBe(true);
+    expect(article.dataset.searchLanded).toBe("true");
+
+    vi.advanceTimersByTime(ROOM_MESSAGE_HIGHLIGHT_MS - halfHold - 1);
+    expect(article.dataset.searchLanded).toBe("true");
+
+    vi.advanceTimersByTime(1);
+    expect(article.dataset.searchLanded).toBeUndefined();
+  });
+
+  it("disposes the mark, scroll listeners, and timer when a row is detached without touching other lists", async () => {
+    vi.useFakeTimers();
+    const removed = vi.spyOn(window, "removeEventListener");
+    const parent = row("msg-70", CHAT_MESSAGE_LIST_ROOM);
+    const reply = row("msg-71", CHAT_MESSAGE_LIST_THREAD);
+
+    highlightListMessage(CHAT_MESSAGE_LIST_ROOM, "msg-70");
+    highlightListMessage(CHAT_MESSAGE_LIST_THREAD, "msg-71");
+
+    parent.remove();
+    await Promise.resolve();
+
+    expect(parent.dataset.searchLanded).toBeUndefined();
+    expect(reply.dataset.searchLanded).toBe("true");
+    expect(removed).toHaveBeenCalledWith("wheel", expect.any(Function), {
+      capture: true,
+    });
+    expect(removed).toHaveBeenCalledWith("touchmove", expect.any(Function), {
+      capture: true,
+    });
+
+    document.body.innerHTML = "";
+    await Promise.resolve();
+    expect(reply.dataset.searchLanded).toBeUndefined();
+
+    const originalWindow = globalThis.window;
+    // @ts-expect-error simulates happy-dom teardown deleting window.
+    delete globalThis.window;
+    try {
+      vi.advanceTimersByTime(ROOM_MESSAGE_HIGHLIGHT_MS + 100);
+    } finally {
+      globalThis.window = originalWindow;
+    }
   });
 
   /**

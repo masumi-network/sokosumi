@@ -3,10 +3,7 @@ import type { FundraisingProspect, Member } from "@sokosumi/core-client";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import {
-  ContactAvatar,
-  PersonAvatar,
-} from "@/app/contacts/components/contact-visuals";
+import { ContactAvatar } from "@/app/contacts/components/contact-visuals";
 import { InlineField } from "@/app/contacts/components/inline-field";
 import { primaryEmail } from "@/app/contacts/contacts-view";
 import { Button } from "@/components/ui/button";
@@ -21,6 +18,7 @@ import { parseUsd } from "../fundraising-view";
 import { useProspectUpdate } from "../use-fundraising";
 import { RoomSummary } from "./fundraising-board";
 import { OwnerSelect, StageSelect } from "./prospect-controls";
+import { WarmPaths } from "./warm-paths";
 
 function Field({
   label,
@@ -220,35 +218,7 @@ export function ProspectSheet({
                 />
               </Field>
 
-              <Field label={t("sheet.knownBy")}>
-                {contact.knownBy.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">
-                    {t("sheet.knownByNobody")}
-                  </p>
-                ) : (
-                  <ul className="grid gap-1.5">
-                    {contact.knownBy.map((person) => (
-                      <li
-                        key={person.id}
-                        className="flex items-center gap-2 text-sm"
-                      >
-                        <PersonAvatar person={person} />
-                        <span className="min-w-0 flex-1 truncate">
-                          {person.name}
-                        </span>
-                        <span className="text-muted-foreground text-xs tabular-nums">
-                          {t("sheet.touches", {
-                            count: person.interactionCount,
-                          })}
-                          {person.lastInteractionAt
-                            ? ` · ${format.relativeTime(new Date(person.lastInteractionAt), now)}`
-                            : ""}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </Field>
+              <WarmPaths prospect={prospect} now={now} />
 
               <Field label={t("columns.dataRoom")}>
                 <p className="text-sm">

@@ -22795,6 +22795,234 @@ export const FundraisingSuggestionIdsSchema = {
     ]
 } as const;
 
+export const FundraisingPathsSchema = {
+    type: 'object',
+    properties: {
+        portfolio: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/FundraisingPortfolioCompany'
+            }
+        },
+        researchedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        researchUsd: {
+            type: 'number'
+        },
+        paths: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/FundraisingPath'
+            }
+        },
+        research: {
+            $ref: '#/components/schemas/FundraisingResearch'
+        }
+    },
+    required: [
+        'portfolio',
+        'researchedAt',
+        'researchUsd',
+        'paths',
+        'research'
+    ]
+} as const;
+
+export const FundraisingPortfolioCompanySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        website: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        round: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        date: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        amountUsd: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        sourceUrl: {
+            type: 'string'
+        },
+        fetchedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'website',
+        'round',
+        'date',
+        'amountUsd',
+        'sourceUrl',
+        'fetchedAt'
+    ]
+} as const;
+
+export const FundraisingPathSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            $ref: '#/components/schemas/FundraisingPathKind'
+        },
+        via: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactPerson'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        through: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        name: {
+                            type: 'string'
+                        },
+                        role: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        organization: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        avatarUrl: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        email: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'role',
+                        'organization',
+                        'avatarUrl',
+                        'email'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        company: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        name: {
+                            type: 'string'
+                        },
+                        round: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        date: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'name',
+                        'round',
+                        'date'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        strength: {
+            type: 'integer'
+        },
+        touches: {
+            type: 'integer'
+        },
+        lastTouchAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'kind',
+        'via',
+        'through',
+        'company',
+        'strength',
+        'touches',
+        'lastTouchAt'
+    ]
+} as const;
+
+export const FundraisingPathKindSchema = {
+    type: 'string',
+    enum: [
+        'direct',
+        'fund',
+        'portfolio'
+    ]
+} as const;
+
 export const HistoryListSchema = {
     type: 'array',
     items: {

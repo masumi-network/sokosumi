@@ -604,6 +604,237 @@ export const CLI_COMMAND_CATALOG = [
     usage: "WORKSPACE_ID [--organization-slug WORKSPACE_SLUG]",
     operation: "GET /workspaces/{id}/social-connections/statistics",
   },
+  // SOKD-371: users, organizations and workspaces. `/users/{id}` commands take `me`.
+  {
+    command: "users registered",
+    usage: "--query email=EMAIL",
+    operation: "GET /users/registered",
+  },
+  {
+    command: "users update",
+    usage: "me --input-json JSON",
+    operation: "PATCH /users/{id}",
+  },
+  {
+    command: "workspaces credits",
+    usage: "me [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /users/{id}/credits",
+  },
+  {
+    command: "users set-design-md",
+    usage: "me --input-json JSON",
+    operation: "PUT /users/{id}/design-md",
+  },
+  {
+    command: "users preferences",
+    usage: "me",
+    operation: "GET /users/{id}/preferences",
+  },
+  {
+    command: "users update-preferences",
+    usage: "me --input-json JSON",
+    operation: "PATCH /users/{id}/preferences",
+  },
+  {
+    command: "users files",
+    usage: "me",
+    operation: "GET /users/{id}/files",
+  },
+  {
+    command: "users file-upload",
+    usage: "me --input-json JSON",
+    operation: "POST /users/{id}/files",
+  },
+  {
+    command: "users coworker-access",
+    usage: "me",
+    operation: "GET /users/{id}/coworker-access",
+  },
+  {
+    command: "users deny-coworker-access",
+    usage: "me ACCESS_ID --input-json '{}'",
+    operation: "POST /users/{id}/coworker-access/{accessId}/deny",
+  },
+  {
+    command: "users revoke-coworker-access",
+    usage: "me ACCESS_ID --input-json '{}'",
+    operation: "POST /users/{id}/coworker-access/{accessId}/revoke",
+  },
+  {
+    command: "users vendor-grants",
+    usage: "me [--query status=STATUS]",
+    operation: "GET /users/{id}/vendor-grants",
+  },
+  {
+    command: "users deny-vendor-grant",
+    usage: "me GRANT_ID --input-json '{}'",
+    operation: "POST /users/{id}/vendor-grants/{grantId}/deny",
+  },
+  {
+    command: "users revoke-vendor-grant",
+    usage: "me GRANT_ID --input-json '{}'",
+    operation: "POST /users/{id}/vendor-grants/{grantId}/revoke",
+  },
+  {
+    command: "workspaces create",
+    usage: "me --input-json JSON",
+    operation: "POST /users/{id}/workspaces",
+  },
+  {
+    command: "users preferred-workspace",
+    usage: "me",
+    operation: "GET /users/{id}/workspaces/preferred",
+  },
+  {
+    command: "users set-preferred-workspace",
+    usage: "me --input-json JSON",
+    operation: "PUT /users/{id}/workspaces/preferred",
+  },
+  {
+    command: "users delete-workspace",
+    usage: "me WORKSPACE_ID",
+    operation: "DELETE /users/{id}/workspaces/{workspaceId}",
+  },
+  {
+    command: "workspaces get",
+    usage: "WORKSPACE_ID",
+    operation: "GET /workspaces/{id}",
+  },
+  {
+    command: "workspaces ad-data-consent",
+    usage: "WORKSPACE_ID",
+    operation: "GET /workspaces/{id}/ad-data-consent",
+  },
+  {
+    command: "workspaces set-ad-data-consent",
+    usage: "WORKSPACE_ID --input-json JSON",
+    operation: "PUT /workspaces/{id}/ad-data-consent",
+  },
+  {
+    command: "workspaces design-md",
+    usage: "[--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /workspaces/design-md",
+  },
+  {
+    command: "workspaces calendar-labels",
+    usage: "WORKSPACE_ID --input-json JSON",
+    operation: "POST /workspaces/{id}/calendar/identity-labels",
+  },
+  {
+    command: "workspaces adhoc-design-md",
+    usage: "--input-json JSON",
+    operation: "POST /workspaces/design-md/adhoc",
+  },
+  {
+    command: "organizations memberships",
+    usage: "me",
+    operation: "GET /users/{id}/members",
+  },
+  {
+    command: "organizations credits",
+    usage: "me ORGANIZATION_ID",
+    operation: "GET /users/{id}/organizations/{organizationId}/credits",
+  },
+  {
+    command: "organizations membership",
+    usage: "me ORGANIZATION_ID",
+    operation: "GET /users/{id}/organizations/{organizationId}/member",
+  },
+  {
+    command: "organizations pending-invitations",
+    usage: "me",
+    operation: "GET /users/{id}/pending-organization-invitations",
+  },
+  {
+    command: "organizations get-by-slug",
+    usage: "SLUG",
+    operation: "GET /organizations/slug/{slug}",
+  },
+  {
+    command: "organizations get",
+    usage: "ORGANIZATION_ID",
+    operation: "GET /organizations/{id}",
+  },
+  {
+    command: "organizations members",
+    usage: "ORGANIZATION_ID",
+    operation: "GET /organizations/{id}/members",
+  },
+  {
+    command: "organizations assign-seat",
+    usage: "ORGANIZATION_ID MEMBER_ID --input-json '{}'",
+    operation: "PUT /organizations/{id}/members/{memberId}/seat",
+  },
+  {
+    command: "organizations unassign-seat",
+    usage: "ORGANIZATION_ID MEMBER_ID",
+    operation: "DELETE /organizations/{id}/members/{memberId}/seat",
+  },
+  {
+    command: "organizations invitations",
+    usage: "ORGANIZATION_ID",
+    operation: "GET /organizations/{id}/invitations",
+  },
+  {
+    command: "organizations invite-links",
+    usage: "ORGANIZATION_ID",
+    operation: "GET /organizations/{id}/invite-links",
+  },
+  {
+    command: "organizations create-invite-link",
+    usage: "ORGANIZATION_ID --input-json JSON",
+    operation: "POST /organizations/{id}/invite-links",
+  },
+  {
+    command: "organizations revoke-invite-link",
+    usage: "ORGANIZATION_ID TOKEN",
+    operation: "DELETE /organizations/{id}/invite-links/{token}",
+  },
+  {
+    command: "organizations coworker-access",
+    usage: "ORGANIZATION_ID",
+    operation: "GET /organizations/{id}/coworker-access",
+  },
+  {
+    command: "organizations deny-coworker-access",
+    usage: "ORGANIZATION_ID ACCESS_ID --input-json '{}'",
+    operation: "POST /organizations/{id}/coworker-access/{accessId}/deny",
+  },
+  {
+    command: "organizations revoke-coworker-access",
+    usage: "ORGANIZATION_ID ACCESS_ID --input-json '{}'",
+    operation: "POST /organizations/{id}/coworker-access/{accessId}/revoke",
+  },
+  {
+    command: "organizations vendor-grants",
+    usage: "ORGANIZATION_ID [--query status=STATUS]",
+    operation: "GET /organizations/{id}/vendor-grants",
+  },
+  {
+    command: "organizations deny-vendor-grant",
+    usage: "ORGANIZATION_ID GRANT_ID --input-json '{}'",
+    operation: "POST /organizations/{id}/vendor-grants/{grantId}/deny",
+  },
+  {
+    command: "organizations revoke-vendor-grant",
+    usage: "ORGANIZATION_ID GRANT_ID --input-json '{}'",
+    operation: "POST /organizations/{id}/vendor-grants/{grantId}/revoke",
+  },
+  {
+    command: "organizations set-design-md",
+    usage: "ORGANIZATION_ID --input-json JSON",
+    operation: "PUT /organizations/{id}/design-md",
+  },
+  {
+    command: "organizations standup",
+    usage: "ORGANIZATION_ID",
+    operation: "GET /organizations/{id}/standup",
+  },
+  {
+    command: "organizations set-standup",
+    usage: "ORGANIZATION_ID --input-json JSON",
+    operation: "PUT /organizations/{id}/standup",
+  },
   {
     command: "jobs update",
     usage: "JOB_ID --input-json JSON",
