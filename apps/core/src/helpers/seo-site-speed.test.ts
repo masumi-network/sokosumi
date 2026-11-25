@@ -837,6 +837,18 @@ describe("the guards of speed data on each path", () => {
     ]);
   });
 
+  it("drops a page URL with an empty fragment and counts it, fresh and stored", () => {
+    const fresh = read([extra(EXTRA), extra(`${EXTRA}#`)]);
+    expect(fresh?.rows.map((row) => row.url)).toEqual([EXTRA]);
+    expect(fresh?.dropped).toBe(1);
+    const stored = storedRows([
+      { url: EXTRA, audited: false, devices: [] },
+      { url: `${EXTRA}#`, audited: false, devices: [] },
+    ]);
+    expect(stored?.rows.map((row) => row.url)).toEqual([EXTRA]);
+    expect(stored?.dropped).toBe(1);
+  });
+
   it("drops only the stored row Core cannot read and counts it", () => {
     const table = storedRows([
       { url: EXTRA, audited: false, devices: [] },

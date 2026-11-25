@@ -22,10 +22,16 @@ export function speedPageUrl(value: unknown) {
 /**
  * A URL that speed data can hold. A digit run in a path is no card number (an ISBN-13 can pass that
  * checksum), so the URL gets the credential checks only. The checks read the URL as written and its
- * decoded path: `sk%5Flive%5F...` is a key too. A public URL has no query.
+ * decoded path: `sk%5Flive%5F...` is a key too. A public URL has no query and no fragment delimiter:
+ * `/page#` is `/page` again.
  */
 export function publicSpeedUrl(value: unknown): value is string {
-  if (typeof value !== "string" || !publicExplorationUrl(value)) return false;
+  if (
+    typeof value !== "string" ||
+    value.includes("#") ||
+    !publicExplorationUrl(value)
+  )
+    return false;
   try {
     return ![value, decodeURIComponent(new URL(value).pathname)].some(
       containsSokoBotCredentialMaterial,
