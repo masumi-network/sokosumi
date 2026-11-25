@@ -29,6 +29,10 @@ const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   process.env.DATABASE_URL?.startsWith("postgres");
 
+// Each request runs the ledger query, which is CPU-bound: on a loaded runner
+// one test can pass the 5 s default.
+vi.setConfig({ testTimeout: 90_000 });
+
 const memberA = randomUUID();
 const memberB = randomUUID();
 const outsider = randomUUID();

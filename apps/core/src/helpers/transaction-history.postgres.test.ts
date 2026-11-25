@@ -9,7 +9,7 @@
  * inside a transaction that always rolls back.
  */
 import { createPrismaClient } from "@sokosumi/database/client";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 
 import {
   type BuildTransactionHistoryParams,
@@ -24,6 +24,13 @@ const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   url?.startsWith("postgres");
 const db = enabled && url ? createPrismaClient(url) : null;
+
+// The ledger query is CPU-bound, so on a loaded runner one test can pass the
+// 5 s default. Fixtures use fixed ids, so a test that gave up while its
+// transaction was still open made every later test wait on its rows and time
+// out too. The test timeout must outlast the 60 s transaction in
+// `withSeededLedger`, which then rolls back before the test is abandoned.
+vi.setConfig({ testTimeout: 90_000 });
 
 afterAll(async () => {
   await db?.$disconnect();
@@ -212,7 +219,7 @@ async function withSeededLedger(
         await body(tx);
         throw rollback;
       },
-      { timeout: 30_000 },
+      { timeout: 60_000 },
     );
   } catch (error) {
     if (error !== rollback) throw error;

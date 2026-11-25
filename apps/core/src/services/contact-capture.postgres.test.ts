@@ -1264,9 +1264,11 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
         expect(
           person?.channels.find((channel) => channel.type === "X")?.followers,
         ).toBe(80);
+      // Both channels are created in one transaction, so their `createdAt` is
+      // equal and the database gives no order between them.
       expect(
-        lena?.channels.map(({ type, value }) => `${type}:${value}`),
-      ).toEqual(["X:lenafox", "WEBSITE:https://lenafox.com"]);
+        lena?.channels.map(({ type, value }) => `${type}:${value}`).sort(),
+      ).toEqual(["WEBSITE:https://lenafox.com", "X:lenafox"]);
       const list = await prisma.contactList.findFirstOrThrow({
         where: { workspaceId: xWorkspaceId, name: "X followers" },
         include: { members: true },
