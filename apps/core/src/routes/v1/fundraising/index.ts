@@ -3,6 +3,7 @@ import mountAccess from "./access.js";
 import mountFind from "./find.js";
 import mountGet from "./get.js";
 import mountDraft from "./prospects/draft.js";
+import mountIntroAsk from "./prospects/intro-ask.js";
 import mountPatchProspect from "./prospects/patch.js";
 import mountPaths from "./prospects/paths.js";
 import mountSuggestions from "./suggestions.js";
@@ -19,5 +20,6 @@ mountFind(app);
 mountSuggestions(app);
 mountPaths(app);
 mountDraft(app);
+mountIntroAsk(app);
 
 export default app;

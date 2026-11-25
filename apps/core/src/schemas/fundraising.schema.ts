@@ -53,6 +53,75 @@ export const fundraisingResearchSchema = z
   })
   .openapi("FundraisingResearch");
 
+export const FUNDRAISING_PATH_KINDS = [
+  "direct",
+  "linkedin",
+  "fund",
+  "portfolio",
+] as const;
+
+/** One way to reach an investor, strongest first. */
+export const fundraisingPathSchema = z
+  .object({
+    kind: z.enum(FUNDRAISING_PATH_KINDS).openapi("FundraisingPathKind"),
+    /** The teammate who holds the relationship; null when nobody has been in touch. */
+    via: z.union([contactPersonSchema, z.null()]),
+    /** The teammate is connected to the person on LinkedIn (from an import). */
+    linkedIn: z.boolean(),
+    /** The contact the path runs through; null for a direct path. */
+    through: z.union([
+      z.object({
+        id: z.uuid(),
+        name: z.string(),
+        role: z.string().nullable(),
+        organization: z.string().nullable(),
+        avatarUrl: z.string().nullable(),
+        email: z.string().nullable(),
+      }),
+      z.null(),
+    ]),
+    /** The fund, or the portfolio company the path runs through. */
+    company: z.union([
+      z.object({
+        name: z.string(),
+        round: z.string().nullable(),
+        date: z.string().nullable(),
+      }),
+      z.null(),
+    ]),
+    /** 0 to 100: how much to trust this path. */
+    strength: z.int(),
+    touches: z.int(),
+    lastTouchAt: dateTimeSchema.nullable(),
+  })
+  .openapi("FundraisingPath");
+
+export const FUNDRAISING_INTRO_STATES = ["ASKED", "MADE", "DECLINED"] as const;
+export const fundraisingIntroStateSchema = z
+  .enum(FUNDRAISING_INTRO_STATES)
+  .openapi("FundraisingIntroState");
+
+/** The person asked to make the introduction: a contact or a teammate. */
+export const fundraisingConnectorSchema = z
+  .object({
+    kind: z.enum(["contact", "teammate"]),
+    id: z.string(),
+    name: z.string(),
+    image: z.string().nullable(),
+    email: z.string().nullable(),
+  })
+  .openapi("FundraisingConnector");
+
+/** The warm introduction in flight for an investor; all null before one is asked. */
+export const fundraisingIntroSchema = z
+  .object({
+    via: z.union([fundraisingConnectorSchema, z.null()]),
+    askedAt: dateTimeSchema.nullable(),
+    madeAt: dateTimeSchema.nullable(),
+    declinedAt: dateTimeSchema.nullable(),
+  })
+  .openapi("FundraisingIntro");
+
 export const fundraisingProspectSchema = z
   .object({
     contact: contactSchema,
@@ -69,6 +138,9 @@ export const fundraisingProspectSchema = z
     lastDraftAt: dateTimeSchema.nullable(),
     lastDraftSubject: z.string().nullable(),
     dataRoom: z.union([fundraisingDataRoomVisitSchema, z.null()]),
+    intro: fundraisingIntroSchema,
+    /** The strongest warm path the workspace has to this investor, or null. */
+    bestPath: z.union([fundraisingPathSchema, z.null()]),
   })
   .openapi("FundraisingProspect");
 
@@ -98,6 +170,17 @@ export const fundraisingProspectUpdateSchema = z
     committedUsd: z.int().min(0).nullable().optional(),
     notes: z.string().trim().max(10_000).nullable().optional(),
     source: z.string().trim().max(120).nullable().optional(),
+    /**
+     * Move the introduction along: ASKED (with the connector), MADE, DECLINED,
+     * or null to clear it. Stage, next step and follow-up date follow.
+     */
+    intro: z
+      .object({
+        state: fundraisingIntroStateSchema.nullable(),
+        viaContactId: z.uuid().optional(),
+        viaUserId: z.string().min(1).optional(),
+      })
+      .optional(),
   })
   .openapi("FundraisingProspectUpdate");
 
@@ -106,6 +189,10 @@ export type FundraisingProspectUpdate = z.infer<
   typeof fundraisingProspectUpdateSchema
 >;
 export type FundraisingProspectDto = z.input<typeof fundraisingProspectSchema>;
+export type FundraisingIntroDto = z.input<typeof fundraisingIntroSchema>;
+export type FundraisingConnectorDto = z.input<
+  typeof fundraisingConnectorSchema
+>;
 export type FundraisingPipelineDto = z.input<typeof fundraisingPipelineSchema>;
 export type FundraisingDataRoomVisitDto = z.input<
   typeof fundraisingDataRoomVisitSchema
@@ -150,49 +237,6 @@ export const fundraisingPortfolioCompanySchema = z
   })
   .openapi("FundraisingPortfolioCompany");
 
-export const FUNDRAISING_PATH_KINDS = [
-  "direct",
-  "linkedin",
-  "fund",
-  "portfolio",
-] as const;
-
-/** One way to reach an investor, strongest first. */
-export const fundraisingPathSchema = z
-  .object({
-    kind: z.enum(FUNDRAISING_PATH_KINDS).openapi("FundraisingPathKind"),
-    /** The teammate who holds the relationship; null when nobody has been in touch. */
-    via: z.union([contactPersonSchema, z.null()]),
-    /** The teammate is connected to the person on LinkedIn (from an import). */
-    linkedIn: z.boolean(),
-    /** The contact the path runs through; null for a direct path. */
-    through: z.union([
-      z.object({
-        id: z.uuid(),
-        name: z.string(),
-        role: z.string().nullable(),
-        organization: z.string().nullable(),
-        avatarUrl: z.string().nullable(),
-        email: z.string().nullable(),
-      }),
-      z.null(),
-    ]),
-    /** The fund, or the portfolio company the path runs through. */
-    company: z.union([
-      z.object({
-        name: z.string(),
-        round: z.string().nullable(),
-        date: z.string().nullable(),
-      }),
-      z.null(),
-    ]),
-    /** 0 to 100: how much to trust this path. */
-    strength: z.int(),
-    touches: z.int(),
-    lastTouchAt: dateTimeSchema.nullable(),
-  })
-  .openapi("FundraisingPath");
-
 export const fundraisingPathsSchema = z
   .object({
     portfolio: z.array(fundraisingPortfolioCompanySchema),
@@ -221,6 +265,39 @@ export const fundraisingDraftInputSchema = z
   })
   .openapi("FundraisingDraftInput");
 
+export const fundraisingIntroAskInputSchema = z
+  .object({
+    /** The connector: a contact on the workspace, or a teammate by user id. */
+    viaContactId: z.uuid().optional(),
+    viaUserId: z.string().min(1).optional(),
+    /** Let the investor into this data room and put its link in the forwardable note. */
+    inviteToRoomId: z.uuid().optional(),
+    /** Anything the mails should mention. */
+    note: z.string().trim().max(1000).optional(),
+  })
+  .openapi("FundraisingIntroAskInput");
+
+export const fundraisingMailDraftSchema = z
+  .object({
+    to: z.string(),
+    subject: z.string(),
+    body: z.string(),
+    /** The mailbox's draft id. */
+    draftId: z.string(),
+  })
+  .openapi("FundraisingMailDraft");
+
+/** Two drafts in the caller's mailbox: the ask to the connector, and the note they can forward. */
+export const fundraisingIntroAskResultSchema = z
+  .object({
+    ask: fundraisingMailDraftSchema,
+    forwardable: fundraisingMailDraftSchema,
+    provider: z.string(),
+    roomLink: z.string().nullable(),
+    prospect: fundraisingProspectSchema,
+  })
+  .openapi("FundraisingIntroAskResult");
+
 export const fundraisingDraftResultSchema = z
   .object({
     to: z.string(),
@@ -235,3 +312,6 @@ export const fundraisingDraftResultSchema = z
   .openapi("FundraisingDraftResult");
 
 export type FundraisingDraftInput = z.infer<typeof fundraisingDraftInputSchema>;
+export type FundraisingIntroAskInput = z.infer<
+  typeof fundraisingIntroAskInputSchema
+>;

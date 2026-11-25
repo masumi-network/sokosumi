@@ -1878,6 +1878,36 @@ export async function listContactOrganizations(
   `;
 }
 
+/** The live contacts at each of `names`' companies, by any spelling, keyed by the name as given. */
+export async function contactCompanyMembersByName(
+  workspaceId: string,
+  names: readonly string[],
+): Promise<Map<string, string[]>> {
+  const result = new Map<string, string[]>();
+  const wanted = [...new Set(names.filter((name) => name.trim()))];
+  if (!wanted.length) return result;
+  const rows = await prisma.$queryRaw<{ name: string; id: string }[]>`
+    ${contactCompaniesCte(workspaceId)}, wanted AS (
+      SELECT unnest(${wanted}::text[]) AS name
+    ), keys AS (
+      SELECT w.name, a.key FROM wanted w
+      JOIN assigned a ON a.org = regexp_replace(lower(w.name), '[^[:alnum:]]+', '', 'g')
+      UNION
+      SELECT w.name, cc.key FROM wanted w
+      JOIN contact_company cc ON cc."workspaceId" = ${workspaceId}::uuid
+        AND lower(cc.name) = lower(btrim(w.name))
+    )
+    SELECT DISTINCT k.name, a.id::text AS id
+    FROM keys k JOIN assigned a ON a.key = k.key
+  `;
+  for (const row of rows) {
+    const list = result.get(row.name) ?? [];
+    list.push(row.id);
+    result.set(row.name, list);
+  }
+  return result;
+}
+
 /** The live contacts at the company `name` belongs to, by any spelling. */
 export async function contactCompanyMemberIds(
   workspaceId: string,

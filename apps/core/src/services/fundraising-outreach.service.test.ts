@@ -8,10 +8,13 @@ const prismaMock = vi.hoisted(() => ({
   user: { findUnique: vi.fn() },
   contactInteraction: { findMany: vi.fn() },
   fundraisingProspect: { upsert: vi.fn() },
+  fundraisingPortfolioCompany: { findMany: vi.fn() },
+  member: { findFirst: vi.fn() },
 }));
 const mocks = vi.hoisted(() => ({
   ownerMailboxIntegration: vi.fn(),
   listFundraisingPipeline: vi.fn(),
+  updateFundraisingProspect: vi.fn(),
   updateContact: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: prismaMock }));
@@ -20,6 +23,7 @@ vi.mock("@/services/fundraising-mailbox.service", () => ({
 }));
 vi.mock("@/services/fundraising.service", () => ({
   listFundraisingPipeline: mocks.listFundraisingPipeline,
+  updateFundraisingProspect: mocks.updateFundraisingProspect,
 }));
 vi.mock("@/services/contacts.service", () => ({
   CONTACT_INCLUDE: {},
@@ -43,7 +47,12 @@ vi.mock("@/services/contact-enrichment.service", () => ({
   CONTACT_ENRICHMENT_MODEL: "test-model",
 }));
 
-import { draftOutreach, parseDraft } from "./fundraising-outreach.service";
+import {
+  draftIntroAsk,
+  draftOutreach,
+  parseDraft,
+  parseIntroAsk,
+} from "./fundraising-outreach.service";
 
 const actor = {
   workspaceId: "11111111-1111-7111-8111-111111111111",
@@ -81,6 +90,11 @@ const prospect = {
   thesis: "Pre-seed and seed in agent infrastructure",
   lastDraftAt: null,
   lastDraftSubject: null,
+  bestPath: {
+    kind: "portfolio",
+    through: { name: "Fay Founder" },
+    company: { name: "AgentPay" },
+  },
 };
 
 describe("parseDraft", () => {
@@ -234,5 +248,138 @@ describe("draftOutreach", () => {
       ),
     ).rejects.toMatchObject({ status: 422 });
     expect(createDraft).not.toHaveBeenCalled();
+  });
+});
+
+describe("draftIntroAsk", () => {
+  const CONNECTOR = "44444444-4444-7444-8444-444444444444";
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.ownerMailboxIntegration.mockResolvedValue(integration);
+    mocks.listFundraisingPipeline.mockResolvedValue({
+      prospects: [prospect],
+      rooms: [{ id: ROOM, title: "Seed Round 2026", token: "tok" }],
+    });
+    prismaMock.user.findUnique.mockResolvedValue({
+      name: "Patrick",
+      email: "patrick@example.com",
+    });
+    prismaMock.contact.findFirst.mockResolvedValue({
+      id: CONNECTOR,
+      name: "Fay Founder",
+      role: "CEO",
+      organization: "AgentPay",
+      channels: [{ type: "EMAIL", value: "fay@agentpay.com", isPrimary: true }],
+    });
+    prismaMock.contactInteraction.findMany.mockResolvedValue([
+      {
+        occurredAt: new Date("2026-11-10T10:00:00Z"),
+        channel: "MEETING",
+        summary: "Coffee in Berlin",
+      },
+    ]);
+    prismaMock.fundraisingPortfolioCompany.findMany.mockResolvedValue([
+      { name: "AgentPay", round: "Seed", date: "2026-03" },
+    ]);
+    prismaMock.dataRoom.findFirst.mockResolvedValue({ id: ROOM, token: "tok" });
+    prismaMock.dataRoom.findUnique.mockResolvedValue({
+      welcomeNote: "We make agent payments work.",
+      company: { legalName: "Masumi AG" },
+    });
+    prismaMock.organization.findUnique.mockResolvedValue({ name: "Masumi" });
+    prismaMock.dataRoomMember.upsert.mockResolvedValue({});
+    prismaMock.fundraisingProspect.upsert.mockResolvedValue({});
+    mocks.updateFundraisingProspect.mockResolvedValue({
+      ...prospect,
+      intro: { via: { kind: "contact", id: CONNECTOR }, askedAt: "now" },
+    });
+  });
+
+  it("puts the ask with the note below it, and the note alone, in the mailbox and marks the intro asked", async () => {
+    const compose = vi.fn().mockResolvedValue({
+      text: JSON.stringify({
+        ask: { subject: "Intro to Ann Partner for Masumi?", body: "Hi Fay, …" },
+        forwardable: { subject: "Intro to Ann for Masumi", body: "Hi Ann, …" },
+      }),
+      costUsd: 0.001,
+    });
+    const createDraft = vi
+      .fn()
+      .mockResolvedValueOnce("draft-ask")
+      .mockResolvedValueOnce("draft-fwd");
+    const result = await draftIntroAsk(
+      actor,
+      CONTACT,
+      { viaContactId: CONNECTOR, inviteToRoomId: ROOM },
+      { compose, createDraft },
+    );
+    expect(result.ask).toMatchObject({
+      to: "fay@agentpay.com",
+      subject: "Intro to Ann Partner for Masumi?",
+      draftId: "draft-ask",
+    });
+    expect(result.ask.body).toContain("Hi Fay, …");
+    expect(result.ask.body).toContain("Hi Ann, …");
+    expect(result.forwardable).toMatchObject({
+      to: "ann@anncapital.com",
+      body: "Hi Ann, …",
+      draftId: "draft-fwd",
+    });
+    expect(result.roomLink).toBe("https://app.example.com/share/rooms/tok");
+    const prompt = JSON.parse(compose.mock.calls[0]?.[0].prompt);
+    expect(prompt.connector).toMatchObject({
+      name: "Fay Founder",
+      lastTouches: [{ when: "2026-11-10" }],
+    });
+    expect(prompt.investor.howConnectorKnowsThem).toMatchObject({
+      kind: "portfolio",
+      company: "AgentPay",
+    });
+    expect(prompt.raise.roomLink).toBe(
+      "https://app.example.com/share/rooms/tok",
+    );
+    expect(mocks.updateFundraisingProspect).toHaveBeenCalledWith(
+      actor,
+      CONTACT,
+      { intro: { state: "ASKED", viaContactId: CONNECTOR } },
+    );
+  });
+
+  it("asks a teammate by mail too, and refuses without a connector or a mailbox", async () => {
+    prismaMock.member.findFirst.mockResolvedValue({
+      user: { name: "Bob Agent", email: "bob@example.com" },
+    });
+    const compose = vi.fn().mockResolvedValue({
+      text: JSON.stringify({
+        ask: { subject: "Intro?", body: "Hi Bob" },
+        forwardable: { subject: "Intro to Ann", body: "Hi Ann" },
+      }),
+      costUsd: 0,
+    });
+    const createDraft = vi.fn().mockResolvedValue("d");
+    const result = await draftIntroAsk(
+      actor,
+      CONTACT,
+      { viaUserId: "bob" },
+      { compose, createDraft },
+    );
+    expect(result.ask.to).toBe("bob@example.com");
+    expect(JSON.parse(compose.mock.calls[0]?.[0].prompt).connector.role).toBe(
+      "teammate",
+    );
+
+    await expect(
+      draftIntroAsk(actor, CONTACT, {}, { compose, createDraft }),
+    ).rejects.toMatchObject({ status: 422 });
+    mocks.ownerMailboxIntegration.mockResolvedValue(null);
+    await expect(
+      draftIntroAsk(
+        actor,
+        CONTACT,
+        { viaContactId: CONNECTOR },
+        { compose, createDraft },
+      ),
+    ).rejects.toMatchObject({ status: 422 });
+    expect(parseIntroAsk("nope")).toBeNull();
   });
 });

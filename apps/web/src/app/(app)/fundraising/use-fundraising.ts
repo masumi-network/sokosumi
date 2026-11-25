@@ -109,7 +109,8 @@ export function useProspectUpdate() {
       prospect: FundraisingProspect,
       patch: FundraisingProspectPatch,
     ) {
-      const { ownerUserId, ...rest } = patch;
+      // The intro's dates, stage and next step come back from Core.
+      const { ownerUserId, intro: _intro, ...rest } = patch;
       return run(
         prospect.contact.id,
         (current) => ({

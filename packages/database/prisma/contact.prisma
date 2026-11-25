@@ -138,6 +138,7 @@ model Contact {
   webLookups            ContactPeopleSearch[]
   search                ContactSearch?
   fundraising           FundraisingProspect?
+  fundraisingIntrosVia  FundraisingProspect[]         @relation("FundraisingIntroVia")
   portfolioOf           FundraisingPortfolioCompany[]
   linkedInConnections   ContactLinkedInConnection[]
 
@@ -520,13 +521,13 @@ model ContactCompanyListMember {
 /// export. One row per teammate and contact; `connectedOn` is LinkedIn's date.
 /// Warm paths read it: the teammate can ask this person for an introduction.
 model ContactLinkedInConnection {
-  workspaceId String   @db.Uuid
-  contactId   String   @db.Uuid
-  contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  workspaceId String    @db.Uuid
+  contactId   String    @db.Uuid
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
   userId      String
-  user        User     @relation("ContactLinkedInConnectionUser", fields: [userId], references: [id], onDelete: Cascade)
+  user        User      @relation("ContactLinkedInConnectionUser", fields: [userId], references: [id], onDelete: Cascade)
   connectedOn DateTime? @db.Date
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
   @@id([contactId, userId])
   @@index([workspaceId, userId])
