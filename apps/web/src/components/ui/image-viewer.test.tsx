@@ -210,6 +210,64 @@ describe("ImageViewer", () => {
     expect(printDoc!.title).toBe(maliciousAlt);
 
     await waitFor(() => expect(printSpy).toHaveBeenCalled());
+    iframe!.contentWindow?.dispatchEvent(new Event("afterprint"));
+    expect(document.querySelector("iframe")).toBeNull();
+  });
+
+  it("still prints and cleans up its iframe after switching images or closing the viewer", async () => {
+    const firstPrintSpy = vi.fn();
+    const { rerender } = render(
+      <ImageViewer
+        images={GALLERY}
+        activeSrc={GALLERY[0].src}
+        onActiveSrcChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Print" }));
+
+    const firstIframe = document.querySelector("iframe");
+    expect(firstIframe).not.toBeNull();
+    Object.defineProperty(firstIframe!.contentWindow, "print", {
+      value: firstPrintSpy,
+      writable: true,
+    });
+
+    // Switching images remounts the keyed ImageViewerChrome before onload.
+    rerender(
+      <ImageViewer
+        images={GALLERY}
+        activeSrc={GALLERY[1].src}
+        onActiveSrcChange={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(firstPrintSpy).toHaveBeenCalledOnce());
+    firstIframe!.contentWindow?.dispatchEvent(new Event("afterprint"));
+    expect(document.querySelector("iframe")).toBeNull();
+
+    // Closing the viewer right after Print still prints and cleans up via the bounded fallback timer.
+    const secondPrintSpy = vi.fn();
+    fireEvent.click(screen.getByRole("button", { name: "Print" }));
+    const secondIframe = document.querySelector("iframe");
+    expect(secondIframe).not.toBeNull();
+    Object.defineProperty(secondIframe!.contentWindow, "print", {
+      value: secondPrintSpy,
+      writable: true,
+    });
+
+    rerender(
+      <ImageViewer
+        images={GALLERY}
+        activeSrc={null}
+        onActiveSrcChange={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(secondPrintSpy).toHaveBeenCalledOnce());
+    await waitFor(() => expect(document.querySelector("iframe")).toBeNull(), {
+      timeout: 1500,
+    });
   });
 
   describe("gallery", () => {

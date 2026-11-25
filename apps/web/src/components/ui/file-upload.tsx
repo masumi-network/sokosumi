@@ -358,12 +358,16 @@ function FileUploadRoot(props: FileUploadRootProps) {
     [accept],
   );
 
+  const progressFrameRef = React.useRef(0);
+  const uploadFramesRef = React.useRef<Set<number>>(new Set());
+  const invalidTimeoutRef = React.useRef<
+    ReturnType<typeof setTimeout> | undefined
+  >(undefined);
   const onProgress = useLazyRef(() => {
-    let frame = 0;
     return (file: File, progress: number) => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
+      if (progressFrameRef.current) return;
+      progressFrameRef.current = requestAnimationFrame(() => {
+        progressFrameRef.current = 0;
         store.dispatch({
           type: "SET_PROGRESS",
           file,
@@ -386,7 +390,21 @@ function FileUploadRoot(props: FileUploadRootProps) {
   }, [value, defaultValue, isControlled, store]);
 
   React.useEffect(() => {
+    const uploadFrames = uploadFramesRef.current;
     return () => {
+      if (progressFrameRef.current) {
+        cancelAnimationFrame(progressFrameRef.current);
+        progressFrameRef.current = 0;
+      }
+      for (const frame of uploadFrames) {
+        cancelAnimationFrame(frame);
+      }
+      uploadFrames.clear();
+      if (invalidTimeoutRef.current !== undefined) {
+        clearTimeout(invalidTimeoutRef.current);
+        invalidTimeoutRef.current = undefined;
+        store.dispatch({ type: "SET_INVALID", invalid: false });
+      }
       for (const file of files.keys()) {
         const cachedUrl = urlCache.get(file);
         if (cachedUrl) {
@@ -394,7 +412,7 @@ function FileUploadRoot(props: FileUploadRootProps) {
         }
       }
     };
-  }, [files, urlCache]);
+  }, [files, store, urlCache]);
 
   const onFilesChange = React.useCallback(
     (originalFiles: File[]) => {
@@ -482,7 +500,11 @@ function FileUploadRoot(props: FileUploadRootProps) {
 
       if (invalid) {
         store.dispatch({ type: "SET_INVALID", invalid });
-        setTimeout(() => {
+        if (invalidTimeoutRef.current !== undefined) {
+          clearTimeout(invalidTimeoutRef.current);
+        }
+        invalidTimeoutRef.current = setTimeout(() => {
+          invalidTimeoutRef.current = undefined;
           store.dispatch({ type: "SET_INVALID", invalid: false });
         }, 2000);
       }
@@ -506,9 +528,11 @@ function FileUploadRoot(props: FileUploadRootProps) {
         }
 
         if (onUpload) {
-          requestAnimationFrame(() => {
+          const frame = requestAnimationFrame(() => {
+            uploadFramesRef.current.delete(frame);
             onFilesUpload(acceptedFiles);
           });
+          uploadFramesRef.current.add(frame);
         }
       }
     },
