@@ -289,11 +289,60 @@ sokosumi jobs input JOB_ID --event-id EVENT_ID --input-file ./answer.json --json
 sokosumi jobs events JOB_ID
 sokosumi jobs files JOB_ID
 sokosumi jobs links JOB_ID
+sokosumi agents get AGENT_ID
+sokosumi agents reviews AGENT_ID
+sokosumi agents jobs AGENT_ID --query scope=workspace
+sokosumi jobs update JOB_ID --input-json '{"name":"Launch brief"}'
+sokosumi jobs move JOB_ID --input-json '{"organizationId":null}'
+sokosumi jobs unshare JOB_ID
 ```
 
 `agents hire` reads the input schema. Do not guess required fields. For a Job `inputRequest`, show its `eventId`, `message`, and `inputSchema`. Ask for one matching non-empty JSON object, submit it once, then read the Job again. Keep the selected target. Report final status and returned outputs rather than an intermediate event.
 
 [VERIFIED: `apps/cli/src/cli/commands/catalog.ts`] `jobs events`, `jobs files`, and `jobs links` each call one Core operation and print Core's JSON body as is. Commands like these take path values as positionals, `--query KEY=VALUE` (repeatable), `--input-json` or `--input-file` for a write body (required unless the command takes none), and `--organization-slug WORKSPACE_SLUG`; any other option is an error. Every `jobs` command takes `--organization-slug WORKSPACE_SLUG` for a Job in an organization Workspace.
+
+[VERIFIED: `apps/core/agent-surface/`] `jobs move` takes the Job away from everyone in its old Workspace; confirm first. Creating a public share link, requesting a refund, and rating an agent stay in the app (ADR 0077); `jobs unshare` may turn a link off.
+
+## Credits, history and notifications
+
+[VERIFIED: `apps/cli/src/cli/commands/catalog.ts`] These print Core's JSON body. `transactions` and `history` read the selected Workspace (`--organization-slug`); notifications are the signed-in person's own, and categories are the public catalog:
+
+```bash
+sokosumi transactions list --query taskId=TASK_ID
+sokosumi transactions total --query taskId=TASK_ID
+sokosumi transactions daily --query from=2026-11-01 --query to=2026-11-24
+sokosumi history list --query types=job
+sokosumi categories list
+sokosumi notifications list --query isRead=false
+sokosumi notifications counts
+sokosumi notifications read NOTIFICATION_ID
+sokosumi notifications read-many --input-json '{"ids":["NOTIFICATION_ID"]}'
+```
+
+Notifications are the signed-in person's own. Marking one read clears it everywhere; mark only what the person asked for.
+
+## Account, organizations and workspaces
+
+[VERIFIED: `apps/cli/src/cli/commands/catalog.ts`, `apps/core/agent-surface/users.json`, `organizations.json`, `workspaces.json`] These commands each call one Core operation, like `jobs events`. Commands on your own account take the literal `me` first. An action without a body still needs `--input-json '{}'`.
+
+```sh
+sokosumi workspaces credits me --organization-slug WORKSPACE_SLUG
+sokosumi users preferences me
+sokosumi users update me --input-json '{"firstName":"Ada","lastName":"Lovelace"}'
+sokosumi workspaces create me --input-json '{"kind":"personal"}'
+sokosumi users preferred-workspace me
+sokosumi workspaces design-md --organization-slug WORKSPACE_SLUG
+sokosumi organizations memberships me
+sokosumi organizations members ORGANIZATION_ID
+sokosumi organizations assign-seat ORGANIZATION_ID MEMBER_ID --input-json '{}'
+sokosumi organizations vendor-grants ORGANIZATION_ID --query status=PENDING
+sokosumi organizations deny-coworker-access ORGANIZATION_ID ACCESS_ID --input-json '{}'
+sokosumi organizations set-standup ORGANIZATION_ID --input-json '{"enabled":true,"timeOfDay":"09:00"}'
+```
+
+`sokosumi --help` lists the rest: users files, coworker access and vendor grants for the personal Workspace, the same for an organization, invitations, invite links, DESIGN.md and stand-up. Owner and admin commands answer 403 for other members. Commands that take `--input-json`, plus `workspaces delete`, `organizations unassign-seat` and `organizations revoke-invite-link`, are writes: on mainnet they need the operator `yes` above.
+
+Over MCP, the account tools (`users_get`, preferences, files, access and grants for the personal Workspace) are in the `users` toolset and the organization tools in `organizations`, both off by default; `workspaces_credits` and `workspaces_design_md` are on. To check the signed-in account over MCP, add `?toolsets=users` to the server URL and call `users_get` with id `me`. A person approves a Coworker's access request or grants a vendor access in Sokosumi, never an agent, on the CLI or over MCP (ADR 0077); agents may deny or revoke. Over MCP, managing invite links, changing ad-data consent and uploading files are not tools; the person does them in Sokosumi or on the CLI. Billing, account deletion, legal notices, sessions and OAuth consents stay in Sokosumi Web on both.
 
 ## Use Sokosumi over MCP
 
@@ -303,7 +352,7 @@ sokosumi jobs links JOB_ID
 claude mcp add --transport http sokosumi https://api.sokosumi.com/mcp
 ```
 
-[VERIFIED: `apps/core/src/lib/sokosumi-mcp/server.ts`, `docs/agents/agent-surface.md`] A tool's name is its CLI command with `_`: `tasks list` → `tasks_list`. Call `workspaces_list` first. A tool acts in the personal Workspace unless you pass an organization Workspace's slug as `workspace`, the MCP form of `--organization-slug`.
+[VERIFIED: `apps/core/src/lib/sokosumi-mcp/server.ts`, `docs/agents/agent-surface.md`] A tool's name is its CLI command with `_`: `tasks list` → `tasks_list`. Call `workspaces_list` first. A tool acts in the personal Workspace unless you pass an organization Workspace's slug as `workspace`, the MCP form of `--organization-slug`. The server URL without `?toolsets=` lists `workspaces`, `tasks` and `coworkers`. The marketplace is opt-in: add `agents` and `jobs` to browse and hire agents (`agents_hire` spends credits) and follow their Jobs, as in `?toolsets=workspaces,tasks,coworkers,agents,jobs`; `tasks_jobs` lists a Task's Jobs without them.
 
 [VERIFIED: ADR 0076, `apps/core/src/routes/mcp/mcp-oauth.integration.test.ts`] MCP tokens and CLI credentials do not mix. An MCP token works only at `/mcp`, and a CLI OAuth token or API key gets 401 there. Never ask for or paste either in chat. MCP writes to mainnet need the same explicit operator yes as CLI writes.
 

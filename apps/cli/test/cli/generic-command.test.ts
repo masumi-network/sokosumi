@@ -174,7 +174,42 @@ test("a generic write whose row has noBody sends no body and refuses one", async
   assert.deepEqual(calls, [{ path: "/v1/things/x-1/pause", body: undefined }]);
 });
 
+test("a write whose operation takes no body sends none and needs no input", async (t) => {
+  const f = fixture(t, { data: { id: "n-1", isRead: true } });
+  await runCli([...API, "notifications", "read", "n-1", "--json"], f.deps);
+  await runCli([...API, "notifications", "read-all", "--json"], f.deps);
+  assert.deepEqual(f.calls, [
+    {
+      method: "PATCH",
+      url: "https://fixture.invalid/v1/notifications/n-1/read",
+      slug: null,
+      body: undefined,
+    },
+    {
+      method: "PATCH",
+      url: "https://fixture.invalid/v1/notifications/read-all",
+      slug: null,
+      body: undefined,
+    },
+  ]);
+});
+
 for (const [name, argv, message] of [
+  [
+    "input on a write that takes no body",
+    ["notifications", "read", "n-1", "--input-json", "{}"],
+    /`notifications read` takes no --input-json or --input-file/,
+  ],
+  [
+    "an option a body-less write does not use",
+    ["notifications", "unread", "n-1", "--limit", "5"],
+    /`notifications unread` does not take --limit/,
+  ],
+  [
+    "a write with a body but no input",
+    ["jobs", "update", "job-1"],
+    /`jobs update` needs --input-json or --input-file/,
+  ],
   [
     "a missing path parameter",
     ["jobs", "events"],
