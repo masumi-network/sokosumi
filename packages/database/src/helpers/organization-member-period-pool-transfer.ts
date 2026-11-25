@@ -2,6 +2,7 @@ import {
   CreditBucketReferenceType,
   Prisma,
 } from "../generated/prisma/client.js";
+import { netTable } from "../sql-tables.js";
 import {
   ORGANIZATION_CREDIT_REFERENCE_PREFIX,
   ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
@@ -50,8 +51,8 @@ export async function listOrganizationIdsWithLeftoverMemberPeriodRemaining(
     FROM (
       SELECT
         cb."organizationId"
-      FROM credit_bucket cb
-      LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+      FROM ${netTable("mainnet", "credit_bucket")} cb
+      LEFT JOIN ${netTable("mainnet", "credit_consumption")} cc ON cc."bucketId" = cb.id
       WHERE cb."organizationId" IS NOT NULL
         AND ${leftoverMemberPeriodWhereSql}
         AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
@@ -80,8 +81,8 @@ async function listLeftoverMemberPeriodBucketsWithRemaining(
       cb."activatesAt",
       cb."organizationId",
       (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining
-    FROM credit_bucket cb
-    LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+    FROM ${netTable("mainnet", "credit_bucket")} cb
+    LEFT JOIN ${netTable("mainnet", "credit_consumption")} cc ON cc."bucketId" = cb.id
     WHERE ${organizationFilter}
       AND ${leftoverMemberPeriodWhereSql}
       AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})

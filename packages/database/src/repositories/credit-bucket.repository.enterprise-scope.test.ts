@@ -33,7 +33,9 @@ function extractNestedSqlValues(args: unknown[]): unknown[] {
       arg &&
       typeof arg === "object" &&
       "values" in arg &&
-      Array.isArray((arg as { values: unknown }).values)
+      Array.isArray((arg as { values: unknown }).values) &&
+      // The table names come first, as fragments without values.
+      (arg as { values: unknown[] }).values.length > 0
     );
   });
 

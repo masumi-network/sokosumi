@@ -4,6 +4,7 @@ import {
   type PrismaClient,
 } from "../generated/prisma/client.js";
 import { isPrismaUniqueConstraintError } from "../prisma-errors.js";
+import { netTable } from "../sql-tables.js";
 import {
   buildOrganizationInvoiceCreditReferenceId,
   ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
@@ -173,8 +174,8 @@ async function listLeftoverMemberPeriodRows(
       cb."expiresAt",
       cb."activatesAt",
       (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining
-    FROM credit_bucket cb
-    LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+    FROM ${netTable("mainnet", "credit_bucket")} cb
+    LEFT JOIN ${netTable("mainnet", "credit_consumption")} cc ON cc."bucketId" = cb.id
     WHERE ${organizationFilter}
       AND ${leftoverMemberPeriodWhereSql}
     GROUP BY
