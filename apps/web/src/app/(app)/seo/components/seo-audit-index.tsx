@@ -12,9 +12,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { unstable_rethrow } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useNow, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { PageSearchActions } from "@/components/page-search-actions";
+import { StatusBadge } from "@/components/soko-bot/status-badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -39,6 +40,7 @@ import { cn } from "@/lib/utils";
 import { seoAuditHref, seoIndexHref, seoProjectHref } from "../seo-href";
 import { SeoAuditForm } from "./seo-audit-form";
 import { SeoAuditOnboarding } from "./seo-audit-onboarding";
+import { type SeoAuditLastCheck, seoAuditCheckState } from "./seo-audit-status";
 import { SeoDate } from "./seo-shared";
 import { useCreateSeoAudit } from "./use-create-seo-audit";
 
@@ -171,6 +173,9 @@ export function SeoAuditIndex({
                     <p className="text-muted-foreground text-xs">
                       {t("audits.created")} <SeoDate value={audit.createdAt} />
                     </p>
+                    {audit.lastCheck ? (
+                      <SeoAuditCheckStatus check={audit.lastCheck} />
+                    ) : null}
                   </div>
                 </>
               );
@@ -268,5 +273,39 @@ export function SeoAuditIndex({
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/** The newest check of an audit: whether it runs, failed or when it last finished. */
+const CHECK_CLOCK_TICK_MS = 60_000;
+
+function SeoAuditCheckStatus({ check }: { check: SeoAuditLastCheck }) {
+  const t = useTranslations("App.Seo");
+  // A running check turns unfinished after its time limit, so the hydration-safe clock ticks each minute.
+  const state = seoAuditCheckState(
+    check,
+    useNow({ updateInterval: CHECK_CLOCK_TICK_MS }),
+  );
+  if (state === "running") {
+    return (
+      <StatusBadge tone="working" live>
+        {t("setup.checkRunningBadge")}
+      </StatusBadge>
+    );
+  }
+  if (state === "failed" || state === "unfinished") {
+    return (
+      <StatusBadge tone={state === "failed" ? "danger" : "warning"}>
+        {t(
+          state === "failed" ? "audits.checkFailed" : "audits.checkUnfinished",
+        )}
+      </StatusBadge>
+    );
+  }
+  return (
+    <p className="text-muted-foreground text-xs">
+      {t("audits.lastCheck", { kind: t(`analysis.${check.kind}`) })}{" "}
+      <SeoDate value={check.updatedAt} />
+    </p>
   );
 }

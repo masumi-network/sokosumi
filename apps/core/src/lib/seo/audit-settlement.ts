@@ -104,7 +104,7 @@ export async function prepareAuditSettlement(
     price.kind !== "cost_plus"
   ) {
     if (body.fullAuditCost)
-      throw unprocessableEntity("This Task has no cost-plus audit approval");
+      throw unprocessableEntity("This Task has no approved full-audit price");
     return;
   }
   if (packet?.fullAuditCost !== undefined) {
@@ -186,6 +186,6 @@ export async function requireSeparateAuditPurchaseAllowed(
   });
   if (audit)
     throw unprocessableEntity(
-      "A cost-plus audit charges once at completion and cannot make a separate Task purchase",
+      "A full audit charges once at completion and cannot make a separate Task purchase",
     );
 }

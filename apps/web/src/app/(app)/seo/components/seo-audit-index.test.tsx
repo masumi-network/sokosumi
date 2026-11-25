@@ -26,6 +26,7 @@ const AUDIT: SeoAuditSummary = {
   name: "Battery audit",
   projectId: null,
   pageCount: 1,
+  lastCheck: null,
   createdAt: new Date("2026-01-02T12:00:00Z"),
   updatedAt: new Date("2026-01-02T12:00:00Z"),
 };
@@ -90,6 +91,41 @@ describe("SEO audit list", () => {
       "/seo?projectId=project-id&auditId=shared",
     );
     expect(rows.queryByRole("button")).toBeNull();
+  });
+
+  it("says in each row whether the audit's newest check runs, failed or when it finished", () => {
+    const at = new Date();
+    const check = (status: "running" | "failed" | "completed") => ({
+      kind: "page_check" as const,
+      status,
+      createdAt: at,
+      updatedAt: at,
+    });
+    show(
+      [
+        {
+          ...AUDIT,
+          id: "running",
+          name: "Running",
+          lastCheck: check("running"),
+        },
+        { ...AUDIT, id: "failed", name: "Failed", lastCheck: check("failed") },
+        { ...AUDIT, id: "done", name: "Done", lastCheck: check("completed") },
+      ],
+      false,
+    );
+    const row = (name: string) =>
+      within(screen.getByRole("link", { name: new RegExp(name) }));
+    expect(
+      row("Running").getByText(messages.App.Seo.setup.checkRunningBadge),
+    ).toBeVisible();
+    expect(
+      row("Failed").getByText(messages.App.Seo.audits.checkFailed),
+    ).toBeVisible();
+    expect(row("Done").getByText(/Last check: Page check/)).toBeVisible();
+    expect(
+      row("Done").queryByText(messages.App.Seo.setup.checkRunningBadge),
+    ).toBeNull();
   });
 
   it.each([{ audits: [] }, { audits: [AUDIT] }])(

@@ -8,7 +8,11 @@ import {
 import { computeJobStatus } from "@sokosumi/database/helpers";
 import { sharedTable, sharedType } from "@sokosumi/database/sql-tables";
 import { jobForStatusComputeSelect } from "@sokosumi/database/types/job";
-import { convertCentsToCredits, SokosumiJobStatus } from "@sokosumi/utils";
+import {
+  convertCentsToCredits,
+  hideSeoAuditRequest,
+  SokosumiJobStatus,
+} from "@sokosumi/utils";
 import { getAgentIcon, getAgentName } from "@/helpers/agent";
 import type prisma from "@/lib/db/prisma";
 import { recordCoreWarning } from "@/lib/evlog";
@@ -629,7 +633,7 @@ export function mapHistoryRow(
   const baseItem = {
     id: row.entityId,
     title: row.title,
-    description: row.description,
+    description: hideSeoAuditRequest(row.description),
     status,
     createdAt: row.sortAt.toISOString(),
     archivedAt: row.archivedAt?.toISOString() ?? null,

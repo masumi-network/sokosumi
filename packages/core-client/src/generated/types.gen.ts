@@ -13774,6 +13774,14 @@ export type SeoAuditSummary = {
     name: string;
     projectId: string | null;
     pageCount: number;
+    lastCheck: SeoAuditLastCheck | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type SeoAuditLastCheck = {
+    kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full';
+    status: 'requested' | 'running' | 'completed' | 'failed';
     createdAt: Date;
     updatedAt: Date;
 };
@@ -73946,6 +73954,21 @@ export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData = {
 };
 
 export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */

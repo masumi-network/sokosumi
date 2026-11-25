@@ -1,5 +1,7 @@
 import { z } from "@hono/zod-openapi";
+import { hideSeoAuditRequest } from "@sokosumi/utils";
 import { conflict, unprocessableEntity } from "@/helpers/error";
+import { seoAuditTextUnchanged } from "@/helpers/seo-task-execution";
 import { toLocalDateKey } from "@/helpers/task-schedule";
 import {
   requestSeoAnalysisSchema,
@@ -122,6 +124,31 @@ export function seoMonitorDescription(plan: SeoMonitorPlan): string {
   return `${SEO_MONITOR_MARKER}${JSON.stringify(seoMonitorPacketSchema.parse(plan))}`;
 }
 
+/** A saved card's summary: its 4,000-character cut can end inside a full audit's request line. */
+export function savedScheduleSummaryForUser(
+  summary: string | null,
+): string | null {
+  const at = summary?.search(/^seo_audit:/m) ?? -1;
+  return seoMonitorDescriptionForUser(
+    summary && at >= 0 ? summary.slice(0, at).trimEnd() || null : summary,
+  );
+}
+
+/**
+ * The description a schedule edit writes. An SEO monitor keeps its plan, and a full audit's hidden request line
+ * stays when the edit sends back the text a person saw.
+ */
+export function taskScheduleDescriptionForWrite(
+  stored: string | null,
+  input: UpdateTaskScheduleRequest,
+): string | null | undefined {
+  if (isSeoMonitorDescription(stored))
+    return seoMonitorDescriptionWithRule(stored, input);
+  return seoAuditTextUnchanged(stored, input.description)
+    ? undefined
+    : input.description;
+}
+
 /**
  * The description after an edit of an SEO monitor. An edit replaces the rule only: the pages, the check and its
  * allowance stay as a person approved them, and the rule must be one an SEO monitor may hold.
@@ -205,7 +232,8 @@ export function seoMonitorSummary(
 export function seoMonitorDescriptionForUser(
   description: string | null,
 ): string | null {
-  if (!isSeoMonitorDescription(description)) return description;
+  if (!isSeoMonitorDescription(description))
+    return hideSeoAuditRequest(description);
   try {
     const plan = parseSeoMonitorPlan(description)!;
     const checks = {

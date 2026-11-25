@@ -1,6 +1,9 @@
 import * as Sentry from "@sentry/node";
 import { Prisma, TaskStatus, TaskVisibility } from "@sokosumi/database";
-import { removeTaskContextAttachmentLinks } from "@sokosumi/utils";
+import {
+  hideSeoAuditRequest,
+  removeTaskContextAttachmentLinks,
+} from "@sokosumi/utils";
 import { generateText } from "ai";
 import { getEnv } from "@/config/env";
 import {
@@ -170,7 +173,9 @@ function formatTaskForPrompt(task: ProjectMemoryTask): string {
   return `<completed_task id="${formatPromptData(task.id)}">
 <name>${formatPromptData(task.name, MAX_NAME_CHARS)}</name>
 <description>${formatPromptData(
-    removeTaskContextAttachmentLinks(task.description ?? "") || "None",
+    removeTaskContextAttachmentLinks(
+      hideSeoAuditRequest(task.description) ?? "",
+    ) || "None",
     MAX_TASK_DESCRIPTION_CHARS,
   )}</description>
 <assignee>${formatPromptData(

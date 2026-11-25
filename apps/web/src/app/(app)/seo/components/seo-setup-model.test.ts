@@ -101,6 +101,12 @@ describe("SEO first-run setup", () => {
       check: "running",
       next: null,
     });
+    // The free check of a new audit runs before the reader made a Google choice: the step stays open.
+    expect(seoSetup(workspace, undefined, false)).toMatchObject({
+      connection: "next",
+      check: "running",
+      next: null,
+    });
   });
 
   it("estimates a check in flight from the middle time of the earlier runs of its kind", () => {

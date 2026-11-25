@@ -591,7 +591,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           )
         : null;
     const mappedTasks = pageTasks.map((task) => {
-      const { openSubtasks, ...item } = mapTaskListItem(task);
+      const { openSubtasks, ...item } = mapTaskListItem(task, authContext);
       return {
         ...item,
         // Sub-task names go to people only: a coworker or a Soko Bot can

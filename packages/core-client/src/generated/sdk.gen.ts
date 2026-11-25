@@ -4107,7 +4107,7 @@ export const getProjects = <ThrowOnError extends boolean = false>(options?: Opti
 });
 
 /**
- * Create a project with an optional identifier, website, and briefing in the active workspace. The deprecated description field is accepted as a briefing alias. Interactive session user only; coworker keys are rejected.
+ * Create a project with an optional identifier, website, and briefing in the active workspace. The deprecated description field is accepted as a briefing alias. A person by any sign-in (browser, API key or OAuth token); Coworker and Soko Bot keys are rejected.
  */
 export const postProjects = <ThrowOnError extends boolean = false>(options?: Options<PostProjectsData, ThrowOnError>): RequestResult<PostProjectsResponses, PostProjectsErrors, ThrowOnError> => (options?.client ?? client).post<PostProjectsResponses, PostProjectsErrors, ThrowOnError>({
     responseTransformer: postProjectsResponseTransformer,
@@ -4147,7 +4147,7 @@ export const getProjectsStarred = <ThrowOnError extends boolean = false>(options
 });
 
 /**
- * Add an existing job to a project. Interactive session user only; coworker keys are rejected.
+ * Add an existing job to a project. A person by any sign-in (browser, API key or OAuth token); Coworker and Soko Bot keys are rejected.
  */
 export const postProjectsByIdJobs = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdJobsData, ThrowOnError>): RequestResult<PostProjectsByIdJobsResponses, PostProjectsByIdJobsErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdJobsResponses, PostProjectsByIdJobsErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdJobsResponseTransformer,
@@ -4160,7 +4160,7 @@ export const postProjectsByIdJobs = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * Remove a job from a project without deleting the job. Interactive session user only; coworker keys are rejected.
+ * Remove a job from a project without deleting the job. A person by any sign-in (browser, API key or OAuth token); Coworker and Soko Bot keys are rejected.
  */
 export const deleteProjectsByIdJobsByJobId = <ThrowOnError extends boolean = false>(options: Options<DeleteProjectsByIdJobsByJobIdData, ThrowOnError>): RequestResult<DeleteProjectsByIdJobsByJobIdResponses, DeleteProjectsByIdJobsByJobIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteProjectsByIdJobsByJobIdResponses, DeleteProjectsByIdJobsByJobIdErrors, ThrowOnError>({
     responseTransformer: deleteProjectsByIdJobsByJobIdResponseTransformer,
@@ -4169,7 +4169,7 @@ export const deleteProjectsByIdJobsByJobId = <ThrowOnError extends boolean = fal
 });
 
 /**
- * Add an existing task to a project. Parked tasks awaiting vendor create approval cannot be linked. Interactive session user only; coworker keys are rejected.
+ * Add an existing task to a project. Parked tasks awaiting vendor create approval cannot be linked. A person by any sign-in (browser, API key or OAuth token); Coworker and Soko Bot keys are rejected.
  */
 export const postProjectsByIdTasks = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdTasksData, ThrowOnError>): RequestResult<PostProjectsByIdTasksResponses, PostProjectsByIdTasksErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdTasksResponses, PostProjectsByIdTasksErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdTasksResponseTransformer,
@@ -4182,7 +4182,7 @@ export const postProjectsByIdTasks = <ThrowOnError extends boolean = false>(opti
 });
 
 /**
- * Remove a task from a project without deleting the task. Parked tasks cannot be unlinked. Interactive session user only; coworker keys are rejected.
+ * Remove a task from a project without deleting the task. Parked tasks cannot be unlinked. A person by any sign-in (browser, API key or OAuth token); Coworker and Soko Bot keys are rejected.
  */
 export const deleteProjectsByIdTasksByTaskId = <ThrowOnError extends boolean = false>(options: Options<DeleteProjectsByIdTasksByTaskIdData, ThrowOnError>): RequestResult<DeleteProjectsByIdTasksByTaskIdResponses, DeleteProjectsByIdTasksByTaskIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteProjectsByIdTasksByTaskIdResponses, DeleteProjectsByIdTasksByTaskIdErrors, ThrowOnError>({
     responseTransformer: deleteProjectsByIdTasksByTaskIdResponseTransformer,
@@ -4434,7 +4434,7 @@ export const getProjectsByIdClose = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * Freeze a revision-protected cutoff and begin closing a Project. Interactive session user only.
+ * Freeze a revision-protected cutoff and begin closing a Project. A person by any sign-in (browser, API key or OAuth token); Coworker and Soko Bot keys are rejected.
  */
 export const postProjectsByIdClose = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdCloseData, ThrowOnError>): RequestResult<PostProjectsByIdCloseResponses, PostProjectsByIdCloseErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdCloseResponses, PostProjectsByIdCloseErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdCloseResponseTransformer,
@@ -5004,7 +5004,7 @@ export const getProjectsByIdAdsAccountsByAccountIdCampaigns = <ThrowOnError exte
 });
 
 /**
- * Create a campaign in an attached ad account. The campaign is always created paused. dailyBudget is a decimal in the account currency. Meta accounts require an objective and take no google spec (422 otherwise); Google accounts require a google spec (type SEARCH: locations, languages, keywords and a responsive search ad with optional sitelinks and callouts; type DISPLAY: a responsive display ad with Drive images, which must belong to the active Workspace's Drive; the tree is created in one atomic call) and take no objective (422 otherwise). A Google validation or policy failure is returned as 422 with Google's message. Requires an interactive user session in the Project's Workspace.
+ * Create a campaign in an attached ad account. The campaign is always created paused. dailyBudget is a decimal in the account currency. Meta accounts require an objective and take no google spec (422 otherwise); Google accounts require a google spec (type SEARCH: locations, languages, keywords and a responsive search ad with optional sitelinks and callouts; type DISPLAY: a responsive display ad with Drive images, which must belong to the active Workspace's Drive; the tree is created in one atomic call) and take no objective (422 otherwise). A Google validation or policy failure is returned as 422 with Google's message. Open to a person and to an agent (user API key, OAuth or MCP token) in the Project's Workspace; Coworker keys get 403. A person resumes the campaign in Sokosumi before it spends (ADR 0077).
  */
 export const postProjectsByIdAdsAccountsByAccountIdCampaigns = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdAdsAccountsByAccountIdCampaignsData, ThrowOnError>): RequestResult<PostProjectsByIdAdsAccountsByAccountIdCampaignsResponses, PostProjectsByIdAdsAccountsByAccountIdCampaignsErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdAdsAccountsByAccountIdCampaignsResponses, PostProjectsByIdAdsAccountsByAccountIdCampaignsErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdAdsAccountsByAccountIdCampaignsResponseTransformer,
@@ -5026,7 +5026,7 @@ export const getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId = <Throw
 });
 
 /**
- * Pause or resume a campaign and/or change its daily budget (decimal in the account currency). The campaign must belong to the attached ad account. A Google campaign on a shared budget cannot change its budget, and a Meta campaign whose budget is on its ad sets cannot either (409). Requires an interactive user session in the Project's Workspace.
+ * Pause or resume a campaign and/or change its daily budget (decimal in the account currency). The campaign must belong to the attached ad account. A Google campaign on a shared budget cannot change its budget, and a Meta campaign whose budget is on its ad sets cannot either (409). Open to a person and to an agent (user API key, OAuth or MCP token) in the Project's Workspace; Coworker keys get 403. An agent (ADR 0077) may pause at any time and change the budget only while the campaign is paused (409 otherwise); it sends a status or a budget, not both (400); only a person resumes, so an agent's resume is 403 `person_approval_required` with `webUrl`, the Sokosumi page where the person does it.
  */
 export const patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId = <ThrowOnError extends boolean = false>(options: Options<PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData, ThrowOnError>): RequestResult<PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses, PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses, PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors, ThrowOnError>({
     url: '/projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}',
@@ -5038,7 +5038,7 @@ export const patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId = <Thr
 });
 
 /**
- * Edit a Google campaign: its name, daily budget (decimal in the account currency) and the whole google spec (the same fields as a create; Display images may also be `{assetId, role}` to keep an image of the ad). Only what differs from the campaign is changed, in one atomic call; nothing differs, nothing is sent (still 204). Only a campaign that is editable (`campaign.editable` in the details) can be edited here (409), `google.type` must be the campaign's type (422), an omitted startDate keeps the start date, which cannot change once the campaign started (422), and an omitted endDate removes the end date, and a kept image must be one of the ad's images (422). A shared budget cannot change its amount (422). A Google validation or policy failure is returned as 422 with Google's message. Google Ads accounts only; a Meta account, an unknown campaign and a removed campaign are 404. New Display images must belong to the active Workspace's Drive. Requires an interactive user session in the Project's Workspace.
+ * Edit a Google campaign: its name, daily budget (decimal in the account currency) and the whole google spec (the same fields as a create; Display images may also be `{assetId, role}` to keep an image of the ad). Only what differs from the campaign is changed, in one atomic call; nothing differs, nothing is sent (still 204). Only a campaign that is editable (`campaign.editable` in the details) can be edited here (409), `google.type` must be the campaign's type (422), an omitted startDate keeps the start date, which cannot change once the campaign started (422), and an omitted endDate removes the end date, and a kept image must be one of the ad's images (422). A shared budget cannot change its amount (422). A Google validation or policy failure is returned as 422 with Google's message. Google Ads accounts only; a Meta account, an unknown campaign and a removed campaign are 404. New Display images must belong to the active Workspace's Drive. Open to a person and to an agent (user API key, OAuth or MCP token) in the Project's Workspace; Coworker keys get 403. An agent edits only a paused campaign (409 otherwise, ADR 0077).
  */
 export const putProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId = <ThrowOnError extends boolean = false>(options: Options<PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData, ThrowOnError>): RequestResult<PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses, PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors, ThrowOnError> => (options.client ?? client).put<PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses, PutProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors, ThrowOnError>({
     url: '/projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}',
@@ -5606,7 +5606,7 @@ export const postProjectsByIdImageStudioAssetsByAssetIdCaption = <ThrowOnError e
 });
 
 /**
- * Project deletion is no longer available. Close the project instead. Interactive session user only; coworker keys are rejected.
+ * Project deletion is no longer available. Close the project instead. A person by any sign-in (browser, API key or OAuth token); Coworker and Soko Bot keys are rejected.
  */
 export const deleteProjectsById = <ThrowOnError extends boolean = false>(options: Options<DeleteProjectsByIdData, ThrowOnError>): RequestResult<unknown, DeleteProjectsByIdErrors, ThrowOnError> => (options.client ?? client).delete<unknown, DeleteProjectsByIdErrors, ThrowOnError>({ url: '/projects/{id}', ...options });
 
@@ -5620,7 +5620,7 @@ export const getProjectsById = <ThrowOnError extends boolean = false>(options: O
 });
 
 /**
- * Update a project's name, identifier, briefing, website, logo, default Studio logo placement, or social posting instructions. Null or blank postingInstructionsMd clears them. The deprecated description field is accepted as a briefing alias; DESIGN.md uses its dedicated PUT/DELETE routes. Changing websiteUrl does not clear logo or DESIGN.md. Interactive session user only; coworker keys are rejected.
+ * Update a project's name, identifier, briefing, website, logo, default Studio logo placement, or social posting instructions. Null or blank postingInstructionsMd clears them. The deprecated description field is accepted as a briefing alias; DESIGN.md uses its dedicated PUT/DELETE routes. Changing websiteUrl does not clear logo or DESIGN.md. A person by any sign-in (browser, API key or OAuth token); Coworker and Soko Bot keys are rejected.
  */
 export const patchProjectsById = <ThrowOnError extends boolean = false>(options: Options<PatchProjectsByIdData, ThrowOnError>): RequestResult<PatchProjectsByIdResponses, PatchProjectsByIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchProjectsByIdResponses, PatchProjectsByIdErrors, ThrowOnError>({
     responseTransformer: patchProjectsByIdResponseTransformer,
@@ -8670,7 +8670,7 @@ export const postTasksByIdEventsStartAdmissionV1 = <ThrowOnError extends boolean
 });
 
 /**
- * Settle a completed full audit once using the original cost-plus approval and verified API receipts.
+ * Settle a completed full audit once, using its approved price and verified API receipts.
  */
 export const postTasksByIdEventsSeoSettlementV1 = <ThrowOnError extends boolean = false>(options: Options<PostTasksByIdEventsSeoSettlementV1Data, ThrowOnError>): RequestResult<PostTasksByIdEventsSeoSettlementV1Responses, PostTasksByIdEventsSeoSettlementV1Errors, ThrowOnError> => (options.client ?? client).post<PostTasksByIdEventsSeoSettlementV1Responses, PostTasksByIdEventsSeoSettlementV1Errors, ThrowOnError>({
     responseTransformer: postTasksByIdEventsSeoSettlementV1ResponseTransformer,

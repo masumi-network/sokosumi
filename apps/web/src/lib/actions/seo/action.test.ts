@@ -14,6 +14,8 @@ const { revalidatePathMock, runNowMock, changeStateMock, requestAnalysisMock } =
     changeStateMock: vi.fn(),
   }));
 const setArchivedMock = vi.hoisted(() => vi.fn());
+const createAuditMock = vi.hoisted(() => vi.fn());
+const createMonitorMock = vi.hoisted(() => vi.fn());
 const authenticatedSessionId = vi.hoisted(() =>
   vi.fn<() => string | undefined>(),
 );
@@ -47,11 +49,15 @@ vi.mock("@/lib/services/task-schedule.service", () => ({
 vi.mock("@/lib/services/seo.service", () => ({
   seoServiceNoRedirect: {
     requestAnalysis: requestAnalysisMock,
+    createMonitor: createMonitorMock,
     setAuditArchived: setArchivedMock,
+    createAudit: createAuditMock,
   },
 }));
 
+import { seoTestWorkspace } from "@/app/seo/components/seo-test-fixture";
 import { mutateSeo } from "./action";
+import { createSeoAuditAction } from "./create-audit";
 import { setSeoAuditArchivedAction } from "./set-audit-archived";
 
 const OWNER = {
@@ -260,6 +266,74 @@ it.each([
   },
 );
 
+it("adds the full-audit price terms on the server, never from the browser", async () => {
+  const price = {
+    kind: "cost_plus",
+    version: 1,
+    minimumCredits: 750,
+    markupPercent: 50,
+  };
+  const viewer = {
+    userId: "reader",
+    organizationId: "team",
+    sessionId: CURRENT_SESSION_ID,
+  };
+  // A browser that sends its own terms still gets the server's.
+  const browserPrice = { ...price, markupPercent: 0 };
+  await mutateSeo({
+    owner: OWNER,
+    command: {
+      kind: "request_analysis",
+      body: { kind: "audit_full", fullAuditPrice: browserPrice },
+    } as SeoCommand,
+    briefViewer: viewer,
+  });
+  await mutateSeo({
+    owner: OWNER,
+    command: {
+      kind: "create_monitor",
+      body: {
+        analysis: { kind: "audit_full", fullAuditPrice: browserPrice },
+      },
+    } as SeoCommand,
+    briefViewer: viewer,
+  });
+  await mutateSeo({
+    owner: OWNER,
+    command: {
+      kind: "request_analysis",
+      body: { kind: "rankings" },
+    } as SeoCommand,
+    briefViewer: viewer,
+  });
+  expect(requestAnalysisMock).toHaveBeenNthCalledWith(1, OWNER, {
+    kind: "audit_full",
+    fullAuditPrice: price,
+  });
+  expect(createMonitorMock).toHaveBeenCalledWith(OWNER, {
+    analysis: { kind: "audit_full", fullAuditPrice: price },
+  });
+  expect(requestAnalysisMock).toHaveBeenNthCalledWith(2, OWNER, {
+    kind: "rankings",
+  });
+  // A cap goes on, so Core refuses it as a stale price instead of charging uncapped.
+  await mutateSeo({
+    owner: OWNER,
+    command: {
+      kind: "request_analysis",
+      body: {
+        kind: "audit_full",
+        fullAuditPrice: { ...browserPrice, maxCredits: 750 },
+      },
+    } as SeoCommand,
+    briefViewer: viewer,
+  });
+  expect(requestAnalysisMock).toHaveBeenLastCalledWith(OWNER, {
+    kind: "audit_full",
+    fullAuditPrice: { ...price, maxCredits: 750 },
+  });
+});
+
 it.each(["request_analysis", "create_monitor"] as const)(
   "rejects a limited %s confirmation from a replaced session",
   async (kind) => {
@@ -340,4 +414,23 @@ it("binds a per-run coverage decision to the viewer's session and forwards only 
     expectedRevision: 3,
     allowLimitedAudit: true,
   });
+});
+
+it("starts the free page check of a new audit, and keeps the audit when that check does not start", async () => {
+  const audit = { ...seoTestWorkspace(), auditId: OWNER.id };
+  createAuditMock.mockResolvedValue(audit);
+  requestAnalysisMock.mockRejectedValue(
+    new CoreApiRequestError("refused", { status: 503 }),
+  );
+  const result = await createSeoAuditAction({
+    body: { name: "Example", firstPage: { url: "https://example.com/" } },
+  });
+  expect(result).toMatchObject({ ok: true, value: { auditId: OWNER.id } });
+  expect(requestAnalysisMock).toHaveBeenCalledWith(
+    OWNER,
+    expect.objectContaining({ kind: "page_check", maxProviderCalls: 0 }),
+  );
+  expect(revalidatePathMock).toHaveBeenCalledWith("/seo");
+  // A failed response can still follow a saved Task.
+  expect(revalidatePathMock).toHaveBeenCalledWith("/tasks");
 });

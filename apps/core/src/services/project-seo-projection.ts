@@ -57,6 +57,7 @@ import {
   SEO_RESULT_LIMIT,
 } from "./project-seo-store";
 import { projectSiteStrategy } from "./project-seo-strategy-projection";
+import { seoAnalysisStatus } from "./seo-analysis-status";
 import { SeoAuditDecisions } from "./seo-audit-decisions";
 import { landingEngagementChange } from "./seo-landing-engagement";
 import type { PrivateRecommendationReviews } from "./seo-private-recommendation-reviews";
@@ -627,21 +628,13 @@ export function projectSeoProjection(
   const analyses = input.analyses
     .filter((row) => overlaps(row.pageIds))
     .map((row) => {
-      const taskStatus = row.taskId ? taskStatuses.get(row.taskId) : undefined;
-      const status =
-        row.status === "completed"
-          ? "completed"
-          : row.status === "failed"
-            ? "failed"
-            : taskStatus === "FAILED" || taskStatus === "CANCELED"
-              ? "failed"
-              : taskStatus === "RUNNING" || taskStatus === "COMPLETED"
-                ? "running"
-                : row.status;
       return {
         id: row.id,
         kind: row.kind,
-        status,
+        status: seoAnalysisStatus(
+          row.status,
+          row.taskId ? taskStatuses.get(row.taskId) : undefined,
+        ),
         taskId: row.taskId,
         pageIds: row.pageIds,
         scopeVersion: row.scopeVersion,

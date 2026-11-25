@@ -34,7 +34,7 @@ const newestAnalysis = (analyses: SeoAnalysis[]) =>
  * the page stops saying that it runs, and the reader can start the next. The longest check, a full audit, has a
  * time limit of 90 minutes.
  */
-const SEO_CHECK_STALE_MS = 3 * 60 * 60_000;
+export const SEO_CHECK_STALE_MS = 3 * 60 * 60_000;
 
 /** The newest check that Core accepted and has not finished, if it started less than three hours ago. */
 export function seoRunningCheck(
@@ -187,9 +187,13 @@ export function seoSetup(
     return null;
   const hasPages = workspace.scope.pageIds.length > 0;
   const running = seoCheckRunning(workspace);
-  // Google connection and an explicit skip remain available even while the check service is off.
-  const connection: SeoSetupState =
-    running || googleReady ? "done" : hasPages ? "next" : "waiting";
+  // Google connection and an explicit skip remain available even while the check service is off, and while the
+  // free check that starts with a new audit runs: that check is no Google choice.
+  const connection: SeoSetupState = googleReady
+    ? "done"
+    : hasPages
+      ? "next"
+      : "waiting";
   const check: SeoSetupState = running
     ? "running"
     : hasPages && connection === "done"

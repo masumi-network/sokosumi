@@ -5,6 +5,7 @@ import {
   countSetAssignees,
   formatTaskIdentifier,
   hasAssigneeValue,
+  hideSeoAuditRequest,
   isAgentOnlyTaskStatus,
 } from "@sokosumi/utils";
 import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
@@ -393,7 +394,10 @@ function mapSubtaskProgress(
   };
 }
 
-function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
+function mapTaskSummary(
+  task: TaskListItemWithIncludes | TaskWithIncludes,
+  authContext: AuthenticationContext,
+) {
   const taskOrganizationSummary = organizationSummaryFromLoadedRelation(
     `Task ${task.id}`,
     task.organizationId,
@@ -437,7 +441,12 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     number: task.number,
     identifier: formatTaskIdentifier(task.project?.identifier, task.number),
     name: task.name,
-    description: task.description,
+    // Only the assigned Coworker, the SEO worker, reads a full audit's request line.
+    description:
+      isCoworkerAuthContext(authContext) &&
+      authContext.coworkerId === task.assigneeId
+        ? task.description
+        : hideSeoAuditRequest(task.description),
     tags: mapTaskTags(task),
     workspaceTags: task.workspaceTags?.map(({ label, state }) => ({
       id: label.id,
@@ -492,7 +501,7 @@ function mapTaskParticipants(
 
 function mapTaskBase(
   task: TaskWithIncludes,
-  options?: { onBehalfOfOwner?: boolean },
+  authContext: AuthenticationContext,
 ) {
   const credits = task.events.reduce((total, event) => {
     const amount = event.transaction?.amount;
@@ -508,8 +517,12 @@ function mapTaskBase(
   }, 0);
 
   return {
-    ...mapTaskSummary(task),
-    events: task.events.map((event) => mapTaskEvent(event, options)),
+    ...mapTaskSummary(task, authContext),
+    events: task.events.map((event) =>
+      mapTaskEvent(event, {
+        onBehalfOfOwner: isCoworkerAuthContext(authContext),
+      }),
+    ),
     jobs: task.jobs.map(flattenJob),
     credits,
   };
@@ -523,9 +536,7 @@ export function mapTask(
   const files = "files" in task && Array.isArray(task.files) ? task.files : [];
 
   return {
-    ...mapTaskBase(task, {
-      onBehalfOfOwner: isCoworkerAuthContext(authContext),
-    }),
+    ...mapTaskBase(task, authContext),
     share: task.share,
     links,
     files: files.map(mapTaskFile),
@@ -537,9 +548,12 @@ export function mapTask(
 /** How many open sub-tasks a list item names; the counter covers the rest. */
 export const OPEN_SUBTASKS_LIMIT = 3;
 
-export function mapTaskListItem(task: TaskListItemWithIncludes) {
+export function mapTaskListItem(
+  task: TaskListItemWithIncludes,
+  authContext: AuthenticationContext,
+) {
   return {
-    ...mapTaskSummary(task),
+    ...mapTaskSummary(task, authContext),
     jobsCount: task._count.jobs,
     commentsCount: task._count.events,
     statusSince: task.events[0]?.createdAt ?? task.createdAt,

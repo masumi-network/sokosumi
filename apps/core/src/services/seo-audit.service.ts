@@ -1,5 +1,7 @@
 import type { z } from "@hono/zod-openapi";
+import { PrismaRaw } from "@sokosumi/database/client";
 import { hasAssignedOrganizationSeat } from "@sokosumi/database/helpers";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { lockCalendarScope } from "@/helpers/calendar-locks";
 import { notFound } from "@/helpers/error";
@@ -20,8 +22,19 @@ import {
   normalizeSeoUrl,
   requireSeoWorkspace,
   type SeoWorkspaceActor,
+  seoLinkedTaskWhere,
 } from "./project-seo-store";
 import { requireScopedProject } from "./project-social-connections.service";
+import { seoAnalysisStatus } from "./seo-analysis-status";
+
+interface SeoAuditCheckRow {
+  auditId: string;
+  kind: string;
+  status: string;
+  taskId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export async function listSeoAudits(
   actor: SeoWorkspaceActor,
@@ -82,12 +95,51 @@ export async function listSeoAudits(
     }),
     prisma.seoAudit.count({ where }),
   ]);
-  const audits = rows.slice(0, take).map((row) =>
-    seoAuditSummarySchema.parse({
-      ...row,
-      pageCount: row._count.pages,
-    }),
+  const page = rows.slice(0, take);
+  // One indexed row per audit: a nested `take: 1` over several audits reads every check of each.
+  const checks = page.length
+    ? await prisma.$queryRaw<SeoAuditCheckRow[]>(PrismaRaw.sql`
+        SELECT ids.id AS "auditId", c.kind, c.status, c."taskId", c."createdAt", c."updatedAt"
+        FROM unnest(${page.map(({ id }) => id)}::uuid[]) AS ids(id)
+        CROSS JOIN LATERAL (
+          SELECT a.kind, a.status, a."taskId", a."createdAt", a."updatedAt"
+          FROM ${sharedTable("project_seo_analysis")} a
+          WHERE a."auditId" = ids.id
+          ORDER BY a."createdAt" DESC, a.id DESC
+          LIMIT 1
+        ) c`)
+    : [];
+  const checkByAudit = new Map(checks.map((check) => [check.auditId, check]));
+  const taskIds = checks.flatMap(({ taskId }) => (taskId ? [taskId] : []));
+  // The reader sees a Task's status only where the audit page would show that Task.
+  const taskStatuses = new Map(
+    taskIds.length
+      ? (
+          await prisma.task.findMany({
+            where: { id: { in: taskIds }, ...seoLinkedTaskWhere(actor, true) },
+            select: { id: true, status: true },
+          })
+        ).map((task) => [task.id, task.status])
+      : [],
   );
+  const audits = page.map(({ _count, ...row }) => {
+    const check = checkByAudit.get(row.id);
+    return seoAuditSummarySchema.parse({
+      ...row,
+      pageCount: _count.pages,
+      lastCheck: check
+        ? {
+            kind: check.kind,
+            status: seoAnalysisStatus(
+              check.status,
+              check.taskId ? taskStatuses.get(check.taskId) : undefined,
+            ),
+            createdAt: check.createdAt,
+            updatedAt: check.updatedAt,
+          }
+        : null,
+    });
+  });
   return {
     audits,
     pagination: createPaginationMeta(

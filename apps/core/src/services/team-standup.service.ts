@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { hideSeoAuditRequest } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import { z } from "zod";
 import { channelSlugWithId } from "@/helpers/channel-slug";
@@ -313,7 +314,7 @@ async function openNeeds(
   return tasks.map((task) => ({
     agentId: owners.get(task.ownerId ?? "") ?? "",
     need: task.name,
-    detail: (task.description ?? "").slice(0, 300),
+    detail: (hideSeoAuditRequest(task.description) ?? "").slice(0, 300),
   }));
 }
 
@@ -336,7 +337,7 @@ async function workInProgress(workspaceId: string, coworkerIds: string[]) {
     agentId: task.assigneeId ?? "",
     task: task.name,
     status: task.status,
-    detail: (task.description ?? "").slice(0, 300),
+    detail: (hideSeoAuditRequest(task.description) ?? "").slice(0, 300),
   }));
 }
 
