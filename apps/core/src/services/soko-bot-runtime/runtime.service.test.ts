@@ -69,6 +69,8 @@ const {
   transactionBotUpdateMock,
   transactionMemoryRevisionCreateMock,
   transactionMemoryRevisionFindUniqueMock,
+  transactionSnapshotFindUniqueMock,
+  transactionToolCallFindFirstMock,
   transactionProjectFindFirstMock,
   transactionDecisionCreateMock,
   transactionDecisionFindFirstMock,
@@ -212,6 +214,8 @@ const {
   transactionBotUpdateMock: vi.fn(),
   transactionMemoryRevisionCreateMock: vi.fn(),
   transactionMemoryRevisionFindUniqueMock: vi.fn(),
+  transactionSnapshotFindUniqueMock: vi.fn(),
+  transactionToolCallFindFirstMock: vi.fn(),
   transactionProjectFindFirstMock: vi.fn(),
   transactionDecisionCreateMock: vi.fn(),
   transactionDecisionFindFirstMock: vi.fn(),
@@ -640,6 +644,9 @@ vi.mock("@/lib/db/transaction", () => ({
           create: transactionMemoryRevisionCreateMock,
           findUnique: transactionMemoryRevisionFindUniqueMock,
         },
+        sokoBotContextSnapshot: {
+          findUnique: transactionSnapshotFindUniqueMock,
+        },
         sokoBotDelegation: {
           create: delegationCreateMock,
           update: delegationUpdateMock,
@@ -653,6 +660,7 @@ vi.mock("@/lib/db/transaction", () => ({
           count: transactionToolCallCountMock,
           create: transactionToolCallCreateMock,
           findUnique: transactionToolCallFindUniqueMock,
+          findFirst: transactionToolCallFindFirstMock,
           update: transactionToolCallUpdateMock,
           upsert: vi.fn().mockResolvedValue({}),
         },
@@ -4750,6 +4758,35 @@ describe("SokoBotRuntimeService memory updates", () => {
         }),
       }),
     );
+  });
+
+  it("refuses to rewrite memory the turn saw only part of, until it reads it", async () => {
+    transactionBotFindUniqueOrThrowMock.mockResolvedValue({ memoryVersion: 1 });
+    transactionSnapshotFindUniqueMock.mockResolvedValue({
+      omissions: { memory: 4_000 },
+    });
+    transactionToolCallFindFirstMock.mockResolvedValueOnce(null);
+    const write = () =>
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_memory",
+        toolCallId: "memory_partial",
+        input: { markdown: memoryMarkdown("Ship launch") },
+      });
+
+    await expect(write()).rejects.toThrow("Call read_memory");
+    expect(transactionMemoryRevisionCreateMock).not.toHaveBeenCalled();
+
+    transactionToolCallFindFirstMock.mockResolvedValueOnce({ id: "read" });
+    transactionMemoryRevisionCreateMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000023",
+      version: 2,
+      hash: "hash_2",
+      markdown: memoryMarkdown("Ship launch"),
+    });
+    await write();
+    expect(transactionMemoryRevisionCreateMock).toHaveBeenCalledOnce();
+    transactionSnapshotFindUniqueMock.mockResolvedValue(null);
   });
 
   it("keeps optimistic conflict when another turn changed memory", async () => {

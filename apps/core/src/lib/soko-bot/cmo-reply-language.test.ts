@@ -26,7 +26,13 @@ vi.mock("@/lib/soko-bot/jev", () => ({
   },
 }));
 
-import { withCmoReplyLanguage } from "./cmo-reply-language";
+import { cmoReplyLanguageFor } from "./cmo-reply-language";
+
+/** The note as `modelUserMessage` adds it after the turn's text. */
+async function withCmoReplyLanguage(turnId: string, text: string) {
+  const note = await cmoReplyLanguageFor(turnId);
+  return note ? `${text}\n\n${note}` : text;
+}
 
 const createdAt = new Date("2026-11-18T08:40:00Z");
 const cusoTurn = {
@@ -51,7 +57,7 @@ function names(language: string, probability = 0.99) {
   });
 }
 
-describe("withCmoReplyLanguage", () => {
+describe("cmoReplyLanguageFor", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     jev.messages = [];

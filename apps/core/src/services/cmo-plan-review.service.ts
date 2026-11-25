@@ -2478,6 +2478,7 @@ export function cmoRejectedTerms(
   const known = rejectedByTurn.get(turnId);
   if (known) return known.then((found) => ({ ...found, costUsd: 0 }));
   const asked = ask({
+    label: "cmo-rejected-terms",
     system:
       "You read a business owner's request to their marketing lead and list what the owner says is not true or no longer wanted, as the words a marketing plan would use for it.",
     prompt: [
@@ -2632,6 +2633,7 @@ export async function cmoDistinctClaims(
   const answers = await Promise.all(
     batches.map((batch) =>
       ask({
+        label: "cmo-distinct-claims",
         system:
           "You give pieces of a marketing month their own point. Each claim is one short sentence in plain words a reader can agree or disagree with, in the language of the claims below, specific to the piece's title and brief. Use only facts the piece's title, brief and old claim state: never add a customer, a number, a quote or a result they do not name.",
         prompt: [
@@ -2691,6 +2693,7 @@ async function samePoint(
   const key = (index: number) => `c${index}`;
   try {
     const { output, costUsd } = await ask({
+      label: "cmo-same-point",
       system:
         "You read a marketing month's claims and find the points it makes too often. Two claims make the same point when a reader would say they say one thing, whatever the words or the network.",
       prompt: [
@@ -2765,6 +2768,7 @@ export async function cmoSpreadPoints(
   const answers = await Promise.all(
     batches.map((batch) =>
       ask({
+        label: "cmo-spread-points",
         system:
           "You move pieces of a marketing month onto points of their own. For each piece write a new title (at most 10 words, sentence case), a one-line brief and a claim (one short sentence in plain words a reader can agree or disagree with), within its pillar and its approach, in the language of its title. Use only the facts listed: never add a customer, a number, a quote or a result they do not name, and never build a piece on a complaint or a critical review of the business.",
         prompt: [
@@ -2962,6 +2966,7 @@ export async function cmoPillarFacts(
 ): Promise<{ pillars: CmoPillarFacts[]; costUsd: number }> {
   if (strategy.pillars.length === 0) return { pillars: [], costUsd: 0 };
   const answer = await ask({
+    label: "cmo-pillar-facts",
     system: [
       "You check a marketing plan's content pillars against what the business can actually say.",
       'First list the distinct facts in the Brand Brain a post could rest on: what the product does, a feature by its name, a price or plan, a number, a customer, a dated event, the founder\'s story, an audience it serves. List each once: one thing said in several places, or in other words, is one fact. A reassurance or trust line ("you approve what goes live", "no credit card needed") counts once at most. At most 40 facts, each at most 15 words.',
@@ -3031,6 +3036,7 @@ export async function cmoTopicPillarFacts(
 ): Promise<{ pillars: CmoPillarFacts[]; costUsd: number }> {
   if (strategy.pillars.length === 0) return { pillars: [], costUsd: 0 };
   const answer = await ask({
+    label: "cmo-topic-pillar-facts",
     system: [
       "You check a marketing plan's content pillars against research into the buyers' industry.",
       "For each pillar, by its id (p1, p2, …), give the ids of the research items (i1, i2, …) its posts could rest on: only items about that pillar's own topic, not items that could be squeezed in.",

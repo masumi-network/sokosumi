@@ -1,4 +1,5 @@
 import {
+  getSokoBotVersion,
   SOKO_BOT_BRIEF_FORMAT,
   type SokoBotCalendarEvent,
   type SokoBotInboxMessage,
@@ -29,7 +30,10 @@ import {
   withOwnerReplies,
 } from "@/services/soko-bot-integrations.service";
 import { autoReadBulkMail } from "@/services/soko-bot-mail-auto-read.service";
-import { proactiveGate } from "@/services/soko-bot-proactive.service";
+import {
+  isIdleSokoBot,
+  proactiveGate,
+} from "@/services/soko-bot-proactive.service";
 
 const HOUR_MS = 60 * 60 * 1_000;
 /** New mail is checked at most this often per bot. */
@@ -269,6 +273,7 @@ export class SokoBotIngestSyncService {
         ingestTimezone: true,
         lastBriefingAt: true,
         mailAutoRead: true,
+        versionId: true,
       },
     });
     for (const bot of bots) {
@@ -310,10 +315,16 @@ export class SokoBotIngestSyncService {
       ingestTimezone: string;
       lastBriefingAt: Date | null;
       mailAutoRead: boolean;
+      versionId: string | null;
     },
     abortSignal: AbortSignal,
   ): Promise<"briefings" | "deltas" | "skipped"> {
     const now = new Date();
+    if (
+      getSokoBotVersion(bot.versionId).profile !== "cmo" &&
+      (await isIdleSokoBot(bot.id, now))
+    )
+      return "skipped";
     const hasStandup = await prisma.sokoBotSchedule.findFirst({
       where: { sokoBotId: bot.id, systemKey: "standup", enabled: true },
       select: { id: true },

@@ -123,6 +123,8 @@ export interface AuthorizedSokoBotRuntime extends SokoBotActionContext {
   toolCallLimit: number;
   askedByKind?: SokoBotPacketAudience;
   reader: SokoBotTurnReader;
+  /** Jev's complexity label for a chat turn; Core-started turns have none. */
+  complexity?: string;
 }
 
 /**

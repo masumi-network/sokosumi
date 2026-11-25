@@ -43,6 +43,7 @@ vi.mock("@/services/soko-bot-proactive.service", () => ({
   proactiveGate: proactiveGateMock,
   buildSystemBeatMessage: vi.fn(),
   stageSokoBotNudges: vi.fn(),
+  isIdleSokoBot: vi.fn(async () => false),
 }));
 vi.mock("@/helpers/cron", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/helpers/cron")>()),

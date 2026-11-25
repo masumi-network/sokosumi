@@ -6,7 +6,10 @@ import {
 } from "@sokosumi/soko-bot";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import { databaseNow } from "@/lib/db/database-now";
-import { buildSystemBeatMessage } from "@/services/soko-bot-proactive.service";
+import {
+  buildSystemBeatMessage,
+  isIdleSokoBot,
+} from "@/services/soko-bot-proactive.service";
 
 export async function buildScheduledSystemBeat(
   bot: Parameters<typeof buildSystemBeatMessage>[0]["bot"] & {
@@ -19,6 +22,9 @@ export async function buildScheduledSystemBeat(
   // A CMO bot's rhythms carry one prompt, its own: a dream there
   // must not read like an assistant's with its morning stand-up.
   const cmo = getSokoBotVersion(bot.versionId).profile === "cmo";
+  // Cuso's rhythms run its paid marketing work; only an assistant rests.
+  if (!cmo && (await isIdleSokoBot(bot.id, scheduledFor)))
+    return { message: "", nudgeKeys: [], skip: true };
   const rhythm = SOKO_BOT_SYSTEM_SCHEDULES.find(
     (candidate) => candidate.key === key,
   );

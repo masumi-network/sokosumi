@@ -70,6 +70,34 @@ export function localDayStart(now: Date, timeZone: string): Date {
   );
 }
 
+/**
+ * Built-in rhythms and the mailbox watch rest after this many days with no
+ * chat. In the week to 2026-11-25, 80 of the 106 bots woken by schedules had
+ * none for 14 days. The next chat wakes them again.
+ */
+export const SOKO_BOT_IDLE_PAUSE_DAYS = 14;
+
+/** No chat for {@link SOKO_BOT_IDLE_PAUSE_DAYS} days, and not newly made. */
+export async function isIdleSokoBot(
+  sokoBotId: string,
+  now: Date,
+): Promise<boolean> {
+  const since = new Date(
+    now.getTime() - SOKO_BOT_IDLE_PAUSE_DAYS * 24 * HOUR_MS,
+  );
+  const [bot, chat] = await Promise.all([
+    prisma.sokoBot.findUnique({
+      where: { id: sokoBotId },
+      select: { createdAt: true },
+    }),
+    prisma.sokoBotTurn.findFirst({
+      where: { sokoBotId, source: "CHAT", createdAt: { gte: since } },
+      select: { id: true },
+    }),
+  ]);
+  return !!bot && bot.createdAt < since && !chat;
+}
+
 export interface ProactiveGate {
   ok: boolean;
   reason?: "paused" | "global-pause" | "daily-limit";
