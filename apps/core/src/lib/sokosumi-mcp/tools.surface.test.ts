@@ -520,6 +520,270 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
       },
     },
   },
+  // SOKD-374: SEO
+  seo_list_audits: { workspace: "acme", status: "active" },
+  seo_create_audit: {
+    body: { name: "Acme site", firstPage: { url: "https://example.com/" } },
+  },
+  seo_audit_workspace: { id: "00000000-0000-4000-8000-0000000000a1" },
+  seo_audit_archive: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: { archived: true },
+  },
+  seo_audit_chat: { id: "00000000-0000-4000-8000-0000000000a1" },
+  seo_audit_ask: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: {
+      question: "Which page should I fix first?",
+      idempotencyKey: "question-1",
+    },
+  },
+  seo_audit_get: { id: "00000000-0000-4000-8000-0000000000a1" },
+  seo_audit_add_page: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: { url: "https://example.com/pricing" },
+  },
+  seo_audit_create_scope: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: {
+      name: "Pricing",
+      pageIds: ["00000000-0000-4000-8000-0000000000e1"],
+    },
+  },
+  seo_audit_update_scope: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    scopeId: "00000000-0000-4000-8000-0000000000c1",
+    body: {
+      name: "Pricing",
+      pageIds: ["00000000-0000-4000-8000-0000000000e1"],
+      expectedVersion: 1,
+    },
+  },
+  seo_audit_import_report: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: { taskId: "00000000-0000-4000-8000-0000000000d1", fileId: "file-1" },
+  },
+  seo_audit_analyze: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: {
+      kind: "page_check",
+      pageIds: ["00000000-0000-4000-8000-0000000000e1"],
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop"],
+      idempotencyKey: "analysis-1",
+    },
+  },
+  seo_audit_save_keyword: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: { keyword: "seo audit", countryCode: "US", languageCode: "en" },
+  },
+  seo_audit_save_competitor: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: { url: "https://rival.example", confirmed: true },
+  },
+  seo_audit_create_task: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: {
+      observationId: "00000000-0000-4000-8000-0000000000f1",
+      actionId: "action-1",
+      idempotencyKey: "create-task-1",
+    },
+  },
+  seo_audit_create_monitor: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: {
+      operationId: "00000000-0000-4000-8000-0000000000f1",
+      rule: { expr: "0 9 * * 1", timezone: "UTC" },
+      analysis: {
+        kind: "page_check",
+        pageIds: ["00000000-0000-4000-8000-0000000000e1"],
+        countryCode: "US",
+        languageCode: "en",
+        devices: ["desktop"],
+        idempotencyKey: "analysis-1",
+      },
+    },
+  },
+  seo_audit_review_action: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: {
+      pageId: "00000000-0000-4000-8000-0000000000e1",
+      actionId: "action-1",
+      kind: "kept",
+      baselineObservationId: "00000000-0000-4000-8000-0000000000f1",
+      observationId: "00000000-0000-4000-8000-0000000000f1",
+    },
+  },
+  seo_audit_properties: { id: "00000000-0000-4000-8000-0000000000a1" },
+  seo_audit_sync_statistics: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: {
+      provider: "search_console",
+      propertyId: "sc-domain:example.com",
+      from: "2026-10-01",
+      to: "2026-10-31",
+    },
+  },
+  seo_audit_record_change: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: {
+      pageIds: ["00000000-0000-4000-8000-0000000000e1"],
+      occurredAt: "2026-11-01T09:00:00.000Z",
+      title: "New title tag",
+      idempotencyKey: "change-0001",
+    },
+  },
+  seo_audit_set_brand_terms: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: { terms: ["acme"] },
+  },
+  seo_audit_brief: { id: "00000000-0000-4000-8000-0000000000a1" },
+  seo_audit_save_brief: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    body: { expectedRevision: 0 },
+  },
+  seo_audit_suggest_brief: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    pageId: "00000000-0000-4000-8000-0000000000e1",
+  },
+  seo_audit_console_exports: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    taskId: "00000000-0000-4000-8000-0000000000d1",
+  },
+  seo_audit_import_console_export: {
+    id: "00000000-0000-4000-8000-0000000000a1",
+    taskId: "00000000-0000-4000-8000-0000000000d1",
+    body: {
+      kind: "indexing_examples",
+      reason: "crawled_not_indexed",
+      date: "2026-11-01",
+      csv: "URL\nhttps://example.com/",
+    },
+  },
+  seo_project_get: { id: "00000000-0000-4000-8000-0000000000b1" },
+  seo_project_add_page: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: { url: "https://example.com/pricing" },
+  },
+  seo_project_create_scope: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: {
+      name: "Pricing",
+      pageIds: ["00000000-0000-4000-8000-0000000000e1"],
+    },
+  },
+  seo_project_update_scope: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    scopeId: "00000000-0000-4000-8000-0000000000c1",
+    body: {
+      name: "Pricing",
+      pageIds: ["00000000-0000-4000-8000-0000000000e1"],
+      expectedVersion: 1,
+    },
+  },
+  seo_project_import_report: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: { taskId: "00000000-0000-4000-8000-0000000000d1", fileId: "file-1" },
+  },
+  seo_project_analyze: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: {
+      kind: "page_check",
+      pageIds: ["00000000-0000-4000-8000-0000000000e1"],
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop"],
+      idempotencyKey: "analysis-1",
+    },
+  },
+  seo_project_save_keyword: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: { keyword: "seo audit", countryCode: "US", languageCode: "en" },
+  },
+  seo_project_save_competitor: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: { url: "https://rival.example", confirmed: true },
+  },
+  seo_project_create_task: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: {
+      observationId: "00000000-0000-4000-8000-0000000000f1",
+      actionId: "action-1",
+      idempotencyKey: "create-task-1",
+    },
+  },
+  seo_project_create_monitor: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: {
+      operationId: "00000000-0000-4000-8000-0000000000f1",
+      rule: { expr: "0 9 * * 1", timezone: "UTC" },
+      analysis: {
+        kind: "page_check",
+        pageIds: ["00000000-0000-4000-8000-0000000000e1"],
+        countryCode: "US",
+        languageCode: "en",
+        devices: ["desktop"],
+        idempotencyKey: "analysis-1",
+      },
+    },
+  },
+  seo_project_review_action: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: {
+      pageId: "00000000-0000-4000-8000-0000000000e1",
+      actionId: "action-1",
+      kind: "kept",
+      baselineObservationId: "00000000-0000-4000-8000-0000000000f1",
+      observationId: "00000000-0000-4000-8000-0000000000f1",
+    },
+  },
+  seo_project_properties: { id: "00000000-0000-4000-8000-0000000000b1" },
+  seo_project_sync_statistics: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: {
+      provider: "search_console",
+      propertyId: "sc-domain:example.com",
+      from: "2026-10-01",
+      to: "2026-10-31",
+    },
+  },
+  seo_project_record_change: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: {
+      pageIds: ["00000000-0000-4000-8000-0000000000e1"],
+      occurredAt: "2026-11-01T09:00:00.000Z",
+      title: "New title tag",
+      idempotencyKey: "change-0001",
+    },
+  },
+  seo_project_set_brand_terms: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: { terms: ["acme"] },
+  },
+  seo_project_brief: { id: "00000000-0000-4000-8000-0000000000b1" },
+  seo_project_save_brief: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    body: { expectedRevision: 0 },
+  },
+  seo_project_suggest_brief: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    pageId: "00000000-0000-4000-8000-0000000000e1",
+  },
+  seo_project_console_exports: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    taskId: "00000000-0000-4000-8000-0000000000d1",
+  },
+  seo_project_import_console_export: {
+    id: "00000000-0000-4000-8000-0000000000b1",
+    taskId: "00000000-0000-4000-8000-0000000000d1",
+    body: {
+      kind: "indexing_examples",
+      reason: "crawled_not_indexed",
+      date: "2026-11-01",
+      csv: "URL\nhttps://example.com/",
+    },
+  },
 };
 
 const CORE = "https://core.example.test";

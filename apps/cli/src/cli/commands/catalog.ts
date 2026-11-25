@@ -1329,6 +1329,229 @@ export const CLI_COMMAND_CATALOG = [
     operation:
       "PUT /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}",
   },
+  // SOKD-374: SEO audits and Project SEO, in the `seo` MCP toolset
+  { command: "seo list-audits", usage: "", operation: "GET /seo/audits" },
+  { command: "seo create-audit", usage: "", operation: "POST /seo/audits" },
+  {
+    command: "seo audit-workspace",
+    usage: "AUDIT_ID",
+    operation: "GET /seo/audits/{id}/workspace",
+  },
+  {
+    command: "seo audit-archive",
+    usage: "AUDIT_ID",
+    operation: "PATCH /seo/audits/{id}",
+  },
+  {
+    command: "seo audit-chat",
+    usage: "AUDIT_ID",
+    operation: "GET /seo/audits/{id}/chat",
+  },
+  {
+    command: "seo audit-ask",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/chat",
+  },
+  {
+    command: "seo audit-get",
+    usage: "AUDIT_ID",
+    operation: "GET /seo/audits/{id}",
+  },
+  {
+    command: "seo audit-add-page",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/pages",
+  },
+  {
+    command: "seo audit-create-scope",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/scopes",
+  },
+  {
+    command: "seo audit-update-scope",
+    usage: "AUDIT_ID SCOPE_ID",
+    operation: "PUT /seo/audits/{id}/scopes/{scopeId}",
+  },
+  {
+    command: "seo audit-import-report",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/imports",
+  },
+  {
+    command: "seo audit-analyze",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/analyses",
+  },
+  {
+    command: "seo audit-save-keyword",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/keywords",
+  },
+  {
+    command: "seo audit-save-competitor",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/competitors",
+  },
+  {
+    command: "seo audit-create-task",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/actions",
+  },
+  {
+    command: "seo audit-create-monitor",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/monitors",
+  },
+  {
+    command: "seo audit-review-action",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/actions/reviews",
+  },
+  {
+    command: "seo audit-properties",
+    usage: "AUDIT_ID",
+    operation: "GET /seo/audits/{id}/statistics/properties",
+  },
+  {
+    command: "seo audit-sync-statistics",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/statistics/sync",
+  },
+  {
+    command: "seo audit-record-change",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/page-changes",
+  },
+  {
+    command: "seo audit-set-brand-terms",
+    usage: "AUDIT_ID",
+    operation: "PUT /seo/audits/{id}/brand-terms",
+  },
+  {
+    command: "seo audit-brief",
+    usage: "AUDIT_ID",
+    operation: "GET /seo/audits/{id}/brief",
+  },
+  {
+    command: "seo audit-save-brief",
+    usage: "AUDIT_ID",
+    operation: "PUT /seo/audits/{id}/brief",
+  },
+  {
+    command: "seo audit-suggest-brief",
+    usage: "AUDIT_ID",
+    operation: "GET /seo/audits/{id}/brief/suggestion",
+  },
+  {
+    command: "seo audit-console-exports",
+    usage: "AUDIT_ID TASK_ID",
+    operation: "GET /seo/audits/{id}/console-exports/{taskId}",
+  },
+  {
+    command: "seo audit-import-console-export",
+    usage: "AUDIT_ID TASK_ID",
+    operation: "POST /seo/audits/{id}/console-exports/{taskId}",
+  },
+  {
+    command: "seo project-get",
+    usage: "PROJECT_ID",
+    operation: "GET /projects/{id}/seo",
+  },
+  {
+    command: "seo project-add-page",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/pages",
+  },
+  {
+    command: "seo project-create-scope",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/scopes",
+  },
+  {
+    command: "seo project-update-scope",
+    usage: "PROJECT_ID SCOPE_ID",
+    operation: "PUT /projects/{id}/seo/scopes/{scopeId}",
+  },
+  {
+    command: "seo project-import-report",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/imports",
+  },
+  {
+    command: "seo project-analyze",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/analyses",
+  },
+  {
+    command: "seo project-save-keyword",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/keywords",
+  },
+  {
+    command: "seo project-save-competitor",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/competitors",
+  },
+  {
+    command: "seo project-create-task",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/actions",
+  },
+  {
+    command: "seo project-create-monitor",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/monitors",
+  },
+  {
+    command: "seo project-review-action",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/actions/reviews",
+  },
+  {
+    command: "seo project-properties",
+    usage: "PROJECT_ID",
+    operation: "GET /projects/{id}/seo/statistics/properties",
+  },
+  {
+    command: "seo project-sync-statistics",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/statistics/sync",
+  },
+  {
+    command: "seo project-record-change",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/page-changes",
+  },
+  {
+    command: "seo project-set-brand-terms",
+    usage: "PROJECT_ID",
+    operation: "PUT /projects/{id}/seo/brand-terms",
+  },
+  {
+    command: "seo project-brief",
+    usage: "PROJECT_ID",
+    operation: "GET /projects/{id}/seo/brief",
+  },
+  {
+    command: "seo project-save-brief",
+    usage: "PROJECT_ID",
+    operation: "PUT /projects/{id}/seo/brief",
+  },
+  {
+    command: "seo project-suggest-brief",
+    usage: "PROJECT_ID",
+    operation: "GET /projects/{id}/seo/brief/suggestion",
+  },
+  {
+    command: "seo project-console-exports",
+    usage: "PROJECT_ID TASK_ID",
+    operation: "GET /projects/{id}/seo/console-exports/{taskId}",
+  },
+  {
+    command: "seo project-import-console-export",
+    usage: "PROJECT_ID TASK_ID",
+    operation: "POST /projects/{id}/seo/console-exports/{taskId}",
+  },
 ] as const satisfies readonly CliCommandCatalogEntry[];
 
 type CliCommand = (typeof CLI_COMMAND_CATALOG)[number]["command"];

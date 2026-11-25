@@ -1630,4 +1630,427 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       '{"name":"Spring","dailyBudget":5,"google":{"type":"SEARCH"}}',
     ],
   },
+  // SOKD-374: SEO
+  "GET /seo/audits": { argv: [...API, "seo", "list-audits"] },
+  "POST /seo/audits": {
+    argv: [
+      ...API,
+      "seo",
+      "create-audit",
+      "--input-json",
+      '{"name": "Acme site", "firstPage": {"url": "https://example.com/"}}',
+    ],
+  },
+  "GET /seo/audits/{id}/workspace": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-workspace",
+      "00000000-0000-4000-8000-0000000000a1",
+    ],
+  },
+  "PATCH /seo/audits/{id}": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-archive",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"archived": true}',
+    ],
+  },
+  "GET /seo/audits/{id}/chat": {
+    argv: [...API, "seo", "audit-chat", "00000000-0000-4000-8000-0000000000a1"],
+  },
+  "POST /seo/audits/{id}/chat": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-ask",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"question": "Which page should I fix first?", "idempotencyKey": "question-1"}',
+    ],
+  },
+  "GET /seo/audits/{id}": {
+    argv: [...API, "seo", "audit-get", "00000000-0000-4000-8000-0000000000a1"],
+  },
+  "POST /seo/audits/{id}/pages": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-add-page",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"url": "https://example.com/pricing"}',
+    ],
+  },
+  "POST /seo/audits/{id}/scopes": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-create-scope",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"name": "Pricing", "pageIds": ["00000000-0000-4000-8000-0000000000e1"]}',
+    ],
+  },
+  "PUT /seo/audits/{id}/scopes/{scopeId}": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-update-scope",
+      "00000000-0000-4000-8000-0000000000a1",
+      "00000000-0000-4000-8000-0000000000c1",
+      "--input-json",
+      '{"name": "Pricing", "pageIds": ["00000000-0000-4000-8000-0000000000e1"], "expectedVersion": 1}',
+    ],
+  },
+  "POST /seo/audits/{id}/imports": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-import-report",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"taskId": "00000000-0000-4000-8000-0000000000d1", "fileId": "file-1"}',
+    ],
+  },
+  "POST /seo/audits/{id}/analyses": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-analyze",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"kind": "page_check", "pageIds": ["00000000-0000-4000-8000-0000000000e1"], "countryCode": "US", "languageCode": "en", "devices": ["desktop"], "idempotencyKey": "analysis-1"}',
+    ],
+  },
+  "POST /seo/audits/{id}/keywords": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-save-keyword",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"keyword": "seo audit", "countryCode": "US", "languageCode": "en"}',
+    ],
+  },
+  "POST /seo/audits/{id}/competitors": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-save-competitor",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"url": "https://rival.example", "confirmed": true}',
+    ],
+  },
+  "POST /seo/audits/{id}/actions": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-create-task",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"observationId": "00000000-0000-4000-8000-0000000000f1", "actionId": "action-1", "idempotencyKey": "create-task-1"}',
+    ],
+  },
+  "POST /seo/audits/{id}/monitors": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-create-monitor",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"operationId": "00000000-0000-4000-8000-0000000000f1", "rule": {"expr": "0 9 * * 1", "timezone": "UTC"}, "analysis": {"kind": "page_check", "pageIds": ["00000000-0000-4000-8000-0000000000e1"], "countryCode": "US", "languageCode": "en", "devices": ["desktop"], "idempotencyKey": "analysis-1"}}',
+    ],
+  },
+  "POST /seo/audits/{id}/actions/reviews": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-review-action",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"pageId": "00000000-0000-4000-8000-0000000000e1", "actionId": "action-1", "kind": "kept", "baselineObservationId": "00000000-0000-4000-8000-0000000000f1", "observationId": "00000000-0000-4000-8000-0000000000f1"}',
+    ],
+  },
+  "GET /seo/audits/{id}/statistics/properties": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-properties",
+      "00000000-0000-4000-8000-0000000000a1",
+    ],
+  },
+  "POST /seo/audits/{id}/statistics/sync": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-sync-statistics",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"provider": "search_console", "propertyId": "sc-domain:example.com", "from": "2026-10-01", "to": "2026-10-31"}',
+    ],
+  },
+  "POST /seo/audits/{id}/page-changes": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-record-change",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"pageIds": ["00000000-0000-4000-8000-0000000000e1"], "occurredAt": "2026-11-01T09:00:00.000Z", "title": "New title tag", "idempotencyKey": "change-0001"}',
+    ],
+  },
+  "PUT /seo/audits/{id}/brand-terms": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-set-brand-terms",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"terms": ["acme"]}',
+    ],
+  },
+  "GET /seo/audits/{id}/brief": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-brief",
+      "00000000-0000-4000-8000-0000000000a1",
+    ],
+  },
+  "PUT /seo/audits/{id}/brief": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-save-brief",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"expectedRevision": 0}',
+    ],
+  },
+  "GET /seo/audits/{id}/brief/suggestion": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-suggest-brief",
+      "00000000-0000-4000-8000-0000000000a1",
+    ],
+  },
+  "GET /seo/audits/{id}/console-exports/{taskId}": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-console-exports",
+      "00000000-0000-4000-8000-0000000000a1",
+      "00000000-0000-4000-8000-0000000000d1",
+    ],
+  },
+  "POST /seo/audits/{id}/console-exports/{taskId}": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-import-console-export",
+      "00000000-0000-4000-8000-0000000000a1",
+      "00000000-0000-4000-8000-0000000000d1",
+      "--input-json",
+      '{"kind": "indexing_examples", "date": "2026-11-01", "csv": "URL"}',
+    ],
+  },
+  "GET /projects/{id}/seo": {
+    argv: [
+      ...API,
+      "seo",
+      "project-get",
+      "00000000-0000-4000-8000-0000000000b1",
+    ],
+  },
+  "POST /projects/{id}/seo/pages": {
+    argv: [
+      ...API,
+      "seo",
+      "project-add-page",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"url": "https://example.com/pricing"}',
+    ],
+  },
+  "POST /projects/{id}/seo/scopes": {
+    argv: [
+      ...API,
+      "seo",
+      "project-create-scope",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"name": "Pricing", "pageIds": ["00000000-0000-4000-8000-0000000000e1"]}',
+    ],
+  },
+  "PUT /projects/{id}/seo/scopes/{scopeId}": {
+    argv: [
+      ...API,
+      "seo",
+      "project-update-scope",
+      "00000000-0000-4000-8000-0000000000b1",
+      "00000000-0000-4000-8000-0000000000c1",
+      "--input-json",
+      '{"name": "Pricing", "pageIds": ["00000000-0000-4000-8000-0000000000e1"], "expectedVersion": 1}',
+    ],
+  },
+  "POST /projects/{id}/seo/imports": {
+    argv: [
+      ...API,
+      "seo",
+      "project-import-report",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"taskId": "00000000-0000-4000-8000-0000000000d1", "fileId": "file-1"}',
+    ],
+  },
+  "POST /projects/{id}/seo/analyses": {
+    argv: [
+      ...API,
+      "seo",
+      "project-analyze",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"kind": "page_check", "pageIds": ["00000000-0000-4000-8000-0000000000e1"], "countryCode": "US", "languageCode": "en", "devices": ["desktop"], "idempotencyKey": "analysis-1"}',
+    ],
+  },
+  "POST /projects/{id}/seo/keywords": {
+    argv: [
+      ...API,
+      "seo",
+      "project-save-keyword",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"keyword": "seo audit", "countryCode": "US", "languageCode": "en"}',
+    ],
+  },
+  "POST /projects/{id}/seo/competitors": {
+    argv: [
+      ...API,
+      "seo",
+      "project-save-competitor",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"url": "https://rival.example", "confirmed": true}',
+    ],
+  },
+  "POST /projects/{id}/seo/actions": {
+    argv: [
+      ...API,
+      "seo",
+      "project-create-task",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"observationId": "00000000-0000-4000-8000-0000000000f1", "actionId": "action-1", "idempotencyKey": "create-task-1"}',
+    ],
+  },
+  "POST /projects/{id}/seo/monitors": {
+    argv: [
+      ...API,
+      "seo",
+      "project-create-monitor",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"operationId": "00000000-0000-4000-8000-0000000000f1", "rule": {"expr": "0 9 * * 1", "timezone": "UTC"}, "analysis": {"kind": "page_check", "pageIds": ["00000000-0000-4000-8000-0000000000e1"], "countryCode": "US", "languageCode": "en", "devices": ["desktop"], "idempotencyKey": "analysis-1"}}',
+    ],
+  },
+  "POST /projects/{id}/seo/actions/reviews": {
+    argv: [
+      ...API,
+      "seo",
+      "project-review-action",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"pageId": "00000000-0000-4000-8000-0000000000e1", "actionId": "action-1", "kind": "kept", "baselineObservationId": "00000000-0000-4000-8000-0000000000f1", "observationId": "00000000-0000-4000-8000-0000000000f1"}',
+    ],
+  },
+  "GET /projects/{id}/seo/statistics/properties": {
+    argv: [
+      ...API,
+      "seo",
+      "project-properties",
+      "00000000-0000-4000-8000-0000000000b1",
+    ],
+  },
+  "POST /projects/{id}/seo/statistics/sync": {
+    argv: [
+      ...API,
+      "seo",
+      "project-sync-statistics",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"provider": "search_console", "propertyId": "sc-domain:example.com", "from": "2026-10-01", "to": "2026-10-31"}',
+    ],
+  },
+  "POST /projects/{id}/seo/page-changes": {
+    argv: [
+      ...API,
+      "seo",
+      "project-record-change",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"pageIds": ["00000000-0000-4000-8000-0000000000e1"], "occurredAt": "2026-11-01T09:00:00.000Z", "title": "New title tag", "idempotencyKey": "change-0001"}',
+    ],
+  },
+  "PUT /projects/{id}/seo/brand-terms": {
+    argv: [
+      ...API,
+      "seo",
+      "project-set-brand-terms",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"terms": ["acme"]}',
+    ],
+  },
+  "GET /projects/{id}/seo/brief": {
+    argv: [
+      ...API,
+      "seo",
+      "project-brief",
+      "00000000-0000-4000-8000-0000000000b1",
+    ],
+  },
+  "PUT /projects/{id}/seo/brief": {
+    argv: [
+      ...API,
+      "seo",
+      "project-save-brief",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"expectedRevision": 0}',
+    ],
+  },
+  "GET /projects/{id}/seo/brief/suggestion": {
+    argv: [
+      ...API,
+      "seo",
+      "project-suggest-brief",
+      "00000000-0000-4000-8000-0000000000b1",
+    ],
+  },
+  "GET /projects/{id}/seo/console-exports/{taskId}": {
+    argv: [
+      ...API,
+      "seo",
+      "project-console-exports",
+      "00000000-0000-4000-8000-0000000000b1",
+      "00000000-0000-4000-8000-0000000000d1",
+    ],
+  },
+  "POST /projects/{id}/seo/console-exports/{taskId}": {
+    argv: [
+      ...API,
+      "seo",
+      "project-import-console-export",
+      "00000000-0000-4000-8000-0000000000b1",
+      "00000000-0000-4000-8000-0000000000d1",
+      "--input-json",
+      '{"kind": "indexing_examples", "date": "2026-11-01", "csv": "URL"}',
+    ],
+  },
 };
