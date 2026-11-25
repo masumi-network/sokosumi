@@ -60,6 +60,20 @@ describe("adminSeoAlertNotifications", () => {
     ).toEqual([]);
   });
 
+  it("notifies an admin whose ban has ended, not one who is still banned", () => {
+    const now = new Date("2026-11-25T12:00:00.000Z");
+    const inputs = adminSeoAlertNotifications(
+      [alert("a1", "critical")],
+      [
+        { ...ADMIN, banned: true, banExpires: new Date("2026-11-24") },
+        { id: "admin-2", role: "Admin", banned: true, banExpires: null },
+      ],
+      [],
+      now,
+    );
+    expect(inputs.map((input) => input.userId)).toEqual(["admin-1"]);
+  });
+
   it("does not notify an admin again, and still notifies an admin who has no row", () => {
     const inputs = adminSeoAlertNotifications(
       [alert("a1", "critical", "task-1")],
@@ -110,6 +124,19 @@ describe("readAdminSeoAlerts", () => {
     expect(result.alerts).toHaveLength(25 * ADMIN_SEO_ALERT_MAX_PAGES);
     expect(result.capped).toBe(true);
     expect(asked).toHaveLength(ADMIN_SEO_ALERT_MAX_PAGES);
+  });
+
+  it("does not say the read was cut when the last allowed page holds the last alert", async () => {
+    const { readPage } = pagesOf(rows(25 * ADMIN_SEO_ALERT_MAX_PAGES));
+    expect((await readAdminSeoAlerts(readPage, NOW)).capped).toBe(false);
+  });
+
+  it("reads no further page after the sync deadline and says the read was cut", async () => {
+    const { asked, readPage } = pagesOf(rows(60));
+    const result = await readAdminSeoAlerts(readPage, NOW, () => false);
+    expect(asked).toEqual([1]);
+    expect(result).toMatchObject({ capped: true });
+    expect(result.alerts).toHaveLength(25);
   });
 
   it("does not say the read was cut when the last allowed page is short", async () => {

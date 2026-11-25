@@ -6,6 +6,7 @@ import {
   createNotification,
 } from "@/helpers/notifications";
 import prisma from "@/lib/db/prisma";
+import { isActiveUser } from "@/middleware/auth-active-user";
 import {
   type adminSeoAlerts,
   SEO_ALERTS_PAGE_SIZE,
@@ -24,8 +25,14 @@ type AdminSeoAlert = z.output<typeof adminSeoAlerts>["items"][number];
  */
 export function adminSeoAlertNotifications(
   alerts: Pick<AdminSeoAlert, "id" | "taskId" | "severity">[],
-  users: { id: string; role: string | null }[],
+  users: {
+    id: string;
+    role: string | null;
+    banned?: boolean | null;
+    banExpires?: Date | null;
+  }[],
   sent: { userId: string; referenceId: string }[],
+  now = new Date(),
 ): CreateNotificationInput[] {
   const done = new Set(sent.map((row) => `${row.userId}|${row.referenceId}`));
   const references = new Set(
@@ -34,7 +41,7 @@ export function adminSeoAlertNotifications(
       .map((alert) => alert.taskId ?? alert.id),
   );
   return users
-    .filter((user) => hasAdminRole(user.role))
+    .filter((user) => hasAdminRole(user.role) && isActiveUser(user, now))
     .flatMap((user) =>
       [...references]
         .filter((referenceId) => !done.has(`${user.id}|${referenceId}`))
@@ -65,11 +72,13 @@ type AdminSeoAlertPage = {
  * `at` first, so the read stops at the first page that is short or ends with an alert that is not critical or is
  * too old. `at` is the newest change of the Run (analysis row, price marker, last Task status event): it is not
  * the time the alert became critical. `capped` says the page limit cut the read; `old` counts the critical alerts
- * that are too old to notify.
+ * that are too old to notify. `shouldContinue` is the sync deadline: after it no further page is read, and the
+ * next run reads on.
  */
 export async function readAdminSeoAlerts(
   readPage: (page: number) => Promise<AdminSeoAlertPage>,
   now: Date,
+  shouldContinue: () => boolean = () => true,
 ) {
   const since = now.getTime() - ADMIN_SEO_ALERT_NOTIFY_HOURS * HOUR_MS;
   const isNew = (alert: AdminSeoAlertPage["items"][number]) =>
@@ -81,8 +90,8 @@ export async function readAdminSeoAlerts(
     const last = items.at(-1);
     if (items.length < SEO_ALERTS_PAGE_SIZE || !last || !isNew(last))
       return { critical, alerts, capped: false, old: critical - alerts.length };
-    if (page === ADMIN_SEO_ALERT_MAX_PAGES)
-      return { critical, alerts, capped: true, old: 0 };
+    if (page === ADMIN_SEO_ALERT_MAX_PAGES || !shouldContinue())
+      return { critical, alerts, capped: critical > alerts.length, old: 0 };
   }
 }
 
@@ -90,17 +99,21 @@ export async function readAdminSeoAlerts(
  * Tells every platform admin about a new critical SEO alert, in the app. `critical` is the count of the whole
  * list and `read` the new critical alerts this run read. With `capped`, `critical - read` alerts were not read.
  */
-export async function notifyAdminSeoAlerts(now = new Date()) {
+export async function notifyAdminSeoAlerts(
+  shouldContinue: () => boolean = () => true,
+  now = new Date(),
+) {
   const { critical, alerts, capped, old } = await readAdminSeoAlerts(
     (page) => listAdminSeoAlerts({ period: ADMIN_SEO_ALERT_PERIOD, page }),
     now,
+    shouldContinue,
   );
   const counts = { critical, read: alerts.length, old, capped };
   if (!alerts.length) return { ...counts, sent: 0 };
   const users = await prisma.user.findMany({
-    // The role is a comma-separated list: this narrows the read, hasAdminRole decides.
-    where: { role: { contains: "admin" }, NOT: { banned: true } },
-    select: { id: true, role: true },
+    // The role is a comma-separated list: this narrows the read, hasAdminRole and isActiveUser decide.
+    where: { role: { contains: "admin", mode: "insensitive" } },
+    select: { id: true, role: true, banned: true, banExpires: true },
   });
   const sent = await prisma.notification.findMany({
     where: {
@@ -111,8 +124,12 @@ export async function notifyAdminSeoAlerts(now = new Date()) {
     },
     select: { userId: true, referenceId: true },
   });
-  const inputs = adminSeoAlertNotifications(alerts, users, sent);
-  // A row another run wrote in between is a no-op in createNotification.
-  for (const input of inputs) await createNotification(input);
-  return { ...counts, sent: inputs.length };
+  let written = 0;
+  for (const input of adminSeoAlertNotifications(alerts, users, sent, now)) {
+    // After the sync deadline the next run writes the rest: the stored rows key it.
+    if (!shouldContinue()) break;
+    // A row another run wrote in between is not counted.
+    if ((await createNotification(input)).created) written++;
+  }
+  return { ...counts, sent: written };
 }
