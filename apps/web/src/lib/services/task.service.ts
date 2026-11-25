@@ -73,6 +73,7 @@ interface CreateTaskInput {
   afterTaskId?: string;
   /** `YYYY-MM-DD`. */
   dueOn?: string | null;
+  priority?: TaskPriority;
 }
 
 interface PatchTaskInput {

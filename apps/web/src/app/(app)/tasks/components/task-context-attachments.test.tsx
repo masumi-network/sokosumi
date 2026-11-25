@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -137,6 +137,7 @@ describe("TaskContextAttachmentsField", () => {
     });
     const briefingButton = screen.getByRole("button", { name: "briefing" });
     expect(brandButton).toHaveAttribute("aria-pressed", "true");
+    expect(within(brandButton).getByText("brand")).toBeInTheDocument();
     expect(brandButton.parentElement).toHaveClass("h-7", "text-xs");
     expect(briefingButton).toHaveAttribute("aria-pressed", "true");
     expect(briefingButton).toHaveClass("h-7", "text-xs");
@@ -200,9 +201,11 @@ describe("TaskContextAttachmentsField", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "brandMenuAria" }));
-    await user.click(
-      screen.getByRole("menuitem", { name: "organizationBrand" }),
-    );
+    const organizationItem = screen.getByRole("menuitem", {
+      name: "organizationBrand",
+    });
+    expect(organizationItem).toHaveTextContent("Acme");
+    await user.click(organizationItem);
 
     expect(onSelectionChange).toHaveBeenCalledWith({
       ...selection,

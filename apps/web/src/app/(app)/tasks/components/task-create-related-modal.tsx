@@ -43,6 +43,7 @@ export function TaskCreateRelatedModal({
       })}
       cancelLabel={createTaskLabels.cancel}
       isDismissDisabled={isCreateRelatedDismissDisabled}
+      variant="composer"
     >
       <TaskForm
         mode="create"
@@ -73,6 +74,8 @@ export function TaskCreateRelatedModal({
           runAt,
           context,
           visibility,
+          priority,
+          dueOn,
         }) => {
           const result = await createTaskAndLink({
             taskId,
@@ -90,6 +93,8 @@ export function TaskCreateRelatedModal({
             runAt,
             context,
             visibility,
+            priority,
+            dueOn,
             relation: selectedCreateRelatedOption.relation,
           });
 

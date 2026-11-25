@@ -68,7 +68,7 @@ if (typeof globalThis.__dirname === "undefined") {
 
 // `@lobehub/icons` does ESM directory-imports of `@lobehub/fluent-emoji` that
 // Node's native ESM loader can't resolve under vitest, breaking collection of
-// any test whose graph reaches it (e.g. via AgentSpotlight). Brand marks are
+// any test whose graph reaches it (e.g. via the offer cards). Brand marks are
 // presentational, so stub them globally.
 vi.mock("@lobehub/icons", () => {
   const brands = [
