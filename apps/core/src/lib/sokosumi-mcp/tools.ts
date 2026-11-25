@@ -1407,6 +1407,12 @@ export const MCP_TOOLS: readonly McpTool[] = [
       "Stop tracking a competitor. What the checks found about it is kept.",
   },
   {
+    name: "projects_restore_competitor",
+    operation: "POST /projects/{id}/competitors/{competitorId}/restore",
+    description:
+      "Undo a projects_remove_competitor: send back the `removal` number it answered with as `body.removal`. 409 if a later removal happened, the name is taken or the limit is reached.",
+  },
+  {
     name: "projects_competitor_checks",
     operation: "PUT /projects/{id}/competitors/checks",
     description:

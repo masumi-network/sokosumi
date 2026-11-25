@@ -417,6 +417,11 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
     body: { pricingUrl: "https://acme.example/pricing" },
   },
   projects_remove_competitor: { id: "p-1", competitorId: "comp-1" },
+  projects_restore_competitor: {
+    id: "p-1",
+    competitorId: "comp-1",
+    body: { removal: 1 },
+  },
   projects_competitor_checks: { id: "p-1", body: { on: true } },
   projects_check_competitors: { id: "p-1" },
   projects_suggest_competitors: { id: "p-1" },

@@ -1,5 +1,4 @@
 {
-  "backlog": "SOKD-373",
   "operations": {
     "GET /projects/{id}/ads/accounts": {
       "cli": "projects ads-accounts",
@@ -494,6 +493,10 @@
     "DELETE /projects/{id}/competitors/{competitorId}": {
       "cli": "projects remove-competitor",
       "mcp": "projects_remove_competitor"
+    },
+    "POST /projects/{id}/competitors/{competitorId}/restore": {
+      "cli": "projects restore-competitor",
+      "mcp": "projects_restore_competitor"
     },
     "PUT /projects/{id}/competitors/checks": {
       "cli": "projects competitor-checks",

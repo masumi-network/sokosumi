@@ -1165,6 +1165,12 @@ export const CLI_COMMAND_CATALOG = [
     operation: "DELETE /projects/{id}/competitors/{competitorId}",
   },
   {
+    command: "projects restore-competitor",
+    usage:
+      "PROJECT_ID COMPETITOR_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/competitors/{competitorId}/restore",
+  },
+  {
     command: "projects competitor-checks",
     usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
     operation: "PUT /projects/{id}/competitors/checks",

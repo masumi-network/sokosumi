@@ -1422,6 +1422,17 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   "DELETE /projects/{id}/competitors/{competitorId}": {
     argv: [...API, "projects", "remove-competitor", "p-1", "comp-1"],
   },
+  "POST /projects/{id}/competitors/{competitorId}/restore": {
+    argv: [
+      ...API,
+      "projects",
+      "restore-competitor",
+      "p-1",
+      "comp-1",
+      "--input-json",
+      '{"removal":1}',
+    ],
+  },
   "PUT /projects/{id}/competitors/checks": {
     argv: [
       ...API,
