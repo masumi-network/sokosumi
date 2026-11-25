@@ -56,7 +56,12 @@ vi.mock("sonner", () => ({ toast: toastMock }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {},
-  useSession: () => ({ data: null }),
+  useSession: () => ({
+    data: {
+      user: { id: "user_1" },
+      session: { activeOrganizationId: null },
+    },
+  }),
 }));
 
 vi.mock("@/lib/utils/drive-file-list.client", async (importOriginal) => ({

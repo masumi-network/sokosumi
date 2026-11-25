@@ -16,6 +16,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { useSession } from "@/lib/auth/auth.client";
 import { useScopedInfiniteQuery } from "@/queries/scoped-queries";
 
 /** Open first, then the viewer's Hidden ones: both take new schedules. */
@@ -105,20 +106,20 @@ async function loadDestinations(
 export function TaskScheduleCopyProjectPicker({
   workspaceId,
   organizationId,
-  viewerId = null,
   currentProjectId,
   onSelect,
   onClose,
 }: {
   workspaceId: string;
   organizationId: string | null;
-  viewerId?: string | null;
   currentProjectId: string | null;
   onSelect: (project: ProjectFilterOption) => void;
   onClose: () => void;
 }) {
   const t = useTranslations("App.Tasks.Schedules.Actions");
   const tNewTask = useTranslations("App.Tasks.NewTask");
+  const { data: session } = useSession();
+  const viewerId = session?.user.id ?? null;
   const [openingId] = useState(() => ++nextOpeningId);
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
@@ -153,6 +154,7 @@ export function TaskScheduleCopyProjectPicker({
       openingId,
       { query, currentProjectId },
     ],
+    enabled: Boolean(viewerId),
     initialPageParam: INITIAL_PAGE_CURSOR,
     queryFn: ({ pageParam, signal, queryKey }) => {
       const [queryScope] = queryKey;

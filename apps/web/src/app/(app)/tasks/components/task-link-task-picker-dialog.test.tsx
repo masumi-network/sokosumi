@@ -6,12 +6,16 @@ import { ListTree } from "lucide-react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskLinkTaskPickerDialog } from "./task-link-task-picker-dialog";
 
-const { getTasksMock } = vi.hoisted(() => ({
+const { getTasksMock, useSessionMock } = vi.hoisted(() => ({
   getTasksMock: vi.fn(),
+  useSessionMock: vi.fn(),
 }));
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
+}));
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => useSessionMock(),
 }));
 vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: { getTasks: getTasksMock },
@@ -53,10 +57,7 @@ let queryClient = new QueryClient();
 function picker(
   open: boolean,
   onCloseAutoFocus: (event: Event) => void,
-  {
-    workspaceId = "ws-1",
-    viewerId = "user-1",
-  }: { workspaceId?: string; viewerId?: string | null } = {},
+  { workspaceId = "ws-1" }: { workspaceId?: string } = {},
 ) {
   return (
     <QueryClientProvider client={queryClient}>
@@ -64,7 +65,6 @@ function picker(
       <TaskLinkTaskPickerDialog
         taskId="task-1"
         workspaceId={workspaceId}
-        viewerId={viewerId}
         open={open}
         onOpenChange={() => {}}
         selectedOption={open ? option : null}
@@ -84,6 +84,13 @@ beforeEach(() => {
   queryClient = new QueryClient();
   getTasksMock.mockReset();
   getTasksMock.mockResolvedValue(tasksPage([]));
+  useSessionMock.mockReset();
+  useSessionMock.mockReturnValue({
+    data: {
+      user: { id: "user-1" },
+      session: { activeOrganizationId: null },
+    },
+  });
 });
 
 describe("TaskLinkTaskPickerDialog", () => {
@@ -313,15 +320,19 @@ describe("TaskLinkTaskPickerDialog", () => {
       .mockReturnValueOnce(userTwoLoad.promise);
 
     const { rerender } = render(
-      picker(true, () => {}, { workspaceId: "ws-1", viewerId: "user-1" }),
+      picker(true, () => {}, { workspaceId: "ws-1" }),
     );
     expect(
       await screen.findByRole("option", { name: "User 1 task" }),
     ).toBeInTheDocument();
 
-    rerender(
-      picker(true, () => {}, { workspaceId: "ws-1", viewerId: "user-2" }),
-    );
+    useSessionMock.mockReturnValue({
+      data: {
+        user: { id: "user-2" },
+        session: { activeOrganizationId: null },
+      },
+    });
+    rerender(picker(true, () => {}, { workspaceId: "ws-1" }));
     expect(await screen.findByText("taskPickerLoading")).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "User 1 task" })).toBeNull();
 
@@ -339,5 +350,46 @@ describe("TaskLinkTaskPickerDialog", () => {
 
     expect(await screen.findByText("taskPickerError")).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Wrong ws task" })).toBeNull();
+  });
+
+  it("loads a same-workspace page containing both Alice's private task and Bob's public task", async () => {
+    useSessionMock.mockReturnValue({
+      data: {
+        user: { id: "user-alice" },
+        session: { activeOrganizationId: "org-1" },
+      },
+    });
+    getTasksMock.mockResolvedValueOnce(
+      tasksPage([
+        {
+          ...taskItem("task-alice", "Alice private task"),
+          workspaceId: "ws-1",
+          ownerId: "user-alice",
+        },
+        {
+          ...taskItem("task-bob", "Bob public task"),
+          workspaceId: "ws-1",
+          ownerId: "user-bob",
+        },
+      ]),
+    );
+
+    render(picker(true, () => {}, { workspaceId: "ws-1" }));
+
+    expect(
+      await screen.findByRole("option", { name: "Alice private task" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "Bob public task" }),
+    ).toBeInTheDocument();
+  });
+
+  it("waits until the viewer session is known before loading tasks", async () => {
+    useSessionMock.mockReturnValue({ data: null });
+
+    render(picker(true, () => {}, { workspaceId: "ws-1" }));
+
+    expect(await screen.findByText("taskPickerLoading")).toBeInTheDocument();
+    expect(getTasksMock).not.toHaveBeenCalled();
   });
 });

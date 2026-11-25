@@ -56,7 +56,6 @@ interface TaskSchedulesViewProps {
   selectedState: TaskScheduleState | null;
   canCreate: boolean;
   canCreatePrivate: boolean;
-  viewerId?: string | null;
   /** Delete of a schedule with no Owner. Defaults closed. */
   canDeleteUnowned?: boolean;
 }
@@ -77,7 +76,6 @@ export function TaskSchedulesView({
   selectedState,
   canCreate,
   canCreatePrivate,
-  viewerId = null,
   canDeleteUnowned = false,
 }: TaskSchedulesViewProps) {
   const t = useTranslations("App.Tasks.Schedules");
@@ -304,7 +302,6 @@ export function TaskSchedulesView({
                 key={schedule.id}
                 projectOptions={projectOptions}
                 schedule={schedule}
-                viewerId={viewerId}
                 viewMode={viewMode}
               />
             ))}

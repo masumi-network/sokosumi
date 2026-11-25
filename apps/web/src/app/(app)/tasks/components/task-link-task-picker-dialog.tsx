@@ -17,6 +17,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { useSession } from "@/lib/auth/auth.client";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import { useScopedInfiniteQuery } from "@/queries/scoped-queries";
 
@@ -55,7 +56,6 @@ export interface TaskLinkActionOption extends TaskPickerOption {
 interface TaskLinkTaskPickerDialogProps<TOption extends TaskPickerOption> {
   taskId: string;
   workspaceId: string;
-  viewerId?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedOption: TOption | null;
@@ -99,13 +99,14 @@ export function TaskLinkTaskPickerDialog<TOption extends TaskPickerOption>({
 function TaskPickerBody<TOption extends TaskPickerOption>({
   taskId,
   workspaceId,
-  viewerId = null,
   selectedOption,
   isLinkPending,
   onSelectTask,
   excludeTaskIds = [],
 }: TaskPickerBodyProps<TOption>) {
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
+  const { data: session } = useSession();
+  const viewerId = session?.user.id ?? null;
   const [openingId] = useState(() => ++nextOpeningId);
   const [taskPickerQuery, setTaskPickerQuery] = useState("");
   const [debouncedTaskPickerQuery] = useDebounce(
@@ -131,10 +132,11 @@ function TaskPickerBody<TOption extends TaskPickerOption>({
       openingId,
       { q: debouncedTaskPickerQuery, includeSubtasks },
     ],
+    enabled: Boolean(viewerId),
     initialPageParam: null as string | null,
     queryFn: async ({ pageParam, signal, queryKey }) => {
       signal.throwIfAborted();
-      const [[expectedWorkspaceId, expectedViewerId]] = queryKey;
+      const [[expectedWorkspaceId]] = queryKey;
       const response = (await coreClient.getTasks({
         q: debouncedTaskPickerQuery || undefined,
         cursor: pageParam ?? undefined,
@@ -145,10 +147,7 @@ function TaskPickerBody<TOption extends TaskPickerOption>({
       if (
         response.data.some(
           (task) =>
-            (task.workspaceId && task.workspaceId !== expectedWorkspaceId) ||
-            (expectedViewerId &&
-              task.ownerId &&
-              task.ownerId !== expectedViewerId),
+            task.workspaceId && task.workspaceId !== expectedWorkspaceId,
         )
       ) {
         throw new Error("Active workspace changed");

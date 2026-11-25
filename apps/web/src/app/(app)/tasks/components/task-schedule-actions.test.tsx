@@ -34,6 +34,15 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("sonner", () => ({ toast: toastMock }));
 
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({
+    data: {
+      user: { id: "user_1" },
+      session: { activeOrganizationId: null },
+    },
+  }),
+}));
+
 vi.mock("@/lib/actions/task-schedule/action", () => ({
   changeTaskScheduleState: changeTaskScheduleStateMock,
   deleteTaskSchedule: deleteTaskScheduleMock,
@@ -143,10 +152,7 @@ function page(projects: ProjectListItem[], nextCursor: string | null) {
   return { projects, nextCursor };
 }
 
-function renderCopyToProject(
-  scheduleOverrides: Partial<TaskSchedule> = {},
-  viewerId: string | null = "user_1",
-) {
+function renderCopyToProject(scheduleOverrides: Partial<TaskSchedule> = {}) {
   return render(
     <QueryClientProvider client={queryClient}>
       <TaskScheduleActions
@@ -158,7 +164,6 @@ function renderCopyToProject(
         coworkerOptions={[]}
         projectOptions={[]}
         canCreatePrivate={false}
-        viewerId={viewerId}
       />
     </QueryClientProvider>,
   );
