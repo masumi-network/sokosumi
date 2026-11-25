@@ -1127,4 +1127,124 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
   "POST /projects/{id}/image-studio/jobs/{jobId}/cancel": {
     argv: [...API, "projects", "image-studio-cancel", "project-1", "job-1"],
   },
+  // SOKD-383: an agent drafts, plans and cancels Social posts and cancels newsletters.
+  "POST /projects/{id}/social-posts": {
+    argv: [
+      ...API,
+      "projects",
+      "social-post-create",
+      "p-1",
+      "--input-json",
+      '{"text":"Hello"}',
+    ],
+  },
+  "PATCH /projects/{id}/social-posts/{postId}": {
+    argv: [
+      ...API,
+      "projects",
+      "social-post-update",
+      "p-1",
+      "post-1",
+      "--input-json",
+      '{"revision":0,"text":"Hi"}',
+    ],
+  },
+  "POST /projects/{id}/social-posts/{postId}/schedule": {
+    argv: [
+      ...API,
+      "projects",
+      "social-post-schedule",
+      "p-1",
+      "post-1",
+      "--input-json",
+      '{"revision":0,"scheduledAt":"2030-01-01T10:00:00Z"}',
+    ],
+  },
+  "POST /projects/{id}/social-posts/{postId}/queue": {
+    argv: [
+      ...API,
+      "projects",
+      "social-post-queue",
+      "p-1",
+      "post-1",
+      "--input-json",
+      '{"revision":0}',
+    ],
+  },
+  "POST /projects/{id}/social-posts/{postId}/cancel": {
+    argv: [
+      ...API,
+      "projects",
+      "social-post-cancel",
+      "p-1",
+      "post-1",
+      "--input-json",
+      '{"revision":0}',
+    ],
+  },
+  "POST /projects/{id}/social-posts/{postId}/duplicate": {
+    argv: [
+      ...API,
+      "projects",
+      "social-post-duplicate",
+      "p-1",
+      "post-1",
+      "--input-json",
+      "{}",
+    ],
+  },
+  "POST /projects/{id}/social-posts/{postId}/statistics/refresh": {
+    argv: [
+      ...API,
+      "projects",
+      "social-post-statistics-refresh",
+      "p-1",
+      "post-1",
+      "--input-json",
+      "{}",
+    ],
+  },
+  "POST /projects/{id}/social-account-posts/{accountPostId}/recycle": {
+    argv: [
+      ...API,
+      "projects",
+      "social-account-post-recycle",
+      "p-1",
+      "ap-1",
+      "--input-json",
+      "{}",
+    ],
+  },
+  "PUT /projects/{id}/social-queue-slots": {
+    argv: [
+      ...API,
+      "projects",
+      "social-queue-slots-update",
+      "p-1",
+      "--input-json",
+      '{"timezone":"UTC","slots":[]}',
+    ],
+  },
+  "POST /projects/{id}/social-connections/{connectionId}/statistics/refresh": {
+    argv: [
+      ...API,
+      "projects",
+      "social-connection-statistics-refresh",
+      "p-1",
+      "c-1",
+      "--input-json",
+      "{}",
+    ],
+  },
+  "POST /projects/{id}/newsletter/issues/{issueId}/cancel": {
+    argv: [
+      ...API,
+      "projects",
+      "newsletter-issue-cancel",
+      "p-1",
+      "issue-1",
+      "--input-json",
+      '{"revision":0}',
+    ],
+  },
 };

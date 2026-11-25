@@ -286,6 +286,8 @@ export interface CreateSocialPostInput
     WorkspaceOwnerScope {
   userId: string;
   coworkerId?: string;
+  /** ADR 0077: no person at the keyboard (API key, OAuth or MCP token, Coworker); the write waits for a person's approval. */
+  agent?: boolean;
   sokoBotId?: string;
   text: string;
   firstComment?: string;
@@ -304,6 +306,8 @@ export interface UpdateSocialPostInput
     WorkspaceOwnerScope {
   userId: string;
   coworkerId?: string;
+  /** ADR 0077: no person at the keyboard (API key, OAuth or MCP token, Coworker); the write waits for a person's approval. */
+  agent?: boolean;
   /** The Soko Bot editing it: its writing is checked for formatting mistakes. */
   sokoBotId?: string;
   postId: string;
@@ -326,6 +330,8 @@ export interface ScheduleSocialPostInput extends ProjectScope {
   /** Prepared before the scheduling transaction when the target account changes. */
   media?: SocialPostMediaRef[];
   coworkerId?: string;
+  /** ADR 0077: no person at the keyboard (API key, OAuth or MCP token, Coworker); the write waits for a person's approval. */
+  agent?: boolean;
   postId: string;
   scheduledAt: Date;
   timezone?: string;
@@ -364,6 +370,8 @@ export interface DuplicateSocialPostInput
     WorkspaceOwnerScope {
   userId: string;
   coworkerId?: string;
+  /** ADR 0077: no person at the keyboard (API key, OAuth or MCP token, Coworker); the write waits for a person's approval. */
+  agent?: boolean;
   postId: string;
 }
 
@@ -372,6 +380,8 @@ export interface RecycleSocialAccountPostInput
     WorkspaceOwnerScope {
   userId: string;
   coworkerId?: string;
+  /** ADR 0077: no person at the keyboard (API key, OAuth or MCP token, Coworker); the write waits for a person's approval. */
+  agent?: boolean;
   accountPostId: string;
   delayDays?: 7 | 14 | 30;
   timezone?: string;
@@ -1444,7 +1454,9 @@ export async function createSocialPost(
   if (scheduled) {
     requireMediaRequirement(requireProvider(provider), media);
   }
-  const agentDraft = Boolean(input.coworkerId || input.sokoBotId);
+  const agentDraft = Boolean(
+    input.agent || input.coworkerId || input.sokoBotId,
+  );
   await requireSocialPostQuote(
     { ...input, provider, quotedPostId: input.quotedPostId ?? null },
     tx,
@@ -1575,8 +1587,8 @@ export async function updateSocialPost(
       : post.status === "FAILED" || post.status === "MISSED"
         ? { lastError: null, attemptCount: 0, nextAttemptAt: null }
         : {};
-  // ADR 0077: a Coworker's edit never publishes on its own; a person approves it.
-  if (input.coworkerId) data.status = "NEEDS_APPROVAL";
+  // ADR 0077: an agent's edit never publishes on its own; a person approves it.
+  if (input.agent || input.coworkerId) data.status = "NEEDS_APPROVAL";
   if (input.scheduledAt) data.scheduledAt = input.scheduledAt;
   if (input.timezone !== undefined) data.timezone = input.timezone;
   const currentProvider = requireProvider(post.provider);
@@ -1888,9 +1900,9 @@ export async function scheduleSocialPost(
         input,
         input.revision,
         {
-          // ADR 0077: a Coworker's schedule waits for a person's approval.
+          // ADR 0077: an agent's schedule waits for a person's approval.
           status:
-            input.coworkerId || post.status === "NEEDS_APPROVAL"
+            input.agent || input.coworkerId || post.status === "NEEDS_APPROVAL"
               ? "NEEDS_APPROVAL"
               : "SCHEDULED",
           scheduledAt: input.scheduledAt,
@@ -2158,7 +2170,7 @@ export async function duplicateSocialPost(
       ...(threadParts.length > 0
         ? { threadParts: { create: threadParts } }
         : {}),
-      status: input.coworkerId ? "NEEDS_APPROVAL" : "DRAFT",
+      status: input.agent || input.coworkerId ? "NEEDS_APPROVAL" : "DRAFT",
       creatorUserId: input.coworkerId ? null : input.userId,
       creatorCoworkerId: input.coworkerId ?? null,
     },
@@ -2249,6 +2261,7 @@ export async function recycleSocialAccountPost(
       workspaceId: input.workspaceId,
       userId: input.userId,
       coworkerId: input.coworkerId,
+      agent: input.agent,
       postId: post.id,
       scheduledAt: new Date(Date.now() + input.delayDays * DAY_MS),
       timezone: input.timezone,

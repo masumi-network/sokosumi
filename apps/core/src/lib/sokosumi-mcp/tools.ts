@@ -1136,6 +1136,78 @@ export const MCP_TOOLS: readonly McpTool[] = [
     description:
       "Ask to stop a queued or running Image Studio job. `accepted` means the provider took the request, not that the work stopped.",
   },
+  // SOKD-383: an agent drafts, plans and cancels Social posts and cancels newsletters (ADR 0077).
+  {
+    name: "projects_social_post_create",
+    operation: "POST /projects/{id}/social-posts",
+    description:
+      "Draft a Social post for a Project; pass `scheduledAt` and `socialConnectionId` to plan it. It lands as Needs approval and publishes only after a person approves it in Sokosumi.",
+  },
+  {
+    name: "projects_social_post_update",
+    operation: "PATCH /projects/{id}/social-posts/{postId}",
+    description:
+      "Edit a Social post. `body.revision` is the revision you last read. The post goes back to Needs approval, whatever its status was.",
+    destructive: true,
+  },
+  {
+    name: "projects_social_post_schedule",
+    operation: "POST /projects/{id}/social-posts/{postId}/schedule",
+    description:
+      "Plan a Social post for a time on a connected account. It lands as Needs approval and publishes at that time only after a person approves it.",
+  },
+  {
+    name: "projects_social_post_queue",
+    operation: "POST /projects/{id}/social-posts/{postId}/queue",
+    description:
+      "Plan a Social post in its account's next free queue slot. It lands as Needs approval.",
+  },
+  {
+    name: "projects_social_post_cancel",
+    operation: "POST /projects/{id}/social-posts/{postId}/cancel",
+    description:
+      "Cancel a draft, planned or Needs approval Social post so it never publishes, or dismiss a failed or missed one.",
+    destructive: true,
+  },
+  {
+    name: "projects_social_post_duplicate",
+    operation: "POST /projects/{id}/social-posts/{postId}/duplicate",
+    description:
+      "Copy a published, failed or missed Social post into a new post that needs approval.",
+  },
+  {
+    name: "projects_social_post_statistics_refresh",
+    operation: "POST /projects/{id}/social-posts/{postId}/statistics/refresh",
+    description:
+      "Fetch a published Social post's latest performance counters from its account.",
+  },
+  {
+    name: "projects_social_account_post_recycle",
+    operation:
+      "POST /projects/{id}/social-account-posts/{accountPostId}/recycle",
+    description:
+      "Copy a post from an account's Performance list into a new Social post that needs approval. `delayDays` with `timezone` also plans it.",
+  },
+  {
+    name: "projects_social_queue_slots_update",
+    operation: "PUT /projects/{id}/social-queue-slots",
+    description:
+      "Replace a Project's weekly posting-queue times. Send the whole list: a time left out is removed.",
+    destructive: true,
+  },
+  {
+    name: "projects_social_connection_statistics_refresh",
+    operation:
+      "POST /projects/{id}/social-connections/{connectionId}/statistics/refresh",
+    description:
+      "Queue a background refresh of a connected account's statistics. Returns the stored data and sync state.",
+  },
+  {
+    name: "projects_newsletter_issue_cancel",
+    operation: "POST /projects/{id}/newsletter/issues/{issueId}/cancel",
+    description:
+      "Stop a scheduled newsletter issue before it sends. It goes back to a draft that a person approves again.",
+  },
 ];
 
 /** Route groups with a hyphen, which their tool names spell with `_`. */

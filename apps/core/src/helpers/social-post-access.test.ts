@@ -48,6 +48,7 @@ describe("Social post delegation", () => {
     await expect(requireSocialPostActor(actor)).resolves.toEqual({
       userId: "user",
       coworkerId: "cow",
+      agent: true,
     });
     expect(mocks.binding).toHaveBeenCalledWith(actor, expect.anything());
     expect(mocks.capability).toHaveBeenCalledWith(
@@ -110,18 +111,51 @@ describe("Social post delegation", () => {
       expect(mocks.workspace).not.toHaveBeenCalled();
     },
   );
-  it.each(["api_key", "oauth"] as const)(
-    "does not enable human %s credentials",
-    async (authenticationMethod) => {
-      await expect(
-        requireSocialPostActor({
-          actor: "user",
-          userId: "user",
-          organizationId: null,
-          role: "user",
-          authenticationMethod,
-        }),
-      ).rejects.toMatchObject({ status: 403 });
-    },
-  );
+  // ADR 0077: a credential with no person at the keyboard is an agent.
+  const person = {
+    actor: "user" as const,
+    userId: "user",
+    organizationId: null,
+    role: "user",
+  };
+  it("treats a browser session as a person", async () => {
+    await expect(
+      requireSocialPostActor({ ...person, authenticationMethod: "session" }),
+    ).resolves.toEqual({ userId: "user", agent: false });
+  });
+  it.each([
+    ["API key", { authenticationMethod: "api_key" as const }],
+    [
+      "third-party OAuth token",
+      { authenticationMethod: "oauth" as const, oauthClientId: "client" },
+    ],
+    ["MCP token", { authenticationMethod: "oauth" as const }],
+    [
+      "first-party OAuth token",
+      { authenticationMethod: "oauth" as const, firstPartyClient: true },
+    ],
+    ["credential of unknown kind", {}],
+  ])("treats a %s like a Coworker", async (_name, credential) => {
+    await expect(
+      requireSocialPostActor({ ...person, ...credential }),
+    ).resolves.toEqual({ userId: "user", agent: true });
+    expect(mocks.binding).not.toHaveBeenCalled();
+  });
+  it("marks a Coworker as an agent", async () => {
+    await expect(requireSocialPostActor(actor)).resolves.toMatchObject({
+      agent: true,
+    });
+  });
+  it("rejects a Soko Bot, which has its own Social tools", async () => {
+    await expect(
+      requireSocialPostActor({
+        actor: "sokoBot",
+        scope: "personal",
+        sokoBotId: "bot",
+        userId: "user",
+        organizationId: null,
+        workspaceId: "workspace",
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+  });
 });

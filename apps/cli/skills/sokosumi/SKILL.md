@@ -355,6 +355,20 @@ sokosumi projects image-studio-cancel PROJECT_ID JOB_ID --json
 
 Every start needs an `idempotencyKey` (8 to 200 characters). Pick a new one for each generation and reuse it on a retry: a repeat returns the first job and buys nothing. A talking video uses a stock presenter. One from a photo of a real person is person-only: Core answers 403 `person_approval_required` with a `webUrl`, so send the person there.
 
+## Social posts and newsletters
+
+[VERIFIED: ADR 0077, `apps/cli/src/cli/commands/catalog.ts`] You draft, plan and stop; a person approves, publishes and sends in Sokosumi. Every post you create, edit, plan, queue or copy lands as Needs approval, whatever it was before:
+
+```bash
+sokosumi projects social-post-create PROJECT_ID --input-json '{"text":"…","socialConnectionId":"…","scheduledAt":"…"}' --organization-slug WORKSPACE_SLUG
+sokosumi projects social-post-update PROJECT_ID POST_ID --input-json '{"revision":3,"text":"…"}'
+sokosumi projects social-post-schedule PROJECT_ID POST_ID --input-json '{"revision":3,"scheduledAt":"…"}'
+sokosumi projects social-post-cancel PROJECT_ID POST_ID --input-json '{"revision":3}'
+sokosumi projects newsletter-issue-cancel PROJECT_ID ISSUE_ID --input-json '{"revision":2}'
+```
+
+Also `social-post-queue`, `social-post-duplicate`, `social-account-post-recycle`, `social-queue-slots-update` and the two `statistics-refresh` commands. Send the `revision` you last read. Approving, rejecting, publishing or resuming a post, and approving, scheduling or sending a newsletter answer 403 `person_approval_required` with a `webUrl`: give your user that link instead of retrying. Over MCP these tools are in the `projects` toolset, off by default.
+
 ## Use Sokosumi over MCP
 
 [VERIFIED: `apps/core/src/routes/mcp/index.ts`, `docs/mcp.md`] Sokosumi also serves its tools over MCP at `https://api.sokosumi.com/mcp`. Use it when the host speaks MCP and the CLI is not installed. The host connects by URL and signs in through the browser; no API key is needed:
