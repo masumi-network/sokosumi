@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { hideSeoAuditRequest } from "@sokosumi/utils";
 import { conflict, unprocessableEntity } from "@/helpers/error";
+import { seoAuditTextUnchanged } from "@/helpers/seo-task-execution";
 import { toLocalDateKey } from "@/helpers/task-schedule";
 import {
   requestSeoAnalysisSchema,
@@ -121,6 +122,21 @@ export function seoMonitorAuditId(description: string | null): string | null {
 /** The schedule description that stores an approved plan. */
 export function seoMonitorDescription(plan: SeoMonitorPlan): string {
   return `${SEO_MONITOR_MARKER}${JSON.stringify(seoMonitorPacketSchema.parse(plan))}`;
+}
+
+/**
+ * The description a schedule edit writes. An SEO monitor keeps its plan, and a full audit's hidden request line
+ * stays when the edit sends back the text a person saw.
+ */
+export function taskScheduleDescriptionForWrite(
+  stored: string | null,
+  input: UpdateTaskScheduleRequest,
+): string | null | undefined {
+  if (isSeoMonitorDescription(stored))
+    return seoMonitorDescriptionWithRule(stored, input);
+  return seoAuditTextUnchanged(stored, input.description)
+    ? undefined
+    : input.description;
 }
 
 /**
