@@ -40,7 +40,8 @@
     "soko-bot:tool-smoke": "tsx --env-file=.env scripts/soko-bot-tool-smoke.mts",
     "soko-bot:trace": "tsx --env-file=.env scripts/soko-bot-trace.mts",
     "cmo:lab": "tsx --env-file=.env scripts/cmo-lab.mts",
-    "reference-library": "tsx --env-file=.env scripts/reference-library.mts"
+    "reference-library": "tsx --env-file=.env scripts/reference-library.mts",
+    "seo:backfill-rank-points": "tsx --env-file=.env scripts/backfill-seo-rank-points.mts"
   },
   "dependencies": {
     "@ai-sdk/mcp": "2.0.106",
