@@ -7,7 +7,7 @@ export function useSeoWorklistFocus(
   filterLine: RefObject<HTMLFieldSetElement | null>,
   list: RefObject<HTMLUListElement | null>,
   focusStrategy: boolean,
-  setShownStrategy: (shown: boolean) => void,
+  onFocusHandled: () => void,
 ) {
   // Read in each render, before its commit: a new check can take away the filter, the row or the whole filter
   // line that has the focus.
@@ -21,7 +21,7 @@ export function useSeoWorklistFocus(
       );
       target?.scrollIntoView?.({ block: "nearest" });
       target?.focus({ preventScroll: true });
-      setShownStrategy(false);
+      onFocusHandled();
       return;
     }
     if (!hadFocus.current || document.activeElement !== document.body) return;
