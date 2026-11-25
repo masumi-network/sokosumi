@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { CUSO_FACE_URL } from "@/lib/cuso-face";
 import {
   projectSummaryFromLoadedRelation,
   sokoBotSummaryFromLoadedRelation,
@@ -58,6 +59,7 @@ describe("sokoBotSummaryFromLoadedRelation", () => {
     expect(
       sokoBotSummaryFromLoadedRelation("Task tsk_1", BOT_ID, {
         ...bot,
+        versionId: null,
         userId: "user_1",
         user: { id: "user_1", name: "Ana", image: null },
       }),
@@ -71,6 +73,7 @@ describe("sokoBotSummaryFromLoadedRelation", () => {
     expect(() =>
       sokoBotSummaryFromLoadedRelation("Task tsk_1", BOT_ID, {
         ...bot,
+        versionId: null,
         userId: "user_1",
         user: null,
       }),
@@ -81,9 +84,22 @@ describe("sokoBotSummaryFromLoadedRelation", () => {
     expect(
       sokoBotSummaryFromLoadedRelation("Task tsk_1", BOT_ID, {
         ...bot,
+        versionId: null,
         userId: null,
         user: null,
       }),
     ).toEqual({ ...bot, owner: null });
+  });
+
+  it("shows Cuso with his fixed face", () => {
+    expect(
+      sokoBotSummaryFromLoadedRelation("Task tsk_1", BOT_ID, {
+        ...bot,
+        avatarImageUrl: "https://blob.example/owl.webp",
+        versionId: "cmo-v23",
+        userId: null,
+        user: null,
+      }),
+    ).toMatchObject({ avatarImageUrl: CUSO_FACE_URL });
   });
 });
