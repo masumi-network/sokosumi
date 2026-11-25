@@ -12856,7 +12856,7 @@
         "dialogTitle": "Buscar inversores",
         "dialogDescription": "Una búsqueda lee la web en busca de personas que encajen con el brief y las añade como sugerencias. Quien ya está en la lista se omite.",
         "briefLabel": "¿A quién buscas?",
-        "briefPlaceholder": "p. ej. Inversores seed y pre-seed en Europa que apoyen agentes de IA, pagos entre agentes o infraestructura para desarrolladores. Tickets de 250K–2M $. Mejor quienes lideraron una ronda el último año.",
+        "briefPlaceholder": "p. ej. inversores seed y pre-seed en Europa que apoyen agentes de IA, pagos entre agentes o infraestructura para desarrolladores; tickets de 250K–2M $; quienes lideraron una ronda el último año",
         "sizeLabel": "Cuántos",
         "size": "{count} inversores",
         "cost": "{perSearch} por búsqueda · {spent} de {cap} gastados este mes",

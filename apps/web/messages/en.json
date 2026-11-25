@@ -12856,7 +12856,7 @@
         "dialogTitle": "Find investors",
         "dialogDescription": "One search reads the web for people who fit the brief and adds them as suggestions. People already on the list are skipped.",
         "briefLabel": "Who are you looking for?",
-        "briefPlaceholder": "e.g. Seed and pre-seed investors in Europe who back AI agents, agent payments or developer infrastructure. Cheques $250K–$2M. Prefer people who led a round in the last year.",
+        "briefPlaceholder": "e.g. seed and pre-seed investors in Europe who back AI agents, agent payments or developer infrastructure; cheques $250K–$2M; people who led a round in the last year",
         "sizeLabel": "How many",
         "size": "{count} investors",
         "cost": "{perSearch} per search · {spent} of {cap} spent this month",

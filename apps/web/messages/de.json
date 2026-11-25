@@ -12856,7 +12856,7 @@
         "dialogTitle": "Investoren finden",
         "dialogDescription": "Eine Suche liest das Web nach Personen, die zum Briefing passen, und legt sie als Vorschläge an. Wer schon auf der Liste steht, wird übersprungen.",
         "briefLabel": "Wen suchst du?",
-        "briefPlaceholder": "z. B. Seed- und Pre-Seed-Investoren in Europa, die AI-Agenten, Agent-Payments oder Developer-Infrastruktur finanzieren. Tickets 250K–2M $. Bevorzugt Leute, die im letzten Jahr eine Runde geführt haben.",
+        "briefPlaceholder": "z. B. Seed- und Pre-Seed-Investoren in Europa, die AI-Agenten, Agent-Payments oder Developer-Infrastruktur finanzieren; Tickets 250K–2M $; Leute, die im letzten Jahr eine Runde geführt haben",
         "sizeLabel": "Wie viele",
         "size": "{count} Investoren",
         "cost": "{perSearch} pro Suche · {spent} von {cap} diesen Monat ausgegeben",
