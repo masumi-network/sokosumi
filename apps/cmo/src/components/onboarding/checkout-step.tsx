@@ -2,8 +2,8 @@
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { cmoMonthAtLevel, cmoVolumeLevelForTier } from "@sokosumi/utils";
-import { ArrowRight, Loader2 } from "lucide-react";
-import { type CSSProperties, useState, useTransition } from "react";
+import { ArrowRight, Check, Loader2 } from "lucide-react";
+import { useState, useTransition } from "react";
 import { channelLabel } from "../../lib/calendar";
 import { channelInfo, channelKey } from "../../lib/channels";
 import { postsGoingOut } from "../../lib/strategy";
@@ -38,6 +38,21 @@ const PLAN_LINES = [
 const TEAM_CHECK = "Our team checks every post before it goes out.";
 
 /**
+ * How a plan is framed beside its name: Growth as the start, Scale as the
+ * plan with everything. Judgements, not counts: nothing says how many pick
+ * a plan.
+ */
+const PLAN_FRAMES: Record<string, string> = {
+  growth: "Strong start",
+  scale: "Everything included",
+};
+
+/** A plan's monthly credits, in plain words. */
+function creditsLine(credits: number): string {
+  return `${credits.toLocaleString("en")} AI credits a month`;
+}
+
+/**
  * How many posts a plan makes of this strategy a month, as they go out (a
  * short video is a post on each network): the month is written at the top
  * volume, and each plan makes its share of it (Core makes the same).
@@ -55,65 +70,6 @@ function postsLine(posts: number, most: number): string {
   if (posts >= most) return `All ${posts} posts a month`;
   const about = posts >= 20 ? Math.round(posts / 10) * 10 : posts;
   return `About ${about} posts a month`;
-}
-
-type Point = readonly [number, number];
-
-/**
- * Each plan's rise, from the cheapest up, in a 64 by 40 box: gentle, steeper,
- * then a hockey stick that shoots out past the card's top line, into the gap
- * above it (no further: on a phone the plan above sits there).
- */
-const RISES: readonly (readonly Point[])[] = [
-  [
-    [2, 32],
-    [22, 27],
-    [40, 23],
-    [58, 15],
-  ],
-  [
-    [2, 32],
-    [20, 27],
-    [36, 17],
-    [58, 0],
-  ],
-  [
-    [2, 34],
-    [24, 32],
-    [38, 28],
-    [46, 17],
-    [52, -14],
-  ],
-];
-
-/** The rise as one unbroken stroke, the line then its arrowhead, so it draws in that order. */
-function risePath(points: readonly Point[], head: number): string {
-  const [x0, y0] = points[points.length - 2] ?? [0, 0];
-  const [x, y] = points[points.length - 1] ?? [0, 0];
-  const length = Math.hypot(x - x0, y - y0);
-  const [ux, uy] = [(x - x0) / length, (y - y0) / length];
-  const side = (sign: number) =>
-    `${(x - head * ux + sign * head * 0.7 * uy).toFixed(1)} ${(y - head * uy - sign * head * 0.7 * ux).toFixed(1)}`;
-  const line = points.map(([px, py]) => `${px} ${py}`).join(" L");
-  return `M${line} L${side(1)} L${x} ${y} L${side(-1)}`;
-}
-
-/** A plan's chart arrow, steeper for each plan up; a picture, not read out. */
-function PlanRise({ place }: { place: number }) {
-  const top = Math.min(place, RISES.length - 1);
-  const points = RISES[top] ?? [];
-  const steep = top === RISES.length - 1;
-  return (
-    <svg
-      className={steep ? "ob-plan-rise ob-plan-rise-steep" : "ob-plan-rise"}
-      viewBox="0 0 64 40"
-      aria-hidden="true"
-      focusable="false"
-      style={{ "--rise-delay": `${450 + top * 150}ms` } as CSSProperties}
-    >
-      <path d={risePath(points, steep ? 8 : 6)} pathLength={1} />
-    </svg>
-  );
 }
 
 /** A plan's price in its currency's main unit. */
@@ -238,6 +194,9 @@ export function CheckoutStep({
   const saving = yearlySaving(plans);
   const networks = strategyNetworks(strategy);
   const months = interval === "year" ? 12 : 1;
+  // Every card keeps the frame's row when any has one, so the rows line up.
+  const framed =
+    offered.length > 1 && offered.some((plan) => PLAN_FRAMES[plan.tier]);
 
   function checkout(chosenTier: string) {
     setError(null);
@@ -306,19 +265,39 @@ export function CheckoutStep({
                   other.interval === "month" && other.tier === plan.tier,
               );
               const posts = makes.get(plan.tier);
+              const top = offered.length > 1 && place === offered.length - 1;
+              const frame = framed ? PLAN_FRAMES[plan.tier] : undefined;
               return (
                 <button
                   key={plan.tier}
                   type="button"
                   aria-pressed={plan.tier === tier}
-                  className="card ob-plan-option"
+                  className={
+                    top
+                      ? "card ob-plan-option ob-plan-top"
+                      : "card ob-plan-option"
+                  }
                   onClick={() => setPicked(plan.tier)}
                 >
                   {plan.tier === whole && offered.length > 1 ? (
                     <span className="ob-plan-fit">Makes all of it</span>
                   ) : null}
-                  <PlanRise place={place} />
                   <span className="ob-plan-name">{tierName(plan.tier)}</span>
+                  {framed ? (
+                    frame ? (
+                      <span
+                        className={
+                          top
+                            ? "ob-plan-frame ob-plan-frame-top"
+                            : "ob-plan-frame"
+                        }
+                      >
+                        {frame}
+                      </span>
+                    ) : (
+                      <span className="ob-plan-frame-room" aria-hidden="true" />
+                    )
+                  ) : null}
                   {/* Both intervals fill the same lines, so switching never moves the cards. */}
                   {interval === "year" && monthly ? (
                     <s className="ob-small muted ob-swap">
@@ -346,8 +325,12 @@ export function CheckoutStep({
                   ) : PLAN_LINES[place] ? (
                     <span className="ob-small">{PLAN_LINES[place]}</span>
                   ) : null}
-                  {place === PLAN_LINES.length - 1 ? (
-                    <span className="ob-small">{TEAM_CHECK}</span>
+                  <span className="ob-small">{creditsLine(plan.credits)}</span>
+                  {top ? (
+                    <span className="ob-small ob-plan-extra">
+                      <Check size={14} aria-hidden="true" />
+                      {TEAM_CHECK}
+                    </span>
                   ) : null}
                 </button>
               );
