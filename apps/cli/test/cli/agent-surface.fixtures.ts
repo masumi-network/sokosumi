@@ -1247,4 +1247,351 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       '{"revision":0}',
     ],
   },
+  // SOKD-373: projects and newsletter.
+  "GET /projects": {
+    argv: [...API, "projects", "list", "--query", "state=open"],
+  },
+  "POST /projects": {
+    argv: [...API, "projects", "create", "--input-json", '{"name":"Launch"}'],
+  },
+  "GET /projects/stats": {
+    argv: [...API, "projects", "stats"],
+  },
+  "GET /projects/activity": {
+    argv: [...API, "projects", "activity", "--query", "limit=10"],
+  },
+  "GET /projects/starred": {
+    argv: [...API, "projects", "starred"],
+  },
+  "GET /projects/{id}": {
+    argv: [...API, "projects", "get", "p-1"],
+  },
+  "PATCH /projects/{id}": {
+    argv: [
+      ...API,
+      "projects",
+      "update",
+      "p-1",
+      "--input-json",
+      '{"briefing":"We sell running shoes."}',
+    ],
+  },
+  "POST /projects/{id}/star": {
+    argv: [...API, "projects", "star", "p-1"],
+  },
+  "DELETE /projects/{id}/star": {
+    argv: [...API, "projects", "unstar", "p-1"],
+  },
+  "GET /projects/{id}/hide": {
+    argv: [...API, "projects", "hidden", "p-1"],
+  },
+  "POST /projects/{id}/hide": {
+    argv: [...API, "projects", "hide", "p-1"],
+  },
+  "DELETE /projects/{id}/hide": {
+    argv: [...API, "projects", "unhide", "p-1"],
+  },
+  "POST /projects/{id}/jobs": {
+    argv: [
+      ...API,
+      "projects",
+      "add-job",
+      "p-1",
+      "--input-json",
+      '{"jobId":"job-1"}',
+    ],
+  },
+  "DELETE /projects/{id}/jobs/{jobId}": {
+    argv: [...API, "projects", "remove-job", "p-1", "job-1"],
+  },
+  "POST /projects/{id}/tasks": {
+    argv: [
+      ...API,
+      "projects",
+      "add-task",
+      "p-1",
+      "--input-json",
+      '{"taskId":"task-1"}',
+    ],
+  },
+  "DELETE /projects/{id}/tasks/{taskId}": {
+    argv: [...API, "projects", "remove-task", "p-1", "task-1"],
+  },
+  "GET /projects/{id}/context-md": {
+    argv: [...API, "projects", "context", "p-1"],
+  },
+  "GET /projects/{id}/posting-instructions": {
+    argv: [...API, "projects", "posting-instructions", "p-1"],
+  },
+  "PUT /projects/{id}/design-md": {
+    argv: [
+      ...API,
+      "projects",
+      "set-design",
+      "p-1",
+      "--input-json",
+      '{"content":"# Design\\n"}',
+    ],
+  },
+  "DELETE /projects/{id}/design-md": {
+    argv: [...API, "projects", "clear-design", "p-1"],
+  },
+  "GET /projects/{id}/needs-attention": {
+    argv: [...API, "projects", "needs-attention", "p-1"],
+  },
+  "GET /projects/{id}/close": {
+    argv: [...API, "projects", "close-status", "p-1"],
+  },
+  "POST /projects/{id}/close": {
+    argv: [
+      ...API,
+      "projects",
+      "close",
+      "p-1",
+      "--input-json",
+      '{"operationId":"op-1","expectedProjectRevision":3}',
+    ],
+  },
+  "POST /projects/{id}/close/retry": {
+    argv: [
+      ...API,
+      "projects",
+      "retry-close",
+      "p-1",
+      "--input-json",
+      '{"operationId":"op-2","expectedProjectRevision":3,"reason":"Provider was down"}',
+    ],
+  },
+  "POST /projects/{id}/close/cancel-owed": {
+    argv: [
+      ...API,
+      "projects",
+      "cancel-owed",
+      "p-1",
+      "--input-json",
+      '{"operationId":"op-3","expectedProjectRevision":3,"reason":"Not needed"}',
+    ],
+  },
+  "GET /projects/{id}/brand-brain": {
+    argv: [...API, "projects", "brand-brain", "p-1"],
+  },
+  "PUT /projects/{id}/brand-brain": {
+    argv: [
+      ...API,
+      "projects",
+      "set-brand-brain",
+      "p-1",
+      "--input-json",
+      '{"brandBrain":{"summary":"Running shoes","voice":{},"audience":[],"products":[],"competitors":[],"channels":[]}}',
+    ],
+  },
+  "POST /projects/{id}/brand-brain/answers": {
+    argv: [
+      ...API,
+      "projects",
+      "answer-brand-brain",
+      "p-1",
+      "--input-json",
+      '{"questionId":"q-1","answer":"yes"}',
+    ],
+  },
+  "GET /projects/{id}/competitors": {
+    argv: [...API, "projects", "competitors", "p-1"],
+  },
+  "POST /projects/{id}/competitors": {
+    argv: [
+      ...API,
+      "projects",
+      "add-competitor",
+      "p-1",
+      "--input-json",
+      '{"name":"Acme"}',
+    ],
+  },
+  "PATCH /projects/{id}/competitors/{competitorId}": {
+    argv: [
+      ...API,
+      "projects",
+      "update-competitor",
+      "p-1",
+      "comp-1",
+      "--input-json",
+      '{"pricingUrl":"https://acme.example/pricing"}',
+    ],
+  },
+  "DELETE /projects/{id}/competitors/{competitorId}": {
+    argv: [...API, "projects", "remove-competitor", "p-1", "comp-1"],
+  },
+  "PUT /projects/{id}/competitors/checks": {
+    argv: [
+      ...API,
+      "projects",
+      "competitor-checks",
+      "p-1",
+      "--input-json",
+      '{"on":true}',
+    ],
+  },
+  "POST /projects/{id}/competitors/check": {
+    argv: [...API, "projects", "check-competitors", "p-1"],
+  },
+  "POST /projects/{id}/competitors/suggestions": {
+    argv: [...API, "projects", "suggest-competitors", "p-1"],
+  },
+  "GET /projects/{id}/marketing-strategies": {
+    argv: [...API, "projects", "strategies", "p-1"],
+  },
+  "POST /projects/{id}/marketing-strategies": {
+    argv: [
+      ...API,
+      "projects",
+      "create-strategy",
+      "p-1",
+      "--input-json",
+      '{"plan":{"month":"2026-12","summary":"Grow signups","goals":[],"pillars":[],"channels":[],"calendar":[]}}',
+    ],
+  },
+  "GET /projects/{id}/marketing-strategies/{strategyId}": {
+    argv: [...API, "projects", "strategy", "p-1", "strat-1"],
+  },
+  "POST /projects/{id}/marketing-strategies/{strategyId}/answers": {
+    argv: [
+      ...API,
+      "projects",
+      "answer-strategy",
+      "p-1",
+      "strat-1",
+      "--input-json",
+      '{"questionId":"q-1","answer":"no","note":"We only sell online."}',
+    ],
+  },
+  "GET /newsletter/availability": {
+    argv: [...API, "newsletter", "availability"],
+  },
+  "GET /projects/{id}/newsletter": {
+    argv: [...API, "newsletter", "get", "p-1"],
+  },
+  "PUT /projects/{id}/newsletter": {
+    argv: [
+      ...API,
+      "newsletter",
+      "set",
+      "p-1",
+      "--input-json",
+      '{"name":"Weekly","senderName":"Ada","replyTo":"ada@example.com","brand":{},"welcomeEmailEnabled":false}',
+    ],
+  },
+  "GET /projects/{id}/newsletter/analytics": {
+    argv: [...API, "newsletter", "analytics", "p-1"],
+  },
+  "GET /projects/{id}/newsletter/issues/{issueId}/analytics": {
+    argv: [...API, "newsletter", "issue-analytics", "p-1", "issue-1"],
+  },
+  "GET /projects/{id}/newsletter/issues": {
+    argv: [...API, "newsletter", "issues", "p-1", "--query", "status=DRAFT"],
+  },
+  "POST /projects/{id}/newsletter/issues": {
+    argv: [
+      ...API,
+      "newsletter",
+      "create-issue",
+      "p-1",
+      "--input-json",
+      '{"subject":"December news","template":"TEXT","content":{}}',
+    ],
+  },
+  "POST /projects/{id}/newsletter/issues/draft-with-ai": {
+    argv: [
+      ...API,
+      "newsletter",
+      "draft-issue",
+      "p-1",
+      "--input-json",
+      '{"brief":"Our December launch"}',
+    ],
+  },
+  "POST /projects/{id}/newsletter/issues/{issueId}/submit": {
+    argv: [
+      ...API,
+      "newsletter",
+      "submit-issue",
+      "p-1",
+      "issue-1",
+      "--input-json",
+      '{"revision":2}',
+    ],
+  },
+  "POST /projects/{id}/newsletter/issues/preview": {
+    argv: [
+      ...API,
+      "newsletter",
+      "preview",
+      "p-1",
+      "--input-json",
+      '{"subject":"December news","template":"TEXT","content":{}}',
+    ],
+  },
+  "GET /projects/{id}/newsletter/issues/{issueId}": {
+    argv: [...API, "newsletter", "issue", "p-1", "issue-1"],
+  },
+  "PATCH /projects/{id}/newsletter/issues/{issueId}": {
+    argv: [
+      ...API,
+      "newsletter",
+      "update-issue",
+      "p-1",
+      "issue-1",
+      "--input-json",
+      '{"subject":"December news, updated","revision":2}',
+    ],
+  },
+  "DELETE /projects/{id}/newsletter/issues/{issueId}": {
+    argv: [...API, "newsletter", "delete-issue", "p-1", "issue-1"],
+  },
+  "GET /projects/{id}/newsletter/sending-domain": {
+    argv: [...API, "newsletter", "sending-domain", "p-1"],
+  },
+  "PUT /projects/{id}/newsletter/sending-domain": {
+    argv: [
+      ...API,
+      "newsletter",
+      "set-sending-domain",
+      "p-1",
+      "--input-json",
+      '{"fromAddress":"news@acme.example"}',
+    ],
+  },
+  "DELETE /projects/{id}/newsletter/sending-domain": {
+    argv: [...API, "newsletter", "remove-sending-domain", "p-1"],
+  },
+  "POST /projects/{id}/newsletter/sending-domain/check": {
+    argv: [...API, "newsletter", "check-sending-domain", "p-1"],
+  },
+  "GET /projects/{id}/newsletter/sending-domain/domain-connect": {
+    argv: [...API, "newsletter", "domain-connect", "p-1"],
+  },
+  "GET /projects/{id}/newsletter/subscribers": {
+    argv: [
+      ...API,
+      "newsletter",
+      "subscribers",
+      "p-1",
+      "--query",
+      "status=ACTIVE",
+    ],
+  },
+  "PATCH /projects/{id}/newsletter/subscribers/{subscriberId}": {
+    argv: [
+      ...API,
+      "newsletter",
+      "update-subscriber",
+      "p-1",
+      "sub-1",
+      "--input-json",
+      '{"name":"Ada Lovelace"}',
+    ],
+  },
+  "DELETE /projects/{id}/newsletter/subscribers/{subscriberId}": {
+    argv: [...API, "newsletter", "remove-subscriber", "p-1", "sub-1"],
+  },
 };

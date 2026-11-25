@@ -1208,6 +1208,374 @@ export const MCP_TOOLS: readonly McpTool[] = [
     description:
       "Stop a scheduled newsletter issue before it sends. It goes back to a draft that a person approves again.",
   },
+  // SOKD-373: projects and newsletter.
+  {
+    name: "projects_list",
+    operation: "GET /projects",
+    description:
+      "List the workspace's Projects by latest activity. `state` filters to open, hidden or closed; `q` searches name, identifier, briefing and website; `pinnedFirst` puts your Pins first. Pass `cursor` from `pagination.nextCursor` for the next page.",
+  },
+  {
+    name: "projects_create",
+    operation: "POST /projects",
+    description:
+      "Create a Project in the workspace. `body.name` is required; `body.identifier` (such as SOK), `body.websiteUrl` and `body.briefing` are optional.",
+  },
+  {
+    name: "projects_stats",
+    operation: "GET /projects/stats",
+    description:
+      "Count each Project's Tasks and Jobs by status. `projectIds` (comma-separated) narrows it; omit it for every Project.",
+  },
+  {
+    name: "projects_activity",
+    operation: "GET /projects/activity",
+    description:
+      "The newest Task, Job and Project events across the workspace's open Projects, newest first. Pass `projectId` for one Project.",
+  },
+  {
+    name: "projects_starred",
+    operation: "GET /projects/starred",
+    description:
+      "List the Projects you pinned in this workspace, oldest Pin first.",
+  },
+  {
+    name: "projects_get",
+    operation: "GET /projects/{id}",
+    description:
+      "Get a Project: name, identifier, briefing, website, logo, DESIGN.md and close state.",
+  },
+  {
+    name: "projects_update",
+    operation: "PATCH /projects/{id}",
+    description:
+      "Change a Project's name, identifier, briefing, website, logo or social posting instructions (`postingInstructionsMd`). Only the fields sent change; null clears one. DESIGN.md has its own tools.",
+  },
+  {
+    name: "projects_star",
+    operation: "POST /projects/{id}/star",
+    description:
+      "Pin a Project for yourself. Personal, never shared; pinning a hidden Project shows it again. Idempotent.",
+  },
+  {
+    name: "projects_unstar",
+    operation: "DELETE /projects/{id}/star",
+    description: "Unpin a Project for yourself. Idempotent.",
+    destructive: false,
+  },
+  {
+    name: "projects_hidden",
+    operation: "GET /projects/{id}/hide",
+    description: "Whether you have hidden this Project.",
+  },
+  {
+    name: "projects_hide",
+    operation: "POST /projects/{id}/hide",
+    description:
+      "Hide a Project for yourself: it leaves your Project list and recent activity, and loses your Pin. Personal, never shared. Idempotent.",
+  },
+  {
+    name: "projects_unhide",
+    operation: "DELETE /projects/{id}/hide",
+    description: "Show a hidden Project again for yourself. Idempotent.",
+    destructive: false,
+  },
+  {
+    name: "projects_add_job",
+    operation: "POST /projects/{id}/jobs",
+    description:
+      "Add an existing Job to a Project. `body.jobId` is the Job's id.",
+  },
+  {
+    name: "projects_remove_job",
+    operation: "DELETE /projects/{id}/jobs/{jobId}",
+    description: "Take a Job out of a Project. The Job itself stays.",
+    destructive: false,
+  },
+  {
+    name: "projects_add_task",
+    operation: "POST /projects/{id}/tasks",
+    description:
+      "Add an existing Task to a Project. `body.taskId` is the Task's UUID, not its identifier.",
+  },
+  {
+    name: "projects_remove_task",
+    operation: "DELETE /projects/{id}/tasks/{taskId}",
+    description:
+      "Take a Task out of a Project. The Task itself stays. `taskId` is the Task's UUID.",
+    destructive: false,
+  },
+  {
+    name: "projects_context",
+    operation: "GET /projects/{id}/context-md",
+    description:
+      "Read a Project's CONTEXT.md: the memory Sokosumi keeps about the business. Read-only.",
+  },
+  {
+    name: "projects_posting_instructions",
+    operation: "GET /projects/{id}/posting-instructions",
+    description:
+      "Read a Project's social posting instructions: Markdown to follow before drafting a Social post. Null when none are set.",
+  },
+  {
+    name: "projects_set_design",
+    operation: "PUT /projects/{id}/design-md",
+    description:
+      "Store a DESIGN.md for a Project and assign it, replacing the current one. `body.content` is the Markdown.",
+    destructive: true,
+  },
+  {
+    name: "projects_clear_design",
+    operation: "DELETE /projects/{id}/design-md",
+    description: "Clear a Project's DESIGN.md assignment.",
+  },
+  {
+    name: "projects_needs_attention",
+    operation: "GET /projects/{id}/needs-attention",
+    description:
+      "A Project's Task and Job counts and the five items that most need a person.",
+  },
+  {
+    name: "projects_close_status",
+    operation: "GET /projects/{id}/close",
+    description:
+      "Read a Project's close status, its current `revision` and any failed or owed work.",
+  },
+  {
+    name: "projects_close",
+    operation: "POST /projects/{id}/close",
+    description:
+      "Close a Project. `body.expectedProjectRevision` comes from projects_close_status; `body.operationId` is a fresh id you choose, so a retry never closes twice. Confirm with the person first.",
+    destructive: true,
+  },
+  {
+    name: "projects_retry_close",
+    operation: "POST /projects/{id}/close/retry",
+    description:
+      "Retry a failed close with a new `body.operationId`, the current `body.expectedProjectRevision` and a `body.reason`.",
+  },
+  {
+    name: "projects_cancel_owed",
+    operation: "POST /projects/{id}/close/cancel-owed",
+    description:
+      "Cancel the owed work of a failed close and carry on closing. The owed work does not run. Confirm with the person first.",
+    destructive: true,
+  },
+  {
+    name: "projects_brand_brain",
+    operation: "GET /projects/{id}/brand-brain",
+    description:
+      "Read a Project's Brand Brain: what it knows about the business (summary, voice, audience, products, competitors, channels), its open yes/no questions, and who confirmed it.",
+  },
+  {
+    name: "projects_set_brand_brain",
+    operation: "PUT /projects/{id}/brand-brain",
+    description:
+      "Save a Project's Brand Brain. Each section in `body.brandBrain` replaces its own; answers to its questions are kept. Read it with projects_brand_brain first and send it back changed.",
+    destructive: true,
+  },
+  {
+    name: "projects_answer_brand_brain",
+    operation: "POST /projects/{id}/brand-brain/answers",
+    description:
+      "Answer one of the Brand Brain's yes/no questions with the person's answer: `body.questionId`, `body.answer` (yes, no or unsure) and an optional `body.note`. Ask the person; do not guess.",
+  },
+  {
+    name: "projects_competitors",
+    operation: "GET /projects/{id}/competitors",
+    description:
+      "The competitors a Project tracks, this week's moves, what the weekly checks found with sources, and whether the paid weekly check is on and what it costs.",
+  },
+  {
+    name: "projects_add_competitor",
+    operation: "POST /projects/{id}/competitors",
+    description:
+      "Track a competitor: `body.name`, and optionally its website, pricing page, Instagram and Facebook handles. The next weekly check reads it.",
+  },
+  {
+    name: "projects_update_competitor",
+    operation: "PATCH /projects/{id}/competitors/{competitorId}",
+    description:
+      "Change a tracked competitor's name, website, pricing page or handles. Null or an empty string clears a field.",
+  },
+  {
+    name: "projects_remove_competitor",
+    operation: "DELETE /projects/{id}/competitors/{competitorId}",
+    description:
+      "Stop tracking a competitor. What the checks found about it is kept.",
+  },
+  {
+    name: "projects_competitor_checks",
+    operation: "PUT /projects/{id}/competitors/checks",
+    description:
+      "Spends workspace credits. Turn the weekly competitor check on (`body.on: true`) or off. On, the first check starts at once and each competitor costs credits every week; projects_competitors shows the price. Confirm with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "projects_check_competitors",
+    operation: "POST /projects/{id}/competitors/check",
+    description:
+      "Spends workspace credits. Run the weekly competitor check now when one is due, charged like every weekly check. Takes up to a few minutes. Confirm with the person first.",
+    spendsCredits: true,
+  },
+  {
+    name: "projects_suggest_competitors",
+    operation: "POST /projects/{id}/competitors/suggestions",
+    description:
+      "Suggest competitors from the Project's website. Free; adds nothing. Add the ones the person picks with projects_add_competitor.",
+  },
+  {
+    name: "projects_strategies",
+    operation: "GET /projects/{id}/marketing-strategies",
+    description:
+      "List the versions of a Project's Marketing strategy, newest first, without their plans. At most one is approved.",
+  },
+  {
+    name: "projects_create_strategy",
+    operation: "POST /projects/{id}/marketing-strategies",
+    description:
+      "Write a new version of a Project's Marketing strategy as `body.plan` (month, summary, goals, pillars, channels, calendar, ...). Nothing runs until an owner approves it in Sokosumi.",
+  },
+  {
+    name: "projects_strategy",
+    operation: "GET /projects/{id}/marketing-strategies/{strategyId}",
+    description:
+      "Get one version of a Project's Marketing strategy with its plan and yes/no questions.",
+  },
+  {
+    name: "projects_answer_strategy",
+    operation: "POST /projects/{id}/marketing-strategies/{strategyId}/answers",
+    description:
+      "Answer one of a strategy version's yes/no questions with the person's answer: `body.questionId`, `body.answer` (yes, no or unsure) and an optional `body.note`. Ask the person; do not guess.",
+  },
+  {
+    name: "newsletter_availability",
+    operation: "GET /newsletter/availability",
+    description:
+      "Whether the newsletter is available in this workspace. Other newsletter tools answer 404 where it is not.",
+  },
+  {
+    name: "newsletter_get",
+    operation: "GET /projects/{id}/newsletter",
+    description:
+      "Get a Project's newsletter settings: name, sender, reply-to, brand and welcome email. 404 when the Project has no newsletter.",
+  },
+  {
+    name: "newsletter_set",
+    operation: "PUT /projects/{id}/newsletter",
+    description:
+      "Create or replace a Project's newsletter settings: `body.name`, `senderName`, `replyTo`, `brand` and `welcomeEmailEnabled`. Read them with newsletter_get first.",
+    destructive: true,
+  },
+  {
+    name: "newsletter_analytics",
+    operation: "GET /projects/{id}/newsletter/analytics",
+    description:
+      "A Project's newsletter activity over a UTC date range (`from`, `to`; default the last 30 days): sends, opens, clicks, unsubscribes, bounces, by day and by issue.",
+  },
+  {
+    name: "newsletter_issue_analytics",
+    operation: "GET /projects/{id}/newsletter/issues/{issueId}/analytics",
+    description:
+      "Lifetime analytics for one newsletter issue: deliveries, opens, clicks, rates and top links.",
+  },
+  {
+    name: "newsletter_issues",
+    operation: "GET /projects/{id}/newsletter/issues",
+    description:
+      "List a Project's newsletter issues, newest first. `status` and `search` filter them.",
+  },
+  {
+    name: "newsletter_create_issue",
+    operation: "POST /projects/{id}/newsletter/issues",
+    description:
+      "Create a draft newsletter issue: `body.subject`, `body.template` and `body.content`. It never sends; submit it with newsletter_submit_issue for a person to approve.",
+  },
+  {
+    name: "newsletter_draft_issue",
+    operation: "POST /projects/{id}/newsletter/issues/draft-with-ai",
+    description:
+      "Draft a newsletter issue with AI from `body.brief`, optionally using the Project's memory and recent Social posts. Always a draft; never sends. Free.",
+  },
+  {
+    name: "newsletter_submit_issue",
+    operation: "POST /projects/{id}/newsletter/issues/{issueId}/submit",
+    description:
+      "Submit a draft issue for a person to approve and send in Sokosumi. `body.revision` is the issue's current revision.",
+  },
+  {
+    name: "newsletter_preview",
+    operation: "POST /projects/{id}/newsletter/issues/preview",
+    description:
+      "Render unsaved issue content (`body.subject`, `template`, `content`, optional `brand`) as the email would look. Sends nothing and saves nothing.",
+  },
+  {
+    name: "newsletter_issue",
+    operation: "GET /projects/{id}/newsletter/issues/{issueId}",
+    description:
+      "Get one newsletter issue with its content, status and `revision`.",
+  },
+  {
+    name: "newsletter_update_issue",
+    operation: "PATCH /projects/{id}/newsletter/issues/{issueId}",
+    description:
+      "Edit a DRAFT or NEEDS_APPROVAL issue. `body.revision` is its current revision. An edit returns it to DRAFT and withdraws any approval.",
+    destructive: true,
+  },
+  {
+    name: "newsletter_delete_issue",
+    operation: "DELETE /projects/{id}/newsletter/issues/{issueId}",
+    description: "Delete a DRAFT or CANCELED newsletter issue.",
+  },
+  {
+    name: "newsletter_sending_domain",
+    operation: "GET /projects/{id}/newsletter/sending-domain",
+    description:
+      "Read a Project's newsletter sending domain, the DNS records to publish and their verification status.",
+  },
+  {
+    name: "newsletter_set_sending_domain",
+    operation: "PUT /projects/{id}/newsletter/sending-domain",
+    description:
+      "Set a Project's newsletter From address (`body.fromAddress`). A new domain returns the DNS records the person must publish.",
+    destructive: true,
+  },
+  {
+    name: "newsletter_remove_sending_domain",
+    operation: "DELETE /projects/{id}/newsletter/sending-domain",
+    description:
+      "Remove a Project's newsletter sending domain. The newsletter sends from the default domain until a new one is verified. Confirm with the person first.",
+  },
+  {
+    name: "newsletter_check_sending_domain",
+    operation: "POST /projects/{id}/newsletter/sending-domain/check",
+    description:
+      "Ask the mail provider to verify the sending domain's DNS records now and return the new status.",
+  },
+  {
+    name: "newsletter_domain_connect",
+    operation: "GET /projects/{id}/newsletter/sending-domain/domain-connect",
+    description:
+      "Get a one-click link that adds the sending domain's DNS records at the person's DNS provider, or null when the provider does not support it. Give the link to the person; do not open it yourself.",
+  },
+  {
+    name: "newsletter_subscribers",
+    operation: "GET /projects/{id}/newsletter/subscribers",
+    description:
+      "List a Project's newsletter subscribers. `status` and `search` (email) filter them; counts cover every subscriber.",
+  },
+  {
+    name: "newsletter_update_subscriber",
+    operation: "PATCH /projects/{id}/newsletter/subscribers/{subscriberId}",
+    description:
+      "Change a subscriber's name, or unsubscribe an active subscriber (`body.status: UNSUBSCRIBED`).",
+  },
+  {
+    name: "newsletter_remove_subscriber",
+    operation: "DELETE /projects/{id}/newsletter/subscribers/{subscriberId}",
+    description:
+      "Delete an active or pending subscriber. Unsubscribed and bounced ones are kept so they are never emailed again (409).",
+  },
 ];
 
 /** Route groups with a hyphen, which their tool names spell with `_`. */

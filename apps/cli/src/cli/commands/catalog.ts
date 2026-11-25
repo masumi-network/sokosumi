@@ -1000,6 +1000,317 @@ export const CLI_COMMAND_CATALOG = [
       "PROJECT_ID ISSUE_ID --input-json BODY [--organization-slug WORKSPACE_SLUG]",
     operation: "POST /projects/{id}/newsletter/issues/{issueId}/cancel",
   },
+  // SOKD-373: projects and newsletter.
+  {
+    command: "projects list",
+    usage: "[--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects",
+  },
+  {
+    command: "projects create",
+    usage: "--input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects",
+  },
+  {
+    command: "projects stats",
+    usage: "[--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/stats",
+  },
+  {
+    command: "projects activity",
+    usage: "[--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/activity",
+  },
+  {
+    command: "projects starred",
+    usage: "[--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/starred",
+  },
+  {
+    command: "projects get",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}",
+  },
+  {
+    command: "projects update",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "PATCH /projects/{id}",
+  },
+  {
+    command: "projects star",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/star",
+    noBody: true,
+  },
+  {
+    command: "projects unstar",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "DELETE /projects/{id}/star",
+  },
+  {
+    command: "projects hidden",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/hide",
+  },
+  {
+    command: "projects hide",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/hide",
+    noBody: true,
+  },
+  {
+    command: "projects unhide",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "DELETE /projects/{id}/hide",
+  },
+  {
+    command: "projects add-job",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/jobs",
+  },
+  {
+    command: "projects remove-job",
+    usage: "PROJECT_ID JOB_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "DELETE /projects/{id}/jobs/{jobId}",
+  },
+  {
+    command: "projects add-task",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/tasks",
+  },
+  {
+    command: "projects remove-task",
+    usage: "PROJECT_ID TASK_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "DELETE /projects/{id}/tasks/{taskId}",
+  },
+  {
+    command: "projects context",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/context-md",
+  },
+  {
+    command: "projects posting-instructions",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/posting-instructions",
+  },
+  {
+    command: "projects set-design",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "PUT /projects/{id}/design-md",
+  },
+  {
+    command: "projects clear-design",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "DELETE /projects/{id}/design-md",
+  },
+  {
+    command: "projects needs-attention",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/needs-attention",
+  },
+  {
+    command: "projects close-status",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/close",
+  },
+  {
+    command: "projects close",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/close",
+  },
+  {
+    command: "projects retry-close",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/close/retry",
+  },
+  {
+    command: "projects cancel-owed",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/close/cancel-owed",
+  },
+  {
+    command: "projects brand-brain",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/brand-brain",
+  },
+  {
+    command: "projects set-brand-brain",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "PUT /projects/{id}/brand-brain",
+  },
+  {
+    command: "projects answer-brand-brain",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/brand-brain/answers",
+  },
+  {
+    command: "projects competitors",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/competitors",
+  },
+  {
+    command: "projects add-competitor",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/competitors",
+  },
+  {
+    command: "projects update-competitor",
+    usage:
+      "PROJECT_ID COMPETITOR_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "PATCH /projects/{id}/competitors/{competitorId}",
+  },
+  {
+    command: "projects remove-competitor",
+    usage: "PROJECT_ID COMPETITOR_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "DELETE /projects/{id}/competitors/{competitorId}",
+  },
+  {
+    command: "projects competitor-checks",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "PUT /projects/{id}/competitors/checks",
+  },
+  {
+    command: "projects check-competitors",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/competitors/check",
+    noBody: true,
+  },
+  {
+    command: "projects suggest-competitors",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/competitors/suggestions",
+    noBody: true,
+  },
+  {
+    command: "projects strategies",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/marketing-strategies",
+  },
+  {
+    command: "projects create-strategy",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/marketing-strategies",
+  },
+  {
+    command: "projects strategy",
+    usage: "PROJECT_ID STRATEGY_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/marketing-strategies/{strategyId}",
+  },
+  {
+    command: "projects answer-strategy",
+    usage:
+      "PROJECT_ID STRATEGY_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/marketing-strategies/{strategyId}/answers",
+  },
+  {
+    command: "newsletter availability",
+    usage: "[--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /newsletter/availability",
+  },
+  {
+    command: "newsletter get",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/newsletter",
+  },
+  {
+    command: "newsletter set",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "PUT /projects/{id}/newsletter",
+  },
+  {
+    command: "newsletter analytics",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/newsletter/analytics",
+  },
+  {
+    command: "newsletter issue-analytics",
+    usage: "PROJECT_ID ISSUE_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/newsletter/issues/{issueId}/analytics",
+  },
+  {
+    command: "newsletter issues",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/newsletter/issues",
+  },
+  {
+    command: "newsletter create-issue",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/newsletter/issues",
+  },
+  {
+    command: "newsletter draft-issue",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/newsletter/issues/draft-with-ai",
+  },
+  {
+    command: "newsletter submit-issue",
+    usage:
+      "PROJECT_ID ISSUE_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/newsletter/issues/{issueId}/submit",
+  },
+  {
+    command: "newsletter preview",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/newsletter/issues/preview",
+  },
+  {
+    command: "newsletter issue",
+    usage: "PROJECT_ID ISSUE_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/newsletter/issues/{issueId}",
+  },
+  {
+    command: "newsletter update-issue",
+    usage:
+      "PROJECT_ID ISSUE_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "PATCH /projects/{id}/newsletter/issues/{issueId}",
+  },
+  {
+    command: "newsletter delete-issue",
+    usage: "PROJECT_ID ISSUE_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "DELETE /projects/{id}/newsletter/issues/{issueId}",
+  },
+  {
+    command: "newsletter sending-domain",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/newsletter/sending-domain",
+  },
+  {
+    command: "newsletter set-sending-domain",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "PUT /projects/{id}/newsletter/sending-domain",
+  },
+  {
+    command: "newsletter remove-sending-domain",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "DELETE /projects/{id}/newsletter/sending-domain",
+  },
+  {
+    command: "newsletter check-sending-domain",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/newsletter/sending-domain/check",
+    noBody: true,
+  },
+  {
+    command: "newsletter domain-connect",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/newsletter/sending-domain/domain-connect",
+  },
+  {
+    command: "newsletter subscribers",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/newsletter/subscribers",
+  },
+  {
+    command: "newsletter update-subscriber",
+    usage:
+      "PROJECT_ID SUBSCRIBER_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "PATCH /projects/{id}/newsletter/subscribers/{subscriberId}",
+  },
+  {
+    command: "newsletter remove-subscriber",
+    usage: "PROJECT_ID SUBSCRIBER_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "DELETE /projects/{id}/newsletter/subscribers/{subscriberId}",
+  },
 ] as const satisfies readonly CliCommandCatalogEntry[];
 
 type CliCommand = (typeof CLI_COMMAND_CATALOG)[number]["command"];

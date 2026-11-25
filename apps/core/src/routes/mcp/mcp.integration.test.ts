@@ -174,15 +174,17 @@ describe("Sokosumi MCP server", () => {
       "projects_image_studio_video",
       "projects_image_studio_short_video",
       "projects_image_studio_talking_video",
+      "projects_competitor_checks",
+      "projects_check_competitors",
     ]);
     const warned = tools.filter((tool) => tool.annotations?.openWorldHint);
     expect(warned.map((tool) => tool.name)).toEqual(spending);
     for (const tool of warned) {
       expect(tool.description).toMatch(/^Spends workspace credits\./);
-      expect(tool.annotations).toEqual({
+      // A PUT that spends (projects_competitor_checks) stays idempotent.
+      expect(tool.annotations).toMatchObject({
         readOnlyHint: false,
         destructiveHint: true,
-        idempotentHint: false,
         openWorldHint: true,
       });
     }
