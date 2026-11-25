@@ -7,6 +7,7 @@ import type { NetworkScope } from "@/lib/db/network-scope";
 import {
   handleSyncRequest,
   type NetworkSyncRunContext,
+  type SyncRequestOptions,
   type SyncRunContext,
 } from "./handler";
 
@@ -117,9 +118,12 @@ describe("handleSyncRequest with a Network", () => {
       handleSyncRequest(c, "lock-key", work, { network: "mainnet" }),
     );
 
-    expect(response.status).toBe(200);
-    expect(networkPrisma).not.toHaveBeenCalled();
-    respond();
+    try {
+      expect(response.status).toBe(200);
+      expect(networkPrisma).not.toHaveBeenCalled();
+    } finally {
+      respond();
+    }
     await deferredWork();
     expect(read).toHaveBeenCalledExactlyOnceWith(client);
     expect(client.$transaction).not.toHaveBeenCalled();
@@ -167,4 +171,17 @@ export function _noScopeWithoutTheNetworkOption(c: Context) {
     // @ts-expect-error a Network is one of the known ones
     network: "testnet",
   });
+
+  // The same Network outside the call: a variable and a spread are not
+  // checked for extra properties, so the plain options must refuse them.
+  const wrongNetwork = { errorDetail: "cause", network: "testnet" } as const;
+  // @ts-expect-error a variable that carries an unknown Network
+  void handleSyncRequest(c, "lock-key", async () => {}, wrongNetwork);
+  // @ts-expect-error ... and its spread
+  void handleSyncRequest(c, "lock-key", async () => {}, { ...wrongNetwork });
+  // @ts-expect-error plain options cannot hide an unknown Network
+  const widenedWrong: SyncRequestOptions = wrongNetwork;
+  // @ts-expect-error ... nor a known one, which would run without its scope
+  const widened: SyncRequestOptions = { network: "mainnet" };
+  void [widenedWrong, widened];
 }

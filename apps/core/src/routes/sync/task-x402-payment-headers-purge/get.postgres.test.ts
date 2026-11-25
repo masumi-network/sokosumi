@@ -144,11 +144,14 @@ describe.skipIf(!enabled)("GET /sync/task-x402-payment-headers-purge", () => {
       // name in the purge finds no table instead of the right one by luck.
       const [{ schemas }] = await prisma.$queryRaw<[{ schemas: string[] }]>`
         SELECT current_schemas(true)::text[] AS schemas`;
-      expect(schemas).not.toEqual(
-        expect.arrayContaining([
-          expect.stringMatching(/shared|mainnet|preprod/),
-        ]),
-      );
+      const names = testSchemaNames();
+      for (const name of [
+        names.DATABASE_SCHEMA_SHARED,
+        names.DATABASE_SCHEMA_MAINNET,
+        names.DATABASE_SCHEMA_PREPROD,
+      ]) {
+        expect(schemas).not.toContain(name);
+      }
 
       await runPurge();
 

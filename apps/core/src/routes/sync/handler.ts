@@ -58,10 +58,13 @@ type SyncOperation<Context = SyncRunContext> = (
  */
 export interface SyncRequestOptions {
   errorDetail?: "cause" | "safe-fields";
+  /** Never here: a variable or a spread that carries a Network is not these options. */
+  network?: never;
 }
 
 /** The Network a cron works on, declared where it is registered. */
-export interface NetworkSyncRequestOptions extends SyncRequestOptions {
+export interface NetworkSyncRequestOptions
+  extends Omit<SyncRequestOptions, "network"> {
   network: Network;
 }
 const MIN_SYNC_TIMEOUT_MS = 1000;
@@ -137,9 +140,8 @@ function getSyncTimeoutMs(): number {
  */
 function runBackgroundSync(
   lock: AcquiredSyncLock,
-  syncOperation: SyncOperation<NetworkSyncRunContext>,
+  syncOperation: SyncOperation,
   errorDetail: NonNullable<SyncRequestOptions["errorDetail"]>,
-  scope: NetworkScope | undefined,
 ): Promise<void> {
   return (async () => {
     const timeoutMs = getSyncTimeoutMs();
@@ -174,7 +176,7 @@ function runBackgroundSync(
       timeoutMs,
     );
 
-    const context = {
+    const context: SyncRunContext = {
       abortSignal: cancellationController.signal,
       deadlineMs,
       msRemaining: () => {
@@ -186,10 +188,7 @@ function runBackgroundSync(
         );
       },
       log,
-      // Without `network` there is no `scope` key, and the overloads of
-      // `handleSyncRequest` give that cron's operation no `scope` to read.
-      ...(scope && { scope }),
-    } as NetworkSyncRunContext;
+    };
 
     const startedAt = Date.now();
     try {
@@ -235,8 +234,8 @@ function runBackgroundSync(
 
 /**
  * A cron that works on a Network declares it as `network`; its operation gets
- * that Network's scope as `context.scope`. Without the option there is no
- * scope: the cron reaches shared models only.
+ * that Network's scope as `context.scope`. Without the option the handler
+ * hands it no scope.
  */
 export async function handleSyncRequest(
   c: Context,
@@ -253,11 +252,11 @@ export async function handleSyncRequest(
 export async function handleSyncRequest(
   c: Context,
   lockKey: string,
-  syncOperation: SyncOperation<NetworkSyncRunContext>,
+  syncOperation: SyncOperation | SyncOperation<NetworkSyncRunContext>,
   {
     errorDetail = "safe-fields",
     network,
-  }: Partial<NetworkSyncRequestOptions> = {},
+  }: SyncRequestOptions | NetworkSyncRequestOptions = {},
 ): Promise<Response> {
   const unauthorized = authenticateCronSecret(c);
   if (unauthorized) {
@@ -267,10 +266,16 @@ export async function handleSyncRequest(
   // Before the lock: a Network that is off throws here and holds nothing.
   // Imported here, so a cron without a Network does not load the clients'
   // module through this handler.
-  const scope =
-    network === undefined
-      ? undefined
-      : (await import("@/lib/db/network-scope")).createNetworkScope(network);
+  let run: SyncOperation;
+  if (network === undefined) {
+    // Known safe: `network?: never` on the plain options leaves only the
+    // plain overload without a Network, and its operation asks for no scope.
+    run = syncOperation as SyncOperation;
+  } else {
+    const { createNetworkScope } = await import("@/lib/db/network-scope");
+    const scope = createNetworkScope(network);
+    run = (context) => syncOperation({ ...context, scope });
+  }
 
   let acquiredLock: AcquiredSyncLock;
   try {
@@ -301,7 +306,7 @@ export async function handleSyncRequest(
   // event the run sends, its services' included, carries `syncRunId`, which
   // ties them to this run when runs overlap.
   const backgroundPromise = runAsBackgroundWork(
-    () => runBackgroundSync(acquiredLock, syncOperation, errorDetail, scope),
+    () => runBackgroundSync(acquiredLock, run, errorDetail),
     { syncRunId: randomUUID() },
   );
   waitUntil(backgroundPromise);

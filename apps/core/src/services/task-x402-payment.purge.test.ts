@@ -11,13 +11,16 @@ import {
 
 const paymentFindManyMock = vi.fn();
 const paymentUpdateManyMock = vi.fn();
+/** The two delegates the purge uses, checked against their Prisma types. */
+const taskX402Payment: Pick<
+  NetworkDb["taskX402Payment"],
+  "findMany" | "updateMany"
+> = {
+  findMany: paymentFindManyMock,
+  updateMany: paymentUpdateManyMock,
+};
 /** The Network side the purge is handed: the one model it uses. */
-const networkDb = {
-  taskX402Payment: {
-    findMany: paymentFindManyMock,
-    updateMany: paymentUpdateManyMock,
-  },
-} as unknown as NetworkDb;
+const networkDb = { taskX402Payment } as NetworkDb;
 
 function purgeExpiredTaskX402PaymentHeaders(
   options?: Parameters<typeof purgeOn>[1],
