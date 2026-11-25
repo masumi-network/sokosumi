@@ -285,23 +285,27 @@ export function CreateState({
             CHAT_MOBILE_COMPOSER_SAFE_AREA_PB,
           )}
         >
-          {/* Same look as the preview above; decorative, the preview carries the name. */}
+          {/* Same look as the preview above; decorative, the preview carries the name.
+              Flush against Back's icon, so mini and icon take no more room than Back with its label. */}
           {detailsOpen && avatarCode ? (
             <LiveBotAvatarLazy
               code={avatarCode}
               state="idle"
               size={40}
-              className="ring-border size-10 rounded-full ring-1"
+              className="ring-border -me-2 size-10 rounded-full ring-1"
             />
           ) : null}
+          {/* While the mini shows, Back keeps only its icon, so Create keeps
+              the width it has with More details closed and a long name fits. */}
           <Button
             type="button"
             variant="ghost"
+            size={detailsOpen ? "icon" : "default"}
             disabled={isPending}
             onClick={() => goToStep("name")}
           >
             <ArrowLeft aria-hidden />
-            {t("back")}
+            <span className={cn(detailsOpen && "sr-only")}>{t("back")}</span>
           </Button>
           <Button
             type="submit"

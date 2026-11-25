@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -145,6 +145,24 @@ describe("CreateState", () => {
 
     await user.click(screen.getByRole("button", { name: "close details" }));
     expect(screen.queryByTestId("mini-preview")).toBeNull();
+  });
+
+  // The mini avatar takes room from Create; Back gives it back as an icon, so a
+  // long name fits as well as with More details closed.
+  it("shrinks Back to its icon while More details is open, keeping its name", async () => {
+    const user = userEvent.setup();
+    renderCreate();
+    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
+    const back = screen.getByRole("button", { name: "Back" });
+    expect(within(back).getByText("Back")).not.toHaveClass("sr-only");
+
+    await user.click(screen.getByRole("button", { name: "open details" }));
+    expect(back).toHaveAccessibleName("Back");
+    expect(back).toHaveClass("size-10");
+    expect(within(back).getByText("Back")).toHaveClass("sr-only");
+
+    await user.click(screen.getByRole("button", { name: "close details" }));
+    expect(within(back).getByText("Back")).not.toHaveClass("sr-only");
   });
 
   it("says a name is needed in the page, not a browser bubble, when it is empty", async () => {

@@ -196,6 +196,7 @@ for (const { name, ...viewport } of PROJECTS) {
       // stays inside the studio's frame, a pick survives a fold, and the last
       // option clears the pinned Create.
       const more = page.getByRole("button", { name: /More details/ });
+      const closedCreate = await create.boundingBox();
       await more.click();
       // It sits by the pinned Create, so what it opens starts below the
       // screen; the page brings it up once the fold has opened.
@@ -224,6 +225,22 @@ for (const { name, ...viewport } of PROJECTS) {
       // and Create shows each pick, and leaves with the fold.
       const mini = create.locator("xpath=..").locator("img");
       await mini.waitFor();
+      // Back drops to its icon so the mini costs Create no width: a name that
+      // fits with More details closed still fits with it open.
+      const openCreate = await create.boundingBox();
+      assert.ok(
+        closedCreate &&
+          openCreate &&
+          openCreate.width >= closedCreate.width - 0.5,
+        "Create is as wide with More details open as closed",
+      );
+      const backBox = await page
+        .getByRole("button", { name: "Back", exact: true })
+        .boundingBox();
+      assert.ok(
+        backBox && backBox.width >= minTarget && backBox.height >= minTarget,
+        `Back stays a ${minTarget}px target`,
+      );
       const before = await mini.getAttribute("src");
       const headwear = page.getByRole("radiogroup", { name: "Headwear" });
       // The look starts random, so pick a headwear it does not wear yet:
