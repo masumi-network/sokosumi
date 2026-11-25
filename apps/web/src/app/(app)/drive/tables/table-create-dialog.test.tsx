@@ -117,6 +117,30 @@ describe("TableCreateDialog from a Files CSV", () => {
     },
   );
 
+  it("scrolls a field that gets focus into view, even when focus wraps without scrolling", async () => {
+    openFromFiles(new Response("Name,Zip\nAda,007\n"));
+    await screen.findByText("007");
+    const scrollIntoView = vi.fn();
+    const title = screen.getByLabelText("title");
+    title.scrollIntoView = scrollIntoView;
+
+    // Focus starts on the title; it leaves, as it does for the Close button,
+    // and Radix brings it back to the first field with `preventScroll`.
+    act(() => screen.getByLabelText("description").focus());
+    act(() => title.focus({ preventScroll: true }));
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
+  });
+
+  it("separates the file's name and counts in the description it announces", async () => {
+    openFromFiles(new Response("Name,Zip\nAda,007\n"));
+    await screen.findByText("007");
+
+    expect(screen.getByRole("dialog")).toHaveAccessibleDescription(
+      /^Leads\.csv · rowCount.* · columnCount/,
+    );
+  });
+
   it("shows each column's first filled values, read once from the file", async () => {
     openFromFiles(
       new Response("Name,Zip\nAda,\n,0101\nBo,0202\nCy,0303\nDi,0404\n"),

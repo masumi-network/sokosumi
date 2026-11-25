@@ -364,9 +364,9 @@ export function TableCreateDialog({
                 </span>
                 {columns.length > 0 && (
                   <>
-                    <span aria-hidden> · </span>
+                    <span> · </span>
                     {t("rowCount", { count: csv.length - 1 })}
-                    <span aria-hidden> · </span>
+                    <span> · </span>
                     {t("columnCount", { count: columns.length })}
                   </>
                 )}
@@ -377,7 +377,13 @@ export function TableCreateDialog({
           </DialogDescription>
         </DialogHeader>
         {/* The inset keeps focus rings inside the scrollport's clip. */}
-        <div className="app-scrollbar -m-1 grid min-h-0 gap-4 overflow-y-auto overscroll-contain p-1 sm:grid-cols-2">
+        <div
+          className="app-scrollbar -m-1 grid min-h-0 gap-4 overflow-y-auto overscroll-contain p-1 sm:grid-cols-2"
+          // Radix wraps focus from Close back to Title with `preventScroll`,
+          // and Close sits outside this scrollport, so bring a focused field
+          // into view here rather than trusting the browser to.
+          onFocus={(event) => event.target.scrollIntoView({ block: "nearest" })}
+        >
           <div className="grid gap-2">
             <Label htmlFor="table-title">{t("title")}</Label>
             <Input
