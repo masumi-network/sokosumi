@@ -1,8 +1,11 @@
 import type { ChatRoom } from "@sokosumi/core-client";
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
+import { Activity, Suspense, startTransition, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  readStoredStreamParentMessageId,
+  type UseCoworkerDirectRoomStreamResult,
   useCoworkerDirectRoomStream,
   writeStoredStreamParentMessageId,
 } from "./use-coworker-direct-room-stream";
@@ -339,5 +342,208 @@ describe("useCoworkerDirectRoomStream room switching (real useChat)", () => {
     expect(postCount).toBe(1);
 
     unmount();
+  });
+
+  it("settles and clears overlay and stored parent on same-room Activity hide abort followed by 204 resume", async () => {
+    const roomA = makeRoom("room-a");
+    let roomAStream: ControlledSseStream | null = null;
+    let resumeCalls = 0;
+
+    globalThis.fetch = vi.fn(async (input, init) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url === "/api/chat") {
+        roomAStream = createControlledSseStream(init?.signal ?? undefined);
+        return roomAStream.response;
+      }
+      if (url === "/api/chat/room-a/stream") {
+        resumeCalls += 1;
+        return new Response(null, { status: 204 });
+      }
+      return new Response(null, { status: 204 });
+    }) as typeof fetch;
+
+    const onStreamSettled = vi.fn(async () => true);
+    let latest!: UseCoworkerDirectRoomStreamResult;
+
+    function Probe() {
+      latest = useCoworkerDirectRoomStream({
+        room: roomA,
+        enabled: true,
+        currentUserId: "user-1",
+        organizationSlug: null,
+        onStreamSettled,
+      });
+      return null;
+    }
+
+    const { rerender, unmount } = render(
+      <Activity mode="visible">
+        <Probe />
+      </Activity>,
+    );
+
+    await waitFor(() => {
+      expect(resumeCalls).toBe(1);
+    });
+
+    // Stream a thread reply in room A and receive a partial chunk.
+    act(() => {
+      expect(
+        latest.sendStreamMessage("Thread prompt", {
+          parentMessageId: "parent-a",
+        }),
+      ).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(roomAStream).not.toBeNull();
+    });
+
+    act(() => {
+      roomAStream?.push({ type: "start", messageId: "asst-a1" });
+      roomAStream?.push({ type: "text-start", id: "t1" });
+      roomAStream?.push({
+        type: "text-delta",
+        id: "t1",
+        delta: "Partial reply",
+      });
+    });
+
+    await waitFor(() => {
+      expect(latest.isStreaming).toBe(true);
+      expect(latest.streamOverlayMessages).toHaveLength(2);
+    });
+    expect(latest.activeStreamParentMessageId).toBe("parent-a");
+    expect(readStoredStreamParentMessageId("room-a")).toBe("parent-a");
+
+    // Hide the Activity while the stream is active; server stream ends while hidden.
+    rerender(
+      <Activity mode="hidden">
+        <Probe />
+      </Activity>,
+    );
+
+    await waitFor(() => {
+      expect(roomAStream?.signal?.aborted).toBe(true);
+      expect(onStreamSettled).toHaveBeenCalledWith("room-a");
+    });
+
+    // Reveal the Activity; GET /stream returns 204 because the server finished.
+    rerender(
+      <Activity mode="visible">
+        <Probe />
+      </Activity>,
+    );
+
+    await waitFor(() => {
+      expect(resumeCalls).toBe(2);
+      expect(latest.streamOverlayMessages).toEqual([]);
+      expect(latest.activeStreamParentMessageId).toBeNull();
+    });
+    expect(readStoredStreamParentMessageId("room-a")).toBeNull();
+
+    unmount();
+  });
+
+  it("keeps live room overlay timestamps intact when a suspended room-exit transition does not commit", async () => {
+    const roomA = makeRoom("room-a");
+    let roomAStream: ControlledSseStream | null = null;
+    let nowMs = 1_000;
+    const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => nowMs);
+
+    globalThis.fetch = vi.fn(async (input, init) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url === "/api/chat") {
+        roomAStream = createControlledSseStream(init?.signal ?? undefined);
+        return roomAStream.response;
+      }
+      return new Response(null, { status: 204 });
+    }) as typeof fetch;
+
+    const onStreamSettled = vi.fn(async () => true);
+    const neverResolving = new Promise<void>(() => {});
+    let latest!: UseCoworkerDirectRoomStreamResult;
+    let triggerExit!: () => void;
+
+    function SuspendWhenExiting({ exiting }: { exiting: boolean }) {
+      if (exiting) {
+        throw neverResolving;
+      }
+      return null;
+    }
+
+    function Harness() {
+      const [exiting, setExiting] = useState(false);
+      triggerExit = () => {
+        startTransition(() => {
+          setExiting(true);
+        });
+      };
+      const stream = useCoworkerDirectRoomStream({
+        room: exiting ? null : roomA,
+        enabled: !exiting,
+        currentUserId: "user-1",
+        organizationSlug: null,
+        onStreamSettled,
+      });
+      if (!exiting) {
+        latest = stream;
+      }
+      return <SuspendWhenExiting exiting={exiting} />;
+    }
+
+    try {
+      const { unmount } = render(
+        <Suspense fallback={null}>
+          <Harness />
+        </Suspense>,
+      );
+
+      act(() => {
+        latest.sendStreamMessage("Keep my timestamp");
+      });
+
+      await waitFor(() => {
+        expect(roomAStream).not.toBeNull();
+      });
+
+      act(() => {
+        roomAStream?.push({ type: "start", messageId: "asst-a1" });
+        roomAStream?.push({ type: "text-start", id: "t1" });
+        roomAStream?.push({ type: "text-delta", id: "t1", delta: "First" });
+      });
+
+      await waitFor(() => {
+        expect(latest.streamOverlayMessages).toHaveLength(2);
+      });
+      const initialTimestamps = latest.streamOverlayMessages.map((m) =>
+        m.createdAt.getTime(),
+      );
+      expect(initialTimestamps).toEqual([1_000, 1_001]);
+
+      // Advance the clock and render a suspended transition that exits the room
+      // without committing.
+      nowMs = 60_000;
+      act(() => {
+        triggerExit();
+      });
+
+      // Push another chunk on the still-live room A; its existing overlay rows
+      // must keep their original timestamps instead of being re-dated to 60_000.
+      act(() => {
+        roomAStream?.push({ type: "text-delta", id: "t1", delta: " second" });
+      });
+
+      await waitFor(() => {
+        expect(latest.streamOverlayMessages[1]?.content).toBe("First second");
+      });
+      expect(
+        latest.streamOverlayMessages.map((m) => m.createdAt.getTime()),
+      ).toEqual(initialTimestamps);
+
+      unmount();
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 });
