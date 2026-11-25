@@ -20,8 +20,8 @@ const CELL_TASK_LIMIT = 3;
 const CAPTION_ID = "projects-timeline-caption";
 
 /**
- * A cell's first line of text starts at the same height as a card's: the
- * cell's `p-1`, a 1px border (transparent outside a card) and `py-0.5`.
+ * Every cell's text starts where a card's does: 1px in (the card's border,
+ * `p-px` elsewhere), then this 1px border, transparent, and its padding.
  */
 const CELL_TEXT_CLASS =
   "block min-h-6 rounded-md border border-transparent px-1.5 py-0.5";
@@ -160,21 +160,18 @@ export async function ProjectsTimelineContent() {
                 <tr className="text-muted-foreground text-start text-xs">
                   <th
                     scope="col"
-                    className="bg-card-background sticky start-0 z-10 w-28 px-1.5 sm:w-40 py-1 text-start font-medium"
+                    className="bg-card-background sticky start-0 z-10 w-28 px-2 py-1 text-start font-medium sm:w-40"
                   >
                     {t("project")}
                   </th>
-                  <th
-                    scope="col"
-                    className="px-1.5 py-1 text-start font-medium"
-                  >
+                  <th scope="col" className="px-2 py-1 text-start font-medium">
                     {t("overdue")}
                   </th>
                   {weeks.map((monday, index) => (
                     <th
                       key={monday}
                       scope="col"
-                      className="px-1.5 py-1 text-start font-medium tabular-nums"
+                      className="px-2 py-1 text-start font-medium tabular-nums"
                     >
                       {index === 0 ? t("thisWeek") : formatDay(monday)}
                     </th>
@@ -186,7 +183,7 @@ export async function ProjectsTimelineContent() {
                   <tr key={row.project.id}>
                     <th
                       scope="row"
-                      className="bg-card-background sticky start-0 z-10 p-1 text-start align-top font-medium"
+                      className="bg-card-background sticky start-0 z-10 p-px text-start align-top font-medium"
                     >
                       <Link
                         href={`/projects/${row.project.id}`}
@@ -218,7 +215,7 @@ export async function ProjectsTimelineContent() {
                     ) : (
                       <td
                         colSpan={weeks.length + 1}
-                        className="text-muted-foreground p-1 align-top"
+                        className="text-muted-foreground p-px align-top"
                       >
                         {/* Narrow enough to fit beside the project column
                             on a phone, and held there while the weeks
