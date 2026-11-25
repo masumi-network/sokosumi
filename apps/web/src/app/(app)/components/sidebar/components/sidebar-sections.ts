@@ -36,9 +36,9 @@ interface MenuItemConfig {
 
 /** The headings the nav's destinations sit under, in the order they show. */
 export const NAV_GROUPS = [
-  { id: "work", href: "/", Icon: House },
-  { id: "records", href: "/contacts", Icon: Users },
-  { id: "marketing", href: "/studio", Icon: Megaphone },
+  { id: "work", Icon: House },
+  { id: "records", Icon: Users },
+  { id: "marketing", Icon: Megaphone },
 ] as const;
 
 type NavGroup = (typeof NAV_GROUPS)[number]["id"];
@@ -183,7 +183,9 @@ export const NAV_DESTINATIONS = [
 export type SidebarDestination = NavDestination &
   (typeof NAV_DESTINATIONS)[number];
 
-export function sidebarSection(pathname: string): NavGroup | "chats" | null {
+export type SidebarSection = NavGroup | "chats";
+
+export function sidebarSection(pathname: string): SidebarSection | null {
   if (
     ["/chat", SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE].some((route) =>
       isPathActive(pathname, route),

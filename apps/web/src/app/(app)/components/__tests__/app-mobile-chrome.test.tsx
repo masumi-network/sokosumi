@@ -1,6 +1,7 @@
 import { act, render as renderInTest, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { TestQueryProvider } from "@/test/query-provider";
 
 let mockPathname = "/chat";
@@ -69,7 +70,13 @@ import {
 import { AppMobileChrome } from "../app-mobile-chrome.client";
 
 function render(ui: ReactElement) {
-  return renderInTest(ui, { wrapper: TestQueryProvider });
+  return renderInTest(ui, {
+    wrapper: ({ children }) => (
+      <TestQueryProvider>
+        <SidebarProvider>{children}</SidebarProvider>
+      </TestQueryProvider>
+    ),
+  });
 }
 
 function getTabBarSpacer(container: HTMLElement): Element | null {

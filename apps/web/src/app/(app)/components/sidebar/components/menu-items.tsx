@@ -29,15 +29,12 @@ import {
 import { cn } from "@/lib/utils";
 import { isPathActive } from "@/lib/utils/is-path-active";
 import { useMarkFeatureSeen } from "./feature-badges";
+import { useSidebarPanel } from "./sidebar-context-panel";
 import {
   SIDEBAR_FEATURE_LABEL_CLASS,
   SidebarFeatureLabel,
 } from "./sidebar-feature-label";
-import {
-  NAV_DESTINATIONS,
-  type SidebarDestination,
-  sidebarSection,
-} from "./sidebar-sections";
+import { NAV_DESTINATIONS, type SidebarDestination } from "./sidebar-sections";
 
 /**
  * `newsletterEnabled` is off by default so the Instant Nav shell, which has
@@ -71,7 +68,7 @@ function ScopedMenuItems({
   const { isMobile } = useSidebar();
   const markFeatureSeen = useMarkFeatureSeen();
 
-  const group = sidebarSection(navPathname) ?? "work";
+  const { section: group } = useSidebarPanel();
 
   function renderItem({
     key,

@@ -285,7 +285,7 @@ describe("Elsewhere rooms in the unread signals", () => {
       renderToggle();
 
       expect(
-        await screen.findByRole("link", { name: "chats, chatsUnread" }),
+        await screen.findByRole("button", { name: "chats, chatsUnread" }),
       ).toBeTruthy();
     });
 
@@ -304,7 +304,7 @@ describe("Elsewhere rooms in the unread signals", () => {
       await waitFor(() => expect(listElsewhereMock).toHaveBeenCalled());
       await act(async () => {});
       // The rail itself is up, so its dot had the chance to show.
-      expect(screen.getByRole("link", { name: "chats" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "chats" })).toBeTruthy();
       expect(
         screen.queryByRole("link", { name: "chats, chatsUnread" }),
       ).toBeNull();
@@ -603,11 +603,10 @@ describe("Elsewhere rooms in the unread signals", () => {
       </SidebarProvider>,
     );
 
-    const chats = await screen.findByRole("link", {
+    const chats = await screen.findByRole("button", {
       name: "chats, chatsUnread",
     });
-    expect(chats).toHaveAttribute("href", "/chat/catch-up");
-    expect(chats).toHaveAttribute("aria-current", "true");
+    expect(chats).toHaveAttribute("aria-pressed", "true");
   });
 });
 

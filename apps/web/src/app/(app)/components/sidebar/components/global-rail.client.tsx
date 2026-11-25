@@ -1,16 +1,9 @@
 "use client";
 
 import { MessageCircle, X } from "lucide-react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Suspense } from "react";
 import { useChatTabUnreadPresence } from "@/app/chat/components/use-chat-tab-unread-presence";
-import {
-  CHAT_CATCH_UP_PATH,
-  CHAT_CHATS_LIST_PATH,
-} from "@/app/chat/utils/chat-route-base";
-import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
-import { useNavPathname } from "@/components/navigation-progress.client";
 import { Button } from "@/components/ui/button";
 import { SheetClose } from "@/components/ui/sheet";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -20,7 +13,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { NAV_GROUPS, sidebarSection } from "./sidebar-sections";
+import { useSidebarPanel } from "./sidebar-context-panel";
+import { NAV_GROUPS } from "./sidebar-sections";
 
 export function GlobalRail({ mobile = false }: { mobile?: boolean }) {
   const { isMobile } = useSidebar();
@@ -34,30 +28,26 @@ export function GlobalRail({ mobile = false }: { mobile?: boolean }) {
         )
       }
     >
-      <RailLinks mobile={mobile} />
+      <RailControls mobile={mobile} />
     </Suspense>
   );
 }
 
-function RailLinks({ mobile }: { mobile: boolean }) {
+function RailControls({ mobile }: { mobile: boolean }) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const sidebar = useTranslations("App.Sidebar");
   const nav = useTranslations("App.Channels.MobileNav");
-  const { hrefFor } = useProjectScope();
-  const { open, setOpen, setOpenMobile } = useSidebar();
+  const { open, setOpen } = useSidebar();
   const { showUnreadDot } = useChatTabUnreadPresence();
-  const section = sidebarSection(useNavPathname());
+  const { section, selectSection } = useSidebarPanel();
   const sections = [
     {
-      id: "chats",
-      // Bare /chat is the phone list and redirects to Welcome on desktop.
-      href: mobile ? CHAT_CHATS_LIST_PATH : CHAT_CATCH_UP_PATH,
+      id: "chats" as const,
       Icon: MessageCircle,
       label: nav("chats"),
     },
-    ...NAV_GROUPS.map(({ id, href, Icon }) => ({
+    ...NAV_GROUPS.map(({ id, Icon }) => ({
       id,
-      href: hrefFor(href),
       Icon,
       label: t(`groups.${id}`),
     })),
@@ -74,7 +64,7 @@ function RailLinks({ mobile }: { mobile: boolean }) {
           : "relative z-20 hidden h-dvh w-(--app-rail-width) shrink-0 flex-col border-e pt-3 md:flex",
       )}
     >
-      {sections.map(({ id, href, Icon, label }) => {
+      {sections.map(({ id, Icon, label }) => {
         const isActive = id === section;
         const unread = id === "chats" && showUnreadDot;
 
@@ -82,7 +72,7 @@ function RailLinks({ mobile }: { mobile: boolean }) {
           <Tooltip key={id}>
             <TooltipTrigger asChild>
               <Button
-                asChild
+                type="button"
                 variant="ghost"
                 size="icon"
                 className={cn(
@@ -90,26 +80,21 @@ function RailLinks({ mobile }: { mobile: boolean }) {
                   isActive &&
                     "bg-sidebar-accent text-sidebar-accent-foreground border-sidebar-border after:bg-current after:absolute after:inset-s-0 after:h-4 after:w-0.5 after:rounded-full",
                 )}
+                aria-label={unread ? `${label}, ${nav("chatsUnread")}` : label}
+                aria-controls="app-sidebar-panel"
+                aria-pressed={isActive}
+                onClick={() => {
+                  selectSection?.(id);
+                  if (!mobile && !open) setOpen(true);
+                }}
               >
-                <Link
-                  href={href}
-                  aria-label={
-                    unread ? `${label}, ${nav("chatsUnread")}` : label
-                  }
-                  aria-current={isActive ? "true" : undefined}
-                  onNavigate={() => {
-                    if (mobile) setOpenMobile(false);
-                    else if (!open) setOpen(true);
-                  }}
-                >
-                  <Icon aria-hidden className="size-5" />
-                  {unread ? (
-                    <span
-                      aria-hidden
-                      className="bg-foreground ring-sidebar absolute end-1 top-1 size-1.5 rounded-full ring-2"
-                    />
-                  ) : null}
-                </Link>
+                <Icon aria-hidden className="size-5" />
+                {unread ? (
+                  <span
+                    aria-hidden
+                    className="bg-foreground ring-sidebar absolute end-1 top-1 size-1.5 rounded-full ring-2"
+                  />
+                ) : null}
               </Button>
             </TooltipTrigger>
             <TooltipContent side={mobile ? "bottom" : "right"}>

@@ -1,4 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import {
+  fireEvent,
+  render as renderInTest,
+  screen,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let mockPathname = "/chat";
@@ -57,9 +61,26 @@ vi.mock("next/link", () => ({
 }));
 
 import {
+  SidebarPanelProvider,
+  useSidebarPanel,
+} from "@/app/components/sidebar/components/sidebar-context-panel";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import {
   ChatMobileBottomNav,
   resolveChatMobileActiveTabId,
 } from "./chat-mobile-bottom-nav";
+
+function render(ui: React.ReactElement) {
+  return renderInTest(
+    <SidebarProvider>
+      <SidebarPanelProvider>{ui}</SidebarPanelProvider>
+    </SidebarProvider>,
+  );
+}
+
+function CurrentPanel() {
+  return <output>{useSidebarPanel().section}</output>;
+}
 
 describe("resolveChatMobileActiveTabId", () => {
   it("marks each tab active only on its exact list-root pathname", () => {
@@ -122,24 +143,44 @@ describe("ChatMobileBottomNav", () => {
     };
   });
 
-  it("renders Home, Tasks, Chats, Projects, You in order with Spec hrefs", () => {
+  it("renders four destination links and a Chats panel button", () => {
     render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     const links = screen.getAllByRole("link");
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/",
       "/tasks",
-      "/chat",
       "/projects",
       "/you",
     ]);
     expect(screen.getByRole("link", { name: "home" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "tasks" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "chats" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "chats" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "projects" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "you" })).toBeTruthy();
     expect(screen.queryByRole("link", { name: "search" })).toBeNull();
     expect(screen.queryByRole("link", { name: "agents" })).toBeNull();
+  });
+
+  it("opens the Chats panel from another page", () => {
+    mockPathname = "/tasks";
+    render(
+      <>
+        <ChatMobileBottomNav showUnreadDot={false} />
+        <CurrentPanel />
+      </>,
+    );
+
+    const button = screen.getByRole("button", { name: "chats" });
+    fireEvent.click(button);
+
+    expect(button).toHaveAttribute("aria-expanded", "true");
+    expect(button).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("status")).toHaveTextContent("chats");
+    expect(screen.getByRole("link", { name: "tasks" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
   });
 
   it("uses the signed-in user avatar as the You tab affordance", () => {
@@ -173,11 +214,11 @@ describe("ChatMobileBottomNav", () => {
     expect(screen.queryByTestId("mobile-you-tab-avatar")).toBeNull();
   });
 
-  it("sets aria-current on the Chats link for /chat", () => {
+  it("sets aria-current on the Chats button for /chat", () => {
     mockPathname = "/chat";
     render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
-    expect(screen.getByRole("link", { name: "chats" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "chats" })).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -197,7 +238,7 @@ describe("ChatMobileBottomNav", () => {
       "aria-current",
       "page",
     );
-    expect(screen.getByRole("link", { name: "chats" })).not.toHaveAttribute(
+    expect(screen.getByRole("button", { name: "chats" })).not.toHaveAttribute(
       "aria-current",
     );
   });
@@ -233,7 +274,7 @@ describe("ChatMobileBottomNav", () => {
       "aria-current",
       "page",
     );
-    expect(screen.getByRole("link", { name: "chats" })).not.toHaveAttribute(
+    expect(screen.getByRole("button", { name: "chats" })).not.toHaveAttribute(
       "aria-current",
     );
   });
@@ -287,7 +328,7 @@ describe("ChatMobileBottomNav", () => {
       "aria-current",
       "page",
     );
-    expect(screen.getByRole("link", { name: "chats" })).not.toHaveAttribute(
+    expect(screen.getByRole("button", { name: "chats" })).not.toHaveAttribute(
       "aria-current",
     );
   });
@@ -297,9 +338,9 @@ describe("ChatMobileBottomNav", () => {
     render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
 
     for (const name of ["home", "tasks", "chats", "projects", "you"]) {
-      expect(screen.getByRole("link", { name })).not.toHaveAttribute(
-        "aria-current",
-      );
+      expect(
+        screen.getByRole(name === "chats" ? "button" : "link", { name }),
+      ).not.toHaveAttribute("aria-current");
     }
   });
 
@@ -322,10 +363,10 @@ describe("ChatMobileBottomNav", () => {
     expect(nav.className).toContain("bg-background");
     expect(nav.className).not.toContain("border-t");
 
-    expect(screen.getByRole("link", { name: "chats" }).className).toContain(
+    expect(screen.getByRole("button", { name: "chats" }).className).toContain(
       "rounded-full",
     );
-    expect(screen.getByRole("link", { name: "chats" }).className).toContain(
+    expect(screen.getByRole("button", { name: "chats" }).className).toContain(
       "bg-quinary",
     );
   });
@@ -348,7 +389,7 @@ describe("ChatMobileBottomNav", () => {
     expect(screen.getByLabelText("chatsUnread").className).toContain(
       "size-1.5",
     );
-    expect(screen.getByRole("link", { name: /chats/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /chats/i })).toBeTruthy();
   });
 
   it("hides the unread presence dot when no attention remains", () => {

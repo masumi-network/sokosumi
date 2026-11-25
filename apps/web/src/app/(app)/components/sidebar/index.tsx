@@ -17,7 +17,10 @@ import AnnouncementCards from "./components/announcement-cards";
 import { GlobalRail } from "./components/global-rail.client";
 import MenuItems from "./components/menu-items";
 import PersonalAssistantNav from "./components/personal-assistant-nav";
-import { SidebarContextPanel } from "./components/sidebar-context-panel";
+import {
+  SidebarContextPanel,
+  SidebarMobileChatsDestination,
+} from "./components/sidebar-context-panel";
 import SidebarLogo from "./components/sidebar-logo.client";
 import { SidebarNewTaskButton } from "./components/sidebar-new-task-button.client";
 import { SidebarSearchButton } from "./components/sidebar-search-button.client";
@@ -137,6 +140,7 @@ export default function Sidebar({
           <SidebarContextPanel
             chats={
               <>
+                <SidebarMobileChatsDestination />
                 <PersonalAssistantNav />
                 {chatList}
               </>

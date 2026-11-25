@@ -239,6 +239,8 @@ function Sidebar({
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
 
+  const mobileOpener = React.useRef<HTMLElement | null>(null);
+
   if (collapsible === "none") {
     return (
       <div
@@ -268,8 +270,18 @@ function Sidebar({
             } as React.CSSProperties
           }
           side={side}
+          onOpenAutoFocus={() => {
+            const active = document.activeElement;
+            mobileOpener.current =
+              active instanceof HTMLElement && active.matches("button")
+                ? active
+                : null;
+          }}
           onCloseAutoFocus={() => {
-            if (mobileTriggerId) document.getElementById(mobileTriggerId)?.focus();
+            mobileOpener.current?.focus();
+            if (document.activeElement !== mobileOpener.current && mobileTriggerId) {
+              document.getElementById(mobileTriggerId)?.focus();
+            }
           }}
         >
           <SheetHeader className="sr-only">

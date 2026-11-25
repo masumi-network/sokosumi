@@ -3,8 +3,6 @@
 import { PanelLeft } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { useChromePathname } from "@/app/chat/components/room-cache-provider";
-import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -14,13 +12,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
-import { cn } from "@/lib/utils";
 
 /** Toggle the contextual panel; the global rail stays available on desktop. */
 export function SidebarToggle() {
   const t = useTranslations("App.Sidebar");
   const { isMobile, open, openMobile, toggleSidebar } = useSidebar();
-  const pathname = useChromePathname();
   const isApple = useIsApplePlatform();
   const shortcut = isApple ? "⌘B" : "Ctrl+B";
   const expanded = isMobile ? openMobile : open;
@@ -38,10 +34,7 @@ export function SidebarToggle() {
           aria-keyshortcuts="Meta+B Control+B"
           id="app-sidebar-toggle"
           onClick={toggleSidebar}
-          className={cn(
-            "size-10 shrink-0 md:-ml-2 md:size-8",
-            isChatRoomPathname(pathname) && "max-md:hidden",
-          )}
+          className="size-10 shrink-0 md:-ml-2 md:size-8"
         >
           <PanelLeft aria-hidden />
         </Button>
