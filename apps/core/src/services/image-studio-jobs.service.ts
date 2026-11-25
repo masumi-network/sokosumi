@@ -34,6 +34,7 @@ import {
   isInsufficientBalanceError,
 } from "@/helpers/task-credits";
 import { DATA_ROOM_PEOPLE_KINDS } from "@/lib/data-room-visibility";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { driveHead, driveReadUrl } from "@/lib/drive-blob";
@@ -3530,6 +3531,7 @@ async function insertAsset(input: {
           organizationId: input.job.organizationId,
           projectId: input.job.projectId,
           cents: chargedCents,
+          scope: createNetworkScope("mainnet"),
           tx,
         });
       } catch (error) {

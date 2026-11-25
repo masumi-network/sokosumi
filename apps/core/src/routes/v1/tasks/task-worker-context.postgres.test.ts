@@ -24,6 +24,7 @@ import prisma from "@/lib/db/prisma";
 import { type EnvVariables, OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import uploadRouter from "@/routes/v1/webhooks/tasks/files/uploaded";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 import { focusedReport, SEO_TEST_PAGE } from "@/test-fixtures/project-seo";
 import mountEvents from "./[id]/events/post";
 import mountFiles from "./[id]/files/post";
@@ -35,8 +36,24 @@ const { headMock, delMock, grantMock, fixtureEnv } = vi.hoisted(() => ({
   fixtureEnv: {
     publicKey: "",
     globalCoworkerId: null as string | null,
+    failAfterCharge: false,
   },
 }));
+
+// The last step inside the event's transaction, after the charge and the
+// event are written: a test makes it throw once.
+vi.mock("./[id]/events/map-created-event", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./[id]/events/map-created-event")>();
+  return {
+    mapCreatedTaskEventForResponse: ((...args) => {
+      if (!fixtureEnv.failAfterCharge)
+        return actual.mapCreatedTaskEventForResponse(...args);
+      fixtureEnv.failAfterCharge = false;
+      throw new Error("after the charge");
+    }) satisfies typeof actual.mapCreatedTaskEventForResponse,
+  };
+});
 
 vi.mock("@/middleware/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/middleware/auth")>()),
@@ -629,6 +646,7 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
           organizationId: task.organizationId,
           projectId: task.projectId,
           cents,
+          scope: testNetworkScope(),
           tx,
         });
         await tx.taskEvent.create({
@@ -1020,6 +1038,38 @@ describe.skipIf(!enabled)("Guarded worker Task writes", () => {
         where: { taskId, transactionId: charge.id },
       }),
     ).toBe(1);
+  });
+
+  it("rolls the debit back with the event when the request fails after the charge", async () => {
+    const debits = { organizationId, amount: { lt: 0n } };
+    // Every event of the Task, priced or not: the setup already wrote some.
+    const events = () => prisma.taskEvent.count({ where: { taskId } });
+    const eventsBefore = await events();
+    fixtureEnv.failAfterCharge = true;
+
+    expect((await event({ status: "COMPLETED", credits: 1 })).status).toBe(500);
+
+    expect(await prisma.transaction.count({ where: debits })).toBe(0);
+    expect(
+      await prisma.creditConsumption.count({
+        where: { bucket: { organizationId } },
+      }),
+    ).toBe(0);
+    expect(await events()).toBe(eventsBefore);
+
+    // The same request then lands: one event, linked to its debit.
+    expect((await event({ status: "COMPLETED", credits: 1 })).status).toBe(201);
+    const charge = await prisma.transaction.findFirstOrThrow({
+      where: debits,
+      include: { creditConsumptions: true, taskEvents: true },
+    });
+    expect(charge.creditConsumptions).toMatchObject([
+      { amount: convertCreditsToCents(1) },
+    ]);
+    expect(charge.taskEvents).toMatchObject([
+      { taskId, cents: convertCreditsToCents(1), status: "COMPLETED" },
+    ]);
+    expect(await events()).toBe(eventsBefore + 1);
   });
 
   it.each(["owner", "workspace", "assignee", "archive"] as const)(

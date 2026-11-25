@@ -79,6 +79,7 @@ async function prepareConsumptions(
 
   try {
     return await creditBucketRepository.prepareConsumption(
+      "mainnet",
       userId,
       organizationId,
       cents,

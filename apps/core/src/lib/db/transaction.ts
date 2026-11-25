@@ -55,9 +55,28 @@ export async function retriedTransaction<T>(
   conflictMessage: string,
   isolationLevel?: Prisma.TransactionIsolationLevel,
 ): Promise<T> {
+  return retriedTransactionOn(
+    prisma,
+    callback,
+    conflictMessage,
+    isolationLevel,
+  );
+}
+
+/**
+ * The one implementation of the retry and conflict rules, on the client it is
+ * given. Only for this module and the Network scope: other code opens a
+ * transaction through one of them.
+ */
+export async function retriedTransactionOn<T>(
+  client: Pick<typeof prisma, "$transaction">,
+  callback: (tx: Prisma.TransactionClient) => Promise<T>,
+  conflictMessage: string,
+  isolationLevel?: Prisma.TransactionIsolationLevel,
+): Promise<T> {
   for (let attempt = 0; ; attempt += 1) {
     try {
-      return await prisma.$transaction(
+      return await client.$transaction(
         callback,
         isolationLevel ? { isolationLevel } : undefined,
       );

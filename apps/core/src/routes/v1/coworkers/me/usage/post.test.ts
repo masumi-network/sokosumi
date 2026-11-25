@@ -246,9 +246,10 @@ describe("POST /me/usage", () => {
       prepareConsumptionMock.mock.invocationCallOrder[0] ?? -Infinity,
     );
     expect(prepareConsumptionMock).toHaveBeenCalledTimes(1);
-    expect(prepareConsumptionMock.mock.calls[0]?.[0]).toBe(TARGET_USER_ID);
-    expect(prepareConsumptionMock.mock.calls[0]?.[1]).toBe(ORGANIZATION_ID);
-    expect(typeof prepareConsumptionMock.mock.calls[0]?.[2]).toBe("bigint");
+    expect(prepareConsumptionMock.mock.calls[0]?.[0]).toBe("mainnet");
+    expect(prepareConsumptionMock.mock.calls[0]?.[1]).toBe(TARGET_USER_ID);
+    expect(prepareConsumptionMock.mock.calls[0]?.[2]).toBe(ORGANIZATION_ID);
+    expect(typeof prepareConsumptionMock.mock.calls[0]?.[3]).toBe("bigint");
     expect(tx.transaction.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({

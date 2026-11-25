@@ -229,6 +229,7 @@ describe.skipIf(!db)("Project top-ups against PostgreSQL", () => {
     // More than the plan's month holds, so the charge reaches the top-up.
     const consumptions = await db.$transaction((tx) =>
       creditBucketRepository.prepareConsumption(
+        "mainnet",
         null,
         ORGANIZATION,
         26_000n * CREDIT,

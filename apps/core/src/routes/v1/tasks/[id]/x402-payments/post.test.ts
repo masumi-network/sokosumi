@@ -136,6 +136,8 @@ vi.mock("@vercel/functions", () => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
+  // The request's scope is compared below; its Network client is never used.
+  networkPrisma: () => ({}),
   default: {
     $transaction: prismaTransactionMock,
     taskX402Payment: {
@@ -1990,6 +1992,7 @@ describe("POST /{id}/x402-payments", () => {
         organizationId: null,
         projectId: PROJECT_ID,
         cents: CENTS_FOR_DEMAND,
+        scope: expect.objectContaining({ network: "mainnet" }),
         tx,
       });
       // Credit-bearing task event, like the masumiPayment charge.
