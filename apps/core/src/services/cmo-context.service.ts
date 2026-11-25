@@ -2,6 +2,7 @@ import type { MarketingStrategy } from "@sokosumi/database";
 import {
   type BrandBrain,
   type CmoSystemSchedule,
+  cmoHighlightsTools,
   cmoReadsOnDemand,
   cmoRoutineSkipReason,
   cmoWritingSkills,
@@ -179,11 +180,14 @@ export async function loadCmoMarketingContext(
 ): Promise<Record<string, unknown> | null> {
   const sources = await readCmoContextSources(sokoBotId, now, options);
   if (!sources) return null;
-  if (
-    options.turn &&
-    cmoReadsOnDemand(getSokoBotVersion(sources.versionId).skills)
-  )
-    return organizeCmoContext({ sources, turn: options.turn, now });
+  const { skills } = getSokoBotVersion(sources.versionId);
+  if (options.turn && cmoReadsOnDemand(skills))
+    return organizeCmoContext({
+      sources,
+      turn: options.turn,
+      now,
+      highlights: cmoHighlightsTools(skills),
+    });
   return fitCmoMarketingContext(fullCmoMarketingContext(sources, now), now);
 }
 

@@ -73,6 +73,10 @@ import {
   styledPictureChecks,
 } from "./eval-cmo-runner";
 import { cmoSeoReportChecks, isCmoSeoReportCase } from "./eval-cmo-seo-report";
+import {
+  CMO_SHORT_FORM_CASE_IDS,
+  shortFormChecks,
+} from "./eval-cmo-short-forms";
 import { CMO_CORRECTION_CASE_ID, correctionChecks } from "./eval-cmo-variety";
 import {
   CMO_WEEKLY_REVIEW_CASE_ID,
@@ -404,6 +408,12 @@ async function pollScenario(
       turn.finalAnswer ?? "",
       context.startedAt,
     );
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (CMO_SHORT_FORM_CASE_IDS.includes(scenario.id)) {
+    const extra = await shortFormChecks(scenario.id, turnId);
     result.checks.push(...extra);
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;

@@ -25,6 +25,8 @@ What Cuso does without being asked, per channel, and what the owner should see c
 
 From cmo-v23 every turn starts from a short core (the business, the plan in one line each, connected networks and a map of everything stored), Core adds what that kind of turn needs, and Cuso reads the rest himself (`read_calendar`, `read_strategy`, `read_brand_brain`, `read_report`, `read_competitor_moves`). A strategy turn still sees the whole Brand Brain and strategy. When you judge a reply about a piece, a week or a report, check that he read it rather than guessed: the turn's `workspace.marketing.organizer` lists what Core picked and why ([ADR 0084](../../../docs/adr/0084-cuso-context-is-a-core-a-map-and-reads.md)).
 
+From cmo-v24 the core also names the tools that fit the turn (`toolsForThisTurn`), and on a question or an event `save_strategy` and `save_brand_brain` come in a short form: Cuso calls it, nothing is saved, and the full tool is his from the next step. A save on such a turn therefore shows two calls; that is the design, not a retry after an error.
+
 ## How to judge what Cuso makes
 
 Count and grade the output per channel, not only whether a flow ran. Track it over days and weeks.

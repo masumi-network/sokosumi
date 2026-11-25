@@ -1,4 +1,8 @@
-import type { BrandBrain, MarketingStrategyPlan } from "@sokosumi/soko-bot";
+import {
+  type BrandBrain,
+  isSokoBotCapability,
+  type MarketingStrategyPlan,
+} from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const scheduleFind = vi.hoisted(() => vi.fn());
@@ -17,9 +21,11 @@ vi.mock("@/lib/evlog", () => ({
 
 import type { CmoContextSources } from "@/services/cmo-context.service";
 import {
+  CMO_KIND_TOOLS,
   type CmoContextLog,
   type CmoContextPicker,
   cmoNamedDays,
+  cmoShortFormsFor,
   cmoTurnKind,
   organizeCmoContext,
 } from "./cmo-context-organizer";
@@ -465,5 +471,85 @@ describe("organizeCmoContext on a named day", () => {
       "sitePages",
     ]);
     expect(logOf(context).pickedBytes).toBeLessThanOrEqual(20 * 1_024);
+  });
+});
+
+describe("organizeCmoContext with tool highlights (cmo-v24)", () => {
+  const answering =
+    (change: number): CmoContextPicker =>
+    async ({ topics }) =>
+      new Map(
+        Object.keys(topics).map((key) => [key, key === "change" ? change : 0]),
+      );
+
+  it("names only tools Cuso has", () => {
+    for (const tools of Object.values(CMO_KIND_TOOLS))
+      for (const name of tools) expect(isSokoBotCapability(name)).toBe(true);
+  });
+
+  it("names the kind's tools in the core", async () => {
+    const context = await organizeCmoContext({
+      sources: sources(),
+      turn: chat("What goes out on Friday?"),
+      now: NOW,
+      picker: answering(0.1),
+      highlights: true,
+    });
+    expect(
+      (context.core as { toolsForThisTurn?: string }).toolsForThisTurn,
+    ).toBe(CMO_KIND_TOOLS.chat.join(", "));
+  });
+
+  it("gives a question short save tools and a change request the full ones", async () => {
+    const question = await organizeCmoContext({
+      sources: sources(),
+      turn: chat("What goes out on Friday?"),
+      now: NOW,
+      picker: answering(0.1),
+      highlights: true,
+    });
+    const change = await organizeCmoContext({
+      sources: sources(),
+      turn: chat("Move Friday's LinkedIn post to Monday."),
+      now: NOW,
+      picker: answering(0.94),
+      highlights: true,
+    });
+    expect(logOf(question).change).toBe(false);
+    expect(cmoShortFormsFor(logOf(question))).toBe(true);
+    expect(logOf(change).change).toBe(true);
+    expect(cmoShortFormsFor(logOf(change))).toBe(false);
+  });
+
+  it("keeps the full save tools when Jev fails, and on saving kinds", async () => {
+    const failed = await organizeCmoContext({
+      sources: sources(),
+      turn: chat("What goes out on Friday?"),
+      now: NOW,
+      picker: async () => {
+        throw new DOMException("timed out", "TimeoutError");
+      },
+      highlights: true,
+    });
+    expect(cmoShortFormsFor(logOf(failed))).toBe(false);
+    for (const kind of ["production", "strategy", "daily", "weekly", "brand"])
+      expect(cmoShortFormsFor({ kind, change: false })).toBe(false);
+    expect(cmoShortFormsFor(null)).toBe(false);
+  });
+
+  it("asks Jev nothing new and names no tools without highlights", async () => {
+    let asked: string[] = [];
+    const context = await organizeCmoContext({
+      sources: sources(),
+      turn: chat("What goes out on Friday?"),
+      now: NOW,
+      picker: async ({ topics }) => {
+        asked = Object.keys(topics);
+        return new Map();
+      },
+    });
+    expect(asked).not.toContain("change");
+    expect(logOf(context).change).toBeUndefined();
+    expect(context.core).not.toHaveProperty("toolsForThisTurn");
   });
 });

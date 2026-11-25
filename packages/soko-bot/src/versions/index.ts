@@ -36,6 +36,7 @@ import { cmoV21 } from "./cmo-v21.js";
 import { cmoV22 } from "./cmo-v22.js";
 import { cmoV23 } from "./cmo-v23.js";
 import { cmoReadsOnDemand } from "./cmo-v23-skills.js";
+import { cmoV24 } from "./cmo-v24.js";
 import { cmoV25 } from "./cmo-v25.js";
 import { cmoWritesStrategyStep } from "./cmo-v25-skills.js";
 import {
@@ -147,6 +148,7 @@ export const SOKO_BOT_PRODUCT_VERSIONS: readonly SokoBotVersion[] = [
   cmoV21,
   cmoV22,
   cmoV23,
+  cmoV24,
   cmoV25,
   ...CMO_MODEL_TRIALS,
 ];

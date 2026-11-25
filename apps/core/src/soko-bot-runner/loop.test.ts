@@ -439,4 +439,81 @@ describe("runTurnLoop", () => {
     expect(model.doStreamCalls).toHaveLength(1);
     expect(JSON.parse(result.text).message).toBe("Scheduling for everyone");
   });
+
+  it("offers the full save tool on the round after a short-form call", async () => {
+    const offered: string[][] = [];
+    const saved: unknown[] = [];
+    const stream = (
+      content: Answer["content"],
+      finish: "stop" | "tool-calls",
+    ) =>
+      streamOf({
+        content,
+        finishReason: { unified: finish, raw: finish },
+        warnings: [],
+        usage,
+      });
+    const model = new MockLanguageModelV3({
+      doStream: async ({ tools: sent, prompt }) => {
+        const schema = sent?.find((t) => t.name === "save_strategy") as
+          | { inputSchema: { properties?: Record<string, unknown> } }
+          | undefined;
+        offered.push(Object.keys(schema?.inputSchema.properties ?? {}));
+        const results = prompt.filter((m) => m.role === "tool").length;
+        if (results === 0)
+          return stream(
+            [
+              {
+                type: "tool-call",
+                toolCallId: "short",
+                toolName: "save_strategy",
+                input: JSON.stringify({ shortForm: true, what: "move a post" }),
+              },
+            ],
+            "tool-calls",
+          );
+        if (results === 1)
+          return stream(
+            [
+              {
+                type: "tool-call",
+                toolCallId: "full",
+                toolName: "save_strategy",
+                input: JSON.stringify({ part: "pieces" }),
+              },
+            ],
+            "tool-calls",
+          );
+        return stream([{ type: "text", text: "Moved it." }], "stop");
+      },
+    });
+
+    const result = await runTurnLoop({
+      model,
+      system: "You are Cuso.",
+      message: "Move Friday's post to Monday.",
+      tools: {
+        save_strategy: tool({
+          inputSchema: z.object({ part: z.string() }),
+          execute: async (input: unknown) => {
+            saved.push(input);
+            return { saved: true };
+          },
+        }),
+      },
+      maxSteps: 10,
+      background: false,
+      deadline: Date.now() + 10 * MINUTE,
+      stopped: new AbortController().signal,
+      shortForms: ["save_strategy"],
+    });
+
+    expect(result.text).toBe("Moved it.");
+    expect(offered[0]).toEqual(["shortForm", "what"]);
+    expect(offered.slice(1).every((keys) => keys.includes("part"))).toBe(true);
+    expect(saved).toEqual([
+      { shortForm: true, what: "move a post" },
+      { part: "pieces" },
+    ]);
+  });
 });

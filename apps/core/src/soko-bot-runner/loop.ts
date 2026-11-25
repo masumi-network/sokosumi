@@ -1,9 +1,16 @@
+import type { CmoShortFormTool } from "@sokosumi/soko-bot";
 import {
   type LanguageModel,
   type ModelMessage,
   stepCountIs,
   type ToolSet,
 } from "ai";
+import {
+  calledShortForm,
+  endedByShortForm,
+  shortFormsIn,
+  withShortForms,
+} from "../lib/soko-bot/short-forms";
 import {
   modelReasoningSummaryOptions,
   stepReasoningSummary,
@@ -40,6 +47,11 @@ export interface TurnLoopInput {
   /** Told each step's reasoning summary as the step ends, when it has one. */
   onReasoning?: (summary: string) => Promise<void>;
   now?: () => number;
+  /**
+   * Save tools offered in their short form until one is called; the next
+   * round offers the full tool (cmo-v24).
+   */
+  shortForms?: readonly CmoShortFormTool[];
 }
 
 interface StepUsage {
@@ -85,13 +97,20 @@ export async function runTurnLoop(
   let text = "";
   let finishReason = "";
   let idleRounds = 0;
+  let short = shortFormsIn(input.tools, input.shortForms ?? []);
   for (let round = 0; ; round++) {
     const result = await streamModelCall({
       model: input.model,
       system: input.system,
       messages: compactHistory(messages) ?? messages,
-      tools: input.tools,
-      stopWhen: [stepCountIs(stepsLeft), timeUp, overBudget, endedByTool],
+      tools: short.length ? withShortForms(input.tools, short) : input.tools,
+      stopWhen: [
+        stepCountIs(stepsLeft),
+        timeUp,
+        overBudget,
+        endedByTool,
+        endedByShortForm(short),
+      ],
       prepareStep: ({ messages: current }) => {
         const compacted = compactHistory(current);
         return compacted ? { messages: compacted } : {};
@@ -122,6 +141,18 @@ export async function runTurnLoop(
     // Every step's messages: `response.messages` holds the last step's alone,
     // and a nudged round that cannot see its own calls does the brief again.
     messages = [...messages, ...result.responseMessages];
+    // A short-form save ended the round: the next offers the full tool, as
+    // long as steps, time and tokens all leave room for it.
+    if (
+      short.length &&
+      calledShortForm(result.steps, short) &&
+      stepsLeft > 0 &&
+      !timeUp() &&
+      tokensUsed < tokenBudget
+    ) {
+      short = [];
+      continue;
+    }
     const keepGoing =
       input.background &&
       !isFinalReport(text) &&

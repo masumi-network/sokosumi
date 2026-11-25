@@ -117,7 +117,85 @@ export interface CmoContextLog {
   /** Map ids that did not fit the budget although picked. */
   dropped: string[];
   jev: { ms: number; asked: number; failed?: string } | null;
+  /**
+   * cmo-v24: Jev's read that the owner asks to change the plan, its calendar
+   * or its posts; such a chat gets the full save tools from the start.
+   */
+  change?: boolean;
 }
+
+/**
+ * The tools each kind of turn uses, named in the core from cmo-v24 (owner,
+ * 2026-11-25: "should always be able to call all tools but it should get
+ * them highlighted"). Nothing else is removed.
+ */
+export const CMO_KIND_TOOLS: Readonly<Record<CmoTurnKind, readonly string[]>> =
+  {
+    production: [
+      "write_month_pieces",
+      "save_strategy",
+      "find_style_references",
+      "read_calendar",
+      "read_brand_brain",
+      "report_update",
+    ],
+    strategy: ["save_strategy", "read_brand_brain", "report_update"],
+    daily: [
+      "save_strategy",
+      "list_social_comments",
+      "handle_social_comment",
+      "read_calendar",
+      "report_update",
+    ],
+    weekly: [
+      "list_social_post_statistics",
+      "read_report",
+      "read_calendar",
+      "save_strategy",
+      "report_update",
+    ],
+    brand: ["save_brand_brain", "web_fetch", "report_update"],
+    competitors: [
+      "check_competitors",
+      "save_competitor_feed",
+      "read_competitor_moves",
+    ],
+    seo: ["read_seo", "research_keywords", "save_seo_suggestions"],
+    chat: [
+      "read_calendar",
+      "read_strategy",
+      "read_brand_brain",
+      "read_report",
+      "get_social_post",
+    ],
+    event: ["read_calendar", "read_report", "report_update"],
+    quiet: [],
+  };
+
+/** Turns that save as their work: they get the full save tools from the start. */
+const SAVING_KINDS: ReadonlySet<CmoTurnKind> = new Set([
+  "production",
+  "strategy",
+  "daily",
+  "weekly",
+  "brand",
+]);
+
+/**
+ * Whether a cmo-v24 turn gets save_strategy and save_brand_brain in their
+ * short form: not on a saving kind, not when Jev read a change request, and
+ * not without an organizer (a teammate's turn, an older version).
+ */
+export function cmoShortFormsFor(log: unknown): boolean {
+  if (!log || typeof log !== "object") return false;
+  const { kind, change } = log as Partial<CmoContextLog>;
+  if (!kind || SAVING_KINDS.has(kind)) return false;
+  return change === false;
+}
+
+/** The Jev topic that reads a change request, asked beside the map's. */
+const CHANGE_TOPIC =
+  "saving a change to the marketing plan or its calendar of posts: the owner asks to add, move, rewrite, drop or pause a post, a channel or a part of the plan (news about the business itself, its offers or prices is not a plan change)";
 
 function bytes(value: unknown): number {
   return Buffer.byteLength(JSON.stringify(value) ?? "");
@@ -790,6 +868,8 @@ export async function organizeCmoContext(input: {
   picker?: CmoContextPicker;
   /** The rhythm's key when the caller already knows it (the context lab). */
   scheduleKey?: string | null;
+  /** cmo-v24: name the kind's tools and read a change request. */
+  highlights?: boolean;
 }): Promise<MarketingContext> {
   const { sources, turn, now } = input;
   const scheduleKey =
@@ -801,7 +881,12 @@ export async function organizeCmoContext(input: {
   const planLevel = await import("@/services/cmo-billing.service")
     .then(({ cmoPlanLevel }) => cmoPlanLevel(sources.cuso.projectId, now))
     .catch(() => null);
-  const core = cmoContextCore({ sources, kind, items, now, planLevel });
+  const core = {
+    ...cmoContextCore({ sources, kind, items, now, planLevel }),
+    ...(input.highlights
+      ? { toolsForThisTurn: CMO_KIND_TOOLS[kind].join(", ") }
+      : {}),
+  };
   if (kind === "strategy") {
     // A strategy turn rewrites the plan and its calendar, so it keeps the
     // whole fitted context beside the core's map.
@@ -833,6 +918,8 @@ export async function organizeCmoContext(input: {
       if (!wanted.some((pick) => pick.id === id))
         wanted.push({ id, why: "named day" });
   let jev: CmoContextLog["jev"] = null;
+  // A chat or event Jev did not read keeps the full save tools.
+  let change: boolean | undefined = input.highlights ? true : undefined;
   if (JEV_KINDS.has(kind) && turn.message.trim()) {
     const candidates = items.filter(
       (item) => !wanted.some((pick) => pick.id === item.id),
@@ -843,12 +930,17 @@ export async function organizeCmoContext(input: {
         message: turn.message,
         previousReply: turn.previousReply ?? null,
         today: now.toISOString().slice(0, 10),
-        topics: Object.fromEntries(
-          candidates.map((item, index) => [`t${index}`, item.title]),
-        ),
+        topics: {
+          ...Object.fromEntries(
+            candidates.map((item, index) => [`t${index}`, item.title]),
+          ),
+          ...(input.highlights ? { change: CHANGE_TOPIC } : {}),
+        },
         timeoutMs: JEV_TIMEOUT_MS,
       });
       jev = { ms: Date.now() - started, asked: candidates.length };
+      if (input.highlights)
+        change = (answers.get("change") ?? 0) >= JEV_PICK_AT;
       const chosen = candidates
         .map((item, index) => ({
           item,
@@ -869,6 +961,8 @@ export async function organizeCmoContext(input: {
         asked: candidates.length,
         failed: error instanceof Error ? error.name : "unknown",
       };
+      // Without Jev's read the turn keeps the full save tools.
+      if (input.highlights) change = true;
       for (const id of fallbackPicks(kind, items, now))
         if (!wanted.some((pick) => pick.id === id))
           wanted.push({ id, why: "fallback" });
@@ -883,6 +977,7 @@ export async function organizeCmoContext(input: {
     picked: [],
     dropped: [],
     jev,
+    ...(change !== undefined ? { change } : {}),
   };
   for (const pick of wanted) {
     const item = items.find((candidate) => candidate.id === pick.id);

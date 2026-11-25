@@ -107,6 +107,7 @@ vi.mock("@/services/soko-bot-version.service", () => ({
   resolveRunnableSokoBotVersion: vi.fn().mockResolvedValue({
     model: "google/gemini-3.6-flash",
     inferenceRegion: "eu",
+    skills: [],
   }),
 }));
 vi.mock("@/lib/soko-bot/sandbox/sandbox-runtime", () => ({
@@ -868,6 +869,16 @@ describe("sandbox turn service", () => {
         toolInput: { command: "id" },
       }),
     ).rejects.toThrow("Unknown Sokosumi tool");
+  });
+
+  it("answers a short-form save without saving, so the runner offers the full tool", async () => {
+    const result = await runSandboxTool(claims, {
+      capability: "save_strategy",
+      toolCallId: "short",
+      toolInput: { shortForm: true, what: "move Friday's post" },
+    });
+    expect(result).toMatchObject({ saved: false });
+    expect(executeToolMock).not.toHaveBeenCalled();
   });
 
   it("gives a script's read its own call id and the bare result", async () => {

@@ -2170,6 +2170,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
         "read_report",
         "read_competitor_moves",
         "save_strategy",
+        "save_brand_brain",
       ],
     },
   },
@@ -2241,6 +2242,21 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
         "create_newsletter_issue",
       ],
       answerAvoids: CMO_PLACEHOLDER_NOT_LINK_PATTERN,
+    },
+  },
+  {
+    id: "cmo-short-form-brand-save",
+    title: "Saves a new offer through the short save tool",
+    intent:
+      "On a chat that is not a plan change, save_brand_brain comes in its short form (cmo-v24): Cuso calls it, gets the full tool, and saves the new offer in the same turn.",
+    prompt:
+      "We just launched a free plan for solo founders: one person, unlimited event types, no credit card needed. Please add it to what you know about us.",
+    rubric:
+      "Cuso saves the free plan for solo founders into the Brand Brain with save_brand_brain (the offers, and the pricing section when he changes it), with only what the owner said: one person, unlimited event types, no credit card. On cmo-v24 the first save_brand_brain call may be the short form; the save that counts is the full one after it. He tells the owner in a line that it is saved. Changing the marketing plan or calendar unasked, inventing a price, a limit or a launch date, or claiming a save that did not complete fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED", "DIRECT_RESPONSE"],
+      tools: ["save_brand_brain"],
+      forbiddenTools: ["save_strategy", "create_task"],
     },
   },
 ];

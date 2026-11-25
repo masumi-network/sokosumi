@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { SokoBotRuntimeEvent } from "@sokosumi/database";
 import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
+  type CmoShortFormTool,
   getSokoBotVersion,
   type IndexedRuntimeEvent,
   type RuntimeCancelInput,
@@ -17,7 +18,7 @@ import {
   type SokoBotRuntime,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
-import { stepCountIs, type ToolSet, tool } from "ai";
+import { type ModelMessage, stepCountIs, type ToolSet, tool } from "ai";
 import { reportAiGatewayBudgetFailure } from "@/lib/ai-gateway-budget";
 import {
   aiGatewayBudgetScope,
@@ -55,6 +56,12 @@ import {
   prepareEvaluationStep,
   withEvaluationTurn,
 } from "./evaluation-dispatch";
+import {
+  calledShortForm,
+  endedByShortForm,
+  shortFormsIn,
+  withShortForms,
+} from "./short-forms";
 import {
   announceTurn,
   closeTurn,
@@ -176,14 +183,56 @@ async function runTurn(
       });
     }
 
+    const inputTokensOf = (
+      steps: readonly { usage: { inputTokens?: number | undefined } }[],
+    ) => steps.reduce((sum, step) => sum + (step.usage.inputTokens ?? 0), 0);
     // The drain reads the model from `step.started` and meters usage from
     // `step.completed`; billing depends on both, so emit them per step.
     const purpose = await loadSokoBotTurnPurpose(input.turnId);
+    // cmo-v24: the big save tools start in their short form; a call to one
+    // ends the round and the next round offers the full tool.
     const runModel = async (
       message: string,
       maxSteps: number,
       signal: AbortSignal,
       offered: ToolSet = tools,
+    ) => {
+      const short = shortFormsIn(offered, turn.shortForms);
+      const first = await runRound(
+        [{ role: "user", content: message }],
+        maxSteps,
+        signal,
+        short.length ? withShortForms(offered, short) : offered,
+        short,
+        inputTokenBudget,
+      );
+      // The full tool's round needs steps, time and tokens left.
+      const left = maxSteps - first.steps.length;
+      const tokensLeft = inputTokenBudget - inputTokensOf(first.steps);
+      if (
+        !short.length ||
+        !calledShortForm(first.steps, short) ||
+        left < 1 ||
+        tokensLeft <= 0 ||
+        signal.aborted
+      )
+        return first;
+      return runRound(
+        [{ role: "user", content: message }, ...first.responseMessages],
+        left,
+        signal,
+        offered,
+        [],
+        tokensLeft,
+      );
+    };
+    const runRound = async (
+      messages: ModelMessage[],
+      maxSteps: number,
+      signal: AbortSignal,
+      offered: ToolSet,
+      short: readonly CmoShortFormTool[],
+      tokenBudget: number,
     ) => {
       await log.append(runtimeEvent("step.started", { modelId: turn.model }));
       const request = sokoBotModelRequest({
@@ -209,7 +258,7 @@ async function runTurn(
               : {}),
           },
           system: turn.system,
-          messages: [{ role: "user", content: message }],
+          messages,
           telemetry: modelCallTelemetryFor("soko-bot-agent"),
           tools: offered,
           prepareStep: (step) => {
@@ -221,11 +270,8 @@ async function runTurn(
           stopWhen: [
             stepCountIs(maxSteps),
             endedByTool,
-            ({ steps }) =>
-              steps.reduce(
-                (sum, step) => sum + (step.usage.inputTokens ?? 0),
-                0,
-              ) >= inputTokenBudget,
+            endedByShortForm(short),
+            ({ steps }) => inputTokensOf(steps) >= tokenBudget,
           ],
           abortSignal: signal,
           async onStepFinish(step) {
@@ -282,7 +328,12 @@ async function runTurn(
         toolEndedTurn(result.steps) ??
         (result.text ||
           (result.steps.findLast((step) => step.text.trim())?.text ?? ""));
-      return { text, finishReason: result.finishReason };
+      return {
+        text,
+        finishReason: result.finishReason,
+        steps: result.steps,
+        responseMessages: result.responseMessages,
+      };
     };
 
     // On Vercel the budget is one invocation: parts may use at most half of

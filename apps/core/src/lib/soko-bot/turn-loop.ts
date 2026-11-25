@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import {
+  CMO_SHORT_FORM_TOOLS,
+  type CmoShortFormTool,
+  cmoHighlightsTools,
+  cmoShortFormAnswer,
+  isCmoShortFormCall,
   isSokoBotSandboxCapability,
   isSokoBotSilentAnswer,
   type RuntimeEvent,
@@ -302,6 +307,11 @@ export interface PreparedTurn {
   parts: readonly TurnPart[];
   /** Provider options for how hard the model thinks on this turn. */
   reasoningEffort: ReturnType<typeof turnReasoningEffortOptions>;
+  /**
+   * Save tools offered in their short form until the turn calls one
+   * (cmo-v24); the runtime then offers the full tool for the rest of it.
+   */
+  shortForms: readonly CmoShortFormTool[];
 }
 
 /**
@@ -410,6 +420,17 @@ export async function prepareTurn(
           turnId,
         )
       : [];
+  const shortForms =
+    cmoHighlightsTools(version.skills) &&
+    (await import("@/services/cmo-context-organizer")).cmoShortFormsFor(
+      (
+        context.packet as {
+          workspace?: { marketing?: { organizer?: unknown } | null };
+        }
+      ).workspace?.marketing?.organizer,
+    )
+      ? CMO_SHORT_FORM_TOOLS.filter((tool) => capabilities.includes(tool))
+      : [];
   return {
     turnId,
     sessionId,
@@ -433,6 +454,7 @@ export async function prepareTurn(
       model: turnRunModel(version, authorized.turn.modelId),
       complexity: authorized.complexity,
     }),
+    shortForms,
   };
 }
 
@@ -522,6 +544,25 @@ export async function runTurnTool(input: {
   cite?: boolean;
 }): Promise<unknown> {
   const { log, capability, toolCallId: callId } = input;
+  // A short-form save saves nothing: the runtime offers the full tool next.
+  // Its events count how often a turn needed the full form (cmo-v24).
+  if (isCmoShortFormCall(capability, input.toolInput)) {
+    await log.append(
+      runtimeEvent("actions.requested", {
+        actions: [
+          {
+            name: capability,
+            callId,
+            input: sanitizePersistedValue(input.toolInput),
+          },
+        ],
+      }),
+    );
+    await log.append(
+      runtimeEvent("action.result", { name: capability, callId }),
+    );
+    return cmoShortFormAnswer(capability);
+  }
   if (await isTaintBlocked(log.turnId, capability)) {
     throw new SokoBotTaintedActionError(capability);
   }

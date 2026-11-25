@@ -10,6 +10,7 @@
 
 import { spawn } from "node:child_process";
 import {
+  type CmoShortFormTool,
   SOKO_BOT_TOOL_DESCRIPTIONS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   SOKO_BOT_TURN_TOKEN_HEADER,
@@ -68,6 +69,8 @@ interface TurnStart {
   parts?: TurnPart[];
   /** Tool descriptions written for this bot; an older Core sends none. */
   toolDescriptions?: Partial<Record<SokoBotCapability, string>>;
+  /** Save tools offered in their short form first (cmo-v24); an older Core sends none. */
+  shortForms?: CmoShortFormTool[];
   /** The owner's setup commands and the keys shell commands get (ADR 0074). */
   shell?: { setupCommands: string[]; env: Record<string, string> };
 }
@@ -487,6 +490,7 @@ async function main(): Promise<void> {
       deadline,
       stopped: stopped.signal,
       onReasoning: reportReasoning,
+      shortForms: start.shortForms ?? [],
     });
     await callCore("/complete", { text, finishReason });
   } catch (error) {
