@@ -12763,6 +12763,26 @@
           "industry": "Branche",
           "lists": "Listen"
         }
+      },
+      "linkedInImport": {
+        "menu": "LinkedIn-Kontakte importieren",
+        "title": "Deine LinkedIn-Kontakte importieren",
+        "description": "Jede Verbindung wird ein Kontakt (oder ergänzt einen vorhandenen), und die Runde weiß, dass du sie um eine Vorstellung bitten kannst.",
+        "doneDescription": "Fertig. Deine Verbindungen stehen auf der Liste „LinkedIn connections“.",
+        "step1": "Öffne auf LinkedIn Einstellungen → Datenschutz → Kopie deiner Daten anfordern.",
+        "step2": "Wähle Kontakte aus und fordere das Archiv an; LinkedIn schickt es in wenigen Minuten per Mail.",
+        "step3": "Lade hier die Connections.csv aus dem Archiv hoch.",
+        "fileLabel": "Connections.csv",
+        "tooLarge": "Die Datei ist größer als 5 MB. Teile sie zuerst.",
+        "failed": "Der Import wurde nicht fertig. Es wurde nichts geändert.",
+        "result": {
+          "connections": "Verbindungen",
+          "created": "Neue Kontakte",
+          "updated": "Schon bekannt"
+        },
+        "import": "Importieren",
+        "cancel": "Abbrechen",
+        "done": "Fertig"
       }
     },
     "Fundraising": {
@@ -12892,7 +12912,10 @@
         "noFund": "Trage zuerst den Fonds beim Kontakt ein; die Recherche schlägt den Fonds nach.",
         "capReached": "Das Recherchebudget dieses Monats ist aufgebraucht.",
         "noPortfolio": "Noch kein Portfolio recherchiert.",
-        "source": "Quelle"
+        "source": "Quelle",
+        "linkedinDirect": "{who} ist auf LinkedIn mit ihnen verbunden",
+        "onLinkedIn": "auf LinkedIn verbunden",
+        "importHint": "Importiere deine LinkedIn-Kontakte in Kontakte, um mehr Wege zu finden."
       }
     },
     "Seo": {

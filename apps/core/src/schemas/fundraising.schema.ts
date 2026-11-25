@@ -142,7 +142,12 @@ export const fundraisingPortfolioCompanySchema = z
   })
   .openapi("FundraisingPortfolioCompany");
 
-export const FUNDRAISING_PATH_KINDS = ["direct", "fund", "portfolio"] as const;
+export const FUNDRAISING_PATH_KINDS = [
+  "direct",
+  "linkedin",
+  "fund",
+  "portfolio",
+] as const;
 
 /** One way to reach an investor, strongest first. */
 export const fundraisingPathSchema = z
@@ -150,6 +155,8 @@ export const fundraisingPathSchema = z
     kind: z.enum(FUNDRAISING_PATH_KINDS).openapi("FundraisingPathKind"),
     /** The teammate who holds the relationship; null when nobody has been in touch. */
     via: z.union([contactPersonSchema, z.null()]),
+    /** The teammate is connected to the person on LinkedIn (from an import). */
+    linkedIn: z.boolean(),
     /** The contact the path runs through; null for a direct path. */
     through: z.union([
       z.object({

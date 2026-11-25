@@ -44,6 +44,7 @@ export type SharedTableName =
   | "contact_company_list"
   | "contact_company_list_member"
   | "contact_interaction"
+  | "contact_linkedin_connection"
   | "contact_list"
   | "contact_list_member"
   | "contact_not_duplicate"

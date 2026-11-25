@@ -172,6 +172,7 @@ export function pathStrength(
     lastTouchAt: Date | null;
     familiarity: number | null;
     role: string | null;
+    linkedIn?: boolean;
   },
   now = new Date(),
 ): number {
@@ -182,7 +183,8 @@ export function pathStrength(
   else if (age <= 90) score += 15;
   else if (age <= 365) score += 5;
   if (input.role && DECIDER.test(input.role)) score += 10;
-  if (input.kind === "direct") score += 20;
+  if (input.linkedIn) score += 15;
+  if (input.kind === "direct" || input.kind === "linkedin") score += 20;
   else if (input.kind === "fund") score += 10;
   return Math.max(0, Math.min(100, score));
 }
@@ -204,13 +206,22 @@ function person(
 }
 
 /** Paths through a contact: the teammate who knows them best, or nobody yet. */
+type Teammate = NonNullable<FundraisingPathDto["via"]>;
+
+/** Paths through a contact: the teammate who knows them best, else one connected on LinkedIn, else nobody yet. */
 function pathsThrough(
   kind: FundraisingPathDto["kind"],
   contact: ContactDto,
   company: FundraisingPathDto["company"],
+  connections: Map<string, Teammate[]>,
   now: Date,
 ): FundraisingPathDto[] {
   const known = contact.knownBy[0];
+  const connected = connections.get(contact.id) ?? [];
+  const via: Teammate | null = known
+    ? { id: known.id, name: known.name, image: known.image }
+    : (connected[0] ?? null);
+  const linkedIn = via ? connected.some((t) => t.id === via.id) : false;
   const touches = contact.knownBy.reduce(
     (sum, k) => sum + k.interactionCount,
     0,
@@ -219,9 +230,8 @@ function pathsThrough(
   return [
     {
       kind,
-      via: known
-        ? { id: known.id, name: known.name, image: known.image }
-        : null,
+      via,
+      linkedIn,
       through: person(contact),
       company,
       strength: pathStrength(
@@ -231,6 +241,7 @@ function pathsThrough(
           lastTouchAt,
           familiarity: contact.score?.familiarity ?? null,
           role: contact.role,
+          linkedIn,
         },
         now,
       ),
@@ -238,6 +249,25 @@ function pathsThrough(
       lastTouchAt,
     },
   ];
+}
+
+/** Which teammates are connected to each contact on LinkedIn. */
+async function linkedInConnections(
+  contactIds: string[],
+): Promise<Map<string, Teammate[]>> {
+  const result = new Map<string, Teammate[]>();
+  if (!contactIds.length) return result;
+  const rows = await prisma.contactLinkedInConnection.findMany({
+    where: { contactId: { in: contactIds } },
+    include: { user: { select: { id: true, name: true, image: true } } },
+    orderBy: { connectedOn: "desc" },
+  });
+  for (const row of rows) {
+    const list = result.get(row.contactId) ?? [];
+    list.push(row.user);
+    result.set(row.contactId, list);
+  }
+  return result;
 }
 
 /** The investor's portfolio and every path the workspace has to them, strongest first. */
@@ -257,11 +287,15 @@ export async function warmPaths(
     researchStatus(actor),
   ]);
 
+  const investorConnections =
+    (await linkedInConnections([contactId])).get(contactId) ?? [];
   const paths: FundraisingPathDto[] = investor.knownBy.map((known) => {
     const lastTouchAt = toDate(known.lastInteractionAt);
+    const linkedIn = investorConnections.some((t) => t.id === known.id);
     return {
       kind: "direct",
       via: { id: known.id, name: known.name, image: known.image },
+      linkedIn,
       through: null,
       company: null,
       strength: pathStrength(
@@ -271,6 +305,7 @@ export async function warmPaths(
           lastTouchAt,
           familiarity: investor.score?.familiarity ?? null,
           role: investor.role,
+          linkedIn,
         },
         now,
       ),
@@ -278,6 +313,29 @@ export async function warmPaths(
       lastTouchAt,
     };
   });
+  for (const teammate of investorConnections) {
+    if (investor.knownBy.some((known) => known.id === teammate.id)) continue;
+    paths.push({
+      kind: "linkedin",
+      via: teammate,
+      linkedIn: true,
+      through: null,
+      company: null,
+      strength: pathStrength(
+        {
+          kind: "linkedin",
+          touches: 0,
+          lastTouchAt: null,
+          familiarity: null,
+          role: investor.role,
+          linkedIn: true,
+        },
+        now,
+      ),
+      touches: 0,
+      lastTouchAt: null,
+    });
+  }
 
   const companies: {
     kind: FundraisingPathDto["kind"];
@@ -312,16 +370,26 @@ export async function warmPaths(
         include: CONTACT_INCLUDE,
       })
     : [];
-  const byId = new Map(
-    (await contactDtos(rows, prisma, actor.userId)).map((c) => [c.id, c]),
-  );
+  const [dtos, connections] = await Promise.all([
+    contactDtos(rows, prisma, actor.userId),
+    linkedInConnections(allIds),
+  ]);
+  const byId = new Map(dtos.map((c) => [c.id, c]));
   const placed = new Set<string>();
   for (const { company, ids } of idsByCompany) {
     for (const id of ids) {
       const contact = byId.get(id);
       if (!contact || placed.has(id)) continue;
       placed.add(id);
-      paths.push(...pathsThrough(company.kind, contact, company.company, now));
+      paths.push(
+        ...pathsThrough(
+          company.kind,
+          contact,
+          company.company,
+          connections,
+          now,
+        ),
+      );
     }
   }
   paths.sort(
