@@ -34,7 +34,6 @@ interface PageSearchFieldProps
   inHeader?: boolean;
   clearLabel?: string;
   inputClassName?: string;
-  focusOnMount?: boolean;
 }
 
 export function PageSearchField({
@@ -45,13 +44,12 @@ export function PageSearchField({
   className,
   clearLabel,
   inputClassName,
-  focusOnMount,
   onKeyDown,
   ...props
 }: PageSearchFieldProps) {
   const t = useTranslations("App.PageSearch");
   const ref = useRef<HTMLInputElement>(null);
-  usePageSearchShortcut(ref, { focusOnMount });
+  usePageSearchShortcut(ref);
   function clear() {
     onValueChange("");
     ref.current?.focus();

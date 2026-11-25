@@ -4,9 +4,11 @@ import { cacheLife } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 
-import { getAllCoreAgents, getCoreCategories } from "@/lib/agents/core-loaders";
+import { getAllCoreAgents } from "@/lib/agents/core-loaders";
 import { PREFETCHED_CONTENT_STALE_SECONDS } from "@/lib/navigation/prefetched-content-stale-time";
 import { coworkerService } from "@/lib/services/coworker.service";
+
+import { loadBotDirectory } from "./soko-bot-directory";
 
 function logAgentsCatalogFetchFailure(scope: string, error: unknown): void {
   console.warn(`[agents] ${scope} fetch failed`, {
@@ -41,7 +43,7 @@ export function loadAgentsCoworkers() {
 }
 
 function readCatalog() {
-  return Promise.all([getAllCoreAgents(), getCoreCategories()]);
+  return getAllCoreAgents();
 }
 
 // The catalog reads are shared across users. This browser-only layer runs
@@ -54,25 +56,40 @@ async function readPrivateCachedCatalog() {
 }
 
 /**
- * The agent catalog and its categories, cached for the browser only, so a
+ * The agent catalog, cached for the browser only, so a
  * link prefetch carries them. A failed read is never kept: the click reads
- * Core again, and each list that fails again renders empty, as before.
+ * Core again, and a second failure renders an empty marketplace.
  */
 export function loadAgentsCatalog() {
   return readPrivateCachedCatalog().catch(async (error: unknown) => {
     unstable_rethrow(error);
     await connection();
-    return Promise.all([
-      getAllCoreAgents().catch((cause: unknown) => {
-        unstable_rethrow(cause);
-        logAgentsCatalogFetchFailure("agent catalog", cause);
-        return [];
-      }),
-      getCoreCategories().catch((cause: unknown) => {
-        unstable_rethrow(cause);
-        logAgentsCatalogFetchFailure("categories", cause);
-        return [];
-      }),
-    ]);
+    return getAllCoreAgents().catch((cause: unknown) => {
+      unstable_rethrow(cause);
+      logAgentsCatalogFetchFailure("agent catalog", cause);
+      return [];
+    });
+  });
+}
+
+async function readPrivateCachedBotDirectory() {
+  "use cache: private";
+  cacheLife({ stale: PREFETCHED_CONTENT_STALE_SECONDS });
+  return loadBotDirectory();
+}
+
+/**
+ * The workspace's Soko Bots, cached for the browser only like the coworkers.
+ * A failed read is never kept, and a second failure shows the section's
+ * unavailable state.
+ */
+export function loadAgentsBotDirectory() {
+  return readPrivateCachedBotDirectory().catch(async (error: unknown) => {
+    unstable_rethrow(error);
+    await connection();
+    return loadBotDirectory().catch((cause: unknown) => {
+      unstable_rethrow(cause);
+      return null;
+    });
   });
 }
