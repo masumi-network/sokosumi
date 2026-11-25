@@ -13868,7 +13868,7 @@
         "viewEachResult": "{count, plural, one {# Prüfung anzeigen} other {# Prüfungen anzeigen}}"
       },
       "analysis": {
-        "unconfirmed": "Sokosumi konnte nicht bestätigen, dass deine letzte Prüfung gestartet ist. Starte diese Prüfung erneut, bevor du eine neue startest.",
+        "unconfirmed": "Sokosumi konnte nicht bestätigen, dass deine letzte Anfrage angekommen ist. Sende diese Anfrage erneut, bevor du eine neue startest.",
         "retryPrevious": "Vorherige Anfrage wiederholen",
         "coverage": {
           "limitedScope": "Das Audit prüft weiterhin eine Stichprobe öffentlicher Seiten und ihrer internen Links. Klicks, Impressionen und Indexierungsdaten von Google fehlen dann.",

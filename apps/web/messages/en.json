@@ -13868,7 +13868,7 @@
         "viewEachResult": "{count, plural, one {Show # check} other {Show # checks}}"
       },
       "analysis": {
-        "unconfirmed": "Sokosumi could not confirm that your last check started. Try that check again before you start a new one.",
+        "unconfirmed": "Sokosumi could not confirm that your last request went through. Send that request again before you start a new one.",
         "retryPrevious": "Retry previous request",
         "coverage": {
           "limitedScope": "The audit still samples public pages and their internal links. It will skip Search Console clicks, impressions and indexing data.",

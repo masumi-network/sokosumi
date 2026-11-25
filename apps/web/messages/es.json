@@ -13868,7 +13868,7 @@
         "viewEachResult": "{count, plural, one {Mostrar # comprobación} other {Mostrar # comprobaciones}}"
       },
       "analysis": {
-        "unconfirmed": "Sokosumi no pudo confirmar que tu última comprobación empezó. Vuelve a intentar esa comprobación antes de iniciar otra.",
+        "unconfirmed": "Sokosumi no pudo confirmar que tu última solicitud llegó. Vuelve a enviar esa solicitud antes de iniciar otra.",
         "retryPrevious": "Reintentar la solicitud anterior",
         "coverage": {
           "limitedScope": "La auditoría sigue revisando una muestra de páginas públicas y sus enlaces internos. Los clics, impresiones y resultados de indexación de Google no estarán disponibles.",
