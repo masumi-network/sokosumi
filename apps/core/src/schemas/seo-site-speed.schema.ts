@@ -3,7 +3,10 @@ import { dateTimeSchema } from "@/helpers/datetime";
 import { seoIdSchema, seoUrlSchema } from "./seo-page.schema";
 import { seoPageSpeedRow, speedDay } from "./seo-page-speed.schema";
 
-/** The SEO worker's cap on the pages of one site speed table. */
+/**
+ * Core's cap on the pages of one site speed table. The worker's tiered plan holds at most 30 pages; 40 leaves
+ * room for a worker that adds extra pages. Core must not be stricter than the worker.
+ */
 export const SITE_SPEED_ROWS = 40;
 export const SITE_SPEED_WHY_CHARS = 200;
 export const SITE_SPEED_GROUP_CHARS = 200;

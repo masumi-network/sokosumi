@@ -264,7 +264,11 @@ describe("a site Report's speed table", () => {
         extra(`https://example.test/p${i}`, { speed: null }),
       ),
     );
-    expect([many?.rows.length, many?.dropped]).toEqual([40, 5]);
+    // The first 40 pages in the worker's order.
+    expect(many?.rows.map((row) => row.url)).toEqual(
+      Array.from({ length: 40 }, (_, i) => `https://example.test/p${i}`),
+    );
+    expect(many?.dropped).toBe(5);
     const twice = read([extra(EXTRA), extra(EXTRA)]);
     expect([twice?.rows.length, twice?.dropped]).toEqual([1, 1]);
   });
@@ -765,7 +769,9 @@ describe("the guards of speed data on each path", () => {
       dropped: 3,
       notChecked: { count: 3, reason: "limit" },
     });
-    expect(many?.rows).toHaveLength(40);
+    expect(many?.rows.map((row) => row.url)).toEqual(
+      Array.from({ length: 40 }, (_, i) => `https://example.test/p${i}`),
+    );
   });
 
   it("keeps the stored rows when the summary of pages left out is unreadable", () => {
