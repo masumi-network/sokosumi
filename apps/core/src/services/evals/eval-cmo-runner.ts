@@ -195,10 +195,19 @@ function brand(name: string) {
 /** The lane's Cuso Project pointed at the brand, with nothing an earlier case left. */
 async function pointCusoAt(
   lane: EvalLaneRecord,
-  brand: { url: string },
+  brand: { url: string; websiteOnly?: boolean },
   brandBrain: unknown,
 ) {
   const projectId = lane.cusoProjectId;
+  // Month cases leave stand-in accounts connected; a business with only a
+  // website has none, or Cuso rightly reads them as accounts it has.
+  await prisma.projectSocialConnection.updateMany({
+    where: {
+      projectId,
+      externalAccountId: { startsWith: `eval-${lane.lane}-cuso-` },
+    },
+    data: { status: brand.websiteOnly ? "disconnected" : "active" },
+  });
   await prisma.project.update({
     where: { id: projectId },
     data: {

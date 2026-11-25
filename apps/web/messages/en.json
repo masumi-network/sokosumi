@@ -9407,7 +9407,6 @@
       },
       "Directory": {
         "title": "Agents",
-        "subtitle": "Your Soko Bots, your Coworkers, and agents you can hire.",
         "sokoBotsTitle": "Soko Bots",
         "sokoBotsNote": "Assistants that work for one person, a project or the whole team.",
         "sokoBotsUnavailable": "Soko Bots can't be loaded right now. Try again in a moment.",
@@ -9482,7 +9481,15 @@
         "aboutRuns": "Runs so far",
         "aboutAverageTime": "Average time",
         "aboutRisk": "Risk level",
-        "yourJobs": "{count, plural, one {Your # job with this agent} other {Your # jobs with this agent}}"
+        "yourJobs": "{count, plural, one {Your # job with this agent} other {Your # jobs with this agent}}",
+        "groupPersonal": "Personal",
+        "groupShared": "Team and projects",
+        "messageName": "Message {name}",
+        "chat": "Chat",
+        "chatName": "Chat with {name}",
+        "giveTaskName": "Give {name} a task",
+        "startTask": "Start a task",
+        "startTaskName": "Start a task with {name}"
       }
     },
     "DesignMd": {

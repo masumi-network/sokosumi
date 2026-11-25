@@ -93,6 +93,7 @@ vi.mock("@/lib/image-studio/fal-catalog-refresh", () => ({
   ensureImageCatalogFresh: vi.fn(),
 }));
 vi.mock("@/services/image-studio-jobs.service", () => ({
+  CMO_MONTH_JOB_KEY_PREFIX: "cmo-media",
   createImageJob,
   createVideoJob,
   createTalkingVideoJob,
